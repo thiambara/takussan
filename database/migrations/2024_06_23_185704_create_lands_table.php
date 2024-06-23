@@ -13,6 +13,12 @@ return new class extends Migration
     {
         Schema::create('lands', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('project_id')->constrained('projects')->onDelete('cascade');
+            $table->string('title');
+            $table->text('description');
+            $table->string('status');
+            $table->float('price');
+            $table->float('area');
             $table->timestamps();
         });
     }
