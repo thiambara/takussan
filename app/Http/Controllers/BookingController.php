@@ -2,49 +2,53 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\base\Controller;
 use App\Http\Requests\StoreBookingRequest;
 use App\Http\Requests\UpdateBookingRequest;
 use App\Models\Booking;
+use Illuminate\Http\JsonResponse;
 
 class BookingController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+
+    public function __construct()
     {
-        //
+        $this->authorizeResource(Booking::class, 'booking');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(StoreBookingRequest $request)
+
+    public function index(): JsonResponse
     {
-        //
+        $key = (new Booking)->cashBaseKey();
+        $responseData = cache()->tags([Booking::class])->remember($key, 60 * 60, fn() => Booking::allThroughRequest());
+        return $this->json($responseData);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Booking $booking)
+
+    public function store(StoreBookingRequest $request): JsonResponse
     {
-        //
+        $data = $request->validationData();
+        $booking = Booking::create($data);
+        return $this->json($booking);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(UpdateBookingRequest $request, Booking $booking)
+
+    public function show(Booking $booking): JsonResponse
     {
-        //
+        return $this->json($booking);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Booking $booking)
+
+    public function update(UpdateBookingRequest $request, Booking $booking): JsonResponse
     {
-        //
+        $booking->update($request->validationData());
+        return $this->json($booking);
+    }
+
+
+    public function destroy(Booking $booking): JsonResponse
+    {
+        $booking->delete();
+        return $this->json($booking);
     }
 }

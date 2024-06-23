@@ -2,49 +2,53 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\base\Controller;
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
 use App\Models\Project;
+use Illuminate\Http\JsonResponse;
 
 class ProjectController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+
+    public function __construct()
     {
-        //
+        $this->authorizeResource(Project::class, 'project');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(StoreProjectRequest $request)
+
+    public function index(): JsonResponse
     {
-        //
+        $key = (new Project)->cashBaseKey();
+        $responseData = cache()->tags([Project::class])->remember($key, 60 * 60, fn() => Project::allThroughRequest());
+        return $this->json($responseData);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Project $project)
+
+    public function store(StoreProjectRequest $request): JsonResponse
     {
-        //
+        $data = $request->validationData();
+        $project = Project::create($data);
+        return $this->json($project);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(UpdateProjectRequest $request, Project $project)
+
+    public function show(Project $project): JsonResponse
     {
-        //
+        return $this->json($project);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Project $project)
+
+    public function update(UpdateProjectRequest $request, Project $project): JsonResponse
     {
-        //
+        $project->update($request->validationData());
+        return $this->json($project);
+    }
+
+
+    public function destroy(Project $project): JsonResponse
+    {
+        $project->delete();
+        return $this->json($project);
     }
 }

@@ -1,7 +1,10 @@
 <?php
 
 use App\Http\Controllers\AddressController;
+use App\Http\Controllers\BookingController;
+use App\Http\Controllers\LandController;
 use App\Http\Controllers\OAuth2Controller;
+use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\UserController;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -18,6 +21,12 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+/**
+ * CURRENT USER
+ * ============
+ * ***
+ */
+
 Route::middleware('auth:api')->get('/auth-user', function (Request $request) {
     /** @var User $user */
     $user = $request->user();
@@ -25,11 +34,11 @@ Route::middleware('auth:api')->get('/auth-user', function (Request $request) {
     return response()->json($user->loadMissing('owner'));
 });
 
-Route::prefix('oauth2')->controller(OAuth2Controller::class)->group(function () {
-    Route::any('google-redirect', 'googleRedirect')->name('google-redirect');
-    Route::any('google-callback', 'googleCallback')->name('google-callback');
-})->name('oauth2.');
-
+/**
+ * ADDRESS ROUTES
+ * ==============
+ * ***
+ */
 Route::prefix('addresses')->controller(AddressController::class)->group(function () {
     /**
      * PRIVATE ROUTES
@@ -42,7 +51,72 @@ Route::prefix('addresses')->controller(AddressController::class)->group(function
     });
 })->scopeBindings()->name('addresses.');
 
+/**
+ * BOOKING ROUTES
+ * ==============
+ * ***
+ */
+Route::prefix('bookings')->controller(BookingController::class)->group(function () {
+    /**
+     * PRIVATE ROUTES
+     */
+    Route::middleware("auth:api")->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/{booking}', 'show')->whereNumber('booking')->name('show');
+        Route::put('/{booking}', 'update')->whereNumber('booking')->name('update');
+        Route::delete('/{booking}', 'destroy')->whereNumber('booking')->name('destroy');
+    });
+})->scopeBindings()->name('bookings.');
 
+/**
+ * LAND ROUTES
+ * ===========
+ * ***
+ */
+Route::prefix('lands')->controller(LandController::class)->group(function () {
+    /**
+     * PRIVATE ROUTES
+     */
+    Route::middleware("auth:api")->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/{land}', 'show')->whereNumber('land')->name('show');
+        Route::put('/{land}', 'update')->whereNumber('land')->name('update');
+        Route::delete('/{land}', 'destroy')->whereNumber('land')->name('destroy');
+    });
+})->scopeBindings()->name('lands.');
+
+/**
+ * OAUTH2 ROUTES
+ * =============
+ * ***
+ */
+Route::prefix('oauth2')->controller(OAuth2Controller::class)->group(function () {
+    Route::any('google-redirect', 'googleRedirect')->name('google-redirect');
+    Route::any('google-callback', 'googleCallback')->name('google-callback');
+})->name('oauth2.');
+
+/**
+ * PROJECT ROUTES
+ * ==============
+ * ***
+ */
+Route::prefix('projects')->controller(ProjectController::class)->group(function () {
+    /**
+     * PRIVATE ROUTES
+     */
+    Route::middleware("auth:api")->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/{project}', 'show')->whereNumber('project')->name('show');
+        Route::put('/{project}', 'update')->whereNumber('project')->name('update');
+        Route::delete('/{project}', 'destroy')->whereNumber('project')->name('destroy');
+    });
+})->scopeBindings()->name('projects.');
+
+/**
+ * USER ROUTES
+ * ===========
+ * ***
+ */
 Route::prefix('users')->controller(UserController::class)->group(function () {
     Route::post('/register', 'store')->name('store');
     Route::post('/forgot-password', 'forgotPassword')->name('forgot-password');

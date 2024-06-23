@@ -2,49 +2,53 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\base\Controller;
 use App\Http\Requests\StoreLandRequest;
 use App\Http\Requests\UpdateLandRequest;
 use App\Models\Land;
+use Illuminate\Http\JsonResponse;
 
 class LandController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+
+    public function __construct()
     {
-        //
+        $this->authorizeResource(Land::class, 'land');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(StoreLandRequest $request)
+
+    public function index(): JsonResponse
     {
-        //
+        $key = (new Land)->cashBaseKey();
+        $responseData = cache()->tags([Land::class])->remember($key, 60 * 60, fn() => Land::allThroughRequest());
+        return $this->json($responseData);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Land $land)
+
+    public function store(StoreLandRequest $request): JsonResponse
     {
-        //
+        $data = $request->validationData();
+        $land = Land::create($data);
+        return $this->json($land);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(UpdateLandRequest $request, Land $land)
+
+    public function show(Land $land): JsonResponse
     {
-        //
+        return $this->json($land);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Land $land)
+
+    public function update(UpdateLandRequest $request, Land $land): JsonResponse
     {
-        //
+        $land->update($request->validationData());
+        return $this->json($land);
+    }
+
+
+    public function destroy(Land $land): JsonResponse
+    {
+        $land->delete();
+        return $this->json($land);
     }
 }
