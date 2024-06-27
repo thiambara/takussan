@@ -60,6 +60,7 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
                 'mouhamadoulamienthiam97@gmail.com',
                 'thiambarathiam97@gmail.com',
                 'mamine.thiam@univ-thies.sn',
+                'thiam@tanelhealth.com',
                 'mbarasetou@gmail.com',
                 'donnercrecevoire97@gmail.com'
             ]);

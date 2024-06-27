@@ -45,6 +45,7 @@ Route::prefix('addresses')->controller(AddressController::class)->group(function
      */
     Route::middleware("auth:api")->group(function () {
         Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
         Route::get('/{address}', 'show')->whereNumber('address')->name('show');
         Route::put('/{address}', 'update')->whereNumber('address')->name('update');
         Route::delete('/{address}', 'destroy')->whereNumber('address')->name('destroy');
@@ -62,6 +63,7 @@ Route::prefix('bookings')->controller(BookingController::class)->group(function 
      */
     Route::middleware("auth:api")->group(function () {
         Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
         Route::get('/{booking}', 'show')->whereNumber('booking')->name('show');
         Route::put('/{booking}', 'update')->whereNumber('booking')->name('update');
         Route::delete('/{booking}', 'destroy')->whereNumber('booking')->name('destroy');
@@ -79,6 +81,7 @@ Route::prefix('lands')->controller(LandController::class)->group(function () {
      */
     Route::middleware("auth:api")->group(function () {
         Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
         Route::get('/{land}', 'show')->whereNumber('land')->name('show');
         Route::put('/{land}', 'update')->whereNumber('land')->name('update');
         Route::delete('/{land}', 'destroy')->whereNumber('land')->name('destroy');
@@ -106,6 +109,7 @@ Route::prefix('projects')->controller(ProjectController::class)->group(function 
      */
     Route::middleware("auth:api")->group(function () {
         Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
         Route::get('/{project}', 'show')->whereNumber('project')->name('show');
         Route::put('/{project}', 'update')->whereNumber('project')->name('update');
         Route::delete('/{project}', 'destroy')->whereNumber('project')->name('destroy');
