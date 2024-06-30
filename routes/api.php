@@ -1,9 +1,10 @@
 <?php
 
 use App\Http\Controllers\AddressController;
+use App\Http\Controllers\auth\AuthController;
+use App\Http\Controllers\auth\OAuth2Controller;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\LandController;
-use App\Http\Controllers\OAuth2Controller;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\UserController;
 use App\Models\User;
@@ -20,19 +21,30 @@ use Illuminate\Support\Facades\Route;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
-
 /**
- * CURRENT USER
- * ============
+ * AUTH ROUTES
+ * ==============
  * ***
  */
+Route::prefix('auth')->controller(AuthController::class)->group(function () {
+    Route::post('/login', 'login')->name('auth-user');
+    /**
+     * PRIVATE ROUTES
+     */
+    Route::middleware("auth:sanctum")->group(function () {
+        Route::get('/auth-user', 'authUser')->name('auth-user');
+    });
+})->scopeBindings()->name('auth.');
 
-Route::middleware('auth:api')->get('/auth-user', function (Request $request) {
-    /** @var User $user */
-    $user = $request->user();
-
-    return response()->json($user->loadMissing('owner'));
-});
+/**
+ * 0AUTH2 ROUTES
+ * =============
+ * ***
+ */
+Route::prefix('oauth2')->controller(OAuth2Controller::class)->group(function () {
+    Route::any('google-redirect', 'googleRedirect')->name('google-redirect');
+    Route::any('google-callback', 'googleCallback')->name('google-callback');
+})->name('oauth2.');
 
 /**
  * ADDRESS ROUTES
@@ -43,7 +55,7 @@ Route::prefix('addresses')->controller(AddressController::class)->group(function
     /**
      * PRIVATE ROUTES
      */
-    Route::middleware("auth:api")->group(function () {
+    Route::middleware("auth:sanctum")->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('/', 'store')->name('store');
         Route::get('/{address}', 'show')->whereNumber('address')->name('show');
@@ -61,7 +73,7 @@ Route::prefix('bookings')->controller(BookingController::class)->group(function 
     /**
      * PRIVATE ROUTES
      */
-    Route::middleware("auth:api")->group(function () {
+    Route::middleware("auth:sanctum")->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('/', 'store')->name('store');
         Route::get('/{booking}', 'show')->whereNumber('booking')->name('show');
@@ -79,7 +91,7 @@ Route::prefix('lands')->controller(LandController::class)->group(function () {
     /**
      * PRIVATE ROUTES
      */
-    Route::middleware("auth:api")->group(function () {
+    Route::middleware("auth:sanctum")->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('/', 'store')->name('store');
         Route::get('/{land}', 'show')->whereNumber('land')->name('show');
@@ -89,7 +101,7 @@ Route::prefix('lands')->controller(LandController::class)->group(function () {
 })->scopeBindings()->name('lands.');
 
 /**
- * OAUTH2 ROUTES
+ * 0AUTH2 ROUTES
  * =============
  * ***
  */
@@ -107,7 +119,7 @@ Route::prefix('projects')->controller(ProjectController::class)->group(function 
     /**
      * PRIVATE ROUTES
      */
-    Route::middleware("auth:api")->group(function () {
+    Route::middleware("auth:sanctum")->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('/', 'store')->name('store');
         Route::get('/{project}', 'show')->whereNumber('project')->name('show');
@@ -129,8 +141,8 @@ Route::prefix('users')->controller(UserController::class)->group(function () {
     /**
      * PRIVATE ROUTES
      */
-    Route::middleware("auth:api")->group(function () {
-        Route::get('/', 'index')->can('viewAny', User::class)->name('index');
+    Route::middleware("auth:sanctum")->group(function () {
+        Route::get('/', 'index')->name('index');
         Route::get('/{user}', 'show')->whereNumber('user')->name('show');
         Route::put('/{user}', 'update')->whereNumber('user')->name('update');
         Route::delete('/{user}', 'destroy')->whereNumber('user')->name('destroy');

@@ -1,6 +1,8 @@
 <?php
 
 
+use Illuminate\Support\Str;
+
 if (!function_exists('to_camel_case')) {
 
     /**

@@ -3,9 +3,6 @@
 namespace App\Models\base;
 
 
-use Illuminate\Broadcasting\Channel;
-use Illuminate\Database\Eloquent\BroadcastableModelEventOccurred;
-use Illuminate\Database\Eloquent\BroadcastsEvents;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Route;
@@ -19,59 +16,6 @@ use Illuminate\Support\Facades\Schema;
  */
 trait BaseModelTrait
 {
-    use BroadcastsEvents;
-
-    /**
-     * OVERWRITTEN
-     */
-
-    /**
-     * The model event's broadcast name.
-     *
-     * @param  string  $event
-     * @return string|null
-     */
-    public function broadcastAs(string $event): ?string
-    {
-
-        return $event;
-    }
-
-    /**
-     * Get the channels that model events should broadcast on.
-     *
-     * @param  string  $event
-     * @return Channel|array
-     */
-    public function broadcastOn(string $event): Channel|array
-    {
-        return [new Channel('App.Models.'.class_basename($this))];
-    }
-
-
-    /**
-     * Create a new broadcastable model event for the model.
-     *
-     * @param  string  $event
-     * @return BroadcastableModelEventOccurred
-     */
-    public function newBroadcastableEvent(string $event): BroadcastableModelEventOccurred
-    {
-        return (new BroadcastableModelEventOccurred(
-            $this, $event
-        ));
-    }
-
-    /**
-     * Get the data to broadcast for the model.
-     *
-     * @param  string  $event
-     * @return array
-     */
-    public function broadcastWith(string $event): array
-    {
-        return ['model' => $this];
-    }
 
 
     /**

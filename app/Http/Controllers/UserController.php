@@ -23,14 +23,22 @@ class UserController extends Controller
 
     public function index(): JsonResponse
     {
-        $key = (new User)->cashBaseKey();
-        $responseData = cache()->tags([User::class])->remember($key, 60 * 60, fn() => User::allThroughRequest());
+//        $key = (new User)->cashBaseKey();
+//        $responseData = cache()->tags([User::class])->remember($key, 60 * 60, fn() => User::allThroughRequest());
+        $responseData = User::allThroughRequest()->paginatedThroughRequest();
         return $this->json($responseData);
     }
 
-    public function store(StoreUserRequest $request): JsonResponse
+    public function store(Request $request)
     {
-        $data = $request->validationData();
+        $data = $request->validate([
+            'first_name' => 'required|string',
+            'last_name' => 'required|string',
+            'username' => 'required|string',
+            'email' => 'email|unique:users,email',
+            'phone'=> 'required|string|max:255',
+            'password'=> 'required|string|max:255',
+        ]);
         $data['password'] = Hash::make($data['password']);
         $user = User::create($data);
         $user->save();

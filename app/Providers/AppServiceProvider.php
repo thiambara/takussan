@@ -5,7 +5,6 @@ namespace App\Providers;
 use App\Models\base\BaseModelInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
-//use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 
@@ -13,8 +12,6 @@ class AppServiceProvider extends ServiceProvider
 {
     /**
      * Register any application services.
-     *
-     * @return void
      */
     public function register(): void
     {
@@ -23,19 +20,10 @@ class AppServiceProvider extends ServiceProvider
 
     /**
      * Bootstrap any application services.
-     *
-     * @return void
      */
     public function boot(): void
     {
         $this->macrosRegistrations();
-        $this->gatesRegistration();
-    }
-
-    public function gatesRegistration(): void
-    {
-//        Gate::define('update-user', fn(User $user, User $model) => $user->id === $model->id);
-
     }
 
     public function macrosRegistrations(): void
@@ -100,4 +88,5 @@ class AppServiceProvider extends ServiceProvider
         });
 
     }
+
 }

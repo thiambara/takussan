@@ -8,21 +8,14 @@ use App\Models\base\BaseModelTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Passport\HasApiTokens;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements BaseModelInterface
 {
-    use BaseModelTrait, HasApiTokens, HasFactory, Notifiable, SoftDeletes;
-
-    public function __construct(array $attributes = [])
-    {
-        $this->init();
-        parent::__construct($attributes);
-    }
+    use BaseModelTrait,HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -42,7 +35,6 @@ class User extends Authenticatable implements BaseModelInterface
         'owner_type',
         'extra',
     ];
-
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -52,7 +44,6 @@ class User extends Authenticatable implements BaseModelInterface
         'password',
         'remember_token',
     ];
-
     /**
      * The attributes that should be cast.
      *
@@ -62,6 +53,11 @@ class User extends Authenticatable implements BaseModelInterface
         'email_verified_at' => 'datetime',
     ];
 
+    public function __construct(array $attributes = [])
+    {
+        $this->init();
+        parent::__construct($attributes);
+    }
 
     public function addresses(): MorphMany
     {
@@ -76,34 +72,6 @@ class User extends Authenticatable implements BaseModelInterface
     public function bookings(): HasMany
     {
         return $this->hasMany(Booking::class);
-    }
-
-
-
-
-    /**
-     * Find the user instance for the given username.
-     *
-     * @param  string  $username
-     * @return ?self
-     */
-    public function findForPassport(string $username): ?self
-    {
-        return $this->where('username', $username)->first();
-    }
-    /**
-     * Specifies the user's FCM tokens
-     *
-     * @return string|array
-     */
-    public function routeNotificationForFcm(): array|string
-    {
-        return $this->getDeviceTokens();
-    }
-
-    public function getDeviceTokens(): array
-    {
-        return [];
     }
 
 

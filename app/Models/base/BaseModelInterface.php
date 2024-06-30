@@ -8,37 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 interface BaseModelInterface
 {
-    /**
-     * The model event's broadcast name.
-     *
-     * @param  string  $event
-     * @return string|null
-     */
-    function broadcastAs(string $event): ?string;
 
-    /**
-     * Get the channels that model events should broadcast on.
-     *
-     * @param  string  $event
-     * @return Channel|array
-     */
-    function broadcastOn(string $event): Channel|array;
-
-    /**
-     * Create a new broadcastable model event for the model.
-     *
-     * @param  string  $event
-     * @return BroadcastableModelEventOccurred
-     */
-    function newBroadcastableEvent(string $event): BroadcastableModelEventOccurred;
-
-    /**
-     * Get the data to broadcast for the model.
-     *
-     * @param  string  $event
-     * @return array
-     */
-    function broadcastWith(string $event): array;
 
     // SCOPE
 
