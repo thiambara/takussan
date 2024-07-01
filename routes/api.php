@@ -7,8 +7,6 @@ use App\Http\Controllers\BookingController;
 use App\Http\Controllers\LandController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\UserController;
-use App\Models\User;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -35,7 +33,7 @@ Route::prefix('auth')->controller(AuthController::class)->group(function () {
         Route::get('/auth-user', 'authUser')->name('auth-user');
         Route::post('/logout', 'logout')->name('logout');
     });
-})->scopeBindings()->name('auth.');
+})->name('auth.');
 
 /**
  * 0AUTH2 ROUTES
@@ -63,7 +61,7 @@ Route::prefix('addresses')->controller(AddressController::class)->group(function
         Route::put('/{address}', 'update')->whereNumber('address')->name('update');
         Route::delete('/{address}', 'destroy')->whereNumber('address')->name('destroy');
     });
-})->scopeBindings()->name('addresses.');
+})->name('addresses.');
 
 /**
  * BOOKING ROUTES
@@ -81,7 +79,7 @@ Route::prefix('bookings')->controller(BookingController::class)->group(function 
         Route::put('/{booking}', 'update')->whereNumber('booking')->name('update');
         Route::delete('/{booking}', 'destroy')->whereNumber('booking')->name('destroy');
     });
-})->scopeBindings()->name('bookings.');
+})->name('bookings.');
 
 /**
  * LAND ROUTES
@@ -99,7 +97,7 @@ Route::prefix('lands')->controller(LandController::class)->group(function () {
         Route::put('/{land}', 'update')->whereNumber('land')->name('update');
         Route::delete('/{land}', 'destroy')->whereNumber('land')->name('destroy');
     });
-})->scopeBindings()->name('lands.');
+})->name('lands.');
 
 /**
  * 0AUTH2 ROUTES
@@ -127,7 +125,7 @@ Route::prefix('projects')->controller(ProjectController::class)->group(function 
         Route::put('/{project}', 'update')->whereNumber('project')->name('update');
         Route::delete('/{project}', 'destroy')->whereNumber('project')->name('destroy');
     });
-})->scopeBindings()->name('projects.');
+})->name('projects.');
 
 /**
  * USER ROUTES
