@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignId('land_id')->constrained('lands')->onDelete('cascade');
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->string('status');
+            $table->json('extra')->nullable();
             $table->timestamps();
         });
     }

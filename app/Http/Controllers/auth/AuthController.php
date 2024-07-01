@@ -10,34 +10,42 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-     public  function authUser(Request $request)
-     {
-         return response()->json($request->user());
-     }
+    public function authUser(Request $request)
+    {
+        return response()->json($request->user());
+    }
 
-     public  function login(Request $request)
-     {
-         $request->validate([
-             'username' => 'required|string',
-             'password' => 'required|string',
-         ]);
+    public function login(Request $request)
+    {
+        $request->validate([
+            'username' => 'required|string',
+            'password' => 'required|string',
+        ]);
 
-         $user = User::whereUsername($request->username)->first();
+        $user = User::whereUsername($request->username)->first();
 
-         if (! $user || ! Hash::check($request->password, $user->password)) {
-             throw ValidationException::withMessages([
-                 'username' => ['The provided credentials are incorrect.'],
-             ]);
-         }
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            throw ValidationException::withMessages([
+                'username' => ['The provided credentials are incorrect.'],
+            ]);
+        }
 
-         $token = $user->createToken($request->ip(), expiresAt: now()->addMonths(3));
+        $token = $user->createToken($request->ip(), expiresAt: now()->addMonths(3));
 
-         $responseData = [
-             'access_token' => $token->plainTextToken,
-             'expires_at' => $token->accessToken->expires_at,
-         ];
+        $responseData = [
+            'access_token' => $token->plainTextToken,
+            'expires_in' => $token->accessToken->expires_at->diffInSeconds(now()),
+        ];
 
-         return $this->json($responseData);
-     }
+        return $this->json($responseData);
+    }
+
+    public function logout()
+    {
+        // logout user
+        auth()->user()->currentAccessToken()?->delete();
+        return $this->json(['message' => 'Logged out']);
+
+    }
 
 }

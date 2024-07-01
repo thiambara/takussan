@@ -14,7 +14,10 @@ class Land extends AbstractModel
         'title',
         'description',
         'status',
+        'price',
+        'area',
         'project_id',
+        'extra',
     ];
 
 

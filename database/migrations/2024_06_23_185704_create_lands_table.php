@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('status');
             $table->float('price');
             $table->float('area');
+            $table->json('extra')->nullable();
             $table->timestamps();
         });
     }

@@ -33,6 +33,7 @@ Route::prefix('auth')->controller(AuthController::class)->group(function () {
      */
     Route::middleware("auth:sanctum")->group(function () {
         Route::get('/auth-user', 'authUser')->name('auth-user');
+        Route::post('/logout', 'logout')->name('logout');
     });
 })->scopeBindings()->name('auth.');
 

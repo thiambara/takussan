@@ -16,6 +16,7 @@ class Project extends AbstractModel
         'description',
         'status',
         'user_id',
+        'extra',
     ];
 
     public function lands() : HasMany

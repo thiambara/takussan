@@ -11,8 +11,8 @@ class Address extends AbstractModel
     use HasFactory;
 
     protected $fillable = [
-        'owner_id',
-        'owner_type',
+        'addressable_id',
+        'addressable_type',
         'address',
         'country',
         'state',
@@ -25,7 +25,7 @@ class Address extends AbstractModel
         'extra',
     ];
 
-    public function owner(): MorphTo
+    public function addressable(): MorphTo
     {
         return $this->morphTo();
     }

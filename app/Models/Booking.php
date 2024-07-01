@@ -14,6 +14,7 @@ class Booking extends AbstractModel
         'land_id',
         'user_id',
         'status',
+        'extra',
     ];
 
     public function land(): BelongsTo

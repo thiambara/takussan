@@ -31,8 +31,6 @@ class User extends Authenticatable implements BaseModelInterface
         'status',
         'password',
         'type',
-        'owner_id',
-        'owner_type',
         'extra',
     ];
     /**
