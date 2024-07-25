@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\base\Controller;
-use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
@@ -34,10 +33,11 @@ class UserController extends Controller
         $data = $request->validate([
             'first_name' => 'required|string',
             'last_name' => 'required|string',
-            'username' => 'required|string',
+            'username' => 'required|unique:string',
             'email' => 'email|unique:users,email',
-            'phone'=> 'required|string|max:255',
-            'password'=> 'required|string|max:255',
+            'phone' => 'string|max:255',
+            'type' => 'required|string|max:255',
+            'password' => 'required|string|max:255',
         ]);
         $data['password'] = Hash::make($data['password']);
         $user = User::create($data);

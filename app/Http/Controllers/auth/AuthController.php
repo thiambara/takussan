@@ -34,7 +34,7 @@ class AuthController extends Controller
 
         $responseData = [
             'access_token' => $token->plainTextToken,
-            'expires_in' => $token->accessToken->expires_at->diffInSeconds(now()),
+            'expires_in' => now()->diffInSeconds($token->accessToken->expires_at),
         ];
 
         return $this->json($responseData);

@@ -133,7 +133,7 @@ Route::prefix('projects')->controller(ProjectController::class)->group(function 
  * ***
  */
 Route::prefix('users')->controller(UserController::class)->group(function () {
-    Route::post('/register', 'store')->name('store');
+    Route::post('/', 'store')->name('store');
     Route::post('/forgot-password', 'forgotPassword')->name('forgot-password');
     Route::post('/reset-password', 'resetPassword')->name('reset-password');
 
