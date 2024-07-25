@@ -13,14 +13,14 @@ class AddressController extends Controller
 
     public function __construct()
     {
-        $this->authorizeResource(Address::class, 'address');
     }
 
 
     public function index(): JsonResponse
     {
-        $key = (new Address)->cashBaseKey();
-        $responseData = cache()->tags([Address::class])->remember($key, 60 * 60, fn() => Address::allThroughRequest());
+//        $key = (new Address)->cashBaseKey();
+//        $responseData = cache()->tags([Address::class])->remember($key, 60 * 60, fn() => Address::allThroughRequest());
+        $responseData = Address::allThroughRequest()->paginatedThroughRequest();
         return $this->json($responseData);
     }
 

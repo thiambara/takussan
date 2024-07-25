@@ -17,8 +17,7 @@ class UserController extends Controller
 
     public function __construct()
     {
-//        $this->authorizeResource(User::class, 'user');
-    }
+        }
 
     public function index(): JsonResponse
     {

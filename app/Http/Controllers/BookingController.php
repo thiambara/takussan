@@ -13,14 +13,14 @@ class BookingController extends Controller
 
     public function __construct()
     {
-        $this->authorizeResource(Booking::class, 'booking');
     }
 
 
     public function index(): JsonResponse
     {
-        $key = (new Booking)->cashBaseKey();
-        $responseData = cache()->tags([Booking::class])->remember($key, 60 * 60, fn() => Booking::allThroughRequest());
+//        $key = (new Booking)->cashBaseKey();
+//        $responseData = cache()->tags([Booking::class])->remember($key, 60 * 60, fn() => Booking::allThroughRequest());
+        $responseData = Booking::allThroughRequest()->paginatedThroughRequest();
         return $this->json($responseData);
     }
 

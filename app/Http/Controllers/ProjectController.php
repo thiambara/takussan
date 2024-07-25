@@ -13,14 +13,14 @@ class ProjectController extends Controller
 
     public function __construct()
     {
-        $this->authorizeResource(Project::class, 'project');
     }
 
 
     public function index(): JsonResponse
     {
-        $key = (new Project)->cashBaseKey();
-        $responseData = cache()->tags([Project::class])->remember($key, 60 * 60, fn() => Project::allThroughRequest());
+//        $key = (new Project)->cashBaseKey();
+//        $responseData = cache()->tags([Project::class])->remember($key, 60 * 60, fn() => Project::allThroughRequest());
+        $responseData = Project::allThroughRequest()->paginatedThroughRequest();
         return $this->json($responseData);
     }
 

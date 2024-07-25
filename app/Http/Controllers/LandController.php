@@ -13,14 +13,14 @@ class LandController extends Controller
 
     public function __construct()
     {
-        $this->authorizeResource(Land::class, 'land');
     }
 
 
     public function index(): JsonResponse
     {
-        $key = (new Land)->cashBaseKey();
-        $responseData = cache()->tags([Land::class])->remember($key, 60 * 60, fn() => Land::allThroughRequest());
+//        $key = (new Land)->cashBaseKey();
+//        $responseData = cache()->tags([Land::class])->remember($key, 60 * 60, fn() => Land::allThroughRequest());
+        $responseData = Land::allThroughRequest()->paginatedThroughRequest();
         return $this->json($responseData);
     }
 
