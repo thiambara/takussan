@@ -5,6 +5,7 @@ namespace App\Models\base;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 
@@ -219,29 +220,27 @@ trait BaseModelTrait
 
     public function handleConveniencesFromRequest(): void
     {
-        $relations = $this->relationsToArray();
+//        $this->hidden = collect($this->hidden)
+//            ->merge(to_snake_case(request($this->getTable().'.hidden', [])))->all();
+//
+//        $this->appends = collect($this->appends)
+//            ->merge(to_snake_case(request($this->getTable().'.appends', [])))->all();
+//        $this->withCount = collect($this->withCount)
+//            ->merge(to_snake_case(request($this->getTable().'.with_count', [])))->all();
+//
+//        $this->with = collect($this->with)
+//            ->merge(to_snake_case(request($this->getTable().'.with', [])))->all();
 
-        $this->hidden = collect($this->hidden)
-            ->merge(to_snake_case(request($this->getTable().'.hidden', [])))->intersect($relations)->all();
-
-        $this->appends = collect($this->appends)
-            ->merge(to_snake_case(request($this->getTable().'.appends', [])))->intersect($relations)->all();
-
-        $this->withCount = collect($this->withCount)
-            ->merge(to_snake_case(request($this->getTable().'.with_count', [])))->intersect($relations)->all();
-
-        $this->with = collect($this->with)
-            ->merge(to_snake_case(request($this->getTable().'.with', [])))->intersect($relations)->all();
         // simplify the code
-//        $relationFilters = ['hidden', 'appends', 'with_count', 'with'];
-//        $table = $this->getTable();
-//        foreach ($relationFilters as $filter) {
-//            if (($value = request($table.'.'.$filter))) {
-//                // with_count to withCount
-//                $field = str($filter)->camel()->replace('_', '');
-//                $this->{$field} = collect($this->{$filter})->merge(to_snake_case($value))->intersect($relations)->all();
-//            }
-//        }
+        $relationFilters = ['hidden', 'appends', 'with_count', 'with'];
+        $table = $this->getTable();
+        foreach ($relationFilters as $filter) {
+            if (($value = request($table.'.'.$filter))) {
+                // with_count to withCount
+                $field = str($filter)->camel()->replace('_', '');
+                $this->{$field} = collect($this->{$filter})->merge(to_snake_case($value))->all();
+            }
+        }
 
 
     }

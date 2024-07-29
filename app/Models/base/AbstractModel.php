@@ -10,7 +10,7 @@ abstract class AbstractModel extends Model implements BaseModelInterface
 
     public function __construct(array $attributes = [])
     {
-        $this->init();
         parent::__construct($attributes);
+        $this->init();
     }
 }

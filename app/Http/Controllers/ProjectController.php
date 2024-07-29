@@ -28,6 +28,8 @@ class ProjectController extends Controller
     public function store(StoreProjectRequest $request): JsonResponse
     {
         $data = $request->validationData();
+        $data['status'] ??= 'active';
+        $data['user_id'] ??= auth()->user()->id;
         $project = Project::create($data);
         return $this->json($project);
     }
