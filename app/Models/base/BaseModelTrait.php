@@ -5,7 +5,6 @@ namespace App\Models\base;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 
@@ -92,16 +91,10 @@ trait BaseModelTrait
         foreach ($credentials as $key => $value) {
             if (is_array($value)) {
                 $builder->where(function (Builder $b) use ($key, $value) {
-                    $first = true;
-                    foreach ($value as $val) {
+                    foreach ($value as $index => $val) {
                         if ($val = str($val)->trim()) {
                             $opAndVal = $this->getFilterOpAndValue($val);
-                            if ($first) {
-                                $this->applyFilter($b, $key, $opAndVal);
-                                $first = false;
-                            } else {
-                                $this->applyFilter($b, $key, $opAndVal, false);
-                            }
+                            $this->applyFilter($b, $key, $opAndVal, $index === 0);
                         }
                     }
                     return $b;
@@ -117,55 +110,13 @@ trait BaseModelTrait
         return $builder;
     }
 
-    public function applyFilter(Builder $builder, string $key, array $opAndVal, $userAnd = true): Builder
+    public function applyFilter(Builder $builder, string $key, array $opAndVal, $useAnd = true): Builder
     {
-        if ($userAnd) {
-            if ($opAndVal['operator'] == 'in') {
-                if ($opAndVal['useNot']) {
-                    $builder->whereNotIn($key, $opAndVal['value']);
-                } else {
-                    $builder->whereIn($key, $opAndVal['value']);
-                }
-            } else {
-                if ($opAndVal['operator'] == 'between') {
-                    if ($opAndVal['useNot']) {
-                        $builder->whereNotBetween($key, $opAndVal['value']);
-                    } else {
-                        $builder->whereBetween($key, $opAndVal['value']);
-                    }
-                } else {
-                    $params = [$key, $opAndVal['operator'], $opAndVal['value'] == 'null' ? null : $opAndVal['value']];
-                    if ($opAndVal['useNot']) {
-                        $builder->whereNot(...$params);
-                    } else {
-                        $builder->where(...$params);
-                    }
-                }
-            }
-        } else {
-            if ($opAndVal['operator'] == 'in') {
-                if ($opAndVal['useNot']) {
-                    $builder->orWhereNotIn($key, $opAndVal['value']);
-                } else {
-                    $builder->orWhereIn($key, $opAndVal['value']);
-                }
-            } else {
-                if ($opAndVal['operator'] == 'between') {
-                    if ($opAndVal['useNot']) {
-                        $builder->orWhereNotBetween($key, $opAndVal['value']);
-                    } else {
-                        $builder->orWhereBetween($key, $opAndVal['value']);
-                    }
-                } else {
-                    $params = [$key, $opAndVal['operator'], $opAndVal['value'] == 'null' ? null : $opAndVal['value']];
-                    if ($opAndVal['useNot']) {
-                        $builder->orWhereNot(...$params);
-                    } else {
-                        $builder->orWhere(...$params);
-                    }
-                }
-            }
-        }
+        $method = $useAnd
+            ? ($opAndVal['useNot'] ? 'whereNot' : 'where')
+            : ($opAndVal['useNot'] ? 'orWhereNot' : 'orWhere');
+        $params = [$key, $opAndVal['operator'], $opAndVal['value'] == 'null' ? null : $opAndVal['value']];
+        $builder->$method(...$params);
         return $builder;
     }
 
@@ -174,32 +125,46 @@ trait BaseModelTrait
         $v = str($value);
         $useNot = false;
         $operator = '=';
-        if ($v->substr(0, 1) == '!') {
+
+        // check if the value starts with '!', that would mean that the operation is negated
+        if ($v->startsWith('!')) {
             $useNot = true;
             $v = $v->substr(1);
             $value = $v;
         }
-        if ($v->split('/\.\./')->count() == 2) {
-            $operator = 'between';
-            $value = $v->split('/\.\./')->toArray();
-        } else {
-            if (($a = $v->split('/\s/')) && $a->count() > 1) {
-                if (str($a->first())->trim() == '@like') {
-                    $operator = 'like';
-                    $value = $a->slice(1)->implode(' ');
-                } else {
-                    if (str($a->first())->trim() == '@in') {
-                        $operator = 'in';
-                        $value = str($a->last())->split('/,/')->toArray();
-                    } else {
-                        if (collect(['=', '!=', '<>', '>', '<', '>=', '<='])->contains(str($a->first())->trim())) {
-                            $operator = str($a->first())->trim();
-                            $value = $a->slice(1)->implode(' ');
-                        }
+
+        if ($v->contains('..')) {
+            return [
+                'operator' => 'between',
+                'value' => $v->split('/\.\./')->toArray(),
+                'useNot' => $useNot
+            ];
+        }
+
+        $a = $v->split('/\s/');
+        if ($a->count() > 1) {
+            $first = str($a->first())->trim();
+            $rest = $a->slice(1)->implode(' ');
+            switch ($first) {
+                case '@like':
+                    return compact('operator', 'rest', 'useNot');
+                case '@in' | '@between':
+                    return [
+                        'operator' => $first->remove('@')->value(),
+                        'value' => str($rest)->split('/,|\s|\.\./')->toArray(),// separate by comma, space or double dot
+                        'useNot' => $useNot
+                    ];
+                default:
+                    if (collect(['=', '!=', '<>', '>', '<', '>=', '<='])->contains($first)) {
+                        return [
+                            'operator' => $first,
+                            'value' => $rest,
+                            'useNot' => $useNot
+                        ];
                     }
-                }
             }
         }
+
         return compact('operator', 'value', 'useNot');
     }
 
