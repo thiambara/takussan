@@ -15,10 +15,10 @@ return new class extends Migration
             $table->id();
             $table->foreignId('project_id')->constrained('projects')->onDelete('cascade');
             $table->string('title');
-            $table->text('description');
+            $table->text('description')->nullable();
             $table->string('status');
-            $table->float('price');
-            $table->float('area');
+            $table->float('price')->nullable();
+            $table->float('area')->nullable();
             $table->json('extra')->nullable();
             $table->timestamps();
         });
