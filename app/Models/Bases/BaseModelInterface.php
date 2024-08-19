@@ -1,9 +1,7 @@
 <?php
 
-namespace App\Models\base;
+namespace App\Models\Bases;
 
-use Illuminate\Broadcasting\Channel;
-use Illuminate\Database\Eloquent\BroadcastableModelEventOccurred;
 use Illuminate\Database\Eloquent\Builder;
 
 interface BaseModelInterface
@@ -12,16 +10,15 @@ interface BaseModelInterface
 
     // SCOPE
 
+    static function createMany(array $objects): array;
+
     function scopeFilterThroughRequest(Builder $builder): Builder;
 
     function scopeOrderThroughRequest(Builder $builder): Builder;
 
-    function scopeAllThroughRequest(Builder $builder): Builder;
-
     // ADDED METHODS
 
-    static function createMany(array $objects): array;
-
+    function scopeAllThroughRequest(Builder $builder): Builder;
 
     function doFilter(Builder $builder, $credentials): Builder;
 

@@ -3,9 +3,10 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Models\base\BaseModelInterface;
-use App\Models\base\BaseModelTrait;
+use App\Models\Bases\BaseModelInterface;
+use App\Models\Bases\BaseModelTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -15,7 +16,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements BaseModelInterface
 {
-    use BaseModelTrait,HasApiTokens, HasFactory, Notifiable, SoftDeletes;
+    use BaseModelTrait, HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -55,6 +56,11 @@ class User extends Authenticatable implements BaseModelInterface
     {
         $this->init();
         parent::__construct($attributes);
+    }
+
+    public function added_by(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'added_by_id');
     }
 
     public function addresses(): MorphMany

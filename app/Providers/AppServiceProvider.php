@@ -2,7 +2,7 @@
 
 namespace App\Providers;
 
-use App\Models\base\BaseModelInterface;
+use App\Models\Bases\BaseModelInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\ServiceProvider;

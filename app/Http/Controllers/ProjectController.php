@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\base\Controller;
+use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
 use App\Models\Project;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 
 class ProjectController extends Controller
@@ -18,10 +19,26 @@ class ProjectController extends Controller
 
     public function index(): JsonResponse
     {
-//        $key = (new Project)->cashBaseKey();
-//        $responseData = cache()->tags([Project::class])->remember($key, 60 * 60, fn() => Project::allThroughRequest());
-        $responseData = Project::allThroughRequest()->paginatedThroughRequest();
-        return $this->json($responseData);
+        $query = Project::allThroughRequest();
+        if (auth()->user()->type !== 'admin') {
+            $query = $query->where('user_id', auth()->user()->id);
+        }
+
+
+        if ($search_query = request()->search_query) {
+            $query->where(fn(Builder $query) => $query
+                ->where('title', 'like', "%$search_query%")
+                ->orWhere('description', 'like', "%$search_query%")
+                ->orWhereRelation('lands', 'title', 'like', "%$search_query%")
+                ->orWhereRelation('lands', 'title', 'like', "%$search_query%")
+                ->orWhereRelation('lands', 'description', 'like', "%$search_query%")
+                ->orWhereRelation('lands.bookings.user', 'first_name', 'like', "%$search_query%")
+                ->orWhereRelation('lands.bookings.user', 'last_name', 'like', "%$search_query%")
+                ->orWhereRelation('lands.bookings.user', 'email', 'like', "%$search_query%")
+                ->orWhereRelation('lands.bookings.user', 'phone', 'like', "%$search_query%")
+            );
+        }
+        return $this->json($query->paginatedThroughRequest());
     }
 
 

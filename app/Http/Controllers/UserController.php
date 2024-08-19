@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\base\Controller;
+use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\UpdateUserRequest;
+use App\Models\Bases\Enums\UserRoles;
+use App\Models\Bases\Enums\UserStatus;
 use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -17,14 +20,26 @@ class UserController extends Controller
 
     public function __construct()
     {
-        }
+    }
 
     public function index(): JsonResponse
     {
 //        $key = (new User)->cashBaseKey();
 //        $responseData = cache()->tags([User::class])->remember($key, 60 * 60, fn() => User::allThroughRequest());
-        $responseData = User::allThroughRequest()->paginatedThroughRequest();
-        return $this->json($responseData);
+        $query = User::allThroughRequest();
+        if (auth()->user()->type !== UserRoles::ADMIN) {
+            $query->where('added_by_id', auth()->user()->id);
+        }
+        if ($search_query = request()->search_query) {
+            $query->where(fn(Builder $query) => $query
+                ->where('first_name', 'like', "%$search_query%")
+                ->orWhere('last_name', 'like', "%$search_query%")
+                ->orWhere('username', 'like', "%$search_query%")
+                ->orWhere('email', 'like', "%$search_query%")
+                ->orWhere('phone', 'like', "%$search_query%")
+            );
+        }
+        return $this->json($query->paginatedThroughRequest());
     }
 
     public function store(Request $request)
@@ -39,6 +54,7 @@ class UserController extends Controller
             'password' => 'required|string|max:255',
         ]);
         $data['password'] = Hash::make($data['password']);
+        $data['status'] ??= UserStatus::ACTIVE;
         $user = User::create($data);
         $user->save();
         return $this->json($user);

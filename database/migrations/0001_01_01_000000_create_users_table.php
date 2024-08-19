@@ -24,6 +24,7 @@ return new class extends Migration
             $table->string('first_name')->nullable();
             $table->string('last_name')->nullable();
             $table->string('password');
+            $table->foreignId('added_by_id')->nullable()->constrained('users')->onDelete('set null');
             $table->string('google_id')->nullable();
             $table->rememberToken();
             $table->json('extra')->nullable();

@@ -1,9 +1,10 @@
 <?php
 
 use App\Http\Controllers\AddressController;
-use App\Http\Controllers\auth\AuthController;
-use App\Http\Controllers\auth\OAuth2Controller;
+use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\OAuth2Controller;
 use App\Http\Controllers\BookingController;
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\LandController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\UserController;
@@ -147,5 +148,22 @@ Route::prefix('users')->controller(UserController::class)->group(function () {
         Route::delete('/{user}', 'destroy')->whereNumber('user')->name('destroy');
     });
 })->name('users.');
+/**
+ * USER ROUTES
+ * ===========
+ * ***
+ */
+Route::prefix('customers')->controller(CustomerController::class)->group(function () {
+    /**
+     * PRIVATE ROUTES
+     */
+    Route::middleware("auth:sanctum")->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{customer}', 'show')->whereNumber('customer')->name('show');
+        Route::put('/{customer}', 'update')->whereNumber('customer')->name('update');
+        Route::delete('/{customer}', 'destroy')->whereNumber('customer')->name('destroy');
+    });
+})->name('customers.');
 
 

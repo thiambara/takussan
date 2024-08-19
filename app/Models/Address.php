@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\base\AbstractModel;
+use App\Models\Bases\AbstractModel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
