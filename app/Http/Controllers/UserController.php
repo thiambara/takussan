@@ -27,7 +27,7 @@ class UserController extends Controller
 //        $key = (new User)->cashBaseKey();
 //        $responseData = cache()->tags([User::class])->remember($key, 60 * 60, fn() => User::allThroughRequest());
         $query = User::allThroughRequest();
-        if (auth()->user()->type !== UserRoles::ADMIN) {
+        if (!in_array(UserRoles::ADMIN, auth()->user()->roles ?? [])) {
             $query->where('added_by_id', auth()->user()->id);
         }
         if ($search_query = request()->search_query) {
@@ -50,7 +50,7 @@ class UserController extends Controller
             'username' => 'required|unique:string',
             'email' => 'email|unique:users,email',
             'phone' => 'string|max:255',
-            'type' => 'required|string|max:255',
+            'roles' => 'required',
             'password' => 'required|string|max:255',
         ]);
         $data['password'] = Hash::make($data['password']);

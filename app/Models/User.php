@@ -50,6 +50,7 @@ class User extends Authenticatable implements BaseModelInterface
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'roles' => 'array',
     ];
 
     public function __construct(array $attributes = [])

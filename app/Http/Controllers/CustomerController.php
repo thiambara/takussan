@@ -20,7 +20,7 @@ class CustomerController extends Controller
     public function index(): JsonResponse
     {
         $query = User::allThroughRequest()->where('type', UserRoles::CUSTOMER);
-        if (auth()->user()->type !== 'admin') {
+        if (!in_array(UserRoles::ADMIN, auth()->user()->roles ?? [])) {
             $query->where('added_by_id', auth()->user()->id);
         }
 
@@ -39,6 +39,7 @@ class CustomerController extends Controller
     public function store(StoreCustomerRequest $request)
     {
         $data = $request->validationData();
+        $data['roles'] = [UserRoles::CUSTOMER];
         $customer = User::create($data);
         $customer->save();
         return $this->json($customer);

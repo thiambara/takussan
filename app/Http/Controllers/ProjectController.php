@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
+use App\Models\Bases\Enums\UserRoles;
 use App\Models\Project;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -20,9 +21,11 @@ class ProjectController extends Controller
     public function index(): JsonResponse
     {
         $query = Project::allThroughRequest();
-        if (auth()->user()->type !== 'admin') {
+        if (!in_array(UserRoles::ADMIN, auth()->user()->roles ?? [])) {
             $query = $query->where('user_id', auth()->user()->id);
         }
+
+        $query->where('created_at', 'between', ['2021-01-01', '2021-12-31']);
 
 
         if ($search_query = request()->search_query) {
