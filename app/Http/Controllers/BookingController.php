@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\StoreBookingRequest;
 use App\Http\Requests\UpdateBookingRequest;
+use App\Models\Bases\Enums\UserRoles;
 use App\Models\Booking;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 
 class BookingController extends Controller
@@ -20,8 +22,13 @@ class BookingController extends Controller
     {
 //        $key = (new Booking)->cashBaseKey();
 //        $responseData = cache()->tags([Booking::class])->remember($key, 60 * 60, fn() => Booking::allThroughRequest());
-        $responseData = Booking::allThroughRequest()->paginatedThroughRequest();
-        return $this->json($responseData);
+        $query = Booking::allThroughRequest();
+        if (!($user = auth()->user())->hasRoles(UserRoles::CUSTOMER)) {
+            $query->where(
+                fn(Builder $query) => $query->where('user_id', $user->id)->orWhereRelation('land.project.user', $user)
+            );
+        }
+        return $this->json($query->paginatedThroughRequest());
     }
 
 

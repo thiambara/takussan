@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\StoreAddressRequest;
 use App\Http\Requests\UpdateAddressRequest;
 use App\Models\Address;
+use App\Models\Bases\Enums\UserRoles;
 use Illuminate\Http\JsonResponse;
 
 class AddressController extends Controller
@@ -20,8 +21,21 @@ class AddressController extends Controller
     {
 //        $key = (new Address)->cashBaseKey();
 //        $responseData = cache()->tags([Address::class])->remember($key, 60 * 60, fn() => Address::allThroughRequest());
-        $responseData = Address::allThroughRequest()->paginatedThroughRequest();
-        return $this->json($responseData);
+        $query = Address::allThroughRequest();
+        if (!auth()->user()->hasRoles(UserRoles::CUSTOMER)) {
+            $query->whereRelation('addressable', auth()->user());
+        }
+        if ($search_query = request()->search_query) {
+            $query->where(fn($query) => $query
+                ->where('address', 'like', "%$search_query%")
+                ->orWhere('city', 'like', "%$search_query%")
+                ->orWhere('state', 'like', "%$search_query%")
+                ->orWhere('country', 'like', "%$search_query%")
+                ->orWhere('zip', 'like', "%$search_query%")
+            );
+        }
+
+        return $this->json($query->paginatedThroughRequest());
     }
 
 

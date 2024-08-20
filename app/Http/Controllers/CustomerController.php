@@ -20,7 +20,7 @@ class CustomerController extends Controller
     public function index(): JsonResponse
     {
         $query = User::allThroughRequest()->where('type', UserRoles::CUSTOMER);
-        if (!in_array(UserRoles::ADMIN, auth()->user()->roles ?? [])) {
+        if (!auth()->user()->hasRoles(UserRoles::CUSTOMER)) {
             $query->where('added_by_id', auth()->user()->id);
         }
 

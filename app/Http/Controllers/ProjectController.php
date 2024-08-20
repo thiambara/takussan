@@ -21,7 +21,7 @@ class ProjectController extends Controller
     public function index(): JsonResponse
     {
         $query = Project::allThroughRequest();
-        if (!in_array(UserRoles::ADMIN, auth()->user()->roles ?? [])) {
+        if (!auth()->user()->hasRoles(UserRoles::CUSTOMER)) {
             $query = $query->where('user_id', auth()->user()->id);
         }
 

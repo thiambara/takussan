@@ -27,7 +27,7 @@ class UserController extends Controller
 //        $key = (new User)->cashBaseKey();
 //        $responseData = cache()->tags([User::class])->remember($key, 60 * 60, fn() => User::allThroughRequest());
         $query = User::allThroughRequest();
-        if (!in_array(UserRoles::ADMIN, auth()->user()->roles ?? [])) {
+        if (!auth()->user()->hasRoles(UserRoles::CUSTOMER)) {
             $query->where('added_by_id', auth()->user()->id);
         }
         if ($search_query = request()->search_query) {

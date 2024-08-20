@@ -20,8 +20,8 @@ class LandController extends Controller
     {
 //        $key = (new Land)->cashBaseKey();
 //        $responseData = cache()->tags([Land::class])->remember($key, 60 * 60, fn() => Land::allThroughRequest());
-        $responseData = Land::allThroughRequest()->paginatedThroughRequest();
-        return $this->json($responseData);
+        $query = Land::allThroughRequest();
+        return $this->json($query->paginatedThroughRequest());
     }
 
 
