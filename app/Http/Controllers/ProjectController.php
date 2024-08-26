@@ -21,12 +21,9 @@ class ProjectController extends Controller
     public function index(): JsonResponse
     {
         $query = Project::allThroughRequest();
-        if (!auth()->user()->hasRoles(UserRoles::CUSTOMER)) {
+        if (!auth()->user()->hasRoles(UserRoles::ADMIN)) {
             $query = $query->where('user_id', auth()->user()->id);
         }
-
-        $query->where('created_at', 'between', ['2021-01-01', '2021-12-31']);
-
 
         if ($search_query = request()->search_query) {
             $query->where(fn(Builder $query) => $query

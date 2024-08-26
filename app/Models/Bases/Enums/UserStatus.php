@@ -2,10 +2,10 @@
 
 namespace App\Models\Bases\Enums;
 
-enum UserStatus: string
+abstract class UserStatus
 {
-    case ACTIVE = 'active';
-    case INACTIVE = 'inactive';
-    case BLOCKED = 'blocked';
-    case DELETED = 'deleted';
+    const ACTIVE = 'active';
+    const INACTIVE = 'inactive';
+    const BLOCKED = 'blocked';
+    const DELETED = 'deleted';
 }

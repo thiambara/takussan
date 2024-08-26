@@ -5,7 +5,6 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Models\Bases\BaseModelInterface;
 use App\Models\Bases\BaseModelTrait;
-use App\Models\Bases\Enums\UserRoles;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -80,7 +79,7 @@ class User extends Authenticatable implements BaseModelInterface
         return $this->hasMany(Booking::class);
     }
 
-    public function hasRoles(array|string|UserRoles $roles, bool $all = false): bool
+    public function hasRoles(array|string $roles, bool $all = false): bool
     {
         $roles = collect(is_array($roles) ? $roles : [$roles]);
         if ($all) {

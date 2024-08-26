@@ -2,10 +2,11 @@
 
 namespace App\Models\Bases\Enums;
 
-enum UserRoles: string
+abstract class UserRoles
 {
-    case CUSTOMER = 'customer';
-    case ADMIN = 'admin';
-    case SUPER_ADMIN = 'super_admin';
-    case VENDOR = 'vendor';
+    const CUSTOMER = 'customer';
+    const ADMIN = 'admin';
+    const SUPER_ADMIN = 'super_admin';
+    const VENDOR = 'vendor';
+
 }

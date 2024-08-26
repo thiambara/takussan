@@ -19,11 +19,32 @@ trait BaseModelTrait
 
 
     /**
+     * ADDED METHODS
+     */
+
+    public static function createMany(array $objects): array
+    {
+        $result = [];
+        foreach ($objects as $o) {
+            /**
+             * @var static $object
+             */
+            $object = static::create($o);
+            $object->save();
+            $result[] = $object;
+        }
+
+        return $result;
+    }
+
+    /**
      * SCOPE
      */
 
     public function scopeFilterThroughRequest(Builder $builder): Builder
     {
+//        $builder->where('status', 'in', ['active']);
+//        return $builder;
         if (!empty($credentials = request()->input('filter_fields'))) {
             $c = [];
             foreach ($credentials as $key => $value) {
@@ -32,6 +53,114 @@ trait BaseModelTrait
             $credentials = utils()::arrayKeyOnlyIncludingEmpty($c, $this->getColumns());
             $this->doFilter($builder, $credentials);
         }
+        return $builder;
+    }
+
+    /**
+     * Return model columns list
+     *
+     */
+    public function getColumns(): array
+    {
+        return Schema::getColumnListing($this->getTable());
+    }
+
+    public function doFilter(Builder $builder, $credentials): Builder
+    {
+        foreach ($credentials as $key => $value) {
+            if (is_array($value)) {
+                $builder->where(function (Builder $b) use ($key, $value) {
+                    foreach ($value as $index => $val) {
+                        if ($val = str($val)->trim()) {
+                            $opAndVal = $this->getFilterOpAndValue($val);
+                            $this->applyFilter($b, $key, $opAndVal, $index === 0);
+                        }
+                    }
+                    return $b;
+
+                });
+            } else {
+                if (str($value)->trim()) {
+                    $opAndVal = $this->getFilterOpAndValue($value);
+                    $this->applyFilter($builder, $key, $opAndVal);
+                }
+            }
+        }
+        return $builder;
+    }
+
+    public function getFilterOpAndValue($value): array
+    {
+        $v = str($value);
+        $useNot = false;
+        $operator = '=';
+
+        // check if the value starts with '!', that would mean that the operation is negated
+        if ($v->startsWith('!')) {
+            $useNot = true;
+            $v = $v->substr(1);
+            $value = $v;
+        }
+
+        if ($v->contains('..')) {
+            return [
+                'operator' => 'between',
+                'value' => $v->split('/\.\./')->toArray(),
+                'useNot' => $useNot
+            ];
+        }
+
+        $a = $v->split('/\s/');
+        if ($a->count() > 1) {
+            $first = str($a->first())->trim();
+            $rest = $a->slice(1)->implode('');
+            switch ($first) {
+                case '@like':
+                    return [
+                        'operator' => 'like',
+                        'value' => $rest,
+                        'useNot' => $useNot
+                    ];
+                case '@in':
+                case '@between':
+                    return [
+                        'operator' => $first->remove('@')->value(),
+                        'value' => str($rest)->split('/,|\s|\.\./')->toArray(),// separate by comma, space or double dot
+                        'useNot' => $useNot
+                    ];
+                default:
+                    if (collect(['=', '!=', '<>', '>', '<', '>=', '<='])->contains($first)) {
+                        return [
+                            'operator' => $first,
+                            'value' => $rest,
+                            'useNot' => $useNot
+                        ];
+                    }
+            }
+        }
+
+        return compact('operator', 'value', 'useNot');
+    }
+
+    public function applyFilter(Builder $builder, string $key, array $opAndVal, $useAnd = true): Builder
+    {
+        if ($opAndVal['operator'] === 'between') {
+            $method = $useAnd
+                ? ($opAndVal['useNot'] ? 'whereNotBetween' : 'whereBetween')
+                : ($opAndVal['useNot'] ? 'orWhereNotBetween' : 'orWhereBetween');
+            $params = [$key, $opAndVal['value']];
+        } elseif ($opAndVal['operator'] === 'in') {
+            $method = $useAnd
+                ? ($opAndVal['useNot'] ? 'whereNotIn' : 'whereIn')
+                : ($opAndVal['useNot'] ? 'orWhereNotIn' : 'orWhereIn');
+            $params = [$key, $opAndVal['value']];
+        } else {
+            $method = $useAnd
+                ? ($opAndVal['useNot'] ? 'whereNot' : 'where')
+                : ($opAndVal['useNot'] ? 'orWhereNot' : 'orWhere');
+            $params = [$key, $opAndVal['operator'], $opAndVal['value'] == 'null' ? null : $opAndVal['value']];
+        }
+        $builder->$method(...$params);
         return $builder;
     }
 
@@ -64,117 +193,6 @@ trait BaseModelTrait
     public function scopeAllThroughRequest(Builder $builder): Builder
     {
         return $builder->allThroughRequest();
-    }
-
-
-    /**
-     * ADDED METHODS
-     */
-
-    public static function createMany(array $objects): array
-    {
-        $result = [];
-        foreach ($objects as $o) {
-            /**
-             * @var static $object
-             */
-            $object = static::create($o);
-            $object->save();
-            $result[] = $object;
-        }
-
-        return $result;
-    }
-
-    public function doFilter(Builder $builder, $credentials): Builder
-    {
-        foreach ($credentials as $key => $value) {
-            if (is_array($value)) {
-                $builder->where(function (Builder $b) use ($key, $value) {
-                    foreach ($value as $index => $val) {
-                        if ($val = str($val)->trim()) {
-                            $opAndVal = $this->getFilterOpAndValue($val);
-                            $this->applyFilter($b, $key, $opAndVal, $index === 0);
-                        }
-                    }
-                    return $b;
-
-                });
-            } else {
-                if (str($value)->trim()) {
-                    $opAndVal = $this->getFilterOpAndValue($value);
-                    $this->applyFilter($builder, $key, $opAndVal);
-                }
-            }
-        }
-        return $builder;
-    }
-
-    public function applyFilter(Builder $builder, string $key, array $opAndVal, $useAnd = true): Builder
-    {
-        $method = $useAnd
-            ? ($opAndVal['useNot'] ? 'whereNot' : 'where')
-            : ($opAndVal['useNot'] ? 'orWhereNot' : 'orWhere');
-        $params = [$key, $opAndVal['operator'], $opAndVal['value'] == 'null' ? null : $opAndVal['value']];
-        $builder->$method(...$params);
-        return $builder;
-    }
-
-    public function getFilterOpAndValue($value): array
-    {
-        $v = str($value);
-        $useNot = false;
-        $operator = '=';
-
-        // check if the value starts with '!', that would mean that the operation is negated
-        if ($v->startsWith('!')) {
-            $useNot = true;
-            $v = $v->substr(1);
-            $value = $v;
-        }
-
-        if ($v->contains('..')) {
-            return [
-                'operator' => 'between',
-                'value' => $v->split('/\.\./')->toArray(),
-                'useNot' => $useNot
-            ];
-        }
-
-        $a = $v->split('/\s/');
-        if ($a->count() > 1) {
-            $first = str($a->first())->trim();
-            $rest = $a->slice(1)->implode(' ');
-            switch ($first) {
-                case '@like':
-                    return compact('operator', 'rest', 'useNot');
-                case '@in' | '@between':
-                    return [
-                        'operator' => $first->remove('@')->value(),
-                        'value' => str($rest)->split('/,|\s|\.\./')->toArray(),// separate by comma, space or double dot
-                        'useNot' => $useNot
-                    ];
-                default:
-                    if (collect(['=', '!=', '<>', '>', '<', '>=', '<='])->contains($first)) {
-                        return [
-                            'operator' => $first,
-                            'value' => $rest,
-                            'useNot' => $useNot
-                        ];
-                    }
-            }
-        }
-
-        return compact('operator', 'value', 'useNot');
-    }
-
-    /**
-     * Return model columns list
-     *
-     */
-    public function getColumns(): array
-    {
-        return Schema::getColumnListing($this->getTable());
     }
 
     public function init(): void
