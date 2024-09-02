@@ -6,9 +6,11 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\StoreCustomerRequest;
 use App\Http\Requests\UpdateCustomerRequest;
 use App\Models\Bases\Enums\UserRoles;
-use App\Models\User;
+use App\Models\User as Customer;
+use Hash;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
+use Str;
 
 class CustomerController extends Controller
 {
@@ -19,8 +21,8 @@ class CustomerController extends Controller
 
     public function index(): JsonResponse
     {
-        $query = User::allThroughRequest()->where('type', UserRoles::CUSTOMER);
-        if (!auth()->user()->hasRoles(UserRoles::CUSTOMER)) {
+        $query = Customer::allThroughRequest()->whereJsonContains('roles', UserRoles::CUSTOMER);
+        if (!auth()->user()->hasRoles(UserRoles::ADMIN)) {
             $query->where('added_by_id', auth()->user()->id);
         }
 
@@ -39,24 +41,39 @@ class CustomerController extends Controller
     public function store(StoreCustomerRequest $request)
     {
         $data = $request->validationData();
-        $data['roles'] = [UserRoles::CUSTOMER];
-        $customer = User::create($data);
+        if (!isset($data['roles'])) {
+            $data['roles'] = [];
+        }
+        $data['roles'][] = UserRoles::CUSTOMER;
+        if (!isset($data['added_by_id'])) {
+//            if (!auth()->user()->id) {
+//                abort(403, 'You are not allowed to add a customer 1');
+//            }
+            $data['added_by_id'] = auth()->user()->id;
+        }
+//        abort(403, 'You are not allowed to add a customer 2');
+
+        // define a default random password
+        if (!isset($data['password'])) {
+            $data['password'] = Hash::make(Str::password(15));
+        }
+        $customer = Customer::create($data);
         $customer->save();
         return $this->json($customer);
     }
 
-    public function show(User $customer): JsonResponse
+    public function show(Customer $customer): JsonResponse
     {
         return $this->json($customer);
     }
 
-    public function update(UpdateCustomerRequest $request, User $customer): JsonResponse
+    public function update(UpdateCustomerRequest $request, Customer $customer): JsonResponse
     {
         $customer->update($request->validationData());
         return $this->json($customer);
     }
 
-    public function destroy(User $customer): JsonResponse
+    public function destroy(Customer $customer): JsonResponse
     {
         $customer->delete();
         return $this->json($customer);
