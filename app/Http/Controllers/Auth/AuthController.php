@@ -3,13 +3,15 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Base\Controller;
-use App\Models\User;
+use App\Services\Model\AuthService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    public function __construct(private readonly AuthService $authService)
+    {
+    }
+
     public function authUser(Request $request)
     {
         return response()->json($request->user());
@@ -22,28 +24,19 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $user = User::whereUsername($request->username)->first();
-
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'username' => ['The provided credentials are incorrect.'],
-            ]);
-        }
-
-        $token = $user->createToken($request->ip(), expiresAt: now()->addMonths(3));
-
-        $responseData = [
-            'access_token' => $token->plainTextToken,
-            'expires_in' => now()->diffInSeconds($token->accessToken->expires_at),
-        ];
+        $responseData = $this->authService->login($request->username, $request->password);
 
         return $this->json($responseData);
     }
 
+    public function signUp(Request $request)
+    {
+        return $this->json($this->authService->signUp($request->all()));
+    }
+
     public function logout()
     {
-        // logout user
-        auth()->user()->currentAccessToken()?->delete();
+        $this->authService->logout();
         return $this->json(['message' => 'Logged out']);
 
     }
