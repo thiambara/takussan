@@ -32,6 +32,11 @@ class User extends Authenticatable implements BaseModelInterface
         'status',
         'password',
         'type',
+        'added_by_id',
+        'roles',
+        'email_verified_at',
+        'remember_token',
+        'google_id',
         'extra',
     ];
     /**
