@@ -10,16 +10,18 @@ class Booking extends AbstractModel
 {
     use HasFactory;
 
+    protected $table = 'bookings';
+
     protected $fillable = [
-        'land_id',
+        'propriety_id',
         'user_id',
         'status',
         'extra',
     ];
 
-    public function land(): BelongsTo
+    public function propriety(): BelongsTo
     {
-        return $this->belongsTo(Land::class);
+        return $this->belongsTo(Propriety::class);
     }
 
     public function user(): BelongsTo

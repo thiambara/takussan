@@ -50,7 +50,7 @@ trait BaseModelTrait
             foreach ($credentials as $key => $value) {
                 $c[to_snake_case($key)] = $value;
             }
-            $credentials = utils()::arrayKeyOnlyIncludingEmpty($c, $this->getColumns());
+            $credentials = utils()::filterByKeys($c, $this->getColumns());
             $this->doFilter($builder, $credentials);
         }
         return $builder;
@@ -203,56 +203,35 @@ trait BaseModelTrait
 
     public function handleConveniencesFromRequest(): void
     {
-//        $this->hidden = collect($this->hidden)
-//            ->merge(to_snake_case(request($this->getTable().'.hidden', [])))->all();
-//
-//        $this->appends = collect($this->appends)
-//            ->merge(to_snake_case(request($this->getTable().'.appends', [])))->all();
-//        $this->withCount = collect($this->withCount)
-//            ->merge(to_snake_case(request($this->getTable().'.with_count', [])))->all();
-//
-//        $this->with = collect($this->with)
-//            ->merge(to_snake_case(request($this->getTable().'.with', [])))->all();
-
-        // simplify the code
         $relationFilters = ['hidden', 'appends', 'with_count', 'with'];
         $table = $this->getTable();
         foreach ($relationFilters as $filter) {
-            if (($value = request($table.'.'.$filter))) {
-                // with_count to withCount
+            if ($value = request($table . '.' . $filter)) {
                 $field = str($filter)->camel()->replace('_', '');
-                $this->{$field} = collect($this->{$filter})->merge(to_snake_case($value))->all();
+                $this->{$field} = array_merge($this->{$filter} ?? [], to_snake_case($value));
             }
         }
-
-
     }
 
     public function cashBaseKey(): string
     {
-        $key = $this->getTable().',route:'.(Route::currentRouteName() ?: Route::currentRouteAction() ?? 'none');
+        $key = $this->getTable() . ',route:' . (Route::currentRouteName() ?: Route::currentRouteAction() ?? 'none');
 
         $relationFilters = ['hidden', 'appends', 'with_count', 'with'];
         $table = $this->getTable();
         foreach ($relationFilters as $filter) {
-            if (($value = request($table.'.'.$filter)) && is_array($value)) {
-                $key .= ','.$filter.':'.collect($value)->sort()->implode('.');
-            } elseif ($value) {
-                $key .= ','.$filter.':'.$value;
+            if ($value = request($table . '.' . $filter)) {
+                $key .= ',' . $filter . ':' . (is_array($value) ? collect($value)->sort()->implode('.') : $value);
             }
         }
 
-        if (!empty($credentials = request()->input('filter_fields'))) {
-            $c = [];
-            foreach ($credentials as $key => $value) {
-                $c[to_snake_case($key)] = $value;
-            }
-            $credentials =
-                utils()::sortArrayByKeyThenValue(utils()::arrayKeyOnlyIncludingEmpty($c, $this->getColumns()));
+        if ($credentials = request()->input('filter_fields')) {
+            $credentials = utils()::filterByKeys(array_map('to_snake_case', $credentials), $this->getColumns());
             if ($credentials) {
-                $key .= ',filter_fields:'.collect($credentials)->toJson();
+                $key .= ',filter_fields:' . collect(utils()::sortArrayByKeyThenValue($credentials))->toJson();
             }
         }
+
         return $key;
     }
 

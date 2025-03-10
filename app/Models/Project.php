@@ -11,20 +11,30 @@ class Project extends AbstractModel
 {
     use HasFactory;
 
+    protected $table = 'projects';
+
+    protected $casts = [
+        'servicing' => 'array',
+    ];
+
     protected $fillable = [
         'title',
         'description',
         'status',
         'user_id',
+        'title_type',
+        'with_administrative_monitoring',
+        'visibility',
+        'servicing',
         'extra',
     ];
 
-    public function lands() : HasMany
+    public function proprieties(): HasMany
     {
-        return $this->hasMany(Land::class);
+        return $this->hasMany(Propriety::class);
     }
 
-    public function user() : BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }

@@ -5,8 +5,8 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\OAuth2Controller;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\CustomerController;
-use App\Http\Controllers\LandController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProprietyController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -84,22 +84,22 @@ Route::prefix('bookings')->controller(BookingController::class)->group(function 
 })->name('bookings.');
 
 /**
- * LAND ROUTES
+ * PROPRIETY ROUTES
  * ===========
  * ***
  */
-Route::prefix('lands')->controller(LandController::class)->group(function () {
+Route::prefix('proprieties')->controller(ProprietyController::class)->group(function () {
     /**
      * PRIVATE ROUTES
      */
     Route::middleware("auth:sanctum")->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('/', 'store')->name('store');
-        Route::get('/{land}', 'show')->whereNumber('land')->name('show');
-        Route::put('/{land}', 'update')->whereNumber('land')->name('update');
-        Route::delete('/{land}', 'destroy')->whereNumber('land')->name('destroy');
+        Route::get('/{propriety}', 'show')->whereNumber('propriety')->name('show');
+        Route::put('/{propriety}', 'update')->whereNumber('propriety')->name('update');
+        Route::delete('/{propriety}', 'destroy')->whereNumber('propriety')->name('destroy');
     });
-})->name('lands.');
+})->name('proprieties.');
 
 /**
  * 0AUTH2 ROUTES

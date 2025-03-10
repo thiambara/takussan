@@ -29,13 +29,13 @@ class ProjectController extends Controller
             $query->where(fn(Builder $query) => $query
                 ->where('title', 'like', "%$search_query%")
                 ->orWhere('description', 'like', "%$search_query%")
-                ->orWhereRelation('lands', 'title', 'like', "%$search_query%")
-                ->orWhereRelation('lands', 'title', 'like', "%$search_query%")
-                ->orWhereRelation('lands', 'description', 'like', "%$search_query%")
-                ->orWhereRelation('lands.bookings.user', 'first_name', 'like', "%$search_query%")
-                ->orWhereRelation('lands.bookings.user', 'last_name', 'like', "%$search_query%")
-                ->orWhereRelation('lands.bookings.user', 'email', 'like', "%$search_query%")
-                ->orWhereRelation('lands.bookings.user', 'phone', 'like', "%$search_query%")
+                ->orWhereRelation('proprieties', 'title', 'like', "%$search_query%")
+                ->orWhereRelation('proprieties', 'title', 'like', "%$search_query%")
+                ->orWhereRelation('proprieties', 'description', 'like', "%$search_query%")
+                ->orWhereRelation('proprieties.bookings.user', 'first_name', 'like', "%$search_query%")
+                ->orWhereRelation('proprieties.bookings.user', 'last_name', 'like', "%$search_query%")
+                ->orWhereRelation('proprieties.bookings.user', 'email', 'like', "%$search_query%")
+                ->orWhereRelation('proprieties.bookings.user', 'phone', 'like', "%$search_query%")
             );
         }
         return $this->json($query->paginatedThroughRequest());

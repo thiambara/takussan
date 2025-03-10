@@ -1,6 +1,6 @@
 <?php
 
-use App\Services\Utils;
+use App\Services\Utils\Utils;
 use Illuminate\Support\Facades\App;
 
 

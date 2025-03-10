@@ -2,12 +2,13 @@
 
 namespace Database\Factories;
 
+use App\Models\Propriety;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Land>
+ * @extends Factory<Propriety>
  */
-class LandFactory extends Factory
+class ProprietyFactory extends Factory
 {
     /**
      * Define the model's default state.

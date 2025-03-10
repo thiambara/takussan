@@ -25,9 +25,11 @@ class BookingController extends Controller
         $query = Booking::allThroughRequest();
         if (!($user = auth()->user())->hasRoles(UserRoles::CUSTOMER)) {
             $query->where(
-                fn(Builder $query) => $query->where('user_id', $user->id)->orWhereRelation('land.project.user', $user)
+                fn(Builder $query) => $query->where('user_id', $user->id)->orWhereRelation('propriety.project.user', $user)
             );
         }
+
+
         return $this->json($query->paginatedThroughRequest());
     }
 

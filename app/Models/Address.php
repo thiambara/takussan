@@ -10,6 +10,8 @@ class Address extends AbstractModel
 {
     use HasFactory;
 
+    protected $table = 'addresses';
+
     protected $fillable = [
         'addressable_id',
         'addressable_type',

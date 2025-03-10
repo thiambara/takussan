@@ -18,11 +18,8 @@ class User extends Authenticatable implements BaseModelInterface
 {
     use BaseModelTrait, HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
+    protected $table = 'users';
+
     protected $fillable = [
         'first_name',
         'last_name',
@@ -71,7 +68,7 @@ class User extends Authenticatable implements BaseModelInterface
 
     public function addresses(): MorphMany
     {
-        return $this->morphMany(Address::class, 'owner');
+        return $this->morphMany(Address::class, 'addressable');
     }
 
     public function projects(): HasMany
