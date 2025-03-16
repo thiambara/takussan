@@ -6,7 +6,6 @@ namespace App\Models;
 use App\Models\Bases\BaseModelInterface;
 use App\Models\Bases\BaseModelTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -61,24 +60,15 @@ class User extends Authenticatable implements BaseModelInterface
         parent::__construct($attributes);
     }
 
-    public function added_by(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'added_by_id');
-    }
 
     public function addresses(): MorphMany
     {
         return $this->morphMany(Address::class, 'addressable');
     }
 
-    public function projects(): HasMany
+    public function proprieties(): HasMany
     {
-        return $this->hasMany(Project::class);
-    }
-
-    public function bookings(): HasMany
-    {
-        return $this->hasMany(Booking::class);
+        return $this->hasMany(Propriety::class);
     }
 
     public function hasRoles(array|string $roles, bool $all = false): bool

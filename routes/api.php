@@ -149,8 +149,10 @@ Route::prefix('users')->controller(UserController::class)->group(function () {
         Route::delete('/{user}', 'destroy')->whereNumber('user')->name('destroy');
     });
 })->name('users.');
+
+
 /**
- * USER ROUTES
+ * CUSTOMER ROUTES
  * ===========
  * ***
  */

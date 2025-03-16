@@ -5,16 +5,17 @@ namespace App\Models;
 use App\Models\Bases\AbstractModel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Booking extends AbstractModel
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'bookings';
 
     protected $fillable = [
         'propriety_id',
-        'user_id',
+        'customer_id',
         'status',
         'extra',
     ];
@@ -24,8 +25,8 @@ class Booking extends AbstractModel
         return $this->belongsTo(Propriety::class);
     }
 
-    public function user(): BelongsTo
+    public function customer(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Customer::class);
     }
 }

@@ -12,6 +12,7 @@ return new class extends Migration {
     {
         Schema::create('properties', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('project_id')->nullable()->constrained('projects')->onDelete('cascade');
             $table->foreignId('propriety_id')->nullable()->constrained('properties')->onDelete('cascade');
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->string('visibility')->default('private');
@@ -26,8 +27,9 @@ return new class extends Migration {
             $table->string('title_type')->nullable(); // lease, land title, deliberation
             $table->boolean('with_administrative_monitoring')->nullable();
             $table->string('contract_type'); // sale, rent
-            $table->json('servicing')->nullable()->default([]); // water, electricity, gas, internet, phone, cable, elevator, parking, garden, pool, security, cleaning, maintenance, surveillance, other
+            $table->json('servicing')->nullable()->default('[]'); // water, electricity, gas, internet, phone, cable, elevator, parking, garden, pool, security, cleaning, maintenance, surveillance, other
             $table->json('extra')->nullable();
+            $table->softDeletes();
             $table->timestamps();
         });
     }
