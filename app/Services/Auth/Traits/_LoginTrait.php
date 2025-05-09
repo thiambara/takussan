@@ -18,6 +18,7 @@ trait _LoginTrait
             ]);
         }
 
+
         $token = $user->createToken(request()->ip(), expiresAt: now()->addMonths(3));
 
         return [

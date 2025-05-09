@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\StoreBookingRequest;
 use App\Http\Requests\UpdateBookingRequest;
-use App\Models\Bases\Enums\UserRoles;
+use App\Models\Bases\Enums\UserRole;
 use App\Models\Booking;
 use Illuminate\Http\JsonResponse;
 
@@ -22,7 +22,7 @@ class BookingController extends Controller
 //        $key = (new Booking)->cashBaseKey();
 //        $responseData = cache()->tags([Booking::class])->remember($key, 60 * 60, fn() => Booking::allThroughRequest());
         $query = Booking::allThroughRequest();
-        if (!($user = auth()->user())->hasRoles(UserRoles::CUSTOMER)) {
+        if (!($user = auth()->user())->hasRoles(UserRole::Customer->value)) {
             $query->whereRelation('propriety.user', $user);
         }
 

@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\UpdateUserRequest;
-use App\Models\Bases\Enums\UserRoles;
+use App\Models\Bases\Enums\UserRole;
 use App\Models\Bases\Enums\UserStatus;
 use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
@@ -27,7 +27,7 @@ class UserController extends Controller
 //        $key = (new User)->cashBaseKey();
 //        $responseData = cache()->tags([User::class])->remember($key, 60 * 60, fn() => User::allThroughRequest());
         $query = User::allThroughRequest();
-        if (!auth()->user()->hasRoles(UserRoles::CUSTOMER)) {
+        if (!auth()->user()->hasRoles(UserRole::Customer->value)) {
             $query->where('added_by_id', auth()->user()->id);
         }
         if ($search_query = request()->search_query) {
@@ -54,7 +54,7 @@ class UserController extends Controller
             'password' => 'required|string|max:255',
         ]);
         $data['password'] = Hash::make($data['password']);
-        $data['status'] ??= UserStatus::ACTIVE;
+        $data['status'] ??= UserStatus::Active->value;
         $user = User::create($data);
         $user->save();
         return $this->json($user);

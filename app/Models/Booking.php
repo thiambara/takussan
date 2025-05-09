@@ -17,7 +17,7 @@ class Booking extends AbstractModel
         'propriety_id',
         'customer_id',
         'status',
-        'extra',
+        'extra'
     ];
 
     public function propriety(): BelongsTo

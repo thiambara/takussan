@@ -14,6 +14,16 @@ class Customer extends AbstractModel
 
     protected $table = 'customers';
 
+    protected $fillable = [
+        'first_name',
+        'last_name',
+        'email',
+        'phone',
+        'status',
+        'added_by_id',
+        'extra',
+    ];
+
     public function bookings(): HasMany
     {
         return $this->hasMany(Booking::class);

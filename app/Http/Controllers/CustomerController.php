@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\StoreCustomerRequest;
 use App\Http\Requests\UpdateCustomerRequest;
-use App\Models\Bases\Enums\UserRoles;
+use App\Models\Bases\Enums\UserRole;
 use App\Models\Customer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -20,7 +20,7 @@ class CustomerController extends Controller
     public function index(): JsonResponse
     {
         $query = Customer::allThroughRequest();
-        if (!auth()->user()->hasRoles(UserRoles::ADMIN)) {
+        if (!auth()->user()->hasRoles(UserRole::Admin->value)) {
             $query->where('added_by_id', auth()->user()->id);
         }
 

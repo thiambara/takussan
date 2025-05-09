@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\StoreProprietyRequest;
 use App\Http\Requests\UpdateProprietyRequest;
-use App\Models\Bases\Enums\UserRoles;
+use App\Models\Bases\Enums\UserRole;
 use App\Models\Propriety;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -23,7 +23,7 @@ class ProprietyController extends Controller
 //        $key = (new Propriety)->cashBaseKey();
 //        $responseData = cache()->tags([Propriety::class])->remember($key, 60 * 60, fn() => Propriety::allThroughRequest());
         $query = Propriety::allThroughRequest();
-        if (!auth()->user()->hasRoles(UserRoles::ADMIN)) {
+        if (!auth()->user()->hasRoles(UserRole::Admin->value)) {
             $query = $query->where('user_id', auth()->user()->id);
         }
 

@@ -25,6 +25,8 @@ class Address extends AbstractModel
         'latitude',
         'longitude',
         'extra',
+        'created_at',
+        'updated_at',
     ];
 
     public function addressable(): MorphTo

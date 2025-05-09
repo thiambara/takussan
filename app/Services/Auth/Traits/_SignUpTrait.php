@@ -20,8 +20,11 @@ trait _SignUpTrait
             'roles' => 'required',
             'password' => 'required|string|max:255',
         ])->validate();
+
+        //70 422 08 95
+
         $userData['password'] = Hash::make($userData['password']);
-        $userData['status'] ??= UserStatus::ACTIVE;
+        $userData['status'] ??= UserStatus::Active;
         $user = User::create($userData);
         $user->save();
         return $user;
