@@ -3,12 +3,10 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class UserCustomerRelationship extends AbstractModel
 {
-    use HasFactory;
 
     protected $table = 'user_customer_relationships';
 
@@ -28,6 +26,8 @@ class UserCustomerRelationship extends AbstractModel
         'start_date' => 'datetime',
         'end_date' => 'datetime',
     ];
+
+    // RELATIONSHIPS
 
     public function user(): BelongsTo
     {

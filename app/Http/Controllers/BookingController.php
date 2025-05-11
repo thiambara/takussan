@@ -19,8 +19,6 @@ class BookingController extends Controller
 
     public function index(): JsonResponse
     {
-//        $key = (new Booking)->cashBaseKey();
-//        $responseData = cache()->tags([Booking::class])->remember($key, 60 * 60, fn() => Booking::allThroughRequest());
         $query = Booking::allThroughRequest();
         if (!($user = auth()->user())->hasRoles(UserRole::Customer->value)) {
             $query->whereRelation('propriety.user', $user);

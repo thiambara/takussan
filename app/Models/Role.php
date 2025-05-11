@@ -26,13 +26,7 @@ class Role extends Model implements BaseModelInterface
         parent::__construct($attributes);
     }
 
-    /**
-     * The permissions that belong to the role.
-     */
-    public function permissions(): BelongsToMany
-    {
-        return $this->belongsToMany(Permission::class, 'role_has_permissions');
-    }
+    // RELATIONSHIPS
 
     /**
      * The users that belong to the role.
@@ -56,6 +50,16 @@ class Role extends Model implements BaseModelInterface
         return $this->permissions()->where('id', $permission->id)->exists();
     }
 
+    // LOGIC METHODS
+
+    /**
+     * The permissions that belong to the role.
+     */
+    public function permissions(): BelongsToMany
+    {
+        return $this->belongsToMany(Permission::class, 'role_has_permissions');
+    }
+
     /**
      * Give permissions to the role
      */
@@ -65,9 +69,9 @@ class Role extends Model implements BaseModelInterface
         $permissionIds = collect($permissions)->map(function ($permission) {
             return $permission instanceof Permission ? $permission->id : $permission;
         })->toArray();
-        
+
         $this->permissions()->syncWithoutDetaching($permissionIds);
-        
+
         return $this;
     }
 
@@ -80,9 +84,9 @@ class Role extends Model implements BaseModelInterface
         $permissionIds = collect($permissions)->map(function ($permission) {
             return $permission instanceof Permission ? $permission->id : $permission;
         })->toArray();
-        
+
         $this->permissions()->detach($permissionIds);
-        
+
         return $this;
     }
 
@@ -94,9 +98,9 @@ class Role extends Model implements BaseModelInterface
         $permissionIds = collect($permissions)->map(function ($permission) {
             return $permission instanceof Permission ? $permission->id : $permission;
         })->toArray();
-        
+
         $this->permissions()->sync($permissionIds);
-        
+
         return $this;
     }
 }

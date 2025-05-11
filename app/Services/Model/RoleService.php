@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Model;
 
 use App\Models\Role;
 
@@ -43,19 +43,19 @@ class RoleService
     }
 
     /**
-     * Delete a role and its relationships
-     */
-    public function delete(Role $role): bool
-    {
-        return $role->delete();
-    }
-
-    /**
      * Sync permissions for a role
      */
     public function syncPermissions(Role $role, array $permissionIds): Role
     {
         $role->syncPermissions($permissionIds);
         return $role;
+    }
+
+    /**
+     * Delete a role and its relationships
+     */
+    public function delete(Role $role): bool
+    {
+        return $role->delete();
     }
 }

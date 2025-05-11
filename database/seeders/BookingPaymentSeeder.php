@@ -16,25 +16,25 @@ class BookingPaymentSeeder extends Seeder
     {
         // Get existing bookings
         $bookings = Booking::all();
-        
+
         if ($bookings->isEmpty()) {
             // Create bookings if none exist
             $bookings = Booking::factory()->count(5)->create();
         }
-        
+
         // Get users with appropriate roles
-        $users = User::whereHas('assignedRoles', function ($query) {
+        $users = User::whereHas('assigned_roles', function ($query) {
             $query->whereIn('name', ['admin', 'agent', 'accountant']);
         })->get();
-        
+
         if ($users->isEmpty()) {
             $users = [User::factory()->create()];
         }
-        
+
         // Create deposits for each booking
         foreach ($bookings as $booking) {
             $user = $users->random();
-            
+
             // Create a deposit payment
             BookingPayment::factory()
                 ->deposit()
@@ -45,7 +45,7 @@ class BookingPaymentSeeder extends Seeder
                     'amount' => $booking->deposit_amount,
                     'payment_date' => $booking->deposit_date ?? now()->subDays(rand(1, 30)),
                 ]);
-            
+
             // Some bookings will have additional payments
             if (rand(0, 1)) {
                 // Create 1-3 installment payments
@@ -61,7 +61,7 @@ class BookingPaymentSeeder extends Seeder
                         ]);
                 }
             }
-            
+
             // Some bookings will have a final payment
             if (rand(0, 1)) {
                 BookingPayment::factory()
@@ -74,7 +74,7 @@ class BookingPaymentSeeder extends Seeder
                     ]);
             }
         }
-        
+
         // Create some pending payments
         BookingPayment::factory()
             ->count(3)

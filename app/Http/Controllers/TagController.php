@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\StoreTagRequest;
 use App\Http\Requests\UpdateTagRequest;
 use App\Models\Tag;
-use App\Services\TagService;
+use App\Services\Model\TagService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -28,27 +29,27 @@ class TagController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Tag::query();
-        
+
         // Apply filters
         if ($request->has('type')) {
             $query->where('type', $request->type);
         }
-        
+
         if ($request->has('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('slug', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('slug', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
-        
+
         // Order by
         $query->orderBy($request->get('sort_by', 'name'), $request->get('sort_direction', 'asc'));
-        
+
         // Paginate results
         $tags = $query->paginate($request->per_page ?? 15);
-        
+
         return response()->json([
             'status' => 'success',
             'data' => $tags
@@ -61,7 +62,7 @@ class TagController extends Controller
     public function store(StoreTagRequest $request): JsonResponse
     {
         $tag = $this->tagService->store($request->validated());
-        
+
         return response()->json([
             'status' => 'success',
             'message' => 'Tag created successfully',
@@ -86,7 +87,7 @@ class TagController extends Controller
     public function update(UpdateTagRequest $request, Tag $tag): JsonResponse
     {
         $tag = $this->tagService->update($tag, $request->validated());
-        
+
         return response()->json([
             'status' => 'success',
             'message' => 'Tag updated successfully',
@@ -100,13 +101,13 @@ class TagController extends Controller
     public function destroy(Tag $tag): JsonResponse
     {
         $this->tagService->delete($tag);
-        
+
         return response()->json([
             'status' => 'success',
             'message' => 'Tag deleted successfully'
         ]);
     }
-    
+
     /**
      * Get tags by type.
      */
@@ -114,7 +115,7 @@ class TagController extends Controller
     {
         $type = $request->get('type');
         $tags = $this->tagService->getByType($type);
-        
+
         return response()->json([
             'status' => 'success',
             'data' => $tags

@@ -11,7 +11,7 @@ class BookingPayment extends AbstractModel
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'payments';
+    protected $table = 'booking_payments';
 
     protected $fillable = [
         'booking_id',

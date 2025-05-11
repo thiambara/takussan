@@ -6,7 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\StorePermissionRequest;
 use App\Http\Requests\UpdatePermissionRequest;
 use App\Models\Permission;
-use App\Services\PermissionService;
+use App\Services\Model\PermissionService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

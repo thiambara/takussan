@@ -34,6 +34,8 @@ class Review extends AbstractModel
         'reported_count' => 'integer',
     ];
 
+    // RELATIONSHIPS
+
     public function model(): MorphTo
     {
         return $this->morphTo();

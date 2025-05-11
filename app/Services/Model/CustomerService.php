@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Model;
 
 use App\Models\Customer;
 use Illuminate\Database\Eloquent\Collection;
@@ -14,25 +14,25 @@ class CustomerService
     public function getPaginated(array $filters = []): LengthAwarePaginator
     {
         $query = Customer::query();
-        
+
         // Apply filters
         if (isset($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
-                $q->where('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%");
+                $q->where('first_name', 'like', "%$search%")
+                    ->orWhere('last_name', 'like', "%$search%")
+                    ->orWhere('email', 'like', "%$search%")
+                    ->orWhere('phone', 'like', "%$search%");
             });
         }
-        
+
         if (isset($filters['status']) && $filters['status']) {
             $query->where('status', $filters['status']);
         }
-        
+
         return $query->with('added_by')->orderBy('created_at', 'desc')->paginate(10);
     }
-    
+
     /**
      * Get all customers
      */
@@ -40,15 +40,15 @@ class CustomerService
     {
         return Customer::all();
     }
-    
+
     /**
      * Get customer by ID
      */
     public function getById(int $id): ?Customer
     {
-        return Customer::with('bookings', 'added_by')->find($id);
+        return Customer::with(['bookings', 'added_by'])->find($id);
     }
-    
+
     /**
      * Create a new customer
      */
@@ -62,10 +62,10 @@ class CustomerService
             'birth_date' => $data['birth_date'] ?? null,
             'status' => $data['status'] ?? 'active',
             'added_by_id' => $data['added_by_id'] ?? auth()->id(),
-            'extra' => $data['extra'] ?? null,
+            'metadata' => $data['metadata'] ?? null,
         ]);
     }
-    
+
     /**
      * Update an existing customer
      */
@@ -78,12 +78,12 @@ class CustomerService
             'phone' => $data['phone'] ?? $customer->phone,
             'birth_date' => $data['birth_date'] ?? $customer->birth_date,
             'status' => $data['status'] ?? $customer->status,
-            'extra' => $data['extra'] ?? $customer->extra,
+            'metadata' => $data['metadata'] ?? $customer->metadata,
         ]);
-        
+
         return $customer->refresh();
     }
-    
+
     /**
      * Delete a customer
      */

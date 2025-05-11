@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\StoreNotificationRequest;
 use App\Http\Requests\UpdateNotificationRequest;
 use App\Models\Notification;
-use App\Services\NotificationService;
+use App\Services\Model\NotificationService;
+use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,39 +29,54 @@ class NotificationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $filters = [];
-        
+
         // Apply filters if provided
         if ($request->has('type')) {
             $filters['type'] = $request->type;
         }
-        
+
         if ($request->has('is_read')) {
             $filters['is_read'] = $request->boolean('is_read');
         }
-        
+
         if ($request->has('is_actioned')) {
             $filters['is_actioned'] = $request->boolean('is_actioned');
         }
-        
+
         if ($request->has('reference_type')) {
             $filters['reference_type'] = $request->reference_type;
         }
-        
+
         if ($request->has('reference_id')) {
             $filters['reference_id'] = $request->reference_id;
         }
-        
+
         // Get notifications for current user
         $notifications = $this->notificationService->getUserNotifications(
             Auth::id(),
             $filters,
             $request->per_page ?? 15
         );
-        
+
         return response()->json([
             'status' => 'success',
             'data' => $notifications,
             'unread_count' => $this->notificationService->getUnreadCount(Auth::id())
+        ]);
+    }
+
+    /**
+     * Get unread notification count for the current user.
+     */
+    public function getUnreadCount(): JsonResponse
+    {
+        $count = $this->notificationService->getUnreadCount(Auth::id());
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'unread_count' => $count
+            ]
         ]);
     }
 
@@ -72,25 +89,25 @@ class NotificationController extends Controller
             'user_id' => 'required|exists:users,id',
             'per_page' => 'nullable|integer|min:1|max:100',
         ]);
-        
+
         $filters = [];
-        
+
         // Apply filters if provided
         if ($request->has('type')) {
             $filters['type'] = $request->type;
         }
-        
+
         if ($request->has('is_read')) {
             $filters['is_read'] = $request->boolean('is_read');
         }
-        
+
         // Get notifications for specified user
         $notifications = $this->notificationService->getUserNotifications(
             $request->user_id,
             $filters,
             $request->per_page ?? 15
         );
-        
+
         return response()->json([
             'status' => 'success',
             'data' => $notifications,
@@ -104,7 +121,7 @@ class NotificationController extends Controller
     public function store(StoreNotificationRequest $request): JsonResponse
     {
         $notification = $this->notificationService->create($request->validated());
-        
+
         return response()->json([
             'status' => 'success',
             'message' => 'Notification created successfully',
@@ -124,7 +141,7 @@ class NotificationController extends Controller
                 'message' => 'Unauthorized'
             ], 403);
         }
-        
+
         return response()->json([
             'status' => 'success',
             'data' => $notification
@@ -137,7 +154,7 @@ class NotificationController extends Controller
     public function markAsRead(UpdateNotificationRequest $request, Notification $notification): JsonResponse
     {
         $notification = $this->notificationService->markAsRead($notification);
-        
+
         return response()->json([
             'status' => 'success',
             'message' => 'Notification marked as read',
@@ -151,7 +168,7 @@ class NotificationController extends Controller
     public function markAsActioned(UpdateNotificationRequest $request, Notification $notification): JsonResponse
     {
         $notification = $this->notificationService->markAsActioned($notification);
-        
+
         return response()->json([
             'status' => 'success',
             'message' => 'Notification marked as actioned',
@@ -165,22 +182,22 @@ class NotificationController extends Controller
     public function markAllAsRead(Request $request): JsonResponse
     {
         $filters = [];
-        
+
         // Apply filters if provided
         if ($request->has('type')) {
             $filters['type'] = $request->type;
         }
-        
+
         if ($request->has('reference_type')) {
             $filters['reference_type'] = $request->reference_type;
         }
-        
+
         if ($request->has('reference_id')) {
             $filters['reference_id'] = $request->reference_id;
         }
-        
+
         $count = $this->notificationService->markAllAsRead(Auth::id(), $filters);
-        
+
         return response()->json([
             'status' => 'success',
             'message' => $count . ' notifications marked as read',
@@ -194,13 +211,13 @@ class NotificationController extends Controller
     public function destroy(UpdateNotificationRequest $request, Notification $notification): JsonResponse
     {
         $this->notificationService->delete($notification);
-        
+
         return response()->json([
             'status' => 'success',
             'message' => 'Notification deleted successfully'
         ]);
     }
-    
+
     /**
      * Send a notification to multiple users.
      */
@@ -216,10 +233,10 @@ class NotificationController extends Controller
             'reference_type' => 'nullable|string|max:255',
             'delivery_channel' => 'nullable|string|in:app,email,sms,push',
         ]);
-        
+
         $count = 0;
         $errors = [];
-        
+
         foreach ($request->user_ids as $userId) {
             try {
                 $this->notificationService->create([
@@ -232,30 +249,15 @@ class NotificationController extends Controller
                     'delivery_channel' => $request->delivery_channel ?? 'app',
                 ]);
                 $count++;
-            } catch (\Exception $e) {
-                $errors[] = "Failed to create notification for user ID {$userId}: {$e->getMessage()}";
+            } catch (Exception $e) {
+                $errors[] = "Failed to create notification for user ID $userId: {$e->getMessage()}";
             }
         }
-        
+
         return response()->json([
             'status' => 'success',
             'message' => 'Sent ' . $count . ' notifications successfully',
             'errors' => $errors
-        ]);
-    }
-    
-    /**
-     * Get unread notification count for the current user.
-     */
-    public function getUnreadCount(): JsonResponse
-    {
-        $count = $this->notificationService->getUnreadCount(Auth::id());
-        
-        return response()->json([
-            'status' => 'success',
-            'data' => [
-                'unread_count' => $count
-            ]
         ]);
     }
 }

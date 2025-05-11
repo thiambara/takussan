@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Bases\BaseModelInterface;
 use App\Models\Bases\BaseModelTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -53,6 +54,9 @@ class User extends Authenticatable implements BaseModelInterface
         parent::__construct($attributes);
     }
 
+
+    // RELATIONSHIPS
+
     public function addresses(): MorphMany
     {
         return $this->morphMany(Address::class, 'addressable');
@@ -73,14 +77,26 @@ class User extends Authenticatable implements BaseModelInterface
         return $this->hasMany(Booking::class);
     }
 
-    public function payments(): HasMany
+    public function booking_payments(): HasMany
     {
-        return $this->hasMany(Payment::class);
+        return $this->hasMany(BookingPayment::class);
     }
 
-    public function added_by()
+    public function added_by(): BelongsTo
     {
         return $this->belongsTo(User::class, 'added_by_id');
+    }
+
+    public function customer_relationships(): HasMany
+    {
+        return $this->hasMany(UserCustomerRelationship::class);
+    }
+
+    public function related_customers(): BelongsToMany
+    {
+        return $this->belongsToMany(Customer::class, 'user_customer_relationships')
+            ->withPivot(['relationship_type', 'is_primary', 'status', 'start_date', 'end_date', 'notes'])
+            ->withTimestamps();
     }
 
     public function hasRoles(array|string $roles, bool $all = false): bool
@@ -95,18 +111,20 @@ class User extends Authenticatable implements BaseModelInterface
     public function hasRole(string|int|Role $role): bool
     {
         if (is_string($role)) {
-            return $this->assignedRoles()->where('name', $role)->exists();
+            return $this->assigned_roles()->where('code', $role)->exists();
         } elseif (is_int($role)) {
-            return $this->assignedRoles()->where('id', $role)->exists();
+            return $this->assigned_roles()->where('id', $role)->exists();
         }
 
-        return $this->assignedRoles()->where('id', $role->id)->exists();
+        return $this->assigned_roles()->where('id', $role->id)->exists();
     }
 
-    public function assignedRoles(): BelongsToMany
+    public function assigned_roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class, 'user_has_roles');
     }
+
+    // LOGIC METHODS
 
     public function assignRoles(array|Role $roles): self
     {
@@ -115,7 +133,7 @@ class User extends Authenticatable implements BaseModelInterface
             return $role instanceof Role ? $role->id : $role;
         })->toArray();
 
-        $this->assignedRoles()->syncWithoutDetaching($roleIds);
+        $this->assigned_roles()->syncWithoutDetaching($roleIds);
 
         return $this;
     }
@@ -127,7 +145,7 @@ class User extends Authenticatable implements BaseModelInterface
             return $role instanceof Role ? $role->id : $role;
         })->toArray();
 
-        $this->assignedRoles()->detach($roleIds);
+        $this->assigned_roles()->detach($roleIds);
 
         return $this;
     }
@@ -138,7 +156,7 @@ class User extends Authenticatable implements BaseModelInterface
             return $role instanceof Role ? $role->id : $role;
         })->toArray();
 
-        $this->assignedRoles()->sync($roleIds);
+        $this->assigned_roles()->sync($roleIds);
 
         return $this;
     }
@@ -149,22 +167,10 @@ class User extends Authenticatable implements BaseModelInterface
         is_int($permission) ? Permission::find($permission)?->name : $permission->name
         );
 
-        return $this->assignedRoles()
+        return $this->assigned_roles()
             ->whereHas('permissions', function ($query) use ($permissionName) {
                 $query->where('name', $permissionName);
             })
             ->exists();
-    }
-
-    public function customer_relationships(): HasMany
-    {
-        return $this->hasMany(UserCustomerRelationship::class);
-    }
-
-    public function related_customers(): BelongsToMany
-    {
-        return $this->belongsToMany(Customer::class, 'user_customer_relationships')
-            ->withPivot(['relationship_type', 'is_primary', 'status', 'start_date', 'end_date', 'notes'])
-            ->withTimestamps();
     }
 }

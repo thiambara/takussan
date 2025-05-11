@@ -39,7 +39,7 @@ class UpdateCustomerRequest extends FormRequest
             ],
             'birth_date' => 'nullable|date',
             'status' => 'nullable|string|in:active,inactive,blocked,deleted',
-            'extra' => 'nullable|json',
+            'metadata' => 'nullable|json',
         ];
     }
 }

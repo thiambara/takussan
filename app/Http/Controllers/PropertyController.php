@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\StorePropertyRequest;
 use App\Http\Requests\UpdatePropertyRequest;
 use App\Models\Property;
-use App\Services\PropertyService;
+use App\Services\Model\PropertyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -29,16 +30,16 @@ class PropertyController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Property::query();
-        
+
         // Apply filters
         if ($request->has('status')) {
             $query->where('status', $request->status);
         }
-        
+
         if ($request->has('type')) {
             $query->where('type', $request->type);
         }
-        
+
         if ($request->has('contract_type')) {
             $query->where('contract_type', $request->contract_type);
         }
@@ -63,13 +64,13 @@ class PropertyController extends Controller
         if (!Auth::user()->hasPermission('properties.view_all')) {
             $query->where('user_id', Auth::id());
         }
-        
+
         // Load relationships
         $query->with(['address', 'user']);
-        
+
         // Paginate results
         $properties = $query->paginate($request->per_page ?? 15);
-        
+
         return response()->json([
             'status' => 'success',
             'data' => $properties
@@ -82,7 +83,7 @@ class PropertyController extends Controller
     public function store(StorePropertyRequest $request): JsonResponse
     {
         $property = $this->propertyService->store($request->validated());
-        
+
         return response()->json([
             'status' => 'success',
             'message' => 'Property created successfully',
@@ -102,9 +103,9 @@ class PropertyController extends Controller
                 'message' => 'Unauthorized'
             ], 403);
         }
-        
+
         $property->load(['address', 'user', 'tags', 'parent', 'children']);
-        
+
         return response()->json([
             'status' => 'success',
             'data' => $property
@@ -123,9 +124,9 @@ class PropertyController extends Controller
                 'message' => 'Unauthorized'
             ], 403);
         }
-        
+
         $property = $this->propertyService->update($property, $request->validated());
-        
+
         return response()->json([
             'status' => 'success',
             'message' => 'Property updated successfully',
@@ -145,9 +146,9 @@ class PropertyController extends Controller
                 'message' => 'Unauthorized'
             ], 403);
         }
-        
+
         $this->propertyService->delete($property);
-        
+
         return response()->json([
             'status' => 'success',
             'message' => 'Property deleted successfully'

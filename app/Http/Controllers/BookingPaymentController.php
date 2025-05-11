@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\StoreBookingPaymentRequest;
 use App\Http\Requests\UpdateBookingPaymentRequest;
 use App\Models\Booking;
 use App\Models\BookingPayment;
-use App\Services\BookingPaymentService;
+use App\Services\Model\BookingPaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,16 +31,16 @@ class BookingPaymentController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = BookingPayment::query();
-        
+
         // Apply filters
         if ($request->has('booking_id')) {
             $query->where('booking_id', $request->booking_id);
         }
-        
+
         if ($request->has('status')) {
             $query->where('status', $request->status);
         }
-        
+
         if ($request->has('payment_type')) {
             $query->where('payment_type', $request->payment_type);
         }
@@ -62,16 +63,16 @@ class BookingPaymentController extends Controller
                 $q->where('user_id', Auth::id());
             });
         }
-        
+
         // Load relationships
         $query->with(['booking', 'user']);
-        
+
         // Sort by payment date by default, newest first
         $query->orderBy($request->get('sort_by', 'payment_date'), $request->get('sort_direction', 'desc'));
-        
+
         // Paginate results
         $payments = $query->paginate($request->per_page ?? 15);
-        
+
         return response()->json([
             'status' => 'success',
             'data' => $payments
@@ -84,7 +85,7 @@ class BookingPaymentController extends Controller
     public function store(StoreBookingPaymentRequest $request): JsonResponse
     {
         $payment = $this->paymentService->store($request->validated());
-        
+
         return response()->json([
             'status' => 'success',
             'message' => 'Payment created successfully',
@@ -107,9 +108,9 @@ class BookingPaymentController extends Controller
                 ], 403);
             }
         }
-        
+
         $payment->load(['booking', 'user']);
-        
+
         return response()->json([
             'status' => 'success',
             'data' => $payment
@@ -131,9 +132,9 @@ class BookingPaymentController extends Controller
                 ], 403);
             }
         }
-        
+
         $payment = $this->paymentService->update($payment, $request->validated());
-        
+
         return response()->json([
             'status' => 'success',
             'message' => 'Payment updated successfully',
@@ -156,15 +157,15 @@ class BookingPaymentController extends Controller
                 ], 403);
             }
         }
-        
+
         $this->paymentService->delete($payment);
-        
+
         return response()->json([
             'status' => 'success',
             'message' => 'Payment deleted successfully'
         ]);
     }
-    
+
     /**
      * Get payments for a specific booking.
      */
@@ -177,9 +178,9 @@ class BookingPaymentController extends Controller
                 'message' => 'Unauthorized'
             ], 403);
         }
-        
+
         $payments = $this->paymentService->getPaymentsForBooking($booking->id);
-        
+
         return response()->json([
             'status' => 'success',
             'data' => $payments

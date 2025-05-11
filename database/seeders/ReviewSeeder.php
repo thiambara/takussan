@@ -16,36 +16,36 @@ class ReviewSeeder extends Seeder
     {
         // Get properties to add reviews for
         $properties = Property::all();
-        
+
         if ($properties->isEmpty()) {
             // Create properties if none exist
             $properties = Property::factory()->count(5)->create();
         }
-        
+
         // Get users who can create reviews
         $users = User::all();
-        
+
         if ($users->isEmpty()) {
             $users = [User::factory()->create()];
         }
-        
+
         // Get admins who can approve reviews
-        $admins = User::whereHas('assignedRoles', function ($query) {
+        $admins = User::whereHas('assigned_roles', function ($query) {
             $query->where('name', 'admin')->orWhere('name', 'moderator');
         })->get();
-        
+
         if ($admins->isEmpty()) {
             $admins = [User::factory()->create()];
         }
-        
+
         // Create reviews for properties
         foreach ($properties as $property) {
             // Number of reviews per property (0-5)
             $reviewCount = rand(0, 5);
-            
+
             for ($i = 0; $i < $reviewCount; $i++) {
                 $isApproved = (rand(0, 100) > 20); // 80% chance to be approved
-                
+
                 Review::factory()->create([
                     'model_id' => $property->id,
                     'model_type' => Property::class,
@@ -56,7 +56,7 @@ class ReviewSeeder extends Seeder
                 ]);
             }
         }
-        
+
         // Create some pending reviews
         Review::factory()
             ->count(3)

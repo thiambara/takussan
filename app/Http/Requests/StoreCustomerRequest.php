@@ -4,7 +4,6 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreCustomerRequest extends FormRequest
 {
@@ -30,7 +29,7 @@ class StoreCustomerRequest extends FormRequest
             'phone' => 'nullable|string|max:255|unique:customers,phone',
             'birth_date' => 'nullable|date',
             'status' => 'nullable|string|in:active,inactive,blocked,deleted',
-            'extra' => 'nullable|json',
+            'metadata' => 'nullable|json',
         ];
     }
 }

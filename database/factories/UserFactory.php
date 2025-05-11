@@ -23,12 +23,12 @@ class UserFactory extends Factory
             'last_name' => fake()->lastName(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
-            'phone' => '+22177337'.fake()->randomNumber(4, true),
+            'phone' => '+22177337' . fake()->randomNumber(4, true),
             'status' => 'active',
             'username' => fake()->unique()->userName(),
             'password' => fake()->passthrough('PPpp11'), // password
             'remember_token' => Str::random(10),
-            'extra' => null
+            'metadata' => null
         ];
     }
 

@@ -19,8 +19,6 @@ class AddressController extends Controller
 
     public function index(): JsonResponse
     {
-//        $key = (new Address)->cashBaseKey();
-//        $responseData = cache()->tags([Address::class])->remember($key, 60 * 60, fn() => Address::allThroughRequest());
         $query = Address::allThroughRequest();
         if (!auth()->user()->hasRoles(UserRole::Customer->value)) {
             $query->whereRelation('addressable', auth()->user());

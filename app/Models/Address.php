@@ -24,7 +24,7 @@ class Address extends AbstractModel
         'building',
         'latitude',
         'longitude',
-        'extra',
+        'metadata',
         'created_at',
         'updated_at',
     ];

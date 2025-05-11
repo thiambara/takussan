@@ -15,17 +15,17 @@ class CustomerSeeder extends Seeder
     {
         // Créer un administrateur comme utilisateur par défaut pour added_by_id
         $admin = User::first() ?? User::factory()->create();
-        
+
         // Créer 20 clients avec le statut actif
         Customer::factory()->count(15)->active()->create([
             'added_by_id' => $admin->id,
         ]);
-        
+
         // Créer 5 clients avec le statut inactif
         Customer::factory()->count(5)->inactive()->create([
             'added_by_id' => $admin->id,
         ]);
-        
+
         // Créer quelques clients avec des données spécifiques
         $specificCustomers = [
             [
@@ -36,7 +36,7 @@ class CustomerSeeder extends Seeder
                 'status' => 'active',
                 'birth_date' => '1985-06-15',
                 'added_by_id' => $admin->id,
-                'extra' => json_encode([
+                'metadata' => json_encode([
                     'address' => 'Dakar, Sénégal',
                     'notes' => 'Client VIP',
                 ]),
@@ -49,13 +49,13 @@ class CustomerSeeder extends Seeder
                 'status' => 'active',
                 'birth_date' => '1990-03-22',
                 'added_by_id' => $admin->id,
-                'extra' => json_encode([
+                'metadata' => json_encode([
                     'address' => 'Thiès, Sénégal',
                     'notes' => 'Client régulier',
                 ]),
             ],
         ];
-        
+
         foreach ($specificCustomers as $customerData) {
             Customer::create($customerData);
         }

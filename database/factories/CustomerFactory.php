@@ -2,11 +2,12 @@
 
 namespace Database\Factories;
 
+use App\Models\Customer;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Customer>
+ * @extends Factory<Customer>
  */
 class CustomerFactory extends Factory
 {
@@ -25,7 +26,7 @@ class CustomerFactory extends Factory
             'birth_date' => fake()->date(),
             'status' => fake()->randomElement(['active', 'inactive', 'blocked']),
             'added_by_id' => User::factory(),
-            'extra' => json_encode([
+            'metadata' => json_encode([
                 'address' => fake()->address(),
                 'notes' => fake()->paragraph(1),
             ]),

@@ -1,18 +1,18 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Model;
 
 use App\Models\Tag;
-use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Throwable;
 
 class TagService
 {
     /**
      * Store a new tag
-     *
-     * @param array $data
-     * @return Tag
+     * @throws Throwable
      */
     public function store(array $data): Tag
     {
@@ -20,18 +20,15 @@ class TagService
         if (!isset($data['slug']) || empty($data['slug'])) {
             $data['slug'] = Str::slug($data['name']);
         }
-        
+
         return DB::transaction(function () use ($data) {
             return Tag::create($data);
         });
     }
-    
+
     /**
      * Update an existing tag
-     *
-     * @param Tag $tag
-     * @param array $data
-     * @return Tag
+     * @throws Throwable
      */
     public function update(Tag $tag, array $data): Tag
     {
@@ -39,18 +36,16 @@ class TagService
         if (isset($data['name']) && (!isset($data['slug']) || empty($data['slug']))) {
             $data['slug'] = Str::slug($data['name']);
         }
-        
+
         return DB::transaction(function () use ($tag, $data) {
             $tag->update($data);
             return $tag;
         });
     }
-    
+
     /**
      * Delete a tag
-     *
-     * @param Tag $tag
-     * @return bool
+     * @throws Throwable
      */
     public function delete(Tag $tag): bool
     {
@@ -58,34 +53,27 @@ class TagService
             // Detach tag from all relationships
             $tag->properties()->detach();
             $tag->customers()->detach();
-            
+
             return $tag->delete();
         });
     }
-    
+
     /**
      * Get tags by type
-     *
-     * @param string|null $type
-     * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function getByType(?string $type = null)
+    public function getByType(?string $type = null): Collection
     {
         $query = Tag::query();
-        
+
         if ($type) {
             $query->where('type', $type);
         }
-        
+
         return $query->get();
     }
-    
+
     /**
      * Sync entity tags
-     *
-     * @param mixed $entity
-     * @param array $tagIds
-     * @return void
      */
     public function syncEntityTags($entity, array $tagIds): void
     {

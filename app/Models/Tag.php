@@ -20,6 +20,8 @@ class Tag extends AbstractModel
         'color'
     ];
 
+    // RELATIONSHIPS
+
     public function properties(): MorphToMany
     {
         return $this->morphedByMany(Property::class, 'taggable');

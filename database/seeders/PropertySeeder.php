@@ -14,7 +14,7 @@ class PropertySeeder extends Seeder
     public function run(): void
     {
         // Get some users to assign properties to
-        $users = User::whereHas('assignedRoles', function ($query) {
+        $users = User::whereHas('assigned_roles', function ($query) {
             $query->where('name', 'agent')->orWhere('name', 'admin');
         })->get();
 
