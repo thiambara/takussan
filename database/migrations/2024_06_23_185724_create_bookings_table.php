@@ -14,9 +14,35 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('propriety_id')->constrained('proprieties')->onDelete('cascade');
             $table->foreignId('customer_id')->constrained('customers')->onDelete('cascade');
-            $table->string('status');
-            $table->json('extra')->nullable();
+
+            // Informations de réservation
+            $table->string('reference_number')->unique()->nullable();
+            $table->string('status')->default('pending')->index(); // ['pending', 'approved', 'rejected', 'cancelled', 'completed']
+
+            // Dates importantes
+            $table->timestamp('booking_date')->useCurrent();
+            $table->timestamp('expiration_date')->nullable();
+            $table->timestamp('approval_date')->nullable();
+            $table->timestamp('rejection_date')->nullable();
+            $table->timestamp('cancellation_date')->nullable();
+            $table->timestamp('completion_date')->nullable();
+
+            // Informations financières
+            $table->decimal('price_at_booking', 14)->nullable();
+            $table->decimal('deposit_amount', 14)->nullable();
+            $table->boolean('deposit_paid')->default(false);
+            $table->timestamp('deposit_date')->nullable();
+
+            // Informations supplémentaires
+            $table->text('notes')->nullable();
+            $table->text('reason_for_rejection')->nullable();
+            $table->text('reason_for_cancellation')->nullable();
+            $table->string('cancellation_by')->nullable();
+            $table->json('metadata')->nullable();
+
+            // Timestamps et soft delete
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

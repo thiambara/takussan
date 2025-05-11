@@ -19,13 +19,17 @@ class Propriety extends AbstractModel
         'servicing' => 'array',
     ];
     protected $fillable = [
-        'propriety_id',
+        'parent_id',
         'user_id',
-        'visibility',
-        'type',
+
+        // Informations générales
         'title',
         'description',
+        'type',
         'status',
+        'visibility',
+
+        // Attributs spécifiques aux propriétés physiques
         'price',
         'area',
         'position',
@@ -33,10 +37,10 @@ class Propriety extends AbstractModel
         'title_type',
         'with_administrative_monitoring',
         'contract_type',
+
+        // Informations techniques et services
         'servicing',
-        'extra',
-        'created_at',
-        'updated_at',
+        'metadata'
     ];
 
     public function user(): BelongsTo

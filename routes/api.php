@@ -5,8 +5,9 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\OAuth2Controller;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\CustomerController;
-use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProprietyController;
+use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -112,24 +113,6 @@ Route::prefix('oauth2')->controller(OAuth2Controller::class)->group(function () 
 })->name('oauth2.');
 
 /**
- * PROJECT ROUTES
- * ==============
- * ***
- */
-Route::prefix('projects')->controller(ProjectController::class)->group(function () {
-    /**
-     * PRIVATE ROUTES
-     */
-    Route::middleware("auth:sanctum")->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::post('/', 'store')->name('store');
-        Route::get('/{project}', 'show')->whereNumber('project')->name('show');
-        Route::put('/{project}', 'update')->whereNumber('project')->name('update');
-        Route::delete('/{project}', 'destroy')->whereNumber('project')->name('destroy');
-    });
-})->name('projects.');
-
-/**
  * USER ROUTES
  * ===========
  * ***
@@ -169,4 +152,39 @@ Route::prefix('customers')->controller(CustomerController::class)->group(functio
     });
 })->name('customers.');
 
+/**
+ * ROLE ROUTES
+ * ===========
+ * ***
+ */
+Route::prefix('roles')->controller(RoleController::class)->group(function () {
+    /**
+     * PRIVATE ROUTES
+     */
+    Route::middleware("auth:sanctum")->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{role}', 'show')->whereNumber('role')->name('show');
+        Route::put('/{role}', 'update')->whereNumber('role')->name('update');
+        Route::delete('/{role}', 'destroy')->whereNumber('role')->name('destroy');
+        Route::post('/{role}/permissions', 'syncPermissions')->whereNumber('role')->name('sync-permissions');
+    });
+})->name('roles.');
 
+/**
+ * PERMISSION ROUTES
+ * ===========
+ * ***
+ */
+Route::prefix('permissions')->controller(PermissionController::class)->group(function () {
+    /**
+     * PRIVATE ROUTES
+     */
+    Route::middleware("auth:sanctum")->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{permission}', 'show')->whereNumber('permission')->name('show');
+        Route::put('/{permission}', 'update')->whereNumber('permission')->name('update');
+        Route::delete('/{permission}', 'destroy')->whereNumber('permission')->name('destroy');
+    });
+})->name('permissions.');

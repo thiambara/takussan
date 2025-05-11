@@ -2,7 +2,6 @@
 
 namespace App\Models\Bases;
 
-
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Route;
@@ -16,24 +15,22 @@ use Illuminate\Support\Facades\Schema;
  */
 trait BaseModelTrait
 {
-
-
     /**
      * ADDED METHODS
      */
 
+    /**
+     * Create multiple records efficiently.
+     * @param array $objects
+     * @return static[]
+     */
     public static function createMany(array $objects): array
     {
         $result = [];
         foreach ($objects as $o) {
-            /**
-             * @var static $object
-             */
             $object = static::create($o);
-            $object->save();
             $result[] = $object;
         }
-
         return $result;
     }
 
@@ -41,17 +38,19 @@ trait BaseModelTrait
      * SCOPE
      */
 
+    /**
+     * Apply filters from request to the query builder.
+     */
     public function scopeFilterThroughRequest(Builder $builder): Builder
     {
-//        $builder->where('status', 'in', ['active']);
-//        return $builder;
-        if (!empty($credentials = request()->input('filter_fields'))) {
-            $c = [];
+        $credentials = request()->input('filter_fields', []);
+        if (!empty($credentials)) {
+            $snakeKeys = [];
             foreach ($credentials as $key => $value) {
-                $c[to_snake_case($key)] = $value;
+                $snakeKeys[to_snake_case($key)] = $value;
             }
-            $credentials = utils()::filterByKeys($c, $this->getColumns());
-            $this->doFilter($builder, $credentials);
+            $filtered = utils()::filterByKeys($snakeKeys, $this->getColumns());
+            $this->doFilter($builder, $filtered);
         }
         return $builder;
     }
@@ -71,17 +70,18 @@ trait BaseModelTrait
             if (is_array($value)) {
                 $builder->where(function (Builder $b) use ($key, $value) {
                     foreach ($value as $index => $val) {
-                        if ($val = str($val)->trim()) {
-                            $opAndVal = $this->getFilterOpAndValue($val);
+                        $trimmed = str($val)->trim();
+                        if ($trimmed != '') {
+                            $opAndVal = $this->getFilterOpAndValue($trimmed);
                             $this->applyFilter($b, $key, $opAndVal, $index === 0);
                         }
                     }
                     return $b;
-
                 });
             } else {
-                if (str($value)->trim()) {
-                    $opAndVal = $this->getFilterOpAndValue($value);
+                $trimmed = str($value)->trim();
+                if ($trimmed != '') {
+                    $opAndVal = $this->getFilterOpAndValue($trimmed);
                     $this->applyFilter($builder, $key, $opAndVal);
                 }
             }
@@ -95,7 +95,6 @@ trait BaseModelTrait
         $useNot = false;
         $operator = '=';
 
-        // check if the value starts with '!', that would mean that the operation is negated
         if ($v->startsWith('!')) {
             $useNot = true;
             $v = $v->substr(1);
@@ -125,7 +124,7 @@ trait BaseModelTrait
                 case '@between':
                     return [
                         'operator' => $first->remove('@')->value(),
-                        'value' => str($rest)->split('/,|\s|\.\./')->toArray(),// separate by comma, space or double dot
+                        'value' => str($rest)->split('/,|\s|\.\./')->toArray(),
                         'useNot' => $useNot
                     ];
                 default:
@@ -138,7 +137,6 @@ trait BaseModelTrait
                     }
             }
         }
-
         return compact('operator', 'value', 'useNot');
     }
 
@@ -158,7 +156,7 @@ trait BaseModelTrait
             $method = $useAnd
                 ? ($opAndVal['useNot'] ? 'whereNot' : 'where')
                 : ($opAndVal['useNot'] ? 'orWhereNot' : 'orWhere');
-            $params = [$key, $opAndVal['operator'], $opAndVal['value'] == 'null' ? null : $opAndVal['value']];
+            $params = [$key, $opAndVal['operator'], $opAndVal['value'] === 'null' ? null : $opAndVal['value']];
         }
         $builder->$method(...$params);
         return $builder;
@@ -166,7 +164,8 @@ trait BaseModelTrait
 
     public function scopeOrderThroughRequest(Builder $builder): Builder
     {
-        if ($order_by = request('order_by')) {
+        $order_by = request('order_by');
+        if ($order_by) {
             if (is_array($order_by)) {
                 if (Arr::isAssoc($order_by)) {
                     $key = array_keys($order_by)[0];
@@ -197,7 +196,7 @@ trait BaseModelTrait
 
     public function init(): void
     {
-        $this->casts = collect($this->casts)->merge(['extra' => 'array'])->all();
+        $this->casts = array_merge($this->casts ?? [], ['metadata' => 'array']);
         $this->handleConveniencesFromRequest();
     }
 
@@ -216,7 +215,6 @@ trait BaseModelTrait
     public function cashBaseKey(): string
     {
         $key = $this->getTable() . ',route:' . (Route::currentRouteName() ?: Route::currentRouteAction() ?? 'none');
-
         $relationFilters = ['hidden', 'appends', 'with_count', 'with'];
         $table = $this->getTable();
         foreach ($relationFilters as $filter) {
@@ -224,15 +222,12 @@ trait BaseModelTrait
                 $key .= ',' . $filter . ':' . (is_array($value) ? collect($value)->sort()->implode('.') : $value);
             }
         }
-
         if ($credentials = request()->input('filter_fields')) {
             $credentials = utils()::filterByKeys(array_map('to_snake_case', $credentials), $this->getColumns());
             if ($credentials) {
                 $key .= ',filter_fields:' . collect(utils()::sortArrayByKeyThenValue($credentials))->toJson();
             }
         }
-
         return $key;
     }
-
 }

@@ -4,8 +4,9 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
-class UpdateProprietyRequest extends FormRequest
+class StorePermissionRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -23,7 +24,19 @@ class UpdateProprietyRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'code' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('permissions'),
+            ],
+            'name' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('permissions')->ignore($this->route('permission')),
+            ],
+            'description' => 'nullable|string',
         ];
     }
 }

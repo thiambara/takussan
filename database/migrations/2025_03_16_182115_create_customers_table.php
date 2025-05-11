@@ -12,13 +12,21 @@ return new class extends Migration {
     {
         Schema::create('customers', function (Blueprint $table) {
             $table->id();
-            $table->string('first_name')->nullable();
-            $table->string('last_name')->nullable();
+
+            // Informations de base
+            $table->string('first_name');
+            $table->string('last_name');
             $table->string('email')->unique()->nullable();
-            $table->string('phone')->nullable()->nullable();
-            $table->string('status')->nullable()->default('active');
+            $table->string('phone')->unique()->nullable();
+            $table->date('birth_date')->nullable();
+
+
+            // Statut et gestion
+            $table->string('status')->default('active'); //  ['active', 'inactive', 'blocked', 'deleted'];
             $table->foreignId('added_by_id')->nullable()->constrained('users')->onDelete('set null');
-            $table->json('extra')->nullable();
+
+            $table->foreignId('added_by_id')->nullable()->constrained('users')->onDelete('set null');
+            $table->json('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
         });
