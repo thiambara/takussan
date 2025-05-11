@@ -8,7 +8,6 @@ use App\Http\Requests\UpdatePropertyRequest;
 use App\Models\Property;
 use App\Services\Model\PropertyService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class PropertyController extends Controller
@@ -27,54 +26,16 @@ class PropertyController extends Controller
     /**
      * Display a listing of the properties.
      */
-    public function index(Request $request): JsonResponse
+    public function index(): JsonResponse
     {
-        $query = Property::query();
-
-        // Apply filters
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->has('type')) {
-            $query->where('type', $request->type);
-        }
-
-        if ($request->has('contract_type')) {
-            $query->where('contract_type', $request->contract_type);
-        }
-
-        if ($request->has('min_price')) {
-            $query->where('price', '>=', $request->min_price);
-        }
-
-        if ($request->has('max_price')) {
-            $query->where('price', '<=', $request->max_price);
-        }
-
-        if ($request->has('min_area')) {
-            $query->where('area', '>=', $request->min_area);
-        }
-
-        if ($request->has('max_area')) {
-            $query->where('area', '<=', $request->max_area);
-        }
+        $query = Property::allThroughRequest();
 
         // Show only user's properties if not admin
         if (!Auth::user()->hasPermission('properties.view_all')) {
             $query->where('user_id', Auth::id());
         }
 
-        // Load relationships
-        $query->with(['address', 'user']);
-
-        // Paginate results
-        $properties = $query->paginate($request->per_page ?? 15);
-
-        return response()->json([
-            'status' => 'success',
-            'data' => $properties
-        ]);
+        return response()->json($query->paginatedThroughRequest());
     }
 
     /**
