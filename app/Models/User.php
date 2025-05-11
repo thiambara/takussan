@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Models\Bases\BaseModelInterface;
 use App\Models\Bases\BaseModelTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -34,25 +33,18 @@ class User extends Authenticatable implements BaseModelInterface
         'email_verified_at',
         'remember_token',
         'google_id',
-        'extra',
+        'metadata',
     ];
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
-     */
+
     protected $hidden = [
         'password',
         'remember_token',
     ];
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
+
     protected $casts = [
         'email_verified_at' => 'datetime',
         'roles' => 'array',
+        'metadata' => 'array',
     ];
 
     public function __construct(array $attributes = [])
@@ -61,15 +53,34 @@ class User extends Authenticatable implements BaseModelInterface
         parent::__construct($attributes);
     }
 
-
     public function addresses(): MorphMany
     {
         return $this->morphMany(Address::class, 'addressable');
     }
 
-    public function proprieties(): HasMany
+    public function properties(): HasMany
     {
-        return $this->hasMany(Propriety::class);
+        return $this->hasMany(Property::class);
+    }
+
+    public function customers(): HasMany
+    {
+        return $this->hasMany(Customer::class, 'added_by_id');
+    }
+
+    public function bookings(): HasMany
+    {
+        return $this->hasMany(Booking::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    public function added_by()
+    {
+        return $this->belongsTo(User::class, 'added_by_id');
     }
 
     public function hasRoles(array|string $roles, bool $all = false): bool
@@ -81,17 +92,6 @@ class User extends Authenticatable implements BaseModelInterface
         return $roles->intersect($this->roles ?? [])->count() > 0;
     }
 
-    /**
-     * The roles that belong to the user.
-     */
-    public function assignedRoles(): BelongsToMany
-    {
-        return $this->belongsToMany(Role::class, 'user_has_roles');
-    }
-
-    /**
-     * Check if the user has a specific role
-     */
     public function hasRole(string|int|Role $role): bool
     {
         if (is_string($role)) {
@@ -103,65 +103,68 @@ class User extends Authenticatable implements BaseModelInterface
         return $this->assignedRoles()->where('id', $role->id)->exists();
     }
 
-    /**
-     * Assign roles to the user
-     */
+    public function assignedRoles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class, 'user_has_roles');
+    }
+
     public function assignRoles(array|Role $roles): self
     {
         $roles = is_array($roles) ? $roles : [$roles];
         $roleIds = collect($roles)->map(function ($role) {
             return $role instanceof Role ? $role->id : $role;
         })->toArray();
-        
+
         $this->assignedRoles()->syncWithoutDetaching($roleIds);
-        
+
         return $this;
     }
 
-    /**
-     * Remove roles from the user
-     */
     public function removeRoles(array|Role $roles): self
     {
         $roles = is_array($roles) ? $roles : [$roles];
         $roleIds = collect($roles)->map(function ($role) {
             return $role instanceof Role ? $role->id : $role;
         })->toArray();
-        
+
         $this->assignedRoles()->detach($roleIds);
-        
+
         return $this;
     }
 
-    /**
-     * Sync roles for the user
-     */
     public function syncRoles(array $roles): self
     {
         $roleIds = collect($roles)->map(function ($role) {
             return $role instanceof Role ? $role->id : $role;
         })->toArray();
-        
+
         $this->assignedRoles()->sync($roleIds);
-        
+
         return $this;
     }
 
-    /**
-     * Check if the user has a specific permission directly or through roles
-     */
     public function hasPermission(string|int|Permission $permission): bool
     {
-        // Permission can be provided as name (string), id (int) or Permission object
         $permissionName = is_string($permission) ? $permission : (
-            is_int($permission) ? Permission::find($permission)?->name : $permission->name
+        is_int($permission) ? Permission::find($permission)?->name : $permission->name
         );
-        
-        // Check if any of the user's roles have this permission
+
         return $this->assignedRoles()
             ->whereHas('permissions', function ($query) use ($permissionName) {
                 $query->where('name', $permissionName);
             })
             ->exists();
+    }
+
+    public function customer_relationships(): HasMany
+    {
+        return $this->hasMany(UserCustomerRelationship::class);
+    }
+
+    public function related_customers(): BelongsToMany
+    {
+        return $this->belongsToMany(Customer::class, 'user_customer_relationships')
+            ->withPivot(['relationship_type', 'is_primary', 'status', 'start_date', 'end_date', 'notes'])
+            ->withTimestamps();
     }
 }
