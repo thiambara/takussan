@@ -20,7 +20,7 @@ class AddressController extends Controller
     public function index(): JsonResponse
     {
         $query = Address::allThroughRequest();
-        if (!auth()->user()->hasRoles(UserRole::Customer->value)) {
+        if (!auth()->user()->hasRole(UserRole::Admin->value)) {
             $query->whereRelation('addressable', auth()->user());
         }
         if ($search_query = request()->search_query) {

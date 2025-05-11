@@ -24,10 +24,8 @@ class UserController extends Controller
 
     public function index(): JsonResponse
     {
-//        $key = (new User)->cashBaseKey();
-//        $responseData = cache()->tags([User::class])->remember($key, 60 * 60, fn() => User::allThroughRequest());
         $query = User::allThroughRequest();
-        if (!auth()->user()->hasRoles(UserRole::Customer->value)) {
+        if (!auth()->user()->hasRole(UserRole::Admin->value)) {
             $query->where('added_by_id', auth()->user()->id);
         }
         if ($search_query = request()->search_query) {

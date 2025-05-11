@@ -99,15 +99,6 @@ class User extends Authenticatable implements BaseModelInterface
             ->withTimestamps();
     }
 
-    public function hasRoles(array|string $roles, bool $all = false): bool
-    {
-        $roles = collect(is_array($roles) ? $roles : [$roles]);
-        if ($all) {
-            return $roles->intersect($this->roles ?? [])->count() === $roles->count();
-        }
-        return $roles->intersect($this->roles ?? [])->count() > 0;
-    }
-
     public function hasRole(string|int|Role $role): bool
     {
         if (is_string($role)) {

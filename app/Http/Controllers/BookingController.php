@@ -20,7 +20,7 @@ class BookingController extends Controller
     public function index(): JsonResponse
     {
         $query = Booking::allThroughRequest();
-        if (!($user = auth()->user())->hasRoles(UserRole::Customer->value)) {
+        if (!($user = auth()->user())->hasRole(UserRole::Admin->value)) {
             $query->whereRelation('propriety.user', $user);
         }
 
