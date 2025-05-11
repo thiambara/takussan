@@ -9,98 +9,60 @@ use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Services\Model\BookingPaymentService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Throwable;
 
 class BookingPaymentController extends Controller
 {
-    protected BookingPaymentService $paymentService;
 
-    public function __construct(BookingPaymentService $paymentService)
+    public function __construct(private readonly BookingPaymentService $bookingPaymentService)
     {
-        $this->paymentService = $paymentService;
-        $this->middleware('permission:payments.view')->only(['index', 'show']);
-        $this->middleware('permission:payments.create')->only(['create', 'store']);
-        $this->middleware('permission:payments.update')->only(['edit', 'update']);
-        $this->middleware('permission:payments.delete')->only(['destroy']);
+        $this->middleware('permission:booking_payments.view')->only(['index', 'show']);
+        $this->middleware('permission:booking_payments.create')->only(['create', 'store']);
+        $this->middleware('permission:booking_payments.update')->only(['edit', 'update']);
+        $this->middleware('permission:booking_payments.delete')->only(['destroy']);
     }
 
     /**
      * Display a listing of the payments.
      */
-    public function index(Request $request): JsonResponse
+    public function index(): JsonResponse
     {
-        $query = BookingPayment::query();
-
-        // Apply filters
-        if ($request->has('booking_id')) {
-            $query->where('booking_id', $request->booking_id);
-        }
-
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->has('payment_type')) {
-            $query->where('payment_type', $request->payment_type);
-        }
-
-        if ($request->has('payment_method')) {
-            $query->where('payment_method', $request->payment_method);
-        }
-
-        if ($request->has('date_from')) {
-            $query->where('payment_date', '>=', $request->date_from);
-        }
-
-        if ($request->has('date_to')) {
-            $query->where('payment_date', '<=', $request->date_to);
-        }
+        $query = BookingPayment::allThroughRequest();
 
         // Show only user's payments if not admin
-        if (!Auth::user()->hasPermission('payments.view_all')) {
+        if (!Auth::user()->hasPermission('booking_payments.view_all')) {
             $query->whereHas('booking', function ($q) {
                 $q->where('user_id', Auth::id());
             });
         }
 
-        // Load relationships
-        $query->with(['booking', 'user']);
-
-        // Sort by payment date by default, newest first
-        $query->orderBy($request->get('sort_by', 'payment_date'), $request->get('sort_direction', 'desc'));
-
-        // Paginate results
-        $payments = $query->paginate($request->per_page ?? 15);
-
-        return response()->json([
-            'status' => 'success',
-            'data' => $payments
-        ]);
+        return response()->json($query->paginatedThroughRequest());
     }
 
     /**
      * Store a newly created payment in storage.
+     * @throws Throwable
      */
     public function store(StoreBookingPaymentRequest $request): JsonResponse
     {
-        $payment = $this->paymentService->store($request->validated());
+        $bookingPayment = $this->bookingPaymentService->store($request->validated());
 
         return response()->json([
             'status' => 'success',
             'message' => 'Payment created successfully',
-            'data' => $payment->load(['booking', 'user'])
+            'data' => $bookingPayment->load(['booking', 'user'])
         ], 201);
     }
 
     /**
      * Display the specified payment.
      */
-    public function show(BookingPayment $payment): JsonResponse
+    public function show(BookingPayment $bookingPayment): JsonResponse
     {
         // Check if user can view this payment
-        if (!Auth::user()->hasPermission('payments.view_all')) {
-            $booking = Booking::find($payment->booking_id);
+        if (!Auth::user()->hasPermission('booking_payments.view_all')) {
+            $booking = Booking::find($bookingPayment->booking_id);
             if (!$booking || $booking->user_id !== Auth::id()) {
                 return response()->json([
                     'status' => 'error',
@@ -109,22 +71,23 @@ class BookingPaymentController extends Controller
             }
         }
 
-        $payment->load(['booking', 'user']);
+        $bookingPayment->load(['booking', 'user']);
 
         return response()->json([
             'status' => 'success',
-            'data' => $payment
+            'data' => $bookingPayment
         ]);
     }
 
     /**
      * Update the specified payment in storage.
+     * @throws Throwable
      */
-    public function update(UpdateBookingPaymentRequest $request, BookingPayment $payment): JsonResponse
+    public function update(UpdateBookingPaymentRequest $request, BookingPayment $bookingPayment): JsonResponse
     {
         // Check if user can edit this payment
-        if (!Auth::user()->hasPermission('payments.update_all')) {
-            $booking = Booking::find($payment->booking_id);
+        if (!Auth::user()->hasPermission('booking_payments.update_all')) {
+            $booking = Booking::find($bookingPayment->booking_id);
             if (!$booking || $booking->user_id !== Auth::id()) {
                 return response()->json([
                     'status' => 'error',
@@ -133,23 +96,24 @@ class BookingPaymentController extends Controller
             }
         }
 
-        $payment = $this->paymentService->update($payment, $request->validated());
+        $bookingPayment = $this->bookingPaymentService->update($bookingPayment, $request->validated());
 
         return response()->json([
             'status' => 'success',
             'message' => 'Payment updated successfully',
-            'data' => $payment->load(['booking', 'user'])
+            'data' => $bookingPayment->load(['booking', 'user'])
         ]);
     }
 
     /**
      * Remove the specified payment from storage.
+     * @throws Throwable
      */
-    public function destroy(BookingPayment $payment): JsonResponse
+    public function destroy(BookingPayment $bookingPayment): JsonResponse
     {
         // Check if user can delete this payment
-        if (!Auth::user()->hasPermission('payments.delete_all')) {
-            $booking = Booking::find($payment->booking_id);
+        if (!Auth::user()->hasPermission('booking_payments.delete_all')) {
+            $booking = Booking::find($bookingPayment->booking_id);
             if (!$booking || $booking->user_id !== Auth::id()) {
                 return response()->json([
                     'status' => 'error',
@@ -158,7 +122,7 @@ class BookingPaymentController extends Controller
             }
         }
 
-        $this->paymentService->delete($payment);
+        $this->bookingPaymentService->delete($bookingPayment);
 
         return response()->json([
             'status' => 'success',
@@ -172,18 +136,18 @@ class BookingPaymentController extends Controller
     public function getBookingPayments(Booking $booking): JsonResponse
     {
         // Check if user can view these payments
-        if (!Auth::user()->hasPermission('payments.view_all') && $booking->user_id !== Auth::id()) {
+        if (!Auth::user()->hasPermission('booking_payments.view_all') && $booking->property->user_id !== Auth::id()) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Unauthorized'
             ], 403);
         }
 
-        $payments = $this->paymentService->getPaymentsForBooking($booking->id);
+        $bookingPayments = $booking->booking_payments()->get();
 
         return response()->json([
             'status' => 'success',
-            'data' => $payments
+            'data' => $bookingPayments
         ]);
     }
 }

@@ -37,7 +37,7 @@ class Customer extends AbstractModel implements HasMedia
 
     public function getFullNameAttribute(): string
     {
-        return "{$this->first_name} {$this->last_name}";
+        return "$this->first_name $this->last_name";
     }
 
     public function bookings(): HasMany
@@ -45,7 +45,7 @@ class Customer extends AbstractModel implements HasMedia
         return $this->hasMany(Booking::class);
     }
 
-    public function addedBy(): BelongsTo
+    public function added_by(): BelongsTo
     {
         return $this->belongsTo(User::class, 'added_by_id');
     }
@@ -55,7 +55,7 @@ class Customer extends AbstractModel implements HasMedia
         return $this->morphMany(Address::class, 'addressable');
     }
 
-    public function user_relationships(): HasMany
+    public function user_customer_relationships(): HasMany
     {
         return $this->hasMany(UserCustomerRelationship::class);
     }

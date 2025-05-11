@@ -17,6 +17,7 @@ class Booking extends AbstractModel
     protected $fillable = [
         'property_id',
         'customer_id',
+        'user_id',
         'reference_number',
         'status',
         'booking_date',
@@ -58,6 +59,11 @@ class Booking extends AbstractModel
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function booking_payments(): HasMany

@@ -10,6 +10,7 @@ use App\Services\Model\ReviewService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Throwable;
 
 class ReviewController extends Controller
 {
@@ -28,57 +29,15 @@ class ReviewController extends Controller
     /**
      * Display a listing of the reviews.
      */
-    public function index(Request $request): JsonResponse
+    public function index(): JsonResponse
     {
-        $query = Review::query();
-
-        // Apply filters
-        if ($request->has('model_type')) {
-            $modelType = $request->model_type;
-
-            // Handle shorthand model types
-            if (!str_contains($modelType, '\\')) {
-                $modelType = 'App\\Models\\' . ucfirst($modelType);
-            }
-
-            $query->where('model_type', $modelType);
-        }
-
-        if ($request->has('model_id')) {
-            $query->where('model_id', $request->model_id);
-        }
-
-        if ($request->has('is_approved')) {
-            $query->where('is_approved', $request->boolean('is_approved'));
-        }
-
-        if ($request->has('min_rating')) {
-            $query->where('rating', '>=', $request->min_rating);
-        }
-
-        if ($request->has('user_id')) {
-            $query->where('user_id', $request->user_id);
-        } elseif ($request->has('my_reviews') && $request->boolean('my_reviews')) {
-            $query->where('user_id', Auth::id());
-        }
-
-        // Load relationships
-        $query->with(['user', 'approver']);
-
-        // Order by creation date, newest first by default
-        $query->orderBy($request->get('sort_by', 'created_at'), $request->get('sort_direction', 'desc'));
-
-        // Paginate results
-        $reviews = $query->paginate($request->per_page ?? 15);
-
-        return response()->json([
-            'status' => 'success',
-            'data' => $reviews
-        ]);
+        $query = Review::allThroughRequest();
+        return response()->json($query->paginatedThroughRequest());
     }
 
     /**
      * Store a newly created review in storage.
+     * @throws Throwable
      */
     public function store(StoreReviewRequest $request): JsonResponse
     {
@@ -114,6 +73,7 @@ class ReviewController extends Controller
 
     /**
      * Update the specified review in storage.
+     * @throws Throwable
      */
     public function update(UpdateReviewRequest $request, Review $review): JsonResponse
     {
@@ -128,6 +88,7 @@ class ReviewController extends Controller
 
     /**
      * Remove the specified review from storage.
+     * @throws Throwable
      */
     public function destroy(Review $review): JsonResponse
     {
@@ -149,6 +110,7 @@ class ReviewController extends Controller
 
     /**
      * Approve a review.
+     * @throws Throwable
      */
     public function approve(Review $review): JsonResponse
     {
@@ -163,6 +125,7 @@ class ReviewController extends Controller
 
     /**
      * Reject a review.
+     * @throws Throwable
      */
     public function reject(Review $review): JsonResponse
     {
@@ -177,6 +140,7 @@ class ReviewController extends Controller
 
     /**
      * Report a review.
+     * @throws Throwable
      */
     public function report(Review $review): JsonResponse
     {
@@ -189,28 +153,6 @@ class ReviewController extends Controller
                 'reported_count' => $review->reported_count,
                 'is_approved' => $review->is_approved
             ]
-        ]);
-    }
-
-    /**
-     * Get pending reviews.
-     */
-    public function getPending(Request $request): JsonResponse
-    {
-        $query = Review::where('is_approved', false);
-
-        // Load relationships
-        $query->with(['user']);
-
-        // Order by creation date, oldest first by default for moderation queue
-        $query->orderBy('created_at', 'asc');
-
-        // Paginate results
-        $reviews = $query->paginate($request->per_page ?? 15);
-
-        return response()->json([
-            'status' => 'success',
-            'data' => $reviews
         ]);
     }
 

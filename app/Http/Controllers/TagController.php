@@ -9,6 +9,7 @@ use App\Models\Tag;
 use App\Services\Model\TagService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Throwable;
 
 class TagController extends Controller
 {
@@ -28,36 +29,23 @@ class TagController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Tag::query();
-
-        // Apply filters
-        if ($request->has('type')) {
-            $query->where('type', $request->type);
-        }
+        $query = Tag::allThroughRequest();
 
         if ($request->has('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('slug', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%");
+                $q->where('name', 'like', "%$search%")
+                    ->orWhere('slug', 'like', "%$search%")
+                    ->orWhere('description', 'like', "%$search%");
             });
         }
 
-        // Order by
-        $query->orderBy($request->get('sort_by', 'name'), $request->get('sort_direction', 'asc'));
-
-        // Paginate results
-        $tags = $query->paginate($request->per_page ?? 15);
-
-        return response()->json([
-            'status' => 'success',
-            'data' => $tags
-        ]);
+        return response()->json($query->paginatedThroughRequest());
     }
 
     /**
      * Store a newly created tag in storage.
+     * @throws Throwable
      */
     public function store(StoreTagRequest $request): JsonResponse
     {
@@ -83,6 +71,7 @@ class TagController extends Controller
 
     /**
      * Update the specified tag in storage.
+     * @throws Throwable
      */
     public function update(UpdateTagRequest $request, Tag $tag): JsonResponse
     {
@@ -97,6 +86,7 @@ class TagController extends Controller
 
     /**
      * Remove the specified tag from storage.
+     * @throws Throwable
      */
     public function destroy(Tag $tag): JsonResponse
     {

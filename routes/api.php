@@ -1,16 +1,4 @@
 <?php
-
-use App\Http\Controllers\AddressController;
-use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\Auth\OAuth2Controller;
-use App\Http\Controllers\BookingController;
-use App\Http\Controllers\CustomerController;
-use App\Http\Controllers\PermissionController;
-use App\Http\Controllers\ProprietyController;
-use App\Http\Controllers\RoleController;
-use App\Http\Controllers\UserController;
-use Illuminate\Support\Facades\Route;
-
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -21,170 +9,17 @@ use Illuminate\Support\Facades\Route;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
-/**
- * AUTH ROUTES
- * ==============
- * ***
- */
-Route::prefix('auth')->controller(AuthController::class)->group(function () {
-    Route::post('/login', 'login')->name('auth-user');
-    Route::post('/sign-up', 'signUp')->name('sign-up');
-    /**
-     * PRIVATE ROUTES
-     */
-    Route::middleware("auth:sanctum")->group(function () {
-        Route::get('/auth-user', 'authUser')->name('auth-user');
-        Route::post('/logout', 'logout')->name('logout');
-    });
-})->name('auth.');
 
-/**
- * 0AUTH2 ROUTES
- * =============
- * ***
- */
-Route::prefix('oauth2')->controller(OAuth2Controller::class)->group(function () {
-    Route::any('google-redirect', 'googleRedirect')->name('google-redirect');
-    Route::any('google-callback', 'googleCallback')->name('google-callback');
-})->name('oauth2.');
-
-/**
- * ADDRESS ROUTES
- * ==============
- * ***
- */
-Route::prefix('addresses')->controller(AddressController::class)->group(function () {
-    /**
-     * PRIVATE ROUTES
-     */
-    Route::middleware("auth:sanctum")->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::post('/', 'store')->name('store');
-        Route::get('/{address}', 'show')->whereNumber('address')->name('show');
-        Route::put('/{address}', 'update')->whereNumber('address')->name('update');
-        Route::delete('/{address}', 'destroy')->whereNumber('address')->name('destroy');
-    });
-})->name('addresses.');
-
-/**
- * BOOKING ROUTES
- * ==============
- * ***
- */
-Route::prefix('bookings')->controller(BookingController::class)->group(function () {
-    /**
-     * PRIVATE ROUTES
-     */
-    Route::middleware("auth:sanctum")->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::post('/', 'store')->name('store');
-        Route::get('/{booking}', 'show')->whereNumber('booking')->name('show');
-        Route::put('/{booking}', 'update')->whereNumber('booking')->name('update');
-        Route::delete('/{booking}', 'destroy')->whereNumber('booking')->name('destroy');
-    });
-})->name('bookings.');
-
-/**
- * PROPRIETY ROUTES
- * ===========
- * ***
- */
-Route::prefix('proprieties')->controller(ProprietyController::class)->group(function () {
-    /**
-     * PRIVATE ROUTES
-     */
-    Route::middleware("auth:sanctum")->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::post('/', 'store')->name('store');
-        Route::get('/{propriety}', 'show')->whereNumber('propriety')->name('show');
-        Route::put('/{propriety}', 'update')->whereNumber('propriety')->name('update');
-        Route::delete('/{propriety}', 'destroy')->whereNumber('propriety')->name('destroy');
-    });
-})->name('proprieties.');
-
-/**
- * 0AUTH2 ROUTES
- * =============
- * ***
- */
-Route::prefix('oauth2')->controller(OAuth2Controller::class)->group(function () {
-    Route::any('google-redirect', 'googleRedirect')->name('google-redirect');
-    Route::any('google-callback', 'googleCallback')->name('google-callback');
-})->name('oauth2.');
-
-/**
- * USER ROUTES
- * ===========
- * ***
- */
-Route::prefix('users')->controller(UserController::class)->group(function () {
-    Route::post('/', 'store')->name('store');
-    Route::post('/forgot-password', 'forgotPassword')->name('forgot-password');
-    Route::post('/reset-password', 'resetPassword')->name('reset-password');
-
-    /**
-     * PRIVATE ROUTES
-     */
-    Route::middleware("auth:sanctum")->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::get('/{user}', 'show')->whereNumber('user')->name('show');
-        Route::put('/{user}', 'update')->whereNumber('user')->name('update');
-        Route::delete('/{user}', 'destroy')->whereNumber('user')->name('destroy');
-    });
-})->name('users.');
-
-
-/**
- * CUSTOMER ROUTES
- * ===========
- * ***
- */
-Route::prefix('customers')->controller(CustomerController::class)->group(function () {
-    /**
-     * PRIVATE ROUTES
-     */
-    Route::middleware("auth:sanctum")->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::post('/', 'store')->name('store');
-        Route::get('/{customer}', 'show')->whereNumber('customer')->name('show');
-        Route::put('/{customer}', 'update')->whereNumber('customer')->name('update');
-        Route::delete('/{customer}', 'destroy')->whereNumber('customer')->name('destroy');
-    });
-})->name('customers.');
-
-/**
- * ROLE ROUTES
- * ===========
- * ***
- */
-Route::prefix('roles')->controller(RoleController::class)->group(function () {
-    /**
-     * PRIVATE ROUTES
-     */
-    Route::middleware("auth:sanctum")->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::post('/', 'store')->name('store');
-        Route::get('/{role}', 'show')->whereNumber('role')->name('show');
-        Route::put('/{role}', 'update')->whereNumber('role')->name('update');
-        Route::delete('/{role}', 'destroy')->whereNumber('role')->name('destroy');
-        Route::post('/{role}/permissions', 'syncPermissions')->whereNumber('role')->name('sync-permissions');
-    });
-})->name('roles.');
-
-/**
- * PERMISSION ROUTES
- * ===========
- * ***
- */
-Route::prefix('permissions')->controller(PermissionController::class)->group(function () {
-    /**
-     * PRIVATE ROUTES
-     */
-    Route::middleware("auth:sanctum")->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::post('/', 'store')->name('store');
-        Route::get('/{permission}', 'show')->whereNumber('permission')->name('show');
-        Route::put('/{permission}', 'update')->whereNumber('permission')->name('update');
-        Route::delete('/{permission}', 'destroy')->whereNumber('permission')->name('destroy');
-    });
-})->name('permissions.');
+// Include all API route files
+require __DIR__ . '/api/auth/auth.php';
+require __DIR__ . '/api/auth/oauth2.php';
+require __DIR__ . '/api/addresses.php';
+require __DIR__ . '/api/bookings.php';
+require __DIR__ . '/api/properties.php';
+require __DIR__ . '/api/users.php';
+require __DIR__ . '/api/customers.php';
+require __DIR__ . '/api/roles.php';
+require __DIR__ . '/api/permissions.php';
+require __DIR__ . '/api/tags.php';
+require __DIR__ . '/api/booking-payments.php';
+require __DIR__ . '/api/reviews.php';
