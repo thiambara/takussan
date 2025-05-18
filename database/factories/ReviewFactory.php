@@ -36,7 +36,7 @@ class ReviewFactory extends Factory
             'is_approved' => fake()->boolean(80),
             'approved_by' => fn (array $attributes) => $attributes['is_approved'] ? User::factory() : null,
             'approved_at' => fn (array $attributes) => $attributes['is_approved'] ? fake()->dateTimeBetween('-30 days', 'now') : null,
-            'reported_count' => fake()->optional(0.1)->numberBetween(1, 10),
+            'reported_count' => fake()->numberBetween(0, 10), // Changed to always return a value (includes 0)
         ];
     }
 

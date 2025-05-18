@@ -13,51 +13,102 @@ class CustomerSeeder extends Seeder
      */
     public function run(): void
     {
-        // Créer un administrateur comme utilisateur par défaut pour added_by_id
-        $admin = User::first() ?? User::factory()->create();
+        // Get admin and manager users to be assigned as customer creators
+        $adminUsers = User::whereHas('assigned_roles', function ($query) {
+            $query->where('code', 'admin');
+        })->get();
+        
+        $managerUsers = User::whereHas('assigned_roles', function ($query) {
+            $query->where('code', 'manager');
+        })->get();
+        
+        $userCreators = $adminUsers->merge($managerUsers);
+        
+        if ($userCreators->isEmpty()) {
+            $userCreators = User::take(2)->get();
+        }
 
-        // Créer 20 clients avec le statut actif
-        Customer::factory()->count(15)->active()->create([
-            'added_by_id' => $admin->id,
-        ]);
+        // Create active customers for each admin/manager
+        foreach ($userCreators as $creator) {
+            Customer::factory()
+                ->count(3)
+                ->active()
+                ->create([
+                    'added_by_id' => $creator->id,
+                ]);
+                
+            // Create some inactive customers
+            Customer::factory()
+                ->count(1)
+                ->inactive()
+                ->create([
+                    'added_by_id' => $creator->id,
+                ]);
+        }
 
-        // Créer 5 clients avec le statut inactif
-        Customer::factory()->count(5)->inactive()->create([
-            'added_by_id' => $admin->id,
-        ]);
-
-        // Créer quelques clients avec des données spécifiques
+        // Create specific VIP customers
         $specificCustomers = [
             [
-                'first_name' => 'John',
-                'last_name' => 'Doe',
-                'email' => 'john.doe@example.com',
+                'first_name' => 'Amadou',
+                'last_name' => 'Diallo',
+                'email' => 'amadou.diallo@example.com',
                 'phone' => '+221 77 123 45 67',
                 'status' => 'active',
-                'birth_date' => '1985-06-15',
-                'added_by_id' => $admin->id,
-                'metadata' => json_encode([
-                    'address' => 'Dakar, Sénégal',
-                    'notes' => 'Client VIP',
-                ]),
+                'birth_date' => '1982-06-15',
+                'added_by_id' => $adminUsers->first()->id,
+                'metadata' => [
+                    'address' => 'Dakar, Almadies, Sénégal',
+                    'notes' => 'Client VIP - Intéressé par des propriétés de luxe',
+                    'preferred_locations' => ['Dakar', 'Saint-Louis'],
+                    'budget_range' => '300000-1000000'
+                ],
             ],
             [
-                'first_name' => 'Jane',
-                'last_name' => 'Smith',
-                'email' => 'jane.smith@example.com',
+                'first_name' => 'Fatou',
+                'last_name' => 'Ndiaye',
+                'email' => 'fatou.ndiaye@example.com',
                 'phone' => '+221 77 234 56 78',
                 'status' => 'active',
                 'birth_date' => '1990-03-22',
-                'added_by_id' => $admin->id,
-                'metadata' => json_encode([
+                'added_by_id' => $adminUsers->first()->id,
+                'metadata' => [
                     'address' => 'Thiès, Sénégal',
-                    'notes' => 'Client régulier',
-                ]),
+                    'notes' => 'Client régulier - Recherche location à long terme',
+                    'preferred_locations' => ['Dakar', 'Thiès'],
+                    'budget_range' => '50000-150000'
+                ],
+            ],
+            [
+                'first_name' => 'Omar',
+                'last_name' => 'Sow',
+                'email' => 'omar.sow@example.com',
+                'phone' => '+221 76 345 67 89',
+                'status' => 'active',
+                'birth_date' => '1975-11-08',
+                'added_by_id' => $managerUsers->first()->id,
+                'metadata' => [
+                    'address' => 'Mbour, Sénégal',
+                    'notes' => 'Investisseur - Intéressé par terrains et propriétés à vendre',
+                    'preferred_locations' => ['Mbour', 'Saly'],
+                    'budget_range' => '500000-2000000'
+                ],
             ],
         ];
 
         foreach ($specificCustomers as $customerData) {
             Customer::create($customerData);
         }
+        
+        // Add addresses for some customers
+        Customer::take(5)->get()->each(function ($customer) {
+            $customer->addresses()->create([
+                'street' => fake()->streetAddress(),
+                'city' => fake()->randomElement(['Dakar', 'Thiès', 'Saint-Louis', 'Mbour']),
+                'state' => fake()->randomElement(['Dakar', 'Thiès', 'Saint-Louis']),
+                'country' => 'Senegal',
+                'address' => fake()->address(),
+                'metadata' => json_encode(['is_primary' => true]),
+            ]);
+        });
     }
 }

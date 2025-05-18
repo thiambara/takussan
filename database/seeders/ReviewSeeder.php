@@ -6,6 +6,7 @@ use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Collection;
 
 class ReviewSeeder extends Seeder
 {
@@ -26,16 +27,16 @@ class ReviewSeeder extends Seeder
         $users = User::all();
 
         if ($users->isEmpty()) {
-            $users = [User::factory()->create()];
+            $users = new Collection([User::factory()->create()]);
         }
 
         // Get admins who can approve reviews
         $admins = User::whereHas('assigned_roles', function ($query) {
-            $query->where('name', 'admin')->orWhere('name', 'moderator');
+            $query->where('code', 'admin')->orWhere('code', 'manager');
         })->get();
 
         if ($admins->isEmpty()) {
-            $admins = [User::factory()->create()];
+            $admins = new Collection([User::factory()->create()]);
         }
 
         // Create reviews for properties
@@ -60,8 +61,10 @@ class ReviewSeeder extends Seeder
         // Create some pending reviews
         Review::factory()
             ->count(3)
-            ->pending()
+            ->state(['is_approved' => false]) // Use state instead of pending() method
             ->create([
+                'model_id' => $properties->random()->id,
+                'model_type' => Property::class,
                 'user_id' => $users->random()->id,
             ]);
     }
