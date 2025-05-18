@@ -1,0 +1,54 @@
+<div class="flex justify-between mb-6 items-center pl-1">
+  <h5 class="m-0 text-2xl">Property Details</h5>
+  <p-button (click)="editProperty()" icon="pi pi-pencil" label="Edit" text
+  ></p-button>
+</div>
+<div class="card p-4">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+    <div class="col">
+      <h6 class="text-gray-500">Title</h6>
+      <p class="text-surface-900 dark:text-surface-0 text-xl">{{ property?.title }}</p>
+    </div>
+    <div class="col">
+      <h6 class="text-gray-500">Status</h6>
+      <p class="text-surface-900 dark:text-surface-0 text-xl">{{ property?.status }}</p>
+    </div>
+    <div class="col">
+      <h6 class="text-gray-500">Created At</h6>
+      <p class="text-surface-900 dark:text-surface-0 text-xl">{{ property?.created_at | date: 'medium' }}</p>
+    </div>
+    <div class="col">
+      <h6 class="text-gray-500">Number of bookings</h6>
+      <p class="text-surface-900 dark:text-surface-0 text-xl">{{ property?.bookings?.length || 0 }}</p>
+    </div>
+    <div class="col">
+      <h6 class="text-gray-500">Description</h6>
+      <p class="text-surface-900 dark:text-surface-0 text-sm">{{ property?.description ?? 'No description' }}</p>
+    </div>
+  </div>
+</div>
+
+<div class="flex align-middle mb-4">
+  <h5 class="text-3xl m-0 mr-2">Bookings</h5>
+</div>
+
+@if (property?.bookings?.length) {
+  <div class="grid grid-cols-12 gap-4">
+    @for (booking of property?.bookings; track booking.id) {
+      <div class="col-span-12 lg:col-span-6 xl:col-span-3">
+        <!-- Booking details component would go here -->
+        <div class="card p-3">
+          <h6>Booking #{{ booking.reference_number }}</h6>
+          <p>Status: {{ booking.status }}</p>
+          <p>Date: {{ booking.booking_date | date: 'medium' }}</p>
+        </div>
+      </div>
+    }
+  </div>
+} @else {
+  <div class="h-40">
+    <div class="flex justify-center items-center h-full">
+      <h1>No bookings found</h1>
+    </div>
+  </div>
+}

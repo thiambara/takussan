@@ -1,13 +1,34 @@
 import {BaseModelInterface} from "./base/base.model";
-import {Land} from "./land.model";
+import {Property} from "./property.model";
+import {Customer} from "./customer.model";
 import {User} from "./user.model";
-
+import {BookingPayment} from "./booking-payment.model";
 
 export interface Booking extends BaseModelInterface {
-  land_id?: number;
+  property_id?: number;
+  customer_id?: number;
   user_id?: number;
-  status?: 'pending' | 'approved' | 'rejected' | 'cancelled';
-  land?: Land;
+  reference_number?: string;
+  status?: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  booking_date?: string;
+  expiration_date?: string;
+  approval_date?: string;
+  rejection_date?: string;
+  cancellation_date?: string;
+  completion_date?: string;
+  price_at_booking?: number;
+  deposit_amount?: number;
+  deposit_paid?: boolean;
+  deposit_date?: string;
+  notes?: string;
+  reason_for_rejection?: string;
+  reason_for_cancellation?: string;
+  cancellation_by?: string;
+
+  // Relations
+  property?: Property;
+  customer?: Customer;
   user?: User;
+  booking_payments?: BookingPayment[];
 }
 

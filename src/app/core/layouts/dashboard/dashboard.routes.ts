@@ -9,7 +9,7 @@ export const routes: Routes = [
     children: [
       {
         'path': '',
-        redirectTo: 'projects',
+        redirectTo: 'properties',
         pathMatch: 'full'
       },
       {
@@ -17,8 +17,8 @@ export const routes: Routes = [
         loadComponent: () => import('../../../pages/dashboard/home/home.component').then(m => m.HomeComponent)
       },
       {
-        path: 'projects',
-        loadChildren: () => import('../../../pages/dashboard/projects/projects.routes').then(m => m.routes),
+        path: 'properties',
+        loadChildren: () => import('../../../pages/dashboard/properties/properties.routes').then(m => m.routes),
       },
       {
         path: 'customers',

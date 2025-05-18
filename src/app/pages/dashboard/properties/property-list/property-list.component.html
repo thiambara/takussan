@@ -1,0 +1,92 @@
+<div class="">
+  <!--PROPERTIES TABLE TOOLBAR-->
+  <p-toolbar styleClass="mb-6">
+    <ng-template #start>
+      <p-button (onClick)="openNew()" class="mr-2" icon="pi pi-plus" label="New" severity="primary"/>
+    </ng-template>
+
+    <ng-template #end>
+      <p-button (onClick)="exportCSV()" icon="pi pi-upload" label="Export" severity="primary"/>
+    </ng-template>
+  </p-toolbar>
+
+  <!--PROPERTIES TABLE-->
+  <p-table #propertiesTable [(selection)]="selectedProperties"
+           [columns]="[]"
+           [paginator]="true"
+           [rowHover]="true"
+           [rowsPerPageOptions]="rowsPerPageOptions"
+           [rows]="10"
+           [showCurrentPageReport]="true" [tableStyle]="{ 'min-width': '75rem' }"
+           [value]="properties" currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries"
+           dataKey="id"
+           selectionMode="multiple">
+
+    <!--PROPERTIES TABLE CAPTION-->
+    <ng-template #caption>
+      <div class="flex items-center justify-between">
+        <h5 class="m-0">Manage properties</h5>
+        <p-iconfield>
+          <p-inputicon styleClass="pi pi-search"/>
+          <input (input)="onSearch()" [(ngModel)]="searchQuery" pInputText placeholder="Search..." type="text"/>
+        </p-iconfield>
+      </div>
+    </ng-template>
+
+    <!--PROPERTIES TABLE HEADER-->
+    <ng-template #header>
+      <tr>
+        <th style="width: 3rem">
+          <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+        </th>
+        <th pSortableColumn="created_at">Created At
+          <p-sortIcon field="created_at"></p-sortIcon>
+        </th>
+        <th pSortableColumn="title">Title
+          <p-sortIcon field="title"></p-sortIcon>
+        </th>
+        <th pSortableColumn="bookings_count">Number of Bookings
+          <p-sortIcon field="bookings_count"></p-sortIcon>
+        </th>
+        <th pSortableColumn="status">Status
+          <p-sortIcon field="status"></p-sortIcon>
+        </th>
+        <th></th>
+      </tr>
+    </ng-template>
+
+    <!--PROPERTIES TABLE BODY-->
+    <ng-template #body let-property>
+      <tr>
+        <td>
+          <p-tableCheckbox [value]="property"></p-tableCheckbox>
+        </td>
+        <td>{{ property.created_at| date: 'dd/MM/yyyy HH:mm:ss' }}</td>
+        <td>{{ property.title }}</td>
+        <td>{{ property.bookings_count }}</td>
+        <td>
+              <span
+                [class]="'product-badge status-' + (property.status?.toLowerCase() ?? '')">{{ property.status }}</span>
+        </td>
+        <td>
+          <div class="flex justify-end">
+            <p-button [routerLink]="property.id" class="p-button-text" label="Details"
+            ></p-button>
+          </div>
+
+        </td>
+      </tr>
+    </ng-template>
+
+    <!--PROPERTIES TABLE EMPTY MESSAGE-->
+    <ng-template #emptymessage>
+      <tr>
+        <td colspan="6i">
+          <div class="w-full flex justify-center items-center h-[30rem]">
+            <span class="text-2xl">There are no properties yet.</span>
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>

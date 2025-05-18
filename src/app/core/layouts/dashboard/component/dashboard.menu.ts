@@ -23,7 +23,7 @@ export class DashboardMenu implements OnInit {
     this.model = [
       {
         items: [
-          {label: 'Projects', icon: 'pi pi-fw pi-home', routerLink: ['/dashboard/projects']},
+          {label: 'Properties', icon: 'pi pi-fw pi-home', routerLink: ['/dashboard/properties']},
           {label: 'Customers', icon: 'pi pi-fw pi-users', routerLink: ['/dashboard/customers']}
         ]
       },
