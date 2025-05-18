@@ -243,7 +243,7 @@ class NotificationController extends Controller
                     'user_id' => $userId,
                     'type' => $request->type,
                     'title' => $request->title,
-                    'content' => $request->content,
+                    'content' => $request->input('content'),
                     'reference_id' => $request->reference_id,
                     'reference_type' => $request->reference_type,
                     'delivery_channel' => $request->delivery_channel ?? 'app',

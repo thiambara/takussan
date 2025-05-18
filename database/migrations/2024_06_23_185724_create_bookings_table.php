@@ -39,7 +39,7 @@ return new class extends Migration {
             $table->text('reason_for_rejection')->nullable();
             $table->text('reason_for_cancellation')->nullable();
             $table->string('cancellation_by')->nullable();
-            $table->json('metadata')->nullable();
+            $table->json('metadata')->nullable()->default('[]');
 
             // Timestamps et soft delete
             $table->timestamps();

@@ -24,7 +24,7 @@ return new class extends Migration {
             $table->string('building')->nullable();
             $table->string('latitude')->nullable();
             $table->string('longitude')->nullable();
-            $table->json('metadata')->nullable();
+            $table->json('metadata')->nullable()->default('[]');
             $table->timestamps();
         });
     }
