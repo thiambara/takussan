@@ -8,6 +8,7 @@ import {CommonModule} from "@angular/common";
 import {DynamicDialogConfig, DynamicDialogRef} from "primeng/dynamicdialog";
 import {Button} from "primeng/button";
 import {finalize} from "rxjs";
+import {AutoFocus} from "primeng/autofocus";
 
 @Component({
   selector: 'app-customer-form',
@@ -18,6 +19,7 @@ import {finalize} from "rxjs";
     Button,
     ReactiveFormsModule,
     InputText,
+    AutoFocus,
   ],
   standalone: true
 })

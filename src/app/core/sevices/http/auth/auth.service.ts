@@ -86,10 +86,3 @@ export class AuthService extends BaseHttpService<User> {
     return this.http.post(`${this.endpointUrl}/resend-verification-email`, data, this.httpOptions).pipe();
   }
 }
-
-@Injectable({
-  providedIn: 'root',
-  useValue: authUser
-})
-export class LoggedUser implements User {
-}
