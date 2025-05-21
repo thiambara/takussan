@@ -12,7 +12,7 @@ class UpdatePropertyRequest extends FormRequest
     public function authorize(): bool
     {
         $property = $this->route('property');
-        return $this->user()->hasPermission('properties.update') || 
+        return $this->user()->hasPermission('properties.update') ||
                $this->user()->id === $property->user_id;
     }
 
@@ -41,7 +41,7 @@ class UpdatePropertyRequest extends FormRequest
             'servicing' => 'nullable|array',
             'servicing.*' => 'string',
             'metadata' => 'nullable|array',
-            
+
             // Address fields
             'address' => 'sometimes|array',
             'address.street' => 'required_with:address|string',
@@ -49,11 +49,11 @@ class UpdatePropertyRequest extends FormRequest
             'address.state' => 'required_with:address|string',
             'address.postal_code' => 'required_with:address|string',
             'address.country' => 'required_with:address|string',
-            
+
             // Tags
             'tags' => 'nullable|array',
             'tags.*' => 'exists:tags,id',
-            
+
             // Media files
             'images' => 'nullable|array',
             'images.*' => 'file|image|max:10240',

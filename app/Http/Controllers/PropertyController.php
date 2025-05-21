@@ -17,10 +17,10 @@ class PropertyController extends Controller
     public function __construct(PropertyService $propertyService)
     {
         $this->propertyService = $propertyService;
-        $this->middleware('permission:properties.view')->only(['index', 'show']);
-        $this->middleware('permission:properties.create')->only(['create', 'store']);
-        $this->middleware('permission:properties.update')->only(['edit', 'update']);
-        $this->middleware('permission:properties.delete')->only(['destroy']);
+//        $this->middleware('permission:properties.view')->only(['index', 'show']);
+//        $this->middleware('permission:properties.create')->only(['create', 'store']);
+//        $this->middleware('permission:properties.update')->only(['edit', 'update']);
+//        $this->middleware('permission:properties.delete')->only(['destroy']);
     }
 
     /**
@@ -45,11 +45,7 @@ class PropertyController extends Controller
     {
         $property = $this->propertyService->store($request->validated());
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Property created successfully',
-            'data' => $property->load(['address', 'tags'])
-        ], 201);
+        return response()->json($property->load(['address', 'tags']), 201);
     }
 
     /**
@@ -67,10 +63,7 @@ class PropertyController extends Controller
 
         $property->load(['address', 'user', 'tags', 'parent', 'children']);
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $property
-        ]);
+        return response()->json($property);
     }
 
     /**
@@ -88,11 +81,7 @@ class PropertyController extends Controller
 
         $property = $this->propertyService->update($property, $request->validated());
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Property updated successfully',
-            'data' => $property->load(['address', 'tags'])
-        ]);
+        return response()->json($property->load(['address', 'tags']));
     }
 
     /**

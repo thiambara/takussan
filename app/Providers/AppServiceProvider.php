@@ -67,7 +67,7 @@ class AppServiceProvider extends ServiceProvider
             $limit = request('limit');
             $columns = request('columns', ['*']);
             if ($per_page || $page) {
-                $p = $this->paginate($per_page ?: $limit ?: 15, $columns, page: (int) $page ?: 1);
+                $p = $this->paginate($per_page ?: $limit ?: 15, $columns, page: (int)$page ?: 1);
                 if ($withQueryString) {
                     $p->withQueryString();
                 }
@@ -86,7 +86,6 @@ class AppServiceProvider extends ServiceProvider
             return $this->filterThroughRequest()
                 ->orderThroughRequest();
         });
-
     }
 
 }

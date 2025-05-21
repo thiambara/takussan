@@ -207,7 +207,7 @@ trait BaseModelTrait
         foreach ($relationFilters as $filter) {
             if ($value = request($table . '.' . $filter)) {
                 $field = str($filter)->camel()->replace('_', '');
-                $this->{$field} = array_merge($this->{$filter} ?? [], to_snake_case($value));
+                $this->{$field} = array_merge($this->{$filter} ?? [], is_array($value) ? to_snake_case($value) : [to_snake_case($value)]);
             }
         }
     }

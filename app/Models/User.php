@@ -154,13 +154,13 @@ class User extends Authenticatable implements BaseModelInterface
 
     public function hasPermission(string|int|Permission $permission): bool
     {
-        $permissionName = is_string($permission) ? $permission : (
-        is_int($permission) ? Permission::find($permission)?->name : $permission->name
-        );
+        $permissionCode = is_string($permission)
+            ? $permission
+            : (is_int($permission) ? Permission::find($permission)?->code : $permission->code);
 
         return $this->assigned_roles()
-            ->whereHas('permissions', function ($query) use ($permissionName) {
-                $query->where('name', $permissionName);
+            ->whereHas('permissions', function ($query) use ($permissionCode) {
+                $query->where('code', $permissionCode);
             })
             ->exists();
     }
