@@ -1,0 +1,80 @@
+<p-dialog [(visible)]="visible" (onHide)="onHide()" [modal]="true" [style]="{width: '500px'}" header="{{ isEditMode ? 'Edit Booking' : 'Create New Booking' }}" styleClass="p-fluid">
+    <p-toast></p-toast>
+    
+    <form [formGroup]="bookingForm" *ngIf="bookingForm">
+        <!-- Customer Selection -->
+        <div class="field mb-4">
+            <label class="block mb-2 font-medium" for="customer">Customer</label>
+            <div class="flex gap-2">
+                <p-autoComplete 
+                    [suggestions]="filteredCustomers" 
+                    (completeMethod)="filterCustomer($event)"
+                    field="last_name" 
+                    [dropdown]="true"
+                    [forceSelection]="true"
+                    [style]="{'width':'100%'}"
+                    [inputStyle]="{'width':'100%'}"
+                    [placeholder]="'Search for a customer...'"
+                    (onSelect)="onCustomerSelect($event)"
+                    [disabled]="!!selectedCustomer">
+                    <ng-template let-customer pTemplate="item">
+                        <div class="customer-item">
+                            <div>{{ customer.first_name }} {{ customer.last_name }}</div>
+                            <div class="text-sm text-gray-500">{{ customer.email }}</div>
+                        </div>
+                    </ng-template>
+                </p-autoComplete>
+                <button *ngIf="selectedCustomer" pButton pRipple type="button" icon="pi pi-times" class="p-button-rounded p-button-danger p-button-text" (click)="clearCustomer()"></button>
+            </div>
+            
+            <div *ngIf="selectedCustomer" class="mt-2 p-2 bg-gray-50 rounded-md">
+                <div class="text-sm font-medium">{{ selectedCustomer.first_name }} {{ selectedCustomer.last_name }}</div>
+                <div class="text-xs text-gray-500">{{ selectedCustomer.email }}</div>
+                <div *ngIf="selectedCustomer.phone" class="text-xs text-gray-500">{{ selectedCustomer.phone }}</div>
+            </div>
+        </div>
+        
+        <div class="field mb-4">
+            <label class="block mb-2 font-medium" for="booking_date">Booking Date *</label>
+            <p-calendar [showIcon]="true" formControlName="booking_date" id="booking_date" dateFormat="yy-mm-dd" [showButtonBar]="true" styleClass="w-full"></p-calendar>
+            <small *ngIf="bookingForm.get('booking_date')?.invalid && bookingForm.get('booking_date')?.touched" class="text-red-500">Booking date is required.</small>
+        </div>
+        
+        <div class="field mb-4">
+            <label class="block mb-2 font-medium" for="expiration_date">Expiration Date</label>
+            <p-calendar [showIcon]="true" formControlName="expiration_date" id="expiration_date" dateFormat="yy-mm-dd" [showButtonBar]="true" styleClass="w-full"></p-calendar>
+        </div>
+        
+        <div class="field mb-4">
+            <label class="block mb-2 font-medium" for="status">Status *</label>
+            <p-dropdown [options]="bookingStatusOptions" formControlName="status" id="status" optionLabel="label" optionValue="value" styleClass="w-full"></p-dropdown>
+            <small *ngIf="bookingForm.get('status')?.invalid && bookingForm.get('status')?.touched" class="text-red-500">Status is required.</small>
+        </div>
+        
+        <div class="field mb-4">
+            <label class="block mb-2 font-medium" for="price_at_booking">Price at Booking *</label>
+            <p-inputNumber formControlName="price_at_booking" id="price_at_booking" mode="currency" currency="EUR" [minFractionDigits]="2" styleClass="w-full"></p-inputNumber>
+            <small *ngIf="bookingForm.get('price_at_booking')?.invalid && bookingForm.get('price_at_booking')?.touched" class="text-red-500">Price is required and must be greater than 0.</small>
+        </div>
+        
+        <div class="field mb-4">
+            <label class="block mb-2 font-medium" for="deposit_amount">Deposit Amount</label>
+            <p-inputNumber formControlName="deposit_amount" id="deposit_amount" mode="currency" currency="EUR" [minFractionDigits]="2" styleClass="w-full"></p-inputNumber>
+        </div>
+        
+        <div class="field mb-4">
+            <label class="block mb-2 font-medium" for="reference_number">Reference Number</label>
+            <input pInputText formControlName="reference_number" id="reference_number" class="w-full" />
+        </div>
+        
+        <div class="field mb-4">
+            <label class="block mb-2 font-medium" for="notes">Notes</label>
+            <textarea pTextarea formControlName="notes" id="notes" rows="3" class="w-full"></textarea>
+        </div>
+    </form>
+    
+    <ng-template pTemplate="footer">
+        <p-button (click)="onHide()" label="Cancel" styleClass="p-button-text"></p-button>
+        <p-button (click)="saveBooking()" label="Save" styleClass="p-button-primary"></p-button>
+    </ng-template>
+</p-dialog>

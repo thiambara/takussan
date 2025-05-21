@@ -1,54 +1,188 @@
-<div class="flex justify-between mb-6 items-center pl-1">
-  <h5 class="m-0 text-2xl">Property Details</h5>
-  <p-button (click)="editProperty()" icon="pi pi-pencil" label="Edit" text
-  ></p-button>
-</div>
-<div class="card p-4">
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-    <div class="col">
-      <h6 class="text-gray-500">Title</h6>
-      <p class="text-surface-900 dark:text-surface-0 text-xl">{{ property?.title }}</p>
-    </div>
-    <div class="col">
-      <h6 class="text-gray-500">Status</h6>
-      <p class="text-surface-900 dark:text-surface-0 text-xl">{{ property?.status }}</p>
-    </div>
-    <div class="col">
-      <h6 class="text-gray-500">Created At</h6>
-      <p class="text-surface-900 dark:text-surface-0 text-xl">{{ property?.created_at | date: 'medium' }}</p>
-    </div>
-    <div class="col">
-      <h6 class="text-gray-500">Number of bookings</h6>
-      <p class="text-surface-900 dark:text-surface-0 text-xl">{{ property?.bookings?.length || 0 }}</p>
-    </div>
-    <div class="col">
-      <h6 class="text-gray-500">Description</h6>
-      <p class="text-surface-900 dark:text-surface-0 text-sm">{{ property?.description ?? 'No description' }}</p>
-    </div>
-  </div>
-</div>
+<div class="p-4 max-w-7xl mx-auto property-details-container">
+    <p-toast></p-toast>
 
-<div class="flex align-middle mb-4">
-  <h5 class="text-3xl m-0 mr-2">Bookings</h5>
-</div>
-
-@if (property?.bookings?.length) {
-  <div class="grid grid-cols-12 gap-4">
-    @for (booking of property?.bookings; track booking.id) {
-      <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <!-- Booking details component would go here -->
-        <div class="card p-3">
-          <h6>Booking #{{ booking.reference_number }}</h6>
-          <p>Status: {{ booking.status }}</p>
-          <p>Date: {{ booking.booking_date | date: 'medium' }}</p>
+    <!-- Header with property title and actions -->
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-primary mb-2">{{ property?.title || 'Property Details' }}</h1>
+            <p-tag [severity]="getStatusSeverity(property?.status || '')" [value]="property?.status"></p-tag>
         </div>
-      </div>
-    }
-  </div>
-} @else {
-  <div class="h-40">
-    <div class="flex justify-center items-center h-full">
-      <h1>No bookings found</h1>
+        <div class="flex gap-2">
+            <p-button (click)="editProperty()" icon="pi pi-pencil" label="Edit Property"
+                      styleClass="p-button-outlined"></p-button>
+        </div>
     </div>
-  </div>
-}
+
+    <!-- Property details in tabs -->
+    <p-tabView>
+        <!-- Overview Tab -->
+        <p-tabPanel header="Overview">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                <p-card styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+                    <ng-template pTemplate="header">
+                        <div class="p-4 bg-primary-50">
+                            <h2 class="text-xl font-semibold text-primary">Basic Information</h2>
+                        </div>
+                    </ng-template>
+
+                    <div class="grid grid-cols-1 gap-4">
+                        <div class="flex flex-col">
+                            <h6 class="text-gray-500 mb-1">Title</h6>
+                            <p class="text-surface-900 text-lg font-medium">{{ property?.title || 'N/A' }}</p>
+                        </div>
+
+                        <div class="flex flex-col">
+                            <h6 class="text-gray-500 mb-1">Type</h6>
+                            <p class="text-surface-900 text-lg">{{ property?.type || 'N/A' }}</p>
+                        </div>
+
+                        <div class="flex flex-col">
+                            <h6 class="text-gray-500 mb-1">Contract Type</h6>
+                            <p class="text-surface-900 text-lg">{{ property?.contract_type || 'N/A' }}</p>
+                        </div>
+
+                        <div class="flex flex-col">
+                            <h6 class="text-gray-500 mb-1">Created At</h6>
+                            <p class="text-surface-900 text-lg">{{ property?.created_at | date: 'medium' }}</p>
+                        </div>
+                    </div>
+                </p-card>
+
+                <p-card styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+                    <ng-template pTemplate="header">
+                        <div class="p-4 bg-primary-50">
+                            <h2 class="text-xl font-semibold text-primary">Property Details</h2>
+                        </div>
+                    </ng-template>
+
+                    <div class="grid grid-cols-1 gap-4">
+                        <div class="flex flex-col">
+                            <h6 class="text-gray-500 mb-1">Price</h6>
+                            <p class="text-surface-900 text-lg font-medium">{{ property?.price | currency:'EUR' }}</p>
+                        </div>
+
+                        <div class="flex flex-col">
+                            <h6 class="text-gray-500 mb-1">Area</h6>
+                            <p class="text-surface-900 text-lg">{{ property?.area }} m²</p>
+                        </div>
+
+                        <div class="flex flex-col">
+                            <h6 class="text-gray-500 mb-1">Position</h6>
+                            <p class="text-surface-900 text-lg">{{ property?.position || 'N/A' }}</p>
+                        </div>
+
+                        <div class="flex flex-col">
+                            <h6 class="text-gray-500 mb-1">Level</h6>
+                            <p class="text-surface-900 text-lg">{{ property?.level || 'N/A' }}</p>
+                        </div>
+                    </div>
+                </p-card>
+            </div>
+
+            <p-card styleClass="mt-6 shadow-md hover:shadow-lg transition-shadow duration-300">
+                <ng-template pTemplate="header">
+                    <div class="p-4 bg-primary-50">
+                        <h2 class="text-xl font-semibold text-primary">Description</h2>
+                    </div>
+                </ng-template>
+
+                <p class="text-surface-900 text-lg leading-relaxed">
+                    {{ property?.description || 'No description available for this property.' }}
+                </p>
+            </p-card>
+
+            <!-- Services/Amenities -->
+            <p-card *ngIf="property?.servicing?.length"
+                    styleClass="mt-6 shadow-md hover:shadow-lg transition-shadow duration-300">
+                <ng-template pTemplate="header">
+                    <div class="p-4 bg-primary-50">
+                        <h2 class="text-xl font-semibold text-primary">Services & Amenities</h2>
+                    </div>
+                </ng-template>
+
+                <div class="flex flex-wrap gap-2">
+                    <p-tag *ngFor="let service of property?.servicing" [rounded]="true" [value]="service"
+                           severity="info"></p-tag>
+                </div>
+            </p-card>
+        </p-tabPanel>
+
+        <!-- Location Tab -->
+        <p-tabPanel *ngIf="property && property.address && property.address.length" header="Location">
+            <p-card styleClass="shadow-md hover:shadow-lg transition-shadow duration-300">
+                <ng-template pTemplate="header">
+                    <div class="p-4 bg-primary-50">
+                        <h2 class="text-xl font-semibold text-primary">Address Information</h2>
+                    </div>
+                </ng-template>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="flex flex-col">
+                        <h6 class="text-gray-500 mb-1">Address</h6>
+                        <p class="text-surface-900 text-lg">{{ property && property.address && property.address[0] ? property.address[0].address || 'N/A' : 'N/A' }}</p>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <h6 class="text-gray-500 mb-1">City</h6>
+                        <p class="text-surface-900 text-lg">{{ property && property.address && property.address[0] ? property.address[0].city || 'N/A' : 'N/A' }}</p>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <h6 class="text-gray-500 mb-1">State/Province</h6>
+                        <p class="text-surface-900 text-lg">{{ property && property.address && property.address[0] ? property.address[0].state || 'N/A' : 'N/A' }}</p>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <h6 class="text-gray-500 mb-1">Country</h6>
+                        <p class="text-surface-900 text-lg">{{ property && property.address && property.address[0] ? property.address[0].country || 'N/A' : 'N/A' }}</p>
+                    </div>
+                </div>
+
+                <!-- Map placeholder -->
+                <div class="mt-6 bg-gray-100 rounded-lg h-64 flex items-center justify-center">
+                    <div class="text-center">
+                        <i class="pi pi-map-marker text-4xl text-gray-400 mb-2"></i>
+                        <p class="text-gray-500">Map view would be displayed here</p>
+                    </div>
+                </div>
+            </p-card>
+        </p-tabPanel>
+
+        <!-- Bookings Tab -->
+        <p-tabPanel header="Bookings">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-primary">Property Bookings</h2>
+                <p-button (click)="openNewBookingDialog()" icon="pi pi-plus" label="Add Booking"
+                          styleClass="p-button-success" [disabled]="!property || !property.id"></p-button>
+            </div>
+
+            <div *ngIf="property && property.bookings && property.bookings.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <app-booking-card
+                    *ngFor="let booking of property && property.bookings ? property.bookings : []"
+                    [booking]="booking"
+                    (edit)="editBooking($event)"
+                    (delete)="deleteBooking($event)"
+                ></app-booking-card>
+            </div>
+
+            <div *ngIf="!property?.bookings?.length"
+                 class="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-lg">
+                <i class="pi pi-calendar text-5xl text-gray-400 mb-4"></i>
+                <h3 class="text-xl text-gray-600 mb-2">No Bookings Found</h3>
+                <p class="text-gray-500 mb-4">This property doesn't have any bookings yet.</p>
+                <p-button (click)="openNewBookingDialog()" icon="pi pi-plus" label="Create First Booking"
+                          styleClass="p-button-success"></p-button>
+            </div>
+        </p-tabPanel>
+    </p-tabView>
+</div>
+
+<!-- Booking Form Component -->
+<app-booking-form
+    [(visible)]="showBookingDialog"
+    [propertyId]="property && property.id"
+    [booking]="selectedBooking !== null ? selectedBooking : undefined"
+    [isEditMode]="isEditMode"
+    (save)="onBookingSave($event)"
+    (cancel)="onBookingCancel()"
+></app-booking-form>

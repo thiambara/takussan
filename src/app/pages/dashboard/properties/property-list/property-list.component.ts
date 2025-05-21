@@ -5,14 +5,12 @@ import {PropertyService} from "../../../../core/sevices/http/property.service";
 import {Toolbar} from "primeng/toolbar";
 import {Table, TableModule} from "primeng/table";
 import {DatePipe} from "@angular/common";
-import {DialogService} from "primeng/dynamicdialog";
-import {RouterLink} from "@angular/router";
+import {Router, RouterLink} from "@angular/router";
 import {Button} from "primeng/button";
 import {IconField} from "primeng/iconfield";
 import {InputIcon} from "primeng/inputicon";
 import {FormsModule} from "@angular/forms";
 import {InputText} from "primeng/inputtext";
-import {PropertyComponentService} from "../component-services/property.component.service";
 
 @Component({
   selector: 'app-property-list',
@@ -42,10 +40,9 @@ export class PropertyListComponent implements OnInit {
   rowsPerPageOptions = [5, 10, 20];
 
   constructor(
-    private propertyComponentService: PropertyComponentService,
     private propertyService: PropertyService,
     private messageService: MessageService,
-    private dialogService: DialogService,
+    private router: Router
   ) {
   }
 
@@ -72,7 +69,7 @@ export class PropertyListComponent implements OnInit {
   }
 
   openNew() {
-    this.showPropertyForm();
+    this.router.navigate(['/dashboard/properties/edit/new']);
   }
 
   onSearch() {
@@ -86,13 +83,11 @@ export class PropertyListComponent implements OnInit {
 
 
   showPropertyForm(property?: Property) {
-    this.propertyComponentService.showPropertyForm(property).onClose.subscribe({
-      next: (value) => {
-        if (value) {
-          this.getProperties();
-        }
-      }
-    });
+    if (property && property.id) {
+      this.router.navigate([`/dashboard/properties/edit/${property.id}`]);
+    } else {
+      this.router.navigate(['/dashboard/properties/edit/new']);
+    }
   }
 
   exportCSV() {

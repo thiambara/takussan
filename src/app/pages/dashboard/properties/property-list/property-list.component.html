@@ -69,11 +69,10 @@
                 [class]="'product-badge status-' + (property.status?.toLowerCase() ?? '')">{{ property.status }}</span>
         </td>
         <td>
-          <div class="flex justify-end">
-            <p-button [routerLink]="property.id" class="p-button-text" label="Details"
-            ></p-button>
+          <div class="flex justify-end gap-2">
+            <p-button (onClick)="showPropertyForm(property)" class="p-button-text p-button-warning" icon="pi pi-pencil" label="Edit"></p-button>
+            <p-button [routerLink]="property.id" class="p-button-text" icon="pi pi-eye" label="Details"></p-button>
           </div>
-
         </td>
       </tr>
     </ng-template>

@@ -1,7 +1,5 @@
 import {Component, OnInit} from '@angular/core';
 import {PropertyListComponent} from "./property-list/property-list.component";
-import {PropertyComponentService} from "./component-services/property.component.service";
-import {BookingComponentService} from "./component-services/booking.component.service";
 
 @Component({
   selector: 'app-properties',
@@ -9,10 +7,7 @@ import {BookingComponentService} from "./component-services/booking.component.se
   imports: [
     PropertyListComponent
   ],
-  providers: [
-    BookingComponentService,
-    PropertyComponentService,
-  ],
+  providers: [],
   standalone: true
 })
 export class PropertiesComponent implements OnInit {
