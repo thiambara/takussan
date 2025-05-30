@@ -7,6 +7,7 @@ use App\Http\Requests\StorePropertyRequest;
 use App\Http\Requests\UpdatePropertyRequest;
 use App\Models\Property;
 use App\Services\Model\PropertyService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 
@@ -33,6 +34,13 @@ class PropertyController extends Controller
         // Show only user's properties if not admin
         if (!Auth::user()->hasPermission('properties.view_all')) {
             $query->where('user_id', Auth::id());
+        }
+
+        if ($searchQuery = request('search_query')) {
+            $query->where(fn(Builder $query) => $query
+                ->where('title', 'like', "%$searchQuery%")
+                ->orWhere('description', 'like', "%$searchQuery%")
+            );
         }
 
         return response()->json($query->paginatedThroughRequest());
