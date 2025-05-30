@@ -69,11 +69,11 @@
     }
   }
 
-  .p-inputtext, .p-dropdown, .p-inputnumber, .p-calendar {
+  .p-inputtext, .p-select, .p-inputnumber, .p-datepicker {
     width: 100%;
   }
 
-  .p-dropdown-panel .p-dropdown-items {
+  .p-select-panel .p-select-items {
     padding: 0.5rem 0;
   }
 
@@ -101,10 +101,10 @@
     padding: 1rem 1.5rem;
   }
 
-  .p-chips {
+  .p-autocomplete {
     width: 100%;
     
-    .p-chips-multiple-container {
+    .p-autocomplete-multiple-container {
       width: 100%;
       min-height: 3rem;
     }

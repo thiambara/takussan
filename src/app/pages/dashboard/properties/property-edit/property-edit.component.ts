@@ -13,15 +13,15 @@ import {finalize} from 'rxjs';
 import {InputTextModule} from 'primeng/inputtext';
 import {ButtonModule} from 'primeng/button';
 import {TextareaModule} from 'primeng/textarea';
-import {DropdownModule} from 'primeng/dropdown';
+import {SelectModule} from 'primeng/select';
 import {InputNumberModule} from 'primeng/inputnumber';
-import {InputSwitchModule} from 'primeng/inputswitch';
+import {ToggleSwitchModule} from 'primeng/toggleswitch';
 import {DividerModule} from 'primeng/divider';
 import {CardModule} from 'primeng/card';
-import {ChipsModule} from 'primeng/chips';
+import {AutoCompleteModule} from 'primeng/autocomplete';
 import {TabViewModule} from 'primeng/tabview';
 import {FileUploadModule} from 'primeng/fileupload';
-import {CalendarModule} from 'primeng/calendar';
+import {DatePickerModule} from 'primeng/datepicker';
 import {ToastModule} from 'primeng/toast';
 import {StepsModule} from 'primeng/steps';
 import {TableModule} from 'primeng/table';
@@ -39,15 +39,15 @@ import {TagModule} from 'primeng/tag';
     TextareaModule,
     ButtonModule,
     InputTextModule,
-    DropdownModule,
+    SelectModule,
     InputNumberModule,
-    InputSwitchModule,
+    ToggleSwitchModule,
     DividerModule,
     CardModule,
-    ChipsModule,
+    AutoCompleteModule,
     TabViewModule,
     FileUploadModule,
-    CalendarModule,
+    DatePickerModule,
     ToastModule,
     StepsModule,
     TableModule,
@@ -67,6 +67,7 @@ export class PropertyEditComponent implements OnInit {
   uploadedFiles: any[] = [];
   steps: MenuItem[] = [];
   addressForm!: FormGroup;
+  typeSpecificForm!: FormGroup;
   countries: any[] = [
     {name: 'France', code: 'FR'},
     {name: 'Spain', code: 'ES'},
@@ -114,6 +115,56 @@ export class PropertyEditComponent implements OnInit {
     {label: 'Basement', value: 'basement'}
   ];
 
+  // Residential specific options
+  roomsOptions = [
+    {label: '1', value: '1'},
+    {label: '2', value: '2'},
+    {label: '3', value: '3'},
+    {label: '4', value: '4'},
+    {label: '5', value: '5'},
+    {label: '6+', value: '6+'}
+  ];
+
+  bathroomsOptions = [
+    {label: '1', value: '1'},
+    {label: '2', value: '2'},
+    {label: '3', value: '3'},
+    {label: '4+', value: '4+'}
+  ];
+
+  furnishedOptions = [
+    {label: 'Fully Furnished', value: 'fully_furnished'},
+    {label: 'Semi-Furnished', value: 'semi_furnished'},
+    {label: 'Unfurnished', value: 'unfurnished'}
+  ];
+
+  // Land specific options
+  landTypeOptions = [
+    {label: 'Residential', value: 'residential'},
+    {label: 'Commercial', value: 'commercial'},
+    {label: 'Agricultural', value: 'agricultural'},
+    {label: 'Industrial', value: 'industrial'},
+    {label: 'Mixed Use', value: 'mixed_use'}
+  ];
+
+  zoningOptions = [
+    {label: 'Residential', value: 'residential'},
+    {label: 'Commercial', value: 'commercial'},
+    {label: 'Industrial', value: 'industrial'},
+    {label: 'Agricultural', value: 'agricultural'},
+    {label: 'Mixed Use', value: 'mixed_use'}
+  ];
+
+  // Commercial specific options
+  commercialTypeOptions = [
+    {label: 'Retail', value: 'retail'},
+    {label: 'Office', value: 'office'},
+    {label: 'Industrial', value: 'industrial'},
+    {label: 'Warehouse', value: 'warehouse'},
+    {label: 'Restaurant', value: 'restaurant'},
+    {label: 'Hotel', value: 'hotel'}
+  ];
+
   titleTypeOptions = [
     {label: 'Freehold', value: 'freehold'},
     {label: 'Leasehold', value: 'leasehold'},
@@ -145,7 +196,13 @@ export class PropertyEditComponent implements OnInit {
       this.loadProperty(propertyId);
     } else {
       this.initializeFormBuilder();
+      this.initializeTypeSpecificForm();
     }
+
+    // Subscribe to property type changes to update type-specific form
+    this.propertyForm.get('type')?.valueChanges.subscribe(type => {
+      this.initializeTypeSpecificForm(type);
+    });
   }
 
   initializeSteps() {
@@ -164,10 +221,11 @@ export class PropertyEditComponent implements OnInit {
       next: (property: Property) => {
         this.property = property;
         this.initializeFormBuilder();
+        this.initializeTypeSpecificForm(property.type);
 
         // Load address if it exists
-        if (property.address && property.address.length > 0) {
-          this.initializeAddressForm(property.address[0]);
+        if (property.address) {
+          this.initializeAddressForm(property.address);
         } else {
           this.initializeAddressForm();
         }
@@ -219,7 +277,7 @@ export class PropertyEditComponent implements OnInit {
       city: [address?.city || '', Validators.required],
       district: [address?.district || ''],
       street: [address?.street || '', Validators.required],
-      postal_code: ['', Validators.required],
+      postal_code: [address?.postal_code || ''],
       building: [address?.building || ''],
       latitude: [address?.latitude || ''],
       longitude: [address?.longitude || '']
@@ -237,6 +295,9 @@ export class PropertyEditComponent implements OnInit {
     if (this.propertyForm.invalid || this.addressForm.invalid) {
       this.markFormGroupTouched(this.propertyForm);
       this.markFormGroupTouched(this.addressForm);
+      if (this.typeSpecificForm) {
+        this.markFormGroupTouched(this.typeSpecificForm);
+      }
       this.messageService.add({
         severity: 'error',
         summary: 'Validation Error',
@@ -248,12 +309,13 @@ export class PropertyEditComponent implements OnInit {
 
     this.saving = true;
 
-    // Prepare the property data with address
+    // Prepare the property data with address and type-specific data
     const data = {
       ...this.propertyForm.value,
       // Add user_id if available in your auth context
       // user_id: authUser.id,
-      address: this.addressForm.value
+      address: {id: this.property.address?.id, ...this.addressForm.value},
+      metadata: this.typeSpecificForm ? this.typeSpecificForm.value : {}
     };
 
     (this.isEditMode
@@ -307,6 +369,91 @@ export class PropertyEditComponent implements OnInit {
         this.markFormGroupTouched(control as FormGroup);
       }
     });
+  }
+
+  initializeTypeSpecificForm(type?: string) {
+    const propertyType = type || this.propertyForm?.get('type')?.value || 'apartment';
+    const metadata = this.property.metadata || {};
+
+    // Create form group based on property type
+    switch (propertyType) {
+      case 'apartment':
+      case 'house':
+      case 'villa':
+        this.typeSpecificForm = this.fb.group({
+          rooms: [metadata.rooms || '', [Validators.required]],
+          bathrooms: [metadata.bathrooms || '', [Validators.required]],
+          furnished: [metadata.furnished || 'unfurnished'],
+          parking_spaces: [metadata.parking_spaces || 0, [Validators.min(0)]],
+          has_balcony: [metadata.has_balcony || false],
+          has_garden: [metadata.has_garden || false],
+          has_pool: [metadata.has_pool || false],
+          has_elevator: [metadata.has_elevator || false],
+          construction_year: [metadata.construction_year || null],
+          heating_type: [metadata.heating_type || ''],
+          air_conditioning: [metadata.air_conditioning || false]
+        });
+        break;
+      case 'land':
+        this.typeSpecificForm = this.fb.group({
+          land_type: [metadata.land_type || '', [Validators.required]],
+          zoning: [metadata.zoning || ''],
+          is_developed: [metadata.is_developed || false],
+          has_water_connection: [metadata.has_water_connection || false],
+          has_electricity_connection: [metadata.has_electricity_connection || false],
+          has_sewage_connection: [metadata.has_sewage_connection || false],
+          topography: [metadata.topography || ''],
+          soil_type: [metadata.soil_type || '']
+        });
+        break;
+      case 'office':
+        this.typeSpecificForm = this.fb.group({
+          rooms: [metadata.rooms || '', [Validators.required]],
+          bathrooms: [metadata.bathrooms || '', [Validators.required]],
+          floor: [metadata.floor || ''],
+          has_reception: [metadata.has_reception || false],
+          has_kitchen: [metadata.has_kitchen || false],
+          has_meeting_rooms: [metadata.has_meeting_rooms || false],
+          has_parking: [metadata.has_parking || false],
+          has_security: [metadata.has_security || false],
+          internet_connection: [metadata.internet_connection || ''],
+          air_conditioning: [metadata.air_conditioning || false]
+        });
+        break;
+      case 'store':
+        this.typeSpecificForm = this.fb.group({
+          commercial_type: [metadata.commercial_type || '', [Validators.required]],
+          storefront_width: [metadata.storefront_width || 0, [Validators.min(0)]],
+          has_storage: [metadata.has_storage || false],
+          has_loading_dock: [metadata.has_loading_dock || false],
+          has_parking: [metadata.has_parking || false],
+          pedestrian_traffic: [metadata.pedestrian_traffic || ''],
+          visibility: [metadata.store_visibility || '']
+        });
+        break;
+      default:
+        this.typeSpecificForm = this.fb.group({});
+    }
+  }
+
+  getTypeSpecificLabel(): string {
+    const propertyType = this.propertyForm?.get('type')?.value;
+    switch (propertyType) {
+      case 'apartment':
+        return 'Apartment Details';
+      case 'house':
+        return 'House Details';
+      case 'villa':
+        return 'Villa Details';
+      case 'land':
+        return 'Land Details';
+      case 'office':
+        return 'Office Details';
+      case 'store':
+        return 'Commercial Details';
+      default:
+        return 'Property Details';
+    }
   }
 
   cancel() {

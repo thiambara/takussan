@@ -23,10 +23,10 @@ export interface Property extends BaseModelInterface {
   contract_type?: string;
   servicing?: any[];
   metadata?: any;
-  
+
   // Relations
   user?: User;
-  address?: Address[];
+  address?: Address;
   parent?: Property;
   children?: Property[];
   bookings?: Booking[];

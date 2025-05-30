@@ -10,9 +10,9 @@ import { CustomerService } from '../../../../core/sevices/http/customer.service'
 // PrimeNG Modules
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
-import { DropdownModule } from 'primeng/dropdown';
+import { SelectModule } from 'primeng/select';
 import { InputNumberModule } from 'primeng/inputnumber';
-import { CalendarModule } from 'primeng/calendar';
+import { DatePickerModule } from 'primeng/datepicker';
 import { DialogModule } from 'primeng/dialog';
 import { TextareaModule } from 'primeng/textarea';
 import { AutoCompleteModule, AutoCompleteSelectEvent } from 'primeng/autocomplete';
@@ -30,9 +30,9 @@ import { MessageService } from 'primeng/api';
     FormsModule,
     ButtonModule,
     InputTextModule,
-    DropdownModule,
+    SelectModule,
     InputNumberModule,
-    CalendarModule,
+    DatePickerModule,
     DialogModule,
     TextareaModule,
     AutoCompleteModule,

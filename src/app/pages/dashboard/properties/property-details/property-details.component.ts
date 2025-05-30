@@ -12,11 +12,11 @@ import {CardModule} from 'primeng/card';
 import {TagModule} from 'primeng/tag';
 import {DividerModule} from 'primeng/divider';
 import {DialogModule} from 'primeng/dialog';
-import {CalendarModule} from 'primeng/calendar';
+import {DatePickerModule} from 'primeng/datepicker';
 import {InputTextModule} from 'primeng/inputtext';
 import {InputNumberModule} from 'primeng/inputnumber';
-import {DropdownModule} from 'primeng/dropdown';
-import {InputSwitchModule} from 'primeng/inputswitch';
+import {SelectModule} from 'primeng/select';
+import {ToggleSwitchModule} from 'primeng/toggleswitch';
 import {FormsModule, ReactiveFormsModule} from '@angular/forms';
 import {ToastModule} from 'primeng/toast';
 import {BookingFormComponent} from "../booking-form/booking-form.component";
@@ -33,11 +33,11 @@ import {BookingCardComponent} from "../booking-card/booking-card.component";
     TagModule,
     DividerModule,
     DialogModule,
-    CalendarModule,
+    DatePickerModule,
     InputTextModule,
     InputNumberModule,
-    DropdownModule,
-    InputSwitchModule,
+    SelectModule,
+    ToggleSwitchModule,
     FormsModule,
     ReactiveFormsModule,
     ToastModule,

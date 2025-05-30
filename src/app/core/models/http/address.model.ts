@@ -9,6 +9,7 @@ export interface Address extends BaseModelInterface {
   city?: string;
   district?: string;
   street?: string;
+  postal_code?: string;
   building?: string;
   latitude?: string;
   longitude?: string;

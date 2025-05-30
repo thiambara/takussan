@@ -1,10 +1,10 @@
-<div class="p-4 max-w-7xl mx-auto property-details-container">
+<div class="p-4 mx-auto max-w-7xl property-details-container">
     <p-toast></p-toast>
 
     <!-- Header with property title and actions -->
     <div class="flex justify-between items-center mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-primary mb-2">{{ property?.title || 'Property Details' }}</h1>
+            <h1 class="mb-2 text-3xl font-bold text-primary">{{ property?.title || 'Property Details' }}</h1>
             <p-tag [severity]="getStatusSeverity(property?.status || '')" [value]="property?.status"></p-tag>
         </div>
         <div class="flex gap-2">
@@ -17,7 +17,7 @@
     <p-tabView>
         <!-- Overview Tab -->
         <p-tabPanel header="Overview">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+            <div class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2">
                 <p-card styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
                     <ng-template pTemplate="header">
                         <div class="p-4 bg-primary-50">
@@ -27,23 +27,23 @@
 
                     <div class="grid grid-cols-1 gap-4">
                         <div class="flex flex-col">
-                            <h6 class="text-gray-500 mb-1">Title</h6>
-                            <p class="text-surface-900 text-lg font-medium">{{ property?.title || 'N/A' }}</p>
+                            <h6 class="mb-1 text-gray-500">Title</h6>
+                            <p class="text-lg font-medium text-surface-900">{{ property?.title || 'N/A' }}</p>
                         </div>
 
                         <div class="flex flex-col">
-                            <h6 class="text-gray-500 mb-1">Type</h6>
-                            <p class="text-surface-900 text-lg">{{ property?.type || 'N/A' }}</p>
+                            <h6 class="mb-1 text-gray-500">Type</h6>
+                            <p class="text-lg text-surface-900">{{ property?.type || 'N/A' }}</p>
                         </div>
 
                         <div class="flex flex-col">
-                            <h6 class="text-gray-500 mb-1">Contract Type</h6>
-                            <p class="text-surface-900 text-lg">{{ property?.contract_type || 'N/A' }}</p>
+                            <h6 class="mb-1 text-gray-500">Contract Type</h6>
+                            <p class="text-lg text-surface-900">{{ property?.contract_type || 'N/A' }}</p>
                         </div>
 
                         <div class="flex flex-col">
-                            <h6 class="text-gray-500 mb-1">Created At</h6>
-                            <p class="text-surface-900 text-lg">{{ property?.created_at | date: 'medium' }}</p>
+                            <h6 class="mb-1 text-gray-500">Created At</h6>
+                            <p class="text-lg text-surface-900">{{ property?.created_at | date: 'medium' }}</p>
                         </div>
                     </div>
                 </p-card>
@@ -57,23 +57,23 @@
 
                     <div class="grid grid-cols-1 gap-4">
                         <div class="flex flex-col">
-                            <h6 class="text-gray-500 mb-1">Price</h6>
-                            <p class="text-surface-900 text-lg font-medium">{{ property?.price | currency:'EUR' }}</p>
+                            <h6 class="mb-1 text-gray-500">Price</h6>
+                            <p class="text-lg font-medium text-surface-900">{{ property?.price | currency:'EUR' }}</p>
                         </div>
 
                         <div class="flex flex-col">
-                            <h6 class="text-gray-500 mb-1">Area</h6>
-                            <p class="text-surface-900 text-lg">{{ property?.area }} m²</p>
+                            <h6 class="mb-1 text-gray-500">Area</h6>
+                            <p class="text-lg text-surface-900">{{ property?.area }} m²</p>
                         </div>
 
                         <div class="flex flex-col">
-                            <h6 class="text-gray-500 mb-1">Position</h6>
-                            <p class="text-surface-900 text-lg">{{ property?.position || 'N/A' }}</p>
+                            <h6 class="mb-1 text-gray-500">Position</h6>
+                            <p class="text-lg text-surface-900">{{ property?.position || 'N/A' }}</p>
                         </div>
 
                         <div class="flex flex-col">
-                            <h6 class="text-gray-500 mb-1">Level</h6>
-                            <p class="text-surface-900 text-lg">{{ property?.level || 'N/A' }}</p>
+                            <h6 class="mb-1 text-gray-500">Level</h6>
+                            <p class="text-lg text-surface-900">{{ property?.level || 'N/A' }}</p>
                         </div>
                     </div>
                 </p-card>
@@ -86,7 +86,7 @@
                     </div>
                 </ng-template>
 
-                <p class="text-surface-900 text-lg leading-relaxed">
+                <p class="text-lg leading-relaxed text-surface-900">
                     {{ property?.description || 'No description available for this property.' }}
                 </p>
             </p-card>
@@ -108,7 +108,7 @@
         </p-tabPanel>
 
         <!-- Location Tab -->
-        <p-tabPanel *ngIf="property && property.address && property.address.length" header="Location">
+        <p-tabPanel *ngIf="property && property.address" header="Location">
             <p-card styleClass="shadow-md hover:shadow-lg transition-shadow duration-300">
                 <ng-template pTemplate="header">
                     <div class="p-4 bg-primary-50">
@@ -116,32 +116,32 @@
                     </div>
                 </ng-template>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                     <div class="flex flex-col">
-                        <h6 class="text-gray-500 mb-1">Address</h6>
-                        <p class="text-surface-900 text-lg">{{ property && property.address && property.address[0] ? property.address[0].address || 'N/A' : 'N/A' }}</p>
+                        <h6 class="mb-1 text-gray-500">Address</h6>
+                        <p class="text-lg text-surface-900">{{ property && property.address ? property.address.address || 'N/A' : 'N/A' }}</p>
                     </div>
 
                     <div class="flex flex-col">
-                        <h6 class="text-gray-500 mb-1">City</h6>
-                        <p class="text-surface-900 text-lg">{{ property && property.address && property.address[0] ? property.address[0].city || 'N/A' : 'N/A' }}</p>
+                        <h6 class="mb-1 text-gray-500">City</h6>
+                        <p class="text-lg text-surface-900">{{ property && property.address ? property.address.city || 'N/A' : 'N/A' }}</p>
                     </div>
 
                     <div class="flex flex-col">
-                        <h6 class="text-gray-500 mb-1">State/Province</h6>
-                        <p class="text-surface-900 text-lg">{{ property && property.address && property.address[0] ? property.address[0].state || 'N/A' : 'N/A' }}</p>
+                        <h6 class="mb-1 text-gray-500">State/Province</h6>
+                        <p class="text-lg text-surface-900">{{ property && property.address ? property.address.state || 'N/A' : 'N/A'  }}</p>
                     </div>
 
                     <div class="flex flex-col">
-                        <h6 class="text-gray-500 mb-1">Country</h6>
-                        <p class="text-surface-900 text-lg">{{ property && property.address && property.address[0] ? property.address[0].country || 'N/A' : 'N/A' }}</p>
+                        <h6 class="mb-1 text-gray-500">Country</h6>
+                        <p class="text-lg text-surface-900">{{ property && property.address ? property.address.country || 'N/A' : 'N/A' }}</p>
                     </div>
                 </div>
 
                 <!-- Map placeholder -->
-                <div class="mt-6 bg-gray-100 rounded-lg h-64 flex items-center justify-center">
+                <div class="flex justify-center items-center mt-6 h-64 bg-gray-100 rounded-lg">
                     <div class="text-center">
-                        <i class="pi pi-map-marker text-4xl text-gray-400 mb-2"></i>
+                        <i class="mb-2 text-4xl text-gray-400 pi pi-map-marker"></i>
                         <p class="text-gray-500">Map view would be displayed here</p>
                     </div>
                 </div>
@@ -156,7 +156,7 @@
                           styleClass="p-button-success" [disabled]="!property || !property.id"></p-button>
             </div>
 
-            <div *ngIf="property && property.bookings && property.bookings.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div *ngIf="property && property.bookings && property.bookings.length" class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <app-booking-card
                     *ngFor="let booking of property && property.bookings ? property.bookings : []"
                     [booking]="booking"
@@ -166,10 +166,10 @@
             </div>
 
             <div *ngIf="!property?.bookings?.length"
-                 class="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-lg">
-                <i class="pi pi-calendar text-5xl text-gray-400 mb-4"></i>
-                <h3 class="text-xl text-gray-600 mb-2">No Bookings Found</h3>
-                <p class="text-gray-500 mb-4">This property doesn't have any bookings yet.</p>
+                 class="flex flex-col justify-center items-center py-12 bg-gray-50 rounded-lg">
+                <i class="mb-4 text-5xl text-gray-400 pi pi-calendar"></i>
+                <h3 class="mb-2 text-xl text-gray-600">No Bookings Found</h3>
+                <p class="mb-4 text-gray-500">This property doesn't have any bookings yet.</p>
                 <p-button (click)="openNewBookingDialog()" icon="pi pi-plus" label="Create First Booking"
                           styleClass="p-button-success"></p-button>
             </div>
