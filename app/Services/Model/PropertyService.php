@@ -97,10 +97,9 @@ class PropertyService
 
             // Update address if provided
             if ($addressData) {
-                $property->address()->updateOrCreate(
-                    ['is_primary' => true],
-                    $addressData
-                );
+                // Simply update or create the address without the is_primary condition
+                // since we're using a morphOne relationship, there should only be one address per property
+                $property->address()->updateOrCreate(['addressable_id' => $property->id, 'addressable_type' => Property::class], $addressData);
             }
 
             // Sync tags if provided

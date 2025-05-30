@@ -21,6 +21,7 @@ class Address extends AbstractModel
         'city',
         'district',
         'street',
+        'postal_code',
         'building',
         'latitude',
         'longitude',

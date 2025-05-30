@@ -20,6 +20,7 @@ return new class extends Migration {
             $table->string('state')->nullable();
             $table->string('city')->nullable();
             $table->string('district')->nullable();
+            $table->string('postal_code')->nullable();
             $table->string('street')->nullable();
             $table->string('building')->nullable();
             $table->string('latitude')->nullable();

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StorePropertyRequest extends FormRequest
@@ -17,7 +18,7 @@ class StorePropertyRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -39,19 +40,46 @@ class StorePropertyRequest extends FormRequest
             'servicing' => 'nullable|array',
             'servicing.*' => 'string',
             'metadata' => 'nullable|array',
-            
+            // 'metadata.construction_year' => 'nullable|string',
+            // 'metadata.has_balcony' => 'nullable|boolean',
+            // 'metadata.has_garden' => 'nullable|boolean',
+            // 'metadata.has_pool' => 'nullable|boolean',
+            // 'metadata.has_elevator' => 'nullable|boolean',
+            // 'metadata.air_conditioning' => 'nullable|boolean',
+            // 'metadata.parking_spaces' => 'nullable|integer|min:0',
+            // 'metadata.heating_type' => 'nullable|string',
+            // 'metadata.furnished_status' => 'nullable|string',
+            // 'metadata.bedrooms' => 'nullable|integer|min:0',
+            // 'metadata.bathrooms' => 'nullable|integer|min:0',
+            // 'metadata.is_developed' => 'nullable|boolean',
+            // 'metadata.has_water_connection' => 'nullable|boolean',
+            // 'metadata.has_electricity_connection' => 'nullable|boolean',
+            // 'metadata.has_sewage_connection' => 'nullable|boolean',
+            // 'metadata.has_reception' => 'nullable|boolean',
+            // 'metadata.has_kitchen' => 'nullable|boolean',
+            // 'metadata.has_meeting_rooms' => 'nullable|boolean',
+            // 'metadata.has_parking' => 'nullable|boolean',
+            // 'metadata.has_security' => 'nullable|boolean',
+            // 'metadata.has_storage' => 'nullable|boolean',
+            // 'metadata.has_loading_dock' => 'nullable|boolean',
+
             // Address fields
             'address' => 'required|array',
+            'address.address' => 'required|string',
             'address.street' => 'required|string',
             'address.city' => 'required|string',
             'address.state' => 'required|string',
-            'address.postal_code' => 'required|string',
+            'address.postal_code' => 'nullable|string',
             'address.country' => 'required|string',
-            
+            'address.district' => 'nullable|string',
+            'address.building' => 'nullable|string',
+            'address.latitude' => 'nullable|string',
+            'address.longitude' => 'nullable|string',
+
             // Tags
             'tags' => 'nullable|array',
             'tags.*' => 'exists:tags,id',
-            
+
             // Media files
             'images' => 'nullable|array',
             'images.*' => 'file|image|max:10240',

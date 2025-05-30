@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Property;
-use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -47,6 +46,7 @@ class PropertySeeder extends Seeder
                         'state' => fake()->randomElement(['Dakar', 'Thiès', 'Saint-Louis']),
                         'country' => 'Senegal',
                         'address' => fake()->address(),
+                        'postal_code' => fake()->postcode(),
                         'latitude' => fake()->latitude(),
                         'longitude' => fake()->longitude(),
                         'metadata' => json_encode(['is_primary' => true]),
