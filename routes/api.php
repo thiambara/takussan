@@ -20,6 +20,7 @@ require __DIR__ . '/api/customers.php';
 require __DIR__ . '/api/enums.php';
 require __DIR__ . '/api/permissions.php';
 require __DIR__ . '/api/properties.php';
+require __DIR__ . '/api/property-media.php';
 require __DIR__ . '/api/reviews.php';
 require __DIR__ . '/api/roles.php';
 require __DIR__ . '/api/tags.php';
