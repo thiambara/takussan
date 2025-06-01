@@ -1,0 +1,196 @@
+<div class="p-4 customer-edit-container">
+    <!-- Header with actions -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="m-0 text-2xl font-bold text-primary">
+            {{ !isEditMode ? 'Create New Customer' : 'Edit Customer' }}
+        </h1>
+        <div class="flex gap-2 items-center">
+            <p-button [routerLink]="!isEditMode ? '/dashboard/customers' : '/dashboard/customers/' + customerId"
+                      icon="pi pi-arrow-left" label="Back"
+                      styleClass="p-button-outlined"></p-button>
+            <p-button (onClick)="saveCustomer()" [disabled]="customerForm.invalid || saving"
+                      [loading]="saving"
+                      icon="pi pi-save"
+                      label="Save"></p-button>
+        </div>
+    </div>
+
+    <!-- Customer Form -->
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <!-- Main Form Section -->
+        <div class="md:col-span-2">
+            <p-card styleClass="shadow-md h-full">
+                <ng-template pTemplate="header">
+                    <div class="p-4 bg-primary-50">
+                        <h2 class="text-xl font-semibold text-primary">Customer Information</h2>
+                    </div>
+                </ng-template>
+
+                <form [formGroup]="customerForm">
+                    <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                        <!-- Customer Type Selector -->
+                        <div class="col-span-full">
+                            <label class="block mb-2 font-semibold">Customer Type</label>
+                            <p-select
+                                    [options]="customerTypes"
+                                    formControlName="type"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    placeholder="Select Customer Type"
+                                    styleClass="w-full">
+                            </p-select>
+                        </div>
+
+                        <!-- First Name -->
+                        <div>
+                            <label class="block mb-2 font-semibold" for="first_name">First Name</label>
+                            <input [pAutoFocus]="true" class="w-full" formControlName="first_name"
+                                   id="first_name" pInputText/>
+                            <small *ngIf="hasError('first_name', 'required')" class="block mt-1 p-error">
+                                First name is required
+                            </small>
+                        </div>
+
+                        <!-- Last Name -->
+                        <div>
+                            <label class="block mb-2 font-semibold" for="last_name">Last Name</label>
+                            <input class="w-full" formControlName="last_name" id="last_name"
+                                   pInputText/>
+                            <small *ngIf="hasError('last_name', 'required')" class="block mt-1 p-error">
+                                Last name is required
+                            </small>
+                        </div>
+
+                        <!-- Email -->
+                        <div>
+                            <label class="block mb-2 font-semibold" for="email">Email</label>
+                            <input class="w-full" formControlName="email" id="email"
+                                   pInputText/>
+                            <small *ngIf="hasError('email', 'email')" class="block mt-1 p-error">
+                                Invalid email format
+                            </small>
+                        </div>
+
+                        <!-- Phone -->
+                        <div>
+                            <label class="block mb-2 font-semibold" for="phone">Phone</label>
+                            <input class="w-full" formControlName="phone" id="phone"
+                                   pInputText/>
+                        </div>
+
+                        <!-- Status -->
+                        <div>
+                            <label class="block mb-2 font-semibold" for="status">Status</label>
+                            <p-select
+                                    [options]="customerStatuses"
+                                    formControlName="status"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    placeholder="Select Status"
+                                    styleClass="w-full">
+                            </p-select>
+                        </div>
+                    </div>
+
+                    <!-- Type-specific fields -->
+                    <div class="mt-6" formGroupName="metadata">
+                        <p-divider></p-divider>
+
+                        <!-- Company-specific fields -->
+                        <div *ngIf="customerForm.get('type')?.value === 'company'"
+                             class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2">
+                            <div class="col-span-full">
+                                <h3 class="mb-4 text-lg font-medium">Company Information</h3>
+                            </div>
+
+                            <!-- Company Name -->
+                            <div>
+                                <label class="block mb-2 font-semibold" for="company_name">Company Name</label>
+                                <input class="w-full" formControlName="company_name" id="company_name"
+                                       pInputText/>
+                                <small *ngIf="hasMetadataError('company_name', 'required')" class="block mt-1 p-error">
+                                    Company name is required
+                                </small>
+                            </div>
+
+                            <!-- Business ID -->
+                            <div>
+                                <label class="block mb-2 font-semibold" for="business_id">Business ID</label>
+                                <input class="w-full" formControlName="business_id" id="business_id"
+                                       pInputText/>
+                                <small *ngIf="hasMetadataError('business_id', 'required')" class="block mt-1 p-error">
+                                    Business ID is required
+                                </small>
+                            </div>
+
+                            <!-- Tax ID -->
+                            <div>
+                                <label class="block mb-2 font-semibold" for="tax_id">Tax ID</label>
+                                <input class="w-full" formControlName="tax_id" id="tax_id"
+                                       pInputText/>
+                            </div>
+                        </div>
+
+                        <!-- Notes field (for all types) -->
+                        <div class="mt-4">
+                            <label class="block mb-2 font-semibold" for="notes">Notes</label>
+                            <textarea autoResize="true" class="w-full" formControlName="notes"
+                                      id="notes" pTextarea rows="5"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </p-card>
+        </div>
+
+        <!-- Addresses Section -->
+        <div class="md:col-span-1">
+            <p-card styleClass="shadow-md h-full">
+                <ng-template pTemplate="header">
+                    <div class="flex justify-between items-center p-4 bg-primary-50">
+                        <h2 class="text-xl font-semibold text-primary">Addresses</h2>
+                        <p-button (onClick)="openAddressForm()" icon="pi pi-plus"
+                                  pTooltip="Add Address" styleClass="p-button-sm"
+                                  tooltipPosition="left"></p-button>
+                    </div>
+                </ng-template>
+
+                <div class="address-list">
+                    <div *ngIf="!customer.addresses?.length" class="py-6 text-center">
+                        <p class="text-gray-500">No addresses added yet</p>
+                    </div>
+
+                    <div *ngFor="let address of customer.addresses; let i = index"
+                         class="p-3 mb-3 address-item border-round surface-hover">
+                        <div class="flex justify-between">
+                            <h5 class="m-0 font-semibold">{{ address.label || 'Address ' + (i + 1) }}</h5>
+                            <div class="flex gap-2">
+                                <p-button (click)="openAddressForm(i)" class="p-button-text p-button-sm"
+                                          icon="pi pi-pencil" pTooltip="Edit"></p-button>
+                                <p-button (click)="removeAddress(i)" class="p-button-text p-button-sm p-button-danger"
+                                          icon="pi pi-trash"
+                                          pButton pTooltip="Remove"></p-button>
+                            </div>
+                        </div>
+                        <div class="mt-2 address-details">
+                            <p class="m-0 text-sm text-gray-700">{{ address.address }}</p>
+                            <p class="m-0 text-sm text-gray-700">{{ address.city }}, {{ address.state }}</p>
+                            <p class="m-0 text-sm text-gray-700">{{ address.country }} {{ address.postal_code }}</p>
+                        </div>
+                    </div>
+                </div>
+            </p-card>
+        </div>
+    </div>
+</div>
+
+<!-- Address Form Component -->
+<app-address-form
+    [(visible)]="showAddressForm"
+    [address]="selectedAddress"
+    [isEdit]="editingAddressIndex >= 0"
+    (save)="onAddressSave($event)"
+    (cancel)="onAddressCancel()">
+</app-address-form>
+
+<!-- Toast for notifications -->
+<p-toast></p-toast>

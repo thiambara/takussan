@@ -14,175 +14,408 @@
     </div>
 
     <!-- Property details in tabs -->
-    <p-tabView>
-        <!-- Overview Tab -->
-        <p-tabPanel header="Overview">
-            <div class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2">
-                <p-card styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+    <p-tabs [(value)]="activeTabIndex">
+        <p-tablist>
+            <p-tab [value]="0">Overview</p-tab>
+            <p-tab *ngIf="property && property.address" [value]="1">Location</p-tab>
+            <p-tab [value]="2">Bookings</p-tab>
+        </p-tablist>
+        <p-tabpanels>
+            <!-- Overview Tab -->
+            <p-tabpanel [value]="0">
+
+                <div class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2">
+                    <p-card styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+                        <ng-template pTemplate="header">
+                            <div class="p-4 bg-primary-50">
+                                <h2 class="text-xl font-semibold text-primary">Basic Information</h2>
+                            </div>
+                        </ng-template>
+
+                        <div class="grid grid-cols-1 gap-4">
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Title</h6>
+                                <p class="text-lg font-medium text-surface-900">{{ property?.title || 'N/A' }}</p>
+                            </div>
+
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Type</h6>
+                                <p class="text-lg text-surface-900">{{ property?.type || 'N/A' }}</p>
+                            </div>
+
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Contract Type</h6>
+                                <p class="text-lg text-surface-900">{{ property?.contract_type || 'N/A' }}</p>
+                            </div>
+
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Created At</h6>
+                                <p class="text-lg text-surface-900">{{ property?.created_at | date: 'medium' }}</p>
+                            </div>
+                        </div>
+                    </p-card>
+
+                    <p-card styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+                        <ng-template pTemplate="header">
+                            <div class="p-4 bg-primary-50">
+                                <h2 class="text-xl font-semibold text-primary">Price Information</h2>
+                            </div>
+                        </ng-template>
+
+                        <div class="grid grid-cols-1 gap-4">
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Price</h6>
+                                <p class="text-lg font-medium text-surface-900">{{ property?.price | currency:'EUR' }}</p>
+                            </div>
+
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Contract Type</h6>
+                                <p class="text-lg text-surface-900">{{ property?.contract_type || 'N/A' }}</p>
+                            </div>
+
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Listed Since</h6>
+                                <p class="text-lg text-surface-900">{{ (property?.created_at | date: 'mediumDate') || 'N/A' }}</p>
+                            </div>
+                        </div>
+                    </p-card>
+
+                    <!-- Type-specific details -->
+                    <p-card *ngIf="property?.metadata"
+                            styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+                        <ng-template pTemplate="header">
+                            <div class="p-4 bg-primary-50">
+                                <h2 class="text-xl font-semibold text-primary">{{ getTypeSpecificLabel() }}</h2>
+                            </div>
+                        </ng-template>
+
+                        <!-- Apartment, House, Villa specific details -->
+                        <div *ngIf="isResidentialType()" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Rooms</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.rooms || 'N/A' }}</p>
+                            </div>
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Bathrooms</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.bathrooms || 'N/A' }}</p>
+                            </div>
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Furnished</h6>
+                                <p class="text-lg text-surface-900">{{ getFurnishedLabel(property?.metadata?.furnished) }}</p>
+                            </div>
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Parking Spaces</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.parking_spaces || '0' }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Features for Apartment, House, Villa -->
+                        <div *ngIf="isResidentialType()" class="mt-4">
+                            <h6 class="mb-2 text-gray-500">Features</h6>
+                            <div class="flex flex-wrap gap-2">
+                                <p-tag *ngIf="property?.metadata?.has_balcony" severity="info" value="Balcony"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_garden" severity="info" value="Garden"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_pool" severity="info" value="Pool"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_elevator" severity="info"
+                                       value="Elevator"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.air_conditioning" severity="info"
+                                       value="Air Conditioning"></p-tag>
+                            </div>
+                        </div>
+
+                        <!-- Land specific details -->
+                        <div *ngIf="isPropertyType('land')" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Land Type</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.land_type || 'N/A' }}</p>
+                            </div>
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Zoning</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.zoning || 'N/A' }}</p>
+                            </div>
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Total Area</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.total_area || 'N/A' }} m²</p>
+                            </div>
+                        </div>
+
+                        <!-- Features for Land -->
+                        <div *ngIf="isPropertyType('land')" class="mt-4">
+                            <h6 class="mb-2 text-gray-500">Features</h6>
+                            <div class="flex flex-wrap gap-2">
+                                <p-tag *ngIf="property?.metadata?.is_developed" severity="info"
+                                       value="Developed"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_water_connection" severity="info"
+                                       value="Water Connection"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_electricity_connection" severity="info"
+                                       value="Electricity"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_road_access" severity="info"
+                                       value="Road Access"></p-tag>
+                            </div>
+                        </div>
+
+                        <!-- Office specific details -->
+                        <div *ngIf="isPropertyType('office')" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Office Area</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.office_area || 'N/A' }}
+                                    m²</p>
+                            </div>
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Number of Offices</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.number_of_offices || 'N/A' }}</p>
+                            </div>
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Meeting Rooms</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.meeting_rooms || 'N/A' }}</p>
+                            </div>
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Bathrooms</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.bathrooms || 'N/A' }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Features for Office -->
+                        <div *ngIf="isPropertyType('office')" class="mt-4">
+                            <h6 class="mb-2 text-gray-500">Features</h6>
+                            <div class="flex flex-wrap gap-2">
+                                <p-tag *ngIf="property?.metadata?.has_reception" severity="info"
+                                       value="Reception"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_kitchen" severity="info" value="Kitchen"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_server_room" severity="info"
+                                       value="Server Room"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_elevator" severity="info"
+                                       value="Elevator"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.air_conditioning" severity="info"
+                                       value="Air Conditioning"></p-tag>
+                            </div>
+                        </div>
+
+                        <!-- Store specific details -->
+                        <div *ngIf="isPropertyType('store')" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Store Area</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.store_area || 'N/A' }} m²</p>
+                            </div>
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Store Front Width</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.store_front_width || 'N/A' }}
+                                    m</p>
+                            </div>
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Bathrooms</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.bathrooms || 'N/A' }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Features for Store -->
+                        <div *ngIf="isPropertyType('store')" class="mt-4">
+                            <h6 class="mb-2 text-gray-500">Features</h6>
+                            <div class="flex flex-wrap gap-2">
+                                <p-tag *ngIf="property?.metadata?.has_storage" severity="info" value="Storage"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_loading_dock" severity="info"
+                                       value="Loading Dock"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_display_window" severity="info"
+                                       value="Display Window"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.air_conditioning" severity="info"
+                                       value="Air Conditioning"></p-tag>
+                            </div>
+                        </div>
+                    </p-card>
+                </div>
+
+                <p-card styleClass="mt-6 shadow-md hover:shadow-lg transition-shadow duration-300">
                     <ng-template pTemplate="header">
                         <div class="p-4 bg-primary-50">
-                            <h2 class="text-xl font-semibold text-primary">Basic Information</h2>
+                            <div class="flex justify-between items-center">
+                                <h2 class="text-xl font-semibold text-primary">Media & Documents</h2>
+                                <p-button icon="pi pi-upload" label="Upload"
+                                          styleClass="p-button-sm"></p-button>
+                            </div>
                         </div>
                     </ng-template>
 
-                    <div class="grid grid-cols-1 gap-4">
-                        <div class="flex flex-col">
-                            <h6 class="mb-1 text-gray-500">Title</h6>
-                            <p class="text-lg font-medium text-surface-900">{{ property?.title || 'N/A' }}</p>
-                        </div>
+                    <div *ngIf="property?.media && property?.media?.length"
+                         class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                        <div (click)="openMediaPreview(media)"
+                             *ngFor="let media of property?.media"
+                             class="overflow-hidden relative bg-gray-100 rounded-lg transition-all duration-300 cursor-pointer aspect-square hover:shadow-lg">
+                            <!-- Image file preview -->
+                            <img *ngIf="media.is_image" [alt]="media.name"
+                                 [ngSrc]="media.thumbnail_url || media.original_url || ''"
+                                 class="object-cover w-full h-full transition-transform duration-300 hover:scale-110"
+                                 fill/>
 
-                        <div class="flex flex-col">
-                            <h6 class="mb-1 text-gray-500">Type</h6>
-                            <p class="text-lg text-surface-900">{{ property?.type || 'N/A' }}</p>
-                        </div>
+                            <!-- Document file preview -->
+                            <div *ngIf="!media.is_image"
+                                 class="flex flex-col justify-center items-center px-2 py-4 h-full text-center">
+                                <i class="mb-2 text-3xl text-primary pi pi-file-pdf"></i>
+                                <p class="text-sm text-gray-700 line-clamp-2">{{ media.name }}</p>
+                            </div>
 
-                        <div class="flex flex-col">
-                            <h6 class="mb-1 text-gray-500">Contract Type</h6>
-                            <p class="text-lg text-surface-900">{{ property?.contract_type || 'N/A' }}</p>
+                            <!-- File type indicator -->
+                            <span *ngIf="media.extension"
+                                  class="absolute top-2 right-2 px-2 py-1 text-xs font-medium text-white rounded-full bg-primary">
+                          {{ media.extension?.toUpperCase() }}
+                        </span>
                         </div>
+                    </div>
 
-                        <div class="flex flex-col">
-                            <h6 class="mb-1 text-gray-500">Created At</h6>
-                            <p class="text-lg text-surface-900">{{ property?.created_at | date: 'medium' }}</p>
-                        </div>
+                    <div *ngIf="!property?.media || !property?.media?.length"
+                         class="flex flex-col justify-center items-center py-16">
+                        <i class="mb-4 text-5xl text-gray-300 pi pi-images"></i>
+                        <h3 class="mb-2 text-xl text-gray-600">No Media Available</h3>
+                        <p class="mb-4 text-gray-500">Upload images or documents for this property.</p>
+                        <p-button icon="pi pi-upload" label="Upload Media"
+                                  styleClass="p-button-outlined"></p-button>
                     </div>
                 </p-card>
 
-                <p-card styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+
+                <p-card styleClass="mt-6 shadow-md hover:shadow-lg transition-shadow duration-300">
                     <ng-template pTemplate="header">
                         <div class="p-4 bg-primary-50">
-                            <h2 class="text-xl font-semibold text-primary">Property Details</h2>
+                            <h2 class="text-xl font-semibold text-primary">Description</h2>
                         </div>
                     </ng-template>
 
-                    <div class="grid grid-cols-1 gap-4">
+                    <p class="text-lg leading-relaxed text-surface-900">
+                        {{ property?.description || 'No description available for this property.' }}
+                    </p>
+                </p-card>
+
+                <!-- Services/Amenities -->
+                <p-card *ngIf="property?.servicing?.length"
+                        styleClass="mt-6 shadow-md hover:shadow-lg transition-shadow duration-300">
+                    <ng-template pTemplate="header">
+                        <div class="p-4 bg-primary-50">
+                            <h2 class="text-xl font-semibold text-primary">Services & Amenities</h2>
+                        </div>
+                    </ng-template>
+
+                    <div class="flex flex-wrap gap-2">
+                        <p-tag *ngFor="let service of property?.servicing" [rounded]="true" [value]="service"
+                               severity="info"></p-tag>
+                    </div>
+                </p-card>
+            </p-tabpanel>
+
+            <!-- Location Tab -->
+            <p-tabpanel *ngIf="property && property.address" [value]="1">
+                <p-card styleClass="shadow-md hover:shadow-lg transition-shadow duration-300">
+                    <ng-template pTemplate="header">
+                        <div class="p-4 bg-primary-50">
+                            <h2 class="text-xl font-semibold text-primary">Address Information</h2>
+                        </div>
+                    </ng-template>
+
+                    <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                         <div class="flex flex-col">
-                            <h6 class="mb-1 text-gray-500">Price</h6>
-                            <p class="text-lg font-medium text-surface-900">{{ property?.price | currency:'EUR' }}</p>
+                            <h6 class="mb-1 text-gray-500">Address</h6>
+                            <p class="text-lg text-surface-900">{{ property?.address?.address || 'N/A' }}</p>
                         </div>
 
                         <div class="flex flex-col">
-                            <h6 class="mb-1 text-gray-500">Area</h6>
-                            <p class="text-lg text-surface-900">{{ property?.area }} m²</p>
+                            <h6 class="mb-1 text-gray-500">City</h6>
+                            <p class="text-lg text-surface-900">{{ property?.address?.city || 'N/A' }}</p>
                         </div>
 
                         <div class="flex flex-col">
-                            <h6 class="mb-1 text-gray-500">Position</h6>
-                            <p class="text-lg text-surface-900">{{ property?.position || 'N/A' }}</p>
+                            <h6 class="mb-1 text-gray-500">State/Province</h6>
+                            <p class="text-lg text-surface-900">{{ property?.address?.state || 'N/A' }}</p>
                         </div>
 
                         <div class="flex flex-col">
-                            <h6 class="mb-1 text-gray-500">Level</h6>
-                            <p class="text-lg text-surface-900">{{ property?.level || 'N/A' }}</p>
+                            <h6 class="mb-1 text-gray-500">Country</h6>
+                            <p class="text-lg text-surface-900">{{ property?.address?.country || 'N/A' }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Map placeholder -->
+                    <div class="flex justify-center items-center mt-6 h-64 bg-gray-100 rounded-lg">
+                        <div class="text-center">
+                            <i class="mb-2 text-4xl text-gray-400 pi pi-map-marker"></i>
+                            <p class="text-gray-500">Map view would be displayed here</p>
                         </div>
                     </div>
                 </p-card>
-            </div>
+            </p-tabpanel>
 
-            <p-card styleClass="mt-6 shadow-md hover:shadow-lg transition-shadow duration-300">
-                <ng-template pTemplate="header">
-                    <div class="p-4 bg-primary-50">
-                        <h2 class="text-xl font-semibold text-primary">Description</h2>
-                    </div>
-                </ng-template>
+            <!-- Bookings Tab -->
+            <p-tabpanel [value]="2">
 
-                <p class="text-lg leading-relaxed text-surface-900">
-                    {{ property?.description || 'No description available for this property.' }}
-                </p>
-            </p-card>
-
-            <!-- Services/Amenities -->
-            <p-card *ngIf="property?.servicing?.length"
-                    styleClass="mt-6 shadow-md hover:shadow-lg transition-shadow duration-300">
-                <ng-template pTemplate="header">
-                    <div class="p-4 bg-primary-50">
-                        <h2 class="text-xl font-semibold text-primary">Services & Amenities</h2>
-                    </div>
-                </ng-template>
-
-                <div class="flex flex-wrap gap-2">
-                    <p-tag *ngFor="let service of property?.servicing" [rounded]="true" [value]="service"
-                           severity="info"></p-tag>
-                </div>
-            </p-card>
-        </p-tabPanel>
-
-        <!-- Location Tab -->
-        <p-tabPanel *ngIf="property && property.address" header="Location">
-            <p-card styleClass="shadow-md hover:shadow-lg transition-shadow duration-300">
-                <ng-template pTemplate="header">
-                    <div class="p-4 bg-primary-50">
-                        <h2 class="text-xl font-semibold text-primary">Address Information</h2>
-                    </div>
-                </ng-template>
-
-                <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                    <div class="flex flex-col">
-                        <h6 class="mb-1 text-gray-500">Address</h6>
-                        <p class="text-lg text-surface-900">{{ property && property.address ? property.address.address || 'N/A' : 'N/A' }}</p>
-                    </div>
-
-                    <div class="flex flex-col">
-                        <h6 class="mb-1 text-gray-500">City</h6>
-                        <p class="text-lg text-surface-900">{{ property && property.address ? property.address.city || 'N/A' : 'N/A' }}</p>
-                    </div>
-
-                    <div class="flex flex-col">
-                        <h6 class="mb-1 text-gray-500">State/Province</h6>
-                        <p class="text-lg text-surface-900">{{ property && property.address ? property.address.state || 'N/A' : 'N/A'  }}</p>
-                    </div>
-
-                    <div class="flex flex-col">
-                        <h6 class="mb-1 text-gray-500">Country</h6>
-                        <p class="text-lg text-surface-900">{{ property && property.address ? property.address.country || 'N/A' : 'N/A' }}</p>
-                    </div>
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-primary">Property Bookings</h2>
+                    <p-button (click)="openNewBookingDialog()" [disabled]="!property || !property.id" icon="pi pi-plus"
+                              label="Add Booking" styleClass="p-button-success"></p-button>
                 </div>
 
-                <!-- Map placeholder -->
-                <div class="flex justify-center items-center mt-6 h-64 bg-gray-100 rounded-lg">
-                    <div class="text-center">
-                        <i class="mb-2 text-4xl text-gray-400 pi pi-map-marker"></i>
-                        <p class="text-gray-500">Map view would be displayed here</p>
-                    </div>
+                <div *ngIf="property?.bookings && property?.bookings?.length"
+                     class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <app-booking-card
+                            (delete)="deleteBooking(booking)"
+                            (edit)="editBooking(booking)"
+                            *ngFor="let booking of property?.bookings"
+                            [booking]="booking"
+                    ></app-booking-card>
                 </div>
-            </p-card>
-        </p-tabPanel>
 
-        <!-- Bookings Tab -->
-        <p-tabPanel header="Bookings">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-semibold text-primary">Property Bookings</h2>
-                <p-button (click)="openNewBookingDialog()" icon="pi pi-plus" label="Add Booking"
-                          styleClass="p-button-success" [disabled]="!property || !property.id"></p-button>
-            </div>
-
-            <div *ngIf="property && property.bookings && property.bookings.length" class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <app-booking-card
-                    *ngFor="let booking of property && property.bookings ? property.bookings : []"
-                    [booking]="booking"
-                    (edit)="editBooking($event)"
-                    (delete)="deleteBooking($event)"
-                ></app-booking-card>
-            </div>
-
-            <div *ngIf="!property?.bookings?.length"
-                 class="flex flex-col justify-center items-center py-12 bg-gray-50 rounded-lg">
-                <i class="mb-4 text-5xl text-gray-400 pi pi-calendar"></i>
-                <h3 class="mb-2 text-xl text-gray-600">No Bookings Found</h3>
-                <p class="mb-4 text-gray-500">This property doesn't have any bookings yet.</p>
-                <p-button (click)="openNewBookingDialog()" icon="pi pi-plus" label="Create First Booking"
-                          styleClass="p-button-success"></p-button>
-            </div>
-        </p-tabPanel>
-    </p-tabView>
+                <div *ngIf="!property?.bookings?.length"
+                     class="flex flex-col justify-center items-center py-12 bg-gray-50 rounded-lg">
+                    <i class="mb-4 text-5xl text-gray-400 pi pi-calendar"></i>
+                    <h3 class="mb-2 text-xl text-gray-600">No Bookings Found</h3>
+                    <p class="mb-4 text-gray-500">This property doesn't have any bookings yet.</p>
+                    <p-button (click)="openNewBookingDialog()" icon="pi pi-plus" label="Create First Booking"
+                              styleClass="p-button-success"></p-button>
+                </div>
+            </p-tabpanel>
+        </p-tabpanels>
+    </p-tabs>
 </div>
+
+<!-- Media Preview Dialog -->
+<p-dialog [(visible)]="showMediaPreviewDialog" [closeIconTemplate]="mediaPreviewCloseIcon" [closeOnEscape]="true"
+          [dismissableMask]="true"
+          [draggable]="false"
+          [modal]="true" [resizable]="false" [style]="{width: '90vw', 'max-width': '800px'}">
+    <ng-template #mediaPreviewCloseIcon>
+        <p-button (click)="closeMediaPreview()" class="p-button-rounded p-button-text" icon="pi pi-times"
+                  type="button"></p-button>
+    </ng-template>
+
+    <ng-template pTemplate="header">
+        <div class="flex justify-between items-center w-full">
+            <h5 class="m-0 text-xl">Media Preview</h5>
+
+        </div>
+    </ng-template>
+
+    <div *ngIf="selectedMedia" class="flex flex-col items-center">
+        <!-- Image Preview -->
+        <img *ngIf="selectedMedia.is_image" [alt]="selectedMedia.name"
+             [src]="selectedMedia.original_url" class="max-h-[70vh] object-contain"/>
+
+        <!-- Document Preview -->
+        <div *ngIf="!selectedMedia.is_image" class="w-full text-center">
+            <i class="mb-4 text-6xl text-primary pi pi-file-pdf"></i>
+            <h3 class="mb-2">{{ selectedMedia.name }}</h3>
+            <p class="mb-4">{{ selectedMedia && selectedMedia.size ? (selectedMedia.size / 1024).toFixed(2) + ' KB' : '' }} {{ selectedMedia && selectedMedia.extension ? '• ' + selectedMedia.extension.toUpperCase() : '' }}</p>
+            <p-button
+                    (click)="closeMediaPreview()"
+                    [loading]="downloadingFile"
+                    icon="pi pi-download"
+                    label="Download File"
+                    styleClass="p-button-outlined"></p-button>
+        </div>
+    </div>
+</p-dialog>
 
 <!-- Booking Form Component -->
 <app-booking-form
-    [(visible)]="showBookingDialog"
-    [propertyId]="property && property.id"
-    [booking]="selectedBooking !== null ? selectedBooking : undefined"
-    [isEditMode]="isEditMode"
-    (save)="onBookingSave($event)"
-    (cancel)="onBookingCancel()"
+        (cancel)="onBookingCancel()"
+        (save)="onBookingSave($event)"
+        [(visible)]="showBookingDialog"
+        [booking]="selectedBooking"
+        [isEditMode]="isEditMode"
+        [propertyId]="property?.id"
 ></app-booking-form>

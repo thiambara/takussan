@@ -6,6 +6,7 @@ import { Customer } from '../../../../core/models/http/customer.model';
 import { User } from '../../../../core/models/http/user.model';
 import { PaginationResult } from '../../../../core/models/http/base/pagination-result.model';
 import { CustomerService } from '../../../../core/sevices/http/customer.service';
+import { EMPTY, debounceTime, merge, skip } from 'rxjs';
 
 // PrimeNG Modules
 import { ButtonModule } from 'primeng/button';
@@ -76,14 +77,20 @@ export class BookingFormComponent implements OnInit {
   initializeForm(): void {
     this.bookingForm = this.fb.group({
       booking_date: [this.booking?.booking_date ? new Date(this.booking.booking_date) : new Date(), Validators.required],
+      start_date: [this.booking?.start_date ? new Date(this.booking.start_date) : null, Validators.required],
+      end_date: [this.booking?.end_date ? new Date(this.booking.end_date) : null, Validators.required],
       expiration_date: [this.booking?.expiration_date ? new Date(this.booking.expiration_date) : null],
       status: [this.booking?.status || 'pending', Validators.required],
       price_at_booking: [this.booking?.price_at_booking || 0, [Validators.required, Validators.min(0)]],
+      total_amount: [this.booking?.total_amount || 0, [Validators.required, Validators.min(0)]],
       deposit_amount: [this.booking?.deposit_amount || 0, [Validators.min(0)]],
       notes: [this.booking?.notes || ''],
       reference_number: [this.booking?.reference_number || ''],
       customer_id: [this.booking?.customer_id || null]
     });
+    
+    // Listen for changes to dates and price to auto-calculate total amount
+    this.setupTotalAmountCalculation();
     
     if (this.booking?.customer_id) {
       this.loadCustomerDetails(this.booking.customer_id);
@@ -168,6 +175,14 @@ export class BookingFormComponent implements OnInit {
       bookingData.booking_date = this.formatDate(bookingData.booking_date);
     }
     
+    if (bookingData.start_date) {
+      bookingData.start_date = this.formatDate(bookingData.start_date);
+    }
+    
+    if (bookingData.end_date) {
+      bookingData.end_date = this.formatDate(bookingData.end_date);
+    }
+    
     if (bookingData.expiration_date) {
       bookingData.expiration_date = this.formatDate(bookingData.expiration_date);
     }
@@ -188,6 +203,63 @@ export class BookingFormComponent implements OnInit {
   
   formatDate(date: Date): string {
     return date.toISOString().split('T')[0];
+  }
+  
+  /**
+   * Set up event listeners to automatically calculate the total amount
+   * based on the price_at_booking and the duration of the booking
+   */
+  setupTotalAmountCalculation(): void {
+    // Listen for changes to start_date, end_date, and price_at_booking
+    const startDateControl = this.bookingForm.get('start_date');
+    const endDateControl = this.bookingForm.get('end_date');
+    const priceControl = this.bookingForm.get('price_at_booking');
+    
+    // Create a merged observable that triggers when any of the three controls change
+    merge(
+      startDateControl?.valueChanges || EMPTY,
+      endDateControl?.valueChanges || EMPTY,
+      priceControl?.valueChanges || EMPTY
+    ).pipe(
+      // Skip initial emissions
+      skip(1),
+      // Debounce to prevent rapid recalculations
+      debounceTime(300)
+    ).subscribe(() => {
+      this.calculateTotalAmount();
+    });
+  }
+  
+  /**
+   * Calculate the total amount based on price_at_booking and duration
+   */
+  calculateTotalAmount(): void {
+    const startDate = this.bookingForm.get('start_date')?.value as Date;
+    const endDate = this.bookingForm.get('end_date')?.value as Date;
+    const priceAtBooking = this.bookingForm.get('price_at_booking')?.value;
+    
+    // If any of the required values are missing, don't calculate
+    if (!startDate || !endDate || priceAtBooking === null || priceAtBooking === undefined) {
+      return;
+    }
+    
+    // Check if dates are valid
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return;
+    }
+    
+    // Calculate the difference in milliseconds
+    const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+    // Convert to days and round up to include both start and end days
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Calculate total amount based on daily rate (price_at_booking) and duration
+    const totalAmount = priceAtBooking * diffDays;
+    
+    // Update the total_amount field
+    this.bookingForm.patchValue({
+      total_amount: totalAmount
+    }, { emitEvent: false });
   }
   
   markFormGroupTouched(formGroup: FormGroup): void {

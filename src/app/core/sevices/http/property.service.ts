@@ -54,6 +54,6 @@ export class PropertyService extends BaseHttpService<Property> {
    * @param mediaId - The ID of the media to set as featured
    */
   setFeaturedMedia(propertyId: number, mediaId: number): Observable<void> {
-    return this.http.put<void>(`${this.endpointUrl}/${propertyId}/media/${mediaId}/featured`, {});
+    return this.http.post<void>(`${this.endpointUrl}/${propertyId}/media/${mediaId}/featured`, {});
   }
 }

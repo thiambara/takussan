@@ -19,13 +19,33 @@
         </div>
 
         <div class="flex justify-between">
+            <span class="text-gray-500">Start Date:</span>
+            <span class="font-medium">{{ booking.start_date | date: 'mediumDate' }}</span>
+        </div>
+
+        <div class="flex justify-between">
+            <span class="text-gray-500">End Date:</span>
+            <span class="font-medium">{{ booking.end_date | date: 'mediumDate' }}</span>
+        </div>
+        
+        <div class="flex justify-between" *ngIf="booking.start_date && booking.end_date">
+            <span class="text-gray-500">Duration:</span>
+            <span class="font-medium">{{ calculateDuration() }} days</span>
+        </div>
+
+        <div class="flex justify-between">
             <span class="text-gray-500">Expiration Date:</span>
             <span class="font-medium">{{ booking.expiration_date | date: 'mediumDate' }}</span>
         </div>
 
         <div class="flex justify-between">
-            <span class="text-gray-500">Price:</span>
+            <span class="text-gray-500">Property Price:</span>
             <span class="font-medium">{{ booking.price_at_booking | currency:'EUR' }}</span>
+        </div>
+        
+        <div class="flex justify-between">
+            <span class="text-gray-500">Total Amount:</span>
+            <span class="font-bold text-primary">{{ booking.total_amount | currency:'EUR' }}</span>
         </div>
 
         <div *ngIf="booking.deposit_amount" class="flex justify-between">

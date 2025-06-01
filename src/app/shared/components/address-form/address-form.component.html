@@ -1,0 +1,130 @@
+<p-dialog
+        (onHide)="onCancel()"
+        [(visible)]="visible"
+        [closeOnEscape]="true"
+        [dismissableMask]="true"
+        [draggable]="false"
+        [header]="isEdit ? 'Modifier l\'adresse' : 'Ajouter une adresse'"
+        [modal]="true"
+        [resizable]="false"
+        [style]="{width: '550px'}">
+
+    <div class="p-fluid address-form-container">
+        <form [formGroup]="addressForm" class="grid grid-cols-1 gap-4">
+            <!-- Label -->
+            <div class="field">
+                <label class="block mb-2 font-medium" for="label">Étiquette *</label>
+
+                <input class="w-full" formControlName="label" id="label" pInputText
+                       placeholder="Ex: Domicile, Bureau..." type="text">
+
+                <small *ngIf="addressForm.get('label')?.invalid && addressForm.get('label')?.touched"
+                       class="block mt-1 text-red-500">
+                    L'étiquette est obligatoire
+                </small>
+            </div>
+
+            <!-- Address -->
+            <div class="field">
+                <label class="block mb-2 font-medium" for="address">Adresse *</label>
+                <textarea autoResize="true" class="w-full" formControlName="address" id="address" pTextarea
+                          placeholder="Numéro et rue" rows="3"></textarea>
+                <small *ngIf="addressForm.get('address')?.invalid && addressForm.get('address')?.touched"
+                       class="block mt-1 text-red-500">
+                    L'adresse est obligatoire
+                </small>
+            </div>
+
+            <!-- City and State -->
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div class="field">
+                    <label class="block mb-2 font-medium" for="city">Ville *</label>
+                    <input class="w-full" formControlName="city" id="city" pInputText type="text">
+                    <small *ngIf="addressForm.get('city')?.invalid && addressForm.get('city')?.touched"
+                           class="block mt-1 text-red-500">
+                        La ville est obligatoire
+                    </small>
+                </div>
+
+                <div class="field">
+                    <label class="block mb-2 font-medium" for="state">Région</label>
+                    <input class="w-full" formControlName="state" id="state" pInputText type="text">
+                </div>
+            </div>
+
+            <!-- Country and Postal Code -->
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div class="field">
+                    <label class="block mb-2 font-medium" for="country">Pays *</label>
+                    <input class="w-full" formControlName="country" id="country" pInputText type="text">
+                    <small *ngIf="addressForm.get('country')?.invalid && addressForm.get('country')?.touched"
+                           class="block mt-1 text-red-500">
+                        Le pays est obligatoire
+                    </small>
+                </div>
+
+                <div class="field">
+                    <label class="block mb-2 font-medium" for="postal_code">Code postal</label>
+                    <input class="w-full" formControlName="postal_code" id="postal_code" pInputText type="text">
+                </div>
+            </div>
+
+            <!-- Address Type -->
+            <div class="field">
+                <label class="block mb-2 font-medium" for="type">Type d'adresse</label>
+                <p-select
+                        [filter]="true"
+                        [options]="addressTypes"
+                        formControlName="type"
+                        id="type"
+                        optionLabel="label"
+                        optionValue="value"
+                        styleClass="w-full">
+                    <ng-template let-option pTemplate="selectedItem">
+                        <div class="flex align-items-center">
+                            <i [ngClass]="{
+                                 'pi-home': option.value === 'residential',
+                                 'pi-briefcase': option.value === 'business',
+                                 'pi-truck': option.value === 'shipping',
+                                 'pi-credit-card': option.value === 'billing',
+                                 'pi-map-marker': option.value === 'other'
+                               }"
+                               class="mr-2 pi"></i>
+                            <span>{{ option.label }}</span>
+                        </div>
+                    </ng-template>
+                    <ng-template let-option pTemplate="item">
+                        <div class="flex align-items-center">
+                            <i [ngClass]="{
+                                 'pi-home': option.value === 'residential',
+                                 'pi-briefcase': option.value === 'business',
+                                 'pi-truck': option.value === 'shipping',
+                                 'pi-credit-card': option.value === 'billing',
+                                 'pi-map-marker': option.value === 'other'
+                               }"
+                               class="mr-2 pi"></i>
+                            <span>{{ option.label }}</span>
+                        </div>
+                    </ng-template>
+                </p-select>
+            </div>
+        </form>
+    </div>
+
+    <ng-template pTemplate="footer">
+        <div class="flex gap-2 justify-end">
+            <p-button
+                    (onClick)="onCancel()"
+                    icon="pi pi-times"
+                    label="Annuler"
+                    styleClass="p-button-outlined p-button-secondary">
+            </p-button>
+            <p-button
+                    (onClick)="onSubmit()"
+                    [disabled]="addressForm.invalid"
+                    icon="pi pi-check"
+                    label="Enregistrer">
+            </p-button>
+        </div>
+    </ng-template>
+</p-dialog>

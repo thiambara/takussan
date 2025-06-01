@@ -11,12 +11,15 @@ export interface Booking extends BaseModelInterface {
   reference_number?: string;
   status?: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   booking_date?: string;
+  start_date?: string; // Start date of the booking period
+  end_date?: string; // End date of the booking period
   expiration_date?: string;
   approval_date?: string;
   rejection_date?: string;
   cancellation_date?: string;
   completion_date?: string;
   price_at_booking?: number;
+  total_amount?: number; // Total amount for the booking
   deposit_amount?: number;
   deposit_paid?: boolean;
   deposit_date?: string;

@@ -3,13 +3,12 @@ import {MessageService} from 'primeng/api';
 import {User as Customer} from "../../../../core/models/http/user.model";
 import {CustomerService} from "../../../../core/sevices/http/customer.service";
 import {Toolbar} from "primeng/toolbar";
-import {Ripple} from "primeng/ripple";
 import {InputText} from "primeng/inputtext";
 import {Table, TableModule} from "primeng/table";
 import {FormsModule} from "@angular/forms";
 import {DialogService} from "primeng/dynamicdialog";
-import {CustomerFormComponent} from "../customer-form/customer-form.component";
 import {Button} from "primeng/button";
+import {Router} from "@angular/router";
 import {IconField} from "primeng/iconfield";
 import {InputIcon} from "primeng/inputicon";
 
@@ -17,14 +16,13 @@ import {InputIcon} from "primeng/inputicon";
   selector: 'app-customer-list',
   templateUrl: './customer-list.component.html',
   imports: [
-    Ripple,
     Button,
-    IconField,
-    InputIcon,
     Toolbar,
     TableModule,
     FormsModule,
     InputText,
+    IconField,
+    InputIcon,
   ],
   standalone: true
 })
@@ -39,7 +37,7 @@ export class CustomerListComponent implements OnInit {
   searchQueryTimeout!: any;
   rowsPerPageOptions = [5, 10, 20];
 
-  constructor(private customerService: CustomerService, private messageService: MessageService, private dialogService: DialogService) {
+  constructor(private customerService: CustomerService, private messageService: MessageService, private dialogService: DialogService, private router: Router) {
   }
 
   ngOnInit() {
@@ -63,7 +61,7 @@ export class CustomerListComponent implements OnInit {
   }
 
   openNew() {
-    this.showCustomerForm();
+    this.router.navigate(['/dashboard/customers/edit/new']);
   }
 
   onSearch() {
@@ -75,30 +73,33 @@ export class CustomerListComponent implements OnInit {
     }, 500);
   }
 
-
-  showCustomerForm(customer?: Customer) {
-    if (customer && !this.canEditCustomer(customer)) return;
-    this.dialogService.open(CustomerFormComponent, {
-      header: customer?.id ? 'Update customer' : 'Create new customer',
-      width: '45rem',
-      closable: true,
-      data: {
-        customer: customer ?? {}
-      }
-    }).onClose.subscribe({
-      next: (value) => {
-        if (value) {
-          this.getCustomers();
-        }
-      }
-    });
-  }
-
   canEditCustomer(customer: Customer) {
     return customer.added_by_id === authUser.id;
   }
 
   exportCSV() {
     this.customersTable.exportCSV();
+  }
+
+  viewCustomerDetails(customer: Customer) {
+    if (!customer.id) return;
+    this.router.navigate(['/dashboard/customers', customer.id]);
+  }
+
+  editCustomer(customer: Customer) {
+    if (!customer.id) return;
+
+    // Check if user can edit this customer
+    if (!this.canEditCustomer(customer)) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Access Denied',
+        detail: 'You do not have permission to edit this customer',
+        life: 3000
+      });
+      return;
+    }
+
+    this.router.navigate(['/dashboard/customers/edit', customer.id]);
   }
 }

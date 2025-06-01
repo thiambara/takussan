@@ -6,7 +6,7 @@
     </ng-template>
 
     <ng-template #end>
-      <p-button (onClick)="exportCSV()" icon="pi pi-upload" label="Export" severity="primary"/>
+      <p-button (onClick)="exportCSV()" icon="pi pi-upload" label="Export" severity="secondary"/>
     </ng-template>
   </p-toolbar>
 
@@ -24,7 +24,7 @@
 
     <!--PROPERTIES TABLE CAPTION-->
     <ng-template #caption>
-      <div class="flex items-center justify-between">
+      <div class="flex justify-between items-center">
         <h5 class="m-0">Manage properties</h5>
         <p-iconfield>
           <p-inputicon styleClass="pi pi-search"/>
@@ -69,7 +69,7 @@
                 [class]="'product-badge status-' + (property.status?.toLowerCase() ?? '')">{{ property.status }}</span>
         </td>
         <td>
-          <div class="flex justify-end gap-2">
+          <div class="flex gap-2 justify-end">
             <p-button (onClick)="showPropertyForm(property)" class="p-button-text p-button-warning" icon="pi pi-pencil" label="Edit"></p-button>
             <p-button [routerLink]="property.id" class="p-button-text" icon="pi pi-eye" label="Details"></p-button>
           </div>

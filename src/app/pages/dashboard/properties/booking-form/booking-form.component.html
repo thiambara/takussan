@@ -43,6 +43,22 @@
             <small *ngIf="bookingForm.get('booking_date')?.invalid && bookingForm.get('booking_date')?.touched"
                    class="text-red-500">Booking date is required.</small>
         </div>
+        
+        <div class="mb-4 field">
+            <label class="block mb-2 font-medium" for="start_date">Start Date *</label>
+            <p-datePicker [showButtonBar]="true" [showIcon]="true" dateFormat="yy-mm-dd" formControlName="start_date"
+                          id="start_date" styleClass="w-full"></p-datePicker>
+            <small *ngIf="bookingForm.get('start_date')?.invalid && bookingForm.get('start_date')?.touched"
+                   class="text-red-500">Start date is required.</small>
+        </div>
+
+        <div class="mb-4 field">
+            <label class="block mb-2 font-medium" for="end_date">End Date *</label>
+            <p-datePicker [showButtonBar]="true" [showIcon]="true" dateFormat="yy-mm-dd" formControlName="end_date"
+                          id="end_date" styleClass="w-full"></p-datePicker>
+            <small *ngIf="bookingForm.get('end_date')?.invalid && bookingForm.get('end_date')?.touched"
+                   class="text-red-500">End date is required.</small>
+        </div>
 
         <div class="mb-4 field">
             <label class="block mb-2 font-medium" for="expiration_date">Expiration Date</label>
@@ -64,6 +80,14 @@
                            mode="currency" styleClass="w-full"></p-inputNumber>
             <small *ngIf="bookingForm.get('price_at_booking')?.invalid && bookingForm.get('price_at_booking')?.touched"
                    class="text-red-500">Price is required and must be greater than 0.</small>
+        </div>
+        
+        <div class="mb-4 field">
+            <label class="block mb-2 font-medium" for="total_amount">Total Amount * <i class="pi pi-info-circle ml-1 text-primary cursor-pointer" pTooltip="This value is automatically calculated based on the property price and the number of days between start and end dates. You can also manually adjust it if needed." tooltipPosition="top"></i></label>
+            <p-inputNumber [minFractionDigits]="2" currency="EUR" formControlName="total_amount" id="total_amount"
+                           mode="currency" styleClass="w-full"></p-inputNumber>
+            <small *ngIf="bookingForm.get('total_amount')?.invalid && bookingForm.get('total_amount')?.touched"
+                   class="text-red-500">Total amount is required and must be greater than 0.</small>
         </div>
 
         <div class="mb-4 field">

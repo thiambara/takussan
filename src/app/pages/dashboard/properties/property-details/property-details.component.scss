@@ -8,10 +8,10 @@
 }
 
 :host ::ng-deep {
-  .p-tabview {
-    .p-tabview-nav {
-      li {
-        .p-tabview-nav-link {
+  .p-tabs {
+    .p-tablist {
+      .p-tab {
+        .p-tab-link {
           transition: all 0.3s ease;
           
           &:not(.p-disabled):focus {
@@ -19,13 +19,13 @@
           }
         }
         
-        &.p-highlight .p-tabview-nav-link {
+        &.p-highlight .p-tab-link {
           border-color: var(--primary-color);
         }
       }
     }
     
-    .p-tabview-panels {
+    .p-tabpanels {
       padding: 1.5rem 0;
     }
   }

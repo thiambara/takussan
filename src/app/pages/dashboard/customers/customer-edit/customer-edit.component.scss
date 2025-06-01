@@ -1,0 +1,44 @@
+.customer-edit-container {
+  .p-card {
+    height: 100%;
+    
+    &:hover {
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+  }
+  
+  .p-inputtext,
+  .p-dropdown,
+  .p-inputtextarea {
+    width: 100%;
+  }
+  
+  .address-item {
+    transition: all 0.2s ease;
+    border: 1px solid var(--surface-200);
+    
+    &:hover {
+      background-color: var(--surface-100);
+      transform: translateY(-2px);
+    }
+  }
+  
+  // Make the toggle buttons more visually appealing
+  .p-togglebutton {
+    &.p-highlight {
+      background: var(--primary-color);
+      border-color: var(--primary-color);
+      
+      &:hover {
+        background: var(--primary-600);
+        border-color: var(--primary-600);
+      }
+    }
+    
+    &:not(.p-highlight) {
+      &:hover {
+        background: var(--surface-200);
+      }
+    }
+  }
+}
