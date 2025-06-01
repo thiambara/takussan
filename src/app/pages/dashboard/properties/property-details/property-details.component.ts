@@ -1,13 +1,13 @@
-import {Component, Input, OnInit} from '@angular/core';
+import {Component, OnInit} from '@angular/core';
 import {MessageService} from 'primeng/api';
+import {Media} from "../../../../core/models/http/media.model";
 import {PropertyService} from "../../../../core/sevices/http/property.service";
 import {Property} from "../../../../core/models/http/property.model";
 import {Booking} from "../../../../core/models/http/booking.model";
 import {CommonModule} from "@angular/common";
 import {finalize} from "rxjs";
 import {Button} from "primeng/button";
-import {Router} from "@angular/router";
-import {TabViewModule} from 'primeng/tabview';
+import {ActivatedRoute, Router} from "@angular/router";
 import {CardModule} from 'primeng/card';
 import {TagModule} from 'primeng/tag';
 import {DividerModule} from 'primeng/divider';
@@ -21,6 +21,9 @@ import {FormsModule, ReactiveFormsModule} from '@angular/forms';
 import {ToastModule} from 'primeng/toast';
 import {BookingFormComponent} from "../booking-form/booking-form.component";
 import {BookingCardComponent} from "../booking-card/booking-card.component";
+import {GalleriaModule} from "primeng/galleria";
+
+import {TabsModule} from "primeng/tabs";
 
 @Component({
   selector: 'app-property-details',
@@ -28,7 +31,6 @@ import {BookingCardComponent} from "../booking-card/booking-card.component";
   imports: [
     CommonModule,
     Button,
-    TabViewModule,
     CardModule,
     TagModule,
     DividerModule,
@@ -42,7 +44,9 @@ import {BookingCardComponent} from "../booking-card/booking-card.component";
     ReactiveFormsModule,
     ToastModule,
     BookingFormComponent,
-    BookingCardComponent
+    BookingCardComponent,
+    GalleriaModule,
+    TabsModule,
   ],
   standalone: true
 })
@@ -50,44 +54,70 @@ export class PropertyDetailsComponent implements OnInit {
   property?: Property;
   propertyId!: number;
   loading = false;
+  selectedFile?: File;
+  uploadProgress = 0;
+  isUploading = false;
+  showMediaPreviewDialog = false;
+  selectedMedia: Media | null = null;
   showBookingDialog = false;
-  selectedBooking: Booking | null = null;
+  selectedBooking?: Booking;
   isEditMode = false;
+  downloadingFile = false;
+
+  activeTabIndex = 0;
 
   constructor(
     private propertyService: PropertyService,
     private messageService: MessageService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute
   ) {
   }
 
-  @Input()
-  set id(id: string) {
-    this.propertyId = +id;
-  }
-
   ngOnInit() {
-    this.getProperty();
+    this.route.params.subscribe(params => {
+      this.propertyId = +params['id']; // Convert to number
+      if (this.propertyId) {
+        this.getProperty();
+      }
+    });
   }
 
   getProperty() {
     this.loading = true;
     this.propertyService.get(this.propertyId, {
-      properties: {with: ['bookings', 'bookings.customer'], with_count: 'bookings'},
+      properties: {
+        with: ['bookings', 'bookings.customer', 'media'],
+        with_count: 'bookings'
+      },
       filter_fields: {'bookings.status': '@in pending,confirmed'}
     })
       .pipe(finalize(() => this.loading = false))
       .subscribe({
-        next: result => {
-          this.property = result;
+        next: (property: Property) => {
+          // Ensure metadata is always initialized to avoid template null checks
+          if (!property.metadata) {
+            property.metadata = {};
+          }
+
+          this.property = property;
+
+          // Map media items and add is_image flag
+          if (this.property?.media?.length) {
+            this.property.media = this.property.media.map(media => ({
+              ...media,
+              is_image: media.mime_type?.startsWith('image/') || false
+            }));
+          }
+
         },
-        error: error => {
+        error: (error: any) => {
           this.messageService.add({
             severity: 'error',
             summary: 'Error',
-            detail: error.message || 'An error has occurred',
+            detail: error.message || 'Failed to load property details',
             life: 3000
-          })
+          });
         }
       });
   }
@@ -112,7 +142,7 @@ export class PropertyDetailsComponent implements OnInit {
   }
 
   openNewBookingDialog() {
-    this.selectedBooking = null;
+    this.selectedBooking = undefined;
     this.isEditMode = false;
     this.showBookingDialog = true;
   }
@@ -162,6 +192,80 @@ export class PropertyDetailsComponent implements OnInit {
 
   onBookingCancel() {
     this.showBookingDialog = false;
-    this.selectedBooking = null;
+    this.selectedBooking = undefined;
+  }
+
+  /**
+   * Opens the media preview dialog for the selected media item
+   * @param media The media item to preview
+   */
+  openMediaPreview(media: Media) {
+    this.selectedMedia = media;
+    this.showMediaPreviewDialog = true;
+  }
+
+  /**
+   * Closes the media preview dialog
+   */
+  closeMediaPreview() {
+    this.showMediaPreviewDialog = false;
+    this.selectedMedia = null;
+  }
+
+  /**
+   * Get type-specific header label
+   */
+  getTypeSpecificLabel(): string {
+    const propertyType = this.property?.type;
+    switch (propertyType) {
+      case 'apartment':
+        return 'Apartment Details';
+      case 'house':
+        return 'House Details';
+      case 'villa':
+        return 'Villa Details';
+      case 'land':
+        return 'Land Details';
+      case 'office':
+        return 'Office Details';
+      case 'store':
+        return 'Store Details';
+      default:
+        return 'Property Details';
+    }
+  }
+
+  /**
+   * Check if property is residential type (apartment, house, villa)
+   */
+  isResidentialType(): boolean {
+    return this.property?.type === 'apartment' ||
+      this.property?.type === 'house' ||
+      this.property?.type === 'villa';
+  }
+
+  /**
+   * Check if property is of a specific type
+   */
+  isPropertyType(type: string): boolean {
+    return this.property?.type === type;
+  }
+
+  /**
+   * Convert furnished value to readable label
+   */
+  getFurnishedLabel(furnished: string | undefined): string {
+    if (!furnished) return 'N/A';
+
+    switch (furnished) {
+      case 'fully_furnished':
+        return 'Fully Furnished';
+      case 'semi_furnished':
+        return 'Semi-Furnished';
+      case 'unfurnished':
+        return 'Unfurnished';
+      default:
+        return furnished || 'N/A';
+    }
   }
 }

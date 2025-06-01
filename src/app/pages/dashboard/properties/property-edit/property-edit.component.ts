@@ -229,7 +229,6 @@ export class PropertyEditComponent implements OnInit {
         }
 
         this.propertyMedia = (property.media || []).map(media => ({...media, is_image: media.mime_type?.includes('image')}));
-        console.log(this.propertyMedia);
 
         this.loading = false;
       },
