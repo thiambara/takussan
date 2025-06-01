@@ -1,5 +1,14 @@
-<div class="p-4 property-edit-container">
-    <p-toast></p-toast>
+<div class="relative p-4 property-edit-container">
+    <!-- Loading overlay -->
+    <div *ngIf="loading" class="flex absolute inset-0 z-10 justify-center items-center bg-white bg-opacity-70"
+         style="min-height: 100vh;">
+        <div class="flex flex-col items-center">
+            <i class="pi pi-spin pi-spinner text-primary" style="font-size: 3rem"></i>
+            <h2 class="mt-4 text-lg font-medium text-primary">Loading property details...</h2>
+        </div>
+    </div>
+    <ng-container *ngIf="!loading">
+
 
     <div class="flex justify-between items-center mb-4">
         <h1 class="text-2xl font-bold text-primary">{{ isEditMode ? 'Edit Property' : 'Create New Property' }}</h1>
@@ -160,8 +169,8 @@
 
                         <div>
                             <label class="block mb-2 font-medium" for="construction_year">Construction Year</label>
-                            <p-datePicker  class="w-full" view="year" dateFormat="yy"
-                                           formControlName="construction_year" id="construction_year"></p-datePicker>
+                            <p-datePicker class="w-full" dateFormat="yy" formControlName="construction_year"
+                                          id="construction_year" view="year"></p-datePicker>
                         </div>
 
                         <div>
@@ -241,23 +250,23 @@
 
                         <div class="flex items-center mt-6">
                             <p-toggleSwitch
-                                            formControlName="has_water_connection" id="has_water_connection"
-                                            styleClass="w-24 p-button-sm"></p-toggleSwitch>
+                                    formControlName="has_water_connection" id="has_water_connection"
+                                    styleClass="w-24 p-button-sm"></p-toggleSwitch>
                             <label class="ml-2 font-medium" for="has_water_connection">Has Water Connection</label>
                         </div>
 
                         <div class="flex items-center mt-6">
                             <p-toggleSwitch
-                                            formControlName="has_electricity_connection" id="has_electricity_connection"
-                                            styleClass="w-24 p-button-sm"></p-toggleSwitch>
+                                    formControlName="has_electricity_connection" id="has_electricity_connection"
+                                    styleClass="w-24 p-button-sm"></p-toggleSwitch>
                             <label class="ml-2 font-medium" for="has_electricity_connection">Has Electricity
                                 Connection</label>
                         </div>
 
                         <div class="flex items-center mt-6">
                             <p-toggleSwitch
-                                            formControlName="has_sewage_connection" id="has_sewage_connection"
-                                            styleClass="w-24 p-button-sm"></p-toggleSwitch>
+                                    formControlName="has_sewage_connection" id="has_sewage_connection"
+                                    styleClass="w-24 p-button-sm"></p-toggleSwitch>
                             <label class="ml-2 font-medium" for="has_sewage_connection">Has Sewage Connection</label>
                         </div>
                     </div>
@@ -397,7 +406,8 @@
                     </div>
 
                     <div class="flex items-center mt-6">
-                        <p-toggleSwitch formControlName="with_administrative_monitoring" id="with_administrative_monitoring"
+                        <p-toggleSwitch formControlName="with_administrative_monitoring"
+                                        id="with_administrative_monitoring"
                                         styleClass="w-24 p-button-sm"></p-toggleSwitch>
                         <label class="ml-2 font-medium" for="with_administrative_monitoring">With Administrative
                             Monitoring</label>
@@ -409,7 +419,8 @@
                 <div class="grid grid-cols-1 gap-4 mb-4">
                     <div>
                         <label class="block mb-2 font-medium" for="servicing">Services (comma-separated)</label>
-                        <p-autocomplete formControlName="servicing" id="servicing" placeholder="Add services" [multiple]="true" [forceSelection]="false"></p-autocomplete>
+                        <p-autocomplete [forceSelection]="false" [multiple]="true" formControlName="servicing"
+                                        id="servicing" placeholder="Add services"></p-autocomplete>
                     </div>
                 </div>
 
@@ -533,25 +544,76 @@
                     <p class="mb-3 text-gray-600">Upload images and videos of your property to attract more
                         customers.</p>
 
-                    <p-fileupload (onUpload)="onUpload($event)" [maxFileSize]="10000000" [multiple]="true"
+                    <!-- Existing property media -->
+                    <div *ngIf="propertyMedia.length > 0" class="mb-6">
+                        <h3 class="mb-3 text-lg font-medium">Current Media:</h3>
+                        <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+                            <div *ngFor="let media of propertyMedia; let i = index" class="relative">
+                                <!-- Image display -->
+                                <img *ngIf="media.is_image" [src]="media.original_url"
+                                     [alt]="media.name || 'Property image'"
+                                     class="object-cover w-full h-32 rounded-md shadow-sm" />
+
+                                <!-- Video display -->
+                                <div *ngIf="!media.is_image && media.mime_type?.includes('video')"
+                                     class="flex justify-center items-center w-full h-32 bg-gray-200 rounded-md shadow-sm">
+                                    <i class="text-3xl text-gray-500 pi pi-video"></i>
+                                </div>
+
+                                <!-- Document or other file display -->
+                                <div *ngIf="!media.is_image && !media.mime_type?.includes('video')"
+                                     class="flex justify-center items-center w-full h-32 bg-gray-200 rounded-md shadow-sm">
+                                    <i class="text-3xl text-gray-500 pi pi-file"></i>
+                                </div>
+
+                                <!-- Featured badge -->
+                                <div *ngIf="media.is_featured" class="absolute top-2 left-2 px-2 py-1 text-xs text-white rounded-md bg-primary">
+                                    Featured
+                                </div>
+
+                                <!-- Actions -->
+                                <div class="flex absolute top-2 right-2 gap-1">
+                                    <button *ngIf="!media.is_featured" (click)="setFeaturedMedia(media, i)"
+                                            class="p-button-rounded p-button-sm p-button-success" pButton
+                                            pTooltip="Set as featured" tooltipPosition="top"
+                                            icon="pi pi-star" type="button"></button>
+                                    <button (click)="removePropertyMedia(media, i)"
+                                            class="p-button-rounded p-button-danger p-button-sm" pButton
+                                            pTooltip="Delete" tooltipPosition="top"
+                                            icon="pi pi-trash" type="button"></button>
+                                </div>
+
+                                <p class="mt-1 text-sm truncate">{{ media.name || media.file_name }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- File upload for new media -->
+                    <h3 class="mb-3 text-lg font-medium">Upload New Media:</h3>
+                    <p-fileupload (onUpload)="onUpload($event)" (onSelect)="uploadingMedia = true" [maxFileSize]="10000000" [multiple]="true"
                                   accept="image/*,video/*" cancelLabel="Cancel" chooseLabel="Select Files"
-                                  name="property-media[]" styleClass="mb-4" uploadLabel="Upload All"
-                                  url="./upload">
+                                  name="file[]" styleClass="mb-4" uploadLabel="Upload All"
+                                  [url]="property.id ? apiUrl + '/properties/' + property.id + '/media' : './upload'">
                         <ng-template pTemplate="content">
                             <div *ngIf="uploadedFiles.length > 0" class="mt-4">
-                                <h3 class="mb-2 text-lg font-medium">Uploaded Files:</h3>
+                                <h3 class="mb-2 text-lg font-medium">Newly Uploaded Files:</h3>
                                 <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
-                                    <div *ngFor="let file of uploadedFiles" class="relative">
+                                    <div *ngFor="let file of uploadedFiles; let i = index" class="relative">
+                                        <!-- Image preview -->
                                         <img *ngIf="file.type.includes('image')" [src]="file.objectURL"
                                              alt="Uploaded image"
                                              class="object-cover w-full h-32 rounded-md shadow-sm"/>
+
+                                        <!-- Video preview -->
                                         <div *ngIf="file.type.includes('video')"
                                              class="flex justify-center items-center w-full h-32 bg-gray-200 rounded-md shadow-sm">
                                             <i class="text-3xl text-gray-500 pi pi-video"></i>
                                         </div>
+
+                                        <!-- Remove button -->
                                         <div class="absolute top-2 right-2">
-                                            <button class="p-button-rounded p-button-danger p-button-sm" pButton
-                                                    pButtonIcon="pi pi-times"
+                                            <button (click)="removeUploadedFile(i)" class="p-button-rounded p-button-danger p-button-sm" pButton
+                                                    icon="pi pi-times"
                                                     type="button"></button>
                                         </div>
                                         <p class="mt-1 text-sm truncate">{{ file.name }}</p>
@@ -572,4 +634,6 @@
             </div>
         </form>
     </p-card>
+  </ng-container>
+
 </div>

@@ -5,6 +5,7 @@ import {Booking} from "./booking.model";
 import {Tag} from "./tag.model";
 import {Review} from "./review.model";
 import {PropertyCollaborator} from "./property-collaborator.model";
+import {Media} from "./media.model";
 
 export interface Property extends BaseModelInterface {
   parent_id?: number;
@@ -34,5 +35,6 @@ export interface Property extends BaseModelInterface {
   collaborating_users?: User[];
   tags?: Tag[];
   reviews?: Review[];
+  media?: Media[];
 }
 

@@ -7,6 +7,8 @@ import {DialogService, DynamicDialogModule} from 'primeng/dynamicdialog';
 import {PropertyService} from '../../../../core/sevices/http/property.service';
 import {Property} from '../../../../core/models/http/property.model';
 import {Address} from '../../../../core/models/http/address.model';
+import {Media} from '../../../../core/models/http/media.model';
+import {environment} from '../../../../../environments/environment';
 import {finalize} from 'rxjs';
 
 // PrimeNG Modules
@@ -55,19 +57,23 @@ import {TagModule} from 'primeng/tag';
     DynamicDialogModule,
     TagModule
   ],
-  providers: [DialogService],
+  providers: [DialogService, MessageService],
   standalone: true
 })
 export class PropertyEditComponent implements OnInit {
   property: Property = {};
   propertyForm!: FormGroup;
   saving = false;
+  loading = false;
   isEditMode = false;
   activeIndex = 0;
   uploadedFiles: any[] = [];
+  propertyMedia: Media[] = [];
+  uploadingMedia = false;
   steps: MenuItem[] = [];
   addressForm!: FormGroup;
   typeSpecificForm!: FormGroup;
+  apiUrl = environment.apiUrl + '/api'; // API URL for direct uploads
   countries: any[] = [
     {name: 'France', code: 'FR'},
     {name: 'Spain', code: 'ES'},
@@ -183,7 +189,6 @@ export class PropertyEditComponent implements OnInit {
     private fb: FormBuilder,
     private route: ActivatedRoute,
     private router: Router,
-    private dialogService: DialogService
   ) {
   }
 
@@ -198,11 +203,6 @@ export class PropertyEditComponent implements OnInit {
       this.initializeFormBuilder();
       this.initializeTypeSpecificForm();
     }
-
-    // Subscribe to property type changes to update type-specific form
-    this.propertyForm.get('type')?.valueChanges.subscribe(type => {
-      this.initializeTypeSpecificForm(type);
-    });
   }
 
   initializeSteps() {
@@ -215,24 +215,26 @@ export class PropertyEditComponent implements OnInit {
   }
 
   loadProperty(id: string) {
-    // Convertir l'id en nombre si le service l'attend comme tel
+    this.loading = true;
     const numericId = parseInt(id, 10);
-    this.propertyService.get(numericId).subscribe({
+    this.propertyService.get(numericId, {properties: {with: 'media'}}).subscribe({
       next: (property: Property) => {
         this.property = property;
         this.initializeFormBuilder();
         this.initializeTypeSpecificForm(property.type);
-
-        // Load address if it exists
         if (property.address) {
           this.initializeAddressForm(property.address);
         } else {
           this.initializeAddressForm();
         }
 
-        // Load media if it exists (would need to be implemented based on your API structure)
+        this.propertyMedia = (property.media || []).map(media => ({...media, is_image: media.mime_type?.includes('image')}));
+        console.log(this.propertyMedia);
+
+        this.loading = false;
       },
       error: (error: any) => {
+        this.loading = false;
         this.messageService.add({
           severity: 'error',
           summary: 'Error',
@@ -267,6 +269,11 @@ export class PropertyEditComponent implements OnInit {
       // Additional Information
       servicing: [this.property.servicing || []]
     });
+
+    // Subscribe to property type changes to update type-specific form
+    this.propertyForm?.get('type')?.valueChanges.subscribe(type => {
+      this.initializeTypeSpecificForm(type);
+    });
   }
 
   initializeAddressForm(address?: Address) {
@@ -285,14 +292,14 @@ export class PropertyEditComponent implements OnInit {
   }
 
   hasError(controlName: string, errorName?: string) {
-    if (errorName) return this.propertyForm.controls[controlName].hasError(errorName);
-    const control = this.propertyForm.get(controlName);
+    if (errorName) return this.propertyForm?.controls[controlName].hasError(errorName);
+    const control = this.propertyForm?.get(controlName);
     return control && control.invalid && (control.dirty || control.touched);
   }
 
   saveProperty() {
     if (this.saving) return;
-    if (this.propertyForm.invalid || this.addressForm.invalid) {
+    if (this.propertyForm?.invalid || this.addressForm?.invalid) {
       this.markFormGroupTouched(this.propertyForm);
       this.markFormGroupTouched(this.addressForm);
       if (this.typeSpecificForm) {
@@ -324,14 +331,13 @@ export class PropertyEditComponent implements OnInit {
     )
       .pipe(finalize(() => this.saving = false))
       .subscribe({
-        next: () => {
-          this.messageService.add({
-            severity: 'success',
-            summary: 'Success',
-            detail: 'Property saved successfully',
-            life: 3000
-          });
-          this.router.navigate(['/dashboard/properties']).then();
+        next: (savedProperty: Property) => {
+          // Handle media uploads for a new property (for existing properties, media is uploaded directly)
+          if (!this.isEditMode && this.uploadedFiles.length > 0) {
+            this.uploadNewPropertyMedia(savedProperty.id!);
+          } else {
+            this.saveCompleted();
+          }
         },
         error: error => this.messageService.add({
           severity: 'error',
@@ -342,7 +348,12 @@ export class PropertyEditComponent implements OnInit {
       });
   }
 
+
+  /**
+   * Handle file upload completion
+   */
   onUpload(event: any) {
+    this.uploadingMedia = false;
     for (let file of event.files) {
       this.uploadedFiles.push(file);
     }
@@ -351,6 +362,73 @@ export class PropertyEditComponent implements OnInit {
       severity: 'info',
       summary: 'File Uploaded',
       detail: 'File(s) uploaded successfully'
+    });
+  }
+
+  /**
+   * Remove an existing property media item
+   */
+  removePropertyMedia(media: Media, index: number) {
+    if (!this.property.id) return;
+
+    if (confirm('Are you sure you want to delete this media?')) {
+      // Here you would call a service method to delete the media from the server
+      this.propertyService.deleteMedia(this.property.id, media.id!).subscribe({
+        next: () => {
+          this.propertyMedia.splice(index, 1);
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Media Deleted',
+            detail: 'Media was successfully deleted',
+            life: 3000
+          });
+        },
+        error: (error: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Could not delete media: ' + (error.message || 'Unknown error'),
+            life: 3000
+          });
+        }
+      });
+    }
+  }
+
+  /**
+   * Remove a newly uploaded file that hasn't been saved yet
+   */
+  removeUploadedFile(index: number) {
+    this.uploadedFiles.splice(index, 1);
+  }
+
+  /**
+   * Set a media item as the featured image
+   */
+  setFeaturedMedia(media: Media, index: number) {
+    if (!this.property.id) return;
+
+    this.propertyService.setFeaturedMedia(this.property.id, media.id!).subscribe({
+      next: () => {
+        // Update local state - mark this as featured and others as not featured
+        this.propertyMedia.forEach(item => item.is_featured = false);
+        this.propertyMedia[index].is_featured = true;
+
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Featured Image Set',
+          detail: 'This image is now the featured image for the property',
+          life: 3000
+        });
+      },
+      error: (error: any) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Could not set featured media: ' + (error.message || 'Unknown error'),
+          life: 3000
+        });
+      }
     });
   }
 
@@ -457,6 +535,51 @@ export class PropertyEditComponent implements OnInit {
   }
 
   cancel() {
+    this.router.navigate(['/dashboard/properties']).then();
+  }
+
+  /**
+   * Upload media files for a newly created property
+   */
+  private uploadNewPropertyMedia(propertyId: number) {
+    console.log(this.uploadedFiles);
+    if (this.uploadedFiles.length === 0) return this.saveCompleted();
+
+    this.uploadingMedia = true;
+    const files = this.uploadedFiles.map(file => file);
+
+    this.propertyService.uploadMedia(propertyId, files)
+      .pipe(finalize(() => {
+        this.uploadingMedia = false;
+        this.uploadedFiles = [];
+      }))
+      .subscribe({
+        next: (uploadedMedia) => {
+          this.propertyMedia = [...this.propertyMedia, ...uploadedMedia];
+          this.saveCompleted();
+        },
+        error: (error: any) => {
+          this.messageService.add({
+            severity: 'warning',
+            summary: 'Media Upload Failed',
+            detail: 'Property was saved but media upload failed: ' + (error.message || 'Unknown error'),
+            life: 5000
+          });
+          this.saveCompleted();
+        }
+      });
+  }
+
+  /**
+   * Complete the save operation and navigate to properties list
+   */
+  private saveCompleted() {
+    this.messageService.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: 'Property saved successfully',
+      life: 3000
+    });
     this.router.navigate(['/dashboard/properties']).then();
   }
 }
