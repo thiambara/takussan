@@ -13,10 +13,46 @@ use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Spatie\Image\Manipulations;
+use Spatie\MediaLibrary\MediaCollections\File;
 
 class Property extends AbstractModel implements HasMedia
 {
     use HasFactory, SoftDeletes, InteractsWithMedia;
+    
+    /**
+     * Register media conversions for the model.
+     *
+     * @param Media|null $media
+     * @return void
+     */
+    public function registerMediaConversions(Media $media = null): void
+    {
+        $this->addMediaConversion('thumbnail')
+            ->width(300)
+            ->height(300)
+            ->optimize()
+            ->nonQueued();
+            
+        $this->addMediaConversion('preview')
+            ->width(800)
+            ->height(600)
+            ->optimize()
+            ->nonQueued();
+    }
+    
+    /**
+     * Register media collections for the model.
+     *
+     * @return void
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('properties')
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/quicktime', 'application/pdf'])
+            ->useDisk('public');
+    }
 
     protected $table = 'properties';
 
