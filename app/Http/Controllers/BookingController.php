@@ -21,7 +21,7 @@ class BookingController extends Controller
     {
         $query = Booking::allThroughRequest();
         if (!($user = auth()->user())->hasRole(UserRole::Admin->value)) {
-            $query->whereRelation('propriety.user', $user);
+            $query->whereRelation('property.user', $user);
         }
 
         return $this->json($query->paginatedThroughRequest());
@@ -44,7 +44,7 @@ class BookingController extends Controller
 
     public function update(UpdateBookingRequest $request, Booking $booking): JsonResponse
     {
-        $booking->update($request->validationData());
+        $booking->update($request->validated());
         return $this->json($booking);
     }
 

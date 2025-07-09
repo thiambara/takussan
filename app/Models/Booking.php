@@ -21,12 +21,15 @@ class Booking extends AbstractModel
         'reference_number',
         'status',
         'booking_date',
+        'start_date',
+        'end_date',
         'expiration_date',
         'approval_date',
         'rejection_date',
         'cancellation_date',
         'completion_date',
         'price_at_booking',
+        'total_amount',
         'deposit_amount',
         'deposit_paid',
         'deposit_date',
@@ -39,6 +42,8 @@ class Booking extends AbstractModel
 
     protected $casts = [
         'booking_date' => 'datetime',
+        'start_date' => 'datetime',
+        'end_date' => 'datetime',
         'expiration_date' => 'datetime',
         'approval_date' => 'datetime',
         'rejection_date' => 'datetime',
@@ -47,6 +52,7 @@ class Booking extends AbstractModel
         'deposit_date' => 'datetime',
         'deposit_paid' => 'boolean',
         'price_at_booking' => 'decimal:2',
+        'total_amount' => 'decimal:2',
         'deposit_amount' => 'decimal:2',
         'metadata' => 'array',
     ];
