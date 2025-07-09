@@ -23,7 +23,6 @@ export interface Property extends BaseModelInterface {
   with_administrative_monitoring?: boolean;
   contract_type?: string;
   servicing?: any[];
-  metadata?: any;
 
   // Relations
   user?: User;

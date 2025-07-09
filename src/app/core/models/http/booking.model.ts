@@ -9,7 +9,7 @@ export interface Booking extends BaseModelInterface {
   customer_id?: number;
   user_id?: number;
   reference_number?: string;
-  status?: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  status?: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'completed';
   booking_date?: string;
   start_date?: string; // Start date of the booking period
   end_date?: string; // End date of the booking period
@@ -19,7 +19,7 @@ export interface Booking extends BaseModelInterface {
   cancellation_date?: string;
   completion_date?: string;
   price_at_booking?: number;
-  total_amount?: number; // Total amount for the booking
+  total_amount?: number; // Total amount for the booking (calculated from price_at_booking and duration)
   deposit_amount?: number;
   deposit_paid?: boolean;
   deposit_date?: string;
@@ -27,6 +27,7 @@ export interface Booking extends BaseModelInterface {
   reason_for_rejection?: string;
   reason_for_cancellation?: string;
   cancellation_by?: string;
+  metadata?: Record<string, any>; // Additional data stored as JSON
 
   // Relations
   property?: Property;
