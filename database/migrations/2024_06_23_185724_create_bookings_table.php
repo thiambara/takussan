@@ -18,12 +18,12 @@ return new class extends Migration {
 
             // Informations de réservation
             $table->string('reference_number')->unique()->nullable();
-            $table->string('status')->default('pending')->index(); // ['pending', 'approved', 'rejected', 'cancelled', 'completed']
+            $table->string('status')->default('pending')->index(); // ['pending', 'confirmed', 'rejected', 'cancelled', 'completed']
 
             // Dates importantes
             $table->timestamp('booking_date')->useCurrent();
             $table->timestamp('expiration_date')->nullable();
-            $table->timestamp('approval_date')->nullable();
+            $table->timestamp('confirmation_date')->nullable();
             $table->timestamp('rejection_date')->nullable();
             $table->timestamp('cancellation_date')->nullable();
             $table->timestamp('completion_date')->nullable();
