@@ -2,7 +2,7 @@
     <ng-template pTemplate="header">
         <div [ngClass]="{
             'bg-yellow-50': booking.status === 'pending',
-            'bg-green-50': booking.status === 'approved',
+            'bg-green-50': booking.status === 'confirmed',
             'bg-red-50': booking.status === 'cancelled',
             'bg-blue-50': booking.status === 'completed'
         }" class="p-3 flex justify-between items-center">

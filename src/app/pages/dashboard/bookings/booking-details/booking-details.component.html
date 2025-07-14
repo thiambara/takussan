@@ -1,0 +1,131 @@
+<div class="px-6 py-6 bg-white rounded-lg shadow-sm max-w-5xl mx-auto">
+    <!-- Header Navigation -->
+    <div class="flex items-center mb-8">
+        <a [routerLink]="['/dashboard/reservations']" class="text-blue-600 hover:underline flex items-center gap-2">
+            <i class="pi pi-arrow-left"></i>
+            <span>Reservations</span>
+        </a>
+        <span class="mx-2 text-gray-400">/</span>
+        <span class="text-gray-600">Booking Details</span>
+    </div>
+
+    <!-- Booking Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold mb-2">Booking #{{ booking.reference_number || '123456789' }}</h1>
+        <p class="text-gray-600">Property: {{ booking.property?.title || 'The Grand Estate' }}</p>
+    </div>
+
+    <!-- Booking Information Section -->
+    <div class="mb-8">
+        <h2 class="text-2xl font-bold mb-6">Booking Information</h2>
+
+        <div class="border-b border-gray-200 mb-4"></div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-6">
+            <!-- Status -->
+            <div>
+                <h3 class="text-gray-500 mb-1 text-sm">Status</h3>
+                <p-tag [severity]="getStatusSeverity(booking.status)" [value]="booking.status || 'confirmed'"
+                       styleClass="text-sm font-medium"></p-tag>
+            </div>
+
+            <!-- Customer -->
+            <div>
+                <h3 class="text-gray-500 mb-1 text-sm">Customer</h3>
+                <p class="font-medium">
+                    {{ booking.customer?.user?.first_name || 'Sophia' }} {{ booking.customer?.user?.last_name || 'Carter' }}
+                </p>
+            </div>
+
+            <!-- Email -->
+            <div>
+                <h3 class="text-gray-500 mb-1 text-sm">Email</h3>
+                <p>{{ booking.customer?.user?.email || 'sophia.carter@email.com' }}</p>
+            </div>
+
+            <!-- Phone -->
+            <div>
+                <h3 class="text-gray-500 mb-1 text-sm">Phone</h3>
+                <p>{{ booking.customer?.user?.phone || '+1 (555) 123-4567' }}</p>
+            </div>
+
+            <!-- Check-in -->
+            <div>
+                <h3 class="text-gray-500 mb-1 text-sm">Check-in</h3>
+                <p>{{ formatDate(booking.start_date) }}</p>
+            </div>
+
+            <!-- Check-out -->
+            <div>
+                <h3 class="text-gray-500 mb-1 text-sm">Check-out</h3>
+                <p>{{ formatDate(booking.end_date) }}</p>
+            </div>
+
+            <!-- Total Amount -->
+            <div>
+                <h3 class="text-gray-500 mb-1 text-sm">Total Amount</h3>
+                <p class="font-medium">{{ formatCurrency(booking.total_amount) }}</p>
+            </div>
+
+            <!-- Notes -->
+            <div class="md:col-span-2">
+                <h3 class="text-gray-500 mb-1 text-sm">Notes</h3>
+                <p>{{ booking.notes || 'Special request: Early check-in if possible.' }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Details Section -->
+    <div class="mb-8">
+        <h2 class="text-2xl font-bold mb-6">Payment Details</h2>
+
+        <div class="border-b border-gray-200 mb-4"></div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-6">
+            <!-- Amount Paid -->
+            <div>
+                <h3 class="text-gray-500 mb-1 text-sm">Amount Paid</h3>
+                <p class="font-medium">{{ formatCurrency(booking.total_amount) }}</p>
+            </div>
+
+            <!-- Payment Date -->
+            <div>
+                <h3 class="text-gray-500 mb-1 text-sm">Payment Date</h3>
+                <p>{{ booking.booking_date ? formatDate(booking.booking_date) : 'July 10, 2024' }}</p>
+            </div>
+
+            <!-- Payment Method -->
+            <div>
+                <h3 class="text-gray-500 mb-1 text-sm">Payment Method</h3>
+                <p>Credit Card</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex justify-between mt-8">
+        <p-button (click)="goBackToReservations()"
+                  label="Back to Reservations"
+                  styleClass="p-button-outlined"></p-button>
+
+        <div class="flex gap-3">
+            <p-button (click)="confirmBooking()"
+                      *ngIf="booking?.status === 'pending'"
+                      [loading]="loading"
+                      label="Confirm Booking"
+                      styleClass="p-button-primary"></p-button>
+
+            <p-button (click)="cancelBooking()"
+                      *ngIf="booking?.status !== 'cancelled'"
+                      [loading]="loading"
+                      label="Cancel Booking"
+                      styleClass="p-button-outlined p-button-danger"></p-button>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Dialog -->
+<p-confirmDialog header="Confirmation" icon="pi pi-exclamation-triangle"></p-confirmDialog>
+
+<!-- Toast Messages -->
+<p-toast></p-toast>

@@ -1,0 +1,91 @@
+<div class="container mx-auto px-4 py-6">
+  <h1 class="text-2xl font-bold mb-6">Reservations</h1>
+  
+  <p-toast></p-toast>
+  <p-confirmDialog></p-confirmDialog>
+  
+  <p-card>
+    <ng-container *ngIf="loading">
+      <div class="flex justify-center items-center p-6">
+        <div class="spinner-border text-primary" role="status">
+          <span class="sr-only">Loading...</span>
+        </div>
+      </div>
+    </ng-container>
+    
+    <ng-container *ngIf="!loading">
+      <p-table 
+        [value]="bookings" 
+        [tableStyle]="{'min-width': '50rem'}"
+        [paginator]="true" 
+        [rows]="10"
+        [showCurrentPageReport]="true"
+        responsiveLayout="scroll">
+        
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Reference</th>
+            <th>Property</th>
+            <th>Customer</th>
+            <th>Check-in</th>
+            <th>Check-out</th>
+            <th>Status</th>
+            <th>Amount</th>
+            <th>Actions</th>
+          </tr>
+        </ng-template>
+        
+        <ng-template pTemplate="body" let-booking>
+          <tr>
+            <td>{{ booking.reference_number }}</td>
+            <td>{{ booking.property?.title || 'N/A' }}</td>
+            <td>{{ booking.customer?.user?.full_name || 'N/A' }}</td>
+            <td>{{ formatDate(booking.check_in_date) }}</td>
+            <td>{{ formatDate(booking.check_out_date) }}</td>
+            <td>
+              <p-tag 
+                [value]="booking.status" 
+                [severity]="getStatusSeverity(booking.status)">
+              </p-tag>
+            </td>
+            <td>{{ formatCurrency(booking.total_amount) }}</td>
+            <td>
+              <div class="flex gap-2">
+                <button 
+                  pButton 
+                  icon="pi pi-eye" 
+                  class="p-button-rounded p-button-text" 
+                  (click)="viewBookingDetails(booking)"
+                  title="View details"></button>
+                  
+                <button 
+                  *ngIf="booking.status === 'pending'"
+                  pButton 
+                  icon="pi pi-check" 
+                  class="p-button-rounded p-button-success p-button-text" 
+                  (click)="confirmBooking(booking)"
+                  title="Confirm booking"></button>
+                  
+                <button 
+                  *ngIf="booking.status !== 'cancelled' && booking.status !== 'rejected'"
+                  pButton 
+                  icon="pi pi-times" 
+                  class="p-button-rounded p-button-danger p-button-text" 
+                  (click)="cancelBooking(booking)"
+                  title="Cancel booking"></button>
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+        
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="8" class="text-center p-4">
+              No bookings found.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </ng-container>
+  </p-card>
+</div>

@@ -9,12 +9,12 @@ export interface Booking extends BaseModelInterface {
   customer_id?: number;
   user_id?: number;
   reference_number?: string;
-  status?: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'completed';
+  status?: 'pending' | 'confirmed' | 'rejected' | 'cancelled' | 'completed';
   booking_date?: string;
   start_date?: string; // Start date of the booking period
   end_date?: string; // End date of the booking period
   expiration_date?: string;
-  approval_date?: string;
+  confirmation_date?: string;
   rejection_date?: string;
   cancellation_date?: string;
   completion_date?: string;
