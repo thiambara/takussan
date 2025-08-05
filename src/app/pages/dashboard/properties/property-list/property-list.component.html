@@ -1,91 +1,217 @@
 <div class="">
-  <!--PROPERTIES TABLE TOOLBAR-->
-  <p-toolbar styleClass="mb-6">
-    <ng-template #start>
-      <p-button (onClick)="openNew()" class="mr-2" icon="pi pi-plus" label="New" severity="primary"/>
-    </ng-template>
+    <!--PROPERTIES TABLE TOOLBAR-->
+    <div class="bg-white rounded-lg shadow-sm border p-4 mb-6">
+        <div class="flex justify-between items-center">
+            <button (click)="openNew()"
+                    class="px-4 py-2 text-white bg-blue-600 border border-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 flex items-center gap-2">
+                <i class="pi pi-plus"></i>
+                New
+            </button>
 
-    <ng-template #end>
-      <p-button (onClick)="exportCSV()" icon="pi pi-upload" label="Export" severity="secondary"/>
-    </ng-template>
-  </p-toolbar>
+            <button (click)="exportCSV()"
+                    class="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 flex items-center gap-2">
+                <i class="pi pi-upload"></i>
+                Export
+            </button>
+        </div>
+    </div>
 
-  <!--PROPERTIES TABLE-->
-  <p-table #propertiesTable [(selection)]="selectedProperties"
-           [columns]="[]"
-           [paginator]="true"
-           [rowHover]="true"
-           [rowsPerPageOptions]="rowsPerPageOptions"
-           [rows]="10"
-           [showCurrentPageReport]="true" [tableStyle]="{ 'min-width': '75rem' }"
-           [value]="properties" currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries"
-           dataKey="id"
-           selectionMode="multiple">
+    <!--PROPERTIES TABLE-->
+    <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+        <!-- Table Caption/Header -->
+        <div class="p-4 border-b border-gray-200">
+            <div class="flex justify-between items-center">
+                <h5 class="text-lg font-semibold text-gray-900 m-0">Manage properties</h5>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="pi pi-search text-gray-400"></i>
+                    </div>
+                    <input (input)="onSearch()" [(ngModel)]="searchQuery"
+                           class="pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="Search..." type="text"/>
+                </div>
+            </div>
+        </div>
 
-    <!--PROPERTIES TABLE CAPTION-->
-    <ng-template #caption>
-      <div class="flex justify-between items-center">
-        <h5 class="m-0">Manage properties</h5>
-        <p-iconfield>
-          <p-inputicon styleClass="pi pi-search"/>
-          <input (input)="onSearch()" [(ngModel)]="searchQuery" pInputText placeholder="Search..." type="text"/>
-        </p-iconfield>
-      </div>
-    </ng-template>
+        <!-- Table -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <!-- Table Header -->
+                <thead class="bg-gray-50">
+                <tr>
+                    <th class="w-12 px-6 py-3 text-left">
+                        <input (change)="toggleAllSelection($event)"
+                               [checked]="isAllSelected()"
+                               [indeterminate]="isSomeSelected()"
+                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                               type="checkbox">
+                    </th>
+                    <th (click)="sort('created_at')"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">
+                        <div class="flex items-center gap-1">
+                            Created At
+                            <i [ngClass]="{
+                     'pi-sort-up': sortField === 'created_at' && sortOrder === 1,
+                     'pi-sort-down': sortField === 'created_at' && sortOrder === -1,
+                     'pi-sort': sortField !== 'created_at'
+                   }"
+                               class="pi text-xs"></i>
+                        </div>
+                    </th>
+                    <th (click)="sort('title')"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">
+                        <div class="flex items-center gap-1">
+                            Title
+                            <i [ngClass]="{
+                     'pi-sort-up': sortField === 'title' && sortOrder === 1,
+                     'pi-sort-down': sortField === 'title' && sortOrder === -1,
+                     'pi-sort': sortField !== 'title'
+                   }"
+                               class="pi text-xs"></i>
+                        </div>
+                    </th>
+                    <th (click)="sort('bookings_count')"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">
+                        <div class="flex items-center gap-1">
+                            Number of Bookings
+                            <i [ngClass]="{
+                     'pi-sort-up': sortField === 'bookings_count' && sortOrder === 1,
+                     'pi-sort-down': sortField === 'bookings_count' && sortOrder === -1,
+                     'pi-sort': sortField !== 'bookings_count'
+                   }"
+                               class="pi text-xs"></i>
+                        </div>
+                    </th>
+                    <th (click)="sort('status')"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">
+                        <div class="flex items-center gap-1">
+                            Status
+                            <i [ngClass]="{
+                     'pi-sort-up': sortField === 'status' && sortOrder === 1,
+                     'pi-sort-down': sortField === 'status' && sortOrder === -1,
+                     'pi-sort': sortField !== 'status'
+                   }"
+                               class="pi text-xs"></i>
+                        </div>
+                    </th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                    </th>
+                </tr>
+                </thead>
 
-    <!--PROPERTIES TABLE HEADER-->
-    <ng-template #header>
-      <tr>
-        <th style="width: 3rem">
-          <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
-        </th>
-        <th pSortableColumn="created_at">Created At
-          <p-sortIcon field="created_at"></p-sortIcon>
-        </th>
-        <th pSortableColumn="title">Title
-          <p-sortIcon field="title"></p-sortIcon>
-        </th>
-        <th pSortableColumn="bookings_count">Number of Bookings
-          <p-sortIcon field="bookings_count"></p-sortIcon>
-        </th>
-        <th pSortableColumn="status">Status
-          <p-sortIcon field="status"></p-sortIcon>
-        </th>
-        <th></th>
-      </tr>
-    </ng-template>
+                <!-- Table Body -->
+                <tbody class="bg-white divide-y divide-gray-200">
+                <tr *ngFor="let property of paginatedProperties; trackBy: trackByProperty"
+                    class="hover:bg-gray-50 transition-colors duration-150">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <input (change)="toggleSelection(property, $event)"
+                               [checked]="isSelected(property)"
+                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                               type="checkbox">
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {{ property.created_at | date: 'dd/MM/yyyy HH:mm:ss' }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {{ property.title }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {{ property.bookings_count }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+              <span [ngClass]="{
+                      'bg-green-100 text-green-800': property.status?.toLowerCase() === 'available',
+                      'bg-red-100 text-red-800': property.status?.toLowerCase() === 'sold',
+                      'bg-yellow-100 text-yellow-800': property.status?.toLowerCase() === 'rented',
+                      'bg-blue-100 text-blue-800': property.status?.toLowerCase() === 'under_maintenance',
+                      'bg-gray-100 text-gray-800': property.status?.toLowerCase() === 'unavailable'
+                    }"
+                    class="inline-flex px-2 py-1 text-xs font-semibold rounded-full">
+                {{ property.status }}
+              </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div class="flex gap-2 justify-end">
+                            <button (click)="showPropertyForm(property)"
+                                    class="px-3 py-1 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 rounded-md transition-colors duration-200 flex items-center gap-1">
+                                <i class="pi pi-pencil text-xs"></i>
+                                Edit
+                            </button>
+                            <button [routerLink]="property.id"
+                                    class="px-3 py-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors duration-200 flex items-center gap-1">
+                                <i class="pi pi-eye text-xs"></i>
+                                Details
+                            </button>
+                        </div>
+                    </td>
+                </tr>
 
-    <!--PROPERTIES TABLE BODY-->
-    <ng-template #body let-property>
-      <tr>
-        <td>
-          <p-tableCheckbox [value]="property"></p-tableCheckbox>
-        </td>
-        <td>{{ property.created_at| date: 'dd/MM/yyyy HH:mm:ss' }}</td>
-        <td>{{ property.title }}</td>
-        <td>{{ property.bookings_count }}</td>
-        <td>
-              <span
-                [class]="'product-badge status-' + (property.status?.toLowerCase() ?? '')">{{ property.status }}</span>
-        </td>
-        <td>
-          <div class="flex gap-2 justify-end">
-            <p-button (onClick)="showPropertyForm(property)" class="p-button-text p-button-warning" icon="pi pi-pencil" label="Edit"></p-button>
-            <p-button [routerLink]="property.id" class="p-button-text" icon="pi pi-eye" label="Details"></p-button>
-          </div>
-        </td>
-      </tr>
-    </ng-template>
+                <!-- Empty state -->
+                <tr *ngIf="paginatedProperties.length === 0">
+                    <td class="px-6 py-32 text-center" colspan="6">
+                        <div class="flex flex-col items-center justify-center">
+                            <i class="pi pi-inbox text-6xl text-gray-300 mb-4"></i>
+                            <span class="text-xl text-gray-500">There are no properties yet.</span>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
 
-    <!--PROPERTIES TABLE EMPTY MESSAGE-->
-    <ng-template #emptymessage>
-      <tr>
-        <td colspan="6i">
-          <div class="w-full flex justify-center items-center h-[30rem]">
-            <span class="text-2xl">There are no properties yet.</span>
-          </div>
-        </td>
-      </tr>
-    </ng-template>
-  </p-table>
+        <!-- Pagination -->
+        <div *ngIf="properties.length > 0" class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+            <div class="flex items-center justify-between">
+                <div class="flex-1 flex justify-between sm:hidden">
+                    <button (click)="previousPage()"
+                            [disabled]="currentPage === 1"
+                            class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Previous
+                    </button>
+                    <button (click)="nextPage()"
+                            [disabled]="currentPage === totalPages"
+                            class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Next
+                    </button>
+                </div>
+
+                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div class="flex items-center gap-2">
+                        <p class="text-sm text-gray-700">
+                            Showing {{ getStartIndex() }} to {{ getEndIndex() }} of {{ properties.length }} entries
+                        </p>
+                        <select (change)="onRowsPerPageChange()" [(ngModel)]="rowsPerPage"
+                                class="ml-2 px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option *ngFor="let option of rowsPerPageOptions" [value]="option">{{ option }}</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <nav aria-label="Pagination" class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                            <button (click)="previousPage()"
+                                    [disabled]="currentPage === 1"
+                                    class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="pi pi-chevron-left"></i>
+                            </button>
+
+                            <button (click)="goToPage(page)"
+                                    *ngFor="let page of getVisiblePages()"
+                                    [class]="page === currentPage ?
+                        'relative inline-flex items-center px-4 py-2 border border-blue-500 bg-blue-50 text-sm font-medium text-blue-600' :
+                        'relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50'">
+                                {{ page }}
+                            </button>
+
+                            <button (click)="nextPage()"
+                                    [disabled]="currentPage === totalPages"
+                                    class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="pi pi-chevron-right"></i>
+                            </button>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

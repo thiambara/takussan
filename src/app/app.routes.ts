@@ -4,16 +4,16 @@ import {notAuthGuard} from "./core/guards/not-auth.guard";
 export const routes: Routes = [
   {
     path: '',
-    redirectTo: 'dashboard',
+    redirectTo: 'client',
     pathMatch: 'full',
   },
-  // {
-  //   'path': 'dashboard',
-  //   loadChildren: () => import('./core/layouts/dashboard/dashboard.routes').then(m => m.routes),
-  // },
+  {
+    'path': 'client',
+    loadChildren: () => import('./core/layouts/layout2/layout2.routes').then(m => m.routes),
+  },
   {
     'path': 'dashboard',
-    loadChildren: () => import('./core/layouts/layout2/layout2.routes').then(m => m.routes),
+    loadChildren: () => import('./core/layouts/dashboard/dashboard.routes').then(m => m.routes),
   },
   {
     'path': 'login',

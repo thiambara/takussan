@@ -1,52 +1,40 @@
 import {Component, OnInit} from '@angular/core';
-import {MessageService} from 'primeng/api';
 import {Media} from "../../../../core/models/http/media.model";
-import {PropertyService} from "../../../../core/sevices/http/property.service";
+import {PropertyService} from "../../../../core/services/http/property.service";
 import {Property} from "../../../../core/models/http/property.model";
 import {Booking} from "../../../../core/models/http/booking.model";
 import {CommonModule, NgOptimizedImage} from "@angular/common";
 import {finalize} from "rxjs";
-import {Button} from "primeng/button";
 import {ActivatedRoute, Router} from "@angular/router";
-import {CardModule} from 'primeng/card';
-import {TagModule} from 'primeng/tag';
-import {DividerModule} from 'primeng/divider';
-import {DialogModule} from 'primeng/dialog';
-import {DatePickerModule} from 'primeng/datepicker';
-import {InputTextModule} from 'primeng/inputtext';
-import {InputNumberModule} from 'primeng/inputnumber';
-import {SelectModule} from 'primeng/select';
-import {ToggleSwitchModule} from 'primeng/toggleswitch';
 import {FormsModule, ReactiveFormsModule} from '@angular/forms';
-import {ToastModule} from 'primeng/toast';
 import {BookingFormComponent} from "../booking-form/booking-form.component";
 import {BookingCardComponent} from "../booking-card/booking-card.component";
-import {GalleriaModule} from "primeng/galleria";
-
-import {TabsModule} from "primeng/tabs";
+import {MessageService} from "../../../../core/services/message.service";
+import {
+    ButtonComponent,
+    StatusBadgeComponent,
+    StatusVariant,
+    TabsComponent,
+    TabComponent,
+    CardComponent,
+    ModalComponent
+} from "../../../../shared/components";
 
 @Component({
   selector: 'app-property-details',
   templateUrl: './property-details.component.html',
   imports: [
     CommonModule,
-    Button,
-    CardModule,
-    TagModule,
-    DividerModule,
-    DialogModule,
-    DatePickerModule,
-    InputTextModule,
-    InputNumberModule,
-    SelectModule,
-    ToggleSwitchModule,
+    ButtonComponent,
+    StatusBadgeComponent,
+    TabsComponent,
+    TabComponent,
+    CardComponent,
+    ModalComponent,
     FormsModule,
     ReactiveFormsModule,
-    ToastModule,
     BookingFormComponent,
     BookingCardComponent,
-    GalleriaModule,
-    TabsModule,
     NgOptimizedImage,
   ],
   standalone: true
@@ -136,6 +124,28 @@ export class PropertyDetailsComponent implements OnInit {
         return 'info';
       default:
         return 'secondary';
+    }
+  }
+
+  getStatusVariant(status: string): StatusVariant {
+    switch (status.toLowerCase()) {
+      case 'active':
+      case 'available':
+      case 'confirmed':
+        return 'success';
+      case 'pending':
+      case 'draft':
+        return 'warning';
+      case 'cancelled':
+      case 'unavailable':
+      case 'deleted':
+        return 'danger';
+      case 'completed':
+      case 'sold':
+      case 'rented':
+        return 'info';
+      default:
+        return 'neutral';
     }
   }
 

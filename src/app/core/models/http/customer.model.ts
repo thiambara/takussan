@@ -6,6 +6,10 @@ import {Booking} from "./booking.model";
 export interface Customer extends BaseModelInterface {
   user_id?: number;
   added_by_id?: number;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
   status?: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   type?: string;
 

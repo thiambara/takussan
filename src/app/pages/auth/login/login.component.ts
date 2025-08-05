@@ -5,7 +5,7 @@ import {InputText} from "primeng/inputtext";
 import {FormsModule} from "@angular/forms";
 import {Password} from "primeng/password";
 import {ActivatedRoute, Router, RouterLink} from "@angular/router";
-import {AuthService} from "../../../core/sevices/http/auth/auth.service";
+import {AuthService} from "../../../core/services/http/auth/auth.service";
 import {AppFloatingConfigurator} from "../../../core/layouts/dashboard/component/dashboard.floatingconfigurator";
 import {Button} from "primeng/button";
 

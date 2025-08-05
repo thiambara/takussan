@@ -2,24 +2,22 @@ import {Component, EventEmitter, Input, OnInit, Output} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators} from '@angular/forms';
 import {Booking} from '../../../../core/models/http/booking.model';
-import {User} from '../../../../core/models/http/user.model';
 import {PaginationResult} from '../../../../core/models/http/base/pagination-result.model';
-import {CustomerService} from '../../../../core/sevices/http/customer.service';
+import {CustomerService} from '../../../../core/services/http/customer.service';
 import {debounceTime, EMPTY, merge, skip} from 'rxjs';
+import {BookingService} from "../../../../core/services/http/booking.service";
+import {MessageService} from '../../../../core/services/message.service';
 
-// PrimeNG Modules
-import {ButtonModule} from 'primeng/button';
-import {InputTextModule} from 'primeng/inputtext';
-import {SelectModule} from 'primeng/select';
-import {InputNumberModule} from 'primeng/inputnumber';
-import {DatePickerModule} from 'primeng/datepicker';
-import {DialogModule} from 'primeng/dialog';
-import {TextareaModule} from 'primeng/textarea';
-import {AutoCompleteModule, AutoCompleteSelectEvent} from 'primeng/autocomplete';
-import {ToastModule} from 'primeng/toast';
-import {ToggleButtonModule} from 'primeng/togglebutton';
-import {MessageService} from 'primeng/api';
-import {BookingService} from "../../../../core/sevices/http/booking.service";
+// Shared Components
+import {
+  AutocompleteComponent,
+  ButtonComponent,
+  FormSelectComponent,
+  ModalComponent,
+  ToggleSwitchComponent,
+  TooltipComponent
+} from '../../../../shared/components';
+import {Customer} from "../../../../core/models/http/customer.model";
 
 @Component({
   selector: 'app-booking-form',
@@ -30,16 +28,12 @@ import {BookingService} from "../../../../core/sevices/http/booking.service";
     CommonModule,
     ReactiveFormsModule,
     FormsModule,
-    ButtonModule,
-    InputTextModule,
-    SelectModule,
-    InputNumberModule,
-    DatePickerModule,
-    DialogModule,
-    TextareaModule,
-    AutoCompleteModule,
-    ToastModule,
-    ToggleButtonModule
+    ModalComponent,
+    ButtonComponent,
+    FormSelectComponent,
+    ToggleSwitchComponent,
+    AutocompleteComponent,
+    TooltipComponent
   ],
   providers: [MessageService]
 })
@@ -54,9 +48,9 @@ export class BookingFormComponent implements OnInit {
   @Output() cancel = new EventEmitter<void>();
 
   bookingForm!: FormGroup;
-  customers: User[] = [];
-  filteredCustomers: User[] = [];
-  selectedCustomer: User | null = null;
+  customers: Customer[] = [];
+  filteredCustomers: Customer[] = [];
+  selectedCustomer: Customer | null = null;
 
   bookingStatusOptions = [
     {label: 'Pending', value: 'pending'},
@@ -109,7 +103,7 @@ export class BookingFormComponent implements OnInit {
 
   loadCustomers(): void {
     this.customerService.index().subscribe({
-        next: (result: User[] | PaginationResult<User>) => {
+        next: (result: Customer[] | PaginationResult<Customer>) => {
           if (Array.isArray(result)) {
             this.customers = result;
           } else {
@@ -130,7 +124,7 @@ export class BookingFormComponent implements OnInit {
 
   loadCustomerDetails(customerId: number): void {
     this.customerService.get(customerId).subscribe({
-      next: (customer: User) => {
+      next: (customer: Customer) => {
         this.selectedCustomer = customer;
       },
       error: (error: any) => {
@@ -144,17 +138,16 @@ export class BookingFormComponent implements OnInit {
     });
   }
 
-  filterCustomer(event: any): void {
-    const query = event.query.toLowerCase();
+  filterCustomer(query: string): void {
+    const searchTerm = query.toLowerCase();
     this.filteredCustomers = this.customers.filter(customer =>
-      customer.first_name?.toLowerCase().includes(query) ||
-      customer.last_name?.toLowerCase().includes(query) ||
-      customer.email?.toLowerCase().includes(query)
+      customer.first_name?.toLowerCase().includes(searchTerm) ||
+      customer.last_name?.toLowerCase().includes(searchTerm) ||
+      customer.email?.toLowerCase().includes(searchTerm)
     );
   }
 
-  onCustomerSelect(event: AutoCompleteSelectEvent): void {
-    const customer = event.value as User;
+  onCustomerSelect(customer: Customer): void {
     this.selectedCustomer = customer;
     this.bookingForm.patchValue({
       customer_id: customer.id

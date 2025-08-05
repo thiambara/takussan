@@ -3,14 +3,6 @@ import {CommonModule} from '@angular/common';
 import {FormBuilder, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
 import {Address} from '../../../core/models/http/address.model';
 
-// PrimeNG Modules
-import {InputTextModule} from 'primeng/inputtext';
-import {ButtonModule} from 'primeng/button';
-import {DialogModule} from 'primeng/dialog';
-import {TextareaModule} from 'primeng/textarea';
-import {TooltipModule} from 'primeng/tooltip';
-import {Select} from "primeng/select";
-
 @Component({
   selector: 'app-address-form',
   templateUrl: './address-form.component.html',
@@ -18,13 +10,7 @@ import {Select} from "primeng/select";
   standalone: true,
   imports: [
     CommonModule,
-    ReactiveFormsModule,
-    InputTextModule,
-    ButtonModule,
-    DialogModule,
-    TextareaModule,
-    TooltipModule,
-    Select
+    ReactiveFormsModule
   ]
 })
 export class AddressFormComponent implements OnInit {

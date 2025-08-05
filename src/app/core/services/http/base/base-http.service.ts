@@ -38,7 +38,7 @@ export class BaseHttpService<T extends BaseModelInterface> {
     return this.http.get<T[] | PaginationResult<T>>(`${this.endpointUrl}?${objectToQueryString(params)}`, this.httpOptions).pipe();
   }
 
-  get(id: number, params: BaseHttpIndexQueryParams<T> = {}): Observable<T> {
+  get(id: any, params: BaseHttpIndexQueryParams<T> = {}): Observable<T> {
     return this.http.get<T>(`${this.endpointUrl}/${id}?${objectToQueryString(params)}`, this.httpOptions).pipe();
   }
 
@@ -46,11 +46,11 @@ export class BaseHttpService<T extends BaseModelInterface> {
     return this.http.post<T>(`${this.endpointUrl}?${objectToQueryString(params)}`, data, this.httpOptions).pipe();
   }
 
-  update(id: number, data: T, params: BaseHttpIndexQueryParams<T> = {}): Observable<T> {
+  update(id: any, data: T, params: BaseHttpIndexQueryParams<T> = {}): Observable<T> {
     return this.http.put<T>(`${this.endpointUrl}/${id}?${objectToQueryString(params)}`, data, this.httpOptions).pipe();
   }
 
-  delete(id: number, params: BaseHttpIndexQueryParams<T> = {}): Observable<T> {
+  delete(id: any, params: BaseHttpIndexQueryParams<T> = {}): Observable<T> {
     return this.http.delete<T>(`${this.endpointUrl}/${id}?${objectToQueryString(params)}`, this.httpOptions).pipe();
   }
 

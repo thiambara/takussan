@@ -9,7 +9,7 @@ import {DialogModule} from 'primeng/dialog';
 import {FormBuilder, FormGroup, ReactiveFormsModule} from '@angular/forms';
 import {ToastModule} from 'primeng/toast';
 import {ConfirmationService, MessageService} from 'primeng/api';
-import {BookingService} from '../../../../core/sevices/http/booking.service';
+import {BookingService} from '../../../../core/services/http/booking.service';
 import {ConfirmDialogModule} from 'primeng/confirmdialog';
 import {finalize} from 'rxjs';
 import {TagModule} from 'primeng/tag';

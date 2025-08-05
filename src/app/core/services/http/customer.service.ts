@@ -1,11 +1,11 @@
 import {Injectable} from '@angular/core';
 import {BaseHttpService} from "./base/base-http.service";
-import {User} from "../../models/http/user.model";
+import {Customer} from "../../models/http/customer.model";
 
 @Injectable({
   providedIn: 'root'
 })
-export class CustomerService extends BaseHttpService<User> {
+export class CustomerService extends BaseHttpService<Customer> {
 
   protected override suffix: string = 'customers';
 

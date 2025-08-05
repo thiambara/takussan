@@ -1,120 +1,304 @@
-<p-dialog (onHide)="onHide()" [(visible)]="visible" [modal]="true" [style]="{width: '500px'}"
-          header="{{ isEditMode ? 'Edit Booking' : 'Create New Booking' }}" styleClass="p-fluid">
-    <p-toast></p-toast>
-
-    <form *ngIf="bookingForm" [formGroup]="bookingForm">
+<app-modal
+        (visibleChange)="onHide()"
+        [(visible)]="visible"
+        [title]="isEditMode ? 'Edit Booking' : 'Create New Booking'"
+        class="animate-[fadeIn_0.3s_ease-in-out]"
+        size="md"
+>
+    <form *ngIf="bookingForm" [formGroup]="bookingForm" class="space-y-6">
         <!-- Customer Selection -->
-        <div class="mb-4 field">
-            <label class="block mb-2 font-medium" for="customer">Customer</label>
+        <div class="space-y-2">
+            <label class="block text-sm font-medium text-gray-700" for="customer">
+                Customer
+            </label>
             <div class="flex gap-2">
-                <p-autoComplete
-                        (completeMethod)="filterCustomer($event)"
-                        (onSelect)="onCustomerSelect($event)"
+                <app-autocomplete
+                        (optionSelected)="onCustomerSelect($event)"
+                        (search)="filterCustomer($event)"
                         [disabled]="!!selectedCustomer"
-                        [dropdown]="true"
-                        [forceSelection]="true"
-                        [inputStyle]="{'width':'100%'}"
-                        [placeholder]="'Search for a customer...'"
-                        [style]="{'width':'100%'}"
-                        [suggestions]="filteredCustomers"
-                        field="last_name">
-                    <ng-template let-customer pTemplate="item">
-                        <div class="customer-item">
-                            <div>{{ customer.first_name }} {{ customer.last_name }}</div>
-                            <div class="text-sm text-gray-500">{{ customer.email }}</div>
+                        [loading]="false"
+                        [options]="filteredCustomers"
+                        [showSelectedOption]="false"
+                        class="flex-1"
+                        displayField="last_name"
+                        placeholder="Search for a customer..."
+                >
+                    <ng-template #optionTemplate let-customer>
+                        <div class="flex flex-col py-1">
+                            <div class="text-sm font-medium text-gray-900">
+                                {{ customer.first_name }} {{ customer.last_name }}
+                            </div>
+                            <div class="text-xs text-gray-500">{{ customer.email }}</div>
                         </div>
                     </ng-template>
-                </p-autoComplete>
-                <button (click)="clearCustomer()" *ngIf="selectedCustomer" class="p-button-rounded p-button-danger p-button-text" icon="pi pi-times" pButton
-                        pRipple type="button"></button>
+                </app-autocomplete>
+
+                <app-button
+                        (click)="clearCustomer()"
+                        *ngIf="selectedCustomer"
+                        class="flex-shrink-0 self-start mt-0.5"
+                        size="sm"
+                        variant="danger"
+                >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"
+                              stroke-width="2"></path>
+                    </svg>
+                </app-button>
             </div>
 
-            <div *ngIf="selectedCustomer" class="p-2 mt-2 bg-gray-50 rounded-md">
-                <div class="text-sm font-medium">{{ selectedCustomer.first_name }} {{ selectedCustomer.last_name }}</div>
-                <div class="text-xs text-gray-500">{{ selectedCustomer.email }}</div>
-                <div *ngIf="selectedCustomer.phone" class="text-xs text-gray-500">{{ selectedCustomer.phone }}</div>
+            <!-- Selected Customer Display -->
+            <div *ngIf="selectedCustomer"
+                 class="p-3 bg-gray-50 rounded-lg border border-gray-200 animate-[slideIn_0.3s_ease-in-out]">
+                <div class="text-sm font-medium text-gray-900">
+                    {{ selectedCustomer.first_name }} {{ selectedCustomer.last_name }}
+                </div>
+                <div class="text-xs text-gray-500 mt-1">{{ selectedCustomer.email }}</div>
+                <div *ngIf="selectedCustomer.phone" class="text-xs text-gray-500">
+                    {{ selectedCustomer.phone }}
+                </div>
             </div>
         </div>
 
-        <div class="mb-4 field">
-            <label class="block mb-2 font-medium" for="booking_date">Booking Date *</label>
-            <p-datePicker [showButtonBar]="true" [showIcon]="true" dateFormat="yy-mm-dd" formControlName="booking_date"
-                          id="booking_date" styleClass="w-full"></p-datePicker>
-            <small *ngIf="bookingForm.get('booking_date')?.invalid && bookingForm.get('booking_date')?.touched"
-                   class="text-red-500">Booking date is required.</small>
-        </div>
-        
-        <div class="mb-4 field">
-            <label class="block mb-2 font-medium" for="start_date">Start Date *</label>
-            <p-datePicker [showButtonBar]="true" [showIcon]="true" dateFormat="yy-mm-dd" formControlName="start_date"
-                          id="start_date" styleClass="w-full"></p-datePicker>
-            <small *ngIf="bookingForm.get('start_date')?.invalid && bookingForm.get('start_date')?.touched"
-                   class="text-red-500">Start date is required.</small>
-        </div>
-
-        <div class="mb-4 field">
-            <label class="block mb-2 font-medium" for="end_date">End Date *</label>
-            <p-datePicker [showButtonBar]="true" [showIcon]="true" dateFormat="yy-mm-dd" formControlName="end_date"
-                          id="end_date" styleClass="w-full"></p-datePicker>
-            <small *ngIf="bookingForm.get('end_date')?.invalid && bookingForm.get('end_date')?.touched"
-                   class="text-red-500">End date is required.</small>
+        <!-- Booking Date -->
+        <div class="space-y-2">
+            <label class="block text-sm font-medium text-gray-700" for="booking_date">
+                Booking Date <span class="text-red-500">*</span>
+            </label>
+            <input
+                    [class.border-red-500]="bookingForm.get('booking_date')?.invalid && bookingForm.get('booking_date')?.touched"
+                    [class.focus:border-red-500]="bookingForm.get('booking_date')?.invalid && bookingForm.get('booking_date')?.touched"
+                    [class.focus:ring-red-500]="bookingForm.get('booking_date')?.invalid && bookingForm.get('booking_date')?.touched"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    formControlName="booking_date"
+                    id="booking_date"
+                    type="date"
+            />
+            <small
+                    *ngIf="bookingForm.get('booking_date')?.invalid && bookingForm.get('booking_date')?.touched"
+                    class="text-red-500 text-xs"
+            >
+                Booking date is required.
+            </small>
         </div>
 
-        <div class="mb-4 field">
-            <label class="block mb-2 font-medium" for="expiration_date">Expiration Date</label>
-            <p-datePicker [showButtonBar]="true" [showIcon]="true" dateFormat="yy-mm-dd" formControlName="expiration_date"
-                          id="expiration_date" styleClass="w-full"></p-datePicker>
+        <!-- Start Date -->
+        <div class="space-y-2">
+            <label class="block text-sm font-medium text-gray-700" for="start_date">
+                Start Date <span class="text-red-500">*</span>
+            </label>
+            <input
+                    [class.border-red-500]="bookingForm.get('start_date')?.invalid && bookingForm.get('start_date')?.touched"
+                    [class.focus:border-red-500]="bookingForm.get('start_date')?.invalid && bookingForm.get('start_date')?.touched"
+                    [class.focus:ring-red-500]="bookingForm.get('start_date')?.invalid && bookingForm.get('start_date')?.touched"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    formControlName="start_date"
+                    id="start_date"
+                    type="date"
+            />
+            <small
+                    *ngIf="bookingForm.get('start_date')?.invalid && bookingForm.get('start_date')?.touched"
+                    class="text-red-500 text-xs"
+            >
+                Start date is required.
+            </small>
         </div>
 
-        <div class="mb-4 field">
-            <label class="block mb-2 font-medium" for="status">Status *</label>
-            <p-select [options]="bookingStatusOptions" formControlName="status" id="status" optionLabel="label"
-                      optionValue="value" styleClass="w-full"></p-select>
-            <small *ngIf="bookingForm.get('status')?.invalid && bookingForm.get('status')?.touched"
-                   class="text-red-500">Status is required.</small>
+        <!-- End Date -->
+        <div class="space-y-2">
+            <label class="block text-sm font-medium text-gray-700" for="end_date">
+                End Date <span class="text-red-500">*</span>
+            </label>
+            <input
+                    [class.border-red-500]="bookingForm.get('end_date')?.invalid && bookingForm.get('end_date')?.touched"
+                    [class.focus:border-red-500]="bookingForm.get('end_date')?.invalid && bookingForm.get('end_date')?.touched"
+                    [class.focus:ring-red-500]="bookingForm.get('end_date')?.invalid && bookingForm.get('end_date')?.touched"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    formControlName="end_date"
+                    id="end_date"
+                    type="date"
+            />
+            <small
+                    *ngIf="bookingForm.get('end_date')?.invalid && bookingForm.get('end_date')?.touched"
+                    class="text-red-500 text-xs"
+            >
+                End date is required.
+            </small>
         </div>
 
-        <div class="mb-4 field">
-            <label class="block mb-2 font-medium" for="price_at_booking">Price at Booking *</label>
-            <p-inputNumber [minFractionDigits]="2" currency="EUR" formControlName="price_at_booking" id="price_at_booking"
-                           mode="currency" styleClass="w-full"></p-inputNumber>
-            <small *ngIf="bookingForm.get('price_at_booking')?.invalid && bookingForm.get('price_at_booking')?.touched"
-                   class="text-red-500">Price is required and must be greater than 0.</small>
-        </div>
-        
-        <div class="mb-4 field">
-            <label class="block mb-2 font-medium" for="total_amount">Total Amount * <i class="pi pi-info-circle ml-1 text-primary cursor-pointer" pTooltip="This value is automatically calculated based on the property price and the number of days between start and end dates. You can also manually adjust it if needed." tooltipPosition="top"></i></label>
-            <p-inputNumber [minFractionDigits]="2" currency="EUR" formControlName="total_amount" id="total_amount"
-                           mode="currency" styleClass="w-full"></p-inputNumber>
-            <small *ngIf="bookingForm.get('total_amount')?.invalid && bookingForm.get('total_amount')?.touched"
-                   class="text-red-500">Total amount is required and must be greater than 0.</small>
+        <!-- Expiration Date -->
+        <div class="space-y-2">
+            <label class="block text-sm font-medium text-gray-700" for="expiration_date">
+                Expiration Date
+            </label>
+            <input
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    formControlName="expiration_date"
+                    id="expiration_date"
+                    type="date"
+            />
         </div>
 
-        <div class="mb-4 field">
-            <label class="block mb-2 font-medium" for="deposit_amount">Deposit Amount</label>
-            <p-inputNumber [minFractionDigits]="2" currency="EUR" formControlName="deposit_amount" id="deposit_amount"
-                           mode="currency" styleClass="w-full"></p-inputNumber>
+        <!-- Status -->
+        <div class="space-y-2">
+            <label class="block text-sm font-medium text-gray-700" for="status">
+                Status <span class="text-red-500">*</span>
+            </label>
+            <app-form-select
+                    [hasError]="bookingForm.get('status')?.invalid && bookingForm.get('status')?.touched"
+                    [options]="bookingStatusOptions"
+                    formControlName="status"
+                    placeholder="Select status"
+            ></app-form-select>
+            <small
+                    *ngIf="bookingForm.get('status')?.invalid && bookingForm.get('status')?.touched"
+                    class="text-red-500 text-xs"
+            >
+                Status is required.
+            </small>
         </div>
 
-        <div class="mb-4 field">
-            <label class="block mb-2 font-medium" for="deposit_paid">Deposit Paid</label>
-            <p-toggleButton formControlName="deposit_paid" id="deposit_paid" [onIcon]="'pi pi-check'" [offIcon]="'pi pi-times'"
-                           [onLabel]="'Yes'" [offLabel]="'No'" styleClass="w-full"></p-toggleButton>
+        <!-- Price at Booking -->
+        <div class="space-y-2">
+            <label class="block text-sm font-medium text-gray-700" for="price_at_booking">
+                Price at Booking <span class="text-red-500">*</span>
+            </label>
+            <div class="relative">
+                <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">€</span>
+                <input
+                        [class.border-red-500]="bookingForm.get('price_at_booking')?.invalid && bookingForm.get('price_at_booking')?.touched"
+                        [class.focus:border-red-500]="bookingForm.get('price_at_booking')?.invalid && bookingForm.get('price_at_booking')?.touched"
+                        [class.focus:ring-red-500]="bookingForm.get('price_at_booking')?.invalid && bookingForm.get('price_at_booking')?.touched"
+                        class="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        formControlName="price_at_booking"
+                        id="price_at_booking"
+                        min="0"
+                        step="0.01"
+                        type="number"
+                />
+            </div>
+            <small
+                    *ngIf="bookingForm.get('price_at_booking')?.invalid && bookingForm.get('price_at_booking')?.touched"
+                    class="text-red-500 text-xs"
+            >
+                Price is required and must be greater than 0.
+            </small>
         </div>
 
-        <div class="mb-4 field">
-            <label class="block mb-2 font-medium" for="reference_number">Reference Number</label>
-            <input class="w-full" formControlName="reference_number" id="reference_number" pInputText/>
+        <!-- Total Amount -->
+        <div class="space-y-2">
+            <label class="flex items-center text-sm font-medium text-gray-700" for="total_amount">
+                Total Amount <span class="text-red-500 ml-1">*</span>
+                <app-tooltip
+                        class="ml-2"
+                        position="top"
+                        text="This value is automatically calculated based on the property price and the number of days between start and end dates. You can also manually adjust it if needed."
+                >
+                    <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"
+                              stroke-width="2"></path>
+                    </svg>
+                </app-tooltip>
+            </label>
+            <div class="relative">
+                <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">€</span>
+                <input
+                        [class.border-red-500]="bookingForm.get('total_amount')?.invalid && bookingForm.get('total_amount')?.touched"
+                        [class.focus:border-red-500]="bookingForm.get('total_amount')?.invalid && bookingForm.get('total_amount')?.touched"
+                        [class.focus:ring-red-500]="bookingForm.get('total_amount')?.invalid && bookingForm.get('total_amount')?.touched"
+                        class="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        formControlName="total_amount"
+                        id="total_amount"
+                        min="0"
+                        step="0.01"
+                        type="number"
+                />
+            </div>
+            <small
+                    *ngIf="bookingForm.get('total_amount')?.invalid && bookingForm.get('total_amount')?.touched"
+                    class="text-red-500 text-xs"
+            >
+                Total amount is required and must be greater than 0.
+            </small>
         </div>
 
-        <div class="mb-4 field">
-            <label class="block mb-2 font-medium" for="notes">Notes</label>
-            <textarea class="w-full" formControlName="notes" id="notes" pTextarea rows="3"></textarea>
+        <!-- Deposit Amount -->
+        <div class="space-y-2">
+            <label class="block text-sm font-medium text-gray-700" for="deposit_amount">
+                Deposit Amount
+            </label>
+            <div class="relative">
+                <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">€</span>
+                <input
+                        class="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        formControlName="deposit_amount"
+                        id="deposit_amount"
+                        min="0"
+                        step="0.01"
+                        type="number"
+                />
+            </div>
+        </div>
+
+        <!-- Deposit Paid -->
+        <div class="space-y-2">
+            <label class="block text-sm font-medium text-gray-700" for="deposit_paid">
+                Deposit Paid
+            </label>
+            <app-toggle-switch
+                    class="w-full"
+                    formControlName="deposit_paid"
+                    offLabel="No"
+                    onLabel="Yes"
+                    size="md"
+            ></app-toggle-switch>
+        </div>
+
+        <!-- Reference Number -->
+        <div class="space-y-2">
+            <label class="block text-sm font-medium text-gray-700" for="reference_number">
+                Reference Number
+            </label>
+            <input
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    formControlName="reference_number"
+                    id="reference_number"
+                    placeholder="Enter reference number"
+                    type="text"
+            />
+        </div>
+
+        <!-- Notes -->
+        <div class="space-y-2">
+            <label class="block text-sm font-medium text-gray-700" for="notes">
+                Notes
+            </label>
+            <textarea
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed resize-none"
+                    formControlName="notes"
+                    id="notes"
+                    placeholder="Add any additional notes..."
+                    rows="3"
+            ></textarea>
         </div>
     </form>
 
-    <ng-template pTemplate="footer">
-        <p-button (click)="onHide()" label="Cancel" styleClass="p-button-text"></p-button>
-        <p-button (click)="saveBooking()" label="Save" styleClass="p-button-primary"></p-button>
-    </ng-template>
-</p-dialog>
+    <!-- Modal Footer -->
+    <div class="flex justify-end gap-3 pt-4 border-t border-gray-200" slot="footer">
+        <app-button
+                (click)="onHide()"
+                class="transition-all duration-200 hover:-translate-y-0.5"
+                variant="secondary"
+        >
+            Cancel
+        </app-button>
+        <app-button
+                (click)="saveBooking()"
+                [disabled]="bookingForm?.invalid"
+                class="transition-all duration-200 hover:-translate-y-0.5"
+                variant="primary"
+        >
+            {{ isEditMode ? 'Update' : 'Save' }}
+        </app-button>
+    </div>
+</app-modal>

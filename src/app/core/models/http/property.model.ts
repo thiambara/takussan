@@ -13,16 +13,18 @@ export interface Property extends BaseModelInterface {
   title?: string;
   description?: string;
   type?: string;
-  status?: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  status?: 'available' | 'rented' | 'sold' | 'pending' | 'confirmed' | 'cancelled' | 'completed';
   visibility?: string;
   price?: number;
   area?: number;
+  areaUnit?: string;
   position?: string;
   level?: string;
   title_type?: string;
   with_administrative_monitoring?: boolean;
   contract_type?: string;
   servicing?: any[];
+  bookings_count?: number;
 
   // Relations
   user?: User;
@@ -32,6 +34,7 @@ export interface Property extends BaseModelInterface {
   bookings?: Booking[];
   collaborators?: PropertyCollaborator[];
   collaborating_users?: User[];
+  agent?: any;
   tags?: Tag[];
   reviews?: Review[];
   media?: Media[];

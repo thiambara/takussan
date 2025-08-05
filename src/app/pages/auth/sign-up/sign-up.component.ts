@@ -6,7 +6,7 @@ import {FormsModule} from "@angular/forms";
 import {Password} from "primeng/password";
 import {ActivatedRoute, Router, RouterLink} from "@angular/router";
 import {User} from "../../../core/models/http/user.model";
-import {AuthService} from "../../../core/sevices/http/auth/auth.service";
+import {AuthService} from "../../../core/services/http/auth/auth.service";
 
 @Component({
 

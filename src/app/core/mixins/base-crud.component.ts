@@ -1,7 +1,7 @@
 import {finalize} from "rxjs";
 import {Component} from "@angular/core";
 import {BaseModelInterface, ClassType, TableName} from "../models/http/base/base.model";
-import {BaseHttpService} from "../sevices/http/base/base-http.service";
+import {BaseHttpService} from "../services/http/base/base-http.service";
 import {ConfirmationService, MessageService} from "primeng/api";
 import {Table} from "primeng/table";
 
@@ -56,16 +56,15 @@ export class BaseCrudComponent<T extends BaseModelInterface> {
   public queryParams: CrudQueryParamsInterface<T> = {};
   public formDialogVisible: boolean = false;
 
+  constructor(public apiService: BaseHttpService<T>, public messageService: MessageService, public confirmationService: ConfirmationService) {
+  }
+
   public get loading(): boolean {
     return this.indexLoading || this.getLoading || this.createLoading || this.updateLoading || this.deleteLoading;
   }
 
-
   public get selectedItems(): T[] {
     return this.items.filter((item) => item.selected);
-  }
-
-  constructor(public apiService: BaseHttpService<T>, public messageService: MessageService, public confirmationService: ConfirmationService) {
   }
 
   public handleErrors(error: any): void {

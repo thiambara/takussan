@@ -1,24 +1,23 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { Router, RouterModule } from '@angular/router';
-import { ButtonModule } from 'primeng/button';
-import { TableModule } from 'primeng/table';
-import { CardModule } from 'primeng/card';
-import { TagModule } from 'primeng/tag';
-import { BookingService } from '../../../../core/sevices/http/booking.service';
-import { Booking } from '../../../../core/models/http/booking.model';
-import { PaginationResult } from '../../../../core/models/http/base/pagination-result.model';
-import { ToastModule } from 'primeng/toast';
-import { MessageService } from 'primeng/api';
-import { ConfirmationService } from 'primeng/api';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { finalize } from 'rxjs';
+import {Component, OnInit} from '@angular/core';
+import {CommonModule} from '@angular/common';
+import {Router, RouterModule} from '@angular/router';
+import {ButtonModule} from 'primeng/button';
+import {TableModule} from 'primeng/table';
+import {CardModule} from 'primeng/card';
+import {TagModule} from 'primeng/tag';
+import {BookingService} from '../../../../core/services/http/booking.service';
+import {Booking} from '../../../../core/models/http/booking.model';
+import {PaginationResult} from '../../../../core/models/http/base/pagination-result.model';
+import {ToastModule} from 'primeng/toast';
+import {ConfirmationService, MessageService} from 'primeng/api';
+import {ConfirmDialogModule} from 'primeng/confirmdialog';
+import {finalize} from 'rxjs';
 
 @Component({
   selector: 'app-bookings-list',
   standalone: true,
   imports: [
-    CommonModule, 
+    CommonModule,
     RouterModule,
     ButtonModule,
     TableModule,
@@ -40,7 +39,8 @@ export class BookingsListComponent implements OnInit {
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
     private router: Router
-  ) {}
+  ) {
+  }
 
   ngOnInit(): void {
     this.fetchBookings();
@@ -75,12 +75,12 @@ export class BookingsListComponent implements OnInit {
 
   confirmBooking(booking: Booking): void {
     this.loading = true;
-    
+
     const data: Partial<Booking> = {
       status: 'confirmed',
       confirmation_date: new Date().toISOString()
     };
-    
+
     this.bookingService.update(booking.id!, data as Booking)
       .pipe(finalize(() => this.loading = false))
       .subscribe({
@@ -91,7 +91,7 @@ export class BookingsListComponent implements OnInit {
             detail: 'Booking confirmed successfully',
             life: 3000
           });
-          
+
           // Update booking in the list
           const index = this.bookings.findIndex(b => b.id === booking.id);
           if (index !== -1) {
@@ -115,13 +115,13 @@ export class BookingsListComponent implements OnInit {
       message: 'Are you sure you want to cancel this booking?',
       accept: () => {
         this.loading = true;
-        
+
         const data: Partial<Booking> = {
           status: 'cancelled',
           cancellation_date: new Date().toISOString(),
           reason_for_cancellation: 'Cancelled by admin'
         };
-        
+
         this.bookingService.update(booking.id!, data as Booking)
           .pipe(finalize(() => this.loading = false))
           .subscribe({
@@ -132,7 +132,7 @@ export class BookingsListComponent implements OnInit {
                 detail: 'Booking cancelled successfully',
                 life: 3000
               });
-              
+
               // Update booking in the list
               const index = this.bookings.findIndex(b => b.id === booking.id);
               if (index !== -1) {
@@ -154,15 +154,21 @@ export class BookingsListComponent implements OnInit {
 
   getStatusSeverity(status?: string): string {
     switch (status) {
-      case 'pending': return 'warning';
-      case 'confirmed': return 'success';
-      case 'rejected': return 'danger';
-      case 'cancelled': return 'danger';
-      case 'completed': return 'info';
-      default: return 'secondary';
+      case 'pending':
+        return 'warning';
+      case 'confirmed':
+        return 'success';
+      case 'rejected':
+        return 'danger';
+      case 'cancelled':
+        return 'danger';
+      case 'completed':
+        return 'info';
+      default:
+        return 'secondary';
     }
   }
-  
+
   formatDate(date?: string): string {
     if (!date) return 'N/A';
     return new Date(date).toLocaleDateString('en-US', {

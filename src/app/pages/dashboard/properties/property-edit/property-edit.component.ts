@@ -2,33 +2,12 @@ import {Component, OnInit} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators} from '@angular/forms';
 import {ActivatedRoute, Router} from '@angular/router';
-import {MenuItem, MessageService} from 'primeng/api';
-import {DialogService, DynamicDialogModule} from 'primeng/dynamicdialog';
-import {PropertyService} from '../../../../core/sevices/http/property.service';
+import {PropertyService} from '../../../../core/services/http/property.service';
 import {Property} from '../../../../core/models/http/property.model';
 import {Address} from '../../../../core/models/http/address.model';
 import {Media} from '../../../../core/models/http/media.model';
-import {environment} from '../../../../../environments/environment';
 import {finalize} from 'rxjs';
-
-// PrimeNG Modules
-import {InputTextModule} from 'primeng/inputtext';
-import {ButtonModule} from 'primeng/button';
-import {TextareaModule} from 'primeng/textarea';
-import {SelectModule} from 'primeng/select';
-import {InputNumberModule} from 'primeng/inputnumber';
-import {ToggleSwitchModule} from 'primeng/toggleswitch';
-import {DividerModule} from 'primeng/divider';
-import {CardModule} from 'primeng/card';
-import {AutoCompleteModule} from 'primeng/autocomplete';
-import {TabViewModule} from 'primeng/tabview';
-import {FileUploadModule} from 'primeng/fileupload';
-import {DatePickerModule} from 'primeng/datepicker';
-import {ToastModule} from 'primeng/toast';
-import {StepsModule} from 'primeng/steps';
-import {TableModule} from 'primeng/table';
-import {DialogModule} from 'primeng/dialog';
-import {TagModule} from 'primeng/tag';
+import {MessageService} from '../../../../core/services/message.service';
 
 @Component({
   selector: 'app-property-edit',
@@ -38,26 +17,7 @@ import {TagModule} from 'primeng/tag';
     CommonModule,
     ReactiveFormsModule,
     FormsModule,
-    TextareaModule,
-    ButtonModule,
-    InputTextModule,
-    SelectModule,
-    InputNumberModule,
-    ToggleSwitchModule,
-    DividerModule,
-    CardModule,
-    AutoCompleteModule,
-    TabViewModule,
-    FileUploadModule,
-    DatePickerModule,
-    ToastModule,
-    StepsModule,
-    TableModule,
-    DialogModule,
-    DynamicDialogModule,
-    TagModule
   ],
-  providers: [DialogService, MessageService],
   standalone: true
 })
 export class PropertyEditComponent implements OnInit {
@@ -70,10 +30,10 @@ export class PropertyEditComponent implements OnInit {
   uploadedFiles: any[] = [];
   propertyMedia: Media[] = [];
   uploadingMedia = false;
-  steps: MenuItem[] = [];
+  steps: any[] = [];
   addressForm!: FormGroup;
   typeSpecificForm!: FormGroup;
-  apiUrl = environment.apiUrl + '/api'; // API URL for direct uploads
+
   countries: any[] = [
     {name: 'France', code: 'FR'},
     {name: 'Spain', code: 'ES'},
@@ -228,7 +188,10 @@ export class PropertyEditComponent implements OnInit {
           this.initializeAddressForm();
         }
 
-        this.propertyMedia = (property.media || []).map(media => ({...media, is_image: media.mime_type?.includes('image')}));
+        this.propertyMedia = (property.media || []).map(media => ({
+          ...media,
+          is_image: media.mime_type?.includes('image')
+        }));
 
         this.loading = false;
       },

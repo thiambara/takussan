@@ -1,17 +1,30 @@
-<div class="p-4 customer-edit-container">
+<div class="p-4 customer-edit-container animate-[fadeIn_0.5s_ease-in-out]">
     <!-- Header with actions -->
     <div class="flex justify-between items-center mb-6">
-        <h1 class="m-0 text-2xl font-bold text-primary">
+        <h1 class="m-0 text-2xl font-bold text-blue-600">
             {{ !isEditMode ? 'Create New Customer' : 'Edit Customer' }}
         </h1>
         <div class="flex gap-2 items-center">
-            <p-button [routerLink]="!isEditMode ? '/dashboard/customers' : '/dashboard/customers/' + customerId"
-                      icon="pi pi-arrow-left" label="Back"
-                      styleClass="p-button-outlined"></p-button>
-            <p-button (onClick)="saveCustomer()" [disabled]="customerForm.invalid || saving"
-                      [loading]="saving"
-                      icon="pi pi-save"
-                      label="Save"></p-button>
+            <app-button 
+                [routerLink]="!isEditMode ? '/dashboard/customers' : '/dashboard/customers/' + customerId"
+                variant="secondary"
+                class="transition-all duration-200 hover:-translate-y-0.5">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                Back
+            </app-button>
+            <app-button 
+                (click)="saveCustomer()" 
+                [disabled]="customerForm.invalid || saving"
+                [loading]="saving"
+                variant="primary"
+                class="transition-all duration-200 hover:-translate-y-0.5">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+                Save
+            </app-button>
         </div>
     </div>
 
@@ -19,166 +32,245 @@
     <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
         <!-- Main Form Section -->
         <div class="md:col-span-2">
-            <p-card styleClass="shadow-md h-full">
-                <ng-template pTemplate="header">
-                    <div class="p-4 bg-primary-50">
-                        <h2 class="text-xl font-semibold text-primary">Customer Information</h2>
-                    </div>
-                </ng-template>
+            <app-card class="shadow-md h-full">
+                <div slot="header" class="p-4 bg-blue-50 border-b border-gray-200">
+                    <h2 class="text-xl font-semibold text-blue-600 m-0">Customer Information</h2>
+                </div>
 
-                <form [formGroup]="customerForm">
-                    <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                        <!-- Customer Type Selector -->
-                        <div class="col-span-full">
-                            <label class="block mb-2 font-semibold">Customer Type</label>
-                            <p-select
+                <div class="p-6">
+                    <form [formGroup]="customerForm">
+                        <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                            <!-- Customer Type Selector -->
+                            <div class="col-span-full">
+                                <label class="block mb-2 font-semibold text-gray-700">Customer Type</label>
+                                <app-form-select
                                     [options]="customerTypes"
                                     formControlName="type"
-                                    optionLabel="label"
-                                    optionValue="value"
                                     placeholder="Select Customer Type"
-                                    styleClass="w-full">
-                            </p-select>
-                        </div>
+                                    class="w-full">
+                                </app-form-select>
+                            </div>
 
-                        <!-- First Name -->
-                        <div>
-                            <label class="block mb-2 font-semibold" for="first_name">First Name</label>
-                            <input [pAutoFocus]="true" class="w-full" formControlName="first_name"
-                                   id="first_name" pInputText/>
-                            <small *ngIf="hasError('first_name', 'required')" class="block mt-1 p-error">
-                                First name is required
-                            </small>
-                        </div>
+                            <!-- First Name -->
+                            <div>
+                                <label class="block mb-2 font-semibold text-gray-700" for="first_name">First Name</label>
+                                <input 
+                                    autofocus
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                                    formControlName="first_name"
+                                    id="first_name"
+                                    type="text"
+                                    [class.border-red-500]="hasError('first_name', 'required')"
+                                    [class.focus:ring-red-500]="hasError('first_name', 'required')"
+                                />
+                                <small *ngIf="hasError('first_name', 'required')" class="block mt-1 text-red-600 text-sm">
+                                    First name is required
+                                </small>
+                            </div>
 
-                        <!-- Last Name -->
-                        <div>
-                            <label class="block mb-2 font-semibold" for="last_name">Last Name</label>
-                            <input class="w-full" formControlName="last_name" id="last_name"
-                                   pInputText/>
-                            <small *ngIf="hasError('last_name', 'required')" class="block mt-1 p-error">
-                                Last name is required
-                            </small>
-                        </div>
+                            <!-- Last Name -->
+                            <div>
+                                <label class="block mb-2 font-semibold text-gray-700" for="last_name">Last Name</label>
+                                <input 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                                    formControlName="last_name" 
+                                    id="last_name"
+                                    type="text"
+                                    [class.border-red-500]="hasError('last_name', 'required')"
+                                    [class.focus:ring-red-500]="hasError('last_name', 'required')"
+                                />
+                                <small *ngIf="hasError('last_name', 'required')" class="block mt-1 text-red-600 text-sm">
+                                    Last name is required
+                                </small>
+                            </div>
 
-                        <!-- Email -->
-                        <div>
-                            <label class="block mb-2 font-semibold" for="email">Email</label>
-                            <input class="w-full" formControlName="email" id="email"
-                                   pInputText/>
-                            <small *ngIf="hasError('email', 'email')" class="block mt-1 p-error">
-                                Invalid email format
-                            </small>
-                        </div>
+                            <!-- Email -->
+                            <div>
+                                <label class="block mb-2 font-semibold text-gray-700" for="email">Email</label>
+                                <input 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                                    formControlName="email" 
+                                    id="email"
+                                    type="email"
+                                    [class.border-red-500]="hasError('email', 'email')"
+                                    [class.focus:ring-red-500]="hasError('email', 'email')"
+                                />
+                                <small *ngIf="hasError('email', 'email')" class="block mt-1 text-red-600 text-sm">
+                                    Invalid email format
+                                </small>
+                            </div>
 
-                        <!-- Phone -->
-                        <div>
-                            <label class="block mb-2 font-semibold" for="phone">Phone</label>
-                            <input class="w-full" formControlName="phone" id="phone"
-                                   pInputText/>
-                        </div>
+                            <!-- Phone -->
+                            <div>
+                                <label class="block mb-2 font-semibold text-gray-700" for="phone">Phone</label>
+                                <input 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                                    formControlName="phone" 
+                                    id="phone"
+                                    type="tel"
+                                />
+                            </div>
 
-                        <!-- Status -->
-                        <div>
-                            <label class="block mb-2 font-semibold" for="status">Status</label>
-                            <p-select
+                            <!-- Status -->
+                            <div>
+                                <label class="block mb-2 font-semibold text-gray-700" for="status">Status</label>
+                                <app-form-select
                                     [options]="customerStatuses"
                                     formControlName="status"
-                                    optionLabel="label"
-                                    optionValue="value"
                                     placeholder="Select Status"
-                                    styleClass="w-full">
-                            </p-select>
-                        </div>
-                    </div>
-
-                    <!-- Type-specific fields -->
-                    <div class="mt-6" formGroupName="metadata">
-                        <p-divider></p-divider>
-
-                        <!-- Company-specific fields -->
-                        <div *ngIf="customerForm.get('type')?.value === 'company'"
-                             class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2">
-                            <div class="col-span-full">
-                                <h3 class="mb-4 text-lg font-medium">Company Information</h3>
-                            </div>
-
-                            <!-- Company Name -->
-                            <div>
-                                <label class="block mb-2 font-semibold" for="company_name">Company Name</label>
-                                <input class="w-full" formControlName="company_name" id="company_name"
-                                       pInputText/>
-                                <small *ngIf="hasMetadataError('company_name', 'required')" class="block mt-1 p-error">
-                                    Company name is required
-                                </small>
-                            </div>
-
-                            <!-- Business ID -->
-                            <div>
-                                <label class="block mb-2 font-semibold" for="business_id">Business ID</label>
-                                <input class="w-full" formControlName="business_id" id="business_id"
-                                       pInputText/>
-                                <small *ngIf="hasMetadataError('business_id', 'required')" class="block mt-1 p-error">
-                                    Business ID is required
-                                </small>
-                            </div>
-
-                            <!-- Tax ID -->
-                            <div>
-                                <label class="block mb-2 font-semibold" for="tax_id">Tax ID</label>
-                                <input class="w-full" formControlName="tax_id" id="tax_id"
-                                       pInputText/>
+                                    class="w-full">
+                                </app-form-select>
                             </div>
                         </div>
 
-                        <!-- Notes field (for all types) -->
-                        <div class="mt-4">
-                            <label class="block mb-2 font-semibold" for="notes">Notes</label>
-                            <textarea autoResize="true" class="w-full" formControlName="notes"
-                                      id="notes" pTextarea rows="5"></textarea>
+                        <!-- Type-specific fields -->
+                        <div class="mt-6" formGroupName="metadata">
+                            <hr class="border-gray-200 my-6">
+
+                            <!-- Company-specific fields -->
+                            <div *ngIf="customerForm.get('type')?.value === 'company'"
+                                 class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2 animate-[slideIn_0.3s_ease-in-out]">
+                                <div class="col-span-full">
+                                    <h3 class="mb-4 text-lg font-medium text-gray-900">Company Information</h3>
+                                </div>
+
+                                <!-- Company Name -->
+                                <div>
+                                    <label class="block mb-2 font-semibold text-gray-700" for="company_name">Company Name</label>
+                                    <input 
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                                        formControlName="company_name" 
+                                        id="company_name"
+                                        type="text"
+                                        [class.border-red-500]="hasMetadataError('company_name', 'required')"
+                                        [class.focus:ring-red-500]="hasMetadataError('company_name', 'required')"
+                                    />
+                                    <small *ngIf="hasMetadataError('company_name', 'required')" class="block mt-1 text-red-600 text-sm">
+                                        Company name is required
+                                    </small>
+                                </div>
+
+                                <!-- Business ID -->
+                                <div>
+                                    <label class="block mb-2 font-semibold text-gray-700" for="business_id">Business ID</label>
+                                    <input 
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                                        formControlName="business_id" 
+                                        id="business_id"
+                                        type="text"
+                                        [class.border-red-500]="hasMetadataError('business_id', 'required')"
+                                        [class.focus:ring-red-500]="hasMetadataError('business_id', 'required')"
+                                    />
+                                    <small *ngIf="hasMetadataError('business_id', 'required')" class="block mt-1 text-red-600 text-sm">
+                                        Business ID is required
+                                    </small>
+                                </div>
+
+                                <!-- Tax ID -->
+                                <div>
+                                    <label class="block mb-2 font-semibold text-gray-700" for="tax_id">Tax ID</label>
+                                    <input 
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                                        formControlName="tax_id" 
+                                        id="tax_id"
+                                        type="text"
+                                    />
+                                </div>
+                            </div>
+
+                            <!-- Notes field (for all types) -->
+                            <div class="mt-4">
+                                <label class="block mb-2 font-semibold text-gray-700" for="notes">Notes</label>
+                                <textarea 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 resize-y min-h-[120px]"
+                                    formControlName="notes"
+                                    id="notes" 
+                                    rows="5"
+                                    placeholder="Additional notes about the customer...">
+                                </textarea>
+                            </div>
                         </div>
-                    </div>
-                </form>
-            </p-card>
+                    </form>
+                </div>
+            </app-card>
         </div>
 
         <!-- Addresses Section -->
         <div class="md:col-span-1">
-            <p-card styleClass="shadow-md h-full">
-                <ng-template pTemplate="header">
-                    <div class="flex justify-between items-center p-4 bg-primary-50">
-                        <h2 class="text-xl font-semibold text-primary">Addresses</h2>
-                        <p-button (onClick)="openAddressForm()" icon="pi pi-plus"
-                                  pTooltip="Add Address" styleClass="p-button-sm"
-                                  tooltipPosition="left"></p-button>
-                    </div>
-                </ng-template>
+            <app-card class="shadow-md h-full">
+                <div slot="header" class="flex justify-between items-center p-4 bg-blue-50 border-b border-gray-200">
+                    <h2 class="text-xl font-semibold text-blue-600 m-0">Addresses</h2>
+                    <app-tooltip content="Add Address" position="left">
+                        <app-button 
+                            (click)="openAddressForm()" 
+                            variant="primary" 
+                            size="sm"
+                            class="transition-all duration-200 hover:scale-105">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                        </app-button>
+                    </app-tooltip>
+                </div>
 
-                <div class="address-list">
-                    <div *ngIf="!customer.addresses?.length" class="py-6 text-center">
-                        <p class="text-gray-500">No addresses added yet</p>
-                    </div>
-
-                    <div *ngFor="let address of customer.addresses; let i = index"
-                         class="p-3 mb-3 address-item border-round surface-hover">
-                        <div class="flex justify-between">
-                            <h5 class="m-0 font-semibold">{{ address.label || 'Address ' + (i + 1) }}</h5>
-                            <div class="flex gap-2">
-                                <p-button (click)="openAddressForm(i)" class="p-button-text p-button-sm"
-                                          icon="pi pi-pencil" pTooltip="Edit"></p-button>
-                                <p-button (click)="removeAddress(i)" class="p-button-text p-button-sm p-button-danger"
-                                          icon="pi pi-trash"
-                                          pButton pTooltip="Remove"></p-button>
-                            </div>
+                <div class="p-6">
+                    <div class="address-list">
+                        <div *ngIf="!customer.addresses?.length" class="py-6 text-center animate-[fadeIn_0.3s_ease-in-out]">
+                            <svg class="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                            <p class="text-gray-500">No addresses added yet</p>
+                            <app-button 
+                                (click)="openAddressForm()" 
+                                variant="primary" 
+                                size="sm"
+                                class="mt-3 transition-all duration-200 hover:-translate-y-0.5">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                                Add First Address
+                            </app-button>
                         </div>
-                        <div class="mt-2 address-details">
-                            <p class="m-0 text-sm text-gray-700">{{ address.address }}</p>
-                            <p class="m-0 text-sm text-gray-700">{{ address.city }}, {{ address.state }}</p>
-                            <p class="m-0 text-sm text-gray-700">{{ address.country }} {{ address.postal_code }}</p>
+
+                        <div *ngFor="let address of customer.addresses; let i = index"
+                             class="p-4 mb-3 bg-gray-50 border border-gray-200 rounded-lg hover:shadow-md transition-all duration-200 animate-[slideIn_0.3s_ease-in-out]">
+                            <div class="flex justify-between items-start">
+                                <h5 class="m-0 font-semibold text-gray-900 mb-2">{{ address.label || 'Address ' + (i + 1) }}</h5>
+                                <div class="flex gap-1">
+                                    <app-tooltip content="Edit Address">
+                                        <app-button 
+                                            (click)="openAddressForm(i)" 
+                                            variant="secondary" 
+                                            size="sm"
+                                            class="transition-all duration-200 hover:scale-105">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                            </svg>
+                                        </app-button>
+                                    </app-tooltip>
+                                    <app-tooltip content="Remove Address">
+                                        <app-button 
+                                            (click)="removeAddress(i)" 
+                                            variant="danger" 
+                                            size="sm"
+                                            class="transition-all duration-200 hover:scale-105">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                            </svg>
+                                        </app-button>
+                                    </app-tooltip>
+                                </div>
+                            </div>
+                            <div class="address-details text-sm text-gray-700 space-y-1">
+                                <p class="m-0">{{ address.address }}</p>
+                                <p class="m-0">{{ address.city }}, {{ address.state }}</p>
+                                <p class="m-0">{{ address.country }} {{ address.postal_code }}</p>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </p-card>
+            </app-card>
         </div>
     </div>
 </div>
@@ -191,6 +283,3 @@
     (save)="onAddressSave($event)"
     (cancel)="onAddressCancel()">
 </app-address-form>
-
-<!-- Toast for notifications -->
-<p-toast></p-toast>

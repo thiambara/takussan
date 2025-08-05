@@ -19,12 +19,12 @@ export interface Media extends BaseModelInterface {
   is_featured?: boolean; // Custom property for featured media
   created_at?: string;
   updated_at?: string;
-  
+
   // URLs for the media
   original_url?: string; // URL to the original file
   preview_url?: string; // URL to the preview conversion
   thumbnail_url?: string; // URL to the thumbnail conversion
-  
+
   // Helper properties
   is_image?: boolean; // Whether the media is an image
   extension?: string; // File extension

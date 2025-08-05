@@ -5,29 +5,17 @@ export const routes: Routes = [
   {
     'path': '',
     canActivate: [authGuard],
-    loadComponent: () => import('./component/layout2.component').then(m => m.Layout2Component),
+    loadComponent: () => import('./component/layout2').then(m => m.Layout2),
     children: [
       {
         'path': '',
-        redirectTo: 'properties',
+        redirectTo: 'home',
         pathMatch: 'full'
       },
       {
         'path': 'home',
-        loadComponent: () => import('../../../pages/dashboard/home/home.component').then(m => m.HomeComponent)
+        loadComponent: () => import('../../../pages/homepage/homepage.component').then(m => m.HomepageComponent)
       },
-      {
-        path: 'properties',
-        loadChildren: () => import('../../../pages/dashboard/properties/properties.routes').then(m => m.routes),
-      },
-      {
-        path: 'customers',
-        loadChildren: () => import('../../../pages/dashboard/customers/customers.routes').then(m => m.routes),
-      },
-      {
-        path: 'bookings',
-        loadChildren: () => import('../../../pages/dashboard/bookings/bookings.routes').then(m => m.routes),
-      }
     ]
   },
 ];
