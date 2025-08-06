@@ -1,15 +1,13 @@
 import {Component, HostListener, OnInit} from '@angular/core';
-import {MenuItem} from 'primeng/api';
 import {Router, RouterModule} from '@angular/router';
 import {CommonModule} from '@angular/common';
-import {StyleClassModule} from 'primeng/styleclass';
-import {menuItems} from "./menu";
+import {menuItems, MenuItemNative} from "./menu";
 import {Layout2Service} from "../service/layout2.service";
 
 @Component({
   selector: 'app-topbar',
   standalone: true,
-  imports: [RouterModule, CommonModule, StyleClassModule],
+  imports: [RouterModule, CommonModule],
   template: `
       <header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#eaedf1] px-10 py-3">
           <div class="flex items-center gap-4 text-[#101518]">
@@ -99,7 +97,7 @@ import {Layout2Service} from "../service/layout2.service";
   ]
 })
 export class Topbar implements OnInit {
-  menuItems: MenuItem[] = menuItems;
+  menuItems: MenuItemNative[] = menuItems;
   isMobileMenuVisible = false;
   isMobileScreen = false;
 

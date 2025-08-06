@@ -1,12 +1,11 @@
 import {Component} from '@angular/core';
 import {RouterModule} from '@angular/router';
 import {CommonModule} from '@angular/common';
-import {StyleClassModule} from 'primeng/styleclass';
 
 @Component({
   selector: 'app-footer',
   standalone: true,
-  imports: [RouterModule, CommonModule, StyleClassModule],
+  imports: [RouterModule, CommonModule],
   template: `
       <!-- Footer -->
       <footer class="bg-gray-900 text-white py-12 mt-16">

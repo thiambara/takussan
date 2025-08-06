@@ -195,7 +195,8 @@
                         text="This value is automatically calculated based on the property price and the number of days between start and end dates. You can also manually adjust it if needed."
                 >
                     <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"
+                        <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round"
+                              stroke-linejoin="round"
                               stroke-width="2"></path>
                     </svg>
                 </app-tooltip>
@@ -294,7 +295,7 @@
         </app-button>
         <app-button
                 (click)="saveBooking()"
-                [disabled]="bookingForm?.invalid"
+                [disabled]="bookingForm.invalid"
                 class="transition-all duration-200 hover:-translate-y-0.5"
                 variant="primary"
         >

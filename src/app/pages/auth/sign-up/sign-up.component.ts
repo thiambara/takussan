@@ -1,12 +1,10 @@
 import {Component, HostListener, OnInit} from '@angular/core';
 import {CommonModule} from "@angular/common";
-import {Button} from "primeng/button";
-import {InputText} from "primeng/inputtext";
 import {FormsModule} from "@angular/forms";
-import {Password} from "primeng/password";
 import {ActivatedRoute, Router, RouterLink} from "@angular/router";
 import {User} from "../../../core/models/http/user.model";
 import {AuthService} from "../../../core/services/http/auth/auth.service";
+import {ButtonComponent} from "../../../shared/components";
 
 @Component({
 
@@ -16,14 +14,14 @@ import {AuthService} from "../../../core/services/http/auth/auth.service";
     CommonModule,
     FormsModule,
     RouterLink,
-    Password,
-    Button,
-    InputText
+    ButtonComponent
   ],
   standalone: true
 })
 export class SignUpComponent implements OnInit {
   redirectUrl: string = "/login";
+  showPassword: boolean = false;
+  showPasswordConfirmation: boolean = false;
 
   user: User & { passwordConfirmation: string } = {
     first_name: '',
@@ -67,6 +65,14 @@ export class SignUpComponent implements OnInit {
 
   onRegistrationSuccess() {
     this.router.navigate([this.redirectUrl]).then();
+  }
+
+  togglePasswordVisibility() {
+    this.showPassword = !this.showPassword;
+  }
+
+  togglePasswordConfirmationVisibility() {
+    this.showPasswordConfirmation = !this.showPasswordConfirmation;
   }
 
   @HostListener("window:keyup", ["$event"])

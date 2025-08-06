@@ -1,10 +1,9 @@
 import {Routes} from '@angular/router';
-import {notAuthGuard} from "./core/guards/not-auth.guard";
 
 export const routes: Routes = [
   {
     path: '',
-    redirectTo: 'client',
+    redirectTo: 'dashboard2',
     pathMatch: 'full',
   },
   {
@@ -12,17 +11,17 @@ export const routes: Routes = [
     loadChildren: () => import('./core/layouts/layout2/layout2.routes').then(m => m.routes),
   },
   {
-    'path': 'dashboard',
-    loadChildren: () => import('./core/layouts/dashboard/dashboard.routes').then(m => m.routes),
+    'path': 'dashboard2',
+    loadChildren: () => import('./core/layouts/dashboard2/dashboard2.routes').then(m => m.routes),
   },
   {
     'path': 'login',
-    canActivate: [notAuthGuard],
+    // canActivate: [notAuthGuard],
     loadComponent: () => import('./pages/auth/login/login.component').then(m => m.LoginComponent)
   },
   {
     'path': 'sign-up',
-    canActivate: [notAuthGuard],
+    // canActivate: [notAuthGuard],
     loadComponent: () => import('./pages/auth/sign-up/sign-up.component').then(m => m.SignUpComponent)
   }
 ];

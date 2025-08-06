@@ -42,7 +42,7 @@ export class FormSelectComponent implements ControlValueAccessor {
   @Input() placeholder?: string;
   @Input() disabled: boolean = false;
   @Input() size: 'sm' | 'md' | 'lg' = 'md';
-  @Input() hasError: boolean = false;
+  @Input() hasError?: boolean = false;
 
   @Output() selectionChange = new EventEmitter<any>();
 

@@ -1,13 +1,10 @@
 import {Component, HostListener, OnInit} from '@angular/core';
 import {CommonModule} from "@angular/common";
-import {Checkbox} from "primeng/checkbox";
-import {InputText} from "primeng/inputtext";
 import {FormsModule} from "@angular/forms";
-import {Password} from "primeng/password";
 import {ActivatedRoute, Router, RouterLink} from "@angular/router";
 import {AuthService} from "../../../core/services/http/auth/auth.service";
 import {AppFloatingConfigurator} from "../../../core/layouts/dashboard/component/dashboard.floatingconfigurator";
-import {Button} from "primeng/button";
+import {ButtonComponent} from "../../../shared/components";
 
 @Component({
 
@@ -16,12 +13,9 @@ import {Button} from "primeng/button";
   imports: [
     CommonModule,
     FormsModule,
-    Password,
-    Checkbox,
     RouterLink,
-    InputText,
     AppFloatingConfigurator,
-    Button,
+    ButtonComponent,
   ],
   standalone: true
 })
@@ -32,6 +26,7 @@ export class LoginComponent implements OnInit {
   username!: string;
   password!: string;
   rememberMe: boolean = false;
+  showPassword: boolean = false;
 
   constructor(
     private authService: AuthService,
@@ -52,6 +47,10 @@ export class LoginComponent implements OnInit {
       }
     }
     return false;
+  }
+
+  togglePasswordVisibility() {
+    this.showPassword = !this.showPassword;
   }
 
   login() {

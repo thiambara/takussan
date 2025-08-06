@@ -1,9 +1,15 @@
-import {MenuItem} from "primeng/api";
+// Native menu item interface to replace PrimeNG MenuItem
+export interface MenuItemNative {
+  label: string;
+  routerLink?: string;
+  icon?: string;
+  visible?: boolean;
+}
 
-export const menuItems: MenuItem[] = [
+export const menuItems: MenuItemNative[] = [
   {label: 'Dashboard', routerLink: '/dashboard', icon: 'dashboard', visible: true},
-  {label: 'Properties', icon: 'pi pi-fw pi-home', routerLink: ['/dashboard/properties'], visible: true},
-  {label: 'Bookings', icon: 'pi pi-fw pi-home', routerLink: ['/dashboard/bookings'], visible: true},
-  {label: 'Customers', icon: 'pi pi-fw pi-users', routerLink: ['/dashboard/customers'], visible: true},
-  {label: 'Reports', routerLink: '/reports', icon: 'bar_chart', visible: true}
+  {label: 'Properties', icon: 'home', routerLink: '/dashboard/properties', visible: true},
+  {label: 'Bookings', icon: 'calendar', routerLink: '/dashboard/bookings', visible: true},
+  {label: 'Customers', icon: 'users', routerLink: '/dashboard/customers', visible: true},
+  {label: 'Reports', routerLink: '/reports', icon: 'chart', visible: true}
 ];

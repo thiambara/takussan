@@ -8,7 +8,7 @@
             <app-status-badge
                     *ngIf="customer?.status"
                     [label]="customer?.status ?? ''"
-                    [variant]="getStatusVariant(customer?.status)">
+                    [variant]="getStatusVariant(customer?.status!)">
             </app-status-badge>
         </div>
         <div class="flex gap-2 items-center">

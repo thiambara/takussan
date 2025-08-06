@@ -3,19 +3,19 @@
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
         <div>
             <h1 class="mb-2 text-3xl font-bold text-blue-600 transition-colors duration-300">{{ property?.title || 'Property Details' }}</h1>
-            <app-status-badge 
-                [label]="property?.status || 'Unknown'" 
-                [variant]="getStatusVariant(property?.status || '')"
-                class="transform hover:scale-105 transition-transform duration-200"
+            <app-status-badge
+                    [label]="property?.status || 'Unknown'"
+                    [variant]="getStatusVariant(property?.status || '')"
+                    class="transform hover:scale-105 transition-transform duration-200"
             ></app-status-badge>
         </div>
         <div class="flex gap-2">
-            <app-button 
-                (click)="editProperty()" 
-                icon="pi pi-pencil" 
-                label="Edit Property"
-                variant="outline"
-                class="transform hover:-translate-y-1 transition-transform duration-200"
+            <app-button
+                    (click)="editProperty()"
+                    class="transform hover:-translate-y-1 transition-transform duration-200"
+                    icon="pi pi-pencil"
+                    label="Edit Property"
+                    variant="secondary"
             ></app-button>
         </div>
     </div>
@@ -23,10 +23,10 @@
     <!-- Property details in tabs -->
     <div class="transition-all duration-300">
         <app-tabs [(activeIndex)]="activeTabIndex">
-            <app-tab label="Overview" [value]="0" class="animate-[slideIn_0.3s_ease-in-out]">
+            <app-tab [value]="0" class="animate-[slideIn_0.3s_ease-in-out]" label="Overview">
                 <div class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2">
                     <app-card class="transform hover:-translate-y-1 transition-all duration-300 hover:shadow-lg">
-                        <div slot="header" class="bg-blue-50">
+                        <div class="bg-blue-50" slot="header">
                             <h2 class="text-xl font-semibold text-blue-600">Basic Information</h2>
                         </div>
 
@@ -54,7 +54,7 @@
                     </app-card>
 
                     <app-card class="transform hover:-translate-y-1 transition-all duration-300 hover:shadow-lg">
-                        <div slot="header" class="bg-blue-50">
+                        <div class="bg-blue-50" slot="header">
                             <h2 class="text-xl font-semibold text-blue-600">Price Information</h2>
                         </div>
 
@@ -77,8 +77,9 @@
                     </app-card>
 
                     <!-- Type-specific details -->
-                    <app-card *ngIf="property?.metadata" class="transform hover:-translate-y-1 transition-all duration-300 hover:shadow-lg">
-                        <div slot="header" class="bg-blue-50">
+                    <app-card *ngIf="property?.metadata"
+                              class="transform hover:-translate-y-1 transition-all duration-300 hover:shadow-lg">
+                        <div class="bg-blue-50" slot="header">
                             <h2 class="text-xl font-semibold text-blue-600">{{ getTypeSpecificLabel() }}</h2>
                         </div>
 
@@ -106,11 +107,26 @@
                         <div *ngIf="isResidentialType()" class="mt-4">
                             <h6 class="mb-2 text-gray-500 text-sm font-medium">Features</h6>
                             <div class="flex flex-wrap gap-2">
-                                <app-status-badge *ngIf="property?.metadata?.has_balcony" variant="info" label="Balcony" class="transform hover:scale-105 transition-transform duration-200"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_garden" variant="info" label="Garden" class="transform hover:scale-105 transition-transform duration-200"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_pool" variant="info" label="Pool" class="transform hover:scale-105 transition-transform duration-200"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_elevator" variant="info" label="Elevator" class="transform hover:scale-105 transition-transform duration-200"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.air_conditioning" variant="info" label="Air Conditioning" class="transform hover:scale-105 transition-transform duration-200"></app-status-badge>
+                                <app-status-badge *ngIf="property?.metadata?.has_balcony"
+                                                  class="transform hover:scale-105 transition-transform duration-200"
+                                                  label="Balcony"
+                                                  variant="info"></app-status-badge>
+                                <app-status-badge *ngIf="property?.metadata?.has_garden"
+                                                  class="transform hover:scale-105 transition-transform duration-200"
+                                                  label="Garden"
+                                                  variant="info"></app-status-badge>
+                                <app-status-badge *ngIf="property?.metadata?.has_pool"
+                                                  class="transform hover:scale-105 transition-transform duration-200"
+                                                  label="Pool"
+                                                  variant="info"></app-status-badge>
+                                <app-status-badge *ngIf="property?.metadata?.has_elevator"
+                                                  class="transform hover:scale-105 transition-transform duration-200"
+                                                  label="Elevator"
+                                                  variant="info"></app-status-badge>
+                                <app-status-badge *ngIf="property?.metadata?.air_conditioning"
+                                                  class="transform hover:scale-105 transition-transform duration-200"
+                                                  label="Air Conditioning"
+                                                  variant="info"></app-status-badge>
                             </div>
                         </div>
 
@@ -134,10 +150,22 @@
                         <div *ngIf="isPropertyType('land')" class="mt-4">
                             <h6 class="mb-2 text-gray-500 text-sm font-medium">Features</h6>
                             <div class="flex flex-wrap gap-2">
-                                <app-status-badge *ngIf="property?.metadata?.is_developed" variant="info" label="Developed" class="transform hover:scale-105 transition-transform duration-200"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_water_connection" variant="info" label="Water Connection" class="transform hover:scale-105 transition-transform duration-200"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_electricity_connection" variant="info" label="Electricity" class="transform hover:scale-105 transition-transform duration-200"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_road_access" variant="info" label="Road Access" class="transform hover:scale-105 transition-transform duration-200"></app-status-badge>
+                                <app-status-badge *ngIf="property?.metadata?.is_developed"
+                                                  class="transform hover:scale-105 transition-transform duration-200"
+                                                  label="Developed"
+                                                  variant="info"></app-status-badge>
+                                <app-status-badge *ngIf="property?.metadata?.has_water_connection"
+                                                  class="transform hover:scale-105 transition-transform duration-200"
+                                                  label="Water Connection"
+                                                  variant="info"></app-status-badge>
+                                <app-status-badge *ngIf="property?.metadata?.has_electricity_connection"
+                                                  class="transform hover:scale-105 transition-transform duration-200"
+                                                  label="Electricity"
+                                                  variant="info"></app-status-badge>
+                                <app-status-badge *ngIf="property?.metadata?.has_road_access"
+                                                  class="transform hover:scale-105 transition-transform duration-200"
+                                                  label="Road Access"
+                                                  variant="info"></app-status-badge>
                             </div>
                         </div>
 
@@ -165,11 +193,26 @@
                         <div *ngIf="isPropertyType('office')" class="mt-4">
                             <h6 class="mb-2 text-gray-500 text-sm font-medium">Features</h6>
                             <div class="flex flex-wrap gap-2">
-                                <app-status-badge *ngIf="property?.metadata?.has_reception" variant="info" label="Reception" class="transform hover:scale-105 transition-transform duration-200"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_kitchen" variant="info" label="Kitchen" class="transform hover:scale-105 transition-transform duration-200"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_server_room" variant="info" label="Server Room" class="transform hover:scale-105 transition-transform duration-200"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_elevator" variant="info" label="Elevator" class="transform hover:scale-105 transition-transform duration-200"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.air_conditioning" variant="info" label="Air Conditioning" class="transform hover:scale-105 transition-transform duration-200"></app-status-badge>
+                                <app-status-badge *ngIf="property?.metadata?.has_reception"
+                                                  class="transform hover:scale-105 transition-transform duration-200"
+                                                  label="Reception"
+                                                  variant="info"></app-status-badge>
+                                <app-status-badge *ngIf="property?.metadata?.has_kitchen"
+                                                  class="transform hover:scale-105 transition-transform duration-200"
+                                                  label="Kitchen"
+                                                  variant="info"></app-status-badge>
+                                <app-status-badge *ngIf="property?.metadata?.has_server_room"
+                                                  class="transform hover:scale-105 transition-transform duration-200"
+                                                  label="Server Room"
+                                                  variant="info"></app-status-badge>
+                                <app-status-badge *ngIf="property?.metadata?.has_elevator"
+                                                  class="transform hover:scale-105 transition-transform duration-200"
+                                                  label="Elevator"
+                                                  variant="info"></app-status-badge>
+                                <app-status-badge *ngIf="property?.metadata?.air_conditioning"
+                                                  class="transform hover:scale-105 transition-transform duration-200"
+                                                  label="Air Conditioning"
+                                                  variant="info"></app-status-badge>
                             </div>
                         </div>
 
@@ -181,7 +224,8 @@
                             </div>
                             <div class="flex flex-col">
                                 <h6 class="mb-1 text-gray-500 text-sm font-medium">Store Front Width</h6>
-                                <p class="text-lg text-gray-900">{{ property?.metadata?.store_front_width || 'N/A' }} m</p>
+                                <p class="text-lg text-gray-900">{{ property?.metadata?.store_front_width || 'N/A' }}
+                                    m</p>
                             </div>
                             <div class="flex flex-col">
                                 <h6 class="mb-1 text-gray-500 text-sm font-medium">Bathrooms</h6>
@@ -193,20 +237,34 @@
                         <div *ngIf="isPropertyType('store')" class="mt-4">
                             <h6 class="mb-2 text-gray-500 text-sm font-medium">Features</h6>
                             <div class="flex flex-wrap gap-2">
-                                <app-status-badge *ngIf="property?.metadata?.has_storage" variant="info" label="Storage" class="transform hover:scale-105 transition-transform duration-200"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_loading_dock" variant="info" label="Loading Dock" class="transform hover:scale-105 transition-transform duration-200"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_display_window" variant="info" label="Display Window" class="transform hover:scale-105 transition-transform duration-200"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.air_conditioning" variant="info" label="Air Conditioning" class="transform hover:scale-105 transition-transform duration-200"></app-status-badge>
+                                <app-status-badge *ngIf="property?.metadata?.has_storage"
+                                                  class="transform hover:scale-105 transition-transform duration-200"
+                                                  label="Storage"
+                                                  variant="info"></app-status-badge>
+                                <app-status-badge *ngIf="property?.metadata?.has_loading_dock"
+                                                  class="transform hover:scale-105 transition-transform duration-200"
+                                                  label="Loading Dock"
+                                                  variant="info"></app-status-badge>
+                                <app-status-badge *ngIf="property?.metadata?.has_display_window"
+                                                  class="transform hover:scale-105 transition-transform duration-200"
+                                                  label="Display Window"
+                                                  variant="info"></app-status-badge>
+                                <app-status-badge *ngIf="property?.metadata?.air_conditioning"
+                                                  class="transform hover:scale-105 transition-transform duration-200"
+                                                  label="Air Conditioning"
+                                                  variant="info"></app-status-badge>
                             </div>
                         </div>
                     </app-card>
                 </div>
 
                 <app-card class="mt-6 transform hover:-translate-y-1 transition-all duration-300 hover:shadow-lg">
-                    <div slot="header" class="bg-blue-50">
+                    <div class="bg-blue-50" slot="header">
                         <div class="flex justify-between items-center">
                             <h2 class="text-xl font-semibold text-blue-600">Media & Documents</h2>
-                            <app-button icon="pi pi-upload" label="Upload" size="sm" class="transform hover:-translate-y-1 transition-transform duration-200"></app-button>
+                            <app-button class="transform hover:-translate-y-1 transition-transform duration-200"
+                                        icon="pi pi-upload" label="Upload"
+                                        size="sm"></app-button>
                         </div>
                     </div>
 
@@ -241,12 +299,14 @@
                         <i class="mb-4 text-5xl text-gray-300 pi pi-images transition-transform duration-200 hover:scale-110"></i>
                         <h3 class="mb-2 text-xl text-gray-600">No Media Available</h3>
                         <p class="mb-4 text-gray-500">Upload images or documents for this property.</p>
-                        <app-button icon="pi pi-upload" label="Upload Media" variant="outline" class="transform hover:-translate-y-1 transition-transform duration-200"></app-button>
+                        <app-button class="transform hover:-translate-y-1 transition-transform duration-200"
+                                    icon="pi pi-upload" label="Upload Media"
+                                    variant="secondary"></app-button>
                     </div>
                 </app-card>
 
                 <app-card class="mt-6 transform hover:-translate-y-1 transition-all duration-300 hover:shadow-lg">
-                    <div slot="header" class="bg-blue-50">
+                    <div class="bg-blue-50" slot="header">
                         <h2 class="text-xl font-semibold text-blue-600">Description</h2>
                     </div>
 
@@ -256,21 +316,24 @@
                 </app-card>
 
                 <!-- Services/Amenities -->
-                <app-card *ngIf="property?.servicing?.length" class="mt-6 transform hover:-translate-y-1 transition-all duration-300 hover:shadow-lg">
-                    <div slot="header" class="bg-blue-50">
+                <app-card *ngIf="property?.servicing?.length"
+                          class="mt-6 transform hover:-translate-y-1 transition-all duration-300 hover:shadow-lg">
+                    <div class="bg-blue-50" slot="header">
                         <h2 class="text-xl font-semibold text-blue-600">Services & Amenities</h2>
                     </div>
 
                     <div class="flex flex-wrap gap-2">
-                        <app-status-badge *ngFor="let service of property?.servicing" [label]="service" variant="info" class="transform hover:scale-105 transition-transform duration-200"></app-status-badge>
+                        <app-status-badge *ngFor="let service of property?.servicing" [label]="service"
+                                          class="transform hover:scale-105 transition-transform duration-200"
+                                          variant="info"></app-status-badge>
                     </div>
                 </app-card>
             </app-tab>
 
             <!-- Location Tab -->
-            <app-tab *ngIf="property?.address" label="Location" [value]="1" class="animate-[slideIn_0.3s_ease-in-out]">
+            <app-tab *ngIf="property?.address" [value]="1" class="animate-[slideIn_0.3s_ease-in-out]" label="Location">
                 <app-card class="transform hover:-translate-y-1 transition-all duration-300 hover:shadow-lg">
-                    <div slot="header" class="bg-blue-50">
+                    <div class="bg-blue-50" slot="header">
                         <h2 class="text-xl font-semibold text-blue-600">Address Information</h2>
                     </div>
 
@@ -307,16 +370,16 @@
             </app-tab>
 
             <!-- Bookings Tab -->
-            <app-tab label="Bookings" [value]="2" class="animate-[slideIn_0.3s_ease-in-out]">
+            <app-tab [value]="2" class="animate-[slideIn_0.3s_ease-in-out]" label="Bookings">
                 <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-4">
                     <h2 class="text-xl font-semibold text-blue-600">Property Bookings</h2>
-                    <app-button 
-                        (click)="openNewBookingDialog()" 
-                        [disabled]="!property || !property.id" 
-                        icon="pi pi-plus"
-                        label="Add Booking" 
-                        variant="success"
-                        class="transform hover:-translate-y-1 transition-transform duration-200 disabled:transform-none disabled:opacity-50"
+                    <app-button
+                            (click)="openNewBookingDialog()"
+                            [disabled]="!property || !property.id"
+                            class="transform hover:-translate-y-1 transition-transform duration-200 disabled:transform-none disabled:opacity-50"
+                            icon="pi pi-plus"
+                            label="Add Booking"
+                            variant="success"
                     ></app-button>
                 </div>
 
@@ -336,12 +399,12 @@
                     <i class="mb-4 text-5xl text-gray-400 pi pi-calendar transition-transform duration-200 hover:scale-110"></i>
                     <h3 class="mb-2 text-xl text-gray-600">No Bookings Found</h3>
                     <p class="mb-4 text-gray-500">This property doesn't have any bookings yet.</p>
-                    <app-button 
-                        (click)="openNewBookingDialog()" 
-                        icon="pi pi-plus" 
-                        label="Create First Booking"
-                        variant="success"
-                        class="transform hover:-translate-y-1 transition-transform duration-200"
+                    <app-button
+                            (click)="openNewBookingDialog()"
+                            class="transform hover:-translate-y-1 transition-transform duration-200"
+                            icon="pi pi-plus"
+                            label="Create First Booking"
+                            variant="success"
                     ></app-button>
                 </div>
             </app-tab>
@@ -350,13 +413,13 @@
 </div>
 
 <!-- Media Preview Dialog -->
-<app-modal 
-    [(visible)]="showMediaPreviewDialog" 
-    [closeOnEscape]="true"
-    [closeOnBackdrop]="true"
-    size="xl"
-    title="Media Preview"
-    class="animate-[fadeInBackdrop_0.3s_ease-out]"
+<app-modal
+        [(visible)]="showMediaPreviewDialog"
+        [closeOnBackdrop]="true"
+        [closeOnEscape]="true"
+        class="animate-[fadeInBackdrop_0.3s_ease-out]"
+        size="xl"
+        title="Media Preview"
 >
     <div *ngIf="selectedMedia" class="flex flex-col items-center">
         <!-- Image Preview -->
@@ -371,10 +434,10 @@
             <app-button
                     (click)="closeMediaPreview()"
                     [loading]="downloadingFile"
+                    class="transform hover:-translate-y-1 transition-transform duration-200"
                     icon="pi pi-download"
                     label="Download File"
-                    variant="outline"
-                    class="transform hover:-translate-y-1 transition-transform duration-200"
+                    variant="secondary"
             ></app-button>
         </div>
     </div>
