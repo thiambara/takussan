@@ -1,91 +1,135 @@
-<div class="container mx-auto px-4 py-6">
-  <h1 class="text-2xl font-bold mb-6">Reservations</h1>
-  
-  <p-toast></p-toast>
-  <p-confirmDialog></p-confirmDialog>
-  
-  <p-card>
-    <ng-container *ngIf="loading">
-      <div class="flex justify-center items-center p-6">
-        <div class="spinner-border text-primary" role="status">
-          <span class="sr-only">Loading...</span>
+<div class="container mx-auto px-4 py-6 animate-fadeIn">
+    <h1 class="text-2xl font-bold mb-6 text-blue-600">Reservations</h1>
+
+    <app-card class="shadow-lg">
+        <!-- Loading State -->
+        <div *ngIf="loading" class="flex justify-center items-center p-12">
+            <div class="flex flex-col items-center gap-4">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <p class="text-gray-600 font-medium">Loading bookings...</p>
+            </div>
         </div>
-      </div>
-    </ng-container>
-    
-    <ng-container *ngIf="!loading">
-      <p-table 
-        [value]="bookings" 
-        [tableStyle]="{'min-width': '50rem'}"
-        [paginator]="true" 
-        [rows]="10"
-        [showCurrentPageReport]="true"
-        responsiveLayout="scroll">
-        
-        <ng-template pTemplate="header">
-          <tr>
-            <th>Reference</th>
-            <th>Property</th>
-            <th>Customer</th>
-            <th>Check-in</th>
-            <th>Check-out</th>
-            <th>Status</th>
-            <th>Amount</th>
-            <th>Actions</th>
-          </tr>
-        </ng-template>
-        
-        <ng-template pTemplate="body" let-booking>
-          <tr>
-            <td>{{ booking.reference_number }}</td>
-            <td>{{ booking.property?.title || 'N/A' }}</td>
-            <td>{{ booking.customer?.user?.full_name || 'N/A' }}</td>
-            <td>{{ formatDate(booking.check_in_date) }}</td>
-            <td>{{ formatDate(booking.check_out_date) }}</td>
-            <td>
-              <p-tag 
-                [value]="booking.status" 
-                [severity]="getStatusSeverity(booking.status)">
-              </p-tag>
-            </td>
-            <td>{{ formatCurrency(booking.total_amount) }}</td>
-            <td>
-              <div class="flex gap-2">
-                <button 
-                  pButton 
-                  icon="pi pi-eye" 
-                  class="p-button-rounded p-button-text" 
-                  (click)="viewBookingDetails(booking)"
-                  title="View details"></button>
-                  
-                <button 
-                  *ngIf="booking.status === 'pending'"
-                  pButton 
-                  icon="pi pi-check" 
-                  class="p-button-rounded p-button-success p-button-text" 
-                  (click)="confirmBooking(booking)"
-                  title="Confirm booking"></button>
-                  
-                <button 
-                  *ngIf="booking.status !== 'cancelled' && booking.status !== 'rejected'"
-                  pButton 
-                  icon="pi pi-times" 
-                  class="p-button-rounded p-button-danger p-button-text" 
-                  (click)="cancelBooking(booking)"
-                  title="Cancel booking"></button>
-              </div>
-            </td>
-          </tr>
-        </ng-template>
-        
-        <ng-template pTemplate="emptymessage">
-          <tr>
-            <td colspan="8" class="text-center p-4">
-              No bookings found.
-            </td>
-          </tr>
-        </ng-template>
-      </p-table>
-    </ng-container>
-  </p-card>
+
+        <!-- Bookings Table -->
+        <div *ngIf="!loading" class="overflow-hidden">
+            <app-data-table
+                    [columns]="tableColumns"
+                    [data]="bookings"
+                    [loading]="loading"
+                    [paginated]="true"
+                    [rowsPerPage]="10"
+                    class="w-full">
+
+                <!-- Status Column Template -->
+                <ng-template #statusTemplate let-booking="rowData">
+                    <app-status-badge
+                            [label]="booking.status"
+                            [variant]="getStatusVariant(booking.status)"
+                            class="animate-fadeIn">
+                    </app-status-badge>
+                </ng-template>
+
+                <!-- Amount Column Template -->
+                <ng-template #amountTemplate let-booking="rowData">
+          <span class="font-semibold text-gray-900">
+            {{ formatCurrency(booking.total_amount) }}
+          </span>
+                </ng-template>
+
+                <!-- Actions Column Template -->
+                <ng-template #actionsTemplate let-booking="rowData">
+                    <div class="flex gap-2 justify-center">
+                        <app-tooltip text="View details">
+                            <app-button
+                                    (click)="viewBookingDetails(booking)"
+                                    class="transition-transform hover:scale-110"
+                                    icon="eye"
+                                    size="sm"
+                                    variant="primary">
+                            </app-button>
+                        </app-tooltip>
+
+                        <app-tooltip
+                                *ngIf="booking.status === 'pending'"
+                                text="Confirm booking">
+                            <app-button
+                                    (click)="confirmBooking(booking)"
+                                    class="transition-transform hover:scale-110"
+                                    icon="check"
+                                    size="sm"
+                                    variant="success">
+                            </app-button>
+                        </app-tooltip>
+
+                        <app-tooltip
+                                *ngIf="booking.status !== 'cancelled' && booking.status !== 'rejected'"
+                                text="Cancel booking">
+                            <app-button
+                                    (click)="cancelBooking(booking)"
+                                    class="transition-transform hover:scale-110"
+                                    icon="times"
+                                    size="sm"
+                                    variant="danger">
+                            </app-button>
+                        </app-tooltip>
+                    </div>
+                </ng-template>
+
+                <!-- Empty State Template -->
+                <ng-template #emptyTemplate>
+                    <div class="flex flex-col items-center justify-center py-12 px-4">
+                        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                            <!-- Calendar Icon SVG -->
+                            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round"
+                                      stroke-width="2"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">No bookings found</h3>
+                        <p class="text-gray-500 text-center max-w-sm">
+                            There are no bookings to display at the moment. New bookings will appear here.
+                        </p>
+                    </div>
+                </ng-template>
+            </app-data-table>
+        </div>
+    </app-card>
 </div>
+
+<!-- Confirmation Modal -->
+<app-modal
+        [(visible)]="showConfirmDialog"
+        [closeOnBackdrop]="false"
+        [closeOnEscape]="true"
+        [size]="'sm'"
+        [title]="confirmDialogData.title">
+
+    <div class="p-4">
+        <div class="flex items-start gap-3">
+            <!-- Warning Icon -->
+            <div class="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" stroke-linecap="round" stroke-linejoin="round"
+                          stroke-width="2"></path>
+                </svg>
+            </div>
+            <div class="flex-1">
+                <p class="text-gray-900 font-medium mb-1">{{ confirmDialogData.title }}</p>
+                <p class="text-gray-600 text-sm">{{ confirmDialogData.message }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex justify-end gap-3 px-4 py-3 border-t border-gray-200" slot="footer">
+        <app-button
+                (click)="closeConfirmDialog()"
+                label="Cancel"
+                variant="secondary">
+        </app-button>
+        <app-button
+                (click)="acceptConfirmDialog()"
+                [label]="confirmDialogData.acceptLabel"
+                [variant]="confirmDialogData.severity === 'danger' ? 'danger' : 'primary'">
+        </app-button>
+    </div>
+</app-modal>

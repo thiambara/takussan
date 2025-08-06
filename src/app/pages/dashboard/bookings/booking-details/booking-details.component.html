@@ -1,131 +1,236 @@
-<div class="px-6 py-6 bg-white rounded-lg shadow-sm max-w-5xl mx-auto">
+<div class="px-6 py-6 bg-white rounded-lg shadow-sm max-w-5xl mx-auto animate-fadeIn">
     <!-- Header Navigation -->
     <div class="flex items-center mb-8">
-        <a [routerLink]="['/dashboard/reservations']" class="text-blue-600 hover:underline flex items-center gap-2">
-            <i class="pi pi-arrow-left"></i>
+        <button
+                (click)="navigateToReservations()"
+                class="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-2 transition-colors duration-200">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M10 19l-7-7m0 0l7-7m-7 7h18" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+            </svg>
             <span>Reservations</span>
-        </a>
+        </button>
         <span class="mx-2 text-gray-400">/</span>
         <span class="text-gray-600">Booking Details</span>
     </div>
 
     <!-- Booking Header -->
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold mb-2">Booking #{{ booking.reference_number || '123456789' }}</h1>
-        <p class="text-gray-600">Property: {{ booking.property?.title || 'The Grand Estate' }}</p>
-    </div>
+    <app-card class="mb-8">
+        <div slot="body">
+            <h1 class="text-3xl font-bold mb-2 text-gray-900">
+                Booking #{{ booking.reference_number || '123456789' }}
+            </h1>
+            <p class="text-gray-600 text-lg">Property: {{ booking.property?.title || 'The Grand Estate' }}</p>
+        </div>
+    </app-card>
 
     <!-- Booking Information Section -->
-    <div class="mb-8">
-        <h2 class="text-2xl font-bold mb-6">Booking Information</h2>
+    <app-card class="mb-8">
+        <div slot="header">
+            <h2 class="text-2xl font-bold text-gray-900">Booking Information</h2>
+        </div>
 
-        <div class="border-b border-gray-200 mb-4"></div>
+        <div slot="body">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-6">
+                <!-- Status -->
+                <div class="flex flex-col">
+                    <h3 class="text-gray-500 mb-2 text-sm font-medium uppercase tracking-wide">Status</h3>
+                    <app-status-badge [variant]="getStatusVariant(booking.status)">
+                        {{ booking.status || 'confirmed' | titlecase }}
+                    </app-status-badge>
+                </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-6">
-            <!-- Status -->
-            <div>
-                <h3 class="text-gray-500 mb-1 text-sm">Status</h3>
-                <p-tag [severity]="getStatusSeverity(booking.status)" [value]="booking.status || 'confirmed'"
-                       styleClass="text-sm font-medium"></p-tag>
-            </div>
+                <!-- Customer -->
+                <div class="flex flex-col">
+                    <h3 class="text-gray-500 mb-2 text-sm font-medium uppercase tracking-wide">Customer</h3>
+                    <p class="font-medium text-gray-900">{{ booking.customer?.user?.first_name || 'Sophia' }} {{ booking.customer?.user?.last_name || 'Carter' }}</p>
+                </div>
 
-            <!-- Customer -->
-            <div>
-                <h3 class="text-gray-500 mb-1 text-sm">Customer</h3>
-                <p class="font-medium">
-                    {{ booking.customer?.user?.first_name || 'Sophia' }} {{ booking.customer?.user?.last_name || 'Carter' }}
-                </p>
-            </div>
+                <!-- Email -->
+                <div class="flex flex-col">
+                    <h3 class="text-gray-500 mb-2 text-sm font-medium uppercase tracking-wide">Email</h3>
+                    <a [href]="'mailto:' + (booking.customer?.user?.email || 'sophia.carter@email.com')"
+                       class="text-blue-600 hover:text-blue-800 transition-colors duration-200">
+                        {{ booking.customer?.user?.email || 'sophia.carter@email.com' }}
+                    </a>
+                </div>
 
-            <!-- Email -->
-            <div>
-                <h3 class="text-gray-500 mb-1 text-sm">Email</h3>
-                <p>{{ booking.customer?.user?.email || 'sophia.carter@email.com' }}</p>
-            </div>
+                <!-- Phone -->
+                <div class="flex flex-col">
+                    <h3 class="text-gray-500 mb-2 text-sm font-medium uppercase tracking-wide">Phone</h3>
+                    <a [href]="'tel:' + (booking.customer?.user?.phone || '+1 (555) 123-4567')"
+                       class="text-blue-600 hover:text-blue-800 transition-colors duration-200">
+                        {{ booking.customer?.user?.phone || '+1 (555) 123-4567' }}
+                    </a>
+                </div>
 
-            <!-- Phone -->
-            <div>
-                <h3 class="text-gray-500 mb-1 text-sm">Phone</h3>
-                <p>{{ booking.customer?.user?.phone || '+1 (555) 123-4567' }}</p>
-            </div>
+                <!-- Check-in -->
+                <div class="flex flex-col">
+                    <h3 class="text-gray-500 mb-2 text-sm font-medium uppercase tracking-wide">Check-in</h3>
+                    <p class="font-medium text-gray-900">{{ formatDate(booking.start_date) }}</p>
+                </div>
 
-            <!-- Check-in -->
-            <div>
-                <h3 class="text-gray-500 mb-1 text-sm">Check-in</h3>
-                <p>{{ formatDate(booking.start_date) }}</p>
-            </div>
+                <!-- Check-out -->
+                <div class="flex flex-col">
+                    <h3 class="text-gray-500 mb-2 text-sm font-medium uppercase tracking-wide">Check-out</h3>
+                    <p class="font-medium text-gray-900">{{ formatDate(booking.end_date) }}</p>
+                </div>
 
-            <!-- Check-out -->
-            <div>
-                <h3 class="text-gray-500 mb-1 text-sm">Check-out</h3>
-                <p>{{ formatDate(booking.end_date) }}</p>
-            </div>
+                <!-- Total Amount -->
+                <div class="flex flex-col">
+                    <div class="flex items-center gap-2 mb-2">
+                        <h3 class="text-gray-500 text-sm font-medium uppercase tracking-wide">Total Amount</h3>
+                        <app-tooltip [text]="'Calculated based on booking duration and price per day'">
+                            <svg class="w-4 h-4 text-gray-400 cursor-help" fill="none" stroke="currentColor"
+                                 viewBox="0 0 24 24">
+                                <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"
+                                      stroke-width="2"/>
+                            </svg>
+                        </app-tooltip>
+                    </div>
+                    <p class="font-bold text-xl text-gray-900">${{ formatCurrency(booking.total_amount) }}</p>
+                </div>
 
-            <!-- Total Amount -->
-            <div>
-                <h3 class="text-gray-500 mb-1 text-sm">Total Amount</h3>
-                <p class="font-medium">{{ formatCurrency(booking.total_amount) }}</p>
-            </div>
+                <!-- Duration -->
+                <div class="flex flex-col">
+                    <h3 class="text-gray-500 mb-2 text-sm font-medium uppercase tracking-wide">Duration</h3>
+                    <p class="font-medium text-gray-900">{{ getDuration(booking.start_date, booking.end_date) }} {{ getDuration(booking.start_date, booking.end_date) === 1 ? 'day' : 'days' }}</p>
+                </div>
 
-            <!-- Notes -->
-            <div class="md:col-span-2">
-                <h3 class="text-gray-500 mb-1 text-sm">Notes</h3>
-                <p>{{ booking.notes || 'Special request: Early check-in if possible.' }}</p>
+                <!-- Notes -->
+                <div class="md:col-span-2 flex flex-col">
+                    <h3 class="text-gray-500 mb-2 text-sm font-medium uppercase tracking-wide">Notes</h3>
+                    <div class="bg-gray-50 rounded-lg p-4 border">
+                        <p class="text-gray-700 italic">{{ booking.notes || 'Special request: Early check-in if possible.' }}</p>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
+    </app-card>
 
     <!-- Payment Details Section -->
-    <div class="mb-8">
-        <h2 class="text-2xl font-bold mb-6">Payment Details</h2>
+    <app-card class="mb-8">
+        <div slot="header">
+            <h2 class="text-2xl font-bold text-gray-900">Payment Details</h2>
+        </div>
 
-        <div class="border-b border-gray-200 mb-4"></div>
+        <div slot="body">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-6">
+                <!-- Amount Paid -->
+                <div class="flex flex-col">
+                    <h3 class="text-gray-500 mb-2 text-sm font-medium uppercase tracking-wide">Amount Paid</h3>
+                    <p class="font-bold text-xl text-green-600">${{ formatCurrency(booking.total_amount) }}</p>
+                </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-6">
-            <!-- Amount Paid -->
-            <div>
-                <h3 class="text-gray-500 mb-1 text-sm">Amount Paid</h3>
-                <p class="font-medium">{{ formatCurrency(booking.total_amount) }}</p>
-            </div>
+                <!-- Payment Date -->
+                <div class="flex flex-col">
+                    <h3 class="text-gray-500 mb-2 text-sm font-medium uppercase tracking-wide">Payment Date</h3>
+                    <p class="font-medium text-gray-900">{{ formatDate(booking.booking_date) }}</p>
+                </div>
 
-            <!-- Payment Date -->
-            <div>
-                <h3 class="text-gray-500 mb-1 text-sm">Payment Date</h3>
-                <p>{{ booking.booking_date ? formatDate(booking.booking_date) : 'July 10, 2024' }}</p>
-            </div>
+                <!-- Payment Method -->
+                <div class="flex flex-col">
+                    <h3 class="text-gray-500 mb-2 text-sm font-medium uppercase tracking-wide">Payment Method</h3>
+                    <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" stroke-linecap="round" stroke-linejoin="round"
+                                  stroke-width="2"/>
+                        </svg>
+                        <p class="font-medium text-gray-900">Credit Card</p>
+                    </div>
+                </div>
 
-            <!-- Payment Method -->
-            <div>
-                <h3 class="text-gray-500 mb-1 text-sm">Payment Method</h3>
-                <p>Credit Card</p>
+                <!-- Balance Due -->
+                <div class="flex flex-col">
+                    <h3 class="text-gray-500 mb-2 text-sm font-medium uppercase tracking-wide">Balance Due</h3>
+                    <p [class]="booking.total_amount! - booking.total_amount! > 0 ? 'text-red-600' : 'text-green-600'"
+                       class="font-bold text-xl">
+                        ${{ (booking.total_amount! - booking.total_amount!).toLocaleString() }}
+                    </p>
+                </div>
             </div>
         </div>
-    </div>
+    </app-card>
 
     <!-- Action Buttons -->
-    <div class="flex justify-between mt-8">
-        <p-button (click)="goBackToReservations()"
-                  label="Back to Reservations"
-                  styleClass="p-button-outlined"></p-button>
+    <div class="flex flex-col sm:flex-row justify-between gap-4 mt-8">
+        <app-button
+                (click)="goBackToReservations()"
+                [disabled]="loading"
+                class="w-full sm:w-auto"
+                variant="secondary">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M10 19l-7-7m0 0l7-7m-7 7h18" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+            </svg>
+            Back to Reservations
+        </app-button>
 
-        <div class="flex gap-3">
-            <p-button (click)="confirmBooking()"
-                      *ngIf="booking?.status === 'pending'"
-                      [loading]="loading"
-                      label="Confirm Booking"
-                      styleClass="p-button-primary"></p-button>
+        <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <app-button
+                    (click)="confirmBooking()"
+                    *ngIf="booking.status === 'pending'"
+                    [disabled]="loading"
+                    [loading]="loading"
+                    class="w-full sm:w-auto"
+                    variant="primary">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                </svg>
+                Confirm Booking
+            </app-button>
 
-            <p-button (click)="cancelBooking()"
-                      *ngIf="booking?.status !== 'cancelled'"
-                      [loading]="loading"
-                      label="Cancel Booking"
-                      styleClass="p-button-outlined p-button-danger"></p-button>
+            <app-button
+                    (click)="showCancelConfirmation()"
+                    *ngIf="booking.status !== 'cancelled'"
+                    [disabled]="loading"
+                    class="w-full sm:w-auto"
+                    variant="danger">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                </svg>
+                Cancel Booking
+            </app-button>
         </div>
     </div>
 </div>
 
-<!-- Confirmation Dialog -->
-<p-confirmDialog header="Confirmation" icon="pi pi-exclamation-triangle"></p-confirmDialog>
+<!-- Confirmation Modal -->
+<app-modal
+        [(visible)]="showConfirmDialog"
+        [closeOnBackdrop]="false"
+        [closeOnEscape]="true"
+        [size]="'sm'"
+        [title]="'Confirm Action'">
 
-<!-- Toast Messages -->
-<p-toast></p-toast>
+    <div class="p-6">
+        <div class="flex items-start gap-4">
+            <!-- Warning Icon -->
+            <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" stroke-linecap="round" stroke-linejoin="round"
+                          stroke-width="2"/>
+                </svg>
+            </div>
+            <div class="flex-1">
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Cancel Booking</h3>
+                <p class="text-gray-600">
+                    Are you sure you want to cancel this booking? This action cannot be undone.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200" slot="footer">
+        <app-button
+                (click)="closeConfirmDialog()"
+                [disabled]="loading"
+                variant="secondary">
+            Cancel
+        </app-button>
+        <app-button
+                (click)="cancelBooking()"
+                [loading]="loading"
+                variant="danger">
+            Yes, Cancel Booking
+        </app-button>
+    </div>
+</app-modal>
