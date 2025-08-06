@@ -19,7 +19,7 @@ export interface MenuItem {
   imports: [CommonModule, RouterModule],
   template: `
       <aside
-              class="w-64 bg-white  dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col h-screen transition-transform duration-300 ease-in-out -translate-x-full lg:translate-x-0"
+              class="w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col h-screen transition-transform duration-300 ease-in-out -translate-x-full lg:translate-x-0"
               [class.translate-x-0]="isOpen"
               [class.-translate-x-full]="!isOpen"
               [class.lg:translate-x-0]="!isOpen"
