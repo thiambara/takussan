@@ -1,10 +1,11 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { IconComponent } from '../../../../../shared/components';
 
 @Component({
   selector: 'app-dashboard2-analytics',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, IconComponent],
   template: `
     <div class="space-y-6">
       <!-- Page Header -->
@@ -92,12 +93,12 @@ import { CommonModule } from '@angular/common';
               </div>
             </div>
             
-            <div class="h-32 bg-slate-50 dark:bg-slate-700 rounded-lg flex items-center justify-center">
+            <div class="h-64 flex items-center justify-center bg-slate-50 dark:bg-slate-700 rounded-lg">
               <div class="text-center">
-                <svg class="mx-auto h-8 w-8 text-slate-300 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                </svg>
-                <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">Behavior Flow Chart</p>
+                <div class="w-16 h-16 mx-auto mb-4 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
+                  <app-icon name="chart-bar" [size]="8" color="text-blue-600 dark:text-blue-400" />
+                </div>
+                <p class="text-slate-500 dark:text-slate-400">Traffic Analytics Chart</p>
               </div>
             </div>
           </div>
@@ -115,18 +116,21 @@ import { CommonModule } from '@angular/common';
           </div>
         </div>
         
-        <div class="h-80 bg-slate-50 dark:bg-slate-700 rounded-lg flex items-center justify-center">
+        <div class="h-64 flex items-center justify-center bg-slate-50 dark:bg-slate-700 rounded-lg">
           <div class="text-center">
-            <div class="w-20 h-20 mx-auto bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center mb-4">
-              <svg class="w-10 h-10 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-              </svg>
+            <div class="w-16 h-16 mx-auto mb-4 bg-green-100 dark:bg-green-900/50 rounded-full flex items-center justify-center">
+              <app-icon name="chart-pie" [size]="8" color="text-green-600 dark:text-green-400" />
             </div>
-            <h4 class="text-lg font-medium text-slate-900 dark:text-white">Analytics Chart</h4>
-            <p class="text-sm text-slate-500 dark:text-slate-400">Connect your analytics service to view detailed performance metrics</p>
-            <button class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200">
-              Connect Analytics
-            </button>
+            <p class="text-slate-500 dark:text-slate-400">Revenue Chart</p>
+          </div>
+        </div>
+        
+        <div class="h-64 flex items-center justify-center bg-slate-50 dark:bg-slate-700 rounded-lg">
+          <div class="text-center">
+            <div class="w-16 h-16 mx-auto mb-4 bg-purple-100 dark:bg-purple-900/50 rounded-full flex items-center justify-center">
+              <app-icon name="chart-line" [size]="8" color="text-purple-600 dark:text-purple-400" />
+            </div>
+            <p class="text-slate-500 dark:text-slate-400">Growth Trends</p>
           </div>
         </div>
       </div>

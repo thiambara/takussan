@@ -1,21 +1,19 @@
 import {Component, HostListener, OnInit} from '@angular/core';
 import {Router, RouterModule} from '@angular/router';
 import {CommonModule} from '@angular/common';
-import {menuItems, MenuItemNative} from "./menu";
+import {MenuItemNative, menuItems} from "./menu";
 import {Layout2Service} from "../service/layout2.service";
+import {IconComponent} from '../../../../shared/components';
 
 @Component({
   selector: 'app-topbar',
   standalone: true,
-  imports: [RouterModule, CommonModule],
+  imports: [RouterModule, CommonModule, IconComponent],
   template: `
       <header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#eaedf1] px-10 py-3">
           <div class="flex items-center gap-4 text-[#101518]">
               <div class="size-4">
-                  <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-                      <path clip-rule="evenodd" d="M24 4H42V17.3333V30.6667H24V44H6V30.6667V17.3333H24V4Z"
-                            fill="currentColor" fill-rule="evenodd"></path>
-                  </svg>
+                  <app-icon name="squares-2x2" [size]="4"/>
               </div>
               <h2 class="text-[#101518] text-lg font-bold leading-tight tracking-[-0.015em]">Property Management</h2>
           </div>
@@ -32,11 +30,7 @@ import {Layout2Service} from "../service/layout2.service";
               </div>
               <!-- Mobile menu button (visible only on small screens) -->
               <button (click)="toggleMobileMenu()" class="md:hidden flex items-center">
-                  <svg class="h-6 w-6" stroke="currentColor" viewBox="0 0 24 24"
-                       xmlns="http://www.w3.org/2000/svg">
-                      <path d="M4 6h16M4 12h16m-7 6h7" stroke-linecap="round" stroke-linejoin="round"
-                            stroke-width="2"/>
-                  </svg>
+                  <app-icon name="bars-3" [size]="6"/>
               </button>
               <div
                       class="bg-center bg-no-repeat bg-cover rounded-full aspect-square size-10"

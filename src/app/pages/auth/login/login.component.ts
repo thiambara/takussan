@@ -3,7 +3,6 @@ import {CommonModule} from "@angular/common";
 import {FormsModule} from "@angular/forms";
 import {ActivatedRoute, Router, RouterLink} from "@angular/router";
 import {AuthService} from "../../../core/services/http/auth/auth.service";
-import {AppFloatingConfigurator} from "../../../core/layouts/dashboard/component/dashboard.floatingconfigurator";
 import {ButtonComponent} from "../../../shared/components";
 
 @Component({
@@ -14,7 +13,6 @@ import {ButtonComponent} from "../../../shared/components";
     CommonModule,
     FormsModule,
     RouterLink,
-    AppFloatingConfigurator,
     ButtonComponent,
   ],
   standalone: true

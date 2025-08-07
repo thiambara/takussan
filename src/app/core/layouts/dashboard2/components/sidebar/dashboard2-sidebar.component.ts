@@ -1,178 +1,77 @@
 import {Component, EventEmitter, Input, Output} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {RouterModule} from '@angular/router';
+import {ButtonComponent, LogoComponent, NavItemComponent, NavMenuItem, IconComponent} from '../../../../../shared/components';
 
-export interface MenuItem {
+interface QuickAction {
   id: string;
   label: string;
   icon?: string;
-  route?: string;
-  badge?: string;
-  badgeColor?: 'blue' | 'red' | 'green' | 'yellow';
-  children?: MenuItem[];
-  expanded?: boolean;
 }
 
 @Component({
   selector: 'app-dashboard2-sidebar',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, LogoComponent, NavItemComponent, ButtonComponent, IconComponent],
   template: `
       <aside
               class="w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col h-screen transition-transform duration-300 ease-in-out -translate-x-full lg:translate-x-0"
               [class.translate-x-0]="isOpen"
               [class.-translate-x-full]="!isOpen"
-              [class.lg:translate-x-0]="!isOpen"
-              [class.hidden]="!isOpen"
-              [class.md:flex]="!isOpen"
       >
           <!-- Sidebar Header -->
           <div class="flex items-center dark:bg-slate-800 shadow-sm justify-between h-16 px-4 border-b border-slate-200 flex-shrink-0 bg-white dark:border-slate-700">
-              <div class="flex items-center">
-                  <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                      <span class="text-white font-bold text-sm">D</span>
-                  </div>
-                  <span class="ml-2 text-xl font-semibold text-slate-900 dark:text-white">Dashboard</span>
-              </div>
+              <app-logo title="Dashboard" logoText="D" size="md" [showText]="true"/>
 
               <!-- Close button for mobile -->
               <button
-                      type="button"
-                      (click)="toggle.emit()"
-                      class="lg:hidden p-1 rounded-md text-slate-400 hover:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+                (click)="toggle.emit()"
+                class="lg:hidden"
               >
-                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M6 18L18 6M6 6l12 12"></path>
-                  </svg>
+                <app-icon name="x-mark" [size]="6" />
               </button>
           </div>
 
           <!-- Navigation -->
           <nav class="flex-1 px-4 py-6 overflow-y-auto">
               <div class="space-y-2">
-                  @for (item of menuItems; track item.id) {
-                      <div>
-                          @if (item.children && item.children.length > 0) {
-                              <!-- Menu item with submenu -->
-                              <button
-                                      type="button"
-                                      (click)="toggleSubmenu(item.id)"
-                                      class="w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 {{item.expanded ? 'dark:bg-blue-900/50' : ''}}"
-                                      [class.bg-blue-50]="item.expanded"
-                                      [class.text-blue-700]="item.expanded"
-                                      [class.dark:text-blue-300]="item.expanded"
-                                      [class.text-slate-700]="!item.expanded"
-                                      [class.dark:text-slate-300]="!item.expanded"
-                                      [class.hover:bg-slate-50]="!item.expanded"
-                                      [class.dark:hover:bg-slate-700]="!item.expanded"
-                              >
-                                  <div class="flex items-center">
-                                      <div *ngIf="item.icon" class="w-5 h-5 mr-3"
-                                           [innerHTML]="getIcon(item.icon)"></div>
-                                      <span>{{ item.label }}</span>
-                                      @if (item.badge) {
-                                          <span class="ml-2 px-2 py-0.5 text-xs font-medium rounded-full"
-                                                [ngClass]="getBadgeClasses(item.badgeColor || 'blue')">
-                        {{ item.badge }}
-                      </span>
-                                      }
-                                  </div>
-                                  <svg
-                                          class="w-4 h-4 transition-transform duration-200"
-                                          [class.rotate-90]="item.expanded"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          viewBox="0 0 24 24"
-                                  >
-                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M9 5l7 7-7 7"></path>
-                                  </svg>
-                              </button>
-
-                              <!-- Submenu -->
-                              @if (item.expanded) {
-                                  <div class="mt-1 ml-8 space-y-1">
-                                      @for (child of item.children; track child.id) {
-                                          <a
-                                                  [routerLink]="child.route"
-                                                  routerLinkActive="bg-blue-50 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
-                                                  class="block px-3 py-2 text-sm font-medium rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-200 transition-colors duration-200"
-                                          >
-                                              <div class="flex items-center justify-between">
-                                                  <span>{{ child.label }}</span>
-                                                  @if (child.badge) {
-                                                      <span class="px-2 py-0.5 text-xs font-medium rounded-full"
-                                                            [ngClass]="getBadgeClasses(child.badgeColor || 'blue')">
-                              {{ child.badge }}
-                            </span>
-                                                  }
-                                              </div>
-                                          </a>
-                                      }
-                                  </div>
-                              }
-                          } @else {
-                              <!-- Regular menu item -->
-                              <a
-                                      [routerLink]="item.route"
-                                      routerLinkActive="bg-blue-50 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
-                                      class="flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-200 transition-colors duration-200"
-                              >
-                                  <div class="flex items-center">
-                                      <div *ngIf="item.icon" class="w-5 h-5 mr-3"
-                                           [innerHTML]="getIcon(item.icon)"></div>
-                                      <span>{{ item.label }}</span>
-                                  </div>
-                                  @if (item.badge) {
-                                      <span class="px-2 py-0.5 text-xs font-medium rounded-full"
-                                            [ngClass]="getBadgeClasses(item.badgeColor || 'blue')">
-                      {{ item.badge }}
-                    </span>
-                                  }
-                              </a>
-                          }
-                      </div>
-                  }
+                  <app-nav-item
+                          *ngFor="let item of menuItems; trackBy: trackByFn"
+                          [item]="item"
+                          (itemClick)="onMenuItemClick($event)"
+                          (toggleSubmenu)="toggleSubmenu($event)"
+                  />
               </div>
           </nav>
 
-          <!-- Sidebar Footer / Quick Actions - Always at bottom -->
+          <!-- Sidebar Footer / Quick Actions -->
           <div class="px-4 py-6 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
-              <div class="px-3 py-2 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              <h3 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
                   Quick Actions
-              </div>
-              <div class="mt-2 space-y-1">
-                  <button
-                          type="button"
-                          class="w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors duration-200"
+              </h3>
+
+              <div class="space-y-2">
+                  <app-button
+                          *ngFor="let action of quickActions"
+                          variant="secondary"
+                          size="sm"
+                          [fullWidth]="true"
+                          (click)="onQuickAction(action.id)"
+                          class="justify-start"
                   >
-                      <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                      </svg>
-                      <span>New Item</span>
-                  </button>
-                  <button
-                          type="button"
-                          class="w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors duration-200"
-                  >
-                      <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"></path>
-                      </svg>
-                      <span>Share</span>
-                  </button>
+                      <div *ngIf="action.icon" class="w-4 h-4 mr-2" [innerHTML]="getIcon(action.icon)"></div>
+                      {{ action.label }}
+                  </app-button>
               </div>
           </div>
       </aside>
   `
 })
 export class Dashboard2SidebarComponent {
-  @Input() isOpen: boolean = false;
+  @Input() isOpen = false;
   @Output() toggle = new EventEmitter<void>();
 
-  menuItems: MenuItem[] = [
+  menuItems: NavMenuItem[] = [
     {
       id: 'dashboard',
       label: 'Dashboard',
@@ -243,6 +142,19 @@ export class Dashboard2SidebarComponent {
     }
   ];
 
+  quickActions: QuickAction[] = [
+    {
+      id: 'new-item',
+      label: 'New Item',
+      icon: 'plus'
+    },
+    {
+      id: 'share',
+      label: 'Share',
+      icon: 'share'
+    }
+  ];
+
   toggleSubmenu(itemId: string) {
     const item = this.findMenuItem(itemId, this.menuItems);
     if (item) {
@@ -250,30 +162,34 @@ export class Dashboard2SidebarComponent {
     }
   }
 
+  onMenuItemClick(event: any) {
+    console.log('Menu item clicked:', event);
+  }
+
+  onQuickAction(actionId: string) {
+    console.log('Quick action clicked:', actionId);
+  }
+
+  trackByFn(index: number, item: NavMenuItem) {
+    return item.id;
+  }
+
   getIcon(iconName: string): string {
-    const icons: { [key: string]: string } = {
-      dashboard: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v6H8V5z"></path></svg>`,
-      analytics: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>`,
-      users: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path></svg>`,
-      projects: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>`,
-      reports: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>`,
-      settings: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>`,
-      help: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`
+    const iconMap: { [key: string]: string } = {
+      'dashboard': 'squares-2x2',
+      'analytics': 'chart-bar',
+      'users': 'users',
+      'projects': 'folder',
+      'reports': 'document-chart-bar',
+      'settings': 'cog-6-tooth',
+      'help': 'question-mark-circle',
+      'plus': 'plus',
+      'share': 'share'
     };
-    return icons[iconName] || icons['dashboard'];
+    return iconMap[iconName] || 'squares-2x2';
   }
 
-  getBadgeClasses(color: string): string {
-    const classes = {
-      blue: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300',
-      red: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300',
-      green: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300',
-      yellow: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'
-    };
-    return classes[color as keyof typeof classes] || classes.blue;
-  }
-
-  private findMenuItem(id: string, items: MenuItem[]): MenuItem | null {
+  private findMenuItem(id: string, items: NavMenuItem[]): NavMenuItem | null {
     for (const item of items) {
       if (item.id === id) return item;
       if (item.children) {

@@ -1,10 +1,11 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { IconComponent } from '../../../../../shared/components';
 
 @Component({
   selector: 'app-dashboard2-users',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, IconComponent],
   template: `
     <div class="space-y-6">
       <!-- Page Header -->
@@ -16,9 +17,7 @@ import { CommonModule } from '@angular/common';
           </div>
           <div class="mt-4 sm:mt-0">
             <button class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200">
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-              </svg>
+              <app-icon name="plus" [size]="4" class="mr-2" />
               Add User
             </button>
           </div>
@@ -30,23 +29,19 @@ import { CommonModule } from '@angular/common';
         <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-medium text-slate-900 dark:text-white">All Users</h3>
-            <div class="flex items-center space-x-3">
-              <div class="relative">
-                <input
-                  type="search"
-                  placeholder="Search users..."
-                  class="block w-64 pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center">
-                  <svg class="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                  </svg>
+            <div class="flex items-center space-x-4">
+              <div class="relative flex-1 max-w-xs">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <app-icon name="magnifying-glass" [size]="5" color="text-slate-400" />
                 </div>
+                <input
+                  type="text"
+                  class="block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md leading-5 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  placeholder="Search users..."
+                />
               </div>
               <button class="inline-flex items-center px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors duration-200">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
-                </svg>
+                <app-icon name="funnel" [size]="4" class="mr-2" />
                 Filter
               </button>
             </div>

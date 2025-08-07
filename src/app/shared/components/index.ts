@@ -13,3 +13,10 @@ export * from './card/card.component';
 export * from './modal/modal.component';
 export * from './autocomplete/autocomplete.component';
 export * from './tooltip/tooltip.component';
+export * from './logo/logo.component';
+export * from './dropdown/dropdown.component';
+export * from './avatar/avatar.component';
+export * from './nav-item/nav-item.component';
+export * from './stat-card/stat-card.component';
+export * from './icon/icon.component'
+export * from './activity-item/activity-item.component';
