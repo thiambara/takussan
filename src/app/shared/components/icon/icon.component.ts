@@ -58,7 +58,7 @@ export class IconComponent implements OnInit, OnChanges {
     return `assets/icons/${this.style}/${this.name}.svg`;
   });
   private readonly cssClasses = computed(() => {
-    const baseClass = `size-${this.size}`;
+    const baseClass = `w-${this.size} h-${this.size}`;
     const colorClass = this.color ? ` ${this.color}` : '';
     const customClass = this.customClass ? ` ${this.customClass}` : '';
     return `${baseClass}${colorClass}${customClass}`.trim();
@@ -135,10 +135,17 @@ export class IconComponent implements OnInit, OnChanges {
     const classes = this.cssClasses();
     const svgRegex = /<svg\b([^>]*)>/;
 
-    return rawSvg.replace(
-      svgRegex,
-      `<svg class="${classes}" $1 aria-label="${this.ariaLabel}" role="img">`
-    );
+    return rawSvg.replace(svgRegex, (_, attributes) => {
+      // Remove existing class, aria-label, aria-hidden, and role attributes to avoid conflicts
+      const cleanAttributes = attributes
+        .replace(/\s*class\s*=\s*"[^"]*"/gi, '')
+        .replace(/\s*aria-label\s*=\s*"[^"]*"/gi, '')
+        .replace(/\s*aria-hidden\s*=\s*"[^"]*"/gi, '')
+        .replace(/\s*role\s*=\s*"[^"]*"/gi, '')
+        .trim();
+
+      return `<svg class="${classes}" ${cleanAttributes} aria-label="${this.ariaLabel}" role="img">`;
+    });
   }
 
   private getCachedRawIcon(path: string): string | null {
@@ -151,7 +158,7 @@ export class IconComponent implements OnInit, OnChanges {
       return null;
     }
 
-    return null;
+    return cached.rawSvg;
   }
 
   private setCachedRawIcon(path: string, rawSvg: string): void {
@@ -176,7 +183,7 @@ export class IconComponent implements OnInit, OnChanges {
       return null;
     }
 
-    return null;
+    return cached.safeSvg;
   }
 
   private setCachedProcessedIcon(cacheKey: string, safeSvg: SafeHtml): void {

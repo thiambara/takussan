@@ -104,7 +104,7 @@ import {IconComponent} from '../../../../../shared/components';
                   <div class="flex items-center">
                       <div class="flex-shrink-0">
                           <div class="w-8 h-8 bg-purple-100 dark:bg-purple-900/50 rounded-lg flex items-center justify-center">
-                              <app-icon name="chart-pie" [size]="5" color="text-purple-600 dark:text-purple-400"/>
+                              <app-icon name="chart-pie" [size]="6" color="text-purple-600 dark:text-purple-400"/>
                           </div>
                       </div>
                       <div class="ml-5 w-0 flex-1">

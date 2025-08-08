@@ -1,7 +1,13 @@
 import {Component, EventEmitter, Input, Output} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {RouterModule} from '@angular/router';
-import {ButtonComponent, LogoComponent, NavItemComponent, NavMenuItem, IconComponent} from '../../../../../shared/components';
+import {
+  ButtonComponent,
+  IconComponent,
+  LogoComponent,
+  NavItemComponent,
+  NavMenuItem
+} from '../../../../../shared/components';
 
 interface QuickAction {
   id: string;
@@ -18,6 +24,9 @@ interface QuickAction {
               class="w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col h-screen transition-transform duration-300 ease-in-out -translate-x-full lg:translate-x-0"
               [class.translate-x-0]="isOpen"
               [class.-translate-x-full]="!isOpen"
+              [class.lg:translate-x-0]="!isOpen"
+              [class.hidden]="!isOpen"
+              [class.md:flex]="!isOpen"
       >
           <!-- Sidebar Header -->
           <div class="flex items-center dark:bg-slate-800 shadow-sm justify-between h-16 px-4 border-b border-slate-200 flex-shrink-0 bg-white dark:border-slate-700">
@@ -25,10 +34,10 @@ interface QuickAction {
 
               <!-- Close button for mobile -->
               <button
-                (click)="toggle.emit()"
-                class="lg:hidden"
+                      (click)="toggle.emit()"
+                      class="lg:hidden"
               >
-                <app-icon name="x-mark" [size]="6" />
+                  <app-icon name="x-mark" [size]="6"/>
               </button>
           </div>
 
