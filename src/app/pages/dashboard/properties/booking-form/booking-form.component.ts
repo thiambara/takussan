@@ -11,7 +11,6 @@ import {MessageService} from '../../../../core/services/message.service';
 // Shared Components
 import {
   AutocompleteComponent,
-  ButtonComponent,
   FormSelectComponent,
   ModalComponent,
   ToggleSwitchComponent,
@@ -29,7 +28,6 @@ import {Customer} from "../../../../core/models/http/customer.model";
     ReactiveFormsModule,
     FormsModule,
     ModalComponent,
-    ButtonComponent,
     FormSelectComponent,
     ToggleSwitchComponent,
     AutocompleteComponent,

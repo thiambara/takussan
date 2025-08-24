@@ -1,5 +1,6 @@
 import {Component, OnInit} from '@angular/core';
 import {CommonModule} from '@angular/common';
+import {FormsModule} from '@angular/forms';
 import {Router, RouterModule} from '@angular/router';
 import {BookingService} from '../../../../core/services/http/booking.service';
 import {Booking} from '../../../../core/models/http/booking.model';
@@ -9,11 +10,8 @@ import {MessageService} from '../../../../core/services/message.service';
 
 // Shared Components
 import {
-  ButtonComponent,
   CardComponent,
-  DataTableComponent,
   StatusBadgeComponent,
-  TooltipComponent,
   ModalComponent,
   StatusVariant
 } from '../../../../shared/components';
@@ -40,12 +38,10 @@ interface ConfirmDialogData {
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     RouterModule,
-    ButtonComponent,
     CardComponent,
-    DataTableComponent,
     StatusBadgeComponent,
-    TooltipComponent,
     ModalComponent
   ],
   templateUrl: './bookings-list.component.html',
@@ -61,16 +57,14 @@ export class BookingsListComponent implements OnInit {
     severity: 'info'
   };
 
-  tableColumns: TableColumn[] = [
-    { field: 'reference_number', header: 'Reference', sortable: true },
-    { field: 'property.title', header: 'Property', sortable: true },
-    { field: 'customer.user.full_name', header: 'Customer', sortable: true },
-    { field: 'check_in_date', header: 'Check-in', sortable: true },
-    { field: 'check_out_date', header: 'Check-out', sortable: true },
-    { field: 'status', header: 'Status', template: 'statusTemplate' },
-    { field: 'total_amount', header: 'Amount', template: 'amountTemplate' },
-    { field: 'actions', header: 'Actions', template: 'actionsTemplate', sortable: false }
-  ];
+  // Pagination properties
+  currentPage: number = 0;
+  currentRowsPerPage: number = 10;
+  rowsPerPageOptions = [5, 10, 20, 50];
+
+  // Sorting properties
+  sortField: string = '';
+  sortOrder: 1 | -1 = 1;
 
   constructor(
     private bookingService: BookingService,
@@ -233,5 +227,94 @@ export class BookingsListComponent implements OnInit {
       style: 'currency',
       currency: 'EUR'
     }).format(numAmount);
+  }
+
+  // Pagination methods
+  get totalPages(): number {
+    return Math.ceil(this.bookings.length / this.currentRowsPerPage);
+  }
+
+  get paginatedBookings(): Booking[] {
+    const start = this.currentPage * this.currentRowsPerPage;
+    const end = start + this.currentRowsPerPage;
+    return this.bookings.slice(start, end);
+  }
+
+  nextPage(): void {
+    if (this.currentPage < this.totalPages - 1) {
+      this.currentPage++;
+    }
+  }
+
+  previousPage(): void {
+    if (this.currentPage > 0) {
+      this.currentPage--;
+    }
+  }
+
+  goToPage(page: number): void {
+    if (page >= 0 && page < this.totalPages) {
+      this.currentPage = page;
+    }
+  }
+
+  onRowsPerPageChange(rows: number): void {
+    this.currentRowsPerPage = rows;
+    this.currentPage = 0; // Reset to first page
+  }
+
+  getVisiblePages(): number[] {
+    const pages: number[] = [];
+    const maxVisible = 5;
+    const half = Math.floor(maxVisible / 2);
+
+    let start = Math.max(0, this.currentPage - half);
+    let end = Math.min(this.totalPages - 1, start + maxVisible - 1);
+
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(0, end - maxVisible + 1);
+    }
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+
+    return pages;
+  }
+
+  getCurrentPageReport(): string {
+    const first = this.currentPage * this.currentRowsPerPage + 1;
+    const last = Math.min((this.currentPage + 1) * this.currentRowsPerPage, this.bookings.length);
+    const totalRecords = this.bookings.length;
+
+    return `Showing ${first} to ${last} of ${totalRecords} entries`;
+  }
+
+  // Sorting methods
+  onSort(field: string): void {
+    let newOrder: 1 | -1 = 1;
+    if (this.sortField === field) {
+      newOrder = this.sortOrder === 1 ? -1 : 1;
+    }
+
+    this.sortField = field;
+    this.sortOrder = newOrder;
+
+    this.bookings.sort((a, b) => {
+      const aValue = this.getFieldValue(a, field);
+      const bValue = this.getFieldValue(b, field);
+
+      if (aValue < bValue) return -1 * newOrder;
+      if (aValue > bValue) return 1 * newOrder;
+      return 0;
+    });
+  }
+
+  private getFieldValue(item: any, field: string): any {
+    return field.split('.').reduce((obj, prop) => obj?.[prop], item) || '';
+  }
+
+  trackByBooking(index: number, booking: Booking): any {
+    return booking.id || index;
   }
 }

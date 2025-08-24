@@ -1,18 +1,16 @@
-import {Component, OnInit, ViewChild} from '@angular/core';
+import {Component, OnInit} from '@angular/core';
 import {User as Customer} from "../../../../core/models/http/user.model";
 import {CustomerService} from "../../../../core/services/http/customer.service";
 import {FormsModule} from "@angular/forms";
 import {Router} from "@angular/router";
 import {MessageService} from '../../../../core/services/message.service';
+import {CommonModule} from '@angular/common';
 
 // Shared Components
 import {
-  ButtonComponent,
-  DataTableComponent,
   SearchInputComponent,
   StatusBadgeComponent,
   StatusVariant,
-  TableColumn,
   ToolbarComponent
 } from '../../../../shared/components';
 
@@ -20,18 +18,15 @@ import {
   selector: 'app-customer-list',
   templateUrl: './customer-list.component.html',
   imports: [
+    CommonModule,
     FormsModule,
     ToolbarComponent,
-    ButtonComponent,
-    DataTableComponent,
     SearchInputComponent,
     StatusBadgeComponent
   ],
   standalone: true
 })
 export class CustomerListComponent implements OnInit {
-  @ViewChild(DataTableComponent) dataTable!: DataTableComponent;
-
   customers: Customer[] = [];
   customer: Customer = {};
   selectedCustomers: Customer[] = [];
@@ -40,13 +35,13 @@ export class CustomerListComponent implements OnInit {
   searchQuery: string = '';
   rowsPerPageOptions = [5, 10, 20];
 
-  tableColumns: TableColumn[] = [
-    {field: 'first_name', header: 'Name', sortable: true, width: '200px'},
-    {field: 'email', header: 'Email', sortable: true, width: '250px'},
-    {field: 'phone', header: 'Phone', sortable: true, width: '150px'},
-    {field: 'status', header: 'Status', sortable: true, width: '120px'},
-    {field: 'actions', header: 'Actions', sortable: false, width: '150px'}
-  ];
+  // Pagination properties
+  currentPage: number = 0;
+  currentRowsPerPage: number = 10;
+
+  // Sorting properties
+  sortField: string = '';
+  sortOrder: 1 | -1 = 1;
 
   constructor(
     private customerService: CustomerService,
@@ -99,9 +94,34 @@ export class CustomerListComponent implements OnInit {
   }
 
   exportCSV() {
-    if (this.dataTable) {
-      this.dataTable.exportCSV();
+    if (this.customers.length === 0) return;
+
+    const csvContent = this.generateCSV();
+    const blob = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'});
+    const link = document.createElement('a');
+
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'customers.csv');
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
+  }
+
+  private generateCSV(): string {
+    const headers = ['Name', 'Email', 'Phone', 'Status'].join(',');
+    const rows = this.customers.map(customer =>
+      [
+        `"${customer.first_name} ${customer.last_name}"`,
+        customer.email || '',
+        customer.phone || '',
+        customer.status || 'inactive'
+      ].join(',')
+    );
+    return [headers, ...rows].join('\n');
   }
 
   viewCustomerDetails(customer: Customer) {
@@ -153,5 +173,112 @@ export class CustomerListComponent implements OnInit {
     } else {
       this.selectedCustomers.push(customer);
     }
+  }
+
+  // Pagination methods
+  get totalPages(): number {
+    return Math.ceil(this.customers.length / this.currentRowsPerPage);
+  }
+
+  get paginatedCustomers(): Customer[] {
+    const start = this.currentPage * this.currentRowsPerPage;
+    const end = start + this.currentRowsPerPage;
+    return this.customers.slice(start, end);
+  }
+
+  nextPage(): void {
+    if (this.currentPage < this.totalPages - 1) {
+      this.currentPage++;
+    }
+  }
+
+  previousPage(): void {
+    if (this.currentPage > 0) {
+      this.currentPage--;
+    }
+  }
+
+  goToPage(page: number): void {
+    if (page >= 0 && page < this.totalPages) {
+      this.currentPage = page;
+    }
+  }
+
+  onRowsPerPageChange(rows: number): void {
+    this.currentRowsPerPage = rows;
+    this.currentPage = 0; // Reset to first page
+  }
+
+  getVisiblePages(): number[] {
+    const pages: number[] = [];
+    const maxVisible = 5;
+    const half = Math.floor(maxVisible / 2);
+
+    let start = Math.max(0, this.currentPage - half);
+    let end = Math.min(this.totalPages - 1, start + maxVisible - 1);
+
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(0, end - maxVisible + 1);
+    }
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+
+    return pages;
+  }
+
+  getCurrentPageReport(): string {
+    const first = this.currentPage * this.currentRowsPerPage + 1;
+    const last = Math.min((this.currentPage + 1) * this.currentRowsPerPage, this.customers.length);
+    const totalRecords = this.customers.length;
+
+    return `Showing ${first} to ${last} of ${totalRecords} entries`;
+  }
+
+  // Selection methods
+  isAllSelected(): boolean {
+    return this.customers.length > 0 && this.selectedCustomers.length === this.customers.length;
+  }
+
+  isSomeSelected(): boolean {
+    return this.selectedCustomers.length > 0 && this.selectedCustomers.length < this.customers.length;
+  }
+
+  isCustomerSelected(customer: Customer): boolean {
+    return this.selectedCustomers.some(selected => selected.id === customer.id);
+  }
+
+  onSelectAll(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.selectedCustomers = target.checked ? [...this.customers] : [];
+  }
+
+  // Sorting methods
+  onSort(field: string): void {
+    let newOrder: 1 | -1 = 1;
+    if (this.sortField === field) {
+      newOrder = this.sortOrder === 1 ? -1 : 1;
+    }
+
+    this.sortField = field;
+    this.sortOrder = newOrder;
+
+    this.customers.sort((a, b) => {
+      const aValue = this.getFieldValue(a, field);
+      const bValue = this.getFieldValue(b, field);
+
+      if (aValue < bValue) return -1 * newOrder;
+      if (aValue > bValue) return 1 * newOrder;
+      return 0;
+    });
+  }
+
+  private getFieldValue(item: any, field: string): any {
+    return field.split('.').reduce((obj, prop) => obj?.[prop], item) || '';
+  }
+
+  trackByCustomer(index: number, customer: Customer): any {
+    return customer.id || index;
   }
 }

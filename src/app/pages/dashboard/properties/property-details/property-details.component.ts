@@ -11,7 +11,6 @@ import {BookingFormComponent} from "../booking-form/booking-form.component";
 import {BookingCardComponent} from "../booking-card/booking-card.component";
 import {MessageService} from "../../../../core/services/message.service";
 import {
-    ButtonComponent,
     StatusBadgeComponent,
     StatusVariant,
     TabsComponent,
@@ -25,7 +24,6 @@ import {
   templateUrl: './property-details.component.html',
   imports: [
     CommonModule,
-    ButtonComponent,
     StatusBadgeComponent,
     TabsComponent,
     TabComponent,

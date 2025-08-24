@@ -1,4 +1,4 @@
-import {Component, OnInit, TemplateRef, ViewChild} from '@angular/core';
+import {Component, OnInit} from '@angular/core';
 import {MessageService} from '../../../../core/services/message.service';
 import {Property} from "../../../../core/models/http/property.model";
 import {PropertyService} from "../../../../core/services/http/property.service";
@@ -7,27 +7,8 @@ import {Router, RouterLink} from "@angular/router";
 import {FormsModule} from "@angular/forms";
 
 // Shared Components
-import {
-  ButtonComponent,
-  CardComponent,
-  DataTableComponent,
-  SearchInputComponent,
-  SortEvent,
-  StatusBadgeComponent,
-  StatusVariant
-} from '../../../../shared/components';
+import {CardComponent, SearchInputComponent, StatusBadgeComponent, StatusVariant} from '../../../../shared/components';
 import {PaginationResult} from "../../../../core/models/http/base/pagination-result.model";
-
-// Enums
-
-// Table Column Interface
-export interface TableColumn {
-  field: string;
-  header: string;
-  sortable?: boolean;
-  template?: string;
-  width?: string;
-}
 
 @Component({
   selector: 'app-property-list',
@@ -37,18 +18,13 @@ export interface TableColumn {
     TitleCasePipe,
     RouterLink,
     FormsModule,
-    ButtonComponent,
     CardComponent,
-    DataTableComponent,
     SearchInputComponent,
     StatusBadgeComponent,
   ],
   standalone: true
 })
 export class PropertyListComponent implements OnInit {
-  @ViewChild('statusTemplate', {static: true}) statusTemplate!: TemplateRef<any>;
-  @ViewChild('actionsTemplate', {static: true}) actionsTemplate!: TemplateRef<any>;
-  @ViewChild('emptyTemplate', {static: true}) emptyTemplate!: TemplateRef<any>;
 
   properties: Property[] = [];
   property: Property = {};
@@ -70,39 +46,6 @@ export class PropertyListComponent implements OnInit {
   sortOrder: 1 | -1 = 1; // 1 for ascending, -1 for descending
 
   // Table columns configuration
-  tableColumns: TableColumn[] = [
-    {
-      field: 'created_at',
-      header: 'Created At',
-      sortable: true,
-      width: '150px'
-    },
-    {
-      field: 'title',
-      header: 'Title',
-      sortable: true,
-      width: '200px'
-    },
-    {
-      field: 'bookings_count',
-      header: 'Number of Bookings',
-      sortable: true,
-      width: '150px'
-    },
-    {
-      field: 'status',
-      header: 'Status',
-      sortable: true,
-      template: 'statusTemplate',
-      width: '120px'
-    },
-    {
-      field: 'actions',
-      header: 'Actions',
-      template: 'actionsTemplate',
-      width: '150px'
-    }
-  ];
 
   constructor(
     private propertyService: PropertyService,
@@ -148,13 +91,44 @@ export class PropertyListComponent implements OnInit {
     }, 300);
   }
 
-  onSelectionChange(selectedItems: Property[]) {
-    this.selectedProperties = selectedItems;
+  // Selection methods
+  isAllSelected(): boolean {
+    return this.properties.length > 0 && this.selectedProperties.length === this.properties.length;
   }
 
-  onSort(event: SortEvent) {
-    this.sortField = event.field;
-    this.sortOrder = event.order;
+  isSomeSelected(): boolean {
+    return this.selectedProperties.length > 0 && this.selectedProperties.length < this.properties.length;
+  }
+
+  isPropertySelected(property: Property): boolean {
+    return this.selectedProperties.some(selected => selected.id === property.id);
+  }
+
+  onSelectAll(event: any): void {
+    if (event.target.checked) {
+      this.selectedProperties = [...this.properties];
+    } else {
+      this.selectedProperties = [];
+    }
+  }
+
+  toggleSelection(property: Property): void {
+    const index = this.selectedProperties.findIndex(selected => selected.id === property.id);
+    if (index > -1) {
+      this.selectedProperties.splice(index, 1);
+    } else {
+      this.selectedProperties.push(property);
+    }
+  }
+
+  // Sorting methods
+  onSort(field: string): void {
+    if (this.sortField === field) {
+      this.sortOrder = this.sortOrder === 1 ? -1 : 1;
+    } else {
+      this.sortField = field;
+      this.sortOrder = 1;
+    }
     this.updatePagination();
   }
 
@@ -177,14 +151,29 @@ export class PropertyListComponent implements OnInit {
 
   exportCSV() {
     const csvData = this.properties.map(property => ({
-      'Created At': property.created_at,
       'Title': property.title,
-      'Bookings Count': property.bookings_count,
-      'Status': property.status
+      'Type': property.type,
+      'Location': property.address?.label,
+      'Price': property.price,
+      'Status': property.status,
+      'Created At': property.created_at
     }));
 
     const csvContent = this.convertToCSV(csvData);
     this.downloadCSV(csvContent, 'properties.csv');
+  }
+
+  // Utility methods
+  trackByProperty(index: number, property: Property): any {
+    return property.id;
+  }
+
+  formatCurrency(amount: number | undefined): string {
+    if (!amount) return 'N/A';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
   }
 
   // Pagination methods
@@ -286,6 +275,8 @@ export class PropertyListComponent implements OnInit {
       const query = this.searchQuery.toLowerCase();
       filteredProperties = filteredProperties.filter(property =>
         property.title?.toLowerCase().includes(query) ||
+        property.type?.toLowerCase().includes(query) ||
+        property.address?.label?.toLowerCase().includes(query) ||
         property.status?.toLowerCase().includes(query)
       );
     }

@@ -15,7 +15,7 @@ import {IconComponent} from '../../../../shared/components';
               <div class="size-4">
                   <app-icon name="squares-2x2" [size]="4"/>
               </div>
-              <h2 class="text-[#101518] text-lg font-bold leading-tight tracking-[-0.015em]">Property Management</h2>
+              <h2 class="text-[#101518] text-lg font-bold leading-tight tracking-[-0.015em]">Takussan</h2>
           </div>
           <div class="flex flex-1 gap-8 justify-end">
               <div class="hidden md:flex gap-9 items-center">

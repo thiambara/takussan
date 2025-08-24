@@ -7,9 +7,9 @@ export interface MenuItemNative {
 }
 
 export const menuItems: MenuItemNative[] = [
-  {label: 'Dashboard', routerLink: '/dashboard', icon: 'dashboard', visible: true},
-  {label: 'Properties', icon: 'home', routerLink: '/dashboard/properties', visible: true},
-  {label: 'Bookings', icon: 'calendar', routerLink: '/dashboard/bookings', visible: true},
-  {label: 'Customers', icon: 'users', routerLink: '/dashboard/customers', visible: true},
-  {label: 'Reports', routerLink: '/reports', icon: 'chart', visible: true}
+  {label: 'Home', routerLink: '/home', icon: 'home', visible: true},
+  {label: 'Properties', icon: 'home', routerLink: 'properties', visible: true},
+  {label: 'Bookings', icon: 'calendar', routerLink: 'bookings', visible: true},
+  {label: 'Customers', icon: 'users', routerLink: 'customers', visible: true},
+  {label: 'Reports', icon: 'chart', routerLink: 'reports', visible: true}
 ];

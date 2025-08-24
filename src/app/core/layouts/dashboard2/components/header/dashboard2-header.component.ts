@@ -3,7 +3,6 @@ import {CommonModule} from '@angular/common';
 import {DashboardUser, NotificationItem} from '../../dashboard2.component';
 import {
   AvatarComponent,
-  ButtonComponent,
   DropdownComponent,
   DropdownItem,
   IconComponent,
@@ -19,7 +18,6 @@ import {
     LogoComponent,
     SearchInputComponent,
     DropdownComponent,
-    ButtonComponent,
     AvatarComponent,
     IconComponent
   ],
@@ -31,15 +29,12 @@ import {
                   <!-- Left side - Mobile menu button and logo -->
                   <div class="flex items-center">
                       <!-- Mobile menu button -->
-                      <app-button
-                              variant="secondary"
-                              size="sm"
+                      <button
                               (click)="menuClick.emit()"
-                              class="lg:hidden mr-4"
-                              [attr.aria-expanded]="false"
-                      >
+                              class="lg:hidden mr-4 inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                              [attr.aria-expanded]="false">
                           <app-icon name="bars-3" [size]="6"/>
-                      </app-button>
+                      </button>
 
                       <!-- Logo -->
                       <app-logo title="Dashboard" logoText="D" size="md" [showText]="true"/>
@@ -91,13 +86,11 @@ import {
                           <div slot="header" class="flex justify-between items-center">
                               <h3 class="text-sm font-medium text-slate-900 dark:text-white">Notifications</h3>
                               @if (unreadCount > 0) {
-                                  <app-button
-                                          variant="secondary"
-                                          size="sm"
+                                  <button
                                           (click)="markAllAsRead()"
-                                          label="Mark all as read"
-                                          class="text-xs"
-                                  />
+                                          class="text-xs inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                                          Mark all as read
+                                  </button>
                               }
                           </div>
 

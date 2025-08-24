@@ -3,7 +3,7 @@ import {Customer} from "../../../../core/models/http/customer.model";
 import {CustomerService} from "../../../../core/services/http/customer.service";
 import {CommonModule} from "@angular/common";
 import {finalize} from "rxjs";
-import {ActivatedRoute, Router} from "@angular/router";
+import {ActivatedRoute, Router, RouterModule} from "@angular/router";
 import {Address} from "../../../../core/models/http/address.model";
 import {Booking} from "../../../../core/models/http/booking.model";
 import {MessageService} from '../../../../core/services/message.service';
@@ -11,7 +11,6 @@ import {MessageService} from '../../../../core/services/message.service';
 // Shared Components
 // Status variant enum
 import {
-  ButtonComponent,
   CardComponent,
   ModalComponent,
   StatusBadgeComponent,
@@ -28,7 +27,7 @@ import {BookingCardComponent} from "../../properties/booking-card/booking-card.c
   templateUrl: './customer-details.component.html',
   imports: [
     CommonModule,
-    ButtonComponent,
+    RouterModule,
     CardComponent,
     StatusBadgeComponent,
     TabsComponent,

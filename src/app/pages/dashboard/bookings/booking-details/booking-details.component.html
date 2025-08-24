@@ -153,42 +153,38 @@
 
     <!-- Action Buttons -->
     <div class="flex flex-col sm:flex-row justify-between gap-4 mt-8">
-        <app-button
+        <button
                 (click)="goBackToReservations()"
                 [disabled]="loading"
-                class="w-full sm:w-auto"
-                variant="secondary">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path d="M10 19l-7-7m0 0l7-7m-7 7h18" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
             </svg>
             Back to Reservations
-        </app-button>
+        </button>
 
         <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <app-button
+            <button
                     (click)="confirmBooking()"
                     *ngIf="booking.status === 'pending'"
                     [disabled]="loading"
-                    [loading]="loading"
-                    class="w-full sm:w-auto"
-                    variant="primary">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
                 </svg>
                 Confirm Booking
-            </app-button>
+            </button>
 
-            <app-button
+            <button
                     (click)="showCancelConfirmation()"
                     *ngIf="booking.status !== 'cancelled'"
                     [disabled]="loading"
-                    class="w-full sm:w-auto"
-                    variant="danger">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
                 </svg>
                 Cancel Booking
-            </app-button>
+            </button>
         </div>
     </div>
 </div>
@@ -220,17 +216,17 @@
     </div>
 
     <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200" slot="footer">
-        <app-button
+        <button
                 (click)="closeConfirmDialog()"
                 [disabled]="loading"
-                variant="secondary">
+                class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
             Cancel
-        </app-button>
-        <app-button
+        </button>
+        <button
                 (click)="cancelBooking()"
-                [loading]="loading"
-                variant="danger">
+                [disabled]="loading"
+                class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed">
             Yes, Cancel Booking
-        </app-button>
+        </button>
     </div>
 </app-modal>

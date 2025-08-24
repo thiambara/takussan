@@ -2,7 +2,6 @@ import {Component, EventEmitter, Input, Output} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {RouterModule} from '@angular/router';
 import {
-  ButtonComponent,
   IconComponent,
   LogoComponent,
   NavItemComponent,
@@ -18,7 +17,7 @@ interface QuickAction {
 @Component({
   selector: 'app-dashboard2-sidebar',
   standalone: true,
-  imports: [CommonModule, RouterModule, LogoComponent, NavItemComponent, ButtonComponent, IconComponent],
+  imports: [CommonModule, RouterModule, LogoComponent, NavItemComponent, IconComponent],
   template: `
       <aside
               class="w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col h-screen transition-transform duration-300 ease-in-out -translate-x-full lg:translate-x-0"
@@ -60,17 +59,13 @@ interface QuickAction {
               </h3>
 
               <div class="space-y-2">
-                  <app-button
+                  <button
                           *ngFor="let action of quickActions"
-                          variant="secondary"
-                          size="sm"
-                          [fullWidth]="true"
                           (click)="onQuickAction(action.id)"
-                          class="justify-start"
-                  >
+                          class="w-full justify-start mb-2 inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
                       <div *ngIf="action.icon" class="w-4 h-4 mr-2" [innerHTML]="getIcon(action.icon)"></div>
                       {{ action.label }}
-                  </app-button>
+                  </button>
               </div>
           </div>
       </aside>

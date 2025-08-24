@@ -3,7 +3,7 @@ import {Booking} from "../../../../core/models/http/booking.model";
 import {CommonModule} from "@angular/common";
 
 // Shared Components
-import {ButtonComponent, CardComponent, StatusBadgeComponent, StatusVariant} from '../../../../shared/components';
+import {CardComponent, StatusBadgeComponent, StatusVariant} from '../../../../shared/components';
 
 @Component({
   selector: 'app-booking-card',
@@ -12,8 +12,7 @@ import {ButtonComponent, CardComponent, StatusBadgeComponent, StatusVariant} fro
   imports: [
     CommonModule,
     CardComponent,
-    StatusBadgeComponent,
-    ButtonComponent
+    StatusBadgeComponent
   ]
 })
 export class BookingCardComponent {

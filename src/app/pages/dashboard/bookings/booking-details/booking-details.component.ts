@@ -9,7 +9,6 @@ import {MessageService} from '../../../../core/services/message.service';
 
 // Shared Components
 import {
-  ButtonComponent,
   CardComponent,
   ModalComponent,
   StatusBadgeComponent,
@@ -27,7 +26,6 @@ import {
     TitleCasePipe,
     RouterModule,
     ReactiveFormsModule,
-    ButtonComponent,
     CardComponent,
     StatusBadgeComponent,
     TooltipComponent,

@@ -3,7 +3,6 @@ import {CommonModule} from '@angular/common';
 import {
   ActivityItemComponent,
   ActivityItemData,
-  ButtonComponent,
   CardComponent,
   IconComponent,
   StatCardComponent,
@@ -18,7 +17,6 @@ import {
     StatCardComponent,
     ActivityItemComponent,
     CardComponent,
-    ButtonComponent,
     IconComponent
   ],
   template: `
@@ -31,18 +29,14 @@ import {
                       <p class="mt-2 text-blue-100">Here's what's happening with your projects today.</p>
                   </div>
                   <div class="mt-4 sm:mt-0 flex space-x-3">
-                      <app-button
-                              variant="secondary"
-                              size="md"
-                              label="View Reports"
-                              class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white border-white"
-                      />
-                      <app-button
-                              variant="primary"
-                              size="md"
-                              label="New Project"
-                              class="bg-white text-blue-600 hover:bg-blue-50 border-white"
-                      />
+                      <button
+                              class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white border-white inline-flex items-center justify-center px-4 py-2 text-sm font-medium border rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white disabled:opacity-50 disabled:cursor-not-allowed">
+                              View Reports
+                      </button>
+                      <button
+                              class="bg-white text-blue-600 hover:bg-blue-50 border-white inline-flex items-center justify-center px-4 py-2 text-sm font-medium border rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                              New Project
+                      </button>
                   </div>
               </div>
           </div>
@@ -61,7 +55,9 @@ import {
               <app-card padding="lg">
                   <div slot="header" class="flex items-center justify-between">
                       <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Revenue Overview</h3>
-                      <app-button variant="secondary" size="sm" label="View Details"/>
+                      <button class="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                          View Details
+                      </button>
                   </div>
 
                   <div class="h-64 flex items-center justify-center bg-slate-50 dark:bg-slate-700 rounded-lg">
@@ -78,7 +74,9 @@ import {
               <app-card padding="lg">
                   <div slot="header" class="flex items-center justify-between">
                       <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Traffic Sources</h3>
-                      <app-button variant="secondary" size="sm" label="View All"/>
+                      <button class="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                          View All
+                      </button>
                   </div>
 
                   <div class="space-y-4">
@@ -107,7 +105,9 @@ import {
                   <app-card padding="lg">
                       <div slot="header" class="flex items-center justify-between">
                           <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Recent Activity</h3>
-                          <app-button variant="secondary" size="sm" label="View All"/>
+                          <button class="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                              View All
+                          </button>
                       </div>
 
                       <div class="space-y-0 divide-y divide-slate-100 dark:divide-slate-700">

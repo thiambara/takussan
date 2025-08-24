@@ -4,7 +4,6 @@ import {FormsModule} from "@angular/forms";
 import {ActivatedRoute, Router, RouterLink} from "@angular/router";
 import {User} from "../../../core/models/http/user.model";
 import {AuthService} from "../../../core/services/http/auth/auth.service";
-import {ButtonComponent} from "../../../shared/components";
 
 @Component({
 
@@ -13,8 +12,7 @@ import {ButtonComponent} from "../../../shared/components";
   imports: [
     CommonModule,
     FormsModule,
-    RouterLink,
-    ButtonComponent
+    RouterLink
   ],
   standalone: true
 })

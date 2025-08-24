@@ -8,7 +8,7 @@ import {Address} from "../../../../core/models/http/address.model";
 import {MessageService} from '../../../../core/services/message.service';
 
 // Shared Components
-import {ButtonComponent, CardComponent, FormSelectComponent, TooltipComponent} from '../../../../shared/components';
+import {CardComponent, FormSelectComponent, TooltipComponent} from '../../../../shared/components';
 
 // Address Form Component
 import {AddressFormComponent} from '../../../../shared/components/address-form/address-form.component';
@@ -22,7 +22,6 @@ import {Customer} from "../../../../core/models/http/customer.model";
     RouterModule,
     ReactiveFormsModule,
     FormsModule,
-    ButtonComponent,
     CardComponent,
     FormSelectComponent,
     TooltipComponent,
