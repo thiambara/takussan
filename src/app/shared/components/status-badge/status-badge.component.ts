@@ -1,5 +1,5 @@
-import { Component, Input } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import {Component, Input} from '@angular/core';
+import {CommonModule} from '@angular/common';
 
 export type StatusVariant = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
 
@@ -8,9 +8,13 @@ export type StatusVariant = 'success' | 'warning' | 'danger' | 'info' | 'neutral
   standalone: true,
   imports: [CommonModule],
   template: `
-    <span [class]="badgeClasses">
+      <span [class]="badgeClasses">
       <i *ngIf="icon" [class]="iconClasses"></i>
-      {{ label }}
+          @if (label) {
+              {{ label }}
+          } @else {
+              <ng-content></ng-content>
+          }
     </span>
   `
 })

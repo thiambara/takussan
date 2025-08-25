@@ -11,10 +11,6 @@ export const routes: Routes = [
     loadChildren: () => import('./core/layouts/layout2/layout2.routes').then(m => m.routes),
   },
   {
-    'path': 'dashboard2',
-    loadChildren: () => import('./core/layouts/dashboard2/dashboard2.routes').then(m => m.routes),
-  },
-  {
     'path': 'login',
     // canActivate: [notAuthGuard],
     loadComponent: () => import('./pages/auth/login/login.component').then(m => m.LoginComponent)

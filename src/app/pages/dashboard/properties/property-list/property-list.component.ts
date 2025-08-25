@@ -7,7 +7,13 @@ import {Router, RouterLink} from "@angular/router";
 import {FormsModule} from "@angular/forms";
 
 // Shared Components
-import {CardComponent, SearchInputComponent, StatusBadgeComponent, StatusVariant} from '../../../../shared/components';
+import {
+  CardComponent,
+  SearchInputComponent,
+  StatusBadgeComponent,
+  StatusVariant,
+  ToolbarComponent
+} from '../../../../shared/components';
 import {PaginationResult} from "../../../../core/models/http/base/pagination-result.model";
 
 @Component({
@@ -21,6 +27,7 @@ import {PaginationResult} from "../../../../core/models/http/base/pagination-res
     CardComponent,
     SearchInputComponent,
     StatusBadgeComponent,
+    ToolbarComponent,
   ],
   standalone: true
 })
@@ -39,7 +46,6 @@ export class PropertyListComponent implements OnInit {
   currentPage: number = 1;
   rowsPerPage: number = 10;
   totalPages: number = 1;
-  paginatedProperties: Property[] = [];
 
   // Sorting properties
   sortField: string = '';
@@ -60,10 +66,14 @@ export class PropertyListComponent implements OnInit {
 
   getProperties() {
     this.loading = true;
-    this.propertyService.index().subscribe({
+    this.propertyService.index({
+      page: this.currentPage,
+      per_page: this.rowsPerPage,
+      search_query: this.searchQuery
+    }).subscribe({
       next: (data) => {
         this.properties = (data as PaginationResult<Property>).data || [];
-        this.updatePagination();
+        this.totalPages = (data as PaginationResult<Property>).last_page || 1;
         this.loading = false;
       },
       error: (error) => {
@@ -79,7 +89,7 @@ export class PropertyListComponent implements OnInit {
   }
 
   openNew() {
-    this.router.navigate(['/dashboard/properties/create']).then();
+    this.router.navigate(['edit/new']).then();
   }
 
   onSearch(searchTerm: string) {
@@ -87,7 +97,7 @@ export class PropertyListComponent implements OnInit {
     clearTimeout(this.searchQueryTimeout);
     this.searchQueryTimeout = setTimeout(() => {
       this.currentPage = 1;
-      this.updatePagination();
+      this.getProperties();
     }, 300);
   }
 
@@ -129,7 +139,7 @@ export class PropertyListComponent implements OnInit {
       this.sortField = field;
       this.sortOrder = 1;
     }
-    this.updatePagination();
+    this.getProperties();
   }
 
   getStatusVariant(status: string): StatusVariant {
@@ -164,7 +174,7 @@ export class PropertyListComponent implements OnInit {
   }
 
   // Utility methods
-  trackByProperty(index: number, property: Property): any {
+  trackByProperty(_: number, property: Property): any {
     return property.id;
   }
 
@@ -180,14 +190,14 @@ export class PropertyListComponent implements OnInit {
   goToPage(page: any) {
     if (page >= 1 && page <= this.totalPages) {
       this.currentPage = page;
-      this.updatePagination();
+      this.getProperties();
     }
   }
 
   onRowsPerPageChange(newRowsPerPage: number) {
     this.rowsPerPage = newRowsPerPage;
     this.currentPage = 1;
-    this.updatePagination();
+    this.getProperties();
   }
 
   getStartIndex(): number {
@@ -265,43 +275,5 @@ export class PropertyListComponent implements OnInit {
       link.click();
       document.body.removeChild(link);
     }
-  }
-
-  private updatePagination() {
-    let filteredProperties = [...this.properties];
-
-    // Apply search filter
-    if (this.searchQuery) {
-      const query = this.searchQuery.toLowerCase();
-      filteredProperties = filteredProperties.filter(property =>
-        property.title?.toLowerCase().includes(query) ||
-        property.type?.toLowerCase().includes(query) ||
-        property.address?.label?.toLowerCase().includes(query) ||
-        property.status?.toLowerCase().includes(query)
-      );
-    }
-
-    // Apply sorting
-    if (this.sortField) {
-      filteredProperties.sort((a, b) => {
-        const aValue = this.getFieldValue(a, this.sortField);
-        const bValue = this.getFieldValue(b, this.sortField);
-
-        if (aValue < bValue) return -1 * this.sortOrder;
-        if (aValue > bValue) return this.sortOrder;
-        return 0;
-      });
-    }
-
-    // Calculate pagination
-    this.totalPages = Math.ceil(filteredProperties.length / this.rowsPerPage);
-    const startIndex = (this.currentPage - 1) * this.rowsPerPage;
-    const endIndex = startIndex + this.rowsPerPage;
-
-    this.paginatedProperties = filteredProperties.slice(startIndex, endIndex);
-  }
-
-  private getFieldValue(obj: any, field: string): any {
-    return field.split('.').reduce((o, key) => o?.[key], obj) || '';
   }
 }

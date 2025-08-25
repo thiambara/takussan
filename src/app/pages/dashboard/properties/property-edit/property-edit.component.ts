@@ -1,5 +1,5 @@
 import {Component, OnInit} from '@angular/core';
-import {CommonModule} from '@angular/common';
+import {CommonModule, Location} from '@angular/common';
 import {FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators} from '@angular/forms';
 import {ActivatedRoute, Router} from '@angular/router';
 import {PropertyService} from '../../../../core/services/http/property.service';
@@ -149,6 +149,7 @@ export class PropertyEditComponent implements OnInit {
     private fb: FormBuilder,
     private route: ActivatedRoute,
     private router: Router,
+    private location: Location
   ) {
   }
 
@@ -497,7 +498,8 @@ export class PropertyEditComponent implements OnInit {
   }
 
   cancel() {
-    this.router.navigate(['/dashboard/properties']).then();
+    // navigate to the last location
+    this.location.back();
   }
 
   /**
