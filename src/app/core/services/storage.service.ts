@@ -13,13 +13,13 @@ export class StorageService {
     localStorage.setItem(key, JSON.stringify(value));
   }
 
-  public static getItemFromSessionStorage<T>(key: string): T {
+  public static getItemFromSessionStorage<T>(key: string): T | undefined {
     let value = sessionStorage.getItem(key);
-    return value ? JSON.parse(value) : null;
+    return value ? JSON.parse(value) : undefined;
   }
 
-  public static getItemFromLocalStorage<T>(key: string): T {
+  public static getItemFromLocalStorage<T>(key: string): T | undefined {
     let value = localStorage.getItem(key);
-    return value ? JSON.parse(value) : null;
+    return value ? JSON.parse(value) : undefined;
   }
 }
