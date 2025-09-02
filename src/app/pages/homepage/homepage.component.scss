@@ -1,0 +1,52 @@
+// Custom scrollbar hide for property categories
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+  
+  &::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+}
+
+// Line clamp utility for text truncation
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+
+// Custom focus styles for inputs
+input:focus {
+  outline: none;
+}
+
+// Smooth scroll behavior
+html {
+  scroll-behavior: smooth;
+}
+
+// Card hover effects
+.group:hover {
+  .group-hover\:scale-105 {
+    transform: scale(1.05);
+  }
+}
+
+// Custom animation for search bar
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Dropdown animation
+.dropdown-enter {
+  animation: slideDown 0.2s ease-out;
+}
