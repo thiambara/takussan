@@ -1,300 +1,261 @@
-<div class="p-4 mx-auto max-w-7xl animate-[fadeIn_0.5s_ease-in-out] md:p-6">
+<div class="p-4 mx-auto max-w-7xl property-details-container">
+    <p-toast></p-toast>
+
     <!-- Header with property title and actions -->
-    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+    <div class="flex justify-between items-center mb-6">
         <div>
-            <h1 class="mb-2 text-3xl font-bold text-blue-600 transition-colors duration-300">{{ property?.title || 'Property Details' }}</h1>
-            <app-status-badge
-                    [label]="property?.status || 'Unknown'"
-                    [variant]="getStatusVariant(property?.status || '')"
-                    class="transform hover:scale-105 transition-transform duration-200"
-            ></app-status-badge>
+            <h1 class="mb-2 text-3xl font-bold text-primary">{{ property?.title || 'Property Details' }}</h1>
+            <p-tag [severity]="getStatusSeverity(property?.status || '')" [value]="property?.status"></p-tag>
         </div>
         <div class="flex gap-2">
-            <button
-                    (click)="editProperty()"
-                    class="transform hover:-translate-y-1 transition-transform duration-200 inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-                </svg>
-                Edit Property
-            </button>
+            <p-button (click)="editProperty()" icon="pi pi-pencil" label="Edit Property"
+                      styleClass="p-button-outlined"></p-button>
         </div>
     </div>
 
     <!-- Property details in tabs -->
-    <div class="transition-all duration-300">
-        <app-tabs [(activeIndex)]="activeTabIndex">
-            <app-tab [value]="0" class="animate-[slideIn_0.3s_ease-in-out]" label="Overview">
+    <p-tabs [(value)]="activeTabIndex">
+        <p-tablist>
+            <p-tab [value]="0">Overview</p-tab>
+            <p-tab *ngIf="property && property.address" [value]="1">Location</p-tab>
+            <p-tab [value]="2">Bookings</p-tab>
+        </p-tablist>
+        <p-tabpanels>
+            <!-- Overview Tab -->
+            <p-tabpanel [value]="0">
+
                 <div class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2">
-                    <app-card class="transform hover:-translate-y-1 transition-all duration-300 hover:shadow-lg">
-                        <div class="bg-blue-50" slot="header">
-                            <h2 class="text-xl font-semibold text-blue-600">Basic Information</h2>
-                        </div>
+                    <p-card styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+                        <ng-template pTemplate="header">
+                            <div class="p-4 bg-primary-50">
+                                <h2 class="text-xl font-semibold text-primary">Basic Information</h2>
+                            </div>
+                        </ng-template>
 
                         <div class="grid grid-cols-1 gap-4">
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Title</h6>
-                                <p class="text-lg font-medium text-gray-900">{{ property?.title || 'N/A' }}</p>
+                                <h6 class="mb-1 text-gray-500">Title</h6>
+                                <p class="text-lg font-medium text-surface-900">{{ property?.title || 'N/A' }}</p>
                             </div>
 
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Type</h6>
-                                <p class="text-lg text-gray-900">{{ property?.type || 'N/A' }}</p>
+                                <h6 class="mb-1 text-gray-500">Type</h6>
+                                <p class="text-lg text-surface-900">{{ property?.type || 'N/A' }}</p>
                             </div>
 
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Contract Type</h6>
-                                <p class="text-lg text-gray-900">{{ property?.contract_type || 'N/A' }}</p>
+                                <h6 class="mb-1 text-gray-500">Contract Type</h6>
+                                <p class="text-lg text-surface-900">{{ property?.contract_type || 'N/A' }}</p>
                             </div>
 
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Created At</h6>
-                                <p class="text-lg text-gray-900">{{ property?.created_at | date: 'medium' }}</p>
+                                <h6 class="mb-1 text-gray-500">Created At</h6>
+                                <p class="text-lg text-surface-900">{{ property?.created_at | date: 'medium' }}</p>
                             </div>
                         </div>
-                    </app-card>
+                    </p-card>
 
-                    <app-card class="transform hover:-translate-y-1 transition-all duration-300 hover:shadow-lg">
-                        <div class="bg-blue-50" slot="header">
-                            <h2 class="text-xl font-semibold text-blue-600">Price Information</h2>
-                        </div>
+                    <p-card styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+                        <ng-template pTemplate="header">
+                            <div class="p-4 bg-primary-50">
+                                <h2 class="text-xl font-semibold text-primary">Price Information</h2>
+                            </div>
+                        </ng-template>
 
                         <div class="grid grid-cols-1 gap-4">
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Price</h6>
-                                <p class="text-lg font-medium text-gray-900">{{ property?.price | currency:'EUR' }}</p>
+                                <h6 class="mb-1 text-gray-500">Price</h6>
+                                <p class="text-lg font-medium text-surface-900">{{ property?.price | currency:'EUR' }}</p>
                             </div>
 
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Contract Type</h6>
-                                <p class="text-lg text-gray-900">{{ property?.contract_type || 'N/A' }}</p>
+                                <h6 class="mb-1 text-gray-500">Contract Type</h6>
+                                <p class="text-lg text-surface-900">{{ property?.contract_type || 'N/A' }}</p>
                             </div>
 
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Listed Since</h6>
-                                <p class="text-lg text-gray-900">{{ (property?.created_at | date: 'mediumDate') || 'N/A' }}</p>
+                                <h6 class="mb-1 text-gray-500">Listed Since</h6>
+                                <p class="text-lg text-surface-900">{{ (property?.created_at | date: 'mediumDate') || 'N/A' }}</p>
                             </div>
                         </div>
-                    </app-card>
+                    </p-card>
 
                     <!-- Type-specific details -->
-                    <app-card *ngIf="property?.metadata"
-                              class="transform hover:-translate-y-1 transition-all duration-300 hover:shadow-lg">
-                        <div class="bg-blue-50" slot="header">
-                            <h2 class="text-xl font-semibold text-blue-600">{{ getTypeSpecificLabel() }}</h2>
-                        </div>
+                    <p-card *ngIf="property?.metadata"
+                            styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+                        <ng-template pTemplate="header">
+                            <div class="p-4 bg-primary-50">
+                                <h2 class="text-xl font-semibold text-primary">{{ getTypeSpecificLabel() }}</h2>
+                            </div>
+                        </ng-template>
 
                         <!-- Apartment, House, Villa specific details -->
                         <div *ngIf="isResidentialType()" class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Rooms</h6>
-                                <p class="text-lg text-gray-900">{{ property?.metadata?.rooms || 'N/A' }}</p>
+                                <h6 class="mb-1 text-gray-500">Rooms</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.rooms || 'N/A' }}</p>
                             </div>
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Bathrooms</h6>
-                                <p class="text-lg text-gray-900">{{ property?.metadata?.bathrooms || 'N/A' }}</p>
+                                <h6 class="mb-1 text-gray-500">Bathrooms</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.bathrooms || 'N/A' }}</p>
                             </div>
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Furnished</h6>
-                                <p class="text-lg text-gray-900">{{ getFurnishedLabel(property?.metadata?.furnished) }}</p>
+                                <h6 class="mb-1 text-gray-500">Furnished</h6>
+                                <p class="text-lg text-surface-900">{{ getFurnishedLabel(property?.metadata?.furnished) }}</p>
                             </div>
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Parking Spaces</h6>
-                                <p class="text-lg text-gray-900">{{ property?.metadata?.parking_spaces || '0' }}</p>
+                                <h6 class="mb-1 text-gray-500">Parking Spaces</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.parking_spaces || '0' }}</p>
                             </div>
                         </div>
 
                         <!-- Features for Apartment, House, Villa -->
                         <div *ngIf="isResidentialType()" class="mt-4">
-                            <h6 class="mb-2 text-gray-500 text-sm font-medium">Features</h6>
+                            <h6 class="mb-2 text-gray-500">Features</h6>
                             <div class="flex flex-wrap gap-2">
-                                <app-status-badge *ngIf="property?.metadata?.has_balcony"
-                                                  class="transform hover:scale-105 transition-transform duration-200"
-                                                  label="Balcony"
-                                                  variant="info"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_garden"
-                                                  class="transform hover:scale-105 transition-transform duration-200"
-                                                  label="Garden"
-                                                  variant="info"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_pool"
-                                                  class="transform hover:scale-105 transition-transform duration-200"
-                                                  label="Pool"
-                                                  variant="info"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_elevator"
-                                                  class="transform hover:scale-105 transition-transform duration-200"
-                                                  label="Elevator"
-                                                  variant="info"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.air_conditioning"
-                                                  class="transform hover:scale-105 transition-transform duration-200"
-                                                  label="Air Conditioning"
-                                                  variant="info"></app-status-badge>
+                                <p-tag *ngIf="property?.metadata?.has_balcony" severity="info" value="Balcony"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_garden" severity="info" value="Garden"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_pool" severity="info" value="Pool"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_elevator" severity="info"
+                                       value="Elevator"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.air_conditioning" severity="info"
+                                       value="Air Conditioning"></p-tag>
                             </div>
                         </div>
 
                         <!-- Land specific details -->
                         <div *ngIf="isPropertyType('land')" class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Land Type</h6>
-                                <p class="text-lg text-gray-900">{{ property?.metadata?.land_type || 'N/A' }}</p>
+                                <h6 class="mb-1 text-gray-500">Land Type</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.land_type || 'N/A' }}</p>
                             </div>
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Zoning</h6>
-                                <p class="text-lg text-gray-900">{{ property?.metadata?.zoning || 'N/A' }}</p>
+                                <h6 class="mb-1 text-gray-500">Zoning</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.zoning || 'N/A' }}</p>
                             </div>
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Total Area</h6>
-                                <p class="text-lg text-gray-900">{{ property?.metadata?.total_area || 'N/A' }} m²</p>
+                                <h6 class="mb-1 text-gray-500">Total Area</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.total_area || 'N/A' }} m²</p>
                             </div>
                         </div>
 
                         <!-- Features for Land -->
                         <div *ngIf="isPropertyType('land')" class="mt-4">
-                            <h6 class="mb-2 text-gray-500 text-sm font-medium">Features</h6>
+                            <h6 class="mb-2 text-gray-500">Features</h6>
                             <div class="flex flex-wrap gap-2">
-                                <app-status-badge *ngIf="property?.metadata?.is_developed"
-                                                  class="transform hover:scale-105 transition-transform duration-200"
-                                                  label="Developed"
-                                                  variant="info"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_water_connection"
-                                                  class="transform hover:scale-105 transition-transform duration-200"
-                                                  label="Water Connection"
-                                                  variant="info"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_electricity_connection"
-                                                  class="transform hover:scale-105 transition-transform duration-200"
-                                                  label="Electricity"
-                                                  variant="info"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_road_access"
-                                                  class="transform hover:scale-105 transition-transform duration-200"
-                                                  label="Road Access"
-                                                  variant="info"></app-status-badge>
+                                <p-tag *ngIf="property?.metadata?.is_developed" severity="info"
+                                       value="Developed"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_water_connection" severity="info"
+                                       value="Water Connection"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_electricity_connection" severity="info"
+                                       value="Electricity"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_road_access" severity="info"
+                                       value="Road Access"></p-tag>
                             </div>
                         </div>
 
                         <!-- Office specific details -->
                         <div *ngIf="isPropertyType('office')" class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Office Area</h6>
-                                <p class="text-lg text-gray-900">{{ property?.metadata?.office_area || 'N/A' }} m²</p>
+                                <h6 class="mb-1 text-gray-500">Office Area</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.office_area || 'N/A' }}
+                                    m²</p>
                             </div>
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Number of Offices</h6>
-                                <p class="text-lg text-gray-900">{{ property?.metadata?.number_of_offices || 'N/A' }}</p>
+                                <h6 class="mb-1 text-gray-500">Number of Offices</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.number_of_offices || 'N/A' }}</p>
                             </div>
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Meeting Rooms</h6>
-                                <p class="text-lg text-gray-900">{{ property?.metadata?.meeting_rooms || 'N/A' }}</p>
+                                <h6 class="mb-1 text-gray-500">Meeting Rooms</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.meeting_rooms || 'N/A' }}</p>
                             </div>
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Bathrooms</h6>
-                                <p class="text-lg text-gray-900">{{ property?.metadata?.bathrooms || 'N/A' }}</p>
+                                <h6 class="mb-1 text-gray-500">Bathrooms</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.bathrooms || 'N/A' }}</p>
                             </div>
                         </div>
 
                         <!-- Features for Office -->
                         <div *ngIf="isPropertyType('office')" class="mt-4">
-                            <h6 class="mb-2 text-gray-500 text-sm font-medium">Features</h6>
+                            <h6 class="mb-2 text-gray-500">Features</h6>
                             <div class="flex flex-wrap gap-2">
-                                <app-status-badge *ngIf="property?.metadata?.has_reception"
-                                                  class="transform hover:scale-105 transition-transform duration-200"
-                                                  label="Reception"
-                                                  variant="info"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_kitchen"
-                                                  class="transform hover:scale-105 transition-transform duration-200"
-                                                  label="Kitchen"
-                                                  variant="info"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_server_room"
-                                                  class="transform hover:scale-105 transition-transform duration-200"
-                                                  label="Server Room"
-                                                  variant="info"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_elevator"
-                                                  class="transform hover:scale-105 transition-transform duration-200"
-                                                  label="Elevator"
-                                                  variant="info"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.air_conditioning"
-                                                  class="transform hover:scale-105 transition-transform duration-200"
-                                                  label="Air Conditioning"
-                                                  variant="info"></app-status-badge>
+                                <p-tag *ngIf="property?.metadata?.has_reception" severity="info"
+                                       value="Reception"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_kitchen" severity="info" value="Kitchen"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_server_room" severity="info"
+                                       value="Server Room"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_elevator" severity="info"
+                                       value="Elevator"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.air_conditioning" severity="info"
+                                       value="Air Conditioning"></p-tag>
                             </div>
                         </div>
 
                         <!-- Store specific details -->
                         <div *ngIf="isPropertyType('store')" class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Store Area</h6>
-                                <p class="text-lg text-gray-900">{{ property?.metadata?.store_area || 'N/A' }} m²</p>
+                                <h6 class="mb-1 text-gray-500">Store Area</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.store_area || 'N/A' }} m²</p>
                             </div>
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Store Front Width</h6>
-                                <p class="text-lg text-gray-900">{{ property?.metadata?.store_front_width || 'N/A' }}
+                                <h6 class="mb-1 text-gray-500">Store Front Width</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.store_front_width || 'N/A' }}
                                     m</p>
                             </div>
                             <div class="flex flex-col">
-                                <h6 class="mb-1 text-gray-500 text-sm font-medium">Bathrooms</h6>
-                                <p class="text-lg text-gray-900">{{ property?.metadata?.bathrooms || 'N/A' }}</p>
+                                <h6 class="mb-1 text-gray-500">Bathrooms</h6>
+                                <p class="text-lg text-surface-900">{{ property?.metadata?.bathrooms || 'N/A' }}</p>
                             </div>
                         </div>
 
                         <!-- Features for Store -->
                         <div *ngIf="isPropertyType('store')" class="mt-4">
-                            <h6 class="mb-2 text-gray-500 text-sm font-medium">Features</h6>
+                            <h6 class="mb-2 text-gray-500">Features</h6>
                             <div class="flex flex-wrap gap-2">
-                                <app-status-badge *ngIf="property?.metadata?.has_storage"
-                                                  class="transform hover:scale-105 transition-transform duration-200"
-                                                  label="Storage"
-                                                  variant="info"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_loading_dock"
-                                                  class="transform hover:scale-105 transition-transform duration-200"
-                                                  label="Loading Dock"
-                                                  variant="info"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.has_display_window"
-                                                  class="transform hover:scale-105 transition-transform duration-200"
-                                                  label="Display Window"
-                                                  variant="info"></app-status-badge>
-                                <app-status-badge *ngIf="property?.metadata?.air_conditioning"
-                                                  class="transform hover:scale-105 transition-transform duration-200"
-                                                  label="Air Conditioning"
-                                                  variant="info"></app-status-badge>
+                                <p-tag *ngIf="property?.metadata?.has_storage" severity="info" value="Storage"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_loading_dock" severity="info"
+                                       value="Loading Dock"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.has_display_window" severity="info"
+                                       value="Display Window"></p-tag>
+                                <p-tag *ngIf="property?.metadata?.air_conditioning" severity="info"
+                                       value="Air Conditioning"></p-tag>
                             </div>
                         </div>
-                    </app-card>
+                    </p-card>
                 </div>
 
-                <app-card class="mt-6 transform hover:-translate-y-1 transition-all duration-300 hover:shadow-lg">
-                    <div class="bg-blue-50" slot="header">
-                        <div class="flex justify-between items-center">
-                            <h2 class="text-xl font-semibold text-blue-600">Media & Documents</h2>
-                            <button
-                                    type="button"
-                                    class="transform hover:-translate-y-1 transition-transform duration-200 inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-                                </svg>
-                                Upload
-                            </button>
+                <p-card styleClass="mt-6 shadow-md hover:shadow-lg transition-shadow duration-300">
+                    <ng-template pTemplate="header">
+                        <div class="p-4 bg-primary-50">
+                            <div class="flex justify-between items-center">
+                                <h2 class="text-xl font-semibold text-primary">Media & Documents</h2>
+                                <p-button icon="pi pi-upload" label="Upload"
+                                          styleClass="p-button-sm"></p-button>
+                            </div>
                         </div>
-                    </div>
+                    </ng-template>
 
                     <div *ngIf="property?.media && property?.media?.length"
                          class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
                         <div (click)="openMediaPreview(media)"
                              *ngFor="let media of property?.media"
-                             class="overflow-hidden relative bg-gray-100 rounded-lg transition-all duration-300 cursor-pointer aspect-square hover:shadow-lg group">
+                             class="overflow-hidden relative bg-gray-100 rounded-lg transition-all duration-300 cursor-pointer aspect-square hover:shadow-lg">
                             <!-- Image file preview -->
                             <img *ngIf="media.is_image" [alt]="media.name"
                                  [ngSrc]="media.thumbnail_url || media.original_url || ''"
-                                 class="object-cover w-full h-full transition-transform duration-300 group-hover:scale-110"
+                                 class="object-cover w-full h-full transition-transform duration-300 hover:scale-110"
                                  fill/>
 
                             <!-- Document file preview -->
                             <div *ngIf="!media.is_image"
                                  class="flex flex-col justify-center items-center px-2 py-4 h-full text-center">
-                                <i class="mb-2 text-3xl text-blue-600 pi pi-file-pdf transition-transform duration-200 hover:scale-110"></i>
+                                <i class="mb-2 text-3xl text-primary pi pi-file-pdf"></i>
                                 <p class="text-sm text-gray-700 line-clamp-2">{{ media.name }}</p>
                             </div>
 
                             <!-- File type indicator -->
                             <span *ngIf="media.extension"
-                                  class="absolute top-2 right-2 px-2 py-1 text-xs font-medium text-white rounded-full bg-blue-600 transition-all duration-200 hover:bg-blue-700">
+                                  class="absolute top-2 right-2 px-2 py-1 text-xs font-medium text-white rounded-full bg-primary">
                           {{ media.extension.toUpperCase() }}
                         </span>
                         </div>
@@ -302,98 +263,91 @@
 
                     <div *ngIf="!property?.media || !property?.media?.length"
                          class="flex flex-col justify-center items-center py-16">
-                        <i class="mb-4 text-5xl text-gray-300 pi pi-images transition-transform duration-200 hover:scale-110"></i>
+                        <i class="mb-4 text-5xl text-gray-300 pi pi-images"></i>
                         <h3 class="mb-2 text-xl text-gray-600">No Media Available</h3>
                         <p class="mb-4 text-gray-500">Upload images or documents for this property.</p>
-                        <button
-                                type="button"
-                                class="transform hover:-translate-y-1 transition-transform duration-200 inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-                            </svg>
-                            Upload Media
-                        </button>
+                        <p-button icon="pi pi-upload" label="Upload Media"
+                                  styleClass="p-button-outlined"></p-button>
                     </div>
-                </app-card>
+                </p-card>
 
-                <app-card class="mt-6 transform hover:-translate-y-1 transition-all duration-300 hover:shadow-lg">
-                    <div class="bg-blue-50" slot="header">
-                        <h2 class="text-xl font-semibold text-blue-600">Description</h2>
-                    </div>
 
-                    <p class="text-lg leading-relaxed text-gray-900">
+                <p-card styleClass="mt-6 shadow-md hover:shadow-lg transition-shadow duration-300">
+                    <ng-template pTemplate="header">
+                        <div class="p-4 bg-primary-50">
+                            <h2 class="text-xl font-semibold text-primary">Description</h2>
+                        </div>
+                    </ng-template>
+
+                    <p class="text-lg leading-relaxed text-surface-900">
                         {{ property?.description || 'No description available for this property.' }}
                     </p>
-                </app-card>
+                </p-card>
 
                 <!-- Services/Amenities -->
-                <app-card *ngIf="property?.servicing?.length"
-                          class="mt-6 transform hover:-translate-y-1 transition-all duration-300 hover:shadow-lg">
-                    <div class="bg-blue-50" slot="header">
-                        <h2 class="text-xl font-semibold text-blue-600">Services & Amenities</h2>
-                    </div>
+                <p-card *ngIf="property?.servicing?.length"
+                        styleClass="mt-6 shadow-md hover:shadow-lg transition-shadow duration-300">
+                    <ng-template pTemplate="header">
+                        <div class="p-4 bg-primary-50">
+                            <h2 class="text-xl font-semibold text-primary">Services & Amenities</h2>
+                        </div>
+                    </ng-template>
 
                     <div class="flex flex-wrap gap-2">
-                        <app-status-badge *ngFor="let service of property?.servicing" [label]="service"
-                                          class="transform hover:scale-105 transition-transform duration-200"
-                                          variant="info"></app-status-badge>
+                        <p-tag *ngFor="let service of property?.servicing" [rounded]="true" [value]="service"
+                               severity="info"></p-tag>
                     </div>
-                </app-card>
-            </app-tab>
+                </p-card>
+            </p-tabpanel>
 
             <!-- Location Tab -->
-            <app-tab *ngIf="property?.address" [value]="1" class="animate-[slideIn_0.3s_ease-in-out]" label="Location">
-                <app-card class="transform hover:-translate-y-1 transition-all duration-300 hover:shadow-lg">
-                    <div class="bg-blue-50" slot="header">
-                        <h2 class="text-xl font-semibold text-blue-600">Address Information</h2>
-                    </div>
+            <p-tabpanel *ngIf="property?.address" [value]="1">
+                <p-card styleClass="shadow-md hover:shadow-lg transition-shadow duration-300">
+                    <ng-template pTemplate="header">
+                        <div class="p-4 bg-primary-50">
+                            <h2 class="text-xl font-semibold text-primary">Address Information</h2>
+                        </div>
+                    </ng-template>
 
                     <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                         <div class="flex flex-col">
-                            <h6 class="mb-1 text-gray-500 text-sm font-medium">Address</h6>
-                            <p class="text-lg text-gray-900">{{ property?.address?.address || 'N/A' }}</p>
+                            <h6 class="mb-1 text-gray-500">Address</h6>
+                            <p class="text-lg text-surface-900">{{ property?.address?.address || 'N/A' }}</p>
                         </div>
 
                         <div class="flex flex-col">
-                            <h6 class="mb-1 text-gray-500 text-sm font-medium">City</h6>
-                            <p class="text-lg text-gray-900">{{ property?.address?.city || 'N/A' }}</p>
+                            <h6 class="mb-1 text-gray-500">City</h6>
+                            <p class="text-lg text-surface-900">{{ property?.address?.city || 'N/A' }}</p>
                         </div>
 
                         <div class="flex flex-col">
-                            <h6 class="mb-1 text-gray-500 text-sm font-medium">State/Province</h6>
-                            <p class="text-lg text-gray-900">{{ property?.address?.state || 'N/A' }}</p>
+                            <h6 class="mb-1 text-gray-500">State/Province</h6>
+                            <p class="text-lg text-surface-900">{{ property?.address?.state || 'N/A' }}</p>
                         </div>
 
                         <div class="flex flex-col">
-                            <h6 class="mb-1 text-gray-500 text-sm font-medium">Country</h6>
-                            <p class="text-lg text-gray-900">{{ property?.address?.country || 'N/A' }}</p>
+                            <h6 class="mb-1 text-gray-500">Country</h6>
+                            <p class="text-lg text-surface-900">{{ property?.address?.country || 'N/A' }}</p>
                         </div>
                     </div>
 
                     <!-- Map placeholder -->
-                    <div class="flex justify-center items-center mt-6 h-64 bg-gray-100 rounded-lg transition-all duration-300 hover:bg-gray-200">
+                    <div class="flex justify-center items-center mt-6 h-64 bg-gray-100 rounded-lg">
                         <div class="text-center">
-                            <i class="mb-2 text-4xl text-gray-400 pi pi-map-marker transition-transform duration-200 hover:scale-110"></i>
+                            <i class="mb-2 text-4xl text-gray-400 pi pi-map-marker"></i>
                             <p class="text-gray-500">Map view would be displayed here</p>
                         </div>
                     </div>
-                </app-card>
-            </app-tab>
+                </p-card>
+            </p-tabpanel>
 
             <!-- Bookings Tab -->
-            <app-tab [value]="2" class="animate-[slideIn_0.3s_ease-in-out]" label="Bookings">
-                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-4">
-                    <h2 class="text-xl font-semibold text-blue-600">Property Bookings</h2>
-                    <button
-                            type="button"
-                            (click)="openNewBookingDialog()"
-                            [disabled]="!property || !property.id"
-                            class="transform hover:-translate-y-1 transition-transform duration-200 disabled:transform-none disabled:opacity-50 inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-                        </svg>
-                        Add Booking
-                    </button>
+            <p-tabpanel [value]="2">
+
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-primary">Property Bookings</h2>
+                    <p-button (click)="openNewBookingDialog()" [disabled]="!property || !property.id" icon="pi pi-plus"
+                              label="Add Booking" styleClass="p-button-success"></p-button>
                 </div>
 
                 <div *ngIf="property?.bookings && property?.bookings?.length"
@@ -403,66 +357,58 @@
                             (edit)="editBooking(booking)"
                             *ngFor="let booking of property?.bookings"
                             [booking]="booking"
-                            class="booking-card transform hover:-translate-y-2 transition-all duration-300 hover:shadow-xl"
                     ></app-booking-card>
                 </div>
 
                 <div *ngIf="!property?.bookings?.length"
-                     class="flex flex-col justify-center items-center py-12 bg-gray-50 rounded-lg transition-all duration-300 hover:bg-gray-100">
-                    <i class="mb-4 text-5xl text-gray-400 pi pi-calendar transition-transform duration-200 hover:scale-110"></i>
+                     class="flex flex-col justify-center items-center py-12 bg-gray-50 rounded-lg">
+                    <i class="mb-4 text-5xl text-gray-400 pi pi-calendar"></i>
                     <h3 class="mb-2 text-xl text-gray-600">No Bookings Found</h3>
                     <p class="mb-4 text-gray-500">This property doesn't have any bookings yet.</p>
-                    <button
-                            type="button"
-                            (click)="openNewBookingDialog()"
-                            class="transform hover:-translate-y-1 transition-transform duration-200 inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-                        </svg>
-                        Create First Booking
-                    </button>
+                    <p-button (click)="openNewBookingDialog()" icon="pi pi-plus" label="Create First Booking"
+                              styleClass="p-button-success"></p-button>
                 </div>
-            </app-tab>
-        </app-tabs>
-    </div>
+            </p-tabpanel>
+        </p-tabpanels>
+    </p-tabs>
 </div>
 
 <!-- Media Preview Dialog -->
-<app-modal
-        [(visible)]="showMediaPreviewDialog"
-        [closeOnBackdrop]="true"
-        [closeOnEscape]="true"
-        class="animate-[fadeInBackdrop_0.3s_ease-out]"
-        size="xl"
-        title="Media Preview"
->
+<p-dialog [(visible)]="showMediaPreviewDialog" [closeIconTemplate]="mediaPreviewCloseIcon" [closeOnEscape]="true"
+          [dismissableMask]="true"
+          [draggable]="false"
+          [modal]="true" [resizable]="false" [style]="{width: '90vw', 'max-width': '800px'}">
+    <ng-template #mediaPreviewCloseIcon>
+        <p-button (click)="closeMediaPreview()" class="p-button-rounded p-button-text" icon="pi pi-times"
+                  type="button"></p-button>
+    </ng-template>
+
+    <ng-template pTemplate="header">
+        <div class="flex justify-between items-center w-full">
+            <h5 class="m-0 text-xl">Media Preview</h5>
+
+        </div>
+    </ng-template>
+
     <div *ngIf="selectedMedia" class="flex flex-col items-center">
         <!-- Image Preview -->
         <img *ngIf="selectedMedia.is_image" [alt]="selectedMedia.name"
-             [src]="selectedMedia.original_url" class="max-h-[70vh] object-contain rounded-lg shadow-lg"/>
+             [src]="selectedMedia.original_url" class="max-h-[70vh] object-contain"/>
 
         <!-- Document Preview -->
         <div *ngIf="!selectedMedia.is_image" class="w-full text-center">
-            <i class="mb-4 text-6xl text-blue-600 pi pi-file-pdf transition-transform duration-200 hover:scale-110"></i>
-            <h3 class="mb-2 text-xl font-semibold text-gray-900">{{ selectedMedia.name }}</h3>
-            <p class="mb-4 text-gray-500">{{ selectedMedia && selectedMedia.size ? (selectedMedia.size / 1024).toFixed(2) + ' KB' : '' }} {{ selectedMedia && selectedMedia.extension ? '• ' + selectedMedia.extension.toUpperCase() : '' }}</p>
-            <button
-                    type="button"
+            <i class="mb-4 text-6xl text-primary pi pi-file-pdf"></i>
+            <h3 class="mb-2">{{ selectedMedia.name }}</h3>
+            <p class="mb-4">{{ selectedMedia && selectedMedia.size ? (selectedMedia.size / 1024).toFixed(2) + ' KB' : '' }} {{ selectedMedia && selectedMedia.extension ? '• ' + selectedMedia.extension.toUpperCase() : '' }}</p>
+            <p-button
                     (click)="closeMediaPreview()"
-                    [disabled]="downloadingFile"
-                    class="transform hover:-translate-y-1 transition-transform duration-200 inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                <svg *ngIf="downloadingFile" class="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <svg *ngIf="!downloadingFile" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-                </svg>
-                Download File
-            </button>
+                    [loading]="downloadingFile"
+                    icon="pi pi-download"
+                    label="Download File"
+                    styleClass="p-button-outlined"></p-button>
         </div>
     </div>
-</app-modal>
+</p-dialog>
 
 <!-- Booking Form Component -->
 <app-booking-form

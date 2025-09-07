@@ -4,6 +4,7 @@ import {Observable} from "rxjs";
 import {BaseHttpService} from "./base/base-http.service";
 import {Property} from "../../models/http/property.model";
 import {Media} from "../../models/http/media.model";
+import {BaseHttpIndexQueryParams} from "../../models/http/base/base-http-index-query-param.model";
 
 @Injectable({
   providedIn: 'root'
@@ -55,5 +56,13 @@ export class PropertyService extends BaseHttpService<Property> {
    */
   setFeaturedMedia(propertyId: number, mediaId: number): Observable<void> {
     return this.http.post<void>(`${this.endpointUrl}/${propertyId}/media/${mediaId}/featured`, {});
+  }
+
+  /**
+   * Hero search properties
+   * @param params
+   */
+  heroSearch(params: BaseHttpIndexQueryParams<Property>) {
+    return this.http.get<Property[]>(`${this.endpointUrl}/hero-search?${objectToQueryString(params)}`);
   }
 }

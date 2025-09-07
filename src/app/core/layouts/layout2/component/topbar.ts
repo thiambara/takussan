@@ -3,18 +3,15 @@ import {Router, RouterModule} from '@angular/router';
 import {CommonModule} from '@angular/common';
 import {MenuItemNative, menuItems} from "./menu";
 import {Layout2Service} from "../service/layout2.service";
-import {IconComponent} from '../../../../shared/components';
 
 @Component({
   selector: 'app-topbar',
   standalone: true,
-  imports: [RouterModule, CommonModule, IconComponent],
+  imports: [RouterModule, CommonModule],
   template: `
       <header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#eaedf1] px-10 py-3">
-          <div class="flex items-center gap-4 text-[#101518]">
-              <div class="size-4">
-                  <app-icon name="squares-2x2" [size]="4"/>
-              </div>
+          <div class="flex items-center gap-2 text-[#101518]">
+              <i class="pi pi-th-large"></i>
               <h2 class="text-[#101518] text-lg font-bold leading-tight tracking-[-0.015em]">Takussan</h2>
           </div>
           <div class="flex flex-1 gap-8 justify-end">
@@ -30,7 +27,7 @@ import {IconComponent} from '../../../../shared/components';
               </div>
               <!-- Mobile menu button (visible only on small screens) -->
               <button (click)="toggleMobileMenu()" class="md:hidden flex items-center">
-                  <app-icon name="bars-3" [size]="6"/>
+                  <i class="pi pi-bars"></i>
               </button>
               <div
                       class="bg-center bg-no-repeat bg-cover rounded-full aspect-square size-10"

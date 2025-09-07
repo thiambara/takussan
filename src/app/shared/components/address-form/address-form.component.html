@@ -1,92 +1,130 @@
-<!-- Modal container -->
-<div *ngIf="visible" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity duration-300 ease-in-out" (click)="onCancel()">
+<p-dialog
+        (onHide)="onCancel()"
+        [(visible)]="visible"
+        [closeOnEscape]="true"
+        [dismissableMask]="true"
+        [draggable]="false"
+        [header]="isEdit ? 'Modifier l\'adresse' : 'Ajouter une adresse'"
+        [modal]="true"
+        [resizable]="false"
+        [style]="{width: '550px'}">
 
-  <!-- Modal content -->
-  <div class="relative w-full max-w-2xl p-6 mx-4 bg-white rounded-lg shadow-xl transform transition-transform duration-300 ease-in-out scale-95" (click)="$event.stopPropagation()">
+    <div class="p-fluid address-form-container">
+        <form [formGroup]="addressForm" class="grid grid-cols-1 gap-4">
+            <!-- Label -->
+            <div class="field">
+                <label class="block mb-2 font-medium" for="label">Étiquette *</label>
 
-    <!-- Header -->
-    <div class="flex items-start justify-between pb-4 border-b rounded-t">
-      <h3 class="text-xl font-semibold text-gray-900">
-        {{ isEdit ? 'Modifier l\'adresse' : 'Ajouter une adresse' }}
-      </h3>
-      <button (click)="onCancel()" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center" type="button">
-        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" fill-rule="evenodd"></path></svg>
-      </button>
+                <input class="w-full" formControlName="label" id="label" pInputText
+                       placeholder="Ex: Domicile, Bureau..." type="text">
+
+                <small *ngIf="addressForm.get('label')?.invalid && addressForm.get('label')?.touched"
+                       class="block mt-1 text-red-500">
+                    L'étiquette est obligatoire
+                </small>
+            </div>
+
+            <!-- Address -->
+            <div class="field">
+                <label class="block mb-2 font-medium" for="address">Adresse *</label>
+                <textarea autoResize="true" class="w-full" formControlName="address" id="address" pTextarea
+                          placeholder="Numéro et rue" rows="3"></textarea>
+                <small *ngIf="addressForm.get('address')?.invalid && addressForm.get('address')?.touched"
+                       class="block mt-1 text-red-500">
+                    L'adresse est obligatoire
+                </small>
+            </div>
+
+            <!-- City and State -->
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div class="field">
+                    <label class="block mb-2 font-medium" for="city">Ville *</label>
+                    <input class="w-full" formControlName="city" id="city" pInputText type="text">
+                    <small *ngIf="addressForm.get('city')?.invalid && addressForm.get('city')?.touched"
+                           class="block mt-1 text-red-500">
+                        La ville est obligatoire
+                    </small>
+                </div>
+
+                <div class="field">
+                    <label class="block mb-2 font-medium" for="state">Région</label>
+                    <input class="w-full" formControlName="state" id="state" pInputText type="text">
+                </div>
+            </div>
+
+            <!-- Country and Postal Code -->
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div class="field">
+                    <label class="block mb-2 font-medium" for="country">Pays *</label>
+                    <input class="w-full" formControlName="country" id="country" pInputText type="text">
+                    <small *ngIf="addressForm.get('country')?.invalid && addressForm.get('country')?.touched"
+                           class="block mt-1 text-red-500">
+                        Le pays est obligatoire
+                    </small>
+                </div>
+
+                <div class="field">
+                    <label class="block mb-2 font-medium" for="postal_code">Code postal</label>
+                    <input class="w-full" formControlName="postal_code" id="postal_code" pInputText type="text">
+                </div>
+            </div>
+
+            <!-- Address Type -->
+            <div class="field">
+                <label class="block mb-2 font-medium" for="type">Type d'adresse</label>
+                <p-select
+                        [filter]="true"
+                        [options]="addressTypes"
+                        formControlName="type"
+                        id="type"
+                        optionLabel="label"
+                        optionValue="value"
+                        styleClass="w-full">
+                    <ng-template let-option pTemplate="selectedItem">
+                        <div class="flex align-items-center">
+                            <i [ngClass]="{
+                                 'pi-home': option.value === 'residential',
+                                 'pi-briefcase': option.value === 'business',
+                                 'pi-truck': option.value === 'shipping',
+                                 'pi-credit-card': option.value === 'billing',
+                                 'pi-map-marker': option.value === 'other'
+                               }"
+                               class="mr-2 pi"></i>
+                            <span>{{ option.label }}</span>
+                        </div>
+                    </ng-template>
+                    <ng-template let-option pTemplate="item">
+                        <div class="flex align-items-center">
+                            <i [ngClass]="{
+                                 'pi-home': option.value === 'residential',
+                                 'pi-briefcase': option.value === 'business',
+                                 'pi-truck': option.value === 'shipping',
+                                 'pi-credit-card': option.value === 'billing',
+                                 'pi-map-marker': option.value === 'other'
+                               }"
+                               class="mr-2 pi"></i>
+                            <span>{{ option.label }}</span>
+                        </div>
+                    </ng-template>
+                </p-select>
+            </div>
+        </form>
     </div>
 
-    <!-- Body -->
-    <div class="pt-5 address-form-container">
-      <form [formGroup]="addressForm" class="grid grid-cols-1 gap-y-4">
-        <!-- Label -->
-        <div>
-          <label class="block mb-2 text-sm font-medium text-gray-700" for="label">Étiquette *</label>
-          <input class="block w-full px-3 py-2 text-base placeholder-gray-400 border border-gray-300 rounded-md shadow-sm appearance-none focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" formControlName="label" id="label" placeholder="Ex: Domicile, Bureau..." type="text">
-          <small *ngIf="addressForm.get('label')?.invalid && addressForm.get('label')?.touched" class="block mt-1 text-sm text-red-600">
-            L'étiquette est obligatoire
-          </small>
+    <ng-template pTemplate="footer">
+        <div class="flex gap-2 justify-end">
+            <p-button
+                    (onClick)="onCancel()"
+                    icon="pi pi-times"
+                    label="Annuler"
+                    styleClass="p-button-outlined p-button-secondary">
+            </p-button>
+            <p-button
+                    (onClick)="onSubmit()"
+                    [disabled]="addressForm.invalid"
+                    icon="pi pi-check"
+                    label="Enregistrer">
+            </p-button>
         </div>
-
-        <!-- Address -->
-        <div>
-          <label class="block mb-2 text-sm font-medium text-gray-700" for="address">Adresse *</label>
-          <textarea class="block w-full px-3 py-2 text-base placeholder-gray-400 border border-gray-300 rounded-md shadow-sm appearance-none focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" formControlName="address" id="address" placeholder="Numéro et rue" rows="3"></textarea>
-          <small *ngIf="addressForm.get('address')?.invalid && addressForm.get('address')?.touched" class="block mt-1 text-sm text-red-600">
-            L'adresse est obligatoire
-          </small>
-        </div>
-
-        <!-- City and State -->
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <label class="block mb-2 text-sm font-medium text-gray-700" for="city">Ville *</label>
-            <input class="block w-full px-3 py-2 text-base placeholder-gray-400 border border-gray-300 rounded-md shadow-sm appearance-none focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" formControlName="city" id="city" type="text">
-            <small *ngIf="addressForm.get('city')?.invalid && addressForm.get('city')?.touched" class="block mt-1 text-sm text-red-600">
-              La ville est obligatoire
-            </small>
-          </div>
-          <div>
-            <label class="block mb-2 text-sm font-medium text-gray-700" for="state">Région</label>
-            <input class="block w-full px-3 py-2 text-base placeholder-gray-400 border border-gray-300 rounded-md shadow-sm appearance-none focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" formControlName="state" id="state" type="text">
-          </div>
-        </div>
-
-        <!-- Country and Postal Code -->
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <label class="block mb-2 text-sm font-medium text-gray-700" for="country">Pays *</label>
-            <input class="block w-full px-3 py-2 text-base placeholder-gray-400 border border-gray-300 rounded-md shadow-sm appearance-none focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" formControlName="country" id="country" type="text">
-            <small *ngIf="addressForm.get('country')?.invalid && addressForm.get('country')?.touched" class="block mt-1 text-sm text-red-600">
-              Le pays est obligatoire
-            </small>
-          </div>
-          <div>
-            <label class="block mb-2 text-sm font-medium text-gray-700" for="postal_code">Code postal</label>
-            <input class="block w-full px-3 py-2 text-base placeholder-gray-400 border border-gray-300 rounded-md shadow-sm appearance-none focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" formControlName="postal_code" id="postal_code" type="text">
-          </div>
-        </div>
-
-        <!-- Address Type -->
-        <div>
-          <label class="block mb-2 text-sm font-medium text-gray-700" for="type">Type d'adresse</label>
-          <select class="block w-full px-3 py-2 text-base placeholder-gray-400 border border-gray-300 rounded-md shadow-sm appearance-none focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" formControlName="type" id="type">
-            <option *ngFor="let type of addressTypes" [value]="type.value">{{ type.label }}</option>
-          </select>
-        </div>
-      </form>
-    </div>
-
-    <!-- Footer -->
-    <div class="flex items-center justify-end pt-5 mt-5 border-t">
-      <div class="flex gap-2">
-        <button (click)="onCancel()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" type="button">
-          Annuler
-        </button>
-        <button (click)="onSubmit()" [disabled]="addressForm.invalid" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed" type="submit">
-          Enregistrer
-        </button>
-      </div>
-    </div>
-
-  </div>
-</div>
-
+    </ng-template>
+</p-dialog>

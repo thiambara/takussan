@@ -1,109 +1,74 @@
-<app-card class="booking-card shadow-md hover:shadow-lg transition-all duration-300 animate-[fadeIn_0.5s_ease-in-out]">
-    <!-- Card Header -->
-    <div [ngClass]="{
-    'bg-yellow-50 border-b border-yellow-200': booking.status === 'pending',
-    'bg-green-50 border-b border-green-200': booking.status === 'confirmed',
-    'bg-red-50 border-b border-red-200': booking.status === 'cancelled',
-    'bg-blue-50 border-b border-blue-200': booking.status === 'completed'
-  }" class="p-4 flex justify-between items-center transition-colors duration-200" slot="header">
-        <h3 class="text-lg font-semibold text-gray-900">
-            Booking #{{ booking.reference_number || 'New' }}
-        </h3>
-        <app-status-badge
-                [label]="booking.status || 'pending'"
-                [variant]="getStatusVariant(booking.status || '')"
-                class="animate-[slideIn_0.3s_ease-in-out]"
-        ></app-status-badge>
-    </div>
+<p-card styleClass="booking-card shadow-md hover:shadow-lg transition-all duration-300">
+    <ng-template pTemplate="header">
+        <div [ngClass]="{
+            'bg-yellow-50': booking.status === 'pending',
+            'bg-green-50': booking.status === 'confirmed',
+            'bg-red-50': booking.status === 'cancelled',
+            'bg-blue-50': booking.status === 'completed'
+        }" class="p-3 flex justify-between items-center">
+            <h3 class="text-lg font-medium">Booking #{{ booking.reference_number || 'New' }}</h3>
+            <p-tag [severity]="getStatusSeverity(booking.status || '')"
+                   [value]="booking.status || 'pending'"></p-tag>
+        </div>
+    </ng-template>
 
-    <!-- Card Body -->
-    <div class="grid grid-cols-1 gap-4 p-1">
-        <div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors duration-150 rounded px-2">
-            <span class="text-gray-600 text-sm font-medium">Booking Date:</span>
-            <span class="font-semibold text-gray-900">{{ booking.booking_date | date: 'mediumDate' }}</span>
+    <div class="grid grid-cols-1 gap-3">
+        <div class="flex justify-between">
+            <span class="text-gray-500">Booking Date:</span>
+            <span class="font-medium">{{ booking.booking_date | date: 'mediumDate' }}</span>
         </div>
 
-        <div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors duration-150 rounded px-2">
-            <span class="text-gray-600 text-sm font-medium">Start Date:</span>
-            <span class="font-semibold text-gray-900">{{ booking.start_date | date: 'mediumDate' }}</span>
+        <div class="flex justify-between">
+            <span class="text-gray-500">Start Date:</span>
+            <span class="font-medium">{{ booking.start_date | date: 'mediumDate' }}</span>
         </div>
 
-        <div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors duration-150 rounded px-2">
-            <span class="text-gray-600 text-sm font-medium">End Date:</span>
-            <span class="font-semibold text-gray-900">{{ booking.end_date | date: 'mediumDate' }}</span>
+        <div class="flex justify-between">
+            <span class="text-gray-500">End Date:</span>
+            <span class="font-medium">{{ booking.end_date | date: 'mediumDate' }}</span>
         </div>
 
-        <div *ngIf="booking.start_date && booking.end_date"
-             class="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors duration-150 rounded px-2">
-            <span class="text-gray-600 text-sm font-medium">Duration:</span>
-            <span class="font-semibold text-blue-600">{{ calculateDuration() }} days</span>
+        <div *ngIf="booking.start_date && booking.end_date" class="flex justify-between">
+            <span class="text-gray-500">Duration:</span>
+            <span class="font-medium">{{ calculateDuration() }} days</span>
         </div>
 
-        <div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors duration-150 rounded px-2">
-            <span class="text-gray-600 text-sm font-medium">Expiration Date:</span>
-            <span class="font-semibold text-gray-900">{{ booking.expiration_date | date: 'mediumDate' }}</span>
+        <div class="flex justify-between">
+            <span class="text-gray-500">Expiration Date:</span>
+            <span class="font-medium">{{ booking.expiration_date | date: 'mediumDate' }}</span>
         </div>
 
-        <div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors duration-150 rounded px-2">
-            <span class="text-gray-600 text-sm font-medium">Property Price:</span>
-            <span class="font-semibold text-gray-900">{{ booking.price_at_booking | currency:'EUR' }}</span>
+        <div class="flex justify-between">
+            <span class="text-gray-500">Property Price:</span>
+            <span class="font-medium">{{ booking.price_at_booking | currency:'EUR' }}</span>
         </div>
 
-        <div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors duration-150 rounded px-2">
-            <span class="text-gray-600 text-sm font-medium">Total Amount:</span>
-            <span class="font-bold text-blue-600 text-lg">{{ booking.total_amount | currency:'EUR' }}</span>
+        <div class="flex justify-between">
+            <span class="text-gray-500">Total Amount:</span>
+            <span class="font-bold text-primary">{{ booking.total_amount | currency:'EUR' }}</span>
         </div>
 
-        <div *ngIf="booking.deposit_amount"
-             class="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors duration-150 rounded px-2">
-            <span class="text-gray-600 text-sm font-medium">Deposit:</span>
-            <div class="flex items-center gap-2">
-                <span class="font-semibold text-gray-900">{{ booking.deposit_amount | currency:'EUR' }}</span>
-                <div class="flex items-center">
-                    <svg *ngIf="booking.deposit_paid" class="w-5 h-5 text-green-500 animate-[fadeIn_0.3s_ease-in-out]"
-                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"
-                              stroke-width="2"></path>
-                    </svg>
-                    <svg *ngIf="!booking.deposit_paid" class="w-5 h-5 text-red-500 animate-[fadeIn_0.3s_ease-in-out]"
-                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"
-                              stroke-width="2"></path>
-                    </svg>
-                </div>
-            </div>
+        <div *ngIf="booking.deposit_amount" class="flex justify-between">
+            <span class="text-gray-500">Deposit:</span>
+            <span class="font-medium">{{ booking.deposit_amount | currency:'EUR' }}
+                <i *ngIf="booking.deposit_paid" class="pi pi-check-circle text-green-500 ml-1"></i>
+                <i *ngIf="!booking.deposit_paid" class="pi pi-times-circle text-red-500 ml-1"></i>
+            </span>
         </div>
 
-        <!-- Divider -->
-        <hr class="border-gray-200 my-2">
+        <p-divider></p-divider>
 
-        <div *ngIf="booking.notes" class="bg-gray-50 rounded-lg p-3 animate-[slideIn_0.3s_ease-in-out]">
-            <span class="text-gray-600 text-sm font-medium block mb-2">Notes:</span>
-            <p class="text-gray-700 text-sm italic leading-relaxed">{{ booking.notes }}</p>
+        <div *ngIf="booking.notes" class="text-sm">
+            <span class="text-gray-500">Notes:</span>
+            <p class="mt-1 italic">{{ booking.notes }}</p>
         </div>
     </div>
 
-    <!-- Card Footer -->
-    <div class="flex justify-end gap-3 pt-4 border-t border-gray-200" slot="footer">
-        <button
-                (click)="onEdit()"
-                class="transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round"
-                      stroke-width="2"></path>
-            </svg>
-            Edit
-        </button>
-        <button
-                (click)="onDelete()"
-                class="transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round"
-                      stroke-width="2"></path>
-            </svg>
-            Delete
-        </button>
-    </div>
-</app-card>
+    <ng-template pTemplate="footer">
+        <div class="flex justify-end gap-2">
+            <p-button (click)="onEdit()" icon="pi pi-pencil" styleClass="p-button-text p-button-sm"></p-button>
+            <p-button (click)="onDelete()" icon="pi pi-trash"
+                      styleClass="p-button-text p-button-danger p-button-sm"></p-button>
+        </div>
+    </ng-template>
+</p-card>

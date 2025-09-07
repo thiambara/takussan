@@ -3,6 +3,9 @@
 
 @plugin "@tailwindcss/forms";
 @plugin "@tailwindcss/container-queries";
+@plugin "tailwindcss-primeui";
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 @theme {
     --color-primary-50: #eff6ff;
     --color-primary-100: #dbeafe;

@@ -8,11 +8,11 @@ import {Address} from "../../../../core/models/http/address.model";
 import {MessageService} from '../../../../core/services/message.service';
 
 // Shared Components
-import {CardComponent, FormSelectComponent, TooltipComponent} from '../../../../shared/components';
-
 // Address Form Component
 import {AddressFormComponent} from '../../../../shared/components/address-form/address-form.component';
 import {Customer} from "../../../../core/models/http/customer.model";
+import {Card} from "primeng/card";
+import {Select} from "primeng/select";
 
 @Component({
   selector: 'app-customer-edit',
@@ -22,10 +22,9 @@ import {Customer} from "../../../../core/models/http/customer.model";
     RouterModule,
     ReactiveFormsModule,
     FormsModule,
-    CardComponent,
-    FormSelectComponent,
-    TooltipComponent,
-    AddressFormComponent
+    AddressFormComponent,
+    Card,
+    Select
   ],
   standalone: true
 })

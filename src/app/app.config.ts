@@ -1,4 +1,4 @@
-import {ApplicationConfig, LOCALE_ID, provideZoneChangeDetection, importProvidersFrom} from '@angular/core';
+import {ApplicationConfig, LOCALE_ID, provideZoneChangeDetection} from '@angular/core';
 import {
   provideRouter,
   withComponentInputBinding,
@@ -10,10 +10,12 @@ import {routes} from './app.routes';
 import {provideHttpClient, withInterceptors} from "@angular/common/http";
 import {takussanApiAuthInterceptor} from "./core/interceptors/takussan-api-auth.interceptor";
 import {provideAnimationsAsync} from "@angular/platform-browser/animations/async";
-import { fr_FR, provideNzI18n } from 'ng-zorro-antd/i18n';
-import { registerLocaleData } from '@angular/common';
+import {registerLocaleData} from '@angular/common';
 import fr from '@angular/common/locales/fr';
-import { FormsModule } from '@angular/forms';
+import {providePrimeNG} from "primeng/config";
+import Aura from '@primeuix/themes/aura';
+import {MessageService} from "primeng/api";
+import {DialogService} from "primeng/dynamicdialog";
 
 registerLocaleData(fr);
 
@@ -27,6 +29,19 @@ export const appConfig: ApplicationConfig = {
     provideAnimationsAsync(),
     provideZoneChangeDetection({eventCoalescing: true}),
     provideHttpClient(withInterceptors([takussanApiAuthInterceptor])),
-    {provide: LOCALE_ID, useValue: "fr-FR"}, provideNzI18n(fr_FR), importProvidersFrom(FormsModule), provideAnimationsAsync(), provideHttpClient(),
+    {provide: LOCALE_ID, useValue: "fr-FR"},
+    providePrimeNG({
+      theme: {
+        preset: Aura,
+        options: {darkModeSelector: '.app-dark'}
+
+      }
+    }),
+    // PrimeNG services
+    [
+      MessageService,
+      DialogService
+    ],
+    {provide: LOCALE_ID, useValue: "fr-FR"},
   ]
 };

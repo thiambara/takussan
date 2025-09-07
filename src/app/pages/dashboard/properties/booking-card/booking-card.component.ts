@@ -1,9 +1,10 @@
 import {Component, EventEmitter, Input, Output} from '@angular/core';
 import {Booking} from "../../../../core/models/http/booking.model";
 import {CommonModule} from "@angular/common";
-
-// Shared Components
-import {CardComponent, StatusBadgeComponent, StatusVariant} from '../../../../shared/components';
+import {ButtonModule} from "primeng/button";
+import {TagModule} from "primeng/tag";
+import {CardModule} from "primeng/card";
+import {DividerModule} from "primeng/divider";
 
 @Component({
   selector: 'app-booking-card',
@@ -11,8 +12,10 @@ import {CardComponent, StatusBadgeComponent, StatusVariant} from '../../../../sh
   standalone: true,
   imports: [
     CommonModule,
-    CardComponent,
-    StatusBadgeComponent
+    ButtonModule,
+    TagModule,
+    CardModule,
+    DividerModule
   ]
 })
 export class BookingCardComponent {
@@ -20,21 +23,18 @@ export class BookingCardComponent {
   @Output() edit = new EventEmitter<Booking>();
   @Output() delete = new EventEmitter<Booking>();
 
-  /**
-   * Get status variant for the status badge component
-   */
-  getStatusVariant(status: string): StatusVariant {
+  getStatusSeverity(status: string): string {
     switch (status) {
       case 'pending':
         return 'warning';
       case 'confirmed':
         return 'success';
       case 'cancelled':
-        return "danger";
+        return 'danger';
       case 'completed':
         return 'info';
       default:
-        return 'neutral';
+        return 'secondary';
     }
   }
 
@@ -66,6 +66,8 @@ export class BookingCardComponent {
     // Calculate the difference in milliseconds
     const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
     // Convert to days and round up to include both start and end days
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    return diffDays;
   }
 }

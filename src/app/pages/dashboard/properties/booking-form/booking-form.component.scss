@@ -1,12 +1,19 @@
-// All styling has been moved to inline Tailwind classes in the HTML template
-// This file contains only essential keyframe animations
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+.customer-item {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0;
 }
 
-@keyframes slideIn {
-  from { opacity: 0; transform: translateX(10px); }
-  to { opacity: 1; transform: translateX(0); }
+:host ::ng-deep {
+  .p-autocomplete {
+    width: 100%;
+  }
+
+  .p-autocomplete-panel .p-autocomplete-items .p-autocomplete-item {
+    padding: 0.5rem 1rem;
+  }
+
+  .p-autocomplete-panel .p-autocomplete-items .p-autocomplete-item:hover {
+    background-color: var(--surface-hover);
+  }
 }

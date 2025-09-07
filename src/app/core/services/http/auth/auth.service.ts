@@ -21,11 +21,11 @@ export class AuthService extends BaseHttpService<User> {
   }
 
   static get isAuthenticated(): boolean {
-    return AuthService.authToken !== null;
+    return !!AuthService.authToken;
   }
 
   get authenticatedUser(): User | undefined {
-    return StorageService.getItemFromLocalStorage('authenticatedUser');
+    return StorageService.getItemFromLocalStorage('authenticatedUser') || StorageService.getItemFromSessionStorage('authenticatedUser');
   }
 
   static getAuthenticatedUser() {

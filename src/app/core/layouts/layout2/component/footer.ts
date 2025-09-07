@@ -1,11 +1,10 @@
 import {Component} from '@angular/core';
 import {CommonModule} from '@angular/common';
-import {IconComponent} from '../../../../shared/components';
 
 @Component({
   selector: 'app-footer',
   standalone: true,
-  imports: [CommonModule, IconComponent],
+  imports: [CommonModule],
   template: `
       <!-- Footer -->
       <footer class="bg-gray-900 text-white py-12 mt-16">
@@ -18,11 +17,11 @@ import {IconComponent} from '../../../../shared/components';
                       <div class="flex space-x-4">
                           <a href="#" class="text-gray-300 hover:text-white">
                               <span class="sr-only">Twitter</span>
-                              <app-icon name="twitter" [size]="6"/>
+                              <i class="pi pi-twitter"></i>
                           </a>
                           <a href="#" class="text-gray-300 hover:text-white">
                               <span class="sr-only">Facebook</span>
-                              <app-icon name="facebook" [size]="6"/>
+                              <i class="pi pi-facebook"></i>
                           </a>
                       </div>
                   </div>

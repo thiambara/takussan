@@ -3,19 +3,22 @@ import {CommonModule} from '@angular/common';
 import {FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators} from '@angular/forms';
 import {Booking} from '../../../../core/models/http/booking.model';
 import {PaginationResult} from '../../../../core/models/http/base/pagination-result.model';
-import {CustomerService} from '../../../../core/services/http/customer.service';
 import {debounceTime, EMPTY, merge, skip} from 'rxjs';
-import {BookingService} from "../../../../core/services/http/booking.service";
-import {MessageService} from '../../../../core/services/message.service';
 
-// Shared Components
-import {
-  AutocompleteComponent,
-  FormSelectComponent,
-  ModalComponent,
-  ToggleSwitchComponent,
-  TooltipComponent
-} from '../../../../shared/components';
+// PrimeNG Modules
+import {ButtonModule} from 'primeng/button';
+import {InputTextModule} from 'primeng/inputtext';
+import {SelectModule} from 'primeng/select';
+import {InputNumberModule} from 'primeng/inputnumber';
+import {DatePickerModule} from 'primeng/datepicker';
+import {DialogModule} from 'primeng/dialog';
+import {TextareaModule} from 'primeng/textarea';
+import {AutoCompleteModule, AutoCompleteSelectEvent} from 'primeng/autocomplete';
+import {ToastModule} from 'primeng/toast';
+import {ToggleButtonModule} from 'primeng/togglebutton';
+import {MessageService} from 'primeng/api';
+import {BookingService} from "../../../../core/services/http/booking.service";
+import {CustomerService} from "../../../../core/services/http/customer.service";
 import {Customer} from "../../../../core/models/http/customer.model";
 
 @Component({
@@ -27,11 +30,16 @@ import {Customer} from "../../../../core/models/http/customer.model";
     CommonModule,
     ReactiveFormsModule,
     FormsModule,
-    ModalComponent,
-    FormSelectComponent,
-    ToggleSwitchComponent,
-    AutocompleteComponent,
-    TooltipComponent
+    ButtonModule,
+    InputTextModule,
+    SelectModule,
+    InputNumberModule,
+    DatePickerModule,
+    DialogModule,
+    TextareaModule,
+    AutoCompleteModule,
+    ToastModule,
+    ToggleButtonModule
   ],
   providers: [MessageService]
 })
@@ -136,16 +144,17 @@ export class BookingFormComponent implements OnInit {
     });
   }
 
-  filterCustomer(query: string): void {
-    const searchTerm = query.toLowerCase();
+  filterCustomer(event: any): void {
+    const query = event.query.toLowerCase();
     this.filteredCustomers = this.customers.filter(customer =>
-      customer.first_name?.toLowerCase().includes(searchTerm) ||
-      customer.last_name?.toLowerCase().includes(searchTerm) ||
-      customer.email?.toLowerCase().includes(searchTerm)
+      customer.first_name?.toLowerCase().includes(query) ||
+      customer.last_name?.toLowerCase().includes(query) ||
+      customer.email?.toLowerCase().includes(query)
     );
   }
 
-  onCustomerSelect(customer: Customer): void {
+  onCustomerSelect(event: AutoCompleteSelectEvent): void {
+    const customer = event.value as Customer;
     this.selectedCustomer = customer;
     this.bookingForm.patchValue({
       customer_id: customer.id

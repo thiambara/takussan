@@ -1,162 +1,101 @@
 import {Component, OnInit} from '@angular/core';
 import {CommonModule} from '@angular/common';
-import {FormsModule} from '@angular/forms';
 import {Router, RouterModule} from '@angular/router';
-import {BookingService} from '../../../../core/services/http/booking.service';
+import {ButtonModule} from 'primeng/button';
+import {TableModule} from 'primeng/table';
+import {CardModule} from 'primeng/card';
+import {TagModule} from 'primeng/tag';
 import {Booking} from '../../../../core/models/http/booking.model';
 import {PaginationResult} from '../../../../core/models/http/base/pagination-result.model';
+import {ToastModule} from 'primeng/toast';
+import {ConfirmationService, MessageService} from 'primeng/api';
+import {ConfirmDialogModule} from 'primeng/confirmdialog';
 import {finalize} from 'rxjs';
-import {MessageService} from '../../../../core/services/message.service';
-
-// Shared Components
-import {
-  CardComponent,
-  StatusBadgeComponent,
-  ModalComponent,
-  StatusVariant
-} from '../../../../shared/components';
-
-// Table column interface
-interface TableColumn {
-  field: string;
-  header: string;
-  sortable?: boolean;
-  template?: string;
-}
-
-// Confirmation dialog data interface
-interface ConfirmDialogData {
-  title: string;
-  message: string;
-  acceptLabel: string;
-  severity: 'info' | 'warning' | 'danger';
-  accept?: () => void;
-}
+import {BookingService} from "../../../../core/services/http/booking.service";
 
 @Component({
   selector: 'app-bookings-list',
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
     RouterModule,
-    CardComponent,
-    StatusBadgeComponent,
-    ModalComponent
+    ButtonModule,
+    TableModule,
+    CardModule,
+    TagModule,
+    ToastModule,
+    ConfirmDialogModule
   ],
+  providers: [MessageService, ConfirmationService],
   templateUrl: './bookings-list.component.html',
 })
 export class BookingsListComponent implements OnInit {
   bookings: Booking[] = [];
   loading = false;
-  showConfirmDialog = false;
-  confirmDialogData: ConfirmDialogData = {
-    title: '',
-    message: '',
-    acceptLabel: 'Confirm',
-    severity: 'info'
-  };
-
-  // Pagination properties
-  currentPage: number = 0;
-  currentRowsPerPage: number = 10;
-  rowsPerPageOptions = [5, 10, 20, 50];
-
-  // Sorting properties
-  sortField: string = '';
-  sortOrder: 1 | -1 = 1;
 
   constructor(
     private bookingService: BookingService,
     private messageService: MessageService,
+    private confirmationService: ConfirmationService,
     private router: Router
-  ) { }
-
-  ngOnInit(): void {
-    this.loadBookings();
+  ) {
   }
 
-  loadBookings(): void {
+  ngOnInit(): void {
+    this.fetchBookings();
+  }
+
+  fetchBookings(): void {
     this.loading = true;
     this.bookingService.index()
       .pipe(finalize(() => this.loading = false))
       .subscribe({
-        next: (response) => {
-          if (Array.isArray(response)) {
-            this.bookings = response;
+        next: (bookings: Booking[] | PaginationResult<Booking>) => {
+          if (Array.isArray(bookings)) {
+            this.bookings = bookings;
           } else {
-            // Handle paginated response
-            this.bookings = (response as PaginationResult<Booking>).data || [];
+            this.bookings = bookings.data || [];
           }
         },
-        error: (error) => {
+        error: (error: any) => {
           this.messageService.add({
             severity: 'error',
             summary: 'Error',
-            detail: error.message || 'Failed to load bookings',
+            detail: error.message || 'Failed to fetch bookings',
             life: 3000
           });
         }
       });
   }
 
-  getStatusVariant(status: string): StatusVariant {
-    switch (status?.toLowerCase()) {
-      case 'confirmed':
-        return 'success';
-      case 'pending':
-        return 'warning';
-      case 'cancelled':
-      case 'rejected':
-        return 'danger';
-      case 'completed':
-        return 'info';
-      default:
-        return 'info';
-    }
-  }
-
   viewBookingDetails(booking: Booking): void {
-    if (booking.id) {
-      this.router.navigate(['/dashboard/bookings', booking.id]).then();
-    }
+    this.router.navigate(['/dashboard/bookings', booking.id]);
   }
 
   confirmBooking(booking: Booking): void {
-    this.confirmDialogData = {
-      title: 'Confirm Booking',
-      message: `Are you sure you want to confirm booking ${booking.reference_number}? This action cannot be undone.`,
-      acceptLabel: 'Confirm',
-      severity: 'info',
-      accept: () => this.performConfirmBooking(booking)
-    };
-    this.showConfirmDialog = true;
-  }
+    this.loading = true;
 
-  cancelBooking(booking: Booking): void {
-    this.confirmDialogData = {
-      title: 'Cancel Booking',
-      message: `Are you sure you want to cancel booking ${booking.reference_number}? This action cannot be undone.`,
-      acceptLabel: 'Cancel Booking',
-      severity: 'danger',
-      accept: () => this.performCancelBooking(booking)
+    const data: Partial<Booking> = {
+      status: 'confirmed',
+      confirmation_date: new Date().toISOString()
     };
-    this.showConfirmDialog = true;
-  }
 
-  private performConfirmBooking(booking: Booking): void {
-    if (!booking.id) return;
-    
-    this.bookingService.update(booking.id, { ...booking, status: 'confirmed' })
+    this.bookingService.update(booking.id!, data as Booking)
+      .pipe(finalize(() => this.loading = false))
       .subscribe({
-        next: () => {
+        next: (updatedBooking) => {
           this.messageService.add({
             severity: 'success',
             summary: 'Success',
             detail: 'Booking confirmed successfully',
             life: 3000
           });
-          this.loadBookings();
+
+          // Update booking in the list
+          const index = this.bookings.findIndex(b => b.id === booking.id);
+          if (index !== -1) {
+            this.bookings[index] = updatedBooking;
+          }
         },
         error: (error) => {
           this.messageService.add({
@@ -169,152 +108,81 @@ export class BookingsListComponent implements OnInit {
       });
   }
 
-  private performCancelBooking(booking: Booking): void {
-    if (!booking.id) return;
-    
-    this.bookingService.update(booking.id, { ...booking, status: 'cancelled' })
-      .subscribe({
-        next: () => {
-          this.messageService.add({
-            severity: 'success',
-            summary: 'Success',
-            detail: 'Booking cancelled successfully',
-            life: 3000
+  cancelBooking(booking: Booking): void {
+    this.confirmationService.confirm({
+      header: 'Cancel Booking',
+      message: 'Are you sure you want to cancel this booking?',
+      accept: () => {
+        this.loading = true;
+
+        const data: Partial<Booking> = {
+          status: 'cancelled',
+          cancellation_date: new Date().toISOString(),
+          reason_for_cancellation: 'Cancelled by admin'
+        };
+
+        this.bookingService.update(booking.id!, data as Booking)
+          .pipe(finalize(() => this.loading = false))
+          .subscribe({
+            next: (updatedBooking) => {
+              this.messageService.add({
+                severity: 'success',
+                summary: 'Success',
+                detail: 'Booking cancelled successfully',
+                life: 3000
+              });
+
+              // Update booking in the list
+              const index = this.bookings.findIndex(b => b.id === booking.id);
+              if (index !== -1) {
+                this.bookings[index] = updatedBooking;
+              }
+            },
+            error: (error) => {
+              this.messageService.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: error.message || 'Failed to cancel booking',
+                life: 3000
+              });
+            }
           });
-          this.loadBookings();
-        },
-        error: (error) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: error.message || 'Failed to cancel booking',
-            life: 3000
-          });
-        }
-      });
+      }
+    });
   }
 
-  closeConfirmDialog(): void {
-    this.showConfirmDialog = false;
-    this.confirmDialogData = {
-      title: '',
-      message: '',
-      acceptLabel: 'Confirm',
-      severity: 'info'
-    };
-  }
-
-  acceptConfirmDialog(): void {
-    if (this.confirmDialogData.accept) {
-      this.confirmDialogData.accept();
+  getStatusSeverity(status?: string): string {
+    switch (status) {
+      case 'pending':
+        return 'warning';
+      case 'confirmed':
+        return 'success';
+      case 'rejected':
+        return 'danger';
+      case 'cancelled':
+        return 'danger';
+      case 'completed':
+        return 'info';
+      default:
+        return 'secondary';
     }
-    this.closeConfirmDialog();
   }
 
-  formatDate(date: string | Date): string {
+  formatDate(date?: string): string {
     if (!date) return 'N/A';
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'short',
+      month: 'long',
       day: 'numeric'
     });
   }
 
-  formatCurrency(amount: number | string): string {
-    if (!amount) return 'N/A';
-    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  formatCurrency(value?: number): string {
+    if (!value) return '$0.00';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'EUR'
-    }).format(numAmount);
-  }
-
-  // Pagination methods
-  get totalPages(): number {
-    return Math.ceil(this.bookings.length / this.currentRowsPerPage);
-  }
-
-  get paginatedBookings(): Booking[] {
-    const start = this.currentPage * this.currentRowsPerPage;
-    const end = start + this.currentRowsPerPage;
-    return this.bookings.slice(start, end);
-  }
-
-  nextPage(): void {
-    if (this.currentPage < this.totalPages - 1) {
-      this.currentPage++;
-    }
-  }
-
-  previousPage(): void {
-    if (this.currentPage > 0) {
-      this.currentPage--;
-    }
-  }
-
-  goToPage(page: number): void {
-    if (page >= 0 && page < this.totalPages) {
-      this.currentPage = page;
-    }
-  }
-
-  onRowsPerPageChange(rows: number): void {
-    this.currentRowsPerPage = rows;
-    this.currentPage = 0; // Reset to first page
-  }
-
-  getVisiblePages(): number[] {
-    const pages: number[] = [];
-    const maxVisible = 5;
-    const half = Math.floor(maxVisible / 2);
-
-    let start = Math.max(0, this.currentPage - half);
-    let end = Math.min(this.totalPages - 1, start + maxVisible - 1);
-
-    if (end - start + 1 < maxVisible) {
-      start = Math.max(0, end - maxVisible + 1);
-    }
-
-    for (let i = start; i <= end; i++) {
-      pages.push(i);
-    }
-
-    return pages;
-  }
-
-  getCurrentPageReport(): string {
-    const first = this.currentPage * this.currentRowsPerPage + 1;
-    const last = Math.min((this.currentPage + 1) * this.currentRowsPerPage, this.bookings.length);
-    const totalRecords = this.bookings.length;
-
-    return `Showing ${first} to ${last} of ${totalRecords} entries`;
-  }
-
-  // Sorting methods
-  onSort(field: string): void {
-    let newOrder: 1 | -1 = 1;
-    if (this.sortField === field) {
-      newOrder = this.sortOrder === 1 ? -1 : 1;
-    }
-
-    this.sortField = field;
-    this.sortOrder = newOrder;
-
-    this.bookings.sort((a, b) => {
-      const aValue = this.getFieldValue(a, field);
-      const bValue = this.getFieldValue(b, field);
-
-      if (aValue < bValue) return -1 * newOrder;
-      if (aValue > bValue) return 1 * newOrder;
-      return 0;
-    });
-  }
-
-  private getFieldValue(item: any, field: string): any {
-    return field.split('.').reduce((obj, prop) => obj?.[prop], item) || '';
-  }
-
-  trackByBooking(index: number, booking: Booking): any {
-    return booking.id || index;
+      currency: 'USD',
+      minimumFractionDigits: 2
+    }).format(value);
   }
 }

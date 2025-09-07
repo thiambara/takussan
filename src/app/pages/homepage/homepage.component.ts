@@ -2,97 +2,96 @@ import {Component, inject, OnInit} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
 import {Property} from "../../core/models/http/property.model";
+import {SelectButton} from "primeng/selectbutton";
+import {Select} from "primeng/select";
+import {ButtonModule} from "primeng/button";
+import {IconField} from "primeng/iconfield";
+import {InputIcon} from "primeng/inputicon";
+import {InputText} from "primeng/inputtext";
 import {PropertyService} from "../../core/services/http/property.service";
+import {SelectItemGroup} from "primeng/api";
+import {PropertyCardComponent} from "../../shared/components/product-card/property-card.component";
 
 @Component({
   selector: 'app-homepage',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SelectButton, Select, ButtonModule, IconField, InputIcon, InputText, PropertyCardComponent],
   templateUrl: './homepage.component.html',
   styleUrls: ['./homepage.component.scss']
 })
 export class HomepageComponent implements OnInit {
-  private propertyService = inject(PropertyService);
-  
+  propertyService = inject(PropertyService);
   // Search state
   searchMode: 'rent' | 'buy' = 'buy';
-  selectedRegion = '';
+  selectedLocation = '';
   searchQuery = '';
-  showRegionDropdown = false;
-  
-  // Available regions (you can populate this from backend)
-  regions = [
-    'Dakar',
-    'Thiès', 
-    'Saint-Louis',
-    'Diourbel',
-    'Louga',
-    'Fatick',
-    'Kaolack',
-    'Matam',
-    'Kaffrine',
-    'Kédougou',
-    'Kolda',
-    'Sédhiou',
-    'Tambacounda',
-    'Ziguinchor'
+  selectedPriceRange = '';
+
+  suggestedLocations: SelectItemGroup[] = [];
+
+  // Search mode options for SelectButton
+  searchModeOptions = [
+    {label: 'Acheter', value: 'buy', icon: 'pi pi-home'},
+    {label: 'Louer', value: 'rent', icon: 'pi pi-key'}
   ];
-  
-  filteredRegions: string[] = [];
-  
   // Properties
   properties: Property[] = [];
-  featuredProperties: Property[] = [];
-  
+
   // Property categories
   propertyCategories = [
-    { id: 'apartment', label: 'Appartements', icon: '🏢', active: false },
-    { id: 'house', label: 'Maisons', icon: '🏠', active: false },
-    { id: 'villa', label: 'Villas', icon: '🏡', active: false },
-    { id: 'land', label: 'Terrains', icon: '🏞️', active: false },
-    { id: 'office', label: 'Bureaux', icon: '🏢', active: false },
-    { id: 'store', label: 'Commerces', icon: '🏪', active: false }
+    {id: 'apartment', label: 'Appartements', icon: '🏢', active: false},
+    {id: 'house', label: 'Maisons', icon: '🏠', active: false},
+    {id: 'villa', label: 'Villas', icon: '🏡', active: false},
+    {id: 'land', label: 'Terrains', icon: '🏞️', active: false},
+    {id: 'office', label: 'Bureaux', icon: '🏢', active: false},
+    {id: 'store', label: 'Commerces', icon: '🏪', active: false}
   ];
-  
   activeCategory = 'all';
-  
+
+  // Price ranges based on search mode for PrimeNG dropdown
+  get priceRangeOptions() {
+    if (this.searchMode === 'rent') {
+      return [
+        {label: 'Tous les budgets', value: ''},
+        {label: 'Moins de 100K FCFA', value: '0-100000'},
+        {label: '100K - 200K FCFA', value: '100000-200000'},
+        {label: '200K - 500K FCFA', value: '200000-500000'},
+        {label: '500K - 1M FCFA', value: '500000-1000000'},
+        {label: 'Plus de 1M FCFA', value: '1000000+'}
+      ];
+    } else {
+      return [
+        {label: 'Tous les budgets', value: ''},
+        {label: 'Moins de 10M FCFA', value: '0-10000000'},
+        {label: '10M - 25M FCFA', value: '10000000-25000000'},
+        {label: '25M - 50M FCFA', value: '25000000-50000000'},
+        {label: '50M - 100M FCFA', value: '50000000-100000000'},
+        {label: '100M - 200M FCFA', value: '100000000-200000000'},
+        {label: 'Plus de 200M FCFA', value: '200000000+'}
+      ];
+    }
+  }
+
   ngOnInit() {
-    this.loadProperties();
-    this.filteredRegions = [...this.regions];
+    this.selectedLocation = '';
+    this.selectedPriceRange = '';
+    this.search();
   }
-  
-  loadProperties() {
-    // Mock data for now - replace with actual API call
-    this.properties = this.generateMockProperties();
-    this.featuredProperties = this.properties.slice(0, 8);
-  }
-  
-  filterRegions() {
-    const query = this.selectedRegion.toLowerCase();
-    this.filteredRegions = this.regions.filter(region => 
-      region.toLowerCase().includes(query)
-    );
-    this.showRegionDropdown = true;
-  }
-  
-  selectRegion(region: string) {
-    this.selectedRegion = region;
-    this.showRegionDropdown = false;
-  }
-  
-  toggleSearchMode(mode: 'rent' | 'buy') {
-    this.searchMode = mode;
-  }
-  
+
   search() {
-    console.log('Searching:', {
+    console.log('Searching with PrimeNG:', {
       mode: this.searchMode,
-      region: this.selectedRegion,
+      region: this.selectedLocation,
+      priceRange: this.selectedPriceRange,
       query: this.searchQuery
     });
+
     // Implement actual search logic here
+    // You can navigate to a search results page or filter current properties
+    // Filter properties based on search criteria
+    this.filterProperties();
   }
-  
+
   selectCategory(categoryId: string) {
     this.activeCategory = categoryId;
     this.propertyCategories.forEach(cat => {
@@ -100,63 +99,35 @@ export class HomepageComponent implements OnInit {
     });
     // Filter properties based on category
   }
-  
-  formatPrice(price: number | undefined): string {
-    if (!price) return '0';
-    return new Intl.NumberFormat('fr-FR').format(price);
+
+
+  searchLocation(event: any) {
+    console.log(event)
+
   }
-  
-  private generateMockProperties(): Property[] {
-    const mockProperties: Property[] = [];
-    const titles = [
-      'Villa moderne avec vue sur mer',
-      'Appartement luxueux en centre-ville',
-      'Maison traditionnelle rénovée',
-      'Terrain constructible bien situé',
-      'Bureau moderne avec parking',
-      'Commerce en plein centre commercial',
-      'Villa avec piscine',
-      'Studio meublé proche université'
-    ];
-    
-    const descriptions = [
-      'Magnifique propriété avec toutes les commodités modernes',
-      'Emplacement idéal pour investissement locatif',
-      'Propriété exceptionnelle dans un quartier calme',
-      'Opportunité unique à saisir rapidement'
-    ];
-    
-    const types = ['apartment', 'house', 'villa', 'land', 'office', 'store'];
-    const regions = ['Dakar', 'Thiès', 'Saint-Louis', 'Diourbel'];
-    
-    for (let i = 0; i < 24; i++) {
-      mockProperties.push({
-        id: i + 1,
-        title: titles[i % titles.length],
-        description: descriptions[i % descriptions.length],
-        type: types[i % types.length],
-        price: Math.floor(Math.random() * 500000000) + 50000000,
-        area: Math.floor(Math.random() * 500) + 50,
-        status: 'available',
-        contract_type: i % 2 === 0 ? 'sale' : 'rent',
-        address: {
-          city: regions[i % regions.length],
-          country: 'Sénégal',
-          neighborhood: 'Centre-ville'
-        },
-        media: [
-          {
-            id: i,
-            original_url: `https://source.unsplash.com/800x600/?house,villa,apartment&sig=${i}`,
-            preview_url: `https://source.unsplash.com/800x600/?house,villa,apartment&sig=${i}`,
-            thumbnail_url: `https://source.unsplash.com/400x300/?house,villa,apartment&sig=${i}`,
-            mime_type: 'image/jpeg',
-            is_image: true
-          }
-        ]
-      } as Property);
+
+  filterProperties() {
+    const params: any = {
+      properties: {with: ['media']},
+      search_query: this.searchQuery,
+      page: 1,
+      per_page: 12,
+    };
+
+    // Filter by property type
+    if (this.activeCategory && this.activeCategory !== 'all') {
+      params.property_type = this.activeCategory;
     }
-    
-    return mockProperties;
+
+    // Filter by search mode (rent/buy)
+    params.contract_type = this.searchMode;
+
+    this.propertyService.heroSearch(params).subscribe({
+      next: (response: any) => {
+        this.properties = response.data;
+        console.log(this.properties)
+      }
+    });
   }
+
 }

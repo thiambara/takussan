@@ -1,261 +1,266 @@
-<div class="p-4 customer-details-container animate-fadeIn">
+<div class="p-4 customer-details-container">
     <!-- Header with actions -->
     <div class="flex justify-between items-center mb-6">
         <div class="flex items-center">
-            <h1 class="m-0 text-2xl font-bold text-blue-600">
+            <h1 class="m-0 text-2xl font-bold text-primary">
                 {{ customer?.first_name }} {{ customer?.last_name }}
             </h1>
-            <app-status-badge
-                    *ngIf="customer?.status"
-                    [label]="customer?.status ?? ''"
-                    [variant]="getStatusVariant(customer?.status!)">
-            </app-status-badge>
+            <span *ngIf="customer?.status" [ngClass]="getStatusClass()"
+                  class="px-2 py-1 ml-3 text-xs text-white rounded-full">
+                {{ customer?.status }}
+            </span>
         </div>
         <div class="flex gap-2 items-center">
-            <a
-                    routerLink="/dashboard/customers"
-                    class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path d="M10 19l-7-7m0 0l7-7m-7 7h18" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-                </svg>
-                Back
-            </a>
-            <button
-                    (click)="navigateToEdit()"
-                    class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-                </svg>
-                Edit
-            </button>
+            <p-button icon="pi pi-arrow-left" label="Back" routerLink="/dashboard/customers"
+                      styleClass="p-button-outlined"></p-button>
+            <p-button (onClick)="navigateToEdit()" icon="pi pi-pencil" label="Edit"></p-button>
         </div>
     </div>
 
     <!-- Customer details in tabs -->
-    <app-tabs [(activeIndex)]="activeTabIndex">
-        <app-tab label="Overview">
-            <div class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2">
-                <app-card
-                        class="h-full shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
-                    <div class="p-4 bg-blue-50 border-b border-blue-100" slot="header">
-                        <h2 class="text-xl font-semibold text-blue-600">Basic Information</h2>
-                    </div>
+    <p-tabs [(value)]="activeTabIndex">
+        <p-tablist>
+            <p-tab [value]="0">Overview</p-tab>
+            <p-tab *ngIf="customer?.addresses?.length" [value]="1">Addresses</p-tab>
+            <p-tab *ngIf="customer?.bookings?.length" [value]="2">Bookings</p-tab>
+        </p-tablist>
+        <p-tabpanels>
+            <!-- Overview Tab -->
+            <p-tabpanel [value]="0">
+                <div class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2">
+                    <p-card styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+                        <ng-template pTemplate="header">
+                            <div class="p-4 bg-primary-50">
+                                <h2 class="text-xl font-semibold text-primary">Basic Information</h2>
+                            </div>
+                        </ng-template>
 
-                    <div class="grid grid-cols-1 gap-4">
-                        <div class="flex flex-col">
-                            <h6 class="mb-1 text-gray-500 font-medium">Full Name</h6>
-                            <p class="text-lg font-medium text-gray-900">{{ customer?.first_name }} {{ customer?.last_name }}</p>
+                        <div class="grid grid-cols-1 gap-4">
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Full Name</h6>
+                                <p class="text-lg font-medium text-surface-900">{{ customer?.first_name }} {{ customer?.last_name }}</p>
+                            </div>
+
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Email</h6>
+                                <p class="text-lg text-surface-900">{{ customer?.email || 'N/A' }}</p>
+                            </div>
+
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Phone</h6>
+                                <p class="text-lg text-surface-900">{{ customer?.phone || 'N/A' }}</p>
+                            </div>
+
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Status</h6>
+                                <p class="text-lg text-surface-900">{{ customer?.status || 'N/A' }}</p>
+                            </div>
+                        </div>
+                    </p-card>
+
+                    <p-card styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+                        <ng-template pTemplate="header">
+                            <div class="p-4 bg-primary-50">
+                                <h2 class="text-xl font-semibold text-primary">Additional Information</h2>
+                            </div>
+                        </ng-template>
+
+                        <div class="grid grid-cols-1 gap-4">
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Customer Type</h6>
+                                <p class="text-lg font-medium text-surface-900">{{ getCustomerTypeLabel() }}</p>
+                            </div>
+
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Roles</h6>
+                                <div class="flex flex-wrap gap-2">
+                                    <p-tag *ngFor="let role of customer?.roles" [value]="role" severity="info"></p-tag>
+                                    <span *ngIf="!customer?.roles?.length"
+                                          class="text-gray-500">No roles assigned</span>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col">
+                                <h6 class="mb-1 text-gray-500">Created At</h6>
+                                <p class="text-lg text-surface-900">{{ (customer?.created_at | date: 'medium') || 'N/A' }}</p>
+                            </div>
+                        </div>
+                    </p-card>
+
+                    <!-- Metadata card if exists -->
+                    <p-card *ngIf="customer?.metadata"
+                            styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+                        <ng-template pTemplate="header">
+                            <div class="p-4 bg-primary-50">
+                                <h2 class="text-xl font-semibold text-primary">Custom Information</h2>
+                            </div>
+                        </ng-template>
+
+                        <!--                        <div class="grid grid-cols-1 gap-4">-->
+                        <!--                            <div *ngFor="let item of customer?.metadata | keyvalue" class="flex flex-col">-->
+                        <!--                                <h6 class="mb-1 text-gray-500">{{ item.key | titlecase }}</h6>-->
+                        <!--                                <p class="text-lg text-surface-900">{{ item.value || 'N/A' }}</p>-->
+                        <!--                            </div>-->
+                        <!--                        </div>-->
+                    </p-card>
+                </div>
+            </p-tabpanel>
+
+            <!-- Addresses Tab -->
+            <p-tabpanel *ngIf="customer?.addresses?.length" [value]="1">
+                <div class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2 lg:grid-cols-3">
+                    <p-card *ngFor="let address of customer?.addresses"
+                            styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+                        <ng-template pTemplate="header">
+                            <div class="p-4 bg-primary-50">
+                                <h2 class="text-lg font-semibold text-primary">{{ address.label || 'Address' }}</h2>
+                            </div>
+                        </ng-template>
+
+                        <div class="grid grid-cols-1 gap-2">
+                            <p class="text-base">{{ address.address }}</p>
+                            <p class="text-base">{{ address.city }}, {{ address.state }}</p>
+                            <p class="text-base">{{ address.country }}</p>
+                            <p class="text-base">{{ address.postal_code }}</p>
                         </div>
 
-                        <div class="flex flex-col">
-                            <h6 class="mb-1 text-gray-500 font-medium">Email</h6>
-                            <p class="text-lg text-gray-900">{{ customer?.email || 'N/A' }}</p>
-                        </div>
+                        <ng-template pTemplate="footer">
+                            <div class="flex justify-end">
+                                <p-button (onClick)="viewAddress(address)" icon="pi pi-eye"
+                                          label="View Details"
+                                          styleClass="p-button-text"></p-button>
+                            </div>
+                        </ng-template>
+                    </p-card>
+                </div>
+            </p-tabpanel>
 
-                        <div class="flex flex-col">
-                            <h6 class="mb-1 text-gray-500 font-medium">Phone</h6>
-                            <p class="text-lg text-gray-900">{{ customer?.phone || 'N/A' }}</p>
-                        </div>
-
-                        <div class="flex flex-col">
-                            <h6 class="mb-1 text-gray-500 font-medium">Status</h6>
-                            <p class="text-lg text-gray-900">{{ customer?.status || 'N/A' }}</p>
-                        </div>
-                    </div>
-                </app-card>
-
-                <app-card
-                        class="h-full shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
-                    <div class="p-4 bg-blue-50 border-b border-blue-100" slot="header">
-                        <h2 class="text-xl font-semibold text-blue-600">Additional Information</h2>
-                    </div>
-
-                    <div class="grid grid-cols-1 gap-4">
-                        <div class="flex flex-col">
-                            <h6 class="mb-1 text-gray-500 font-medium">Customer Type</h6>
-                            <p class="text-lg font-medium text-gray-900">{{ getCustomerTypeLabel() }}</p>
-                        </div>
-
-                        <div class="flex flex-col">
-                            <h6 class="mb-1 text-gray-500 font-medium">Created At</h6>
-                            <p class="text-lg text-gray-900">{{ (customer?.created_at | date: 'medium') || 'N/A' }}</p>
-                        </div>
-                    </div>
-                </app-card>
-
-                <!-- Metadata card if exists -->
-                <app-card
-                        *ngIf="customer?.metadata"
-                        class="h-full shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
-                    <div class="p-4 bg-blue-50 border-b border-blue-100" slot="header">
-                        <h2 class="text-xl font-semibold text-blue-600">Custom Information</h2>
-                    </div>
-
-                    <div class="grid grid-cols-1 gap-4">
-                        <div *ngFor="let item  of customer?.metadata | keyvalue" class="flex flex-col">
-                            <h6 class="mb-1 text-gray-500 font-medium">{{ item.key + '' | titlecase }}</h6>
-                            <p class="text-lg text-gray-900">{{ item.value || 'N/A' }}</p>
-                        </div>
-                    </div>
-                </app-card>
-            </div>
-        </app-tab>
-
-        <!-- Addresses Tab -->
-        <app-tab *ngIf="customer?.addresses?.length" label="Addresses">
-            <div class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2 lg:grid-cols-3">
-                <app-card
-                        *ngFor="let address of customer?.addresses"
-                        class="h-full shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
-                    <div class="p-4 bg-blue-50 border-b border-blue-100" slot="header">
-                        <h2 class="text-lg font-semibold text-blue-600">{{ address.label || 'Address' }}</h2>
-                    </div>
-
-                    <div class="grid grid-cols-1 gap-2">
-                        <p class="text-base text-gray-700">{{ address.address }}</p>
-                        <p class="text-base text-gray-700">{{ address.city }}, {{ address.state }}</p>
-                        <p class="text-base text-gray-700">{{ address.country }}</p>
-                        <p class="text-base text-gray-700">{{ address.postal_code }}</p>
-                    </div>
-
-                    <div class="pt-4 border-t border-gray-100" slot="footer">
-                        <div class="flex justify-end">
-                            <button
-                                    (click)="viewAddress(address)"
-                                    class="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                                <svg class="w-3 h-3 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-                                    <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-                                </svg>
-                                View Details
-                            </button>
-                        </div>
-                    </div>
-                </app-card>
-            </div>
-        </app-tab>
-
-        <!-- Bookings Tab -->
-        <app-tab *ngIf="customer?.bookings?.length" label="Bookings">
-            <div class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2 lg:grid-cols-3">
-                <app-booking-card
-                        (click)="viewBooking(booking)"
-                        *ngFor="let booking of customer?.bookings"
-                        [booking]="booking"
-                        class="cursor-pointer transition-transform duration-200 hover:scale-105">
-                </app-booking-card>
-            </div>
-        </app-tab>
-    </app-tabs>
+            <!-- Bookings Tab -->
+            <p-tabpanel *ngIf="customer?.bookings?.length" [value]="2">
+                <div class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2 lg:grid-cols-3">
+                    <app-booking-card
+                            (click)="viewBooking(booking)"
+                            *ngFor="let booking of customer?.bookings"
+                            [booking]="booking"
+                    ></app-booking-card>
+                </div>
+            </p-tabpanel>
+        </p-tabpanels>
+    </p-tabs>
 </div>
 
-<!-- Address Details Modal -->
-<app-modal
-        [(visible)]="showAddressDialog"
-        [closeOnBackdrop]="true"
-        [closeOnEscape]="true"
-        [size]="'md'"
-        title="Address Details">
+<!-- Address Details Dialog -->
+<p-dialog [(visible)]="showAddressDialog"
+          [closeOnEscape]="true"
+          [dismissableMask]="true"
+          [draggable]="false"
+          [modal]="true"
+          [resizable]="false"
+          [style]="{width: '90vw', 'max-width': '600px'}">
+    <ng-template pTemplate="header">
+        <div class="flex justify-between items-center w-full">
+            <h5 class="m-0 text-xl">Address Details</h5>
+            <button (click)="closeAddressDialog()" class="p-button-rounded p-button-text" icon="pi pi-times" pButton
+                    type="button"></button>
+        </div>
+    </ng-template>
 
     <div *ngIf="selectedAddress" class="p-4">
         <div class="grid grid-cols-1 gap-4">
             <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500 font-medium">Label</h6>
-                <p class="text-lg font-medium text-gray-900">{{ selectedAddress.label || 'N/A' }}</p>
+                <h6 class="mb-1 text-gray-500">Label</h6>
+                <p class="text-lg font-medium">{{ selectedAddress.label || 'N/A' }}</p>
             </div>
             <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500 font-medium">Address</h6>
-                <p class="text-lg text-gray-900">{{ selectedAddress.address }}</p>
+                <h6 class="mb-1 text-gray-500">Address</h6>
+                <p class="text-lg">{{ selectedAddress.address }}</p>
             </div>
             <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500 font-medium">City</h6>
-                <p class="text-lg text-gray-900">{{ selectedAddress.city }}</p>
+                <h6 class="mb-1 text-gray-500">City</h6>
+                <p class="text-lg">{{ selectedAddress.city }}</p>
             </div>
             <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500 font-medium">State</h6>
-                <p class="text-lg text-gray-900">{{ selectedAddress.state }}</p>
+                <h6 class="mb-1 text-gray-500">State</h6>
+                <p class="text-lg">{{ selectedAddress.state }}</p>
             </div>
             <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500 font-medium">Country</h6>
-                <p class="text-lg text-gray-900">{{ selectedAddress.country }}</p>
+                <h6 class="mb-1 text-gray-500">Country</h6>
+                <p class="text-lg">{{ selectedAddress.country }}</p>
             </div>
             <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500 font-medium">Postal Code</h6>
-                <p class="text-lg text-gray-900">{{ selectedAddress.postal_code }}</p>
+                <h6 class="mb-1 text-gray-500">Postal Code</h6>
+                <p class="text-lg">{{ selectedAddress.postal_code }}</p>
             </div>
             <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500 font-medium">Type</h6>
-                <p class="text-lg text-gray-900">{{ selectedAddress.type || 'N/A' }}</p>
+                <h6 class="mb-1 text-gray-500">Type</h6>
+                <p class="text-lg">{{ selectedAddress.type || 'N/A' }}</p>
             </div>
         </div>
     </div>
+</p-dialog>
 
-    <div class="flex justify-end gap-2 px-4 py-3 border-t border-gray-200" slot="footer">
-        <button
-                (click)="closeAddressDialog()"
-                class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                Close
-        </button>
-    </div>
-</app-modal>
-
-<!-- Booking Details Modal -->
-<app-modal
-        [(visible)]="showBookingDialog"
-        [closeOnBackdrop]="true"
-        [closeOnEscape]="true"
-        [size]="'lg'"
-        title="Booking Details">
+<!-- Booking Details Dialog -->
+<p-dialog [(visible)]="showBookingDialog"
+          [closeOnEscape]="true"
+          [dismissableMask]="true"
+          [draggable]="false"
+          [modal]="true"
+          [resizable]="false"
+          [style]="{width: '90vw', 'max-width': '800px'}">
+    <ng-template pTemplate="header">
+        <div class="flex justify-between items-center w-full">
+            <h5 class="m-0 text-xl">Booking Details</h5>
+            <button (click)="closeBookingDialog()" class="p-button-rounded p-button-text" icon="pi pi-times" pButton
+                    type="button"></button>
+        </div>
+    </ng-template>
 
     <div *ngIf="selectedBooking" class="p-4">
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500 font-medium">Reference Number</h6>
-                <p class="text-lg text-gray-900">{{ selectedBooking.reference_number || 'N/A' }}</p>
+                <h6 class="mb-1 text-gray-500">Reference Number</h6>
+                <p class="text-lg">{{ selectedBooking.reference_number || 'N/A' }}</p>
             </div>
             <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500 font-medium">Status</h6>
-                <app-status-badge
-                        [label]="selectedBooking.status ?? ''"
-                        [variant]="getBookingStatusVariant(selectedBooking.status ?? '')">
-                </app-status-badge>
+                <h6 class="mb-1 text-gray-500">Status</h6>
+                <p-tag [severity]="selectedBooking.status === 'confirmed' ? 'success' :
+                                 selectedBooking.status === 'pending' ? 'warning' :
+                                 selectedBooking.status === 'cancelled' ? 'danger' : 'info'">
+                    {{ selectedBooking.status }}
+                </p-tag>
             </div>
 
             <!-- Booking Period -->
             <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500 font-medium">Start Date</h6>
-                <p class="text-lg text-gray-900">{{ (selectedBooking.start_date | date: 'mediumDate') || 'N/A' }}</p>
+                <h6 class="mb-1 text-gray-500">Start Date</h6>
+                <p class="text-lg">{{ (selectedBooking.start_date | date: 'mediumDate') || 'N/A' }}</p>
             </div>
             <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500 font-medium">End Date</h6>
-                <p class="text-lg text-gray-900">{{ (selectedBooking.end_date | date: 'mediumDate') || 'N/A' }}</p>
+                <h6 class="mb-1 text-gray-500">End Date</h6>
+                <p class="text-lg">{{ (selectedBooking.end_date | date: 'mediumDate') || 'N/A' }}</p>
             </div>
             <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500 font-medium">Duration</h6>
-                <p class="text-lg text-gray-900">{{ calculateDuration(selectedBooking) }} days</p>
+                <h6 class="mb-1 text-gray-500">Duration</h6>
+                <p class="text-lg">{{ calculateDuration(selectedBooking) }} days</p>
             </div>
 
             <!-- Financial Information -->
             <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500 font-medium">Total Amount</h6>
-                <p class="text-lg font-semibold text-blue-600">{{ (selectedBooking.total_amount | currency:'EUR') || 'N/A' }}</p>
+                <h6 class="mb-1 text-gray-500">Total Amount</h6>
+                <p class="text-lg font-semibold text-primary">{{ (selectedBooking.total_amount | currency) || 'N/A' }}</p>
             </div>
             <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500 font-medium">Property</h6>
-                <p class="text-lg text-gray-900">{{ selectedBooking.property?.title || 'N/A' }}</p>
+                <h6 class="mb-1 text-gray-500">Property</h6>
+                <p class="text-lg">{{ selectedBooking.property?.title || 'N/A' }}</p>
+            </div>
+            <div class="flex flex-col">
+                <h6 class="mb-1 text-gray-500">Total Amount</h6>
+                <p class="text-lg font-medium">{{ selectedBooking.total_amount | currency:'EUR' }}</p>
             </div>
             <div class="flex flex-col col-span-2">
-                <h6 class="mb-1 text-gray-500 font-medium">Notes</h6>
-                <p class="text-lg text-gray-900">{{ selectedBooking.notes || 'No notes available' }}</p>
+                <h6 class="mb-1 text-gray-500">Notes</h6>
+                <p class="text-lg">{{ selectedBooking.notes || 'No notes available' }}</p>
             </div>
         </div>
     </div>
-
-    <div class="flex justify-end gap-2 px-4 py-3 border-t border-gray-200" slot="footer">
-        <button
-                (click)="closeBookingDialog()"
-                class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                Close
-        </button>
-    </div>
-</app-modal>
+</p-dialog>
