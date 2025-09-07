@@ -35,9 +35,9 @@ class PropertyController extends Controller
         $query = Property::allThroughRequest();
 
         // Show only user's properties if not admin
-        if (!Auth::user()->hasPermission('properties.view_all')) {
-            $query->where('user_id', Auth::id());
-        }
+//        if (!Auth::user()->hasPermission('properties.view_all')) {
+//            $query->where('user_id', Auth::id());
+//        }
 
         if ($searchQuery = request('search_query')) {
             $query->where(fn(Builder $query) => $query
@@ -64,13 +64,7 @@ class PropertyController extends Controller
      */
     public function show(Property $property): JsonResponse
     {
-        // Check if user can view this property
-        if (!Auth::user()->hasPermission('properties.view_all') && $property->user_id !== Auth::id()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Unauthorized'
-            ], 403);
-        }
+
 
         $property->load(['address', 'user', 'tags', 'parent', 'children']);
 
@@ -114,6 +108,34 @@ class PropertyController extends Controller
             'status' => 'success',
             'message' => 'Property deleted successfully'
         ]);
+    }
+
+    public function heroSearch(Request $request)
+    {
+        $query = Property::allThroughRequest();
+
+        if ($searchQuery = $request->search_query) {
+            $query->where(fn(Builder $query) => $query
+                ->where('title', 'like', "%$searchQuery%")
+                ->orWhere('description', 'like', "%$searchQuery%")
+            );
+        }
+
+        if ($request->property_type && $request->property_type !== 'all') {
+            $query->where('type', $request->property_type);
+        }
+
+        if ($request->contract_type === 'sale') {
+            $query->where('contract_type', 'sale');
+        } else if ($request->contract_type === 'rent') {
+            $query->where('contract_type', 'rent');
+        }
+
+        if ($request->location) {
+            $query->where('city', 'like', '%' . $request->location . '%');
+        }
+
+        return response()->json($query->paginatedThroughRequest());
     }
 
     // Media

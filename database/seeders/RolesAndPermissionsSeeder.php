@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Bases\Enums\UserRole;
 use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Database\Seeder;
@@ -59,15 +60,15 @@ class RolesAndPermissionsSeeder extends Seeder
         // Create roles with permissions
         $roles = [
             [
-                'code' => 'admin',
+                'code' => UserRole::Admin,
                 'name' => 'Administrator',
                 'description' => 'Administrator with full access',
                 'permissions' => Permission::all()->pluck('id')->toArray()
             ],
             [
-                'code' => 'manager',
-                'name' => 'Manager',
-                'description' => 'Manager with limited access',
+                'code' => UserRole::Vendor,
+                'name' => 'Vendor',
+                'description' => 'Vendor with limited access',
                 'permissions' => Permission::whereIn('code', [
                     'users.view', 'properties.view', 'properties.create', 'properties.edit',
                     'bookings.view', 'bookings.create', 'bookings.edit',
@@ -75,8 +76,8 @@ class RolesAndPermissionsSeeder extends Seeder
                 ])->pluck('id')->toArray()
             ],
             [
-                'code' => 'user',
-                'name' => 'Regular User',
+                'code' => UserRole::Customer,
+                'name' => 'Customer',
                 'description' => 'Regular user with basic access',
                 'permissions' => Permission::whereIn('code', [
                     'properties.view', 'bookings.view', 'bookings.create',

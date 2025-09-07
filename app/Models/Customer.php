@@ -27,6 +27,7 @@ class Customer extends AbstractModel implements HasMedia
         'birth_date',
         'status',
         'added_by_id',
+        'user_id',
         'metadata',
     ];
 
@@ -70,5 +71,10 @@ class Customer extends AbstractModel implements HasMedia
     public function tags(): MorphToMany
     {
         return $this->morphToMany(Tag::class, 'taggable');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 }
