@@ -1,0 +1,244 @@
+<div class="space-y-4">
+    <!-- Filter Header -->
+    <!--    <div class="bg-white rounded-lg border border-gray-200 p-4">-->
+    <!--        <div class="flex items-center justify-between mb-3">-->
+    <!--            <h3 class="text-lg font-semibold text-blue-600">Filters</h3>-->
+    <!--            @if (activeFiltersCount > 0) {-->
+    <!--                <button -->
+    <!--                    (click)="clearAllFilters()"-->
+    <!--                    class="text-sm text-blue-600 hover:text-blue-700 font-medium">-->
+    <!--                    Clear All-->
+    <!--                </button>-->
+    <!--            }-->
+    <!--        </div>-->
+    <!--        -->
+    <!--        &lt;!&ndash; Active Filters &ndash;&gt;-->
+    <!--        @if (activeFiltersCount > 0) {-->
+    <!--            <div class="flex flex-wrap gap-2">-->
+    <!--                @if (filters.priceType && filters.priceType !== 'all') {-->
+    <!--                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-600">-->
+    <!--                        {{ filters.priceType === 'rent' ? 'For Rent' : 'For Sale' }}-->
+    <!--                        <svg (click)="filters.priceType = 'all'; applyFilters()" class="ml-1 h-3 w-3 cursor-pointer" fill="currentColor" viewBox="0 0 20 20">-->
+    <!--                            <path clip-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" fill-rule="evenodd"/>-->
+    <!--                        </svg>-->
+    <!--                    </span>-->
+    <!--                }-->
+    <!--                @for (type of filters.propertyType || []; track type) {-->
+    <!--                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-600">-->
+    <!--                        {{ type }}-->
+    <!--                        <svg (click)="togglePropertyType(type)" class="ml-1 h-3 w-3 cursor-pointer" fill="currentColor" viewBox="0 0 20 20">-->
+    <!--                            <path clip-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" fill-rule="evenodd"/>-->
+    <!--                        </svg>-->
+    <!--                    </span>-->
+    <!--                }-->
+    <!--            </div>-->
+    <!--        }-->
+    <!--    </div>-->
+
+    <!-- Price Range -->
+    <div class="bg-white rounded-lg border border-gray-200 p-4">
+        <h4 class="font-semibold text-blue-600 mb-4">Price Range</h4>
+        <div class="space-y-4">
+            <div class="flex items-center space-x-2 mb-3">
+                <label class="flex items-center">
+                    <input (change)="onPriceTypeChange()" [(ngModel)]="filters.priceType" class="text-blue-600 focus:ring-blue-300" type="radio"
+                           value="all">
+                    <span class="ml-2 text-sm text-gray-600">All</span>
+                </label>
+                <label class="flex items-center">
+                    <input (change)="onPriceTypeChange()" [(ngModel)]="filters.priceType" class="text-blue-600 focus:ring-blue-300" type="radio"
+                           value="sale">
+                    <span class="ml-2 text-sm text-gray-600">For Sale</span>
+                </label>
+                <label class="flex items-center">
+                    <input (change)="onPriceTypeChange()" [(ngModel)]="filters.priceType" class="text-blue-600 focus:ring-blue-300" type="radio"
+                           value="rent">
+                    <span class="ml-2 text-sm text-gray-600">For Rent</span>
+                </label>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Min Price</label>
+                    <select
+                            (change)="applyFilters()"
+                            [(ngModel)]="filters.minPrice"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-500 focus:outline-none">
+                        <option [value]="undefined">No min</option>
+                        @for (option of getPriceOptions('min'); track option.value) {
+                            <option [value]="option.value">{{ option.label }}</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Max Price</label>
+                    <select
+                            (change)="applyFilters()"
+                            [(ngModel)]="filters.maxPrice"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-500 focus:outline-none">
+                        <option [value]="undefined">No max</option>
+                        @for (option of getPriceOptions('max'); track option.value) {
+                            <option [value]="option.value">{{ option.label }}</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Property Type -->
+    <div class="bg-white rounded-lg border border-gray-200 p-4">
+        <h4 class="font-semibold text-blue-600 mb-4">Property Type</h4>
+        <div class="space-y-3">
+            @for (type of propertyTypeOptions; track type.value) {
+                <label class="flex items-center">
+                    <input
+                            type="checkbox"
+                            [checked]="isPropertyTypeSelected(type.value)"
+                            (change)="togglePropertyType(type.value)"
+                            class="rounded border-gray-300 text-blue-600 focus:ring-blue-300">
+                    <span class="ml-2 text-sm text-gray-600">{{ type.label }}</span>
+                    <span class="ml-auto text-xs text-gray-400">({{ type.count || 0 }})</span>
+                </label>
+            }
+        </div>
+    </div>
+
+    <!-- Beds & Baths -->
+    <div class="bg-white rounded-lg border border-gray-200 p-4">
+        <h4 class="font-semibold text-blue-600 mb-4">Beds & Baths</h4>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm text-gray-600 mb-2">Bedrooms</label>
+                <div class="grid grid-cols-5 gap-2">
+                    <button
+                            (click)="filters.minBedrooms = undefined; applyFilters()"
+                            [class.bg-blue-50]="!filters.minBedrooms"
+                            [class.border-blue-600]="!filters.minBedrooms"
+                            [class.text-blue-600]="!filters.minBedrooms"
+                            class="px-3 py-2 text-sm border rounded-lg hover:border-blue-600 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300">
+                        Any
+                    </button>
+                    @for (option of bedroomOptions; track option.value) {
+                        <button
+                                (click)="filters.minBedrooms = option.value; applyFilters()"
+                                [class.border-blue-600]="filters.minBedrooms === option.value"
+                                [class.bg-blue-50]="filters.minBedrooms === option.value"
+                                [class.text-blue-600]="filters.minBedrooms === option.value"
+                                class="px-3 py-2 text-sm border rounded-lg hover:border-blue-600 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300">
+                            {{ option.label }}
+                        </button>
+                    }
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm text-gray-600 mb-2">Bathrooms</label>
+                <div class="grid grid-cols-5 gap-2">
+                    <button
+                            (click)="filters.minBathrooms = undefined; applyFilters()"
+                            [class.bg-blue-50]="!filters.minBathrooms"
+                            [class.border-blue-600]="!filters.minBathrooms"
+                            [class.text-blue-600]="!filters.minBathrooms"
+                            class="px-3 py-2 text-sm border rounded-lg hover:border-blue-600 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300">
+                        Any
+                    </button>
+                    @for (option of bathroomOptions; track option.value) {
+                        <button
+                                (click)="filters.minBathrooms = option.value; applyFilters()"
+                                [class.border-blue-600]="filters.minBathrooms === option.value"
+                                [class.bg-blue-50]="filters.minBathrooms === option.value"
+                                [class.text-blue-600]="filters.minBathrooms === option.value"
+                                class="px-3 py-2 text-sm border rounded-lg hover:border-blue-600 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300">
+                            {{ option.label }}
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Square Footage -->
+    <div class="bg-white rounded-lg border border-gray-200 p-4">
+        <h4 class="font-semibold text-blue-600 mb-4">Square Footage</h4>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="block text-sm text-gray-600 mb-1">Min Sq Ft</label>
+                <input
+                        (change)="applyFilters()"
+                        [(ngModel)]="filters.minArea"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-500 focus:outline-none"
+                        placeholder="No min"
+                        type="number">
+            </div>
+            <div>
+                <label class="block text-sm text-gray-600 mb-1">Max Sq Ft</label>
+                <input
+                        (change)="applyFilters()"
+                        [(ngModel)]="filters.maxArea"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-500 focus:outline-none"
+                        placeholder="No max"
+                        type="number">
+            </div>
+        </div>
+    </div>
+
+    <!-- Amenities -->
+    <div class="bg-white rounded-lg border border-gray-200 p-4">
+        <h4 class="font-semibold text-blue-600 mb-4">Amenities</h4>
+        <div class="space-y-3">
+            <label class="flex items-center">
+                <input (change)="toggleAmenity('Pool')"
+                       [checked]="isAmenitySelected('Pool')"
+                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-300"
+                       type="checkbox">
+                <span class="ml-2 text-sm text-gray-600">Pool</span>
+            </label>
+            <label class="flex items-center">
+                <input (change)="toggleAmenity('Garage')"
+                       [checked]="isAmenitySelected('Garage')"
+                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-300"
+                       type="checkbox">
+                <span class="ml-2 text-sm text-gray-600">Garage</span>
+            </label>
+            <label class="flex items-center">
+                <input (change)="toggleAmenity('Fireplace')"
+                       [checked]="isAmenitySelected('Fireplace')"
+                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-300"
+                       type="checkbox">
+                <span class="ml-2 text-sm text-gray-600">Fireplace</span>
+            </label>
+            <label class="flex items-center">
+                <input (change)="toggleAmenity('Hardwood Floors')"
+                       [checked]="isAmenitySelected('Hardwood Floors')"
+                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-300"
+                       type="checkbox">
+                <span class="ml-2 text-sm text-gray-600">Hardwood Floors</span>
+            </label>
+            <label class="flex items-center">
+                <input (change)="toggleAmenity('Updated Kitchen')"
+                       [checked]="isAmenitySelected('Updated Kitchen')"
+                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-300"
+                       type="checkbox">
+                <span class="ml-2 text-sm text-gray-600">Updated Kitchen</span>
+            </label>
+            @if (amenities.length > 5 && !showAllAmenities) {
+                <button (click)="showAllAmenities = true" class="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                    + Show more
+                </button>
+            }
+            @if (showAllAmenities) {
+                @for (amenity of amenities.slice(5); track amenity) {
+                    <label class="flex items-center">
+                        <input type="checkbox"
+                               [checked]="isAmenitySelected(amenity)"
+                               (change)="toggleAmenity(amenity)"
+                               class="rounded border-gray-300 text-blue-600 focus:ring-blue-300">
+                        <span class="ml-2 text-sm text-gray-600">{{ amenity }}</span>
+                    </label>
+                }
+                <button (click)="showAllAmenities = false"
+                        class="text-sm text-blue-600 hover:text-blue-700 font-medium">- Show less
+                </button>
+            }
+        </div>
+    </div>
+</div>

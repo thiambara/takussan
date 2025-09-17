@@ -93,11 +93,12 @@
             <!-- Search Button -->
             <div class="flex-shrink-0">
                 <p-button
-                        (onClick)="search()"
-                        [style]="{'background': 'linear-gradient(135deg, #3b82f6, #8b5cf6)', 'border': 'none'}"
-                        class="compact-search-button"
+                        (click)="navigateToSearch()"
+                        [label]="'Rechercher'"
+                        [loading]="loading"
+                        class="w-full sm:w-auto"
                         icon="pi pi-search"
-                        label="Rechercher">
+                        styleClass="p-button-primary p-button-raised compact-search-button">
                 </p-button>
             </div>
         </div>

@@ -1,0 +1,306 @@
+<!-- Grid View -->
+@if (viewMode === 'grid') {
+  <article class="bg-white rounded-xl border border-gray-200 hover:border-gray-300 transition-all duration-300 overflow-hidden group">
+    <div class="relative">
+      <!-- Image Carousel -->
+      <div class="relative h-56 overflow-hidden">
+        <img 
+          src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+          [alt]="property.title"
+          class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+        >
+        
+        <!-- Image Navigation -->
+        @if (property.images.length > 1) {
+          <button 
+            (click)="previousImage($event)"
+            class="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+          </button>
+          
+          <button 
+            (click)="nextImage($event)"
+            class="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+          </button>
+          
+          <!-- Image Indicators -->
+          <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+            @for (image of property.images; track $index; let i = $index) {
+              <div 
+                [class.bg-white]="i === currentImageIndex"
+                [class.bg-white/50]="i !== currentImageIndex"
+                class="w-2 h-2 rounded-full transition-colors"
+              ></div>
+            }
+          </div>
+        }
+        
+        <!-- Badges -->
+        <div class="absolute top-3 left-3 flex flex-wrap gap-2">
+          @if (property.isVerified) {
+            <span class="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+              </svg>
+              Verified
+            </span>
+          }
+          @if (property.isFeatured) {
+            <span class="bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-semibold">Featured</span>
+          }
+          <span [class]="getPriceTypeClass()" class="px-2 py-1 rounded-full text-xs font-semibold capitalize">
+            For {{ property.priceType }}
+          </span>
+        </div>
+        
+        <!-- Favorite Button -->
+        <button 
+          (click)="toggleFavorite($event)"
+          class="absolute top-3 right-3 bg-white/80 hover:bg-white p-2 rounded-full transition-all shadow-lg"
+        >
+          <svg 
+            [class.text-red-500]="isFavorite"
+            [class.fill-current]="isFavorite"
+            class="w-5 h-5 transition-colors" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <!-- Content -->
+      <a [routerLink]="['/properties', property.id]" class="block p-5">
+        <!-- Price and Type -->
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-2xl font-bold text-gray-900">{{ formatPrice() }}</p>
+          <div class="flex items-center gap-1 text-gray-600">
+            <span class="text-lg">{{ getPropertyTypeIcon() }}</span>
+            <span class="text-sm capitalize">{{ property.propertyType }}</span>
+          </div>
+        </div>
+        
+        <!-- Title and Location -->
+        <h3 class="text-lg font-semibold text-gray-900 mb-2 line-clamp-1 hover:text-blue-600 transition-colors">
+          {{ property.title }}
+        </h3>
+        
+        <div class="flex items-center gap-1 text-gray-600 mb-3">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          </svg>
+          <span class="text-sm line-clamp-1">{{ property.location.city }}, {{ property.location.state }}</span>
+        </div>
+        
+        <!-- Features -->
+        <div class="flex items-center gap-4 text-sm text-gray-600 mb-3">
+          @if (property.bedrooms !== undefined) {
+            <div class="flex items-center gap-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+              </svg>
+              <span>{{ property.bedrooms }} {{ property.bedrooms === 1 ? 'Bed' : 'Beds' }}</span>
+            </div>
+          }
+          @if (property.bathrooms !== undefined) {
+            <div class="flex items-center gap-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18"></path>
+              </svg>
+              <span>{{ property.bathrooms }} {{ property.bathrooms === 1 ? 'Bath' : 'Baths' }}</span>
+            </div>
+          }
+          <div class="flex items-center gap-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+            </svg>
+            <span>{{ formatArea() }}</span>
+          </div>
+        </div>
+        
+        <!-- Description -->
+        <p class="text-sm text-gray-600 line-clamp-2 mb-3">{{ property.description }}</p>
+        
+        <!-- Owner/Agent -->
+        <div class="flex items-center justify-between pt-3 border-t">
+          <div class="flex items-center gap-2">
+            <img 
+              [src]="property.owner.avatar" 
+              [alt]="property.owner.name"
+              class="w-8 h-8 rounded-full object-cover"
+            >
+            <div>
+              <p class="text-xs text-gray-600">Listed by</p>
+              <p class="text-sm font-medium text-gray-900">{{ property.owner.name }}</p>
+            </div>
+          </div>
+          <span class="text-xs text-gray-500">{{ property.createdAt | date:'MMM d, y' }}</span>
+        </div>
+      </a>
+    </div>
+  </article>
+}
+
+<!-- List View -->
+@if (viewMode === 'list') {
+  <article class="bg-white rounded-xl border border-gray-200 hover:border-gray-300 transition-all duration-300 overflow-hidden">
+    <div class="flex flex-col sm:flex-row">
+      <!-- Image -->
+      <div class="relative sm:w-80 h-48 sm:h-56 flex-shrink-0 overflow-hidden">
+        <img 
+          [src]="property.images[currentImageIndex]" 
+          [alt]="property.title"
+          class="w-full h-full object-cover"
+        >
+        
+        <!-- Badges -->
+        <div class="absolute top-3 left-3 flex flex-wrap gap-2">
+          @if (property.isVerified) {
+            <span class="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+              </svg>
+              Verified
+            </span>
+          }
+          @if (property.isFeatured) {
+            <span class="bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-semibold">Featured</span>
+          }
+        </div>
+        
+        <!-- Favorite Button -->
+        <button 
+          (click)="toggleFavorite($event)"
+          class="absolute top-3 right-3 bg-white/80 hover:bg-white p-2 rounded-full transition-all shadow-lg"
+        >
+          <svg 
+            [class.text-red-500]="isFavorite"
+            [class.fill-current]="isFavorite"
+            class="w-5 h-5 transition-colors" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+          </svg>
+        </button>
+        
+        <!-- Image Count -->
+        @if (property.images.length > 1) {
+          <div class="absolute bottom-3 left-3 bg-black/60 text-white px-2 py-1 rounded-lg text-xs flex items-center gap-1">
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
+            </svg>
+            {{ property.images.length }}
+          </div>
+        }
+      </div>
+      
+      <!-- Content -->
+      <div class="flex-1 p-6">
+        <a [routerLink]="['/properties', property.id]" class="block">
+          <div class="flex flex-col sm:flex-row sm:justify-between gap-4 mb-3">
+            <div>
+              <h3 class="text-xl font-semibold text-gray-900 hover:text-blue-600 transition-colors mb-2">
+                {{ property.title }}
+              </h3>
+              <div class="flex items-center gap-1 text-gray-600">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+                <span class="text-sm">{{ property.location.address }}, {{ property.location.city }}, {{ property.location.state }}</span>
+              </div>
+            </div>
+            
+            <div class="text-right">
+              <p class="text-2xl font-bold text-gray-900 mb-1">{{ formatPrice() }}</p>
+              <span [class]="getPriceTypeClass()" class="inline-block px-3 py-1 rounded-full text-xs font-semibold capitalize">
+                For {{ property.priceType }}
+              </span>
+            </div>
+          </div>
+          
+          <!-- Features -->
+          <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-4">
+            <div class="flex items-center gap-1">
+              <span class="text-lg">{{ getPropertyTypeIcon() }}</span>
+              <span class="capitalize">{{ property.propertyType }}</span>
+            </div>
+            @if (property.bedrooms !== undefined) {
+              <div class="flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                </svg>
+                <span>{{ property.bedrooms }} {{ property.bedrooms === 1 ? 'Bedroom' : 'Bedrooms' }}</span>
+              </div>
+            }
+            @if (property.bathrooms !== undefined) {
+              <div class="flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18"></path>
+                </svg>
+                <span>{{ property.bathrooms }} {{ property.bathrooms === 1 ? 'Bathroom' : 'Bathrooms' }}</span>
+              </div>
+            }
+            <div class="flex items-center gap-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+              </svg>
+              <span>{{ formatArea() }}</span>
+            </div>
+          </div>
+          
+          <!-- Description -->
+          <p class="text-gray-600 line-clamp-2 mb-4">{{ property.description }}</p>
+          
+          <!-- Amenities -->
+          @if (property.amenities.length > 0) {
+            <div class="flex flex-wrap gap-2 mb-4">
+              @for (amenity of property.amenities.slice(0, 5); track amenity) {
+                <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">{{ amenity }}</span>
+              }
+              @if (property.amenities.length > 5) {
+                <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">+{{ property.amenities.length - 5 }} more</span>
+              }
+            </div>
+          }
+          
+          <!-- Footer -->
+          <div class="flex items-center justify-between pt-4 border-t">
+            <div class="flex items-center gap-3">
+              <img 
+                [src]="property.owner.avatar" 
+                [alt]="property.owner.name"
+                class="w-10 h-10 rounded-full object-cover"
+              >
+              <div>
+                <p class="text-xs text-gray-600">Listed by</p>
+                <p class="text-sm font-medium text-gray-900">{{ property.owner.name }}</p>
+              </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+              <button class="px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium">
+                Contact
+              </button>
+              <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+                View Details
+              </button>
+            </div>
+          </div>
+        </a>
+      </div>
+    </div>
+  </article>
+}

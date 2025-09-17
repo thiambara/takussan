@@ -223,8 +223,8 @@ export class PropertyService {
     let filtered = [...properties];
 
     // Search query
-    if (filters.searchQuery) {
-      const query = filters.searchQuery.toLowerCase();
+    if (filters.search_key) {
+      const query = filters.search_key.toLowerCase();
       filtered = filtered.filter(p =>
         p.title.toLowerCase().includes(query) ||
         p.description.toLowerCase().includes(query) ||

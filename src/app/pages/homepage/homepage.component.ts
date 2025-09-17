@@ -1,6 +1,7 @@
 import {Component, inject, OnInit} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
+import {Router} from '@angular/router';
 import {Property} from "../../core/models/http/property.model";
 import {SelectButton} from "primeng/selectbutton";
 import {Select} from "primeng/select";
@@ -21,11 +22,13 @@ import {PropertyCardComponent} from "../../shared/components/product-card/proper
 })
 export class HomepageComponent implements OnInit {
   propertyService = inject(PropertyService);
+  private router = inject(Router);
   // Search state
   searchMode: 'rent' | 'buy' = 'buy';
   selectedLocation = '';
   searchQuery = '';
   selectedPriceRange = '';
+  loading = false;
 
   suggestedLocations: SelectItemGroup[] = [];
 
@@ -128,6 +131,37 @@ export class HomepageComponent implements OnInit {
         console.log(this.properties)
       }
     });
+  }
+  
+  navigateToSearch() {
+    // Navigate to search page with query parameters
+    const queryParams: any = {};
+    
+    if (this.searchQuery) {
+      queryParams.q = this.searchQuery;
+    }
+    
+    if (this.searchMode === 'rent') {
+      queryParams.type = 'rent';
+    } else if (this.searchMode === 'buy') {
+      queryParams.type = 'sale';
+    }
+    
+    if (this.selectedLocation) {
+      queryParams.location = this.selectedLocation;
+    }
+    
+    if (this.selectedPriceRange) {
+      const [min, max] = this.selectedPriceRange.split('-');
+      if (min !== undefined) queryParams.minPrice = min;
+      if (max !== undefined && max !== '+') queryParams.maxPrice = max.replace('+', '');
+    }
+    
+    if (this.activeCategory && this.activeCategory !== 'all') {
+      queryParams.propertyType = this.activeCategory;
+    }
+    
+    this.router.navigate(['/client/search'], { queryParams });
   }
 
 }

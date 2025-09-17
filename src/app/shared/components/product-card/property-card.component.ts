@@ -13,6 +13,7 @@ import {Media} from "../../../core/models/http/media.model";
 export class PropertyCardComponent {
   @Input() property!: Property;
   @Input() isFavorite = false;
+  @Input() viewMode: 'grid' | 'list' = 'grid';
 
   @Output() propertyClick = new EventEmitter<Property>();
   @Output() favoriteToggle = new EventEmitter<any>();

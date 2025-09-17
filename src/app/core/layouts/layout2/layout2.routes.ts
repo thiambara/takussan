@@ -16,6 +16,10 @@ export const routes: Routes = [
         loadComponent: () => import('../../../pages/homepage/homepage.component').then(m => m.HomepageComponent)
       },
       {
+        'path': 'search',
+        loadComponent: () => import('../../../pages/search-results/search-results.component').then(m => m.SearchResultsComponent)
+      },
+      {
         'path': 'properties',
         canActivate: [authGuard],
         loadChildren: () => import('../../../pages/dashboard/properties/properties.routes').then(m => m.routes)

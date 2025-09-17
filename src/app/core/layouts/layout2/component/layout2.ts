@@ -15,7 +15,7 @@ import {Footer} from "./footer";
 
               <app-topbar></app-topbar>
               <div class="flex flex-1 justify-center px-10 py-5">
-                  <div class="layout-content-container flex flex-col flex-1">
+                  <div class="flex flex-col flex-1">
                       <router-outlet></router-outlet>
                   </div>
               </div>
@@ -35,6 +35,7 @@ import {Footer} from "./footer";
       display: flex;
       flex-direction: column;
       min-height: 100vh;
+      //background: var(--search-input_background, linear-gradient(180deg, #ffffff 39.9%, #f8f8f8 100%));
     }
   `]
 })
