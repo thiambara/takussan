@@ -141,7 +141,7 @@ export class SearchResultsComponent implements OnInit {
   }
 
   onFiltersChange(filters: PropertyFilter) {
-    this.filters = {...this.filters, ...filters};
+    // this.filters = {...this.filters, ...filters};
     this.currentPage = 1;
     this.updateQueryParams();
   }
