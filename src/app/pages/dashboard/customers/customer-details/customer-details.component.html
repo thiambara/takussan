@@ -5,10 +5,12 @@
             <h1 class="m-0 text-2xl font-bold text-primary">
                 {{ customer?.first_name }} {{ customer?.last_name }}
             </h1>
-            <span *ngIf="customer?.status" [ngClass]="getStatusClass()"
-                  class="px-2 py-1 ml-3 text-xs text-white rounded-full">
-                {{ customer?.status }}
-            </span>
+            @if (customer?.status) {
+                <span [ngClass]="getStatusClass()"
+                      class="px-2 py-1 ml-3 text-xs text-white rounded-full">
+                    {{ customer?.status }}
+                </span>
+            }
         </div>
         <div class="flex gap-2 items-center">
             <p-button icon="pi pi-arrow-left" label="Back" routerLink="/dashboard/customers"
@@ -21,8 +23,12 @@
     <p-tabs [(value)]="activeTabIndex">
         <p-tablist>
             <p-tab [value]="0">Overview</p-tab>
-            <p-tab *ngIf="customer?.addresses?.length" [value]="1">Addresses</p-tab>
-            <p-tab *ngIf="customer?.bookings?.length" [value]="2">Bookings</p-tab>
+            @if (customer?.addresses?.length) {
+                <p-tab [value]="1">Addresses</p-tab>
+            }
+            @if (customer?.bookings?.length) {
+                <p-tab [value]="2">Bookings</p-tab>
+            }
         </p-tablist>
         <p-tabpanels>
             <!-- Overview Tab -->
@@ -74,9 +80,13 @@
                             <div class="flex flex-col">
                                 <h6 class="mb-1 text-gray-500">Roles</h6>
                                 <div class="flex flex-wrap gap-2">
-                                    <p-tag *ngFor="let role of customer?.roles" [value]="role" severity="info"></p-tag>
-                                    <span *ngIf="!customer?.roles?.length"
-                                          class="text-gray-500">No roles assigned</span>
+                                    @for (role of customer?.roles; track role) {
+                                        <p-tag [value]="role" severity="info"></p-tag>
+                                    }
+                                    @if (!customer?.roles?.length) {
+                                        <span
+                                                class="text-gray-500">No roles assigned</span>
+                                    }
                                 </div>
                             </div>
 
@@ -88,63 +98,72 @@
                     </p-card>
 
                     <!-- Metadata card if exists -->
-                    <p-card *ngIf="customer?.metadata"
-                            styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
-                        <ng-template pTemplate="header">
-                            <div class="p-4 bg-primary-50">
-                                <h2 class="text-xl font-semibold text-primary">Custom Information</h2>
-                            </div>
-                        </ng-template>
+                    @if (customer?.metadata) {
+                        <p-card
+                                styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+                            <ng-template pTemplate="header">
+                                <div class="p-4 bg-primary-50">
+                                    <h2 class="text-xl font-semibold text-primary">Custom Information</h2>
+                                </div>
+                            </ng-template>
 
-                        <!--                        <div class="grid grid-cols-1 gap-4">-->
-                        <!--                            <div *ngFor="let item of customer?.metadata | keyvalue" class="flex flex-col">-->
-                        <!--                                <h6 class="mb-1 text-gray-500">{{ item.key | titlecase }}</h6>-->
-                        <!--                                <p class="text-lg text-surface-900">{{ item.value || 'N/A' }}</p>-->
-                        <!--                            </div>-->
-                        <!--                        </div>-->
-                    </p-card>
+                            <!--                        <div class="grid grid-cols-1 gap-4">-->
+                            <!--                            <div *ngFor="let item of customer?.metadata | keyvalue" class="flex flex-col">-->
+                            <!--                                <h6 class="mb-1 text-gray-500">{{ item.key | titlecase }}</h6>-->
+                            <!--                                <p class="text-lg text-surface-900">{{ item.value || 'N/A' }}</p>-->
+                            <!--                            </div>-->
+                            <!--                        </div>-->
+                        </p-card>
+                    }
                 </div>
             </p-tabpanel>
 
             <!-- Addresses Tab -->
-            <p-tabpanel *ngIf="customer?.addresses?.length" [value]="1">
-                <div class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2 lg:grid-cols-3">
-                    <p-card *ngFor="let address of customer?.addresses"
-                            styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
-                        <ng-template pTemplate="header">
-                            <div class="p-4 bg-primary-50">
-                                <h2 class="text-lg font-semibold text-primary">{{ address.label || 'Address' }}</h2>
-                            </div>
-                        </ng-template>
+            @if (customer?.addresses?.length) {
+                <p-tabpanel [value]="1">
+                    <div class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2 lg:grid-cols-3">
+                        @for (address of customer?.addresses; track address) {
+                            <p-card
+                                    styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+                                <ng-template pTemplate="header">
+                                    <div class="p-4 bg-primary-50">
+                                        <h2 class="text-lg font-semibold text-primary">{{ address.label || 'Address' }}</h2>
+                                    </div>
+                                </ng-template>
 
-                        <div class="grid grid-cols-1 gap-2">
-                            <p class="text-base">{{ address.address }}</p>
-                            <p class="text-base">{{ address.city }}, {{ address.state }}</p>
-                            <p class="text-base">{{ address.country }}</p>
-                            <p class="text-base">{{ address.postal_code }}</p>
-                        </div>
+                                <div class="grid grid-cols-1 gap-2">
+                                    <p class="text-base">{{ address.address }}</p>
+                                    <p class="text-base">{{ address.city }}, {{ address.state }}</p>
+                                    <p class="text-base">{{ address.country }}</p>
+                                    <p class="text-base">{{ address.postal_code }}</p>
+                                </div>
 
-                        <ng-template pTemplate="footer">
-                            <div class="flex justify-end">
-                                <p-button (onClick)="viewAddress(address)" icon="pi pi-eye"
-                                          label="View Details"
-                                          styleClass="p-button-text"></p-button>
-                            </div>
-                        </ng-template>
-                    </p-card>
-                </div>
-            </p-tabpanel>
+                                <ng-template pTemplate="footer">
+                                    <div class="flex justify-end">
+                                        <p-button (onClick)="viewAddress(address)" icon="pi pi-eye"
+                                                  label="View Details"
+                                                  styleClass="p-button-text"></p-button>
+                                    </div>
+                                </ng-template>
+                            </p-card>
+                        }
+                    </div>
+                </p-tabpanel>
+            }
 
             <!-- Bookings Tab -->
-            <p-tabpanel *ngIf="customer?.bookings?.length" [value]="2">
-                <div class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2 lg:grid-cols-3">
-                    <app-booking-card
-                            (click)="viewBooking(booking)"
-                            *ngFor="let booking of customer?.bookings"
-                            [booking]="booking"
-                    ></app-booking-card>
-                </div>
-            </p-tabpanel>
+            @if (customer?.bookings?.length) {
+                <p-tabpanel [value]="2">
+                    <div class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2 lg:grid-cols-3">
+                        @for (booking of customer?.bookings; track booking) {
+                            <app-booking-card
+                                    (click)="viewBooking(booking)"
+                                    [booking]="booking"
+                            ></app-booking-card>
+                        }
+                    </div>
+                </p-tabpanel>
+            }
         </p-tabpanels>
     </p-tabs>
 </div>
@@ -165,38 +184,40 @@
         </div>
     </ng-template>
 
-    <div *ngIf="selectedAddress" class="p-4">
-        <div class="grid grid-cols-1 gap-4">
-            <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500">Label</h6>
-                <p class="text-lg font-medium">{{ selectedAddress.label || 'N/A' }}</p>
-            </div>
-            <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500">Address</h6>
-                <p class="text-lg">{{ selectedAddress.address }}</p>
-            </div>
-            <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500">City</h6>
-                <p class="text-lg">{{ selectedAddress.city }}</p>
-            </div>
-            <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500">State</h6>
-                <p class="text-lg">{{ selectedAddress.state }}</p>
-            </div>
-            <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500">Country</h6>
-                <p class="text-lg">{{ selectedAddress.country }}</p>
-            </div>
-            <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500">Postal Code</h6>
-                <p class="text-lg">{{ selectedAddress.postal_code }}</p>
-            </div>
-            <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500">Type</h6>
-                <p class="text-lg">{{ selectedAddress.type || 'N/A' }}</p>
+    @if (selectedAddress) {
+        <div class="p-4">
+            <div class="grid grid-cols-1 gap-4">
+                <div class="flex flex-col">
+                    <h6 class="mb-1 text-gray-500">Label</h6>
+                    <p class="text-lg font-medium">{{ selectedAddress.label || 'N/A' }}</p>
+                </div>
+                <div class="flex flex-col">
+                    <h6 class="mb-1 text-gray-500">Address</h6>
+                    <p class="text-lg">{{ selectedAddress.address }}</p>
+                </div>
+                <div class="flex flex-col">
+                    <h6 class="mb-1 text-gray-500">City</h6>
+                    <p class="text-lg">{{ selectedAddress.city }}</p>
+                </div>
+                <div class="flex flex-col">
+                    <h6 class="mb-1 text-gray-500">State</h6>
+                    <p class="text-lg">{{ selectedAddress.state }}</p>
+                </div>
+                <div class="flex flex-col">
+                    <h6 class="mb-1 text-gray-500">Country</h6>
+                    <p class="text-lg">{{ selectedAddress.country }}</p>
+                </div>
+                <div class="flex flex-col">
+                    <h6 class="mb-1 text-gray-500">Postal Code</h6>
+                    <p class="text-lg">{{ selectedAddress.postal_code }}</p>
+                </div>
+                <div class="flex flex-col">
+                    <h6 class="mb-1 text-gray-500">Type</h6>
+                    <p class="text-lg">{{ selectedAddress.type || 'N/A' }}</p>
+                </div>
             </div>
         </div>
-    </div>
+    }
 </p-dialog>
 
 <!-- Booking Details Dialog -->
@@ -215,52 +236,54 @@
         </div>
     </ng-template>
 
-    <div *ngIf="selectedBooking" class="p-4">
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500">Reference Number</h6>
-                <p class="text-lg">{{ selectedBooking.reference_number || 'N/A' }}</p>
-            </div>
-            <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500">Status</h6>
-                <p-tag [severity]="selectedBooking.status === 'confirmed' ? 'success' :
+    @if (selectedBooking) {
+        <div class="p-4">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div class="flex flex-col">
+                    <h6 class="mb-1 text-gray-500">Reference Number</h6>
+                    <p class="text-lg">{{ selectedBooking.reference_number || 'N/A' }}</p>
+                </div>
+                <div class="flex flex-col">
+                    <h6 class="mb-1 text-gray-500">Status</h6>
+                    <p-tag [severity]="selectedBooking.status === 'confirmed' ? 'success' :
                                  selectedBooking.status === 'pending' ? 'warning' :
                                  selectedBooking.status === 'cancelled' ? 'danger' : 'info'">
-                    {{ selectedBooking.status }}
-                </p-tag>
-            </div>
+                        {{ selectedBooking.status }}
+                    </p-tag>
+                </div>
 
-            <!-- Booking Period -->
-            <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500">Start Date</h6>
-                <p class="text-lg">{{ (selectedBooking.start_date | date: 'mediumDate') || 'N/A' }}</p>
-            </div>
-            <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500">End Date</h6>
-                <p class="text-lg">{{ (selectedBooking.end_date | date: 'mediumDate') || 'N/A' }}</p>
-            </div>
-            <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500">Duration</h6>
-                <p class="text-lg">{{ calculateDuration(selectedBooking) }} days</p>
-            </div>
+                <!-- Booking Period -->
+                <div class="flex flex-col">
+                    <h6 class="mb-1 text-gray-500">Start Date</h6>
+                    <p class="text-lg">{{ (selectedBooking.start_date | date: 'mediumDate') || 'N/A' }}</p>
+                </div>
+                <div class="flex flex-col">
+                    <h6 class="mb-1 text-gray-500">End Date</h6>
+                    <p class="text-lg">{{ (selectedBooking.end_date | date: 'mediumDate') || 'N/A' }}</p>
+                </div>
+                <div class="flex flex-col">
+                    <h6 class="mb-1 text-gray-500">Duration</h6>
+                    <p class="text-lg">{{ calculateDuration(selectedBooking) }} days</p>
+                </div>
 
-            <!-- Financial Information -->
-            <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500">Total Amount</h6>
-                <p class="text-lg font-semibold text-primary">{{ (selectedBooking.total_amount | currency) || 'N/A' }}</p>
-            </div>
-            <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500">Property</h6>
-                <p class="text-lg">{{ selectedBooking.property?.title || 'N/A' }}</p>
-            </div>
-            <div class="flex flex-col">
-                <h6 class="mb-1 text-gray-500">Total Amount</h6>
-                <p class="text-lg font-medium">{{ selectedBooking.total_amount | currency:'EUR' }}</p>
-            </div>
-            <div class="flex flex-col col-span-2">
-                <h6 class="mb-1 text-gray-500">Notes</h6>
-                <p class="text-lg">{{ selectedBooking.notes || 'No notes available' }}</p>
+                <!-- Financial Information -->
+                <div class="flex flex-col">
+                    <h6 class="mb-1 text-gray-500">Total Amount</h6>
+                    <p class="text-lg font-semibold text-primary">{{ (selectedBooking.total_amount | currency) || 'N/A' }}</p>
+                </div>
+                <div class="flex flex-col">
+                    <h6 class="mb-1 text-gray-500">Property</h6>
+                    <p class="text-lg">{{ selectedBooking.property?.title || 'N/A' }}</p>
+                </div>
+                <div class="flex flex-col">
+                    <h6 class="mb-1 text-gray-500">Total Amount</h6>
+                    <p class="text-lg font-medium">{{ selectedBooking.total_amount | currency:'EUR' }}</p>
+                </div>
+                <div class="flex flex-col col-span-2">
+                    <h6 class="mb-1 text-gray-500">Notes</h6>
+                    <p class="text-lg">{{ selectedBooking.notes || 'No notes available' }}</p>
+                </div>
             </div>
         </div>
-    </div>
+    }
 </p-dialog>

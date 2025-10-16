@@ -17,7 +17,9 @@
     <p-tabs [(value)]="activeTabIndex">
         <p-tablist>
             <p-tab [value]="0">Overview</p-tab>
-            <p-tab *ngIf="property && property.address" [value]="1">Location</p-tab>
+            @if (property && property.address) {
+                <p-tab [value]="1">Location</p-tab>
+            }
             <p-tab [value]="2">Bookings</p-tab>
         </p-tablist>
         <p-tabpanels>
@@ -81,8 +83,9 @@
                     </p-card>
 
                     <!-- Type-specific details -->
-                    <p-card *ngIf="property?.metadata"
-                            styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+                    @if (property?.metadata) {
+                        <p-card
+                                styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
                         <ng-template pTemplate="header">
                             <div class="p-4 bg-primary-50">
                                 <h2 class="text-xl font-semibold text-primary">{{ getTypeSpecificLabel() }}</h2>
@@ -90,7 +93,8 @@
                         </ng-template>
 
                         <!-- Apartment, House, Villa specific details -->
-                        <div *ngIf="isResidentialType()" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        @if (isResidentialType()) {
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div class="flex flex-col">
                                 <h6 class="mb-1 text-gray-500">Rooms</h6>
                                 <p class="text-lg text-surface-900">{{ property?.metadata?.rooms || 'N/A' }}</p>
@@ -107,24 +111,38 @@
                                 <h6 class="mb-1 text-gray-500">Parking Spaces</h6>
                                 <p class="text-lg text-surface-900">{{ property?.metadata?.parking_spaces || '0' }}</p>
                             </div>
-                        </div>
+                            </div>
+                        }
 
                         <!-- Features for Apartment, House, Villa -->
-                        <div *ngIf="isResidentialType()" class="mt-4">
+                        @if (isResidentialType()) {
+                            <div class="mt-4">
                             <h6 class="mb-2 text-gray-500">Features</h6>
                             <div class="flex flex-wrap gap-2">
-                                <p-tag *ngIf="property?.metadata?.has_balcony" severity="info" value="Balcony"></p-tag>
-                                <p-tag *ngIf="property?.metadata?.has_garden" severity="info" value="Garden"></p-tag>
-                                <p-tag *ngIf="property?.metadata?.has_pool" severity="info" value="Pool"></p-tag>
-                                <p-tag *ngIf="property?.metadata?.has_elevator" severity="info"
-                                       value="Elevator"></p-tag>
-                                <p-tag *ngIf="property?.metadata?.air_conditioning" severity="info"
-                                       value="Air Conditioning"></p-tag>
+                                @if (property?.metadata?.has_balcony) {
+                                    <p-tag severity="info" value="Balcony"></p-tag>
+                                }
+                                @if (property?.metadata?.has_garden) {
+                                    <p-tag severity="info" value="Garden"></p-tag>
+                                }
+                                @if (property?.metadata?.has_pool) {
+                                    <p-tag severity="info" value="Pool"></p-tag>
+                                }
+                                @if (property?.metadata?.has_elevator) {
+                                    <p-tag severity="info"
+                                           value="Elevator"></p-tag>
+                                }
+                                @if (property?.metadata?.air_conditioning) {
+                                    <p-tag severity="info"
+                                           value="Air Conditioning"></p-tag>
+                                }
                             </div>
-                        </div>
+                            </div>
+                        }
 
                         <!-- Land specific details -->
-                        <div *ngIf="isPropertyType('land')" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        @if (isPropertyType('land')) {
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div class="flex flex-col">
                                 <h6 class="mb-1 text-gray-500">Land Type</h6>
                                 <p class="text-lg text-surface-900">{{ property?.metadata?.land_type || 'N/A' }}</p>
@@ -137,25 +155,37 @@
                                 <h6 class="mb-1 text-gray-500">Total Area</h6>
                                 <p class="text-lg text-surface-900">{{ property?.metadata?.total_area || 'N/A' }} m²</p>
                             </div>
-                        </div>
+                            </div>
+                        }
 
                         <!-- Features for Land -->
-                        <div *ngIf="isPropertyType('land')" class="mt-4">
+                        @if (isPropertyType('land')) {
+                            <div class="mt-4">
                             <h6 class="mb-2 text-gray-500">Features</h6>
                             <div class="flex flex-wrap gap-2">
-                                <p-tag *ngIf="property?.metadata?.is_developed" severity="info"
-                                       value="Developed"></p-tag>
-                                <p-tag *ngIf="property?.metadata?.has_water_connection" severity="info"
-                                       value="Water Connection"></p-tag>
-                                <p-tag *ngIf="property?.metadata?.has_electricity_connection" severity="info"
-                                       value="Electricity"></p-tag>
-                                <p-tag *ngIf="property?.metadata?.has_road_access" severity="info"
-                                       value="Road Access"></p-tag>
+                                @if (property?.metadata?.is_developed) {
+                                    <p-tag severity="info"
+                                           value="Developed"></p-tag>
+                                }
+                                @if (property?.metadata?.has_water_connection) {
+                                    <p-tag severity="info"
+                                           value="Water Connection"></p-tag>
+                                }
+                                @if (property?.metadata?.has_electricity_connection) {
+                                    <p-tag severity="info"
+                                           value="Electricity"></p-tag>
+                                }
+                                @if (property?.metadata?.has_road_access) {
+                                    <p-tag severity="info"
+                                           value="Road Access"></p-tag>
+                                }
                             </div>
-                        </div>
+                            </div>
+                        }
 
                         <!-- Office specific details -->
-                        <div *ngIf="isPropertyType('office')" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        @if (isPropertyType('office')) {
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div class="flex flex-col">
                                 <h6 class="mb-1 text-gray-500">Office Area</h6>
                                 <p class="text-lg text-surface-900">{{ property?.metadata?.office_area || 'N/A' }}
@@ -173,26 +203,40 @@
                                 <h6 class="mb-1 text-gray-500">Bathrooms</h6>
                                 <p class="text-lg text-surface-900">{{ property?.metadata?.bathrooms || 'N/A' }}</p>
                             </div>
-                        </div>
+                            </div>
+                        }
 
                         <!-- Features for Office -->
-                        <div *ngIf="isPropertyType('office')" class="mt-4">
+                        @if (isPropertyType('office')) {
+                            <div class="mt-4">
                             <h6 class="mb-2 text-gray-500">Features</h6>
                             <div class="flex flex-wrap gap-2">
-                                <p-tag *ngIf="property?.metadata?.has_reception" severity="info"
-                                       value="Reception"></p-tag>
-                                <p-tag *ngIf="property?.metadata?.has_kitchen" severity="info" value="Kitchen"></p-tag>
-                                <p-tag *ngIf="property?.metadata?.has_server_room" severity="info"
-                                       value="Server Room"></p-tag>
-                                <p-tag *ngIf="property?.metadata?.has_elevator" severity="info"
-                                       value="Elevator"></p-tag>
-                                <p-tag *ngIf="property?.metadata?.air_conditioning" severity="info"
-                                       value="Air Conditioning"></p-tag>
+                                @if (property?.metadata?.has_reception) {
+                                    <p-tag severity="info"
+                                           value="Reception"></p-tag>
+                                }
+                                @if (property?.metadata?.has_kitchen) {
+                                    <p-tag severity="info" value="Kitchen"></p-tag>
+                                }
+                                @if (property?.metadata?.has_server_room) {
+                                    <p-tag severity="info"
+                                           value="Server Room"></p-tag>
+                                }
+                                @if (property?.metadata?.has_elevator) {
+                                    <p-tag severity="info"
+                                           value="Elevator"></p-tag>
+                                }
+                                @if (property?.metadata?.air_conditioning) {
+                                    <p-tag severity="info"
+                                           value="Air Conditioning"></p-tag>
+                                }
                             </div>
-                        </div>
+                            </div>
+                        }
 
                         <!-- Store specific details -->
-                        <div *ngIf="isPropertyType('store')" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        @if (isPropertyType('store')) {
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div class="flex flex-col">
                                 <h6 class="mb-1 text-gray-500">Store Area</h6>
                                 <p class="text-lg text-surface-900">{{ property?.metadata?.store_area || 'N/A' }} m²</p>
@@ -206,22 +250,34 @@
                                 <h6 class="mb-1 text-gray-500">Bathrooms</h6>
                                 <p class="text-lg text-surface-900">{{ property?.metadata?.bathrooms || 'N/A' }}</p>
                             </div>
-                        </div>
+                            </div>
+                        }
 
                         <!-- Features for Store -->
-                        <div *ngIf="isPropertyType('store')" class="mt-4">
+                        @if (isPropertyType('store')) {
+                            <div class="mt-4">
                             <h6 class="mb-2 text-gray-500">Features</h6>
                             <div class="flex flex-wrap gap-2">
-                                <p-tag *ngIf="property?.metadata?.has_storage" severity="info" value="Storage"></p-tag>
-                                <p-tag *ngIf="property?.metadata?.has_loading_dock" severity="info"
-                                       value="Loading Dock"></p-tag>
-                                <p-tag *ngIf="property?.metadata?.has_display_window" severity="info"
-                                       value="Display Window"></p-tag>
-                                <p-tag *ngIf="property?.metadata?.air_conditioning" severity="info"
-                                       value="Air Conditioning"></p-tag>
+                                @if (property?.metadata?.has_storage) {
+                                    <p-tag severity="info" value="Storage"></p-tag>
+                                }
+                                @if (property?.metadata?.has_loading_dock) {
+                                    <p-tag severity="info"
+                                           value="Loading Dock"></p-tag>
+                                }
+                                @if (property?.metadata?.has_display_window) {
+                                    <p-tag severity="info"
+                                           value="Display Window"></p-tag>
+                                }
+                                @if (property?.metadata?.air_conditioning) {
+                                    <p-tag severity="info"
+                                           value="Air Conditioning"></p-tag>
+                                }
                             </div>
-                        </div>
+                            </div>
+                        }
                     </p-card>
+                    }
                 </div>
 
                 <p-card styleClass="mt-6 shadow-md hover:shadow-lg transition-shadow duration-300">
@@ -235,40 +291,51 @@
                         </div>
                     </ng-template>
 
-                    <div *ngIf="property?.media && property?.media?.length"
-                         class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-                        <div (click)="openMediaPreview(media)"
-                             *ngFor="let media of property?.media"
-                             class="overflow-hidden relative bg-gray-100 rounded-lg transition-all duration-300 cursor-pointer aspect-square hover:shadow-lg">
-                            <!-- Image file preview -->
-                            <img *ngIf="media.is_image" [alt]="media.name"
+                    @if (property?.media && property?.media?.length) {
+                        <div
+                             class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                            @for (media of property?.media; track media) {
+                                <div (click)="openMediaPreview(media)"
+                                     class="overflow-hidden relative bg-gray-100 rounded-lg transition-all duration-300 cursor-pointer aspect-square hover:shadow-lg">
+                                    <!-- Image file preview -->
+                                    @if (media.is_image) {
+                                        <img [alt]="media.name"
                                  [ngSrc]="media.thumbnail_url || media.original_url || ''"
                                  class="object-cover w-full h-full transition-transform duration-300 hover:scale-110"
-                                 fill/>
+                                             fill/>
+                                    }
 
-                            <!-- Document file preview -->
-                            <div *ngIf="!media.is_image"
+                                    <!-- Document file preview -->
+                                    @if (!media.is_image) {
+                                        <div
                                  class="flex flex-col justify-center items-center px-2 py-4 h-full text-center">
                                 <i class="mb-2 text-3xl text-primary pi pi-file-pdf"></i>
                                 <p class="text-sm text-gray-700 line-clamp-2">{{ media.name }}</p>
-                            </div>
+                                        </div>
+                                    }
 
-                            <!-- File type indicator -->
-                            <span *ngIf="media.extension"
+                                    <!-- File type indicator -->
+                                    @if (media.extension) {
+                                        <span
                                   class="absolute top-2 right-2 px-2 py-1 text-xs font-medium text-white rounded-full bg-primary">
                           {{ media.extension.toUpperCase() }}
-                        </span>
+                                        </span>
+                                    }
+                                </div>
+                            }
                         </div>
-                    </div>
+                    }
 
-                    <div *ngIf="!property?.media || !property?.media?.length"
-                         class="flex flex-col justify-center items-center py-16">
+                    @if (!property?.media || !property?.media?.length) {
+                        <div
+                             class="flex flex-col justify-center items-center py-16">
                         <i class="mb-4 text-5xl text-gray-300 pi pi-images"></i>
                         <h3 class="mb-2 text-xl text-gray-600">No Media Available</h3>
                         <p class="mb-4 text-gray-500">Upload images or documents for this property.</p>
                         <p-button icon="pi pi-upload" label="Upload Media"
                                   styleClass="p-button-outlined"></p-button>
-                    </div>
+                        </div>
+                    }
                 </p-card>
 
 
@@ -285,8 +352,9 @@
                 </p-card>
 
                 <!-- Services/Amenities -->
-                <p-card *ngIf="property?.servicing?.length"
-                        styleClass="mt-6 shadow-md hover:shadow-lg transition-shadow duration-300">
+                @if (property?.servicing?.length) {
+                    <p-card
+                            styleClass="mt-6 shadow-md hover:shadow-lg transition-shadow duration-300">
                     <ng-template pTemplate="header">
                         <div class="p-4 bg-primary-50">
                             <h2 class="text-xl font-semibold text-primary">Services & Amenities</h2>
@@ -294,14 +362,18 @@
                     </ng-template>
 
                     <div class="flex flex-wrap gap-2">
-                        <p-tag *ngFor="let service of property?.servicing" [rounded]="true" [value]="service"
-                               severity="info"></p-tag>
+                        @for (service of property?.servicing; track service) {
+                            <p-tag [rounded]="true" [value]="service"
+                                   severity="info"></p-tag>
+                        }
                     </div>
                 </p-card>
+                }
             </p-tabpanel>
 
             <!-- Location Tab -->
-            <p-tabpanel *ngIf="property?.address" [value]="1">
+            @if (property?.address) {
+                <p-tabpanel [value]="1">
                 <p-card styleClass="shadow-md hover:shadow-lg transition-shadow duration-300">
                     <ng-template pTemplate="header">
                         <div class="p-4 bg-primary-50">
@@ -339,7 +411,8 @@
                         </div>
                     </div>
                 </p-card>
-            </p-tabpanel>
+                </p-tabpanel>
+            }
 
             <!-- Bookings Tab -->
             <p-tabpanel [value]="2">
@@ -350,24 +423,29 @@
                               label="Add Booking" styleClass="p-button-success"></p-button>
                 </div>
 
-                <div *ngIf="property?.bookings && property?.bookings?.length"
-                     class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    <app-booking-card
-                            (delete)="deleteBooking(booking)"
-                            (edit)="editBooking(booking)"
-                            *ngFor="let booking of property?.bookings"
-                            [booking]="booking"
-                    ></app-booking-card>
-                </div>
+                @if (property?.bookings && property?.bookings?.length) {
+                    <div
+                         class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        @for (booking of property?.bookings; track booking) {
+                            <app-booking-card
+                                    (delete)="deleteBooking(booking)"
+                                    (edit)="editBooking(booking)"
+                                    [booking]="booking"
+                            ></app-booking-card>
+                        }
+                    </div>
+                }
 
-                <div *ngIf="!property?.bookings?.length"
-                     class="flex flex-col justify-center items-center py-12 bg-gray-50 rounded-lg">
+                @if (!property?.bookings?.length) {
+                    <div
+                         class="flex flex-col justify-center items-center py-12 bg-gray-50 rounded-lg">
                     <i class="mb-4 text-5xl text-gray-400 pi pi-calendar"></i>
                     <h3 class="mb-2 text-xl text-gray-600">No Bookings Found</h3>
                     <p class="mb-4 text-gray-500">This property doesn't have any bookings yet.</p>
                     <p-button (click)="openNewBookingDialog()" icon="pi pi-plus" label="Create First Booking"
                               styleClass="p-button-success"></p-button>
-                </div>
+                    </div>
+                }
             </p-tabpanel>
         </p-tabpanels>
     </p-tabs>
@@ -390,13 +468,17 @@
         </div>
     </ng-template>
 
-    <div *ngIf="selectedMedia" class="flex flex-col items-center">
-        <!-- Image Preview -->
-        <img *ngIf="selectedMedia.is_image" [alt]="selectedMedia.name"
-             [src]="selectedMedia.original_url" class="max-h-[70vh] object-contain"/>
+    @if (selectedMedia) {
+        <div class="flex flex-col items-center">
+            <!-- Image Preview -->
+            @if (selectedMedia.is_image) {
+                <img [alt]="selectedMedia.name"
+                     [src]="selectedMedia.original_url" class="max-h-[70vh] object-contain"/>
+            }
 
-        <!-- Document Preview -->
-        <div *ngIf="!selectedMedia.is_image" class="w-full text-center">
+            <!-- Document Preview -->
+            @if (!selectedMedia.is_image) {
+                <div class="w-full text-center">
             <i class="mb-4 text-6xl text-primary pi pi-file-pdf"></i>
             <h3 class="mb-2">{{ selectedMedia.name }}</h3>
             <p class="mb-4">{{ selectedMedia && selectedMedia.size ? (selectedMedia.size / 1024).toFixed(2) + ' KB' : '' }} {{ selectedMedia && selectedMedia.extension ? '• ' + selectedMedia.extension.toUpperCase() : '' }}</p>
@@ -406,8 +488,10 @@
                     icon="pi pi-download"
                     label="Download File"
                     styleClass="p-button-outlined"></p-button>
+                </div>
+            }
         </div>
-    </div>
+    }
 </p-dialog>
 
 <!-- Booking Form Component -->

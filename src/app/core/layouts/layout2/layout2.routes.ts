@@ -1,5 +1,4 @@
 import {Routes} from '@angular/router';
-import {authGuard} from "../../guards/auth.guard";
 
 export const routes: Routes = [
   {
@@ -20,18 +19,24 @@ export const routes: Routes = [
         loadComponent: () => import('../../../pages/search-results/search-results.component').then(m => m.SearchResultsComponent)
       },
       {
+        'path': 'show-property/:id',
+        loadComponent: () => import('../../../pages/show-property/show-property.component').then(m => m.ShowPropertyComponent)
+      },
+
+
+      {
         'path': 'properties',
-        canActivate: [authGuard],
+        // canActivate: [authGuard],
         loadChildren: () => import('../../../pages/dashboard/properties/properties.routes').then(m => m.routes)
       },
       {
         'path': 'bookings',
-        canActivate: [authGuard],
+        // canActivate: [authGuard],
         loadChildren: () => import('../../../pages/dashboard/bookings/bookings.routes').then(m => m.routes)
       },
       {
         'path': 'customers',
-        canActivate: [authGuard],
+        // canActivate: [authGuard],
         loadChildren: () => import('../../../pages/dashboard/customers/customers.routes').then(m => m.routes)
       }
     ]

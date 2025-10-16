@@ -17,15 +17,19 @@
                     (click)="saveCustomer()"
                     [disabled]="customerForm.invalid || saving"
                     class="transition-all duration-200 hover:-translate-y-0.5 inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                <svg *ngIf="saving" class="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor"
-                     viewBox="0 0 24 24">
-                    <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round"
-                          stroke-width="2"></path>
-                </svg>
-                <svg *ngIf="!saving" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" stroke-linecap="round" stroke-linejoin="round"
-                          stroke-width="2"></path>
-                </svg>
+                @if (saving) {
+                    <svg class="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor"
+                         viewBox="0 0 24 24">
+                        <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round"
+                              stroke-width="2"></path>
+                    </svg>
+                }
+                @if (!saving) {
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" stroke-linecap="round" stroke-linejoin="round"
+                              stroke-width="2"></path>
+                    </svg>
+                }
                 Save
             </button>
         </div>
@@ -67,10 +71,12 @@
                                         id="first_name"
                                         type="text"
                                 />
-                                <small *ngIf="hasError('first_name', 'required')"
-                                       class="block mt-1 text-red-600 text-sm">
-                                    First name is required
-                                </small>
+                                @if (hasError('first_name', 'required')) {
+                                    <small
+                                           class="block mt-1 text-red-600 text-sm">
+                                        First name is required
+                                    </small>
+                                }
                             </div>
 
                             <!-- Last Name -->
@@ -84,10 +90,12 @@
                                         id="last_name"
                                         type="text"
                                 />
-                                <small *ngIf="hasError('last_name', 'required')"
-                                       class="block mt-1 text-red-600 text-sm">
-                                    Last name is required
-                                </small>
+                                @if (hasError('last_name', 'required')) {
+                                    <small
+                                           class="block mt-1 text-red-600 text-sm">
+                                        Last name is required
+                                    </small>
+                                }
                             </div>
 
                             <!-- Email -->
@@ -101,9 +109,11 @@
                                         id="email"
                                         type="email"
                                 />
-                                <small *ngIf="hasError('email', 'email')" class="block mt-1 text-red-600 text-sm">
-                                    Invalid email format
-                                </small>
+                                @if (hasError('email', 'email')) {
+                                    <small class="block mt-1 text-red-600 text-sm">
+                                        Invalid email format
+                                    </small>
+                                }
                             </div>
 
                             <!-- Phone -->
@@ -135,8 +145,9 @@
                             <hr class="border-gray-200 my-6">
 
                             <!-- Company-specific fields -->
-                            <div *ngIf="customerForm.get('type')?.value === 'company'"
-                                 class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2 animate-[slideIn_0.3s_ease-in-out]">
+                            @if (customerForm.get('type')?.value === 'company') {
+                                <div
+                                     class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2 animate-[slideIn_0.3s_ease-in-out]">
                                 <div class="col-span-full">
                                     <h3 class="mb-4 text-lg font-medium text-gray-900">Company Information</h3>
                                 </div>
@@ -153,10 +164,12 @@
                                             id="company_name"
                                             type="text"
                                     />
-                                    <small *ngIf="hasMetadataError('company_name', 'required')"
-                                           class="block mt-1 text-red-600 text-sm">
-                                        Company name is required
-                                    </small>
+                                    @if (hasMetadataError('company_name', 'required')) {
+                                        <small
+                                               class="block mt-1 text-red-600 text-sm">
+                                            Company name is required
+                                        </small>
+                                    }
                                 </div>
 
                                 <!-- Business ID -->
@@ -171,10 +184,12 @@
                                             id="business_id"
                                             type="text"
                                     />
-                                    <small *ngIf="hasMetadataError('business_id', 'required')"
-                                           class="block mt-1 text-red-600 text-sm">
-                                        Business ID is required
-                                    </small>
+                                    @if (hasMetadataError('business_id', 'required')) {
+                                        <small
+                                               class="block mt-1 text-red-600 text-sm">
+                                            Business ID is required
+                                        </small>
+                                    }
                                 </div>
 
                                 <!-- Tax ID -->
@@ -187,7 +202,8 @@
                                             type="text"
                                     />
                                 </div>
-                            </div>
+                                </div>
+                            }
 
                             <!-- Notes field (for all types) -->
                             <div class="mt-4">
@@ -223,8 +239,9 @@
 
                 <div class="p-6">
                     <div class="address-list">
-                        <div *ngIf="!customer.addresses?.length"
-                             class="py-6 text-center animate-[fadeIn_0.3s_ease-in-out]">
+                        @if (!customer.addresses?.length) {
+                            <div
+                                 class="py-6 text-center animate-[fadeIn_0.3s_ease-in-out]">
                             <svg class="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor"
                                  viewBox="0 0 24 24">
                                 <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" stroke-linecap="round" stroke-linejoin="round"
@@ -242,10 +259,12 @@
                                 </svg>
                                 Add First Address
                             </button>
-                        </div>
+                            </div>
+                        }
 
-                        <div *ngFor="let address of customer.addresses; let i = index"
-                             class="p-4 mb-3 bg-gray-50 border border-gray-200 rounded-lg hover:shadow-md transition-all duration-200 animate-[slideIn_0.3s_ease-in-out]">
+                        @for (address of customer.addresses; track address; let i = $index) {
+                            <div
+                                 class="p-4 mb-3 bg-gray-50 border border-gray-200 rounded-lg hover:shadow-md transition-all duration-200 animate-[slideIn_0.3s_ease-in-out]">
                             <div class="flex justify-between items-start">
                                 <h5 class="m-0 font-semibold text-gray-900 mb-2">{{ address.label || 'Address ' + (i + 1) }}</h5>
                                 <div class="flex gap-1">
@@ -272,7 +291,8 @@
                                 <p class="m-0">{{ address.city }}, {{ address.state }}</p>
                                 <p class="m-0">{{ address.country }} {{ address.postal_code }}</p>
                             </div>
-                        </div>
+                            </div>
+                        }
                     </div>
                 </div>
             </p-card>

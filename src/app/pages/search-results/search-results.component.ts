@@ -187,7 +187,7 @@ export class SearchResultsComponent implements OnInit {
   }
 
   onPropertyClick(property: Property) {
-    this.router.navigate(['/client/properties', property.id]).then();
+    this.router.navigate(['/client/show-property', property.id]).then();
   }
 
   onFavoriteToggle(property: Property) {
