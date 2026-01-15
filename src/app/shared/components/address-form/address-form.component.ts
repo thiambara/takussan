@@ -10,6 +10,7 @@ import {DialogModule} from 'primeng/dialog';
 import {TextareaModule} from 'primeng/textarea';
 import {TooltipModule} from 'primeng/tooltip';
 import {Select} from "primeng/select";
+import {LucideAngularModule, Home, Briefcase, Truck, CreditCard, MapPin, X, Check} from 'lucide-angular';
 
 @Component({
   selector: 'app-address-form',
@@ -24,7 +25,8 @@ import {Select} from "primeng/select";
     DialogModule,
     TextareaModule,
     TooltipModule,
-    Select
+    Select,
+    LucideAngularModule
   ]
 })
 export class AddressFormComponent implements OnInit {
@@ -36,6 +38,15 @@ export class AddressFormComponent implements OnInit {
   @Output() cancel = new EventEmitter<void>();
 
   addressForm!: FormGroup;
+
+  // Icons
+  readonly Home = Home;
+  readonly Briefcase = Briefcase;
+  readonly Truck = Truck;
+  readonly CreditCard = CreditCard;
+  readonly MapPin = MapPin;
+  readonly X = X;
+  readonly Check = Check;
 
   // Address type options
   addressTypes = [

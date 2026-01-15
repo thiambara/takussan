@@ -15,6 +15,7 @@ import {Address} from "../../../../core/models/http/address.model";
 import {Booking} from "../../../../core/models/http/booking.model";
 import {BookingCardComponent} from "../../properties/booking-card/booking-card.component";
 import {CustomerService} from "../../../../core/services/http/customer.service";
+import {LucideAngularModule, ArrowLeft, Pencil, Eye, X} from 'lucide-angular';
 
 @Component({
   selector: 'app-customer-details',
@@ -29,7 +30,8 @@ import {CustomerService} from "../../../../core/services/http/customer.service";
     TabsModule,
     ToastModule,
     DialogModule,
-    BookingCardComponent
+    BookingCardComponent,
+    LucideAngularModule
   ],
   standalone: true
 })
@@ -46,6 +48,12 @@ export class CustomerDetailsComponent implements OnInit {
   // Selected booking for viewing details
   selectedBooking?: Booking;
   showBookingDialog: boolean = false;
+
+  // Icons
+  readonly ArrowLeft = ArrowLeft;
+  readonly Pencil = Pencil;
+  readonly Eye = Eye;
+  readonly X = X;
 
   constructor(
     private customerService: CustomerService,

@@ -1,10 +1,11 @@
 import {Component} from '@angular/core';
 import {CommonModule} from '@angular/common';
+import {LucideAngularModule, Twitter, Facebook} from 'lucide-angular';
 
 @Component({
   selector: 'app-footer',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, LucideAngularModule],
   template: `
       <!-- Footer -->
       <footer class="bg-gray-900 text-white py-12 mt-16">
@@ -15,41 +16,41 @@ import {CommonModule} from '@angular/common';
                       <p class="text-gray-300 mb-4">Your trusted real estate platform connecting property owners,
                           tenants, and agents.</p>
                       <div class="flex space-x-4">
-                          <a href="#" class="text-gray-300 hover:text-white">
+                          <a href="#" class="text-gray-300 hover:text-white transition-colors">
                               <span class="sr-only">Twitter</span>
-                              <i class="pi pi-twitter"></i>
+                              <lucide-icon [img]="Twitter" class="w-6 h-6"></lucide-icon>
                           </a>
-                          <a href="#" class="text-gray-300 hover:text-white">
+                          <a href="#" class="text-gray-300 hover:text-white transition-colors">
                               <span class="sr-only">Facebook</span>
-                              <i class="pi pi-facebook"></i>
+                              <lucide-icon [img]="Facebook" class="w-6 h-6"></lucide-icon>
                           </a>
                       </div>
                   </div>
                   <div>
                       <h4 class="font-semibold mb-4">For Buyers</h4>
                       <ul class="space-y-2 text-gray-300">
-                          <li><a href="#" class="hover:text-white">Buy a Home</a></li>
-                          <li><a href="#" class="hover:text-white">Rent a Home</a></li>
-                          <li><a href="#" class="hover:text-white">Price Estimates</a></li>
-                          <li><a href="#" class="hover:text-white">Neighborhood Guide</a></li>
+                          <li><a href="#" class="hover:text-white transition-colors">Buy a Home</a></li>
+                          <li><a href="#" class="hover:text-white transition-colors">Rent a Home</a></li>
+                          <li><a href="#" class="hover:text-white transition-colors">Price Estimates</a></li>
+                          <li><a href="#" class="hover:text-white transition-colors">Neighborhood Guide</a></li>
                       </ul>
                   </div>
                   <div>
                       <h4 class="font-semibold mb-4">For Sellers</h4>
                       <ul class="space-y-2 text-gray-300">
-                          <li><a href="#" class="hover:text-white">Sell Your Home</a></li>
-                          <li><a href="#" class="hover:text-white">List Your Property</a></li>
-                          <li><a href="#" class="hover:text-white">Agent Directory</a></li>
-                          <li><a href="#" class="hover:text-white">Market Reports</a></li>
+                          <li><a href="#" class="hover:text-white transition-colors">Sell Your Home</a></li>
+                          <li><a href="#" class="hover:text-white transition-colors">List Your Property</a></li>
+                          <li><a href="#" class="hover:text-white transition-colors">Agent Directory</a></li>
+                          <li><a href="#" class="hover:text-white transition-colors">Market Reports</a></li>
                       </ul>
                   </div>
                   <div>
                       <h4 class="font-semibold mb-4">Support</h4>
                       <ul class="space-y-2 text-gray-300">
-                          <li><a href="#" class="hover:text-white">Help Center</a></li>
-                          <li><a href="#" class="hover:text-white">Contact Us</a></li>
-                          <li><a href="#" class="hover:text-white">Terms of Service</a></li>
-                          <li><a href="#" class="hover:text-white">Privacy Policy</a></li>
+                          <li><a href="#" class="hover:text-white transition-colors">Help Center</a></li>
+                          <li><a href="#" class="hover:text-white transition-colors">Contact Us</a></li>
+                          <li><a href="#" class="hover:text-white transition-colors">Terms of Service</a></li>
+                          <li><a href="#" class="hover:text-white transition-colors">Privacy Policy</a></li>
                       </ul>
                   </div>
               </div>
@@ -59,44 +60,9 @@ import {CommonModule} from '@angular/common';
           </div>
       </footer>
   `,
-  styles: [
-    `
-      header {
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        background-color: white;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-
-        @media (max-width: 768px) {
-          padding: 0.75rem 1rem;
-        }
-      }
-
-      // Animation for mobile menu
-      .mobile-menu-enter {
-        opacity: 0;
-        transform: translateY(-10px);
-      }
-
-      .mobile-menu-enter-active {
-        opacity: 1;
-        transform: translateY(0);
-        transition: opacity 200ms, transform 200ms;
-      }
-
-      .mobile-menu-exit {
-        opacity: 1;
-      }
-
-      .mobile-menu-exit-active {
-        opacity: 0;
-        transform: translateY(-10px);
-        transition: opacity 200ms, transform 200ms;
-      }
-    `
-  ]
+  styles: []
 })
 export class Footer {
-
+  readonly Twitter = Twitter;
+  readonly Facebook = Facebook;
 }

@@ -4,12 +4,43 @@ import {ActivatedRoute, Router} from '@angular/router';
 import {FormsModule} from '@angular/forms';
 import {Property} from '../../core/models/http/property.model';
 import {PropertyService} from '../../core/services/http/property.service';
-import {PropertyCardComponent} from '../../shared/components/product-card/property-card.component';
+import {PropertyCardComponent} from '../../shared/components/property-card/property-card.component';
+import {BadgeComponent} from "../../shared/components/badge/badge.component";
+import {PriceFormatPipe} from "../../shared/pipes/price-format.pipe";
+import {AreaFormatPipe} from "../../shared/pipes/area-format.pipe";
+import {
+  LucideAngularModule,
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+  Heart,
+  Share2,
+  Phone,
+  MessageSquare,
+  Bed,
+  Bath,
+  Maximize,
+  Calendar,
+  Car,
+  Clock,
+  Check,
+  User,
+  Star,
+  ArrowRight
+} from 'lucide-angular';
 
 @Component({
   selector: 'app-show-property',
   standalone: true,
-  imports: [CommonModule, FormsModule, PropertyCardComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    PropertyCardComponent,
+    BadgeComponent,
+    PriceFormatPipe,
+    AreaFormatPipe,
+    LucideAngularModule
+  ],
   templateUrl: './show-property.component.html',
   styleUrls: ['./show-property.component.scss']
 })
@@ -23,6 +54,26 @@ export class ShowPropertyComponent implements OnInit {
   activeTab: 'description' | 'location' = 'description';
   // Similar properties
   similarProperties: Property[] = [];
+
+  // Icons
+  readonly ChevronLeft = ChevronLeft;
+  readonly ChevronRight = ChevronRight;
+  readonly MapPin = MapPin;
+  readonly Heart = Heart;
+  readonly Share2 = Share2;
+  readonly Phone = Phone;
+  readonly MessageSquare = MessageSquare;
+  readonly Bed = Bed;
+  readonly Bath = Bath;
+  readonly Maximize = Maximize;
+  readonly Calendar = Calendar;
+  readonly Car = Car;
+  readonly Clock = Clock;
+  readonly Check = Check;
+  readonly User = User;
+  readonly Star = Star;
+  readonly ArrowRight = ArrowRight;
+
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private propertyService = inject(PropertyService);

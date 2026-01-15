@@ -6,11 +6,15 @@ export interface BookingPayment extends BaseModelInterface {
   booking_id?: number;
   user_id?: number;
   amount?: number;
-  payment_date?: string;
   payment_method?: string;
-  reference_number?: string;
+  payment_type?: string;
+  transaction_id?: string;
   status?: string;
+  payment_date?: string;
+  confirmed_date?: string;
+  receipt_number?: string;
   notes?: string;
+  metadata?: any;
 
   // Relations
   booking?: Booking;

@@ -13,6 +13,22 @@ import {ConfirmDialogModule} from 'primeng/confirmdialog';
 import {finalize} from 'rxjs';
 import {TagModule} from 'primeng/tag';
 import {BookingService} from "../../../../core/services/http/booking.service";
+import {
+  Ban,
+  Calendar,
+  Check,
+  Clock,
+  CreditCard,
+  DollarSign,
+  FileText,
+  LucideAngularModule,
+  Mail,
+  MapPin,
+  Phone,
+  User,
+  X
+} from 'lucide-angular';
+import {BookingStatus} from "../../../../core/models/http/enum-models";
 
 @Component({
   selector: 'app-booking-details',
@@ -27,7 +43,8 @@ import {BookingService} from "../../../../core/services/http/booking.service";
     ReactiveFormsModule,
     ToastModule,
     ConfirmDialogModule,
-    TagModule
+    TagModule,
+    LucideAngularModule
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './booking-details.component.html',
@@ -42,6 +59,20 @@ export class BookingDetailsComponent implements OnInit {
   loading = false;
   confirmBookingForm!: FormGroup;
   calculatingAmount = false;
+
+  // Icons
+  readonly X = X;
+  readonly Check = Check;
+  readonly Ban = Ban;
+  readonly Calendar = Calendar;
+  readonly CreditCard = CreditCard;
+  readonly FileText = FileText;
+  readonly User = User;
+  readonly Mail = Mail;
+  readonly Phone = Phone;
+  readonly MapPin = MapPin;
+  readonly DollarSign = DollarSign;
+  readonly Clock = Clock;
 
   constructor(
     private fb: FormBuilder,
@@ -96,7 +127,7 @@ export class BookingDetailsComponent implements OnInit {
     this.loading = true;
 
     const data: Partial<Booking> = {
-      status: 'confirmed',
+      status: BookingStatus.Confirmed,
       confirmation_date: new Date().toISOString()
     };
 
@@ -133,7 +164,7 @@ export class BookingDetailsComponent implements OnInit {
         this.loading = true;
 
         const data: Partial<Booking> = {
-          status: 'cancelled',
+          status: BookingStatus.Cancelled,
           cancellation_date: new Date().toISOString(),
           reason_for_cancellation: 'Cancelled by admin'
         };

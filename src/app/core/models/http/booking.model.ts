@@ -3,13 +3,14 @@ import {Property} from "./property.model";
 import {Customer} from "./customer.model";
 import {User} from "./user.model";
 import {BookingPayment} from "./booking-payment.model";
+import {BookingStatus} from "./enum-models";
 
 export interface Booking extends BaseModelInterface {
   property_id?: number;
   customer_id?: number;
   user_id?: number;
   reference_number?: string;
-  status?: 'pending' | 'confirmed' | 'rejected' | 'cancelled' | 'completed';
+  status?: BookingStatus;
   booking_date?: string;
   start_date?: string; // Start date of the booking period
   end_date?: string; // End date of the booking period

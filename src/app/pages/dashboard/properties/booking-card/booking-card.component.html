@@ -50,9 +50,9 @@
 
         <div *ngIf="booking.deposit_amount" class="flex justify-between">
             <span class="text-gray-500">Deposit:</span>
-            <span class="font-medium">{{ booking.deposit_amount | currency:'EUR' }}
-                <i *ngIf="booking.deposit_paid" class="pi pi-check-circle text-green-500 ml-1"></i>
-                <i *ngIf="!booking.deposit_paid" class="pi pi-times-circle text-red-500 ml-1"></i>
+            <span class="font-medium flex items-center">{{ booking.deposit_amount | currency:'EUR' }}
+                <lucide-icon *ngIf="booking.deposit_paid" [img]="CheckCircle" class="text-green-500 ml-1 w-4 h-4"></lucide-icon>
+                <lucide-icon *ngIf="!booking.deposit_paid" [img]="XCircle" class="text-red-500 ml-1 w-4 h-4"></lucide-icon>
             </span>
         </div>
 
@@ -66,9 +66,12 @@
 
     <ng-template pTemplate="footer">
         <div class="flex justify-end gap-2">
-            <p-button (click)="onEdit()" icon="pi pi-pencil" styleClass="p-button-text p-button-sm"></p-button>
-            <p-button (click)="onDelete()" icon="pi pi-trash"
-                      styleClass="p-button-text p-button-danger p-button-sm"></p-button>
+            <p-button (click)="onEdit()" styleClass="p-button-text p-button-sm">
+                <lucide-icon [img]="Pencil" class="w-4 h-4"></lucide-icon>
+            </p-button>
+            <p-button (click)="onDelete()" styleClass="p-button-text p-button-danger p-button-sm">
+                <lucide-icon [img]="Trash2" class="w-4 h-4"></lucide-icon>
+            </p-button>
         </div>
     </ng-template>
 </p-card>

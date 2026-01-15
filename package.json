@@ -21,6 +21,8 @@
     "@primeuix/themes": "^1.2.3",
     "@tailwindcss/postcss": "^4.1.11",
     "crypto-js": "^4.2.0",
+    "lucide": "^0.562.0",
+    "lucide-angular": "^0.562.0",
     "postcss": "^8.5.6",
     "primeicons": "^7.0.0",
     "primeng": "^20.1.1",

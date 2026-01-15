@@ -8,10 +8,12 @@ export enum BookingStatus {
 }
 
 export enum ProprietyStatus {
-  Pending = 'pending',
-  Confirmed = 'confirmed',
-  Cancelled = 'cancelled',
-  Completed = 'completed'
+  Available = 'available',
+  Sold = 'sold',
+  Rented = 'rented',
+  UnderMaintenance = 'under_maintenance',
+  Unavailable = 'unavailable',
+  Pending = 'pending'
 }
 
 export enum UserStatus {
@@ -29,8 +31,8 @@ export enum UserRole {
 }
 
 export enum CustomerStatus {
-  Pending = 'pending',
-  Confirmed = 'confirmed',
-  Cancelled = 'cancelled',
-  Completed = 'completed'
+  Active = 'active',
+  Inactive = 'inactive',
+  Blocked = 'blocked',
+  Deleted = 'deleted'
 }

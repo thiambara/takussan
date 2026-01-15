@@ -6,14 +6,17 @@ import {Tag} from "./tag.model";
 import {Review} from "./review.model";
 import {PropertyCollaborator} from "./property-collaborator.model";
 import {Media} from "./media.model";
+import {Agency} from "./agency.model";
+import {ProprietyStatus} from "./enum-models";
 
 export interface Property extends BaseModelInterface {
   parent_id?: number;
   user_id?: number;
+  agency_id?: number;
   title?: string;
   description?: string;
   type?: string;
-  status?: 'available' | 'rented' | 'sold' | 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  status?: ProprietyStatus;
   visibility?: string;
   price?: number;
   area?: number;
@@ -22,12 +25,20 @@ export interface Property extends BaseModelInterface {
   level?: string;
   title_type?: string;
   with_administrative_monitoring?: boolean;
-  contract_type?: string;
-  servicing?: any[];
+  contract_type?: 'sale' | 'rent';
+  servicing?: string[]; // Array of amenities
   bookings_count?: number;
+
+  // Metadata fields (often used for bedrooms/bathrooms in this project structure)
+  metadata?: {
+    bedrooms?: number;
+    bathrooms?: number;
+    [key: string]: any;
+  };
 
   // Relations
   user?: User;
+  agency?: Agency;
   address?: Address;
   parent?: Property;
   children?: Property[];

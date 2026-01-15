@@ -7,49 +7,72 @@ import {SelectButton} from "primeng/selectbutton";
 import {Select} from "primeng/select";
 import {ButtonModule} from "primeng/button";
 import {IconField} from "primeng/iconfield";
-import {InputIcon} from "primeng/inputicon";
 import {InputText} from "primeng/inputtext";
 import {PropertyService} from "../../core/services/http/property.service";
 import {SelectItemGroup} from "primeng/api";
-import {PropertyCardComponent} from "../../shared/components/product-card/property-card.component";
+import {PropertyCardComponent} from "../../shared/components/property-card/property-card.component";
+import {
+  Briefcase,
+  Building2,
+  Coins,
+  House,
+  Key,
+  LucideAngularModule,
+  Map,
+  MapPin,
+  Search,
+  Store,
+  TreePalm
+} from 'lucide-angular';
 
 @Component({
   selector: 'app-homepage',
   standalone: true,
-  imports: [CommonModule, FormsModule, SelectButton, Select, ButtonModule, IconField, InputIcon, InputText, PropertyCardComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    SelectButton,
+    Select,
+    ButtonModule,
+    IconField,
+    InputText,
+    PropertyCardComponent,
+    LucideAngularModule
+  ],
   templateUrl: './homepage.component.html',
   styleUrls: ['./homepage.component.scss']
 })
 export class HomepageComponent implements OnInit {
   propertyService = inject(PropertyService);
-  private router = inject(Router);
   // Search state
-  searchMode: 'rent' | 'buy' = 'buy';
+  searchMode: 'rent' | 'sale' = 'sale';
   selectedLocation = '';
   searchQuery = '';
   selectedPriceRange = '';
   loading = false;
-
   suggestedLocations: SelectItemGroup[] = [];
-
   // Search mode options for SelectButton
   searchModeOptions = [
-    {label: 'Acheter', value: 'buy', icon: 'pi pi-home'},
-    {label: 'Louer', value: 'rent', icon: 'pi pi-key'}
+    {label: 'Acheter', value: 'sale', icon: House},
+    {label: 'Louer', value: 'rent', icon: Key}
   ];
   // Properties
   properties: Property[] = [];
-
   // Property categories
   propertyCategories = [
-    {id: 'apartment', label: 'Appartements', icon: '🏢', active: false},
-    {id: 'house', label: 'Maisons', icon: '🏠', active: false},
-    {id: 'villa', label: 'Villas', icon: '🏡', active: false},
-    {id: 'land', label: 'Terrains', icon: '🏞️', active: false},
-    {id: 'office', label: 'Bureaux', icon: '🏢', active: false},
-    {id: 'store', label: 'Commerces', icon: '🏪', active: false}
+    {id: 'apartment', label: 'Appartements', icon: Building2, active: false},
+    {id: 'house', label: 'Maisons', icon: House, active: false},
+    {id: 'villa', label: 'Villas', icon: TreePalm, active: false},
+    {id: 'land', label: 'Terrains', icon: Map, active: false},
+    {id: 'office', label: 'Bureaux', icon: Briefcase, active: false},
+    {id: 'store', label: 'Commerces', icon: Store, active: false}
   ];
   activeCategory = 'all';
+  // Icons for template
+  readonly MapPin = MapPin;
+  readonly Search = Search;
+  readonly Coins = Coins;
+  private router = inject(Router);
 
   // Price ranges based on search mode for PrimeNG dropdown
   get priceRangeOptions() {
@@ -132,36 +155,36 @@ export class HomepageComponent implements OnInit {
       }
     });
   }
-  
+
   navigateToSearch() {
     // Navigate to search page with query parameters
     const queryParams: any = {};
-    
+
     if (this.searchQuery) {
       queryParams.q = this.searchQuery;
     }
-    
+
     if (this.searchMode === 'rent') {
       queryParams.type = 'rent';
-    } else if (this.searchMode === 'buy') {
+    } else if (this.searchMode === 'sale') {
       queryParams.type = 'sale';
     }
-    
+
     if (this.selectedLocation) {
       queryParams.location = this.selectedLocation;
     }
-    
+
     if (this.selectedPriceRange) {
       const [min, max] = this.selectedPriceRange.split('-');
       if (min !== undefined) queryParams.minPrice = min;
       if (max !== undefined && max !== '+') queryParams.maxPrice = max.replace('+', '');
     }
-    
+
     if (this.activeCategory && this.activeCategory !== 'all') {
       queryParams.propertyType = this.activeCategory;
     }
-    
-    this.router.navigate(['/client/search'], { queryParams });
+
+    this.router.navigate(['/client/search'], {queryParams}).then();
   }
 
 }

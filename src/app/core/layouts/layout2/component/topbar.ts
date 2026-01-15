@@ -3,47 +3,50 @@ import {Router, RouterModule} from '@angular/router';
 import {CommonModule} from '@angular/common';
 import {MenuItemNative, menuItems} from "./menu";
 import {Layout2Service} from "../service/layout2.service";
+import {LucideAngularModule, LayoutGrid, Menu} from 'lucide-angular';
 
 @Component({
   selector: 'app-topbar',
   standalone: true,
-  imports: [RouterModule, CommonModule],
+  imports: [RouterModule, CommonModule, LucideAngularModule],
   template: `
-      <header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#eaedf1] px-10 py-3">
+      <header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#eaedf1] px-10 py-3 bg-white">
           <div class="flex items-center gap-2 text-[#101518]">
-              <i class="pi pi-th-large"></i>
+              <lucide-icon [img]="LayoutGrid" class="w-6 h-6"></lucide-icon>
               <h2 class="text-[#101518] text-lg font-bold leading-tight tracking-[-0.015em]">Takussan</h2>
           </div>
           <div class="flex flex-1 gap-8 justify-end">
               <div class="hidden md:flex gap-9 items-center">
                   <ng-container *ngFor="let item of menuItems">
                       <a (click)="toggleMobileMenu()" *ngIf="item.visible"
-                         [ngClass]="{'font-bold': router.isActive(item.routerLink || '', {paths: 'exact', queryParams: 'exact', fragment: 'ignored', matrixParams: 'ignored'})}"
+                         [ngClass]="{'font-bold text-blue-600': router.isActive(item.routerLink || '', {paths: 'exact', queryParams: 'exact', fragment: 'ignored', matrixParams: 'ignored'})}"
                          [routerLink]="item.routerLink"
-                         class="py-2 text-[#101518] text-sm font-medium leading-normal">
+                         class="flex items-center gap-2 py-2 text-[#101518] text-sm font-medium leading-normal hover:text-blue-600 transition-colors">
+                          <lucide-icon [img]="item.icon" class="w-4 h-4"></lucide-icon>
                           {{ item.label }}
                       </a>
                   </ng-container>
               </div>
               <!-- Mobile menu button (visible only on small screens) -->
-              <button (click)="toggleMobileMenu()" class="md:hidden flex items-center">
-                  <i class="pi pi-bars"></i>
+              <button (click)="toggleMobileMenu()" class="md:hidden flex items-center p-2 rounded-lg hover:bg-gray-100">
+                  <lucide-icon [img]="MenuIcon" class="w-6 h-6"></lucide-icon>
               </button>
               <div
-                      class="bg-center bg-no-repeat bg-cover rounded-full aspect-square size-10"
-                      style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBqwj16zEVCIlPpcERSvw-kX4uRpq59VZrB4toxPtlOsgx2yI6rKqBvcXId0_ZHX-zOdzvfTi2icV17AYRzeSvaNxbn6fVH0ivaWH2-huOg5_-l2JRK8GxGupdf12FU1ZM4aYAPgUopwYq8KFz8wz3Aw8d4INPr5cqd2TX_d9L89PG1Vu27i3r89KB0owrZtWGeulbGl8LWI8AYNgvrtzfirdrkw4zWO6froLQaMsd2iQcrQPiG1RxxB6wLg8HTKIZTH2meSJSV6iEx");'
+                      class="bg-center bg-no-repeat bg-cover rounded-full aspect-square size-10 border border-gray-200"
+                      style='background-image: url("https://i.pravatar.cc/150?img=12");'
               ></div>
           </div>
       </header>
       <!-- Mobile menu (hidden by default) -->
       <div [ngClass]="{'hidden': !isMobileMenuVisible}"
-           class="md:hidden bg-white w-full py-2 border-b border-[#eaedf1] shadow-md">
+           class="md:hidden bg-white w-full py-2 border-b border-[#eaedf1] shadow-md absolute top-[60px] z-50">
           <div class="flex flex-col px-4">
               <ng-container *ngFor="let item of menuItems">
                   <a (click)="toggleMobileMenu()" *ngIf="item.visible"
-                     [ngClass]="{'font-bold': router.isActive(item.routerLink || '', {paths: 'exact', queryParams: 'exact', fragment: 'ignored', matrixParams: 'ignored'})}"
+                     [ngClass]="{'font-bold text-blue-600': router.isActive(item.routerLink || '', {paths: 'exact', queryParams: 'exact', fragment: 'ignored', matrixParams: 'ignored'})}"
                      [routerLink]="item.routerLink"
-                     class="py-2 text-[#101518] text-sm font-medium leading-normal">
+                     class="flex items-center gap-3 py-3 text-[#101518] text-sm font-medium leading-normal border-b border-gray-50 last:border-none">
+                      <lucide-icon [img]="item.icon" class="w-5 h-5"></lucide-icon>
                       {{ item.label }}
                   </a>
               </ng-container>
@@ -54,7 +57,7 @@ import {Layout2Service} from "../service/layout2.service";
       header {
         position: sticky;
         top: 0;
-        z-index: 10;
+        z-index: 50;
         background-color: white;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 
@@ -91,6 +94,9 @@ export class Topbar implements OnInit {
   menuItems: MenuItemNative[] = menuItems;
   isMobileMenuVisible = false;
   isMobileScreen = false;
+
+  readonly LayoutGrid = LayoutGrid;
+  readonly MenuIcon = Menu;
 
   constructor(private layout2Service: Layout2Service, public router: Router) {
     this.layout2Service.mobileMenuVisible$.subscribe(visible => {

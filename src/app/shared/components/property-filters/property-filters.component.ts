@@ -1,17 +1,8 @@
-import {Component, EventEmitter, Input, OnInit, Output} from '@angular/core';
+import {Component, EventEmitter, Input, Output} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
-import {AccordionModule} from 'primeng/accordion';
-import {RadioButtonModule} from 'primeng/radiobutton';
-import {SelectButtonModule} from 'primeng/selectbutton';
-import {SliderModule} from 'primeng/slider';
-import {CheckboxModule} from 'primeng/checkbox';
-import {ButtonModule} from 'primeng/button';
-import {InputNumberModule} from 'primeng/inputnumber';
-import {ChipModule} from 'primeng/chip';
-import {BadgeModule} from 'primeng/badge';
-// import {DropdownModule} from 'primeng/dropdown';
-import {PropertyFilter} from "../../../pages/search-results/search-results.component";
+import {PropertyFilter} from "../../../core/models/property-filter.model";
+import {LucideAngularModule, X} from 'lucide-angular';
 
 @Component({
   selector: 'app-property-filters',
@@ -19,28 +10,18 @@ import {PropertyFilter} from "../../../pages/search-results/search-results.compo
   imports: [
     CommonModule,
     FormsModule,
-    AccordionModule,
-    RadioButtonModule,
-    SelectButtonModule,
-    SliderModule,
-    CheckboxModule,
-    ButtonModule,
-    InputNumberModule,
-    ChipModule,
-    BadgeModule
+    LucideAngularModule
   ],
   templateUrl: './property-filters.component.html',
   styleUrls: ['./property-filters.component.scss']
 })
-export class PropertyFiltersComponent implements OnInit {
+export class PropertyFiltersComponent {
 
   @Input() filters: PropertyFilter = {};
   @Output() filtersChange = new EventEmitter<PropertyFilter>();
   showAllAmenities = false;
 
-  // For slider range
-  priceRange: [number, number] = [0, 1000000];
-  areaRange: [number, number] = [0, 5000];
+  readonly X = X;
 
   // Property types for checkboxes
   propertyTypeOptions = [
@@ -48,15 +29,6 @@ export class PropertyFiltersComponent implements OnInit {
     {value: 'condo', label: 'Condo/Townhome', count: 892},
     {value: 'multi-family', label: 'Multi-Family', count: 143},
     {value: 'land', label: 'Land/Lot', count: 565}
-  ];
-
-  // Old property types for SelectButton (kept for compatibility)
-  propertyTypes = [
-    {value: 'apartment', label: 'Apartment', icon: 'pi pi-building'},
-    {value: 'house', label: 'House', icon: 'pi pi-home'},
-    {value: 'condo', label: 'Condo', icon: 'pi pi-th-large'},
-    {value: 'commercial', label: 'Commercial', icon: 'pi pi-shopping-bag'},
-    {value: 'land', label: 'Land', icon: 'pi pi-map'}
   ];
 
   // Listing type options
@@ -74,7 +46,7 @@ export class PropertyFiltersComponent implements OnInit {
     {label: '4+', value: 4}
   ];
 
-  // Bathroom options for SelectButton  
+  // Bathroom options for SelectButton
   bathroomOptions = [
     {label: '1', value: 1},
     {label: '2', value: 2},
@@ -176,27 +148,6 @@ export class PropertyFiltersComponent implements OnInit {
     }
   }
 
-  ngOnInit() {
-    if (this.filters.minPrice && this.filters.maxPrice) {
-      this.priceRange = [this.filters.minPrice, this.filters.maxPrice];
-    }
-    if (this.filters.minArea && this.filters.maxArea) {
-      this.areaRange = [this.filters.minArea, this.filters.maxArea];
-    }
-  }
-
-  onPriceRangeChange() {
-    this.filters.minPrice = this.priceRange[0];
-    this.filters.maxPrice = this.priceRange[1];
-    this.applyFilters();
-  }
-
-  onAreaRangeChange() {
-    this.filters.minArea = this.areaRange[0];
-    this.filters.maxArea = this.areaRange[1];
-    this.applyFilters();
-  }
-
   onPriceTypeChange() {
     // Reset price range when switching between rent and sale
     this.filters.minPrice = undefined;
@@ -240,12 +191,6 @@ export class PropertyFiltersComponent implements OnInit {
 
   isAmenitySelected(amenity: string): boolean {
     return this.filters.amenities?.includes(amenity) || false;
-  }
-
-  setPriceRange(min: number | null, max: number | null) {
-    this.filters.minPrice = min ?? undefined;
-    this.filters.maxPrice = max ?? undefined;
-    this.applyFilters();
   }
 
   applyFilters() {

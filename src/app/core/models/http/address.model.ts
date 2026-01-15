@@ -11,13 +11,11 @@ export interface Address extends BaseModelInterface {
   street?: string;
   postal_code?: string;
   building?: string;
-  latitude?: string;
-  longitude?: string;
-
-  neighborhood: string;
-  // Additional properties for UI
+  latitude?: number;
+  longitude?: number;
   label?: string;
-  type?: string; // residential, business, shipping, billing, etc.
+  type?: string;
+  metadata?: any;
 
   // Relations
   addressable?: any;

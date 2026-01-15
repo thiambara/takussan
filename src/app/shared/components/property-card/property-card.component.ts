@@ -1,94 +1,54 @@
-import {Component, inject, Input, OnInit} from '@angular/core';
+import {Component, EventEmitter, Input, Output} from '@angular/core';
 import {CommonModule} from '@angular/common';
-import {Router, RouterLink} from '@angular/router';
-import {Property} from '../../../core/models/property.interface';
-import {PropertyService} from '../../../core/services/property.service';
+import {Property} from "../../../core/models/http/property.model";
+import {Media} from "../../../core/models/http/media.model";
+import {LucideAngularModule, MapPin, Bed, Bath, Maximize, Heart, Calendar, ArrowRight} from 'lucide-angular';
+import {BadgeComponent} from "../badge/badge.component";
+import {PriceFormatPipe} from "../../pipes/price-format.pipe";
+import {AreaFormatPipe} from "../../pipes/area-format.pipe";
 
 @Component({
   selector: 'app-property-card',
   standalone: true,
-  imports: [CommonModule, RouterLink],
-  templateUrl: './property-card.component.html'
+  imports: [
+    CommonModule,
+    LucideAngularModule,
+    BadgeComponent,
+    PriceFormatPipe,
+    AreaFormatPipe
+  ],
+  templateUrl: './property-card.component.html',
+  styleUrls: ['./property-card.component.scss']
 })
-export class PropertyCardComponent implements OnInit {
+export class PropertyCardComponent {
   @Input() property!: Property;
+  @Input() isFavorite = false;
   @Input() viewMode: 'grid' | 'list' = 'grid';
-  currentImageIndex = 0;
-  isFavorite = false;
-  private propertyService = inject(PropertyService);
-  private router = inject(Router);
 
-  ngOnInit() {
-    // Check if property is in favorites
-    this.propertyService.favoriteProperties$.subscribe(favorites => {
-      this.isFavorite = favorites.includes(this.property.id);
-    });
+  @Output() propertyClick = new EventEmitter<Property>();
+  @Output() favoriteToggle = new EventEmitter<any>();
+  @Output() scheduleVisit = new EventEmitter<Property>();
+  @Output() chat = new EventEmitter<Property>();
+
+  // Icons
+  readonly MapPin = MapPin;
+  readonly Bed = Bed;
+  readonly Bath = Bath;
+  readonly Maximize = Maximize;
+  readonly Heart = Heart;
+  readonly Calendar = Calendar;
+  readonly ArrowRight = ArrowRight;
+
+  get images(): Media[] {
+    this.property.media = this.property.media || [];
+    return this.property.media.filter((media) => media.mime_type?.includes('image'))
   }
 
-  toggleFavorite(event: Event) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (this.isFavorite) {
-      this.propertyService.removeFromFavorites(this.property.id).subscribe();
-    } else {
-      this.propertyService.addToFavorites(this.property.id).subscribe();
+  get featuredImageUrl(): string {
+    if (this.images?.length) {
+      return this.images[0].preview_url!
     }
-  }
-
-  nextImage(event: Event) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (this.property.images.length > 1) {
-      this.currentImageIndex = (this.currentImageIndex + 1) % this.property.images.length;
-    }
-  }
-
-  previousImage(event: Event) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (this.property.images.length > 1) {
-      this.currentImageIndex = this.currentImageIndex === 0
-        ? this.property.images.length - 1
-        : this.currentImageIndex - 1;
-    }
-  }
-
-  formatPrice(): string {
-    const price = new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: this.property.currency || 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(this.property.price);
-
-    return this.property.priceType === 'rent' ? `${price}/month` : price;
-  }
-
-  formatArea(): string {
-    return new Intl.NumberFormat('en-US').format(this.property.area) + ' sq ft';
-  }
-
-  getPriceTypeClass(): string {
-    return this.property.priceType === 'rent'
-      ? 'bg-green-100 text-green-800'
-      : 'bg-blue-100 text-blue-800';
-  }
-
-  getPropertyTypeIcon(): string {
-    const icons: Record<string, string> = {
-      apartment: '🏢',
-      house: '🏠',
-      condo: '🏙️',
-      commercial: '🏬',
-      land: '🌳'
-    };
-    return icons[this.property.propertyType] || '🏠';
-  }
-
-  showProperty() {
-    // this.router.navigate([this.property.id, 'show-property']).then();
+    return '';
   }
 }
+

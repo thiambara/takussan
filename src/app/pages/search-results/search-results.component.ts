@@ -3,29 +3,24 @@ import {CommonModule} from '@angular/common';
 import {FormsModule, ReactiveFormsModule} from '@angular/forms';
 import {ActivatedRoute, Router} from '@angular/router';
 import {Property} from '../../core/models/http/property.model';
-import {PropertyCardComponent} from '../../shared/components/product-card/property-card.component';
+import {PropertyCardComponent} from '../../shared/components/property-card/property-card.component';
 import {PropertyFiltersComponent} from '../../shared/components/property-filters/property-filters.component';
 import {debounceTime, distinctUntilChanged, finalize} from 'rxjs/operators';
 import {Subject} from 'rxjs';
 import {PropertyService} from '../../core/services/http/property.service';
 import {PaginationResult} from '../../core/models/http/base/pagination-result.model';
-
-export interface PropertyFilter {
-  searchQuery?: string;
-  priceType?: 'sale' | 'rent' | 'all';
-  minPrice?: number;
-  maxPrice?: number;
-  propertyType?: string[];
-  minBedrooms?: number;
-  maxBedrooms?: number;
-  minBathrooms?: number;
-  maxBathrooms?: number;
-  minArea?: number;
-  maxArea?: number;
-  amenities?: string[];
-  location?: string;
-  sortBy?: 'price-asc' | 'price-desc' | 'date-newest' | 'date-oldest' | 'area-asc' | 'area-desc';
-}
+import {PropertyFilter} from '../../core/models/property-filter.model';
+import {
+  LucideAngularModule,
+  Search,
+  SlidersHorizontal,
+  Grid,
+  List,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  SearchX
+} from 'lucide-angular';
 
 @Component({
   selector: 'app-search-results',
@@ -35,7 +30,8 @@ export interface PropertyFilter {
     FormsModule,
     ReactiveFormsModule,
     PropertyCardComponent,
-    PropertyFiltersComponent
+    PropertyFiltersComponent,
+    LucideAngularModule
   ],
   templateUrl: './search-results.component.html'
 })
@@ -60,6 +56,17 @@ export class SearchResultsComponent implements OnInit {
     {value: 'area-asc', label: 'Area: Small to Large'},
     {value: 'area-desc', label: 'Area: Large to Small'}
   ];
+
+  // Icons
+  readonly Search = Search;
+  readonly SlidersHorizontal = SlidersHorizontal;
+  readonly Grid = Grid;
+  readonly List = List;
+  readonly X = X;
+  readonly ChevronLeft = ChevronLeft;
+  readonly ChevronRight = ChevronRight;
+  readonly SearchX = SearchX;
+
   private propertyService = inject(PropertyService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -119,12 +126,32 @@ export class SearchResultsComponent implements OnInit {
 
   loadProperties() {
     this.loading = true;
-    const params = {
+
+    // Map frontend filters to backend API parameters
+    const params: any = {
       properties: {with: ['media']},
       per_page: this.itemsPerPage,
       page: this.currentPage,
-      ...this.filters
     };
+
+    if (this.filters.searchQuery) {
+      params.search_query = this.filters.searchQuery;
+    }
+
+    if (this.filters.priceType && this.filters.priceType !== 'all') {
+      params.contract_type = this.filters.priceType;
+    }
+
+    if (this.filters.propertyType && this.filters.propertyType.length > 0) {
+      params.property_type = this.filters.propertyType.join(',');
+    }
+
+    if (this.filters.minPrice) params.min_price = this.filters.minPrice;
+    if (this.filters.maxPrice) params.max_price = this.filters.maxPrice;
+    if (this.filters.minArea) params.min_area = this.filters.minArea;
+    if (this.filters.maxArea) params.max_area = this.filters.maxArea;
+    if (this.filters.location) params.location = this.filters.location;
+
     this.propertyService.heroSearch(params)
       .pipe(finalize(() => this.loading = false))
       .subscribe({

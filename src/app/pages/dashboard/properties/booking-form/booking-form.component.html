@@ -26,8 +26,10 @@
                         </ng-template>
                     </p-autoComplete>
                     <button (click)="clearCustomer()" *ngIf="selectedCustomer"
-                            class="p-button-rounded p-button-danger p-button-text" icon="pi pi-times" pButton
-                            pRipple type="button"></button>
+                            class="p-button-rounded p-button-danger p-button-text" pButton
+                            pRipple type="button">
+                        <lucide-icon [img]="X" class="w-4 h-4"></lucide-icon>
+                    </button>
                 </div>
 
                 <div *ngIf="selectedCustomer" class="p-2 mt-2 bg-gray-50 rounded-md">
@@ -39,33 +41,53 @@
 
             <div class="mb-4 field">
                 <label class="block mb-2 font-medium" for="booking_date">Booking Date *</label>
-                <p-datePicker [showButtonBar]="true" [showIcon]="true" dateFormat="yy-mm-dd" formControlName="booking_date"
-                              id="booking_date" styleClass="w-full"></p-datePicker>
+                <div class="relative">
+                    <p-datePicker [showButtonBar]="true" [showIcon]="false" dateFormat="yy-mm-dd" formControlName="booking_date"
+                                  id="booking_date" styleClass="w-full"></p-datePicker>
+                    <div class="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                        <lucide-icon [img]="Calendar" class="w-4 h-4 text-gray-400"></lucide-icon>
+                    </div>
+                </div>
                 <small *ngIf="bookingForm.get('booking_date')?.invalid && bookingForm.get('booking_date')?.touched"
                        class="text-red-500">Booking date is required.</small>
             </div>
 
             <div class="mb-4 field">
                 <label class="block mb-2 font-medium" for="start_date">Start Date *</label>
-                <p-datePicker [showButtonBar]="true" [showIcon]="true" dateFormat="yy-mm-dd" formControlName="start_date"
-                              id="start_date" styleClass="w-full"></p-datePicker>
+                <div class="relative">
+                    <p-datePicker [showButtonBar]="true" [showIcon]="false" dateFormat="yy-mm-dd" formControlName="start_date"
+                                  id="start_date" styleClass="w-full"></p-datePicker>
+                    <div class="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                        <lucide-icon [img]="Calendar" class="w-4 h-4 text-gray-400"></lucide-icon>
+                    </div>
+                </div>
                 <small *ngIf="bookingForm.get('start_date')?.invalid && bookingForm.get('start_date')?.touched"
                        class="text-red-500">Start date is required.</small>
             </div>
 
             <div class="mb-4 field">
                 <label class="block mb-2 font-medium" for="end_date">End Date *</label>
-                <p-datePicker [showButtonBar]="true" [showIcon]="true" dateFormat="yy-mm-dd" formControlName="end_date"
-                              id="end_date" styleClass="w-full"></p-datePicker>
+                <div class="relative">
+                    <p-datePicker [showButtonBar]="true" [showIcon]="false" dateFormat="yy-mm-dd" formControlName="end_date"
+                                  id="end_date" styleClass="w-full"></p-datePicker>
+                    <div class="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                        <lucide-icon [img]="Calendar" class="w-4 h-4 text-gray-400"></lucide-icon>
+                    </div>
+                </div>
                 <small *ngIf="bookingForm.get('end_date')?.invalid && bookingForm.get('end_date')?.touched"
                        class="text-red-500">End date is required.</small>
             </div>
 
             <div class="mb-4 field">
                 <label class="block mb-2 font-medium" for="expiration_date">Expiration Date</label>
-                <p-datePicker [showButtonBar]="true" [showIcon]="true" dateFormat="yy-mm-dd"
-                              formControlName="expiration_date"
-                              id="expiration_date" styleClass="w-full"></p-datePicker>
+                <div class="relative">
+                    <p-datePicker [showButtonBar]="true" [showIcon]="false" dateFormat="yy-mm-dd"
+                                  formControlName="expiration_date"
+                                  id="expiration_date" styleClass="w-full"></p-datePicker>
+                    <div class="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                        <lucide-icon [img]="Calendar" class="w-4 h-4 text-gray-400"></lucide-icon>
+                    </div>
+                </div>
             </div>
 
             <div class="mb-4 field">
@@ -86,10 +108,11 @@
             </div>
 
             <div class="mb-4 field">
-                <label class="block mb-2 font-medium" for="total_amount">Total Amount * <i
-                        class="pi pi-info-circle ml-1 text-primary cursor-pointer"
+                <label class="block mb-2 font-medium flex items-center gap-1" for="total_amount">Total Amount *
+                    <lucide-icon [img]="Info" class="text-primary cursor-pointer w-4 h-4"
                         pTooltip="This value is automatically calculated based on the property price and the number of days between start and end dates. You can also manually adjust it if needed."
-                        tooltipPosition="top"></i></label>
+                        tooltipPosition="top"></lucide-icon>
+                </label>
                 <p-inputNumber [minFractionDigits]="2" currency="EUR" formControlName="total_amount" id="total_amount"
                                mode="currency" styleClass="w-full"></p-inputNumber>
                 <small *ngIf="bookingForm.get('total_amount')?.invalid && bookingForm.get('total_amount')?.touched"
@@ -104,9 +127,15 @@
 
             <div class="mb-4 field">
                 <label class="block mb-2 font-medium" for="deposit_paid">Deposit Paid</label>
-                <p-toggleButton [offIcon]="'pi pi-times'" [offLabel]="'No'" [onIcon]="'pi pi-check'"
-                                [onLabel]="'Yes'"
-                                formControlName="deposit_paid" id="deposit_paid" styleClass="w-full"></p-toggleButton>
+                <p-selectButton [options]="depositPaidOptions" formControlName="deposit_paid" id="deposit_paid" optionLabel="label" optionValue="value" styleClass="w-full">
+                    <ng-template let-item pTemplate="item">
+                        <div class="flex items-center gap-2">
+                            <lucide-icon *ngIf="item.value" [img]="Check" class="w-4 h-4"></lucide-icon>
+                            <lucide-icon *ngIf="!item.value" [img]="X" class="w-4 h-4"></lucide-icon>
+                            <span>{{ item.label }}</span>
+                        </div>
+                    </ng-template>
+                </p-selectButton>
             </div>
 
             <div class="mb-4 field">

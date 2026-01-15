@@ -82,27 +82,21 @@
                         styleClass="w-full">
                     <ng-template let-option pTemplate="selectedItem">
                         <div class="flex align-items-center">
-                            <i [ngClass]="{
-                                 'pi-home': option.value === 'residential',
-                                 'pi-briefcase': option.value === 'business',
-                                 'pi-truck': option.value === 'shipping',
-                                 'pi-credit-card': option.value === 'billing',
-                                 'pi-map-marker': option.value === 'other'
-                               }"
-                               class="mr-2 pi"></i>
+                            <lucide-icon [img]="Home" *ngIf="option.value === 'residential'" class="mr-2 w-4 h-4"></lucide-icon>
+                            <lucide-icon [img]="Briefcase" *ngIf="option.value === 'business'" class="mr-2 w-4 h-4"></lucide-icon>
+                            <lucide-icon [img]="Truck" *ngIf="option.value === 'shipping'" class="mr-2 w-4 h-4"></lucide-icon>
+                            <lucide-icon [img]="CreditCard" *ngIf="option.value === 'billing'" class="mr-2 w-4 h-4"></lucide-icon>
+                            <lucide-icon [img]="MapPin" *ngIf="option.value === 'other'" class="mr-2 w-4 h-4"></lucide-icon>
                             <span>{{ option.label }}</span>
                         </div>
                     </ng-template>
                     <ng-template let-option pTemplate="item">
                         <div class="flex align-items-center">
-                            <i [ngClass]="{
-                                 'pi-home': option.value === 'residential',
-                                 'pi-briefcase': option.value === 'business',
-                                 'pi-truck': option.value === 'shipping',
-                                 'pi-credit-card': option.value === 'billing',
-                                 'pi-map-marker': option.value === 'other'
-                               }"
-                               class="mr-2 pi"></i>
+                            <lucide-icon [img]="Home" *ngIf="option.value === 'residential'" class="mr-2 w-4 h-4"></lucide-icon>
+                            <lucide-icon [img]="Briefcase" *ngIf="option.value === 'business'" class="mr-2 w-4 h-4"></lucide-icon>
+                            <lucide-icon [img]="Truck" *ngIf="option.value === 'shipping'" class="mr-2 w-4 h-4"></lucide-icon>
+                            <lucide-icon [img]="CreditCard" *ngIf="option.value === 'billing'" class="mr-2 w-4 h-4"></lucide-icon>
+                            <lucide-icon [img]="MapPin" *ngIf="option.value === 'other'" class="mr-2 w-4 h-4"></lucide-icon>
                             <span>{{ option.label }}</span>
                         </div>
                     </ng-template>
@@ -115,15 +109,18 @@
         <div class="flex gap-2 justify-end">
             <p-button
                     (onClick)="onCancel()"
-                    icon="pi pi-times"
                     label="Annuler"
-                    styleClass="p-button-outlined p-button-secondary">
+                    styleClass="p-button-outlined p-button-secondary gap-2">
+                <lucide-icon [img]="X" class="w-4 h-4"></lucide-icon>
+                <span>Annuler</span>
             </p-button>
             <p-button
                     (onClick)="onSubmit()"
                     [disabled]="addressForm.invalid"
-                    icon="pi pi-check"
-                    label="Enregistrer">
+                    label="Enregistrer"
+                    styleClass="gap-2">
+                <lucide-icon [img]="Check" class="w-4 h-4"></lucide-icon>
+                <span>Enregistrer</span>
             </p-button>
         </div>
     </ng-template>

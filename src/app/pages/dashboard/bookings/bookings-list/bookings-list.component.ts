@@ -4,7 +4,6 @@ import {Router, RouterModule} from '@angular/router';
 import {ButtonModule} from 'primeng/button';
 import {TableModule} from 'primeng/table';
 import {CardModule} from 'primeng/card';
-import {TagModule} from 'primeng/tag';
 import {Booking} from '../../../../core/models/http/booking.model';
 import {PaginationResult} from '../../../../core/models/http/base/pagination-result.model';
 import {ToastModule} from 'primeng/toast';
@@ -12,6 +11,9 @@ import {ConfirmationService, MessageService} from 'primeng/api';
 import {ConfirmDialogModule} from 'primeng/confirmdialog';
 import {finalize} from 'rxjs';
 import {BookingService} from "../../../../core/services/http/booking.service";
+import {BadgeComponent, BadgeVariant} from "../../../../shared/components/badge/badge.component";
+import {BookingStatus} from "../../../../core/models/http/enum-models";
+import {LucideAngularModule, RefreshCw, Eye, Check, X, CalendarX} from 'lucide-angular';
 
 @Component({
   selector: 'app-bookings-list',
@@ -22,9 +24,10 @@ import {BookingService} from "../../../../core/services/http/booking.service";
     ButtonModule,
     TableModule,
     CardModule,
-    TagModule,
     ToastModule,
-    ConfirmDialogModule
+    ConfirmDialogModule,
+    BadgeComponent,
+    LucideAngularModule
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './bookings-list.component.html',
@@ -32,6 +35,13 @@ import {BookingService} from "../../../../core/services/http/booking.service";
 export class BookingsListComponent implements OnInit {
   bookings: Booking[] = [];
   loading = false;
+
+  // Icons
+  readonly RefreshCw = RefreshCw;
+  readonly Eye = Eye;
+  readonly Check = Check;
+  readonly X = X;
+  readonly CalendarX = CalendarX;
 
   constructor(
     private bookingService: BookingService,
@@ -76,7 +86,7 @@ export class BookingsListComponent implements OnInit {
     this.loading = true;
 
     const data: Partial<Booking> = {
-      status: 'confirmed',
+      status: BookingStatus.Confirmed,
       confirmation_date: new Date().toISOString()
     };
 
@@ -116,7 +126,7 @@ export class BookingsListComponent implements OnInit {
         this.loading = true;
 
         const data: Partial<Booking> = {
-          status: 'cancelled',
+          status: BookingStatus.Cancelled,
           cancellation_date: new Date().toISOString(),
           reason_for_cancellation: 'Cancelled by admin'
         };
@@ -151,17 +161,17 @@ export class BookingsListComponent implements OnInit {
     });
   }
 
-  getStatusSeverity(status?: string): string {
+  getStatusSeverity(status?: BookingStatus | string): BadgeVariant {
     switch (status) {
-      case 'pending':
+      case BookingStatus.Pending:
         return 'warning';
-      case 'confirmed':
+      case BookingStatus.Confirmed:
         return 'success';
-      case 'rejected':
+      case 'rejected': // Keep string fallback if needed or remove if strictly enum
         return 'danger';
-      case 'cancelled':
+      case BookingStatus.Cancelled:
         return 'danger';
-      case 'completed':
+      case BookingStatus.Completed:
         return 'info';
       default:
         return 'secondary';

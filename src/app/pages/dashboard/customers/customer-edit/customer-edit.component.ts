@@ -13,6 +13,7 @@ import {AddressFormComponent} from '../../../../shared/components/address-form/a
 import {Customer} from "../../../../core/models/http/customer.model";
 import {Card} from "primeng/card";
 import {Select} from "primeng/select";
+import {ChevronLeft, Loader2, LucideAngularModule, MapPin, Pencil, Plus, Save, Trash2} from 'lucide-angular';
 
 @Component({
   selector: 'app-customer-edit',
@@ -24,7 +25,8 @@ import {Select} from "primeng/select";
     FormsModule,
     AddressFormComponent,
     Card,
-    Select
+    Select,
+    LucideAngularModule
   ],
   standalone: true
 })
@@ -39,6 +41,15 @@ export class CustomerEditComponent implements OnInit {
   showAddressForm = false;
   selectedAddress?: Address;
   editingAddressIndex = -1;
+
+  // Icons
+  readonly ChevronLeft = ChevronLeft;
+  readonly Loader2 = Loader2;
+  readonly Save = Save;
+  readonly Plus = Plus;
+  readonly MapPin = MapPin;
+  readonly Pencil = Pencil;
+  readonly Trash2 = Trash2;
 
   customerTypes = [
     {label: 'Individual', value: 'individual'},
@@ -231,7 +242,6 @@ export class CustomerEditComponent implements OnInit {
       last_name: customer.last_name || '',
       email: customer.email || '',
       phone: customer.phone || '',
-      type: customer.type || 'individual',
       status: customer.status || 'active',
       metadata: {
         company_name: customer.metadata?.company_name || '',

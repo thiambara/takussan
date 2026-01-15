@@ -1,25 +1,25 @@
-<!-- Compact Hero Search Section -->
+<!-- Hero Search Section -->
 <div class="relative py-6">
-    <!-- Compact Title -->
+    <!-- Title -->
     <div class="text-center mb-4">
         <h1 class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
             Trouvez votre <span class="text-blue-600">propriété idéale</span>
         </h1>
     </div>
 
-    <!-- Compact Search Form -->
+    <!-- Search Form -->
     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 max-w-7xl mx-auto">
         <div class="flex flex-col lg:flex-row gap-3 items-center">
             <!-- Search Mode Toggle -->
-            <div class="flex-shrink-0">
+            <div class="flex-shrink-0 w-full lg:w-auto">
                 <p-select-button
                         [(ngModel)]="searchMode"
                         [options]="searchModeOptions"
-                        class="compact-select-button"
+                        class="w-full"
                         optionLabel="label"
                         optionValue="value">
                     <ng-template let-item pTemplate="item">
-                        <i [class]="item.icon" class="mr-2"></i>
+                        <lucide-icon [img]="item.icon" class="w-4 h-4 mr-2"></lucide-icon>
                         <span>{{ item.label }}</span>
                     </ng-template>
                 </p-select-button>
@@ -27,26 +27,27 @@
 
 
             <!-- Region -->
-            <div class="flex-1 min-w-0">
+            <div class="flex-1 min-w-0 w-full">
                 <p-select
                         (search)="searchLocation($event)"
                         [(ngModel)]="selectedLocation"
                         [filter]="true"
                         [options]="suggestedLocations"
-                        class="w-full compact-dropdown"
+                        class="w-full"
                         filterBy="label"
                         optionLabel="label"
                         optionValue="value"
-                        placeholder="Région">
+                        placeholder="Région"
+                        styleClass="w-full h-10 flex items-center">
                     <ng-template let-selectedOption pTemplate="selectedItem">
                         <div *ngIf="selectedOption" class="flex items-center">
-                            <i class="pi pi-map-marker mr-2"></i>
+                            <lucide-icon [img]="MapPin" class="w-4 h-4 mr-2 text-gray-500"></lucide-icon>
                             <span>{{ selectedOption.label }}</span>
                         </div>
                     </ng-template>
                     <ng-template let-option pTemplate="item">
                         <div class="flex items-center">
-                            <i class="pi pi-map-marker mr-2"></i>
+                            <lucide-icon [img]="MapPin" class="w-4 h-4 mr-2 text-gray-500"></lucide-icon>
                             <span>{{ option.label }}</span>
                         </div>
                     </ng-template>
@@ -54,23 +55,24 @@
             </div>
 
             <!-- Budget -->
-            <div class="flex-1 min-w-0">
+            <div class="flex-1 min-w-0 w-full">
                 <p-select
                         [(ngModel)]="selectedPriceRange"
                         [options]="priceRangeOptions"
-                        class="w-full compact-dropdown"
+                        class="w-full"
                         optionLabel="label"
                         optionValue="value"
-                        placeholder="Budget">
+                        placeholder="Budget"
+                        styleClass="w-full h-10 flex items-center">
                     <ng-template let-selectedOption pTemplate="selectedItem">
                         <div *ngIf="selectedOption" class="flex items-center">
-                            <i class="pi pi-dollar mr-2"></i>
+                            <lucide-icon [img]="Coins" class="w-4 h-4 mr-2 text-gray-500"></lucide-icon>
                             <span>{{ selectedOption.label }}</span>
                         </div>
                     </ng-template>
                     <ng-template let-option pTemplate="item">
                         <div class="flex items-center">
-                            <i class="pi pi-dollar mr-2"></i>
+                            <lucide-icon [img]="Coins" class="w-4 h-4 mr-2 text-gray-500"></lucide-icon>
                             <span>{{ option.label }}</span>
                         </div>
                     </ng-template>
@@ -78,12 +80,12 @@
             </div>
 
             <!-- Keywords -->
-            <div class="flex-1 min-w-0">
-                <p-iconfield>
-                    <p-inputicon class="pi pi-search"/>
+            <div class="flex-1 min-w-0 w-full">
+                <p-iconfield class="w-full">
+                    <lucide-icon [img]="Search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none z-10"></lucide-icon>
                     <input
                             [(ngModel)]="searchQuery"
-                            class="w-full compact-input"
+                            class="w-full h-10 pl-10 pr-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                             pInputText
                             placeholder="Mots-clés..."
                             type="text"/>
@@ -91,14 +93,14 @@
             </div>
 
             <!-- Search Button -->
-            <div class="flex-shrink-0">
+            <div class="flex-shrink-0 w-full lg:w-auto">
                 <p-button
                         (click)="navigateToSearch()"
-                        [label]="'Rechercher'"
                         [loading]="loading"
-                        class="w-full sm:w-auto"
-                        icon="pi pi-search"
-                        styleClass="p-button-primary p-button-raised compact-search-button">
+                        class="w-full block"
+                        styleClass="w-full h-10 px-6 font-semibold bg-blue-600 hover:bg-blue-700 border-none flex gap-2 items-center justify-center">
+                        <lucide-icon [img]="Search" class="w-4 h-4"></lucide-icon>
+                        <span>Rechercher</span>
                 </p-button>
             </div>
         </div>
@@ -117,7 +119,7 @@
                         [class.text-gray-500]="!category.active"
                         [class.text-gray-900]="category.active"
                         class="flex flex-col items-center min-w-fit pb-3 hover:text-gray-900 transition-colors">
-                    <span class="text-2xl mb-1">{{ category.icon }}</span>
+                    <lucide-icon [img]="category.icon" class="w-8 h-8 mb-1"></lucide-icon>
                     <span class="text-xs font-medium whitespace-nowrap">{{ category.label }}</span>
                 </button>
             }

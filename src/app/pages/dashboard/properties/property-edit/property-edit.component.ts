@@ -28,6 +28,20 @@ import {TableModule} from 'primeng/table';
 import {DialogModule} from 'primeng/dialog';
 import {TagModule} from 'primeng/tag';
 import {PropertyService} from "../../../../core/services/http/property.service";
+import {
+  LucideAngularModule,
+  Loader2,
+  X,
+  Check,
+  ArrowRight,
+  ArrowLeft,
+  MapPin,
+  Video,
+  File,
+  Star,
+  Trash2,
+  Upload
+} from 'lucide-angular';
 
 @Component({
   selector: 'app-property-edit',
@@ -53,7 +67,8 @@ import {PropertyService} from "../../../../core/services/http/property.service";
     TableModule,
     DialogModule,
     DynamicDialogModule,
-    TagModule
+    TagModule,
+    LucideAngularModule
   ],
   providers: [DialogService, MessageService],
   standalone: true
@@ -79,6 +94,19 @@ export class PropertyEditComponent implements OnInit {
     {name: 'United Kingdom', code: 'GB'},
     {name: 'Italy', code: 'IT'}
   ];
+
+  // Icons
+  readonly Loader2 = Loader2;
+  readonly X = X;
+  readonly Check = Check;
+  readonly ArrowRight = ArrowRight;
+  readonly ArrowLeft = ArrowLeft;
+  readonly MapPin = MapPin;
+  readonly Video = Video;
+  readonly File = File;
+  readonly Star = Star;
+  readonly Trash2 = Trash2;
+  readonly Upload = Upload;
 
   propertyTypes = [
     {label: 'Apartment', value: 'apartment'},

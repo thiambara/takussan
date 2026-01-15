@@ -5,6 +5,7 @@ import {ButtonModule} from "primeng/button";
 import {TagModule} from "primeng/tag";
 import {CardModule} from "primeng/card";
 import {DividerModule} from "primeng/divider";
+import {LucideAngularModule, Pencil, Trash2, CheckCircle, XCircle} from 'lucide-angular';
 
 @Component({
   selector: 'app-booking-card',
@@ -15,13 +16,20 @@ import {DividerModule} from "primeng/divider";
     ButtonModule,
     TagModule,
     CardModule,
-    DividerModule
+    DividerModule,
+    LucideAngularModule
   ]
 })
 export class BookingCardComponent {
   @Input() booking!: Booking;
   @Output() edit = new EventEmitter<Booking>();
   @Output() delete = new EventEmitter<Booking>();
+
+  // Icons
+  readonly Pencil = Pencil;
+  readonly Trash2 = Trash2;
+  readonly CheckCircle = CheckCircle;
+  readonly XCircle = XCircle;
 
   getStatusSeverity(status: string): string {
     switch (status) {

@@ -9,7 +9,7 @@ import {Footer} from "./footer";
   standalone: true,
   imports: [CommonModule, RouterModule, Topbar, Footer],
   template: `
-      <div class="flex overflow-x-hidden relative flex-col min-h-screen bg-gray-100 size-full group/design-root"
+      <div class="flex overflow-x-hidden relative flex-col min-h-screen bg-gray-50  size-full group/design-root"
            style='font-family: "Work Sans", "Noto Sans", sans-serif;'>
           <div class="flex flex-col h-full layout-container grow">
 

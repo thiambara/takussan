@@ -24,6 +24,7 @@ import {GalleriaModule} from "primeng/galleria";
 
 import {TabsModule} from "primeng/tabs";
 import {PropertyService} from "../../../../core/services/http/property.service";
+import {LucideAngularModule, Pencil, Images, Upload, Calendar, Plus, X, FileText, Download, MapPin} from 'lucide-angular';
 
 @Component({
   selector: 'app-property-details',
@@ -48,6 +49,7 @@ import {PropertyService} from "../../../../core/services/http/property.service";
     GalleriaModule,
     TabsModule,
     NgOptimizedImage,
+    LucideAngularModule
   ],
   standalone: true
 })
@@ -63,6 +65,17 @@ export class PropertyDetailsComponent implements OnInit {
   downloadingFile = false;
 
   activeTabIndex = 0;
+
+  // Icons
+  readonly Pencil = Pencil;
+  readonly Images = Images;
+  readonly Upload = Upload;
+  readonly Calendar = Calendar;
+  readonly Plus = Plus;
+  readonly X = X;
+  readonly FileText = FileText;
+  readonly Download = Download;
+  readonly MapPin = MapPin;
 
   constructor(
     private propertyService: PropertyService,

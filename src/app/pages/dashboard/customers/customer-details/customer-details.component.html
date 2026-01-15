@@ -13,9 +13,15 @@
             }
         </div>
         <div class="flex gap-2 items-center">
-            <p-button icon="pi pi-arrow-left" label="Back" routerLink="/dashboard/customers"
-                      styleClass="p-button-outlined"></p-button>
-            <p-button (onClick)="navigateToEdit()" icon="pi pi-pencil" label="Edit"></p-button>
+            <p-button label="Back" routerLink="/dashboard/customers"
+                      styleClass="p-button-outlined gap-2">
+                <lucide-icon [img]="ArrowLeft" class="w-4 h-4"></lucide-icon>
+                <span>Back</span>
+            </p-button>
+            <p-button (onClick)="navigateToEdit()" label="Edit" styleClass="gap-2">
+                <lucide-icon [img]="Pencil" class="w-4 h-4"></lucide-icon>
+                <span>Edit</span>
+            </p-button>
         </div>
     </div>
 
@@ -140,9 +146,12 @@
 
                                 <ng-template pTemplate="footer">
                                     <div class="flex justify-end">
-                                        <p-button (onClick)="viewAddress(address)" icon="pi pi-eye"
+                                        <p-button (onClick)="viewAddress(address)"
                                                   label="View Details"
-                                                  styleClass="p-button-text"></p-button>
+                                                  styleClass="p-button-text gap-2">
+                                            <lucide-icon [img]="Eye" class="w-4 h-4"></lucide-icon>
+                                            <span>View Details</span>
+                                        </p-button>
                                     </div>
                                 </ng-template>
                             </p-card>
@@ -179,8 +188,10 @@
     <ng-template pTemplate="header">
         <div class="flex justify-between items-center w-full">
             <h5 class="m-0 text-xl">Address Details</h5>
-            <button (click)="closeAddressDialog()" class="p-button-rounded p-button-text" icon="pi pi-times" pButton
-                    type="button"></button>
+            <button (click)="closeAddressDialog()" class="p-button-rounded p-button-text" pButton
+                    type="button">
+                <lucide-icon [img]="X" class="w-4 h-4"></lucide-icon>
+            </button>
         </div>
     </ng-template>
 
@@ -218,6 +229,7 @@
             </div>
         </div>
     }
+
 </p-dialog>
 
 <!-- Booking Details Dialog -->
@@ -231,8 +243,10 @@
     <ng-template pTemplate="header">
         <div class="flex justify-between items-center w-full">
             <h5 class="m-0 text-xl">Booking Details</h5>
-            <button (click)="closeBookingDialog()" class="p-button-rounded p-button-text" icon="pi pi-times" pButton
-                    type="button"></button>
+            <button (click)="closeBookingDialog()" class="p-button-rounded p-button-text" pButton
+                    type="button">
+                <lucide-icon [img]="X" class="w-4 h-4"></lucide-icon>
+            </button>
         </div>
     </ng-template>
 

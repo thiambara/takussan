@@ -8,8 +8,10 @@
             <p-tag [severity]="getStatusSeverity(property?.status || '')" [value]="property?.status"></p-tag>
         </div>
         <div class="flex gap-2">
-            <p-button (click)="editProperty()" icon="pi pi-pencil" label="Edit Property"
-                      styleClass="p-button-outlined"></p-button>
+            <p-button (click)="editProperty()" styleClass="p-button-outlined gap-2">
+                <lucide-icon [img]="Pencil" class="w-4 h-4"></lucide-icon>
+                <span>Edit Property</span>
+            </p-button>
         </div>
     </div>
 
@@ -285,8 +287,10 @@
                         <div class="p-4 bg-primary-50">
                             <div class="flex justify-between items-center">
                                 <h2 class="text-xl font-semibold text-primary">Media & Documents</h2>
-                                <p-button icon="pi pi-upload" label="Upload"
-                                          styleClass="p-button-sm"></p-button>
+                                <p-button label="Upload" styleClass="p-button-sm gap-2">
+                                    <lucide-icon [img]="Upload" class="w-4 h-4"></lucide-icon>
+                                    <span>Upload</span>
+                                </p-button>
                             </div>
                         </div>
                     </ng-template>
@@ -309,7 +313,7 @@
                                     @if (!media.is_image) {
                                         <div
                                  class="flex flex-col justify-center items-center px-2 py-4 h-full text-center">
-                                <i class="mb-2 text-3xl text-primary pi pi-file-pdf"></i>
+                                <lucide-icon [img]="FileText" class="mb-2 w-8 h-8 text-primary"></lucide-icon>
                                 <p class="text-sm text-gray-700 line-clamp-2">{{ media.name }}</p>
                                         </div>
                                     }
@@ -329,11 +333,13 @@
                     @if (!property?.media || !property?.media?.length) {
                         <div
                              class="flex flex-col justify-center items-center py-16">
-                        <i class="mb-4 text-5xl text-gray-300 pi pi-images"></i>
+                        <lucide-icon [img]="Images" class="mb-4 w-12 h-12 text-gray-300"></lucide-icon>
                         <h3 class="mb-2 text-xl text-gray-600">No Media Available</h3>
                         <p class="mb-4 text-gray-500">Upload images or documents for this property.</p>
-                        <p-button icon="pi pi-upload" label="Upload Media"
-                                  styleClass="p-button-outlined"></p-button>
+                        <p-button label="Upload Media" styleClass="p-button-outlined gap-2">
+                            <lucide-icon [img]="Upload" class="w-4 h-4"></lucide-icon>
+                            <span>Upload Media</span>
+                        </p-button>
                         </div>
                     }
                 </p-card>
@@ -405,8 +411,8 @@
 
                     <!-- Map placeholder -->
                     <div class="flex justify-center items-center mt-6 h-64 bg-gray-100 rounded-lg">
-                        <div class="text-center">
-                            <i class="mb-2 text-4xl text-gray-400 pi pi-map-marker"></i>
+                        <div class="text-center flex flex-col items-center">
+                            <lucide-icon [img]="MapPin" class="mb-2 w-10 h-10 text-gray-400"></lucide-icon>
                             <p class="text-gray-500">Map view would be displayed here</p>
                         </div>
                     </div>
@@ -419,8 +425,11 @@
 
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-semibold text-primary">Property Bookings</h2>
-                    <p-button (click)="openNewBookingDialog()" [disabled]="!property || !property.id" icon="pi pi-plus"
-                              label="Add Booking" styleClass="p-button-success"></p-button>
+                    <p-button (click)="openNewBookingDialog()" [disabled]="!property || !property.id"
+                              label="Add Booking" styleClass="p-button-success gap-2">
+                        <lucide-icon [img]="Plus" class="w-4 h-4"></lucide-icon>
+                        <span>Add Booking</span>
+                    </p-button>
                 </div>
 
                 @if (property?.bookings && property?.bookings?.length) {
@@ -439,11 +448,14 @@
                 @if (!property?.bookings?.length) {
                     <div
                          class="flex flex-col justify-center items-center py-12 bg-gray-50 rounded-lg">
-                    <i class="mb-4 text-5xl text-gray-400 pi pi-calendar"></i>
+                    <lucide-icon [img]="Calendar" class="mb-4 w-12 h-12 text-gray-400"></lucide-icon>
                     <h3 class="mb-2 text-xl text-gray-600">No Bookings Found</h3>
                     <p class="mb-4 text-gray-500">This property doesn't have any bookings yet.</p>
-                    <p-button (click)="openNewBookingDialog()" icon="pi pi-plus" label="Create First Booking"
-                              styleClass="p-button-success"></p-button>
+                    <p-button (click)="openNewBookingDialog()" label="Create First Booking"
+                              styleClass="p-button-success gap-2">
+                        <lucide-icon [img]="Plus" class="w-4 h-4"></lucide-icon>
+                        <span>Create First Booking</span>
+                    </p-button>
                     </div>
                 }
             </p-tabpanel>
@@ -457,8 +469,10 @@
           [draggable]="false"
           [modal]="true" [resizable]="false" [style]="{width: '90vw', 'max-width': '800px'}">
     <ng-template #mediaPreviewCloseIcon>
-        <p-button (click)="closeMediaPreview()" class="p-button-rounded p-button-text" icon="pi pi-times"
-                  type="button"></p-button>
+        <p-button (click)="closeMediaPreview()" class="p-button-rounded p-button-text"
+                  type="button">
+            <lucide-icon [img]="X" class="w-4 h-4"></lucide-icon>
+        </p-button>
     </ng-template>
 
     <ng-template pTemplate="header">
@@ -478,16 +492,18 @@
 
             <!-- Document Preview -->
             @if (!selectedMedia.is_image) {
-                <div class="w-full text-center">
-            <i class="mb-4 text-6xl text-primary pi pi-file-pdf"></i>
+                <div class="w-full text-center flex flex-col items-center">
+            <lucide-icon [img]="FileText" class="mb-4 w-16 h-16 text-primary"></lucide-icon>
             <h3 class="mb-2">{{ selectedMedia.name }}</h3>
             <p class="mb-4">{{ selectedMedia && selectedMedia.size ? (selectedMedia.size / 1024).toFixed(2) + ' KB' : '' }} {{ selectedMedia && selectedMedia.extension ? '• ' + selectedMedia.extension.toUpperCase() : '' }}</p>
             <p-button
                     (click)="closeMediaPreview()"
                     [loading]="downloadingFile"
-                    icon="pi pi-download"
                     label="Download File"
-                    styleClass="p-button-outlined"></p-button>
+                    styleClass="p-button-outlined gap-2">
+                <lucide-icon [img]="Download" class="w-4 h-4"></lucide-icon>
+                <span>Download File</span>
+            </p-button>
                 </div>
             }
         </div>
