@@ -22,32 +22,37 @@ class UserSeeder extends Seeder
         $managerRole = Role::where('code', UserRole::Vendor)->first();
         $customerRole = Role::where('code', UserRole::Customer)->first();
 
+        // Get main agency
+        $mainAgency = \App\Models\Agency::where('slug', 'takussan-immobilier')->first();
+
         // Create admin user
         $admin = User::factory()->create([
             'first_name' => 'Admin',
-            'last_name' => 'User',
+            'last_name' => 'Takussan',
             'email' => 'admin@takussan.com',
             'username' => 'admin',
             'password' => bcrypt('Admin123!'),
             'status' => 'active',
+            'agency_id' => $mainAgency?->id, // Admin belongs to main agency
         ]);
         $admin->assignRoles([$adminRole->id]);
 
         // Create manager user
         $manager = User::factory()->create([
-            'first_name' => 'Property',
-            'last_name' => 'Manager',
+            'first_name' => 'Manager',
+            'last_name' => 'Immo',
             'email' => 'manager@takussan.com',
             'username' => 'manager',
             'password' => bcrypt('Manager123!'),
             'status' => 'active',
+            'agency_id' => $mainAgency?->id,
         ]);
         $manager->assignRoles([$managerRole->id]);
 
         // Create customer user
         $regularUser = User::factory()->create([
-            'first_name' => 'Regular',
-            'last_name' => 'User',
+            'first_name' => 'Jean',
+            'last_name' => 'Client',
             'email' => 'user@takussan.com',
             'username' => 'user',
             'password' => bcrypt('User123!'),
@@ -56,13 +61,27 @@ class UserSeeder extends Seeder
 
         $regularUser->assignRoles([$customerRole->id]);
 
-        // Create some additional users with random roles
+        // Create Agents for other agencies
+        $otherAgencies = \App\Models\Agency::where('id', '!=', $mainAgency?->id)->get();
+
+        foreach ($otherAgencies as $agency) {
+            User::factory()
+                ->count(2)
+                ->create([
+                    'agency_id' => $agency->id,
+                    'status' => 'active'
+                ])
+                ->each(function ($user) use ($managerRole) {
+                    $user->assignRoles([$managerRole->id]);
+                });
+        }
+
+        // Create some independent users/customers
         User::factory()
-            ->count(7)
+            ->count(5)
             ->create()
-            ->each(function ($user) use ($adminRole, $managerRole, $customerRole) {
-                $role = fake()->randomElement([$adminRole, $managerRole, $customerRole]);
-                $user->assignRoles([$role->id]);
+            ->each(function ($user) use ($customerRole) {
+                $user->assignRoles([$customerRole->id]);
             });
 
         // Create customers with one-to-one relationship to some users

@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
+use App\Models\Bases\Enums\CustomerStatus;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -32,13 +34,18 @@ class Customer extends AbstractModel implements HasMedia
     ];
 
     protected $casts = [
+        'status' => CustomerStatus::class,
         'birth_date' => 'date',
         'metadata' => 'array',
     ];
 
-    public function getFullNameAttribute(): string
+    protected $appends = ['full_name'];
+
+    protected function fullName(): Attribute
     {
-        return "$this->first_name $this->last_name";
+        return Attribute::make(
+            get: fn () => trim("{$this->first_name} {$this->last_name}"),
+        );
     }
 
     public function bookings(): HasMany

@@ -14,6 +14,7 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('parent_id')->nullable()->constrained('properties')->onDelete('cascade');
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('agency_id')->nullable()->constrained('agencies')->onDelete('set null');
 
             // Informations générales
             $table->string('title')->index();
@@ -38,6 +39,16 @@ return new class extends Migration {
             // Champs de suivi
             $table->timestamps();
             $table->softDeletes();
+
+
+            // Index pour la recherche "Appartements à vendre actifs"
+            $table->index(['status', 'contract_type', 'type'], 'properties_search_idx');
+
+            // Index pour le tri par prix sur des listes filtrées
+            $table->index(['status', 'contract_type', 'price'], 'properties_price_idx');
+
+            // Index pour le tri par date (Nouveautés)
+            $table->index(['status', 'created_at'], 'properties_recency_idx');
         });
     }
 

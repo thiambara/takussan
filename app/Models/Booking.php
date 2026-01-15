@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
+use App\Models\Bases\Enums\BookingStatus;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -41,6 +43,7 @@ class Booking extends AbstractModel
     ];
 
     protected $casts = [
+        'status' => BookingStatus::class,
         'booking_date' => 'datetime',
         'start_date' => 'datetime',
         'end_date' => 'datetime',
@@ -56,6 +59,18 @@ class Booking extends AbstractModel
         'deposit_amount' => 'decimal:2',
         'metadata' => 'array',
     ];
+
+    // SCOPES
+
+    public function scopePending(Builder $query): Builder
+    {
+        return $query->where('status', BookingStatus::Pending);
+    }
+
+    public function scopeConfirmed(Builder $query): Builder
+    {
+        return $query->where('status', BookingStatus::Confirmed);
+    }
 
     public function property(): BelongsTo
     {

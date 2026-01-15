@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\UpdateUserRequest;
 use App\Models\Bases\Enums\UserRole;
-use App\Models\Bases\Enums\UserStatus;
 use App\Models\User;
+use App\Services\Model\UserService;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -17,9 +17,13 @@ use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
-
-    public function __construct()
+    public function __construct(private UserService $userService)
     {
+        $this->userService = $userService;
+        $this->middleware('permission:users.view')->only(['index', 'show']);
+        $this->middleware('permission:users.create')->only(['store']);
+        $this->middleware('permission:users.edit')->only(['update']);
+        $this->middleware('permission:users.delete')->only(['destroy']);
     }
 
     public function index(): JsonResponse
@@ -51,10 +55,8 @@ class UserController extends Controller
             'roles' => 'required',
             'password' => 'required|string|max:255',
         ]);
-        $data['password'] = Hash::make($data['password']);
-        $data['status'] ??= UserStatus::Active->value;
-        $user = User::create($data);
-        $user->save();
+
+        $user = $this->userService->store($data);
         return $this->json($user);
     }
 
@@ -65,13 +67,13 @@ class UserController extends Controller
 
     public function update(UpdateUserRequest $request, User $user): JsonResponse
     {
-        $user->update($request->validationData());
+        $user = $this->userService->update($user, $request->validationData());
         return $this->json($user);
     }
 
     public function destroy(User $user): JsonResponse
     {
-        $user->delete();
+        $this->userService->delete($user);
         return $this->json($user);
     }
 

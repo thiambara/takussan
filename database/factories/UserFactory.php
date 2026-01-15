@@ -27,6 +27,7 @@ class UserFactory extends Factory
             'status' => 'active',
             'username' => fake()->unique()->userName(),
             'password' => fake()->passthrough('PPpp11'), // password
+            'agency_id' => null,
             'remember_token' => Str::random(10),
             'metadata' => null
         ];

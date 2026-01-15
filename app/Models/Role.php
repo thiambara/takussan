@@ -42,7 +42,7 @@ class Role extends Model implements BaseModelInterface
     public function hasPermission(string|int|Permission $permission): bool
     {
         if (is_string($permission)) {
-            return $this->permissions()->where('name', $permission)->exists();
+            return $this->permissions()->where('code', $permission)->exists();
         } elseif (is_int($permission)) {
             return $this->permissions()->where('id', $permission)->exists();
         }

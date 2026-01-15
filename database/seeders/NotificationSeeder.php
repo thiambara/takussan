@@ -17,25 +17,25 @@ class NotificationSeeder extends Seeder
     {
         // Get users to create notifications for
         $users = User::all();
-        
+
         if ($users->isEmpty()) {
             $users = [User::factory()->create()];
         }
-        
+
         // Get properties for property notifications
         $properties = Property::all();
-        
+
         if ($properties->isEmpty()) {
             $properties = [Property::factory()->create()];
         }
-        
+
         // Get bookings for booking notifications
         $bookings = Booking::all();
-        
+
         if ($bookings->isEmpty()) {
             $bookings = [Booking::factory()->create()];
         }
-        
+
         // Create system notifications for all users
         foreach ($users as $user) {
             // Welcome notification
@@ -51,7 +51,7 @@ class NotificationSeeder extends Seeder
                 'delivered_at' => $user->created_at->addMinutes(1),
                 'is_read' => fake()->boolean(70), // 70% chance to be read
             ]);
-            
+
             // Account verification notification
             if ($user->email_verified_at) {
                 Notification::factory()->create([
@@ -68,7 +68,7 @@ class NotificationSeeder extends Seeder
                     'read_at' => $user->email_verified_at->addMinutes(fake()->numberBetween(1, 60)),
                 ]);
             }
-            
+
             // Create random unread notifications
             $unreadCount = fake()->numberBetween(0, 5);
             Notification::factory()
@@ -78,7 +78,7 @@ class NotificationSeeder extends Seeder
                     'user_id' => $user->id,
                     'created_at' => fake()->dateTimeBetween('-7 days', 'now'),
                 ]);
-            
+
             // Create random read notifications
             $readCount = fake()->numberBetween(0, 10);
             Notification::factory()
@@ -89,7 +89,7 @@ class NotificationSeeder extends Seeder
                     'created_at' => fake()->dateTimeBetween('-30 days', '-7 days'),
                 ]);
         }
-        
+
         // Create property notifications
         foreach ($properties as $property) {
             // Notify property owner about views
@@ -106,7 +106,7 @@ class NotificationSeeder extends Seeder
                 'is_read' => fake()->boolean(50),
             ]);
         }
-        
+
         // Create booking notifications
         foreach ($bookings as $booking) {
             // Notify property owner about booking
@@ -122,14 +122,14 @@ class NotificationSeeder extends Seeder
                 'delivered_at' => $booking->created_at->addMinutes(fake()->numberBetween(1, 10)),
                 'is_read' => fake()->boolean(80),
             ]);
-            
+
             // Notify customer about booking status
-            if ($booking->status !== 'pending') {
+            if ($booking->status->value !== 'pending') {
                 Notification::factory()->create([
                     'user_id' => $booking->customer->added_by_id ?? $booking->customer_id,
                     'type' => 'booking',
-                    'title' => 'Booking ' . ucfirst($booking->status),
-                    'content' => 'Your booking for "' . $booking->property->title . '" has been ' . $booking->status . '.',
+                    'title' => 'Booking ' . ucfirst($booking->status->value),
+                    'content' => 'Your booking for "' . $booking->property->title . '" has been ' . $booking->status->value . '.',
                     'reference_id' => $booking->id,
                     'reference_type' => Booking::class,
                     'delivered' => true,

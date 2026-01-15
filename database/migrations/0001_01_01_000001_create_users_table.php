@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Bases\Enums\UserRole;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -15,7 +14,6 @@ return new class extends Migration {
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->json('roles')->nullable()->default('["' . UserRole::Customer->value . '"]');
             $table->string('username')->unique()->nullable();
             $table->string('password');
             $table->string('type')->nullable();
@@ -28,6 +26,7 @@ return new class extends Migration {
             $table->timestamp('email_verified_at')->nullable();
             $table->nullableMorphs('model');
 
+            $table->foreignId('agency_id')->nullable()->after('id')->constrained('agencies')->onDelete('set null');
             $table->foreignId('added_by_id')->nullable()->constrained('users')->onDelete('set null');
             $table->string('google_id')->nullable();
 

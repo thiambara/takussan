@@ -7,13 +7,18 @@ use App\Http\Requests\StoreBookingRequest;
 use App\Http\Requests\UpdateBookingRequest;
 use App\Models\Bases\Enums\UserRole;
 use App\Models\Booking;
+use App\Services\Model\BookingService;
 use Illuminate\Http\JsonResponse;
 
 class BookingController extends Controller
 {
-
-    public function __construct()
+    public function __construct(private BookingService $bookingService)
     {
+        $this->bookingService = $bookingService;
+        $this->middleware('permission:bookings.view')->only(['index', 'show']);
+        $this->middleware('permission:bookings.create')->only(['store']);
+        $this->middleware('permission:bookings.edit')->only(['update']);
+        $this->middleware('permission:bookings.delete')->only(['destroy']);
     }
 
 
@@ -31,7 +36,7 @@ class BookingController extends Controller
     public function store(StoreBookingRequest $request): JsonResponse
     {
         $data = $request->validationData();
-        $booking = Booking::create($data);
+        $booking = $this->bookingService->store($data);
         return $this->json($booking);
     }
 
@@ -44,14 +49,14 @@ class BookingController extends Controller
 
     public function update(UpdateBookingRequest $request, Booking $booking): JsonResponse
     {
-        $booking->update($request->validated());
+        $booking = $this->bookingService->update($booking, $request->validated());
         return $this->json($booking);
     }
 
 
     public function destroy(Booking $booking): JsonResponse
     {
-        $booking->delete();
+        $this->bookingService->delete($booking);
         return $this->json($booking);
     }
 }

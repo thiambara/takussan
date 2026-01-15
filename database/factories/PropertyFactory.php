@@ -22,9 +22,10 @@ class PropertyFactory extends Factory
         $statusOptions = ['available', 'sold', 'rented', 'under_maintenance', 'unavailable'];
         $visibilityOptions = ['public', 'private', 'unlisted'];
         $contractTypes = ['sale', 'rent', 'lease'];
-        
+
         return [
             'user_id' => User::factory(),
+            'agency_id' => null, // Can be overridden or inferred from user
             'title' => fake()->sentence(3),
             'description' => fake()->paragraph(3),
             'type' => fake()->randomElement($propertyTypes),

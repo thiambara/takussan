@@ -4,8 +4,8 @@ namespace App\Models\Bases\Enums;
 
 enum CustomerStatus: string
 {
-    case Pending = 'pending';
-    case Confirmed = 'confirmed';
-    case Cancelled = 'cancelled';
-    case Completed = 'completed';
+    case Active = 'active';
+    case Inactive = 'inactive';
+    case Blocked = 'blocked';
+    case Deleted = 'deleted';
 }

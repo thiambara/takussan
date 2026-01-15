@@ -24,6 +24,9 @@ return new class extends Migration {
             $table->string('status')->default('active'); //  ['active', 'inactive', 'blocked', 'deleted'];
             $table->foreignId('added_by_id')->nullable()->constrained('users')->onDelete('set null');
 
+            // Relation utilisateur (One-to-One)
+            $table->foreignId('user_id')->nullable()->unique()->constrained('users')->onDelete('set null');
+
             $table->json('metadata')->nullable()->default('[]');
             $table->softDeletes();
             $table->timestamps();

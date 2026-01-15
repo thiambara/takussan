@@ -13,11 +13,13 @@ use Illuminate\Http\Request;
 
 class RoleController extends Controller
 {
-    protected RoleService $roleService;
-
-    public function __construct(RoleService $roleService)
+    public function __construct(private RoleService $roleService)
     {
         $this->roleService = $roleService;
+        $this->middleware('permission:roles.view')->only(['index', 'show']);
+        $this->middleware('permission:roles.create')->only(['store']);
+        $this->middleware('permission:roles.edit')->only(['update', 'syncPermissions']);
+        $this->middleware('permission:roles.delete')->only(['destroy']);
     }
 
     /**

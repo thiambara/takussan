@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
+use App\Models\Bases\Enums\ProprietyStatus;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -14,56 +16,24 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
-use Spatie\Image\Manipulations;
-use Spatie\MediaLibrary\MediaCollections\File;
 
 class Property extends AbstractModel implements HasMedia
 {
     use HasFactory, SoftDeletes, InteractsWithMedia;
-    
-    /**
-     * Register media conversions for the model.
-     *
-     * @param Media|null $media
-     * @return void
-     */
-    public function registerMediaConversions(Media $media = null): void
-    {
-        $this->addMediaConversion('thumbnail')
-            ->width(300)
-            ->height(300)
-            ->optimize()
-            ->nonQueued();
-            
-        $this->addMediaConversion('preview')
-            ->width(800)
-            ->height(600)
-            ->optimize()
-            ->nonQueued();
-    }
-    
-    /**
-     * Register media collections for the model.
-     *
-     * @return void
-     */
-    public function registerMediaCollections(): void
-    {
-        $this->addMediaCollection('properties')
-            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/quicktime', 'application/pdf'])
-            ->useDisk('public');
-    }
 
     protected $table = 'properties';
-
     protected $casts = [
+        'status' => ProprietyStatus::class,
         'servicing' => 'array',
         'metadata' => 'array',
+        'with_administrative_monitoring' => 'boolean',
+        'price' => 'decimal:2',
+        'area' => 'decimal:2',
     ];
-
     protected $fillable = [
         'parent_id',
         'user_id',
+        'agency_id',
         'title',
         'description',
         'type',
@@ -80,9 +50,64 @@ class Property extends AbstractModel implements HasMedia
         'metadata'
     ];
 
+    // SCOPES
+
+    public function scopeAvailable(Builder $query): Builder
+    {
+        return $query->where('status', ProprietyStatus::Available);
+    }
+
+    public function scopeRent(Builder $query): Builder
+    {
+        return $query->where('contract_type', 'rent');
+    }
+
+    public function scopeSale(Builder $query): Builder
+    {
+        return $query->where('contract_type', 'sale');
+    }
+
+    /**
+     * Register media conversions for the model.
+     *
+     * @param Media|null $media
+     * @return void
+     */
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this->addMediaConversion('thumbnail')
+            ->width(300)
+            ->height(300)
+            ->optimize()
+            ->nonQueued();
+
+        $this->addMediaConversion('preview')
+            ->width(800)
+            ->height(600)
+            ->optimize()
+            ->nonQueued();
+    }
+
+    /**
+     * Register media collections for the model.
+     *
+     * @return void
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('properties')
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/quicktime', 'application/pdf'])
+            ->useDisk('public');
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function agency(): BelongsTo
+    {
+        return $this->belongsTo(Agency::class);
     }
 
     public function address(): MorphOne

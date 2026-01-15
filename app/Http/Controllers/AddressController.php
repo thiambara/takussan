@@ -7,13 +7,18 @@ use App\Http\Requests\StoreAddressRequest;
 use App\Http\Requests\UpdateAddressRequest;
 use App\Models\Address;
 use App\Models\Bases\Enums\UserRole;
+use App\Services\Model\AddressService;
 use Illuminate\Http\JsonResponse;
 
 class AddressController extends Controller
 {
-
-    public function __construct()
+    public function __construct(private AddressService $addressService)
     {
+        $this->addressService = $addressService;
+        $this->middleware('permission:addresses.view')->only(['index', 'show']);
+        $this->middleware('permission:addresses.create')->only(['store']);
+        $this->middleware('permission:addresses.edit')->only(['update']);
+        $this->middleware('permission:addresses.delete')->only(['destroy']);
     }
 
 
@@ -40,7 +45,7 @@ class AddressController extends Controller
     public function store(StoreAddressRequest $request): JsonResponse
     {
         $data = $request->validationData();
-        $address = Address::create($data);
+        $address = $this->addressService->store($data);
         return $this->json($address);
     }
 
@@ -53,14 +58,14 @@ class AddressController extends Controller
 
     public function update(UpdateAddressRequest $request, Address $address): JsonResponse
     {
-        $address->update($request->validationData());
+        $address = $this->addressService->update($address, $request->validationData());
         return $this->json($address);
     }
 
 
     public function destroy(Address $address): JsonResponse
     {
-        $address->delete();
+        $this->addressService->delete($address);
         return $this->json($address);
     }
 }

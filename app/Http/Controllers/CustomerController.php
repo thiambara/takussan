@@ -7,14 +7,19 @@ use App\Http\Requests\StoreCustomerRequest;
 use App\Http\Requests\UpdateCustomerRequest;
 use App\Models\Bases\Enums\UserRole;
 use App\Models\Customer;
+use App\Services\Model\CustomerService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 
 class CustomerController extends Controller
 {
-
-    public function __construct()
+    public function __construct(private CustomerService $customerService)
     {
+        $this->customerService = $customerService;
+        $this->middleware('permission:customers.view')->only(['index', 'show']);
+        $this->middleware('permission:customers.create')->only(['store']);
+        $this->middleware('permission:customers.edit')->only(['update']);
+        $this->middleware('permission:customers.delete')->only(['destroy']);
     }
 
     public function index(): JsonResponse
@@ -41,8 +46,7 @@ class CustomerController extends Controller
         $data = $request->validationData();
         $data['added_by_id'] = auth()->user()->id;
 
-        $customer = Customer::create($data);
-        $customer->save();
+        $customer = $this->customerService->create($data);
         return $this->json($customer);
     }
 
@@ -53,13 +57,13 @@ class CustomerController extends Controller
 
     public function update(UpdateCustomerRequest $request, Customer $customer): JsonResponse
     {
-        $customer->update($request->validationData());
+        $customer = $this->customerService->update($customer, $request->validationData());
         return $this->json($customer);
     }
 
     public function destroy(Customer $customer): JsonResponse
     {
-        $customer->delete();
+        $this->customerService->delete($customer);
         return $this->json($customer);
     }
 

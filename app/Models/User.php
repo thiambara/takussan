@@ -4,6 +4,9 @@ namespace App\Models;
 
 use App\Models\Bases\BaseModelInterface;
 use App\Models\Bases\BaseModelTrait;
+use App\Models\Bases\Enums\UserStatus;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -31,7 +34,7 @@ class User extends Authenticatable implements BaseModelInterface
         'password',
         'type',
         'added_by_id',
-        'roles',
+        'agency_id',
         'email_verified_at',
         'remember_token',
         'google_id',
@@ -44,15 +47,43 @@ class User extends Authenticatable implements BaseModelInterface
     ];
 
     protected $casts = [
+        'status' => UserStatus::class,
         'email_verified_at' => 'datetime',
-        'roles' => 'array',
         'metadata' => 'array',
     ];
+
+    protected $appends = ['full_name', 'roles'];
 
     public function __construct(array $attributes = [])
     {
         $this->init();
         parent::__construct($attributes);
+    }
+
+    // ACCESSORS & MUTATORS
+
+    protected function fullName(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => trim("{$this->first_name} {$this->last_name}"),
+        );
+    }
+
+    /**
+     * Get the roles as an array of codes (Backward compatibility for frontend).
+     */
+    protected function roles(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->assigned_roles->pluck('code')->toArray(),
+        );
+    }
+
+    // SCOPES
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('status', UserStatus::Active);
     }
 
 
@@ -169,5 +200,10 @@ class User extends Authenticatable implements BaseModelInterface
     public function customer(): HasOne
     {
         return $this->hasOne(Customer::class, 'user_id');
+    }
+
+    public function agency(): BelongsTo
+    {
+        return $this->belongsTo(Agency::class);
     }
 }

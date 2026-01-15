@@ -17,15 +17,16 @@ class CustomerSeeder extends Seeder
         $adminUsers = User::whereHas('assigned_roles', function ($query) {
             $query->where('code', 'admin');
         })->get();
-        
+
         $managerUsers = User::whereHas('assigned_roles', function ($query) {
-            $query->where('code', 'manager');
+            $query->where('code', 'vendor');
         })->get();
-        
+
         $userCreators = $adminUsers->merge($managerUsers);
-        
+
         if ($userCreators->isEmpty()) {
-            $userCreators = User::take(2)->get();
+            // Fallback if no specific users found, create one
+            $userCreators = User::factory()->count(1)->create();
         }
 
         // Create active customers for each admin/manager
@@ -36,7 +37,7 @@ class CustomerSeeder extends Seeder
                 ->create([
                     'added_by_id' => $creator->id,
                 ]);
-                
+
             // Create some inactive customers
             Customer::factory()
                 ->count(1)
@@ -45,6 +46,11 @@ class CustomerSeeder extends Seeder
                     'added_by_id' => $creator->id,
                 ]);
         }
+
+        // Use first available admin or fallback to first creator
+        $adminId = $adminUsers->first()?->id ?? $userCreators->first()->id;
+        // Use first available manager or fallback to first creator
+        $managerId = $managerUsers->first()?->id ?? $userCreators->first()->id;
 
         // Create specific VIP customers
         $specificCustomers = [
@@ -55,7 +61,7 @@ class CustomerSeeder extends Seeder
                 'phone' => '+221 77 123 45 67',
                 'status' => 'active',
                 'birth_date' => '1982-06-15',
-                'added_by_id' => $adminUsers->first()->id,
+                'added_by_id' => $adminId,
                 'metadata' => [
                     'address' => 'Dakar, Almadies, Sénégal',
                     'notes' => 'Client VIP - Intéressé par des propriétés de luxe',
@@ -70,7 +76,7 @@ class CustomerSeeder extends Seeder
                 'phone' => '+221 77 234 56 78',
                 'status' => 'active',
                 'birth_date' => '1990-03-22',
-                'added_by_id' => $adminUsers->first()->id,
+                'added_by_id' => $adminId,
                 'metadata' => [
                     'address' => 'Thiès, Sénégal',
                     'notes' => 'Client régulier - Recherche location à long terme',
@@ -85,7 +91,7 @@ class CustomerSeeder extends Seeder
                 'phone' => '+221 76 345 67 89',
                 'status' => 'active',
                 'birth_date' => '1975-11-08',
-                'added_by_id' => $managerUsers->first()->id,
+                'added_by_id' => $managerId,
                 'metadata' => [
                     'address' => 'Mbour, Sénégal',
                     'notes' => 'Investisseur - Intéressé par terrains et propriétés à vendre',
@@ -98,7 +104,7 @@ class CustomerSeeder extends Seeder
         foreach ($specificCustomers as $customerData) {
             Customer::create($customerData);
         }
-        
+
         // Add addresses for some customers
         Customer::take(5)->get()->each(function ($customer) {
             $customer->addresses()->create([

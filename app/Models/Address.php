@@ -30,6 +30,12 @@ class Address extends AbstractModel
         'updated_at',
     ];
 
+    protected $casts = [
+        'latitude' => 'decimal:8',
+        'longitude' => 'decimal:8',
+        'metadata' => 'array',
+    ];
+
     public function addressable(): MorphTo
     {
         return $this->morphTo();

@@ -16,15 +16,13 @@ use Spatie\MediaLibrary\MediaCollections\Exceptions\FileIsTooBig;
 
 class PropertyController extends Controller
 {
-    protected PropertyService $propertyService;
-
-    public function __construct(PropertyService $propertyService)
+    public function __construct(private PropertyService $propertyService)
     {
         $this->propertyService = $propertyService;
-//        $this->middleware('permission:properties.view')->only(['index', 'show']);
-//        $this->middleware('permission:properties.create')->only(['create', 'store']);
-//        $this->middleware('permission:properties.update')->only(['edit', 'update']);
-//        $this->middleware('permission:properties.delete')->only(['destroy']);
+        $this->middleware('permission:properties.view')->only(['index', 'show']);
+        $this->middleware('permission:properties.create')->only(['create', 'store']);
+        $this->middleware('permission:properties.update')->only(['edit', 'update']);
+        $this->middleware('permission:properties.delete')->only(['destroy']);
     }
 
     /**
@@ -122,7 +120,8 @@ class PropertyController extends Controller
         }
 
         if ($request->property_type && $request->property_type !== 'all') {
-            $query->where('type', $request->property_type);
+            $types = explode(',', $request->property_type);
+            $query->whereIn('type', $types);
         }
 
         if ($request->contract_type === 'sale') {
@@ -133,6 +132,20 @@ class PropertyController extends Controller
 
         if ($request->location) {
             $query->where('city', 'like', '%' . $request->location . '%');
+        }
+
+        if ($request->min_price) {
+            $query->where('price', '>=', $request->min_price);
+        }
+        if ($request->max_price) {
+            $query->where('price', '<=', $request->max_price);
+        }
+
+        if ($request->min_area) {
+            $query->where('area', '>=', $request->min_area);
+        }
+        if ($request->max_area) {
+            $query->where('area', '<=', $request->max_area);
         }
 
         return response()->json($query->paginatedThroughRequest());

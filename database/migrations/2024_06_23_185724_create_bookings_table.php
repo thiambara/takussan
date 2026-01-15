@@ -22,6 +22,8 @@ return new class extends Migration {
 
             // Dates importantes
             $table->timestamp('booking_date')->useCurrent();
+            $table->timestamp('start_date')->nullable();
+            $table->timestamp('end_date')->nullable();
             $table->timestamp('expiration_date')->nullable();
             $table->timestamp('confirmation_date')->nullable();
             $table->timestamp('rejection_date')->nullable();
@@ -30,6 +32,7 @@ return new class extends Migration {
 
             // Informations financières
             $table->decimal('price_at_booking', 14)->nullable();
+            $table->decimal('total_amount', 14, 2)->nullable();
             $table->decimal('deposit_amount', 14)->nullable();
             $table->boolean('deposit_paid')->default(false);
             $table->timestamp('deposit_date')->nullable();
@@ -44,6 +47,13 @@ return new class extends Migration {
             // Timestamps et soft delete
             $table->timestamps();
             $table->softDeletes();
+
+
+            // Pour qu'un user retrouve vite ses réservations par statut
+            $table->index(['user_id', 'status'], 'bookings_user_status_idx');
+
+            // Pour le calendrier des disponibilités
+            $table->index(['property_id', 'booking_date'], 'bookings_property_date_idx');
         });
     }
 

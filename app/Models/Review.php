@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -33,6 +34,18 @@ class Review extends AbstractModel
         'approved_at' => 'datetime',
         'reported_count' => 'integer',
     ];
+
+    // SCOPES
+
+    public function scopeApproved(Builder $query): Builder
+    {
+        return $query->where('is_approved', true);
+    }
+
+    public function scopePending(Builder $query): Builder
+    {
+        return $query->where('is_approved', false);
+    }
 
     // RELATIONSHIPS
 

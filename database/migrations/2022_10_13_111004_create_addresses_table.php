@@ -23,10 +23,13 @@ return new class extends Migration {
             $table->string('postal_code')->nullable();
             $table->string('street')->nullable();
             $table->string('building')->nullable();
-            $table->string('latitude')->nullable();
-            $table->string('longitude')->nullable();
+            $table->decimal('latitude', 10, 8)->nullable();
+            $table->decimal('longitude', 11, 8)->nullable();
             $table->json('metadata')->nullable()->default('[]');
             $table->timestamps();
+
+            // Ajout d'un index spatial composite (émulé avec index simple pour le moment)
+            $table->index(['latitude', 'longitude'], 'addresses_geo_idx');
         });
     }
 

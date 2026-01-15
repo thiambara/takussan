@@ -13,11 +13,13 @@ use Illuminate\Http\Request;
 
 class PermissionController extends Controller
 {
-    protected PermissionService $permissionService;
-
-    public function __construct(PermissionService $permissionService)
+    public function __construct(private PermissionService $permissionService)
     {
         $this->permissionService = $permissionService;
+        $this->middleware('permission:permissions.view')->only(['index', 'show']);
+        $this->middleware('permission:permissions.create')->only(['store']);
+        $this->middleware('permission:permissions.edit')->only(['update']);
+        $this->middleware('permission:permissions.delete')->only(['destroy']);
     }
 
     /**

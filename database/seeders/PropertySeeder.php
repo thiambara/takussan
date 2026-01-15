@@ -13,122 +13,55 @@ class PropertySeeder extends Seeder
      */
     public function run(): void
     {
-        // Get users with admin or manager roles to assign properties to
-        $adminAndManagerUsers = User::whereHas('assigned_roles', function ($query) {
-            $query->whereIn('code', ['admin', 'manager']);
-        })->get();
+        // Get users with admin or manager roles (Vendors)
+        $vendors = User::whereHas('assigned_roles', function ($query) {
+            $query->whereIn('code', ['admin', 'manager', 'vendor']);
+        })->with('agency')->get();
 
-        if ($adminAndManagerUsers->isEmpty()) {
-            // Fallback in case no admin/manager users exist
-            $adminAndManagerUsers = User::take(2)->get();
+        if ($vendors->isEmpty()) {
+            return;
         }
 
-        // Create a variety of property types for each admin/manager
-        foreach ($adminAndManagerUsers as $user) {
+        // Create a variety of property types for each vendor
+        foreach ($vendors as $user) {
+            // Determine agency context
+            $agencyId = $user->agency_id;
+
             // Create some luxury apartments
             Property::factory()
-                ->count(2)
+                ->count(rand(1, 3))
                 ->for($user)
                 ->create([
                     'type' => 'apartment',
-                    'title' => fake()->randomElement(['Luxury Apartment', 'Modern Apartment', 'Penthouse Suite']),
-                    'price' => fake()->numberBetween(200000, 500000),
-                    'area' => fake()->numberBetween(80, 150),
+                    'agency_id' => $agencyId,
+                    'title' => fake()->randomElement(['Appartement de Luxe', 'Résidence Moderne', 'Penthouse Vue Mer']),
+                    'price' => fake()->numberBetween(25000000, 150000000), // Prices in CFA roughly
+                    'area' => fake()->numberBetween(80, 250),
                     'status' => 'available',
                     'contract_type' => 'sale',
-                    'servicing' => ['water', 'electricity', 'internet', 'security'],
+                    'servicing' => ['water', 'electricity', 'internet', 'security', 'elevator'],
                 ])
                 ->each(function ($property) {
-                    // Add an address for each property
-                    $property->address()->create([
-                        'street' => fake()->streetAddress(),
-                        'city' => fake()->randomElement(['Dakar', 'Thiès', 'Saint-Louis']),
-                        'state' => fake()->randomElement(['Dakar', 'Thiès', 'Saint-Louis']),
-                        'country' => 'Senegal',
-                        'address' => fake()->address(),
-                        'postal_code' => fake()->postcode(),
-                        'latitude' => fake()->latitude(),
-                        'longitude' => fake()->longitude(),
-                        'metadata' => json_encode(['is_primary' => true]),
-                    ]);
+                    // Add an address using factory
+                    $property->address()->save(\App\Models\Address::factory()->make());
                 });
 
-            // Create some houses for rent
+            // Create some houses/villas for rent
             Property::factory()
-                ->count(2)
-                ->for($user)
-                ->create([
-                    'type' => 'house',
-                    'title' => fake()->randomElement(['Family House', 'Traditional Home', 'Modern House']),
-                    'price' => fake()->numberBetween(30000, 80000),
-                    'area' => fake()->numberBetween(100, 250),
-                    'status' => 'available',
-                    'contract_type' => 'rent',
-                    'servicing' => ['water', 'electricity'],
-                ])
-                ->each(function ($property) {
-                    // Add an address for each property
-                    $property->address()->create([
-                        'street' => fake()->streetAddress(),
-                        'city' => fake()->randomElement(['Dakar', 'Mbour', 'Saly']),
-                        'state' => fake()->randomElement(['Dakar', 'Thiès', 'Saint-Louis']),
-                        'country' => 'Senegal',
-                        'address' => fake()->address(),
-                        'latitude' => fake()->latitude(),
-                        'longitude' => fake()->longitude(),
-                        'metadata' => json_encode(['is_primary' => true]),
-                    ]);
-                });
-
-            // Create some villas
-            Property::factory()
-                ->count(1)
+                ->count(rand(1, 3))
                 ->for($user)
                 ->create([
                     'type' => 'villa',
-                    'title' => fake()->randomElement(['Luxury Villa', 'Beach Villa', 'Executive Villa']),
-                    'price' => fake()->numberBetween(500000, 1500000),
-                    'area' => fake()->numberBetween(200, 500),
+                    'agency_id' => $agencyId,
+                    'title' => fake()->randomElement(['Villa Familiale', 'Maison de Ville', 'Villa avec Piscine']),
+                    'price' => fake()->numberBetween(300000, 1500000), // Rent in CFA
+                    'area' => fake()->numberBetween(150, 400),
                     'status' => 'available',
-                    'contract_type' => fake()->randomElement(['sale', 'rent']),
-                    'servicing' => ['water', 'electricity', 'internet', 'security', 'cleaning'],
+                    'contract_type' => 'rent',
+                    'servicing' => ['water', 'electricity', 'pool', 'garden', 'security'],
                 ])
                 ->each(function ($property) {
-                    // Add an address for each property
-                    $property->address()->create([
-                        'street' => fake()->streetAddress(),
-                        'city' => fake()->randomElement(['Saly', 'Mbour', 'Cap Skirring']),
-                        'state' => fake()->randomElement(['Thiès', 'Ziguinchor']),
-                        'country' => 'Senegal',
-                        'address' => fake()->address(),
-                        'latitude' => fake()->latitude(),
-                        'longitude' => fake()->longitude(),
-                        'metadata' => json_encode(['is_primary' => true]),
-                    ]);
-                });
-        }
-
-        // Create some properties with different statuses
-        $statusOptions = ['sold', 'rented', 'under_maintenance', 'unavailable'];
-        foreach ($statusOptions as $status) {
-            Property::factory()
-                ->count(1)
-                ->for($adminAndManagerUsers->random())
-                ->create([
-                    'status' => $status,
-                ])
-                ->each(function ($property) {
-                    // Add an address for each property
-                    $property->address()->create([
-                        'street' => fake()->streetAddress(),
-                        'city' => fake()->city(),
-                        'state' => fake()->state(),
-                        'country' => 'Senegal',
-                        'address' => fake()->address(),
-                        'latitude' => fake()->latitude(),
-                        'longitude' => fake()->longitude(),
-                        'metadata' => json_encode(['is_primary' => true]),
-                    ]);
+                    $property->address()->save(\App\Models\Address::factory()->make());
                 });
         }
     }

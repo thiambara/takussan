@@ -21,9 +21,9 @@ class BookingFactory extends Factory
     {
         $startDate = fake()->dateTimeBetween('-3 months', '+3 months');
         $endDate = fake()->dateTimeBetween($startDate, (clone $startDate)->modify('+30 days'));
-        
+
         $statusOptions = ['pending', 'confirmed', 'completed', 'cancelled'];
-        
+
         return [
             'customer_id' => Customer::factory(),
             'property_id' => Property::factory(),
@@ -31,12 +31,12 @@ class BookingFactory extends Factory
             'start_date' => $startDate,
             'end_date' => $endDate,
             'status' => fake()->randomElement($statusOptions),
-            'price' => fake()->numberBetween(10000, 500000),
+            'price_at_booking' => fake()->numberBetween(10000, 500000),
             'notes' => fake()->optional(0.7)->paragraph(),
             'metadata' => []
         ];
     }
-    
+
     /**
      * Indicate that the booking is pending.
      */
@@ -48,7 +48,7 @@ class BookingFactory extends Factory
             ];
         });
     }
-    
+
     /**
      * Indicate that the booking is confirmed.
      */
@@ -60,7 +60,7 @@ class BookingFactory extends Factory
             ];
         });
     }
-    
+
     /**
      * Indicate that the booking is completed.
      */
@@ -72,7 +72,7 @@ class BookingFactory extends Factory
             ];
         });
     }
-    
+
     /**
      * Indicate that the booking is cancelled.
      */
