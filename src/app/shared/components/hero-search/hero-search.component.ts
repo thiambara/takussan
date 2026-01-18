@@ -30,15 +30,14 @@ export interface PropertyType {
     CommonModule,
     FormsModule,
   ],
-  templateUrl: './hero-search.component.html',
-  styleUrls: ['./hero-search.component.scss']
+  templateUrl: './hero-search.component.html'
 })
 export class HeroSearchComponent implements OnInit, OnDestroy {
   @Input() placeholder = "Mots-clés, quartier, ville...";
   @Input() addressPlaceholder = "Où cherchez-vous ?";
   @Input() initialMode: 'buy' | 'rent' = 'buy';
 
-  @Output() onSearch = new EventEmitter<SearchFilters>();
+  @Output() search = new EventEmitter<SearchFilters>();
   @Output() onAddressChange = new EventEmitter<string>();
   @Output() onPropertyTypeChange = new EventEmitter<string>();
 
@@ -91,8 +90,10 @@ export class HeroSearchComponent implements OnInit, OnDestroy {
     this.addressSearchSubject.pipe(
       debounceTime(300),
       distinctUntilChanged()
-    ).subscribe(searchTerm => {
-      this.searchAddresses(searchTerm);
+    ).subscribe({
+      next: (searchTerm) => {
+        this.searchAddresses(searchTerm);
+      }
     });
   }
 
@@ -178,7 +179,7 @@ export class HeroSearchComponent implements OnInit, OnDestroy {
       query: this.searchQuery.trim()
     };
 
-    this.onSearch.emit(filters);
+    this.search.emit(filters);
   }
 
   clearAddress() {
@@ -231,7 +232,6 @@ export class HeroSearchComponent implements OnInit, OnDestroy {
       const response = await this.mockAddressSearch(term);
       this.addressSuggestions = response;
     } catch (error) {
-      console.error('Error searching addresses:', error);
       this.addressSuggestions = [];
     } finally {
       this.isLoadingAddresses = false;

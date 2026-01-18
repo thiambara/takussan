@@ -1,4 +1,4 @@
-<div class="p-4 customer-details-container">
+<div class="p-4">
     <!-- Header with actions -->
     <div class="flex justify-between items-center mb-6">
         <div class="flex items-center">
@@ -13,12 +13,12 @@
             }
         </div>
         <div class="flex gap-2 items-center">
-            <p-button label="Back" routerLink="/dashboard/customers"
+            <p-button routerLink="/dashboard/customers"
                       styleClass="p-button-outlined gap-2">
                 <lucide-icon [img]="ArrowLeft" class="w-4 h-4"></lucide-icon>
                 <span>Back</span>
             </p-button>
-            <p-button (onClick)="navigateToEdit()" label="Edit" styleClass="gap-2">
+            <p-button (onClick)="navigateToEdit()" styleClass="gap-2">
                 <lucide-icon [img]="Pencil" class="w-4 h-4"></lucide-icon>
                 <span>Edit</span>
             </p-button>
@@ -40,7 +40,7 @@
             <!-- Overview Tab -->
             <p-tabpanel [value]="0">
                 <div class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2">
-                    <p-card styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+                    <p-card styleClass="h-full shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
                         <ng-template pTemplate="header">
                             <div class="p-4 bg-primary-50">
                                 <h2 class="text-xl font-semibold text-primary">Basic Information</h2>
@@ -70,7 +70,7 @@
                         </div>
                     </p-card>
 
-                    <p-card styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+                    <p-card styleClass="h-full shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
                         <ng-template pTemplate="header">
                             <div class="p-4 bg-primary-50">
                                 <h2 class="text-xl font-semibold text-primary">Additional Information</h2>
@@ -106,7 +106,7 @@
                     <!-- Metadata card if exists -->
                     @if (customer?.metadata) {
                         <p-card
-                                styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+                                styleClass="h-full shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
                             <ng-template pTemplate="header">
                                 <div class="p-4 bg-primary-50">
                                     <h2 class="text-xl font-semibold text-primary">Custom Information</h2>
@@ -114,11 +114,7 @@
                             </ng-template>
 
                             <!--                        <div class="grid grid-cols-1 gap-4">-->
-                            <!--                            <div *ngFor="let item of customer?.metadata | keyvalue" class="flex flex-col">-->
-                            <!--                                <h6 class="mb-1 text-gray-500">{{ item.key | titlecase }}</h6>-->
-                            <!--                                <p class="text-lg text-surface-900">{{ item.value || 'N/A' }}</p>-->
-                            <!--                            </div>-->
-                            <!--                        </div>-->
+                            <!--                            @for (item of customer?.metadata | keyvalue; track item.key) {-->
                         </p-card>
                     }
                 </div>
@@ -130,7 +126,7 @@
                     <div class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2 lg:grid-cols-3">
                         @for (address of customer?.addresses; track address) {
                             <p-card
-                                    styleClass="h-full shadow-md hover:shadow-lg transition-shadow duration-300">
+                                    styleClass="h-full shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
                                 <ng-template pTemplate="header">
                                     <div class="p-4 bg-primary-50">
                                         <h2 class="text-lg font-semibold text-primary">{{ address.label || 'Address' }}</h2>

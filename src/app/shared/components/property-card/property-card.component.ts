@@ -17,8 +17,7 @@ import {AreaFormatPipe} from "../../pipes/area-format.pipe";
     PriceFormatPipe,
     AreaFormatPipe
   ],
-  templateUrl: './property-card.component.html',
-  styleUrls: ['./property-card.component.scss']
+  templateUrl: './property-card.component.html'
 })
 export class PropertyCardComponent {
   @Input() property!: Property;

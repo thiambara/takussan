@@ -3,15 +3,18 @@ import {CommonModule} from "@angular/common";
 import {FormsModule} from "@angular/forms";
 import {ActivatedRoute, Router, RouterLink} from "@angular/router";
 import {AuthService} from "../../../core/services/http/auth/auth.service";
+import {Eye, EyeOff, LayoutGrid, LucideAngularModule} from "lucide-angular";
+
+import {switchMap} from "rxjs";
 
 @Component({
-
   selector: 'app-login',
   templateUrl: './login.component.html',
   imports: [
     CommonModule,
     FormsModule,
     RouterLink,
+    LucideAngularModule
   ],
   standalone: true
 })
@@ -23,6 +26,10 @@ export class LoginComponent implements OnInit {
   password!: string;
   rememberMe: boolean = false;
   showPassword: boolean = false;
+
+  readonly Eye = Eye;
+  readonly EyeOff = EyeOff;
+  readonly LayoutGrid = LayoutGrid;
 
   constructor(
     private authService: AuthService,
@@ -52,12 +59,16 @@ export class LoginComponent implements OnInit {
   login() {
     const credentials = this.validatedData();
     if (credentials) {
-      this.authService.login(credentials).subscribe(token => {
-        this.authService.seAuthToken(token, this.rememberMe);
-        this.authService.fetchAuthenticatedUser().subscribe(user => {
+      this.authService.login(credentials).pipe(
+        switchMap(token => {
+          this.authService.seAuthToken(token, this.rememberMe);
+          return this.authService.fetchAuthenticatedUser();
+        })
+      ).subscribe({
+        next: (user) => {
           this.authService.setAuthenticatedUser(user, this.rememberMe);
           this.onLoginSuccess();
-        });
+        }
       });
     }
   }

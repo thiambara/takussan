@@ -94,33 +94,37 @@ export class SearchResultsComponent implements OnInit {
 
   ngOnInit() {
     // Get query params
-    this.route.queryParams.subscribe(params => {
-      this.filters = {
-        searchQuery: params['q'] || '',
-        priceType: params['type'] || 'all',
-        propertyType: params['propertyType'] ? params['propertyType'].split(',') : [],
-        minPrice: params['minPrice'] ? +params['minPrice'] : undefined,
-        maxPrice: params['maxPrice'] ? +params['maxPrice'] : undefined,
-        minBedrooms: params['minBedrooms'] ? +params['minBedrooms'] : undefined,
-        maxBedrooms: params['maxBedrooms'] ? +params['maxBedrooms'] : undefined,
-        minBathrooms: params['minBathrooms'] ? +params['minBathrooms'] : undefined,
-        maxBathrooms: params['maxBathrooms'] ? +params['maxBathrooms'] : undefined,
-        minArea: params['minArea'] ? +params['minArea'] : undefined,
-        maxArea: params['maxArea'] ? +params['maxArea'] : undefined,
-        amenities: params['amenities'] ? params['amenities'].split(',') : [],
-        sortBy: params['sortBy'] || 'date-newest'
-      };
+    this.route.queryParams.subscribe({
+      next: (params) => {
+        this.filters = {
+          searchQuery: params['q'] || '',
+          priceType: params['type'] || 'all',
+          propertyType: params['propertyType'] ? params['propertyType'].split(',') : [],
+          minPrice: params['minPrice'] ? +params['minPrice'] : undefined,
+          maxPrice: params['maxPrice'] ? +params['maxPrice'] : undefined,
+          minBedrooms: params['minBedrooms'] ? +params['minBedrooms'] : undefined,
+          maxBedrooms: params['maxBedrooms'] ? +params['maxBedrooms'] : undefined,
+          minBathrooms: params['minBathrooms'] ? +params['minBathrooms'] : undefined,
+          maxBathrooms: params['maxBathrooms'] ? +params['maxBathrooms'] : undefined,
+          minArea: params['minArea'] ? +params['minArea'] : undefined,
+          maxArea: params['maxArea'] ? +params['maxArea'] : undefined,
+          amenities: params['amenities'] ? params['amenities'].split(',') : [],
+          sortBy: params['sortBy'] || 'date-newest'
+        };
 
-      this.loadProperties();
+        this.loadProperties();
+      }
     });
 
     // Setup search debounce
     this.searchSubject.pipe(
       debounceTime(300),
       distinctUntilChanged()
-    ).subscribe(searchQuery => {
-      this.filters.searchQuery = searchQuery;
-      this.updateQueryParams();
+    ).subscribe({
+      next: (searchQuery) => {
+        this.filters.searchQuery = searchQuery;
+        this.updateQueryParams();
+      }
     });
   }
 
@@ -161,7 +165,6 @@ export class SearchResultsComponent implements OnInit {
           this.loading = false;
         },
         error: (error) => {
-          console.error('Error loading properties:', error);
           this.loading = false;
         }
       });
@@ -219,18 +222,15 @@ export class SearchResultsComponent implements OnInit {
 
   onFavoriteToggle(property: Property) {
     // Implement favorite toggle logic here
-    console.log('Toggle favorite for property:', property.id);
   }
 
   onScheduleVisit(property: Property) {
     // Implement schedule visit logic here
-    console.log('Schedule visit for property:', property.id);
     this.router.navigate(['/client/properties', property.id, 'visit']).then();
   }
 
   onChat(property: Property) {
     // Implement chat logic here
-    console.log('Open chat for property:', property.id);
     this.router.navigate(['/client/properties', property.id, 'contact']).then();
   }
 

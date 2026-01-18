@@ -1,138 +1,147 @@
 <p-dialog (onHide)="closeDialog()" [(visible)]="showDialog" [modal]="true" [style]="{width: '600px'}"
           header="Booking Details" styleClass="p-fluid">
-  <div *ngIf="booking" class="booking-details-container">
-    <!-- Header / Status -->
-    <div class="flex justify-between items-center mb-4">
-      <div class="flex items-center gap-2">
-        <lucide-icon [img]="FileText" class="w-5 h-5 text-gray-500"></lucide-icon>
-        <span class="text-lg font-bold">#{{ booking.reference_number }}</span>
+  @if (booking) {
+    <div class="booking-details-container">
+      <!-- Header / Status -->
+      <div class="flex justify-between items-center mb-4">
+        <div class="flex items-center gap-2">
+          <lucide-icon [img]="FileText" class="w-5 h-5 text-gray-500"></lucide-icon>
+          <span class="text-lg font-bold">#{{ booking.reference_number }}</span>
+        </div>
+        <p-tag [severity]="getStatusSeverity(booking.status)" [value]="booking.status?.toUpperCase()"></p-tag>
       </div>
-      <p-tag [severity]="getStatusSeverity(booking.status)" [value]="booking.status?.toUpperCase()"></p-tag>
-    </div>
 
-    <p-divider></p-divider>
+      <p-divider></p-divider>
 
-    <!-- Customer Info -->
-    <div class="mb-4">
-      <h3 class="text-base font-semibold mb-2 flex items-center gap-2">
-        <lucide-icon [img]="User" class="w-4 h-4"></lucide-icon>
-        Customer Information
-      </h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pl-6">
-        <div class="flex items-center gap-2 text-sm">
-          <lucide-icon [img]="User" class="w-3 h-3 text-gray-400"></lucide-icon>
-          <span class="font-medium">{{ booking.customer?.first_name }} {{ booking.customer?.last_name }}</span>
-        </div>
-        <div class="flex items-center gap-2 text-sm">
-          <lucide-icon [img]="Mail" class="w-3 h-3 text-gray-400"></lucide-icon>
-          <span>{{ booking.customer?.email }}</span>
-        </div>
-        <div *ngIf="booking.customer?.phone" class="flex items-center gap-2 text-sm">
-          <lucide-icon [img]="Phone" class="w-3 h-3 text-gray-400"></lucide-icon>
-          <span>{{ booking.customer?.phone }}</span>
-        </div>
-      </div>
-    </div>
-
-    <p-divider></p-divider>
-
-    <!-- Property Info -->
-    <div class="mb-4">
-      <h3 class="text-base font-semibold mb-2 flex items-center gap-2">
-        <lucide-icon [img]="MapPin" class="w-4 h-4"></lucide-icon>
-        Property Information
-      </h3>
-      <div class="pl-6">
-        <p class="text-sm font-medium mb-1">{{ booking.property?.title }}</p>
-        <p class="text-xs text-gray-500 flex items-center gap-1">
-          <lucide-icon [img]="MapPin" class="w-3 h-3"></lucide-icon>
-          {{ booking.property?.address?.city }}, {{ booking.property?.address?.country }}
-        </p>
-      </div>
-    </div>
-
-    <p-divider></p-divider>
-
-    <!-- Booking Details -->
-    <div class="mb-4">
-      <h3 class="text-base font-semibold mb-2 flex items-center gap-2">
-        <lucide-icon [img]="Calendar" class="w-4 h-4"></lucide-icon>
-        Dates & Duration
-      </h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pl-6">
-        <div class="flex flex-col">
-          <span class="text-xs text-gray-500">Start Date</span>
-          <span class="text-sm font-medium">{{ formatDate(booking.start_date) }}</span>
-        </div>
-        <div class="flex flex-col">
-          <span class="text-xs text-gray-500">End Date</span>
-          <span class="text-sm font-medium">{{ formatDate(booking.end_date) }}</span>
-        </div>
-        <div class="flex flex-col">
-          <span class="text-xs text-gray-500">Duration</span>
-          <span class="text-sm font-medium">{{ getDuration() }} days</span>
-        </div>
-        <div class="flex flex-col">
-          <span class="text-xs text-gray-500">Created At</span>
-          <span class="text-sm font-medium">{{ formatDate(booking.created_at) }}</span>
+      <!-- Customer Info -->
+      <div class="mb-4">
+        <h3 class="text-base font-semibold mb-2 flex items-center gap-2">
+          <lucide-icon [img]="User" class="w-4 h-4"></lucide-icon>
+          Customer Information
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pl-6">
+          <div class="flex items-center gap-2 text-sm">
+            <lucide-icon [img]="User" class="w-3 h-3 text-gray-400"></lucide-icon>
+            <span class="font-medium">{{ booking.customer?.first_name }} {{ booking.customer?.last_name }}</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm">
+            <lucide-icon [img]="Mail" class="w-3 h-3 text-gray-400"></lucide-icon>
+            <span>{{ booking.customer?.email }}</span>
+          </div>
+          @if (booking.customer?.phone) {
+            <div class="flex items-center gap-2 text-sm">
+              <lucide-icon [img]="Phone" class="w-3 h-3 text-gray-400"></lucide-icon>
+              <span>{{ booking.customer?.phone }}</span>
+            </div>
+          }
         </div>
       </div>
-    </div>
 
-    <p-divider></p-divider>
+      <p-divider></p-divider>
 
-    <!-- Financial Info -->
-    <div class="mb-4">
-      <h3 class="text-base font-semibold mb-2 flex items-center gap-2">
-        <lucide-icon [img]="DollarSign" class="w-4 h-4"></lucide-icon>
-        Financial Details
-      </h3>
-      <div class="pl-6 space-y-2">
-        <div class="flex justify-between items-center text-sm">
-          <span class="text-gray-600">Price per night/unit</span>
-          <span>{{ formatCurrency(booking.price_at_booking) }}</span>
-        </div>
-        <div class="flex justify-between items-center text-sm">
-          <span class="text-gray-600">Deposit ({{ booking.deposit_paid ? 'Paid' : 'Unpaid' }})</span>
-          <span [class.text-green-600]="booking.deposit_paid"
-                [class.text-red-500]="!booking.deposit_paid">{{ formatCurrency(booking.deposit_amount) }}</span>
-        </div>
-        <div class="flex justify-between items-center font-bold text-base border-t pt-2 mt-2">
-          <span>Total Amount</span>
-          <span class="text-primary">{{ formatCurrency(booking.total_amount) }}</span>
+      <!-- Property Info -->
+      <div class="mb-4">
+        <h3 class="text-base font-semibold mb-2 flex items-center gap-2">
+          <lucide-icon [img]="MapPin" class="w-4 h-4"></lucide-icon>
+          Property Information
+        </h3>
+        <div class="pl-6">
+          <p class="text-sm font-medium mb-1">{{ booking.property?.title }}</p>
+          <p class="text-xs text-gray-500 flex items-center gap-1">
+            <lucide-icon [img]="MapPin" class="w-3 h-3"></lucide-icon>
+            {{ booking.property?.address?.city }}, {{ booking.property?.address?.country }}
+          </p>
         </div>
       </div>
-    </div>
 
-    <!-- Notes -->
-    <div *ngIf="booking.notes" class="mb-4 bg-gray-50 p-3 rounded-md">
-      <h4 class="text-sm font-semibold mb-1">Notes</h4>
-      <p class="text-sm text-gray-600 italic">{{ booking.notes }}</p>
-    </div>
+      <p-divider></p-divider>
 
-  </div>
+      <!-- Booking Details -->
+      <div class="mb-4">
+        <h3 class="text-base font-semibold mb-2 flex items-center gap-2">
+          <lucide-icon [img]="Calendar" class="w-4 h-4"></lucide-icon>
+          Dates & Duration
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pl-6">
+          <div class="flex flex-col">
+            <span class="text-xs text-gray-500">Start Date</span>
+            <span class="text-sm font-medium">{{ formatDate(booking.start_date) }}</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-xs text-gray-500">End Date</span>
+            <span class="text-sm font-medium">{{ formatDate(booking.end_date) }}</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-xs text-gray-500">Duration</span>
+            <span class="text-sm font-medium">{{ getDuration() }} days</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-xs text-gray-500">Created At</span>
+            <span class="text-sm font-medium">{{ formatDate(booking.created_at) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <p-divider></p-divider>
+
+      <!-- Financial Info -->
+      <div class="mb-4">
+        <h3 class="text-base font-semibold mb-2 flex items-center gap-2">
+          <lucide-icon [img]="DollarSign" class="w-4 h-4"></lucide-icon>
+          Financial Details
+        </h3>
+        <div class="pl-6 space-y-2">
+          <div class="flex justify-between items-center text-sm">
+            <span class="text-gray-600">Price per night/unit</span>
+            <span>{{ formatCurrency(booking.price_at_booking) }}</span>
+          </div>
+          <div class="flex justify-between items-center text-sm">
+            <span class="text-gray-600">Deposit ({{ booking.deposit_paid ? 'Paid' : 'Unpaid' }})</span>
+            <span [class.text-green-600]="booking.deposit_paid"
+                  [class.text-red-500]="!booking.deposit_paid">{{ formatCurrency(booking.deposit_amount) }}</span>
+          </div>
+          <div class="flex justify-between items-center font-bold text-base border-t pt-2 mt-2">
+            <span>Total Amount</span>
+            <span class="text-primary">{{ formatCurrency(booking.total_amount) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      @if (booking.notes) {
+        <div class="mb-4 bg-gray-50 p-3 rounded-md">
+          <h4 class="text-sm font-semibold mb-1">Notes</h4>
+          <p class="text-sm text-gray-600 italic">{{ booking.notes }}</p>
+        </div>
+      }
+    </div>
+  }
 
   <ng-template pTemplate="footer">
     <div class="flex justify-between w-full">
-      <p-button (click)="closeDialog()" label="Close" styleClass="p-button-text p-button-secondary gap-2">
+      <p-button (click)="closeDialog()" styleClass="p-button-text p-button-secondary gap-2">
         <lucide-icon [img]="X" class="w-4 h-4"></lucide-icon>
         <span>Close</span>
       </p-button>
 
       <div class="flex gap-2">
-        <button (click)="cancelBooking()" *ngIf="booking.status === 'pending'"
-                class="p-button-danger p-button-outlined gap-2"
-                pButton>
-          <lucide-icon [img]="Ban" class="w-4 h-4"></lucide-icon>
-          <span>Cancel</span>
-        </button>
-        <button (click)="confirmBooking()" *ngIf="booking.status === 'pending'"
-                [loading]="loading"
-                class="p-button-success gap-2"
-                pButton>
-          <lucide-icon [img]="Check" class="w-4 h-4"></lucide-icon>
-          <span>Confirm</span>
-        </button>
+        @if (booking.status === 'pending') {
+          <button (click)="cancelBooking()"
+                  class="p-button-danger p-button-outlined gap-2"
+                  pButton>
+            <lucide-icon [img]="Ban" class="w-4 h-4"></lucide-icon>
+            <span>Cancel</span>
+          </button>
+        }
+        @if (booking.status === 'pending') {
+          <button (click)="confirmBooking()"
+                  [loading]="loading"
+                  class="p-button-success gap-2"
+                  pButton>
+            <lucide-icon [img]="Check" class="w-4 h-4"></lucide-icon>
+            <span>Confirm</span>
+          </button>
+        }
       </div>
     </div>
   </ng-template>

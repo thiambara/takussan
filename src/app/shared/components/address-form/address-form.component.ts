@@ -15,7 +15,6 @@ import {LucideAngularModule, Home, Briefcase, Truck, CreditCard, MapPin, X, Chec
 @Component({
   selector: 'app-address-form',
   templateUrl: './address-form.component.html',
-  styleUrls: ['./address-form.component.scss'],
   standalone: true,
   imports: [
     CommonModule,

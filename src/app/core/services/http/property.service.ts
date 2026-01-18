@@ -5,7 +5,7 @@ import {BaseHttpService} from "./base/base-http.service";
 import {Property} from "../../models/http/property.model";
 import {Media} from "../../models/http/media.model";
 import {BaseHttpIndexQueryParams} from "../../models/http/base/base-http-index-query-param.model";
-import { PaginationResult } from '../../models/http/base/pagination-result.model';
+import {PaginationResult} from '../../models/http/base/pagination-result.model';
 
 @Injectable({
   providedIn: 'root'
@@ -63,7 +63,11 @@ export class PropertyService extends BaseHttpService<Property> {
    * Hero search properties
    * @param params
    */
-  heroSearch(params: BaseHttpIndexQueryParams<Property>) {
-    return this.http.get<Property[] | PaginationResult<Property>>(`${this.endpointUrl}/hero-search?${objectToQueryString(params)}`);
+  heroSearch(params: BaseHttpIndexQueryParams<Property> = {}) {
+    return this.http.get<Property[] | PaginationResult<Property>>(`${this.endpointUrl}/public/hero-search?${objectToQueryString(params)}`);
+  }
+
+  publicShow(propertyId: any, params: BaseHttpIndexQueryParams<Property> = {}): Observable<Property> {
+    return this.http.get<Property>(`${this.endpointUrl}/public/${propertyId}?${objectToQueryString(params)}`);
   }
 }

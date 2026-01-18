@@ -57,9 +57,11 @@
                                         <app-badge [variant]="property.contract_type === 'sale' ? 'primary' : 'secondary'" size="md">
                                             {{ property.contract_type === 'sale' ? 'Vente' : 'Location' }}
                                         </app-badge>
-                                        <app-badge *ngIf="property.status" [variant]="property.status === 'available' ? 'success' : 'neutral'" size="md">
-                                            {{ property.status }}
-                                        </app-badge>
+                                        @if (property.status) {
+                                            <app-badge [variant]="property.status === 'available' ? 'success' : 'neutral'" size="md">
+                                                {{ property.status }}
+                                            </app-badge>
+                                        }
                                         <app-badge variant="neutral" size="md">
                                             {{ property.type }}
                                         </app-badge>

@@ -3,24 +3,15 @@ import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
 import {Router} from '@angular/router';
 import {Property} from "../../core/models/http/property.model";
-import {SelectButton} from "primeng/selectbutton";
-import {Select} from "primeng/select";
-import {ButtonModule} from "primeng/button";
-import {IconField} from "primeng/iconfield";
-import {InputText} from "primeng/inputtext";
 import {PropertyService} from "../../core/services/http/property.service";
-import {SelectItemGroup} from "primeng/api";
 import {PropertyCardComponent} from "../../shared/components/property-card/property-card.component";
+import {HeroSearchComponent, SearchFilters} from "../../shared/components/hero-search/hero-search.component";
 import {
   Briefcase,
   Building2,
-  Coins,
   House,
-  Key,
   LucideAngularModule,
   Map,
-  MapPin,
-  Search,
   Store,
   TreePalm
 } from 'lucide-angular';
@@ -31,33 +22,23 @@ import {
   imports: [
     CommonModule,
     FormsModule,
-    SelectButton,
-    Select,
-    ButtonModule,
-    IconField,
-    InputText,
     PropertyCardComponent,
-    LucideAngularModule
+    LucideAngularModule,
+    HeroSearchComponent
   ],
-  templateUrl: './homepage.component.html',
-  styleUrls: ['./homepage.component.scss']
+  templateUrl: './homepage.component.html'
 })
 export class HomepageComponent implements OnInit {
   propertyService = inject(PropertyService);
+  private router = inject(Router);
+
   // Search state
   searchMode: 'rent' | 'sale' = 'sale';
-  selectedLocation = '';
-  searchQuery = '';
-  selectedPriceRange = '';
   loading = false;
-  suggestedLocations: SelectItemGroup[] = [];
-  // Search mode options for SelectButton
-  searchModeOptions = [
-    {label: 'Acheter', value: 'sale', icon: House},
-    {label: 'Louer', value: 'rent', icon: Key}
-  ];
+
   // Properties
   properties: Property[] = [];
+
   // Property categories
   propertyCategories = [
     {id: 'apartment', label: 'Appartements', icon: Building2, active: false},
@@ -68,53 +49,8 @@ export class HomepageComponent implements OnInit {
     {id: 'store', label: 'Commerces', icon: Store, active: false}
   ];
   activeCategory = 'all';
-  // Icons for template
-  readonly MapPin = MapPin;
-  readonly Search = Search;
-  readonly Coins = Coins;
-  private router = inject(Router);
-
-  // Price ranges based on search mode for PrimeNG dropdown
-  get priceRangeOptions() {
-    if (this.searchMode === 'rent') {
-      return [
-        {label: 'Tous les budgets', value: ''},
-        {label: 'Moins de 100K FCFA', value: '0-100000'},
-        {label: '100K - 200K FCFA', value: '100000-200000'},
-        {label: '200K - 500K FCFA', value: '200000-500000'},
-        {label: '500K - 1M FCFA', value: '500000-1000000'},
-        {label: 'Plus de 1M FCFA', value: '1000000+'}
-      ];
-    } else {
-      return [
-        {label: 'Tous les budgets', value: ''},
-        {label: 'Moins de 10M FCFA', value: '0-10000000'},
-        {label: '10M - 25M FCFA', value: '10000000-25000000'},
-        {label: '25M - 50M FCFA', value: '25000000-50000000'},
-        {label: '50M - 100M FCFA', value: '50000000-100000000'},
-        {label: '100M - 200M FCFA', value: '100000000-200000000'},
-        {label: 'Plus de 200M FCFA', value: '200000000+'}
-      ];
-    }
-  }
 
   ngOnInit() {
-    this.selectedLocation = '';
-    this.selectedPriceRange = '';
-    this.search();
-  }
-
-  search() {
-    console.log('Searching with PrimeNG:', {
-      mode: this.searchMode,
-      region: this.selectedLocation,
-      priceRange: this.selectedPriceRange,
-      query: this.searchQuery
-    });
-
-    // Implement actual search logic here
-    // You can navigate to a search results page or filter current properties
-    // Filter properties based on search criteria
     this.filterProperties();
   }
 
@@ -123,19 +59,34 @@ export class HomepageComponent implements OnInit {
     this.propertyCategories.forEach(cat => {
       cat.active = cat.id === categoryId;
     });
-    // Filter properties based on category
+    this.filterProperties();
   }
 
+  handleSearch(filters: SearchFilters) {
+    const queryParams: any = {};
 
-  searchLocation(event: any) {
-    console.log(event)
+    if (filters.query) {
+      queryParams.q = filters.query;
+    }
 
+    if (filters.mode) {
+      queryParams.type = filters.mode === 'buy' ? 'sale' : 'rent';
+    }
+
+    if (filters.address) {
+      queryParams.location = filters.address;
+    }
+
+    if (filters.propertyType) {
+      queryParams.propertyType = filters.propertyType;
+    }
+
+    this.router.navigate(['/client/search'], {queryParams}).then();
   }
 
   filterProperties() {
     const params: any = {
       properties: {with: ['media']},
-      search_query: this.searchQuery,
       page: 1,
       per_page: 12,
     };
@@ -151,40 +102,8 @@ export class HomepageComponent implements OnInit {
     this.propertyService.heroSearch(params).subscribe({
       next: (response: any) => {
         this.properties = response.data;
-        console.log(this.properties)
       }
     });
-  }
-
-  navigateToSearch() {
-    // Navigate to search page with query parameters
-    const queryParams: any = {};
-
-    if (this.searchQuery) {
-      queryParams.q = this.searchQuery;
-    }
-
-    if (this.searchMode === 'rent') {
-      queryParams.type = 'rent';
-    } else if (this.searchMode === 'sale') {
-      queryParams.type = 'sale';
-    }
-
-    if (this.selectedLocation) {
-      queryParams.location = this.selectedLocation;
-    }
-
-    if (this.selectedPriceRange) {
-      const [min, max] = this.selectedPriceRange.split('-');
-      if (min !== undefined) queryParams.minPrice = min;
-      if (max !== undefined && max !== '+') queryParams.maxPrice = max.replace('+', '');
-    }
-
-    if (this.activeCategory && this.activeCategory !== 'all') {
-      queryParams.propertyType = this.activeCategory;
-    }
-
-    this.router.navigate(['/client/search'], {queryParams}).then();
   }
 
 }

@@ -20,7 +20,6 @@ import {LucideAngularModule, ArrowLeft, Pencil, Eye, X} from 'lucide-angular';
 @Component({
   selector: 'app-customer-details',
   templateUrl: './customer-details.component.html',
-  styleUrls: ['./customer-details.component.scss'],
   imports: [
     CommonModule,
     Button,
@@ -64,10 +63,12 @@ export class CustomerDetailsComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.route.params.subscribe(params => {
-      if (params['id']) {
-        this.customerId = +params['id'];
-        this.getCustomer();
+    this.route.params.subscribe({
+      next: (params) => {
+        if (params['id']) {
+          this.customerId = +params['id'];
+          this.getCustomer();
+        }
       }
     });
   }

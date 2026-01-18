@@ -65,9 +65,11 @@
                         <div class="font-medium text-gray-900 dark:text-white">
                             {{ formatCurrency(booking.total_amount) }}
                         </div>
-                        <div class="text-xs text-gray-500" *ngIf="booking.payment_status">
-                            {{ booking.payment_status }}
-                        </div>
+                        @if (booking.payment_status) {
+                            <div class="text-xs text-gray-500">
+                                {{ booking.payment_status }}
+                            </div>
+                        }
                     </td>
                     <td>
                         <app-badge [variant]="getStatusSeverity(booking.status)" [label]="booking.status || 'unknown'" size="sm" [rounded]="true"></app-badge>
@@ -79,17 +81,21 @@
                                 <lucide-icon [img]="Eye" class="w-4 h-4"></lucide-icon>
                             </button>
 
-                            <button *ngIf="booking.status === 'pending'" pButton
-                                    class="p-button-text p-button-sm p-button-rounded p-button-success"
-                                    (click)="confirmBooking(booking)" pTooltip="Confirmer">
-                                <lucide-icon [img]="Check" class="w-4 h-4"></lucide-icon>
-                            </button>
+                            @if (booking.status === 'pending') {
+                                <button pButton
+                                        class="p-button-text p-button-sm p-button-rounded p-button-success"
+                                        (click)="confirmBooking(booking)" pTooltip="Confirmer">
+                                    <lucide-icon [img]="Check" class="w-4 h-4"></lucide-icon>
+                                </button>
+                            }
 
-                            <button *ngIf="booking.status !== 'cancelled' && booking.status !== 'completed'" pButton
-                                    class="p-button-text p-button-sm p-button-rounded p-button-danger"
-                                    (click)="cancelBooking(booking)" pTooltip="Annuler">
-                                <lucide-icon [img]="X" class="w-4 h-4"></lucide-icon>
-                            </button>
+                            @if (booking.status !== 'cancelled' && booking.status !== 'completed') {
+                                <button pButton
+                                        class="p-button-text p-button-sm p-button-rounded p-button-danger"
+                                        (click)="cancelBooking(booking)" pTooltip="Annuler">
+                                    <lucide-icon [img]="X" class="w-4 h-4"></lucide-icon>
+                                </button>
+                            }
                         </div>
                     </td>
                 </tr>

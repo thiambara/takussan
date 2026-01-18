@@ -1,7 +1,7 @@
 // src/app/core/services/location.service.ts
 import {Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
-import {BehaviorSubject, debounceTime, distinctUntilChanged, Observable, of, switchMap} from 'rxjs';
+import {BehaviorSubject, debounceTime, distinctUntilChanged, firstValueFrom, Observable, of, switchMap} from 'rxjs';
 import {catchError, map} from 'rxjs/operators';
 
 export interface LocationSuggestion {
@@ -117,10 +117,10 @@ export class LocationService {
   async getCurrentAddress(): Promise<LocationSuggestion | null> {
     try {
       const position = await this.getCurrentLocation();
-      const address = await this.reverseGeocode(
+      const address = await firstValueFrom(this.reverseGeocode(
         position.coords.latitude,
         position.coords.longitude
-      ).toPromise();
+      ));
       return address || null;
     } catch (error) {
       console.warn('Impossible d\'obtenir la localisation actuelle:', error);
@@ -187,7 +187,7 @@ export class LocationService {
       debounceTime(300),
       distinctUntilChanged(),
       switchMap(query => this.performSearch(query))
-    ).subscribe();
+    ).subscribe({});
   }
 
   private performSearch(query: string): Observable<LocationSuggestion[]> {

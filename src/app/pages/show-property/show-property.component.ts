@@ -9,24 +9,24 @@ import {BadgeComponent} from "../../shared/components/badge/badge.component";
 import {PriceFormatPipe} from "../../shared/pipes/price-format.pipe";
 import {AreaFormatPipe} from "../../shared/pipes/area-format.pipe";
 import {
-  LucideAngularModule,
-  ChevronLeft,
-  ChevronRight,
-  MapPin,
-  Heart,
-  Share2,
-  Phone,
-  MessageSquare,
-  Bed,
+  ArrowRight,
   Bath,
-  Maximize,
+  Bed,
   Calendar,
   Car,
-  Clock,
   Check,
-  User,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Heart,
+  LucideAngularModule,
+  MapPin,
+  Maximize,
+  MessageSquare,
+  Phone,
+  Share2,
   Star,
-  ArrowRight
+  User
 } from 'lucide-angular';
 
 @Component({
@@ -41,8 +41,7 @@ import {
     AreaFormatPipe,
     LucideAngularModule
   ],
-  templateUrl: './show-property.component.html',
-  styleUrls: ['./show-property.component.scss']
+  templateUrl: './show-property.component.html'
 })
 export class ShowPropertyComponent implements OnInit {
   property: Property | null = null;
@@ -88,13 +87,12 @@ export class ShowPropertyComponent implements OnInit {
 
   loadProperty(id: string): void {
     this.loading = true;
-    this.propertyService.get(id).subscribe({
+    this.propertyService.publicShow(id).subscribe({
       next: (property) => {
         this.property = property;
         this.loading = false;
       },
-      error: (error) => {
-        console.error('Error loading property:', error);
+      error: () => {
         this.loading = false;
       }
     });
@@ -146,32 +144,26 @@ export class ShowPropertyComponent implements OnInit {
   // Action methods
   saveProperty(): void {
     // Implement save/favorite functionality
-    console.log('Save property');
   }
 
   shareProperty(): void {
     // Implement share functionality
-    console.log('Share property');
   }
 
   contactAgent(): void {
     // Implement contact agent functionality
-    console.log('Contact agent');
   }
 
   scheduleViewing(): void {
     // Implement schedule viewing functionality
-    console.log('Schedule viewing');
   }
 
   sendMessage(): void {
     // Implement send message functionality
-    console.log('Send message');
   }
 
   callAgent(): void {
     // Implement call agent functionality
-    console.log('Call agent');
   }
 
   viewAllProperties(): void {

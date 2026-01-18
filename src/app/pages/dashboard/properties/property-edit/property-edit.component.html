@@ -111,7 +111,7 @@
 
                         <div class="flex justify-end mt-4">
                             <p-button (click)="nextStep()" iconPos="right"
-                                      label="Next" class="gap-2">
+                                      class="gap-2">
                                 <span>Next</span>
                                 <lucide-icon [img]="ArrowRight" class="w-4 h-4"></lucide-icon>
                             </p-button>
@@ -120,7 +120,7 @@
                 }
                 <!-- Step 2: Property Details -->
                 @if (activeIndex === 1) {
-                    <div>
+                    <div class="animate-fade-in">
                         <h2 class="mb-3 text-xl font-semibold text-primary">Property Details</h2>
                         <p-divider></p-divider>
 
@@ -198,8 +198,10 @@
                                                       formControlName="bathrooms" id="bathrooms" optionLabel="label"
                                                       optionValue="value"
                                                       placeholder="Select number of bathrooms"></p-select>
-                                            <small *ngIf="typeSpecificForm.get('bathrooms')?.invalid && typeSpecificForm.get('bathrooms')?.touched"
-                                                   class="text-red-500">Number of bathrooms is required.</small>
+                                            @if (typeSpecificForm.get('bathrooms')?.invalid && typeSpecificForm.get('bathrooms')?.touched) {
+                                                <small
+                                                       class="text-red-500">Number of bathrooms is required.</small>
+                                            }
                                         </div>
 
                                         <div>
@@ -372,8 +374,10 @@
                                                       formControlName="bathrooms" id="bathrooms" optionLabel="label"
                                                       optionValue="value"
                                                       placeholder="Select number of bathrooms"></p-select>
-                                            <small *ngIf="typeSpecificForm.get('bathrooms')?.invalid && typeSpecificForm.get('bathrooms')?.touched"
-                                                   class="text-red-500">Number of bathrooms is required.</small>
+                                            @if (typeSpecificForm.get('bathrooms')?.invalid && typeSpecificForm.get('bathrooms')?.touched) {
+                                                <small
+                                                       class="text-red-500">Number of bathrooms is required.</small>
+                                            }
                                         </div>
 
                                         <div>
@@ -544,13 +548,13 @@
                         </div>
 
                         <div class="flex justify-between mt-4">
-                            <p-button (click)="prevStep()" iconPos="left" label="Previous"
+                            <p-button (click)="prevStep()" iconPos="left"
                                       styleClass="p-button-outlined gap-2">
                                 <lucide-icon [img]="ArrowLeft" class="w-4 h-4"></lucide-icon>
                                 <span>Previous</span>
                             </p-button>
                             <p-button (click)="nextStep()" iconPos="right"
-                                      label="Next" class="gap-2">
+                                      class="gap-2">
                                 <span>Next</span>
                                 <lucide-icon [img]="ArrowRight" class="w-4 h-4"></lucide-icon>
                             </p-button>
@@ -559,7 +563,7 @@
                 }
                 <!-- Step 3: Location -->
                 @if (activeIndex === 2) {
-                    <div>
+                    <div class="animate-fade-in">
                         <h2 class="mb-3 text-xl font-semibold text-primary">Location</h2>
                         <p-divider></p-divider>
 

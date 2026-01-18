@@ -1,282 +1,164 @@
-import {Component, OnInit} from '@angular/core';
-import {MessageService} from 'primeng/api';
-import {Media} from "../../../../core/models/http/media.model";
-import {Property} from "../../../../core/models/http/property.model";
+import {Component, inject, OnInit} from '@angular/core';
+import {CommonModule} from "@angular/common";
+import {ActivatedRoute, Router, RouterLink} from '@angular/router';
+import {Property} from '../../../../core/models/http/property.model';
+import {PropertyService} from '../../../../core/services/http/property.service';
+import {BadgeComponent} from "../../../../shared/components/badge/badge.component";
+import {PriceFormatPipe} from "../../../../shared/pipes/price-format.pipe";
+import {AreaFormatPipe} from "../../../../shared/pipes/area-format.pipe";
+import {
+  ArrowLeft,
+  Calendar,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Edit,
+  LucideAngularModule,
+  MapPin,
+  MoreVertical,
+  Trash2,
+  User,
+  Bed,
+  Bath,
+  Maximize,
+  DollarSign,
+  Building,
+  FileText,
+  X
+} from 'lucide-angular';
 import {Booking} from "../../../../core/models/http/booking.model";
-import {CommonModule, NgOptimizedImage} from "@angular/common";
-import {finalize} from "rxjs";
-import {Button} from "primeng/button";
-import {ActivatedRoute, Router} from "@angular/router";
-import {CardModule} from 'primeng/card';
-import {TagModule} from 'primeng/tag';
-import {DividerModule} from 'primeng/divider';
-import {DialogModule} from 'primeng/dialog';
-import {DatePickerModule} from 'primeng/datepicker';
-import {InputTextModule} from 'primeng/inputtext';
-import {InputNumberModule} from 'primeng/inputnumber';
-import {SelectModule} from 'primeng/select';
-import {ToggleSwitchModule} from 'primeng/toggleswitch';
-import {FormsModule, ReactiveFormsModule} from '@angular/forms';
-import {ToastModule} from 'primeng/toast';
-import {BookingFormComponent} from "../booking-form/booking-form.component";
-import {BookingCardComponent} from "../booking-card/booking-card.component";
-import {GalleriaModule} from "primeng/galleria";
-
-import {TabsModule} from "primeng/tabs";
-import {PropertyService} from "../../../../core/services/http/property.service";
-import {LucideAngularModule, Pencil, Images, Upload, Calendar, Plus, X, FileText, Download, MapPin} from 'lucide-angular';
 
 @Component({
   selector: 'app-property-details',
   templateUrl: './property-details.component.html',
+  standalone: true,
   imports: [
     CommonModule,
-    Button,
-    CardModule,
-    TagModule,
-    DividerModule,
-    DialogModule,
-    DatePickerModule,
-    InputTextModule,
-    InputNumberModule,
-    SelectModule,
-    ToggleSwitchModule,
-    FormsModule,
-    ReactiveFormsModule,
-    ToastModule,
-    BookingFormComponent,
-    BookingCardComponent,
-    GalleriaModule,
-    TabsModule,
-    NgOptimizedImage,
+    RouterLink,
+    BadgeComponent,
+    PriceFormatPipe,
+    AreaFormatPipe,
     LucideAngularModule
-  ],
-  standalone: true
+  ]
 })
 export class PropertyDetailsComponent implements OnInit {
-  property?: Property;
-  propertyId!: number;
+  property: Property | null = null;
   loading = false;
-  showMediaPreviewDialog = false;
-  selectedMedia: Media | null = null;
-  showBookingDialog = false;
-  selectedBooking?: Booking;
-  isEditMode = false;
-  downloadingFile = false;
-
-  activeTabIndex = 0;
+  activeTab: 'details' | 'bookings' | 'media' = 'details';
+  currentImageIndex = 0;
+  showGalleryModal = false;
 
   // Icons
-  readonly Pencil = Pencil;
-  readonly Images = Images;
-  readonly Upload = Upload;
-  readonly Calendar = Calendar;
-  readonly Plus = Plus;
-  readonly X = X;
-  readonly FileText = FileText;
-  readonly Download = Download;
+  readonly ArrowLeft = ArrowLeft;
+  readonly Edit = Edit;
+  readonly Trash2 = Trash2;
   readonly MapPin = MapPin;
+  readonly Calendar = Calendar;
+  readonly User = User;
+  readonly Check = Check;
+  readonly Clock = Clock;
+  readonly ChevronLeft = ChevronLeft;
+  readonly ChevronRight = ChevronRight;
+  readonly MoreVertical = MoreVertical;
+  readonly Bed = Bed;
+  readonly Bath = Bath;
+  readonly Maximize = Maximize;
+  readonly DollarSign = DollarSign;
+  readonly Building = Building;
+  readonly FileText = FileText;
+  readonly X = X;
 
-  constructor(
-    private propertyService: PropertyService,
-    private messageService: MessageService,
-    private router: Router,
-    private route: ActivatedRoute
-  ) {
-  }
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private propertyService = inject(PropertyService);
 
   ngOnInit() {
-    this.route.params.subscribe(params => {
-      this.propertyId = +params['id']; // Convert to number
-      if (this.propertyId) {
-        this.getProperty();
+    const propertyId = this.route.snapshot.paramMap.get('id');
+    if (propertyId) {
+      this.loadProperty(propertyId);
+    }
+  }
+
+  loadProperty(id: string) {
+    this.loading = true;
+    this.propertyService.get(id, {
+      with: ['media', 'address', 'bookings', 'bookings.customer', 'bookings.user']
+    }).subscribe({
+      next: (property: Property) => {
+        this.property = property;
+        this.loading = false;
+      },
+      error: () => {
+        this.loading = false;
+        // Handle error (maybe redirect or show toast)
       }
     });
   }
 
-  getProperty() {
-    this.loading = true;
-    this.propertyService.get(this.propertyId, {
-      properties: {
-        with: ['bookings', 'bookings.customer', 'media'],
-        with_count: 'bookings'
-      },
-      filter_fields: {'bookings.status': '@in pending,confirmed'}
-    })
-      .pipe(finalize(() => this.loading = false))
-      .subscribe({
-        next: (property: Property) => {
-          // Ensure metadata is always initialized to avoid template null checks
-          if (!property.metadata) {
-            property.metadata = {};
-          }
-
-          this.property = property;
-
-          // Map media items and add is_image flag
-          if (this.property?.media?.length) {
-            this.property.media = this.property.media.map(media => ({
-              ...media,
-              is_image: media.mime_type?.startsWith('image/') || false
-            }));
-          }
-
-        },
-        error: (error: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: error.message || 'Failed to load property details',
-            life: 3000
-          });
-        }
-      });
+  setActiveTab(tab: 'details' | 'bookings' | 'media') {
+    this.activeTab = tab;
   }
 
-  editProperty() {
-    this.router.navigate([`/dashboard/properties/edit/${this.propertyId}`]);
+  // Image gallery methods
+  nextImage(): void {
+    if (this.property && this.property.media) {
+      this.currentImageIndex = (this.currentImageIndex + 1) % this.property.media.length;
+    }
   }
 
-  getStatusSeverity(status: string): string {
+  previousImage(): void {
+    if (this.property && this.property.media) {
+      this.currentImageIndex = this.currentImageIndex === 0
+        ? this.property.media.length - 1
+        : this.currentImageIndex - 1;
+    }
+  }
+
+  selectImage(index: number): void {
+    this.currentImageIndex = index;
+  }
+
+  openGallery(index: number = 0): void {
+    this.currentImageIndex = index;
+    this.showGalleryModal = true;
+    document.body.style.overflow = 'hidden'; // Prevent scrolling
+  }
+
+  closeGallery(): void {
+    this.showGalleryModal = false;
+    document.body.style.overflow = ''; // Restore scrolling
+  }
+
+  deleteProperty() {
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce bien ?')) {
+       if (this.property && this.property.id) {
+         this.propertyService.delete(this.property.id).subscribe({
+           next: () => {
+             this.router.navigate(['/dashboard/properties']);
+           }
+         });
+       }
+    }
+  }
+
+  getBookingStatusVariant(status: string | undefined): 'success' | 'warning' | 'danger' | 'neutral' | 'primary' | 'secondary' {
     switch (status) {
-      case 'pending':
-        return 'warning';
-      case 'confirmed':
-        return 'success';
-      case 'cancelled':
-        return 'danger';
-      case 'completed':
-        return 'info';
-      default:
-        return 'secondary';
+      case 'confirmed': return 'success';
+      case 'pending': return 'warning';
+      case 'cancelled': return 'danger';
+      case 'completed': return 'primary';
+      default: return 'neutral';
     }
   }
 
-  openNewBookingDialog() {
-    this.selectedBooking = undefined;
-    this.isEditMode = false;
-    this.showBookingDialog = true;
-  }
-
-  editBooking(booking: Booking) {
-    this.selectedBooking = booking;
-    this.isEditMode = true;
-    this.showBookingDialog = true;
-  }
-
-  deleteBooking(booking: Booking) {
-    // Ici, vous pouvez ajouter une confirmation avant de supprimer
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Confirmation Needed',
-      detail: 'Are you sure you want to delete this booking?',
-      life: 3000
-    });
-
-    // Logique de suppression à implémenter plus tard
-    // Pour l'instant, affichons juste un message
-    this.messageService.add({
-      severity: 'success',
-      summary: 'Success',
-      detail: 'Booking deleted successfully',
-      life: 3000
-    });
-
-    this.getProperty();
-  }
-
-  onBookingSave(booking: Booking) {
-    if (!this.property || !this.property.id) return;
-
-    // Here you would call your booking service to save the booking
-    // For now, we'll just show a success message and refresh the property
-    this.messageService.add({
-      severity: 'success',
-      summary: 'Success',
-      detail: `Booking ${this.isEditMode ? 'updated' : 'created'} successfully`,
-      life: 3000
-    });
-
-    this.showBookingDialog = false;
-    this.getProperty();
-  }
-
-  onBookingCancel() {
-    this.showBookingDialog = false;
-    this.selectedBooking = undefined;
-  }
-
-  /**
-   * Opens the media preview dialog for the selected media item
-   * @param media The media item to preview
-   */
-  openMediaPreview(media: Media) {
-    this.selectedMedia = media;
-    this.showMediaPreviewDialog = true;
-  }
-
-  /**
-   * Closes the media preview dialog
-   */
-  closeMediaPreview() {
-    this.showMediaPreviewDialog = false;
-    this.selectedMedia = null;
-  }
-
-  /**
-   * Get type-specific header label
-   */
-  getTypeSpecificLabel(): string {
-    const propertyType = this.property?.type;
-    switch (propertyType) {
-      case 'apartment':
-        return 'Apartment Details';
-      case 'house':
-        return 'House Details';
-      case 'villa':
-        return 'Villa Details';
-      case 'land':
-        return 'Land Details';
-      case 'office':
-        return 'Office Details';
-      case 'store':
-        return 'Store Details';
-      default:
-        return 'Property Details';
-    }
-  }
-
-  /**
-   * Check if property is residential type (apartment, house, villa)
-   */
-  isResidentialType(): boolean {
-    return this.property?.type === 'apartment' ||
-      this.property?.type === 'house' ||
-      this.property?.type === 'villa';
-  }
-
-  /**
-   * Check if property is of a specific type
-   */
-  isPropertyType(type: string): boolean {
-    return this.property?.type === type;
-  }
-
-  /**
-   * Convert furnished value to readable label
-   */
-  getFurnishedLabel(furnished: string | undefined): string {
-    if (!furnished) return 'N/A';
-
-    switch (furnished) {
-      case 'fully_furnished':
-        return 'Fully Furnished';
-      case 'semi_furnished':
-        return 'Semi-Furnished';
-      case 'unfurnished':
-        return 'Unfurnished';
-      default:
-        return furnished || 'N/A';
+  getBookingStatusLabel(status: string | undefined): string {
+    switch (status) {
+        case 'confirmed': return 'Confirmé';
+        case 'pending': return 'En attente';
+        case 'cancelled': return 'Annulé';
+        case 'completed': return 'Terminé';
+        default: return status || 'Inconnu';
     }
   }
 }

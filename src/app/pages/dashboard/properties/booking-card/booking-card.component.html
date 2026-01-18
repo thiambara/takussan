@@ -28,10 +28,12 @@
             <span class="font-medium">{{ booking.end_date | date: 'mediumDate' }}</span>
         </div>
 
-        <div *ngIf="booking.start_date && booking.end_date" class="flex justify-between">
-            <span class="text-gray-500">Duration:</span>
-            <span class="font-medium">{{ calculateDuration() }} days</span>
-        </div>
+        @if (booking.start_date && booking.end_date) {
+            <div class="flex justify-between">
+                <span class="text-gray-500">Duration:</span>
+                <span class="font-medium">{{ calculateDuration() }} days</span>
+            </div>
+        }
 
         <div class="flex justify-between">
             <span class="text-gray-500">Expiration Date:</span>
@@ -48,20 +50,28 @@
             <span class="font-bold text-primary">{{ booking.total_amount | currency:'EUR' }}</span>
         </div>
 
-        <div *ngIf="booking.deposit_amount" class="flex justify-between">
-            <span class="text-gray-500">Deposit:</span>
-            <span class="font-medium flex items-center">{{ booking.deposit_amount | currency:'EUR' }}
-                <lucide-icon *ngIf="booking.deposit_paid" [img]="CheckCircle" class="text-green-500 ml-1 w-4 h-4"></lucide-icon>
-                <lucide-icon *ngIf="!booking.deposit_paid" [img]="XCircle" class="text-red-500 ml-1 w-4 h-4"></lucide-icon>
-            </span>
-        </div>
+        @if (booking.deposit_amount) {
+            <div class="flex justify-between">
+                <span class="text-gray-500">Deposit:</span>
+                <span class="font-medium flex items-center">{{ booking.deposit_amount | currency:'EUR' }}
+                    @if (booking.deposit_paid) {
+                        <lucide-icon [img]="CheckCircle" class="text-green-500 ml-1 w-4 h-4"></lucide-icon>
+                    }
+                    @if (!booking.deposit_paid) {
+                        <lucide-icon [img]="XCircle" class="text-red-500 ml-1 w-4 h-4"></lucide-icon>
+                    }
+                </span>
+            </div>
+        }
 
         <p-divider></p-divider>
 
-        <div *ngIf="booking.notes" class="text-sm">
-            <span class="text-gray-500">Notes:</span>
-            <p class="mt-1 italic">{{ booking.notes }}</p>
-        </div>
+        @if (booking.notes) {
+            <div class="text-sm">
+                <span class="text-gray-500">Notes:</span>
+                <p class="mt-1 italic">{{ booking.notes }}</p>
+            </div>
+        }
     </div>
 
     <ng-template pTemplate="footer">

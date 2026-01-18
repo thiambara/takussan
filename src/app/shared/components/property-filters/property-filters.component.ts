@@ -12,8 +12,7 @@ import {LucideAngularModule, X} from 'lucide-angular';
     FormsModule,
     LucideAngularModule
   ],
-  templateUrl: './property-filters.component.html',
-  styleUrls: ['./property-filters.component.scss']
+  templateUrl: './property-filters.component.html'
 })
 export class PropertyFiltersComponent {
 

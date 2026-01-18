@@ -10,12 +10,13 @@ import {CommonModule} from '@angular/common';
       <div [class]="logoClasses">
         <span class="text-white font-bold" [class]="textSizeClass">{{ logoText }}</span>
       </div>
-      <span 
-        *ngIf="showText" 
-        [class]="titleClasses"
-      >
-        {{ title }}
-      </span>
+      @if (showText) {
+        <span
+          [class]="titleClasses"
+        >
+          {{ title }}
+        </span>
+      }
     </div>
   `
 })
@@ -28,7 +29,7 @@ export class LogoComponent {
 
   get logoClasses(): string {
     const baseClasses = ['rounded-lg', 'flex', 'items-center', 'justify-center'];
-    
+
     const sizeClasses = {
       sm: ['w-6', 'h-6'],
       md: ['w-8', 'h-8'],
@@ -47,7 +48,7 @@ export class LogoComponent {
   get textSizeClass(): string {
     const sizeClasses = {
       sm: 'text-xs',
-      md: 'text-sm', 
+      md: 'text-sm',
       lg: 'text-base'
     };
     return sizeClasses[this.size];

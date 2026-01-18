@@ -4,6 +4,7 @@ import {FormsModule} from "@angular/forms";
 import {ActivatedRoute, Router, RouterLink} from "@angular/router";
 import {User} from "../../../core/models/http/user.model";
 import {AuthService} from "../../../core/services/http/auth/auth.service";
+import {Eye, EyeOff, LayoutGrid, LucideAngularModule} from "lucide-angular";
 
 @Component({
 
@@ -12,7 +13,8 @@ import {AuthService} from "../../../core/services/http/auth/auth.service";
   imports: [
     CommonModule,
     FormsModule,
-    RouterLink
+    RouterLink,
+    LucideAngularModule
   ],
   standalone: true
 })
@@ -20,6 +22,10 @@ export class SignUpComponent implements OnInit {
   redirectUrl: string = "/login";
   showPassword: boolean = false;
   showPasswordConfirmation: boolean = false;
+
+  readonly Eye = Eye;
+  readonly EyeOff = EyeOff;
+  readonly LayoutGrid = LayoutGrid;
 
   user: User & { passwordConfirmation: string } = {
     first_name: '',
@@ -55,8 +61,10 @@ export class SignUpComponent implements OnInit {
   signUp() {
     const data = this.validatedData();
     if (data) {
-      this.authService.signUp({...data, roles: ['vendor'], type: 'vendor'}).subscribe(() => {
-        this.onRegistrationSuccess();
+      this.authService.signUp({...data, roles: ['vendor'], type: 'vendor'}).subscribe({
+        next: () => {
+          this.onRegistrationSuccess();
+        }
       });
     }
   }

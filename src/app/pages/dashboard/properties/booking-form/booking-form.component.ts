@@ -25,7 +25,6 @@ import {Calendar, Check, Info, LucideAngularModule, X} from 'lucide-angular';
 @Component({
   selector: 'app-booking-form',
   templateUrl: './booking-form.component.html',
-  styleUrls: ['./booking-form.component.scss'],
   standalone: true,
   imports: [
     CommonModule,
@@ -296,8 +295,10 @@ export class BookingFormComponent implements OnInit {
       skip(1),
       // Debounce to prevent rapid recalculations
       debounceTime(300)
-    ).subscribe(() => {
-      this.calculateTotalAmount();
+    ).subscribe({
+      next: () => {
+        this.calculateTotalAmount();
+      }
     });
   }
 

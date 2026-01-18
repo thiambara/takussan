@@ -88,8 +88,10 @@ export class CustomerEditComponent implements OnInit {
     }
 
     // Watch for customer type changes to adjust validation
-    this.customerForm.get('type')?.valueChanges.subscribe(type => {
-      this.updateValidationRules(type);
+    this.customerForm.get('type')?.valueChanges.subscribe({
+      next: (type) => {
+        this.updateValidationRules(type);
+      }
     });
   }
 

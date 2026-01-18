@@ -35,7 +35,6 @@ export class BaseHttpService<T extends BaseModelInterface> {
   }
 
   public index(params: BaseHttpIndexQueryParams<T> = {}): Observable<T[] | PaginationResult<T>> {
-    console.log(objectToQueryString)
     return this.http.get<T[] | PaginationResult<T>>(`${this.endpointUrl}?${objectToQueryString(params)}`, this.httpOptions).pipe();
   }
 

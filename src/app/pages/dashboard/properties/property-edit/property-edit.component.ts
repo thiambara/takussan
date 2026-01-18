@@ -46,7 +46,6 @@ import {
 @Component({
   selector: 'app-property-edit',
   templateUrl: './property-edit.component.html',
-  styleUrls: ['./property-edit.component.scss'],
   imports: [
     CommonModule,
     ReactiveFormsModule,
@@ -299,8 +298,10 @@ export class PropertyEditComponent implements OnInit {
     });
 
     // Subscribe to property type changes to update type-specific form
-    this.propertyForm?.get('type')?.valueChanges.subscribe(type => {
-      this.initializeTypeSpecificForm(type);
+    this.propertyForm?.get('type')?.valueChanges.subscribe({
+      next: (type) => {
+        this.initializeTypeSpecificForm(type);
+      }
     });
   }
 
@@ -570,7 +571,6 @@ export class PropertyEditComponent implements OnInit {
    * Upload media files for a newly created property
    */
   private uploadNewPropertyMedia(propertyId: number) {
-    console.log(this.uploadedFiles);
     if (this.uploadedFiles.length === 0) return this.saveCompleted();
 
     this.uploadingMedia = true;

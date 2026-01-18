@@ -19,24 +19,30 @@
                             [suggestions]="filteredCustomers"
                             field="last_name">
                         <ng-template let-customer pTemplate="item">
-                            <div class="customer-item">
-                                <div>{{ customer.first_name }} {{ customer.last_name }}</div>
-                                <div class="text-sm text-gray-500">{{ customer.email }}</div>
+                            <div class="flex flex-col py-2">
+                                <span class="font-medium">{{ customer.first_name }} {{ customer.last_name }}</span>
+                                <span class="text-sm text-gray-500">{{ customer.email }}</span>
                             </div>
                         </ng-template>
                     </p-autoComplete>
-                    <button (click)="clearCustomer()" *ngIf="selectedCustomer"
-                            class="p-button-rounded p-button-danger p-button-text" pButton
-                            pRipple type="button">
-                        <lucide-icon [img]="X" class="w-4 h-4"></lucide-icon>
-                    </button>
+                    @if (selectedCustomer) {
+                        <button (click)="clearCustomer()"
+                                class="p-button-rounded p-button-danger p-button-text" pButton
+                                pRipple type="button">
+                            <lucide-icon [img]="X" class="w-4 h-4"></lucide-icon>
+                        </button>
+                    }
                 </div>
 
-                <div *ngIf="selectedCustomer" class="p-2 mt-2 bg-gray-50 rounded-md">
-                    <div class="text-sm font-medium">{{ selectedCustomer.first_name }} {{ selectedCustomer.last_name }}</div>
-                    <div class="text-xs text-gray-500">{{ selectedCustomer.email }}</div>
-                    <div *ngIf="selectedCustomer.phone" class="text-xs text-gray-500">{{ selectedCustomer.phone }}</div>
-                </div>
+                @if (selectedCustomer) {
+                    <div class="p-2 mt-2 bg-gray-50 rounded-md">
+                        <div class="text-sm font-medium">{{ selectedCustomer.first_name }} {{ selectedCustomer.last_name }}</div>
+                        <div class="text-xs text-gray-500">{{ selectedCustomer.email }}</div>
+                        @if (selectedCustomer.phone) {
+                            <div class="text-xs text-gray-500">{{ selectedCustomer.phone }}</div>
+                        }
+                    </div>
+                }
             </div>
 
             <div class="mb-4 field">
@@ -48,8 +54,9 @@
                         <lucide-icon [img]="Calendar" class="w-4 h-4 text-gray-400"></lucide-icon>
                     </div>
                 </div>
-                <small *ngIf="bookingForm.get('booking_date')?.invalid && bookingForm.get('booking_date')?.touched"
-                       class="text-red-500">Booking date is required.</small>
+                @if (bookingForm.get('booking_date')?.invalid && bookingForm.get('booking_date')?.touched) {
+                    <small class="text-red-500">Booking date is required.</small>
+                }
             </div>
 
             <div class="mb-4 field">
@@ -61,8 +68,9 @@
                         <lucide-icon [img]="Calendar" class="w-4 h-4 text-gray-400"></lucide-icon>
                     </div>
                 </div>
-                <small *ngIf="bookingForm.get('start_date')?.invalid && bookingForm.get('start_date')?.touched"
-                       class="text-red-500">Start date is required.</small>
+                @if (bookingForm.get('start_date')?.invalid && bookingForm.get('start_date')?.touched) {
+                    <small class="text-red-500">Start date is required.</small>
+                }
             </div>
 
             <div class="mb-4 field">
@@ -74,8 +82,9 @@
                         <lucide-icon [img]="Calendar" class="w-4 h-4 text-gray-400"></lucide-icon>
                     </div>
                 </div>
-                <small *ngIf="bookingForm.get('end_date')?.invalid && bookingForm.get('end_date')?.touched"
-                       class="text-red-500">End date is required.</small>
+                @if (bookingForm.get('end_date')?.invalid && bookingForm.get('end_date')?.touched) {
+                    <small class="text-red-500">End date is required.</small>
+                }
             </div>
 
             <div class="mb-4 field">
@@ -94,8 +103,9 @@
                 <label class="block mb-2 font-medium" for="status">Status *</label>
                 <p-select [options]="bookingStatusOptions" formControlName="status" id="status" optionLabel="label"
                           optionValue="value" styleClass="w-full"></p-select>
-                <small *ngIf="bookingForm.get('status')?.invalid && bookingForm.get('status')?.touched"
-                       class="text-red-500">Status is required.</small>
+                @if (bookingForm.get('status')?.invalid && bookingForm.get('status')?.touched) {
+                    <small class="text-red-500">Status is required.</small>
+                }
             </div>
 
             <div class="mb-4 field">
@@ -103,20 +113,22 @@
                 <p-inputNumber [minFractionDigits]="2" currency="EUR" formControlName="price_at_booking"
                                id="price_at_booking"
                                mode="currency" styleClass="w-full"></p-inputNumber>
-                <small *ngIf="bookingForm.get('price_at_booking')?.invalid && bookingForm.get('price_at_booking')?.touched"
-                       class="text-red-500">Price is required and must be greater than 0.</small>
+                @if (bookingForm.get('price_at_booking')?.invalid && bookingForm.get('price_at_booking')?.touched) {
+                    <small class="text-red-500">Price is required and must be greater than 0.</small>
+                }
             </div>
 
             <div class="mb-4 field">
-                <label class="block mb-2 font-medium flex items-center gap-1" for="total_amount">Total Amount *
+                <label class="flex mb-2 font-medium items-center gap-1" for="total_amount">Total Amount *
                     <lucide-icon [img]="Info" class="text-primary cursor-pointer w-4 h-4"
                         pTooltip="This value is automatically calculated based on the property price and the number of days between start and end dates. You can also manually adjust it if needed."
                         tooltipPosition="top"></lucide-icon>
                 </label>
                 <p-inputNumber [minFractionDigits]="2" currency="EUR" formControlName="total_amount" id="total_amount"
                                mode="currency" styleClass="w-full"></p-inputNumber>
-                <small *ngIf="bookingForm.get('total_amount')?.invalid && bookingForm.get('total_amount')?.touched"
-                       class="text-red-500">Total amount is required and must be greater than 0.</small>
+                @if (bookingForm.get('total_amount')?.invalid && bookingForm.get('total_amount')?.touched) {
+                    <small class="text-red-500">Total amount is required and must be greater than 0.</small>
+                }
             </div>
 
             <div class="mb-4 field">
@@ -130,8 +142,12 @@
                 <p-selectButton [options]="depositPaidOptions" formControlName="deposit_paid" id="deposit_paid" optionLabel="label" optionValue="value" styleClass="w-full">
                     <ng-template let-item pTemplate="item">
                         <div class="flex items-center gap-2">
-                            <lucide-icon *ngIf="item.value" [img]="Check" class="w-4 h-4"></lucide-icon>
-                            <lucide-icon *ngIf="!item.value" [img]="X" class="w-4 h-4"></lucide-icon>
+                            @if (item.value) {
+                                <lucide-icon [img]="Check" class="w-4 h-4"></lucide-icon>
+                            }
+                            @if (!item.value) {
+                                <lucide-icon [img]="X" class="w-4 h-4"></lucide-icon>
+                            }
                             <span>{{ item.label }}</span>
                         </div>
                     </ng-template>
@@ -151,7 +167,13 @@
     }
 
     <ng-template pTemplate="footer">
-        <p-button (click)="onHide()" label="Cancel" styleClass="p-button-text"></p-button>
-        <p-button (click)="saveBooking()" label="Save" styleClass="p-button-primary"></p-button>
+        <p-button (click)="onHide()" styleClass="p-button-text gap-2">
+            <lucide-icon [img]="X" class="w-4 h-4"></lucide-icon>
+            <span>Cancel</span>
+        </p-button>
+        <p-button (click)="saveBooking()" styleClass="p-button-primary gap-2">
+            <lucide-icon [img]="Check" class="w-4 h-4"></lucide-icon>
+            <span>Save</span>
+        </p-button>
     </ng-template>
 </p-dialog>
