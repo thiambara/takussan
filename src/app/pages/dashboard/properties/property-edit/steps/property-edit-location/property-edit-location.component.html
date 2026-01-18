@@ -1,0 +1,67 @@
+<div class="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/50 dark:border-gray-800 shadow-sm p-6 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500" [formGroup]="addressForm">
+  <div class="mb-8">
+    <h2 class="text-xl font-bold text-gray-900 dark:text-white">Localisation</h2>
+    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Où se situe votre bien ?</p>
+  </div>
+
+  <div class="space-y-6">
+    <!-- Country -->
+    <div class="space-y-2">
+      <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Pays</label>
+      <div class="relative">
+        <select formControlName="country"
+                class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all appearance-none">
+          @for (c of countries; track c.code) {
+            <option [value]="c.code">{{ c.name }}</option>
+          }
+        </select>
+        <lucide-icon [img]="icons.ChevronRight" class="w-4 h-4 text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none"></lucide-icon>
+      </div>
+    </div>
+
+    <div class="space-y-2">
+      <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Ville</label>
+      <input type="text" formControlName="city"
+             class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all">
+      @if (hasAddressError('city', 'required')) {
+        <p class="text-xs text-red-500">La ville est requise</p>
+      }
+    </div>
+
+    <div class="space-y-2">
+      <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Quartier / Zone</label>
+      <input type="text" formControlName="district"
+             class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all">
+    </div>
+
+    <div class="space-y-2">
+      <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Rue</label>
+      <input type="text" formControlName="street"
+             class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all">
+    </div>
+  </div>
+
+  <!-- Map Placeholder -->
+  <div class="mt-8 rounded-2xl bg-gray-100 dark:bg-gray-800 h-64 flex items-center justify-center relative overflow-hidden group border border-gray-200 dark:border-gray-700">
+    <div class="absolute inset-0 opacity-20 bg-[url('https://placehold.co/800x400/e2e8f0/94a3b8?text=Map+Preview')] bg-cover bg-center"></div>
+    <div class="relative z-10 text-center p-6">
+      <div class="w-12 h-12 bg-white dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm">
+        <lucide-icon [img]="icons.MapPin" class="w-6 h-6 text-primary-600"></lucide-icon>
+      </div>
+      <p class="text-gray-900 dark:text-white font-medium">Sélection sur la carte</p>
+      <p class="text-sm text-gray-500">Cette fonctionnalité sera bientôt disponible</p>
+    </div>
+  </div>
+
+  <div class="mt-8 flex justify-between">
+    <button type="button" (click)="previous.emit()"
+            class="px-6 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+      Précédent
+    </button>
+    <button type="button" (click)="next.emit()"
+            class="flex items-center gap-2 px-6 py-2.5 bg-gray-900 text-white dark:bg-white dark:text-gray-900 rounded-xl font-medium hover:opacity-90 transition-opacity">
+      Suivant
+      <lucide-icon [img]="icons.ArrowRight" class="w-4 h-4"></lucide-icon>
+    </button>
+  </div>
+</div>

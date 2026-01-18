@@ -1,815 +1,166 @@
-<div class="relative p-4 property-edit-container">
-    <!-- Loading overlay -->
-    @if (loading) {
-        <div class="flex absolute inset-0 z-10 justify-center items-center bg-white bg-opacity-70"
-             style="min-height: 100vh;">
-            <div class="flex flex-col items-center">
-                <lucide-icon [img]="Loader2" class="animate-spin text-primary w-12 h-12"></lucide-icon>
-                <h2 class="mt-4 text-lg font-medium text-primary">Loading property details...</h2>
-            </div>
+<div class="min-h-screen bg-gray-50/50 dark:bg-gray-950 pb-20 font-sans">
+  <p-toast position="top-right"></p-toast>
+  <!-- Top Navigation / Header -->
+  <header
+    class="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50 supports-[backdrop-filter]:bg-white/60">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3 min-w-0">
+        <button (click)="cancel()"
+                class="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white group">
+          <lucide-icon [img]="icons.ArrowLeft"
+                       class="w-5 h-5 group-hover:-translate-x-0.5 transition-transform"></lucide-icon>
+        </button>
+        <div class="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1"></div>
+        <h1 class="text-sm font-medium text-gray-900 dark:text-white truncate">
+          {{ isEditMode() ? 'Modifier le bien' : 'Nouveau bien immobilier' }}
+        </h1>
+      </div>
+
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button (click)="cancel()"
+                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm">
+          Annuler
+        </button>
+
+        <button (click)="saveProperty()"
+                [disabled]="saving()"
+                class="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-black dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 rounded-lg transition-all shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+          @if (saving()) {
+            <lucide-icon [img]="icons.Loader2" class="w-4 h-4 animate-spin"></lucide-icon>
+            <span>Enregistrement...</span>
+          } @else {
+            <lucide-icon [img]="icons.Save" class="w-4 h-4"></lucide-icon>
+            <span>Enregistrer</span>
+          }
+        </button>
+      </div>
+    </div>
+  </header>
+
+  @if (loading()) {
+    <div class="flex flex-col items-center justify-center min-h-[60vh]">
+      <div class="relative">
+        <div class="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 dark:border-gray-700"></div>
+        <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-primary-600 absolute top-0 left-0"></div>
+      </div>
+      <p class="mt-4 text-gray-500 font-medium animate-pulse">Chargement des données...</p>
+    </div>
+  } @else {
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="flex flex-col lg:flex-row gap-8">
+
+        <!-- Sidebar Navigation -->
+        <aside class="lg:w-64 flex-shrink-0">
+          <nav class="sticky top-24 space-y-1">
+            <button (click)="setActiveSection('basic')"
+                    [class.bg-transparent]="activeSection() !== 'basic'"
+                    [class.bg-white]="activeSection() === 'basic'"
+                    [class.shadow-sm]="activeSection() === 'basic'"
+                    [class.text-gray-600]="activeSection() !== 'basic'"
+                    [class.text-primary-600]="activeSection() === 'basic'"
+                    class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all hover:bg-white hover:text-primary-600 dark:hover:bg-gray-800 dark:text-gray-400 dark:hover:text-white">
+              <lucide-icon [img]="icons.Home" class="w-5 h-5"></lucide-icon>
+              Informations de base
+            </button>
+
+            <button (click)="setActiveSection('details')"
+                    [class.bg-transparent]="activeSection() !== 'details'"
+                    [class.bg-white]="activeSection() === 'details'"
+                    [class.shadow-sm]="activeSection() === 'details'"
+                    [class.text-gray-600]="activeSection() !== 'details'"
+                    [class.text-primary-600]="activeSection() === 'details'"
+                    class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all hover:bg-white hover:text-primary-600 dark:hover:bg-gray-800 dark:text-gray-400 dark:hover:text-white">
+              <lucide-icon [img]="icons.LayoutDashboard" class="w-5 h-5"></lucide-icon>
+              Détails du bien
+            </button>
+
+            <button (click)="setActiveSection('location')"
+                    [class.bg-transparent]="activeSection() !== 'location'"
+                    [class.bg-white]="activeSection() === 'location'"
+                    [class.shadow-sm]="activeSection() === 'location'"
+                    [class.text-gray-600]="activeSection() !== 'location'"
+                    [class.text-primary-600]="activeSection() === 'location'"
+                    class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all hover:bg-white hover:text-primary-600 dark:hover:bg-gray-800 dark:text-gray-400 dark:hover:text-white">
+              <lucide-icon [img]="icons.MapPin" class="w-5 h-5"></lucide-icon>
+              Localisation
+            </button>
+
+            <button (click)="setActiveSection('media')"
+                    [class.bg-transparent]="activeSection() !== 'media'"
+                    [class.bg-white]="activeSection() === 'media'"
+                    [class.shadow-sm]="activeSection() === 'media'"
+                    [class.text-gray-600]="activeSection() !== 'media'"
+                    [class.text-primary-600]="activeSection() === 'media'"
+                    class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all hover:bg-white hover:text-primary-600 dark:hover:bg-gray-800 dark:text-gray-400 dark:hover:text-white">
+              <lucide-icon [img]="icons.Image" class="w-5 h-5"></lucide-icon>
+              Médias
+            </button>
+          </nav>
+        </aside>
+
+        <!-- Main Content Form -->
+        <div class="flex-1 min-w-0">
+          <form [formGroup]="propertyForm" class="space-y-6">
+
+            <!-- SECTION: BASIC INFO -->
+            @if (activeSection() === 'basic') {
+              <app-property-edit-basic
+                [propertyForm]="propertyForm"
+                [propertyTypes]="propertyTypes"
+                [contractTypeOptions]="contractTypeOptions"
+                [statusOptions]="statusOptions"
+                [visibilityOptions]="visibilityOptions"
+                (next)="setActiveSection('details')">
+              </app-property-edit-basic>
+            }
+
+            <!-- SECTION: DETAILS -->
+            @if (activeSection() === 'details') {
+              <app-property-edit-details
+                [propertyForm]="propertyForm"
+                [typeSpecificForm]="typeSpecificForm"
+                [positionOptions]="positionOptions"
+                [levelOptions]="levelOptions"
+                [roomsOptions]="roomsOptions"
+                [bathroomsOptions]="bathroomsOptions"
+                [furnishedOptions]="furnishedOptions"
+                [commercialTypeOptions]="commercialTypeOptions"
+                (next)="setActiveSection('location')"
+                (previous)="setActiveSection('basic')">
+              </app-property-edit-details>
+            }
+
+            <!-- SECTION: LOCATION -->
+            @if (activeSection() === 'location') {
+              <app-property-edit-location
+                [addressForm]="addressForm"
+                [countries]="countries"
+                (next)="setActiveSection('media')"
+                (previous)="setActiveSection('details')">
+              </app-property-edit-location>
+            }
+
+            <!-- SECTION: MEDIA -->
+            @if (activeSection() === 'media') {
+              <app-property-edit-media
+                [property]="property"
+                [propertyMedia]="propertyMedia"
+                [uploadedFiles]="uploadedFiles"
+                [isEditMode]="isEditMode()"
+                [saving]="saving()"
+                (previous)="setActiveSection('location')"
+                (save)="saveProperty()"
+                (uploadSelect)="uploadingMedia.set(true)"
+                (serverUpload)="onServerUpload($event)"
+                (customUpload)="onCustomUpload($event)"
+                (setFeatured)="setFeaturedMedia($event.media, $event.index)"
+                (removeMedia)="removePropertyMedia($event.media, $event.index)">
+              </app-property-edit-media>
+            }
+
+          </form>
         </div>
-    }
-    @if (!loading) {
-
-
-        <div class="flex justify-between items-center mb-4">
-            <h1 class="text-2xl font-bold text-primary">{{ isEditMode ? 'Edit Property' : 'Create New Property' }}</h1>
-            <div class="flex gap-2">
-                <p-button (click)="cancel()" styleClass="p-button-outlined p-button-secondary gap-2">
-                    <lucide-icon [img]="X" class="w-4 h-4"></lucide-icon>
-                    <span>Cancel</span>
-                </p-button>
-                <p-button (click)="saveProperty()" [disabled]="propertyForm.invalid"
-                          styleClass="p-button-primary gap-2">
-                    @if (saving) {
-                        <lucide-icon [img]="Loader2" class="animate-spin w-4 h-4"></lucide-icon>
-                    } @else {
-                        <lucide-icon [img]="Check" class="w-4 h-4"></lucide-icon>
-                    }
-                    <span>Save Property</span>
-                </p-button>
-            </div>
-        </div>
-
-        <p-steps [activeIndex]="activeIndex" [model]="steps" [readonly]="false" styleClass="mb-5"></p-steps>
-
-        <p-card styleClass="shadow-md">
-            <form [formGroup]="propertyForm" class="property-form">
-                <!-- Step 1: Basic Information -->
-                @if (activeIndex === 0) {
-                    <div>
-                        <h2 class="mb-3 text-xl font-semibold text-primary">Basic Information</h2>
-                        <p-divider></p-divider>
-
-                        <div class="grid grid-cols-1 gap-4 mb-4 md:grid-cols-2">
-                            <div class="col-span-2">
-                                <label class="block mb-2 font-medium" for="title">Title *</label>
-                                <input [autofocus]="true" class="w-full" formControlName="title" id="title" pInputText
-                                       placeholder="Enter property title"
-                                       required type="text"/>
-                                @if (hasError('title', 'required')) {
-                                    <small class="text-red-500">Title is required.</small>
-                                }
-                            </div>
-
-                            <div class="col-span-2">
-                                <label class="block mb-2 font-medium" for="description">Description *</label>
-                                <textarea class="w-full" formControlName="description" id="description" pTextarea
-                                          placeholder="Describe your property"
-                                          required rows="5"></textarea>
-                                @if (hasError('description', 'required')) {
-                                    <small class="text-red-500">Description is
-                                        required.</small>
-                                }
-                            </div>
-
-                            <div>
-                                <label class="block mb-2 font-medium" for="type">Property Type *</label>
-                                <p-select [options]="propertyTypes" appendTo="body" class="w-full"
-                                          formControlName="type"
-                                          id="type" optionLabel="label" optionValue="value"
-                                          placeholder="Select a property type"></p-select>
-                                @if (hasError('type', 'required')) {
-                                    <small class="text-red-500">Property type is
-                                        required.</small>
-                                }
-                            </div>
-
-                            <div>
-                                <label class="block mb-2 font-medium" for="visibility">Visibility *</label>
-                                <p-select [options]="visibilityOptions" appendTo="body" class="w-full"
-                                          formControlName="visibility" id="visibility" optionLabel="label"
-                                          optionValue="value"></p-select>
-                                @if (hasError('visibility', 'required')) {
-                                    <small class="text-red-500">Visibility is
-                                        required.</small>
-                                }
-                            </div>
-
-                            <div>
-                                <label class="block mb-2 font-medium" for="status">Status *</label>
-                                <p-select [options]="statusOptions" appendTo="body" class="w-full"
-                                          formControlName="status"
-                                          id="status" optionLabel="label" optionValue="value"></p-select>
-                                @if (hasError('status', 'required')) {
-                                    <small class="text-red-500">Status is
-                                        required.</small>
-                                }
-                            </div>
-
-                            <div>
-                                <label class="block mb-2 font-medium" for="contract_type">Contract Type *</label>
-                                <p-select [options]="contractTypeOptions" appendTo="body" class="w-full"
-                                          formControlName="contract_type" id="contract_type" optionLabel="label"
-                                          optionValue="value"></p-select>
-                                @if (hasError('contract_type', 'required')) {
-                                    <small class="text-red-500">Contract type is
-                                        required.</small>
-                                }
-                            </div>
-                        </div>
-
-                        <div class="flex justify-end mt-4">
-                            <p-button (click)="nextStep()" iconPos="right"
-                                      class="gap-2">
-                                <span>Next</span>
-                                <lucide-icon [img]="ArrowRight" class="w-4 h-4"></lucide-icon>
-                            </p-button>
-                        </div>
-                    </div>
-                }
-                <!-- Step 2: Property Details -->
-                @if (activeIndex === 1) {
-                    <div class="animate-fade-in">
-                        <h2 class="mb-3 text-xl font-semibold text-primary">Property Details</h2>
-                        <p-divider></p-divider>
-
-                        <div class="grid grid-cols-1 gap-4 mb-4 md:grid-cols-2">
-                            <div>
-                                <label class="block mb-2 font-medium" for="price">Price (€) *</label>
-                                <p-inputNumber [minFractionDigits]="2" [showButtons]="false" class="w-full"
-                                               currency="EUR"
-                                               formControlName="price" id="price" mode="currency"></p-inputNumber>
-                                @if (hasError('price', 'required')) {
-                                    <small class="text-red-500">Price is required.</small>
-                                }
-                                @if (hasError('price', 'min')) {
-                                    <small class="text-red-500">Price must be greater than
-                                        0.</small>
-                                }
-                            </div>
-
-                            <div>
-                                <label class="block mb-2 font-medium" for="area">Area (m²) *</label>
-                                <p-inputNumber [min]="0" [showButtons]="false" [suffix]=" 'm²'" class="w-full"
-                                               formControlName="area" id="area"></p-inputNumber>
-                                @if (hasError('area', 'required')) {
-                                    <small class="text-red-500">Area is required.</small>
-                                }
-                                @if (hasError('area', 'min')) {
-                                    <small class="text-red-500">Area must be greater than
-                                        0.</small>
-                                }
-                            </div>
-
-                            <div>
-                                <label class="block mb-2 font-medium" for="position">Position</label>
-                                <p-select [options]="positionOptions" appendTo="body" class="w-full"
-                                          formControlName="position" id="position" optionLabel="label"
-                                          optionValue="value"
-                                          placeholder="Select a position"></p-select>
-                            </div>
-
-                            <div>
-                                <label class="block mb-2 font-medium" for="level">Level</label>
-                                <p-select [options]="levelOptions" appendTo="body" class="w-full"
-                                          formControlName="level"
-                                          id="level" optionLabel="label" optionValue="value"
-                                          placeholder="Select a level"></p-select>
-                            </div>
-                        </div>
-
-                        <!-- Type-specific details section -->
-                        <h3 class="mt-6 mb-3 text-lg font-medium text-primary">{{ getTypeSpecificLabel() }}</h3>
-                        <p-divider></p-divider>
-
-                        @if (typeSpecificForm) {
-                            <div [formGroup]="typeSpecificForm">
-                                <!-- Apartment, House, Villa specific fields -->
-                                @if (['apartment', 'house', 'villa'].includes(propertyForm.get('type')?.value)) {
-                                    <div
-                                            class="grid grid-cols-1 gap-4 mb-4 md:grid-cols-2">
-                                        <div>
-                                            <label class="block mb-2 font-medium" for="rooms">Bedrooms *</label>
-                                            <p-select [options]="roomsOptions" appendTo="body" class="w-full"
-                                                      formControlName="rooms" id="rooms" optionLabel="label"
-                                                      optionValue="value"
-                                                      placeholder="Select number of bedrooms"></p-select>
-                                            @if (typeSpecificForm.get('rooms')?.invalid && typeSpecificForm.get('rooms')?.touched) {
-                                                <small
-                                                        class="text-red-500">Number of bedrooms is required.</small>
-                                            }
-                                        </div>
-
-                                        <div>
-                                            <label class="block mb-2 font-medium" for="bathrooms">Bathrooms
-                                                *</label>
-                                            <p-select [options]="bathroomsOptions" appendTo="body" class="w-full"
-                                                      formControlName="bathrooms" id="bathrooms" optionLabel="label"
-                                                      optionValue="value"
-                                                      placeholder="Select number of bathrooms"></p-select>
-                                            @if (typeSpecificForm.get('bathrooms')?.invalid && typeSpecificForm.get('bathrooms')?.touched) {
-                                                <small
-                                                       class="text-red-500">Number of bathrooms is required.</small>
-                                            }
-                                        </div>
-
-                                        <div>
-                                            <label class="block mb-2 font-medium" for="furnished">Furnished
-                                                Status</label>
-                                            <p-select [options]="furnishedOptions" appendTo="body" class="w-full"
-                                                      formControlName="furnished" id="furnished" optionLabel="label"
-                                                      optionValue="value"
-                                                      placeholder="Select furnished status"></p-select>
-                                        </div>
-
-                                        <div>
-                                            <label class="block mb-2 font-medium" for="parking_spaces">Parking
-                                                Spaces</label>
-                                            <p-inputNumber [min]="0" [showButtons]="false" class="w-full"
-                                                           formControlName="parking_spaces"
-                                                           id="parking_spaces"></p-inputNumber>
-                                        </div>
-
-                                        <div>
-                                            <label class="block mb-2 font-medium" for="construction_year">Construction
-                                                Year</label>
-                                            <p-datePicker class="w-full" dateFormat="yy"
-                                                          formControlName="construction_year"
-                                                          id="construction_year" view="year"></p-datePicker>
-                                        </div>
-
-                                        <div>
-                                            <label class="block mb-2 font-medium" for="heating_type">Heating
-                                                Type</label>
-                                            <input class="w-full" formControlName="heating_type" id="heating_type"
-                                                   pInputText
-                                                   placeholder="Enter heating type" type="text"/>
-                                        </div>
-
-                                        <div class="flex items-center mt-6">
-                                            <p-toggleSwitch formControlName="has_balcony"
-                                                            id="has_balcony"
-                                                            styleClass="w-24 p-button-sm"></p-toggleSwitch>
-                                            <label class="ml-2 font-medium" for="has_balcony">Has Balcony</label>
-                                        </div>
-
-                                        <div class="flex items-center mt-6">
-                                            <p-toggleSwitch formControlName="has_garden"
-                                                            id="has_garden"
-                                                            styleClass="w-24 p-button-sm"></p-toggleSwitch>
-                                            <label class="ml-2 font-medium" for="has_garden">Has Garden</label>
-                                        </div>
-
-                                        <div class="flex items-center mt-6">
-                                            <p-toggleSwitch formControlName="has_pool" id="has_pool"
-                                                            styleClass="w-24 p-button-sm"></p-toggleSwitch>
-                                            <label class="ml-2 font-medium" for="has_pool">Has Pool</label>
-                                        </div>
-
-                                        <div class="flex items-center mt-6">
-                                            <p-toggleSwitch formControlName="has_elevator"
-                                                            id="has_elevator"
-                                                            styleClass="w-24 p-button-sm"></p-toggleSwitch>
-                                            <label class="ml-2 font-medium" for="has_elevator">Has Elevator</label>
-                                        </div>
-
-                                        <div class="flex items-center mt-6">
-                                            <p-toggleSwitch formControlName="air_conditioning"
-                                                            id="air_conditioning"
-                                                            styleClass="w-24 p-button-sm"></p-toggleSwitch>
-                                            <label class="ml-2 font-medium" for="air_conditioning">Air
-                                                Conditioning</label>
-                                        </div>
-                                    </div>
-                                }
-
-                                <!-- Land specific fields -->
-                                @if (propertyForm.get('type')?.value === 'land') {
-                                    <div
-                                            class="grid grid-cols-1 gap-4 mb-4 md:grid-cols-2">
-                                        <div>
-                                            <label class="block mb-2 font-medium" for="land_type">Land Type
-                                                *</label>
-                                            <p-select [options]="landTypeOptions" appendTo="body" class="w-full"
-                                                      formControlName="land_type" id="land_type" optionLabel="label"
-                                                      optionValue="value"
-                                                      placeholder="Select land type"></p-select>
-                                            @if (typeSpecificForm.get('land_type')?.invalid && typeSpecificForm.get('land_type')?.touched) {
-                                                <small
-                                                        class="text-red-500">Land type is required.</small>
-                                            }
-                                        </div>
-
-                                        <div>
-                                            <label class="block mb-2 font-medium" for="zoning">Zoning</label>
-                                            <p-select [options]="zoningOptions" appendTo="body" class="w-full"
-                                                      formControlName="zoning" id="zoning" optionLabel="label"
-                                                      optionValue="value"
-                                                      placeholder="Select zoning"></p-select>
-                                        </div>
-
-                                        <div>
-                                            <label class="block mb-2 font-medium"
-                                                   for="topography">Topography</label>
-                                            <input class="w-full" formControlName="topography" id="topography"
-                                                   pInputText
-                                                   placeholder="Enter topography" type="text"/>
-                                        </div>
-
-                                        <div>
-                                            <label class="block mb-2 font-medium" for="soil_type">Soil Type</label>
-                                            <input class="w-full" formControlName="soil_type" id="soil_type"
-                                                   pInputText
-                                                   placeholder="Enter soil type" type="text"/>
-                                        </div>
-
-                                        <div class="flex items-center mt-6">
-                                            <p-toggleSwitch formControlName="is_developed"
-                                                            id="is_developed"
-                                                            styleClass="w-24 p-button-sm"></p-toggleSwitch>
-                                            <label class="ml-2 font-medium" for="is_developed">Is Developed</label>
-                                        </div>
-
-                                        <div class="flex items-center mt-6">
-                                            <p-toggleSwitch
-                                                    formControlName="has_water_connection" id="has_water_connection"
-                                                    styleClass="w-24 p-button-sm"></p-toggleSwitch>
-                                            <label class="ml-2 font-medium" for="has_water_connection">Has Water
-                                                Connection</label>
-                                        </div>
-
-                                        <div class="flex items-center mt-6">
-                                            <p-toggleSwitch
-                                                    formControlName="has_electricity_connection"
-                                                    id="has_electricity_connection"
-                                                    styleClass="w-24 p-button-sm"></p-toggleSwitch>
-                                            <label class="ml-2 font-medium" for="has_electricity_connection">Has
-                                                Electricity
-                                                Connection</label>
-                                        </div>
-
-                                        <div class="flex items-center mt-6">
-                                            <p-toggleSwitch
-                                                    formControlName="has_sewage_connection"
-                                                    id="has_sewage_connection"
-                                                    styleClass="w-24 p-button-sm"></p-toggleSwitch>
-                                            <label class="ml-2 font-medium" for="has_sewage_connection">Has Sewage
-                                                Connection</label>
-                                        </div>
-                                    </div>
-                                }
-
-                                <!-- Office specific fields -->
-                                @if (propertyForm.get('type')?.value === 'office') {
-                                    <div
-                                            class="grid grid-cols-1 gap-4 mb-4 md:grid-cols-2">
-                                        <div>
-                                            <label class="block mb-2 font-medium" for="rooms">Number of Rooms
-                                                *</label>
-                                            <p-select [options]="roomsOptions" appendTo="body" class="w-full"
-                                                      formControlName="rooms" id="rooms" optionLabel="label"
-                                                      optionValue="value"
-                                                      placeholder="Select number of rooms"></p-select>
-                                            @if (typeSpecificForm.get('rooms')?.invalid && typeSpecificForm.get('rooms')?.touched) {
-                                                <small
-                                                        class="text-red-500">Number of rooms is required.</small>
-                                            }
-                                        </div>
-
-                                        <div>
-                                            <label class="block mb-2 font-medium" for="bathrooms">Bathrooms
-                                                *</label>
-                                            <p-select [options]="bathroomsOptions" appendTo="body" class="w-full"
-                                                      formControlName="bathrooms" id="bathrooms" optionLabel="label"
-                                                      optionValue="value"
-                                                      placeholder="Select number of bathrooms"></p-select>
-                                            @if (typeSpecificForm.get('bathrooms')?.invalid && typeSpecificForm.get('bathrooms')?.touched) {
-                                                <small
-                                                       class="text-red-500">Number of bathrooms is required.</small>
-                                            }
-                                        </div>
-
-                                        <div>
-                                            <label class="block mb-2 font-medium" for="floor">Floor</label>
-                                            <input class="w-full" formControlName="floor" id="floor" pInputText
-                                                   placeholder="Enter floor" type="text"/>
-                                        </div>
-
-                                        <div>
-                                            <label class="block mb-2 font-medium" for="internet_connection">Internet
-                                                Connection</label>
-                                            <input class="w-full" formControlName="internet_connection"
-                                                   id="internet_connection"
-                                                   pInputText
-                                                   placeholder="Enter internet connection details" type="text"/>
-                                        </div>
-
-                                        <div class="flex items-center mt-6">
-                                            <p-toggleSwitch formControlName="has_reception"
-                                                            id="has_reception"
-                                                            styleClass="w-24 p-button-sm"></p-toggleSwitch>
-                                            <label class="ml-2 font-medium" for="has_reception">Has
-                                                Reception</label>
-                                        </div>
-
-                                        <div class="flex items-center mt-6">
-                                            <p-toggleSwitch formControlName="has_kitchen"
-                                                            id="has_kitchen"
-                                                            styleClass="w-24 p-button-sm"></p-toggleSwitch>
-                                            <label class="ml-2 font-medium" for="has_kitchen">Has Kitchen</label>
-                                        </div>
-
-                                        <div class="flex items-center mt-6">
-                                            <p-toggleSwitch formControlName="has_meeting_rooms"
-                                                            id="has_meeting_rooms"
-                                                            styleClass="w-24 p-button-sm"></p-toggleSwitch>
-                                            <label class="ml-2 font-medium" for="has_meeting_rooms">Has Meeting
-                                                Rooms</label>
-                                        </div>
-
-                                        <div class="flex items-center mt-6">
-                                            <p-toggleSwitch formControlName="has_parking"
-                                                            id="has_parking"
-                                                            styleClass="w-24 p-button-sm"></p-toggleSwitch>
-                                            <label class="ml-2 font-medium" for="has_parking">Has Parking</label>
-                                        </div>
-
-                                        <div class="flex items-center mt-6">
-                                            <p-toggleSwitch formControlName="has_security"
-                                                            id="has_security"
-                                                            styleClass="w-24 p-button-sm"></p-toggleSwitch>
-                                            <label class="ml-2 font-medium" for="has_security">Has Security</label>
-                                        </div>
-
-                                        <div class="flex items-center mt-6">
-                                            <p-toggleSwitch formControlName="air_conditioning"
-                                                            id="air_conditioning"
-                                                            styleClass="w-24 p-button-sm"></p-toggleSwitch>
-                                            <label class="ml-2 font-medium" for="air_conditioning">Air
-                                                Conditioning</label>
-                                        </div>
-                                    </div>
-                                }
-
-                                <!-- Store specific fields -->
-                                @if (propertyForm.get('type')?.value === 'store') {
-                                    <div
-                                            class="grid grid-cols-1 gap-4 mb-4 md:grid-cols-2">
-                                        <div>
-                                            <label class="block mb-2 font-medium" for="commercial_type">Commercial
-                                                Type *</label>
-                                            <p-select [options]="commercialTypeOptions" appendTo="body"
-                                                      class="w-full"
-                                                      formControlName="commercial_type" id="commercial_type"
-                                                      optionLabel="label"
-                                                      optionValue="value"
-                                                      placeholder="Select commercial type"></p-select>
-                                            @if (typeSpecificForm.get('commercial_type')?.invalid && typeSpecificForm.get('commercial_type')?.touched) {
-                                                <small
-                                                        class="text-red-500">Commercial type is required.</small>
-                                            }
-                                        </div>
-
-                                        <div>
-                                            <label class="block mb-2 font-medium" for="storefront_width">Storefront
-                                                Width
-                                                (m)</label>
-                                            <p-inputNumber [min]="0" [showButtons]="false" [suffix]=" 'm'"
-                                                           class="w-full"
-                                                           formControlName="storefront_width"
-                                                           id="storefront_width"></p-inputNumber>
-                                        </div>
-
-                                        <div>
-                                            <label class="block mb-2 font-medium" for="pedestrian_traffic">Pedestrian
-                                                Traffic</label>
-                                            <input class="w-full" formControlName="pedestrian_traffic"
-                                                   id="pedestrian_traffic"
-                                                   pInputText
-                                                   placeholder="Enter pedestrian traffic details" type="text"/>
-                                        </div>
-
-                                        <div>
-                                            <label class="block mb-2 font-medium"
-                                                   for="visibility">Visibility</label>
-                                            <input class="w-full" formControlName="visibility" id="visibility"
-                                                   pInputText
-                                                   placeholder="Enter visibility details" type="text"/>
-                                        </div>
-
-                                        <div class="flex items-center mt-6">
-                                            <p-toggleSwitch formControlName="has_storage"
-                                                            id="has_storage"
-                                                            styleClass="w-24 p-button-sm"></p-toggleSwitch>
-                                            <label class="ml-2 font-medium" for="has_storage">Has Storage</label>
-                                        </div>
-
-                                        <div class="flex items-center mt-6">
-                                            <p-toggleSwitch formControlName="has_loading_dock"
-                                                            id="has_loading_dock"
-                                                            styleClass="w-24 p-button-sm"></p-toggleSwitch>
-                                            <label class="ml-2 font-medium" for="has_loading_dock">Has Loading
-                                                Dock</label>
-                                        </div>
-
-                                        <div class="flex items-center mt-6">
-                                            <p-toggleSwitch formControlName="has_parking"
-                                                            id="has_parking"
-                                                            styleClass="w-24 p-button-sm"></p-toggleSwitch>
-                                            <label class="ml-2 font-medium" for="has_parking">Has Parking</label>
-                                        </div>
-                                    </div>
-                                }
-                            </div>
-                        }
-
-                        <h3 class="mt-6 mb-3 text-lg font-medium text-primary">Legal Information</h3>
-                        <p-divider></p-divider>
-                        <div class="grid grid-cols-1 gap-4 mb-4 md:grid-cols-2">
-                            <div>
-                                <label class="block mb-2 font-medium" for="title_type">Title Type</label>
-                                <p-select [options]="titleTypeOptions" appendTo="body" class="w-full"
-                                          formControlName="title_type" id="title_type" optionLabel="label"
-                                          optionValue="value"
-                                          placeholder="Select a title type"></p-select>
-                            </div>
-
-                            <div class="flex items-center mt-6">
-                                <p-toggleSwitch formControlName="with_administrative_monitoring"
-                                                id="with_administrative_monitoring"
-                                                styleClass="w-24 p-button-sm"></p-toggleSwitch>
-                                <label class="ml-2 font-medium" for="with_administrative_monitoring">With
-                                    Administrative
-                                    Monitoring</label>
-                            </div>
-                        </div>
-
-                        <h3 class="mt-6 mb-3 text-lg font-medium text-primary">Additional Information</h3>
-                        <p-divider></p-divider>
-                        <div class="grid grid-cols-1 gap-4 mb-4">
-                            <div>
-                                <label class="block mb-2 font-medium" for="servicing">Services
-                                    (comma-separated)</label>
-                                <p-autocomplete [forceSelection]="false" [multiple]="true"
-                                                formControlName="servicing"
-                                                id="servicing" placeholder="Add services"></p-autocomplete>
-                            </div>
-                        </div>
-
-                        <div class="flex justify-between mt-4">
-                            <p-button (click)="prevStep()" iconPos="left"
-                                      styleClass="p-button-outlined gap-2">
-                                <lucide-icon [img]="ArrowLeft" class="w-4 h-4"></lucide-icon>
-                                <span>Previous</span>
-                            </p-button>
-                            <p-button (click)="nextStep()" iconPos="right"
-                                      class="gap-2">
-                                <span>Next</span>
-                                <lucide-icon [img]="ArrowRight" class="w-4 h-4"></lucide-icon>
-                            </p-button>
-                        </div>
-                    </div>
-                }
-                <!-- Step 3: Location -->
-                @if (activeIndex === 2) {
-                    <div class="animate-fade-in">
-                        <h2 class="mb-3 text-xl font-semibold text-primary">Location</h2>
-                        <p-divider></p-divider>
-
-                        <form [formGroup]="addressForm" class="grid grid-cols-1 gap-4 mb-4 md:grid-cols-2">
-                            <div class="col-span-2">
-                                <label class="block mb-2 font-medium" for="address">Address *</label>
-                                <input class="w-full" formControlName="address" id="address" pInputText
-                                       placeholder="Enter full address" required
-                                       type="text"/>
-                                @if (addressForm.get('address')?.invalid && addressForm.get('address')?.touched) {
-                                    <small
-                                            class="text-red-500">Address is required.</small>
-                                }
-                            </div>
-
-                            <div>
-                                <label class="block mb-2 font-medium" for="country">Country *</label>
-                                <p-select [options]="countries" appendTo="body" class="w-full"
-                                          formControlName="country"
-                                          id="country" optionLabel="name" optionValue="code"
-                                          placeholder="Select a country"></p-select>
-                                @if (addressForm.get('country')?.invalid && addressForm.get('country')?.touched) {
-                                    <small
-                                            class="text-red-500">Country is required.</small>
-                                }
-                            </div>
-
-                            <div>
-                                <label class="block mb-2 font-medium" for="city">City *</label>
-                                <input class="w-full" formControlName="city" id="city" pInputText
-                                       placeholder="Enter city"
-                                       required
-                                       type="text"/>
-                                @if (addressForm.get('city')?.invalid && addressForm.get('city')?.touched) {
-                                    <small
-                                            class="text-red-500">City is required.</small>
-                                }
-                            </div>
-
-                            <div>
-                                <label class="block mb-2 font-medium" for="state">State/Province *</label>
-                                <input class="w-full" formControlName="state" id="state" pInputText
-                                       placeholder="Enter state or province"
-                                       required type="text"/>
-                                @if (addressForm.get('state')?.invalid && addressForm.get('state')?.touched) {
-                                    <small
-                                            class="text-red-500">State is required.</small>
-                                }
-                            </div>
-
-                            <div>
-                                <label class="block mb-2 font-medium" for="district">District/Area</label>
-                                <input class="w-full" formControlName="district" id="district" pInputText
-                                       placeholder="Enter district or area"
-                                       type="text"/>
-                            </div>
-
-                            <div>
-                                <label class="block mb-2 font-medium" for="street">Street *</label>
-                                <input class="w-full" formControlName="street" id="street" pInputText
-                                       placeholder="Enter street name"
-                                       required type="text"/>
-                                @if (addressForm.get('street')?.invalid && addressForm.get('street')?.touched) {
-                                    <small
-                                            class="text-red-500">Street is required.</small>
-                                }
-                            </div>
-
-                            <div>
-                                <label class="block mb-2 font-medium" for="postal_code">Postal Code</label>
-                                <input class="w-full" formControlName="postal_code" id="postal_code" pInputText
-                                       placeholder="Enter postal code"
-                                       type="text"/>
-                            </div>
-
-                            <div>
-                                <label class="block mb-2 font-medium" for="building">Building/House
-                                    Number</label>
-                                <input class="w-full" formControlName="building" id="building" pInputText
-                                       placeholder="Enter building or house number"
-                                       type="text"/>
-                            </div>
-
-                            <div>
-                                <label class="block mb-2 font-medium" for="latitude">Latitude</label>
-                                <input class="w-full" formControlName="latitude" id="latitude" pInputText
-                                       placeholder="Enter latitude coordinates"
-                                       type="text"/>
-                            </div>
-
-                            <div>
-                                <label class="block mb-2 font-medium" for="longitude">Longitude</label>
-                                <input class="w-full" formControlName="longitude" id="longitude" pInputText
-                                       placeholder="Enter longitude coordinates"
-                                       type="text"/>
-                            </div>
-                        </form>
-
-                        <!-- Map placeholder - would be implemented with a map component -->
-                        <div class="flex col-span-2 justify-center items-center mb-4 h-64 bg-gray-100 rounded-lg">
-                            <div class="text-center flex flex-col items-center">
-                                <lucide-icon [img]="MapPin" class="mb-2 w-10 h-10 text-gray-400"></lucide-icon>
-                                <p class="text-gray-500">Map view would be displayed here</p>
-                                <p class="mt-2 text-sm text-gray-400">You can set the location by clicking on
-                                    the map or
-                                    entering coordinates</p>
-                            </div>
-                        </div>
-
-                        <div class="flex justify-between mt-4">
-                            <p-button (click)="prevStep()" iconPos="left"
-                                      label="Previous"
-                                      styleClass="p-button-outlined gap-2">
-                                <lucide-icon [img]="ArrowLeft" class="w-4 h-4"></lucide-icon>
-                                <span>Previous</span>
-                            </p-button>
-                            <p-button (click)="nextStep()" iconPos="right"
-                                      label="Next" class="gap-2">
-                                <span>Next</span>
-                                <lucide-icon [img]="ArrowRight" class="w-4 h-4"></lucide-icon>
-                            </p-button>
-                        </div>
-                    </div>
-                }
-                <!-- Step 4: Media -->
-                @if (activeIndex === 3) {
-                    <div>
-                        <h2 class="mb-3 text-xl font-semibold text-primary">Media</h2>
-                        <p-divider></p-divider>
-
-                        <div class="mb-4">
-                            <p class="mb-3 text-gray-600">Upload images and videos of your property to
-                                attract more
-                                customers.</p>
-
-                            <!-- Existing property media -->
-                            @if (propertyMedia.length > 0) {
-                                <div class="mb-6">
-                                    <h3 class="mb-3 text-lg font-medium">Current Media:</h3>
-                                    <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
-                                        @for (media of propertyMedia; track media; let i = $index) {
-                                            <div class="relative">
-                                                <!-- Image display -->
-                                                @if (media.is_image) {
-                                                    <img [alt]="media.name || 'Property image'"
-                                                         [src]="media.original_url"
-                                                         class="object-cover w-full h-32 rounded-md shadow-sm"/>
-                                                }
-
-                                                <!-- Video display -->
-                                                @if (!media.is_image && media.mime_type?.includes('video')) {
-                                                    <div
-                                                            class="flex justify-center items-center w-full h-32 bg-gray-200 rounded-md shadow-sm">
-                                                        <lucide-icon [img]="Video" class="w-8 h-8 text-gray-500"></lucide-icon>
-                                                    </div>
-                                                }
-
-                                                <!-- Document or other file display -->
-                                                @if (!media.is_image && !media.mime_type?.includes('video')) {
-                                                    <div
-                                                            class="flex justify-center items-center w-full h-32 bg-gray-200 rounded-md shadow-sm">
-                                                        <lucide-icon [img]="File" class="w-8 h-8 text-gray-500"></lucide-icon>
-                                                    </div>
-                                                }
-
-                                                <!-- Featured badge -->
-                                                @if (media.is_featured) {
-                                                    <div
-                                                            class="absolute top-2 left-2 px-2 py-1 text-xs text-white rounded-md bg-primary">
-                                                        Featured
-                                                    </div>
-                                                }
-
-                                                <!-- Actions -->
-                                                <div class="flex absolute top-2 right-2 gap-1">
-                                                    @if (!media.is_featured) {
-                                                        <button (click)="setFeaturedMedia(media, i)"
-                                                                class="p-button-rounded p-button-sm p-button-success"
-                                                                pButton pTooltip="Set as featured"
-                                                                tooltipPosition="top"
-                                                                type="button">
-                                                            <lucide-icon [img]="Star" class="w-4 h-4"></lucide-icon>
-                                                        </button>
-                                                    }
-                                                    <button (click)="removePropertyMedia(media, i)"
-                                                            class="p-button-rounded p-button-danger p-button-sm"
-                                                            pButton pTooltip="Delete"
-                                                            tooltipPosition="top" type="button">
-                                                        <lucide-icon [img]="Trash2" class="w-4 h-4"></lucide-icon>
-                                                    </button>
-                                                </div>
-
-                                                <p class="mt-1 text-sm truncate">{{ media.name || media.file_name }}</p>
-                                            </div>
-                                        }
-                                    </div>
-                                </div>
-                            }
-
-                            <!-- File upload for new media -->
-                            <h3 class="mb-3 text-lg font-medium">Upload New Media:</h3>
-                            <p-fileupload (onSelect)="uploadingMedia = true" (onUpload)="onUpload($event)"
-                                          [maxFileSize]="10000000" [multiple]="true"
-                                          [url]="property.id ? apiUrl + '/properties/' + property.id + '/media' : './upload'"
-                                          accept="image/*,video/*" cancelLabel="Cancel"
-                                          chooseLabel="Select Files" name="file[]" styleClass="mb-4"
-                                          uploadLabel="Upload All">
-                                <ng-template #empty>
-                                    <div>Drag and drop files to here to upload.</div>
-                                </ng-template>
-                                <ng-template pTemplate="header">
-                                    <div class="p-4 bg-primary-50">
-                                        <div class="flex justify-between items-center">
-                                            <h2 class="text-xl font-semibold text-primary">Media & Documents</h2>
-                                            <p-button label="Upload" styleClass="p-button-sm gap-2">
-                                                <lucide-icon [img]="Upload" class="w-4 h-4"></lucide-icon>
-                                                <span>Upload</span>
-                                            </p-button>
-                                        </div>
-                                    </div>
-                                </ng-template>
-                            </p-fileupload>
-                        </div>
-
-                        <div class="flex justify-between mt-4">
-                            <p-button (click)="prevStep()" iconPos="left"
-                                      label="Previous"
-                                      styleClass="p-button-outlined gap-2">
-                                <lucide-icon [img]="ArrowLeft" class="w-4 h-4"></lucide-icon>
-                                <span>Previous</span>
-                            </p-button>
-                            <p-button (click)="saveProperty()"
-                                      label="Save Property"
-                                      styleClass="p-button-primary gap-2">
-                                @if (saving) {
-                                    <lucide-icon [img]="Loader2" class="animate-spin w-4 h-4"></lucide-icon>
-                                } @else {
-                                    <lucide-icon [img]="Check" class="w-4 h-4"></lucide-icon>
-                                }
-                                <span>Save Property</span>
-                            </p-button>
-                        </div>
-                    </div>
-                }
-            </form>
-        </p-card>
-    }
-
+      </div>
+    </main>
+  }
 </div>

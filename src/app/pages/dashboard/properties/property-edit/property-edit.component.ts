@@ -1,47 +1,29 @@
-import {Component, OnInit} from '@angular/core';
+import {Component, inject, OnInit, signal} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators} from '@angular/forms';
 import {ActivatedRoute, Router} from '@angular/router';
-import {MenuItem, MessageService} from 'primeng/api';
-import {DialogService, DynamicDialogModule} from 'primeng/dynamicdialog';
+import {MessageService} from 'primeng/api';
 import {Property} from '../../../../core/models/http/property.model';
 import {Address} from '../../../../core/models/http/address.model';
 import {Media} from '../../../../core/models/http/media.model';
 import {environment} from '../../../../../environments/environment';
 import {finalize} from 'rxjs';
-
-// PrimeNG Modules
-import {InputTextModule} from 'primeng/inputtext';
-import {ButtonModule} from 'primeng/button';
-import {TextareaModule} from 'primeng/textarea';
-import {SelectModule} from 'primeng/select';
-import {InputNumberModule} from 'primeng/inputnumber';
-import {ToggleSwitchModule} from 'primeng/toggleswitch';
-import {DividerModule} from 'primeng/divider';
-import {CardModule} from 'primeng/card';
-import {AutoCompleteModule} from 'primeng/autocomplete';
-import {FileUploadModule} from 'primeng/fileupload';
-import {DatePickerModule} from 'primeng/datepicker';
 import {ToastModule} from 'primeng/toast';
-import {StepsModule} from 'primeng/steps';
-import {TableModule} from 'primeng/table';
-import {DialogModule} from 'primeng/dialog';
-import {TagModule} from 'primeng/tag';
 import {PropertyService} from "../../../../core/services/http/property.service";
 import {
-  LucideAngularModule,
-  Loader2,
-  X,
-  Check,
-  ArrowRight,
   ArrowLeft,
+  Home,
+  Image as ImageIcon,
+  LayoutDashboard,
+  Loader2,
   MapPin,
-  Video,
-  File,
-  Star,
-  Trash2,
-  Upload
+  Save,
+  LucideAngularModule
 } from 'lucide-angular';
+import { PropertyEditBasicComponent } from './steps/property-edit-basic/property-edit-basic.component';
+import { PropertyEditDetailsComponent } from './steps/property-edit-details/property-edit-details.component';
+import { PropertyEditLocationComponent } from './steps/property-edit-location/property-edit-location.component';
+import { PropertyEditMediaComponent } from './steps/property-edit-media/property-edit-media.component';
 
 @Component({
   selector: 'app-property-edit',
@@ -50,104 +32,97 @@ import {
     CommonModule,
     ReactiveFormsModule,
     FormsModule,
-    TextareaModule,
-    ButtonModule,
-    InputTextModule,
-    SelectModule,
-    InputNumberModule,
-    ToggleSwitchModule,
-    DividerModule,
-    CardModule,
-    AutoCompleteModule,
-    FileUploadModule,
-    DatePickerModule,
     ToastModule,
-    StepsModule,
-    TableModule,
-    DialogModule,
-    DynamicDialogModule,
-    TagModule,
-    LucideAngularModule
+    LucideAngularModule,
+    PropertyEditBasicComponent,
+    PropertyEditDetailsComponent,
+    PropertyEditLocationComponent,
+    PropertyEditMediaComponent
   ],
-  providers: [DialogService, MessageService],
+  providers: [MessageService],
   standalone: true
 })
 export class PropertyEditComponent implements OnInit {
+  // Signals for reactive UI state
+  loading = signal(false);
+  saving = signal(false);
+  uploadingMedia = signal(false);
+  activeSection = signal<'basic' | 'details' | 'location' | 'media'>('basic');
+  isEditMode = signal(false);
+
+  // Data State
   property: Property = {};
   propertyForm!: FormGroup;
-  saving = false;
-  loading = false;
-  isEditMode = false;
-  activeIndex = 0;
-  uploadedFiles: any[] = [];
-  propertyMedia: Media[] = [];
-  uploadingMedia = false;
-  steps: MenuItem[] = [];
   addressForm!: FormGroup;
   typeSpecificForm!: FormGroup;
-  apiUrl = environment.apiUrl + '/api'; // API URL for direct uploads
-  countries: any[] = [
+
+  uploadedFiles: any[] = [];
+  propertyMedia: Media[] = [];
+
+  apiUrl = environment.apiUrl + '/api';
+
+  // Constants
+  readonly countries = [
     {name: 'France', code: 'FR'},
     {name: 'Spain', code: 'ES'},
     {name: 'Germany', code: 'DE'},
     {name: 'United Kingdom', code: 'GB'},
-    {name: 'Italy', code: 'IT'}
+    {name: 'Italy', code: 'IT'},
+    {name: 'Senegal', code: 'SN'}
   ];
 
   // Icons
-  readonly Loader2 = Loader2;
-  readonly X = X;
-  readonly Check = Check;
-  readonly ArrowRight = ArrowRight;
-  readonly ArrowLeft = ArrowLeft;
-  readonly MapPin = MapPin;
-  readonly Video = Video;
-  readonly File = File;
-  readonly Star = Star;
-  readonly Trash2 = Trash2;
-  readonly Upload = Upload;
+  readonly icons = {
+    Loader2, ArrowLeft, MapPin, Home, LayoutDashboard, Image: ImageIcon, Save
+  };
 
-  propertyTypes = [
-    {label: 'Apartment', value: 'apartment'},
-    {label: 'House', value: 'house'},
+  // Options
+  readonly propertyTypes = [
+    {label: 'Appartement', value: 'apartment'},
+    {label: 'Maison', value: 'house'},
     {label: 'Villa', value: 'villa'},
-    {label: 'Land', value: 'land'},
-    {label: 'Office', value: 'office'},
-    {label: 'Store', value: 'store'}
+    {label: 'Terrain', value: 'land'},
+    {label: 'Bureau', value: 'office'},
+    {label: 'Magasin', value: 'store'}
   ];
 
-  statusOptions = [
-    {label: 'Available', value: 'available'},
-    {label: 'Sold', value: 'sold'},
-    {label: 'Rented', value: 'rented'},
-    {label: 'Under Maintenance', value: 'under_maintenance'},
-    {label: 'Unavailable', value: 'unavailable'}
+  readonly statusOptions = [
+    {label: 'Disponible', value: 'available'},
+    {label: 'Vendu', value: 'sold'},
+    {label: 'Loué', value: 'rented'},
+    {label: 'En maintenance', value: 'under_maintenance'},
+    {label: 'Indisponible', value: 'unavailable'}
   ];
 
-  visibilityOptions = [
+  readonly visibilityOptions = [
     {label: 'Public', value: 'public'},
-    {label: 'Private', value: 'private'},
-    {label: 'Limited', value: 'limited'}
+    {label: 'Privé', value: 'private'},
+    {label: 'Limité', value: 'limited'}
   ];
 
-  positionOptions = [
-    {label: 'Front', value: 'front'},
-    {label: 'Back', value: 'back'},
-    {label: 'Corner', value: 'corner'},
-    {label: 'Middle', value: 'middle'}
+  readonly positionOptions = [
+    {label: 'Façade', value: 'front'},
+    {label: 'Arrière', value: 'back'},
+    {label: 'Angle', value: 'corner'},
+    {label: 'Milieu', value: 'middle'}
   ];
 
-  levelOptions = [
-    {label: 'Ground Floor', value: 'ground'},
-    {label: 'First Floor', value: 'first'},
-    {label: 'Second Floor', value: 'second'},
-    {label: 'Third Floor', value: 'third'},
+  readonly levelOptions = [
+    {label: 'Rez-de-chaussée', value: 'ground'},
+    {label: '1er Étage', value: 'first'},
+    {label: '2ème Étage', value: 'second'},
+    {label: '3ème Étage', value: 'third'},
     {label: 'Penthouse', value: 'penthouse'},
-    {label: 'Basement', value: 'basement'}
+    {label: 'Sous-sol', value: 'basement'}
   ];
 
-  // Residential specific options
-  roomsOptions = [
+  readonly contractTypeOptions = [
+    {label: 'Vente', value: 'sale'},
+    {label: 'Location', value: 'rent'},
+    {label: 'Bail', value: 'lease'}
+  ];
+
+  readonly roomsOptions = [
     {label: '1', value: '1'},
     {label: '2', value: '2'},
     {label: '3', value: '3'},
@@ -156,73 +131,37 @@ export class PropertyEditComponent implements OnInit {
     {label: '6+', value: '6+'}
   ];
 
-  bathroomsOptions = [
+  readonly bathroomsOptions = [
     {label: '1', value: '1'},
     {label: '2', value: '2'},
     {label: '3', value: '3'},
     {label: '4+', value: '4+'}
   ];
 
-  furnishedOptions = [
-    {label: 'Fully Furnished', value: 'fully_furnished'},
-    {label: 'Semi-Furnished', value: 'semi_furnished'},
-    {label: 'Unfurnished', value: 'unfurnished'}
+  readonly furnishedOptions = [
+    {label: 'Meublé', value: 'fully_furnished'},
+    {label: 'Semi-meublé', value: 'semi_furnished'},
+    {label: 'Non meublé', value: 'unfurnished'}
   ];
 
-  // Land specific options
-  landTypeOptions = [
-    {label: 'Residential', value: 'residential'},
-    {label: 'Commercial', value: 'commercial'},
-    {label: 'Agricultural', value: 'agricultural'},
-    {label: 'Industrial', value: 'industrial'},
-    {label: 'Mixed Use', value: 'mixed_use'}
-  ];
-
-  zoningOptions = [
-    {label: 'Residential', value: 'residential'},
-    {label: 'Commercial', value: 'commercial'},
-    {label: 'Industrial', value: 'industrial'},
-    {label: 'Agricultural', value: 'agricultural'},
-    {label: 'Mixed Use', value: 'mixed_use'}
-  ];
-
-  // Commercial specific options
-  commercialTypeOptions = [
-    {label: 'Retail', value: 'retail'},
-    {label: 'Office', value: 'office'},
-    {label: 'Industrial', value: 'industrial'},
-    {label: 'Warehouse', value: 'warehouse'},
+  readonly commercialTypeOptions = [
+    {label: 'Commerce de détail', value: 'retail'},
+    {label: 'Entrepôt', value: 'warehouse'},
     {label: 'Restaurant', value: 'restaurant'},
-    {label: 'Hotel', value: 'hotel'}
+    {label: 'Hôtel', value: 'hotel'},
+    {label: 'Autre', value: 'other'}
   ];
 
-  titleTypeOptions = [
-    {label: 'Freehold', value: 'freehold'},
-    {label: 'Leasehold', value: 'leasehold'},
-    {label: 'Other', value: 'other'}
-  ];
-
-  contractTypeOptions = [
-    {label: 'Sale', value: 'sale'},
-    {label: 'Rent', value: 'rent'},
-    {label: 'Lease', value: 'lease'}
-  ];
-
-  constructor(
-    private propertyService: PropertyService,
-    private messageService: MessageService,
-    private fb: FormBuilder,
-    private route: ActivatedRoute,
-    private router: Router,
-  ) {
-  }
+  private propertyService = inject(PropertyService);
+  private messageService = inject(MessageService);
+  private fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
 
   ngOnInit() {
-    this.initializeSteps();
-
     const propertyId = this.route.snapshot.paramMap.get('id');
     if (propertyId && propertyId !== 'new') {
-      this.isEditMode = true;
+      this.isEditMode.set(true);
       this.loadProperty(propertyId);
     } else {
       this.initializeFormBuilder();
@@ -230,17 +169,8 @@ export class PropertyEditComponent implements OnInit {
     }
   }
 
-  initializeSteps() {
-    this.steps = [
-      {label: 'Basic Information', command: () => this.activeIndex = 0},
-      {label: 'Property Details', command: () => this.activeIndex = 1},
-      {label: 'Location', command: () => this.activeIndex = 2},
-      {label: 'Media', command: () => this.activeIndex = 3}
-    ];
-  }
-
   loadProperty(id: string) {
-    this.loading = true;
+    this.loading.set(true);
     const numericId = parseInt(id, 10);
     this.propertyService.get(numericId, {properties: {with: 'media'}}).subscribe({
       next: (property: Property) => {
@@ -258,14 +188,14 @@ export class PropertyEditComponent implements OnInit {
           is_image: media.mime_type?.includes('image')
         }));
 
-        this.loading = false;
+        this.loading.set(false);
       },
       error: (error: any) => {
-        this.loading = false;
+        this.loading.set(false);
         this.messageService.add({
           severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to load property: ' + (error.message || 'Unknown error'),
+          summary: 'Erreur',
+          detail: 'Impossible de charger le bien: ' + (error.message || 'Erreur inconnue'),
           life: 3000
         });
         this.router.navigate(['/dashboard/properties']).then();
@@ -308,7 +238,7 @@ export class PropertyEditComponent implements OnInit {
   initializeAddressForm(address?: Address) {
     this.addressForm = this.fb.group({
       address: [address?.address || '', Validators.required],
-      country: [address?.country || '', Validators.required],
+      country: [address?.country || 'SN', Validators.required],
       state: [address?.state || '', Validators.required],
       city: [address?.city || '', Validators.required],
       district: [address?.district || ''],
@@ -320,14 +250,10 @@ export class PropertyEditComponent implements OnInit {
     });
   }
 
-  hasError(controlName: string, errorName?: string) {
-    if (errorName) return this.propertyForm?.controls[controlName].hasError(errorName);
-    const control = this.propertyForm?.get(controlName);
-    return control && control.invalid && (control.dirty || control.touched);
-  }
-
   saveProperty() {
-    if (this.saving) return;
+    if (this.saving()) return;
+
+    // Validate all forms
     if (this.propertyForm?.invalid || this.addressForm?.invalid) {
       this.markFormGroupTouched(this.propertyForm);
       this.markFormGroupTouched(this.addressForm);
@@ -336,33 +262,29 @@ export class PropertyEditComponent implements OnInit {
       }
       this.messageService.add({
         severity: 'error',
-        summary: 'Validation Error',
-        detail: 'Please fill in all required fields correctly.',
+        summary: 'Erreur de validation',
+        detail: 'Veuillez remplir tous les champs obligatoires correctement.',
         life: 3000
       });
       return;
     }
 
-    this.saving = true;
+    this.saving.set(true);
 
-    // Prepare the property data with address and type-specific data
     const data = {
       ...this.propertyForm.value,
-      // Add user_id if available in your auth context
-      // user_id: authUser.id,
       address: {id: this.property.address?.id, ...this.addressForm.value},
       metadata: this.typeSpecificForm ? this.typeSpecificForm.value : {}
     };
 
-    (this.isEditMode
+    (this.isEditMode()
         ? this.propertyService.update(this.property.id!, data)
         : this.propertyService.create(data)
     )
-      .pipe(finalize(() => this.saving = false))
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: (savedProperty: Property) => {
-          // Handle media uploads for a new property (for existing properties, media is uploaded directly)
-          if (!this.isEditMode && this.uploadedFiles.length > 0) {
+          if (!this.isEditMode() && this.uploadedFiles.length > 0) {
             this.uploadNewPropertyMedia(savedProperty.id!);
           } else {
             this.saveCompleted();
@@ -370,53 +292,56 @@ export class PropertyEditComponent implements OnInit {
         },
         error: error => this.messageService.add({
           severity: 'error',
-          summary: 'Error',
-          detail: error.message || 'An error has occurred',
+          summary: 'Erreur',
+          detail: error.message || 'Une erreur est survenue',
           life: 3000
         })
       });
   }
 
-
-  /**
-   * Handle file upload completion
-   */
-  onUpload(event: any) {
-    this.uploadingMedia = false;
+  onCustomUpload(event: any) {
     for (let file of event.files) {
       this.uploadedFiles.push(file);
     }
-
     this.messageService.add({
       severity: 'info',
-      summary: 'File Uploaded',
-      detail: 'File(s) uploaded successfully'
+      summary: 'Fichiers sélectionnés',
+      detail: 'Les fichiers seront téléchargés lors de l\'enregistrement.'
     });
   }
 
-  /**
-   * Remove an existing property media item
-   */
+  onServerUpload(event: any) {
+    this.uploadingMedia.set(false);
+    // Refresh property data to show new media
+    if (this.property.id) {
+        this.loadProperty(this.property.id.toString());
+    }
+    this.messageService.add({
+      severity: 'success',
+      summary: 'Téléchargement réussi',
+      detail: 'Les médias ont été ajoutés.'
+    });
+  }
+
   removePropertyMedia(media: Media, index: number) {
     if (!this.property.id) return;
 
-    if (confirm('Are you sure you want to delete this media?')) {
-      // Here you would call a service method to delete the media from the server
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce média ?')) {
       this.propertyService.deleteMedia(this.property.id, media.id!).subscribe({
         next: () => {
           this.propertyMedia.splice(index, 1);
           this.messageService.add({
             severity: 'success',
-            summary: 'Media Deleted',
-            detail: 'Media was successfully deleted',
+            summary: 'Supprimé',
+            detail: 'Média supprimé avec succès',
             life: 3000
           });
         },
         error: (error: any) => {
           this.messageService.add({
             severity: 'error',
-            summary: 'Error',
-            detail: 'Could not delete media: ' + (error.message || 'Unknown error'),
+            summary: 'Erreur',
+            detail: 'Impossible de supprimer le média',
             life: 3000
           });
         }
@@ -424,49 +349,33 @@ export class PropertyEditComponent implements OnInit {
     }
   }
 
-  /**
-   * Remove a newly uploaded file that hasn't been saved yet
-   */
   removeUploadedFile(index: number) {
     this.uploadedFiles.splice(index, 1);
   }
 
-  /**
-   * Set a media item as the featured image
-   */
   setFeaturedMedia(media: Media, index: number) {
     if (!this.property.id) return;
 
     this.propertyService.setFeaturedMedia(this.property.id, media.id!).subscribe({
       next: () => {
-        // Update local state - mark this as featured and others as not featured
         this.propertyMedia.forEach(item => item.is_featured = false);
         this.propertyMedia[index].is_featured = true;
-
         this.messageService.add({
           severity: 'success',
-          summary: 'Featured Image Set',
-          detail: 'This image is now the featured image for the property',
+          summary: 'Mis en avant',
+          detail: 'Image définie comme principale',
           life: 3000
         });
       },
       error: (error: any) => {
         this.messageService.add({
           severity: 'error',
-          summary: 'Error',
-          detail: 'Could not set featured media: ' + (error.message || 'Unknown error'),
+          summary: 'Erreur',
+          detail: 'Impossible de définir l\'image principale',
           life: 3000
         });
       }
     });
-  }
-
-  nextStep() {
-    this.activeIndex = Math.min(this.activeIndex + 1, this.steps.length - 1);
-  }
-
-  prevStep() {
-    this.activeIndex = Math.max(this.activeIndex - 1, 0);
   }
 
   markFormGroupTouched(formGroup: FormGroup) {
@@ -482,7 +391,6 @@ export class PropertyEditComponent implements OnInit {
     const propertyType = type || this.propertyForm?.get('type')?.value || 'apartment';
     const metadata = this.property.metadata || {};
 
-    // Create form group based on property type
     switch (propertyType) {
       case 'apartment':
       case 'house':
@@ -543,42 +451,19 @@ export class PropertyEditComponent implements OnInit {
     }
   }
 
-  getTypeSpecificLabel(): string {
-    const propertyType = this.propertyForm?.get('type')?.value;
-    switch (propertyType) {
-      case 'apartment':
-        return 'Apartment Details';
-      case 'house':
-        return 'House Details';
-      case 'villa':
-        return 'Villa Details';
-      case 'land':
-        return 'Land Details';
-      case 'office':
-        return 'Office Details';
-      case 'store':
-        return 'Commercial Details';
-      default:
-        return 'Property Details';
-    }
-  }
-
   cancel() {
     this.router.navigate(['/dashboard/properties']).then();
   }
 
-  /**
-   * Upload media files for a newly created property
-   */
   private uploadNewPropertyMedia(propertyId: number) {
     if (this.uploadedFiles.length === 0) return this.saveCompleted();
 
-    this.uploadingMedia = true;
+    this.uploadingMedia.set(true);
     const files = this.uploadedFiles.map(file => file);
 
     this.propertyService.uploadMedia(propertyId, files)
       .pipe(finalize(() => {
-        this.uploadingMedia = false;
+        this.uploadingMedia.set(false);
         this.uploadedFiles = [];
       }))
       .subscribe({
@@ -589,8 +474,8 @@ export class PropertyEditComponent implements OnInit {
         error: (error: any) => {
           this.messageService.add({
             severity: 'warning',
-            summary: 'Media Upload Failed',
-            detail: 'Property was saved but media upload failed: ' + (error.message || 'Unknown error'),
+            summary: 'Upload incomplet',
+            detail: 'Propriété sauvegardée mais échec de l\'upload média: ' + (error.message || 'Erreur'),
             life: 5000
           });
           this.saveCompleted();
@@ -598,16 +483,17 @@ export class PropertyEditComponent implements OnInit {
       });
   }
 
-  /**
-   * Complete the save operation and navigate to properties list
-   */
   private saveCompleted() {
     this.messageService.add({
       severity: 'success',
-      summary: 'Success',
-      detail: 'Property saved successfully',
+      summary: 'Succès',
+      detail: 'Bien immobilier enregistré avec succès',
       life: 3000
     });
     this.router.navigate(['/dashboard/properties']).then();
+  }
+
+  setActiveSection(section: 'basic' | 'details' | 'location' | 'media') {
+    this.activeSection.set(section);
   }
 }

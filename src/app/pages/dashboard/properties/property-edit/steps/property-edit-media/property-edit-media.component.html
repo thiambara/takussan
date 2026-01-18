@@ -1,0 +1,99 @@
+<div class="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/50 dark:border-gray-800 shadow-sm p-6 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+  <div class="mb-8">
+    <h2 class="text-xl font-bold text-gray-900 dark:text-white">Médias</h2>
+    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Ajoutez des photos et vidéos pour mettre en valeur votre bien.</p>
+  </div>
+
+  <!-- Existing Media Grid -->
+  @if (propertyMedia.length > 0) {
+    <div class="mb-8">
+      <h3 class="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-4">Médias actuels</h3>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        @for (media of propertyMedia; track media.id; let i = $index) {
+          <div class="group relative aspect-square rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+            @if (media.is_image) {
+              <img [src]="media.preview_url || media.original_url" class="w-full h-full object-cover">
+            } @else {
+              <div class="flex items-center justify-center h-full text-gray-400">
+                <lucide-icon [img]="icons.File" class="w-8 h-8"></lucide-icon>
+              </div>
+            }
+
+            <!-- Overlay Actions -->
+            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+              <button type="button" (click)="setFeatured.emit({media: media, index: i})"
+                      [class.text-yellow-400]="media.is_featured"
+                      [class.text-white]="!media.is_featured"
+                      class="p-2 hover:bg-white/20 rounded-full transition-colors"
+                      title="Définir comme principal">
+                <lucide-icon [img]="icons.Star" class="w-5 h-5" [class.fill-current]="media.is_featured"></lucide-icon>
+              </button>
+              <button type="button" (click)="removeMedia.emit({media: media, index: i})"
+                      class="p-2 text-white hover:bg-red-500/80 rounded-full transition-colors"
+                      title="Supprimer">
+                <lucide-icon [img]="icons.Trash2" class="w-5 h-5"></lucide-icon>
+              </button>
+            </div>
+
+            @if (media.is_featured) {
+              <div class="absolute top-2 left-2 bg-yellow-400 text-black text-[10px] font-bold px-2 py-0.5 rounded-full">
+                PRINCIPAL
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Upload Area -->
+  <div class="space-y-4">
+    <h3 class="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Ajouter des médias</h3>
+
+    <p-fileupload
+      [name]="'file[]'"
+      [url]="isEditMode && property.id ? apiUrl + '/properties/' + property.id + '/media' : ''"
+      [customUpload]="!isEditMode"
+      (uploadHandler)="customUpload.emit($event)"
+      (onUpload)="serverUpload.emit($event)"
+      (onSelect)="uploadSelect.emit()"
+      [multiple]="true"
+      accept="image/*,video/*"
+      [maxFileSize]="10000000"
+      [auto]="true"
+      mode="advanced"
+      chooseLabel="Sélectionner des fichiers"
+      uploadLabel="Télécharger"
+      cancelLabel="Annuler"
+      styleClass="w-full property-fileupload">
+      <ng-template pTemplate="content">
+        @if (uploadedFiles.length) {
+          <div class="p-4 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="flex items-center gap-2">
+              <lucide-icon [img]="icons.Check" class="w-4 h-4 text-green-500"></lucide-icon>
+              <span>{{uploadedFiles.length}} fichier(s) prêt(s) à être enregistré(s)</span>
+            </div>
+          </div>
+        }
+      </ng-template>
+    </p-fileupload>
+  </div>
+
+  <div class="mt-8 flex justify-between">
+    <button type="button" (click)="previous.emit()"
+            class="px-6 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+      Précédent
+    </button>
+    <button type="button" (click)="save.emit()"
+            [disabled]="saving"
+            class="flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors shadow-lg shadow-primary-200 dark:shadow-none disabled:opacity-50 disabled:cursor-not-allowed">
+      @if (saving) {
+        <lucide-icon [img]="icons.Loader2" class="w-4 h-4 animate-spin"></lucide-icon>
+        Enregistrement...
+      } @else {
+        <lucide-icon [img]="icons.Save" class="w-4 h-4"></lucide-icon>
+        Terminer
+      }
+    </button>
+  </div>
+</div>

@@ -1,434 +1,456 @@
-<div class="min-h-screen bg-gray-50/50 dark:bg-gray-900 pb-20">
-    <!-- Top Navigation / Breadcrumb area -->
-    <div class="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-4">
-                <button [routerLink]="['/dashboard/properties']"
-                        class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-all text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
-                    <lucide-icon [img]="ArrowLeft" class="w-5 h-5"></lucide-icon>
-                </button>
-                <div class="h-6 w-px bg-gray-200 dark:bg-gray-700"></div>
-                <h1 class="text-lg font-semibold text-gray-900 dark:text-white truncate max-w-md">
-                    {{ property?.title || 'Détails du bien' }}
-                </h1>
-            </div>
-
-            <div class="flex items-center gap-3">
-                <button class="hidden sm:flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm">
-                    <lucide-icon [img]="Edit" class="w-4 h-4"></lucide-icon>
-                    Modifier
-                </button>
-                <button (click)="deleteProperty()"
-                        class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all shadow-sm shadow-red-200 dark:shadow-none">
-                    <lucide-icon [img]="Trash2" class="w-4 h-4"></lucide-icon>
-                    <span class="hidden sm:inline">Supprimer</span>
-                </button>
-            </div>
+<div class="min-h-screen bg-gray-50/50 dark:bg-gray-950 pb-20 font-sans">
+  <!-- Top Navigation / Header -->
+  <header
+    class="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50 supports-[backdrop-filter]:bg-white/60">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3 min-w-0">
+        <button [routerLink]="['/dashboard/properties']"
+                class="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white group">
+          <lucide-icon [img]="icons.ArrowLeft"
+                       class="w-5 h-5 group-hover:-translate-x-0.5 transition-transform"></lucide-icon>
+        </button>
+        <div class="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1"></div>
+        <div class="flex flex-col min-w-0">
+          <h1 class="text-sm font-medium text-gray-900 dark:text-white truncate">
+            {{ property()?.title || 'Chargement...' }}
+          </h1>
+          @if (property()) {
+            <span class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+              <lucide-icon [img]="icons.MapPin" class="w-3 h-3"></lucide-icon>
+              {{ property()?.address?.city }}, {{ property()?.address?.country }}
+            </span>
+          }
         </div>
+      </div>
+
+      <div class="flex items-center gap-2 sm:gap-3">
+        @if (property()) {
+          <app-badge [rounded]="true" [variant]="property()?.status === 'available' ? 'success' : 'neutral'"
+                     class="hidden sm:flex"
+                     size="sm">
+            {{ property()?.status === 'available' ? 'Disponible' : property()?.status }}
+          </app-badge>
+        }
+
+        <div class="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1 hidden sm:block"></div>
+
+        <button
+          class="p-2 sm:px-3 sm:py-1.5 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm">
+          <lucide-icon [img]="icons.Share2" class="w-4 h-4"></lucide-icon>
+          <span class="hidden sm:inline">Partager</span>
+        </button>
+
+        <button
+          class="p-2 sm:px-3 sm:py-1.5 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm">
+          <lucide-icon [img]="icons.Edit" class="w-4 h-4"></lucide-icon>
+          <span class="hidden sm:inline">Modifier</span>
+        </button>
+
+        <button (click)="deleteProperty()"
+                class="p-2 sm:px-3 sm:py-1.5 flex items-center gap-2 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-all">
+          <lucide-icon [img]="icons.Trash2" class="w-4 h-4"></lucide-icon>
+          <span class="hidden sm:inline">Supprimer</span>
+        </button>
+      </div>
     </div>
+  </header>
 
-    @if (loading) {
-        <div class="flex flex-col items-center justify-center min-h-[60vh]">
-            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"></div>
-            <p class="mt-4 text-gray-500 animate-pulse">Chargement des détails...</p>
-        </div>
-    } @else if (property) {
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+  @if (loading()) {
+    <div class="flex flex-col items-center justify-center min-h-[60vh]">
+      <div class="relative">
+        <div class="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 dark:border-gray-700"></div>
+        <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-primary-600 absolute top-0 left-0"></div>
+      </div>
+      <p class="mt-4 text-gray-500 font-medium animate-pulse">Chargement des données...</p>
+    </div>
+  } @else if (property()) {
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
-            <!-- Hero Section: Title & Gallery -->
-            <div class="space-y-6">
-                <!-- Header Info -->
-                <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
-                    <div class="space-y-2">
-                        <div class="flex flex-wrap items-center gap-3">
-                            <app-badge [variant]="property.status === 'available' ? 'success' : 'neutral'" size="md" [rounded]="true">
-                                {{ property.status }}
-                            </app-badge>
-                            <app-badge variant="primary" size="md" [rounded]="true">
-                                {{ property.type }}
-                            </app-badge>
-                            <span class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                                <lucide-icon [img]="Clock" class="w-3 h-3"></lucide-icon>
-                                Ajouté le {{ property.created_at | date:'dd MMM yyyy' }}
-                            </span>
-                        </div>
-                        <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white tracking-tight">
-                            {{ property.title }}
-                        </h2>
-                        <div class="flex items-center text-gray-500 dark:text-gray-400 text-lg">
-                            <lucide-icon [img]="MapPin" class="w-5 h-5 mr-2 text-primary-500"></lucide-icon>
-                            {{ property.address?.address }}, {{ property.address?.city }}
-                        </div>
-                    </div>
-                    <div class="flex flex-col items-end gap-2">
-                        <div class="text-3xl font-bold text-primary-600 dark:text-primary-400">
-                            {{ property.price | priceFormat }}
-                        </div>
-                        <div class="text-sm text-gray-500 dark:text-gray-400">
-                            {{ property.contract_type === 'sale' ? 'Prix de vente' : 'Loyer mensuel' }}
-                        </div>
-                    </div>
-                </div>
+      <!-- Bento Grid Layout -->
+      <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
 
-                <!-- Modern Gallery Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 h-[400px] md:h-[500px] rounded-3xl overflow-hidden relative group">
-                    <!-- Main Large Image -->
-                    <div class="md:col-span-2 md:row-span-2 relative overflow-hidden bg-gray-100 dark:bg-gray-800">
-                        <img [src]="property.media?.[0]?.preview_url || 'https://placehold.co/800x600?text=No+Image'"
-                             class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 cursor-pointer"
-                             (click)="openGallery(0)"
-                             alt="Main view">
-                    </div>
-                    <!-- Secondary Images -->
-                    <div class="hidden md:block relative overflow-hidden bg-gray-100 dark:bg-gray-800">
-                        <img [src]="property.media?.[1]?.preview_url || 'https://placehold.co/800x600?text=Image+2'"
-                             class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 cursor-pointer"
-                             (click)="openGallery(1)"
-                             alt="View 2">
-                    </div>
-                    <div class="hidden md:block relative overflow-hidden bg-gray-100 dark:bg-gray-800 rounded-tr-3xl">
-                        <img [src]="property.media?.[2]?.preview_url || 'https://placehold.co/800x600?text=Image+3'"
-                             class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 cursor-pointer"
-                             (click)="openGallery(2)"
-                             alt="View 3">
-                    </div>
-                    <div class="hidden md:block relative overflow-hidden bg-gray-100 dark:bg-gray-800">
-                        <img [src]="property.media?.[3]?.preview_url || 'https://placehold.co/800x600?text=Image+4'"
-                             class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 cursor-pointer"
-                             (click)="openGallery(3)"
-                             alt="View 4">
-                    </div>
-                    <div class="hidden md:block relative overflow-hidden bg-gray-100 dark:bg-gray-800 rounded-br-3xl">
-                        <img [src]="property.media?.[4]?.preview_url || 'https://placehold.co/800x600?text=Image+5'"
-                             class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 cursor-pointer"
-                             (click)="openGallery(4)"
-                             alt="View 5">
+        <!-- Main Image Card (Span 2x2) -->
+        <div
+          class="col-span-1 md:col-span-2 lg:col-span-2 row-span-2 bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/50 dark:border-gray-800 shadow-sm overflow-hidden group relative h-[400px] md:h-auto">
+          <div class="absolute top-4 left-4 z-10 flex gap-2">
+            <span
+              class="px-3 py-1 bg-black/50 backdrop-blur-md text-white text-xs font-medium rounded-full border border-white/10">
+              {{ property()?.type }}
+            </span>
+            <span class="px-3 py-1 bg-white/90 backdrop-blur-md text-gray-900 text-xs font-bold rounded-full shadow-sm">
+              {{ property()?.contract_type === 'sale' ? 'Vente' : 'Location' }}
+            </span>
+          </div>
 
-                        @if ((property.media?.length || 0) > 5) {
-                            <div (click)="openGallery(5)" class="absolute inset-0 bg-black/50 flex items-center justify-center cursor-pointer hover:bg-black/60 transition-colors">
-                                <span class="text-white font-semibold text-lg flex items-center gap-2">
-                                    <lucide-icon [img]="Maximize" class="w-5 h-5"></lucide-icon>
-                                    +{{ (property.media?.length || 0) - 5 }} photos
-                                </span>
-                            </div>
-                        }
-                    </div>
-                </div>
-            </div>
+          <img
+            (click)="openGallery(currentImageIndex())"
+            [src]="property()?.media?.[currentImageIndex()]?.preview_url || 'https://placehold.co/800x600?text=No+Image'"
+            alt="Main Property Image"
+            class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 cursor-pointer">
 
-            <!-- Content Grid -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-                <!-- Main Column (Left) -->
-                <div class="lg:col-span-2 space-y-8">
-
-                    <!-- Tabs -->
-                    <div class="flex items-center gap-1 p-1 bg-gray-100/50 dark:bg-gray-800/50 rounded-xl w-fit">
-                        <button (click)="setActiveTab('details')"
-                                [class.bg-white]="activeTab === 'details'"
-                                [class.shadow-sm]="activeTab === 'details'"
-                                [class.text-primary-600]="activeTab === 'details'"
-                                [class.text-gray-500]="activeTab !== 'details'"
-                                class="px-6 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2">
-                            <lucide-icon [img]="FileText" class="w-4 h-4"></lucide-icon>
-                            Détails
-                        </button>
-                        <button (click)="setActiveTab('bookings')"
-                                [class.bg-white]="activeTab === 'bookings'"
-                                [class.shadow-sm]="activeTab === 'bookings'"
-                                [class.text-primary-600]="activeTab === 'bookings'"
-                                [class.text-gray-500]="activeTab !== 'bookings'"
-                                class="px-6 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2">
-                            <lucide-icon [img]="Calendar" class="w-4 h-4"></lucide-icon>
-                            Réservations
-                            @if (property.bookings?.length) {
-                                <span class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded text-[10px]">
-                                    {{ property.bookings?.length }}
-                                </span>
-                            }
-                        </button>
-                    </div>
-
-                    @if (activeTab === 'details') {
-                        <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-
-                            <!-- Key Stats -->
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div class="p-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col items-center justify-center text-center gap-2 group hover:border-primary-200 transition-colors">
-                                    <div class="p-2.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-xl group-hover:scale-110 transition-transform">
-                                        <lucide-icon [img]="Maximize" class="w-6 h-6"></lucide-icon>
-                                    </div>
-                                    <div>
-                                        <div class="font-bold text-gray-900 dark:text-white">{{ property.area | areaFormat }}</div>
-                                        <div class="text-xs text-gray-500">Surface</div>
-                                    </div>
-                                </div>
-                                <div class="p-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col items-center justify-center text-center gap-2 group hover:border-primary-200 transition-colors">
-                                    <div class="p-2.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 rounded-xl group-hover:scale-110 transition-transform">
-                                        <lucide-icon [img]="Bed" class="w-6 h-6"></lucide-icon>
-                                    </div>
-                                    <div>
-                                        <div class="font-bold text-gray-900 dark:text-white">{{ property.metadata?.['bedrooms'] || '-' }}</div>
-                                        <div class="text-xs text-gray-500">Chambres</div>
-                                    </div>
-                                </div>
-                                <div class="p-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col items-center justify-center text-center gap-2 group hover:border-primary-200 transition-colors">
-                                    <div class="p-2.5 bg-teal-50 dark:bg-teal-900/20 text-teal-600 rounded-xl group-hover:scale-110 transition-transform">
-                                        <lucide-icon [img]="Bath" class="w-6 h-6"></lucide-icon>
-                                    </div>
-                                    <div>
-                                        <div class="font-bold text-gray-900 dark:text-white">{{ property.metadata?.['bathrooms'] || '-' }}</div>
-                                        <div class="text-xs text-gray-500">Salles de bain</div>
-                                    </div>
-                                </div>
-                                <div class="p-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col items-center justify-center text-center gap-2 group hover:border-primary-200 transition-colors">
-                                    <div class="p-2.5 bg-orange-50 dark:bg-orange-900/20 text-orange-600 rounded-xl group-hover:scale-110 transition-transform">
-                                        <lucide-icon [img]="Building" class="w-6 h-6"></lucide-icon>
-                                    </div>
-                                    <div>
-                                        <div class="font-bold text-gray-900 dark:text-white">{{ property.type }}</div>
-                                        <div class="text-xs text-gray-500">Type</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Description -->
-                            <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-gray-700">
-                                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">À propos de ce bien</h3>
-                                <p class="text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-line text-lg">
-                                    {{ property.description || 'Aucune description disponible pour ce bien.' }}
-                                </p>
-                            </div>
-
-                            <!-- Amenities -->
-                            <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-gray-700">
-                                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Ce que propose ce bien</h3>
-                                @if (property.servicing && property.servicing.length > 0) {
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8">
-                                        @for (amenity of property.servicing; track amenity) {
-                                            <div class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-green-50 dark:bg-green-900/20 flex items-center justify-center text-green-600">
-                                                    <lucide-icon [img]="Check" class="w-4 h-4"></lucide-icon>
-                                                </div>
-                                                <span class="text-gray-700 dark:text-gray-200 font-medium">{{ amenity }}</span>
-                                            </div>
-                                        }
-                                    </div>
-                                } @else {
-                                    <div class="text-center py-8 text-gray-500">
-                                        <lucide-icon [img]="Check" class="w-12 h-12 mx-auto mb-3 text-gray-300"></lucide-icon>
-                                        <p>Aucune commodité spécifiée</p>
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    }
-
-                    @if (activeTab === 'bookings') {
-                        <div class="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <div class="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
-                                <h3 class="font-bold text-gray-900 dark:text-white">Historique des réservations</h3>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-sm text-gray-500">Total</span>
-                                    <span class="font-mono font-bold text-gray-900 dark:text-white bg-white dark:bg-gray-700 px-2 py-1 rounded-md border border-gray-200 dark:border-gray-600">
-                                        {{ property.bookings?.length || 0 }}
-                                    </span>
-                                </div>
-                            </div>
-
-                            @if (property.bookings && property.bookings.length > 0) {
-                                <div class="overflow-x-auto">
-                                    <table class="w-full text-left text-sm">
-                                        <thead class="bg-gray-50 dark:bg-gray-700/30 text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold">
-                                            <tr>
-                                                <th class="px-6 py-4">Client</th>
-                                                <th class="px-6 py-4">Période</th>
-                                                <th class="px-6 py-4">Montant</th>
-                                                <th class="px-6 py-4">Statut</th>
-                                                <th class="px-6 py-4 text-right">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                                            @for (booking of property.bookings; track booking.id) {
-                                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors group">
-                                                    <td class="px-6 py-4">
-                                                        <div class="flex items-center gap-4">
-                                                            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary-100 to-indigo-100 dark:from-primary-900 dark:to-indigo-900 flex items-center justify-center text-primary-700 dark:text-primary-300 font-bold shadow-sm">
-                                                                {{ booking.customer?.first_name?.charAt(0) || '?' }}
-                                                            </div>
-                                                            <div>
-                                                                <div class="font-semibold text-gray-900 dark:text-white">
-                                                                    {{ booking.customer?.first_name }} {{ booking.customer?.last_name }}
-                                                                </div>
-                                                                <div class="text-xs text-gray-500 font-mono mt-0.5">
-                                                                    {{ booking.reference_number || 'REF-N/A' }}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td class="px-6 py-4">
-                                                        <div class="flex flex-col gap-1">
-                                                            <div class="flex items-center gap-2 text-gray-900 dark:text-white font-medium">
-                                                                <lucide-icon [img]="Calendar" class="w-3.5 h-3.5 text-gray-400"></lucide-icon>
-                                                                <span>{{ booking.start_date | date:'dd MMM' }} - {{ booking.end_date | date:'dd MMM yyyy' }}</span>
-                                                            </div>
-                                                            <div class="text-xs text-gray-500">
-                                                                3 nuits
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td class="px-6 py-4">
-                                                        <div class="font-bold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700/50 px-3 py-1.5 rounded-lg w-fit">
-                                                            {{ booking.total_amount | priceFormat }}
-                                                        </div>
-                                                    </td>
-                                                    <td class="px-6 py-4">
-                                                        <app-badge [variant]="getBookingStatusVariant(booking.status)" [rounded]="true" size="sm">
-                                                            <span class="flex items-center gap-1.5">
-                                                                <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
-                                                                {{ getBookingStatusLabel(booking.status) }}
-                                                            </span>
-                                                        </app-badge>
-                                                    </td>
-                                                    <td class="px-6 py-4 text-right">
-                                                        <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors opacity-0 group-hover:opacity-100">
-                                                            <lucide-icon [img]="MoreVertical" class="w-5 h-5"></lucide-icon>
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            }
-                                        </tbody>
-                                    </table>
-                                </div>
-                            } @else {
-                                <div class="py-20 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
-                                    <div class="w-20 h-20 bg-gray-50 dark:bg-gray-700/50 rounded-full flex items-center justify-center mb-4">
-                                        <lucide-icon [img]="Calendar" class="w-10 h-10 text-gray-300 dark:text-gray-600"></lucide-icon>
-                                    </div>
-                                    <h4 class="text-lg font-semibold text-gray-900 dark:text-white">Aucune réservation</h4>
-                                    <p class="mt-2 text-center max-w-sm">Ce bien n'a pas encore reçu de réservation. Les futures réservations apparaîtront ici.</p>
-                                </div>
-                            }
-                        </div>
-                    }
-                </div>
-
-                <!-- Sidebar (Right) -->
-                <div class="space-y-6">
-                    <!-- Owner Card -->
-                    <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 sticky top-24">
-                        <div class="flex items-center gap-4 mb-6">
-                            <div class="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 rounded-2xl flex items-center justify-center text-gray-500 dark:text-gray-400 shadow-inner">
-                                <lucide-icon [img]="User" class="w-8 h-8"></lucide-icon>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Propriétaire</div>
-                                <div class="font-bold text-gray-900 dark:text-white truncate text-lg">
-                                    {{ property.user?.first_name }} {{ property.user?.last_name }}
-                                </div>
-                                <div class="text-sm text-gray-500 truncate flex items-center gap-1.5">
-                                    <lucide-icon [img]="Check" class="w-3 h-3 text-green-500"></lucide-icon>
-                                    Vérifié
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="pt-6 border-t border-gray-100 dark:border-gray-700 space-y-4">
-                             <div class="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
-                                <div class="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-700 flex items-center justify-center">
-                                    <span class="text-xs font-bold">@</span>
-                                </div>
-                                <span class="truncate">{{ property.user?.email }}</span>
-                            </div>
-                            <div class="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
-                                <div class="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-700 flex items-center justify-center">
-                                    <lucide-icon [img]="Building" class="w-4 h-4"></lucide-icon>
-                                </div>
-                                <span>{{ property.agency?.name || 'Particulier' }}</span>
-                            </div>
-                        </div>
-
-                        <button class="w-full mt-6 py-3 px-4 bg-gray-900 hover:bg-black dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900 font-medium rounded-xl transition-all shadow-lg shadow-gray-200 dark:shadow-none flex items-center justify-center gap-2">
-                            Voir le profil
-                        </button>
-                    </div>
-
-                    <!-- Quick Facts Sidebar Block (Optional) -->
-                    <div class="bg-blue-50 dark:bg-blue-900/10 rounded-3xl p-6 border border-blue-100 dark:border-blue-800/30">
-                        <h4 class="font-semibold text-blue-900 dark:text-blue-100 mb-4 flex items-center gap-2">
-                            <lucide-icon [img]="Maximize" class="w-5 h-5"></lucide-icon>
-                            Performance
-                        </h4>
-                        <div class="space-y-4">
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm text-blue-700 dark:text-blue-300">Taux d'occupation</span>
-                                <span class="font-bold text-blue-900 dark:text-white">85%</span>
-                            </div>
-                            <div class="w-full bg-blue-200 dark:bg-blue-800 h-2 rounded-full overflow-hidden">
-                                <div class="bg-blue-600 h-full rounded-full" style="width: 85%"></div>
-                            </div>
-                            <div class="flex justify-between items-center pt-2">
-                                <span class="text-sm text-blue-700 dark:text-blue-300">Revenu ce mois</span>
-                                <span class="font-bold text-blue-900 dark:text-white">1.2M CFA</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    }
-
-    <!-- Fullscreen Gallery Modal -->
-    @if (showGalleryModal && property) {
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm animate-in fade-in duration-300">
-            <!-- Close Button -->
-            <button (click)="closeGallery()" class="absolute top-6 right-6 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all z-50">
-                <lucide-icon [img]="X" class="w-8 h-8"></lucide-icon>
+          <div class="absolute bottom-4 right-4 flex gap-2">
+            <button (click)="previousImage(); $event.stopPropagation()"
+                    class="p-2 bg-black/50 backdrop-blur-md text-white hover:bg-black/70 rounded-full transition-all border border-white/10">
+              <lucide-icon [img]="icons.ChevronLeft" class="w-5 h-5"></lucide-icon>
             </button>
+            <button (click)="nextImage(); $event.stopPropagation()"
+                    class="p-2 bg-black/50 backdrop-blur-md text-white hover:bg-black/70 rounded-full transition-all border border-white/10">
+              <lucide-icon [img]="icons.ChevronRight" class="w-5 h-5"></lucide-icon>
+            </button>
+          </div>
 
-            <!-- Main Image Area -->
-            <div class="relative w-full h-full flex items-center justify-center p-4 md:p-12">
+          <div
+            (click)="openGallery(0)"
+            class="absolute bottom-4 left-4 px-3 py-1.5 bg-black/50 backdrop-blur-md text-white text-xs font-medium rounded-lg border border-white/10 flex items-center gap-2 cursor-pointer hover:bg-black/60 transition-colors">
+            <lucide-icon [img]="icons.Maximize" class="w-3 h-3"></lucide-icon>
+            Voir les photos ({{ property()?.media?.length || 0 }})
+          </div>
+        </div>
 
-                @if (property.media && property.media.length > 1) {
-                    <!-- Previous Button -->
-                    <button (click)="previousImage()" class="absolute left-4 md:left-8 p-3 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all z-40 focus:outline-none">
-                        <lucide-icon [img]="ChevronLeft" class="w-10 h-10"></lucide-icon>
-                    </button>
+        <!-- Revenue Stats Card -->
+        <div
+          class="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-200/50 dark:border-gray-800 shadow-sm flex flex-col justify-between group hover:border-primary-200 dark:hover:border-primary-900 transition-colors">
+          <div class="flex justify-between items-start">
+            <div
+              class="p-2.5 bg-green-50 dark:bg-green-900/20 text-green-600 rounded-2xl group-hover:scale-110 transition-transform duration-300">
+              <lucide-icon [img]="icons.DollarSign" class="w-6 h-6"></lucide-icon>
+            </div>
+            <span class="text-xs font-medium text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full">+12%</span>
+          </div>
+          <div>
+            <div
+              class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">{{ totalRevenue() | priceFormat }}
+            </div>
+            <div class="text-sm text-gray-500 dark:text-gray-400 font-medium">Revenu Total</div>
+          </div>
+        </div>
 
-                    <!-- Next Button -->
-                    <button (click)="nextImage()" class="absolute right-4 md:right-8 p-3 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all z-40 focus:outline-none">
-                        <lucide-icon [img]="ChevronRight" class="w-10 h-10"></lucide-icon>
-                    </button>
-                }
+        <!-- Occupancy Stats Card -->
+        <div
+          class="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-200/50 dark:border-gray-800 shadow-sm flex flex-col justify-between group hover:border-blue-200 dark:hover:border-blue-900 transition-colors">
+          <div class="flex justify-between items-start">
+            <div
+              class="p-2.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-2xl group-hover:scale-110 transition-transform duration-300">
+              <lucide-icon [img]="icons.TrendingUp" class="w-6 h-6"></lucide-icon>
+            </div>
+            <span
+              class="text-xs font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-full">Actif</span>
+          </div>
+          <div>
+            <div class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">{{ occupancyRate() }}%</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400 font-medium">Taux d'occupation</div>
+          </div>
+        </div>
 
-                <!-- Current Image -->
-                <img [src]="property.media?.[currentImageIndex]?.original_url || property.media?.[currentImageIndex]?.preview_url"
-                     class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-300"
-                     alt="Gallery view">
+        <!-- Price Info Card -->
+        <div
+          class="md:col-span-1 lg:col-span-1 bg-gradient-to-br from-gray-900 to-gray-800 dark:from-gray-800 dark:to-black rounded-3xl p-6 shadow-lg text-white flex flex-col justify-between relative overflow-hidden group">
+          <div
+            class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-white/10 transition-colors duration-500"></div>
 
-                <!-- Image Counter -->
-                <div class="absolute top-6 left-6 text-white/90 font-medium text-lg tracking-wide bg-black/20 px-4 py-2 rounded-full backdrop-blur-md border border-white/10">
-                    {{ currentImageIndex + 1 }} / {{ property.media?.length || 0 }}
+          <div class="relative z-10">
+            <div
+              class="text-white/60 text-sm font-medium mb-1">{{ property()?.contract_type === 'sale' ? 'Prix de vente' : 'Loyer par mois' }}
+            </div>
+            <div class="text-3xl font-bold tracking-tight">{{ property()?.price | priceFormat }}</div>
+          </div>
+
+          <div class="relative z-10 space-y-3">
+            <div class="flex items-center gap-3 text-white/80">
+              <lucide-icon [img]="icons.Bed" class="w-5 h-5"></lucide-icon>
+              <span class="font-medium">{{ property()?.metadata?.['bedrooms'] || 0 }} Chambres</span>
+            </div>
+            <div class="flex items-center gap-3 text-white/80">
+              <lucide-icon [img]="icons.Bath" class="w-5 h-5"></lucide-icon>
+              <span class="font-medium">{{ property()?.metadata?.['bathrooms'] || 0 }} Salles de bain</span>
+            </div>
+            <div class="flex items-center gap-3 text-white/80">
+              <lucide-icon [img]="icons.Maximize" class="w-5 h-5"></lucide-icon>
+              <span class="font-medium">{{ property()?.area | areaFormat }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Next Booking Card / Quick Action -->
+        <div
+          class="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-200/50 dark:border-gray-800 shadow-sm flex flex-col justify-between relative overflow-hidden">
+          <div class="flex justify-between items-start mb-4">
+            <div class="p-2.5 bg-purple-50 dark:bg-purple-900/20 text-purple-600 rounded-2xl">
+              <lucide-icon [img]="icons.CalendarCheck" class="w-6 h-6"></lucide-icon>
+            </div>
+            @if (nextBooking()) {
+              <span
+                class="text-xs font-medium text-purple-600 bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded-full">Prochain</span>
+            }
+          </div>
+
+          @if (nextBooking(); as booking) {
+            <div>
+              <div class="text-lg font-bold text-gray-900 dark:text-white mb-1 truncate">
+                {{ booking.customer?.first_name }} {{ booking.customer?.last_name }}
+              </div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">
+                Arrivée le <span
+                class="text-gray-900 dark:text-white font-medium">{{ booking.start_date | date:'dd MMM' }}</span>
+              </div>
+            </div>
+          } @else {
+            <div class="flex-1 flex flex-col items-center justify-center text-center">
+              <p class="text-sm text-gray-500">Aucune réservation à venir</p>
+            </div>
+          }
+        </div>
+
+      </div>
+
+      <!-- Main Content Tabs -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+
+        <!-- Left Column: Content -->
+        <div class="lg:col-span-2 space-y-6">
+
+          <!-- Custom Tab Switcher -->
+          <div
+            class="flex items-center gap-1 p-1.5 bg-gray-100/80 dark:bg-gray-800/80 rounded-2xl w-fit backdrop-blur-sm">
+            <button (click)="setActiveTab('details')"
+                    [class.bg-white]="activeTab() === 'details'"
+                    [class.shadow-sm]="activeTab() === 'details'"
+                    [class.text-gray-500]="activeTab() !== 'details'"
+                    [class.text-gray-900]="activeTab() === 'details'"
+                    class="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2">
+              Détails
+            </button>
+            <button (click)="setActiveTab('bookings')"
+                    [class.bg-white]="activeTab() === 'bookings'"
+                    [class.shadow-sm]="activeTab() === 'bookings'"
+                    [class.text-gray-500]="activeTab() !== 'bookings'"
+                    [class.text-gray-900]="activeTab() === 'bookings'"
+                    class="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2">
+              Réservations
+              <span
+                class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded-md text-[10px]">
+                   {{ property()?.bookings?.length || 0 }}
+                 </span>
+            </button>
+            <button (click)="setActiveTab('financials')"
+                    [class.bg-white]="activeTab() === 'financials'"
+                    [class.shadow-sm]="activeTab() === 'financials'"
+                    [class.text-gray-500]="activeTab() !== 'financials'"
+                    [class.text-gray-900]="activeTab() === 'financials'"
+                    class="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2">
+              Finance
+            </button>
+          </div>
+
+          <!-- Tab Content -->
+          <div
+            class="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/50 dark:border-gray-800 shadow-sm p-6 md:p-8 min-h-[400px]">
+
+            @switch (activeTab()) {
+              @case ('details') {
+                <div class="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Description</h3>
+                    <p class="text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-line">
+                      {{ property()?.description || "Aucune description fournie pour ce bien." }}
+                    </p>
+                  </div>
+
+                  <div class="h-px bg-gray-100 dark:bg-gray-800"></div>
+
+                  <div>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Commodités</h3>
+                    @if (property()?.servicing?.length) {
+                      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        @for (amenity of property()?.servicing; track $index) {
+                          <div
+                            class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                            <lucide-icon [img]="icons.Check" class="w-4 h-4 text-green-500"></lucide-icon>
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-200">{{ amenity }}</span>
+                          </div>
+                        }
+                      </div>
+                    } @else {
+                      <p class="text-gray-500 italic">Aucune commodité spécifiée.</p>
+                    }
+                  </div>
                 </div>
+              }
+              @case ('bookings') {
+                <div class="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">Historique</h3>
+                    <button class="text-sm font-medium text-primary-600 hover:text-primary-700 hover:underline">Voir
+                      tout
+                    </button>
+                  </div>
+
+                  @if (property()?.bookings?.length) {
+                    <div class="overflow-x-auto -mx-6 md:mx-0">
+                      <table class="w-full text-left text-sm">
+                        <thead
+                          class="bg-gray-50/50 dark:bg-gray-800/50 text-xs uppercase text-gray-500 font-semibold border-y border-gray-100 dark:border-gray-800">
+                        <tr>
+                          <th class="px-6 py-4">Client</th>
+                          <th class="px-6 py-4">Dates</th>
+                          <th class="px-6 py-4">Total</th>
+                          <th class="px-6 py-4">Statut</th>
+                        </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                          @for (booking of property()?.bookings; track booking.id) {
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+                              <td class="px-6 py-4">
+                                <div class="flex items-center gap-3">
+                                  <div
+                                    class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                                    {{ booking.customer?.first_name?.charAt(0) }}
+                                  </div>
+                                  <div>
+                                    <div
+                                      class="font-medium text-gray-900 dark:text-white">{{ booking.customer?.first_name }} {{ booking.customer?.last_name }}
+                                    </div>
+                                    <div class="text-xs text-gray-500">{{ booking.reference_number }}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td class="px-6 py-4 text-gray-600 dark:text-gray-300">
+                                {{ booking.start_date | date:'dd MMM' }} - {{ booking.end_date | date:'dd MMM yyyy' }}
+                              </td>
+                              <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                                {{ booking.total_amount | priceFormat }}
+                              </td>
+                              <td class="px-6 py-4">
+                                <app-badge [rounded]="true" [variant]="getBookingStatusVariant(booking.status)"
+                                           size="sm">
+                                  {{ getBookingStatusLabel(booking.status) }}
+                                </app-badge>
+                              </td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  } @else {
+                    <div class="flex flex-col items-center justify-center py-12 text-center text-gray-500">
+                      <lucide-icon [img]="icons.Calendar" class="w-12 h-12 text-gray-300 mb-4"></lucide-icon>
+                      <p class="font-medium">Aucune réservation pour le moment</p>
+                    </div>
+                  }
+                </div>
+              }
+              @case ('financials') {
+                <div
+                  class="animate-in fade-in slide-in-from-bottom-2 duration-300 flex flex-col items-center justify-center py-12 text-center">
+                  <div class="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                    <lucide-icon [img]="icons.TrendingUp" class="w-8 h-8 text-gray-400"></lucide-icon>
+                  </div>
+                  <h3 class="text-lg font-bold text-gray-900 dark:text-white">Rapport Financier</h3>
+                  <p class="text-gray-500 max-w-sm mt-2">Cette fonctionnalité sera bientôt disponible. Vous pourrez voir
+                    ici les graphiques de revenus et les rapports détaillés.</p>
+                </div>
+              }
+            }
+          </div>
+        </div>
+
+        <!-- Right Column: Sidebar info -->
+        <div class="space-y-6">
+
+          <!-- Owner Profile Widget -->
+          <div
+            class="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-200/50 dark:border-gray-800 shadow-sm">
+            <div class="flex items-center gap-4 mb-6">
+              <div
+                class="w-14 h-14 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center text-gray-400 border border-gray-200 dark:border-gray-700">
+                <lucide-icon [img]="icons.User" class="w-7 h-7"></lucide-icon>
+              </div>
+              <div>
+                <div class="text-xs font-bold uppercase text-gray-400 tracking-wider mb-0.5">Propriétaire</div>
+                <div class="font-bold text-gray-900 dark:text-white text-lg">
+                  {{ property()?.user?.first_name }} {{ property()?.user?.last_name }}
+                </div>
+              </div>
             </div>
 
-            <!-- Thumbnails Strip -->
-            @if (property.media && property.media.length > 1) {
-                <div class="absolute bottom-8 left-1/2 -translate-x-1/2 max-w-[90vw] overflow-x-auto">
-                    <div class="flex items-center gap-3 p-2 bg-black/40 backdrop-blur-md rounded-2xl border border-white/10">
-                        @for (media of property.media; track $index) {
-                            <button (click)="selectImage($index)"
-                                    [class.ring-2]="currentImageIndex === $index"
-                                    [class.ring-white]="currentImageIndex === $index"
-                                    [class.opacity-50]="currentImageIndex !== $index"
-                                    [class.scale-110]="currentImageIndex === $index"
-                                    class="relative w-16 h-16 rounded-xl overflow-hidden hover:opacity-100 transition-all duration-200 flex-shrink-0 cursor-pointer border border-white/5">
-                                <img [src]="media.preview_url" class="w-full h-full object-cover">
-                            </button>
-                        }
-                    </div>
-                </div>
-            }
+            <div class="space-y-3">
+              <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                <lucide-icon [img]="icons.Mail" class="w-4 h-4 text-gray-400"></lucide-icon>
+                <span class="text-sm text-gray-600 dark:text-gray-300 truncate">{{ property()?.user?.email }}</span>
+              </div>
+              <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                <lucide-icon [img]="icons.Building" class="w-4 h-4 text-gray-400"></lucide-icon>
+                <span
+                  class="text-sm text-gray-600 dark:text-gray-300">{{ property()?.agency?.name || 'Particulier' }}</span>
+              </div>
+            </div>
+
+            <button
+              class="w-full mt-6 py-2.5 px-4 bg-gray-900 hover:bg-black dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900 font-semibold rounded-xl transition-all shadow-lg shadow-gray-200 dark:shadow-none">
+              Voir le profil
+            </button>
+          </div>
+
+          <!-- Location Mini Map Placeholder -->
+          <div
+            class="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-200/50 dark:border-gray-800 shadow-sm">
+            <div class="flex items-center gap-2 mb-4">
+              <lucide-icon [img]="icons.MapPin" class="w-5 h-5 text-gray-900 dark:text-white"></lucide-icon>
+              <h3 class="font-bold text-gray-900 dark:text-white">Localisation</h3>
+            </div>
+            <div
+              class="h-48 bg-gray-100 dark:bg-gray-800 rounded-xl w-full flex items-center justify-center overflow-hidden relative group cursor-pointer">
+              <!-- Decorative map placeholder pattern or image would go here -->
+              <div
+                class="absolute inset-0 opacity-50 bg-[url('https://placehold.co/400x300/e2e8f0/94a3b8?text=Map')] bg-cover bg-center"></div>
+              <div
+                class="relative z-10 bg-white dark:bg-gray-900 px-4 py-2 rounded-lg shadow-md font-medium text-sm flex items-center gap-2 group-hover:scale-105 transition-transform">
+                <lucide-icon [img]="icons.MapPin" class="w-4 h-4 text-primary-600"></lucide-icon>
+                Voir sur la carte
+              </div>
+            </div>
+            <div class="mt-4 text-sm text-gray-500 dark:text-gray-400">
+              {{ property()?.address?.address }}<br>
+              {{ property()?.address?.city }}, {{ property()?.address?.postal_code }}
+            </div>
+          </div>
+
         </div>
-    }
+      </div>
+
+    </main>
+  }
+
+  <!-- Gallery Modal -->
+  @if (showGalleryModal() && property()) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md animate-in fade-in duration-300">
+      <button (click)="closeGallery()"
+              class="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all z-50">
+        <lucide-icon [img]="icons.X" class="w-6 h-6"></lucide-icon>
+      </button>
+
+      <div class="relative w-full h-full flex items-center justify-center p-4 md:p-12">
+        <button (click)="previousImage()"
+                class="absolute left-4 md:left-8 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all z-40">
+          <lucide-icon [img]="icons.ChevronLeft" class="w-8 h-8"></lucide-icon>
+        </button>
+
+        <img
+          [src]="property()?.media?.[currentImageIndex()]?.original_url || property()?.media?.[currentImageIndex()]?.preview_url"
+          alt="Gallery View"
+          class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-300 select-none">
+
+        <button (click)="nextImage()"
+                class="absolute right-4 md:right-8 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all z-40">
+          <lucide-icon [img]="icons.ChevronRight" class="w-8 h-8"></lucide-icon>
+        </button>
+
+        <div
+          class="absolute bottom-8 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-md border border-white/10 px-4 py-2 rounded-full text-white font-medium">
+          {{ currentImageIndex() + 1 }} / {{ property()?.media?.length || 0 }}
+        </div>
+      </div>
+    </div>
+  }
 </div>
