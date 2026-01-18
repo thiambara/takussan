@@ -13,12 +13,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileDoesNotExist;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileIsTooBig;
+use Throwable;
 
 class PropertyController extends Controller
 {
-    public function __construct(private PropertyService $propertyService)
+    public function __construct(private readonly PropertyService $propertyService)
     {
-        $this->propertyService = $propertyService;
         $this->middleware('permission:properties.view')->only(['index', 'show']);
         $this->middleware('permission:properties.create')->only(['create', 'store']);
         $this->middleware('permission:properties.update')->only(['edit', 'update']);
@@ -32,11 +32,6 @@ class PropertyController extends Controller
     {
         $query = Property::allThroughRequest();
 
-        // Show only user's properties if not admin
-//        if (!Auth::user()->hasPermission('properties.view_all')) {
-//            $query->where('user_id', Auth::id());
-//        }
-
         if ($searchQuery = request('search_query')) {
             $query->where(fn(Builder $query) => $query
                 ->where('title', 'like', "%$searchQuery%")
@@ -49,6 +44,7 @@ class PropertyController extends Controller
 
     /**
      * Store a newly created property in storage.
+     * @throws Throwable
      */
     public function store(StorePropertyRequest $request): JsonResponse
     {
@@ -62,8 +58,6 @@ class PropertyController extends Controller
      */
     public function show(Property $property): JsonResponse
     {
-
-
         $property->load(['address', 'user', 'tags', 'parent', 'children']);
 
         return response()->json($property);
@@ -71,6 +65,7 @@ class PropertyController extends Controller
 
     /**
      * Update the specified property in storage.
+     * @throws Throwable
      */
     public function update(UpdatePropertyRequest $request, Property $property): JsonResponse
     {
@@ -89,6 +84,7 @@ class PropertyController extends Controller
 
     /**
      * Remove the specified property from storage.
+     * @throws Throwable
      */
     public function destroy(Property $property): JsonResponse
     {
@@ -149,6 +145,16 @@ class PropertyController extends Controller
         }
 
         return response()->json($query->paginatedThroughRequest());
+    }
+
+    /**
+     * Display the specified property.
+     */
+    public function publicShow(Property $property): JsonResponse
+    {
+        $property->load(['address', 'user', 'tags', 'parent', 'children']);
+
+        return response()->json($property);
     }
 
     // Media

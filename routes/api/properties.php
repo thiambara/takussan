@@ -8,9 +8,9 @@ use Illuminate\Support\Facades\Route;
  * ==============
  */
 Route::prefix('properties')->controller(PropertyController::class)->group(function () {
-    Route::get('/hero-search', 'heroSearch')->name('hero-search');
-    Route::get('/{property}', 'show')->whereNumber('property')->name('show');
-    Route::get('/{property}/media', 'getMedia')->whereNumber('property')->name('get-media');
+    Route::get('/public/hero-search', 'heroSearch')->name('hero-search');
+    Route::get('/public/{property}', 'publicShow')->whereNumber('property')->name('public-show');
+    Route::get('/public/{property}/media', 'getMedia')->whereNumber('property')->name('get-media');
 
     /**
      * PRIVATE ROUTES
@@ -18,6 +18,7 @@ Route::prefix('properties')->controller(PropertyController::class)->group(functi
     Route::middleware("auth:sanctum")->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('/', 'store')->name('store');
+        Route::get('/{property}', 'show')->whereNumber('property')->name('show');
         Route::put('/{property}', 'update')->whereNumber('property')->name('update');
         Route::delete('/{property}', 'destroy')->whereNumber('property')->name('destroy');
         // Media

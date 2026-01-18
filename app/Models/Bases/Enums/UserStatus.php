@@ -9,3 +9,4 @@ enum UserStatus: string
     case Blocked = 'blocked';
     case Deleted = 'deleted';
 }
+
