@@ -1,13 +1,13 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { LucideAngularModule } from 'lucide-angular';
-import { AlertCircle, ArrowRight, ChevronRight } from 'lucide-angular';
+import {Component, EventEmitter, Input, Output} from '@angular/core';
+import {CommonModule} from '@angular/common';
+import {FormGroup, ReactiveFormsModule} from '@angular/forms';
+import {AlertCircle, ArrowRight, LucideAngularModule} from 'lucide-angular';
+import {SelectModule} from 'primeng/select';
 
 @Component({
   selector: 'app-property-edit-basic',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, LucideAngularModule],
+  imports: [CommonModule, ReactiveFormsModule, LucideAngularModule, SelectModule],
   templateUrl: './property-edit-basic.component.html'
 })
 export class PropertyEditBasicComponent {
@@ -21,8 +21,7 @@ export class PropertyEditBasicComponent {
 
   readonly icons = {
     AlertCircle,
-    ArrowRight,
-    ChevronRight
+    ArrowRight
   };
 
   hasError(controlName: string, errorName?: string) {

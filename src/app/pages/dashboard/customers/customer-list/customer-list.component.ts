@@ -2,13 +2,10 @@ import {Component, OnInit, ViewChild} from '@angular/core';
 import {MessageService} from 'primeng/api';
 import {User as Customer} from "../../../../core/models/http/user.model";
 import {Toolbar} from "primeng/toolbar";
-import {InputText} from "primeng/inputtext";
 import {Table, TableModule} from "primeng/table";
 import {FormsModule} from "@angular/forms";
 import {DialogService} from "primeng/dynamicdialog";
 import {Router} from "@angular/router";
-import {IconField} from "primeng/iconfield";
-import {InputIcon} from "primeng/inputicon";
 import {CustomerService} from "../../../../core/services/http/customer.service";
 import {BadgeComponent, BadgeVariant} from "../../../../shared/components/badge/badge.component";
 import {CustomerStatus} from "../../../../core/models/http/enum-models";
@@ -21,9 +18,6 @@ import {ArrowUpDown, Eye, LucideAngularModule, Pencil, Plus, Search, Trash2, Upl
     Toolbar,
     TableModule,
     FormsModule,
-    InputText,
-    IconField,
-    InputIcon,
     BadgeComponent,
     LucideAngularModule
   ],

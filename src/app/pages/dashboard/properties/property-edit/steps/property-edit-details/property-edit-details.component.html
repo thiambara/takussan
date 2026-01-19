@@ -1,4 +1,6 @@
-<div class="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/50 dark:border-gray-800 shadow-sm p-6 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500" [formGroup]="propertyForm">
+<div
+  [formGroup]="propertyForm"
+  class="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/50 dark:border-gray-800 shadow-sm p-6 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
   <div class="mb-8">
     <h2 class="text-xl font-bold text-gray-900 dark:text-white">Détails du bien</h2>
     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Spécifications techniques et caractéristiques.</p>
@@ -7,73 +9,73 @@
   <div class="space-y-8">
     <!-- Price & Area & Common Details -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div class="space-y-2">
-        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Prix</label>
+      <div class="form-group">
+        <label class="form-label">Prix</label>
         <div class="relative">
-          <input type="number" formControlName="price"
-                 class="w-full pl-4 pr-12 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all placeholder:text-gray-400">
+          <input class="form-input !pr-12" formControlName="price"
+                 type="number">
           <div class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">CFA</div>
         </div>
         @if (hasError('price', 'min')) {
-          <p class="text-xs text-red-500">Le prix doit être positif</p>
+          <p class="form-error">Le prix doit être positif</p>
         }
       </div>
 
-      <div class="space-y-2">
-        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Surface</label>
+      <div class="form-group">
+        <label class="form-label">Surface</label>
         <div class="relative">
-          <input type="number" formControlName="area"
-                 class="w-full pl-4 pr-12 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all placeholder:text-gray-400">
+          <input class="form-input !pr-12" formControlName="area"
+                 type="number">
           <div class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">m²</div>
         </div>
         @if (hasError('area', 'min')) {
-          <p class="text-xs text-red-500">La surface doit être positive</p>
+          <p class="form-error">La surface doit être positive</p>
         }
       </div>
 
-      <div class="space-y-2">
-        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Position</label>
+      <div class="form-group">
+        <label class="form-label">Position</label>
         <div class="relative">
-          <select formControlName="position"
-                  class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all appearance-none">
-            <option value="">Sélectionner une position</option>
-            @for (opt of positionOptions; track opt.value) {
-              <option [value]="opt.value">{{ opt.label }}</option>
-            }
-          </select>
-          <lucide-icon [img]="icons.ChevronRight" class="w-4 h-4 text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none"></lucide-icon>
+          <p-select [options]="positionOptions"
+                    formControlName="position"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Sélectionner une position"
+                    styleClass="w-full"
+                    [showClear]="true">
+          </p-select>
         </div>
       </div>
 
-      <div class="space-y-2">
-        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Niveau / Étage</label>
+      <div class="form-group">
+        <label class="form-label">Niveau / Étage</label>
         <div class="relative">
-          <select formControlName="level"
-                  class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all appearance-none">
-            <option value="">Sélectionner un niveau</option>
-            @for (opt of levelOptions; track opt.value) {
-              <option [value]="opt.value">{{ opt.label }}</option>
-            }
-          </select>
-          <!-- <lucide-icon [img]="icons.ChevronRight" class="w-4 h-4 text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none"></lucide-icon> -->
+          <p-select [options]="levelOptions"
+                    formControlName="level"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Sélectionner un niveau"
+                    styleClass="w-full"
+                    [showClear]="true">
+          </p-select>
         </div>
       </div>
     </div>
 
     <!-- Legal Info -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-gray-100 dark:border-gray-800">
-      <div class="space-y-2">
-        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Type de titre</label>
-        <input type="text" formControlName="title_type" placeholder="Ex: Titre Foncier, Bail..."
-               class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all">
+      <div class="form-group">
+        <label class="form-label">Type de titre</label>
+        <input class="form-input" formControlName="title_type" placeholder="Ex: Titre Foncier, Bail..."
+               type="text">
       </div>
 
       <div class="flex items-center h-full pt-6">
-        <label class="flex items-center justify-between w-full p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+        <label class="form-checkbox-card w-full">
           <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Suivi administratif inclus</span>
           <div class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" formControlName="with_administrative_monitoring" class="sr-only peer">
-            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+            <input class="sr-only peer" formControlName="with_administrative_monitoring" type="checkbox">
+            <div class="form-toggle"></div>
           </div>
         </label>
       </div>
@@ -91,13 +93,13 @@
         @if (['apartment', 'house', 'villa'].includes(propertyForm.get('type')?.value)) {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Bedrooms -->
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Chambres</label>
+            <div class="form-group">
+              <label class="form-label">Chambres</label>
               <div class="grid grid-cols-6 gap-2">
                 @for (opt of roomsOptions; track opt.value) {
                   <label class="relative cursor-pointer">
-                    <input type="radio" formControlName="rooms" [value]="opt.value" class="peer sr-only">
-                    <div class="text-center py-2 text-sm font-medium border border-gray-200 dark:border-gray-700 rounded-lg transition-all peer-checked:bg-primary-600 peer-checked:text-white peer-checked:border-primary-600 hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <input [value]="opt.value" class="peer sr-only" formControlName="rooms" type="radio">
+                    <div class="form-radio-segment-primary">
                       {{ opt.label }}
                     </div>
                   </label>
@@ -106,80 +108,79 @@
             </div>
 
             <!-- Furnished -->
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Meublé</label>
+            <div class="form-group">
+              <label class="form-label">Meublé</label>
               <div class="relative">
-                <select formControlName="furnished"
-                        class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all appearance-none">
-                  @for (opt of furnishedOptions; track opt.value) {
-                    <option [value]="opt.value">{{ opt.label }}</option>
-                  }
-                </select>
-                <lucide-icon [img]="icons.ChevronRight" class="w-4 h-4 text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none"></lucide-icon>
+                <p-select [options]="furnishedOptions"
+                          formControlName="furnished"
+                          optionLabel="label"
+                          optionValue="value"
+                          styleClass="w-full">
+                </p-select>
               </div>
             </div>
 
             <!-- Parking Spaces -->
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Places de parking</label>
-              <input type="number" formControlName="parking_spaces" min="0"
-                     class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all">
+            <div class="form-group">
+              <label class="form-label">Places de parking</label>
+              <input class="form-input" formControlName="parking_spaces" min="0"
+                     type="number">
             </div>
 
             <!-- Construction Year -->
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Année de construction</label>
-              <p-datePicker view="year" dateFormat="yy" formControlName="construction_year"
-                            styleClass="w-full" inputStyleClass="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white"></p-datePicker>
+            <div class="form-group">
+              <label class="form-label">Année de construction</label>
+              <p-datePicker dateFormat="yy" formControlName="construction_year" inputStyleClass="form-input"
+                            styleClass="w-full" view="year"></p-datePicker>
             </div>
 
             <!-- Heating Type -->
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Type de chauffage</label>
-              <input type="text" formControlName="heating_type" placeholder="Ex: Central, Électrique..."
-                     class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all">
+            <div class="form-group">
+              <label class="form-label">Type de chauffage</label>
+              <input class="form-input" formControlName="heating_type" placeholder="Ex: Central, Électrique..."
+                     type="text">
             </div>
           </div>
 
           <!-- Amenities Toggles -->
           <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-            <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <label class="form-checkbox-card">
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Balcon</span>
               <div class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="has_balcony" class="sr-only peer">
-                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                <input class="sr-only peer" formControlName="has_balcony" type="checkbox">
+                <div class="form-toggle"></div>
               </div>
             </label>
 
-            <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <label class="form-checkbox-card">
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Jardin</span>
               <div class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="has_garden" class="sr-only peer">
-                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                <input class="sr-only peer" formControlName="has_garden" type="checkbox">
+                <div class="form-toggle"></div>
               </div>
             </label>
 
-            <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <label class="form-checkbox-card">
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Piscine</span>
               <div class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="has_pool" class="sr-only peer">
-                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                <input class="sr-only peer" formControlName="has_pool" type="checkbox">
+                <div class="form-toggle"></div>
               </div>
             </label>
 
-            <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <label class="form-checkbox-card">
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Climatisation</span>
               <div class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="air_conditioning" class="sr-only peer">
-                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                <input class="sr-only peer" formControlName="air_conditioning" type="checkbox">
+                <div class="form-toggle"></div>
               </div>
             </label>
 
-            <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <label class="form-checkbox-card">
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Ascenseur</span>
               <div class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="has_elevator" class="sr-only peer">
-                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                <input class="sr-only peer" formControlName="has_elevator" type="checkbox">
+                <div class="form-toggle"></div>
               </div>
             </label>
           </div>
@@ -188,60 +189,59 @@
         <!-- LAND -->
         @if (propertyForm.get('type')?.value === 'land') {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Type de terrain</label>
-              <select formControlName="land_type" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white">
-                <option value="residential">Résidentiel</option>
-                <option value="commercial">Commercial</option>
-                <option value="agricultural">Agricole</option>
-                <option value="industrial">Industriel</option>
-              </select>
+            <div class="form-group">
+              <label class="form-label">Type de terrain</label>
+              <p-select [options]="landTypeOptions"
+                        formControlName="land_type"
+                        optionLabel="label"
+                        optionValue="value"
+                        styleClass="w-full">
+              </p-select>
             </div>
 
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Zonage</label>
-              <select formControlName="zoning" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white">
-                <option value="residential">Résidentiel</option>
-                <option value="commercial">Commercial</option>
-                <option value="industrial">Industriel</option>
-                <option value="agricultural">Agricole</option>
-                <option value="mixed_use">Usage mixte</option>
-              </select>
+            <div class="form-group">
+              <label class="form-label">Zonage</label>
+              <p-select [options]="zoningOptions"
+                        formControlName="zoning"
+                        optionLabel="label"
+                        optionValue="value"
+                        styleClass="w-full">
+              </p-select>
             </div>
 
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Topographie</label>
-              <input type="text" formControlName="topography" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <div class="form-group">
+              <label class="form-label">Topographie</label>
+              <input class="form-input" formControlName="topography" type="text">
             </div>
 
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Type de sol</label>
-              <input type="text" formControlName="soil_type" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <div class="form-group">
+              <label class="form-label">Type de sol</label>
+              <input class="form-input" formControlName="soil_type" type="text">
             </div>
           </div>
 
           <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-            <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <label class="form-checkbox-card">
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Développé</span>
               <div class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="is_developed" class="sr-only peer">
-                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                <input class="sr-only peer" formControlName="is_developed" type="checkbox">
+                <div class="form-toggle"></div>
               </div>
             </label>
 
-            <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <label class="form-checkbox-card">
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Eau</span>
               <div class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="has_water_connection" class="sr-only peer">
-                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                <input class="sr-only peer" formControlName="has_water_connection" type="checkbox">
+                <div class="form-toggle"></div>
               </div>
             </label>
 
-            <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <label class="form-checkbox-card">
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Électricité</span>
               <div class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="has_electricity_connection" class="sr-only peer">
-                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                <input class="sr-only peer" formControlName="has_electricity_connection" type="checkbox">
+                <div class="form-toggle"></div>
               </div>
             </label>
           </div>
@@ -250,13 +250,13 @@
         <!-- OFFICE -->
         @if (propertyForm.get('type')?.value === 'office') {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Pièces / Bureaux</label>
+            <div class="form-group">
+              <label class="form-label">Pièces / Bureaux</label>
               <div class="grid grid-cols-6 gap-2">
                 @for (opt of roomsOptions; track opt.value) {
                   <label class="relative cursor-pointer">
-                    <input type="radio" formControlName="rooms" [value]="opt.value" class="peer sr-only">
-                    <div class="text-center py-2 text-sm font-medium border border-gray-200 dark:border-gray-700 rounded-lg transition-all peer-checked:bg-primary-600 peer-checked:text-white peer-checked:border-primary-600 hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <input [value]="opt.value" class="peer sr-only" formControlName="rooms" type="radio">
+                    <div class="form-radio-segment-primary">
                       {{ opt.label }}
                     </div>
                   </label>
@@ -264,13 +264,13 @@
               </div>
             </div>
 
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Toilettes</label>
+            <div class="form-group">
+              <label class="form-label">Toilettes</label>
               <div class="grid grid-cols-4 gap-2">
                 @for (opt of bathroomsOptions; track opt.value) {
                   <label class="relative cursor-pointer">
-                    <input type="radio" formControlName="bathrooms" [value]="opt.value" class="peer sr-only">
-                    <div class="text-center py-2 text-sm font-medium border border-gray-200 dark:border-gray-700 rounded-lg transition-all peer-checked:bg-primary-600 peer-checked:text-white peer-checked:border-primary-600 hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <input [value]="opt.value" class="peer sr-only" formControlName="bathrooms" type="radio">
+                    <div class="form-radio-segment-primary">
                       {{ opt.label }}
                     </div>
                   </label>
@@ -278,65 +278,65 @@
               </div>
             </div>
 
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Étage</label>
-              <input type="text" formControlName="floor"
-                     class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all">
+            <div class="form-group">
+              <label class="form-label">Étage</label>
+              <input class="form-input" formControlName="floor"
+                     type="text">
             </div>
 
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Connexion Internet</label>
-              <input type="text" formControlName="internet_connection" placeholder="Ex: Fibre Optique, ADSL..."
-                     class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all">
+            <div class="form-group">
+              <label class="form-label">Connexion Internet</label>
+              <input class="form-input" formControlName="internet_connection" placeholder="Ex: Fibre Optique, ADSL..."
+                     type="text">
             </div>
           </div>
 
           <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-            <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <label class="form-checkbox-card">
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Réception</span>
               <div class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="has_reception" class="sr-only peer">
-                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                <input class="sr-only peer" formControlName="has_reception" type="checkbox">
+                <div class="form-toggle"></div>
               </div>
             </label>
 
-            <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <label class="form-checkbox-card">
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Cuisine</span>
               <div class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="has_kitchen" class="sr-only peer">
-                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                <input class="sr-only peer" formControlName="has_kitchen" type="checkbox">
+                <div class="form-toggle"></div>
               </div>
             </label>
 
-            <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <label class="form-checkbox-card">
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Salle de réunion</span>
               <div class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="has_meeting_rooms" class="sr-only peer">
-                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                <input class="sr-only peer" formControlName="has_meeting_rooms" type="checkbox">
+                <div class="form-toggle"></div>
               </div>
             </label>
 
-            <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <label class="form-checkbox-card">
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Sécurité</span>
               <div class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="has_security" class="sr-only peer">
-                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                <input class="sr-only peer" formControlName="has_security" type="checkbox">
+                <div class="form-toggle"></div>
               </div>
             </label>
 
-            <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <label class="form-checkbox-card">
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Parking</span>
               <div class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="has_parking" class="sr-only peer">
-                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                <input class="sr-only peer" formControlName="has_parking" type="checkbox">
+                <div class="form-toggle"></div>
               </div>
             </label>
 
-            <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <label class="form-checkbox-card">
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Climatisation</span>
               <div class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="air_conditioning" class="sr-only peer">
-                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                <input class="sr-only peer" formControlName="air_conditioning" type="checkbox">
+                <div class="form-toggle"></div>
               </div>
             </label>
           </div>
@@ -345,60 +345,59 @@
         <!-- STORE -->
         @if (propertyForm.get('type')?.value === 'store') {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Type de commerce</label>
+            <div class="form-group">
+              <label class="form-label">Type de commerce</label>
               <div class="relative">
-                <select formControlName="commercial_type"
-                        class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all appearance-none">
-                  @for (opt of commercialTypeOptions; track opt.value) {
-                    <option [value]="opt.value">{{ opt.label }}</option>
-                  }
-                </select>
-                <lucide-icon [img]="icons.ChevronRight" class="w-4 h-4 text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none"></lucide-icon>
+                <p-select [options]="commercialTypeOptions"
+                          formControlName="commercial_type"
+                          optionLabel="label"
+                          optionValue="value"
+                          styleClass="w-full">
+                </p-select>
               </div>
             </div>
 
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Largeur vitrine (m)</label>
-              <input type="number" formControlName="storefront_width"
-                     class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all">
+            <div class="form-group">
+              <label class="form-label">Largeur vitrine (m)</label>
+              <input class="form-input" formControlName="storefront_width"
+                     type="number">
             </div>
 
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Trafic piéton</label>
-              <input type="text" formControlName="pedestrian_traffic" placeholder="Ex: Fort, Moyen, Faible"
-                     class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all">
+            <div class="form-group">
+              <label class="form-label">Trafic piéton</label>
+              <input class="form-input" formControlName="pedestrian_traffic" placeholder="Ex: Fort, Moyen, Faible"
+                     type="text">
             </div>
 
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Visibilité</label>
-              <input type="text" formControlName="visibility" placeholder="Ex: Excellente, Bonne..."
-                     class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all">
+            <div class="form-group">
+              <label class="form-label">Visibilité</label>
+              <input class="form-input" formControlName="visibility" placeholder="Ex: Excellente, Bonne..."
+                     type="text">
             </div>
           </div>
 
           <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-            <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <label class="form-checkbox-card">
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Stockage</span>
               <div class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="has_storage" class="sr-only peer">
-                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                <input class="sr-only peer" formControlName="has_storage" type="checkbox">
+                <div class="form-toggle"></div>
               </div>
             </label>
 
-            <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <label class="form-checkbox-card">
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Quai de chargement</span>
               <div class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="has_loading_dock" class="sr-only peer">
-                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                <input class="sr-only peer" formControlName="has_loading_dock" type="checkbox">
+                <div class="form-toggle"></div>
               </div>
             </label>
 
-            <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <label class="form-checkbox-card">
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Parking</span>
               <div class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="has_parking" class="sr-only peer">
-                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                <input class="sr-only peer" formControlName="has_parking" type="checkbox">
+                <div class="form-toggle"></div>
               </div>
             </label>
           </div>
@@ -407,12 +406,12 @@
     }
 
     <div class="mt-8 flex justify-between">
-      <button type="button" (click)="previous.emit()"
-              class="px-6 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+      <button (click)="previous.emit()" class="px-6 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              type="button">
         Précédent
       </button>
-      <button type="button" (click)="next.emit()"
-              class="flex items-center gap-2 px-6 py-2.5 bg-gray-900 text-white dark:bg-white dark:text-gray-900 rounded-xl font-medium hover:opacity-90 transition-opacity">
+      <button (click)="next.emit()" class="flex items-center gap-2 px-6 py-2.5 bg-gray-900 text-white dark:bg-white dark:text-gray-900 rounded-xl font-medium hover:opacity-90 transition-opacity"
+              type="button">
         Suivant
         <lucide-icon [img]="icons.ArrowRight" class="w-4 h-4"></lucide-icon>
       </button>

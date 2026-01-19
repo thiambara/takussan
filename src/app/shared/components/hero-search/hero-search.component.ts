@@ -1,7 +1,9 @@
 import {Component, EventEmitter, Input, OnDestroy, OnInit, Output} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
+import {LucideAngularModule} from 'lucide-angular';
 import {debounceTime, distinctUntilChanged, Subject} from 'rxjs';
+import {SelectModule} from 'primeng/select';
 
 export interface SearchFilters {
   mode: 'buy' | 'rent';
@@ -29,6 +31,8 @@ export interface PropertyType {
   imports: [
     CommonModule,
     FormsModule,
+    LucideAngularModule,
+    SelectModule
   ],
   templateUrl: './hero-search.component.html'
 })
@@ -40,6 +44,9 @@ export class HeroSearchComponent implements OnInit, OnDestroy {
   @Output() search = new EventEmitter<SearchFilters>();
   @Output() onAddressChange = new EventEmitter<string>();
   @Output() onPropertyTypeChange = new EventEmitter<string>();
+
+  readonly icons = {
+  };
 
   // Component state
   searchMode: 'buy' | 'rent' = 'buy';

@@ -39,79 +39,80 @@
                     <form [formGroup]="customerForm">
                         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                             <!-- Customer Type Selector -->
-                            <div class="col-span-full">
-                                <label class="block mb-2 font-semibold text-gray-700">Customer Type</label>
-                                <p-select [options]="customerTypes" class="w-full"
-                                          formControlName="type"
-                                          optionValue="value"
-                                          placeholder="Select Customer Type">
-
-                                </p-select>
+                            <div class="form-group col-span-full">
+                                <label class="form-label">Customer Type</label>
+                                <div class="relative">
+                                    <p-select [options]="customerTypes"
+                                              formControlName="type"
+                                              id="type"
+                                              optionLabel="label"
+                                              optionValue="value"
+                                              placeholder="Select Customer Type"
+                                              styleClass="w-full">
+                                    </p-select>
+                                </div>
                             </div>
 
                             <!-- First Name -->
-                            <div>
-                                <label class="block mb-2 font-semibold text-gray-700" for="first_name">First
-                                    Name</label>
+                            <div class="form-group">
+                                <label class="form-label" for="first_name">First Name</label>
                                 <input
                                         [class.border-red-500]="hasError('first_name', 'required')"
                                         [class.focus:ring-red-500]="hasError('first_name', 'required')"
                                         autofocus
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                                        class="form-input"
                                         formControlName="first_name"
                                         id="first_name"
                                         type="text"
                                 />
                                 @if (hasError('first_name', 'required')) {
-                                    <small
-                                           class="block mt-1 text-red-600 text-sm">
+                                    <small class="form-error">
                                         First name is required
                                     </small>
                                 }
                             </div>
 
                             <!-- Last Name -->
-                            <div>
-                                <label class="block mb-2 font-semibold text-gray-700" for="last_name">Last Name</label>
+                            <div class="form-group">
+                                <label class="form-label" for="last_name">Last Name</label>
                                 <input
                                         [class.border-red-500]="hasError('last_name', 'required')"
                                         [class.focus:ring-red-500]="hasError('last_name', 'required')"
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                                        class="form-input"
                                         formControlName="last_name"
                                         id="last_name"
                                         type="text"
                                 />
                                 @if (hasError('last_name', 'required')) {
-                                    <small
-                                           class="block mt-1 text-red-600 text-sm">
+                                    <small class="form-error">
                                         Last name is required
                                     </small>
                                 }
                             </div>
 
                             <!-- Email -->
-                            <div>
-                                <label class="block mb-2 font-semibold text-gray-700" for="email">Email</label>
+                            <div class="form-group">
+                                <label class="form-label" for="email">Email</label>
                                 <input
                                         [class.border-red-500]="hasError('email', 'email')"
                                         [class.focus:ring-red-500]="hasError('email', 'email')"
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                                        class="form-input"
                                         formControlName="email"
                                         id="email"
                                         type="email"
                                 />
                                 @if (hasError('email', 'email')) {
-                                    <small class="block mt-1 text-red-600 text-sm">
+                                    <small class="form-error">
                                         Invalid email format
                                     </small>
                                 }
                             </div>
 
                             <!-- Phone -->
-                            <div>
-                                <label class="block mb-2 font-semibold text-gray-700" for="phone">Phone</label>
+                            <div class="form-group">
+                                <label class="form-label" for="phone">Phone</label>
                                 <input
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                                        class="form-input"
                                         formControlName="phone"
                                         id="phone"
                                         type="tel"
@@ -119,15 +120,18 @@
                             </div>
 
                             <!-- Status -->
-                            <div>
-                                <label class="block mb-2 font-semibold text-gray-700" for="status">Status</label>
-                                <p-select
-                                        [options]="customerStatuses"
-                                        class="w-full"
-                                        formControlName="status"
-                                        optionValue="value"
-                                        placeholder="Select Status">
-                                </p-select>
+                            <div class="form-group">
+                                <label class="form-label" for="status">Status</label>
+                                <div class="relative">
+                                    <p-select [options]="customerStatuses"
+                                              formControlName="status"
+                                              id="status"
+                                              optionLabel="label"
+                                              optionValue="value"
+                                              placeholder="Select Status"
+                                              styleClass="w-full">
+                                    </p-select>
+                                </div>
                             </div>
                         </div>
 
@@ -137,57 +141,52 @@
 
                             <!-- Company-specific fields -->
                             @if (customerForm.get('type')?.value === 'company') {
-                                <div
-                                     class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2 animate-[slideIn_0.3s_ease-in-out]">
+                                <div class="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2 animate-[slideIn_0.3s_ease-in-out]">
                                 <div class="col-span-full">
                                     <h3 class="mb-4 text-lg font-medium text-gray-900">Company Information</h3>
                                 </div>
 
                                 <!-- Company Name -->
-                                <div>
-                                    <label class="block mb-2 font-semibold text-gray-700" for="company_name">Company
-                                        Name</label>
+                                <div class="form-group">
+                                    <label class="form-label" for="company_name">Company Name</label>
                                     <input
                                             [class.border-red-500]="hasMetadataError('company_name', 'required')"
                                             [class.focus:ring-red-500]="hasMetadataError('company_name', 'required')"
-                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                                            class="form-input"
                                             formControlName="company_name"
                                             id="company_name"
                                             type="text"
                                     />
                                     @if (hasMetadataError('company_name', 'required')) {
-                                        <small
-                                               class="block mt-1 text-red-600 text-sm">
+                                        <small class="form-error">
                                             Company name is required
                                         </small>
                                     }
                                 </div>
 
                                 <!-- Business ID -->
-                                <div>
-                                    <label class="block mb-2 font-semibold text-gray-700" for="business_id">Business
-                                        ID</label>
+                                <div class="form-group">
+                                    <label class="form-label" for="business_id">Business ID</label>
                                     <input
                                             [class.border-red-500]="hasMetadataError('business_id', 'required')"
                                             [class.focus:ring-red-500]="hasMetadataError('business_id', 'required')"
-                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                                            class="form-input"
                                             formControlName="business_id"
                                             id="business_id"
                                             type="text"
                                     />
                                     @if (hasMetadataError('business_id', 'required')) {
-                                        <small
-                                               class="block mt-1 text-red-600 text-sm">
+                                        <small class="form-error">
                                             Business ID is required
                                         </small>
                                     }
                                 </div>
 
                                 <!-- Tax ID -->
-                                <div>
-                                    <label class="block mb-2 font-semibold text-gray-700" for="tax_id">Tax ID</label>
+                                <div class="form-group">
+                                    <label class="form-label" for="tax_id">Tax ID</label>
                                     <input
-                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                                            class="form-input"
                                             formControlName="tax_id"
                                             id="tax_id"
                                             type="text"
@@ -197,10 +196,10 @@
                             }
 
                             <!-- Notes field (for all types) -->
-                            <div class="mt-4">
-                                <label class="block mb-2 font-semibold text-gray-700" for="notes">Notes</label>
+                            <div class="form-group mt-4">
+                                <label class="form-label" for="notes">Notes</label>
                                 <textarea
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 resize-y min-h-[120px]"
+                                        class="form-textarea resize-y min-h-[120px]"
                                         formControlName="notes"
                                         id="notes"
                                         placeholder="Additional notes about the customer..."

@@ -9,8 +9,8 @@ import {ButtonModule} from 'primeng/button';
 import {DialogModule} from 'primeng/dialog';
 import {TextareaModule} from 'primeng/textarea';
 import {TooltipModule} from 'primeng/tooltip';
-import {Select} from "primeng/select";
-import {LucideAngularModule, Home, Briefcase, Truck, CreditCard, MapPin, X, Check} from 'lucide-angular';
+import {Briefcase, Check, CreditCard, Home, LucideAngularModule, MapPin, Truck, X} from 'lucide-angular';
+import {SelectModule} from 'primeng/select';
 
 @Component({
   selector: 'app-address-form',
@@ -24,8 +24,8 @@ import {LucideAngularModule, Home, Briefcase, Truck, CreditCard, MapPin, X, Chec
     DialogModule,
     TextareaModule,
     TooltipModule,
-    Select,
-    LucideAngularModule
+    LucideAngularModule,
+    SelectModule
   ]
 })
 export class AddressFormComponent implements OnInit {

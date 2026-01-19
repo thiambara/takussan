@@ -1,8 +1,9 @@
-import {Component, EventEmitter, Input, Output} from '@angular/core';
+import {Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
 import {PropertyFilter} from "../../../core/models/property-filter.model";
 import {LucideAngularModule, X} from 'lucide-angular';
+import {SelectModule} from 'primeng/select';
 
 @Component({
   selector: 'app-property-filters',
@@ -10,17 +11,21 @@ import {LucideAngularModule, X} from 'lucide-angular';
   imports: [
     CommonModule,
     FormsModule,
-    LucideAngularModule
+    LucideAngularModule,
+    SelectModule
   ],
   templateUrl: './property-filters.component.html'
 })
-export class PropertyFiltersComponent {
+export class PropertyFiltersComponent implements OnInit, OnChanges {
 
   @Input() filters: PropertyFilter = {};
   @Output() filtersChange = new EventEmitter<PropertyFilter>();
   showAllAmenities = false;
 
   readonly X = X;
+
+  minPriceOptions: { value: number, label: string }[] = [];
+  maxPriceOptions: { value: number, label: string }[] = [];
 
   // Property types for checkboxes
   propertyTypeOptions = [
@@ -71,23 +76,15 @@ export class PropertyFiltersComponent {
     'Conference Room'
   ];
 
-  // Price presets
-  priceRanges = {
-    rent: [
-      {min: 0, max: 1000, label: 'Under $1,000'},
-      {min: 1000, max: 2000, label: '$1,000 - $2,000'},
-      {min: 2000, max: 3000, label: '$2,000 - $3,000'},
-      {min: 3000, max: 5000, label: '$3,000 - $5,000'},
-      {min: 5000, max: null, label: 'Over $5,000'}
-    ],
-    sale: [
-      {min: 0, max: 200000, label: 'Under $200k'},
-      {min: 200000, max: 500000, label: '$200k - $500k'},
-      {min: 500000, max: 1000000, label: '$500k - $1M'},
-      {min: 1000000, max: 2000000, label: '$1M - $2M'},
-      {min: 2000000, max: null, label: 'Over $2M'}
-    ]
-  };
+  ngOnInit() {
+    this.updatePriceOptions();
+  }
+
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['filters']) {
+      this.updatePriceOptions();
+    }
+  }
 
   get activeFiltersCount(): number {
     let count = 0;
@@ -101,13 +98,9 @@ export class PropertyFiltersComponent {
     return count;
   }
 
-  get currentPriceRanges() {
-    return this.filters.priceType === 'rent' ? this.priceRanges.rent : this.priceRanges.sale;
-  }
-
-  getPriceOptions(type: 'min' | 'max'): { value: number, label: string }[] {
+  updatePriceOptions() {
     if (this.filters.priceType === 'rent') {
-      return type === 'min' ? [
+      this.minPriceOptions = [
         {value: 100, label: '$100'},
         {value: 500, label: '$500'},
         {value: 1000, label: '$1,000'},
@@ -116,7 +109,8 @@ export class PropertyFiltersComponent {
         {value: 2500, label: '$2,500'},
         {value: 3000, label: '$3,000'},
         {value: 4000, label: '$4,000'}
-      ] : [
+      ];
+      this.maxPriceOptions = [
         {value: 1000, label: '$1,000'},
         {value: 1500, label: '$1,500'},
         {value: 2000, label: '$2,000'},
@@ -127,7 +121,7 @@ export class PropertyFiltersComponent {
         {value: 10000, label: '$10,000'}
       ];
     } else {
-      return type === 'min' ? [
+      this.minPriceOptions = [
         {value: 100000, label: '$100K'},
         {value: 200000, label: '$200K'},
         {value: 300000, label: '$300K'},
@@ -135,7 +129,8 @@ export class PropertyFiltersComponent {
         {value: 500000, label: '$500K'},
         {value: 750000, label: '$750K'},
         {value: 1000000, label: '$1M'}
-      ] : [
+      ];
+      this.maxPriceOptions = [
         {value: 300000, label: '$300K'},
         {value: 400000, label: '$400K'},
         {value: 500000, label: '$500K'},
@@ -151,6 +146,7 @@ export class PropertyFiltersComponent {
     // Reset price range when switching between rent and sale
     this.filters.minPrice = undefined;
     this.filters.maxPrice = undefined;
+    this.updatePriceOptions();
     this.applyFilters();
   }
 
@@ -201,6 +197,7 @@ export class PropertyFiltersComponent {
       priceType: 'all',
       sortBy: 'date-newest'
     };
+    this.updatePriceOptions();
     this.applyFilters();
   }
 }

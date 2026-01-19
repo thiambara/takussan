@@ -37,45 +37,51 @@
         <div class="space-y-4">
             <div class="flex items-center space-x-2 mb-3">
                 <label class="flex items-center">
-                    <input (change)="onPriceTypeChange()" [(ngModel)]="filters.priceType" class="text-blue-600 focus:ring-blue-300" type="radio"
+                    <input (change)="onPriceTypeChange()" [(ngModel)]="filters.priceType" class="form-radio" type="radio"
                            value="all">
                     <span class="ml-2 text-sm text-gray-600">All</span>
                 </label>
                 <label class="flex items-center">
-                    <input (change)="onPriceTypeChange()" [(ngModel)]="filters.priceType" class="text-blue-600 focus:ring-blue-300" type="radio"
+                    <input (change)="onPriceTypeChange()" [(ngModel)]="filters.priceType" class="form-radio" type="radio"
                            value="sale">
                     <span class="ml-2 text-sm text-gray-600">For Sale</span>
                 </label>
                 <label class="flex items-center">
-                    <input (change)="onPriceTypeChange()" [(ngModel)]="filters.priceType" class="text-blue-600 focus:ring-blue-300" type="radio"
+                    <input (change)="onPriceTypeChange()" [(ngModel)]="filters.priceType" class="form-radio" type="radio"
                            value="rent">
                     <span class="ml-2 text-sm text-gray-600">For Rent</span>
                 </label>
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-sm text-gray-600 mb-1">Min Price</label>
-                    <select
-                            (change)="applyFilters()"
-                            [(ngModel)]="filters.minPrice"
-                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-500 focus:outline-none">
-                        <option [value]="undefined">No min</option>
-                        @for (option of getPriceOptions('min'); track option.value) {
-                            <option [value]="option.value">{{ option.label }}</option>
-                        }
-                    </select>
+                    <label class="form-label">Min Price</label>
+                    <div class="relative">
+                        <p-select
+                                (onChange)="applyFilters()"
+                                [(ngModel)]="filters.minPrice"
+                                [options]="minPriceOptions"
+                                [showClear]="true"
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="No min"
+                                styleClass="w-full">
+                        </p-select>
+                    </div>
                 </div>
                 <div>
-                    <label class="block text-sm text-gray-600 mb-1">Max Price</label>
-                    <select
-                            (change)="applyFilters()"
-                            [(ngModel)]="filters.maxPrice"
-                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-500 focus:outline-none">
-                        <option [value]="undefined">No max</option>
-                        @for (option of getPriceOptions('max'); track option.value) {
-                            <option [value]="option.value">{{ option.label }}</option>
-                        }
-                    </select>
+                    <label class="form-label">Max Price</label>
+                    <div class="relative">
+                        <p-select
+                                (onChange)="applyFilters()"
+                                [(ngModel)]="filters.maxPrice"
+                                [options]="maxPriceOptions"
+                                [showClear]="true"
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="No max"
+                                styleClass="w-full">
+                        </p-select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -91,7 +97,7 @@
                             type="checkbox"
                             [checked]="isPropertyTypeSelected(type.value)"
                             (change)="togglePropertyType(type.value)"
-                            class="rounded border-gray-300 text-blue-600 focus:ring-blue-300">
+                            class="form-checkbox">
                     <span class="ml-2 text-sm text-gray-600">{{ type.label }}</span>
                     <span class="ml-auto text-xs text-gray-400">({{ type.count || 0 }})</span>
                 </label>
@@ -104,7 +110,7 @@
         <h4 class="font-semibold text-blue-600 mb-4">Beds & Baths</h4>
         <div class="space-y-4">
             <div>
-                <label class="block text-sm text-gray-600 mb-2">Bedrooms</label>
+                <label class="form-label">Bedrooms</label>
                 <div class="grid grid-cols-5 gap-2">
                     <button
                             (click)="filters.minBedrooms = undefined; applyFilters()"
@@ -157,11 +163,11 @@
         <h4 class="font-semibold text-blue-600 mb-4">Square Footage</h4>
         <div class="grid grid-cols-2 gap-3">
             <div>
-                <label class="block text-sm text-gray-600 mb-1">Min Sq Ft</label>
+                <label class="form-label">Min Sq Ft</label>
                 <input
                         (change)="applyFilters()"
                         [(ngModel)]="filters.minArea"
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-500 focus:outline-none"
+                        class="form-input"
                         placeholder="No min"
                         type="number">
             </div>
@@ -170,7 +176,7 @@
                 <input
                         (change)="applyFilters()"
                         [(ngModel)]="filters.maxArea"
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-500 focus:outline-none"
+                        class="form-input"
                         placeholder="No max"
                         type="number">
             </div>
@@ -184,35 +190,35 @@
             <label class="flex items-center">
                 <input (change)="toggleAmenity('Pool')"
                        [checked]="isAmenitySelected('Pool')"
-                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-300"
+                       class="form-checkbox"
                        type="checkbox">
                 <span class="ml-2 text-sm text-gray-600">Pool</span>
             </label>
             <label class="flex items-center">
                 <input (change)="toggleAmenity('Garage')"
                        [checked]="isAmenitySelected('Garage')"
-                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-300"
+                       class="form-checkbox"
                        type="checkbox">
                 <span class="ml-2 text-sm text-gray-600">Garage</span>
             </label>
             <label class="flex items-center">
                 <input (change)="toggleAmenity('Fireplace')"
                        [checked]="isAmenitySelected('Fireplace')"
-                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-300"
+                       class="form-checkbox"
                        type="checkbox">
                 <span class="ml-2 text-sm text-gray-600">Fireplace</span>
             </label>
             <label class="flex items-center">
                 <input (change)="toggleAmenity('Hardwood Floors')"
                        [checked]="isAmenitySelected('Hardwood Floors')"
-                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-300"
+                       class="form-checkbox"
                        type="checkbox">
                 <span class="ml-2 text-sm text-gray-600">Hardwood Floors</span>
             </label>
             <label class="flex items-center">
                 <input (change)="toggleAmenity('Updated Kitchen')"
                        [checked]="isAmenitySelected('Updated Kitchen')"
-                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-300"
+                       class="form-checkbox"
                        type="checkbox">
                 <span class="ml-2 text-sm text-gray-600">Updated Kitchen</span>
             </label>
@@ -227,7 +233,7 @@
                         <input type="checkbox"
                                [checked]="isAmenitySelected(amenity)"
                                (change)="toggleAmenity(amenity)"
-                               class="rounded border-gray-300 text-blue-600 focus:ring-blue-300">
+                               class="form-checkbox">
                         <span class="ml-2 text-sm text-gray-600">{{ amenity }}</span>
                     </label>
                 }

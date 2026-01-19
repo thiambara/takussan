@@ -21,6 +21,7 @@ import {
   ChevronRight,
   SearchX
 } from 'lucide-angular';
+import {SelectModule} from 'primeng/select';
 
 @Component({
   selector: 'app-search-results',
@@ -31,7 +32,8 @@ import {
     ReactiveFormsModule,
     PropertyCardComponent,
     PropertyFiltersComponent,
-    LucideAngularModule
+    LucideAngularModule,
+    SelectModule
   ],
   templateUrl: './search-results.component.html'
 })
@@ -181,8 +183,7 @@ export class SearchResultsComponent implements OnInit {
     this.searchSubject.next(query);
   }
 
-  onSortChange(event: Event) {
-    this.filters.sortBy = (event.target as HTMLSelectElement).value as any;
+  onSortChange() {
     this.updateQueryParams();
   }
 

@@ -7,59 +7,101 @@
 @plugin "@tailwindcss/container-queries";
 @custom-variant dark (&:where(.app-dark, .app-dark *));
 @theme {
-    --color-primary-50: #eff6ff;
-    --color-primary-100: #dbeafe;
-    --color-primary-200: #bfdbfe;
-    --color-primary-300: #93c5fd;
-    --color-primary-400: #60a5fa;
-    --color-primary-500: #3b82f6;
-    --color-primary-600: #2563eb;
-    --color-primary-700: #1d4ed8;
-    --color-primary-800: #1e40af;
-    --color-primary-900: #1e3a8a;
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
 
-    --color-secondary-50: #f8fafc;
-    --color-secondary-100: #f1f5f9;
-    --color-secondary-200: #e2e8f0;
-    --color-secondary-300: #cbd5e1;
-    --color-secondary-400: #94a3b8;
-    --color-secondary-500: #64748b;
-    --color-secondary-600: #475569;
-    --color-secondary-700: #334155;
-    --color-secondary-800: #1e293b;
-    --color-secondary-900: #0f172a;
+  --color-secondary-50: #f8fafc;
+  --color-secondary-100: #f1f5f9;
+  --color-secondary-200: #e2e8f0;
+  --color-secondary-300: #cbd5e1;
+  --color-secondary-400: #94a3b8;
+  --color-secondary-500: #64748b;
+  --color-secondary-600: #475569;
+  --color-secondary-700: #334155;
+  --color-secondary-800: #1e293b;
+  --color-secondary-900: #0f172a;
 
-    --font-sans: Inter, system-ui, sans-serif;
+  --font-sans: Inter, system-ui, sans-serif;
 }
 
 
-@layer base {
-    body {
-        @apply font-sans antialiased;
-    }
-}
-
-@layer components {
-    .btn-primary {
-        @apply px-4 py-2 font-medium text-white rounded-lg transition-colors duration-200 bg-primary-600 hover:bg-primary-700;
-    }
-
-    .btn-secondary {
-        @apply px-4 py-2 font-medium rounded-lg transition-colors duration-200 bg-secondary-200 hover:bg-secondary-300 text-secondary-800;
-    }
-
-    .card {
-        @apply bg-white rounded-lg border shadow-md border-secondary-200;
-
-        .card-header {
-            @apply bg-white
-        }
-
-        .card-body {
-            @apply bg-white
-        }
-    }
+body {
+  @apply font-sans antialiased;
 }
 
 
+.btn-primary {
+  @apply px-4 py-2 font-medium text-white rounded-lg transition-colors duration-200 bg-primary-600 hover:bg-primary-700;
+}
 
+.btn-secondary {
+  @apply px-4 py-2 font-medium rounded-lg transition-colors duration-200 bg-secondary-200 hover:bg-secondary-300 text-secondary-800;
+}
+
+.card {
+  @apply bg-white rounded-lg border shadow-md border-secondary-200;
+
+  .card-header {
+    @apply bg-white
+  }
+
+  .card-body {
+    @apply bg-white
+  }
+}
+
+/* Form Components */
+.form-label {
+  @apply block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2;
+}
+
+.form-input,
+.form-textarea,
+.form-select {
+  @apply w-full pl-4 pr-10 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white transition-all duration-200 placeholder:text-gray-400 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none;
+}
+
+.form-select {
+  @apply appearance-none;
+}
+
+.form-group {
+  @apply space-y-2;
+}
+
+.form-error {
+  @apply text-xs text-red-500 flex items-center gap-1 mt-1;
+}
+
+.form-radio-segment {
+  @apply text-center py-2 text-sm font-medium text-gray-500 rounded-lg transition-all peer-checked:bg-white peer-checked:text-gray-900 peer-checked:shadow-sm dark:peer-checked:bg-gray-700 dark:peer-checked:text-white hover:bg-gray-100 dark:hover:bg-gray-800 border border-transparent peer-checked:border-gray-200 dark:peer-checked:border-gray-600;
+}
+
+/* Primary style radio segment (colored background when active) */
+.form-radio-segment-primary {
+  @apply text-center py-2 text-sm font-medium border border-gray-200 dark:border-gray-700 rounded-lg transition-all peer-checked:bg-primary-600 peer-checked:text-white peer-checked:border-primary-600 hover:bg-gray-50 dark:hover:bg-gray-800;
+}
+
+.form-checkbox-card {
+  @apply flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors;
+}
+
+.form-toggle {
+  @apply w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600;
+}
+
+.form-checkbox {
+  @apply rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-4 h-4 transition-colors duration-200 dark:bg-gray-800 dark:border-gray-600 dark:checked:bg-primary-600 dark:checked:border-primary-600;
+}
+
+.form-radio {
+  @apply border-gray-300 text-primary-600 focus:ring-primary-500 w-4 h-4 transition-colors duration-200 dark:bg-gray-800 dark:border-gray-600 dark:checked:bg-primary-600 dark:checked:border-primary-600;
+}

@@ -2,10 +2,10 @@
           header="{{ isEditMode ? 'Edit Booking' : 'Create New Booking' }}" styleClass="p-fluid">
     <p-toast></p-toast>
     @if (bookingForm) {
-        <form  [formGroup]="bookingForm">
+        <form [formGroup]="bookingForm" class="space-y-4">
             <!-- Customer Selection -->
-            <div class="mb-4 field">
-                <label class="block mb-2 font-medium" for="customer">Customer</label>
+            <div class="form-group">
+                <label class="form-label" for="customer">Customer</label>
                 <div class="flex gap-2">
                     <p-autoComplete
                             (completeMethod)="filterCustomer($event)"
@@ -17,7 +17,8 @@
                             [placeholder]="'Search for a customer...'"
                             [style]="{'width':'100%'}"
                             [suggestions]="filteredCustomers"
-                            field="last_name">
+                            field="last_name"
+                            inputStyleClass="form-input !pr-10">
                         <ng-template let-customer pTemplate="item">
                             <div class="flex flex-col py-2">
                                 <span class="font-medium">{{ customer.first_name }} {{ customer.last_name }}</span>
@@ -45,123 +46,134 @@
                 }
             </div>
 
-            <div class="mb-4 field">
-                <label class="block mb-2 font-medium" for="booking_date">Booking Date *</label>
+            <div class="form-group">
+                <label class="form-label" for="booking_date">Booking Date *</label>
                 <div class="relative">
                     <p-datePicker [showButtonBar]="true" [showIcon]="false" dateFormat="yy-mm-dd" formControlName="booking_date"
-                                  id="booking_date" styleClass="w-full"></p-datePicker>
+                                  id="booking_date" styleClass="w-full" inputStyleClass="form-input !pr-10"></p-datePicker>
                     <div class="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                         <lucide-icon [img]="Calendar" class="w-4 h-4 text-gray-400"></lucide-icon>
                     </div>
                 </div>
                 @if (bookingForm.get('booking_date')?.invalid && bookingForm.get('booking_date')?.touched) {
-                    <small class="text-red-500">Booking date is required.</small>
+                    <small class="form-error">Booking date is required.</small>
                 }
             </div>
 
-            <div class="mb-4 field">
-                <label class="block mb-2 font-medium" for="start_date">Start Date *</label>
+            <div class="form-group">
+                <label class="form-label" for="start_date">Start Date *</label>
                 <div class="relative">
                     <p-datePicker [showButtonBar]="true" [showIcon]="false" dateFormat="yy-mm-dd" formControlName="start_date"
-                                  id="start_date" styleClass="w-full"></p-datePicker>
+                                  id="start_date" styleClass="w-full" inputStyleClass="form-input !pr-10"></p-datePicker>
                     <div class="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                         <lucide-icon [img]="Calendar" class="w-4 h-4 text-gray-400"></lucide-icon>
                     </div>
                 </div>
                 @if (bookingForm.get('start_date')?.invalid && bookingForm.get('start_date')?.touched) {
-                    <small class="text-red-500">Start date is required.</small>
+                    <small class="form-error">Start date is required.</small>
                 }
             </div>
 
-            <div class="mb-4 field">
-                <label class="block mb-2 font-medium" for="end_date">End Date *</label>
+            <div class="form-group">
+                <label class="form-label" for="end_date">End Date *</label>
                 <div class="relative">
                     <p-datePicker [showButtonBar]="true" [showIcon]="false" dateFormat="yy-mm-dd" formControlName="end_date"
-                                  id="end_date" styleClass="w-full"></p-datePicker>
+                                  id="end_date" styleClass="w-full" inputStyleClass="form-input !pr-10"></p-datePicker>
                     <div class="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                         <lucide-icon [img]="Calendar" class="w-4 h-4 text-gray-400"></lucide-icon>
                     </div>
                 </div>
                 @if (bookingForm.get('end_date')?.invalid && bookingForm.get('end_date')?.touched) {
-                    <small class="text-red-500">End date is required.</small>
+                    <small class="form-error">End date is required.</small>
                 }
             </div>
 
-            <div class="mb-4 field">
-                <label class="block mb-2 font-medium" for="expiration_date">Expiration Date</label>
+            <div class="form-group">
+                <label class="form-label" for="expiration_date">Expiration Date</label>
                 <div class="relative">
                     <p-datePicker [showButtonBar]="true" [showIcon]="false" dateFormat="yy-mm-dd"
                                   formControlName="expiration_date"
-                                  id="expiration_date" styleClass="w-full"></p-datePicker>
+                                  id="expiration_date" styleClass="w-full" inputStyleClass="form-input !pr-10"></p-datePicker>
                     <div class="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                         <lucide-icon [img]="Calendar" class="w-4 h-4 text-gray-400"></lucide-icon>
                     </div>
                 </div>
             </div>
 
-            <div class="mb-4 field">
-                <label class="block mb-2 font-medium" for="status">Status *</label>
-                <p-select [options]="bookingStatusOptions" formControlName="status" id="status" optionLabel="label"
-                          optionValue="value" styleClass="w-full"></p-select>
+            <div class="form-group">
+                <label class="form-label" for="status">Status *</label>
+                <div class="relative">
+                    <p-select [options]="bookingStatusOptions"
+                              formControlName="status"
+                              id="status"
+                              optionLabel="label"
+                              optionValue="value"
+                              placeholder="Select Status"
+                              styleClass="w-full">
+                    </p-select>
+                </div>
                 @if (bookingForm.get('status')?.invalid && bookingForm.get('status')?.touched) {
-                    <small class="text-red-500">Status is required.</small>
+                    <small class="form-error">Status is required.</small>
                 }
             </div>
 
-            <div class="mb-4 field">
-                <label class="block mb-2 font-medium" for="price_at_booking">Price at Booking *</label>
+            <div class="form-group">
+                <label class="form-label" for="price_at_booking">Price at Booking *</label>
                 <p-inputNumber [minFractionDigits]="2" currency="EUR" formControlName="price_at_booking"
                                id="price_at_booking"
-                               mode="currency" styleClass="w-full"></p-inputNumber>
+                               mode="currency" styleClass="w-full" inputStyleClass="form-input !pr-10"></p-inputNumber>
                 @if (bookingForm.get('price_at_booking')?.invalid && bookingForm.get('price_at_booking')?.touched) {
-                    <small class="text-red-500">Price is required and must be greater than 0.</small>
+                    <small class="form-error">Price is required and must be greater than 0.</small>
                 }
             </div>
 
-            <div class="mb-4 field">
-                <label class="flex mb-2 font-medium items-center gap-1" for="total_amount">Total Amount *
+            <div class="form-group">
+                <label class="form-label flex items-center gap-1" for="total_amount">Total Amount *
                     <lucide-icon [img]="Info" class="text-primary cursor-pointer w-4 h-4"
                         pTooltip="This value is automatically calculated based on the property price and the number of days between start and end dates. You can also manually adjust it if needed."
                         tooltipPosition="top"></lucide-icon>
                 </label>
                 <p-inputNumber [minFractionDigits]="2" currency="EUR" formControlName="total_amount" id="total_amount"
-                               mode="currency" styleClass="w-full"></p-inputNumber>
+                               mode="currency" styleClass="w-full" inputStyleClass="form-input !pr-10"></p-inputNumber>
                 @if (bookingForm.get('total_amount')?.invalid && bookingForm.get('total_amount')?.touched) {
-                    <small class="text-red-500">Total amount is required and must be greater than 0.</small>
+                    <small class="form-error">Total amount is required and must be greater than 0.</small>
                 }
             </div>
 
-            <div class="mb-4 field">
-                <label class="block mb-2 font-medium" for="deposit_amount">Deposit Amount</label>
+            <div class="form-group">
+                <label class="form-label" for="deposit_amount">Deposit Amount</label>
                 <p-inputNumber [minFractionDigits]="2" currency="EUR" formControlName="deposit_amount" id="deposit_amount"
-                               mode="currency" styleClass="w-full"></p-inputNumber>
+                               mode="currency" styleClass="w-full" inputStyleClass="form-input !pr-10"></p-inputNumber>
             </div>
 
-            <div class="mb-4 field">
-                <label class="block mb-2 font-medium" for="deposit_paid">Deposit Paid</label>
-                <p-selectButton [options]="depositPaidOptions" formControlName="deposit_paid" id="deposit_paid" optionLabel="label" optionValue="value" styleClass="w-full">
-                    <ng-template let-item pTemplate="item">
-                        <div class="flex items-center gap-2">
-                            @if (item.value) {
-                                <lucide-icon [img]="Check" class="w-4 h-4"></lucide-icon>
-                            }
-                            @if (!item.value) {
-                                <lucide-icon [img]="X" class="w-4 h-4"></lucide-icon>
-                            }
-                            <span>{{ item.label }}</span>
-                        </div>
-                    </ng-template>
-                </p-selectButton>
+            <div class="form-group">
+                <label class="form-label" for="deposit_paid">Deposit Paid</label>
+                <div class="grid grid-cols-2 gap-2 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl">
+                    @for (opt of depositPaidOptions; track opt.value) {
+                        <label class="relative cursor-pointer">
+                            <input type="radio" formControlName="deposit_paid" [value]="opt.value" class="peer sr-only">
+                            <div class="form-radio-segment flex items-center justify-center gap-2">
+                                @if (opt.value) {
+                                    <lucide-icon [img]="Check" class="w-4 h-4"></lucide-icon>
+                                }
+                                @if (!opt.value) {
+                                    <lucide-icon [img]="X" class="w-4 h-4"></lucide-icon>
+                                }
+                                {{ opt.label }}
+                            </div>
+                        </label>
+                    }
+                </div>
             </div>
 
-            <div class="mb-4 field">
-                <label class="block mb-2 font-medium" for="reference_number">Reference Number</label>
-                <input class="w-full" formControlName="reference_number" id="reference_number" pInputText/>
+            <div class="form-group">
+                <label class="form-label" for="reference_number">Reference Number</label>
+                <input class="form-input" formControlName="reference_number" id="reference_number" type="text"/>
             </div>
 
-            <div class="mb-4 field">
-                <label class="block mb-2 font-medium" for="notes">Notes</label>
-                <textarea class="w-full" formControlName="notes" id="notes" pTextarea rows="3"></textarea>
+            <div class="form-group">
+                <label class="form-label" for="notes">Notes</label>
+                <textarea class="form-textarea" formControlName="notes" id="notes" rows="3"></textarea>
             </div>
         </form>
     }

@@ -12,8 +12,8 @@ import {MessageService} from '../../../../core/services/message.service';
 import {AddressFormComponent} from '../../../../shared/components/address-form/address-form.component';
 import {Customer} from "../../../../core/models/http/customer.model";
 import {Card} from "primeng/card";
-import {Select} from "primeng/select";
 import {ChevronLeft, Loader2, LucideAngularModule, MapPin, Pencil, Plus, Save, Trash2} from 'lucide-angular';
+import {SelectModule} from 'primeng/select';
 
 @Component({
   selector: 'app-customer-edit',
@@ -25,8 +25,8 @@ import {ChevronLeft, Loader2, LucideAngularModule, MapPin, Pencil, Plus, Save, T
     FormsModule,
     AddressFormComponent,
     Card,
-    Select,
-    LucideAngularModule
+    LucideAngularModule,
+    SelectModule
   ],
   standalone: true
 })

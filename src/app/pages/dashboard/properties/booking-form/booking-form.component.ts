@@ -8,15 +8,14 @@ import {debounceTime, EMPTY, merge, skip} from 'rxjs';
 // PrimeNG Modules
 import {ButtonModule} from 'primeng/button';
 import {InputTextModule} from 'primeng/inputtext';
-import {SelectModule} from 'primeng/select';
 import {InputNumberModule} from 'primeng/inputnumber';
 import {DatePickerModule} from 'primeng/datepicker';
 import {DialogModule} from 'primeng/dialog';
 import {TextareaModule} from 'primeng/textarea';
 import {AutoCompleteModule, AutoCompleteSelectEvent} from 'primeng/autocomplete';
 import {ToastModule} from 'primeng/toast';
-import {SelectButtonModule} from 'primeng/selectbutton';
 import {MessageService} from 'primeng/api';
+import {SelectModule} from 'primeng/select';
 import {BookingService} from "../../../../core/services/http/booking.service";
 import {CustomerService} from "../../../../core/services/http/customer.service";
 import {Customer} from "../../../../core/models/http/customer.model";
@@ -32,15 +31,14 @@ import {Calendar, Check, Info, LucideAngularModule, X} from 'lucide-angular';
     FormsModule,
     ButtonModule,
     InputTextModule,
-    SelectModule,
     InputNumberModule,
     DatePickerModule,
     DialogModule,
     TextareaModule,
     AutoCompleteModule,
     ToastModule,
-    SelectButtonModule,
-    LucideAngularModule
+    LucideAngularModule,
+    SelectModule
   ],
   providers: [MessageService]
 })

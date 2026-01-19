@@ -256,7 +256,7 @@
                 <div class="flex flex-col">
                     <h6 class="mb-1 text-gray-500">Status</h6>
                     <p-tag [severity]="selectedBooking.status === 'confirmed' ? 'success' :
-                                 selectedBooking.status === 'pending' ? 'warning' :
+                                 selectedBooking.status === 'pending' ? 'warn' :
                                  selectedBooking.status === 'cancelled' ? 'danger' : 'info'">
                         {{ selectedBooking.status }}
                     </p-tag>

@@ -14,26 +14,26 @@
     <div class="p-fluid">
         <form [formGroup]="addressForm" class="grid grid-cols-1 gap-4">
             <!-- Label -->
-            <div class="mb-5">
-                <label class="block mb-2 font-medium" for="label">Étiquette *</label>
+            <div class="form-group">
+                <label class="form-label" for="label">Étiquette *</label>
 
-                <input class="w-full" formControlName="label" id="label" pInputText
+                <input class="form-input" formControlName="label" id="label"
                        placeholder="Ex: Domicile, Bureau..." type="text">
 
                 @if (addressForm.get('label')?.invalid && addressForm.get('label')?.touched) {
-                    <small class="block mt-1 text-red-500">
+                    <small class="form-error">
                         L'étiquette est obligatoire
                     </small>
                 }
             </div>
 
             <!-- Address -->
-            <div class="mb-5">
-                <label class="block mb-2 font-medium" for="address">Adresse *</label>
-                <textarea autoResize="true" class="w-full" formControlName="address" id="address" pTextarea
+            <div class="form-group">
+                <label class="form-label" for="address">Adresse *</label>
+                <textarea class="form-textarea" formControlName="address" id="address"
                           placeholder="Numéro et rue" rows="3"></textarea>
                 @if (addressForm.get('address')?.invalid && addressForm.get('address')?.touched) {
-                    <small class="block mt-1 text-red-500">
+                    <small class="form-error">
                         L'adresse est obligatoire
                     </small>
                 }
@@ -41,92 +41,52 @@
 
             <!-- City and State -->
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div class="mb-5">
-                    <label class="block mb-2 font-medium" for="city">Ville *</label>
-                    <input class="w-full" formControlName="city" id="city" pInputText type="text">
+                <div class="form-group">
+                    <label class="form-label" for="city">Ville *</label>
+                    <input class="form-input" formControlName="city" id="city" type="text">
                     @if (addressForm.get('city')?.invalid && addressForm.get('city')?.touched) {
-                        <small class="block mt-1 text-red-500">
+                        <small class="form-error">
                             La ville est obligatoire
                         </small>
                     }
                 </div>
 
-                <div class="mb-5">
-                    <label class="block mb-2 font-medium" for="state">Région</label>
-                    <input class="w-full" formControlName="state" id="state" pInputText type="text">
+                <div class="form-group">
+                    <label class="form-label" for="state">Région</label>
+                    <input class="form-input" formControlName="state" id="state" type="text">
                 </div>
             </div>
 
             <!-- Country and Postal Code -->
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div class="mb-5">
-                    <label class="block mb-2 font-medium" for="country">Pays *</label>
-                    <input class="w-full" formControlName="country" id="country" pInputText type="text">
+                <div class="form-group">
+                    <label class="form-label" for="country">Pays *</label>
+                    <input class="form-input" formControlName="country" id="country" type="text">
                     @if (addressForm.get('country')?.invalid && addressForm.get('country')?.touched) {
-                        <small class="block mt-1 text-red-500">
+                        <small class="form-error">
                             Le pays est obligatoire
                         </small>
                     }
                 </div>
 
-                <div class="mb-5">
-                    <label class="block mb-2 font-medium" for="postal_code">Code postal</label>
-                    <input class="w-full" formControlName="postal_code" id="postal_code" pInputText type="text">
+                <div class="form-group">
+                    <label class="form-label" for="postal_code">Code postal</label>
+                    <input class="form-input" formControlName="postal_code" id="postal_code" type="text">
                 </div>
             </div>
 
             <!-- Address Type -->
-            <div class="mb-5">
-                <label class="block mb-2 font-medium" for="type">Type d'adresse</label>
-                <p-select
-                        [filter]="true"
-                        [options]="addressTypes"
-                        formControlName="type"
-                        id="type"
-                        optionLabel="label"
-                        optionValue="value"
-                        styleClass="w-full">
-                    <ng-template let-option pTemplate="selectedItem">
-                        <div class="flex align-items-center">
-                            @if (option.value === 'residential') {
-                                <lucide-icon [img]="Home" class="mr-2 w-4 h-4"></lucide-icon>
-                            }
-                            @if (option.value === 'business') {
-                                <lucide-icon [img]="Briefcase" class="mr-2 w-4 h-4"></lucide-icon>
-                            }
-                            @if (option.value === 'shipping') {
-                                <lucide-icon [img]="Truck" class="mr-2 w-4 h-4"></lucide-icon>
-                            }
-                            @if (option.value === 'billing') {
-                                <lucide-icon [img]="CreditCard" class="mr-2 w-4 h-4"></lucide-icon>
-                            }
-                            @if (option.value === 'other') {
-                                <lucide-icon [img]="MapPin" class="mr-2 w-4 h-4"></lucide-icon>
-                            }
-                            <span>{{ option.label }}</span>
-                        </div>
-                    </ng-template>
-                    <ng-template let-option pTemplate="item">
-                        <div class="flex align-items-center">
-                            @if (option.value === 'residential') {
-                                <lucide-icon [img]="Home" class="mr-2 w-4 h-4"></lucide-icon>
-                            }
-                            @if (option.value === 'business') {
-                                <lucide-icon [img]="Briefcase" class="mr-2 w-4 h-4"></lucide-icon>
-                            }
-                            @if (option.value === 'shipping') {
-                                <lucide-icon [img]="Truck" class="mr-2 w-4 h-4"></lucide-icon>
-                            }
-                            @if (option.value === 'billing') {
-                                <lucide-icon [img]="CreditCard" class="mr-2 w-4 h-4"></lucide-icon>
-                            }
-                            @if (option.value === 'other') {
-                                <lucide-icon [img]="MapPin" class="mr-2 w-4 h-4"></lucide-icon>
-                            }
-                            <span>{{ option.label }}</span>
-                        </div>
-                    </ng-template>
-                </p-select>
+            <div class="form-group">
+                <label class="form-label" for="type">Type d'adresse</label>
+                <div class="relative">
+                    <p-select [options]="addressTypes"
+                              formControlName="type"
+                              id="type"
+                              optionLabel="label"
+                              optionValue="value"
+                              styleClass="w-full">
+                    </p-select>
+                </div>
             </div>
         </form>
     </div>

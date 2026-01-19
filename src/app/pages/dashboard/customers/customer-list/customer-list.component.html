@@ -28,13 +28,11 @@
             <ng-template #caption>
                 <div class="flex justify-between items-center p-2">
                     <h5 class="m-0 text-lg font-semibold text-gray-900 dark:text-white">Gestion des clients</h5>
-                    <p-iconfield>
-                        <p-inputicon>
-                            <lucide-icon [img]="Search" class="w-4 h-4 text-gray-500"></lucide-icon>
-                        </p-inputicon>
-                        <input (input)="onSearch()" [(ngModel)]="searchQuery" class="pl-10" pInputText placeholder="Rechercher..."
+                    <div class="relative">
+                        <lucide-icon [img]="Search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></lucide-icon>
+                        <input (input)="onSearch()" [(ngModel)]="searchQuery" class="form-input !pl-10" placeholder="Rechercher..."
                                type="text"/>
-                    </p-iconfield>
+                    </div>
                 </div>
             </ng-template>
             <ng-template pTemplate="header">

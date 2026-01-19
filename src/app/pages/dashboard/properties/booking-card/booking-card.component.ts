@@ -31,13 +31,15 @@ export class BookingCardComponent {
   readonly CheckCircle = CheckCircle;
   readonly XCircle = XCircle;
 
-  getStatusSeverity(status: string): string {
+  getStatusSeverity(status: string): 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' | undefined {
     switch (status) {
       case 'pending':
-        return 'warning';
+        return 'warn';
       case 'confirmed':
+      case 'approved':
         return 'success';
       case 'cancelled':
+      case 'rejected':
         return 'danger';
       case 'completed':
         return 'info';

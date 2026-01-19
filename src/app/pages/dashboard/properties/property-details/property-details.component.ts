@@ -3,7 +3,7 @@ import {CommonModule} from "@angular/common";
 import {ActivatedRoute, Router, RouterLink} from '@angular/router';
 import {Property} from '../../../../core/models/http/property.model';
 import {PropertyService} from '../../../../core/services/http/property.service';
-import {BadgeComponent} from "../../../../shared/components/badge/badge.component";
+import {BadgeComponent, BadgeVariant} from "../../../../shared/components/badge/badge.component";
 import {PriceFormatPipe} from "../../../../shared/pipes/price-format.pipe";
 import {AreaFormatPipe} from "../../../../shared/pipes/area-format.pipe";
 import {
@@ -168,12 +168,12 @@ export class PropertyDetailsComponent implements OnInit {
     }
   }
 
-  getBookingStatusVariant(status: string | undefined): 'success' | 'warning' | 'danger' | 'neutral' | 'primary' {
+  getBookingStatusVariant(status: string | undefined): BadgeVariant {
     switch (status) {
       case 'confirmed': return 'success';
       case 'pending': return 'warning';
       case 'cancelled': return 'danger';
-      case 'completed': return 'primary';
+      case 'completed': return 'info';
       default: return 'neutral';
     }
   }

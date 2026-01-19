@@ -9,23 +9,23 @@
                 </div>
 
                 <div>
-                    <label class="block text-gray-900 dark:text-white text-xl font-medium mb-2"
+                    <label class="form-label text-xl text-gray-900 dark:text-white"
                            for="username">Username</label>
                     <input
                             [(ngModel)]="username"
                             autofocus
-                            class="w-full md:w-[30rem] mb-8 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                            class="form-input md:w-[30rem] mb-8"
                             id="username"
                             placeholder="Username"
                             type="text"/>
 
-                    <label class="block text-gray-900 dark:text-white font-medium text-xl mb-2"
+                    <label class="form-label text-xl text-gray-900 dark:text-white"
                            for="password">Password</label>
                     <div class="relative w-full md:w-[30rem] mb-4">
                         <input
                                 [(ngModel)]="password"
                                 [type]="showPassword ? 'text' : 'password'"
-                                class="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                                class="form-input !pr-12"
                                 id="password"
                                 placeholder="Password"/>
                         <button
@@ -40,25 +40,25 @@
                         <div class="flex items-center">
                             <input
                                     [(ngModel)]="rememberMe"
-                                    class="mr-2 w-4 h-4 text-blue-600 bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                                    class="form-checkbox mr-2"
                                     id="rememberMe"
                                     type="checkbox"/>
                             <label class="text-gray-900 dark:text-white cursor-pointer" for="rememberMe">Remember
                                 me</label>
                         </div>
-                        <span class="font-medium no-underline ml-2 text-right cursor-pointer text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors duration-200">Forgot password?</span>
+                        <span class="font-medium no-underline ml-2 text-right cursor-pointer text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors duration-200">Forgot password?</span>
                     </div>
 
                     <button
                             (click)="login()"
                             [disabled]="!validatedData()"
-                            class="w-full inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200">
+                            class="w-full inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-primary-600 border border-primary-600 rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200">
                         Sign In
                     </button>
 
                     <div class="flex items-center justify-center mt-4 gap-5">
                         <a [routerLink]="'/sign-up'"
-                           class="font-medium no-underline ml-2 text-right cursor-pointer text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors duration-200">
+                           class="font-medium no-underline ml-2 text-right cursor-pointer text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors duration-200">
                             Don't have an account (Sign Up)
                         </a>
                     </div>

@@ -106,10 +106,10 @@ export class BookingDetailsComponent implements OnInit {
     return diffDays;
   }
 
-  getStatusSeverity(status?: string): string {
+  getStatusSeverity(status?: string): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | 'contrast' | undefined {
     switch (status) {
       case 'pending':
-        return 'warning';
+        return 'warn';
       case 'confirmed':
         return 'success';
       case 'rejected':
