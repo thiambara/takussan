@@ -6,15 +6,7 @@ import {Property} from "../../core/models/http/property.model";
 import {PropertyService} from "../../core/services/http/property.service";
 import {PropertyCardComponent} from "../../shared/components/property-card/property-card.component";
 import {HeroSearchComponent, SearchFilters} from "../../shared/components/hero-search/hero-search.component";
-import {
-  Briefcase,
-  Building2,
-  House,
-  LucideAngularModule,
-  Map,
-  Store,
-  TreePalm
-} from 'lucide-angular';
+import {Briefcase, Building2, House, LucideAngularModule, Map, Store, TreePalm} from 'lucide-angular';
 
 @Component({
   selector: 'app-homepage',
@@ -30,15 +22,11 @@ import {
 })
 export class HomepageComponent implements OnInit {
   propertyService = inject(PropertyService);
-  private router = inject(Router);
-
   // Search state
   searchMode: 'rent' | 'sale' = 'sale';
   loading = false;
-
   // Properties
   properties: Property[] = [];
-
   // Property categories
   propertyCategories = [
     {id: 'apartment', label: 'Appartements', icon: Building2, active: false},
@@ -49,6 +37,7 @@ export class HomepageComponent implements OnInit {
     {id: 'store', label: 'Commerces', icon: Store, active: false}
   ];
   activeCategory = 'all';
+  private router = inject(Router);
 
   ngOnInit() {
     this.filterProperties();
@@ -81,7 +70,7 @@ export class HomepageComponent implements OnInit {
       queryParams.propertyType = filters.propertyType;
     }
 
-    this.router.navigate(['/client/search'], {queryParams}).then();
+    this.router.navigate(['/search'], {queryParams}).then();
   }
 
   filterProperties() {
@@ -104,6 +93,14 @@ export class HomepageComponent implements OnInit {
         this.properties = response.data;
       }
     });
+  }
+
+  onPropertyClick(property: Property) {
+    this.router.navigate(['/show-property', property.id]).then();
+  }
+
+  onFavoriteToggle(property: Property) {
+    // Implement favorite toggle logic here
   }
 
 }

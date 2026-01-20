@@ -43,7 +43,11 @@
     <!-- Properties Grid -->
     <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-6 gap-y-9">
       @for (property of properties; track property.id) {
-        <app-property-card [property]="property"></app-property-card>
+        <app-property-card
+          (favoriteToggle)="onFavoriteToggle($event)"
+          (propertyClick)="onPropertyClick($event)"
+          [property]="property"
+        ></app-property-card>
 
       }
     </div>

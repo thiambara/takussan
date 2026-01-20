@@ -1,6 +1,6 @@
-import {Component, computed, inject, OnInit, Signal, signal} from '@angular/core';
-import {CommonModule} from "@angular/common";
-import {ActivatedRoute, Router, RouterLink} from '@angular/router';
+import {Component, computed, inject, OnInit, signal} from '@angular/core';
+import {CommonModule, Location} from "@angular/common";
+import {ActivatedRoute, Router} from '@angular/router';
 import {Property} from '../../../../core/models/http/property.model';
 import {PropertyService} from '../../../../core/services/http/property.service';
 import {BadgeComponent, BadgeVariant} from "../../../../shared/components/badge/badge.component";
@@ -34,7 +34,6 @@ import {
   Users,
   X
 } from 'lucide-angular';
-import {Booking} from "../../../../core/models/http/booking.model";
 
 @Component({
   selector: 'app-property-details',
@@ -42,7 +41,6 @@ import {Booking} from "../../../../core/models/http/booking.model";
   standalone: true,
   imports: [
     CommonModule,
-    RouterLink,
     BadgeComponent,
     PriceFormatPipe,
     AreaFormatPipe,
@@ -97,12 +95,17 @@ export class PropertyDetailsComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private propertyService = inject(PropertyService);
+  private location = inject(Location);
 
   ngOnInit() {
     const propertyId = this.route.snapshot.paramMap.get('id');
     if (propertyId) {
       this.loadProperty(propertyId);
     }
+  }
+
+  goBack() {
+    this.location.back();
   }
 
   loadProperty(id: string) {
@@ -157,34 +160,44 @@ export class PropertyDetailsComponent implements OnInit {
 
   deleteProperty() {
     if (confirm('Êtes-vous sûr de vouloir supprimer ce bien ?')) {
-       const prop = this.property();
-       if (prop?.id) {
-         this.propertyService.delete(prop.id).subscribe({
-           next: () => {
-             this.router.navigate(['/dashboard/properties']);
-           }
-         });
-       }
+      const prop = this.property();
+      if (prop?.id) {
+        this.propertyService.delete(prop.id).subscribe({
+          next: () => {
+            this.router.navigate(['/dashboard/properties']);
+          }
+        });
+      }
     }
   }
 
   getBookingStatusVariant(status: string | undefined): BadgeVariant {
     switch (status) {
-      case 'confirmed': return 'success';
-      case 'pending': return 'warning';
-      case 'cancelled': return 'danger';
-      case 'completed': return 'info';
-      default: return 'neutral';
+      case 'confirmed':
+        return 'success';
+      case 'pending':
+        return 'warning';
+      case 'cancelled':
+        return 'danger';
+      case 'completed':
+        return 'info';
+      default:
+        return 'neutral';
     }
   }
 
   getBookingStatusLabel(status: string | undefined): string {
     switch (status) {
-        case 'confirmed': return 'Confirmé';
-        case 'pending': return 'En attente';
-        case 'cancelled': return 'Annulé';
-        case 'completed': return 'Terminé';
-        default: return status || 'Inconnu';
+      case 'confirmed':
+        return 'Confirmé';
+      case 'pending':
+        return 'En attente';
+      case 'cancelled':
+        return 'Annulé';
+      case 'completed':
+        return 'Terminé';
+      default:
+        return status || 'Inconnu';
     }
   }
 }

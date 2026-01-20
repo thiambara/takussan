@@ -1,5 +1,5 @@
 import {Component, inject, OnInit, signal} from '@angular/core';
-import {CommonModule} from '@angular/common';
+import {CommonModule, Location} from '@angular/common';
 import {FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators} from '@angular/forms';
 import {ActivatedRoute, Router} from '@angular/router';
 import {MessageService} from 'primeng/api';
@@ -16,14 +16,14 @@ import {
   Image as ImageIcon,
   LayoutDashboard,
   Loader2,
+  LucideAngularModule,
   MapPin,
-  Save,
-  LucideAngularModule
+  Save
 } from 'lucide-angular';
-import { PropertyEditBasicComponent } from './steps/property-edit-basic/property-edit-basic.component';
-import { PropertyEditDetailsComponent } from './steps/property-edit-details/property-edit-details.component';
-import { PropertyEditLocationComponent } from './steps/property-edit-location/property-edit-location.component';
-import { PropertyEditMediaComponent } from './steps/property-edit-media/property-edit-media.component';
+import {PropertyEditBasicComponent} from './steps/property-edit-basic/property-edit-basic.component';
+import {PropertyEditDetailsComponent} from './steps/property-edit-details/property-edit-details.component';
+import {PropertyEditLocationComponent} from './steps/property-edit-location/property-edit-location.component';
+import {PropertyEditMediaComponent} from './steps/property-edit-media/property-edit-media.component';
 
 @Component({
   selector: 'app-property-edit',
@@ -157,6 +157,7 @@ export class PropertyEditComponent implements OnInit {
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private location = inject(Location)
 
   ngOnInit() {
     const propertyId = this.route.snapshot.paramMap.get('id');
@@ -314,7 +315,7 @@ export class PropertyEditComponent implements OnInit {
     this.uploadingMedia.set(false);
     // Refresh property data to show new media
     if (this.property.id) {
-        this.loadProperty(this.property.id.toString());
+      this.loadProperty(this.property.id.toString());
     }
     this.messageService.add({
       severity: 'success',
@@ -452,7 +453,11 @@ export class PropertyEditComponent implements OnInit {
   }
 
   cancel() {
-    this.router.navigate(['/dashboard/properties']).then();
+    this.location.back();
+  }
+
+  setActiveSection(section: 'basic' | 'details' | 'location' | 'media') {
+    this.activeSection.set(section);
   }
 
   private uploadNewPropertyMedia(propertyId: number) {
@@ -491,9 +496,5 @@ export class PropertyEditComponent implements OnInit {
       life: 3000
     });
     this.router.navigate(['/dashboard/properties']).then();
-  }
-
-  setActiveSection(section: 'basic' | 'details' | 'location' | 'media') {
-    this.activeSection.set(section);
   }
 }

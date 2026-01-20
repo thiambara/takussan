@@ -1,8 +1,8 @@
 import {Component, EventEmitter, Input, Output} from '@angular/core';
-import {CommonModule} from '@angular/common';
+import {CommonModule, NgOptimizedImage} from '@angular/common';
 import {Property} from "../../../core/models/http/property.model";
 import {Media} from "../../../core/models/http/media.model";
-import {LucideAngularModule, MapPin, Bed, Bath, Maximize, Heart, Calendar, ArrowRight} from 'lucide-angular';
+import {ArrowRight, Bath, Bed, Calendar, Heart, LucideAngularModule, MapPin, Maximize} from 'lucide-angular';
 import {BadgeComponent} from "../badge/badge.component";
 import {PriceFormatPipe} from "../../pipes/price-format.pipe";
 import {AreaFormatPipe} from "../../pipes/area-format.pipe";
@@ -15,7 +15,8 @@ import {AreaFormatPipe} from "../../pipes/area-format.pipe";
     LucideAngularModule,
     BadgeComponent,
     PriceFormatPipe,
-    AreaFormatPipe
+    AreaFormatPipe,
+    NgOptimizedImage
   ],
   templateUrl: './property-card.component.html'
 })

@@ -23,7 +23,6 @@ export const routes: Routes = [
         loadComponent: () => import('../../../pages/show-property/show-property.component').then(m => m.ShowPropertyComponent)
       },
 
-
       {
         'path': 'properties',
         // canActivate: [authGuard],

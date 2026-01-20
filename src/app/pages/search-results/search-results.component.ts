@@ -11,15 +11,15 @@ import {PropertyService} from '../../core/services/http/property.service';
 import {PaginationResult} from '../../core/models/http/base/pagination-result.model';
 import {PropertyFilter} from '../../core/models/property-filter.model';
 import {
-  LucideAngularModule,
-  Search,
-  SlidersHorizontal,
-  Grid,
-  List,
-  X,
   ChevronLeft,
   ChevronRight,
-  SearchX
+  Grid,
+  List,
+  LucideAngularModule,
+  Search,
+  SearchX,
+  SlidersHorizontal,
+  X
 } from 'lucide-angular';
 import {SelectModule} from 'primeng/select';
 
@@ -218,7 +218,7 @@ export class SearchResultsComponent implements OnInit {
   }
 
   onPropertyClick(property: Property) {
-    this.router.navigate(['/client/show-property', property.id]).then();
+    this.router.navigate(['/show-property', property.id]).then();
   }
 
   onFavoriteToggle(property: Property) {
@@ -227,12 +227,12 @@ export class SearchResultsComponent implements OnInit {
 
   onScheduleVisit(property: Property) {
     // Implement schedule visit logic here
-    this.router.navigate(['/client/properties', property.id, 'visit']).then();
+    this.router.navigate(['/properties', property.id, 'visit']).then();
   }
 
   onChat(property: Property) {
     // Implement chat logic here
-    this.router.navigate(['/client/properties', property.id, 'contact']).then();
+    this.router.navigate(['/properties', property.id, 'contact']).then();
   }
 
   private updateQueryParams() {

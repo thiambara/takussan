@@ -2,12 +2,7 @@ import {Routes} from '@angular/router';
 
 export const routes: Routes = [
   {
-    path: '',
-    redirectTo: 'client',
-    pathMatch: 'full',
-  },
-  {
-    'path': 'client',
+    'path': '',
     loadChildren: () => import('./core/layouts/layout2/layout2.routes').then(m => m.routes),
   },
   {

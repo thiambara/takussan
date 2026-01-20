@@ -167,6 +167,6 @@ export class ShowPropertyComponent implements OnInit {
   }
 
   viewAllProperties(): void {
-    this.router.navigate(['/client/search']);
+    this.router.navigate(['/search']);
   }
 }
