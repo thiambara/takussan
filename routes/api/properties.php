@@ -8,9 +8,11 @@ use Illuminate\Support\Facades\Route;
  * ==============
  */
 Route::prefix('properties')->controller(PropertyController::class)->group(function () {
-    Route::get('/public/hero-search', 'heroSearch')->name('hero-search');
-    Route::get('/public/{property}', 'publicShow')->whereNumber('property')->name('public-show');
-    Route::get('/public/{property}/media', 'getMedia')->whereNumber('property')->name('get-media');
+    Route::middleware("optional_auth:sanctum")->group(function () {
+        Route::get('/public/hero-search', 'heroSearch')->name('hero-search');
+        Route::get('/public/{property}', 'publicShow')->whereNumber('property')->name('public-show');
+        Route::get('/public/{property}/media', 'getMedia')->whereNumber('property')->name('get-media');
+    });
 
     /**
      * PRIVATE ROUTES

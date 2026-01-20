@@ -28,7 +28,7 @@ class Property extends AbstractModel implements HasMedia
         'metadata' => 'array',
         'with_administrative_monitoring' => 'boolean',
         'price' => 'decimal:2',
-        'area' => 'decimal:2',
+        'area' => 'integer',
     ];
     protected $fillable = [
         'parent_id',
