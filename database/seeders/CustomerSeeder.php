@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Bases\Enums\UserRole;
 use App\Models\Customer;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -14,13 +15,9 @@ class CustomerSeeder extends Seeder
     public function run(): void
     {
         // Get admin and manager users to be assigned as customer creators
-        $adminUsers = User::whereHas('assigned_roles', function ($query) {
-            $query->where('code', 'admin');
-        })->get();
+        $adminUsers = User::role(UserRole::Admin->value)->get();
 
-        $managerUsers = User::whereHas('assigned_roles', function ($query) {
-            $query->where('code', 'vendor');
-        })->get();
+        $managerUsers = User::role(UserRole::Vendor->value)->get();
 
         $userCreators = $adminUsers->merge($managerUsers);
 

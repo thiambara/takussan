@@ -13,6 +13,13 @@
       0 => 'Laravel\\Sanctum\\SanctumServiceProvider',
     ),
   ),
+  'laravel/scout' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Laravel\\Scout\\ScoutServiceProvider',
+    ),
+  ),
   'laravel/socialite' => 
   array (
     'aliases' => 
@@ -64,6 +71,13 @@
     'providers' => 
     array (
       0 => 'Spatie\\MediaLibrary\\MediaLibraryServiceProvider',
+    ),
+  ),
+  'spatie/laravel-permission' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Spatie\\Permission\\PermissionServiceProvider',
     ),
   ),
 );

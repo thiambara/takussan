@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Bases\Enums\UserRole;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -14,9 +15,7 @@ class PropertySeeder extends Seeder
     public function run(): void
     {
         // Get users with admin or manager roles (Vendors)
-        $vendors = User::whereHas('assigned_roles', function ($query) {
-            $query->whereIn('code', ['admin', 'manager', 'vendor']);
-        })->with('agency')->get();
+        $vendors = User::role([UserRole::Admin->value, UserRole::Vendor->value])->with('agency')->get();
 
         if ($vendors->isEmpty()) {
             return;

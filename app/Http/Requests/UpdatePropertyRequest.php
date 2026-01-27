@@ -13,7 +13,7 @@ class UpdatePropertyRequest extends FormRequest
     public function authorize(): bool
     {
         $property = $this->route('property');
-        return $this->user()->hasPermission('properties.update') ||
+        return $this->user()->hasPermissionTo('properties.update') ||
             $this->user()->id === $property->user_id;
     }
 

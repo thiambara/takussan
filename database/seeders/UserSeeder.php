@@ -2,11 +2,12 @@
 
 namespace Database\Seeders;
 
+use App\Models\Agency;
 use App\Models\Bases\Enums\UserRole;
-use App\Models\Role;
-use App\Models\User;
 use App\Models\Customer;
+use App\Models\User;
 use Illuminate\Database\Seeder;
+use Spatie\Permission\Models\Role;
 
 class UserSeeder extends Seeder
 {
@@ -18,12 +19,12 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         // Get roles
-        $adminRole = Role::where('code', UserRole::Admin)->first();
-        $managerRole = Role::where('code', UserRole::Vendor)->first();
-        $customerRole = Role::where('code', UserRole::Customer)->first();
+        $adminRole = Role::where('name', UserRole::Admin->value)->first();
+        $managerRole = Role::where('name', UserRole::Vendor->value)->first();
+        $customerRole = Role::where('name', UserRole::Customer->value)->first();
 
         // Get main agency
-        $mainAgency = \App\Models\Agency::where('slug', 'takussan-immobilier')->first();
+        $mainAgency = Agency::where('slug', 'takussan-immobilier')->first();
 
         // Create admin user
         $admin = User::factory()->create([
@@ -35,7 +36,7 @@ class UserSeeder extends Seeder
             'status' => 'active',
             'agency_id' => $mainAgency?->id, // Admin belongs to main agency
         ]);
-        $admin->assignRoles([$adminRole->id]);
+        $admin->assignRole($adminRole);
 
         // Create manager user
         $manager = User::factory()->create([
@@ -47,7 +48,7 @@ class UserSeeder extends Seeder
             'status' => 'active',
             'agency_id' => $mainAgency?->id,
         ]);
-        $manager->assignRoles([$managerRole->id]);
+        $manager->assignRole($managerRole);
 
         // Create customer user
         $regularUser = User::factory()->create([
@@ -59,10 +60,10 @@ class UserSeeder extends Seeder
             'status' => 'active',
         ]);
 
-        $regularUser->assignRoles([$customerRole->id]);
+        $regularUser->assignRole($customerRole);
 
         // Create Agents for other agencies
-        $otherAgencies = \App\Models\Agency::where('id', '!=', $mainAgency?->id)->get();
+        $otherAgencies = Agency::where('id', '!=', $mainAgency?->id)->get();
 
         foreach ($otherAgencies as $agency) {
             User::factory()
@@ -72,7 +73,7 @@ class UserSeeder extends Seeder
                     'status' => 'active'
                 ])
                 ->each(function ($user) use ($managerRole) {
-                    $user->assignRoles([$managerRole->id]);
+                    $user->assignRole($managerRole);
                 });
         }
 
@@ -81,7 +82,7 @@ class UserSeeder extends Seeder
             ->count(5)
             ->create()
             ->each(function ($user) use ($customerRole) {
-                $user->assignRoles([$customerRole->id]);
+                $user->assignRole($customerRole);
             });
 
         // Create customers with one-to-one relationship to some users

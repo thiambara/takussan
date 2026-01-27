@@ -2,7 +2,7 @@
 
 namespace App\Services\Model;
 
-use App\Models\Permission;
+use Spatie\Permission\Models\Permission;
 
 class PermissionService
 {
@@ -12,9 +12,8 @@ class PermissionService
     public function create(array $data): Permission
     {
         return Permission::create([
-            'code' => $data['code'],
             'name' => $data['name'],
-            'description' => $data['description'] ?? null,
+            'guard_name' => $data['guard_name'] ?? 'web',
         ]);
     }
 
@@ -24,9 +23,7 @@ class PermissionService
     public function update(Permission $permission, array $data): Permission
     {
         $permission->update([
-            'code' => $data['code'] ?? $permission->code,
             'name' => $data['name'] ?? $permission->name,
-            'description' => $data['description'] ?? $permission->description,
         ]);
 
         return $permission;

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Bases\Enums\UserRole;
 use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
@@ -31,9 +32,7 @@ class ReviewSeeder extends Seeder
         }
 
         // Get admins who can approve reviews
-        $admins = User::whereHas('assigned_roles', function ($query) {
-            $query->where('code', 'admin')->orWhere('code', 'manager');
-        })->get();
+        $admins = User::role([UserRole::Admin->value, UserRole::Vendor->value])->get();
 
         if ($admins->isEmpty()) {
             $admins = new Collection([User::factory()->create()]);

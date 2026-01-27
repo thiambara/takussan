@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Bases\Enums\UserRole;
 use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\User;
@@ -24,9 +25,7 @@ class BookingPaymentSeeder extends Seeder
         }
 
         // Get users with appropriate roles
-        $users = User::whereHas('assigned_roles', function ($query) {
-            $query->whereIn('code', ['admin', 'manager']);
-        })->get();
+        $users = User::role([UserRole::Admin->value, UserRole::Vendor->value])->get();
 
         if ($users->isEmpty()) {
             // Make sure we still have a collection even if we need to create a user

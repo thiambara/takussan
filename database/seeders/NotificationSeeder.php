@@ -92,6 +92,7 @@ class NotificationSeeder extends Seeder
 
         // Create property notifications
         foreach ($properties as $property) {
+            if (!$property->user_id) continue;
             // Notify property owner about views
             Notification::factory()->create([
                 'user_id' => $property->user_id,
@@ -109,6 +110,7 @@ class NotificationSeeder extends Seeder
 
         // Create booking notifications
         foreach ($bookings as $booking) {
+            if (!$booking->property->user_id) continue;
             // Notify property owner about booking
             Notification::factory()->create([
                 'user_id' => $booking->property->user_id,
@@ -125,8 +127,9 @@ class NotificationSeeder extends Seeder
 
             // Notify customer about booking status
             if ($booking->status->value !== 'pending') {
+                if (!$booking->user_id) continue;
                 Notification::factory()->create([
-                    'user_id' => $booking->customer->added_by_id ?? $booking->customer_id,
+                    'user_id' => $booking->user_id,
                     'type' => 'booking',
                     'title' => 'Booking ' . ucfirst($booking->status->value),
                     'content' => 'Your booking for "' . $booking->property->title . '" has been ' . $booking->status->value . '.',

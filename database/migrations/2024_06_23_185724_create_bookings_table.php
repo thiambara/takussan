@@ -13,7 +13,6 @@ return new class extends Migration {
         Schema::create('bookings', function (Blueprint $table) {
             $table->id();
             $table->foreignId('property_id')->constrained('properties')->onDelete('cascade');
-            $table->foreignId('customer_id')->constrained('customers')->onDelete('cascade');
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
 
             // Informations de réservation
@@ -42,7 +41,7 @@ return new class extends Migration {
             $table->text('reason_for_rejection')->nullable();
             $table->text('reason_for_cancellation')->nullable();
             $table->string('cancellation_by')->nullable();
-            $table->json('metadata')->nullable()->default('[]');
+            $table->json('metadata')->nullable();
 
             // Timestamps et soft delete
             $table->timestamps();

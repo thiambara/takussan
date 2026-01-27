@@ -17,8 +17,8 @@ return new class extends Migration {
             $table->foreignId('agency_id')->nullable()->constrained('agencies')->onDelete('set null');
 
             // Informations générales
-            $table->string('title')->index();
-            $table->text('description')->nullable();
+            $table->string('title')->fullText();
+            $table->text('description')->fullText()->nullable();
             $table->string('type')->index(); // land, building, apartment, villa, house, office, shop, warehouse, factory, farm, hotel, resort, studio, room, garage, parking, other
             $table->string('status')->default('active')->index();
             $table->string('visibility')->default('private');
@@ -30,11 +30,11 @@ return new class extends Migration {
             $table->integer('level')->nullable(); // for building
             $table->string('title_type')->nullable(); // lease, land title, deliberation
             $table->boolean('with_administrative_monitoring')->default(false)->nullable();
-            $table->string('contract_type'); // sale, rent
+            $table->string('contract_type')->index(); // sale, rent
 
             // Informations techniques et services
-            $table->json('servicing')->nullable()->default('[]'); // water, electricity, gas, internet, phone, cable, elevator, parking, garden, pool, security, cleaning, maintenance, surveillance, other
-            $table->json('metadata')->nullable()->default('[]'); // Pour stocker des attributs supplémentaires spécifiques au type
+            $table->json('servicing')->nullable(); // water, electricity, gas, internet, phone, cable, elevator, parking, garden, pool, security, cleaning, maintenance, surveillance, other
+            $table->json('metadata')->nullable(); // Pour stocker des attributs supplémentaires spécifiques au type
 
             // Champs de suivi
             $table->timestamps();

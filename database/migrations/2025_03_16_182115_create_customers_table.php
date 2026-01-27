@@ -27,7 +27,7 @@ return new class extends Migration {
             // Relation utilisateur (One-to-One)
             $table->foreignId('user_id')->nullable()->unique()->constrained('users')->onDelete('set null');
 
-            $table->json('metadata')->nullable()->default('[]');
+            $table->json('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
         });

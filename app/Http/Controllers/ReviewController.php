@@ -56,7 +56,7 @@ class ReviewController extends Controller
     public function show(Review $review): JsonResponse
     {
         // Check if user can view this review if it's not approved
-        if (!$review->is_approved && !Auth::user()->hasPermission('reviews.view') && $review->user_id !== Auth::id()) {
+        if (!$review->is_approved && !Auth::user()->hasPermissionTo('reviews.view') && $review->user_id !== Auth::id()) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Unauthorized'
@@ -93,7 +93,7 @@ class ReviewController extends Controller
     public function destroy(Review $review): JsonResponse
     {
         // Check if user can delete this review
-        if (!Auth::user()->hasPermission('reviews.delete') && $review->user_id !== Auth::id()) {
+        if (!Auth::user()->hasPermissionTo('reviews.delete') && $review->user_id !== Auth::id()) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Unauthorized'
@@ -177,7 +177,7 @@ class ReviewController extends Controller
         $approvedOnly = $request->boolean('approved_only', true);
 
         // If requesting non-approved reviews, check permissions
-        if (!$approvedOnly && !Auth::user()->hasPermission('reviews.view')) {
+        if (!$approvedOnly && !Auth::user()->hasPermissionTo('reviews.view')) {
             $approvedOnly = true;
         }
 

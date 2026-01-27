@@ -25,7 +25,7 @@ return new class extends Migration {
             $table->string('building')->nullable();
             $table->decimal('latitude', 10, 8)->nullable();
             $table->decimal('longitude', 11, 8)->nullable();
-            $table->json('metadata')->nullable()->default('[]');
+            $table->json('metadata')->nullable();
             $table->timestamps();
 
             // Ajout d'un index spatial composite (émulé avec index simple pour le moment)

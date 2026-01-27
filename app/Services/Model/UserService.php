@@ -17,10 +17,19 @@ class UserService
     public function store(array $data): User
     {
         return DB::transaction(function () use ($data) {
+            $roles = $data['roles'] ?? [];
+            unset($data['roles']);
+
             $data['password'] = Hash::make($data['password']);
             $data['status'] ??= UserStatus::Active->value;
             
-            return User::create($data);
+            $user = User::create($data);
+
+            if (!empty($roles)) {
+                $user->assignRole($roles);
+            }
+            
+            return $user;
         });
     }
 
@@ -31,6 +40,9 @@ class UserService
     public function update(User $user, array $data): User
     {
         return DB::transaction(function () use ($user, $data) {
+            $roles = $data['roles'] ?? null;
+            unset($data['roles']);
+
             // Password handling should be careful here, usually separate or checked if present
             if (isset($data['password'])) {
                  $data['password'] = Hash::make($data['password']);
@@ -39,6 +51,11 @@ class UserService
             }
             
             $user->update($data);
+
+            if ($roles !== null) {
+                $user->syncRoles($roles);
+            }
+
             return $user;
         });
     }

@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Models\Bases\Enums\UserRole;
 use App\Models\Booking;
-use App\Models\Customer;
 use App\Models\Property;
 use App\Models\User;
 use Carbon\Carbon;
@@ -17,9 +17,7 @@ class BookingSeeder extends Seeder
     public function run(): void
     {
         // Get available users with admin or manager roles
-        $users = User::whereHas('assigned_roles', function ($query) {
-            $query->whereIn('code', ['admin', 'vendor']);
-        })->get();
+        $users = User::role([UserRole::Admin->value, UserRole::Vendor->value])->get();
 
         if ($users->isEmpty()) {
             $users = User::factory()->count(2)->create();
@@ -44,15 +42,8 @@ class BookingSeeder extends Seeder
             ]);
         }
 
-        // Get available customers
-        $customers = Customer::where('status', 'active')->get();
-
-        if ($customers->isEmpty()) {
-             $customers = Customer::factory()->count(3)->active()->create();
-        }
-
         // If any of the required models are empty, we can't proceed with creating bookings
-        if ($users->isEmpty() || $rentableProperties->isEmpty() || $customers->isEmpty()) {
+        if ($users->isEmpty() || $rentableProperties->isEmpty()) {
             return;
         }
 
@@ -65,7 +56,6 @@ class BookingSeeder extends Seeder
 
             // Create a few bookings with different date ranges based on status
             for ($i = 0; $i < 2; $i++) {
-                $customer = $customers->random();
                 $property = $rentableProperties->random();
                 $user = $users->random();
 
@@ -98,7 +88,6 @@ class BookingSeeder extends Seeder
 
                 // Create the booking
                 Booking::create([
-                    'customer_id' => $customer->id,
                     'property_id' => $property->id,  // Using the correct column name from the schema
                     'user_id' => $user->id,
                     'reference_number' => 'BK-' . strtoupper(fake()->bothify('??###')),
@@ -118,7 +107,6 @@ class BookingSeeder extends Seeder
 
         // Create a few upcoming bookings for the next month
         for ($i = 0; $i < 3; $i++) {
-            $customer = $customers->random();
             $property = $rentableProperties->random();
             $user = $users->random();
 
@@ -126,7 +114,6 @@ class BookingSeeder extends Seeder
             $endDate = $startDate->copy()->addDays(rand(3, 14));
 
             Booking::create([
-                'customer_id' => $customer->id,
                 'property_id' => $property->id,  // Using the correct column name from the schema
                 'user_id' => $user->id,
                 'reference_number' => 'BK-' . strtoupper(fake()->bothify('??###')),

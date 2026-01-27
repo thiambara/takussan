@@ -12,7 +12,7 @@ class StorePropertyRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->hasPermission('properties.create');
+        return $this->user()->hasPermissionTo('properties.create');
     }
 
     /**

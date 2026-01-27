@@ -17,10 +17,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements BaseModelInterface
 {
-    use BaseModelTrait, HasApiTokens, HasFactory, Notifiable, SoftDeletes;
+    use BaseModelTrait, HasApiTokens, HasFactory, Notifiable, SoftDeletes, HasRoles;
 
     protected $table = 'users';
 
@@ -60,39 +61,24 @@ class User extends Authenticatable implements BaseModelInterface
         parent::__construct($attributes);
     }
 
-    // ACCESSORS & MUTATORS
-
-    protected function fullName(): Attribute
-    {
-        return Attribute::make(
-            get: fn () => trim("{$this->first_name} {$this->last_name}"),
-        );
-    }
-
-    /**
-     * Get the roles as an array of codes (Backward compatibility for frontend).
-     */
-    protected function roles(): Attribute
-    {
-        return Attribute::make(
-            get: fn () => $this->assigned_roles->pluck('code')->toArray(),
-        );
-    }
-
-    // SCOPES
+    // SCOPES &
+    // ========
 
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', UserStatus::Active);
     }
 
-
-    // RELATIONSHIPS
+    // ACCESSORS & MUTATORS
+    // ====================
 
     public function addresses(): MorphMany
     {
         return $this->morphMany(Address::class, 'addressable');
     }
+
+    // RELATIONSHIPS
+    // ============
 
     public function properties(): HasMany
     {
@@ -131,72 +117,6 @@ class User extends Authenticatable implements BaseModelInterface
             ->withTimestamps();
     }
 
-    public function hasRole(string|int|Role $role): bool
-    {
-        if (is_string($role)) {
-            return $this->assigned_roles()->where('code', $role)->exists();
-        } elseif (is_int($role)) {
-            return $this->assigned_roles()->where('id', $role)->exists();
-        }
-
-        return $this->assigned_roles()->where('id', $role->id)->exists();
-    }
-
-    public function assigned_roles(): BelongsToMany
-    {
-        return $this->belongsToMany(Role::class, 'user_has_roles');
-    }
-
-    // LOGIC METHODS
-
-    public function assignRoles(array|Role $roles): self
-    {
-        $roles = is_array($roles) ? $roles : [$roles];
-        $roleIds = collect($roles)->map(function ($role) {
-            return $role instanceof Role ? $role->id : $role;
-        })->toArray();
-
-        $this->assigned_roles()->syncWithoutDetaching($roleIds);
-
-        return $this;
-    }
-
-    public function removeRoles(array|Role $roles): self
-    {
-        $roles = is_array($roles) ? $roles : [$roles];
-        $roleIds = collect($roles)->map(function ($role) {
-            return $role instanceof Role ? $role->id : $role;
-        })->toArray();
-
-        $this->assigned_roles()->detach($roleIds);
-
-        return $this;
-    }
-
-    public function syncRoles(array $roles): self
-    {
-        $roleIds = collect($roles)->map(function ($role) {
-            return $role instanceof Role ? $role->id : $role;
-        })->toArray();
-
-        $this->assigned_roles()->sync($roleIds);
-
-        return $this;
-    }
-
-    public function hasPermission(string|int|Permission $permission): bool
-    {
-        $permissionCode = is_string($permission)
-            ? $permission
-            : (is_int($permission) ? Permission::find($permission)?->code : $permission->code);
-
-        return $this->assigned_roles()
-            ->whereHas('permissions', function ($query) use ($permissionCode) {
-                $query->where('code', $permissionCode);
-            })
-            ->exists();
-    }
-
     public function customer(): HasOne
     {
         return $this->hasOne(Customer::class, 'user_id');
@@ -206,4 +126,12 @@ class User extends Authenticatable implements BaseModelInterface
     {
         return $this->belongsTo(Agency::class);
     }
+
+    protected function fullName(): Attribute
+    {
+        return Attribute::make(
+            get: fn() => trim("{$this->first_name} {$this->last_name}"),
+        );
+    }
+
 }

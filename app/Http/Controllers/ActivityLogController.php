@@ -69,7 +69,7 @@ class ActivityLogController extends Controller
         $limit = $request->limit ?? 15;
 
         // Only allow viewing another user's activities with permission
-        if ($userId != Auth::id() && !Auth::user()->hasPermission('logs.view_all')) {
+        if ($userId != Auth::id() && !Auth::user()->hasPermissionTo('logs.view_all')) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Unauthorized'

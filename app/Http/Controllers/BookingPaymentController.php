@@ -31,7 +31,7 @@ class BookingPaymentController extends Controller
         $query = BookingPayment::allThroughRequest();
 
         // Show only user's payments if not admin
-        if (!Auth::user()->hasPermission('booking_payments.view_all')) {
+        if (!Auth::user()->hasPermissionTo('booking_payments.view_all')) {
             $query->whereHas('booking', function ($q) {
                 $q->where('user_id', Auth::id());
             });
@@ -61,7 +61,7 @@ class BookingPaymentController extends Controller
     public function show(BookingPayment $bookingPayment): JsonResponse
     {
         // Check if user can view this payment
-        if (!Auth::user()->hasPermission('booking_payments.view_all')) {
+        if (!Auth::user()->hasPermissionTo('booking_payments.view_all')) {
             $booking = Booking::find($bookingPayment->booking_id);
             if (!$booking || $booking->user_id !== Auth::id()) {
                 return response()->json([
@@ -86,7 +86,7 @@ class BookingPaymentController extends Controller
     public function update(UpdateBookingPaymentRequest $request, BookingPayment $bookingPayment): JsonResponse
     {
         // Check if user can edit this payment
-        if (!Auth::user()->hasPermission('booking_payments.update_all')) {
+        if (!Auth::user()->hasPermissionTo('booking_payments.update_all')) {
             $booking = Booking::find($bookingPayment->booking_id);
             if (!$booking || $booking->user_id !== Auth::id()) {
                 return response()->json([
@@ -112,7 +112,7 @@ class BookingPaymentController extends Controller
     public function destroy(BookingPayment $bookingPayment): JsonResponse
     {
         // Check if user can delete this payment
-        if (!Auth::user()->hasPermission('booking_payments.delete_all')) {
+        if (!Auth::user()->hasPermissionTo('booking_payments.delete_all')) {
             $booking = Booking::find($bookingPayment->booking_id);
             if (!$booking || $booking->user_id !== Auth::id()) {
                 return response()->json([
@@ -136,7 +136,7 @@ class BookingPaymentController extends Controller
     public function getBookingPayments(Booking $booking): JsonResponse
     {
         // Check if user can view these payments
-        if (!Auth::user()->hasPermission('booking_payments.view_all') && $booking->property->user_id !== Auth::id()) {
+        if (!Auth::user()->hasPermissionTo('booking_payments.view_all') && $booking->property->user_id !== Auth::id()) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Unauthorized'

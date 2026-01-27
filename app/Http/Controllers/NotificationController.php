@@ -135,7 +135,7 @@ class NotificationController extends Controller
     public function show(Notification $notification): JsonResponse
     {
         // Check if notification belongs to current user
-        if ($notification->user_id !== Auth::id() && !Auth::user()->hasPermission('notifications.manage')) {
+        if ($notification->user_id !== Auth::id() && !Auth::user()->hasPermissionTo('notifications.manage')) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Unauthorized'

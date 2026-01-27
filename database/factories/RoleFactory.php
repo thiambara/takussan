@@ -2,7 +2,7 @@
 
 namespace Database\Factories;
 
-use App\Models\Role;
+use Spatie\Permission\Models\Role;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class RoleFactory extends Factory
@@ -23,7 +23,7 @@ class RoleFactory extends Factory
     {
         return [
             'name' => $this->faker->unique()->word(),
-            'description' => $this->faker->sentence(),
+            'guard_name' => 'web',
             'created_at' => now(),
             'updated_at' => now(),
         ];

@@ -26,12 +26,12 @@ return new class extends Migration {
             $table->timestamp('email_verified_at')->nullable();
             $table->nullableMorphs('model');
 
-            $table->foreignId('agency_id')->nullable()->after('id')->constrained('agencies')->onDelete('set null');
+            $table->foreignId('agency_id')->nullable()->constrained('agencies')->onDelete('set null');
             $table->foreignId('added_by_id')->nullable()->constrained('users')->onDelete('set null');
             $table->string('google_id')->nullable();
 
             $table->rememberToken();
-            $table->json('metadata')->default('[]')->nullable();
+            $table->json('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
         });

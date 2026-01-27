@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -13,22 +14,22 @@ class UpdateReviewRequest extends FormRequest
     public function authorize(): bool
     {
         $review = $this->route('review');
-        return $this->user()->id === $review->user_id || 
-               $this->user()->hasPermission('reviews.update');
+        return $this->user()->id === $review->user_id ||
+            $this->user()->hasPermissionTo('reviews.update');
     }
 
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
             'model_id' => ['sometimes', 'integer'],
             'model_type' => [
-                'sometimes', 
-                'string', 
+                'sometimes',
+                'string',
                 Rule::in(['App\\Models\\Property'])
             ],
             'rating' => ['sometimes', 'numeric', 'min:1', 'max:5'],

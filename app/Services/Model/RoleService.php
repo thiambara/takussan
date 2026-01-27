@@ -2,7 +2,7 @@
 
 namespace App\Services\Model;
 
-use App\Models\Role;
+use Spatie\Permission\Models\Role;
 
 class RoleService
 {
@@ -12,13 +12,12 @@ class RoleService
     public function create(array $data): Role
     {
         $role = Role::create([
-            'code' => $data['code'],
             'name' => $data['name'],
-            'description' => $data['description'] ?? null,
+            'guard_name' => $data['guard_name'] ?? 'web',
         ]);
 
         if (isset($data['permissions']) && is_array($data['permissions'])) {
-            $role->givePermissionsTo($data['permissions']);
+            $role->syncPermissions($data['permissions']);
         }
 
         return $role->load('permissions');
@@ -30,9 +29,7 @@ class RoleService
     public function update(Role $role, array $data): Role
     {
         $role->update([
-            'code' => $data['code'] ?? $role->code,
             'name' => $data['name'] ?? $role->name,
-            'description' => $data['description'] ?? $role->description,
         ]);
 
         if (isset($data['permissions']) && is_array($data['permissions'])) {

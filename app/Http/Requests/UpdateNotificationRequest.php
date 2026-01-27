@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 
@@ -13,19 +14,19 @@ class UpdateNotificationRequest extends FormRequest
     public function authorize(): bool
     {
         $notification = $this->route('notification');
-        
+
         // Allow users to update their own notifications (mainly for marking as read/actioned)
         // or administrators with the notification.manage permission
         return Auth::check() && (
-            $notification->user_id === Auth::id() || 
-            Auth::user()->hasPermission('notifications.manage')
-        );
+                $notification->user_id === Auth::id() ||
+                Auth::user()->hasPermissionTo('notifications.manage')
+            );
     }
 
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -33,9 +34,9 @@ class UpdateNotificationRequest extends FormRequest
             'is_read' => 'nullable|boolean',
             'is_actioned' => 'nullable|boolean',
         ];
-        
+
         // Only admins can update these fields
-        if (Auth::user()->hasPermission('notifications.manage')) {
+        if (Auth::user()->hasPermissionTo('notifications.manage')) {
             $rules = array_merge($rules, [
                 'user_id' => 'nullable|exists:users,id',
                 'type' => 'nullable|string|max:50',
@@ -50,7 +51,7 @@ class UpdateNotificationRequest extends FormRequest
                 'delivered_at' => 'nullable|date',
             ]);
         }
-        
+
         return $rules;
     }
 }

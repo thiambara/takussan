@@ -70,7 +70,7 @@ class PropertyController extends Controller
     public function update(UpdatePropertyRequest $request, Property $property): JsonResponse
     {
         // Check if user can edit this property
-        if (!Auth::user()->hasPermission('properties.update_all') && $property->user_id !== Auth::id()) {
+        if (!Auth::user()->hasPermissionTo('properties.update_all') && $property->user_id !== Auth::id()) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Unauthorized'
@@ -89,7 +89,7 @@ class PropertyController extends Controller
     public function destroy(Property $property): JsonResponse
     {
         // Check if user can delete this property
-        if (!Auth::user()->hasPermission('properties.delete_all') && $property->user_id !== Auth::id()) {
+        if (!Auth::user()->hasPermissionTo('properties.delete_all') && $property->user_id !== Auth::id()) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Unauthorized'
@@ -165,7 +165,7 @@ class PropertyController extends Controller
     public function storeMedia(Request $request, Property $property): JsonResponse
     {
         // Check permissions
-        if (!Auth::user()->hasPermission('properties.update_all') && $property->user_id !== Auth::id()) {
+        if (!Auth::user()->hasPermissionTo('properties.update_all') && $property->user_id !== Auth::id()) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Unauthorized'
@@ -209,7 +209,7 @@ class PropertyController extends Controller
     public function destroyMedia(Property $property, int $mediaId): JsonResponse
     {
         // Check permissions
-        if (!Auth::user()->hasPermission('properties.update_all') && $property->user_id !== Auth::id()) {
+        if (!Auth::user()->hasPermissionTo('properties.update_all') && $property->user_id !== Auth::id()) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Unauthorized'
@@ -239,7 +239,7 @@ class PropertyController extends Controller
     public function getMedia(Property $property): JsonResponse
     {
         // Check permissions
-        if (!Auth::user()->hasPermission('properties.view_all') && $property->user_id !== Auth::id()) {
+        if (!Auth::user()->hasPermissionTo('properties.view_all') && $property->user_id !== Auth::id()) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Unauthorized'
@@ -255,7 +255,7 @@ class PropertyController extends Controller
     public function setFeatured(Property $property, int $mediaId): JsonResponse
     {
         // Check permissions
-        if (!Auth::user()->hasPermission('properties.update_all') && $property->user_id !== Auth::id()) {
+        if (!Auth::user()->hasPermissionTo('properties.update_all') && $property->user_id !== Auth::id()) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Unauthorized'

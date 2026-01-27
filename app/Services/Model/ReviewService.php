@@ -22,7 +22,7 @@ class ReviewService
         }
 
         // Check if the user has permission to auto-approve reviews
-        $canAutoApprove = Auth::user() && Auth::user()->hasPermission('reviews.approve');
+        $canAutoApprove = Auth::user() && Auth::user()->hasPermissionTo('reviews.approve');
 
         if ($canAutoApprove && (!isset($data['is_approved']) || $data['is_approved'])) {
             $data['is_approved'] = true;

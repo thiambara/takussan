@@ -2,7 +2,7 @@
 
 namespace Database\Factories;
 
-use App\Models\Permission;
+use Spatie\Permission\Models\Permission;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class PermissionFactory extends Factory
@@ -23,7 +23,7 @@ class PermissionFactory extends Factory
     {
         return [
             'name' => $this->faker->unique()->word(),
-            'description' => $this->faker->sentence(),
+            'guard_name' => 'web',
             'created_at' => now(),
             'updated_at' => now(),
         ];

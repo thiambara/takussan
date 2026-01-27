@@ -5,9 +5,9 @@ namespace App\Services\Auth\Traits;
 use App\Models\Bases\Enums\UserRole;
 use App\Models\Bases\Enums\UserStatus;
 use App\Models\Customer;
-use App\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 
 trait _SignUpTrait
 {
@@ -26,19 +26,25 @@ trait _SignUpTrait
 
         $roles = $userData['roles'];
         $roles = is_array($roles) ? $roles : [$roles];
-        $roles = collect($roles)->map(function ($role) {
-            return $role instanceof Role ? $role : Role::where('code', $role)->first();
+        
+        // Convert role strings to Role objects or ensure they exist
+        $roleObjects = collect($roles)->map(function ($role) {
+            if ($role instanceof Role) {
+                return $role;
+            }
+            return Role::where('name', $role)->first();
         })->filter();
+        
         unset($userData['roles']);
 
         $userData['password'] = Hash::make($userData['password']);
         $userData['status'] ??= UserStatus::Active;
 
         $user = User::create($userData);
-        $user->assignRoles($roles->toArray());
+        $user->assignRole($roleObjects);
         $user->save();
 
-        $roles->some(fn(Role $role) => $role->code === UserRole::Customer) && $this->createCustomerForUser($user);
+        $roleObjects->some(fn(Role $role) => $role->name === UserRole::Customer->value) && $this->createCustomerForUser($user);
 
         return $user;
     }

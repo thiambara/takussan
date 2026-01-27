@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Enums\ProprietyStatus;
+use App\Models\Bases\Enums\ProprietyVisibility;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,13 +14,14 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Laravel\Scout\Searchable;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Property extends AbstractModel implements HasMedia
 {
-    use HasFactory, SoftDeletes, InteractsWithMedia;
+    use HasFactory, SoftDeletes, InteractsWithMedia, Searchable;
 
     protected $table = 'properties';
     protected $casts = [
@@ -51,6 +53,7 @@ class Property extends AbstractModel implements HasMedia
     ];
 
     // SCOPES
+    // =========
 
     public function scopeAvailable(Builder $query): Builder
     {
@@ -67,39 +70,8 @@ class Property extends AbstractModel implements HasMedia
         return $query->where('contract_type', 'sale');
     }
 
-    /**
-     * Register media conversions for the model.
-     *
-     * @param Media|null $media
-     * @return void
-     */
-    public function registerMediaConversions(?Media $media = null): void
-    {
-        $this->addMediaConversion('thumbnail')
-            ->width(300)
-            ->height(300)
-            ->optimize()
-            ->nonQueued();
-
-        $this->addMediaConversion('preview')
-            ->width(800)
-            ->height(600)
-            ->optimize()
-            ->nonQueued();
-    }
-
-    /**
-     * Register media collections for the model.
-     *
-     * @return void
-     */
-    public function registerMediaCollections(): void
-    {
-        $this->addMediaCollection('properties')
-            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/quicktime', 'application/pdf'])
-            ->useDisk('public');
-    }
-
+    // RELATIONS
+    // =========
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -151,4 +123,56 @@ class Property extends AbstractModel implements HasMedia
     {
         return $this->morphMany(Review::class, 'model');
     }
+
+    // CONFIG METHODS
+    // =========
+    /**
+     * Determine if the model should be searchable.
+     */
+    public function shouldBeSearchable(): bool
+    {
+        return $this->isPublished();
+    }
+
+    // CUSTOM METHODS
+    // =========
+
+    public function isPublished(): bool
+    {
+        return $this->status === ProprietyVisibility::PUBLIC;
+    }
+
+    /**
+     * Register media conversions for the model.
+     *
+     * @param Media|null $media
+     * @return void
+     */
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this->addMediaConversion('thumbnail')
+            ->width(300)
+            ->height(300)
+            ->optimize()
+            ->nonQueued();
+
+        $this->addMediaConversion('preview')
+            ->width(800)
+            ->height(600)
+            ->optimize()
+            ->nonQueued();
+    }
+
+    /**
+     * Register media collections for the model.
+     *
+     * @return void
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('properties')
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/quicktime', 'application/pdf'])
+            ->useDisk('public');
+    }
+
 }

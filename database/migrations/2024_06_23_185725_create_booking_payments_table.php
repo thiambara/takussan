@@ -28,7 +28,7 @@ return new class extends Migration {
             // Informations supplémentaires
             $table->string('receipt_number')->nullable();
             $table->text('notes')->nullable();
-            $table->json('metadata')->nullable()->default('[]');
+            $table->json('metadata')->nullable();
 
             // Timestamps
             $table->timestamps();
