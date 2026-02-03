@@ -73,6 +73,19 @@ export class SearchResultsComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
 
+  get activeFiltersCount(): number {
+    let count = 0;
+    if (this.filters.priceType && this.filters.priceType !== 'all') count++;
+    if (this.filters.propertyType?.length) count += this.filters.propertyType.length;
+    if (this.filters.minPrice !== undefined || this.filters.maxPrice !== undefined) count++;
+    if (this.filters.minBedrooms !== undefined || this.filters.maxBedrooms !== undefined) count++;
+    if (this.filters.minBathrooms !== undefined || this.filters.maxBathrooms !== undefined) count++;
+    if (this.filters.minArea !== undefined || this.filters.maxArea !== undefined) count++;
+    if (this.filters.amenities?.length) count += this.filters.amenities.length;
+    if (this.filters.furnishing && this.filters.furnishing !== 'any') count++;
+    return count;
+  }
+
   get totalPages(): number {
     return Math.ceil(this.totalItems / this.itemsPerPage);
   }
@@ -111,6 +124,7 @@ export class SearchResultsComponent implements OnInit {
           minArea: params['minArea'] ? +params['minArea'] : undefined,
           maxArea: params['maxArea'] ? +params['maxArea'] : undefined,
           amenities: params['amenities'] ? params['amenities'].split(',') : [],
+          furnishing: params['furnishing'] || 'any',
           sortBy: params['sortBy'] || 'date-newest'
         };
 
@@ -250,6 +264,7 @@ export class SearchResultsComponent implements OnInit {
     if (this.filters.minArea !== undefined) queryParams.minArea = this.filters.minArea;
     if (this.filters.maxArea !== undefined) queryParams.maxArea = this.filters.maxArea;
     if (this.filters.amenities?.length) queryParams.amenities = this.filters.amenities.join(',');
+    if (this.filters.furnishing && this.filters.furnishing !== 'any') queryParams.furnishing = this.filters.furnishing;
     if (this.filters.sortBy) queryParams.sortBy = this.filters.sortBy;
 
     this.router.navigate([], {

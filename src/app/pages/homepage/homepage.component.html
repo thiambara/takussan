@@ -34,14 +34,14 @@
   </div>
 </div>
 
-<div class="min-h-screen bg-gradient-to-b from-white to-gray-50">
+<div class="min-h-screen bg-linear-to-b from-white to-gray-50">
 
   <!-- Featured Properties Section -->
   <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
     <h2 class="text-2xl font-bold text-gray-900 mb-8">Biens populaires</h2>
 
     <!-- Properties Grid -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-6 gap-y-9">
+    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-x-6 gap-y-9">
       @for (property of properties; track property.id) {
         <app-property-card
           (favoriteToggle)="onFavoriteToggle($event)"
@@ -65,9 +65,13 @@
     <h2 class="text-2xl font-bold text-gray-900 mb-8">Publiés récement</h2>
 
     <!-- Properties Grid -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-6 gap-y-9">
+    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-x-6 gap-y-9">
       @for (property of properties; track property.id) {
-        <app-property-card [property]="property"></app-property-card>
+        <app-property-card
+          (favoriteToggle)="onFavoriteToggle($event)"
+          (propertyClick)="onPropertyClick($event)"
+          [property]="property"
+        ></app-property-card>
       }
     </div>
   </div>

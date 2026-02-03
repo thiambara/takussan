@@ -2,8 +2,12 @@ import {Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
 import {PropertyFilter} from "../../../core/models/property-filter.model";
-import {LucideAngularModule, X} from 'lucide-angular';
+import {LucideAngularModule, Minus, Plus, Search, X} from 'lucide-angular';
 import {SelectModule} from 'primeng/select';
+import {SliderModule} from 'primeng/slider';
+import {CheckboxModule} from 'primeng/checkbox';
+import {RadioButtonModule} from 'primeng/radiobutton';
+import {AccordionModule} from 'primeng/accordion';
 
 @Component({
   selector: 'app-property-filters',
@@ -12,7 +16,11 @@ import {SelectModule} from 'primeng/select';
     CommonModule,
     FormsModule,
     LucideAngularModule,
-    SelectModule
+    SelectModule,
+    SliderModule,
+    CheckboxModule,
+    RadioButtonModule,
+    AccordionModule
   ],
   templateUrl: './property-filters.component.html'
 })
@@ -23,57 +31,70 @@ export class PropertyFiltersComponent implements OnInit, OnChanges {
   showAllAmenities = false;
 
   readonly X = X;
+  readonly Plus = Plus;
+  readonly Minus = Minus;
+  readonly Search = Search;
 
   minPriceOptions: { value: number, label: string }[] = [];
   maxPriceOptions: { value: number, label: string }[] = [];
 
   // Property types for checkboxes
   propertyTypeOptions = [
-    {value: 'single-family', label: 'Single Family Home', count: 1247},
-    {value: 'condo', label: 'Condo/Townhome', count: 892},
+    {value: 'single-family', label: 'Single Family', count: 1247},
+    {value: 'condo', label: 'Condo', count: 892},
     {value: 'multi-family', label: 'Multi-Family', count: 143},
-    {value: 'land', label: 'Land/Lot', count: 565}
+    {value: 'land', label: 'Land', count: 565},
+    {value: 'commercial', label: 'Commercial', count: 231},
+    {value: 'office', label: 'Office', count: 89}
   ];
 
   // Listing type options
-  listingTypes = [
+  listingTypes: { label: string, value: 'sale' | 'rent' | 'all' }[] = [
     {label: 'All', value: 'all'},
     {label: 'For Rent', value: 'rent'},
     {label: 'For Sale', value: 'sale'}
   ];
 
+  furnishingOptions = [
+    {label: 'Any', value: 'any'},
+    {label: 'Furnished', value: 'furnished'},
+    {label: 'Unfurnished', value: 'unfurnished'}
+  ];
+
   // Bedroom options for SelectButton
   bedroomOptions = [
-    {label: '1', value: 1},
-    {label: '2', value: 2},
-    {label: '3', value: 3},
+    {label: 'Any', value: undefined},
+    {label: '1+', value: 1},
+    {label: '2+', value: 2},
+    {label: '3+', value: 3},
     {label: '4+', value: 4}
   ];
 
   // Bathroom options for SelectButton
   bathroomOptions = [
-    {label: '1', value: 1},
-    {label: '2', value: 2},
-    {label: '3', value: 3},
+    {label: 'Any', value: undefined},
+    {label: '1+', value: 1},
+    {label: '2+', value: 2},
+    {label: '3+', value: 3},
     {label: '4+', value: 4}
   ];
 
   // Available amenities
   amenities = [
-    'Parking',
-    'Pool',
+    'Air Conditioning',
+    'Swimming Pool',
+    'Central Heating',
+    'Laundry Room',
     'Gym',
-    'Elevator',
-    'Balcony',
-    'Garden',
-    'Garage',
-    'Fireplace',
-    'Patio',
-    'Laundry',
-    'Storage',
-    'Pet Friendly',
-    'Security',
-    'Conference Room'
+    'Alarm',
+    'Window Covering',
+    'WiFi',
+    'TV Cable',
+    'Dryer',
+    'Microwave',
+    'Washer',
+    'Refrigerator',
+    'Outdoor Shower'
   ];
 
   ngOnInit() {
@@ -91,10 +112,11 @@ export class PropertyFiltersComponent implements OnInit, OnChanges {
     if (this.filters.priceType && this.filters.priceType !== 'all') count++;
     if (this.filters.propertyType?.length) count += this.filters.propertyType.length;
     if (this.filters.minPrice !== undefined || this.filters.maxPrice !== undefined) count++;
-    if (this.filters.minBedrooms !== undefined || this.filters.maxBedrooms !== undefined) count++;
-    if (this.filters.minBathrooms !== undefined || this.filters.maxBathrooms !== undefined) count++;
+    if (this.filters.minBedrooms !== undefined) count++;
+    if (this.filters.minBathrooms !== undefined) count++;
     if (this.filters.minArea !== undefined || this.filters.maxArea !== undefined) count++;
     if (this.filters.amenities?.length) count += this.filters.amenities.length;
+    if (this.filters.furnishing && this.filters.furnishing !== 'any') count++;
     return count;
   }
 
@@ -106,44 +128,34 @@ export class PropertyFiltersComponent implements OnInit, OnChanges {
         {value: 1000, label: '$1,000'},
         {value: 1500, label: '$1,500'},
         {value: 2000, label: '$2,000'},
-        {value: 2500, label: '$2,500'},
-        {value: 3000, label: '$3,000'},
-        {value: 4000, label: '$4,000'}
+        {value: 3000, label: '$3,000'}
       ];
       this.maxPriceOptions = [
         {value: 1000, label: '$1,000'},
-        {value: 1500, label: '$1,500'},
         {value: 2000, label: '$2,000'},
-        {value: 2500, label: '$2,500'},
         {value: 3000, label: '$3,000'},
-        {value: 4000, label: '$4,000'},
         {value: 5000, label: '$5,000'},
         {value: 10000, label: '$10,000'}
       ];
     } else {
       this.minPriceOptions = [
-        {value: 100000, label: '$100K'},
-        {value: 200000, label: '$200K'},
-        {value: 300000, label: '$300K'},
-        {value: 400000, label: '$400K'},
-        {value: 500000, label: '$500K'},
-        {value: 750000, label: '$750K'},
-        {value: 1000000, label: '$1M'}
+        {value: 50000, label: '$50k'},
+        {value: 100000, label: '$100k'},
+        {value: 200000, label: '$200k'},
+        {value: 300000, label: '$300k'},
+        {value: 500000, label: '$500k'}
       ];
       this.maxPriceOptions = [
-        {value: 300000, label: '$300K'},
-        {value: 400000, label: '$400K'},
-        {value: 500000, label: '$500K'},
-        {value: 750000, label: '$750K'},
+        {value: 200000, label: '$200k'},
+        {value: 300000, label: '$300k'},
+        {value: 500000, label: '$500k'},
         {value: 1000000, label: '$1M'},
-        {value: 1500000, label: '$1.5M'},
-        {value: 2000000, label: '$2M'}
+        {value: 5000000, label: '$5M'}
       ];
     }
   }
 
   onPriceTypeChange() {
-    // Reset price range when switching between rent and sale
     this.filters.minPrice = undefined;
     this.filters.maxPrice = undefined;
     this.updatePriceOptions();
@@ -195,7 +207,8 @@ export class PropertyFiltersComponent implements OnInit, OnChanges {
   clearAllFilters() {
     this.filters = {
       priceType: 'all',
-      sortBy: 'date-newest'
+      sortBy: 'date-newest',
+      furnishing: 'any'
     };
     this.updatePriceOptions();
     this.applyFilters();

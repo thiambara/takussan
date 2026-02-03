@@ -1,121 +1,131 @@
-<div class="min-h-screen  ">
+<div class="min-h-screen bg-gray-50/50 pb-12">
   <!-- Header Section -->
-  <div class="sticky top-0 z-40 bg-white rounded-2xl">
-    <div class="mx-auto px-4 sm:px-6 lg:px-8">
+  <div class="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-100 shadow-sm">
+    <div class="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
       <div class="py-4 space-y-4">
-        <!-- Search Bar -->
-        <div class="flex flex-col sm:flex-row gap-3">
-          <div class="flex-1">
-            <div class="relative">
-              <lucide-icon [img]="Search"
-                           class="absolute left-2 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"></lucide-icon>
+        <div class="flex flex-col lg:flex-row lg:items-center gap-4">
+          <!-- Search Bar -->
+          <div class="flex-1 max-w-2xl">
+            <div class="relative group">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <lucide-icon [img]="Search" class="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors"></lucide-icon>
+              </div>
               <input
                 (input)="onSearchInput($event)"
                 [value]="filters.searchQuery || ''"
-                class="form-input pl-10!"
+                class="block w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl leading-5 text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 sm:text-sm transition-all duration-200"
                 placeholder="Search by location, title, or description..."
                 type="text"
               >
             </div>
           </div>
 
-          <!-- Mobile Filter Toggle -->
-          <button
-            (click)="toggleMobileFilters()"
-            class="lg:hidden flex items-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <lucide-icon [img]="SlidersHorizontal" class="w-5 h-5"></lucide-icon>
-            <span>Filters</span>
-            @if (filters.propertyType?.length || filters.minPrice || filters.maxPrice || filters.amenities?.length) {
-              <span class="bg-white text-blue-600 px-2 py-0.5 rounded-full text-xs font-semibold">
-                {{ (filters.propertyType?.length || 0) + (filters.amenities?.length || 0) + (filters.minPrice ? 1 : 0) + (filters.maxPrice ? 1 : 0) }}
+          <!-- Actions & Sort -->
+          <div class="flex items-center justify-between lg:justify-end gap-3 flex-1">
+            <!-- Mobile Filter Toggle -->
+            <button
+              (click)="toggleMobileFilters()"
+              class="lg:hidden relative inline-flex items-center px-4 py-2.5 border border-gray-200 shadow-sm text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            >
+              <lucide-icon [img]="SlidersHorizontal" class="h-4 w-4 mr-2 text-gray-500"></lucide-icon>
+              Filters
+              @if (activeFiltersCount > 0) {
+                <span class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
+                  {{ activeFiltersCount }}
+                </span>
+              }
+            </button>
+
+            <div class="flex items-center gap-3">
+              <span class="hidden sm:block text-sm text-gray-500">
+                <strong class="text-gray-900 font-semibold">{{ totalItems }}</strong> results
               </span>
-            }
-          </button>
-        </div>
 
-        <!-- Results Bar -->
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div class="flex items-center gap-4">
-                        <span class="text-gray-600">
-                          <span class="font-semibold text-gray-900">{{ totalItems }}</span> properties found
-                        </span>
+              <div class="w-px h-6 bg-gray-200 hidden sm:block"></div>
 
-            <!-- View Mode Toggle -->
-            <div class="hidden sm:flex items-center bg-gray-100 rounded-lg p-1">
-              <button
-                (click)="toggleViewMode()"
-                [class.bg-white]="viewMode === 'grid'"
-                [class.shadow-sm]="viewMode === 'grid'"
-                class="p-2 rounded transition-all"
-                title="Grid View"
-              >
-                <lucide-icon [img]="Grid" class="w-4 h-4"></lucide-icon>
-              </button>
-              <button
-                (click)="toggleViewMode()"
-                [class.bg-white]="viewMode === 'list'"
-                [class.shadow-sm]="viewMode === 'list'"
-                class="p-2 rounded transition-all"
-                title="List View"
-              >
-                <lucide-icon [img]="List" class="w-4 h-4"></lucide-icon>
-              </button>
+              <!-- View Toggle -->
+              <div class="flex items-center p-1 bg-gray-100/80 rounded-lg border border-gray-200/50">
+                <button
+                  (click)="toggleViewMode()"
+                  [class.bg-white]="viewMode === 'grid'"
+                  [class.text-blue-600]="viewMode === 'grid'"
+                  [class.shadow-sm]="viewMode === 'grid'"
+                  [class.text-gray-500]="viewMode !== 'grid'"
+                  class="p-1.5 rounded-md transition-all duration-200"
+                  title="Grid View"
+                >
+                  <lucide-icon [img]="Grid" class="w-4 h-4"></lucide-icon>
+                </button>
+                <button
+                  (click)="toggleViewMode()"
+                  [class.bg-white]="viewMode === 'list'"
+                  [class.text-blue-600]="viewMode === 'list'"
+                  [class.shadow-sm]="viewMode === 'list'"
+                  [class.text-gray-500]="viewMode !== 'list'"
+                  class="p-1.5 rounded-md transition-all duration-200"
+                  title="List View"
+                >
+                  <lucide-icon [img]="List" class="w-4 h-4"></lucide-icon>
+                </button>
+              </div>
+
+              <!-- Sort Dropdown -->
+              <div class="w-40 sm:w-48">
+                <p-select
+                  (onChange)="onSortChange()"
+                  [(ngModel)]="filters.sortBy"
+                  [options]="sortOptions"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Sort by"
+                  styleClass="w-full !text-sm !rounded-xl !border-gray-200">
+                </p-select>
+              </div>
             </div>
           </div>
-
-          <!-- Sort Dropdown -->
-          <div class="relative w-48">
-            <p-select
-              (onChange)="onSortChange()"
-              [(ngModel)]="filters.sortBy"
-              [options]="sortOptions"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Sort by"
-              styleClass="w-full">
-            </p-select>
-          </div>
         </div>
 
-        <!-- Active Filters -->
-        @if (filters.propertyType?.length || filters.minPrice || filters.maxPrice || filters.amenities?.length || filters.minBedrooms || filters.maxBedrooms) {
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="text-sm text-gray-600">Active filters:</span>
+        <!-- Active Filters Bar -->
+        @if (activeFiltersCount > 0) {
+          <div class="flex flex-wrap items-center gap-2 pt-1 animate-in fade-in slide-in-from-top-2 duration-200">
+            <span class="text-xs font-medium text-gray-500 uppercase tracking-wider mr-1">Active:</span>
 
             @if (filters.priceType && filters.priceType !== 'all') {
-              <span class="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100 transition-colors hover:bg-blue-100">
                 {{ filters.priceType === 'rent' ? 'For Rent' : 'For Sale' }}
                 <button (click)="filters.priceType = 'all'; onFiltersChange(filters)"
-                        class="hover:text-blue-900">
-                  <lucide-icon [img]="X" class="w-3 h-3"></lucide-icon>
+                        class="ml-1.5 inline-flex flex-shrink-0 h-4 w-4 items-center justify-center rounded-full text-blue-400 hover:bg-blue-200 hover:text-blue-500 focus:outline-none focus:bg-blue-500 focus:text-white transition-colors">
+                  <span class="sr-only">Remove filter</span>
+                  <lucide-icon [img]="X" class="h-3 w-3"></lucide-icon>
                 </button>
               </span>
             }
 
             @for (type of filters.propertyType || []; track type) {
-              <span
-                class="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm capitalize">
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100 transition-colors hover:bg-blue-100 capitalize">
                 {{ type }}
-                <button (click)="removePropertyType(type)" class="hover:text-blue-900">
-                  <lucide-icon [img]="X" class="w-3 h-3"></lucide-icon>
+                <button (click)="removePropertyType(type)"
+                        class="ml-1.5 inline-flex flex-shrink-0 h-4 w-4 items-center justify-center rounded-full text-blue-400 hover:bg-blue-200 hover:text-blue-500 focus:outline-none focus:bg-blue-500 focus:text-white transition-colors">
+                  <span class="sr-only">Remove filter</span>
+                  <lucide-icon [img]="X" class="h-3 w-3"></lucide-icon>
                 </button>
               </span>
             }
 
             @if (filters.minPrice || filters.maxPrice) {
-              <span class="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
-                ${{ filters.minPrice || 0 }} - ${{ filters.maxPrice || '∞' }}
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100 transition-colors hover:bg-blue-100">
+                {{ filters.minPrice | currency }} - {{ filters.maxPrice ? (filters.maxPrice | currency) : 'Any' }}
                 <button (click)="filters.minPrice = undefined; filters.maxPrice = undefined; onFiltersChange(filters)"
-                        class="hover:text-blue-900">
-                  <lucide-icon [img]="X" class="w-3 h-3"></lucide-icon>
+                        class="ml-1.5 inline-flex flex-shrink-0 h-4 w-4 items-center justify-center rounded-full text-blue-400 hover:bg-blue-200 hover:text-blue-500 focus:outline-none focus:bg-blue-500 focus:text-white transition-colors">
+                  <span class="sr-only">Remove filter</span>
+                  <lucide-icon [img]="X" class="h-3 w-3"></lucide-icon>
                 </button>
               </span>
             }
 
             <button
               (click)="clearFilters()"
-              class="text-sm text-red-600 hover:text-red-700 font-medium"
+              class="text-xs font-medium text-gray-500 hover:text-gray-900 hover:underline px-2 transition-colors"
             >
               Clear all
             </button>
@@ -126,11 +136,11 @@
   </div>
 
   <!-- Main Content -->
-  <div class="mx-auto pt-6 ">
+  <div class="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div class="flex gap-8">
       <!-- Desktop Filters Sidebar -->
       <aside class="hidden lg:block w-80 flex-shrink-0">
-        <div class="sticky top-28">
+        <div class="sticky top-40">
           <app-property-filters
             (filtersChange)="onFiltersChange($event)"
             [(filters)]="filters"
@@ -139,33 +149,37 @@
       </aside>
 
       <!-- Results Section -->
-      <div class="flex-1">
+      <div class="flex-1 min-w-0">
         @if (loading) {
           <!-- Loading State -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-            @for (item of [1, 2, 3, 4, 5, 6]; track item) {
-              <div class="border border-gray-200 rounded-xl overflow-hidden animate-pulse">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+            @for (item of [1, 2, 3, 4, 5, 6, 7, 8]; track item) {
+              <div class="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm animate-pulse">
                 <div class="h-48 bg-gray-200"></div>
                 <div class="p-4 space-y-3">
                   <div class="h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div class="h-3 bg-gray-200 rounded"></div>
                   <div class="h-3 bg-gray-200 rounded w-1/2"></div>
+                  <div class="space-y-2 pt-2">
+                    <div class="h-3 bg-gray-200 rounded"></div>
+                    <div class="h-3 bg-gray-200 rounded w-5/6"></div>
+                  </div>
                 </div>
               </div>
             }
           </div>
         } @else if (filteredProperties.length === 0) {
           <!-- Empty State -->
-          <div class="flex flex-col items-center justify-center py-16 px-4">
-            <lucide-icon [img]="SearchX" class="w-24 h-24 text-gray-300 mb-4"></lucide-icon>
-            <h3 class="text-xl font-semibold text-gray-900 mb-2">No properties found</h3>
-            <p class="text-gray-600 text-center max-w-md mb-6">
-              We couldn't find any properties matching your criteria. Try adjusting your filters or search
-              terms.
+          <div class="flex flex-col items-center justify-center py-20 px-4 bg-white rounded-3xl border border-gray-100 border-dashed">
+            <div class="p-4 bg-blue-50 rounded-full mb-4">
+              <lucide-icon [img]="SearchX" class="w-8 h-8 text-blue-500"></lucide-icon>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">No properties found</h3>
+            <p class="text-gray-500 text-center max-w-md mb-8">
+              We couldn't find any properties matching your current criteria. Try adjusting your filters or search broadly.
             </p>
             <button
               (click)="clearFilters()"
-              class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm hover:shadow-md transition-all duration-200"
             >
               Clear all filters
             </button>
@@ -173,7 +187,7 @@
         } @else {
           <!-- Results Grid/List -->
           <div
-            [ngClass]="viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6' : 'grid columns-1 space-y-4'">
+            [ngClass]="viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6' : 'flex flex-col space-y-4'">
             @for (property of filteredProperties; track property.id) {
               <app-property-card
                 (chat)="onChat($event)"
@@ -183,19 +197,20 @@
                 [isFavorite]="false"
                 [property]="property"
                 [viewMode]="viewMode"
+                class="h-full"
               ></app-property-card>
             }
           </div>
 
           <!-- Pagination -->
           @if (totalPages > 1) {
-            <div class="mt-8 flex justify-center">
-              <nav class="flex items-center gap-1">
+            <div class="mt-12 flex justify-center">
+              <nav class="flex items-center gap-1 bg-white p-1 rounded-xl shadow-sm border border-gray-100">
                 <!-- Previous Button -->
                 <button
                   (click)="onPageChange(currentPage - 1)"
                   [disabled]="currentPage === 1"
-                  class="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  class="p-2 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-gray-500 hover:text-gray-900"
                 >
                   <lucide-icon [img]="ChevronLeft" class="w-5 h-5"></lucide-icon>
                 </button>
@@ -203,10 +218,11 @@
                 <!-- Page Numbers -->
                 @if (pageNumbers[0] > 1) {
                   <button (click)="onPageChange(1)"
-                          class="px-3 py-1 rounded-lg hover:bg-gray-100 transition-colors">1
+                          class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors">
+                    1
                   </button>
                   @if (pageNumbers[0] > 2) {
-                    <span class="px-2">...</span>
+                    <span class="w-9 h-9 flex items-center justify-center text-gray-400">...</span>
                   }
                 }
 
@@ -214,9 +230,11 @@
                   <button
                     (click)="onPageChange(page)"
                     [class.bg-blue-600]="page === currentPage"
-                    [class.hover:bg-gray-100]="page !== currentPage"
                     [class.text-white]="page === currentPage"
-                    class="px-3 py-1 rounded-lg transition-colors"
+                    [class.shadow-sm]="page === currentPage"
+                    [class.hover:bg-gray-50]="page !== currentPage"
+                    [class.text-gray-700]="page !== currentPage"
+                    class="w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-all duration-200"
                   >
                     {{ page }}
                   </button>
@@ -224,10 +242,11 @@
 
                 @if (pageNumbers[pageNumbers.length - 1] < totalPages) {
                   @if (pageNumbers[pageNumbers.length - 1] < totalPages - 1) {
-                    <span class="px-2">...</span>
+                    <span class="w-9 h-9 flex items-center justify-center text-gray-400">...</span>
                   }
                   <button (click)="onPageChange(totalPages)"
-                          class="px-3 py-1 rounded-lg hover:bg-gray-100 transition-colors">{{ totalPages }}
+                          class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors">
+                    {{ totalPages }}
                   </button>
                 }
 
@@ -235,7 +254,7 @@
                 <button
                   (click)="onPageChange(currentPage + 1)"
                   [disabled]="currentPage === totalPages"
-                  class="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  class="p-2 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-gray-500 hover:text-gray-900"
                 >
                   <lucide-icon [img]="ChevronRight" class="w-5 h-5"></lucide-icon>
                 </button>
@@ -248,33 +267,45 @@
   </div>
 
   <!-- Mobile Filters Drawer -->
-  <div
-    [class.-translate-x-full]="!showMobileFilters"
-    [class.translate-x-0]="showMobileFilters"
-    class="fixed inset-y-0 left-0 z-50 w-80 bg-white shadow-xl transform transition-transform duration-300 lg:hidden"
-  >
-    <div class="flex items-center justify-between p-4 border-b">
-      <h2 class="text-lg font-semibold">Filters</h2>
-      <button
-        (click)="toggleMobileFilters()"
-        class="p-2 hover:bg-gray-100 rounded-lg"
-      >
-        <lucide-icon [img]="X" class="w-5 h-5"></lucide-icon>
-      </button>
-    </div>
-    <div class="p-4 overflow-y-auto h-[calc(100vh-4rem)]">
-      <app-property-filters
-        (filtersChange)="onFiltersChange($event); showMobileFilters = false"
-        [(filters)]="filters"
-      ></app-property-filters>
+  <div class="relative z-50 lg:hidden" role="dialog" aria-modal="true">
+    <div
+      [class.opacity-0]="!showMobileFilters"
+      [class.opacity-100]="showMobileFilters"
+      [class.pointer-events-none]="!showMobileFilters"
+      class="fixed inset-0 bg-black/30 backdrop-blur-sm transition-opacity duration-300"
+      (click)="toggleMobileFilters()"
+    ></div>
+
+    <div
+      [class.translate-x-full]="!showMobileFilters"
+      [class.translate-x-0]="showMobileFilters"
+      class="fixed inset-y-0 right-0 z-50 w-full max-w-xs bg-white shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col"
+    >
+      <div class="flex items-center justify-between p-4 border-b border-gray-100">
+        <h2 class="text-lg font-semibold text-gray-900">Filters</h2>
+        <button
+          (click)="toggleMobileFilters()"
+          class="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <lucide-icon [img]="X" class="w-5 h-5"></lucide-icon>
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-4">
+        <app-property-filters
+          (filtersChange)="onFiltersChange($event)"
+          [(filters)]="filters"
+        ></app-property-filters>
+      </div>
+
+      <div class="p-4 border-t border-gray-100 bg-gray-50">
+        <button
+          (click)="toggleMobileFilters()"
+          class="w-full flex justify-center items-center px-4 py-3 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+        >
+          Show {{ filteredProperties.length }} Results
+        </button>
+      </div>
     </div>
   </div>
-
-  <!-- Mobile Filters Overlay -->
-  @if (showMobileFilters) {
-    <div
-      (click)="toggleMobileFilters()"
-      class="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-    ></div>
-  }
 </div>

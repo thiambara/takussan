@@ -77,7 +77,7 @@ export class HomepageComponent implements OnInit {
     const params: any = {
       properties: {with: ['media']},
       page: 1,
-      per_page: 12,
+      per_page: 10,
     };
 
     // Filter by property type

@@ -12,5 +12,8 @@ export interface PropertyFilter {
   maxArea?: number;
   amenities?: string[];
   location?: string;
+  furnishing?: 'furnished' | 'unfurnished' | 'any';
+  status?: string[];
+  yearBuilt?: { min?: number; max?: number };
   sortBy?: 'price-asc' | 'price-desc' | 'date-newest' | 'date-oldest' | 'area-asc' | 'area-desc';
 }
