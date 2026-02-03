@@ -29,7 +29,7 @@ class UserController extends Controller
     public function index(): JsonResponse
     {
         $query = User::allThroughRequest();
-        if (!auth()->user()->hasRole(UserRole::Admin->value)) {
+        if (!auth()->user()->hasRole(UserRole::AgencyAdmin->value)) {
             $query->where('added_by_id', auth()->user()->id);
         }
         if ($search_query = request()->search_query) {

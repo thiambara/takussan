@@ -25,7 +25,7 @@ class CustomerController extends Controller
     public function index(): JsonResponse
     {
         $query = Customer::allThroughRequest();
-        if (!auth()->user()->hasRole(UserRole::Admin->value)) {
+        if (!auth()->user()->hasRole(UserRole::AgencyAdmin->value)) {
             $query->where('added_by_id', auth()->user()->id);
         }
 

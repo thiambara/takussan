@@ -17,7 +17,7 @@ class BookingSeeder extends Seeder
     public function run(): void
     {
         // Get available users with admin or manager roles
-        $users = User::role([UserRole::Admin->value, UserRole::Vendor->value])->get();
+        $users = User::role([UserRole::AgencyAdmin->value, UserRole::Vendor->value])->get();
 
         if ($users->isEmpty()) {
             $users = User::factory()->count(2)->create();

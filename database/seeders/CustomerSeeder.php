@@ -15,7 +15,7 @@ class CustomerSeeder extends Seeder
     public function run(): void
     {
         // Get admin and manager users to be assigned as customer creators
-        $adminUsers = User::role(UserRole::Admin->value)->get();
+        $adminUsers = User::role(UserRole::AgencyAdmin->value)->get();
 
         $managerUsers = User::role(UserRole::Vendor->value)->get();
 

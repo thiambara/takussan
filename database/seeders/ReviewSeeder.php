@@ -32,7 +32,7 @@ class ReviewSeeder extends Seeder
         }
 
         // Get admins who can approve reviews
-        $admins = User::role([UserRole::Admin->value, UserRole::Vendor->value])->get();
+        $admins = User::role([UserRole::AgencyAdmin->value, UserRole::Vendor->value])->get();
 
         if ($admins->isEmpty()) {
             $admins = new Collection([User::factory()->create()]);

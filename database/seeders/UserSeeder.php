@@ -19,7 +19,7 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         // Get roles
-        $adminRole = Role::where('name', UserRole::Admin->value)->first();
+        $adminRole = Role::where('name', UserRole::AgencyAdmin->value)->first();
         $managerRole = Role::where('name', UserRole::Vendor->value)->first();
         $customerRole = Role::where('name', UserRole::Customer->value)->first();
 

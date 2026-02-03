@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Address;
 use App\Models\Bases\Enums\UserRole;
 use App\Models\Property;
 use App\Models\User;
@@ -15,7 +16,7 @@ class PropertySeeder extends Seeder
     public function run(): void
     {
         // Get users with admin or manager roles (Vendors)
-        $vendors = User::role([UserRole::Admin->value, UserRole::Vendor->value])->with('agency')->get();
+        $vendors = User::role([UserRole::AgencyAdmin->value, UserRole::Vendor->value])->with('agency')->get();
 
         if ($vendors->isEmpty()) {
             return;
@@ -42,7 +43,7 @@ class PropertySeeder extends Seeder
                 ])
                 ->each(function ($property) {
                     // Add an address using factory
-                    $property->address()->save(\App\Models\Address::factory()->make());
+                    $property->address()->save(Address::factory()->make());
                 });
 
             // Create some houses/villas for rent
@@ -60,7 +61,7 @@ class PropertySeeder extends Seeder
                     'servicing' => ['water', 'electricity', 'pool', 'garden', 'security'],
                 ])
                 ->each(function ($property) {
-                    $property->address()->save(\App\Models\Address::factory()->make());
+                    $property->address()->save(Address::factory()->make());
                 });
         }
     }

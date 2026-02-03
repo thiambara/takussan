@@ -64,8 +64,8 @@ class RolesAndPermissionsSeeder extends Seeder
         // Create roles with permissions
 
         // Admin
-        $adminRole = Role::create(['name' => UserRole::Admin->value]);
-        $adminRole->givePermissionTo(Permission::all());
+        $agencyAdminRole = Role::create(['name' => UserRole::AgencyAdmin->value]);
+        $agencyAdminRole->givePermissionTo(Permission::all());
 
         // Vendor
         $vendorRole = Role::create(['name' => UserRole::Vendor->value]);

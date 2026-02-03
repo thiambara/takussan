@@ -25,7 +25,7 @@ class BookingPaymentSeeder extends Seeder
         }
 
         // Get users with appropriate roles
-        $users = User::role([UserRole::Admin->value, UserRole::Vendor->value])->get();
+        $users = User::role([UserRole::AgencyAdmin->value, UserRole::Vendor->value])->get();
 
         if ($users->isEmpty()) {
             // Make sure we still have a collection even if we need to create a user
@@ -51,10 +51,10 @@ class BookingPaymentSeeder extends Seeder
             if (rand(0, 1)) {
                 // Create 1-3 installment payments
                 $installmentCount = rand(1, 3);
-                
+
                 for ($i = 0; $i < $installmentCount; $i++) {
                     $paymentDate = now()->subDays(rand(1, 20));
-                    
+
                     BookingPayment::factory()
                         ->confirmed()
                         ->create([
@@ -70,7 +70,7 @@ class BookingPaymentSeeder extends Seeder
 
         // Create some pending and failed payments
         $paymentStatuses = ['pending', 'failed'];
-        
+
         foreach ($paymentStatuses as $status) {
             BookingPayment::factory()
                 ->state([
