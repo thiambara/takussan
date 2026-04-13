@@ -19,8 +19,9 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         // Get roles
-        $adminRole = Role::where('name', UserRole::AgencyAdmin->value)->first();
-        $managerRole = Role::where('name', UserRole::Vendor->value)->first();
+        $superAdminRole = Role::where('name', UserRole::SuperAdmin->value)->first();
+        $agencyAdminRole = Role::where('name', UserRole::AgencyAdmin->value)->first();
+        $vendorRole = Role::where('name', UserRole::Vendor->value)->first();
         $customerRole = Role::where('name', UserRole::Customer->value)->first();
 
         // Get main agency
@@ -36,7 +37,7 @@ class UserSeeder extends Seeder
             'status' => 'active',
             'agency_id' => $mainAgency?->id, // Admin belongs to main agency
         ]);
-        $admin->assignRole($adminRole);
+        $admin->assignRole($superAdminRole);
 
         // Create manager user
         $manager = User::factory()->create([
@@ -48,7 +49,7 @@ class UserSeeder extends Seeder
             'status' => 'active',
             'agency_id' => $mainAgency?->id,
         ]);
-        $manager->assignRole($managerRole);
+        $manager->assignRole($vendorRole);
 
         // Create customer user
         $regularUser = User::factory()->create([
@@ -72,8 +73,8 @@ class UserSeeder extends Seeder
                     'agency_id' => $agency->id,
                     'status' => 'active'
                 ])
-                ->each(function ($user) use ($managerRole) {
-                    $user->assignRole($managerRole);
+                ->each(function ($user) use ($vendorRole) {
+                    $user->assignRole($vendorRole);
                 });
         }
 

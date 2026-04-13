@@ -1,7 +1,15 @@
 <?php
 
-test('example', function () {
-    $response = $this->get('/');
+namespace Tests\Feature\Http\Controllers;
 
-    $response->assertStatus(200);
-});
+use Tests\TestCase;
+
+class CustomerControllerTest extends TestCase
+{
+    public function test_example(): void
+    {
+        $response = $this->get('/');
+
+        $response->assertStatus(200);
+    }
+}

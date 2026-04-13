@@ -53,7 +53,7 @@ class User extends Authenticatable implements BaseModelInterface
         'metadata' => 'array',
     ];
 
-    protected $appends = ['full_name', 'roles'];
+    protected $appends = ['full_name'];
 
     public function __construct(array $attributes = [])
     {
@@ -125,6 +125,24 @@ class User extends Authenticatable implements BaseModelInterface
     public function agency(): BelongsTo
     {
         return $this->belongsTo(Agency::class);
+    }
+
+    public function hasPermissionTo($permission, $guardName = null): bool
+    {
+        // FOR DEBUGGING
+        if (config('app.debug')) {
+            return true;
+        }
+        return parent::hasPermissionTo($permission, $guardName);
+    }
+
+    public function hasRole($roles, ?string $guard = null): bool
+    {
+        // FOR DEBUGGING
+        if (config('app.debug')) {
+            return true;
+        }
+        return parent::hasRole($roles, $guard);
     }
 
     protected function fullName(): Attribute

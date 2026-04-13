@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Route;
  * ==============
  */
 Route::prefix('auth')->controller(AuthController::class)->group(function () {
-    Route::post('/login', 'login')->name('auth-user');
+    Route::post('/login', 'login')->name('login');
     Route::post('/sign-up', 'signUp')->name('sign-up');
     /**
      * PRIVATE ROUTES
