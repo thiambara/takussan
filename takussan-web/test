@@ -1,0 +1,18 @@
+Inventory: (id, team_id, name, is_active) // list des produit d'une pharmacie
+InventoryItem: (id, inventory_id, status, qty, expiration_date, cost, prise) // quantite d'un produit groupe par date d'expiration, prix d'achat et prix de vente
+Saisie: (id, team_id, created_at, status) // representation d'une commande (saisie)
+SaisieItem: (id, saisie_id, inventory_id, quantity, expiration_date, cost, prise, inventory_item) // list des produits dans une saisie avec les informations associées
+Sale: (id, team_id, created_at, status) // representation d'une vente
+SaleItem: (id, sale_id, product_id, quantity, price) // list des produits dans une vente avec les informations associées. product_id est l'id de l'inventory
+StockChange: (id, inventory_id, quantity, new_stock, type) // log des mouvements de stock des produits
+
+la quantite d'un produit est egale a la somme des quantites de ses InventoryItem actifs
+
+je veux creer une fonctionnalite qui permet de suggerer a une pharmacie les produit qu'il dois commander avec la quantite recommandee
+propose une approche.
+je veux que ca soit a la vole, pas de cron.
+a chaque fois que l'utilisateur part dans la partie cahier des commande je verifie les x dernier produits avec des mouvement de stock je calcule la suggestion selon si je ne le trouve dans les cache.
+utilise les algorithmes de prediction adapte a mes besoin. optimise l'algo pour qu'il soit rapide et fiable.
+j'utilise symfony comme framework sur le backend.
+
+

@@ -1,0 +1,166 @@
+<div class="min-h-screen bg-gray-50/50 dark:bg-gray-950 pb-20 font-sans">
+  <p-toast position="top-right"></p-toast>
+  <!-- Top Navigation / Header -->
+  <header
+    class="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50 supports-[backdrop-filter]:bg-white/60">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3 min-w-0">
+        <button (click)="cancel()"
+                class="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white group">
+          <lucide-icon [img]="icons.ArrowLeft"
+                       class="w-5 h-5 group-hover:-translate-x-0.5 transition-transform"></lucide-icon>
+        </button>
+        <div class="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1"></div>
+        <h1 class="text-sm font-medium text-gray-900 dark:text-white truncate">
+          {{ isEditMode() ? 'Modifier le bien' : 'Nouveau bien immobilier' }}
+        </h1>
+      </div>
+
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button (click)="cancel()"
+                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm">
+          Annuler
+        </button>
+
+        <button (click)="saveProperty()"
+                [disabled]="saving()"
+                class="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-black dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 rounded-lg transition-all shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+          @if (saving()) {
+            <lucide-icon [img]="icons.Loader2" class="w-4 h-4 animate-spin"></lucide-icon>
+            <span>Enregistrement...</span>
+          } @else {
+            <lucide-icon [img]="icons.Save" class="w-4 h-4"></lucide-icon>
+            <span>Enregistrer</span>
+          }
+        </button>
+      </div>
+    </div>
+  </header>
+
+  @if (loading()) {
+    <div class="flex flex-col items-center justify-center min-h-[60vh]">
+      <div class="relative">
+        <div class="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 dark:border-gray-700"></div>
+        <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-primary-600 absolute top-0 left-0"></div>
+      </div>
+      <p class="mt-4 text-gray-500 font-medium animate-pulse">Chargement des données...</p>
+    </div>
+  } @else {
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="flex flex-col lg:flex-row gap-8">
+
+        <!-- Sidebar Navigation -->
+        <aside class="lg:w-64 flex-shrink-0">
+          <nav class="sticky top-24 space-y-1">
+            <button (click)="setActiveSection('basic')"
+                    [class.bg-transparent]="activeSection() !== 'basic'"
+                    [class.bg-white]="activeSection() === 'basic'"
+                    [class.shadow-sm]="activeSection() === 'basic'"
+                    [class.text-gray-600]="activeSection() !== 'basic'"
+                    [class.text-primary-600]="activeSection() === 'basic'"
+                    class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all hover:bg-white hover:text-primary-600 dark:hover:bg-gray-800 dark:text-gray-400 dark:hover:text-white">
+              <lucide-icon [img]="icons.Home" class="w-5 h-5"></lucide-icon>
+              Informations de base
+            </button>
+
+            <button (click)="setActiveSection('details')"
+                    [class.bg-transparent]="activeSection() !== 'details'"
+                    [class.bg-white]="activeSection() === 'details'"
+                    [class.shadow-sm]="activeSection() === 'details'"
+                    [class.text-gray-600]="activeSection() !== 'details'"
+                    [class.text-primary-600]="activeSection() === 'details'"
+                    class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all hover:bg-white hover:text-primary-600 dark:hover:bg-gray-800 dark:text-gray-400 dark:hover:text-white">
+              <lucide-icon [img]="icons.LayoutDashboard" class="w-5 h-5"></lucide-icon>
+              Détails du bien
+            </button>
+
+            <button (click)="setActiveSection('location')"
+                    [class.bg-transparent]="activeSection() !== 'location'"
+                    [class.bg-white]="activeSection() === 'location'"
+                    [class.shadow-sm]="activeSection() === 'location'"
+                    [class.text-gray-600]="activeSection() !== 'location'"
+                    [class.text-primary-600]="activeSection() === 'location'"
+                    class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all hover:bg-white hover:text-primary-600 dark:hover:bg-gray-800 dark:text-gray-400 dark:hover:text-white">
+              <lucide-icon [img]="icons.MapPin" class="w-5 h-5"></lucide-icon>
+              Localisation
+            </button>
+
+            <button (click)="setActiveSection('media')"
+                    [class.bg-transparent]="activeSection() !== 'media'"
+                    [class.bg-white]="activeSection() === 'media'"
+                    [class.shadow-sm]="activeSection() === 'media'"
+                    [class.text-gray-600]="activeSection() !== 'media'"
+                    [class.text-primary-600]="activeSection() === 'media'"
+                    class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all hover:bg-white hover:text-primary-600 dark:hover:bg-gray-800 dark:text-gray-400 dark:hover:text-white">
+              <lucide-icon [img]="icons.Image" class="w-5 h-5"></lucide-icon>
+              Médias
+            </button>
+          </nav>
+        </aside>
+
+        <!-- Main Content Form -->
+        <div class="flex-1 min-w-0">
+          <form [formGroup]="propertyForm" class="space-y-6">
+
+            <!-- SECTION: BASIC INFO -->
+            @if (activeSection() === 'basic') {
+              <app-property-edit-basic
+                [propertyForm]="propertyForm"
+                [propertyTypes]="propertyTypes"
+                [contractTypeOptions]="contractTypeOptions"
+                [statusOptions]="statusOptions"
+                [visibilityOptions]="visibilityOptions"
+                (next)="setActiveSection('details')">
+              </app-property-edit-basic>
+            }
+
+            <!-- SECTION: DETAILS -->
+            @if (activeSection() === 'details') {
+              <app-property-edit-details
+                [propertyForm]="propertyForm"
+                [typeSpecificForm]="typeSpecificForm"
+                [positionOptions]="positionOptions"
+                [levelOptions]="levelOptions"
+                [roomsOptions]="roomsOptions"
+                [bathroomsOptions]="bathroomsOptions"
+                [furnishedOptions]="furnishedOptions"
+                [commercialTypeOptions]="commercialTypeOptions"
+                (next)="setActiveSection('location')"
+                (previous)="setActiveSection('basic')">
+              </app-property-edit-details>
+            }
+
+            <!-- SECTION: LOCATION -->
+            @if (activeSection() === 'location') {
+              <app-property-edit-location
+                [addressForm]="addressForm"
+                [countries]="countries"
+                (next)="setActiveSection('media')"
+                (previous)="setActiveSection('details')">
+              </app-property-edit-location>
+            }
+
+            <!-- SECTION: MEDIA -->
+            @if (activeSection() === 'media') {
+              <app-property-edit-media
+                [property]="property"
+                [propertyMedia]="propertyMedia"
+                [uploadedFiles]="uploadedFiles"
+                [isEditMode]="isEditMode()"
+                [saving]="saving()"
+                (previous)="setActiveSection('location')"
+                (save)="saveProperty()"
+                (uploadSelect)="uploadingMedia.set(true)"
+                (serverUpload)="onServerUpload($event)"
+                (customUpload)="onCustomUpload($event)"
+                (setFeatured)="setFeaturedMedia($event.media, $event.index)"
+                (removeMedia)="removePropertyMedia($event.media, $event.index)">
+              </app-property-edit-media>
+            }
+
+          </form>
+        </div>
+      </div>
+    </main>
+  }
+</div>

@@ -1,0 +1,107 @@
+<div
+        class="bg-gray-50 dark:bg-gray-950 flex items-center justify-center min-h-screen min-w-[100vw] overflow-hidden">
+    <div class="flex flex-col items-center justify-center">
+        <div
+                style="border-radius:56px; padding:0.3rem; background: linear-gradient(180deg, var(--primary-color) 10%, rgba(33, 150, 243, 0) 30%);">
+            <div class="w-full bg-white dark:bg-gray-900 py-20 px-8 sm:px-20" style="border-radius:53px">
+                <div class="text-center mb-8">
+                    <lucide-icon [img]="LayoutGrid" class="mb-8 w-16 h-16 shrink-0 mx-auto text-blue-500"></lucide-icon>
+                    <div class="text-gray-900 dark:text-white text-3xl font-medium mb-4">Welcome to Takussan!</div>
+                </div>
+
+                <form>
+                    <div>
+                        <!--FIRST NAME-->
+                        <label class="form-label text-xl text-gray-900 dark:text-white" for="firstName">First
+                            name </label>
+                        <input [(ngModel)]="user.first_name"
+                               class="form-input md:w-[30rem] mb-8"
+                               id="firstName"
+                               name="firstName"
+                               placeholder="First name"
+                               type="text">
+
+                        <!--LAST NAME-->
+                        <label class="form-label text-xl text-gray-900 dark:text-white" for="lastName">Last
+                            name </label>
+                        <input [(ngModel)]="user.last_name"
+                               class="form-input md:w-[30rem] mb-8"
+                               id="lastName"
+                               name="lastName"
+                               placeholder="Last name"
+                               type="text">
+
+                        <!--USERNAME-->
+                        <label class="form-label text-xl text-gray-900 dark:text-white"
+                               for="username">Username </label>
+                        <input [(ngModel)]="user.username"
+                               class="form-input md:w-[30rem] mb-8"
+                               id="username"
+                               name="username"
+                               placeholder="Username"
+                               type="text">
+
+                        <!--EMAIL-->
+                        <label class="form-label text-xl text-gray-900 dark:text-white"
+                               for="email">Email </label>
+                        <input [(ngModel)]="user.email"
+                               class="form-input md:w-[30rem] mb-8"
+                               id="email"
+                               name="email"
+                               placeholder="Email"
+                               type="email">
+
+                        <!--PASSWORD-->
+                        <label class="form-label text-xl text-gray-900 dark:text-white"
+                               for="password">Password</label>
+                        <div class="relative mb-8">
+                            <input [(ngModel)]="user.password"
+                                   [type]="showPassword ? 'text' : 'password'"
+                                   class="form-input md:w-[30rem] !pr-12"
+                                   id="password"
+                                   name="password"
+                                   placeholder="Password">
+                            <button (click)="togglePasswordVisibility()"
+                                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors duration-200"
+                                    type="button">
+                                <lucide-icon [img]="showPassword ? EyeOff : Eye" class="w-5 h-5"></lucide-icon>
+                            </button>
+                        </div>
+
+                        <!--PASSWORD CONFIRMATION-->
+                        <label class="form-label text-xl text-gray-900 dark:text-white"
+                               for="passwordConfirmation">Password
+                            confirmation</label>
+                        <div class="relative mb-8">
+                            <input [(ngModel)]="user.passwordConfirmation"
+                                   [type]="showPasswordConfirmation ? 'text' : 'password'"
+                                   class="form-input md:w-[30rem] !pr-12"
+                                   id="passwordConfirmation"
+                                   name="passwordConfirmation"
+                                   placeholder="Password confirmation">
+                            <button (click)="togglePasswordConfirmationVisibility()"
+                                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors duration-200"
+                                    type="button">
+                                <lucide-icon [img]="showPasswordConfirmation ? EyeOff : Eye" class="w-5 h-5"></lucide-icon>
+                            </button>
+                        </div>
+
+                        <div></div>
+                        <!--REGISTER BUTTON-->
+                        <button (click)="signUp()"
+                                [disabled]="!validatedData()"
+                                class="w-full mt-1 text-xl inline-flex items-center justify-center px-4 py-2 font-medium text-white bg-primary-600 border border-primary-600 rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200">
+                            Sign Up
+                        </button>
+                        <div class="flex items-center justify-center mt-6 gap-8">
+                            <a [routerLink]="'/login'"
+                               class="font-medium no-underline ml-2 text-right cursor-pointer text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 transition-colors duration-200">
+                                Already have an account(Login)
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

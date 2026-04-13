@@ -1,0 +1,87 @@
+<p-card styleClass="booking-card shadow-md hover:shadow-lg transition-all duration-300">
+    <ng-template pTemplate="header">
+        <div [ngClass]="{
+            'bg-yellow-50': booking.status === 'pending',
+            'bg-green-50': booking.status === 'confirmed',
+            'bg-red-50': booking.status === 'cancelled',
+            'bg-blue-50': booking.status === 'completed'
+        }" class="p-3 flex justify-between items-center">
+            <h3 class="text-lg font-medium">Booking #{{ booking.reference_number || 'New' }}</h3>
+            <p-tag [severity]="getStatusSeverity(booking.status || '')"
+                   [value]="booking.status || 'pending'"></p-tag>
+        </div>
+    </ng-template>
+
+    <div class="grid grid-cols-1 gap-3">
+        <div class="flex justify-between">
+            <span class="text-gray-500">Booking Date:</span>
+            <span class="font-medium">{{ booking.booking_date | date: 'mediumDate' }}</span>
+        </div>
+
+        <div class="flex justify-between">
+            <span class="text-gray-500">Start Date:</span>
+            <span class="font-medium">{{ booking.start_date | date: 'mediumDate' }}</span>
+        </div>
+
+        <div class="flex justify-between">
+            <span class="text-gray-500">End Date:</span>
+            <span class="font-medium">{{ booking.end_date | date: 'mediumDate' }}</span>
+        </div>
+
+        @if (booking.start_date && booking.end_date) {
+            <div class="flex justify-between">
+                <span class="text-gray-500">Duration:</span>
+                <span class="font-medium">{{ calculateDuration() }} days</span>
+            </div>
+        }
+
+        <div class="flex justify-between">
+            <span class="text-gray-500">Expiration Date:</span>
+            <span class="font-medium">{{ booking.expiration_date | date: 'mediumDate' }}</span>
+        </div>
+
+        <div class="flex justify-between">
+            <span class="text-gray-500">Property Price:</span>
+            <span class="font-medium">{{ booking.price_at_booking | currency:'EUR' }}</span>
+        </div>
+
+        <div class="flex justify-between">
+            <span class="text-gray-500">Total Amount:</span>
+            <span class="font-bold text-primary">{{ booking.total_amount | currency:'EUR' }}</span>
+        </div>
+
+        @if (booking.deposit_amount) {
+            <div class="flex justify-between">
+                <span class="text-gray-500">Deposit:</span>
+                <span class="font-medium flex items-center">{{ booking.deposit_amount | currency:'EUR' }}
+                    @if (booking.deposit_paid) {
+                        <lucide-icon [img]="CheckCircle" class="text-green-500 ml-1 w-4 h-4"></lucide-icon>
+                    }
+                    @if (!booking.deposit_paid) {
+                        <lucide-icon [img]="XCircle" class="text-red-500 ml-1 w-4 h-4"></lucide-icon>
+                    }
+                </span>
+            </div>
+        }
+
+        <p-divider></p-divider>
+
+        @if (booking.notes) {
+            <div class="text-sm">
+                <span class="text-gray-500">Notes:</span>
+                <p class="mt-1 italic">{{ booking.notes }}</p>
+            </div>
+        }
+    </div>
+
+    <ng-template pTemplate="footer">
+        <div class="flex justify-end gap-2">
+            <p-button (click)="onEdit()" styleClass="p-button-text p-button-sm">
+                <lucide-icon [img]="Pencil" class="w-4 h-4"></lucide-icon>
+            </p-button>
+            <p-button (click)="onDelete()" styleClass="p-button-text p-button-danger p-button-sm">
+                <lucide-icon [img]="Trash2" class="w-4 h-4"></lucide-icon>
+            </p-button>
+        </div>
+    </ng-template>
+</p-card>
