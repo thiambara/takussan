@@ -1,0 +1,399 @@
+# Takussan — Catalogue fonctionnel
+
+> Vision complète des fonctionnalités de la plateforme Takussan : fonctionnalités métier (immobilier) et applicatives (transverses).
+> Ce document ne décrit **pas** l'implémentation — il sert de référence pour prioriser et découper le travail.
+> Base : les 28 modèles de [`models-spec.md`](./models-spec.md), enrichis des besoins métier standards.
+
+---
+
+## Légende
+
+### Priorités
+
+| Code | Signification |
+|------|---------------|
+| **P0** | MVP bloquant — sans ça, l'app n'est pas utilisable |
+| **P1** | MVP important — attendu dans la première version publique |
+| **P2** | V2 — amélioration significative post-lancement |
+| **P3** | Futur / nice-to-have |
+
+### Acteurs
+
+| Icône | Acteur |
+|-------|--------|
+| 👤 | Visiteur anonyme (pas encore de compte) |
+| 🏠 | Locataire / Acheteur (Customer) |
+| 🏢 | Bailleur / Propriétaire (owner) |
+| 🧑‍💼 | Agent immobilier |
+| 🛡️ | Admin d'agence / Super-admin |
+
+---
+
+## Table des matières
+
+### 1. Domaines métier
+
+1.1 [Gestion des biens](#11-gestion-des-biens)
+1.2 [Recherche & découverte publique](#12-recherche--découverte-publique)
+1.3 [Réservations courte durée & visites](#13-réservations-courte-durée--visites)
+1.4 [Location longue durée (baux)](#14-location-longue-durée-baux)
+1.5 [Transactions & paiements](#15-transactions--paiements)
+1.6 [CRM & relation client](#16-crm--relation-client)
+1.7 [Communication & messagerie](#17-communication--messagerie)
+1.8 [Maintenance & interventions](#18-maintenance--interventions)
+1.9 [État des lieux & inventaires](#19-état-des-lieux--inventaires)
+1.10 [Documents & contrats](#110-documents--contrats)
+1.11 [Avis & réputation](#111-avis--réputation)
+1.12 [Agence & équipe](#112-agence--équipe)
+
+### 2. Domaines applicatifs transverses
+
+2.1 [Authentification & comptes](#21-authentification--comptes)
+2.2 [Rôles & permissions](#22-rôles--permissions)
+2.3 [Notifications](#23-notifications)
+2.4 [Recherche & filtres](#24-recherche--filtres)
+2.5 [Reporting & tableaux de bord](#25-reporting--tableaux-de-bord)
+2.6 [Audit & traçabilité](#26-audit--traçabilité)
+2.7 [Médias & fichiers](#27-médias--fichiers)
+2.8 [Internationalisation & préférences](#28-internationalisation--préférences)
+2.9 [Administration & configuration](#29-administration--configuration)
+
+---
+
+## 1. Domaines métier
+
+### 1.1 Gestion des biens
+
+Gestion du cycle de vie d'un bien immobilier, de sa création à sa sortie du portefeuille.
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P0 | 🏢🧑‍💼 | Créer un bien (type, transaction vente/location, caractéristiques) |
+| P0 | 🧑‍💼 | Associer une adresse géolocalisée |
+| P0 | 🧑‍💼 | Uploader des photos |
+| P0 | 🧑‍💼 | Définir le statut (disponible / réservé / vendu / loué / archivé) |
+| P0 | 🧑‍💼 | Publier et dépublier un bien |
+| P0 | 🧑‍💼 | Modifier / supprimer un bien (soft delete) |
+| P1 | 🧑‍💼 | Uploader plans, vidéos et visites virtuelles 360° |
+| P1 | 🧑‍💼 | Associer des tags / amenités (piscine, climatisation, meublé…) |
+| P1 | 🏢🧑‍💼 | Historique de prix automatique à chaque changement |
+| P1 | 🧑‍💼 | Ajouter des collaborateurs au bien (% de commission) |
+| P1 | 🧑‍💼 | Compteurs de vues et de favoris |
+| P2 | 🧑‍💼 | Dupliquer un bien (modèle / template) |
+| P2 | 🛡️ | Modération et validation avant publication |
+| P2 | 🧑‍💼 | Archivage en lot |
+| P3 | 🧑‍💼 | Import CSV / API externe (MLS, syndication) |
+| P3 | 🧑‍💼 | Estimation automatique de prix (IA / comparables) |
+
+### 1.2 Recherche & découverte publique
+
+Expérience de découverte pour visiteurs anonymes et clients connectés.
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P0 | 👤🏠 | Page d'accueil (biens en vedette, derniers ajouts) |
+| P0 | 👤🏠 | Recherche plein-texte sur les biens |
+| P0 | 👤🏠 | Filtres de base (ville, type, prix, chambres, surface, transaction) |
+| P0 | 👤🏠 | Fiche bien publique (galerie, détails, formulaire de contact) |
+| P0 | 👤🏠 | Tri des résultats (prix, récence, pertinence) |
+| P1 | 👤🏠 | Filtres avancés (amenités, disponibilité, étage, meublé) |
+| P1 | 🏠 | Recherche par carte interactive |
+| P1 | 🏠 | Favoris (ajout / retrait / liste personnelle) |
+| P1 | 🏠 | Recherches sauvegardées avec alertes email |
+| P1 | 👤🏠 | Partage d'un bien (lien, réseaux sociaux) |
+| P2 | 🏠 | Comparateur de biens côte à côte |
+| P2 | 🏠 | Biens similaires / suggestions personnalisées |
+| P2 | 🏠 | Historique des biens consultés |
+| P3 | 🏠 | Recherche vocale / en langage naturel |
+
+### 1.3 Réservations courte durée & visites
+
+Réservation ponctuelle d'un bien (saisonnier, visite payante, pré-réservation).
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P1 | 🏠 | Demander une réservation (dates, montant, caution) |
+| P1 | 🏢🧑‍💼 | Accepter, refuser ou annuler une demande |
+| P1 | 🏠🏢 | Paiement d'acompte et solde |
+| P1 | 🏢 | Calendrier de disponibilité par bien |
+| P1 | 🏠🏢 | Consultation des paiements liés à la réservation |
+| P2 | 🏠 | Expiration automatique des demandes non traitées |
+| P2 | 🏠🧑‍💼 | Planification de visites physiques (PropertyVisit) |
+| P2 | 🏠🧑‍💼 | Rappels automatiques avant visite |
+| P3 | 🏠 | Annulation avec remboursement partiel automatisé |
+
+### 1.4 Location longue durée (baux)
+
+Gestion complète d'un contrat de bail et de son cycle de vie.
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P1 | 🏢🧑‍💼 | Créer un bail (locataire, bailleur, durée, loyer, caution) |
+| P1 | 🧑‍💼 | Ajouter un ou plusieurs garants avec documents joints |
+| P1 | 🏢🧑‍💼 | Générer l'échéancier de loyers mensuels |
+| P1 | 🏠🏢 | Enregistrer un paiement mensuel |
+| P1 | 🧑‍💼 | Relances automatiques en cas d'impayé |
+| P1 | 🧑‍💼 | Remboursement de la caution en fin de bail |
+| P1 | 🏢🧑‍💼 | Consultation de l'historique complet d'un bail |
+| P2 | 🏢🧑‍💼 | Renouvellement ou avenant au bail |
+| P2 | 🏢🧑‍💼 | Résiliation anticipée avec calcul des pénalités |
+| P2 | 🏠🏢 | Révision annuelle du loyer (indice) |
+| P3 | 🏠🏢 | Signature électronique du bail |
+| P3 | 🏠 | Espace locataire dédié (quittances, factures, maintenance) |
+
+### 1.5 Transactions & paiements
+
+Encaissements, factures et reversements.
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P0 | 🛡️ | Enregistrer un paiement (réservation ou bail) |
+| P1 | 🛡️🏢 | Générer une facture à un Customer destinataire |
+| P1 | 🏢 | Reversement au bailleur après commission (Payout) |
+| P1 | 🛡️ | Historique des paiements par entité (bien, bail, client) |
+| P1 | 🛡️ | Suivi des statuts (en attente, payé, remboursé, annulé) |
+| P2 | 🛡️ | Intégration d'une passerelle de paiement (Wave, Orange Money, Stripe) |
+| P2 | 🛡️ | Rapprochement bancaire semi-automatique |
+| P2 | 🛡️ | Relance automatique des factures en retard |
+| P3 | 🛡️ | Commissions automatiques par agent / collaborateur |
+| P3 | 🛡️ | Comptabilité exportable (FEC, journaux) |
+
+### 1.6 CRM & relation client
+
+Gestion des contacts (Customer) liés ou non à un compte utilisateur.
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P0 | 🧑‍💼 | Créer un Customer (avec ou sans compte User) |
+| P0 | 🧑‍💼 | Liste et recherche de clients |
+| P1 | 🧑‍💼 | Lier un Customer à un User existant |
+| P1 | 🧑‍💼 | Définir la relation agent ↔ client (type, période) |
+| P1 | 🧑‍💼 | Joindre pièces d'identité et documents |
+| P1 | 🧑‍💼 | Historique d'interactions (via journal d'activité) |
+| P1 | 🧑‍💼 | Notes libres sur un client |
+| P2 | 🧑‍💼 | Pipeline de prospects (stades, conversion) |
+| P2 | 🧑‍💼 | Tâches et rappels attachés à un client |
+| P2 | 🧑‍💼 | Segmentation et tags clients |
+| P3 | 🧑‍💼 | Campagnes email / SMS ciblées |
+
+### 1.7 Communication & messagerie
+
+Échanges entre acteurs autour d'un bien, d'une réservation ou d'un bail.
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P1 | 🏠🏢🧑‍💼 | Conversation privée 1↔1 entre client et agent / bailleur |
+| P1 | 🏠🏢 | Envoyer un message texte avec pièces jointes |
+| P1 | 🏠🏢 | Liste des conversations avec statut non lu |
+| P1 | 🏠🏢 | Notification en temps réel (in-app + email) |
+| P2 | 🏢🧑‍💼 | Conversations de groupe (multi-participants) |
+| P2 | 🏠🏢 | Accusés de lecture individuels (si > 5 participants) |
+| P2 | 🏠🏢 | Recherche dans l'historique des messages |
+| P3 | 🏠🏢 | Appels audio / vidéo intégrés |
+| P3 | 🏠🏢 | Traduction automatique FR ↔ EN ↔ WO |
+
+### 1.8 Maintenance & interventions
+
+Signalement et suivi des problèmes techniques sur un bien loué.
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P1 | 🏠 | Signaler un problème avec photos et description |
+| P1 | 🧑‍💼 | Assigner un prestataire (service provider) |
+| P1 | 🧑‍💼 | Suivi des statuts (nouveau, en cours, résolu, annulé) |
+| P1 | 🧑‍💼 | Ajouter photos et rapport après intervention |
+| P1 | 🏠🏢 | Consulter l'historique des interventions par bien |
+| P2 | 🏢🧑‍💼 | Demande de devis et validation avant travaux |
+| P2 | 🧑‍💼 | Priorisation des demandes (urgent, normal, bas) |
+| P3 | 🛡️ | Facturation directe prestataire → agence |
+| P3 | 🧑‍💼 | Contrats de maintenance récurrents |
+
+### 1.9 État des lieux & inventaires
+
+Constats contradictoires entrée / sortie.
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P1 | 🧑‍💼 | Créer un inventaire d'entrée ou de sortie |
+| P1 | 🧑‍💼 | Photos par pièce et état par élément |
+| P1 | 🧑‍💼 | Consulter / éditer un inventaire |
+| P2 | 🏠🏢 | Signature des deux parties (locataire + bailleur) |
+| P2 | 🧑‍💼 | Export PDF de l'état des lieux |
+| P3 | 🧑‍💼 | Comparaison automatique entrée ↔ sortie |
+| P3 | 🧑‍💼 | Reconnaissance IA de dégradations sur photos |
+
+### 1.10 Documents & contrats
+
+Centralisation de tous les fichiers liés à une entité.
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P0 | 🧑‍💼 | Uploader un document lié à une entité (bien, bail, client…) |
+| P1 | 🧑‍💼 | Catégoriser par type (contrat, CNI, RIB, quittance, justificatif) |
+| P1 | 🏠🏢 | Partage sécurisé par lien temporaire |
+| P1 | 🧑‍💼 | Recherche dans la bibliothèque de documents |
+| P2 | 🧑‍💼 | Génération PDF (quittance, facture, bail) depuis templates |
+| P2 | 🧑‍💼 | Versioning des documents |
+| P3 | 🧑‍💼 | Signature électronique intégrée |
+| P3 | 🧑‍💼 | OCR et extraction automatique de données |
+
+### 1.11 Avis & réputation
+
+Notation et commentaires publics.
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P2 | 🏠 | Laisser un avis sur un bien, un agent ou une agence |
+| P2 | 👤 | Consulter les avis publics |
+| P2 | 🛡️ | Modération (masquer, supprimer) |
+| P2 | 🏢🧑‍💼 | Répondre publiquement à un avis |
+| P3 | 🛡️ | Détection automatique d'avis suspects |
+| P3 | 🏢🧑‍💼 | Badges de réputation |
+
+### 1.12 Agence & équipe
+
+Gestion de la structure organisationnelle.
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P0 | 🛡️ | Créer et configurer une agence (nom, licence, contact, logo) |
+| P0 | 🛡️ | Ajouter et retirer des agents |
+| P0 | 🛡️ | Attribution de rôles aux membres |
+| P1 | 🛡️ | Statistiques globales d'agence (portefeuille, revenus) |
+| P1 | 🛡️ | Paramètres de commission par défaut |
+| P2 | 🛡️ | Gestion multi-branches / sous-agences |
+| P2 | 🛡️ | Gestion des congés / disponibilité des agents |
+| P3 | 🛡️ | Plan d'abonnement et facturation SaaS |
+| P3 | 🛡️ | Marketplace inter-agences |
+
+---
+
+## 2. Domaines applicatifs transverses
+
+### 2.1 Authentification & comptes
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P0 | Tous | Inscription par email et mot de passe |
+| P0 | Tous | Connexion (tokens Sanctum) |
+| P0 | Tous | Déconnexion et révocation de token |
+| P0 | Tous | Mot de passe oublié et réinitialisation |
+| P0 | Tous | Vérification de l'adresse email |
+| P0 | Tous | Édition de profil (nom, bio, avatar) |
+| P1 | Tous | Vérification du numéro de téléphone (SMS / OTP) |
+| P1 | Tous | OAuth Google (Socialite) |
+| P1 | Tous | Authentification à deux facteurs (TOTP + codes de récupération) |
+| P1 | Tous | Gestion des sessions actives |
+| P2 | Tous | Suppression de compte avec anonymisation (RGPD) |
+| P2 | Tous | OAuth Facebook / Apple |
+| P3 | Tous | Magic link de connexion |
+
+### 2.2 Rôles & permissions
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P0 | 🛡️ | Rôles prédéfinis (customer, agent, agency_admin, owner, service_provider, super_admin) |
+| P0 | 🛡️ | Permissions granulaires par ressource (view, create, update, delete, update_all…) |
+| P0 | 🛡️ | Distinction « mes ressources » vs « toutes les ressources » |
+| P1 | 🛡️ | Attribution et retrait de rôles à un utilisateur |
+| P1 | 🛡️ | Éditeur de rôles personnalisés par agence |
+| P2 | 🛡️ | Délégation temporaire de permissions |
+| P3 | 🛡️ | Règles conditionnelles (policies dynamiques) |
+
+### 2.3 Notifications
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P0 | Tous | Centre de notifications in-app (cloche + feed) |
+| P0 | Tous | Marquer comme lu / non lu |
+| P0 | Tous | Notifications email transactionnelles |
+| P1 | Tous | Notifications push web et mobile |
+| P1 | Tous | Préférences par canal (email, push, SMS) |
+| P1 | Tous | Templates multilingues |
+| P2 | Tous | Notifications SMS (événements critiques) |
+| P2 | Tous | Digest quotidien / hebdomadaire |
+| P3 | Tous | Notifications WhatsApp |
+
+### 2.4 Recherche & filtres
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P0 | Tous | Recherche plein-texte sur les biens (Scout) |
+| P0 | Tous | Filtres dynamiques via paramètres de requête |
+| P0 | Tous | Pagination standardisée |
+| P1 | Tous | Tri dynamique sur toutes les colonnes listables |
+| P1 | Tous | Recherches sauvegardées par utilisateur |
+| P2 | Tous | Recherche full-text sur messages et documents |
+| P2 | Tous | Suggestions d'autocomplétion |
+| P3 | Tous | Recherche sémantique par embeddings |
+
+### 2.5 Reporting & tableaux de bord
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P1 | 🛡️ | Dashboard agence (biens, vues, revenus, impayés) |
+| P1 | 🏢 | Dashboard bailleur (portefeuille, cashflow, occupation) |
+| P1 | 🧑‍💼 | Dashboard agent (pipeline, commissions, tâches) |
+| P1 | 🏠 | Dashboard locataire (prochaines échéances, documents) |
+| P2 | 🛡️ | Export CSV / Excel (paiements, baux, clients) |
+| P2 | 🛡️ | Export PDF (quittances, factures, rapports) |
+| P2 | 🛡️ | Graphiques temporels (revenus, occupation) |
+| P3 | 🛡️ | KPI personnalisables par agence |
+| P3 | 🛡️ | Alertes sur seuils (taux d'impayés, vacance) |
+
+### 2.6 Audit & traçabilité
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P0 | 🛡️ | Journal d'activité automatique sur entités critiques |
+| P1 | 🛡️ | Consultation du journal par entité |
+| P1 | 🛡️ | Filtrage par utilisateur, date, action |
+| P2 | 🛡️ | Export de l'audit trail |
+| P3 | 🛡️ | Alertes sur actions sensibles |
+
+### 2.7 Médias & fichiers
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P0 | Tous | Upload de fichiers avec validation de type et taille |
+| P0 | Tous | Conversions d'images (thumbnail, preview, responsive) |
+| P0 | Tous | Suppression sécurisée |
+| P1 | Tous | Upload multiple avec drag & drop |
+| P1 | Tous | Réorganisation des médias par glisser-déposer |
+| P2 | Tous | Optimisation CDN et formats modernes (webp, avif) |
+| P2 | Tous | Watermark automatique sur photos de biens |
+| P3 | Tous | Streaming vidéo adaptatif |
+
+### 2.8 Internationalisation & préférences
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P0 | Tous | Langues : FR, EN, WO |
+| P0 | Tous | Sélection de la langue par utilisateur |
+| P1 | Tous | Fuseau horaire utilisateur (par défaut Africa/Dakar) |
+| P1 | Tous | Format de date et nombre localisé |
+| P2 | Tous | Multi-devises (XOF, EUR, USD) avec taux de change |
+| P3 | Tous | Traduction automatique des contenus utilisateurs |
+
+### 2.9 Administration & configuration
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P0 | 🛡️ | Gestion des tags et amenités |
+| P0 | 🛡️ | Gestion des utilisateurs (activation, blocage) |
+| P1 | 🛡️ | Gestion des enums métier (types de biens, statuts) |
+| P1 | 🛡️ | Configuration email (templates, expéditeur) |
+| P2 | 🛡️ | Paramètres globaux de plateforme |
+| P2 | 🛡️ | Gestion des intégrations tierces (API keys) |
+| P3 | 🛡️ | Mode maintenance programmé |
+| P3 | 🛡️ | Feature flags |
+
+---
+
+## Notes de priorisation
+
+- **MVP = P0 + P1** : une première version publiable couvre la gestion de biens, la recherche, la location longue durée, les paiements de base, la messagerie, la maintenance, l'auth et les notifications essentielles.
+- **P2 (V2)** : enrichissement de l'expérience (comparateur, passerelle de paiement, exports, signatures, multi-devises).
+- **P3 (futur)** : différenciateurs concurrentiels (IA, signature électronique native, marketplace).
+
+Chaque fonctionnalité fera l'objet d'une spécification détaillée séparée avant implémentation (user stories, maquettes, règles de gestion, endpoints API).
