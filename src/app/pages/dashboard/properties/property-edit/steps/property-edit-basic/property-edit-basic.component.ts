@@ -1,5 +1,5 @@
 import {Component, EventEmitter, Input, Output} from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 import {FormGroup, ReactiveFormsModule} from '@angular/forms';
 import {AlertCircle, ArrowRight, LucideAngularModule} from 'lucide-angular';
 import {SelectModule} from 'primeng/select';
@@ -7,7 +7,7 @@ import {SelectModule} from 'primeng/select';
 @Component({
   selector: 'app-property-edit-basic',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, LucideAngularModule, SelectModule],
+  imports: [ReactiveFormsModule, LucideAngularModule, SelectModule],
   templateUrl: './property-edit-basic.component.html'
 })
 export class PropertyEditBasicComponent {

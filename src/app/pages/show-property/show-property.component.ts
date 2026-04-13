@@ -1,5 +1,5 @@
 import {Component, inject, OnInit} from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 import {ActivatedRoute, Router} from '@angular/router';
 import {FormsModule} from '@angular/forms';
 import {Property} from '../../core/models/http/property.model';
@@ -33,14 +33,13 @@ import {
   selector: 'app-show-property',
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     PropertyCardComponent,
     BadgeComponent,
     PriceFormatPipe,
     AreaFormatPipe,
     LucideAngularModule
-  ],
+],
   templateUrl: './show-property.component.html'
 })
 export class ShowPropertyComponent implements OnInit {

@@ -1,11 +1,11 @@
 import {Component} from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 import {LucideAngularModule, Twitter, Facebook} from 'lucide-angular';
 
 @Component({
   selector: 'app-footer',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule],
+  imports: [LucideAngularModule],
   template: `
       <!-- Footer -->
       <footer class="bg-gray-900 text-white py-12 mt-16">

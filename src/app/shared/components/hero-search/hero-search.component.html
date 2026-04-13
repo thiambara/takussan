@@ -24,9 +24,9 @@
     <div class="md:col-span-4 relative group">
       <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
         <svg class="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" fill="none"
-             stroke="currentColor" viewBox="0 0 24 24">
+          stroke="currentColor" viewBox="0 0 24 24">
           <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round"
-                stroke-width="2"/>
+            stroke-width="2"/>
         </svg>
       </div>
       <input
@@ -36,7 +36,7 @@
         [placeholder]="placeholder"
         class="form-input !pl-10 !pr-10"
         type="text"
-      />
+        />
       @if (searchQuery) {
         <button
           (click)="clearSearch()"
@@ -52,10 +52,10 @@
     <div class="md:col-span-4 relative group">
       <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
         <svg class="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" fill="none"
-             stroke="currentColor" viewBox="0 0 24 24">
+          stroke="currentColor" viewBox="0 0 24 24">
           <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                stroke-linecap="round" stroke-linejoin="round"
-                stroke-width="2"/>
+            stroke-linecap="round" stroke-linejoin="round"
+            stroke-width="2"/>
           <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
         </svg>
       </div>
@@ -67,15 +67,15 @@
         [value]="address"
         class="form-input !pl-10 !pr-10"
         type="text"
-      />
+        />
       @if (isLoadingAddresses) {
         <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
           <svg class="animate-spin h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24"
-               xmlns="http://www.w3.org/2000/svg">
+            xmlns="http://www.w3.org/2000/svg">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  fill="currentColor"></path>
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            fill="currentColor"></path>
           </svg>
         </div>
       }
@@ -102,8 +102,8 @@
                   class="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-start space-x-3 transition-colors">
                   <svg class="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                          stroke-linecap="round" stroke-linejoin="round"
-                          stroke-width="2"/>
+                      stroke-linecap="round" stroke-linejoin="round"
+                      stroke-width="2"/>
                   </svg>
                   <div>
                     <span class="block text-sm font-medium text-gray-900">{{ suggestion.label }}</span>
@@ -131,14 +131,18 @@
         styleClass="w-full !border-gray-300 !rounded-lg"
         [filter]="false">
         <ng-template let-selectedOption pTemplate="selectedItem">
-          <div class="flex items-center gap-2" *ngIf="selectedOption">
-            <span>{{ selectedOption.icon }}</span>
-            <span>{{ selectedOption.label }}</span>
-          </div>
-          <div class="flex items-center gap-2" *ngIf="!selectedOption">
-             <span>{{ propertyTypes[0].icon }}</span>
-             <span>{{ propertyTypes[0].label }}</span>
-          </div>
+          @if (selectedOption) {
+            <div class="flex items-center gap-2">
+              <span>{{ selectedOption.icon }}</span>
+              <span>{{ selectedOption.label }}</span>
+            </div>
+          }
+          @if (!selectedOption) {
+            <div class="flex items-center gap-2">
+              <span>{{ propertyTypes[0].icon }}</span>
+              <span>{{ propertyTypes[0].label }}</span>
+            </div>
+          }
         </ng-template>
         <ng-template let-type pTemplate="item">
           <div class="flex items-center gap-2">
@@ -156,7 +160,7 @@
         class="w-full h-full flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
         <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round"
-                stroke-width="2"/>
+            stroke-width="2"/>
         </svg>
       </button>
     </div>

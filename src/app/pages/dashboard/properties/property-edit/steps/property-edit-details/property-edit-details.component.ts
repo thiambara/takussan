@@ -1,5 +1,5 @@
 import {Component, EventEmitter, Input, Output} from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 import {FormGroup, ReactiveFormsModule} from '@angular/forms';
 import {ArrowRight, Building, LucideAngularModule} from 'lucide-angular';
 import {DatePickerModule} from 'primeng/datepicker';
@@ -9,7 +9,7 @@ import {SelectModule} from 'primeng/select';
 @Component({
   selector: 'app-property-edit-details',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, LucideAngularModule, DatePickerModule, AutoCompleteModule, SelectModule],
+  imports: [ReactiveFormsModule, LucideAngularModule, DatePickerModule, AutoCompleteModule, SelectModule],
   templateUrl: './property-edit-details.component.html'
 })
 export class PropertyEditDetailsComponent {

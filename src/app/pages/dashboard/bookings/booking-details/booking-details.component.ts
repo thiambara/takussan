@@ -1,6 +1,6 @@
 import {Component, EventEmitter, Input, OnInit, Output} from '@angular/core';
 import {Router, RouterModule} from '@angular/router';
-import {CommonModule} from '@angular/common';
+
 import {Booking} from '../../../../core/models/http/booking.model';
 import {ButtonModule} from 'primeng/button';
 import {CardModule} from 'primeng/card';
@@ -34,7 +34,6 @@ import {BookingStatus} from "../../../../core/models/http/enum-models";
   selector: 'app-booking-details',
   standalone: true,
   imports: [
-    CommonModule,
     ButtonModule,
     CardModule,
     DividerModule,
@@ -45,7 +44,7 @@ import {BookingStatus} from "../../../../core/models/http/enum-models";
     ConfirmDialogModule,
     TagModule,
     LucideAngularModule
-  ],
+],
   providers: [MessageService, ConfirmationService],
   templateUrl: './booking-details.component.html',
 })

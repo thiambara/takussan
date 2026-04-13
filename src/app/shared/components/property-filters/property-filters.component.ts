@@ -1,5 +1,5 @@
 import {Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges} from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 import {FormsModule} from '@angular/forms';
 import {PropertyFilter} from "../../../core/models/property-filter.model";
 import {LucideAngularModule, Minus, Plus, Search, X} from 'lucide-angular';
@@ -13,7 +13,6 @@ import {AccordionModule} from 'primeng/accordion';
   selector: 'app-property-filters',
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     LucideAngularModule,
     SelectModule,
@@ -21,7 +20,7 @@ import {AccordionModule} from 'primeng/accordion';
     CheckboxModule,
     RadioButtonModule,
     AccordionModule
-  ],
+],
   templateUrl: './property-filters.component.html'
 })
 export class PropertyFiltersComponent implements OnInit, OnChanges {

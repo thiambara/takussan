@@ -1,5 +1,5 @@
 import {Component, EventEmitter, Input, Output} from '@angular/core';
-import {CommonModule, NgOptimizedImage} from '@angular/common';
+import { CommonModule, NgOptimizedImage } from '@angular/common';
 import {Property} from "../../../core/models/http/property.model";
 import {Media} from "../../../core/models/http/media.model";
 import {ArrowRight, Bath, Bed, Calendar, Heart, LucideAngularModule, MapPin, Maximize} from 'lucide-angular';

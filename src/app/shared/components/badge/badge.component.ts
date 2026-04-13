@@ -1,5 +1,5 @@
 import {Component, Input} from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 
 export type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'primary' | 'secondary';
 export type BadgeSize = 'sm' | 'md' | 'lg';
@@ -7,7 +7,7 @@ export type BadgeSize = 'sm' | 'md' | 'lg';
 @Component({
   selector: 'app-badge',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './badge.component.html',
 })
 export class BadgeComponent {

@@ -1,6 +1,6 @@
 import {Component, OnInit} from '@angular/core';
 import {CustomerService} from "../../../../core/services/http/customer.service";
-import {CommonModule} from "@angular/common";
+
 import {FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators} from "@angular/forms";
 import {finalize} from "rxjs";
 import {ActivatedRoute, Router, RouterModule} from "@angular/router";
@@ -19,7 +19,6 @@ import {SelectModule} from 'primeng/select';
   selector: 'app-customer-edit',
   templateUrl: './customer-edit.component.html',
   imports: [
-    CommonModule,
     RouterModule,
     ReactiveFormsModule,
     FormsModule,
@@ -27,7 +26,7 @@ import {SelectModule} from 'primeng/select';
     Card,
     LucideAngularModule,
     SelectModule
-  ],
+],
   standalone: true
 })
 export class CustomerEditComponent implements OnInit {

@@ -1,13 +1,13 @@
 import {Component} from '@angular/core';
 import {RouterModule} from '@angular/router';
-import {CommonModule} from '@angular/common';
+
 import {Topbar} from "./topbar";
 import {Footer} from "./footer";
 
 @Component({
   selector: 'app-layout2',
   standalone: true,
-  imports: [CommonModule, RouterModule, Topbar, Footer],
+  imports: [RouterModule, Topbar, Footer],
   template: `
       <div class="flex overflow-x-hidden relative flex-col min-h-screen bg-gray-50 size-full group/design-root"
            style='font-family: "Work Sans", "Noto Sans", sans-serif;'>

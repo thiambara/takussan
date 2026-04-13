@@ -1,5 +1,5 @@
 import {Component, HostListener, OnInit} from '@angular/core';
-import {CommonModule} from "@angular/common";
+
 import {FormsModule} from "@angular/forms";
 import {ActivatedRoute, Router, RouterLink} from "@angular/router";
 import {AuthService} from "../../../core/services/http/auth/auth.service";
@@ -11,11 +11,10 @@ import {switchMap} from "rxjs";
   selector: 'app-login',
   templateUrl: './login.component.html',
   imports: [
-    CommonModule,
     FormsModule,
     RouterLink,
     LucideAngularModule
-  ],
+],
   standalone: true
 })
 export class LoginComponent implements OnInit {

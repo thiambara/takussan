@@ -1,7 +1,7 @@
 import {Component, OnInit} from '@angular/core';
 import {MessageService} from 'primeng/api';
 import {Property} from "../../../../core/models/http/property.model";
-import {CommonModule, DatePipe, NgOptimizedImage} from "@angular/common";
+import { CommonModule, DatePipe, NgOptimizedImage } from "@angular/common";
 import {RouterLink} from "@angular/router";
 import {Button} from "primeng/button";
 import {FormsModule} from "@angular/forms";

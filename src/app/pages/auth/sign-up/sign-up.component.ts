@@ -1,5 +1,5 @@
 import {Component, HostListener, OnInit} from '@angular/core';
-import {CommonModule} from "@angular/common";
+
 import {FormsModule} from "@angular/forms";
 import {ActivatedRoute, Router, RouterLink} from "@angular/router";
 import {User} from "../../../core/models/http/user.model";
@@ -11,11 +11,10 @@ import {Eye, EyeOff, LayoutGrid, LucideAngularModule} from "lucide-angular";
   selector: 'app-sign-up',
   templateUrl: './sign-up.component.html',
   imports: [
-    CommonModule,
     FormsModule,
     RouterLink,
     LucideAngularModule
-  ],
+],
   standalone: true
 })
 export class SignUpComponent implements OnInit {

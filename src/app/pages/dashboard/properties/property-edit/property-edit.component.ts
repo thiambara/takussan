@@ -1,5 +1,5 @@
 import {Component, inject, OnInit, signal} from '@angular/core';
-import {CommonModule, Location} from '@angular/common';
+import { Location } from '@angular/common';
 import {FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators} from '@angular/forms';
 import {ActivatedRoute, Router} from '@angular/router';
 import {MessageService} from 'primeng/api';
@@ -29,7 +29,6 @@ import {PropertyEditMediaComponent} from './steps/property-edit-media/property-e
   selector: 'app-property-edit',
   templateUrl: './property-edit.component.html',
   imports: [
-    CommonModule,
     ReactiveFormsModule,
     FormsModule,
     ToastModule,
@@ -38,7 +37,7 @@ import {PropertyEditMediaComponent} from './steps/property-edit-media/property-e
     PropertyEditDetailsComponent,
     PropertyEditLocationComponent,
     PropertyEditMediaComponent
-  ],
+],
   providers: [MessageService],
   standalone: true
 })

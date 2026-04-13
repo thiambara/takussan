@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, Output, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { LucideAngularModule } from 'lucide-angular';
 import { FileUploadModule } from 'primeng/fileupload';
 import { File, Star, Trash2, Check, Loader2, Save } from 'lucide-angular';
@@ -10,7 +10,7 @@ import { environment } from '../../../../../../../environments/environment';
 @Component({
   selector: 'app-property-edit-media',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule, FileUploadModule],
+  imports: [LucideAngularModule, FileUploadModule],
   templateUrl: './property-edit-media.component.html'
 })
 export class PropertyEditMediaComponent {

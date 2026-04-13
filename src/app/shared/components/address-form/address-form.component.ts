@@ -1,5 +1,5 @@
 import {Component, EventEmitter, Input, OnInit, Output} from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 import {FormBuilder, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
 import {Address} from '../../../core/models/http/address.model';
 
@@ -17,7 +17,6 @@ import {SelectModule} from 'primeng/select';
   templateUrl: './address-form.component.html',
   standalone: true,
   imports: [
-    CommonModule,
     ReactiveFormsModule,
     InputTextModule,
     ButtonModule,
@@ -26,7 +25,7 @@ import {SelectModule} from 'primeng/select';
     TooltipModule,
     LucideAngularModule,
     SelectModule
-  ]
+]
 })
 export class AddressFormComponent implements OnInit {
   @Input() visible = false;

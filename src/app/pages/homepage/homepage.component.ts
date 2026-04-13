@@ -1,5 +1,5 @@
 import {Component, inject, OnInit} from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 import {FormsModule} from '@angular/forms';
 import {Router} from '@angular/router';
 import {Property} from "../../core/models/http/property.model";
@@ -12,12 +12,11 @@ import {Briefcase, Building2, House, LucideAngularModule, Map, Store, TreePalm} 
   selector: 'app-homepage',
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     PropertyCardComponent,
     LucideAngularModule,
     HeroSearchComponent
-  ],
+],
   templateUrl: './homepage.component.html'
 })
 export class HomepageComponent implements OnInit {

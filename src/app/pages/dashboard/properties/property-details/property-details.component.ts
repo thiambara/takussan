@@ -1,5 +1,5 @@
 import {Component, computed, inject, OnInit, signal} from '@angular/core';
-import {CommonModule, Location} from "@angular/common";
+import { CommonModule, Location } from "@angular/common";
 import {ActivatedRoute, Router} from '@angular/router';
 import {Property} from '../../../../core/models/http/property.model';
 import {PropertyService} from '../../../../core/services/http/property.service';

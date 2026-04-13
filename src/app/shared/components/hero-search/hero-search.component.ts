@@ -1,5 +1,5 @@
 import {Component, EventEmitter, Input, OnDestroy, OnInit, Output} from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 import {FormsModule} from '@angular/forms';
 import {LucideAngularModule} from 'lucide-angular';
 import {debounceTime, distinctUntilChanged, Subject} from 'rxjs';
@@ -29,11 +29,10 @@ export interface PropertyType {
   selector: 'app-hero-search',
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     LucideAngularModule,
     SelectModule
-  ],
+],
   templateUrl: './hero-search.component.html'
 })
 export class HeroSearchComponent implements OnInit, OnDestroy {
