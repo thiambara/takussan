@@ -74,14 +74,18 @@ Gestion du cycle de vie d'un bien immobilier, de sa création à sa sortie du po
 | P0 | 🧑‍💼 | Définir le statut (disponible / réservé / vendu / loué / archivé) |
 | P0 | 🧑‍💼 | Publier et dépublier un bien |
 | P0 | 🧑‍💼 | Modifier / supprimer un bien (soft delete) |
+| P0 | 🧑‍💼 | Attribuer automatiquement une référence unique à chaque bien (ex : TK-2025-001) |
 | P1 | 🧑‍💼 | Uploader plans, vidéos et visites virtuelles 360° |
 | P1 | 🧑‍💼 | Associer des tags / amenités (piscine, climatisation, meublé…) |
 | P1 | 🏢🧑‍💼 | Historique de prix automatique à chaque changement |
-| P1 | 🧑‍💼 | Ajouter des collaborateurs au bien (% de commission) |
+| P1 | 🧑‍💼 | Ajouter des collaborateurs au bien avec part de commission explicite et permissions granulaires |
+| P1 | 🏢🧑‍💼 | Gérer une hiérarchie de biens (immeuble → étages → lots) |
+| P1 | 🧑‍💼🏢 | Renseigner le type de titre foncier (bail, titre foncier, délibération, autre) |
 | P1 | 🧑‍💼 | Compteurs de vues et de favoris |
 | P2 | 🧑‍💼 | Dupliquer un bien (modèle / template) |
 | P2 | 🛡️ | Modération et validation avant publication |
 | P2 | 🧑‍💼 | Archivage en lot |
+| P3 | 🛡️🏢 | Marquer un bien comme nécessitant un suivi administratif particulier |
 | P3 | 🧑‍💼 | Import CSV / API externe (MLS, syndication) |
 | P3 | 🧑‍💼 | Estimation automatique de prix (IA / comparables) |
 
@@ -103,7 +107,7 @@ Expérience de découverte pour visiteurs anonymes et clients connectés.
 | P1 | 👤🏠 | Partage d'un bien (lien, réseaux sociaux) |
 | P2 | 🏠 | Comparateur de biens côte à côte |
 | P2 | 🏠 | Biens similaires / suggestions personnalisées |
-| P2 | 🏠 | Historique des biens consultés |
+| P2 | 🏠 | Historique local des biens consultés (stockage navigateur) |
 | P3 | 🏠 | Recherche vocale / en langage naturel |
 
 ### 1.3 Réservations courte durée & visites
@@ -115,10 +119,10 @@ Réservation ponctuelle d'un bien (saisonnier, visite payante, pré-réservation
 | P1 | 🏠 | Demander une réservation (dates, montant, caution) |
 | P1 | 🏢🧑‍💼 | Accepter, refuser ou annuler une demande |
 | P1 | 🏠🏢 | Paiement d'acompte et solde |
-| P1 | 🏢 | Calendrier de disponibilité par bien |
+| P1 | 🏢 | Vue calendrier agrégée à partir des réservations confirmées et des visites planifiées |
 | P1 | 🏠🏢 | Consultation des paiements liés à la réservation |
 | P2 | 🏠 | Expiration automatique des demandes non traitées |
-| P2 | 🏠🧑‍💼 | Planification de visites physiques (PropertyVisit) |
+| P2 | 🏠🧑‍💼 | Planification de visites : en personne, virtuelle, en autonomie ou hybride ; agent accompagnateur, durée estimée, feedback post-visite |
 | P2 | 🏠🧑‍💼 | Rappels automatiques avant visite |
 | P3 | 🏠 | Annulation avec remboursement partiel automatisé |
 
@@ -133,11 +137,12 @@ Gestion complète d'un contrat de bail et de son cycle de vie.
 | P1 | 🏢🧑‍💼 | Générer l'échéancier de loyers mensuels |
 | P1 | 🏠🏢 | Enregistrer un paiement mensuel |
 | P1 | 🧑‍💼 | Relances automatiques en cas d'impayé |
+| P1 | 🧑‍💼🏢 | Appliquer automatiquement des pénalités de retard sur les paiements en retard |
 | P1 | 🧑‍💼 | Remboursement de la caution en fin de bail |
 | P1 | 🏢🧑‍💼 | Consultation de l'historique complet d'un bail |
-| P2 | 🏢🧑‍💼 | Renouvellement ou avenant au bail |
+| P2 | 🏢🧑‍💼 | Renouveler un bail ou créer un avenant (loyer, durée, conditions) avec traçabilité du bail parent |
 | P2 | 🏢🧑‍💼 | Résiliation anticipée avec calcul des pénalités |
-| P2 | 🏠🏢 | Révision annuelle du loyer (indice) |
+| P2 | 🏠🏢 | Révision annuelle du loyer (indice ou accord amiable) journalisée via le journal d'activité |
 | P3 | 🏠🏢 | Signature électronique du bail |
 | P3 | 🏠 | Espace locataire dédié (quittances, factures, maintenance) |
 
@@ -170,7 +175,8 @@ Gestion des contacts (Customer) liés ou non à un compte utilisateur.
 | P1 | 🧑‍💼 | Définir la relation agent ↔ client (type, période) |
 | P1 | 🧑‍💼 | Joindre pièces d'identité et documents |
 | P1 | 🧑‍💼 | Historique d'interactions (via journal d'activité) |
-| P1 | 🧑‍💼 | Notes libres sur un client |
+| P1 | 🧑‍💼 | Désigner un contact principal parmi les agents liés à un client |
+| P1 | 🧑‍💼 | Ajouter des notes horodatées et signées par un agent sur un client |
 | P2 | 🧑‍💼 | Pipeline de prospects (stades, conversion) |
 | P2 | 🧑‍💼 | Tâches et rappels attachés à un client |
 | P2 | 🧑‍💼 | Segmentation et tags clients |
@@ -233,7 +239,7 @@ Centralisation de tous les fichiers liés à une entité.
 | P1 | 🏠🏢 | Partage sécurisé par lien temporaire |
 | P1 | 🧑‍💼 | Recherche dans la bibliothèque de documents |
 | P2 | 🧑‍💼 | Génération PDF (quittance, facture, bail) depuis templates |
-| P2 | 🧑‍💼 | Versioning des documents |
+| P2 | 🧑‍💼 | Historique des versions d'un document (via medialibrary + journal d'activité) |
 | P3 | 🧑‍💼 | Signature électronique intégrée |
 | P3 | 🧑‍💼 | OCR et extraction automatique de données |
 
@@ -247,6 +253,7 @@ Notation et commentaires publics.
 | P2 | 👤 | Consulter les avis publics |
 | P2 | 🛡️ | Modération (masquer, supprimer) |
 | P2 | 🏢🧑‍💼 | Répondre publiquement à un avis |
+| P2 | 👤🏠🏢 | Signaler un avis inapproprié (déclenche modération) |
 | P3 | 🛡️ | Détection automatique d'avis suspects |
 | P3 | 🏢🧑‍💼 | Badges de réputation |
 
@@ -261,8 +268,8 @@ Gestion de la structure organisationnelle.
 | P0 | 🛡️ | Attribution de rôles aux membres |
 | P1 | 🛡️ | Statistiques globales d'agence (portefeuille, revenus) |
 | P1 | 🛡️ | Paramètres de commission par défaut |
-| P2 | 🛡️ | Gestion multi-branches / sous-agences |
-| P2 | 🛡️ | Gestion des congés / disponibilité des agents |
+| P3 | 🛡️ | Gestion multi-branches / sous-agences |
+| P3 | 🛡️ | Gestion des congés / disponibilité des agents |
 | P3 | 🛡️ | Plan d'abonnement et facturation SaaS |
 | P3 | 🛡️ | Marketplace inter-agences |
 
@@ -296,7 +303,7 @@ Gestion de la structure organisationnelle.
 | P0 | 🛡️ | Permissions granulaires par ressource (view, create, update, delete, update_all…) |
 | P0 | 🛡️ | Distinction « mes ressources » vs « toutes les ressources » |
 | P1 | 🛡️ | Attribution et retrait de rôles à un utilisateur |
-| P1 | 🛡️ | Éditeur de rôles personnalisés par agence |
+| P1 | 🛡️ | Éditeur de rôles personnalisés scopé par agence (via teams spatie/permission ou policy applicative) |
 | P2 | 🛡️ | Délégation temporaire de permissions |
 | P3 | 🛡️ | Règles conditionnelles (policies dynamiques) |
 
@@ -309,7 +316,7 @@ Gestion de la structure organisationnelle.
 | P0 | Tous | Notifications email transactionnelles |
 | P1 | Tous | Notifications push web et mobile |
 | P1 | Tous | Préférences par canal (email, push, SMS) |
-| P1 | Tous | Templates multilingues |
+| P1 | Tous | Templates localisés via fichiers lang/ Laravel |
 | P2 | Tous | Notifications SMS (événements critiques) |
 | P2 | Tous | Digest quotidien / hebdomadaire |
 | P3 | Tous | Notifications WhatsApp |
@@ -372,7 +379,8 @@ Gestion de la structure organisationnelle.
 | P0 | Tous | Sélection de la langue par utilisateur |
 | P1 | Tous | Fuseau horaire utilisateur (par défaut Africa/Dakar) |
 | P1 | Tous | Format de date et nombre localisé |
-| P2 | Tous | Multi-devises (XOF, EUR, USD) avec taux de change |
+| P2 | Tous | Devise configurable par agence (XOF par défaut, EUR, USD) |
+| P3 | Tous | Conversion multi-devises avec taux de change |
 | P3 | Tous | Traduction automatique des contenus utilisateurs |
 
 ### 2.9 Administration & configuration
