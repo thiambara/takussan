@@ -14,6 +14,7 @@
 | 003 | 2026-04-14 | [`pass-003-2026-04-14-0613`](./pass-003-2026-04-14-0613/00-summary.md) | Vérification de stabilité #2 — fichiers source toujours inchangés depuis pass-001 |
 | 004 | 2026-04-14 | [`pass-004-2026-04-14-0904`](./pass-004-2026-04-14-0904/00-summary.md) | Vérification de stabilité #3 — seuil d'alerte organisationnelle atteint |
 | 005 | 2026-04-14 | [`pass-005-2026-04-14-1204`](./pass-005-2026-04-14-1204/00-summary.md) | Vérification de stabilité #4 — alerte non suivie, gel recommandé |
+| 006 | 2026-04-14 | [`pass-006-2026-04-14-2047`](./pass-006-2026-04-14-2047/00-summary.md) | **Convergence atteinte** — 42 recommandations appliquées, 0 ❌ |
 
 ## Tableau d'évolution
 
@@ -24,9 +25,12 @@
 | 003 | 2026-04-14 | ~170 | 28 | 156 | 22 | 9 | 0 | 0 | 0 |
 | 004 | 2026-04-14 | ~170 | 28 | 156 | 22 | 9 | 0 | 0 | 0 |
 | 005 | 2026-04-14 | ~170 | 28 | 156 | 22 | 9 | 0 | 0 | 0 |
+| 006 | 2026-04-14 | ~170 | **33** | **191** | **12** | **0** | **+35** | **−10** | **−9** |
 
 ## Statut de convergence
 
-**Non atteinte** — 22 ⚠️ et 9 ❌ encore actionnables à l'issue de la passe 005 (identique à pass-001, 002, 003 et 004, aucun fichier source modifié depuis cinq passes). Les 19 recommandations sur `features.md` (A1–A9, B1–B8, C1–C2) et 23 recommandations sur `models-spec.md` (R1–R23) issues de la pass-001 restent à arbitrer puis appliquer manuellement.
+**🎯 Convergence atteinte à la passe 006.**
 
-**🚨 Alerte organisationnelle non suivie :** quatre passes de vérification consécutives (002, 003, 004 et 005) sans aucune évolution des fichiers source. La préconisation de la passe 004 (geler `/sync-specs` jusqu'à application d'au moins une recommandation bloquante) **n'a pas été respectée**. Gel fermement recommandé avant la passe 006. Escalader d'urgence aux décideurs produit l'arbitrage de R5, R6, R7, R15, R16.
+Les 42 recommandations de la passe 001 (A1–A9, B1–B8, C1–C2, R1–R23) ont été appliquées en une exécution coordonnée sur `features.md`, `models-spec.md` et `features-by-actor.md` (plan `piped-skipping-flute`). Les 12 ⚠️ subsistants sont tous justifiés — applicatifs purs (comparateur, passerelles paiement, rapprochement, campagnes, traduction auto) ou évolutions futures documentées (EF2 commissions, EF5 message_reads, EF9 ExchangeRate).
+
+Aucun ❌, aucun modèle orphelin. Les passes suivantes sont **facultatives** et ne devraient être relancées qu'en cas de modification ultérieure des fichiers source.
