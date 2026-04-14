@@ -15,6 +15,7 @@
 | 004 | 2026-04-14 | [`pass-004-2026-04-14-0904`](./pass-004-2026-04-14-0904/00-summary.md) | Vérification de stabilité #3 — seuil d'alerte organisationnelle atteint |
 | 005 | 2026-04-14 | [`pass-005-2026-04-14-1204`](./pass-005-2026-04-14-1204/00-summary.md) | Vérification de stabilité #4 — alerte non suivie, gel recommandé |
 | 006 | 2026-04-14 | [`pass-006-2026-04-14-2047`](./pass-006-2026-04-14-2047/00-summary.md) | **Convergence atteinte** — 42 recommandations appliquées, 0 ❌ |
+| 007 | 2026-04-14 | [`pass-007-2026-04-14-2052`](./pass-007-2026-04-14-2052/00-summary.md) | **Convergence confirmée** — 2e passe sans recommandation actionnable |
 
 ## Tableau d'évolution
 
@@ -26,10 +27,11 @@
 | 004 | 2026-04-14 | ~170 | 28 | 156 | 22 | 9 | 0 | 0 | 0 |
 | 005 | 2026-04-14 | ~170 | 28 | 156 | 22 | 9 | 0 | 0 | 0 |
 | 006 | 2026-04-14 | ~170 | **33** | **191** | **12** | **0** | **+35** | **−10** | **−9** |
+| 007 | 2026-04-14 | ~170 | 33 | 191 | 12 | 0 | 0 | 0 | 0 |
 
 ## Statut de convergence
 
-**🎯 Convergence atteinte à la passe 006.**
+**🎯 Convergence formellement confirmée à la passe 007** (deuxième passe consécutive sans recommandation actionnable).
 
 Les 42 recommandations de la passe 001 (A1–A9, B1–B8, C1–C2, R1–R23) ont été appliquées en une exécution coordonnée sur `features.md`, `models-spec.md` et `features-by-actor.md` (plan `piped-skipping-flute`). Les 12 ⚠️ subsistants sont tous justifiés — applicatifs purs (comparateur, passerelles paiement, rapprochement, campagnes, traduction auto) ou évolutions futures documentées (EF2 commissions, EF5 message_reads, EF9 ExchangeRate).
 
