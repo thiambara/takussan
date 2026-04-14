@@ -16,6 +16,7 @@
 | 005 | 2026-04-14 | [`pass-005-2026-04-14-1204`](./pass-005-2026-04-14-1204/00-summary.md) | Vérification de stabilité #4 — alerte non suivie, gel recommandé |
 | 006 | 2026-04-14 | [`pass-006-2026-04-14-2047`](./pass-006-2026-04-14-2047/00-summary.md) | **Convergence atteinte** — 42 recommandations appliquées, 0 ❌ |
 | 007 | 2026-04-14 | [`pass-007-2026-04-14-2052`](./pass-007-2026-04-14-2052/00-summary.md) | **Convergence confirmée** — 2e passe sans recommandation actionnable |
+| 008 | 2026-04-14 | [`pass-008-2026-04-14-2102`](./pass-008-2026-04-14-2102/00-summary.md) | Stabilité post-convergence — 3e passe consécutive sans changement |
 
 ## Tableau d'évolution
 
@@ -28,6 +29,7 @@
 | 005 | 2026-04-14 | ~170 | 28 | 156 | 22 | 9 | 0 | 0 | 0 |
 | 006 | 2026-04-14 | ~170 | **33** | **191** | **12** | **0** | **+35** | **−10** | **−9** |
 | 007 | 2026-04-14 | ~170 | 33 | 191 | 12 | 0 | 0 | 0 | 0 |
+| 008 | 2026-04-14 | ~170 | 33 | 191 | 12 | 0 | 0 | 0 | 0 |
 
 ## Statut de convergence
 
