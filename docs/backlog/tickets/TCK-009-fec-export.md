@@ -6,8 +6,8 @@ phase: P3
 family: applicatif
 estimate: M
 created: 2026-04-15
-updated: 2026-04-15
-depends_on: [TCK-005, TCK-028]
+updated: 2026-04-16
+depends_on: [TCK-028]
 blocks: []
 spec_refs:
   features:

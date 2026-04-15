@@ -6,7 +6,7 @@ phase: P0
 family: applicatif
 estimate: M
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 depends_on: [TCK-013]
 blocks: [TCK-015, TCK-019, TCK-020, TCK-023]
 spec_refs:
@@ -56,6 +56,7 @@ Mettre en place le système de rôles prédéfinis, permissions granulaires par 
 - [ ] Un agent ne peut modifier que ses propres biens sauf s'il a `properties.update_all`
 - [ ] Les rôles personnalisés créés par une agence ne sont pas visibles par une autre
 - [ ] L'attribution de rôle est réservée aux `agency_admin` et `super_admin`
+- [ ] Le retrait du rôle `agent` d'un utilisateur ne supprime pas ses biens/réservations — ses ressources restent assignées à l'agence (l'utilisateur perd l'accès, pas les données)
 
 ## Hors périmètre
 

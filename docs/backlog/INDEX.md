@@ -44,7 +44,7 @@
 - [TCK-025](tickets/TCK-025-public-search-discovery.md) — Recherche & découverte publique `L · P0 · applicatif`
 - [TCK-026](tickets/TCK-026-short-term-bookings.md) — Réservations courte durée & visites `L · P1 · applicatif`
 - [TCK-027](tickets/TCK-027-long-term-leases.md) — Location longue durée (baux) `XL · P1 · applicatif`
-- [TCK-028](tickets/TCK-028-transactions-payments.md) — Transactions & paiements `L · P0 · applicatif`
+- [TCK-028](tickets/TCK-028-transactions-payments.md) — Transactions & paiements `L · P1 · applicatif`
 
 ### Couche 4 — Features avancées
 

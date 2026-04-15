@@ -6,7 +6,7 @@ phase: P1
 family: applicatif
 estimate: L
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 depends_on: [TCK-013, TCK-019]
 blocks: [TCK-006]
 spec_refs:
@@ -47,6 +47,7 @@ Implémenter la messagerie privée : conversations 1↔1, envoi de messages avec
 - [ ] Conversations de groupe (multi-participants) : `POST /api/conversations/{conversation}/participants`
 - [ ] Accusés de lecture individuels (→ TCK-006 si >5 participants)
 - [ ] Recherche dans l'historique des messages : `GET /api/conversations/{conversation}/messages?search=`
+- [ ] Archivage de conversation : `PUT /api/conversations/{conversation}/archive` — seul un participant peut archiver sa propre vue (soft-hide, pas de suppression des messages)
 
 ### P3
 
@@ -60,6 +61,7 @@ Implémenter la messagerie privée : conversations 1↔1, envoi de messages avec
 - [ ] La liste affiche le dernier message et le compteur de messages non lus
 - [ ] Marquer comme lu met à jour `last_read_at` du participant
 - [ ] Une notification est envoyée au destinataire sur nouveau message
+- [ ] Un participant peut archiver une conversation (elle disparaît de sa liste) sans affecter les autres participants
 
 ## Hors périmètre
 

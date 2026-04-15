@@ -6,7 +6,7 @@ phase: P1
 family: applicatif
 estimate: XL
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 depends_on: [TCK-019, TCK-020]
 blocks: [TCK-028, TCK-030, TCK-031, TCK-032]
 spec_refs:
@@ -35,7 +35,7 @@ Implémenter la gestion complète des baux : création, garants, échéancier de
 - [ ] Migration `lease_payments` : `lease_id`, `amount`, `due_date`, `paid_date`, `status`, `payment_method`, `late_fee_amount`, `receipt_number`, `period_start`, `period_end`, `notes`
 - [ ] Migration `guarantors` : `lease_id`, `first_name`, `last_name`, `email`, `phone`, `relationship`, `occupation`, `monthly_income`, `address`, medialibrary collection `id_documents`
 - [ ] Endpoints CRUD Lease : `POST /api/leases`, `GET /api/leases/{lease}`, `PUT /api/leases/{lease}`
-- [ ] Endpoint `POST /api/leases/{lease}/guarantors` — ajouter un garant avec documents
+- [ ] Endpoint `POST /api/leases/{lease}/guarantors` — ajouter un garant avec documents (max 3 garants par bail, contrôlé à l'API)
 - [ ] Endpoint `POST /api/leases/{lease}/generate-schedule` — générer l'échéancier de loyers mensuels
 - [ ] Endpoint `POST /api/leases/{lease}/payments` — enregistrer un paiement mensuel
 - [ ] Job `LeasePaymentReminderJob` — relances automatiques impayés (email + notification)
@@ -59,7 +59,7 @@ Implémenter la gestion complète des baux : création, garants, échéancier de
 ## Critères d'acceptation
 
 - [ ] Un bail est créé avec locataire, bailleur, durée, loyer et caution
-- [ ] Les garants sont ajoutés avec documents joints
+- [ ] Les garants sont ajoutés avec documents joints (maximum 3 garants par bail ; rejet 422 au-delà)
 - [ ] L'échéancier génère une entrée `LeasePayment` par mois sur la durée du bail
 - [ ] Les paiements en retard déclenchent une relance et des pénalités automatiques
 - [ ] Le remboursement de caution est enregistré avec le montant retenu

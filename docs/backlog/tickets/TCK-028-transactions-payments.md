@@ -2,11 +2,11 @@
 id: TCK-028
 title: Transactions & paiements
 status: todo
-phase: P0
+phase: P1
 family: applicatif
 estimate: L
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 depends_on: [TCK-026, TCK-027]
 blocks: [TCK-002, TCK-003, TCK-005, TCK-007, TCK-009, TCK-032]
 spec_refs:
@@ -30,13 +30,15 @@ Implémenter la génération de factures, les reversements aux bailleurs après 
 
 ## Delta à produire
 
-### P0 — MVP bloquant
+> **Note de phase** : Ce ticket est P1 car il nécessite TCK-026 (BookingPayment) et TCK-027 (LeasePayment). Le trait `HasPaymentAttributes` peut être extrait en P0 dans TCK-026/027 directement si un MVP strict est requis.
+
+### P1 — MVP
 
 - [ ] Trait `HasPaymentAttributes` : casts et scopes partagés entre BookingPayment et LeasePayment
 - [ ] Endpoint `POST /api/payments` — enregistrer un paiement (routage vers BookingPayment ou LeasePayment selon contexte)
 - [ ] Tests : `PaymentRegistrationTest`
 
-### P1
+### P1 — Suite
 
 - [ ] Migration `invoices` : `invoiceable_id`, `invoiceable_type`, `customer_id`, `invoice_number`, `amount`, `tax_amount`, `total_amount`, `status`, `due_date`, `paid_date`, `currency`
 - [ ] Endpoint `POST /api/invoices` — générer une facture à un Customer
@@ -66,6 +68,7 @@ Implémenter la génération de factures, les reversements aux bailleurs après 
 - [ ] Un reversement calcule correctement le montant net (montant − commission)
 - [ ] L'historique consolide BookingPayments et LeasePayments avec filtres
 - [ ] Les transitions de statut sont validées (pas de retour à `pending` depuis `paid`)
+- [ ] Un paiement partiel (montant < attendu) est accepté et le statut reste `pending` jusqu'à solde complet ; la différence est tracée (`remaining_amount` calculé dynamiquement)
 
 ## Hors périmètre
 

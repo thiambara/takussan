@@ -6,7 +6,7 @@ phase: P0
 family: applicatif
 estimate: L
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 depends_on: [TCK-019, TCK-024]
 blocks: [TCK-001]
 spec_refs:
@@ -34,7 +34,7 @@ Implémenter les pages publiques de découverte : homepage, recherche avec filtr
 - [ ] Page homepage : biens en vedette (`featured = true`), derniers ajouts (tri `created_at desc`)
 - [ ] Page recherche : barre de recherche plein-texte + filtres de base (ville, type, prix, chambres, surface, transaction)
 - [ ] Tri des résultats : prix croissant/décroissant, récence, pertinence
-- [ ] Page fiche bien publique : galerie photos, détails, formulaire de contact (envoi message à l'agent)
+- [ ] Page fiche bien publique : galerie photos, détails, bouton "Contacter l'agent" (déclenche la création de conversation via TCK-029 si disponible, sinon simple formulaire mailto de repli)
 - [ ] Endpoints publics : `GET /api/public/properties`, `GET /api/public/properties/{id}`
 - [ ] Tests : `PublicHomepageTest`, `PublicSearchTest`, `PublicPropertyDetailTest`
 
@@ -62,7 +62,7 @@ Implémenter les pages publiques de découverte : homepage, recherche avec filtr
 
 - [ ] La homepage affiche les biens en vedette et les derniers ajouts
 - [ ] La recherche retourne des résultats filtrés avec pagination
-- [ ] La fiche bien affiche la galerie, les détails et le formulaire de contact
+- [ ] La fiche bien affiche la galerie, les détails et le bouton de contact (formulaire mailto si TCK-029 non encore déployé, conversation in-app sinon)
 - [ ] Un utilisateur connecté peut ajouter/retirer un bien de ses favoris
 - [ ] La carte affiche les biens géolocalisés avec des markers cliquables
 

@@ -6,7 +6,7 @@ phase: P2
 family: applicatif
 estimate: M
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 depends_on: [TCK-013, TCK-019]
 blocks: []
 spec_refs:
@@ -30,7 +30,7 @@ Implémenter le système d'avis publics avec notation, modération, réponses et
 ### P2
 
 - [ ] Migration Review : ajout `reply_content`, `replied_by_id`, `replied_at`, `reported_count`
-- [ ] Endpoint `POST /api/reviews` — laisser un avis sur un bien, un agent ou une agence (polymorphique via `reviewable`)
+- [ ] Endpoint `POST /api/reviews` — laisser un avis sur un bien, un agent ou une agence (polymorphique via `reviewable`) — un seul avis par `(user, reviewable)` ; délai minimum : 24h après la fin d'une réservation/bail confirmée
 - [ ] Endpoint `GET /api/{entity}/{id}/reviews` — consulter les avis publics (approuvés uniquement)
 - [ ] Endpoint `PUT /api/admin/reviews/{review}/approve` — modération (approuver)
 - [ ] Endpoint `DELETE /api/admin/reviews/{review}` — modération (supprimer)
@@ -48,6 +48,8 @@ Implémenter le système d'avis publics avec notation, modération, réponses et
 ## Critères d'acceptation
 
 - [ ] Un client connecté peut laisser un avis avec une note de 1 à 5
+- [ ] Un seul avis par `(user, reviewable)` est autorisé (rejet 409 en cas de doublon)
+- [ ] L'avis ne peut être soumis que 24h minimum après la fin de la réservation/bail associé(e) (rejet 422 avant ce délai)
 - [ ] Seuls les avis approuvés sont visibles publiquement
 - [ ] Un propriétaire/agence peut répondre publiquement à un avis
 - [ ] Un signalement incrémente `reported_count` et notifie les admins si seuil atteint

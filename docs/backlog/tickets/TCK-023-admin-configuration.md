@@ -6,7 +6,7 @@ phase: P0
 family: applicatif
 estimate: M
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 depends_on: [TCK-013, TCK-014]
 blocks: []
 spec_refs:
@@ -43,12 +43,11 @@ Implémenter les outils d'administration : gestion des tags, gestion des utilisa
 
 - [ ] Endpoint `GET/PUT /api/admin/enums` — gestion des enums métier (types de biens, statuts) — lecture + mise à jour dynamique
 - [ ] Endpoint `GET/PUT /api/admin/email-config` — configuration email (templates, expéditeur)
-- [ ] Tests : `AdminEnumManagementTest`, `AdminEmailConfigTest`
+- [ ] Migration + CRUD `Setting` : `GET/PUT /api/admin/settings` — paramètres globaux de plateforme (`scope` : global, agency)
+- [ ] Migration + CRUD `Integration` : `GET/POST/PUT/DELETE /api/admin/integrations` — gestion des intégrations tierces (API keys chiffrées)
+- [ ] Tests : `AdminEnumManagementTest`, `AdminEmailConfigTest`, `AdminSettingTest`, `AdminIntegrationTest`
 
-### P2
-
-- [ ] Migration + CRUD `Setting` : `GET/PUT /api/admin/settings` — paramètres globaux de plateforme
-- [ ] Migration + CRUD `Integration` : `GET/POST/PUT/DELETE /api/admin/integrations` — gestion des intégrations tierces (API keys)
+> **Pourquoi Setting/Integration en P1 ?** `Setting` est consommé dès P1 par TCK-008 (politique de remboursement) et TCK-011 (auto-traduction). `Integration` est nécessaire pour TCK-002 (passerelle paiement) et TCK-010 (recherche vocale).
 
 ### P3
 

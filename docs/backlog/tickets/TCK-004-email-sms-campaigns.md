@@ -6,7 +6,7 @@ phase: P3
 family: applicatif
 estimate: M
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 depends_on: [TCK-020]
 blocks: []
 spec_refs:
@@ -14,6 +14,7 @@ spec_refs:
     - docs/features.md#16-crm--relation-client
   models:
     - docs/models-spec.md#7-customer
+    - docs/models-spec.md#spatielaravel-activitylog
 tags: [back, crm, marketing]
 ---
 

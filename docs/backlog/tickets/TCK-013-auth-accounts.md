@@ -6,7 +6,7 @@ phase: P0
 family: applicatif
 estimate: L
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 depends_on: []
 blocks: [TCK-014, TCK-015, TCK-019, TCK-020, TCK-021, TCK-022, TCK-023, TCK-029, TCK-033]
 spec_refs:
@@ -23,7 +23,7 @@ Le backlog ne contient aucun ticket couvrant l'authentification ni la gestion de
 
 ## Objectif
 
-Implémenter le cycle complet d'authentification et de gestion de profil utilisateur décrit dans la section 2.1 de `features.md`.
+Implémenter le cycle complet d'authentification et de gestion de profil utilisateur décrit dans `features.md §2.1-authentification--comptes`.
 
 ## Delta à produire
 
@@ -44,7 +44,8 @@ Implémenter le cycle complet d'authentification et de gestion de profil utilisa
 - [ ] OAuth Google via Socialite (`GET /api/auth/google`, `GET /api/auth/google/callback`)
 - [ ] 2FA TOTP : activation, vérification, codes de récupération (`POST /api/auth/2fa/*`)
 - [ ] Endpoint gestion sessions actives (`GET /api/auth/sessions`, `DELETE /api/auth/sessions/{id}`)
-- [ ] Tests : `AuthOAuthTest`, `Auth2FATest`, `AuthSessionsTest`
+- [ ] Rate limiting sur les endpoints sensibles : 5 tentatives de login / 10 min par IP (via `ThrottleRequests` + config `config/auth.php`)
+- [ ] Tests : `AuthOAuthTest`, `Auth2FATest`, `AuthSessionsTest`, `AuthRateLimitingTest`
 
 ### P2
 
@@ -64,6 +65,7 @@ Implémenter le cycle complet d'authentification et de gestion de profil utilisa
 - [ ] Le mot de passe oublié envoie un email avec un lien de réinitialisation fonctionnel
 - [ ] Les tokens expirent selon la configuration Sanctum
 - [ ] Les pages Angular gèrent les erreurs de validation et les redirections post-auth
+- [ ] Après 5 tentatives de login échouées en 10 min, l'IP reçoit 429 Too Many Requests
 
 ## Hors périmètre
 

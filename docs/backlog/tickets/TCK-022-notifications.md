@@ -6,7 +6,7 @@ phase: P0
 family: applicatif
 estimate: M
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 depends_on: [TCK-013]
 blocks: []
 spec_refs:
@@ -34,8 +34,9 @@ Implémenter le système complet de notifications : centre in-app, emails transa
 - [ ] Endpoint `PUT /api/notifications/{id}/read` — marquer comme lu
 - [ ] Endpoint `PUT /api/notifications/read-all` — marquer tout comme lu
 - [ ] Composant Angular : cloche de notification + feed dropdown
+- [ ] Mécanisme temps réel : Broadcasting Laravel (`BroadcastNotification` via Pusher/Reverb) — ou polling `GET /api/notifications?unread=1` toutes les 30s si Broadcasting non configuré
 - [ ] Emails transactionnels Laravel (via `Illuminate\Notifications`) : confirmation inscription, réinitialisation mot de passe, nouvelle réservation
-- [ ] Tests : `NotificationFeedTest`, `NotificationMarkReadTest`, `NotificationEmailTest`
+- [ ] Tests : `NotificationFeedTest`, `NotificationMarkReadTest`, `NotificationEmailTest`, `NotificationBroadcastTest`
 
 ### P1
 

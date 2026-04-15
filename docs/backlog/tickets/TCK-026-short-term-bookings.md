@@ -6,7 +6,7 @@ phase: P1
 family: applicatif
 estimate: L
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 depends_on: [TCK-019, TCK-020]
 blocks: [TCK-008, TCK-028]
 spec_refs:
@@ -37,6 +37,7 @@ Implémenter le flux complet de réservation courte durée (demande → acceptat
 - [ ] Endpoints BookingPayment : `POST /api/bookings/{booking}/payments` (acompte, solde)
 - [ ] Endpoint `GET /api/bookings/{booking}/payments` — consultation des paiements liés
 - [ ] Endpoint `GET /api/properties/{property}/calendar` — vue calendrier agrégée (réservations + visites)
+- [ ] Contrôle de chevauchement (overlap check) lors de l'acceptation : rejet 409 si une réservation confirmée existe déjà sur la même période pour le même bien
 - [ ] Pages Angular : demande de réservation, gestion des demandes (agent), vue calendrier
 - [ ] Tests : `BookingFlowTest`, `BookingPaymentTest`, `BookingCalendarTest`
 
@@ -54,11 +55,19 @@ Implémenter le flux complet de réservation courte durée (demande → acceptat
 
 ## Critères d'acceptation
 
+**P1 :**
+
 - [ ] Un client peut demander une réservation avec dates et montant
 - [ ] Un agent/propriétaire peut accepter, refuser ou annuler une demande
 - [ ] L'accessor `deposit_paid` reflète correctement l'état des paiements
 - [ ] Le calendrier agrège réservations confirmées et visites planifiées
+- [ ] L'acceptation d'une réservation en chevauchement avec une réservation confirmée est rejetée avec 409
+
+**P2 :**
+
+- [ ] `ExpireBookingsJob` passe automatiquement les demandes non traitées à `expired` après le délai configuré
 - [ ] Les visites peuvent être de type en personne, virtuel, autonome ou hybride
+- [ ] Un rappel est envoyé au client et à l'agent avant une visite planifiée
 
 ## Hors périmètre
 

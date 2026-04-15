@@ -6,7 +6,7 @@ phase: P0
 family: applicatif
 estimate: XL
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 depends_on: [TCK-013, TCK-014, TCK-015, TCK-016]
 blocks: [TCK-024, TCK-025, TCK-026, TCK-027, TCK-029, TCK-030, TCK-031, TCK-032, TCK-033]
 spec_refs:
@@ -70,13 +70,19 @@ Implémenter le CRUD complet des biens immobiliers avec adresse géolocalisée, 
 
 ## Critères d'acceptation
 
+**P0 :**
+
 - [ ] Un agent peut créer un bien avec tous les champs requis et une adresse géolocalisée
 - [ ] La référence unique est générée automatiquement au format `TK-YYYY-NNN`
 - [ ] Les photos uploadées génèrent les conversions `thumbnail` et `preview`
+- [ ] La suppression est un soft delete
+- [ ] Un bien sans adresse géolocalisée ne peut pas être publié (`visibility = published` rejeté avec 422 si `address` absent)
+
+**P1 :**
+
 - [ ] Le changement de prix crée une entrée dans `property_price_histories`
 - [ ] La hiérarchie parent/enfant fonctionne (immeuble → lots)
 - [ ] La somme des `commission_share` par bien ne dépasse pas 100%
-- [ ] La suppression est un soft delete
 
 ## Hors périmètre
 

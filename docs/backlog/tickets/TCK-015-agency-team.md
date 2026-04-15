@@ -6,9 +6,9 @@ phase: P0
 family: applicatif
 estimate: M
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 depends_on: [TCK-013, TCK-014]
-blocks: [TCK-019]
+blocks: [TCK-019, TCK-020]
 spec_refs:
   features:
     - docs/features.md#112-agence--équipe
