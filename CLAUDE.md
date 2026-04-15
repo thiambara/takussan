@@ -11,6 +11,58 @@ This is a monorepo for **Takussan**, a real estate property management platform,
 
 ---
 
+## Specs & Backlog
+
+The project uses a BMAD-style split between **specs** (source of truth) and **tickets** (actionable deltas).
+
+### Sources de vérité (ne jamais dupliquer)
+
+- `docs/features.md` — spec fonctionnelle (monolithique, stable, ~407 l).
+- `docs/models-spec.md` — spec data/modèles (monolithique, stable, ~1711 l).
+- `docs/sync-passes/` — audits de convergence `features.md` ↔ `models-spec.md`.
+
+**Règle** : si une info fonctionnelle manque, elle va *dans la spec* (PR dédiée), jamais recopiée dans un ticket.
+
+### Backlog (`docs/backlog/`)
+
+```
+docs/backlog/
+├── INDEX.md              # kanban (todo / doing / review / done / blocked)
+├── _template.md          # template de ticket
+├── _archive/             # anciens backlogs groupés
+└── tickets/
+    └── TCK-NNN-<slug>.md # un fichier par ticket
+```
+
+**Convention ID** : `TCK-NNN` (séquentiel, jamais réutilisé).
+
+**Format de ticket** : frontmatter YAML avec `id`, `title`, `status`, `phase`, `family`, `estimate`, `depends_on`, `blocks`, `spec_refs`, puis corps **Contexte / Objectif / Delta à produire / Critères d'acceptation / Hors périmètre / Notes d'implémentation**.
+
+**Référencement spec** : via `spec_refs.features` / `spec_refs.models` avec les heading anchors markdown (ex: `docs/features.md#15-transactions--paiements`, `docs/models-spec.md#3-property`).
+
+**Règles anti-répétition** :
+
+1. Un ticket décrit un **delta**, pas la spec. Il pointe vers elle.
+2. `depends_on` référence d'autres tickets, pas des sections de spec.
+3. Un ticket ne démarre pas tant que ses `depends_on` ne sont pas `done`.
+4. Après merge d'un ticket qui modifie une spec, lancer `/sync-specs`.
+
+### Skills associés (cycle de vie d'un ticket)
+
+Deux skills projet automatisent la création et l'exécution d'un ticket :
+
+- **Créer un ticket** : ouvrir `.agent/skills/writing-specs/SKILL.md` et suivre le workflow. Ce skill crée un `TCK-NNN` à partir d'une idée, cherche les anchors dans `features.md` / `models-spec.md`, refuse de créer un ticket si la spec ne couvre pas le besoin, et met à jour `INDEX.md`. **Il ne touche jamais au code.**
+- **Implémenter un ticket** : ouvrir `.agent/skills/implementing-specs/SKILL.md` et suivre le workflow. Ce skill lit le ticket + ses `spec_refs`, vérifie les `depends_on`, code selon le `Delta à produire`, valide les AC, et met à jour le statut. **Il ne modifie jamais les specs.**
+
+**Invocation** — deux voies équivalentes :
+
+- **Slash commands Claude Code** : `/write-spec` et `/implement-spec` (dans `.claude/commands/`, symlinks vers `.agent/workflows/`).
+- **Référence directe** : ouvrir `.agent/skills/writing-specs/SKILL.md` ou `.agent/skills/implementing-specs/SKILL.md` via Read.
+
+Quand l'utilisateur demande « crée un ticket pour X » ou « implémente TCK-NNN » sans passer par une slash command, ouvrir directement le SKILL.md correspondant et suivre ses instructions.
+
+---
+
 ## Backend (`takussan-api/`)
 
 ### Commands

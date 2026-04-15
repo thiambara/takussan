@@ -1,0 +1,79 @@
+---
+id: TCK-028
+title: Transactions & paiements
+status: todo
+phase: P0
+family: applicatif
+estimate: L
+created: 2026-04-15
+updated: 2026-04-15
+depends_on: [TCK-026, TCK-027]
+blocks: [TCK-002, TCK-003, TCK-005, TCK-007, TCK-009, TCK-032]
+spec_refs:
+  features:
+    - docs/features.md#15-transactions--paiements
+  models:
+    - docs/models-spec.md#6-bookingpayment
+    - docs/models-spec.md#15-leasepayment-
+    - docs/models-spec.md#25-invoice-
+    - docs/models-spec.md#28-payout-
+tags: [back, front, payments, invoices, payouts, transactions]
+---
+
+## Contexte
+
+Les paiements sont enregistrés via `BookingPayment` et `LeasePayment` (implémentés dans TCK-026 et TCK-027). Ce ticket ajoute la couche transactionnelle : factures, reversements bailleurs, historique consolidé et suivi des statuts. Les modèles `Invoice` et `Payout` sont nouveaux.
+
+## Objectif
+
+Implémenter la génération de factures, les reversements aux bailleurs après commission, l'historique consolidé des paiements et le suivi des statuts de transaction.
+
+## Delta à produire
+
+### P0 — MVP bloquant
+
+- [ ] Trait `HasPaymentAttributes` : casts et scopes partagés entre BookingPayment et LeasePayment
+- [ ] Endpoint `POST /api/payments` — enregistrer un paiement (routage vers BookingPayment ou LeasePayment selon contexte)
+- [ ] Tests : `PaymentRegistrationTest`
+
+### P1
+
+- [ ] Migration `invoices` : `invoiceable_id`, `invoiceable_type`, `customer_id`, `invoice_number`, `amount`, `tax_amount`, `total_amount`, `status`, `due_date`, `paid_date`, `currency`
+- [ ] Endpoint `POST /api/invoices` — générer une facture à un Customer
+- [ ] Migration `payouts` : `agency_id`, `landlord_id`, `lease_id`, `amount`, `commission_amount`, `net_amount`, `status`, `payment_method`, `reference`, `period_start`, `period_end`
+- [ ] Endpoint `POST /api/payouts` — reversement au bailleur après commission
+- [ ] Endpoint `GET /api/payments/history` — historique consolidé par entité (bien, bail, client)
+- [ ] Endpoint `GET /api/payments/history?entity_type=property&entity_id=` + filtres (status, date)
+- [ ] Suivi des statuts (pending, paid, refunded, cancelled) avec transitions validées
+- [ ] Pages Angular : historique paiements, génération facture, reversements
+- [ ] Tests : `InvoiceGenerationTest`, `PayoutTest`, `PaymentHistoryTest`, `PaymentStatusTransitionTest`
+
+### P2
+
+- [ ] Intégration passerelle de paiement (→ TCK-002)
+- [ ] Rapprochement bancaire semi-automatique (→ TCK-003)
+- [ ] Relance automatique factures en retard (job schedulé)
+
+### P3
+
+- [ ] Commissions automatiques par agent / collaborateur (→ TCK-005)
+- [ ] Comptabilité exportable FEC (→ TCK-009)
+
+## Critères d'acceptation
+
+- [ ] Un paiement peut être enregistré pour une réservation ou un bail
+- [ ] Une facture est générée avec un numéro séquentiel unique
+- [ ] Un reversement calcule correctement le montant net (montant − commission)
+- [ ] L'historique consolide BookingPayments et LeasePayments avec filtres
+- [ ] Les transitions de statut sont validées (pas de retour à `pending` depuis `paid`)
+
+## Hors périmètre
+
+- Passerelle de paiement externe (→ TCK-002)
+- Rapprochement bancaire (→ TCK-003)
+- Commissions automatiques (→ TCK-005)
+- Export FEC (→ TCK-009)
+
+## Notes d'implémentation
+
+_(à remplir par implementing-specs)_
