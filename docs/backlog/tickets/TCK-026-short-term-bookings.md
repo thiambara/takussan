@@ -38,7 +38,7 @@ Implémenter le flux complet de réservation courte durée (demande → acceptat
 - [ ] Endpoint `GET /api/bookings/{booking}/payments` — consultation des paiements liés
 - [ ] Endpoint `GET /api/properties/{property}/calendar` — vue calendrier agrégée (réservations + visites)
 - [ ] Contrôle de chevauchement (overlap check) lors de l'acceptation : rejet 409 si une réservation confirmée existe déjà sur la même période pour le même bien
-- [ ] Pages Angular : demande de réservation, gestion des demandes (agent), vue calendrier
+- [ ] Pages Next.js : demande de réservation, gestion des demandes (agent), vue calendrier
 - [ ] Tests : `BookingFlowTest`, `BookingPaymentTest`, `BookingCalendarTest`
 
 ### P2

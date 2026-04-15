@@ -39,7 +39,7 @@ Configurer spatie/laravel-activitylog sur les modèles critiques et exposer les 
 
 - [ ] Endpoint `GET /api/activity-log` — consultation par entité (`subject_type`, `subject_id`)
 - [ ] Filtrage par utilisateur (`causer_id`), date, action (`event`)
-- [ ] Page Angular : journal d'activité dans le dashboard admin
+- [ ] Page Next.js : journal d'activité dans le dashboard admin
 - [ ] Tests : `ActivityLogEndpointTest`, `ActivityLogFilterTest`
 
 ### P2

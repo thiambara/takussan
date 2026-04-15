@@ -47,7 +47,7 @@ Implémenter la génération de factures, les reversements aux bailleurs après 
 - [ ] Endpoint `GET /api/payments/history` — historique consolidé par entité (bien, bail, client)
 - [ ] Endpoint `GET /api/payments/history?entity_type=property&entity_id=` + filtres (status, date)
 - [ ] Suivi des statuts (pending, paid, refunded, cancelled) avec transitions validées
-- [ ] Pages Angular : historique paiements, génération facture, reversements
+- [ ] Pages Next.js : historique paiements, génération facture, reversements
 - [ ] Tests : `InvoiceGenerationTest`, `PayoutTest`, `PaymentHistoryTest`, `PaymentStatusTransitionTest`
 
 ### P2

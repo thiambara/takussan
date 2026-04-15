@@ -35,14 +35,14 @@ Implémenter la création et configuration d'agences, la gestion des agents et l
 - [ ] Endpoint `POST /api/agencies/{agency}/members` — ajouter un agent
 - [ ] Endpoint `DELETE /api/agencies/{agency}/members/{user}` — retirer un agent
 - [ ] Endpoint `PUT /api/agencies/{agency}/members/{user}/role` — attribution de rôle
-- [ ] Pages Angular : création agence, liste membres, gestion rôles
+- [ ] Pages Next.js : création agence, liste membres, gestion rôles
 - [ ] Tests : `AgencyCreationTest`, `AgencyMemberManagementTest`, `AgencyRoleAssignmentTest`
 
 ### P1
 
 - [ ] Endpoint `GET /api/agencies/{agency}/stats` — statistiques globales (portefeuille, revenus)
 - [ ] Endpoint `PUT /api/agencies/{agency}/settings` — paramètres de commission par défaut
-- [ ] Page Angular : dashboard agence avec statistiques
+- [ ] Page Next.js : dashboard agence avec statistiques
 - [ ] Tests : `AgencyStatsTest`, `AgencyCommissionSettingsTest`
 
 ### P3

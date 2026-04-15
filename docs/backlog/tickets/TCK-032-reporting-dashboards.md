@@ -36,7 +36,7 @@ Implémenter les tableaux de bord par rôle (agence, bailleur, agent, locataire)
 - [ ] Endpoint `GET /api/dashboard/owner` — stats bailleur : portefeuille, cashflow mensuel, taux d'occupation
 - [ ] Endpoint `GET /api/dashboard/agent` — stats agent : pipeline prospects, commissions, tâches en cours
 - [ ] Endpoint `GET /api/dashboard/tenant` — stats locataire : prochaines échéances, documents récents
-- [ ] Pages Angular : 4 dashboards distincts selon le rôle de l'utilisateur connecté
+- [ ] Pages Next.js : 4 dashboards distincts selon le rôle de l'utilisateur connecté
 - [ ] Tests : `DashboardAgencyTest`, `DashboardOwnerTest`, `DashboardAgentTest`, `DashboardTenantTest`
 
 ### P2

@@ -21,7 +21,7 @@ tags: [front, back, public, search, homepage, favorites, map]
 
 ## Contexte
 
-L'expérience de découverte est la vitrine de la plateforme pour les visiteurs anonymes et clients connectés. Les composants Angular (Homepage, SearchResults, ShowProperty) existent déjà mais doivent être connectés aux endpoints API et enrichis. Ce ticket exploite l'infrastructure de recherche de TCK-024.
+L'expérience de découverte est la vitrine de la plateforme pour les visiteurs anonymes et clients connectés. Les pages Next.js (Homepage, SearchResults, ShowProperty) sont à construire et à connecter aux endpoints API. Ce ticket exploite l'infrastructure de recherche de TCK-024.
 
 ## Objectif
 
@@ -52,7 +52,7 @@ Implémenter les pages publiques de découverte : homepage, recherche avec filtr
 
 - [ ] Comparateur de biens côte à côte (→ TCK-001)
 - [ ] Biens similaires / suggestions personnalisées (basé sur type, ville, prix)
-- [ ] Historique local des biens consultés (localStorage Angular)
+- [ ] Historique local des biens consultés (localStorage)
 
 ### P3
 

@@ -34,7 +34,7 @@ Implémenter la création et gestion d'inventaires d'entrée et de sortie avec p
 - [ ] Endpoint `GET /api/inventories/{id}` — consulter un inventaire
 - [ ] Endpoint `PUT /api/inventories/{id}` — éditer un inventaire (ajout photos, modification état)
 - [ ] Endpoint `GET /api/properties/{property}/inventories` — liste des inventaires par bien
-- [ ] Pages Angular : création inventaire (formulaire dynamique par pièce), consultation, édition
+- [ ] Pages Next.js : création inventaire (formulaire dynamique par pièce), consultation, édition
 - [ ] Tests : `InventoryCreationTest`, `InventoryEditTest`, `InventoryListTest`
 
 ### P2

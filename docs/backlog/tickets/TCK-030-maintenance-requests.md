@@ -35,7 +35,7 @@ Implémenter le système de signalement de problèmes, assignation de prestatair
 - [ ] Endpoint `PUT /api/maintenance-requests/{id}/status` — suivi des statuts (new, in_progress, resolved, cancelled)
 - [ ] Endpoint `PUT /api/maintenance-requests/{id}/complete` — ajouter photos et rapport après intervention
 - [ ] Endpoint `GET /api/properties/{property}/maintenance-requests` — historique des interventions par bien
-- [ ] Pages Angular : signalement, liste demandes, suivi intervention, historique
+- [ ] Pages Next.js : signalement, liste demandes, suivi intervention, historique
 - [ ] Tests : `MaintenanceReportTest`, `MaintenanceAssignmentTest`, `MaintenanceStatusTest`, `MaintenanceHistoryTest`
 
 ### P2

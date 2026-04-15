@@ -30,11 +30,11 @@ recherche et de les afficher côte à côte dans un tableau comparatif.
 
 ## Delta à produire
 
-- [ ] Signal Angular `selectedProperties: Signal<Property[]>` (scope: sessionStorage)
+- [ ] State React `selectedProperties` (scope: sessionStorage, `useState` + `useEffect` pour persistance)
 - [ ] Bouton « Comparer » sur `PropertyCard`
 - [ ] Barre flottante avec compteur et bouton « Voir la comparaison » (≥ 2 biens)
-- [ ] Page `/comparer` — tableau responsive, 1 colonne par bien
-- [ ] Logique de remplacement FIFO au-delà de 4 biens + `MessageService` info
+- [ ] Page Next.js `/comparer` — tableau responsive, 1 colonne par bien
+- [ ] Logique de remplacement FIFO au-delà de 4 biens + toast info
 - [ ] Bouton « Retirer » par colonne
 
 ## Critères d'acceptation

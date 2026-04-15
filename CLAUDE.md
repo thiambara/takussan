@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a monorepo for **Takussan**, a real estate property management platform, containing two separate projects:
 
-- `takussan-api/` — Laravel 12 REST API backend (PHP 8.4)
-- `takussan-web/` — Angular 21 frontend
+- `takussan-api/` — Laravel 13 REST API backend (PHP ^8.3)
+- `takussan-web/` — Next.js 16 + React 19 frontend (TypeScript, Tailwind CSS 4)
 
 ---
 
@@ -25,7 +25,7 @@ The project uses a BMAD-style split between **specs** (source of truth) and **ti
 
 ### Backlog (`docs/backlog/`)
 
-```
+```text
 docs/backlog/
 ├── INDEX.md              # kanban (todo / doing / review / done / blocked)
 ├── _template.md          # template de ticket
@@ -49,17 +49,17 @@ docs/backlog/
 
 ### Skills associés (cycle de vie d'un ticket)
 
-Deux skills projet automatisent la création et l'exécution d'un ticket :
+Deux workflows automatisent la création et l'exécution d'un ticket :
 
-- **Créer un ticket** : ouvrir `.agent/skills/writing-specs/SKILL.md` et suivre le workflow. Ce skill crée un `TCK-NNN` à partir d'une idée, cherche les anchors dans `features.md` / `models-spec.md`, refuse de créer un ticket si la spec ne couvre pas le besoin, et met à jour `INDEX.md`. **Il ne touche jamais au code.**
-- **Implémenter un ticket** : ouvrir `.agent/skills/implementing-specs/SKILL.md` et suivre le workflow. Ce skill lit le ticket + ses `spec_refs`, vérifie les `depends_on`, code selon le `Delta à produire`, valide les AC, et met à jour le statut. **Il ne modifie jamais les specs.**
+- **Créer un ticket** : lire `.windsurf/workflows/write-spec.md` et suivre le workflow. Ce workflow crée un `TCK-NNN` à partir d'une idée, cherche les anchors dans `features.md` / `models-spec.md`, refuse de créer un ticket si la spec ne couvre pas le besoin, et met à jour `INDEX.md`. **Il ne touche jamais au code.**
+- **Implémenter un ticket** : lire `.windsurf/workflows/implement-spec.md` et suivre le workflow. Ce workflow lit le ticket + ses `spec_refs`, vérifie les `depends_on`, code selon le `Delta à produire`, valide les AC, et met à jour le statut. **Il ne modifie jamais les specs.**
 
 **Invocation** — deux voies équivalentes :
 
-- **Slash commands Claude Code** : `/write-spec` et `/implement-spec` (dans `.claude/commands/`, symlinks vers `.agent/workflows/`).
-- **Référence directe** : ouvrir `.agent/skills/writing-specs/SKILL.md` ou `.agent/skills/implementing-specs/SKILL.md` via Read.
+- **Slash commands Windsurf** : `/write-spec` et `/implement-spec` (dans `.windsurf/workflows/`).
+- **Slash commands Claude Code** : `/write-spec` et `/implement-spec` (dans `.claude/commands/`).
 
-Quand l'utilisateur demande « crée un ticket pour X » ou « implémente TCK-NNN » sans passer par une slash command, ouvrir directement le SKILL.md correspondant et suivre ses instructions.
+Quand l'utilisateur demande « crée un ticket pour X » ou « implémente TCK-NNN » sans passer par une slash command, lire directement le workflow correspondant dans `.windsurf/workflows/` et suivre ses instructions.
 
 ---
 
@@ -88,31 +88,7 @@ php artisan migrate:fresh --seed
 
 ### Architecture
 
-**Routes** are split into `routes/api/` subdirectory by resource (e.g. `routes/api/properties.php`). `routes/api.php` just requires them all.
-
-**Controllers** extend `App\Http\Controllers\Base\Controller` which adds a `json()` helper. They are thin — all business logic lives in `app/Services/Model/`. Controllers inject service classes via constructor.
-
-**Models** all extend `App\Models\Bases\AbstractModel` which uses `BaseModelTrait`. This trait adds powerful request-driven query scopes:
-- `Model::allThroughRequest()` — applies both filters and ordering from the current request
-- `filterThroughRequest()` — reads `filter_fields` from the request; supports operators: `@like`, `@in`, `@between`, `!` prefix for NOT, `..` for ranges (e.g. `100..500`)
-- `orderThroughRequest()` — reads `order_by` from request
-- Models also auto-configure `with`, `hidden`, `appends`, `with_count` from request params namespaced by table name (e.g. `?properties.with[]=address`)
-
-**Permissions** use `spatie/laravel-permission`. Controllers apply middleware like `$this->middleware('permission:properties.view')`. Ownership checks use `properties.update_all` / `properties.delete_all` to distinguish own vs. all-resource permissions.
-
-**Media** uses `spatie/laravel-medialibrary`. The `Property` model registers a `properties` collection with `thumbnail` (300×300) and `preview` (800×600) conversions.
-
-**Auth** uses Laravel Sanctum (token-based) and Socialite (OAuth2). See `routes/api/auth/`.
-
-**Search** uses Laravel Scout on the `Property` model.
-
-**Global helpers** (autoloaded from `app/Helpers/`):
-- `to_camel_case()` / `to_snake_case()` — handle arrays or strings
-- `utils()` — resolves `App\Services\Utils\Utils`
-
-**Enums** live in `App\Models\Bases\Enums\` (e.g. `ProprietyStatus`, `BookingStatus`).
-
-**Paginates** via `paginatedThroughRequest()` (from `BaseModelTrait`).
+> **État actuel : skeleton Laravel 13 vierge.** Seuls `app/Http/Controllers/Controller.php` (abstract vide) et `app/Models/User.php` existent. Les couches métier décrites dans la spec (`routes/api/`, `app/Services/`, traits de modèles, permissions, médias, search…) ne sont **pas encore implémentées** — elles sont à construire via les tickets du backlog.
 
 ---
 
@@ -121,33 +97,28 @@ php artisan migrate:fresh --seed
 ### Commands
 
 ```bash
-# Start dev server (runs on port 4201)
-npm start
+# Start dev server
+npm run dev
 
 # Build
 npm run build
 
-# Run tests
-npm test
+# Lint
+npm run lint
 ```
 
 ### Architecture
 
-Standalone Angular components with lazy loading throughout. No NgModules.
+> **État actuel : scaffold Next.js 16 vierge.** Seul `src/app/` contient le layout et la page d'accueil par défaut (create-next-app). Les features sont à construire via les tickets du backlog.
 
-**App structure:**
-- `src/app/core/` — guards, interceptors, layouts, models, services (HTTP clients)
-- `src/app/pages/` — feature pages: `auth/`, `dashboard/`, `homepage/`, `search-results/`, `show-property/`
-- `src/app/shared/` — reusable components and pipes
-- `src/app/types/` — shared TypeScript types
-- `src/environments/` — environment config (`apiUrl`, `cryptoKey`)
+**Stack :**
 
-**API communication:** All HTTP services live in `core/services/http/`. The `takussanApiAuthInterceptor` automatically attaches the Bearer token (from `AuthService.authToken`) and `Accept: Application/json` header to all requests matching `environment.apiUrl`.
+- Next.js 16.2.3 (App Router) — **⚠️ cette version contient des breaking changes vs les versions antérieures. Lire `node_modules/next/dist/docs/` avant d'écrire du code Next.js.**
+- React 19.2.4 + TypeScript 5
+- Tailwind CSS 4
 
-**UI stack:** PrimeNG 21 (Aura theme) + Tailwind CSS 4.2. `MessageService` and `DialogService` from PrimeNG are provided globally in `app.config.ts`. Dark mode toggled via `.app-dark` class. Templates use Angular 21 block control flow syntax (`@if`, `@for`, `@switch`).
+**Structure actuelle :**
 
-**Locale:** French (`fr-FR`) is the app locale.
-
-**Auth token storage:** `AuthService.authToken` is a static property — token is read synchronously in the interceptor.
-
-**API base URL (dev):** `http://127.0.0.1:8002` (defined in `src/environments/environment.ts`)
+- `src/app/layout.tsx` — root layout (Geist font, Tailwind)
+- `src/app/page.tsx` — page d'accueil par défaut
+- `src/app/globals.css` — styles globaux Tailwind

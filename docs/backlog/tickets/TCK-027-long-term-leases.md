@@ -42,7 +42,7 @@ Implémenter la gestion complète des baux : création, garants, échéancier de
 - [ ] Service `LeaseLateFeeService` — calcul et application automatique des pénalités de retard
 - [ ] Endpoint `POST /api/leases/{lease}/refund-deposit` — remboursement caution en fin de bail
 - [ ] Endpoint `GET /api/leases/{lease}/history` — historique complet du bail
-- [ ] Pages Angular : création bail, fiche bail, échéancier, enregistrement paiement, garants
+- [ ] Pages Next.js : création bail, fiche bail, échéancier, enregistrement paiement, garants
 - [ ] Tests : `LeaseCreationTest`, `LeaseScheduleTest`, `LeasePaymentTest`, `LeaseGuarantorTest`, `LeaseLateFeeTest`, `LeaseDepositRefundTest`
 
 ### P2

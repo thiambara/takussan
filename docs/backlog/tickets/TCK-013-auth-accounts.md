@@ -35,7 +35,7 @@ Implémenter le cycle complet d'authentification et de gestion de profil utilisa
 - [ ] Endpoint `POST /api/auth/forgot-password` + `POST /api/auth/reset-password`
 - [ ] Endpoint `POST /api/auth/verify-email/{id}/{hash}` + renvoi de lien
 - [ ] Endpoint `GET /api/auth/me` + `PUT /api/auth/profile` (édition profil : nom, bio, avatar)
-- [ ] Pages Angular : Login, Register, Forgot Password, Reset Password, Email Verification, Profile Edit
+- [ ] Pages Next.js : Login, Register, Forgot Password, Reset Password, Email Verification, Profile Edit
 - [ ] Tests : `AuthRegistrationTest`, `AuthLoginTest`, `AuthPasswordResetTest`, `AuthEmailVerificationTest`, `AuthProfileTest`
 
 ### P1 — MVP important
@@ -64,7 +64,7 @@ Implémenter le cycle complet d'authentification et de gestion de profil utilisa
 - [ ] La déconnexion révoque le token Sanctum actif
 - [ ] Le mot de passe oublié envoie un email avec un lien de réinitialisation fonctionnel
 - [ ] Les tokens expirent selon la configuration Sanctum
-- [ ] Les pages Angular gèrent les erreurs de validation et les redirections post-auth
+- [ ] Les pages Next.js gèrent les erreurs de validation et les redirections post-auth
 - [ ] Après 5 tentatives de login échouées en 10 min, l'IP reçoit 429 Too Many Requests
 
 ## Hors périmètre

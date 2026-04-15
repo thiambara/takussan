@@ -33,7 +33,7 @@ Implémenter le système complet de notifications : centre in-app, emails transa
 - [ ] Endpoint `GET /api/notifications` — feed de notifications (paginé, filtrable)
 - [ ] Endpoint `PUT /api/notifications/{id}/read` — marquer comme lu
 - [ ] Endpoint `PUT /api/notifications/read-all` — marquer tout comme lu
-- [ ] Composant Angular : cloche de notification + feed dropdown
+- [ ] Composant React : cloche de notification + feed dropdown
 - [ ] Mécanisme temps réel : Broadcasting Laravel (`BroadcastNotification` via Pusher/Reverb) — ou polling `GET /api/notifications?unread=1` toutes les 30s si Broadcasting non configuré
 - [ ] Emails transactionnels Laravel (via `Illuminate\Notifications`) : confirmation inscription, réinitialisation mot de passe, nouvelle réservation
 - [ ] Tests : `NotificationFeedTest`, `NotificationMarkReadTest`, `NotificationEmailTest`, `NotificationBroadcastTest`
@@ -43,7 +43,7 @@ Implémenter le système complet de notifications : centre in-app, emails transa
 - [ ] Notifications push web (via service worker + Web Push API)
 - [ ] Endpoint `PUT /api/auth/notification-preferences` — préférences par canal (email, push, SMS) par utilisateur
 - [ ] Templates localisés via `lang/` Laravel (FR, EN, WO)
-- [ ] Composant Angular : page de préférences notifications
+- [ ] Page Next.js : page de préférences notifications
 - [ ] Tests : `NotificationPreferencesTest`, `NotificationPushTest`
 
 ### P2
@@ -61,7 +61,7 @@ Implémenter le système complet de notifications : centre in-app, emails transa
 - [ ] Marquer comme lu met à jour `is_read` et `read_at`
 - [ ] Les emails transactionnels sont envoyés dans la langue de l'utilisateur
 - [ ] Les préférences par canal sont respectées (pas d'email si désactivé)
-- [ ] Le composant Angular met à jour le compteur en temps réel
+- [ ] Le composant React met à jour le compteur en temps réel
 
 ## Hors périmètre
 

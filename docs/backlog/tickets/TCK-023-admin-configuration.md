@@ -36,7 +36,7 @@ Implémenter les outils d'administration : gestion des tags, gestion des utilisa
 - [ ] Seeder `TagSeeder` : tags par défaut (amenités courantes : piscine, climatisation, meublé, etc.)
 - [ ] Endpoint `GET /api/admin/users` — liste des utilisateurs avec filtres (status, role, agency)
 - [ ] Endpoint `PUT /api/admin/users/{user}/status` — activation / blocage d'un utilisateur
-- [ ] Pages Angular : admin tags, admin utilisateurs
+- [ ] Pages Next.js : admin tags, admin utilisateurs
 - [ ] Tests : `AdminTagCrudTest`, `AdminUserManagementTest`
 
 ### P1

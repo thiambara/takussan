@@ -37,9 +37,9 @@ Implémenter le système d'upload, de validation, de conversion et de gestion de
 
 ### P1
 
-- [ ] Upload multiple avec support drag & drop côté Angular
+- [ ] Upload multiple avec support drag & drop côté React
 - [ ] Réorganisation des médias par glisser-déposer (mise à jour `order_column`)
-- [ ] Composant Angular : `MediaUploadComponent` réutilisable (drag & drop, preview, progression)
+- [ ] Composant React : `MediaUploadComponent` réutilisable (drag & drop, preview, progression)
 - [ ] Tests : `MediaMultiUploadTest`, `MediaReorderTest`
 
 ### P2
@@ -56,7 +56,7 @@ Implémenter le système d'upload, de validation, de conversion et de gestion de
 - [ ] Un upload valide crée un média avec les conversions `thumbnail` et `preview`
 - [ ] Un fichier excédant la taille maximale est rejeté avec un message clair
 - [ ] Seul le propriétaire du média (ou un admin) peut le supprimer
-- [ ] Le composant Angular affiche la progression d'upload et gère les erreurs
+- [ ] Le composant React affiche la progression d'upload et gère les erreurs
 
 ## Hors périmètre
 

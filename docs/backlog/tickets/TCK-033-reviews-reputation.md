@@ -37,7 +37,7 @@ Implémenter le système d'avis publics avec notation, modération, réponses et
 - [ ] Endpoint `POST /api/reviews/{review}/reply` — réponse publique du propriétaire/agence
 - [ ] Endpoint `POST /api/reviews/{review}/report` — signaler un avis inapproprié (incrémente `reported_count`, déclenche modération si seuil atteint)
 - [ ] Mise à jour `average_rating` et `reviews_count` sur Property/Agency (via Observer)
-- [ ] Pages Angular : affichage avis sur fiche bien/agence, formulaire d'avis, modération admin
+- [ ] Pages Next.js : affichage avis sur fiche bien/agence, formulaire d'avis, modération admin
 - [ ] Tests : `ReviewCreationTest`, `ReviewModerationTest`, `ReviewReplyTest`, `ReviewReportTest`, `ReviewRatingCacheTest`
 
 ### P3

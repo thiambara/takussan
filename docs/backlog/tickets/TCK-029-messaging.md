@@ -39,7 +39,7 @@ Implémenter la messagerie privée : conversations 1↔1, envoi de messages avec
 - [ ] Endpoint `POST /api/conversations/{conversation}/messages` — envoyer un message texte avec pièces jointes
 - [ ] Endpoint `PUT /api/conversations/{conversation}/read` — marquer comme lu
 - [ ] Notification in-app + email sur nouveau message (via TCK-022)
-- [ ] Pages Angular : liste conversations, fil de discussion, envoi message
+- [ ] Pages Next.js : liste conversations, fil de discussion, envoi message
 - [ ] Tests : `ConversationCreationTest`, `MessageSendTest`, `ConversationListTest`, `MessageReadStatusTest`
 
 ### P2

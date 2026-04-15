@@ -31,14 +31,14 @@ Mettre en place le support multilingue (FR, EN, WO), la sélection de langue par
 
 - [ ] Fichiers de traduction Laravel : `lang/fr/`, `lang/en/`, `lang/wo/` (messages, validation, pagination)
 - [ ] Middleware `SetLocale` basé sur `preferred_language` de l'utilisateur ou header `Accept-Language`
-- [ ] Fichiers i18n Angular : `fr.json`, `en.json`, `wo.json` (labels UI)
-- [ ] Sélecteur de langue dans le header Angular (persisté via `preferred_language`)
+- [ ] Fichiers i18n Next.js : `fr.json`, `en.json`, `wo.json` (labels UI)
+- [ ] Sélecteur de langue dans le header (persisté via `preferred_language`)
 - [ ] Tests : `LocaleMiddlewareTest`
 
 ### P1
 
 - [ ] Fuseau horaire utilisateur appliqué aux réponses API (par défaut `Africa/Dakar`)
-- [ ] Format de date et nombre localisé côté Angular (pipes `DatePipe`, `DecimalPipe` avec locale dynamique)
+- [ ] Format de date et nombre localisé côté React (`Intl.DateTimeFormat`, `Intl.NumberFormat` avec locale dynamique)
 - [ ] Tests : `TimezoneFormattingTest`
 
 ### P2
@@ -53,7 +53,7 @@ Mettre en place le support multilingue (FR, EN, WO), la sélection de langue par
 ## Critères d'acceptation
 
 - [ ] L'API répond avec les messages d'erreur dans la langue de l'utilisateur
-- [ ] Le sélecteur de langue persiste le choix et recharge les traductions Angular
+- [ ] Le sélecteur de langue persiste le choix et recharge les traductions Next.js
 - [ ] Les dates sont formatées selon le fuseau horaire de l'utilisateur
 - [ ] Le Wolof (wo) est supporté même si les traductions sont partielles
 

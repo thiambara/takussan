@@ -32,7 +32,7 @@ le travail. Exemples:
 - [ ] Migration: `add_refund_amount_to_booking_payments`
 - [ ] Endpoint: `POST /api/bookings/{booking}/cancel`
 - [ ] Service: `App\Services\Booking\BookingCancellationService`
-- [ ] Composant Angular: `CancelBookingDialogComponent`
+- [ ] Composant React: `CancelBookingDialogComponent`
 - [ ] Tests: `BookingCancellationTest` (3 scénarios)
 
 ## Critères d'acceptation

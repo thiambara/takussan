@@ -35,7 +35,7 @@ Implémenter la gestion complète des contacts client (Customer), relations agen
 - [ ] Migration : ajout colonnes Customer (`pipeline_stage`, `id_number`, `occupation`, `emergency_contact_name`, `emergency_contact_phone`)
 - [ ] Endpoints CRUD : `GET/POST /api/customers`, `GET/PUT/DELETE /api/customers/{customer}`
 - [ ] Endpoint recherche : `GET /api/customers?search=` (plein-texte sur nom, email, phone)
-- [ ] Pages Angular : liste clients, création, fiche client
+- [ ] Pages Next.js : liste clients, création, fiche client
 - [ ] Tests : `CustomerCrudTest`, `CustomerSearchTest`
 
 ### P1
@@ -46,7 +46,7 @@ Implémenter la gestion complète des contacts client (Customer), relations agen
 - [ ] Endpoint historique interactions : `GET /api/customers/{customer}/activity` (via spatie/activitylog)
 - [ ] Endpoint contact principal : `PUT /api/customers/{customer}/relationships/{rel}/primary`
 - [ ] Migration + CRUD `CustomerNote` : `POST /api/customers/{customer}/notes` (notes horodatées signées par agent)
-- [ ] Page Angular : fiche client détaillée (relations, notes, documents, historique)
+- [ ] Page Next.js : fiche client détaillée (relations, notes, documents, historique)
 - [ ] Tests : `CustomerLinkUserTest`, `CustomerRelationshipTest`, `CustomerDocumentsTest`, `CustomerNoteTest`
 
 ### P2

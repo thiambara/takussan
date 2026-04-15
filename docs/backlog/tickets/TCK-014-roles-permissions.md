@@ -39,7 +39,7 @@ Mettre en place le système de rôles prédéfinis, permissions granulaires par 
 
 - [ ] Endpoint `POST /api/users/{user}/roles` — attribution et retrait de rôles
 - [ ] Éditeur de rôles personnalisés scopé par agence (`agency_id` via teams spatie)
-- [ ] Page Angular : gestion des rôles (attribution, retrait) dans le dashboard admin
+- [ ] Page Next.js : gestion des rôles (attribution, retrait) dans le dashboard admin
 - [ ] Tests : `RoleAssignmentTest`, `CustomRoleTest`
 
 ### P2

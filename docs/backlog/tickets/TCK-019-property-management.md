@@ -41,7 +41,7 @@ Implémenter le CRUD complet des biens immobiliers avec adresse géolocalisée, 
 - [ ] Endpoint `PUT /api/properties/{property}/status` — changer le statut (available, reserved, sold, rented, archived)
 - [ ] Endpoint `PUT /api/properties/{property}/visibility` — publier / dépublier
 - [ ] Soft delete sur `DELETE /api/properties/{property}`
-- [ ] Pages Angular : liste des biens, création, édition, fiche détaillée
+- [ ] Pages Next.js : liste des biens, création, édition, fiche détaillée
 - [ ] Tests : `PropertyCrudTest`, `PropertyAddressTest`, `PropertyPhotoUploadTest`, `PropertyStatusTest`, `PropertyReferenceNumberTest`
 
 ### P1
