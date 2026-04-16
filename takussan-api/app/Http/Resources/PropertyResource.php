@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class PropertyResource extends JsonResource
 {
@@ -24,10 +25,18 @@ class PropertyResource extends JsonResource
             'bathrooms' => $this->bathrooms,
             'area' => $this->area,
             'featured' => $this->featured,
-            'main_photo_url' => $this->main_photo_url,
+            'main_photo_url' => $this->getFirstMediaUrl('photos', 'medium') ?: $this->main_photo_url,
             'description' => $this->when(
                 $request->routeIs('public.properties.show'),
                 $this->description
+            ),
+            'photos' => $this->when(
+                $request->routeIs('public.properties.show'),
+                fn () => $this->getMedia('photos')->map(fn (Media $media) => [
+                    'thumbnail' => $media->getUrl('thumbnail'),
+                    'medium' => $media->getUrl('medium'),
+                    'large' => $media->getUrl('large'),
+                ])->toArray()
             ),
             'created_at' => $this->created_at->toISOString(),
         ];

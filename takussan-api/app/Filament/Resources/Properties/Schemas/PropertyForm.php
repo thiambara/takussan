@@ -8,6 +8,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
+use Filament\SpatieLaravelMediaLibraryPlugin\Forms\Components\SpatieMediaLibraryFileUpload;
 
 class PropertyForm
 {
@@ -106,14 +107,17 @@ class PropertyForm
                             ->regex('/^\+221[0-9]{9}$/'),
                     ]),
 
-                Section::make('Photo principale')
-                    ->schema([
-                        TextInput::make('main_photo_url')
-                            ->label('URL photo principale')
-                            ->url()
-                            ->columnSpanFull()
-                            ->helperText('Sera remplacé par l\'upload de photos (MVP-005)'),
-                    ]),
+                Section::make('Photos')->schema([
+                    SpatieMediaLibraryFileUpload::make('photos')
+                        ->collection('photos')
+                        ->multiple()
+                        ->maxFiles(10)
+                        ->maxSize(5120)
+                        ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                        ->reorderable()
+                        ->label('Photos du bien')
+                        ->columnSpanFull(),
+                ]),
 
                 Section::make('Description')
                     ->schema([

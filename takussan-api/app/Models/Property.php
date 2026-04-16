@@ -8,10 +8,13 @@ use App\Models\Enums\PropertyType;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Str;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-class Property extends AbstractModel
+class Property extends AbstractModel implements HasMedia
 {
-    use HasFactory;
+    use HasFactory, InteractsWithMedia;
 
     protected $fillable = [
         'title', 'slug', 'description', 'type', 'status',
@@ -39,5 +42,23 @@ class Property extends AbstractModel
     public function scopePublished(Builder $query): Builder
     {
         return $query->where('status', PropertyStatus::Published);
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('photos')
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
+    }
+
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this->addMediaConversion('thumbnail')
+            ->width(300)->height(225)->format('webp')->nonQueued();
+
+        $this->addMediaConversion('medium')
+            ->width(800)->height(600)->format('webp')->nonQueued();
+
+        $this->addMediaConversion('large')
+            ->width(1200)->height(900)->format('webp')->nonQueued();
     }
 }
