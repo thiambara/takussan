@@ -5,10 +5,14 @@ namespace App\Models;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Str;
 
 class Property extends AbstractModel
 {
+    use HasFactory;
+
     protected $fillable = [
         'title', 'slug', 'description', 'type', 'status',
         'price', 'location_quarter', 'location_city',
@@ -32,7 +36,7 @@ class Property extends AbstractModel
         });
     }
 
-    public function scopePublished($query)
+    public function scopePublished(Builder $query): Builder
     {
         return $query->where('status', PropertyStatus::Published);
     }
