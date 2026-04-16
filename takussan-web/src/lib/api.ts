@@ -4,7 +4,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
   : 'http://localhost:8002';
 
 // API base with /api suffix — used by apiFetch
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8002/api';
+const API_BASE = `${API_URL}/api`;
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
