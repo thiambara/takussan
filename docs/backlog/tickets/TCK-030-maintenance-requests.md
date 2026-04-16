@@ -7,7 +7,7 @@ family: applicatif
 estimate: M
 created: 2026-04-15
 updated: 2026-04-15
-depends_on: [TCK-019, TCK-027]
+depends_on: [TCK-034, TCK-027]
 blocks: []
 spec_refs:
   features:

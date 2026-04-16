@@ -3,12 +3,12 @@ id: TCK-029
 title: Communication & messagerie
 status: todo
 phase: P1
-family: applicatif
-estimate: L
+family: back
+estimate: M
 created: 2026-04-15
-updated: 2026-04-16
-depends_on: [TCK-013, TCK-019]
-blocks: [TCK-006]
+updated: 2026-04-15
+depends_on: [TCK-013, TCK-034]
+blocks: []
 spec_refs:
   features:
     - docs/features.md#17-communication--messagerie
@@ -16,7 +16,7 @@ spec_refs:
     - docs/models-spec.md#18-conversation-
     - docs/models-spec.md#19-conversationparticipant-
     - docs/models-spec.md#20-message-
-tags: [back, front, messaging, conversations, realtime]
+tags: [back, messaging, conversations, realtime]
 ---
 
 ## Contexte
@@ -39,20 +39,19 @@ Implémenter la messagerie privée : conversations 1↔1, envoi de messages avec
 - [ ] Endpoint `POST /api/conversations/{conversation}/messages` — envoyer un message texte avec pièces jointes
 - [ ] Endpoint `PUT /api/conversations/{conversation}/read` — marquer comme lu
 - [ ] Notification in-app + email sur nouveau message (via TCK-022)
-- [ ] Pages Next.js : liste conversations, fil de discussion, envoi message
 - [ ] Tests : `ConversationCreationTest`, `MessageSendTest`, `ConversationListTest`, `MessageReadStatusTest`
 
 ### P2
 
 - [ ] Conversations de groupe (multi-participants) : `POST /api/conversations/{conversation}/participants`
-- [ ] Accusés de lecture individuels (→ TCK-006 si >5 participants)
+- [ ] Accusés de lecture individuels (→ P2 futur si >5 participants)
 - [ ] Recherche dans l'historique des messages : `GET /api/conversations/{conversation}/messages?search=`
 - [ ] Archivage de conversation : `PUT /api/conversations/{conversation}/archive` — seul un participant peut archiver sa propre vue (soft-hide, pas de suppression des messages)
 
 ### P3
 
 - [ ] Appels audio / vidéo intégrés
-- [ ] Traduction automatique FR ↔ EN ↔ WO (→ TCK-011)
+- [ ] Traduction automatique FR ↔ EN ↔ WO (→ P3 futur)
 
 ## Critères d'acceptation
 
@@ -65,8 +64,9 @@ Implémenter la messagerie privée : conversations 1↔1, envoi de messages avec
 
 ## Hors périmètre
 
-- Accusés de lecture >5 participants (→ TCK-006)
-- Traduction automatique (→ TCK-011)
+- Frontend messagerie (→ TCK-045)
+- Accusés de lecture >5 participants (→ P2 futur)
+- Traduction automatique (→ P3 futur)
 - Appels audio/vidéo (→ P3 futur)
 
 ## Notes d'implémentation

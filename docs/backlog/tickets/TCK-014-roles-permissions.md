@@ -7,8 +7,8 @@ family: applicatif
 estimate: M
 created: 2026-04-15
 updated: 2026-04-16
-depends_on: [TCK-013]
-blocks: [TCK-015, TCK-019, TCK-020, TCK-023]
+depends_on: [TCK-013, TCK-049]
+blocks: [TCK-015, TCK-034, TCK-020, TCK-023]
 spec_refs:
   features:
     - docs/features.md#22-rôles--permissions

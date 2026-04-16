@@ -7,7 +7,7 @@ family: applicatif
 estimate: M
 created: 2026-04-15
 updated: 2026-04-16
-depends_on: [TCK-013, TCK-014]
+depends_on: [TCK-013, TCK-014, TCK-049]
 blocks: []
 spec_refs:
   features:
@@ -47,7 +47,7 @@ Implémenter les outils d'administration : gestion des tags, gestion des utilisa
 - [ ] Migration + CRUD `Integration` : `GET/POST/PUT/DELETE /api/admin/integrations` — gestion des intégrations tierces (API keys chiffrées)
 - [ ] Tests : `AdminEnumManagementTest`, `AdminEmailConfigTest`, `AdminSettingTest`, `AdminIntegrationTest`
 
-> **Pourquoi Setting/Integration en P1 ?** `Setting` est consommé dès P1 par TCK-008 (politique de remboursement) et TCK-011 (auto-traduction). `Integration` est nécessaire pour TCK-002 (passerelle paiement) et TCK-010 (recherche vocale).
+> **Pourquoi Setting/Integration en P1 ?** `Setting` est consommé dès P1 par les politiques de remboursement et l'auto-traduction (P3). `Integration` est nécessaire pour la passerelle paiement et la recherche vocale (P3).
 
 ### P3
 

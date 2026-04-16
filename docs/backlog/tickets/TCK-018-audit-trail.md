@@ -7,7 +7,7 @@ family: applicatif
 estimate: S
 created: 2026-04-15
 updated: 2026-04-15
-depends_on: []
+depends_on: [TCK-013, TCK-049]
 blocks: []
 spec_refs:
   features:
@@ -59,7 +59,7 @@ Configurer spatie/laravel-activitylog sur les modèles critiques et exposer les 
 
 ## Hors périmètre
 
-- Historique de prix (journalisé via `PropertyPriceHistory`, → TCK-019)
+- Historique de prix (journalisé via `PropertyPriceHistory`, → TCK-036)
 - Notes CRM horodatées (→ TCK-020)
 
 ## Notes d'implémentation

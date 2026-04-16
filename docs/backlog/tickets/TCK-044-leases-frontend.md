@@ -1,0 +1,70 @@
+---
+id: TCK-044
+title: "Baux — Frontend gestion"
+status: todo
+phase: P1
+family: front
+estimate: M
+created: 2026-04-15
+updated: 2026-04-15
+depends_on: [TCK-054, TCK-056, TCK-057, TCK-059, TCK-027]
+blocks: []
+spec_refs:
+  features: [docs/features.md#14-location-longue-durée-baux]
+  models:
+    - docs/models-spec.md#14-lease-
+    - docs/models-spec.md#15-leasepayment-
+    - docs/models-spec.md#27-guarantor-
+tags: [front, lease, schedule, payments, guarantor]
+---
+
+## Objectif utilisateur
+
+Un agent gère les baux, l'échéancier et les paiements depuis le dashboard.
+
+## Contrat de données
+
+- `POST /api/leases` — créer un bail
+- `GET /api/leases/{lease}` — consulter un bail
+- `PUT /api/leases/{lease}` — modifier
+- `POST /api/leases/{lease}/guarantors` — ajouter un garant
+- `POST /api/leases/{lease}/generate-schedule` — générer l'échéancier
+- `POST /api/leases/{lease}/payments` — enregistrer un paiement
+- `GET /api/leases/{lease}/history` — historique du bail
+
+## Direction UX / Artistique
+
+- **Création bail** : formulaire structuré (locataire, bailleur, durée, loyer, caution, garants). Multi-sections ou stepper.
+- **Échéancier** : vue calendrier ou tableau mensuel avec statuts (payé/en retard/à venir). L'IA choisit la meilleure représentation.
+- **Enregistrement paiement** : modal rapide avec montant, méthode, date.
+- **Garants** : section dans la fiche bail avec upload documents.
+- **Indicateurs** : statut du bail (actif, expiré, résilié), taux d'impayés, prochain échéance.
+
+## Contraintes strictes (métier)
+
+- Maximum 3 garants par bail (validation front + back)
+- Les paiements en retard doivent être visuellement distingués (couleur alerte)
+- Montants en XOF formaté
+- Un bail nécessite au minimum : locataire, bien, loyer, durée, caution
+
+## Delta à produire
+
+- [ ] Section Baux dans le dashboard
+- [ ] Formulaire création bail (multi-sections)
+- [ ] Fiche bail avec échéancier
+- [ ] Modal enregistrement paiement
+- [ ] Section garants avec upload documents
+- [ ] Indicateurs visuels de retard
+
+## Critères d'acceptation
+
+- [ ] Un agent peut créer un bail complet avec garants
+- [ ] L'échéancier affiche le statut de chaque échéance
+- [ ] Les paiements en retard sont visuellement distingués
+- [ ] Maximum 3 garants est validé côté front
+
+## Hors périmètre
+
+- Backend baux (→ TCK-027)
+- Renouvellement/résiliation (→ P2)
+- Signature électronique (→ P3)

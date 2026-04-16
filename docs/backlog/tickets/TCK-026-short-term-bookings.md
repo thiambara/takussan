@@ -3,12 +3,12 @@ id: TCK-026
 title: Réservations courte durée & visites
 status: todo
 phase: P1
-family: applicatif
-estimate: L
+family: back
+estimate: M
 created: 2026-04-15
-updated: 2026-04-16
-depends_on: [TCK-019, TCK-020]
-blocks: [TCK-008, TCK-028]
+updated: 2026-04-15
+depends_on: [TCK-034, TCK-020, TCK-048, TCK-051]
+blocks: [TCK-028]
 spec_refs:
   features:
     - docs/features.md#13-réservations-courte-durée--visites
@@ -16,7 +16,7 @@ spec_refs:
     - docs/models-spec.md#5-booking
     - docs/models-spec.md#6-bookingpayment
     - docs/models-spec.md#17-propertyvisit-
-tags: [back, front, booking, visits, payments, calendar]
+tags: [back, booking, visits, payments, calendar]
 ---
 
 ## Contexte
@@ -38,7 +38,6 @@ Implémenter le flux complet de réservation courte durée (demande → acceptat
 - [ ] Endpoint `GET /api/bookings/{booking}/payments` — consultation des paiements liés
 - [ ] Endpoint `GET /api/properties/{property}/calendar` — vue calendrier agrégée (réservations + visites)
 - [ ] Contrôle de chevauchement (overlap check) lors de l'acceptation : rejet 409 si une réservation confirmée existe déjà sur la même période pour le même bien
-- [ ] Pages Next.js : demande de réservation, gestion des demandes (agent), vue calendrier
 - [ ] Tests : `BookingFlowTest`, `BookingPaymentTest`, `BookingCalendarTest`
 
 ### P2
@@ -51,7 +50,7 @@ Implémenter le flux complet de réservation courte durée (demande → acceptat
 
 ### P3
 
-- [ ] Annulation avec remboursement partiel automatisé (→ TCK-008)
+- [ ] Annulation avec remboursement partiel automatisé (→ P3 futur)
 
 ## Critères d'acceptation
 
@@ -71,8 +70,9 @@ Implémenter le flux complet de réservation courte durée (demande → acceptat
 
 ## Hors périmètre
 
-- Annulation avec remboursement automatisé (→ TCK-008)
-- Passerelle de paiement (→ TCK-002)
+- Frontend réservations (→ TCK-043)
+- Annulation avec remboursement automatisé (→ P3 futur)
+- Passerelle de paiement (→ P2 futur)
 - Facturation (→ TCK-028)
 
 ## Notes d'implémentation

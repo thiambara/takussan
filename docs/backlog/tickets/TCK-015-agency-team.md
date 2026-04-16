@@ -7,8 +7,8 @@ family: applicatif
 estimate: M
 created: 2026-04-15
 updated: 2026-04-16
-depends_on: [TCK-013, TCK-014]
-blocks: [TCK-019, TCK-020]
+depends_on: [TCK-013, TCK-014, TCK-049]
+blocks: [TCK-034, TCK-020]
 spec_refs:
   features:
     - docs/features.md#112-agence--équipe
@@ -61,8 +61,8 @@ Implémenter la création et configuration d'agences, la gestion des agents et l
 
 ## Hors périmètre
 
-- Gestion des biens (→ TCK-019)
-- Commissions automatiques par agent (→ TCK-005)
+- Gestion des biens (→ TCK-034)
+- Commissions automatiques par agent (→ P3 futur)
 
 ## Notes d'implémentation
 

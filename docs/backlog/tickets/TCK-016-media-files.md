@@ -7,8 +7,8 @@ family: applicatif
 estimate: M
 created: 2026-04-15
 updated: 2026-04-15
-depends_on: []
-blocks: [TCK-019, TCK-021]
+depends_on: [TCK-013, TCK-050]
+blocks: [TCK-034, TCK-021]
 spec_refs:
   features:
     - docs/features.md#27-médias--fichiers
@@ -60,7 +60,7 @@ Implémenter le système d'upload, de validation, de conversion et de gestion de
 
 ## Hors périmètre
 
-- Upload spécifique aux biens (→ TCK-019)
+- Upload spécifique aux biens (→ TCK-035)
 - Upload de documents contractuels (→ TCK-021)
 
 ## Notes d'implémentation

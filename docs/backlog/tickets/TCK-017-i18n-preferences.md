@@ -7,8 +7,8 @@ family: applicatif
 estimate: S
 created: 2026-04-15
 updated: 2026-04-15
-depends_on: []
-blocks: [TCK-007, TCK-011]
+depends_on: [TCK-058]
+blocks: []
 spec_refs:
   features:
     - docs/features.md#28-internationalisation--préférences
@@ -47,8 +47,8 @@ Mettre en place le support multilingue (FR, EN, WO), la sélection de langue par
 
 ### P3
 
-- [ ] Conversion multi-devises avec taux de change (→ TCK-007)
-- [ ] Traduction automatique des contenus utilisateurs (→ TCK-011)
+- [ ] Conversion multi-devises avec taux de change (→ P3 futur)
+- [ ] Traduction automatique des contenus utilisateurs (→ P3 futur)
 
 ## Critères d'acceptation
 
@@ -59,8 +59,8 @@ Mettre en place le support multilingue (FR, EN, WO), la sélection de langue par
 
 ## Hors périmètre
 
-- Conversion multi-devises avec taux de change (→ TCK-007)
-- Traduction automatique des contenus (→ TCK-011)
+- Conversion multi-devises avec taux de change (→ P3 futur)
+- Traduction automatique des contenus (→ P3 futur)
 
 ## Notes d'implémentation
 

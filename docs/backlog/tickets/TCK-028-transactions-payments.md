@@ -8,7 +8,7 @@ estimate: L
 created: 2026-04-15
 updated: 2026-04-16
 depends_on: [TCK-026, TCK-027]
-blocks: [TCK-002, TCK-003, TCK-005, TCK-007, TCK-009, TCK-032]
+blocks: [TCK-032]
 spec_refs:
   features:
     - docs/features.md#15-transactions--paiements
@@ -52,14 +52,14 @@ Implémenter la génération de factures, les reversements aux bailleurs après 
 
 ### P2
 
-- [ ] Intégration passerelle de paiement (→ TCK-002)
-- [ ] Rapprochement bancaire semi-automatique (→ TCK-003)
+- [ ] Intégration passerelle de paiement (→ P2 futur)
+- [ ] Rapprochement bancaire semi-automatique (→ P2 futur)
 - [ ] Relance automatique factures en retard (job schedulé)
 
 ### P3
 
-- [ ] Commissions automatiques par agent / collaborateur (→ TCK-005)
-- [ ] Comptabilité exportable FEC (→ TCK-009)
+- [ ] Commissions automatiques par agent / collaborateur (→ P3 futur)
+- [ ] Comptabilité exportable FEC (→ P3 futur)
 
 ## Critères d'acceptation
 
@@ -72,10 +72,10 @@ Implémenter la génération de factures, les reversements aux bailleurs après 
 
 ## Hors périmètre
 
-- Passerelle de paiement externe (→ TCK-002)
-- Rapprochement bancaire (→ TCK-003)
-- Commissions automatiques (→ TCK-005)
-- Export FEC (→ TCK-009)
+- Passerelle de paiement externe (→ P2 futur)
+- Rapprochement bancaire (→ P2 futur)
+- Commissions automatiques (→ P3 futur)
+- Export FEC (→ P3 futur)
 
 ## Notes d'implémentation
 

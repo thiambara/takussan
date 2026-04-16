@@ -7,8 +7,8 @@ family: applicatif
 estimate: L
 created: 2026-04-15
 updated: 2026-04-15
-depends_on: [TCK-013, TCK-014]
-blocks: [TCK-004, TCK-026, TCK-027]
+depends_on: [TCK-013, TCK-014, TCK-048, TCK-051]
+blocks: [TCK-026, TCK-027]
 spec_refs:
   features:
     - docs/features.md#16-crm--relation-client
@@ -57,7 +57,7 @@ Implémenter la gestion complète des contacts client (Customer), relations agen
 
 ### P3
 
-- [ ] Campagnes email / SMS ciblées (→ TCK-004)
+- [ ] Campagnes email / SMS ciblées (→ P3 futur)
 
 ## Critères d'acceptation
 
@@ -70,7 +70,7 @@ Implémenter la gestion complète des contacts client (Customer), relations agen
 
 ## Hors périmètre
 
-- Campagnes email / SMS (→ TCK-004)
+- Campagnes email / SMS (→ P3 futur)
 - Facturation client (→ TCK-028)
 
 ## Notes d'implémentation

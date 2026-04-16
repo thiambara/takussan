@@ -64,7 +64,7 @@ Implémenter le système de gestion documentaire centralisé : upload, catégori
 
 ## Hors périmètre
 
-- Upload de photos de biens (→ TCK-019)
+- Upload de photos de biens (→ TCK-035)
 - Signature électronique du bail (→ P3 futur)
 
 ## Notes d'implémentation

@@ -7,8 +7,8 @@ family: applicatif
 estimate: M
 created: 2026-04-15
 updated: 2026-04-15
-depends_on: [TCK-019]
-blocks: [TCK-010, TCK-012, TCK-025]
+depends_on: [TCK-034, TCK-052]
+blocks: [TCK-038, TCK-039, TCK-046]
 spec_refs:
   features:
     - docs/features.md#24-recherche--filtres
@@ -50,7 +50,7 @@ Implémenter la recherche plein-texte via Scout, les filtres dynamiques, la pagi
 
 ### P3
 
-- [ ] Recherche sémantique par embeddings (→ TCK-012)
+- [ ] Recherche sémantique par embeddings (→ P3 futur)
 
 ## Critères d'acceptation
 
@@ -61,9 +61,9 @@ Implémenter la recherche plein-texte via Scout, les filtres dynamiques, la pagi
 
 ## Hors périmètre
 
-- Recherche vocale / langage naturel (→ TCK-010)
-- Recherche sémantique par embeddings (→ TCK-012)
-- UI de recherche publique (→ TCK-025)
+- Recherche vocale / langage naturel (→ P3 futur)
+- Recherche sémantique par embeddings (→ P3 futur)
+- UI de recherche publique (→ TCK-039)
 
 ## Notes d'implémentation
 

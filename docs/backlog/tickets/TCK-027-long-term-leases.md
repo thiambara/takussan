@@ -3,11 +3,11 @@ id: TCK-027
 title: Location longue durée (baux)
 status: todo
 phase: P1
-family: applicatif
-estimate: XL
+family: back
+estimate: L
 created: 2026-04-15
-updated: 2026-04-16
-depends_on: [TCK-019, TCK-020]
+updated: 2026-04-15
+depends_on: [TCK-034, TCK-020, TCK-048, TCK-051]
 blocks: [TCK-028, TCK-030, TCK-031, TCK-032]
 spec_refs:
   features:
@@ -16,7 +16,7 @@ spec_refs:
     - docs/models-spec.md#14-lease-
     - docs/models-spec.md#15-leasepayment-
     - docs/models-spec.md#27-guarantor-
-tags: [back, front, lease, rent, payments, guarantor, schedule]
+tags: [back, lease, rent, payments, guarantor, schedule]
 ---
 
 ## Contexte
@@ -42,7 +42,6 @@ Implémenter la gestion complète des baux : création, garants, échéancier de
 - [ ] Service `LeaseLateFeeService` — calcul et application automatique des pénalités de retard
 - [ ] Endpoint `POST /api/leases/{lease}/refund-deposit` — remboursement caution en fin de bail
 - [ ] Endpoint `GET /api/leases/{lease}/history` — historique complet du bail
-- [ ] Pages Next.js : création bail, fiche bail, échéancier, enregistrement paiement, garants
 - [ ] Tests : `LeaseCreationTest`, `LeaseScheduleTest`, `LeasePaymentTest`, `LeaseGuarantorTest`, `LeaseLateFeeTest`, `LeaseDepositRefundTest`
 
 ### P2
@@ -67,7 +66,8 @@ Implémenter la gestion complète des baux : création, garants, échéancier de
 
 ## Hors périmètre
 
-- Passerelle de paiement (→ TCK-002)
+- Frontend baux (→ TCK-044)
+- Passerelle de paiement (→ P2 futur)
 - Facturation et factures (→ TCK-028)
 - Signature électronique (→ P3 futur)
 

@@ -8,7 +8,7 @@ estimate: L
 created: 2026-04-15
 updated: 2026-04-16
 depends_on: []
-blocks: [TCK-014, TCK-015, TCK-019, TCK-020, TCK-021, TCK-022, TCK-023, TCK-029, TCK-033]
+blocks: [TCK-014, TCK-015, TCK-034, TCK-020, TCK-021, TCK-022, TCK-023, TCK-029, TCK-033]
 spec_refs:
   features:
     - docs/features.md#21-authentification--comptes

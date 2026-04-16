@@ -7,7 +7,7 @@ family: applicatif
 estimate: L
 created: 2026-04-15
 updated: 2026-04-15
-depends_on: [TCK-019, TCK-027, TCK-028]
+depends_on: [TCK-034, TCK-027, TCK-028]
 blocks: []
 spec_refs:
   features:
@@ -59,7 +59,7 @@ Implémenter les tableaux de bord par rôle (agence, bailleur, agent, locataire)
 
 ## Hors périmètre
 
-- Export comptable FEC (→ TCK-009)
+- Export comptable FEC (→ P3 futur)
 - KPI personnalisables (→ P3 futur)
 
 ## Notes d'implémentation
