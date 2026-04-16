@@ -4,6 +4,7 @@ import { PropertyCard } from '@/components/properties/PropertyCard';
 import { PropertySkeleton } from '@/components/properties/PropertySkeleton';
 import { SearchFilters } from '@/components/search/SearchFilters';
 import { useSearch } from '@/hooks/useSearch';
+import { SortDropdown } from '@/components/search/SortDropdown';
 
 function HomeContent() {
   const { data, loading, error, filters, search } = useSearch();
@@ -33,7 +34,10 @@ function HomeContent() {
             <p className="text-sm text-stone-500">
               {data && !loading ? `${data.meta.total} annonce${data.meta.total > 1 ? 's' : ''}` : ''}
             </p>
-            {/* SortDropdown ajouté en Tâche 11 */}
+            <SortDropdown
+              value={filters.sort}
+              onChange={sort => search({ ...filters, sort, page: undefined })}
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
