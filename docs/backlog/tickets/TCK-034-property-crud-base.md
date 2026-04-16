@@ -44,7 +44,7 @@ Un agent peut créer, lire, modifier et supprimer un bien immobilier avec ses ca
 
 ## Delta à produire
 
-- [ ] Migration : ajout colonnes Property P0 (`reference_number`, `bedrooms`, `bathrooms`, `furnished`, `floor_number`, `total_floors`, `year_built`, `parking_spaces`, `lot_position`, `title_type`, `admin_monitored`, `featured`, `views_count`, `favorites_count`, `available_from`, `published_at`)
+- [ ] Migration : ajout colonnes Property P0 (`reference_number`, `bedrooms`, `bathrooms`, `furnished`, `floor_number`, `total_floors`, `year_built`, `parking_spaces`, `lot_position`, `title_type`, `admin_monitored`, `featured`, `views_count`, `favorites_count`, `available_from`, `published_at`, `parent_property_id`) — `parent_property_id` nullable pour hiérarchie immeuble→lots
 - [ ] Modèle Property + enums PropertyType, PropertyStatus, PropertyVisibility, ContractType, Currency
 - [ ] PropertyController CRUD + status + visibility
 - [ ] FormRequests : StorePropertyRequest, UpdatePropertyRequest, UpdatePropertyStatusRequest, UpdatePropertyVisibilityRequest
@@ -60,9 +60,23 @@ Un agent peut créer, lire, modifier et supprimer un bien immobilier avec ses ca
 - [ ] Un bien sans adresse ne peut pas être publié (422)
 - [ ] Un agent d'une agence A ne peut pas modifier un bien de l'agence B
 
+### P1
+
+- [ ] Hiérarchie de biens : `GET /api/properties/{property}/children` — liste des lots/enfants d'un immeuble ; `parent_property_id` nullable sur Property ; un bien parent de type `building` peut avoir N enfants de type `apartment`/`commercial`/`lot`
+- [ ] Tests : `PropertyHierarchyTest`
+
+### P2
+
+- [ ] Archivage en lot : `POST /api/properties/bulk-archive` — archiver plusieurs biens en une requête (tableau d'IDs, validation ownership)
+- [ ] Tests : `PropertyBulkArchiveTest`
+
 ## Hors périmètre
 
 - Adresse géolocalisée (→ TCK-035)
 - Tags, collaborateurs, historique de prix (→ TCK-036)
 - Recherche et filtres (→ TCK-024)
 - Pages frontend (→ TCK-038, TCK-039, TCK-040, TCK-041)
+- Duplication de biens (→ P2 futur)
+- Modération avant publication (→ P2 futur)
+- Import CSV / API externe (→ P3 futur)
+- Estimation automatique de prix IA (→ P3 futur)

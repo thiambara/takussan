@@ -58,8 +58,15 @@ Un visiteur peut rechercher et filtrer les biens pour trouver celui qui correspo
 - [ ] L'état "aucun résultat" s'affiche quand les filtres ne matchent rien
 - [ ] Les filtres sont utilisables sur mobile (drawer/bottom-sheet)
 
+### P2
+
+- [ ] Biens similaires / suggestions personnalisées : section « Biens similaires » sur la page résultat, basée sur les critères de recherche en cours (même ville, type, fourchette de prix)
+- [ ] Historique local des biens consultés : stockage `localStorage` côté navigateur, section « Récemment consultés »
+
 ## Hors périmètre
 
 - Filtres avancés amenités (→ TCK-047)
 - Carte interactive (→ TCK-047)
 - Favoris (→ TCK-046/047)
+- Comparateur de biens (→ P2 futur)
+- Recherche vocale (→ P3 futur)
