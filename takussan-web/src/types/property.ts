@@ -18,6 +18,11 @@ export interface PropertyListItem {
   created_at: string;
 }
 
+export interface PropertyDetail extends PropertyListItem {
+  description: string | null;
+  photos?: Array<{ thumbnail: string; medium: string; large: string }> | null;
+}
+
 export interface PaginatedProperties {
   data: PropertyListItem[];
   meta: {
