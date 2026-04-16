@@ -7,10 +7,13 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
+        "filament/filament": "^4.0",
+        "filament/spatie-laravel-media-library-plugin": "^4.0",
         "laravel/framework": "^13.0",
         "laravel/sanctum": "^4.3",
         "laravel/socialite": "^5.26",
-        "laravel/tinker": "^3.0"
+        "laravel/tinker": "^3.0",
+        "spatie/laravel-medialibrary": "^11.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -51,7 +54,8 @@
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@php artisan package:discover --ansi"
+            "@php artisan package:discover --ansi",
+            "@php artisan filament:upgrade"
         ],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
