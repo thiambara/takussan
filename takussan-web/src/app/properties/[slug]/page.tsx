@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { PhotoGallery } from '@/components/properties/PhotoGallery';
 import { PropertySkeleton } from '@/components/properties/PropertySkeleton';
 import { useProperty } from '@/hooks/useProperty';
+import { WhatsAppButton } from '@/components/contact/WhatsAppButton';
 
 function formatPrice(price: number): string {
   return new Intl.NumberFormat('fr-SN', {
@@ -102,12 +103,8 @@ export default function PropertyDetailPage() {
             </div>
           )}
 
-          {/* Placeholder bouton WhatsApp — implémenté en MVP-003 (Tâche 7) */}
-          <div
-            id="whatsapp-button-slot"
-            className="h-14 bg-stone-100 rounded-lg flex items-center justify-center text-stone-400 text-sm border-2 border-dashed border-stone-300"
-          >
-            Bouton WhatsApp (Tâche 7)
+          <div className="sticky bottom-4 lg:static">
+            <WhatsAppButton slug={slug} title={property.title} />
           </div>
 
           {property.description && (
