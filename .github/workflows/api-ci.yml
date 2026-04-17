@@ -1,0 +1,59 @@
+name: API CI
+
+on:
+  pull_request:
+    paths:
+      - 'takussan-api/**'
+      - '.github/workflows/api-ci.yml'
+  push:
+    branches:
+      - dev
+      - main
+      - master
+    paths:
+      - 'takussan-api/**'
+      - '.github/workflows/api-ci.yml'
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: takussan-api
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo, pdo_sqlite, sqlite3, bcmath, intl, gd, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: takussan-api/vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('takussan-api/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install composer dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env || echo "APP_ENV=testing" > .env
+          php artisan key:generate --force
+          touch database/database.sqlite
+
+      - name: Run Laravel Pint (lint)
+        run: ./vendor/bin/pint --test
+
+      - name: Run tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+        run: php artisan test --parallel=false

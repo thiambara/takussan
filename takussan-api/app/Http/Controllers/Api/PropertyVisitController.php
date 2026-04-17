@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\PropertyVisitResource;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
+use App\Models\Property;
 use App\Models\PropertyVisit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -49,8 +50,21 @@ class PropertyVisitController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
+        $property = Property::findOrFail($data['property_id']);
+        $user = $request->user();
+
+        $isStaff = $user->hasRole(['admin', 'super_admin'])
+            || $property->user_id === $user->id
+            || ($user->agency_id && $property->agency_id && $user->agency_id === $property->agency_id);
+
+        // Non-staff users can only book visits on publicly visible properties.
+        if (! $isStaff) {
+            $isPublic = Property::query()->where('id', $property->id)->public()->exists();
+            abort_unless($isPublic, 403, 'This property is not available for visits.');
+        }
+
         $visit = PropertyVisit::create(array_merge($data, [
-            'visitor_id' => $request->user()->id,
+            'visitor_id' => $user->id,
             'type' => $data['type'] ?? VisitType::InPerson->value,
             'status' => VisitStatus::Scheduled->value,
         ]));
