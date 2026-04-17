@@ -9,6 +9,7 @@ use App\Models\Enums\VisitType;
 use App\Models\PropertyVisit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class PropertyVisitController extends Controller
 {
@@ -40,7 +41,7 @@ class PropertyVisitController extends Controller
             'customer_id' => ['nullable', 'exists:customers,id'],
             'agent_id' => ['nullable', 'exists:users,id'],
             'scheduled_at' => ['required', 'date'],
-            'type' => ['nullable', 'string'],
+            'type' => ['nullable', Rule::enum(VisitType::class)],
             'duration_minutes' => ['nullable', 'integer', 'min:5'],
             'visitor_name' => ['nullable', 'string'],
             'visitor_phone' => ['nullable', 'string'],

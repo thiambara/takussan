@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\LeasePaymentResource;
+use App\Models\Enums\LeasePaymentType;
+use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class LeasePaymentController extends Controller
 {
@@ -36,8 +39,8 @@ class LeasePaymentController extends Controller
 
         $data = $request->validate([
             'amount' => ['required', 'numeric', 'min:0'],
-            'payment_method' => ['nullable', 'string'],
-            'payment_type' => ['required', 'string'],
+            'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
+            'payment_type' => ['required', Rule::enum(LeasePaymentType::class)],
             'period_start' => ['required', 'date'],
             'period_end' => ['required', 'date', 'after_or_equal:period_start'],
             'due_date' => ['nullable', 'date'],
@@ -70,7 +73,7 @@ class LeasePaymentController extends Controller
 
         $data = $request->validate([
             'paid_at' => ['nullable', 'date'],
-            'payment_method' => ['nullable', 'string'],
+            'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
             'transaction_id' => ['nullable', 'string'],
         ]);
 

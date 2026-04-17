@@ -131,7 +131,11 @@ class ConversationController extends Controller
 
     protected function ensureParticipant(Request $request, Conversation $conversation): void
     {
-        $isParticipant = $conversation->participants()->where('user_id', $request->user()->id)->exists();
+        $user = $request->user();
+        if ($user->hasRole(['admin', 'super_admin'])) {
+            return;
+        }
+        $isParticipant = $conversation->participants()->where('user_id', $user->id)->exists();
         abort_unless($isParticipant, 403);
     }
 }
