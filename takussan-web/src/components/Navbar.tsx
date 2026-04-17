@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { Search, MapPin, Home, Menu, X, ChevronDown } from 'lucide-react';
 import { navLinks } from '@/data/mockData';
 
 export interface NavbarProps {
@@ -8,43 +9,145 @@ export interface NavbarProps {
 }
 
 export function Navbar({ className }: NavbarProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [location, setLocation] = useState('');
+  const [transaction, setTransaction] = useState('Acheter');
+
   return (
     <nav
-      className={`fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl shadow-[0_4px_6px_-1px_rgba(0,80,203,0.04)] ${className || ''}`}
+      className={`fixed top-0 w-full z-50 bg-white border-b border-gray-200 ${className || ''}`}
     >
-      <div className="flex justify-between items-center px-8 py-4 max-w-[1440px] mx-auto">
+      <div className="flex items-center gap-4 px-6 py-3 max-w-[1440px] mx-auto">
         {/* Logo */}
-        <div className="text-2xl font-bold tracking-tighter text-[#0050cb]">
+        <div className="text-xl font-bold tracking-tighter text-[#0050cb] shrink-0">
           Takussan
         </div>
 
-        {/* Navigation Links */}
-        <div className="hidden md:flex items-center gap-8">
-          {navLinks.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              className={`font-semibold tracking-tight text-sm transition-colors ${
-                link.active
-                  ? 'text-[#0050cb] border-b-2 border-[#0050cb]'
-                  : 'text-slate-600 hover:text-[#0050cb]'
-              }`}
+        {/* Search Bar — desktop */}
+        <div className="hidden md:flex flex-1 max-w-2xl mx-auto items-center bg-white border border-gray-300 rounded-full shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+          {/* Location */}
+          <div className="flex items-center gap-2 flex-1 px-4 py-2.5">
+            <MapPin className="w-4 h-4 text-[#0050cb] shrink-0" />
+            <input
+              type="text"
+              placeholder="Où cherchez-vous ?"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              className="w-full text-sm text-gray-900 placeholder:text-gray-400 font-medium outline-none bg-transparent"
+            />
+          </div>
+
+          {/* Separator */}
+          <div className="w-px h-6 bg-gray-200 shrink-0" />
+
+          {/* Type */}
+          <div className="flex items-center gap-1.5 px-4 py-2.5 shrink-0">
+            <Home className="w-4 h-4 text-[#0050cb]" />
+            <select
+              value={transaction}
+              onChange={(e) => setTransaction(e.target.value)}
+              className="text-sm text-gray-900 font-medium outline-none bg-transparent appearance-none cursor-pointer pr-1"
             >
-              {link.label}
-            </a>
-          ))}
+              <option>Acheter</option>
+              <option>Louer</option>
+              <option>Neuf</option>
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+          </div>
+
+          {/* Search Button */}
+          <button className="m-1.5 bg-[#0050cb] hover:bg-[#0043a8] text-white rounded-full p-2.5 transition-colors active:scale-95 shrink-0">
+            <Search className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-4">
-          <button className="font-medium text-sm text-slate-600 hover:text-[#0050cb] transition-colors">
+        {/* Actions — desktop */}
+        <div className="hidden md:flex items-center gap-3 shrink-0 ml-auto">
+          <button className="font-medium text-sm text-slate-600 hover:text-[#0050cb] transition-colors whitespace-nowrap">
             Connexion
           </button>
-          <button className="bg-[#0066ff] text-white px-6 py-2.5 rounded-full font-semibold text-sm hover:opacity-90 active:scale-95 duration-200 shadow-sm">
-            Publier une annonce
+          <button className="bg-[#0050cb] text-white px-5 py-2 rounded-full font-semibold text-sm hover:opacity-90 active:scale-95 duration-200 shadow-sm whitespace-nowrap">
+            Publier
+          </button>
+        </div>
+
+        {/* Mobile: search pill + hamburger */}
+        <div className="flex md:hidden flex-1 items-center gap-3">
+          <button
+            onClick={() => setMenuOpen(false)}
+            className="flex-1 flex items-center gap-2 bg-white border border-gray-300 rounded-full px-4 py-2.5 shadow-sm text-left"
+          >
+            <Search className="w-4 h-4 text-gray-400 shrink-0" />
+            <span className="text-sm text-gray-400 truncate">Où cherchez-vous ?</span>
+          </button>
+          <button
+            className="p-2 rounded-lg text-slate-600 hover:text-[#0050cb] hover:bg-gray-100 transition-colors"
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+          >
+            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </div>
+
+      {/* Mobile menu panel */}
+      {menuOpen && (
+        <div className="md:hidden absolute top-full left-0 w-full bg-white border-t border-gray-100 shadow-lg">
+          {/* Mobile Search */}
+          <div className="px-6 pt-5 pb-3">
+            <div className="flex items-center gap-2 border border-gray-300 rounded-xl px-4 py-3 mb-2">
+              <MapPin className="w-4 h-4 text-[#0050cb] shrink-0" />
+              <input
+                type="text"
+                placeholder="Où cherchez-vous ?"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="flex-1 text-sm text-gray-900 placeholder:text-gray-400 font-medium outline-none bg-transparent"
+              />
+            </div>
+            <div className="flex gap-2">
+              {['Acheter', 'Louer', 'Neuf'].map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTransaction(t)}
+                  className={`flex-1 py-2 rounded-full text-sm font-semibold transition-colors ${
+                    transaction === t
+                      ? 'bg-[#0050cb] text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Mobile nav links */}
+          <div className="flex flex-col px-6 py-3 gap-4 border-t border-gray-100">
+            {navLinks.map((link) => (
+              <a
+                key={link.label}
+                href={link.href}
+                onClick={() => setMenuOpen(false)}
+                className={`font-semibold text-base transition-colors ${
+                  link.active ? 'text-[#0050cb]' : 'text-slate-700 hover:text-[#0050cb]'
+                }`}
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+
+          <div className="px-6 py-4 border-t border-gray-100 flex flex-col gap-3">
+            <button className="font-medium text-sm text-slate-600 hover:text-[#0050cb] transition-colors text-left">
+              Connexion
+            </button>
+            <button className="bg-[#0050cb] text-white px-6 py-3 rounded-full font-semibold text-sm hover:opacity-90 active:scale-95 duration-200 shadow-sm">
+              Publier une annonce
+            </button>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }

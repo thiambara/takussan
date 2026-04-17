@@ -20,27 +20,28 @@ export interface CategoryGridProps {
 
 export function CategoryGrid({ categories, className }: CategoryGridProps) {
   return (
-    <section className={className}>
-      <h2 className="text-4xl font-bold tracking-tight text-gray-900 mb-12">
-        Explorer par catégorie
-      </h2>
-
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-        {categories.map((category) => {
-          const IconComponent = iconMap[category.icon] || Building2;
-          return (
-            <button
-              key={category.id}
-              className="group flex flex-col items-center gap-4 p-6 rounded-2xl bg-white hover:bg-gray-50 border border-gray-100 hover:border-gray-200 transition-all duration-200"
-            >
-              <div className="w-16 h-16 rounded-full bg-[#0050cb]/10 flex items-center justify-center group-hover:bg-[#0050cb]/20 transition-colors">
-                <IconComponent className="w-8 h-8 text-[#0050cb]" />
-              </div>
-              <span className="font-semibold text-gray-900">{category.name}</span>
-            </button>
-          );
-        })}
+    <div
+      className={`sticky z-40 bg-white border-b border-gray-200 ${className || ''}`}
+      style={{ top: '65px' }}
+    >
+      <div className="max-w-[1440px] mx-auto px-6 md:px-16">
+        <div className="flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {categories.map((category) => {
+            const IconComponent = iconMap[category.icon] || Building2;
+            return (
+              <button
+                key={category.id}
+                className="group flex flex-col items-center gap-1.5 px-5 py-3.5 shrink-0
+                  border-b-2 border-transparent hover:border-gray-900
+                  text-gray-500 hover:text-gray-900 transition-all duration-150"
+              >
+                <IconComponent className="w-5 h-5" />
+                <span className="text-xs font-semibold whitespace-nowrap">{category.name}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
-    </section>
+    </div>
   );
 }

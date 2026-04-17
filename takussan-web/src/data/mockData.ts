@@ -14,6 +14,7 @@ export interface Category {
   readonly id: string;
   readonly name: string;
   readonly icon: string;
+  readonly count: number;
 }
 
 export const featuredProperties: readonly Property[] = [
@@ -221,12 +222,12 @@ export const latestProperties: readonly Property[] = [
 ];
 
 export const categories: readonly Category[] = [
-  { id: '1', name: 'Appartement', icon: 'apartment' },
-  { id: '2', name: 'Villa', icon: 'villa' },
-  { id: '3', name: 'Terrain', icon: 'terrain' },
-  { id: '4', name: 'Commerce', icon: 'store' },
-  { id: '5', name: 'Maison', icon: 'house' },
-  { id: '6', name: 'Bureau', icon: 'business' },
+  { id: '1', name: 'Appartement', icon: 'apartment', count: 184 },
+  { id: '2', name: 'Villa', icon: 'villa', count: 47 },
+  { id: '3', name: 'Terrain', icon: 'terrain', count: 92 },
+  { id: '4', name: 'Commerce', icon: 'store', count: 63 },
+  { id: '5', name: 'Maison', icon: 'house', count: 118 },
+  { id: '6', name: 'Bureau', icon: 'business', count: 39 },
 ];
 
 export const navLinks = [
