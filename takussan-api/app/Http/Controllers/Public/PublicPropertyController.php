@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers\Public;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\PropertyResource;
+use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,12 +12,15 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class PublicPropertyController extends Controller
 {
-    public function index(): AnonymousResourceCollection
+    public function index(Request $request): AnonymousResourceCollection
     {
-        $properties = Property::published()
+        $properties = Property::query()
+            ->with('address', 'media')
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
             ->orderByDesc('featured')
             ->orderByDesc('published_at')
-            ->paginate(20);
+            ->paginate((int) $request->input('per_page', 20));
 
         return PropertyResource::collection($properties);
     }
@@ -24,35 +28,76 @@ class PublicPropertyController extends Controller
     public function search(Request $request): array
     {
         $validated = $request->validate([
-            'location'  => 'nullable|string|max:100',
-            'price_min' => 'nullable|integer|min:0',
-            'price_max' => 'nullable|integer|min:0',
-            'bedrooms'  => 'nullable|integer|min:1|max:10',
-            'sort'      => 'nullable|in:relevance,price_asc,price_desc,created_desc',
-            'page'      => 'nullable|integer|min:1',
+            'q' => 'nullable|string|max:200',
+            'location' => 'nullable|string|max:100',
+            'city' => 'nullable|string|max:100',
+            'price_min' => 'nullable|numeric|min:0',
+            'price_max' => 'nullable|numeric|min:0',
+            'bedrooms' => 'nullable|integer|min:0|max:50',
+            'bathrooms' => 'nullable|integer|min:0|max:50',
+            'type' => 'nullable|string',
+            'contract_type' => 'nullable|in:sale,rent',
+            'furnished' => 'nullable|boolean',
+            'sort' => 'nullable|in:relevance,price_asc,price_desc,created_desc',
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100',
         ]);
 
-        $query = Property::published();
+        $query = Property::query()
+            ->with('address', 'media')
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft);
 
-        if (!empty($validated['location'])) {
-            $query->where('location_quarter', $validated['location']);
+        if (! empty($validated['q'])) {
+            $query->where(function ($q) use ($validated) {
+                $q->where('title', 'like', '%'.$validated['q'].'%')
+                    ->orWhere('description', 'like', '%'.$validated['q'].'%');
+            });
         }
-        if (!empty($validated['price_min'])) {
+
+        if (! empty($validated['location']) || ! empty($validated['city'])) {
+            $query->whereHas('address', function ($q) use ($validated) {
+                if (! empty($validated['location'])) {
+                    $q->where('neighborhood', $validated['location']);
+                }
+                if (! empty($validated['city'])) {
+                    $q->where('city', $validated['city']);
+                }
+            });
+        }
+
+        if (! empty($validated['price_min'])) {
             $query->where('price', '>=', $validated['price_min']);
         }
-        if (!empty($validated['price_max'])) {
+        if (! empty($validated['price_max'])) {
             $query->where('price', '<=', $validated['price_max']);
         }
-        if (!empty($validated['bedrooms'])) {
+        if (isset($validated['bedrooms'])) {
             $query->where('bedrooms', $validated['bedrooms']);
         }
+        if (isset($validated['bathrooms'])) {
+            $query->where('bathrooms', $validated['bathrooms']);
+        }
+        if (! empty($validated['type'])) {
+            $query->where('type', $validated['type']);
+        }
+        if (! empty($validated['contract_type'])) {
+            $query->where('contract_type', $validated['contract_type']);
+        }
+        if (array_key_exists('furnished', $validated) && $validated['furnished'] !== null) {
+            $query->where('furnished', $validated['furnished']);
+        }
 
-        // Facets (calculées avant pagination)
         $facets = [
             'locations' => (clone $query)
-                ->selectRaw('location_quarter, count(*) as cnt')
-                ->groupBy('location_quarter')
-                ->pluck('cnt', 'location_quarter')
+                ->join('addresses', function ($join) {
+                    $join->on('addresses.addressable_id', '=', 'properties.id')
+                        ->where('addresses.addressable_type', '=', Property::class);
+                })
+                ->selectRaw('addresses.neighborhood as label, count(*) as cnt')
+                ->whereNotNull('addresses.neighborhood')
+                ->groupBy('addresses.neighborhood')
+                ->pluck('cnt', 'label')
                 ->toArray(),
             'bedrooms' => (clone $query)
                 ->selectRaw('bedrooms, count(*) as cnt')
@@ -60,52 +105,70 @@ class PublicPropertyController extends Controller
                 ->groupBy('bedrooms')
                 ->pluck('cnt', 'bedrooms')
                 ->toArray(),
+            'types' => (clone $query)
+                ->selectRaw('type, count(*) as cnt')
+                ->groupBy('type')
+                ->pluck('cnt', 'type')
+                ->toArray(),
         ];
 
         $sort = $validated['sort'] ?? 'relevance';
         match ($sort) {
-            'price_asc'    => $query->orderBy('price'),
-            'price_desc'   => $query->orderByDesc('price'),
+            'price_asc' => $query->orderBy('price'),
+            'price_desc' => $query->orderByDesc('price'),
             'created_desc' => $query->orderByDesc('created_at'),
-            default        => $query->orderByDesc('featured')->orderByDesc('published_at'),
+            default => $query->orderByDesc('featured')->orderByDesc('published_at'),
         };
 
-        $paginated = $query->paginate(20, page: $validated['page'] ?? 1);
+        $paginated = $query->paginate((int) ($validated['per_page'] ?? 20), ['*'], 'page', $validated['page'] ?? 1);
 
         return [
-            'data'   => PropertyResource::collection($paginated)->resolve(),
+            'data' => PropertyResource::collection($paginated)->resolve(),
             'facets' => $facets,
-            'meta'   => [
+            'meta' => [
                 'current_page' => $paginated->currentPage(),
-                'last_page'    => $paginated->lastPage(),
-                'per_page'     => $paginated->perPage(),
-                'total'        => $paginated->total(),
+                'last_page' => $paginated->lastPage(),
+                'per_page' => $paginated->perPage(),
+                'total' => $paginated->total(),
             ],
         ];
     }
 
     public function show(string $slug): PropertyResource
     {
-        $property = Property::published()
+        $property = Property::query()
+            ->with('address', 'media', 'tags', 'owner', 'agency')
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
             ->where('slug', $slug)
             ->firstOrFail();
+
+        $property->increment('views_count');
 
         return new PropertyResource($property);
     }
 
     public function contact(string $slug): JsonResponse
     {
-        $property = Property::published()
+        $property = Property::query()
+            ->with('owner', 'address')
+            ->public()
             ->where('slug', $slug)
             ->firstOrFail();
 
+        $address = $property->address;
+        $location = $address
+            ? trim(($address->neighborhood ? $address->neighborhood.', ' : '').$address->city)
+            : '';
+
         $message = "Bonjour, je suis intéressé(e) par votre bien :\n"
             ."{$property->title}\n"
-            .number_format($property->price, 0, ',', ' ')." FCFA - {$property->location_quarter}, {$property->location_city}\n"
+            .number_format((float) $property->price, 0, ',', ' ').' FCFA'
+            .($location ? " - {$location}" : '')."\n"
             .'Vu sur Takussan.sn';
 
-        return response()->json([
-            'phone' => $property->owner_phone,
+        return $this->json([
+            'phone' => $property->owner?->phone,
             'message' => $message,
         ]);
     }
