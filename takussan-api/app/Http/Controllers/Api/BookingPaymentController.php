@@ -82,7 +82,7 @@ class BookingPaymentController extends Controller
         );
 
         $data = $request->validate([
-            'refund_amount' => ['required', 'numeric', 'min:0'],
+            'refund_amount' => ['required', 'numeric', 'gt:0'],
             'refund_reason' => ['nullable', 'string'],
         ]);
 

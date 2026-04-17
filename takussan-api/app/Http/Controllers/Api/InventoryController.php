@@ -127,7 +127,11 @@ class InventoryController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
-        $inventory->update(array_filter($data, fn ($v) => $v !== null));
+        $inventory->update(array_filter(
+            $data,
+            fn ($v, $k) => $v !== null || $request->has($k),
+            ARRAY_FILTER_USE_BOTH
+        ));
 
         return $this->json([
             'data' => InventoryResource::make($inventory->refresh())->toArray($request),

@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\InvoiceResource;
+use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\Currency;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Invoice;
+use App\Models\Lease;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -15,6 +17,15 @@ use Illuminate\Validation\Rule;
 
 class InvoiceController extends Controller
 {
+    /**
+     * Allow-list of invoiceable types accepted by the API.
+     * Keyed by short alias, value is FQCN.
+     */
+    protected const ALLOWED_INVOICEABLE_TYPES = [
+        'lease' => Lease::class,
+        'booking' => Booking::class,
+    ];
+
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -51,8 +62,8 @@ class InvoiceController extends Controller
     {
         $data = $request->validate([
             'customer_id' => ['required', 'exists:customers,id'],
-            'invoiceable_type' => ['nullable', 'string'],
-            'invoiceable_id' => ['nullable', 'integer'],
+            'invoiceable_type' => ['nullable', 'string', 'required_with:invoiceable_id'],
+            'invoiceable_id' => ['nullable', 'integer', 'required_with:invoiceable_type'],
             'issue_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
             'subtotal' => ['required', 'numeric', 'min:0'],
@@ -69,6 +80,19 @@ class InvoiceController extends Controller
             || $customer->added_by_id === $user->id;
         abort_unless($canIssue, 403);
 
+        $invoiceableType = null;
+        $invoiceableId = null;
+        if (! empty($data['invoiceable_type'])) {
+            $invoiceableType = $this->resolveInvoiceableType($data['invoiceable_type']);
+            abort_if($invoiceableType === null, 422, 'Unsupported invoiceable_type.');
+            $invoiceableId = $data['invoiceable_id'];
+            abort_if(
+                $invoiceableType::query()->whereKey($invoiceableId)->doesntExist(),
+                404,
+                'Invoiceable resource not found.'
+            );
+        }
+
         $subtotal = (float) $data['subtotal'];
         $taxRate = isset($data['tax_rate']) ? (float) $data['tax_rate'] : 0;
         $taxAmount = round($subtotal * $taxRate / 100, 2);
@@ -76,8 +100,8 @@ class InvoiceController extends Controller
 
         $invoice = Invoice::create([
             'customer_id' => $customer->id,
-            'invoiceable_type' => $data['invoiceable_type'] ?? null,
-            'invoiceable_id' => $data['invoiceable_id'] ?? null,
+            'invoiceable_type' => $invoiceableType,
+            'invoiceable_id' => $invoiceableId,
             'issued_by_id' => $user->id,
             'agency_id' => $user->agency_id,
             'reference_number' => 'INV-'.now()->format('Ym').'-'.strtoupper(Str::random(6)),
@@ -116,6 +140,22 @@ class InvoiceController extends Controller
         return $this->json([
             'data' => InvoiceResource::make($invoice->refresh())->toArray($request),
         ]);
+    }
+
+    protected function resolveInvoiceableType(string $type): ?string
+    {
+        $type = strtolower($type);
+        if (isset(self::ALLOWED_INVOICEABLE_TYPES[$type])) {
+            return self::ALLOWED_INVOICEABLE_TYPES[$type];
+        }
+
+        foreach (self::ALLOWED_INVOICEABLE_TYPES as $fqcn) {
+            if (strtolower($fqcn) === $type) {
+                return $fqcn;
+            }
+        }
+
+        return null;
     }
 
     public function markPaid(Request $request, Invoice $invoice): JsonResponse
