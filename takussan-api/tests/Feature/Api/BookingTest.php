@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Booking;
+use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
 use App\Models\Property;
 use App\Models\User;
@@ -14,15 +15,17 @@ class BookingTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_customer_can_create_booking(): void
+    public function test_customer_can_create_booking_for_self(): void
     {
         $user = User::factory()->create();
+        $customer = Customer::factory()->create(['user_id' => $user->id]);
         $property = Property::factory()->create();
 
         Sanctum::actingAs($user);
 
         $this->postJson('/api/bookings', [
             'property_id' => $property->id,
+            'customer_id' => $customer->id,
             'total_amount' => 500000,
             'deposit_amount' => 100000,
             'start_date' => now()->addDay()->toDateString(),
@@ -31,6 +34,34 @@ class BookingTest extends TestCase
             ->assertJsonPath('data.status', 'pending');
 
         $this->assertDatabaseCount('bookings', 1);
+    }
+
+    public function test_random_user_cannot_create_booking_for_someone_else(): void
+    {
+        $user = User::factory()->create();
+        $customer = Customer::factory()->create();
+        $property = Property::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/bookings', [
+            'property_id' => $property->id,
+            'customer_id' => $customer->id,
+            'total_amount' => 500000,
+        ])->assertForbidden();
+    }
+
+    public function test_owner_cannot_book_own_property(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson('/api/bookings', [
+            'property_id' => $property->id,
+            'total_amount' => 500000,
+        ])->assertForbidden();
     }
 
     public function test_owner_can_confirm_booking(): void

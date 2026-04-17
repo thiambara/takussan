@@ -90,6 +90,7 @@ class PublicPropertyController extends Controller
 
         $facets = [
             'locations' => (clone $query)
+                ->setEagerLoads([])
                 ->join('addresses', function ($join) {
                     $join->on('addresses.addressable_id', '=', 'properties.id')
                         ->where('addresses.addressable_type', '=', Property::class);
@@ -100,14 +101,16 @@ class PublicPropertyController extends Controller
                 ->pluck('cnt', 'label')
                 ->toArray(),
             'bedrooms' => (clone $query)
-                ->selectRaw('bedrooms, count(*) as cnt')
-                ->whereNotNull('bedrooms')
-                ->groupBy('bedrooms')
+                ->setEagerLoads([])
+                ->selectRaw('properties.bedrooms as bedrooms, count(*) as cnt')
+                ->whereNotNull('properties.bedrooms')
+                ->groupBy('properties.bedrooms')
                 ->pluck('cnt', 'bedrooms')
                 ->toArray(),
             'types' => (clone $query)
-                ->selectRaw('type, count(*) as cnt')
-                ->groupBy('type')
+                ->setEagerLoads([])
+                ->selectRaw('properties.type as type, count(*) as cnt')
+                ->groupBy('properties.type')
                 ->pluck('cnt', 'type')
                 ->toArray(),
         ];

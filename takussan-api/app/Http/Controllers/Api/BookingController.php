@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
+use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
 use App\Models\Enums\Currency;
@@ -64,6 +65,7 @@ class BookingController extends Controller
         ]);
 
         $property = Property::findOrFail($data['property_id']);
+        $user = $request->user();
 
         abort_if(
             in_array($property->status, [
@@ -78,9 +80,30 @@ class BookingController extends Controller
             'This property is not available for booking.'
         );
 
+        // Owners cannot book their own property.
+        abort_if(
+            $property->user_id === $user->id && ! $user->hasRole(['admin', 'super_admin']),
+            403,
+            'You cannot book your own property.'
+        );
+
+        // Authorization: admin / agency member / property owner book for a customer,
+        // OR an end-user books for themselves (customer.user_id === user.id).
+        $isStaff = $user->hasRole(['admin', 'super_admin'])
+            || ($user->agency_id && $property->agency_id && $user->agency_id === $property->agency_id)
+            || $property->user_id === $user->id;
+
+        $isBookingForSelf = false;
+        if (! empty($data['customer_id'])) {
+            $customer = Customer::find($data['customer_id']);
+            $isBookingForSelf = $customer && $customer->user_id === $user->id;
+        }
+
+        abort_unless($isStaff || $isBookingForSelf, 403);
+
         $booking = Booking::create(array_merge($data, [
             'reference_number' => 'BK-'.strtoupper(Str::random(8)),
-            'created_by_id' => $request->user()->id,
+            'created_by_id' => $user->id,
             'agency_id' => $property->agency_id,
             'status' => BookingStatus::Pending->value,
             'currency' => $data['currency'] ?? 'XOF',
