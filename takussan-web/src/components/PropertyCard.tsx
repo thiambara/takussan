@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { Heart, MapPin } from 'lucide-react';
+import { Heart, MapPin, Clock } from 'lucide-react';
 import type { Property } from '@/data/mockData';
 
 export interface PropertyCardProps {
@@ -55,11 +55,18 @@ export function PropertyCard({ property, index = 0, className }: PropertyCardPro
 
         {/* Transaction Badge */}
         <div
-          className={`absolute top-4 left-4 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md ${
-            isSale ? 'bg-[#0050cb]' : 'bg-[#2e7d32]'
+          className={`absolute top-3 left-3 flex items-center gap-1.5 backdrop-blur-md text-white text-[10px] font-semibold tracking-wide px-2.5 py-1 rounded-full ${
+            isSale ? 'bg-[#0050cb]/80' : 'bg-[#2e7d32]/80'
           }`}
         >
-          {isSale ? 'En Vente' : 'En Location'}
+          <span className={`w-1.5 h-1.5 rounded-full ${isSale ? 'bg-sky-300' : 'bg-emerald-300'}`} />
+          {isSale ? 'En vente' : 'En location'}
+        </div>
+
+        {/* Time Badge */}
+        <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-black/30 backdrop-blur-md text-white text-[10px] font-medium px-2 py-1 rounded-full">
+          <Clock className="w-2.5 h-2.5 opacity-80" />
+          {property.timeAgo}
         </div>
 
         {/* Favorite Button */}

@@ -1,8 +1,17 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, MapPin, Home, Menu, X, ChevronDown } from 'lucide-react';
-import { navLinks } from '@/data/mockData';
+import { Search, MapPin, Home, Menu, X, ChevronDown, Building2, TreePine, Store, Warehouse, Briefcase } from 'lucide-react';
+import { navLinks, categories } from '@/data/mockData';
+
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  apartment: Building2,
+  villa: Home,
+  terrain: TreePine,
+  store: Store,
+  house: Warehouse,
+  business: Briefcase,
+};
 
 export interface NavbarProps {
   readonly className?: string;
@@ -12,57 +21,76 @@ export function Navbar({ className }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [location, setLocation] = useState('');
   const [transaction, setTransaction] = useState('Acheter');
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   return (
     <nav
       className={`fixed top-0 w-full z-50 bg-white border-b border-gray-200 ${className || ''}`}
     >
-      <div className="flex items-center gap-4 px-6 py-3 max-w-[1440px] mx-auto">
-        {/* Logo */}
-        <div className="text-xl font-bold tracking-tighter text-[#0050cb] shrink-0">
+      <div className="flex items-start gap-4 px-6 py-3 max-w-[1440px] mx-auto">
+        {/* Logo — aligned to top of the search bar */}
+        <div className="text-xl font-bold tracking-tighter text-[#0050cb] shrink-0 mt-2.5">
           Takussan
         </div>
 
-        {/* Search Bar — desktop */}
-        <div className="hidden md:flex flex-1 max-w-2xl mx-auto items-center bg-white border border-gray-300 rounded-full shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-          {/* Location */}
-          <div className="flex items-center gap-2 flex-1 px-4 py-2.5">
-            <MapPin className="w-4 h-4 text-[#0050cb] shrink-0" />
-            <input
-              type="text"
-              placeholder="Où cherchez-vous ?"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="w-full text-sm text-gray-900 placeholder:text-gray-400 font-medium outline-none bg-transparent"
-            />
+        {/* Center column: Search bar + Categories stacked, left-aligned — desktop */}
+        <div className="hidden md:flex flex-col max-w-xl w-full mx-auto gap-0">
+          {/* Search Bar */}
+          <div className="flex items-center bg-white border border-gray-300 rounded-full shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+            <div className="flex items-center gap-2 flex-1 px-4 py-2.5">
+              <MapPin className="w-4 h-4 text-[#0050cb] shrink-0" />
+              <input
+                type="text"
+                placeholder="Où cherchez-vous ?"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="w-full text-sm text-gray-900 placeholder:text-gray-400 font-medium outline-none bg-transparent"
+              />
+            </div>
+            <div className="w-px h-6 bg-gray-200 shrink-0" />
+            <div className="flex items-center gap-1.5 px-4 py-2.5 shrink-0">
+              <Home className="w-4 h-4 text-[#0050cb]" />
+              <select
+                value={transaction}
+                onChange={(e) => setTransaction(e.target.value)}
+                className="text-sm text-gray-900 font-medium outline-none bg-transparent appearance-none cursor-pointer pr-1"
+              >
+                <option>Acheter</option>
+                <option>Louer</option>
+                <option>Neuf</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+            </div>
+            <button className="m-1.5 bg-[#0050cb] hover:bg-[#0043a8] text-white rounded-full p-2.5 transition-colors active:scale-95 shrink-0">
+              <Search className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* Separator */}
-          <div className="w-px h-6 bg-gray-200 shrink-0" />
-
-          {/* Type */}
-          <div className="flex items-center gap-1.5 px-4 py-2.5 shrink-0">
-            <Home className="w-4 h-4 text-[#0050cb]" />
-            <select
-              value={transaction}
-              onChange={(e) => setTransaction(e.target.value)}
-              className="text-sm text-gray-900 font-medium outline-none bg-transparent appearance-none cursor-pointer pr-1"
-            >
-              <option>Acheter</option>
-              <option>Louer</option>
-              <option>Neuf</option>
-            </select>
-            <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+          {/* Category strip — flush left, no divider */}
+          <div className="flex gap-1 -ml-2">
+            {categories.map((cat) => {
+              const Icon = iconMap[cat.icon] || Building2;
+              const isActive = activeCategory === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveCategory(isActive ? null : cat.id)}
+                  className={`flex flex-col items-center gap-1.5 px-4 py-2.5 border-b-2 transition-all duration-150 ${
+                    isActive
+                      ? 'border-gray-900 text-gray-900'
+                      : 'border-transparent text-gray-500 hover:border-gray-400 hover:text-gray-700'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="text-xs font-semibold whitespace-nowrap">{cat.name}</span>
+                </button>
+              );
+            })}
           </div>
-
-          {/* Search Button */}
-          <button className="m-1.5 bg-[#0050cb] hover:bg-[#0043a8] text-white rounded-full p-2.5 transition-colors active:scale-95 shrink-0">
-            <Search className="w-4 h-4" />
-          </button>
         </div>
 
-        {/* Actions — desktop */}
-        <div className="hidden md:flex items-center gap-3 shrink-0 ml-auto">
+        {/* Actions — desktop, aligned to top */}
+        <div className="hidden md:flex items-center gap-3 shrink-0 ml-auto mt-2">
           <button className="font-medium text-sm text-slate-600 hover:text-[#0050cb] transition-colors whitespace-nowrap">
             Connexion
           </button>
@@ -73,10 +101,7 @@ export function Navbar({ className }: NavbarProps) {
 
         {/* Mobile: search pill + hamburger */}
         <div className="flex md:hidden flex-1 items-center gap-3">
-          <button
-            onClick={() => setMenuOpen(false)}
-            className="flex-1 flex items-center gap-2 bg-white border border-gray-300 rounded-full px-4 py-2.5 shadow-sm text-left"
-          >
+          <button className="flex-1 flex items-center gap-2 bg-white border border-gray-300 rounded-full px-4 py-2.5 shadow-sm text-left">
             <Search className="w-4 h-4 text-gray-400 shrink-0" />
             <span className="text-sm text-gray-400 truncate">Où cherchez-vous ?</span>
           </button>
@@ -119,6 +144,30 @@ export function Navbar({ className }: NavbarProps) {
                   {t}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Mobile categories */}
+          <div className="px-6 pb-3 border-t border-gray-100 pt-3">
+            <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {categories.map((cat) => {
+                const Icon = iconMap[cat.icon] || Building2;
+                const isActive = activeCategory === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setActiveCategory(isActive ? null : cat.id)}
+                    className={`flex flex-col items-center gap-1 shrink-0 px-4 py-2.5 rounded-xl transition-colors ${
+                      isActive
+                        ? 'bg-[#0050cb]/10 text-[#0050cb]'
+                        : 'text-gray-500 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span className="text-xs font-semibold whitespace-nowrap">{cat.name}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
