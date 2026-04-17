@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Models\Bases\Enums;
+namespace App\Models\Enums;
 
 enum UserStatus: string
 {
     case Active = 'active';
     case Inactive = 'inactive';
-    case Suspended = 'suspended';
-    case Banned = 'banned';
+    case Blocked = 'blocked';
+    case Deleted = 'deleted';
 }
