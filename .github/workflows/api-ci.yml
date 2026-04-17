@@ -56,4 +56,4 @@ jobs:
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ':memory:'
-        run: php artisan test --parallel=false
+        run: php artisan test
