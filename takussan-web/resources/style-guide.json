@@ -1,0 +1,27 @@
+{
+  "colors": {
+    "primary": "#0050cb",
+    "primaryContainer": "#0066ff",
+    "surface": "#f8f9fa",
+    "surfaceContainer": "#edeeef",
+    "surfaceContainerLow": "#f3f4f5",
+    "surfaceContainerLowest": "#ffffff",
+    "onSurface": "#191c1d",
+    "onSurfaceVariant": "#424656",
+    "outline": "#727687",
+    "outlineVariant": "#c2c6d8",
+    "secondary": "#425ca0",
+    "tertiary": "#a33200",
+    "background": "#f8f9fa",
+    "error": "#ba1a1a"
+  },
+  "fonts": {
+    "headline": "Manrope",
+    "body": "Inter"
+  },
+  "borderRadius": {
+    "lg": "1rem",
+    "xl": "1.5rem",
+    "full": "9999px"
+  }
+}
