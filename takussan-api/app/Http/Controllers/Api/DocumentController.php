@@ -174,7 +174,6 @@ class DocumentController extends Controller
                 || ($user->agency_id && $documentable->agency_id === $user->agency_id);
         } elseif ($documentable instanceof Lease) {
             $ok = $documentable->landlord_id === $user->id
-                || $documentable->created_by_id === $user->id
                 || ($user->agency_id && $documentable->agency_id === $user->agency_id)
                 || ($documentable->tenant && $documentable->tenant->user_id === $user->id);
         } elseif ($documentable instanceof Booking) {
@@ -183,7 +182,7 @@ class DocumentController extends Controller
                 || ($property && $property->user_id === $user->id)
                 || ($user->agency_id && $documentable->agency_id === $user->agency_id);
         } elseif ($documentable instanceof Customer) {
-            $ok = $documentable->created_by_id === $user->id
+            $ok = $documentable->added_by_id === $user->id
                 || $documentable->user_id === $user->id
                 || ($user->agency_id && $documentable->agency_id === $user->agency_id);
         } elseif ($documentable instanceof User) {
