@@ -42,13 +42,20 @@ class ReviewController extends Controller
 
     public function reply(Request $request, Review $review): JsonResponse
     {
+        $user = $request->user();
+        $reviewable = $review->reviewable;
+        $ok = $user->hasRole(['admin', 'super_admin'])
+            || ($reviewable && isset($reviewable->user_id) && $reviewable->user_id === $user->id)
+            || ($user->agency_id && isset($reviewable->agency_id) && $reviewable->agency_id === $user->agency_id);
+        abort_unless($ok, 403);
+
         $data = $request->validate([
             'reply_content' => ['required', 'string'],
         ]);
 
         $review->update([
             'reply_content' => $data['reply_content'],
-            'replied_by_id' => $request->user()->id,
+            'replied_by_id' => $user->id,
             'replied_at' => now(),
         ]);
 
@@ -57,7 +64,13 @@ class ReviewController extends Controller
 
     public function approve(Request $request, Review $review): JsonResponse
     {
-        $review->update(['is_approved' => true, 'approved_at' => now()]);
+        abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
+
+        $review->update([
+            'is_approved' => true,
+            'approved_at' => now(),
+            'approved_by_id' => $request->user()->id,
+        ]);
 
         return $this->json(['data' => ReviewResource::make($review->refresh())->toArray($request)]);
     }

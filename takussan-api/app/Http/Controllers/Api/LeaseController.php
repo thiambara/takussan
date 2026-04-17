@@ -81,6 +81,8 @@ class LeaseController extends Controller
 
     public function show(Request $request, Lease $lease): JsonResponse
     {
+        $this->authorizeAccess($request, $lease);
+
         return $this->json([
             'data' => LeaseResource::make($lease->load(['property.address', 'tenant', 'payments']))->toArray($request),
         ]);
@@ -88,6 +90,9 @@ class LeaseController extends Controller
 
     public function activate(Request $request, Lease $lease): JsonResponse
     {
+        $this->authorizeManage($request, $lease);
+        abort_unless($lease->status === LeaseStatus::Draft, 422, 'Only draft leases can be activated.');
+
         $lease->update([
             'status' => LeaseStatus::Active,
             'signed_at' => now(),
@@ -100,6 +105,13 @@ class LeaseController extends Controller
 
     public function terminate(Request $request, Lease $lease): JsonResponse
     {
+        $this->authorizeManage($request, $lease);
+        abort_unless(
+            in_array($lease->status, [LeaseStatus::Active, LeaseStatus::PendingSignature], true),
+            422,
+            'Only active or pending-signature leases can be terminated.'
+        );
+
         $data = $request->validate([
             'reason' => ['nullable', 'string'],
         ]);
@@ -114,5 +126,26 @@ class LeaseController extends Controller
         return $this->json([
             'data' => LeaseResource::make($lease->refresh())->toArray($request),
         ]);
+    }
+
+    protected function authorizeAccess(Request $request, Lease $lease): void
+    {
+        $user = $request->user();
+        $ok = $user->hasRole(['admin', 'super_admin'])
+            || $lease->landlord_id === $user->id
+            || ($user->agency_id && $user->agency_id === $lease->agency_id)
+            || ($lease->tenant && $lease->tenant->user_id === $user->id);
+
+        abort_unless($ok, 403);
+    }
+
+    protected function authorizeManage(Request $request, Lease $lease): void
+    {
+        $user = $request->user();
+        $ok = $user->hasRole(['admin', 'super_admin'])
+            || $lease->landlord_id === $user->id
+            || ($user->agency_id && $user->agency_id === $lease->agency_id);
+
+        abort_unless($ok, 403);
     }
 }

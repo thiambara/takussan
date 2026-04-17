@@ -33,10 +33,14 @@ class MaintenanceRequestTest extends TestCase
 
     public function test_owner_can_update_status(): void
     {
-        $user = User::factory()->create();
-        $mr = MaintenanceRequest::factory()->create(['requester_id' => $user->id]);
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $mr = MaintenanceRequest::factory()->create([
+            'property_id' => $property->id,
+            'requester_id' => User::factory()->create()->id,
+        ]);
 
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($owner);
 
         $this->patchJson("/api/maintenance-requests/{$mr->id}", [
             'status' => 'in_progress',

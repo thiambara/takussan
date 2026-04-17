@@ -19,7 +19,11 @@ class MaintenanceRequestController extends Controller
         if (! $user->hasRole(['admin', 'super_admin'])) {
             $query->where(function ($q) use ($user) {
                 $q->where('requester_id', $user->id)
-                    ->orWhere('assigned_to', $user->id);
+                    ->orWhere('assigned_to', $user->id)
+                    ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id));
+                if ($user->agency_id) {
+                    $q->orWhereHas('property', fn ($p) => $p->where('agency_id', $user->agency_id));
+                }
             });
         }
 
@@ -62,6 +66,8 @@ class MaintenanceRequestController extends Controller
 
     public function show(Request $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
+        $this->authorizeAccess($request, $maintenanceRequest);
+
         return $this->json([
             'data' => MaintenanceRequestResource::make($maintenanceRequest)->toArray($request),
         ]);
@@ -69,6 +75,8 @@ class MaintenanceRequestController extends Controller
 
     public function update(Request $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
+        $this->authorizeManage($request, $maintenanceRequest);
+
         $data = $request->validate([
             'assigned_to' => ['sometimes', 'nullable', 'exists:users,id'],
             'priority' => ['sometimes', 'string'],
@@ -86,5 +94,30 @@ class MaintenanceRequestController extends Controller
         return $this->json([
             'data' => MaintenanceRequestResource::make($maintenanceRequest->refresh())->toArray($request),
         ]);
+    }
+
+    protected function authorizeAccess(Request $request, MaintenanceRequest $mr): void
+    {
+        $user = $request->user();
+        $property = $mr->property;
+        $ok = $user->hasRole(['admin', 'super_admin'])
+            || $mr->requester_id === $user->id
+            || $mr->assigned_to === $user->id
+            || ($property && $property->user_id === $user->id)
+            || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
+
+        abort_unless($ok, 403);
+    }
+
+    protected function authorizeManage(Request $request, MaintenanceRequest $mr): void
+    {
+        $user = $request->user();
+        $property = $mr->property;
+        $ok = $user->hasRole(['admin', 'super_admin'])
+            || $mr->assigned_to === $user->id
+            || ($property && $property->user_id === $user->id)
+            || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
+
+        abort_unless($ok, 403);
     }
 }

@@ -53,6 +53,28 @@ class Property extends AbstractModel implements HasMedia
         'metadata' => 'array',
     ];
 
+    /** @var array<int,string> */
+    protected static array $requestFilterable = [
+        'user_id', 'agency_id', 'parent_id', 'type', 'contract_type',
+        'status', 'visibility', 'title_type', 'price', 'bedrooms', 'bathrooms',
+        'area', 'currency', 'featured', 'furnished', 'published_at',
+    ];
+
+    /** @var array<int,string> */
+    protected static array $requestSortable = [
+        'id', 'created_at', 'published_at', 'price', 'area', 'bedrooms', 'bathrooms', 'featured',
+    ];
+
+    /** @var array<int,string> */
+    protected static array $requestLoadable = [
+        'address', 'agency', 'owner', 'tags', 'children', 'parent',
+    ];
+
+    /** @var array<int,string> */
+    protected static array $requestCountable = [
+        'bookings', 'leases', 'visits', 'reviews', 'children',
+    ];
+
     protected static function booted(): void
     {
         static::creating(function (self $m) {

@@ -2,11 +2,14 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Agency;
 use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class ReviewTest extends TestCase
@@ -54,5 +57,29 @@ class ReviewTest extends TestCase
             'reply_content' => 'Merci pour votre retour!',
         ])->assertOk()
             ->assertJsonPath('data.reply_content', 'Merci pour votre retour!');
+    }
+
+    public function test_non_admin_cannot_approve_review(): void
+    {
+        $review = Review::factory()->create(['is_approved' => false]);
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson("/api/reviews/{$review->id}/approve")->assertForbidden();
+    }
+
+    public function test_admin_can_approve_review(): void
+    {
+        $agency = Agency::factory()->create();
+        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
+        Role::findOrCreate('admin');
+        $admin = User::factory()->create(['agency_id' => $agency->id]);
+        $admin->assignRole('admin');
+        $review = Review::factory()->create(['is_approved' => false]);
+
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/reviews/{$review->id}/approve")
+            ->assertOk()
+            ->assertJsonPath('data.is_approved', true);
     }
 }

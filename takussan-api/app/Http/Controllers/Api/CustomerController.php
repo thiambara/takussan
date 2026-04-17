@@ -77,6 +77,8 @@ class CustomerController extends Controller
 
     public function show(Request $request, Customer $customer): JsonResponse
     {
+        $this->authorizeAccess($request, $customer);
+
         return $this->json([
             'data' => CustomerResource::make($customer)->toArray($request),
         ]);
@@ -84,6 +86,8 @@ class CustomerController extends Controller
 
     public function update(Request $request, Customer $customer): JsonResponse
     {
+        $this->authorizeAccess($request, $customer);
+
         $data = $request->validate([
             'first_name' => ['sometimes', 'string'],
             'last_name' => ['sometimes', 'string'],
@@ -104,10 +108,22 @@ class CustomerController extends Controller
         ]);
     }
 
-    public function destroy(Customer $customer): JsonResponse
+    public function destroy(Request $request, Customer $customer): JsonResponse
     {
+        $this->authorizeAccess($request, $customer);
+
         $customer->delete();
 
         return $this->json(['message' => 'deleted'], 204);
+    }
+
+    protected function authorizeAccess(Request $request, Customer $customer): void
+    {
+        $user = $request->user();
+        $ok = $user->hasRole(['admin', 'super_admin'])
+            || $customer->added_by_id === $user->id
+            || ($user->agency_id && $user->agency_id === $customer->agency_id);
+
+        abort_unless($ok, 403);
     }
 }

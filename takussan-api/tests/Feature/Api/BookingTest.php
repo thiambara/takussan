@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Booking;
+use App\Models\Enums\BookingStatus;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -57,5 +58,28 @@ class BookingTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.status', 'cancelled')
             ->assertJsonPath('data.cancellation_reason', 'unavailable');
+    }
+
+    public function test_random_user_cannot_confirm_booking(): void
+    {
+        $booking = Booking::factory()->create();
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson("/api/bookings/{$booking->id}/confirm")->assertForbidden();
+    }
+
+    public function test_cannot_confirm_already_cancelled_booking(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $booking = Booking::factory()->create([
+            'property_id' => $property->id,
+            'status' => BookingStatus::Cancelled->value,
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/bookings/{$booking->id}/confirm")
+            ->assertStatus(422);
     }
 }

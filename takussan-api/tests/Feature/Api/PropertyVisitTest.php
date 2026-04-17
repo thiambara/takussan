@@ -15,8 +15,9 @@ class PropertyVisitTest extends TestCase
 
     public function test_schedule_and_complete_visit(): void
     {
+        $owner = User::factory()->create();
         $visitor = User::factory()->create();
-        $property = Property::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
 
         Sanctum::actingAs($visitor);
 
@@ -28,6 +29,8 @@ class PropertyVisitTest extends TestCase
             ->assertJsonPath('data.status', 'scheduled');
 
         $visitId = $response->json('data.id');
+
+        Sanctum::actingAs($owner);
 
         $this->postJson("/api/property-visits/{$visitId}/complete", [
             'feedback' => 'Très bien',

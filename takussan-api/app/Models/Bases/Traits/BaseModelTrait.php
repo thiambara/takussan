@@ -67,6 +67,7 @@ trait BaseModelTrait
     {
         $table = (new static)->getTable();
         $filters = (array) ($request->input("$table.filter") ?? $request->input('filter', []));
+        $allowed = static::requestFilterable();
 
         foreach ($filters as $key => $value) {
             if ($value === null || $value === '') {
@@ -77,6 +78,11 @@ trait BaseModelTrait
             if (is_string($key) && str_starts_with($key, '!')) {
                 $negate = true;
                 $key = substr($key, 1);
+            }
+
+            $column = is_string($key) ? preg_replace('/@(like|in|between)$/', '', $key) : $key;
+            if (! static::isAllowed((string) $column, $allowed)) {
+                continue;
             }
 
             if (is_string($key) && str_ends_with($key, '@like')) {
@@ -141,8 +147,12 @@ trait BaseModelTrait
     {
         $table = (new static)->getTable();
         $order = (array) ($request->input("$table.order_by") ?? $request->input('order_by', []));
+        $allowed = static::requestSortable();
 
         foreach ($order as $column => $direction) {
+            if (! static::isAllowed((string) $column, $allowed)) {
+                continue;
+            }
             $direction = strtolower((string) $direction) === 'desc' ? 'desc' : 'asc';
             $query->orderBy($column, $direction);
         }
@@ -153,14 +163,70 @@ trait BaseModelTrait
         $table = (new static)->getTable();
 
         $with = (array) ($request->input("$table.with") ?? $request->input('with', []));
+        $allowedWith = static::requestLoadable();
+        $with = array_values(array_filter($with, fn ($rel) => static::isAllowed((string) $rel, $allowedWith)));
         if ($with) {
             $query->with($with);
         }
 
         $withCount = (array) ($request->input("$table.with_count") ?? $request->input('with_count', []));
+        $allowedCount = static::requestCountable();
+        $withCount = array_values(array_filter($withCount, fn ($rel) => static::isAllowed((string) $rel, $allowedCount)));
         if ($withCount) {
             $query->withCount($withCount);
         }
+    }
+
+    /**
+     * Allowlist of columns that can be filtered through the request.
+     * Override on a model via `protected static array $requestFilterable = [...]`.
+     * Empty array disables request-driven filtering for that model.
+     *
+     * @return array<int,string>
+     */
+    protected static function requestFilterable(): array
+    {
+        return property_exists(static::class, 'requestFilterable')
+            ? (array) static::${'requestFilterable'}
+            : [];
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    protected static function requestSortable(): array
+    {
+        return property_exists(static::class, 'requestSortable')
+            ? (array) static::${'requestSortable'}
+            : [];
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    protected static function requestLoadable(): array
+    {
+        return property_exists(static::class, 'requestLoadable')
+            ? (array) static::${'requestLoadable'}
+            : [];
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    protected static function requestCountable(): array
+    {
+        return property_exists(static::class, 'requestCountable')
+            ? (array) static::${'requestCountable'}
+            : [];
+    }
+
+    /**
+     * @param  array<int,string>  $allowed
+     */
+    protected static function isAllowed(string $value, array $allowed): bool
+    {
+        return in_array($value, $allowed, true);
     }
 
     /**

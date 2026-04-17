@@ -78,6 +78,8 @@ class BookingController extends Controller
 
     public function show(Request $request, Booking $booking): JsonResponse
     {
+        $this->authorizeAccess($request, $booking);
+
         return $this->json([
             'data' => BookingResource::make($booking->load(['property.address', 'customer']))->toArray($request),
         ]);
@@ -85,6 +87,9 @@ class BookingController extends Controller
 
     public function confirm(Request $request, Booking $booking): JsonResponse
     {
+        $this->authorizeManage($request, $booking);
+        abort_unless($booking->status === BookingStatus::Pending, 422, 'Only pending bookings can be confirmed.');
+
         $booking->update([
             'status' => BookingStatus::Confirmed,
             'confirmed_at' => now(),
@@ -97,6 +102,13 @@ class BookingController extends Controller
 
     public function cancel(Request $request, Booking $booking): JsonResponse
     {
+        $this->authorizeAccess($request, $booking);
+        abort_if(
+            in_array($booking->status, [BookingStatus::Cancelled, BookingStatus::Completed, BookingStatus::Expired], true),
+            422,
+            'Booking cannot be cancelled in its current state.'
+        );
+
         $data = $request->validate([
             'reason' => ['nullable', 'string'],
         ]);
@@ -114,5 +126,29 @@ class BookingController extends Controller
         return $this->json([
             'data' => BookingResource::make($booking->refresh())->toArray($request),
         ]);
+    }
+
+    protected function authorizeAccess(Request $request, Booking $booking): void
+    {
+        $user = $request->user();
+        $property = $booking->property;
+        $ok = $user->hasRole(['admin', 'super_admin'])
+            || $booking->created_by_id === $user->id
+            || ($property && $property->user_id === $user->id)
+            || ($user->agency_id && $user->agency_id === $booking->agency_id)
+            || ($booking->customer && $booking->customer->user_id === $user->id);
+
+        abort_unless($ok, 403);
+    }
+
+    protected function authorizeManage(Request $request, Booking $booking): void
+    {
+        $user = $request->user();
+        $property = $booking->property;
+        $ok = $user->hasRole(['admin', 'super_admin'])
+            || ($property && $property->user_id === $user->id)
+            || ($user->agency_id && $user->agency_id === $booking->agency_id);
+
+        abort_unless($ok, 403);
     }
 }
