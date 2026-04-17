@@ -114,7 +114,14 @@ class BookingController extends Controller
         ]);
 
         $user = $request->user();
-        $by = $user->id === $booking->customer?->user_id ? CancellationBy::Customer : CancellationBy::Owner;
+        $property = $booking->property;
+        if ($user->id === $booking->customer?->user_id) {
+            $by = CancellationBy::Customer;
+        } elseif ($property && $property->user_id === $user->id) {
+            $by = CancellationBy::Owner;
+        } else {
+            $by = CancellationBy::Agent;
+        }
 
         $booking->update([
             'status' => BookingStatus::Cancelled,

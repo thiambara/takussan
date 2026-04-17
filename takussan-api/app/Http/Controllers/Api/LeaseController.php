@@ -20,7 +20,8 @@ class LeaseController extends Controller
 
         if (! $user->hasRole(['admin', 'super_admin'])) {
             $query->where(function ($q) use ($user) {
-                $q->where('landlord_id', $user->id);
+                $q->where('landlord_id', $user->id)
+                    ->orWhereHas('tenant', fn ($t) => $t->where('user_id', $user->id));
                 if ($user->agency_id) {
                     $q->orWhere('agency_id', $user->agency_id);
                 }

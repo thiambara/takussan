@@ -62,7 +62,11 @@ class LeasePaymentController extends Controller
         $payment->loadMissing('lease');
         abort_unless($payment->lease, 404);
         $this->authorizeLeaseManage($request, $payment->lease);
-        abort_unless($payment->status === PaymentStatus::Pending, 422, 'Only pending payments can be marked paid.');
+        abort_unless(
+            in_array($payment->status, [PaymentStatus::Pending, PaymentStatus::Late], true),
+            422,
+            'Only pending or late payments can be marked paid.'
+        );
 
         $data = $request->validate([
             'paid_at' => ['nullable', 'date'],
