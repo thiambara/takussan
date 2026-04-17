@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
+use App\Models\Bases\Auditable;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PayoutStatus;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Payout extends AbstractModel
 {
-    use HasFactory, SoftDeletes;
+    use Auditable, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'lease_id', 'booking_id', 'agency_id', 'landlord_id', 'issued_by_id',

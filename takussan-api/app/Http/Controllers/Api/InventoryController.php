@@ -4,18 +4,19 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\InventoryResource;
-use App\Models\Customer;
 use App\Models\Enums\InventoryCondition;
-use App\Models\Enums\InventoryStatus;
 use App\Models\Enums\InventoryType;
 use App\Models\Inventory;
 use App\Models\Lease;
+use App\Services\Model\InventoryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class InventoryController extends Controller
 {
+    public function __construct(protected InventoryService $inventories) {}
+
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -79,21 +80,7 @@ class InventoryController extends Controller
 
         $this->authorizeManageLease($user, $lease);
 
-        $tenant = Customer::find($lease->tenant_id);
-        abort_if($tenant === null, 422, 'Lease tenant not found.');
-
-        $inventory = Inventory::create([
-            'lease_id' => $lease->id,
-            'property_id' => $lease->property_id,
-            'type' => $data['type'],
-            'conducted_by' => $user->id,
-            'tenant_id' => $tenant->id,
-            'conducted_at' => $data['conducted_at'] ?? now(),
-            'status' => InventoryStatus::Draft->value,
-            'general_condition' => $data['general_condition'],
-            'rooms' => $data['rooms'],
-            'notes' => $data['notes'] ?? null,
-        ]);
+        $inventory = $this->inventories->create($lease, $user, $data);
 
         return $this->json([
             'data' => InventoryResource::make($inventory)->toArray($request),
@@ -112,11 +99,6 @@ class InventoryController extends Controller
     public function update(Request $request, Inventory $inventory): JsonResponse
     {
         $this->authorizeManage($request, $inventory);
-        abort_unless(
-            $inventory->status === InventoryStatus::Draft,
-            422,
-            'Only draft inventories can be edited.'
-        );
 
         $data = $request->validate([
             'general_condition' => ['nullable', Rule::enum(InventoryCondition::class)],
@@ -127,96 +109,51 @@ class InventoryController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
-        $inventory->update(array_filter(
-            $data,
-            fn ($v, $k) => $v !== null || $request->has($k),
-            ARRAY_FILTER_USE_BOTH
-        ));
+        $presentKeys = [];
+        foreach (array_keys($data) as $key) {
+            if ($request->has($key)) {
+                $presentKeys[$key] = true;
+            }
+        }
+
+        $inventory = $this->inventories->update($inventory, $data, $presentKeys);
 
         return $this->json([
-            'data' => InventoryResource::make($inventory->refresh())->toArray($request),
+            'data' => InventoryResource::make($inventory)->toArray($request),
         ]);
     }
 
     public function submit(Request $request, Inventory $inventory): JsonResponse
     {
         $this->authorizeManage($request, $inventory);
-        abort_unless(
-            $inventory->status === InventoryStatus::Draft,
-            422,
-            'Only draft inventories can be submitted for signature.'
-        );
-
-        $inventory->update(['status' => InventoryStatus::PendingSignature]);
+        $inventory = $this->inventories->submit($inventory);
 
         return $this->json([
-            'data' => InventoryResource::make($inventory->refresh())->toArray($request),
+            'data' => InventoryResource::make($inventory)->toArray($request),
         ]);
     }
 
     public function sign(Request $request, Inventory $inventory): JsonResponse
     {
-        $user = $request->user();
-        abort_unless(
-            in_array($inventory->status, [InventoryStatus::PendingSignature, InventoryStatus::Draft], true),
-            422,
-            'Inventory cannot be signed in its current state.'
-        );
-
-        $property = $inventory->property;
-        $tenant = $inventory->tenant;
-
-        $isOwner = $property && $property->user_id === $user->id;
-        $isTenant = $tenant && $tenant->user_id === $user->id;
-        $isAdmin = $user->hasRole(['admin', 'super_admin']);
-
-        abort_unless($isOwner || $isTenant || $isAdmin, 403);
-
-        $updates = [];
-        if ($isOwner || $isAdmin) {
-            $updates['owner_signed'] = true;
-            $updates['owner_signed_at'] = now();
-        }
-        if ($isTenant || $isAdmin) {
-            $updates['tenant_signed'] = true;
-            $updates['tenant_signed_at'] = now();
-        }
-
-        $inventory->fill($updates);
-
-        $tenantSigned = $inventory->tenant_signed;
-        $ownerSigned = $inventory->owner_signed;
-        if ($tenantSigned && $ownerSigned) {
-            $inventory->status = InventoryStatus::Signed;
-        }
-
-        $inventory->save();
+        $inventory = $this->inventories->sign($inventory, $request->user());
 
         return $this->json([
-            'data' => InventoryResource::make($inventory->refresh())->toArray($request),
+            'data' => InventoryResource::make($inventory)->toArray($request),
         ]);
     }
 
     public function dispute(Request $request, Inventory $inventory): JsonResponse
     {
         $this->authorizeAccess($request, $inventory);
-        abort_unless(
-            in_array($inventory->status, [InventoryStatus::PendingSignature, InventoryStatus::Signed], true),
-            422,
-            'Inventory cannot be disputed in its current state.'
-        );
 
         $data = $request->validate([
             'reason' => ['required', 'string'],
         ]);
 
-        $inventory->update([
-            'status' => InventoryStatus::Disputed,
-            'notes' => trim(($inventory->notes ? $inventory->notes."\n\n" : '').'[Dispute] '.$data['reason']),
-        ]);
+        $inventory = $this->inventories->dispute($inventory, $data['reason']);
 
         return $this->json([
-            'data' => InventoryResource::make($inventory->refresh())->toArray($request),
+            'data' => InventoryResource::make($inventory)->toArray($request),
         ]);
     }
 

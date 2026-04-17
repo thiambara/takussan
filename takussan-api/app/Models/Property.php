@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
+use App\Models\Bases\Auditable;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PropertyStatus;
@@ -25,7 +26,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Property extends AbstractModel implements HasMedia
 {
-    use HasFactory, InteractsWithMedia, Searchable, SoftDeletes;
+    use Auditable, HasFactory, InteractsWithMedia, Searchable, SoftDeletes;
 
     protected $fillable = [
         'user_id', 'agency_id', 'parent_id', 'reference_number',

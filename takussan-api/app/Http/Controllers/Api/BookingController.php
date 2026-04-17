@@ -5,19 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
-use App\Models\Customer;
-use App\Models\Enums\BookingStatus;
-use App\Models\Enums\CancellationBy;
 use App\Models\Enums\Currency;
-use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
+use App\Services\Model\BookingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class BookingController extends Controller
 {
+    public function __construct(protected BookingService $bookings) {}
+
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -65,50 +63,7 @@ class BookingController extends Controller
         ]);
 
         $property = Property::findOrFail($data['property_id']);
-        $user = $request->user();
-
-        abort_if(
-            in_array($property->status, [
-                PropertyStatus::Sold,
-                PropertyStatus::Rented,
-                PropertyStatus::Draft,
-                PropertyStatus::Archived,
-                PropertyStatus::UnderMaintenance,
-                PropertyStatus::Unavailable,
-            ], true),
-            422,
-            'This property is not available for booking.'
-        );
-
-        // Owners cannot book their own property.
-        abort_if(
-            $property->user_id === $user->id && ! $user->hasRole(['admin', 'super_admin']),
-            403,
-            'You cannot book your own property.'
-        );
-
-        // Authorization: admin / agency member / property owner book for a customer,
-        // OR an end-user books for themselves (customer.user_id === user.id).
-        $isStaff = $user->hasRole(['admin', 'super_admin'])
-            || ($user->agency_id && $property->agency_id && $user->agency_id === $property->agency_id)
-            || $property->user_id === $user->id;
-
-        $isBookingForSelf = false;
-        if (! empty($data['customer_id'])) {
-            $customer = Customer::find($data['customer_id']);
-            $isBookingForSelf = $customer && $customer->user_id === $user->id;
-        }
-
-        abort_unless($isStaff || $isBookingForSelf, 403);
-
-        $booking = Booking::create(array_merge($data, [
-            'reference_number' => 'BK-'.strtoupper(Str::random(8)),
-            'created_by_id' => $user->id,
-            'agency_id' => $property->agency_id,
-            'status' => BookingStatus::Pending->value,
-            'currency' => $data['currency'] ?? 'XOF',
-            'expires_at' => $data['expires_at'] ?? now()->addDays(7),
-        ]));
+        $booking = $this->bookings->create($property, $request->user(), $data);
 
         return $this->json([
             'data' => BookingResource::make($booking->load(['property', 'customer']))->toArray($request),
@@ -127,50 +82,25 @@ class BookingController extends Controller
     public function confirm(Request $request, Booking $booking): JsonResponse
     {
         $this->authorizeManage($request, $booking);
-        abort_unless($booking->status === BookingStatus::Pending, 422, 'Only pending bookings can be confirmed.');
-
-        $booking->update([
-            'status' => BookingStatus::Confirmed,
-            'confirmed_at' => now(),
-        ]);
+        $booking = $this->bookings->confirm($booking);
 
         return $this->json([
-            'data' => BookingResource::make($booking->refresh())->toArray($request),
+            'data' => BookingResource::make($booking)->toArray($request),
         ]);
     }
 
     public function cancel(Request $request, Booking $booking): JsonResponse
     {
         $this->authorizeAccess($request, $booking);
-        abort_if(
-            in_array($booking->status, [BookingStatus::Cancelled, BookingStatus::Completed, BookingStatus::Expired, BookingStatus::Rejected], true),
-            422,
-            'Booking cannot be cancelled in its current state.'
-        );
 
         $data = $request->validate([
             'reason' => ['nullable', 'string'],
         ]);
 
-        $user = $request->user();
-        $property = $booking->property;
-        if ($user->id === $booking->customer?->user_id) {
-            $by = CancellationBy::Customer;
-        } elseif ($property && $property->user_id === $user->id) {
-            $by = CancellationBy::Owner;
-        } else {
-            $by = CancellationBy::Agent;
-        }
-
-        $booking->update([
-            'status' => BookingStatus::Cancelled,
-            'cancelled_at' => now(),
-            'cancellation_by' => $by,
-            'cancellation_reason' => $data['reason'] ?? null,
-        ]);
+        $booking = $this->bookings->cancel($booking, $request->user(), $data['reason'] ?? null);
 
         return $this->json([
-            'data' => BookingResource::make($booking->refresh())->toArray($request),
+            'data' => BookingResource::make($booking)->toArray($request),
         ]);
     }
 

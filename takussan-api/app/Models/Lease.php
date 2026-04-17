@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
+use App\Models\Bases\Auditable;
 use App\Models\Enums\Currency;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\LeaseType;
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Lease extends AbstractModel
 {
-    use HasFactory, SoftDeletes;
+    use Auditable, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'property_id', 'landlord_id', 'tenant_id', 'agency_id',
