@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\MaintenanceRequestResource;
+use App\Models\Enums\MaintenanceCategory;
+use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class MaintenanceRequestController extends Controller
 {
@@ -50,8 +53,8 @@ class MaintenanceRequestController extends Controller
             'assigned_to' => ['nullable', 'exists:users,id'],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string'],
-            'category' => ['required', 'string'],
-            'priority' => ['nullable', 'string'],
+            'category' => ['required', Rule::enum(MaintenanceCategory::class)],
+            'priority' => ['nullable', Rule::enum(MaintenancePriority::class)],
         ]);
 
         $mr = MaintenanceRequest::create(array_merge($data, [
@@ -79,8 +82,8 @@ class MaintenanceRequestController extends Controller
 
         $data = $request->validate([
             'assigned_to' => ['sometimes', 'nullable', 'exists:users,id'],
-            'priority' => ['sometimes', 'string'],
-            'status' => ['sometimes', 'string'],
+            'priority' => ['sometimes', Rule::enum(MaintenancePriority::class)],
+            'status' => ['sometimes', Rule::enum(MaintenanceStatus::class)],
             'estimated_cost' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'actual_cost' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'scheduled_at' => ['sometimes', 'nullable', 'date'],

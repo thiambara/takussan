@@ -7,10 +7,12 @@ use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
+use App\Models\Enums\Currency;
 use App\Models\Property;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class BookingController extends Controller
 {
@@ -53,7 +55,7 @@ class BookingController extends Controller
             'customer_id' => ['nullable', 'exists:customers,id'],
             'total_amount' => ['required', 'numeric', 'min:0'],
             'deposit_amount' => ['nullable', 'numeric', 'min:0'],
-            'currency' => ['nullable', 'string', 'size:3'],
+            'currency' => ['nullable', Rule::enum(Currency::class)],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'notes' => ['nullable', 'string'],

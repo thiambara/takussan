@@ -12,6 +12,7 @@ use App\Models\Enums\MessageType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class ConversationController extends Controller
 {
@@ -33,7 +34,7 @@ class ConversationController extends Controller
     {
         $data = $request->validate([
             'subject' => ['nullable', 'string'],
-            'type' => ['nullable', 'string'],
+            'type' => ['nullable', Rule::enum(ConversationType::class)],
             'participants' => ['required', 'array', 'min:1'],
             'participants.*' => ['exists:users,id'],
             'property_id' => ['nullable', 'exists:properties,id'],
@@ -108,7 +109,7 @@ class ConversationController extends Controller
 
         $data = $request->validate([
             'content' => ['required', 'string'],
-            'type' => ['nullable', 'string'],
+            'type' => ['nullable', Rule::enum(MessageType::class)],
         ]);
 
         $message = $conversation->messages()->create([

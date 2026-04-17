@@ -4,11 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\LeaseResource;
+use App\Models\Enums\Currency;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\LeaseType;
+use App\Models\Enums\PaymentFrequency;
 use App\Models\Lease;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class LeaseController extends Controller
 {
@@ -51,16 +55,16 @@ class LeaseController extends Controller
             'tenant_id' => ['required', 'exists:customers,id'],
             'booking_id' => ['nullable', 'exists:bookings,id'],
             'guarantor_id' => ['nullable', 'exists:guarantors,id'],
-            'type' => ['required', 'string'],
+            'type' => ['required', Rule::enum(LeaseType::class)],
             'start_date' => ['required', 'date'],
             'end_date' => ['nullable', 'date', 'after:start_date'],
             'monthly_rent' => ['nullable', 'numeric', 'min:0'],
             'sale_price' => ['nullable', 'numeric', 'min:0'],
             'deposit_amount' => ['nullable', 'numeric', 'min:0'],
             'commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'payment_frequency' => ['nullable', 'string'],
+            'payment_frequency' => ['nullable', Rule::enum(PaymentFrequency::class)],
             'payment_day' => ['nullable', 'integer', 'between:1,28'],
-            'currency' => ['nullable', 'string', 'size:3'],
+            'currency' => ['nullable', Rule::enum(Currency::class)],
             'terms' => ['nullable', 'string'],
         ]);
 

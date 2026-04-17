@@ -73,10 +73,10 @@ class PublicPropertyController extends Controller
         if (! empty($validated['price_max'])) {
             $query->where('price', '<=', $validated['price_max']);
         }
-        if (! empty($validated['bedrooms'])) {
+        if (isset($validated['bedrooms'])) {
             $query->where('bedrooms', $validated['bedrooms']);
         }
-        if (! empty($validated['bathrooms'])) {
+        if (isset($validated['bathrooms'])) {
             $query->where('bathrooms', $validated['bathrooms']);
         }
         if (! empty($validated['type'])) {

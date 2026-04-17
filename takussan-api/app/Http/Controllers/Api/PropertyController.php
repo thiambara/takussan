@@ -4,12 +4,16 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\PropertyResource;
+use App\Models\Enums\ContractType;
+use App\Models\Enums\Currency;
 use App\Models\Enums\PropertyStatus;
+use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class PropertyController extends Controller
 {
@@ -46,12 +50,12 @@ class PropertyController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'type' => ['required', 'string'],
-            'contract_type' => ['required', 'string'],
-            'status' => ['nullable', 'string'],
-            'visibility' => ['nullable', 'string'],
+            'type' => ['required', Rule::enum(PropertyType::class)],
+            'contract_type' => ['required', Rule::enum(ContractType::class)],
+            'status' => ['nullable', Rule::enum(PropertyStatus::class)],
+            'visibility' => ['nullable', Rule::enum(PropertyVisibility::class)],
             'price' => ['required', 'numeric', 'min:0'],
-            'currency' => ['nullable', 'string', 'size:3'],
+            'currency' => ['nullable', Rule::enum(Currency::class)],
             'area' => ['nullable', 'integer', 'min:0'],
             'bedrooms' => ['nullable', 'integer', 'min:0'],
             'bathrooms' => ['nullable', 'integer', 'min:0'],
@@ -108,12 +112,12 @@ class PropertyController extends Controller
         $data = $request->validate([
             'title' => ['sometimes', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string'],
-            'type' => ['sometimes', 'string'],
-            'contract_type' => ['sometimes', 'string'],
-            'status' => ['sometimes', 'string'],
-            'visibility' => ['sometimes', 'string'],
+            'type' => ['sometimes', Rule::enum(PropertyType::class)],
+            'contract_type' => ['sometimes', Rule::enum(ContractType::class)],
+            'status' => ['sometimes', Rule::enum(PropertyStatus::class)],
+            'visibility' => ['sometimes', Rule::enum(PropertyVisibility::class)],
             'price' => ['sometimes', 'numeric', 'min:0'],
-            'currency' => ['sometimes', 'string', 'size:3'],
+            'currency' => ['sometimes', Rule::enum(Currency::class)],
             'area' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'bedrooms' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'bathrooms' => ['sometimes', 'nullable', 'integer', 'min:0'],
@@ -152,6 +156,11 @@ class PropertyController extends Controller
     public function publish(Request $request, Property $property): JsonResponse
     {
         $this->authorizeManage($request, $property);
+        abort_if(
+            in_array($property->status, [PropertyStatus::Sold, PropertyStatus::Rented], true),
+            422,
+            'Sold or rented properties cannot be published.'
+        );
         $property->update([
             'status' => PropertyStatus::Available,
             'visibility' => PropertyVisibility::Public,

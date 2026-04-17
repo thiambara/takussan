@@ -7,8 +7,10 @@ use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
+use App\Models\Enums\IdType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class CustomerController extends Controller
 {
@@ -55,10 +57,10 @@ class CustomerController extends Controller
             'last_name' => ['required', 'string'],
             'email' => ['nullable', 'email'],
             'phone' => ['nullable', 'string'],
-            'id_type' => ['nullable', 'string'],
+            'id_type' => ['nullable', Rule::enum(IdType::class)],
             'id_number' => ['nullable', 'string'],
             'occupation' => ['nullable', 'string'],
-            'pipeline_stage' => ['nullable', 'string'],
+            'pipeline_stage' => ['nullable', Rule::enum(CustomerPipelineStage::class)],
             'notes' => ['nullable', 'string'],
         ]);
 
@@ -93,11 +95,11 @@ class CustomerController extends Controller
             'last_name' => ['sometimes', 'string'],
             'email' => ['sometimes', 'nullable', 'email'],
             'phone' => ['sometimes', 'nullable', 'string'],
-            'id_type' => ['sometimes', 'nullable', 'string'],
+            'id_type' => ['sometimes', 'nullable', Rule::enum(IdType::class)],
             'id_number' => ['sometimes', 'nullable', 'string'],
             'occupation' => ['sometimes', 'nullable', 'string'],
-            'pipeline_stage' => ['sometimes', 'string'],
-            'status' => ['sometimes', 'string'],
+            'pipeline_stage' => ['sometimes', Rule::enum(CustomerPipelineStage::class)],
+            'status' => ['sometimes', Rule::enum(CustomerStatus::class)],
             'notes' => ['sometimes', 'nullable', 'string'],
         ]);
 
