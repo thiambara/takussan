@@ -4,26 +4,20 @@ namespace App\Models\Enums;
 
 enum PropertyType: string
 {
-    case Apartment = 'apartment';
+    case Land = 'land';
     case House = 'house';
+    case Apartment = 'apartment';
     case Villa = 'villa';
     case Studio = 'studio';
-    case Land = 'land';
+    case Room = 'room';
     case Office = 'office';
     case Shop = 'shop';
+    case Warehouse = 'warehouse';
+    case Factory = 'factory';
+    case Farm = 'farm';
+    case Hotel = 'hotel';
+    case Resort = 'resort';
+    case Garage = 'garage';
+    case Parking = 'parking';
     case Other = 'other';
-
-    public function label(): string
-    {
-        return match ($this) {
-            self::Apartment => 'Appartement',
-            self::House => 'Maison',
-            self::Villa => 'Villa',
-            self::Studio => 'Studio',
-            self::Land => 'Terrain',
-            self::Office => 'Bureau',
-            self::Shop => 'Commerce',
-            self::Other => 'Autre',
-        };
-    }
 }
