@@ -10,7 +10,7 @@ class PropertyResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $address = $this->whenLoaded('address', $this->address);
+        $address = $this->resource->relationLoaded('address') ? $this->resource->address : null;
 
         return [
             'id' => $this->id,
