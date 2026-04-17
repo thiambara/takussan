@@ -59,6 +59,9 @@ class Property extends AbstractModel implements HasMedia
             if (empty($m->slug)) {
                 $m->slug = Str::slug($m->title).'-'.Str::random(6);
             }
+            if (empty($m->reference_number)) {
+                $m->reference_number = 'TK-'.now()->format('Y').'-'.strtoupper(Str::random(6));
+            }
         });
     }
 
