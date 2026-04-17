@@ -25,7 +25,7 @@ class PropertyResource extends JsonResource
             'visibility' => $this->visibility?->value,
             'location' => [
                 'quarter' => $address?->neighborhood,
-                'city' => $address?->city ?? 'Dakar',
+                'city' => $address?->city,
                 'region' => $address?->region,
                 'country' => $address?->country,
                 'latitude' => $address?->latitude,

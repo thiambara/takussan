@@ -9,6 +9,7 @@ use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\LeaseType;
 use App\Models\Enums\PaymentFrequency;
 use App\Models\Lease;
+use App\Models\Property;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -69,11 +70,17 @@ class LeaseController extends Controller
         ]);
 
         $user = $request->user();
+        $property = Property::findOrFail($data['property_id']);
+
+        $canCreate = $user->hasRole(['admin', 'super_admin'])
+            || $property->user_id === $user->id
+            || ($user->agency_id && $property->agency_id === $user->agency_id);
+        abort_unless($canCreate, 403);
 
         $lease = Lease::create(array_merge($data, [
             'reference_number' => 'LS-'.strtoupper(Str::random(8)),
-            'landlord_id' => $user->id,
-            'agency_id' => $user->agency_id,
+            'landlord_id' => $property->user_id,
+            'agency_id' => $property->agency_id ?? $user->agency_id,
             'status' => LeaseStatus::Draft->value,
             'currency' => $data['currency'] ?? 'XOF',
             'payment_frequency' => $data['payment_frequency'] ?? 'monthly',
