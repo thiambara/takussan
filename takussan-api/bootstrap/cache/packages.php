@@ -104,13 +104,6 @@
       0 => 'Laravel\\Sanctum\\SanctumServiceProvider',
     ),
   ),
-  'laravel/scout' => 
-  array (
-    'providers' => 
-    array (
-      0 => 'Laravel\\Scout\\ScoutServiceProvider',
-    ),
-  ),
   'laravel/socialite' => 
   array (
     'aliases' => 
@@ -172,25 +165,11 @@
       0 => 'RyanChandler\\BladeCaptureDirective\\BladeCaptureDirectiveServiceProvider',
     ),
   ),
-  'spatie/laravel-activitylog' => 
-  array (
-    'providers' => 
-    array (
-      0 => 'Spatie\\Activitylog\\ActivitylogServiceProvider',
-    ),
-  ),
   'spatie/laravel-medialibrary' => 
   array (
     'providers' => 
     array (
       0 => 'Spatie\\MediaLibrary\\MediaLibraryServiceProvider',
-    ),
-  ),
-  'spatie/laravel-permission' => 
-  array (
-    'providers' => 
-    array (
-      0 => 'Spatie\\Permission\\PermissionServiceProvider',
     ),
   ),
 );

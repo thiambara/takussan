@@ -30,7 +30,7 @@ class PropertyDetailTest extends TestCase
 
     public function test_draft_property_returns_404(): void
     {
-        $property = Property::factory()->draft()->create();
+        $property = Property::factory()->create(); // status = draft par défaut
 
         $response = $this->getJson("/api/public/properties/{$property->slug}");
         $response->assertNotFound();

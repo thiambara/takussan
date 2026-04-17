@@ -2,9 +2,7 @@
 
 namespace Tests\Feature\Public;
 
-use App\Models\Address;
 use App\Models\Property;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -14,17 +12,12 @@ class PropertyContactTest extends TestCase
 
     public function test_returns_phone_and_prefilled_message(): void
     {
-        $owner = User::factory()->create(['phone' => '+221771234567']);
         $property = Property::factory()->published()->create([
-            'user_id' => $owner->id,
+            'owner_phone' => '+221771234567',
             'title' => 'Appartement Almadies',
             'price' => 350_000,
-        ]);
-        Address::create([
-            'addressable_type' => Property::class,
-            'addressable_id' => $property->id,
-            'neighborhood' => 'Almadies',
-            'city' => 'Dakar',
+            'location_quarter' => 'Almadies',
+            'location_city' => 'Dakar',
         ]);
 
         $response = $this->getJson("/api/public/properties/{$property->slug}/contact");
@@ -39,7 +32,7 @@ class PropertyContactTest extends TestCase
 
     public function test_contact_returns_404_for_draft(): void
     {
-        $property = Property::factory()->draft()->create();
+        $property = Property::factory()->create(); // draft
         $response = $this->getJson("/api/public/properties/{$property->slug}/contact");
         $response->assertNotFound();
     }

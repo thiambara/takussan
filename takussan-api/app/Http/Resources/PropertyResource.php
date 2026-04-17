@@ -10,47 +10,35 @@ class PropertyResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $address = $this->resource->relationLoaded('address') ? $this->resource->address : null;
-
         return [
             'id' => $this->id,
-            'reference_number' => $this->reference_number,
             'title' => $this->title,
             'slug' => $this->slug,
-            'price' => (float) $this->price,
-            'currency' => $this->currency?->value,
-            'type' => $this->type?->value,
-            'contract_type' => $this->contract_type?->value,
-            'status' => $this->status?->value,
-            'visibility' => $this->visibility?->value,
+            'price' => $this->price,
+            'type' => $this->type->value,
+            'type_label' => $this->type->label(),
             'location' => [
-                'quarter' => $address?->neighborhood,
-                'city' => $address?->city,
-                'region' => $address?->region,
-                'country' => $address?->country,
-                'latitude' => $address?->latitude,
-                'longitude' => $address?->longitude,
+                'quarter' => $this->location_quarter,
+                'city' => $this->location_city,
             ],
             'bedrooms' => $this->bedrooms,
             'bathrooms' => $this->bathrooms,
             'area' => $this->area,
-            'furnished' => (bool) $this->furnished,
-            'featured' => (bool) $this->featured,
-            'main_photo_url' => $this->getFirstMediaUrl('photos', 'preview') ?: null,
+            'featured' => $this->featured,
+            'main_photo_url' => $this->getFirstMediaUrl('photos', 'medium') ?: $this->main_photo_url,
             'description' => $this->when(
-                $request->routeIs('public.properties.show') || $request->routeIs('properties.show'),
+                $request->routeIs('public.properties.show'),
                 $this->description
             ),
             'photos' => $this->when(
-                $request->routeIs('public.properties.show') || $request->routeIs('properties.show'),
+                $request->routeIs('public.properties.show'),
                 fn () => $this->getMedia('photos')->map(fn (Media $media) => [
                     'thumbnail' => $media->getUrl('thumbnail'),
-                    'preview' => $media->getUrl('preview'),
-                    'original' => $media->getUrl(),
+                    'medium' => $media->getUrl('medium'),
+                    'large' => $media->getUrl('large'),
                 ])->toArray()
             ),
-            'published_at' => $this->published_at?->toISOString(),
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->created_at->toISOString(),
         ];
     }
 }
