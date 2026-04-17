@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\ReviewResource;
+use App\Models\Enums\BookingStatus;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Property;
 use App\Models\Review;
 use Illuminate\Http\JsonResponse;
@@ -26,6 +28,25 @@ class ReviewController extends Controller
 
     public function storeForProperty(Request $request, Property $property): JsonResponse
     {
+        $user = $request->user();
+
+        $hasCompletedBooking = $property->bookings()
+            ->whereIn('status', [BookingStatus::Completed, BookingStatus::Confirmed])
+            ->whereHas('customer', fn ($q) => $q->where('user_id', $user->id))
+            ->exists();
+        $hasLease = $property->leases()
+            ->whereIn('status', [LeaseStatus::Active, LeaseStatus::Terminated, LeaseStatus::Expired])
+            ->whereHas('tenant', fn ($q) => $q->where('user_id', $user->id))
+            ->exists();
+        abort_unless(
+            $hasCompletedBooking || $hasLease || $user->hasRole(['admin', 'super_admin']),
+            403,
+            'Only customers with a completed booking or lease can review this property.'
+        );
+
+        $alreadyReviewed = $property->reviews()->where('author_id', $user->id)->exists();
+        abort_if($alreadyReviewed, 422, 'You have already reviewed this property.');
+
         $data = $request->validate([
             'rating' => ['required', 'integer', 'min:1', 'max:5'],
             'title' => ['nullable', 'string'],
@@ -33,7 +54,7 @@ class ReviewController extends Controller
         ]);
 
         $review = $property->reviews()->create(array_merge($data, [
-            'author_id' => $request->user()->id,
+            'author_id' => $user->id,
             'is_approved' => false,
         ]));
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -10,8 +11,10 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class PropertyMediaController extends Controller
 {
-    public function index(Property $property): JsonResponse
+    public function index(Request $request, Property $property): JsonResponse
     {
+        $this->authorizeView($request, $property);
+
         $media = $property->getMedia('photos')->map(fn (Media $m) => [
             'id' => $m->id,
             'thumbnail' => $m->getUrl('thumbnail'),
@@ -61,5 +64,14 @@ class PropertyMediaController extends Controller
             || ($user->agency_id && $user->agency_id === $property->agency_id)
             || $user->hasRole(['admin', 'super_admin']);
         abort_unless($ok, 403);
+    }
+
+    protected function authorizeView(Request $request, Property $property): void
+    {
+        if ($property->visibility === PropertyVisibility::Public
+            && $property->published_at !== null) {
+            return;
+        }
+        $this->authorizeManage($request, $property);
     }
 }

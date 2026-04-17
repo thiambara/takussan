@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\AgencyResource;
 use App\Models\Agency;
+use App\Models\Enums\AgencyStatus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class AgencyController extends Controller
 {
@@ -25,6 +27,15 @@ class AgencyController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $user = $request->user();
+
+        $alreadyOwns = Agency::where('primary_admin_id', $user->id)->exists();
+        abort_if(
+            $alreadyOwns && ! $user->hasRole(['admin', 'super_admin']),
+            422,
+            'You already administer an agency.'
+        );
+
         $data = $request->validate([
             'name' => ['required', 'string'],
             'license_number' => ['nullable', 'string'],
@@ -33,11 +44,12 @@ class AgencyController extends Controller
             'phone' => ['nullable', 'string'],
             'website' => ['nullable', 'url'],
             'commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'status' => ['nullable', Rule::enum(AgencyStatus::class)],
         ]);
 
         $agency = Agency::create(array_merge($data, [
-            'primary_admin_id' => $request->user()->id,
-            'status' => 'active',
+            'primary_admin_id' => $user->id,
+            'status' => $data['status'] ?? AgencyStatus::Active->value,
         ]));
 
         return $this->json(['data' => AgencyResource::make($agency)->toArray($request)], 201);

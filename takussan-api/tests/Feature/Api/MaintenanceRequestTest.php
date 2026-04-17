@@ -2,6 +2,9 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Customer;
+use App\Models\Enums\LeaseStatus;
+use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\User;
@@ -17,6 +20,13 @@ class MaintenanceRequestTest extends TestCase
     {
         $user = User::factory()->create();
         $property = Property::factory()->create();
+        $customer = Customer::factory()->create(['user_id' => $user->id]);
+        Lease::factory()->create([
+            'property_id' => $property->id,
+            'tenant_id' => $customer->id,
+            'landlord_id' => $property->user_id,
+            'status' => LeaseStatus::Active,
+        ]);
 
         Sanctum::actingAs($user);
 
@@ -29,6 +39,21 @@ class MaintenanceRequestTest extends TestCase
         ])->assertCreated()
             ->assertJsonPath('data.status', 'open')
             ->assertJsonPath('data.priority', 'high');
+    }
+
+    public function test_unrelated_user_cannot_create_maintenance_request(): void
+    {
+        $user = User::factory()->create();
+        $property = Property::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/maintenance-requests', [
+            'property_id' => $property->id,
+            'title' => 'Bogus',
+            'description' => 'not a tenant',
+            'category' => 'plumbing',
+        ])->assertForbidden();
     }
 
     public function test_owner_can_update_status(): void

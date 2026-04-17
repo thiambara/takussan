@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\MaintenanceRequestResource;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\MaintenanceCategory;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
+use App\Models\Property;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -57,8 +59,20 @@ class MaintenanceRequestController extends Controller
             'priority' => ['nullable', Rule::enum(MaintenancePriority::class)],
         ]);
 
+        $user = $request->user();
+        $property = Property::findOrFail($data['property_id']);
+
+        $isStaff = $user->hasRole(['admin', 'super_admin'])
+            || $property->user_id === $user->id
+            || ($user->agency_id && $user->agency_id === $property->agency_id);
+        $isActiveTenant = $property->leases()
+            ->where('status', LeaseStatus::Active)
+            ->whereHas('tenant', fn ($q) => $q->where('user_id', $user->id))
+            ->exists();
+        abort_unless($isStaff || $isActiveTenant, 403);
+
         $mr = MaintenanceRequest::create(array_merge($data, [
-            'requester_id' => $request->user()->id,
+            'requester_id' => $user->id,
             'status' => MaintenanceStatus::Open->value,
         ]));
 

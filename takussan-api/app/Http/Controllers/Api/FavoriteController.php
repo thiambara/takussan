@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\FavoriteResource;
+use App\Models\Enums\PropertyVisibility;
 use App\Models\Favorite;
 use App\Models\Property;
 use Illuminate\Http\JsonResponse;
@@ -35,8 +36,17 @@ class FavoriteController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
+        $user = $request->user();
+        $property = Property::findOrFail($data['property_id']);
+        $canSee = $property->visibility === PropertyVisibility::Public
+            && $property->published_at !== null;
+        $isStaff = $user->hasRole(['admin', 'super_admin'])
+            || $property->user_id === $user->id
+            || ($user->agency_id && $user->agency_id === $property->agency_id);
+        abort_unless($canSee || $isStaff, 403);
+
         $favorite = Favorite::firstOrCreate(
-            ['user_id' => $request->user()->id, 'property_id' => $data['property_id']],
+            ['user_id' => $user->id, 'property_id' => $data['property_id']],
             ['notes' => $data['notes'] ?? null],
         );
 

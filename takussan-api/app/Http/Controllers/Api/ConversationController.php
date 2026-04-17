@@ -44,6 +44,13 @@ class ConversationController extends Controller
 
         $user = $request->user();
 
+        $participantIds = array_values(array_unique(array_filter(
+            $data['participants'],
+            fn ($id) => (int) $id !== (int) $user->id
+        )));
+        abort_if(count($participantIds) === 0, 422, 'At least one other participant is required.');
+        $data['participants'] = $participantIds;
+
         $conversation = DB::transaction(function () use ($data, $user) {
             $conversation = Conversation::create([
                 'subject' => $data['subject'] ?? null,

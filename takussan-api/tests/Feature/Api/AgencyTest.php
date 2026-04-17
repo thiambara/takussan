@@ -28,6 +28,17 @@ class AgencyTest extends TestCase
             ->assertJsonPath('meta.total', 1);
     }
 
+    public function test_user_cannot_create_second_agency(): void
+    {
+        $user = User::factory()->create();
+        Agency::factory()->create(['primary_admin_id' => $user->id]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/agencies', ['name' => 'Second'])
+            ->assertStatus(422);
+    }
+
     public function test_only_primary_admin_can_update_agency(): void
     {
         $admin = User::factory()->create();
