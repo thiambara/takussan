@@ -109,7 +109,15 @@ class Property extends AbstractModel implements HasMedia
     public function scopePublic(Builder $query): Builder
     {
         return $query->where('visibility', PropertyVisibility::Public)
-            ->whereNotNull('published_at');
+            ->whereNotNull('published_at')
+            ->whereNotIn('status', [
+                PropertyStatus::Draft,
+                PropertyStatus::Sold,
+                PropertyStatus::Rented,
+                PropertyStatus::Archived,
+                PropertyStatus::UnderMaintenance,
+                PropertyStatus::Unavailable,
+            ]);
     }
 
     public function scopeAvailable(Builder $query): Builder

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\PropertyResource;
 use App\Models\Enums\PropertyStatus;
-use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -153,9 +152,7 @@ class PublicPropertyController extends Controller
     {
         $property = Property::query()
             ->with('owner', 'address')
-            ->where('visibility', PropertyVisibility::Public)
-            ->whereNot('status', PropertyStatus::Draft)
-            ->whereNotNull('published_at')
+            ->public()
             ->where('slug', $slug)
             ->firstOrFail();
 
