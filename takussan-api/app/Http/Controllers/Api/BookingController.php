@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
 use App\Models\Enums\Currency;
+use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -64,6 +65,19 @@ class BookingController extends Controller
 
         $property = Property::findOrFail($data['property_id']);
 
+        abort_if(
+            in_array($property->status, [
+                PropertyStatus::Sold,
+                PropertyStatus::Rented,
+                PropertyStatus::Draft,
+                PropertyStatus::Archived,
+                PropertyStatus::UnderMaintenance,
+                PropertyStatus::Unavailable,
+            ], true),
+            422,
+            'This property is not available for booking.'
+        );
+
         $booking = Booking::create(array_merge($data, [
             'reference_number' => 'BK-'.strtoupper(Str::random(8)),
             'created_by_id' => $request->user()->id,
@@ -106,7 +120,7 @@ class BookingController extends Controller
     {
         $this->authorizeAccess($request, $booking);
         abort_if(
-            in_array($booking->status, [BookingStatus::Cancelled, BookingStatus::Completed, BookingStatus::Expired], true),
+            in_array($booking->status, [BookingStatus::Cancelled, BookingStatus::Completed, BookingStatus::Expired, BookingStatus::Rejected], true),
             422,
             'Booking cannot be cancelled in its current state.'
         );
