@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Public;
 
-use App\Models\Enums\PropertyStatus;
+use App\Models\Address;
 use App\Models\Property;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -11,16 +11,26 @@ class PropertySearchTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function published(array $attrs = []): Property
+    private function published(array $attrs = [], ?string $neighborhood = null): Property
     {
-        return Property::factory()->published()->create($attrs);
+        $property = Property::factory()->published()->create($attrs);
+        if ($neighborhood) {
+            Address::create([
+                'addressable_type' => Property::class,
+                'addressable_id' => $property->id,
+                'neighborhood' => $neighborhood,
+                'city' => 'Dakar',
+            ]);
+        }
+
+        return $property;
     }
 
     public function test_returns_all_published_without_filters(): void
     {
         $this->published();
         $this->published();
-        Property::factory()->create(); // draft
+        Property::factory()->draft()->create();
 
         $response = $this->getJson('/api/public/properties/search');
 
@@ -29,8 +39,8 @@ class PropertySearchTest extends TestCase
 
     public function test_filter_by_location(): void
     {
-        $this->published(['location_quarter' => 'Almadies']);
-        $this->published(['location_quarter' => 'Plateau']);
+        $this->published([], 'Almadies');
+        $this->published([], 'Plateau');
 
         $response = $this->getJson('/api/public/properties/search?location=Almadies');
 
@@ -63,14 +73,14 @@ class PropertySearchTest extends TestCase
 
     public function test_returns_facets(): void
     {
-        $this->published(['location_quarter' => 'Almadies', 'bedrooms' => 2]);
-        $this->published(['location_quarter' => 'Almadies', 'bedrooms' => 3]);
-        $this->published(['location_quarter' => 'Plateau',  'bedrooms' => 2]);
+        $this->published(['bedrooms' => 2], 'Almadies');
+        $this->published(['bedrooms' => 3], 'Almadies');
+        $this->published(['bedrooms' => 2], 'Plateau');
 
         $response = $this->getJson('/api/public/properties/search');
 
         $response->assertOk()
-            ->assertJsonStructure(['data', 'facets' => ['locations', 'bedrooms'], 'meta']);
+            ->assertJsonStructure(['data', 'facets' => ['locations', 'bedrooms', 'types'], 'meta']);
         $this->assertEquals(2, $response->json('facets.locations.Almadies'));
     }
 

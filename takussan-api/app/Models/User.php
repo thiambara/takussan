@@ -2,51 +2,41 @@
 
 namespace App\Models;
 
-use App\Models\Bases\Enums\UserStatus;
-use App\Models\Bases\Enums\UserType;
+use App\Models\Enums\UserStatus;
+use App\Models\Enums\UserType;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable implements HasMedia, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
+    use HasApiTokens, HasFactory, HasRoles, InteractsWithMedia, Notifiable, SoftDeletes;
 
     protected $fillable = [
-        'username',
-        'first_name',
-        'last_name',
-        'type',
-        'status',
-        'email',
-        'password',
-        'phone',
-        'bio',
-        'preferred_language',
-        'timezone',
-        'last_login_at',
-        'agency_id',
-        'added_by_id',
-        'google_id',
-        'facebook_id',
-        'apple_id',
+        'username', 'first_name', 'last_name', 'type', 'status',
+        'email', 'password', 'phone',
+        'bio', 'preferred_language', 'timezone',
+        'last_login_at', 'agency_id', 'added_by_id',
+        'google_id', 'facebook_id', 'apple_id',
         'two_factor_enabled',
-        'notifications_email_enabled',
-        'notifications_push_enabled',
-        'notifications_sms_enabled',
+        'notifications_email_enabled', 'notifications_push_enabled', 'notifications_sms_enabled',
         'metadata',
     ];
 
     protected $hidden = [
-        'password',
-        'remember_token',
-        'two_factor_secret',
-        'two_factor_recovery_codes',
+        'password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes',
     ];
 
     protected function casts(): array
@@ -70,6 +60,79 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function getFullNameAttribute(): string
     {
-        return "{$this->first_name} {$this->last_name}";
+        return trim("{$this->first_name} {$this->last_name}");
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('avatar')->singleFile();
+    }
+
+    public function agency(): BelongsTo
+    {
+        return $this->belongsTo(Agency::class);
+    }
+
+    public function addedBy(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'added_by_id');
+    }
+
+    public function properties(): HasMany
+    {
+        return $this->hasMany(Property::class);
+    }
+
+    public function customer(): HasOne
+    {
+        return $this->hasOne(Customer::class);
+    }
+
+    public function addresses(): MorphMany
+    {
+        return $this->morphMany(Address::class, 'addressable');
+    }
+
+    public function documents(): MorphMany
+    {
+        return $this->morphMany(Document::class, 'documentable');
+    }
+
+    public function favorites(): HasMany
+    {
+        return $this->hasMany(Favorite::class);
+    }
+
+    public function savedSearches(): HasMany
+    {
+        return $this->hasMany(SavedSearch::class);
+    }
+
+    public function appNotifications(): HasMany
+    {
+        return $this->hasMany(AppNotification::class);
+    }
+
+    public function leases(): HasMany
+    {
+        return $this->hasMany(Lease::class, 'landlord_id');
+    }
+
+    public function writtenReviews(): HasMany
+    {
+        return $this->hasMany(Review::class, 'author_id');
+    }
+
+    public function payouts(): HasMany
+    {
+        return $this->hasMany(Payout::class, 'landlord_id');
+    }
+
+    public function conversations()
+    {
+        return $this->belongsToMany(Conversation::class, 'conversation_participants')
+            ->using(ConversationParticipant::class)
+            ->withPivot(['role', 'last_read_at', 'is_muted', 'joined_at', 'left_at'])
+            ->withTimestamps();
     }
 }
