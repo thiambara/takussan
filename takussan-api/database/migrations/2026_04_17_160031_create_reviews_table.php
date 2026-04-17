@@ -17,6 +17,7 @@ return new class extends Migration
             $table->text('content')->nullable();
             $table->boolean('is_approved')->default(false);
             $table->timestamp('approved_at')->nullable();
+            $table->foreignId('approved_by_id')->nullable()->constrained('users')->nullOnDelete();
             $table->text('reply_content')->nullable();
             $table->foreignId('replied_by_id')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('replied_at')->nullable();

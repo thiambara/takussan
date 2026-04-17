@@ -30,7 +30,7 @@ class NotificationController extends Controller
     public function markAsRead(Request $request, AppNotification $notification): JsonResponse
     {
         abort_unless($notification->user_id === $request->user()->id, 403);
-        $notification->update(['read_at' => now()]);
+        $notification->update(['read_at' => now(), 'is_read' => true]);
 
         return $this->json(['data' => $notification]);
     }
@@ -39,7 +39,7 @@ class NotificationController extends Controller
     {
         AppNotification::where('user_id', $request->user()->id)
             ->whereNull('read_at')
-            ->update(['read_at' => now()]);
+            ->update(['read_at' => now(), 'is_read' => true]);
 
         return $this->json(['message' => 'ok']);
     }

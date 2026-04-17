@@ -15,7 +15,7 @@ class Review extends AbstractModel
     protected $fillable = [
         'reviewable_id', 'reviewable_type', 'author_id',
         'rating', 'title', 'content',
-        'is_approved', 'approved_at',
+        'is_approved', 'approved_at', 'approved_by_id',
         'reply_content', 'replied_by_id', 'replied_at', 'metadata',
     ];
 
@@ -40,5 +40,10 @@ class Review extends AbstractModel
     public function repliedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'replied_by_id');
+    }
+
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by_id');
     }
 }
