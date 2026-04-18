@@ -11,7 +11,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\DB;
 
 class SendLeasePaymentReminders implements ShouldQueue
 {
@@ -42,7 +41,10 @@ class SendLeasePaymentReminders implements ShouldQueue
         // Overdue payments (J+1 and J+7)
         $overdue = LeasePayment::with(['lease.tenant.user'])
             ->where('status', PaymentStatus::Late)
-            ->whereIn(DB::raw('DATEDIFF(NOW(), due_date)'), [1, 7])
+            ->where(function ($query) {
+                $query->whereDate('due_date', now()->subDays(1)->toDateString())
+                    ->orWhereDate('due_date', now()->subDays(7)->toDateString());
+            })
             ->get();
 
         foreach ($overdue as $payment) {

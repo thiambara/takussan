@@ -14,7 +14,7 @@ class AuditLogController extends Controller
         abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
 
         $query = Activity::query()->with('causer')
-            ->where('subject_type', 'like', '%\\\\'.ucfirst($entity))
+            ->where('subject_type', 'like', '%'.ucfirst($entity))
             ->where('subject_id', $id);
 
         $order = $request->input('order', 'desc') === 'asc' ? 'asc' : 'desc';

@@ -1,0 +1,202 @@
+PHPUnit 12.5.20 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.6 with Xdebug 3.4.2
+Configuration: /Users/aminethiam/Documents/perso/takussan/takussan-api/phpunit.xml
+
+...............................................................  63 / 168 ( 37%)
+............................................................... 126 / 168 ( 75%)
+..........................................                      168 / 168 (100%)
+
+Time: 00:21.182, Memory: 113.00 MB
+
+[30;42mOK (168 tests, 518 assertions)[0m
+
+
+[1;37;40mCode Coverage Report:        [0m
+[1;37;40m  2026-04-18 02:01:46        [0m
+[1;37;40m                             [0m
+[1;37;40m Summary:                    [0m
+[37;41m  Classes: 31.75% (40/126)   [0m
+[30;43m  Methods: 55.40% (277/500)  [0m
+[30;43m  Lines:   62.37% (2440/3912)[0m
+
+App\Filament\Resources\Properties\PropertyResource
+  [37;41mMethods:  50.00% ( 2/ 4)[0m   [30;43mLines:  80.00% (  8/ 10)[0m
+App\Http\Controllers\Api\AgencyController
+  [30;43mMethods:  60.00% ( 3/ 5)[0m   [30;43mLines:  84.31% ( 43/ 51)[0m
+App\Http\Controllers\Api\AuditLogController
+  [37;41mMethods:   0.00% ( 0/ 2)[0m   [30;43mLines:  62.79% ( 54/ 86)[0m
+App\Http\Controllers\Api\BookingController
+  [30;43mMethods:  77.78% ( 7/ 9)[0m   [30;43mLines:  67.53% ( 52/ 77)[0m
+App\Http\Controllers\Api\BookingPaymentController
+  [30;42mMethods: 100.00% ( 6/ 6)[0m   [30;42mLines: 100.00% ( 51/ 51)[0m
+App\Http\Controllers\Api\ConversationController
+  [30;43mMethods:  57.14% ( 4/ 7)[0m   [30;43mLines:  86.87% ( 86/ 99)[0m
+App\Http\Controllers\Api\CustomerController
+  [37;41mMethods:  50.00% ( 3/ 6)[0m   [30;43mLines:  79.45% ( 58/ 73)[0m
+App\Http\Controllers\Api\DashboardController
+  [30;43mMethods:  83.33% ( 5/ 6)[0m   [30;42mLines:  98.04% ( 50/ 51)[0m
+App\Http\Controllers\Api\DocumentController
+  [37;41mMethods:  44.44% ( 4/ 9)[0m   [30;43mLines:  65.81% ( 77/117)[0m
+App\Http\Controllers\Api\FavoriteController
+  [30;42mMethods: 100.00% ( 3/ 3)[0m   [30;42mLines: 100.00% ( 35/ 35)[0m
+App\Http\Controllers\Api\IntegrationController
+  [37;41mMethods:  50.00% ( 2/ 4)[0m   [30;42mLines:  94.83% ( 55/ 58)[0m
+App\Http\Controllers\Api\InventoryController
+  [30;43mMethods:  72.73% ( 8/11)[0m   [30;43mLines:  55.86% ( 62/111)[0m
+App\Http\Controllers\Api\InvoiceController
+  [30;43mMethods:  77.78% ( 7/ 9)[0m   [30;42mLines:  94.03% ( 63/ 67)[0m
+App\Http\Controllers\Api\LeaseController
+  [30;43mMethods:  60.00% ( 6/10)[0m   [30;43mLines:  60.71% ( 51/ 84)[0m
+App\Http\Controllers\Api\LeasePaymentController
+  [30;43mMethods:  66.67% ( 4/ 6)[0m   [30;43mLines:  65.31% ( 32/ 49)[0m
+App\Http\Controllers\Api\MaintenanceRequestController
+  [30;43mMethods:  57.14% ( 4/ 7)[0m   [30;43mLines:  65.96% ( 62/ 94)[0m
+App\Http\Controllers\Api\PayoutController
+  [30;43mMethods:  77.78% ( 7/ 9)[0m   [30;42mLines:  93.51% ( 72/ 77)[0m
+App\Http\Controllers\Api\PropertyController
+  [37;41mMethods:  37.50% ( 3/ 8)[0m   [30;43mLines:  64.34% ( 83/129)[0m
+App\Http\Controllers\Api\PropertyVisitController
+  [30;43mMethods:  62.50% ( 5/ 8)[0m   [30;43mLines:  69.81% ( 74/106)[0m
+App\Http\Controllers\Api\ReviewController
+  [30;43mMethods:  66.67% ( 4/ 6)[0m   [30;43mLines:  65.88% ( 56/ 85)[0m
+App\Http\Controllers\Api\SavedSearchController
+  [37;41mMethods:  50.00% ( 2/ 4)[0m   [30;43mLines:  56.67% ( 17/ 30)[0m
+App\Http\Controllers\Api\SettingController
+  [37;41mMethods:  25.00% ( 1/ 4)[0m   [30;43mLines:  79.17% ( 57/ 72)[0m
+App\Http\Controllers\Auth\AuthController
+  [30;43mMethods:  80.00% ( 4/ 5)[0m   [30;42mLines:  93.33% ( 28/ 30)[0m
+App\Http\Controllers\Auth\EmailVerificationController
+  [30;42mMethods: 100.00% ( 2/ 2)[0m   [30;42mLines: 100.00% (  9/  9)[0m
+App\Http\Controllers\Auth\PasswordResetController
+  [30;42mMethods: 100.00% ( 2/ 2)[0m   [30;42mLines: 100.00% ( 18/ 18)[0m
+App\Http\Controllers\Base\Controller
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% (  1/  1)[0m
+App\Http\Controllers\Public\PublicPropertyController
+  [37;41mMethods:  50.00% ( 2/ 4)[0m   [30;42mLines:  91.27% (115/126)[0m
+App\Http\Requests\Auth\LoginRequest
+  [30;42mMethods: 100.00% ( 2/ 2)[0m   [30;42mLines: 100.00% (  5/  5)[0m
+App\Http\Requests\Auth\RegisterRequest
+  [30;42mMethods: 100.00% ( 2/ 2)[0m   [30;42mLines: 100.00% (  7/  7)[0m
+App\Http\Requests\Auth\UpdateProfileRequest
+  [30;42mMethods: 100.00% ( 2/ 2)[0m   [30;42mLines: 100.00% (  7/  7)[0m
+App\Http\Resources\AgencyResource
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% ( 18/ 18)[0m
+App\Http\Resources\BookingPaymentResource
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% ( 19/ 19)[0m
+App\Http\Resources\BookingResource
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% ( 22/ 22)[0m
+App\Http\Resources\ConversationResource
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% ( 13/ 13)[0m
+App\Http\Resources\CustomerResource
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% ( 16/ 16)[0m
+App\Http\Resources\DocumentResource
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% ( 19/ 19)[0m
+App\Http\Resources\FavoriteResource
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% (  8/  8)[0m
+App\Http\Resources\IntegrationResource
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% ( 10/ 10)[0m
+App\Http\Resources\InventoryResource
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% ( 18/ 18)[0m
+App\Http\Resources\InvoiceResource
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% ( 19/ 19)[0m
+App\Http\Resources\LeasePaymentResource
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% ( 19/ 19)[0m
+App\Http\Resources\LeaseResource
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% ( 26/ 26)[0m
+App\Http\Resources\MaintenanceRequestResource
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% ( 19/ 19)[0m
+App\Http\Resources\MessageResource
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% (  8/  8)[0m
+App\Http\Resources\PayoutResource
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% ( 24/ 24)[0m
+App\Http\Resources\PropertyResource
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% ( 41/ 41)[0m
+App\Http\Resources\PropertyVisitResource
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% ( 18/ 18)[0m
+App\Http\Resources\ReviewResource
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% ( 13/ 13)[0m
+App\Http\Resources\SavedSearchResource
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% ( 10/ 10)[0m
+App\Http\Resources\SettingResource
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% (  9/  9)[0m
+App\Jobs\GenerateLeasePaymentSchedule
+  [37;41mMethods:  50.00% ( 1/ 2)[0m   [30;43mLines:  75.00% (  3/  4)[0m
+App\Models\Agency
+  [30;42mMethods: 100.00% (11/11)[0m   [30;42mLines: 100.00% ( 14/ 14)[0m
+App\Models\Bases\Auditable
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% (  5/  5)[0m
+App\Models\Bases\Traits\BaseModelTrait
+  [37;41mMethods:  38.46% ( 5/13)[0m   [37;41mLines:  31.82% ( 35/110)[0m
+App\Models\Booking
+  [30;43mMethods:  66.67% ( 4/ 6)[0m   [30;43mLines:  66.67% (  4/  6)[0m
+App\Models\BookingPayment
+  [37;41mMethods:  25.00% ( 1/ 4)[0m   [37;41mLines:  25.00% (  1/  4)[0m
+App\Models\Concerns\HasPaymentAttributes
+  [37;41mMethods:  33.33% ( 1/ 3)[0m   [30;43mLines:  77.78% (  7/  9)[0m
+App\Models\Conversation
+  [37;41mMethods:  28.57% ( 2/ 7)[0m   [37;41mLines:  50.00% (  5/ 10)[0m
+App\Models\Customer
+  [30;43mMethods:  84.62% (11/13)[0m   [30;43mLines:  84.62% ( 11/ 13)[0m
+App\Models\Document
+  [37;41mMethods:  40.00% ( 2/ 5)[0m   [37;41mLines:  40.00% (  2/  5)[0m
+App\Models\Favorite
+  [37;41mMethods:  50.00% ( 1/ 2)[0m   [37;41mLines:  50.00% (  1/  2)[0m
+App\Models\Inventory
+  [30;43mMethods:  60.00% ( 3/ 5)[0m   [30;43mLines:  60.00% (  3/  5)[0m
+App\Models\Invoice
+  [30;43mMethods:  75.00% ( 3/ 4)[0m   [30;43mLines:  75.00% (  3/  4)[0m
+App\Models\Lease
+  [30;42mMethods: 100.00% (12/12)[0m   [30;42mLines: 100.00% ( 12/ 12)[0m
+App\Models\LeasePayment
+  [37;41mMethods:  25.00% ( 1/ 4)[0m   [37;41mLines:  25.00% (  1/  4)[0m
+App\Models\MaintenanceRequest
+  [37;41mMethods:  28.57% ( 2/ 7)[0m   [37;41mLines:  28.57% (  2/  7)[0m
+App\Models\Message
+  [30;43mMethods:  66.67% ( 2/ 3)[0m   [30;43mLines:  66.67% (  2/  3)[0m
+App\Models\Payout
+  [37;41mMethods:  28.57% ( 2/ 7)[0m   [37;41mLines:  28.57% (  2/  7)[0m
+App\Models\Property
+  [30;43mMethods:  85.71% (18/21)[0m   [30;43mLines:  73.91% ( 34/ 46)[0m
+App\Models\PropertyVisit
+  [30;43mMethods:  75.00% ( 3/ 4)[0m   [30;43mLines:  75.00% (  3/  4)[0m
+App\Models\Review
+  [37;41mMethods:  50.00% ( 2/ 4)[0m   [37;41mLines:  50.00% (  2/  4)[0m
+App\Models\Tag
+  [37;41mMethods:   0.00% ( 0/ 3)[0m   [37;41mLines:  33.33% (  2/  6)[0m
+App\Models\User
+  [30;42mMethods:  95.45% (21/22)[0m   [30;42mLines:  97.44% ( 38/ 39)[0m
+App\Observers\FavoriteObserver
+  [37;41mMethods:  50.00% ( 1/ 2)[0m   [37;41mLines:  50.00% (  1/  2)[0m
+App\Observers\LeaseObserver
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% (  6/  6)[0m
+App\Observers\MessageObserver
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% (  6/  6)[0m
+App\Observers\PropertyObserver
+  [30;42mMethods: 100.00% ( 3/ 3)[0m   [30;42mLines: 100.00% ( 13/ 13)[0m
+App\Observers\PropertyVisitObserver
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% (  1/  1)[0m
+App\Observers\ReviewObserver
+  [30;43mMethods:  66.67% ( 2/ 3)[0m   [30;42mLines:  90.00% (  9/ 10)[0m
+App\Providers\AppServiceProvider
+  [30;42mMethods: 100.00% ( 2/ 2)[0m   [30;42mLines: 100.00% (  7/  7)[0m
+App\Providers\Filament\AdminPanelProvider
+  [30;42mMethods: 100.00% ( 1/ 1)[0m   [30;42mLines: 100.00% ( 32/ 32)[0m
+App\Services\Model\BookingPaymentService
+  [30;42mMethods: 100.00% ( 2/ 2)[0m   [30;42mLines: 100.00% ( 30/ 30)[0m
+App\Services\Model\BookingService
+  [37;41mMethods:  40.00% ( 2/ 5)[0m   [30;43mLines:  80.17% ( 93/116)[0m
+App\Services\Model\InventoryService
+  [30;43mMethods:  80.00% ( 4/ 5)[0m   [30;43mLines:  83.08% ( 54/ 65)[0m
+App\Services\Model\InvoiceService
+  [37;41mMethods:  50.00% ( 3/ 6)[0m   [30;43mLines:  74.63% ( 50/ 67)[0m
+App\Services\Model\LeasePaymentService
+  [30;43mMethods:  66.67% ( 2/ 3)[0m   [30;43mLines:  82.93% ( 34/ 41)[0m
+App\Services\Model\LeaseService
+  [30;43mMethods:  66.67% ( 4/ 6)[0m   [30;42mLines:  97.87% ( 92/ 94)[0m
+App\Services\Model\NotificationService
+  [30;42mMethods: 100.00% ( 2/ 2)[0m   [30;42mLines: 100.00% ( 13/ 13)[0m
+App\Services\Model\PayoutService
+  [30;43mMethods:  75.00% ( 3/ 4)[0m   [30;42mLines:  96.92% ( 63/ 65)[0m
+App\Services\Model\ReferenceNumberGenerator
+  [30;42mMethods: 100.00% ( 7/ 7)[0m   [30;42mLines: 100.00% (  7/  7)[0m

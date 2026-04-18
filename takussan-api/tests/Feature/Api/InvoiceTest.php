@@ -3,7 +3,9 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Agency;
+use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Enums\InvoiceStatus;
 use App\Models\Invoice;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -180,5 +182,68 @@ class InvoiceTest extends TestCase
             'subtotal' => 100000,
             'currency' => 'ZZZ',
         ])->assertStatus(422);
+    }
+
+    public function test_can_issue_invoice_for_booking(): void
+    {
+        $agent = User::factory()->create();
+        $customer = Customer::factory()->create(['added_by_id' => $agent->id]);
+        $booking = Booking::factory()->create();
+
+        Sanctum::actingAs($agent);
+
+        $this->postJson('/api/invoices', [
+            'customer_id' => $customer->id,
+            'issue_date' => now()->toDateString(),
+            'subtotal' => 100000,
+            'invoiceable_type' => 'booking',
+            'invoiceable_id' => $booking->id,
+        ])->assertCreated()
+            ->assertJsonPath('data.invoiceable_type', 'App\Models\Booking')
+            ->assertJsonPath('data.invoiceable_id', $booking->id);
+    }
+
+    public function test_cannot_issue_invoice_for_invalid_type(): void
+    {
+        $agent = User::factory()->create();
+        $customer = Customer::factory()->create(['added_by_id' => $agent->id]);
+
+        Sanctum::actingAs($agent);
+
+        $this->postJson('/api/invoices', [
+            'customer_id' => $customer->id,
+            'issue_date' => now()->toDateString(),
+            'subtotal' => 100000,
+            'invoiceable_type' => 'invalid_model',
+            'invoiceable_id' => 1,
+        ])->assertStatus(422);
+    }
+
+    public function test_cannot_mark_cancelled_invoice_paid(): void
+    {
+        $agent = User::factory()->create();
+        $invoice = Invoice::factory()->create([
+            'issued_by_id' => $agent->id,
+            'status' => InvoiceStatus::Cancelled->value,
+        ]);
+
+        Sanctum::actingAs($agent);
+
+        $this->postJson("/api/invoices/{$invoice->id}/mark-paid")->assertStatus(422);
+    }
+
+    public function test_can_cancel_draft_invoice(): void
+    {
+        $agent = User::factory()->create();
+        $invoice = Invoice::factory()->create([
+            'issued_by_id' => $agent->id,
+            'status' => InvoiceStatus::Draft->value,
+        ]);
+
+        Sanctum::actingAs($agent);
+
+        $this->postJson("/api/invoices/{$invoice->id}/cancel")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'cancelled');
     }
 }

@@ -223,4 +223,54 @@ class InventoryTest extends TestCase
             'rooms' => [['name' => 'Living', 'condition' => 'good']],
         ])->assertStatus(422);
     }
+
+    public function test_can_list_inventories(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        Inventory::factory()->count(3)->create([
+            'property_id' => $property->id,
+            'conducted_by' => $owner->id,
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->getJson('/api/inventories')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 3);
+    }
+
+    public function test_can_show_inventory(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $inventory = Inventory::factory()->create([
+            'property_id' => $property->id,
+            'conducted_by' => $owner->id,
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->getJson("/api/inventories/{$inventory->id}")
+            ->assertOk()
+            ->assertJsonPath('data.id', $inventory->id);
+    }
+
+    public function test_can_update_draft_inventory(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $inventory = Inventory::factory()->create([
+            'property_id' => $property->id,
+            'conducted_by' => $owner->id,
+            'status' => InventoryStatus::Draft,
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->patchJson("/api/inventories/{$inventory->id}", [
+            'notes' => 'Updated notes',
+        ])->assertOk()
+            ->assertJsonPath('data.notes', 'Updated notes');
+    }
 }

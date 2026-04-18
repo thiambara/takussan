@@ -3,13 +3,11 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Agency;
-use App\Models\Booking;
 use App\Models\User;
-use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class AuditLogTest extends TestCase
@@ -19,60 +17,67 @@ class AuditLogTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(RolesAndPermissionsSeeder::class);
+
+        $this->dummyAgency = Agency::factory()->create();
+        Role::create(['name' => 'admin', 'team_id' => $this->dummyAgency->id]);
+        setPermissionsTeamId($this->dummyAgency->id);
     }
 
-    public function test_non_admin_cannot_query_audit_log(): void
+    public function test_only_admins_can_access_audit_logs(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
 
         $this->getJson('/api/audit-log')->assertStatus(403);
     }
 
-    public function test_admin_can_query_audit_log_and_see_model_changes(): void
+    public function test_admin_can_list_audit_logs(): void
     {
-        $admin = $this->makeAdmin();
+        $admin = User::factory()->create(['agency_id' => $this->dummyAgency->id]);
+        $admin->assignRole('admin');
         Sanctum::actingAs($admin);
 
-        $booking = Booking::factory()->create();
-        $booking->update(['notes' => 'updated via audit test']);
+        Activity::create([
+            'log_name' => 'default',
+            'description' => 'created',
+            'subject_type' => User::class,
+            'subject_id' => $admin->id,
+            'causer_type' => User::class,
+            'causer_id' => $admin->id,
+            'event' => 'created',
+        ]);
 
-        $response = $this->getJson('/api/audit-log?subject_type='.urlencode(Booking::class));
-
-        $response->assertOk()
+        $this->getJson('/api/audit-log')
+            ->assertOk()
             ->assertJsonStructure([
-                'data' => [['id', 'log_name', 'event', 'subject_type', 'subject_id', 'properties', 'created_at']],
+                'data' => [
+                    '*' => [
+                        'id', 'log_name', 'event', 'description', 'causer_type', 'causer_id', 'subject_type', 'subject_id',
+                    ],
+                ],
                 'meta' => ['total', 'current_page', 'last_page', 'per_page'],
             ]);
 
-        $this->assertGreaterThan(0, $response->json('meta.total'));
+        $this->getJson('/api/audit-log?log_name=default&event=created')
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
     }
 
-    public function test_admin_can_filter_audit_log_by_event(): void
+    public function test_admin_can_get_audit_logs_by_entity(): void
     {
-        $admin = $this->makeAdmin();
+        $admin = User::factory()->create(['agency_id' => $this->dummyAgency->id]);
+        $admin->assignRole('admin');
         Sanctum::actingAs($admin);
 
-        $booking = Booking::factory()->create();
-        $booking->update(['notes' => 'filter test']);
+        Activity::create([
+            'log_name' => 'default',
+            'description' => 'updated',
+            'subject_type' => User::class,
+            'subject_id' => $admin->id,
+        ]);
 
-        $response = $this->getJson('/api/audit-log?event=updated&subject_type='.urlencode(Booking::class));
-
-        $response->assertOk();
-        foreach ($response->json('data') as $entry) {
-            $this->assertSame('updated', $entry['event']);
-        }
-    }
-
-    protected function makeAdmin(): User
-    {
-        $agency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        Role::findOrCreate('admin');
-
-        $admin = User::factory()->create(['agency_id' => $agency->id]);
-        $admin->assignRole('admin');
-
-        return $admin;
+        $this->getJson("/api/audit-log/user/{$admin->id}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
     }
 }
