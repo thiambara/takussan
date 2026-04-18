@@ -13,8 +13,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr">
-      <body className={`${geist.variable} ${manrope.variable} ${inter.variable} font-sans antialiased`}>
+    <html lang="fr" className={`${geist.variable} ${manrope.variable} ${inter.variable}`}>
+      <body className="font-sans antialiased">
         {children}
       </body>
     </html>

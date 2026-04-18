@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Navbar } from './Navbar';
-import { PropertyGrid } from './PropertyGrid';
-import { Footer } from './Footer';
+import { Navbar } from './home/Navbar';
+import { PropertyGrid } from './home/PropertyGrid';
+import { Footer } from './home/Footer';
 import { featuredProperties, latestProperties } from '@/data/mockData';
 
 export interface HomePageProps {
@@ -18,7 +18,7 @@ export function HomePage({ className }: HomePageProps) {
       {/* Spacer: navbar row1 (~65px) + category row2 (~68px) */}
       <div className="h-[133px]" />
 
-      <main className="max-w-[1440px] mx-auto px-6 md:px-16 py-10 space-y-20">
+      <main className="max-w-[1440px] mx-auto px-6 md:px-16 py-10 space-y-20 mb-10">
         <PropertyGrid
           title="Biens en vedette"
           properties={featuredProperties}

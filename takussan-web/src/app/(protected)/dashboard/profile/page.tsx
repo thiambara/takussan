@@ -1,5 +1,5 @@
-import { getMeAction, logoutAction, updateProfileAction } from '@/app/actions/auth';
-import ProfileForm from './ProfileForm';
+import { getMeAction, logoutAction } from '@/app/actions/auth';
+import ProfileForm from '@/components/profile/ProfileForm';
 
 export default async function ProfilePage() {
   const user = await getMeAction();

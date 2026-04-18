@@ -21,6 +21,6 @@ export function proxy(request: NextRequest): NextResponse {
   return NextResponse.next();
 }
 
-export const config = {
+export const proxyConfig = {
   matcher: ['/dashboard/:path*', '/auth/:path*'],
 };
