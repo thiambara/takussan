@@ -1,6 +1,6 @@
 <?php
 
-namespace Database\Seeders;
+namespace Database\Seeders\System;
 
 use App\Models\Tag;
 use Illuminate\Database\Seeder;
@@ -13,7 +13,7 @@ class TagSeeder extends Seeder
         $features = [
             'feature' => ['Piscine', 'Climatisation', 'Ascenseur', 'Parking', 'Balcon', 'Terrasse', 'Jardin', 'Cuisine équipée', 'Gardien', 'Vue sur mer'],
             'amenity' => ['WiFi', 'TV', 'Machine à laver', 'Sèche-linge', 'Micro-ondes', 'Lave-vaisselle', 'Sécurité 24/7'],
-            'segment' => ['VIP', 'Prospect chaud', 'Étranger', 'Famille', 'Étudiant'],
+            'crm' => ['VIP', 'Prospect chaud', 'Étranger', 'Famille', 'Étudiant'],
         ];
 
         foreach ($features as $type => $names) {

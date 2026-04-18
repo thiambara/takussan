@@ -1,6 +1,6 @@
 <?php
 
-namespace Database\Seeders;
+namespace Database\Seeders\System;
 
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
@@ -37,6 +37,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'owner' => $this->permissionsFor(['properties', 'bookings', 'leases', 'lease_payments', 'conversations', 'messages', 'maintenance_requests', 'property_visits', 'documents', 'reviews'], ['view', 'create', 'update']),
             'tenant' => $this->permissionsFor(['bookings', 'leases', 'lease_payments', 'conversations', 'messages', 'maintenance_requests', 'property_visits', 'documents', 'favorites', 'saved_searches', 'reviews'], ['view', 'create']),
             'customer' => $this->permissionsFor(['properties', 'bookings', 'favorites', 'saved_searches', 'reviews', 'conversations', 'messages', 'property_visits'], ['view', 'create']),
+            'service_provider' => $this->permissionsFor(['maintenance_requests', 'conversations', 'messages', 'documents'], ['view', 'update']),
         ];
 
         foreach ($roles as $name => $permissions) {
