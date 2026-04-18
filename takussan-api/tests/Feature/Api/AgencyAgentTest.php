@@ -140,4 +140,47 @@ class AgencyAgentTest extends TestCase
             'name' => 'hacked',
         ])->assertForbidden();
     }
+
+    public function test_admin_can_update_custom_role(): void
+    {
+        [$admin, $agency] = $this->createAdminWithAgency();
+
+        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
+        $role = Role::create(['name' => 'updatable_role', 'guard_name' => 'web', 'agency_id' => $agency->id]);
+
+        Sanctum::actingAs($admin);
+
+        $this->putJson("/api/agency-roles/{$role->id}", [
+            'name' => 'updated_role',
+        ])->assertOk()
+            ->assertJsonPath('data.name', 'updated_role');
+    }
+
+    public function test_non_admin_cannot_update_role(): void
+    {
+        [$admin, $agency] = $this->createAdminWithAgency();
+
+        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
+        $role = Role::create(['name' => 'some_role', 'guard_name' => 'web', 'agency_id' => $agency->id]);
+
+        $regularUser = User::factory()->create();
+        Sanctum::actingAs($regularUser);
+
+        $this->putJson("/api/agency-roles/{$role->id}", ['name' => 'hacked_role'])
+            ->assertForbidden();
+    }
+
+    public function test_admin_cannot_update_role_from_another_agency(): void
+    {
+        [$admin, $agency] = $this->createAdminWithAgency();
+
+        $otherAgency = Agency::factory()->create();
+        app(PermissionRegistrar::class)->setPermissionsTeamId($otherAgency->id);
+        $foreignRole = Role::create(['name' => 'foreign_role', 'guard_name' => 'web', 'agency_id' => $otherAgency->id]);
+
+        Sanctum::actingAs($admin);
+
+        $this->putJson("/api/agency-roles/{$foreignRole->id}", ['name' => 'hijacked'])
+            ->assertForbidden();
+    }
 }

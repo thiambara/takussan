@@ -193,4 +193,22 @@ class BookingTest extends TestCase
             'end_date' => now()->addMonth()->toDateString(),
         ])->assertStatus(422);
     }
+
+    public function test_end_date_before_start_date_returns_422(): void
+    {
+        $user = User::factory()->create();
+        $customer = Customer::factory()->create(['user_id' => $user->id]);
+        $property = Property::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/bookings', [
+            'property_id' => $property->id,
+            'customer_id' => $customer->id,
+            'total_amount' => 500000,
+            'start_date' => now()->addMonth()->toDateString(),
+            'end_date' => now()->addDay()->toDateString(),
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['end_date']);
+    }
 }

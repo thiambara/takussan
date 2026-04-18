@@ -122,4 +122,42 @@ class ReviewTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.is_approved', true);
     }
+
+    public function test_rating_below_1_returns_422(): void
+    {
+        $user = User::factory()->create();
+        $customer = Customer::factory()->create(['user_id' => $user->id]);
+        $property = Property::factory()->create();
+        $property->bookings()->create([
+            'customer_id' => $customer->id,
+            'created_by_id' => $user->id,
+            'total_amount' => 100000,
+            'status' => BookingStatus::Completed,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/properties/{$property->id}/reviews", ['rating' => 0])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['rating']);
+    }
+
+    public function test_rating_above_5_returns_422(): void
+    {
+        $user = User::factory()->create();
+        $customer = Customer::factory()->create(['user_id' => $user->id]);
+        $property = Property::factory()->create();
+        $property->bookings()->create([
+            'customer_id' => $customer->id,
+            'created_by_id' => $user->id,
+            'total_amount' => 100000,
+            'status' => BookingStatus::Completed,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/properties/{$property->id}/reviews", ['rating' => 6])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['rating']);
+    }
 }

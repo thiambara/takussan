@@ -50,4 +50,50 @@ class PropertyVisitTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.status', 'cancelled');
     }
+
+    public function test_owner_can_confirm_scheduled_visit(): void
+    {
+        $owner = User::factory()->create();
+        $visitor = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $visit = PropertyVisit::factory()->create([
+            'property_id' => $property->id,
+            'visitor_id' => $visitor->id,
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/property-visits/{$visit->id}/confirm")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'confirmed');
+    }
+
+    public function test_non_owner_cannot_confirm_visit(): void
+    {
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $visit = PropertyVisit::factory()->create([
+            'property_id' => $property->id,
+            'visitor_id' => $other->id,
+        ]);
+
+        Sanctum::actingAs($other);
+
+        $this->postJson("/api/property-visits/{$visit->id}/confirm")->assertForbidden();
+    }
+
+    public function test_cannot_confirm_cancelled_visit(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $visit = PropertyVisit::factory()->create([
+            'property_id' => $property->id,
+            'status' => \App\Models\Enums\VisitStatus::Cancelled,
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/property-visits/{$visit->id}/confirm")->assertStatus(422);
+    }
 }

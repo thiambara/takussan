@@ -54,4 +54,39 @@ class AgencyTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.name', 'New Name');
     }
+
+    public function test_anyone_authenticated_can_show_agency(): void
+    {
+        $admin = User::factory()->create();
+        $agency = Agency::factory()->create(['primary_admin_id' => $admin->id]);
+        $other = User::factory()->create();
+
+        Sanctum::actingAs($other);
+
+        $this->getJson("/api/agencies/{$agency->id}")
+            ->assertOk()
+            ->assertJsonPath('data.id', $agency->id);
+    }
+
+    public function test_primary_admin_can_delete_agency(): void
+    {
+        $admin = User::factory()->create();
+        $agency = Agency::factory()->create(['primary_admin_id' => $admin->id]);
+
+        Sanctum::actingAs($admin);
+
+        $this->deleteJson("/api/agencies/{$agency->id}")->assertNoContent();
+        $this->assertSoftDeleted('agencies', ['id' => $agency->id]);
+    }
+
+    public function test_non_primary_admin_cannot_delete_agency(): void
+    {
+        $admin = User::factory()->create();
+        $other = User::factory()->create();
+        $agency = Agency::factory()->create(['primary_admin_id' => $admin->id]);
+
+        Sanctum::actingAs($other);
+
+        $this->deleteJson("/api/agencies/{$agency->id}")->assertForbidden();
+    }
 }

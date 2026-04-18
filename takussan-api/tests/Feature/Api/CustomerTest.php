@@ -42,4 +42,65 @@ class CustomerTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.pipeline_stage', 'converted');
     }
+
+    public function test_user_can_show_own_customer(): void
+    {
+        $user = User::factory()->create();
+        $customer = Customer::factory()->create(['added_by_id' => $user->id]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson("/api/customers/{$customer->id}")
+            ->assertOk()
+            ->assertJsonPath('data.id', $customer->id);
+    }
+
+    public function test_unrelated_user_cannot_show_customer(): void
+    {
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+        $customer = Customer::factory()->create(['added_by_id' => $owner->id]);
+
+        Sanctum::actingAs($other);
+
+        $this->getJson("/api/customers/{$customer->id}")->assertForbidden();
+    }
+
+    public function test_user_can_update_customer_fields(): void
+    {
+        $user = User::factory()->create();
+        $customer = Customer::factory()->create(['added_by_id' => $user->id]);
+
+        Sanctum::actingAs($user);
+
+        $this->putJson("/api/customers/{$customer->id}", [
+            'first_name' => 'Updated',
+            'last_name' => 'Name',
+        ])->assertOk()
+            ->assertJsonPath('data.first_name', 'Updated');
+    }
+
+    public function test_user_can_delete_own_customer(): void
+    {
+        $user = User::factory()->create();
+        $customer = Customer::factory()->create(['added_by_id' => $user->id]);
+
+        Sanctum::actingAs($user);
+
+        $this->deleteJson("/api/customers/{$customer->id}")
+            ->assertStatus(204);
+
+        $this->assertSoftDeleted('customers', ['id' => $customer->id]);
+    }
+
+    public function test_unrelated_user_cannot_delete_customer(): void
+    {
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+        $customer = Customer::factory()->create(['added_by_id' => $owner->id]);
+
+        Sanctum::actingAs($other);
+
+        $this->deleteJson("/api/customers/{$customer->id}")->assertForbidden();
+    }
 }

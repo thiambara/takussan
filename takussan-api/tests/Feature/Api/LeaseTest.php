@@ -123,4 +123,43 @@ class LeaseTest extends TestCase
         $this->postJson("/api/leases/{$lease->id}/activate")
             ->assertStatus(422);
     }
+
+    public function test_end_date_before_start_date_returns_422(): void
+    {
+        $landlord = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $landlord->id]);
+        $tenant = Customer::factory()->create();
+
+        Sanctum::actingAs($landlord);
+
+        $this->postJson('/api/leases', [
+            'property_id' => $property->id,
+            'tenant_id' => $tenant->id,
+            'type' => 'residential_rent',
+            'start_date' => now()->addYear()->toDateString(),
+            'end_date' => now()->toDateString(),
+            'monthly_rent' => 400000,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['end_date']);
+    }
+
+    public function test_invalid_payment_day_returns_422(): void
+    {
+        $landlord = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $landlord->id]);
+        $tenant = Customer::factory()->create();
+
+        Sanctum::actingAs($landlord);
+
+        $this->postJson('/api/leases', [
+            'property_id' => $property->id,
+            'tenant_id' => $tenant->id,
+            'type' => 'residential_rent',
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->addYear()->toDateString(),
+            'monthly_rent' => 400000,
+            'payment_day' => 31,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['payment_day']);
+    }
 }

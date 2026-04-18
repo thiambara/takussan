@@ -246,4 +246,35 @@ class InvoiceTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.status', 'cancelled');
     }
+
+    public function test_negative_subtotal_returns_422(): void
+    {
+        $agent = User::factory()->create();
+        $customer = Customer::factory()->create(['added_by_id' => $agent->id]);
+
+        Sanctum::actingAs($agent);
+
+        $this->postJson('/api/invoices', [
+            'customer_id' => $customer->id,
+            'issue_date' => now()->toDateString(),
+            'subtotal' => -1000,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['subtotal']);
+    }
+
+    public function test_tax_rate_above_100_returns_422(): void
+    {
+        $agent = User::factory()->create();
+        $customer = Customer::factory()->create(['added_by_id' => $agent->id]);
+
+        Sanctum::actingAs($agent);
+
+        $this->postJson('/api/invoices', [
+            'customer_id' => $customer->id,
+            'issue_date' => now()->toDateString(),
+            'subtotal' => 100000,
+            'tax_rate' => 150,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['tax_rate']);
+    }
 }

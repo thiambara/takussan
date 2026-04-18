@@ -74,4 +74,57 @@ class MaintenanceRequestTest extends TestCase
             ->assertJsonPath('data.status', 'in_progress')
             ->assertJsonPath('data.estimated_cost', 50000);
     }
+
+    public function test_owner_can_show_maintenance_request(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $mr = MaintenanceRequest::factory()->create([
+            'property_id' => $property->id,
+            'requester_id' => User::factory()->create()->id,
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->getJson("/api/maintenance-requests/{$mr->id}")
+            ->assertOk()
+            ->assertJsonPath('data.id', $mr->id);
+    }
+
+    public function test_owner_can_resolve_maintenance_request(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $mr = MaintenanceRequest::factory()->create([
+            'property_id' => $property->id,
+            'requester_id' => User::factory()->create()->id,
+            'status' => 'in_progress',
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", [
+            'status' => 'completed',
+            'resolution_notes' => 'Fuite réparée avec succès.',
+            'actual_cost' => 45000,
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'completed');
+    }
+
+    public function test_owner_can_cancel_maintenance_request(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $mr = MaintenanceRequest::factory()->create([
+            'property_id' => $property->id,
+            'requester_id' => User::factory()->create()->id,
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", [
+            'status' => 'cancelled',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'cancelled');
+    }
 }

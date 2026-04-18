@@ -59,8 +59,8 @@ class CustomerNoteController extends Controller
     {
         $user = $request->user();
         $ok = $user->hasRole(['admin', 'super_admin'])
-            || $customer->agency_id === $user->agency_id
-            || $customer->added_by_id === $user->id;
+            || $customer->added_by_id === $user->id
+            || ($user->agency_id && $customer->agency_id === $user->agency_id);
 
         abort_unless($ok, 403);
     }

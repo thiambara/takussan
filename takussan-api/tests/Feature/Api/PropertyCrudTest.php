@@ -133,4 +133,33 @@ class PropertyCrudTest extends TestCase
         $this->postJson("/api/properties/{$propertySold->id}/publish")->assertUnprocessable();
         $this->postJson("/api/properties/{$propertyRented->id}/publish")->assertUnprocessable();
     }
+
+    public function test_negative_price_returns_422(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/properties', [
+            'title' => 'Test',
+            'type' => 'apartment',
+            'contract_type' => 'rent',
+            'price' => -1000,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['price']);
+    }
+
+    public function test_negative_bedrooms_returns_422(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/properties', [
+            'title' => 'Test',
+            'type' => 'apartment',
+            'contract_type' => 'rent',
+            'price' => 500000,
+            'bedrooms' => -1,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['bedrooms']);
+    }
 }

@@ -58,7 +58,7 @@ class TaskController extends Controller
 
         $task = Task::create(array_merge($data, [
             'created_by_id' => $request->user()->id,
-            'status' => $data['status'] ?? TaskStatus::Todo->value,
+            'status' => $data['status'] ?? TaskStatus::Open->value,
             'priority' => $data['priority'] ?? TaskPriority::Medium->value,
         ]));
 
