@@ -39,7 +39,7 @@ Si l'utilisateur demande « crée un ticket » ou « implémente TCK-NNN » sans
 php artisan serve --port=8002   # dev (port fixe — frontend hardcodé)
 php artisan test                 # tous les tests
 php artisan test --filter=Foo   # filtre classe ou méthode
-./vendor/bin/pint                # lint
+./vendor/bin/pint                # lint  ← à exécuter avant chaque commit
 php artisan migrate
 php artisan migrate:fresh --seed
 ```
