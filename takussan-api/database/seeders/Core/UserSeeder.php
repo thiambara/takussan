@@ -11,6 +11,7 @@ use Database\Seeders\Support\Timeline;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Spatie\Permission\Exceptions\RoleDoesNotExist;
 use Spatie\Permission\PermissionRegistrar;
 
 class UserSeeder extends Seeder
@@ -134,8 +135,8 @@ class UserSeeder extends Seeder
         if ($role) {
             try {
                 $user->syncRoles([$role]);
-            } catch (\Throwable) {
-                // Role may not exist for this team yet; safe to skip.
+            } catch (RoleDoesNotExist) {
+                // Role not defined for this team — safe to skip in the seeder.
             }
         }
 

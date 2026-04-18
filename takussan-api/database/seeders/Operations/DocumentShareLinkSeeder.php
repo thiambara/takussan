@@ -15,9 +15,18 @@ class DocumentShareLinkSeeder extends Seeder
 
     public function run(): void
     {
-        Document::query()
+        $total = Document::count();
+        if ($total === 0) {
+            return;
+        }
+
+        $targetIds = Document::query()
             ->inRandomOrder()
-            ->limit((int) ceil(Document::count() * 0.2))
+            ->limit((int) ceil($total * 0.2))
+            ->pluck('id');
+
+        Document::query()
+            ->whereIn('id', $targetIds)
             ->chunkById(100, function ($documents) {
                 foreach ($documents as $document) {
                     $createdAt = Timeline::randomDateBetween(

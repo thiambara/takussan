@@ -14,6 +14,8 @@ use Database\Seeders\Support\Timeline;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Spatie\Permission\Exceptions\RoleDoesNotExist;
+use Spatie\Permission\PermissionRegistrar;
 
 class CustomerSeeder extends Seeder
 {
@@ -24,7 +26,11 @@ class CustomerSeeder extends Seeder
 
     public function run(): void
     {
+        $registrar = app(PermissionRegistrar::class);
+
         foreach ($this->ctx->agencies as $agency) {
+            $registrar->setPermissionsTeamId($agency->id);
+
             $agents = $this->ctx->usersOfType($agency->id, UserType::Agent->value);
             $addedByIds = $agents->isEmpty() ? [null] : $agents->pluck('id')->all();
 
@@ -57,8 +63,14 @@ class CustomerSeeder extends Seeder
                         'created_at' => $createdAt,
                         'updated_at' => $createdAt,
                     ]);
-                    $user->syncRoles(['customer']);
-                    $this->ctx->registerUser($user);
+                    try {
+                        $user->syncRoles(['customer']);
+                    } catch (RoleDoesNotExist) {
+                        // Safe to skip if the role is not registered for this team.
+                    }
+                    // Deliberately NOT registering customer-linked users in the type
+                    // buckets (via registerUser) so PropertySeeder's Owner pool stays
+                    // limited to the dedicated agency owner accounts.
                 }
 
                 $pipelineStage = StatusDistribution::pick([
