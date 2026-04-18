@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Agency;
 use App\Models\Booking;
+use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
 use App\Models\Property;
 use App\Models\User;
@@ -35,13 +37,13 @@ class DashboardStatsTest extends TestCase
                     'active_leases',
                     'pending_bookings',
                     'overdue_payments',
-                ]
+                ],
             ]);
     }
 
     public function test_super_admin_stats(): void
     {
-        $dummyAgency = \App\Models\Agency::factory()->create();
+        $dummyAgency = Agency::factory()->create();
         Role::create(['name' => 'super_admin', 'team_id' => $dummyAgency->id]);
         setPermissionsTeamId($dummyAgency->id);
 
@@ -55,10 +57,10 @@ class DashboardStatsTest extends TestCase
 
     public function test_agency_admin_stats(): void
     {
-        $agency = \App\Models\Agency::factory()->create();
+        $agency = Agency::factory()->create();
         Role::create(['name' => 'agency_admin', 'team_id' => $agency->id]);
         setPermissionsTeamId($agency->id);
-        
+
         $admin = User::factory()->create(['agency_id' => $agency->id]);
         $admin->assignRole('agency_admin');
         Sanctum::actingAs($admin);
@@ -69,10 +71,10 @@ class DashboardStatsTest extends TestCase
 
     public function test_agent_stats(): void
     {
-        $agency = \App\Models\Agency::factory()->create();
+        $agency = Agency::factory()->create();
         Role::create(['name' => 'agent', 'team_id' => $agency->id]);
         setPermissionsTeamId($agency->id);
-        
+
         $agent = User::factory()->create(['agency_id' => $agency->id]);
         $agent->assignRole('agent');
         Sanctum::actingAs($agent);
@@ -83,13 +85,13 @@ class DashboardStatsTest extends TestCase
 
     public function test_tenant_stats(): void
     {
-        $dummyAgency = \App\Models\Agency::factory()->create();
+        $dummyAgency = Agency::factory()->create();
         Role::create(['name' => 'tenant', 'team_id' => $dummyAgency->id]);
         setPermissionsTeamId($dummyAgency->id);
 
         $tenantUser = User::factory()->create(['agency_id' => $dummyAgency->id]);
         $tenantUser->assignRole('tenant');
-        $customer = \App\Models\Customer::factory()->create(['user_id' => $tenantUser->id]);
+        $customer = Customer::factory()->create(['user_id' => $tenantUser->id]);
         Sanctum::actingAs($tenantUser);
 
         $this->getJson('/api/dashboard/stats')->assertOk()

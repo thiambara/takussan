@@ -19,6 +19,7 @@ use Illuminate\Validation\Rule;
 class ConversationController extends Controller
 {
     public function __construct(protected NotificationService $notifications) {}
+
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();

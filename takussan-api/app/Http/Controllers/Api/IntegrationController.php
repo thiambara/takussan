@@ -13,16 +13,16 @@ class IntegrationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        
+
         $query = Integration::query();
-        
-        if (!$user->hasRole(['admin', 'super_admin'])) {
+
+        if (! $user->hasRole(['admin', 'super_admin'])) {
             abort_unless($user->hasRole('agency_admin') && $user->agency_id, 403);
             $query->where('agency_id', $user->agency_id);
-        } else if ($request->filled('agency_id')) {
+        } elseif ($request->filled('agency_id')) {
             $query->where('agency_id', $request->input('agency_id'));
         }
-        
+
         $paginator = $query->latest()
             ->paginate((int) $request->input('per_page', 20));
 
@@ -38,7 +38,7 @@ class IntegrationController extends Controller
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
-        
+
         $data = $request->validate([
             'provider' => ['required', 'string', 'max:255'],
             'agency_id' => ['nullable', 'exists:agencies,id'],
@@ -48,7 +48,7 @@ class IntegrationController extends Controller
         ]);
 
         $agencyId = $data['agency_id'] ?? $user->agency_id;
-        
+
         abort_unless(
             $user->hasRole(['admin', 'super_admin']) || ($user->hasRole('agency_admin') && $user->agency_id === $agencyId),
             403,
@@ -70,7 +70,7 @@ class IntegrationController extends Controller
     public function update(Request $request, Integration $integration): JsonResponse
     {
         $user = $request->user();
-        
+
         abort_unless(
             $user->hasRole(['admin', 'super_admin']) || ($user->hasRole('agency_admin') && $user->agency_id === $integration->agency_id),
             403

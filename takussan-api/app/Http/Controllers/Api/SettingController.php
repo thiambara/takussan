@@ -15,22 +15,22 @@ class SettingController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        
+
         $query = Setting::query();
-        
-        if (!$user->hasRole(['admin', 'super_admin'])) {
+
+        if (! $user->hasRole(['admin', 'super_admin'])) {
             abort_unless($user->agency_id, 403);
-            $query->where(function($q) use ($user) {
+            $query->where(function ($q) use ($user) {
                 $q->where('scope', SettingScope::Agency)
-                  ->where('scope_id', $user->agency_id);
+                    ->where('scope_id', $user->agency_id);
                 $q->orWhere('scope', SettingScope::Global);
             });
         }
-        
+
         if ($request->filled('scope')) {
             $query->where('scope', $request->input('scope'));
         }
-        
+
         $paginator = $query->latest()
             ->paginate((int) $request->input('per_page', 50));
 

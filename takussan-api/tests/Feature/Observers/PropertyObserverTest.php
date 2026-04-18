@@ -4,7 +4,6 @@ namespace Tests\Feature\Observers;
 
 use App\Models\Agency;
 use App\Models\Property;
-use App\Models\PropertyPriceHistory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -16,7 +15,7 @@ class PropertyObserverTest extends TestCase
     public function test_creating_property_increments_agency_properties_count(): void
     {
         $agency = Agency::factory()->create(['properties_count' => 0]);
-        
+
         $property = Property::factory()->create([
             'agency_id' => $agency->id,
         ]);
@@ -62,11 +61,11 @@ class PropertyObserverTest extends TestCase
     public function test_deleting_property_decrements_agency_properties_count(): void
     {
         $agency = Agency::factory()->create(['properties_count' => 1]);
-        
+
         $property = Property::factory()->create([
             'agency_id' => $agency->id,
         ]);
-        
+
         // factory create could increment, so it becomes 2.
         $this->assertEquals(2, $agency->fresh()->properties_count);
 

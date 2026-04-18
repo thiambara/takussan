@@ -18,7 +18,7 @@ class ReviewObserverTest extends TestCase
             'reviews_count' => 0,
             'average_rating' => null,
         ]);
-        
+
         $author = User::factory()->create();
 
         Review::factory()->create([

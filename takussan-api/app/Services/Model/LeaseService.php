@@ -3,7 +3,7 @@
 namespace App\Services\Model;
 
 use App\Jobs\GenerateLeasePaymentSchedule;
-use App\Models\Enums\Currency;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentFrequency;
 use App\Models\Enums\PaymentStatus;
@@ -11,7 +11,6 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Models\User;
-use App\Models\Enums\LeasePaymentType;
 use Carbon\Carbon;
 
 class LeaseService

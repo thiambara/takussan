@@ -2,8 +2,6 @@
 
 namespace App\Services\Model;
 
-use App\Models\Enums\PropertyStatus;
-use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
 use App\Models\SavedSearch;
 use App\Models\User;

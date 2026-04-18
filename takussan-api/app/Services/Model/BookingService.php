@@ -10,12 +10,11 @@ use App\Models\Enums\NotificationType;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Models\User;
-use App\Services\Model\NotificationService;
-use Illuminate\Support\Collection;
 
 class BookingService
 {
     public function __construct(protected NotificationService $notifications) {}
+
     /** @var array<int,PropertyStatus> */
     protected const UNBOOKABLE_STATUSES = [
         PropertyStatus::Sold,

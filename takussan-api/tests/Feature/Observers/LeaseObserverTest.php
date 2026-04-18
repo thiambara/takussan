@@ -3,8 +3,8 @@
 namespace Tests\Feature\Observers;
 
 use App\Models\Agency;
-use App\Models\Lease;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Lease;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -15,14 +15,14 @@ class LeaseObserverTest extends TestCase
     public function test_updating_lease_status_updates_agency_active_leases_count(): void
     {
         $agency = Agency::factory()->create(['active_leases_count' => 0]);
-        
+
         $lease = Lease::factory()->create([
             'agency_id' => $agency->id,
             'status' => LeaseStatus::Draft,
         ]);
 
         // Creating as Draft doesn't update count (because it only triggers on updated)
-        
+
         $lease->update([
             'status' => LeaseStatus::Active,
         ]);
@@ -39,7 +39,7 @@ class LeaseObserverTest extends TestCase
     public function test_updating_other_fields_does_not_change_count(): void
     {
         $agency = Agency::factory()->create(['active_leases_count' => 0]);
-        
+
         $lease = Lease::factory()->create([
             'agency_id' => $agency->id,
             'status' => LeaseStatus::Active,

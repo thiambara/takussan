@@ -8,7 +8,6 @@ use App\Models\BookingPayment;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Document;
-use App\Models\Favorite;
 use App\Models\Inventory;
 use App\Models\Invoice;
 use App\Models\Lease;
@@ -19,16 +18,15 @@ use App\Models\Payout;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\Review;
-use App\Models\Setting;
-use App\Models\Task;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class ModelsTest extends TestCase
@@ -65,7 +63,7 @@ class ModelsTest extends TestCase
 
     public function test_agency_relationships(): void
     {
-        $agency = new Agency();
+        $agency = new Agency;
 
         $this->assertInstanceOf(BelongsTo::class, $agency->primaryAdmin());
         $this->assertInstanceOf(HasMany::class, $agency->members());
@@ -80,19 +78,19 @@ class ModelsTest extends TestCase
 
     public function test_property_relationships(): void
     {
-        $property = new Property();
+        $property = new Property;
 
         $this->assertInstanceOf(BelongsTo::class, $property->owner());
         $this->assertInstanceOf(BelongsTo::class, $property->agency());
         $this->assertInstanceOf(BelongsTo::class, $property->parent());
         $this->assertInstanceOf(HasMany::class, $property->children());
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\MorphOne::class, $property->address());
+        $this->assertInstanceOf(MorphOne::class, $property->address());
         $this->assertInstanceOf(MorphMany::class, $property->documents());
         $this->assertInstanceOf(HasMany::class, $property->visits());
         $this->assertInstanceOf(HasMany::class, $property->bookings());
         $this->assertInstanceOf(HasMany::class, $property->leases());
         $this->assertInstanceOf(HasMany::class, $property->maintenanceRequests());
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\MorphToMany::class, $property->tags());
+        $this->assertInstanceOf(MorphToMany::class, $property->tags());
         $this->assertInstanceOf(MorphMany::class, $property->reviews());
         $this->assertInstanceOf(HasMany::class, $property->collaborators());
         $this->assertInstanceOf(HasMany::class, $property->priceHistory());
@@ -100,13 +98,13 @@ class ModelsTest extends TestCase
 
     public function test_booking_and_lease(): void
     {
-        $booking = new Booking();
+        $booking = new Booking;
         $this->assertInstanceOf(BelongsTo::class, $booking->property());
         $this->assertInstanceOf(BelongsTo::class, $booking->customer());
         $this->assertInstanceOf(HasOne::class, $booking->lease());
         $this->assertInstanceOf(HasMany::class, $booking->payments());
 
-        $lease = new Lease();
+        $lease = new Lease;
         $this->assertInstanceOf(BelongsTo::class, $lease->property());
         $this->assertInstanceOf(BelongsTo::class, $lease->agency());
         $this->assertInstanceOf(BelongsTo::class, $lease->tenant());
@@ -120,16 +118,16 @@ class ModelsTest extends TestCase
         $this->assertInstanceOf(HasMany::class, $lease->maintenanceRequests());
         $this->assertInstanceOf(MorphMany::class, $lease->documents());
 
-        $payment = new LeasePayment();
+        $payment = new LeasePayment;
         $this->assertInstanceOf(BelongsTo::class, $payment->lease());
 
-        $bpayment = new BookingPayment();
+        $bpayment = new BookingPayment;
         $this->assertInstanceOf(BelongsTo::class, $bpayment->booking());
     }
 
     public function test_other_entities(): void
     {
-        $customer = new Customer();
+        $customer = new Customer;
         $this->assertInstanceOf(BelongsTo::class, $customer->user());
         $this->assertInstanceOf(BelongsTo::class, $customer->agency());
         $this->assertInstanceOf(BelongsTo::class, $customer->addedBy());
@@ -140,40 +138,40 @@ class ModelsTest extends TestCase
         $this->assertInstanceOf(HasMany::class, $customer->leasePayments());
         $this->assertInstanceOf(HasMany::class, $customer->relationships());
         $this->assertInstanceOf(HasMany::class, $customer->invoices());
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\MorphToMany::class, $customer->tags());
+        $this->assertInstanceOf(MorphToMany::class, $customer->tags());
 
-        $review = new Review();
+        $review = new Review;
         $this->assertInstanceOf(BelongsTo::class, $review->author());
         $this->assertNotNull($review->reviewable());
 
-        $invoice = new Invoice();
+        $invoice = new Invoice;
         $this->assertInstanceOf(BelongsTo::class, $invoice->agency());
         $this->assertNotNull($invoice->invoiceable());
 
-        $payout = new Payout();
+        $payout = new Payout;
         $this->assertInstanceOf(BelongsTo::class, $payout->agency());
 
-        $visit = new PropertyVisit();
+        $visit = new PropertyVisit;
         $this->assertInstanceOf(BelongsTo::class, $visit->property());
         $this->assertInstanceOf(BelongsTo::class, $visit->customer());
         $this->assertInstanceOf(BelongsTo::class, $visit->agent());
 
-        $doc = new Document();
+        $doc = new Document;
         $this->assertNotNull($doc->documentable());
 
-        $convo = new Conversation();
+        $convo = new Conversation;
         $this->assertInstanceOf(BelongsToMany::class, $convo->participants());
         $this->assertInstanceOf(HasMany::class, $convo->messages());
 
-        $msg = new Message();
+        $msg = new Message;
         $this->assertInstanceOf(BelongsTo::class, $msg->conversation());
         $this->assertInstanceOf(BelongsTo::class, $msg->sender());
 
-        $inv = new Inventory();
+        $inv = new Inventory;
         $this->assertInstanceOf(BelongsTo::class, $inv->property());
         $this->assertInstanceOf(BelongsTo::class, $inv->lease());
 
-        $req = new MaintenanceRequest();
+        $req = new MaintenanceRequest;
         $this->assertInstanceOf(BelongsTo::class, $req->property());
         $this->assertInstanceOf(BelongsTo::class, $req->lease());
     }

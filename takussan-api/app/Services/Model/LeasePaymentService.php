@@ -11,6 +11,7 @@ use App\Models\User;
 class LeasePaymentService
 {
     public function __construct(protected NotificationService $notifications) {}
+
     /**
      * @param  array<string,mixed>  $data
      */

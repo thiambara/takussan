@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Customer;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
@@ -92,8 +93,8 @@ class LeaseTest extends TestCase
             'end_date' => now()->addYear()->toDateString(),
             'monthly_rent' => 450000,
         ])->assertCreated()
-          ->assertJsonPath('data.status', 'draft')
-          ->assertJsonPath('data.monthly_rent', 450000);
+            ->assertJsonPath('data.status', 'draft')
+            ->assertJsonPath('data.monthly_rent', 450000);
     }
 
     public function test_cannot_renew_inactive_lease(): void
@@ -101,7 +102,7 @@ class LeaseTest extends TestCase
         $landlord = User::factory()->create();
         $lease = Lease::factory()->create([
             'landlord_id' => $landlord->id,
-            'status' => \App\Models\Enums\LeaseStatus::Draft->value,
+            'status' => LeaseStatus::Draft->value,
             'end_date' => now()->subDay()->toDateString(),
         ]);
 
