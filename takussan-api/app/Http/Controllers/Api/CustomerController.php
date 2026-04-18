@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\IdType;
+use App\Models\UserCustomerRelationship;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -117,6 +118,44 @@ class CustomerController extends Controller
         $customer->delete();
 
         return $this->json(['message' => 'deleted'], 204);
+    }
+
+    public function setPrimaryContact(Request $request, Customer $customer): JsonResponse
+    {
+        $this->authorizeAccess($request, $customer);
+
+        $data = $request->validate([
+            'user_id' => ['required', 'exists:users,id'],
+        ]);
+
+        // Remove existing primary
+        UserCustomerRelationship::where('customer_id', $customer->id)
+            ->where('is_primary', true)
+            ->update(['is_primary' => false]);
+
+        $relationship = UserCustomerRelationship::firstOrCreate([
+            'customer_id' => $customer->id,
+            'user_id' => $data['user_id'],
+        ]);
+
+        $relationship->update(['is_primary' => true]);
+
+        return $this->json(['data' => $relationship]);
+    }
+
+    public function updatePipelineStage(Request $request, Customer $customer): JsonResponse
+    {
+        $this->authorizeAccess($request, $customer);
+
+        $data = $request->validate([
+            'pipeline_stage' => ['required', Rule::enum(CustomerPipelineStage::class)],
+        ]);
+
+        $customer->update(['pipeline_stage' => $data['pipeline_stage']]);
+
+        return $this->json([
+            'data' => CustomerResource::make($customer->refresh())->toArray($request),
+        ]);
     }
 
     protected function authorizeAccess(Request $request, Customer $customer): void

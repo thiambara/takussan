@@ -16,12 +16,13 @@ class UserCustomerRelationship extends AbstractModel
 
     protected $fillable = [
         'user_id', 'customer_id', 'relationship_type', 'status',
-        'started_at', 'ended_at', 'notes', 'metadata',
+        'is_primary', 'started_at', 'ended_at', 'notes', 'metadata',
     ];
 
     protected $casts = [
         'relationship_type' => RelationshipType::class,
         'status' => RelationshipStatus::class,
+        'is_primary' => 'boolean',
         'started_at' => 'date',
         'ended_at' => 'date',
         'metadata' => 'array',

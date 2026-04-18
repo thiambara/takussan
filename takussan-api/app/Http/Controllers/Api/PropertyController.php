@@ -13,6 +13,7 @@ use App\Models\Property;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
 
 class PropertyController extends Controller
@@ -170,7 +171,7 @@ class PropertyController extends Controller
         abort_if(
             in_array($property->status, [PropertyStatus::Sold, PropertyStatus::Rented], true),
             422,
-            'Sold or rented properties cannot be published.'
+            __('messages.property_cannot_publish')
         );
         $property->update([
             'status' => PropertyStatus::Available,
@@ -180,6 +181,50 @@ class PropertyController extends Controller
 
         return $this->json([
             'data' => PropertyResource::make($property->refresh()->load('address'))->toArray($request),
+        ]);
+    }
+
+    public function unpublish(Request $request, Property $property): JsonResponse
+    {
+        $this->authorizeManage($request, $property);
+        abort_unless(
+            $property->status === PropertyStatus::Available,
+            422,
+            __('messages.property_cannot_unpublish')
+        );
+        $property->update([
+            'status' => PropertyStatus::Draft,
+            'visibility' => PropertyVisibility::Private,
+            'published_at' => null,
+        ]);
+
+        return $this->json([
+            'data' => PropertyResource::make($property->refresh()->load('address'))->toArray($request),
+        ]);
+    }
+
+    public function recordView(Request $request, Property $property): JsonResponse
+    {
+        $key = 'property-view:'.$property->id.':'.$request->ip();
+        if (! RateLimiter::tooManyAttempts($key, 3)) {
+            RateLimiter::hit($key, 3600);
+            $property->increment('views_count');
+        }
+
+        return $this->json(['data' => ['views_count' => $property->refresh()->views_count]]);
+    }
+
+    public function children(Request $request, Property $property): JsonResponse
+    {
+        $this->authorizeAccess($request, $property);
+        $children = $property->children()->with('address')->paginate((int) $request->input('per_page', 20));
+
+        return $this->json([
+            'data' => PropertyResource::collection($children)->toArray($request),
+            'meta' => [
+                'total' => $children->total(),
+                'current_page' => $children->currentPage(),
+            ],
         ]);
     }
 

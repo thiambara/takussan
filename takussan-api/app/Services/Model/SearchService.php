@@ -46,6 +46,36 @@ class SearchService
             $query->where('furnished', $filters['furnished']);
         }
 
+        // Tag-based filtering
+        if (! empty($filters['tags'])) {
+            $tags = is_array($filters['tags']) ? $filters['tags'] : explode(',', $filters['tags']);
+            $query->whereHas('tags', fn ($q) => $q->whereIn('tags.name', $tags));
+        }
+
+        // Geospatial bounding box
+        if (! empty($filters['lat_min']) && ! empty($filters['lat_max'])
+            && ! empty($filters['lng_min']) && ! empty($filters['lng_max'])) {
+            $query->whereHas('address', function ($q) use ($filters) {
+                $q->whereBetween('latitude', [$filters['lat_min'], $filters['lat_max']])
+                    ->whereBetween('longitude', [$filters['lng_min'], $filters['lng_max']]);
+            });
+        }
+
+        // Radius search (center point + km)
+        if (! empty($filters['lat']) && ! empty($filters['lng']) && ! empty($filters['radius_km'])) {
+            $lat = (float) $filters['lat'];
+            $lng = (float) $filters['lng'];
+            $radius = (float) $filters['radius_km'];
+            $query->whereHas('address', function ($q) use ($lat, $lng, $radius) {
+                $q->whereNotNull('latitude')
+                    ->whereNotNull('longitude')
+                    ->whereRaw(
+                        '(6371 * acos(cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) + sin(radians(?)) * sin(radians(latitude)))) <= ?',
+                        [$lat, $lng, $lat, $radius]
+                    );
+            });
+        }
+
         $sort = $filters['sort'] ?? 'published_at';
         $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
         $allowedSorts = ['price', 'area', 'published_at', 'created_at'];

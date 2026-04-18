@@ -39,6 +39,11 @@ class PublicPropertyController extends Controller
             'type' => 'nullable|string',
             'contract_type' => 'nullable|in:sale,rent',
             'furnished' => 'nullable|boolean',
+            'tags' => 'nullable|string',
+            'lat_min' => 'nullable|numeric',
+            'lat_max' => 'nullable|numeric',
+            'lng_min' => 'nullable|numeric',
+            'lng_max' => 'nullable|numeric',
             'sort' => 'nullable|in:relevance,price_asc,price_desc,created_desc',
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
@@ -87,6 +92,17 @@ class PublicPropertyController extends Controller
         }
         if (array_key_exists('furnished', $validated) && $validated['furnished'] !== null) {
             $query->where('furnished', $validated['furnished']);
+        }
+        if (! empty($validated['tags'])) {
+            $tags = is_array($validated['tags']) ? $validated['tags'] : explode(',', $validated['tags']);
+            $query->whereHas('tags', fn ($q) => $q->whereIn('tags.name', $tags));
+        }
+        if (! empty($validated['lat_min']) && ! empty($validated['lat_max'])
+            && ! empty($validated['lng_min']) && ! empty($validated['lng_max'])) {
+            $query->whereHas('address', function ($q) use ($validated) {
+                $q->whereBetween('latitude', [$validated['lat_min'], $validated['lat_max']])
+                    ->whereBetween('longitude', [$validated['lng_min'], $validated['lng_max']]);
+            });
         }
 
         $facets = [

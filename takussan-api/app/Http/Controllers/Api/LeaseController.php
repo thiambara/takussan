@@ -137,6 +137,14 @@ class LeaseController extends Controller
         return $this->json(['data' => ['payments_created' => $count]]);
     }
 
+    public function refundDeposit(Request $request, Lease $lease): JsonResponse
+    {
+        $this->authorizeManage($request, $lease);
+        $payment = $this->leases->refundDeposit($lease);
+
+        return $this->json(['data' => $payment], 201);
+    }
+
     protected function authorizeAccess(Request $request, Lease $lease): void
     {
         $user = $request->user();

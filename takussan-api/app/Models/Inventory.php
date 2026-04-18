@@ -39,6 +39,7 @@ class Inventory extends AbstractModel implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('photos');
+        $this->addMediaCollection('room_photos');
     }
 
     public function lease(): BelongsTo

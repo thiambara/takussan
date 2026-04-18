@@ -139,4 +139,25 @@ class ReviewController extends Controller
 
         return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
     }
+
+    public function report(Request $request, Review $review): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        $metadata = $review->metadata ?? [];
+        $reports = $metadata['reports'] ?? [];
+        $reports[] = [
+            'user_id' => $request->user()->id,
+            'reason' => $data['reason'],
+            'reported_at' => now()->toISOString(),
+        ];
+        $metadata['reports'] = $reports;
+        $metadata['reported'] = true;
+
+        $review->update(['metadata' => $metadata]);
+
+        return $this->json(['message' => __('messages.review_reported')]);
+    }
 }

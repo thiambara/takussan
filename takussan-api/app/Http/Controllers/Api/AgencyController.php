@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\AgencyResource;
 use App\Models\Agency;
 use App\Models\Enums\AgencyStatus;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -91,5 +92,45 @@ class AgencyController extends Controller
         $agency->delete();
 
         return $this->json(null, 204);
+    }
+
+    public function addAgent(Request $request, Agency $agency): JsonResponse
+    {
+        $this->authorizeAdmin($request, $agency);
+
+        $data = $request->validate([
+            'user_id' => ['required', 'exists:users,id'],
+        ]);
+
+        $target = User::findOrFail($data['user_id']);
+        abort_if($target->agency_id !== null && $target->agency_id !== $agency->id, 422, __('messages.user_already_in_agency'));
+
+        $target->update(['agency_id' => $agency->id]);
+        if (! $target->hasRole('agent')) {
+            $target->assignRole('agent');
+        }
+
+        return $this->json(['data' => ['user_id' => $target->id, 'agency_id' => $agency->id]]);
+    }
+
+    public function removeAgent(Request $request, Agency $agency, User $user): JsonResponse
+    {
+        $this->authorizeAdmin($request, $agency);
+        abort_if($user->agency_id !== $agency->id, 422, __('messages.user_not_in_agency'));
+        abort_if($user->id === $agency->primary_admin_id, 422, __('messages.cannot_remove_primary_admin'));
+
+        $user->update(['agency_id' => null]);
+        $user->removeRole('agent');
+
+        return $this->json(null, 204);
+    }
+
+    protected function authorizeAdmin(Request $request, Agency $agency): void
+    {
+        $user = $request->user();
+        abort_unless(
+            $user->hasRole(['admin', 'super_admin']) || $agency->primary_admin_id === $user->id,
+            403,
+        );
     }
 }

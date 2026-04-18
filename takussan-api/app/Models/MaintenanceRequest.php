@@ -23,7 +23,7 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
         'title', 'description', 'category', 'priority', 'status',
         'estimated_cost', 'actual_cost',
         'scheduled_at', 'started_at', 'completed_at',
-        'resolution_notes', 'metadata',
+        'resolution_notes', 'resolution_report', 'metadata',
     ];
 
     protected $casts = [
@@ -41,6 +41,7 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('photos');
+        $this->addMediaCollection('resolution_photos');
     }
 
     public function property(): BelongsTo

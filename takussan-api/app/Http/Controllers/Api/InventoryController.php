@@ -166,6 +166,31 @@ class InventoryController extends Controller
         ]);
     }
 
+    public function uploadRoomPhotos(Request $request, Inventory $inventory): JsonResponse
+    {
+        $this->authorizeManage($request, $inventory);
+
+        $request->validate([
+            'photos' => ['required', 'array', 'min:1'],
+            'photos.*' => ['required', 'image', 'max:5120'],
+            'room_name' => ['required', 'string'],
+        ]);
+
+        foreach ($request->file('photos') as $photo) {
+            $inventory->addMedia($photo)
+                ->withCustomProperties(['room_name' => $request->input('room_name')])
+                ->toMediaCollection('room_photos');
+        }
+
+        return $this->json([
+            'data' => $inventory->getMedia('room_photos')->map(fn ($m) => [
+                'id' => $m->id,
+                'url' => $m->getUrl(),
+                'room_name' => $m->getCustomProperty('room_name'),
+            ]),
+        ]);
+    }
+
     protected function authorizeManageLease($user, Lease $lease): void
     {
         $ok = $user->hasRole(['admin', 'super_admin'])

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\UserAdminController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\OAuthController;
@@ -31,6 +32,7 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::put('/profile', [AuthController::class, 'updateProfile']);
+    Route::delete('/account', [UserAdminController::class, 'deleteOwnAccount'])->name('auth.account.destroy');
 
     // Email verification
     Route::get('/verify-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])

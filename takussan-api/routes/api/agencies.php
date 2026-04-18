@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AgencyController;
+use App\Http\Controllers\Api\AgencyRoleController;
 use App\Http\Controllers\Api\ReviewController;
 use Illuminate\Support\Facades\Route;
 
@@ -12,7 +13,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('agencies/{agency}', [AgencyController::class, 'update']);
     Route::delete('agencies/{agency}', [AgencyController::class, 'destroy'])->name('agencies.destroy');
 
+    // Agent management
+    Route::post('agencies/{agency}/agents', [AgencyController::class, 'addAgent'])->name('agencies.agents.store');
+    Route::delete('agencies/{agency}/agents/{user}', [AgencyController::class, 'removeAgent'])->name('agencies.agents.destroy');
+
     // Agency reviews
     Route::get('agencies/{agency}/reviews', [ReviewController::class, 'indexForAgency'])->name('agencies.reviews.index');
     Route::post('agencies/{agency}/reviews', [ReviewController::class, 'storeForAgency'])->name('agencies.reviews.store');
+
+    // Agency custom roles
+    Route::get('agency-roles', [AgencyRoleController::class, 'index'])->name('agency-roles.index');
+    Route::post('agency-roles', [AgencyRoleController::class, 'store'])->name('agency-roles.store');
+    Route::put('agency-roles/{role}', [AgencyRoleController::class, 'update'])->name('agency-roles.update');
+    Route::delete('agency-roles/{role}', [AgencyRoleController::class, 'destroy'])->name('agency-roles.destroy');
 });

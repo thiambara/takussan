@@ -125,6 +125,7 @@ class MaintenanceRequestController extends Controller
             'started_at' => ['sometimes', 'nullable', 'date'],
             'completed_at' => ['sometimes', 'nullable', 'date'],
             'resolution_notes' => ['sometimes', 'nullable', 'string'],
+            'resolution_report' => ['sometimes', 'nullable', 'string'],
         ]);
 
         $maintenanceRequest->fill($data)->save();

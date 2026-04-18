@@ -12,6 +12,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('leases/{lease}/terminate', [LeaseController::class, 'terminate'])->name('leases.terminate');
     Route::post('leases/{lease}/renew', [LeaseController::class, 'renew'])->name('leases.renew');
     Route::post('leases/{lease}/payments/generate-schedule', [LeaseController::class, 'generateSchedule'])->name('leases.payments.generate-schedule');
+    Route::post('leases/{lease}/refund-deposit', [LeaseController::class, 'refundDeposit'])->name('leases.refund-deposit');
 
     // Nested payments
     Route::get('leases/{lease}/payments', [LeasePaymentController::class, 'index'])->name('leases.payments.index');

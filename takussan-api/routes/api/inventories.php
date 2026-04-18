@@ -11,4 +11,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('inventories/{inventory}/submit', [InventoryController::class, 'submit'])->name('inventories.submit');
     Route::post('inventories/{inventory}/sign', [InventoryController::class, 'sign'])->name('inventories.sign');
     Route::post('inventories/{inventory}/dispute', [InventoryController::class, 'dispute'])->name('inventories.dispute');
+    Route::post('inventories/{inventory}/room-photos', [InventoryController::class, 'uploadRoomPhotos'])->name('inventories.room-photos');
 });

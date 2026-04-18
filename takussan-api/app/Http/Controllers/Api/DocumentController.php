@@ -57,6 +57,13 @@ class DocumentController extends Controller
             $query->where('documentable_id', $did);
         }
 
+        if ($q = $request->input('q')) {
+            $query->where(function ($query) use ($q) {
+                $query->where('name', 'like', "%$q%")
+                    ->orWhere('description', 'like', "%$q%");
+            });
+        }
+
         $paginator = $query->latest()->paginate((int) $request->input('per_page', 20));
 
         return $this->json([
