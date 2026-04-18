@@ -2,6 +2,7 @@
 
 namespace App\Services\Model;
 
+use App\Models\Enums\NotificationType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -9,6 +10,7 @@ use App\Models\User;
 
 class LeasePaymentService
 {
+    public function __construct(protected NotificationService $notifications) {}
     /**
      * @param  array<string,mixed>  $data
      */
@@ -41,6 +43,34 @@ class LeasePaymentService
             'transaction_id' => $data['transaction_id'] ?? $payment->transaction_id,
         ]);
 
-        return $payment->refresh();
+        $payment->refresh();
+
+        // Notify tenant and landlord
+        $lease = $payment->lease;
+        if ($lease) {
+            $tenantUser = $lease->tenant?->user;
+            $landlord = $lease->landlord;
+
+            if ($tenantUser) {
+                $this->notifications->notify(
+                    $tenantUser,
+                    NotificationType::Payment,
+                    'Paiement enregistré',
+                    'Votre paiement de '.$payment->amount.' '.$payment->currency?->value.' a été enregistré.',
+                    ['lease_payment_id' => $payment->id],
+                );
+            }
+            if ($landlord) {
+                $this->notifications->notify(
+                    $landlord,
+                    NotificationType::Payment,
+                    'Paiement reçu',
+                    'Un paiement de '.$payment->amount.' '.$payment->currency?->value.' a été enregistré.',
+                    ['lease_payment_id' => $payment->id],
+                );
+            }
+        }
+
+        return $payment;
     }
 }

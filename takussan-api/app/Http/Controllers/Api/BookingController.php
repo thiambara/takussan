@@ -105,6 +105,21 @@ class BookingController extends Controller
         ]);
     }
 
+    public function reject(Request $request, Booking $booking): JsonResponse
+    {
+        $this->authorizeManage($request, $booking);
+
+        $data = $request->validate([
+            'reason' => ['nullable', 'string'],
+        ]);
+
+        $booking = $this->bookings->reject($booking, $data['reason'] ?? null);
+
+        return $this->json([
+            'data' => BookingResource::make($booking)->toArray($request),
+        ]);
+    }
+
     protected function authorizeAccess(Request $request, Booking $booking): void
     {
         $user = $request->user();

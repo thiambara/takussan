@@ -72,10 +72,24 @@ class AgencyController extends Controller
             'phone' => ['sometimes', 'nullable', 'string'],
             'website' => ['sometimes', 'nullable', 'url'],
             'commission_rate' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
+            'settings' => ['sometimes', 'nullable', 'array'],
         ]);
 
         $agency->fill($data)->save();
 
         return $this->json(['data' => AgencyResource::make($agency->refresh())->toArray($request)]);
+    }
+
+    public function destroy(Request $request, Agency $agency): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless(
+            $user->hasRole(['admin', 'super_admin']) || $agency->primary_admin_id === $user->id,
+            403
+        );
+
+        $agency->delete();
+
+        return $this->json(null, 204);
     }
 }

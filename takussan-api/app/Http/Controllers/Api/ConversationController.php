@@ -9,6 +9,8 @@ use App\Models\Conversation;
 use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
 use App\Models\Enums\MessageType;
+use App\Models\Enums\NotificationType;
+use App\Services\Model\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +18,7 @@ use Illuminate\Validation\Rule;
 
 class ConversationController extends Controller
 {
+    public function __construct(protected NotificationService $notifications) {}
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -130,6 +133,20 @@ class ConversationController extends Controller
             'last_message_preview' => mb_substr($message->content, 0, 255),
             'last_message_at' => now(),
         ]);
+
+        // Notify other participants
+        $sender = $request->user();
+        $recipients = $conversation->participants()
+            ->where('users.id', '!=', $sender->id)
+            ->get();
+
+        $this->notifications->notifyMany(
+            $recipients,
+            NotificationType::Message,
+            'Nouveau message',
+            $sender->getFullNameAttribute().': '.mb_strimwidth($data['content'], 0, 80, '…'),
+            ['conversation_id' => $conversation->id, 'message_id' => $message->id],
+        );
 
         return $this->json([
             'data' => MessageResource::make($message)->toArray($request),

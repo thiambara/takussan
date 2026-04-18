@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\PropertyController;
+use App\Http\Controllers\Api\PropertyMediaController;
+use App\Http\Controllers\Api\PropertyPriceHistoryController;
 use App\Http\Controllers\Api\ReviewController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,6 +15,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('properties/{property}', [PropertyController::class, 'update']);
     Route::delete('properties/{property}', [PropertyController::class, 'destroy'])->name('properties.destroy');
     Route::post('properties/{property}/publish', [PropertyController::class, 'publish'])->name('properties.publish');
+
+    // Media
+    Route::get('properties/{property}/media', [PropertyMediaController::class, 'index'])->name('properties.media.index');
+    Route::post('properties/{property}/media', [PropertyMediaController::class, 'store'])->name('properties.media.store');
+    Route::delete('properties/{property}/media/{mediaId}', [PropertyMediaController::class, 'destroy'])->name('properties.media.destroy');
+    Route::put('properties/{property}/media/reorder', [PropertyMediaController::class, 'reorder'])->name('properties.media.reorder');
+
+    // Price history
+    Route::get('properties/{property}/price-history', [PropertyPriceHistoryController::class, 'index'])->name('properties.price-history.index');
 
     // Favorites
     Route::get('favorites', [FavoriteController::class, 'index'])->name('favorites.index');

@@ -8,14 +8,17 @@ use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\MaintenanceCategory;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
+use App\Models\Enums\NotificationType;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
+use App\Services\Model\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class MaintenanceRequestController extends Controller
 {
+    public function __construct(protected NotificationService $notifications) {}
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -79,6 +82,19 @@ class MaintenanceRequestController extends Controller
             'requester_id' => $user->id,
             'status' => MaintenanceStatus::Open->value,
         ]));
+
+        // Notify agency agents and property owner
+        $property = $property->refresh();
+        $owner = $property->owner;
+        if ($owner && $owner->id !== $user->id) {
+            $this->notifications->notify(
+                $owner,
+                NotificationType::Maintenance,
+                'Nouvelle demande de maintenance',
+                'Une demande de maintenance a été soumise pour '.$property->title.'.',
+                ['maintenance_request_id' => $mr->id],
+            );
+        }
 
         return $this->json([
             'data' => MaintenanceRequestResource::make($mr)->toArray($request),

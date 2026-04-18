@@ -112,6 +112,31 @@ class LeaseController extends Controller
         ]);
     }
 
+    public function renew(Request $request, Lease $lease): JsonResponse
+    {
+        $this->authorizeManage($request, $lease);
+
+        $data = $request->validate([
+            'end_date' => ['required', 'date', 'after:'.$lease->end_date?->toDateString()],
+            'monthly_rent' => ['nullable', 'numeric', 'min:0'],
+            'terms' => ['nullable', 'string'],
+        ]);
+
+        $lease = $this->leases->renew($lease, $data);
+
+        return $this->json([
+            'data' => LeaseResource::make($lease->load(['property', 'tenant']))->toArray($request),
+        ], 201);
+    }
+
+    public function generateSchedule(Request $request, Lease $lease): JsonResponse
+    {
+        $this->authorizeManage($request, $lease);
+        $count = $this->leases->generateSchedule($lease);
+
+        return $this->json(['data' => ['payments_created' => $count]]);
+    }
+
     protected function authorizeAccess(Request $request, Lease $lease): void
     {
         $user = $request->user();

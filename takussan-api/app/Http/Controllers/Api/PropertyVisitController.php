@@ -75,6 +75,28 @@ class PropertyVisitController extends Controller
         ], 201);
     }
 
+    public function update(Request $request, PropertyVisit $visit): JsonResponse
+    {
+        $this->authorizeManage($request, $visit);
+        abort_if(
+            in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true),
+            422,
+            'Cannot edit a completed or cancelled visit.'
+        );
+
+        $data = $request->validate([
+            'scheduled_at' => ['sometimes', 'date'],
+            'agent_id' => ['sometimes', 'nullable', 'exists:users,id'],
+            'duration_minutes' => ['sometimes', 'nullable', 'integer', 'min:5'],
+            'notes' => ['sometimes', 'nullable', 'string'],
+            'type' => ['sometimes', Rule::enum(VisitType::class)],
+        ]);
+
+        $visit->fill($data)->save();
+
+        return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->toArray($request)]);
+    }
+
     public function confirm(Request $request, PropertyVisit $visit): JsonResponse
     {
         $this->authorizeManage($request, $visit);

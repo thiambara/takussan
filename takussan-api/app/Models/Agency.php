@@ -21,7 +21,7 @@ class Agency extends AbstractModel implements HasMedia
         'name', 'slug', 'license_number', 'description',
         'email', 'phone', 'website', 'commission_rate',
         'founded_at', 'is_verified', 'verified_at',
-        'primary_admin_id', 'status', 'metadata',
+        'primary_admin_id', 'status', 'metadata', 'settings',
     ];
 
     protected $casts = [
@@ -32,6 +32,7 @@ class Agency extends AbstractModel implements HasMedia
         'average_rating' => 'decimal:2',
         'status' => AgencyStatus::class,
         'metadata' => 'array',
+        'settings' => 'array',
     ];
 
     protected static function booted(): void
@@ -81,5 +82,15 @@ class Agency extends AbstractModel implements HasMedia
     public function payouts(): HasMany
     {
         return $this->hasMany(Payout::class);
+    }
+
+    public function reviews(): MorphMany
+    {
+        return $this->morphMany(Review::class, 'reviewable');
+    }
+
+    public function leases(): HasMany
+    {
+        return $this->hasMany(Lease::class);
     }
 }

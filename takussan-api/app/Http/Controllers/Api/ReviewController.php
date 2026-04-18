@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\ReviewResource;
+use App\Models\Agency;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Property;
@@ -94,5 +95,48 @@ class ReviewController extends Controller
         ]);
 
         return $this->json(['data' => ReviewResource::make($review->refresh())->toArray($request)]);
+    }
+
+    public function indexForAgency(Request $request, Agency $agency): JsonResponse
+    {
+        $reviews = $agency->reviews()
+            ->where('is_approved', true)
+            ->latest()
+            ->paginate((int) $request->input('per_page', 10));
+
+        return $this->json([
+            'data' => ReviewResource::collection($reviews)->toArray($request),
+            'meta' => ['total' => $reviews->total(), 'current_page' => $reviews->currentPage()],
+        ]);
+    }
+
+    public function storeForAgency(Request $request, Agency $agency): JsonResponse
+    {
+        $user = $request->user();
+
+        $hasInteraction = $agency->leases()
+            ->whereHas('tenant', fn ($q) => $q->where('user_id', $user->id))
+            ->exists();
+        abort_unless(
+            $hasInteraction || $user->hasRole(['admin', 'super_admin']),
+            403,
+            'Only customers with a completed transaction can review this agency.'
+        );
+
+        $alreadyReviewed = $agency->reviews()->where('author_id', $user->id)->exists();
+        abort_if($alreadyReviewed, 422, 'You have already reviewed this agency.');
+
+        $data = $request->validate([
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'title' => ['nullable', 'string'],
+            'content' => ['nullable', 'string'],
+        ]);
+
+        $review = $agency->reviews()->create(array_merge($data, [
+            'author_id' => $user->id,
+            'is_approved' => false,
+        ]));
+
+        return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
     }
 }

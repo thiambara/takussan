@@ -6,12 +6,16 @@ use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
+use App\Models\Enums\NotificationType;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Model\NotificationService;
+use Illuminate\Support\Collection;
 
 class BookingService
 {
+    public function __construct(protected NotificationService $notifications) {}
     /** @var array<int,PropertyStatus> */
     protected const UNBOOKABLE_STATUSES = [
         PropertyStatus::Sold,
@@ -71,7 +75,7 @@ class BookingService
 
         abort_unless($isStaff || $isBookingForSelf, 403);
 
-        return Booking::create(array_merge($data, [
+        $booking = Booking::create(array_merge($data, [
             'reference_number' => ReferenceNumberGenerator::booking(),
             'created_by_id' => $user->id,
             'agency_id' => $property->agency_id,
@@ -79,6 +83,25 @@ class BookingService
             'currency' => $data['currency'] ?? 'XOF',
             'expires_at' => $data['expires_at'] ?? now()->addDays(7),
         ]));
+
+        // Notify landlord and agency members
+        $recipients = collect();
+        $owner = $property->owner;
+        if ($owner) {
+            $recipients->push($owner);
+        }
+
+        $this->notifications->notifyMany(
+            $recipients,
+            NotificationType::Booking,
+            'Nouvelle réservation',
+            'Une réservation a été créée pour '.$property->title.'.',
+            ['booking_id' => $booking->id],
+            referenceableType: 'booking',
+            referenceableId: $booking->id,
+        );
+
+        return $booking;
     }
 
     public function confirm(Booking $booking): Booking
@@ -94,7 +117,50 @@ class BookingService
             'confirmed_at' => now(),
         ]);
 
-        return $booking->refresh();
+        $booking->refresh();
+
+        $customer = $booking->customer?->user;
+        if ($customer) {
+            $this->notifications->notify(
+                $customer,
+                NotificationType::Booking,
+                'Réservation confirmée',
+                'Votre réservation '.$booking->reference_number.' a été confirmée.',
+                ['booking_id' => $booking->id],
+            );
+        }
+
+        return $booking;
+    }
+
+    public function reject(Booking $booking, ?string $reason = null): Booking
+    {
+        abort_unless(
+            $booking->status === BookingStatus::Pending,
+            422,
+            'Only pending bookings can be rejected.'
+        );
+
+        $booking->update([
+            'status' => BookingStatus::Rejected,
+            'cancelled_at' => now(),
+            'cancellation_reason' => $reason,
+        ]);
+
+        $booking->refresh();
+
+        $customer = $booking->customer?->user;
+        if ($customer) {
+            $this->notifications->notify(
+                $customer,
+                NotificationType::Booking,
+                'Réservation refusée',
+                'Votre réservation '.$booking->reference_number.' a été refusée.',
+                ['booking_id' => $booking->id],
+            );
+        }
+
+        return $booking;
     }
 
     public function cancel(Booking $booking, User $user, ?string $reason = null): Booking
@@ -121,6 +187,19 @@ class BookingService
             'cancellation_reason' => $reason,
         ]);
 
-        return $booking->refresh();
+        $booking->refresh();
+
+        $customer = $booking->customer?->user;
+        if ($customer) {
+            $this->notifications->notify(
+                $customer,
+                NotificationType::Booking,
+                'Réservation annulée',
+                'Votre réservation '.$booking->reference_number.' a été annulée.',
+                ['booking_id' => $booking->id],
+            );
+        }
+
+        return $booking;
     }
 }

@@ -57,6 +57,23 @@ class PropertyMediaController extends Controller
         return $this->json(['message' => 'deleted'], 204);
     }
 
+    public function reorder(Request $request, Property $property): JsonResponse
+    {
+        $this->authorizeManage($request, $property);
+
+        $data = $request->validate([
+            'order' => ['required', 'array'],
+            'order.*' => ['integer'],
+        ]);
+
+        $mediaCollection = $property->getMedia('photos');
+        foreach ($data['order'] as $position => $mediaId) {
+            $mediaCollection->firstWhere('id', $mediaId)?->update(['order_column' => $position + 1]);
+        }
+
+        return $this->json(['message' => 'reordered']);
+    }
+
     protected function authorizeManage(Request $request, Property $property): void
     {
         $user = $request->user();

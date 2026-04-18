@@ -8,6 +8,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -126,6 +127,36 @@ class User extends Authenticatable implements HasMedia, MustVerifyEmail
     public function payouts(): HasMany
     {
         return $this->hasMany(Payout::class, 'landlord_id');
+    }
+
+    public function bookings(): HasMany
+    {
+        return $this->hasMany(Booking::class, 'created_by_id');
+    }
+
+    public function bookingPayments(): HasMany
+    {
+        return $this->hasMany(BookingPayment::class);
+    }
+
+    public function customers(): HasMany
+    {
+        return $this->hasMany(Customer::class, 'added_by_id');
+    }
+
+    public function customerRelationships(): HasMany
+    {
+        return $this->hasMany(UserCustomerRelationship::class);
+    }
+
+    public function relatedCustomers(): BelongsToMany
+    {
+        return $this->belongsToMany(Customer::class, 'user_customer_relationships');
+    }
+
+    public function receivedReviews(): MorphMany
+    {
+        return $this->morphMany(Review::class, 'reviewable');
     }
 
     public function conversations()

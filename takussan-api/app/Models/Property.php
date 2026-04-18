@@ -35,7 +35,8 @@ class Property extends AbstractModel implements HasMedia
         'price', 'currency',
         'area', 'bedrooms', 'bathrooms', 'furnished',
         'floor_number', 'total_floors', 'year_built', 'parking_spaces',
-        'featured', 'available_from', 'published_at', 'metadata',
+        'featured', 'lot_position', 'level', 'admin_monitored',
+        'available_from', 'published_at', 'metadata',
     ];
 
     protected $casts = [
@@ -49,6 +50,8 @@ class Property extends AbstractModel implements HasMedia
         'average_rating' => 'decimal:2',
         'furnished' => 'boolean',
         'featured' => 'boolean',
+        'level' => 'integer',
+        'admin_monitored' => 'boolean',
         'available_from' => 'date',
         'published_at' => 'datetime',
         'metadata' => 'array',

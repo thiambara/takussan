@@ -10,6 +10,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('bookings/{booking}', [BookingController::class, 'show'])->name('bookings.show');
     Route::post('bookings/{booking}/confirm', [BookingController::class, 'confirm'])->name('bookings.confirm');
     Route::post('bookings/{booking}/cancel', [BookingController::class, 'cancel'])->name('bookings.cancel');
+    Route::post('bookings/{booking}/reject', [BookingController::class, 'reject'])->name('bookings.reject');
 
     // Nested payments
     Route::get('bookings/{booking}/payments', [BookingPaymentController::class, 'index'])

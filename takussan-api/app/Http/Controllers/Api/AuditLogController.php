@@ -9,6 +9,39 @@ use Spatie\Activitylog\Models\Activity;
 
 class AuditLogController extends Controller
 {
+    public function indexByEntity(Request $request, string $entity, int $id): JsonResponse
+    {
+        abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
+
+        $query = Activity::query()->with('causer')
+            ->where('subject_type', 'like', '%\\\\'.ucfirst($entity))
+            ->where('subject_id', $id);
+
+        $order = $request->input('order', 'desc') === 'asc' ? 'asc' : 'desc';
+        $paginator = $query->orderBy('created_at', $order)
+            ->paginate((int) $request->input('per_page', 50));
+
+        return $this->json([
+            'data' => $paginator->getCollection()->map(fn (Activity $log) => [
+                'id' => $log->id,
+                'log_name' => $log->log_name,
+                'event' => $log->event,
+                'description' => $log->description,
+                'causer_type' => $log->causer_type,
+                'causer_id' => $log->causer_id,
+                'subject_type' => $log->subject_type,
+                'subject_id' => $log->subject_id,
+                'properties' => $log->properties,
+                'created_at' => $log->created_at,
+            ])->all(),
+            'meta' => [
+                'total' => $paginator->total(),
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+            ],
+        ]);
+    }
+
     public function index(Request $request): JsonResponse
     {
         abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
