@@ -42,6 +42,7 @@ class AppNotification extends AbstractModel
             'lease' => Lease::class,
             'lease_payment' => LeasePayment::class,
             'maintenance' => MaintenanceRequest::class,
+            'property_visit' => PropertyVisit::class,
         ];
         $class = $map[$this->referenceable_type] ?? null;
 

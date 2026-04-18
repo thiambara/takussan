@@ -19,7 +19,7 @@ class Integration extends AbstractModel
     protected $hidden = ['credentials'];
 
     protected $casts = [
-        'credentials' => 'encrypted',
+        'credentials' => 'encrypted:array',
         'is_active' => 'boolean',
         'last_used_at' => 'datetime',
         'metadata' => 'array',
