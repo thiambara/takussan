@@ -46,9 +46,11 @@ class UserSeeder extends Seeder
                 'updated_at' => Timeline::seedStart(),
             ],
         );
-        // Super admin is global and not tied to a team; skip Spatie role
         // assignment (which requires an agency_id pivot).
         $this->ctx->registerUser($user);
+
+        $avatarUrl = "https://api.dicebear.com/7.x/avataaars/png?seed=" . urlencode($user->username);
+        $this->ctx->downloadMedia($user, $avatarUrl, 'avatar');
     }
 
     private function seedAgencyTeam(Agency $agency): void
@@ -141,6 +143,9 @@ class UserSeeder extends Seeder
         }
 
         $this->ctx->registerUser($user);
+
+        $avatarUrl = "https://api.dicebear.com/7.x/avataaars/png?seed=" . urlencode($user->username);
+        $this->ctx->downloadMedia($user, $avatarUrl, 'avatar');
 
         return $user;
     }

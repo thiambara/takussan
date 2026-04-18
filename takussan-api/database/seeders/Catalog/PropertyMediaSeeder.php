@@ -6,8 +6,8 @@ use Database\Seeders\Support\SeedingContext;
 use Illuminate\Database\Seeder;
 
 /**
- * Registers placeholder media metadata on properties without uploading any
- * real files — binary media is out of scope for the seed.
+ * Registers placeholder media metadata on properties and optionally downloads
+ * real files if the SEED_DOWNLOAD_MEDIA environment variable is set.
  */
 class PropertyMediaSeeder extends Seeder
 {
@@ -26,8 +26,11 @@ class PropertyMediaSeeder extends Seeder
 
                 $metadata = $property->metadata ?? [];
                 $metadata['media_placeholders'] = $urls;
-
                 $property->forceFill(['metadata' => $metadata])->saveQuietly();
+
+                foreach ($urls as $url) {
+                    $this->ctx->downloadMedia($property, $url, 'photos');
+                }
             }
         }
     }

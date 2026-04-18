@@ -181,4 +181,15 @@ return [
 
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Seed Media Download
+    |--------------------------------------------------------------------------
+    |
+    | Enables or disables downloading media files during seeding
+    |
+    */
+
+    'seed_download_media' => env('SEED_DOWNLOAD_MEDIA', false),
+
 ];

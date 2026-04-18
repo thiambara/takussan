@@ -10,6 +10,7 @@ use App\Models\User;
 use Faker\Factory as FakerFactory;
 use Faker\Generator as FakerGenerator;
 use Illuminate\Support\Collection;
+use Spatie\MediaLibrary\HasMedia;
 
 /**
  * In-memory cache of entities created during the year-of-activity seed.
@@ -115,5 +116,23 @@ class SeedingContext
     public function usersOfType(int $agencyId, string $type): Collection
     {
         return $this->usersByAgencyAndType[$agencyId][$type] ?? new Collection;
+    }
+
+    /**
+     * Helper to download media from a URL during seeding, and attach it to a model.
+     * Controlled by the SEED_DOWNLOAD_MEDIA environment variable flag.
+     */
+    public function downloadMedia(HasMedia $model, string $url, string $collection): void
+    {
+        if (! config('database.seed_download_media', false)) {
+            return;
+        }
+
+        try {
+            $model->addMediaFromUrl($url)->toMediaCollection($collection);
+        } catch (\Throwable $e) {
+            // Silently ignore if image download fails (offline, rate limits, timeout)
+            // to not break the database seeding process.
+        }
     }
 }
