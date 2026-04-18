@@ -15,27 +15,18 @@ class TaskController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $query = Task::query()->with(['assignee', 'creator']);
+        $base = Task::query()->with(['assignee', 'creator']);
 
         if (! $user->hasRole(['admin', 'super_admin'])) {
-            $query->where(function ($q) use ($user) {
+            $base->where(function ($q) use ($user) {
                 $q->where('assigned_to_id', $user->id)
                     ->orWhere('created_by_id', $user->id);
             });
         }
 
-        if ($status = $request->input('status')) {
-            $query->where('status', $status);
-        }
-
-        if ($taskableType = $request->input('taskable_type')) {
-            $query->where('taskable_type', $taskableType);
-            if ($taskableId = $request->input('taskable_id')) {
-                $query->where('taskable_id', $taskableId);
-            }
-        }
-
-        $paginator = $query->latest('due_at')->paginate((int) $request->input('per_page', 20));
+        $paginator = Task::buildQuery($base, $request)
+            ->defaultSort('-due_at')
+            ->paginate();
 
         return $this->json([
             'data' => $paginator->getCollection()->map(fn (Task $t) => $this->format($t))->values(),

@@ -48,6 +48,23 @@ class Lease extends AbstractModel
         'metadata' => 'array',
     ];
 
+    protected static array $requestFilterable = ['property_id', 'landlord_id', 'tenant_id', 'agency_id', 'type', 'status', 'currency', 'payment_frequency'];
+
+    protected static array $requestSortable = ['id', 'created_at', 'start_date', 'end_date', 'monthly_rent'];
+
+    protected static array $requestLoadable = ['property', 'landlord', 'tenant', 'agency', 'guarantor'];
+
+    protected static array $requestCountable = ['payments', 'maintenanceRequests', 'documents'];
+
+    protected static array $requestRangeFilters = ['monthly_rent'];
+
+    protected static array $queryFields = [
+        'id', 'property_id', 'landlord_id', 'tenant_id', 'agency_id',
+        'reference_number', 'type', 'status',
+        'start_date', 'end_date', 'monthly_rent', 'currency', 'deposit_amount',
+        'payment_frequency', 'signed_at', 'terminated_at', 'created_at', 'updated_at',
+    ];
+
     public function property(): BelongsTo
     {
         return $this->belongsTo(Property::class);

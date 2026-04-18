@@ -35,6 +35,22 @@ class Agency extends AbstractModel implements HasMedia
         'settings' => 'array',
     ];
 
+    protected static array $requestFilterable = ['status', 'is_verified', 'primary_admin_id'];
+
+    protected static array $requestSortable = ['id', 'name', 'created_at', 'founded_at'];
+
+    protected static array $requestLoadable = ['primaryAdmin', 'addresses'];
+
+    protected static array $requestCountable = ['members', 'properties'];
+
+    protected static array $requestSearchFields = ['name', 'email', 'license_number'];
+
+    protected static array $queryFields = [
+        'id', 'name', 'slug', 'license_number', 'description',
+        'email', 'phone', 'website', 'commission_rate',
+        'founded_at', 'is_verified', 'status', 'created_at', 'updated_at',
+    ];
+
     protected static function booted(): void
     {
         static::creating(function (self $m) {

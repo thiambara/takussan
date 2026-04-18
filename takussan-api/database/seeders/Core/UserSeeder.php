@@ -49,7 +49,7 @@ class UserSeeder extends Seeder
         // assignment (which requires an agency_id pivot).
         $this->ctx->registerUser($user);
 
-        $avatarUrl = "https://api.dicebear.com/7.x/avataaars/png?seed=" . urlencode($user->username);
+        $avatarUrl = 'https://api.dicebear.com/7.x/avataaars/png?seed='.urlencode($user->username);
         $this->ctx->downloadMedia($user, $avatarUrl, 'avatar');
     }
 
@@ -144,7 +144,7 @@ class UserSeeder extends Seeder
 
         $this->ctx->registerUser($user);
 
-        $avatarUrl = "https://api.dicebear.com/7.x/avataaars/png?seed=" . urlencode($user->username);
+        $avatarUrl = 'https://api.dicebear.com/7.x/avataaars/png?seed='.urlencode($user->username);
         $this->ctx->downloadMedia($user, $avatarUrl, 'avatar');
 
         return $user;

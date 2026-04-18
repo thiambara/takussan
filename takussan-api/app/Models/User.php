@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasQueryBuilder;
 use App\Models\Enums\UserStatus;
 use App\Models\Enums\UserType;
 use Database\Factories\UserFactory;
@@ -23,7 +24,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements HasMedia, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasRoles, InteractsWithMedia, Notifiable, SoftDeletes;
+    use HasApiTokens, HasFactory, HasQueryBuilder, HasRoles, InteractsWithMedia, Notifiable, SoftDeletes;
 
     protected $fillable = [
         'username', 'first_name', 'last_name', 'type', 'status',
@@ -59,6 +60,20 @@ class User extends Authenticatable implements HasMedia, MustVerifyEmail
             'metadata' => 'array',
         ];
     }
+
+    protected static array $requestFilterable = ['agency_id', 'type', 'status', 'added_by_id'];
+
+    protected static array $requestSortable = ['id', 'created_at', 'first_name', 'last_name', 'email', 'status'];
+
+    protected static array $requestLoadable = ['agency'];
+
+    protected static array $requestSearchFields = ['first_name', 'last_name', 'email', 'username', 'phone'];
+
+    protected static array $queryFields = [
+        'id', 'username', 'first_name', 'last_name', 'email', 'phone',
+        'type', 'status', 'agency_id', 'bio', 'preferred_language',
+        'timezone', 'last_login_at', 'created_at', 'updated_at',
+    ];
 
     public function getFullNameAttribute(): string
     {

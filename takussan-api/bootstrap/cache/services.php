@@ -50,8 +50,9 @@
     46 => 'Spatie\\Activitylog\\ActivitylogServiceProvider',
     47 => 'Spatie\\MediaLibrary\\MediaLibraryServiceProvider',
     48 => 'Spatie\\Permission\\PermissionServiceProvider',
-    49 => 'App\\Providers\\AppServiceProvider',
-    50 => 'App\\Providers\\Filament\\AdminPanelProvider',
+    49 => 'Spatie\\QueryBuilder\\QueryBuilderServiceProvider',
+    50 => 'App\\Providers\\AppServiceProvider',
+    51 => 'App\\Providers\\Filament\\AdminPanelProvider',
   ),
   'eager' => 
   array (
@@ -89,8 +90,9 @@
     31 => 'Spatie\\Activitylog\\ActivitylogServiceProvider',
     32 => 'Spatie\\MediaLibrary\\MediaLibraryServiceProvider',
     33 => 'Spatie\\Permission\\PermissionServiceProvider',
-    34 => 'App\\Providers\\AppServiceProvider',
-    35 => 'App\\Providers\\Filament\\AdminPanelProvider',
+    34 => 'Spatie\\QueryBuilder\\QueryBuilderServiceProvider',
+    35 => 'App\\Providers\\AppServiceProvider',
+    36 => 'App\\Providers\\Filament\\AdminPanelProvider',
   ),
   'deferred' => 
   array (

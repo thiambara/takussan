@@ -16,23 +16,20 @@ class SettingController extends Controller
     {
         $user = $request->user();
 
-        $query = Setting::query();
+        $base = Setting::query();
 
         if (! $user->hasRole(['admin', 'super_admin'])) {
             abort_unless($user->agency_id, 403);
-            $query->where(function ($q) use ($user) {
+            $base->where(function ($q) use ($user) {
                 $q->where('scope', SettingScope::Agency)
                     ->where('scope_id', $user->agency_id);
                 $q->orWhere('scope', SettingScope::Global);
             });
         }
 
-        if ($request->filled('scope')) {
-            $query->where('scope', $request->input('scope'));
-        }
-
-        $paginator = $query->latest()
-            ->paginate((int) $request->input('per_page', 50));
+        $paginator = Setting::buildQuery($base, $request)
+            ->defaultSort('-created_at')
+            ->paginate();
 
         return $this->json([
             'data' => SettingResource::collection($paginator)->toArray($request),

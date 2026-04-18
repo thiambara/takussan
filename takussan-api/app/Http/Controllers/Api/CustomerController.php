@@ -18,29 +18,19 @@ class CustomerController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $query = Customer::query();
+        $base = Customer::query();
 
         if (! $user->hasRole(['admin', 'super_admin'])) {
             if ($user->agency_id) {
-                $query->where('agency_id', $user->agency_id);
+                $base->where('agency_id', $user->agency_id);
             } else {
-                $query->where('added_by_id', $user->id);
+                $base->where('added_by_id', $user->id);
             }
         }
 
-        if ($stage = $request->input('pipeline_stage')) {
-            $query->where('pipeline_stage', $stage);
-        }
-        if ($search = $request->input('q')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('first_name', 'like', "%$search%")
-                    ->orWhere('last_name', 'like', "%$search%")
-                    ->orWhere('email', 'like', "%$search%")
-                    ->orWhere('phone', 'like', "%$search%");
-            });
-        }
-
-        $paginator = $query->latest()->paginate((int) $request->input('per_page', 20));
+        $paginator = Customer::buildQuery($base, $request)
+            ->defaultSort('-created_at')
+            ->paginate();
 
         return $this->json([
             'data' => CustomerResource::collection($paginator)->toArray($request),

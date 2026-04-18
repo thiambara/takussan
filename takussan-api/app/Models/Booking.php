@@ -40,6 +40,22 @@ class Booking extends AbstractModel
         'metadata' => 'array',
     ];
 
+    protected static array $requestFilterable = ['property_id', 'customer_id', 'created_by_id', 'agency_id', 'status', 'currency'];
+
+    protected static array $requestSortable = ['id', 'created_at', 'start_date', 'end_date', 'status'];
+
+    protected static array $requestLoadable = ['property', 'customer', 'agency'];
+
+    protected static array $requestCountable = ['payments'];
+
+    protected static array $requestRangeFilters = ['total_amount'];
+
+    protected static array $queryFields = [
+        'id', 'property_id', 'customer_id', 'created_by_id', 'agency_id',
+        'reference_number', 'status', 'total_amount', 'deposit_amount', 'currency',
+        'start_date', 'end_date', 'confirmed_at', 'cancelled_at', 'created_at', 'updated_at',
+    ];
+
     public function property(): BelongsTo
     {
         return $this->belongsTo(Property::class);

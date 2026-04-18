@@ -13,17 +13,9 @@ class TagController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Tag::query();
-
-        if ($type = $request->input('type')) {
-            $query->where('type', $type);
-        }
-
-        if ($search = $request->input('q')) {
-            $query->where('name', 'like', "%$search%");
-        }
-
-        $paginator = $query->orderBy('name')->paginate((int) $request->input('per_page', 50));
+        $paginator = Tag::buildQuery(null, $request)
+            ->defaultSort('name')
+            ->paginate();
 
         return $this->json([
             'data' => $paginator->getCollection()->map(fn (Tag $t) => $this->format($t))->values(),

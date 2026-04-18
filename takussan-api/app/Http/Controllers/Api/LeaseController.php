@@ -22,10 +22,10 @@ class LeaseController extends Controller
     {
         $user = $request->user();
 
-        $query = Lease::query()->with(['property.address', 'tenant']);
+        $base = Lease::query()->with(['property.address', 'tenant']);
 
         if (! $user->hasRole(['admin', 'super_admin'])) {
-            $query->where(function ($q) use ($user) {
+            $base->where(function ($q) use ($user) {
                 $q->where('landlord_id', $user->id)
                     ->orWhereHas('tenant', fn ($t) => $t->where('user_id', $user->id));
                 if ($user->agency_id) {
@@ -34,11 +34,9 @@ class LeaseController extends Controller
             });
         }
 
-        if ($status = $request->input('status')) {
-            $query->where('status', $status);
-        }
-
-        $paginator = $query->latest()->paginate((int) $request->input('per_page', 20));
+        $paginator = Lease::buildQuery($base, $request)
+            ->defaultSort('-created_at')
+            ->paginate();
 
         return $this->json([
             'data' => LeaseResource::collection($paginator)->toArray($request),

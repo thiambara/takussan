@@ -22,10 +22,10 @@ class PropertyController extends Controller
     {
         $user = $request->user();
 
-        $query = Property::allThroughRequest($request)->with(['address']);
+        $base = Property::query()->with(['address']);
 
         if (! $user->hasRole(['admin', 'super_admin'])) {
-            $query->where(function ($q) use ($user) {
+            $base->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id);
                 if ($user->agency_id) {
                     $q->orWhere('agency_id', $user->agency_id);
@@ -33,7 +33,9 @@ class PropertyController extends Controller
             });
         }
 
-        $paginator = $query->paginate((int) $request->input('per_page', 20));
+        $paginator = Property::buildQuery($base, $request)
+            ->defaultSort('-created_at')
+            ->paginate();
 
         return $this->json([
             'data' => PropertyResource::collection($paginator)->toArray($request),

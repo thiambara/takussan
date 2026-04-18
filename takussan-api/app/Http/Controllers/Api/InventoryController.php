@@ -22,10 +22,10 @@ class InventoryController extends Controller
     {
         $user = $request->user();
 
-        $query = Inventory::query()->with(['lease', 'property']);
+        $base = Inventory::query()->with(['lease', 'property']);
 
         if (! $user->hasRole(['admin', 'super_admin'])) {
-            $query->where(function ($q) use ($user) {
+            $base->where(function ($q) use ($user) {
                 $q->where('conducted_by', $user->id)
                     ->orWhereHas('property', function ($pq) use ($user) {
                         $pq->where('user_id', $user->id);
@@ -42,15 +42,9 @@ class InventoryController extends Controller
             });
         }
 
-        if ($leaseId = $request->input('lease_id')) {
-            $query->where('lease_id', $leaseId);
-        }
-
-        if ($status = $request->input('status')) {
-            $query->where('status', $status);
-        }
-
-        $paginator = $query->latest()->paginate((int) $request->input('per_page', 20));
+        $paginator = Inventory::buildQuery($base, $request)
+            ->defaultSort('-created_at')
+            ->paginate();
 
         return $this->json([
             'data' => InventoryResource::collection($paginator)->toArray($request),

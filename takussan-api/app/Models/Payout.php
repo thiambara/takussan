@@ -40,6 +40,21 @@ class Payout extends AbstractModel
         'metadata' => 'array',
     ];
 
+    protected static array $requestFilterable = ['lease_id', 'booking_id', 'agency_id', 'landlord_id', 'issued_by_id', 'status', 'currency', 'payment_method'];
+
+    protected static array $requestSortable = ['id', 'created_at', 'period_start', 'period_end', 'net_amount', 'scheduled_at', 'processed_at'];
+
+    protected static array $requestLoadable = ['lease', 'booking', 'agency', 'landlord'];
+
+    protected static array $requestRangeFilters = ['net_amount', 'gross_amount'];
+
+    protected static array $queryFields = [
+        'id', 'lease_id', 'booking_id', 'agency_id', 'landlord_id',
+        'reference_number', 'status', 'period_start', 'period_end',
+        'gross_amount', 'commission_amount', 'net_amount', 'currency',
+        'payment_method', 'scheduled_at', 'processed_at', 'created_at', 'updated_at',
+    ];
+
     public function lease(): BelongsTo
     {
         return $this->belongsTo(Lease::class);

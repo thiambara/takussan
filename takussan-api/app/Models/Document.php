@@ -31,6 +31,20 @@ class Document extends AbstractModel implements HasMedia
         'metadata' => 'array',
     ];
 
+    protected static array $requestFilterable = ['documentable_id', 'documentable_type', 'uploaded_by', 'type', 'is_verified'];
+
+    protected static array $requestSortable = ['id', 'created_at', 'expiry_date', 'name'];
+
+    protected static array $requestLoadable = ['uploader', 'verifier'];
+
+    protected static array $requestSearchFields = ['name', 'description'];
+
+    protected static array $queryFields = [
+        'id', 'documentable_id', 'documentable_type', 'uploaded_by',
+        'name', 'type', 'description', 'is_verified', 'expiry_date',
+        'created_at', 'updated_at',
+    ];
+
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('file')->singleFile();

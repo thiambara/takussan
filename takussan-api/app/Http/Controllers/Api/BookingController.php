@@ -20,10 +20,10 @@ class BookingController extends Controller
     {
         $user = $request->user();
 
-        $query = Booking::query()->with(['property.address', 'customer']);
+        $base = Booking::query()->with(['property.address', 'customer']);
 
         if (! $user->hasRole(['admin', 'super_admin'])) {
-            $query->where(function ($q) use ($user) {
+            $base->where(function ($q) use ($user) {
                 $q->where('created_by_id', $user->id)
                     ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id))
                     ->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
@@ -33,11 +33,9 @@ class BookingController extends Controller
             });
         }
 
-        if ($status = $request->input('status')) {
-            $query->where('status', $status);
-        }
-
-        $paginator = $query->latest()->paginate((int) $request->input('per_page', 20));
+        $paginator = Booking::buildQuery($base, $request)
+            ->defaultSort('-created_at')
+            ->paginate();
 
         return $this->json([
             'data' => BookingResource::collection($paginator)->toArray($request),

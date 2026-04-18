@@ -14,17 +14,16 @@ class IntegrationController extends Controller
     {
         $user = $request->user();
 
-        $query = Integration::query();
+        $base = Integration::query();
 
         if (! $user->hasRole(['admin', 'super_admin'])) {
             abort_unless($user->hasRole('agency_admin') && $user->agency_id, 403);
-            $query->where('agency_id', $user->agency_id);
-        } elseif ($request->filled('agency_id')) {
-            $query->where('agency_id', $request->input('agency_id'));
+            $base->where('agency_id', $user->agency_id);
         }
 
-        $paginator = $query->latest()
-            ->paginate((int) $request->input('per_page', 20));
+        $paginator = Integration::buildQuery($base, $request)
+            ->defaultSort('-created_at')
+            ->paginate();
 
         return $this->json([
             'data' => IntegrationResource::collection($paginator)->toArray($request),

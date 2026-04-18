@@ -37,34 +37,15 @@ class DocumentController extends Controller
     {
         $user = $request->user();
 
-        $query = Document::query();
+        $base = Document::query();
 
         if (! $user->hasRole(['admin', 'super_admin'])) {
-            $query->where('uploaded_by', $user->id);
+            $base->where('uploaded_by', $user->id);
         }
 
-        if ($type = $request->input('type')) {
-            $query->where('type', $type);
-        }
-
-        if ($dtype = $request->input('documentable_type')) {
-            $resolved = $this->resolveDocumentableType($dtype);
-            abort_if($resolved === null, 422, 'Unsupported documentable_type.');
-            $query->where('documentable_type', $resolved);
-        }
-
-        if ($did = $request->input('documentable_id')) {
-            $query->where('documentable_id', $did);
-        }
-
-        if ($q = $request->input('q')) {
-            $query->where(function ($query) use ($q) {
-                $query->where('name', 'like', "%$q%")
-                    ->orWhere('description', 'like', "%$q%");
-            });
-        }
-
-        $paginator = $query->latest()->paginate((int) $request->input('per_page', 20));
+        $paginator = Document::buildQuery($base, $request)
+            ->defaultSort('-created_at')
+            ->paginate();
 
         return $this->json([
             'data' => DocumentResource::collection($paginator)->toArray($request),

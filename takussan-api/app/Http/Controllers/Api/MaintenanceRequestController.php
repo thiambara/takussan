@@ -24,9 +24,9 @@ class MaintenanceRequestController extends Controller
     {
         $user = $request->user();
 
-        $query = MaintenanceRequest::query();
+        $base = MaintenanceRequest::query();
         if (! $user->hasRole(['admin', 'super_admin'])) {
-            $query->where(function ($q) use ($user) {
+            $base->where(function ($q) use ($user) {
                 $q->where('requester_id', $user->id)
                     ->orWhere('assigned_to', $user->id)
                     ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id));
@@ -36,11 +36,9 @@ class MaintenanceRequestController extends Controller
             });
         }
 
-        if ($status = $request->input('status')) {
-            $query->where('status', $status);
-        }
-
-        $paginator = $query->latest()->paginate((int) $request->input('per_page', 20));
+        $paginator = MaintenanceRequest::buildQuery($base, $request)
+            ->defaultSort('-created_at')
+            ->paginate();
 
         return $this->json([
             'data' => MaintenanceRequestResource::collection($paginator)->toArray($request),

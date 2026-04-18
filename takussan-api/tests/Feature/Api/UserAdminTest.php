@@ -49,7 +49,7 @@ class UserAdminTest extends TestCase
 
         Sanctum::actingAs($admin);
 
-        $this->getJson('/api/users?q=Amadou')
+        $this->getJson('/api/users?filter[search]=Amadou')
             ->assertOk()
             ->assertJsonPath('meta.total', 1);
     }

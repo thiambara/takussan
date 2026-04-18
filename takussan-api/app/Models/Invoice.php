@@ -36,6 +36,19 @@ class Invoice extends AbstractModel
         'metadata' => 'array',
     ];
 
+    protected static array $requestFilterable = ['customer_id', 'issued_by_id', 'agency_id', 'status', 'currency', 'invoiceable_type'];
+
+    protected static array $requestSortable = ['id', 'created_at', 'issue_date', 'due_date', 'total_amount'];
+
+    protected static array $requestLoadable = ['customer', 'issuer', 'agency'];
+
+    protected static array $queryFields = [
+        'id', 'customer_id', 'issued_by_id', 'agency_id',
+        'invoiceable_id', 'invoiceable_type',
+        'reference_number', 'status', 'issue_date', 'due_date',
+        'subtotal', 'tax_amount', 'total_amount', 'currency', 'created_at', 'updated_at',
+    ];
+
     public function invoiceable(): MorphTo
     {
         return $this->morphTo();

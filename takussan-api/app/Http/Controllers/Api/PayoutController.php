@@ -21,10 +21,10 @@ class PayoutController extends Controller
     {
         $user = $request->user();
 
-        $query = Payout::query()->with('landlord');
+        $base = Payout::query()->with('landlord');
 
         if (! $user->hasRole(['admin', 'super_admin'])) {
-            $query->where(function ($q) use ($user) {
+            $base->where(function ($q) use ($user) {
                 $q->where('landlord_id', $user->id)
                     ->orWhere('issued_by_id', $user->id);
                 if ($user->agency_id) {
@@ -33,11 +33,9 @@ class PayoutController extends Controller
             });
         }
 
-        if ($status = $request->input('status')) {
-            $query->where('status', $status);
-        }
-
-        $paginator = $query->latest()->paginate((int) $request->input('per_page', 20));
+        $paginator = Payout::buildQuery($base, $request)
+            ->defaultSort('-created_at')
+            ->paginate();
 
         return $this->json([
             'data' => PayoutResource::collection($paginator)->toArray($request),

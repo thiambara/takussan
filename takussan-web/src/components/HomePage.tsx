@@ -4,13 +4,16 @@ import React from 'react';
 import { Navbar } from './home/Navbar';
 import { PropertyGrid } from './home/PropertyGrid';
 import { Footer } from './home/Footer';
-import { featuredProperties, latestProperties } from '@/data/mockData';
+import { useProperties } from '@/hooks/useProperties';
 
 export interface HomePageProps {
   readonly className?: string;
 }
 
 export function HomePage({ className }: HomePageProps) {
+  const featured = useProperties({ featured: true, perPage: 12 });
+  const latest = useProperties({ sort: 'latest', perPage: 12 });
+
   return (
     <div className={`min-h-screen bg-[#f8f9fa] ${className || ''}`}>
       <Navbar />
@@ -21,14 +24,18 @@ export function HomePage({ className }: HomePageProps) {
       <main className="max-w-[1440px] mx-auto px-6 md:px-16 py-10 space-y-20 mb-10">
         <PropertyGrid
           title="Biens en vedette"
-          properties={featuredProperties}
-          viewAllHref="/biens"
+          properties={featured.properties}
+          loading={featured.loading}
+          error={featured.error}
+          viewAllHref="/properties"
         />
 
         <PropertyGrid
           title="Derniers ajouts"
-          properties={latestProperties}
-          viewAllHref="/biens"
+          properties={latest.properties}
+          loading={latest.loading}
+          error={latest.error}
+          viewAllHref="/properties"
         />
       </main>
 

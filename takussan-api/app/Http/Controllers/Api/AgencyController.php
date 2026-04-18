@@ -16,10 +16,9 @@ class AgencyController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $paginator = Agency::query()
-            ->when($request->input('q'), fn ($q, $s) => $q->where('name', 'like', "%$s%"))
-            ->latest()
-            ->paginate((int) $request->input('per_page', 20));
+        $paginator = Agency::buildQuery(null, $request)
+            ->defaultSort('-created_at')
+            ->paginate();
 
         return $this->json([
             'data' => AgencyResource::collection($paginator)->toArray($request),

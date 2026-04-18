@@ -79,6 +79,21 @@ class Property extends AbstractModel implements HasMedia
         'bookings', 'leases', 'visits', 'reviews', 'children',
     ];
 
+    /** @var array<int,string> */
+    protected static array $requestRangeFilters = ['price', 'area'];
+
+    /** @var array<int,string> */
+    protected static array $requestSearchFields = ['title', 'reference_number', 'description'];
+
+    /** @var array<int,string> */
+    protected static array $queryFields = [
+        'id', 'user_id', 'agency_id', 'parent_id', 'reference_number',
+        'title', 'slug', 'type', 'contract_type', 'title_type', 'status', 'visibility',
+        'price', 'currency', 'area', 'bedrooms', 'bathrooms', 'furnished',
+        'floor_number', 'total_floors', 'year_built', 'parking_spaces', 'featured',
+        'available_from', 'published_at', 'created_at', 'updated_at',
+    ];
+
     protected static function booted(): void
     {
         static::creating(function (self $m) {

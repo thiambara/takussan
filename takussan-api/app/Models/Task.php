@@ -27,6 +27,18 @@ class Task extends AbstractModel
         'completed_at' => 'datetime',
     ];
 
+    protected static array $requestFilterable = ['taskable_id', 'taskable_type', 'assigned_to_id', 'created_by_id', 'status', 'priority'];
+
+    protected static array $requestSortable = ['id', 'created_at', 'due_at', 'priority', 'status'];
+
+    protected static array $requestLoadable = ['assignee', 'creator'];
+
+    protected static array $queryFields = [
+        'id', 'title', 'taskable_id', 'taskable_type',
+        'assigned_to_id', 'created_by_id', 'due_at', 'completed_at',
+        'status', 'priority', 'created_at', 'updated_at',
+    ];
+
     public function taskable(): MorphTo
     {
         return $this->morphTo();

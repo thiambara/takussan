@@ -66,7 +66,7 @@ class AgencySeeder extends Seeder
 
             $this->ctx->registerAgency($agency);
 
-            $logoUrl = "https://ui-avatars.com/api/?name=" . urlencode($agency->name) . "&background=random&color=fff&size=512";
+            $logoUrl = 'https://ui-avatars.com/api/?name='.urlencode($agency->name).'&background=random&color=fff&size=512';
             $this->ctx->downloadMedia($agency, $logoUrl, 'logo');
         }
     }

@@ -30,6 +30,18 @@ class PropertyVisit extends AbstractModel
         'metadata' => 'array',
     ];
 
+    protected static array $requestFilterable = ['property_id', 'visitor_id', 'customer_id', 'agent_id', 'type', 'status'];
+
+    protected static array $requestSortable = ['id', 'created_at', 'scheduled_at', 'status'];
+
+    protected static array $requestLoadable = ['property', 'visitor', 'customer', 'agent'];
+
+    protected static array $queryFields = [
+        'id', 'property_id', 'visitor_id', 'customer_id', 'agent_id',
+        'type', 'status', 'scheduled_at', 'completed_at', 'duration_minutes',
+        'created_at', 'updated_at',
+    ];
+
     public function property(): BelongsTo
     {
         return $this->belongsTo(Property::class);

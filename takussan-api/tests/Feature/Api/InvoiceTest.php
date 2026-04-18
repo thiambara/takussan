@@ -146,7 +146,7 @@ class InvoiceTest extends TestCase
 
         Sanctum::actingAs($agent);
 
-        $this->getJson('/api/invoices?status=paid')
+        $this->getJson('/api/invoices?filter[status]=paid')
             ->assertOk()
             ->assertJsonPath('meta.total', 2);
     }

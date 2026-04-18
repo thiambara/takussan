@@ -25,6 +25,12 @@ class Integration extends AbstractModel
         'metadata' => 'array',
     ];
 
+    protected static array $requestFilterable = ['agency_id', 'provider', 'is_active'];
+
+    protected static array $requestSortable = ['id', 'created_at', 'provider'];
+
+    protected static array $queryFields = ['id', 'agency_id', 'provider', 'is_active', 'last_used_at', 'created_at', 'updated_at'];
+
     public function agency(): BelongsTo
     {
         return $this->belongsTo(Agency::class);

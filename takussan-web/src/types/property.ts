@@ -7,6 +7,7 @@ export interface PropertyListItem {
   title: string;
   slug: string;
   price: number;
+  transaction: 'sale' | 'rent';
   type: PropertyType;
   type_label: string;
   location: { quarter: string; city: string };

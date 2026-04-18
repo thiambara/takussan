@@ -14,21 +14,9 @@ class UserAdminController extends Controller
     {
         abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
 
-        $query = User::query();
-
-        if ($search = $request->input('q')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('first_name', 'like', "%$search%")
-                    ->orWhere('last_name', 'like', "%$search%")
-                    ->orWhere('email', 'like', "%$search%");
-            });
-        }
-
-        if ($status = $request->input('status')) {
-            $query->where('status', $status);
-        }
-
-        $paginator = $query->latest()->paginate((int) $request->input('per_page', 20));
+        $paginator = User::buildQuery(null, $request)
+            ->defaultSort('-created_at')
+            ->paginate();
 
         return $this->json([
             'data' => $paginator->items(),

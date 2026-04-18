@@ -17,17 +17,19 @@ class PropertyVisitController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $query = PropertyVisit::query();
+        $base = PropertyVisit::query();
 
         if (! $user->hasRole(['admin', 'super_admin'])) {
-            $query->where(function ($q) use ($user) {
+            $base->where(function ($q) use ($user) {
                 $q->where('visitor_id', $user->id)
                     ->orWhere('agent_id', $user->id)
                     ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id));
             });
         }
 
-        $paginator = $query->latest('scheduled_at')->paginate((int) $request->input('per_page', 20));
+        $paginator = PropertyVisit::buildQuery($base, $request)
+            ->defaultSort('-scheduled_at')
+            ->paginate();
 
         return $this->json([
             'data' => PropertyVisitResource::collection($paginator)->toArray($request),

@@ -32,6 +32,23 @@ class Customer extends AbstractModel
         'metadata' => 'array',
     ];
 
+    protected static array $requestFilterable = ['user_id', 'agency_id', 'added_by_id', 'status', 'pipeline_stage'];
+
+    protected static array $requestSortable = ['id', 'created_at', 'first_name', 'last_name', 'status'];
+
+    protected static array $requestLoadable = ['user', 'agency', 'addresses', 'tags'];
+
+    protected static array $requestCountable = ['bookings', 'leases', 'notes'];
+
+    protected static array $requestSearchFields = ['first_name', 'last_name', 'email', 'phone'];
+
+    protected static array $queryFields = [
+        'id', 'user_id', 'agency_id', 'added_by_id',
+        'first_name', 'last_name', 'email', 'phone',
+        'status', 'pipeline_stage', 'occupation',
+        'created_at', 'updated_at',
+    ];
+
     public function getFullNameAttribute(): string
     {
         return trim("{$this->first_name} {$this->last_name}");

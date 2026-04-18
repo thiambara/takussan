@@ -83,7 +83,7 @@ class ReviewReportAndDocSearchTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $this->getJson('/api/documents?q=foncier')
+        $this->getJson('/api/documents?filter[search]=foncier')
             ->assertOk()
             ->assertJsonCount(1, 'data');
     }

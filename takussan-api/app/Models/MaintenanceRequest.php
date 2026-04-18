@@ -38,6 +38,21 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
         'metadata' => 'array',
     ];
 
+    protected static array $requestFilterable = ['property_id', 'lease_id', 'requester_id', 'assigned_to', 'category', 'priority', 'status'];
+
+    protected static array $requestSortable = ['id', 'created_at', 'scheduled_at', 'priority', 'status'];
+
+    protected static array $requestLoadable = ['property', 'lease', 'requester', 'assignee'];
+
+    protected static array $requestSearchFields = ['title', 'description'];
+
+    protected static array $queryFields = [
+        'id', 'property_id', 'lease_id', 'requester_id', 'assigned_to',
+        'title', 'category', 'priority', 'status',
+        'estimated_cost', 'actual_cost', 'scheduled_at', 'completed_at',
+        'created_at', 'updated_at',
+    ];
+
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('photos');

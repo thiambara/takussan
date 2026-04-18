@@ -36,6 +36,18 @@ class Inventory extends AbstractModel implements HasMedia
         'metadata' => 'array',
     ];
 
+    protected static array $requestFilterable = ['lease_id', 'property_id', 'type', 'conducted_by', 'tenant_id', 'status', 'general_condition'];
+
+    protected static array $requestSortable = ['id', 'created_at', 'conducted_at', 'status'];
+
+    protected static array $requestLoadable = ['lease', 'property', 'conductor', 'tenant'];
+
+    protected static array $queryFields = [
+        'id', 'lease_id', 'property_id', 'type', 'conducted_by', 'tenant_id',
+        'conducted_at', 'status', 'general_condition',
+        'tenant_signed', 'owner_signed', 'created_at', 'updated_at',
+    ];
+
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('photos');

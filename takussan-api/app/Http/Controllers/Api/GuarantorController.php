@@ -14,17 +14,20 @@ class GuarantorController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $query = Guarantor::query();
+        $base = Guarantor::query();
 
         if (! $user->hasRole(['admin', 'super_admin'])) {
-            $query->where('added_by_id', $user->id);
+            $base->where('added_by_id', $user->id);
         }
 
+        // lease_id filters via relationship (not a direct column)
         if ($leaseId = $request->input('lease_id')) {
-            $query->whereHas('leases', fn ($q) => $q->where('id', $leaseId));
+            $base->whereHas('leases', fn ($q) => $q->where('id', $leaseId));
         }
 
-        $paginator = $query->latest()->paginate((int) $request->input('per_page', 20));
+        $paginator = Guarantor::buildQuery($base, $request)
+            ->defaultSort('-created_at')
+            ->paginate();
 
         return $this->json([
             'data' => $paginator->getCollection()->map(fn (Guarantor $g) => $this->format($g))->values(),

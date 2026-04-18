@@ -18,6 +18,14 @@ class Tag extends AbstractModel
         'type' => TagType::class,
     ];
 
+    protected static array $requestFilterable = ['type'];
+
+    protected static array $requestSortable = ['id', 'name', 'type'];
+
+    protected static array $requestSearchFields = ['name'];
+
+    protected static array $queryFields = ['id', 'name', 'slug', 'type', 'icon', 'color', 'description', 'created_at', 'updated_at'];
+
     protected static function booted(): void
     {
         static::creating(function (self $m) {
