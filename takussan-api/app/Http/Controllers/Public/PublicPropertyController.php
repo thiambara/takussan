@@ -9,6 +9,7 @@ use App\Models\Property;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\RateLimiter;
 
 class PublicPropertyController extends Controller
 {
@@ -137,7 +138,7 @@ class PublicPropertyController extends Controller
         ];
     }
 
-    public function show(string $slug): PropertyResource
+    public function show(Request $request, string $slug): PropertyResource
     {
         $property = Property::query()
             ->with('address', 'media', 'tags', 'owner', 'agency')
@@ -146,7 +147,11 @@ class PublicPropertyController extends Controller
             ->where('slug', $slug)
             ->firstOrFail();
 
-        $property->increment('views_count');
+        $key = 'views:'.$property->id.':'.$request->ip();
+        if (! RateLimiter::tooManyAttempts($key, 3)) {
+            RateLimiter::hit($key, 3600);
+            $property->increment('views_count');
+        }
 
         return new PropertyResource($property);
     }

@@ -55,6 +55,14 @@ class BookingService
             || ($user->agency_id && $property->agency_id && $user->agency_id === $property->agency_id)
             || $property->user_id === $user->id;
 
+        if (! $isStaff) {
+            abort_unless(
+                Property::query()->where('id', $property->id)->public()->exists(),
+                403,
+                'This property is not available for booking.'
+            );
+        }
+
         $isBookingForSelf = false;
         if (! empty($data['customer_id'])) {
             $customer = Customer::find($data['customer_id']);

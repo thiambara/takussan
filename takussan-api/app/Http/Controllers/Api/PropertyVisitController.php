@@ -61,6 +61,7 @@ class PropertyVisitController extends Controller
         if (! $isStaff) {
             $isPublic = Property::query()->where('id', $property->id)->public()->exists();
             abort_unless($isPublic, 403, 'This property is not available for visits.');
+            unset($data['agent_id']);
         }
 
         $visit = PropertyVisit::create(array_merge($data, [

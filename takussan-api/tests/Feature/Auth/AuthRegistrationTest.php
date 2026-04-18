@@ -25,7 +25,8 @@ class AuthRegistrationTest extends TestCase
         ]);
 
         $response->assertStatus(201)
-            ->assertJsonStructure(['message', 'token', 'user']);
+            ->assertJsonStructure(['message', 'user'])
+            ->assertJsonMissingPath('token');
 
         $this->assertDatabaseHas('users', ['email' => 'amine@example.com']);
         Event::assertDispatched(Registered::class);

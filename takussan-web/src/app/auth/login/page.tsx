@@ -9,7 +9,8 @@ import { Suspense, useState } from 'react';
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirect') ?? '/dashboard';
+  const raw = searchParams.get('redirect') ?? '/dashboard';
+  const redirectTo = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/dashboard';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<Record<string, string[]>>({});

@@ -71,6 +71,10 @@ class MaintenanceRequestController extends Controller
             ->exists();
         abort_unless($isStaff || $isActiveTenant, 403);
 
+        if (! $isStaff) {
+            unset($data['assigned_to']);
+        }
+
         $mr = MaintenanceRequest::create(array_merge($data, [
             'requester_id' => $user->id,
             'status' => MaintenanceStatus::Open->value,

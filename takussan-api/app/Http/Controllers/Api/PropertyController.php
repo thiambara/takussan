@@ -76,6 +76,10 @@ class PropertyController extends Controller
             'address.longitude' => ['nullable', 'numeric'],
         ]);
 
+        if (! $request->user()->hasRole(['admin', 'super_admin'])) {
+            $data['agency_id'] = $request->user()->agency_id;
+        }
+
         $property = DB::transaction(function () use ($data, $request) {
             $property = Property::create(array_merge($data, [
                 'user_id' => $request->user()->id,
@@ -122,9 +126,16 @@ class PropertyController extends Controller
             'bedrooms' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'bathrooms' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'furnished' => ['sometimes', 'boolean'],
-            'featured' => ['sometimes', 'boolean'],
+            'featured' => ['sometimes', 'boolean', Rule::prohibitedIf(! $request->user()->hasRole(['admin', 'super_admin']))],
             'available_from' => ['sometimes', 'nullable', 'date'],
             'address' => ['sometimes', 'nullable', 'array'],
+            'address.street' => ['sometimes', 'nullable', 'string'],
+            'address.neighborhood' => ['sometimes', 'nullable', 'string'],
+            'address.city' => ['sometimes', 'nullable', 'string'],
+            'address.region' => ['sometimes', 'nullable', 'string'],
+            'address.country' => ['sometimes', 'nullable', 'string', 'size:2'],
+            'address.latitude' => ['sometimes', 'nullable', 'numeric'],
+            'address.longitude' => ['sometimes', 'nullable', 'numeric'],
         ]);
 
         DB::transaction(function () use ($data, $property) {

@@ -29,13 +29,12 @@ class AuthPasswordResetTest extends TestCase
 
     public function test_forgot_password_returns_200_for_unknown_email(): void
     {
-        // Laravel returns a generic message to prevent email enumeration
         $response = $this->postJson('/api/auth/forgot-password', [
             'email' => 'unknown@example.com',
         ]);
 
-        // Laravel returns 422 for unknown emails (INVALID_USER status)
-        $response->assertStatus(422);
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'If an account with that email exists, a password reset link has been sent.');
     }
 
     public function test_user_can_reset_password_with_valid_token(): void

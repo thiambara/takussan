@@ -55,7 +55,7 @@ class LeaseController extends Controller
         $data = $request->validate([
             'property_id' => ['required', 'exists:properties,id'],
             'tenant_id' => ['required', 'exists:customers,id'],
-            'booking_id' => ['nullable', 'exists:bookings,id'],
+            'booking_id' => ['nullable', Rule::exists('bookings', 'id')->where('property_id', $request->input('property_id'))],
             'guarantor_id' => ['nullable', 'exists:guarantors,id'],
             'type' => ['required', Rule::enum(LeaseType::class)],
             'start_date' => ['required', 'date'],
