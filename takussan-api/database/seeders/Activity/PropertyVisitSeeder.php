@@ -65,7 +65,9 @@ class PropertyVisitSeeder extends Seeder
                             VisitStatus::Cancelled->value,
                             VisitStatus::NoShow->value,
                         ], true) ? $scheduledAt->subDays(random_int(0, 2)) : null,
-                        'created_at' => $scheduledAt->subDays(random_int(1, 10)),
+                        // created_at is always strictly before cancelled_at (>=3 days earlier)
+                        // so the visit record exists before it can be cancelled.
+                        'created_at' => $scheduledAt->subDays(random_int(3, 10)),
                         'updated_at' => $scheduledAt,
                     ]);
                 }

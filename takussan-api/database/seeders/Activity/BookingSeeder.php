@@ -58,9 +58,16 @@ class BookingSeeder extends Seeder
                     ? $createdAt->addDays(random_int(0, 5))
                     : null;
 
+                $totalAmount = $this->ctx->faker()->numberBetween(150_000, 3_000_000);
+                $depositAmount = $this->ctx->faker()->numberBetween(
+                    50_000,
+                    min(500_000, $totalAmount),
+                );
+
                 Booking::withoutEvents(function () use (
                     $propertyIds, $customerIds, $agentIds, $agency,
-                    $createdAt, $status, $expiresAt, $confirmedAt, $cancelledAt
+                    $createdAt, $status, $expiresAt, $confirmedAt, $cancelledAt,
+                    $totalAmount, $depositAmount,
                 ) {
                     Booking::create([
                         'property_id' => $propertyIds->random(),
@@ -69,8 +76,8 @@ class BookingSeeder extends Seeder
                         'agency_id' => $agency->id,
                         'reference_number' => 'BK-'.strtoupper(Str::random(8)),
                         'status' => $status,
-                        'total_amount' => $this->ctx->faker()->numberBetween(150_000, 3_000_000),
-                        'deposit_amount' => $this->ctx->faker()->numberBetween(50_000, 500_000),
+                        'total_amount' => $totalAmount,
+                        'deposit_amount' => $depositAmount,
                         'currency' => 'XOF',
                         'start_date' => $createdAt->addDays(7)->toDateString(),
                         'end_date' => $createdAt->addMonth()->toDateString(),
