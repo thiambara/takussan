@@ -93,18 +93,21 @@ class YearOfActivitySeeder extends Seeder
         $context = app(SeedingContext::class);
         app()->instance(SeedingContext::class, $context);
 
-        DB::transaction(function () {
-            foreach (self::PIPELINE as $class) {
-                $this->command?->getOutput()?->writeln("  > Seeding {$class}");
-                /** @var Seeder $seeder */
-                $seeder = app($class);
-                $seeder->setContainer(app());
-                if (method_exists($seeder, 'setCommand') && $this->command) {
-                    $seeder->setCommand($this->command);
-                }
-                $seeder->run();
+        // Each seeder runs in its own transaction so partial progress is kept
+        // on failure (easier to debug) and the undo log / lock footprint per
+        // transaction stays bounded on MySQL-backed environments. Earlier
+        // seeders establish foreign-key targets that later seeders depend on,
+        // so a failure mid-pipeline leaves a consistent prefix of the data.
+        foreach (self::PIPELINE as $class) {
+            $this->command?->getOutput()?->writeln("  > Seeding {$class}");
+            /** @var Seeder $seeder */
+            $seeder = app($class);
+            $seeder->setContainer(app());
+            if (method_exists($seeder, 'setCommand') && $this->command) {
+                $seeder->setCommand($this->command);
             }
-        });
+            DB::transaction(fn () => $seeder->run());
+        }
     }
 
     private function prepareEnvironment(): void

@@ -34,6 +34,7 @@ class AppNotificationSeeder extends Seeder
                 if (! $visit->agent_id) {
                     continue;
                 }
+                $isRead = $this->ctx->faker()->boolean(50);
                 AppNotification::create([
                     'user_id' => $visit->agent_id,
                     'type' => NotificationType::Visit->value,
@@ -43,8 +44,8 @@ class AppNotificationSeeder extends Seeder
                     'data' => ['status' => $visit->status?->value],
                     'referenceable_id' => $visit->id,
                     'referenceable_type' => 'property_visit',
-                    'is_read' => $this->ctx->faker()->boolean(50),
-                    'read_at' => $this->ctx->faker()->boolean(50) ? $visit->created_at : null,
+                    'is_read' => $isRead,
+                    'read_at' => $isRead ? $visit->created_at : null,
                     'sent_at' => $visit->created_at,
                     'created_at' => $visit->created_at,
                     'updated_at' => $visit->created_at,
@@ -65,6 +66,7 @@ class AppNotificationSeeder extends Seeder
                     }
 
                     if ($payment->paid_at) {
+                        $isRead = $this->ctx->faker()->boolean(60);
                         AppNotification::create([
                             'user_id' => $lease->landlord_id,
                             'type' => NotificationType::Payment->value,
@@ -74,8 +76,8 @@ class AppNotificationSeeder extends Seeder
                             'data' => ['amount' => $payment->amount, 'currency' => $payment->currency],
                             'referenceable_id' => $payment->id,
                             'referenceable_type' => 'lease_payment',
-                            'is_read' => $this->ctx->faker()->boolean(60),
-                            'read_at' => $this->ctx->faker()->boolean(60) ? $payment->paid_at : null,
+                            'is_read' => $isRead,
+                            'read_at' => $isRead ? $payment->paid_at : null,
                             'sent_at' => $payment->paid_at,
                             'created_at' => $payment->paid_at,
                             'updated_at' => $payment->paid_at,
@@ -108,6 +110,7 @@ class AppNotificationSeeder extends Seeder
     {
         Booking::query()->chunkById(100, function ($bookings) {
             foreach ($bookings as $booking) {
+                $isRead = $this->ctx->faker()->boolean(50);
                 AppNotification::create([
                     'user_id' => $booking->created_by_id,
                     'type' => NotificationType::Booking->value,
@@ -117,8 +120,8 @@ class AppNotificationSeeder extends Seeder
                     'data' => ['status' => $booking->status?->value],
                     'referenceable_id' => $booking->id,
                     'referenceable_type' => 'booking',
-                    'is_read' => $this->ctx->faker()->boolean(50),
-                    'read_at' => $this->ctx->faker()->boolean(50) ? $booking->created_at : null,
+                    'is_read' => $isRead,
+                    'read_at' => $isRead ? $booking->created_at : null,
                     'sent_at' => $booking->created_at,
                     'created_at' => $booking->created_at,
                     'updated_at' => $booking->created_at,
@@ -131,6 +134,7 @@ class AppNotificationSeeder extends Seeder
     {
         MaintenanceRequest::query()->chunkById(100, function ($requests) {
             foreach ($requests as $request) {
+                $isRead = $this->ctx->faker()->boolean(40);
                 AppNotification::create([
                     'user_id' => $request->assigned_to ?? $request->requester_id,
                     'type' => NotificationType::Maintenance->value,
@@ -140,8 +144,8 @@ class AppNotificationSeeder extends Seeder
                     'data' => ['priority' => $request->priority?->value, 'status' => $request->status?->value],
                     'referenceable_id' => $request->id,
                     'referenceable_type' => 'maintenance',
-                    'is_read' => $this->ctx->faker()->boolean(40),
-                    'read_at' => $this->ctx->faker()->boolean(40) ? $request->created_at : null,
+                    'is_read' => $isRead,
+                    'read_at' => $isRead ? $request->created_at : null,
                     'sent_at' => $request->created_at,
                     'created_at' => $request->created_at,
                     'updated_at' => $request->created_at,
