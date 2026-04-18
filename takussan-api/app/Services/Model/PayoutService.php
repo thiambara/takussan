@@ -77,7 +77,7 @@ class PayoutService
     /**
      * @param  array<string,mixed>  $data
      */
-    public function markFailed(Payout $payout, array $data = []): Payout
+    public function markFailed(Payout $payout, array $data): Payout
     {
         abort_if(
             in_array($payout->status, [PayoutStatus::Completed, PayoutStatus::Cancelled], true),
@@ -85,9 +85,12 @@ class PayoutService
             'Payout cannot be marked failed in its current state.'
         );
 
+        $reason = isset($data['failed_reason']) ? trim((string) $data['failed_reason']) : '';
+        abort_if($reason === '', 422, 'A failure reason is required when marking a payout as failed.');
+
         $payout->update([
             'status' => PayoutStatus::Failed,
-            'failed_reason' => $data['failed_reason'] ?? null,
+            'failed_reason' => $reason,
         ]);
 
         return $payout->refresh();

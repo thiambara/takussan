@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\InventoryResource;
 use App\Models\Enums\InventoryCondition;
+use App\Models\Enums\InventoryStatus;
 use App\Models\Enums\InventoryType;
 use App\Models\Inventory;
 use App\Models\Lease;
@@ -99,6 +100,14 @@ class InventoryController extends Controller
     public function update(Request $request, Inventory $inventory): JsonResponse
     {
         $this->authorizeManage($request, $inventory);
+
+        // Status guard runs BEFORE validation so non-draft inventories fail
+        // with a clear 422 "only draft" message instead of generic validation errors.
+        abort_unless(
+            $inventory->status === InventoryStatus::Draft,
+            422,
+            'Only draft inventories can be edited.'
+        );
 
         $data = $request->validate([
             'general_condition' => ['nullable', Rule::enum(InventoryCondition::class)],

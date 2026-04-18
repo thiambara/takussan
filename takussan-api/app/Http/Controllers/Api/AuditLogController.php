@@ -13,43 +13,58 @@ class AuditLogController extends Controller
     {
         abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
 
-        $query = Activity::query()->with(['causer', 'subject']);
+        $filters = $request->validate([
+            'log_name' => ['nullable', 'string'],
+            'event' => ['nullable', 'string'],
+            'causer_id' => ['nullable'],
+            'causer_type' => ['nullable', 'string'],
+            'subject_id' => ['nullable'],
+            'subject_type' => ['nullable', 'string'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'order' => ['nullable', 'in:asc,desc'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:200'],
+        ]);
 
-        if ($logName = $request->input('log_name')) {
-            $query->where('log_name', $logName);
+        // Only eager-load causer (the only relation exposed in the response).
+        // `subject` is intentionally not loaded to avoid N+1 on heterogeneous morphs.
+        $query = Activity::query()->with('causer');
+
+        if (! empty($filters['log_name'])) {
+            $query->where('log_name', $filters['log_name']);
         }
 
-        if ($event = $request->input('event')) {
-            $query->where('event', $event);
+        if (! empty($filters['event'])) {
+            $query->where('event', $filters['event']);
         }
 
-        if ($causerId = $request->input('causer_id')) {
-            $query->where('causer_id', $causerId);
+        if (! empty($filters['causer_id'])) {
+            $query->where('causer_id', $filters['causer_id']);
         }
 
-        if ($causerType = $request->input('causer_type')) {
-            $query->where('causer_type', $causerType);
+        if (! empty($filters['causer_type'])) {
+            $query->where('causer_type', $filters['causer_type']);
         }
 
-        if ($subjectType = $request->input('subject_type')) {
-            $query->where('subject_type', $subjectType);
+        if (! empty($filters['subject_type'])) {
+            $query->where('subject_type', $filters['subject_type']);
         }
 
-        if ($subjectId = $request->input('subject_id')) {
-            $query->where('subject_id', $subjectId);
+        if (! empty($filters['subject_id'])) {
+            $query->where('subject_id', $filters['subject_id']);
         }
 
-        if ($from = $request->input('from')) {
-            $query->where('created_at', '>=', $from);
+        if (! empty($filters['from'])) {
+            $query->where('created_at', '>=', $filters['from']);
         }
 
-        if ($to = $request->input('to')) {
-            $query->where('created_at', '<=', $to);
+        if (! empty($filters['to'])) {
+            $query->where('created_at', '<=', $filters['to']);
         }
 
-        $order = $request->input('order', 'desc') === 'asc' ? 'asc' : 'desc';
+        $order = ($filters['order'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
         $paginator = $query->orderBy('created_at', $order)
-            ->paginate((int) $request->input('per_page', 50));
+            ->paginate((int) ($filters['per_page'] ?? 50));
 
         $data = $paginator->getCollection()->map(function (Activity $log): array {
             return [
