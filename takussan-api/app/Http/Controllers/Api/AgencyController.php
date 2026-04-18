@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Spatie\Permission\Models\Role;
 
 class AgencyController extends Controller
 {
@@ -106,6 +107,7 @@ class AgencyController extends Controller
         abort_if($target->agency_id !== null && $target->agency_id !== $agency->id, 422, __('messages.user_already_in_agency'));
 
         $target->update(['agency_id' => $agency->id]);
+        Role::findOrCreate('agent', 'web');
         if (! $target->hasRole('agent')) {
             $target->assignRole('agent');
         }
@@ -120,9 +122,11 @@ class AgencyController extends Controller
         abort_if($user->id === $agency->primary_admin_id, 422, __('messages.cannot_remove_primary_admin'));
 
         $user->update(['agency_id' => null]);
-        $user->removeRole('agent');
+        if ($user->hasRole('agent')) {
+            $user->removeRole('agent');
+        }
 
-        return $this->json(null, 204);
+        return $this->json(['data' => ['user_id' => $user->id, 'removed' => true]]);
     }
 
     protected function authorizeAdmin(Request $request, Agency $agency): void

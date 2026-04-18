@@ -37,7 +37,7 @@ class SendPropertyVisitReminders implements ShouldQueue
                 if ($agent) {
                     $notificationService->notify(
                         $agent,
-                        NotificationType::Reminder,
+                        NotificationType::Visit,
                         __('messages.visit_reminder_title'),
                         __('messages.visit_reminder_body', ['property' => $propertyTitle]),
                         ['visit_id' => $visit->id, 'property_id' => $visit->property_id],
@@ -51,7 +51,7 @@ class SendPropertyVisitReminders implements ShouldQueue
                 if ($visitor) {
                     $notificationService->notify(
                         $visitor,
-                        NotificationType::Reminder,
+                        NotificationType::Visit,
                         __('messages.visit_reminder_title'),
                         __('messages.visit_reminder_body', ['property' => $propertyTitle]),
                         ['visit_id' => $visit->id, 'property_id' => $visit->property_id],

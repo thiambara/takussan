@@ -54,7 +54,8 @@ class AgencyRoleController extends Controller
     {
         $user = $request->user();
         $this->authorizeAgencyAdmin($request);
-        abort_if($role->team_id !== $user->agency_id, 403);
+        $teamsKey = app(PermissionRegistrar::class)->teamsKey;
+        abort_if((int) $role->{$teamsKey} !== (int) $user->agency_id, 403);
 
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:100'],
@@ -77,7 +78,8 @@ class AgencyRoleController extends Controller
     {
         $user = $request->user();
         $this->authorizeAgencyAdmin($request);
-        abort_if($role->team_id !== $user->agency_id, 403);
+        $teamsKey = app(PermissionRegistrar::class)->teamsKey;
+        abort_if((int) $role->{$teamsKey} !== (int) $user->agency_id, 403);
 
         $role->delete();
 
@@ -88,6 +90,8 @@ class AgencyRoleController extends Controller
     {
         $user = $request->user();
         abort_unless($user->agency_id, 403);
+
+        app(PermissionRegistrar::class)->setPermissionsTeamId($user->agency_id);
 
         $agency = $user->agency;
         abort_unless(

@@ -133,10 +133,13 @@ class CustomerController extends Controller
             ->where('is_primary', true)
             ->update(['is_primary' => false]);
 
-        $relationship = UserCustomerRelationship::firstOrCreate([
-            'customer_id' => $customer->id,
-            'user_id' => $data['user_id'],
-        ]);
+        $relationship = UserCustomerRelationship::firstOrCreate(
+            [
+                'customer_id' => $customer->id,
+                'user_id' => $data['user_id'],
+                'relationship_type' => 'agent_client',
+            ],
+        );
 
         $relationship->update(['is_primary' => true]);
 
