@@ -25,9 +25,9 @@ class ReviewObserver
 
         $stats = $reviewable->reviews()->selectRaw('COUNT(*) as count, AVG(rating) as avg')->first();
 
-        $reviewable->update([
+        $reviewable->forceFill([
             'reviews_count' => (int) ($stats->count ?? 0),
             'average_rating' => $stats->avg ? round((float) $stats->avg, 2) : null,
-        ]);
+        ])->save();
     }
 }

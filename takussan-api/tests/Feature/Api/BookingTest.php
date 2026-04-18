@@ -113,4 +113,32 @@ class BookingTest extends TestCase
         $this->postJson("/api/bookings/{$booking->id}/confirm")
             ->assertStatus(422);
     }
+
+    public function test_owner_can_reject_booking(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $booking = Booking::factory()->create(['property_id' => $property->id]);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/bookings/{$booking->id}/reject", ['reason' => 'not available dates'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'rejected');
+    }
+
+    public function test_cannot_reject_confirmed_booking(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $booking = Booking::factory()->create([
+            'property_id' => $property->id,
+            'status' => BookingStatus::Confirmed->value,
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/bookings/{$booking->id}/reject", ['reason' => 'oops'])
+            ->assertStatus(422);
+    }
 }

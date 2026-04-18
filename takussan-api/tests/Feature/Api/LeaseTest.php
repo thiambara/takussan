@@ -77,4 +77,49 @@ class LeaseTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.status', 'paid');
     }
+
+    public function test_can_renew_active_lease(): void
+    {
+        $landlord = User::factory()->create();
+        $lease = Lease::factory()->active()->create([
+            'landlord_id' => $landlord->id,
+            'end_date' => now()->subDay()->toDateString(),
+        ]);
+
+        Sanctum::actingAs($landlord);
+
+        $this->postJson("/api/leases/{$lease->id}/renew", [
+            'end_date' => now()->addYear()->toDateString(),
+            'monthly_rent' => 450000,
+        ])->assertCreated()
+          ->assertJsonPath('data.status', 'draft')
+          ->assertJsonPath('data.monthly_rent', 450000);
+    }
+
+    public function test_cannot_renew_inactive_lease(): void
+    {
+        $landlord = User::factory()->create();
+        $lease = Lease::factory()->create([
+            'landlord_id' => $landlord->id,
+            'status' => \App\Models\Enums\LeaseStatus::Draft->value,
+            'end_date' => now()->subDay()->toDateString(),
+        ]);
+
+        Sanctum::actingAs($landlord);
+
+        $this->postJson("/api/leases/{$lease->id}/renew", [
+            'end_date' => now()->addYear()->toDateString(),
+        ])->assertStatus(422);
+    }
+
+    public function test_cannot_activate_already_active_lease(): void
+    {
+        $landlord = User::factory()->create();
+        $lease = Lease::factory()->active()->create(['landlord_id' => $landlord->id]);
+
+        Sanctum::actingAs($landlord);
+
+        $this->postJson("/api/leases/{$lease->id}/activate")
+            ->assertStatus(422);
+    }
 }

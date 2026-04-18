@@ -38,6 +38,10 @@ class DashboardController extends Controller
             return $this->json(['data' => $this->ownerStats($user->id)]);
         }
 
+        if ($user->hasRole('tenant') || Customer::where('user_id', $user->id)->exists()) {
+            return $this->json(['data' => $this->tenantStats($user->id)]);
+        }
+
         // Default: owner-level stats (covers users with no explicit role who own properties)
         return $this->json(['data' => $this->ownerStats($user->id)]);
     }
