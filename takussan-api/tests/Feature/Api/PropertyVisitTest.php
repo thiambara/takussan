@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Enums\VisitStatus;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
@@ -89,7 +90,7 @@ class PropertyVisitTest extends TestCase
         $property = Property::factory()->create(['user_id' => $owner->id]);
         $visit = PropertyVisit::factory()->create([
             'property_id' => $property->id,
-            'status' => \App\Models\Enums\VisitStatus::Cancelled,
+            'status' => VisitStatus::Cancelled,
         ]);
 
         Sanctum::actingAs($owner);
