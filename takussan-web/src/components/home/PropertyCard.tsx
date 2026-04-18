@@ -5,6 +5,14 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Heart, MapPin, Clock } from 'lucide-react';
 import { formatPrice, formatRelativeDate } from '@/lib/utils';
+import type { RentPeriod } from '@/types/property';
+
+const RENT_PERIOD_LABEL: Record<RentPeriod, string> = {
+  daily: 'jour',
+  weekly: 'sem.',
+  monthly: 'mois',
+  yearly: 'an',
+};
 import type { PropertyListItem } from '@/types/property';
 
 const FALLBACK_IMAGE = 'https://placehold.co/800x533/e7e5e4/a8a29e?text=Photo+%C3%A0+venir';
@@ -30,19 +38,20 @@ function useReveal(ref: React.RefObject<HTMLDivElement | null>) {
 export interface PropertyCardProps {
   readonly property: PropertyListItem;
   readonly index?: number;
+  readonly priority?: boolean;
   readonly className?: string;
 }
 
-export function PropertyCard({ property, index = 0, className }: PropertyCardProps) {
-  const isSale = property.transaction === 'sale';
+export function PropertyCard({ property, index = 0, priority = false, className }: PropertyCardProps) {
+  const isSale = property.contract_type === 'sale';
   const [isFavorite, setIsFavorite] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const visible = useReveal(ref);
 
   const image = property.main_photo_url ?? FALLBACK_IMAGE;
-  const location = `${property.location.quarter}, ${property.location.city}`;
-  const surface = property.area ? `${property.area} m²` : property.type_label;
-  const timeAgo = formatRelativeDate(property.created_at);
+  const location = [property.location.quarter, property.location.city].filter(Boolean).join(', ');
+  const surface = property.area ? `${property.area} m²` : property.type;
+  const timeAgo = formatRelativeDate(property.published_at ?? property.created_at);
 
   return (
     <Link href={`/properties/${property.slug}`} className="block">
@@ -59,6 +68,7 @@ export function PropertyCard({ property, index = 0, className }: PropertyCardPro
             src={image}
             alt={property.title}
             fill
+            priority={priority}
             className="object-cover group-hover:scale-105 transition-transform duration-500"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
           />
@@ -100,7 +110,14 @@ export function PropertyCard({ property, index = 0, className }: PropertyCardPro
         {/* Content */}
         <div className="space-y-2">
           <h3 className="font-bold text-lg text-gray-900">{property.title}</h3>
-          <p className="text-[#0050cb] font-bold">{formatPrice(property.price)}</p>
+          <p className="text-[#0050cb] font-bold">
+            {formatPrice(property.price, property.currency ?? 'XOF')}
+            {property.contract_type === 'rent' && property.rent_period && (
+              <span className="text-sm font-semibold text-gray-400">
+                /{RENT_PERIOD_LABEL[property.rent_period]}
+              </span>
+            )}
+          </p>
           <p className="text-gray-500 text-sm flex items-center gap-1">
             <MapPin className="w-4 h-4" />
             {location}
@@ -113,10 +130,10 @@ export function PropertyCard({ property, index = 0, className }: PropertyCardPro
               </>
             )}
             <span>{surface}</span>
-            {property.type_label && (
+            {property.type && (
               <>
                 <span className="w-1 h-1 bg-gray-300 rounded-full" />
-                <span>{property.type_label}</span>
+                <span>{property.type}</span>
               </>
             )}
           </div>

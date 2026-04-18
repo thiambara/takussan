@@ -43,6 +43,7 @@ class PropertyCrudTest extends TestCase
             'description' => 'Vue mer',
             'type' => 'apartment',
             'contract_type' => 'rent',
+            'rent_period' => 'monthly',
             'price' => 300000,
             'currency' => 'XOF',
             'bedrooms' => 3,
@@ -57,9 +58,11 @@ class PropertyCrudTest extends TestCase
 
         $response->assertCreated()
             ->assertJsonPath('data.title', 'Joli appartement')
+            ->assertJsonPath('data.rent_period', 'monthly')
             ->assertJsonPath('data.location.quarter', 'Almadies');
 
         $this->assertDatabaseCount('properties', 1);
+        $this->assertDatabaseHas('properties', ['rent_period' => 'monthly']);
         $this->assertDatabaseCount('addresses', 1);
     }
 

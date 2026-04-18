@@ -7,6 +7,7 @@ use App\Models\Enums\Currency;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
+use App\Models\Enums\RentPeriod;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -20,6 +21,8 @@ class PropertyFactory extends Factory
     {
         $title = fake()->words(4, true);
 
+        $contractType = fake()->randomElement([ContractType::Sale, ContractType::Rent]);
+
         return [
             'user_id' => User::factory(),
             'agency_id' => null,
@@ -27,7 +30,8 @@ class PropertyFactory extends Factory
             'slug' => Str::slug($title).'-'.Str::random(6),
             'description' => fake()->paragraphs(2, true),
             'type' => fake()->randomElement(PropertyType::cases()),
-            'contract_type' => fake()->randomElement([ContractType::Sale, ContractType::Rent]),
+            'contract_type' => $contractType,
+            'rent_period' => $contractType === ContractType::Rent ? fake()->randomElement(RentPeriod::cases()) : null,
             'status' => PropertyStatus::Available,
             'visibility' => PropertyVisibility::Public,
             'price' => fake()->numberBetween(150_000, 50_000_000),

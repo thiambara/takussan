@@ -34,7 +34,7 @@ export function PropertyCard({ property }: { property: PropertyListItem }) {
 
         <div className="p-4">
           <p className="text-xs text-stone-500 mb-1">
-            {property.type_label} · {property.location.quarter}
+            {property.type} · {property.location.quarter}
           </p>
           <h2 className="font-semibold text-stone-900 leading-snug mb-2 line-clamp-2 group-hover:text-slate-700 transition-colors duration-150">
             {property.title}

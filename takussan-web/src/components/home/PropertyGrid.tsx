@@ -56,7 +56,7 @@ export function PropertyGrid({
           {loading
             ? Array.from({ length: 7 }).map((_, i) => <CardSkeleton key={i} />)
             : properties.map((property, i) => (
-                <PropertyCard key={property.id} property={property} index={i} />
+                <PropertyCard key={property.id} property={property} index={i} priority={i < 2} />
               ))}
         </div>
       )}

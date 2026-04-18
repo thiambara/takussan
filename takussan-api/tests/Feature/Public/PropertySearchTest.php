@@ -71,6 +71,17 @@ class PropertySearchTest extends TestCase
         $this->assertEquals(3, $response->json('data.0.bedrooms'));
     }
 
+    public function test_filter_by_rent_period(): void
+    {
+        $this->published(['contract_type' => 'rent', 'rent_period' => 'monthly']);
+        $this->published(['contract_type' => 'rent', 'rent_period' => 'daily']);
+
+        $response = $this->getJson('/api/public/properties/search?rent_period=monthly');
+
+        $response->assertOk()->assertJsonCount(1, 'data');
+        $this->assertEquals('monthly', $response->json('data.0.rent_period'));
+    }
+
     public function test_returns_facets(): void
     {
         $this->published(['bedrooms' => 2], 'Almadies');

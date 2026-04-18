@@ -9,6 +9,7 @@ use App\Models\Enums\Currency;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
+use App\Models\Enums\RentPeriod;
 use App\Models\Enums\TitleType;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -31,7 +32,7 @@ class Property extends AbstractModel implements HasMedia
     protected $fillable = [
         'user_id', 'agency_id', 'parent_id', 'reference_number',
         'title', 'slug', 'description',
-        'type', 'contract_type', 'title_type', 'status', 'visibility',
+        'type', 'contract_type', 'rent_period', 'title_type', 'status', 'visibility',
         'price', 'currency',
         'area', 'bedrooms', 'bathrooms', 'furnished',
         'floor_number', 'total_floors', 'year_built', 'parking_spaces',
@@ -42,6 +43,7 @@ class Property extends AbstractModel implements HasMedia
     protected $casts = [
         'type' => PropertyType::class,
         'contract_type' => ContractType::class,
+        'rent_period' => RentPeriod::class,
         'title_type' => TitleType::class,
         'status' => PropertyStatus::class,
         'visibility' => PropertyVisibility::class,
@@ -59,7 +61,7 @@ class Property extends AbstractModel implements HasMedia
 
     /** @var array<int,string> */
     protected static array $requestFilterable = [
-        'user_id', 'agency_id', 'parent_id', 'type', 'contract_type',
+        'user_id', 'agency_id', 'parent_id', 'type', 'contract_type', 'rent_period',
         'status', 'visibility', 'title_type', 'price', 'bedrooms', 'bathrooms',
         'area', 'currency', 'featured', 'furnished', 'published_at',
     ];
@@ -114,6 +116,7 @@ class Property extends AbstractModel implements HasMedia
             'description' => $this->description,
             'type' => $this->type?->value,
             'contract_type' => $this->contract_type?->value,
+            'rent_period' => $this->rent_period?->value,
             'status' => $this->status?->value,
             'city' => optional($this->address)->city,
         ];

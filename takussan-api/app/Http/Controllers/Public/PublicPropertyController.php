@@ -38,6 +38,7 @@ class PublicPropertyController extends Controller
             'bathrooms' => 'nullable|integer|min:0|max:50',
             'type' => 'nullable|string',
             'contract_type' => 'nullable|in:sale,rent',
+            'rent_period' => 'nullable|string',
             'furnished' => 'nullable|boolean',
             'tags' => 'nullable|string',
             'lat_min' => 'nullable|numeric',
@@ -89,6 +90,9 @@ class PublicPropertyController extends Controller
         }
         if (! empty($validated['contract_type'])) {
             $query->where('contract_type', $validated['contract_type']);
+        }
+        if (! empty($validated['rent_period'])) {
+            $query->where('rent_period', $validated['rent_period']);
         }
         if (array_key_exists('furnished', $validated) && $validated['furnished'] !== null) {
             $query->where('furnished', $validated['furnished']);

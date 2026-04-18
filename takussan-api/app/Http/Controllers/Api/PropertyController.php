@@ -9,6 +9,7 @@ use App\Models\Enums\Currency;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
+use App\Models\Enums\RentPeriod;
 use App\Models\Property;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -55,6 +56,7 @@ class PropertyController extends Controller
             'description' => ['nullable', 'string'],
             'type' => ['required', Rule::enum(PropertyType::class)],
             'contract_type' => ['required', Rule::enum(ContractType::class)],
+            'rent_period' => ['nullable', Rule::enum(RentPeriod::class)],
             'status' => ['nullable', Rule::enum(PropertyStatus::class)],
             'visibility' => ['nullable', Rule::enum(PropertyVisibility::class)],
             'price' => ['required', 'numeric', 'min:0'],
@@ -121,6 +123,7 @@ class PropertyController extends Controller
             'description' => ['sometimes', 'nullable', 'string'],
             'type' => ['sometimes', Rule::enum(PropertyType::class)],
             'contract_type' => ['sometimes', Rule::enum(ContractType::class)],
+            'rent_period' => ['sometimes', 'nullable', Rule::enum(RentPeriod::class)],
             'status' => ['sometimes', Rule::enum(PropertyStatus::class)],
             'visibility' => ['sometimes', Rule::enum(PropertyVisibility::class)],
             'price' => ['sometimes', 'numeric', 'min:0'],
