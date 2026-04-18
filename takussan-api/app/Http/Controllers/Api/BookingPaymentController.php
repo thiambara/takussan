@@ -8,14 +8,15 @@ use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\PaymentMethod;
-use App\Models\Enums\PaymentStatus;
+use App\Services\Model\BookingPaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class BookingPaymentController extends Controller
 {
+    public function __construct(protected BookingPaymentService $payments) {}
+
     public function index(Request $request, Booking $booking): JsonResponse
     {
         $this->authorizeBookingAccess($request, $booking);
@@ -47,22 +48,7 @@ class BookingPaymentController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
-        $paidAt = $data['paid_at'] ?? now();
-
-        $payment = $booking->payments()->create([
-            'payer_id' => $booking->customer_id,
-            'collector_id' => $request->user()->id,
-            'reference_number' => 'BPY-'.strtoupper(Str::random(8)),
-            'receipt_number' => 'RCP-'.strtoupper(Str::random(6)),
-            'amount' => $data['amount'],
-            'currency' => $booking->currency?->value ?? 'XOF',
-            'payment_type' => $data['payment_type'],
-            'payment_method' => $data['payment_method'] ?? null,
-            'status' => PaymentStatus::Paid->value,
-            'paid_at' => $paidAt,
-            'transaction_id' => $data['transaction_id'] ?? null,
-            'notes' => $data['notes'] ?? null,
-        ]);
+        $payment = $this->payments->create($booking, $request->user(), $data);
 
         return $this->json([
             'data' => BookingPaymentResource::make($payment)->toArray($request),
@@ -75,31 +61,15 @@ class BookingPaymentController extends Controller
         abort_unless($payment->booking, 404);
         $this->authorizeBookingManage($request, $payment->booking);
 
-        abort_unless(
-            $payment->status === PaymentStatus::Paid,
-            422,
-            'Only paid payments can be refunded.'
-        );
-
         $data = $request->validate([
             'refund_amount' => ['required', 'numeric', 'gt:0'],
             'refund_reason' => ['nullable', 'string'],
         ]);
 
-        abort_if(
-            (float) $data['refund_amount'] > (float) $payment->amount,
-            422,
-            'Refund amount cannot exceed the paid amount.'
-        );
-
-        $payment->update([
-            'status' => PaymentStatus::Refunded->value,
-            'refund_amount' => $data['refund_amount'],
-            'refund_reason' => $data['refund_reason'] ?? null,
-        ]);
+        $payment = $this->payments->refund($payment, $data);
 
         return $this->json([
-            'data' => BookingPaymentResource::make($payment->refresh())->toArray($request),
+            'data' => BookingPaymentResource::make($payment)->toArray($request),
         ]);
     }
 

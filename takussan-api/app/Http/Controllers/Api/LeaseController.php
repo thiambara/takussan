@@ -5,18 +5,19 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\LeaseResource;
 use App\Models\Enums\Currency;
-use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\LeaseType;
 use App\Models\Enums\PaymentFrequency;
 use App\Models\Lease;
 use App\Models\Property;
+use App\Services\Model\LeaseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class LeaseController extends Controller
 {
+    public function __construct(protected LeaseService $leases) {}
+
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -69,22 +70,8 @@ class LeaseController extends Controller
             'terms' => ['nullable', 'string'],
         ]);
 
-        $user = $request->user();
         $property = Property::findOrFail($data['property_id']);
-
-        $canCreate = $user->hasRole(['admin', 'super_admin'])
-            || $property->user_id === $user->id
-            || ($user->agency_id && $property->agency_id === $user->agency_id);
-        abort_unless($canCreate, 403);
-
-        $lease = Lease::create(array_merge($data, [
-            'reference_number' => 'LS-'.strtoupper(Str::random(8)),
-            'landlord_id' => $property->user_id,
-            'agency_id' => $property->agency_id ?? $user->agency_id,
-            'status' => LeaseStatus::Draft->value,
-            'currency' => $data['currency'] ?? 'XOF',
-            'payment_frequency' => $data['payment_frequency'] ?? 'monthly',
-        ]));
+        $lease = $this->leases->create($property, $request->user(), $data);
 
         return $this->json([
             'data' => LeaseResource::make($lease->load(['property', 'tenant']))->toArray($request),
@@ -103,40 +90,25 @@ class LeaseController extends Controller
     public function activate(Request $request, Lease $lease): JsonResponse
     {
         $this->authorizeManage($request, $lease);
-        abort_unless($lease->status === LeaseStatus::Draft, 422, 'Only draft leases can be activated.');
-
-        $lease->update([
-            'status' => LeaseStatus::Active,
-            'signed_at' => now(),
-        ]);
+        $lease = $this->leases->activate($lease);
 
         return $this->json([
-            'data' => LeaseResource::make($lease->refresh())->toArray($request),
+            'data' => LeaseResource::make($lease)->toArray($request),
         ]);
     }
 
     public function terminate(Request $request, Lease $lease): JsonResponse
     {
         $this->authorizeManage($request, $lease);
-        abort_unless(
-            in_array($lease->status, [LeaseStatus::Active, LeaseStatus::PendingSignature], true),
-            422,
-            'Only active or pending-signature leases can be terminated.'
-        );
 
         $data = $request->validate([
             'reason' => ['nullable', 'string'],
         ]);
 
-        $lease->update([
-            'status' => LeaseStatus::Terminated,
-            'terminated_at' => now(),
-            'terminated_by_id' => $request->user()->id,
-            'termination_reason' => $data['reason'] ?? null,
-        ]);
+        $lease = $this->leases->terminate($lease, $request->user(), $data['reason'] ?? null);
 
         return $this->json([
-            'data' => LeaseResource::make($lease->refresh())->toArray($request),
+            'data' => LeaseResource::make($lease)->toArray($request),
         ]);
     }
 

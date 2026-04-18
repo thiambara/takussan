@@ -6,16 +6,17 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\LeasePaymentResource;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentMethod;
-use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Services\Model\LeasePaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class LeasePaymentController extends Controller
 {
+    public function __construct(protected LeasePaymentService $payments) {}
+
     public function index(Request $request, Lease $lease): JsonResponse
     {
         $this->authorizeLeaseAccess($request, $lease);
@@ -47,13 +48,7 @@ class LeasePaymentController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
-        $payment = $lease->payments()->create(array_merge($data, [
-            'reference_number' => 'LPY-'.strtoupper(Str::random(6)),
-            'payer_id' => $lease->tenant_id,
-            'collector_id' => $request->user()->id,
-            'currency' => $lease->currency?->value ?? 'XOF',
-            'status' => PaymentStatus::Pending->value,
-        ]));
+        $payment = $this->payments->create($lease, $request->user(), $data);
 
         return $this->json([
             'data' => LeasePaymentResource::make($payment)->toArray($request),
@@ -65,11 +60,6 @@ class LeasePaymentController extends Controller
         $payment->loadMissing('lease');
         abort_unless($payment->lease, 404);
         $this->authorizeLeaseManage($request, $payment->lease);
-        abort_unless(
-            in_array($payment->status, [PaymentStatus::Pending, PaymentStatus::Late], true),
-            422,
-            'Only pending or late payments can be marked paid.'
-        );
 
         $data = $request->validate([
             'paid_at' => ['nullable', 'date'],
@@ -77,15 +67,10 @@ class LeasePaymentController extends Controller
             'transaction_id' => ['nullable', 'string'],
         ]);
 
-        $payment->update([
-            'status' => PaymentStatus::Paid,
-            'paid_at' => $data['paid_at'] ?? now(),
-            'payment_method' => $data['payment_method'] ?? $payment->payment_method,
-            'transaction_id' => $data['transaction_id'] ?? $payment->transaction_id,
-        ]);
+        $payment = $this->payments->markPaid($payment, $data);
 
         return $this->json([
-            'data' => LeasePaymentResource::make($payment->refresh())->toArray($request),
+            'data' => LeasePaymentResource::make($payment)->toArray($request),
         ]);
     }
 
