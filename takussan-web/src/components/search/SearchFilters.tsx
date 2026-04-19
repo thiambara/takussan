@@ -50,7 +50,7 @@ export function SearchFilters({ filters, onSearch }: Props) {
         <label className="block text-sm font-medium text-stone-700 mb-2">Quartier</label>
         <Select
           value={filters.location ?? 'all'}
-          onValueChange={(v) => update({ location: v === 'all' ? undefined : v })}
+          onValueChange={(v) => update({ location: !v || v === 'all' ? undefined : v })}
         >
           <SelectTrigger className="w-full rounded-lg text-sm h-9">
             <SelectValue />

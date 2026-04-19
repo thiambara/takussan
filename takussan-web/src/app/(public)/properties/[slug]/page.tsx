@@ -48,7 +48,7 @@ export default function PropertyDetailPage() {
   }
 
   const photos = property.photos
-    ? property.photos.map(p => p.medium)
+    ? property.photos.map(p => p.preview)
     : property.main_photo_url
       ? [property.main_photo_url]
       : [];

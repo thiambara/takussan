@@ -61,7 +61,7 @@ export function Hero({ className }: HeroProps) {
           {/* Transaction Select */}
           <div className="flex-1 flex items-center px-6 py-2 md:border-r border-gray-200 w-full">
             <Home className="text-primary mr-3 w-5 h-5 shrink-0" />
-            <Select value={transaction} onValueChange={setTransaction}>
+            <Select value={transaction} onValueChange={(v) => setTransaction(v ?? 'Acheter')}>
               <SelectTrigger className="w-full border-none shadow-none bg-transparent p-0 h-auto gap-1 text-gray-900 font-medium focus-visible:ring-0 focus-visible:border-transparent">
                 <SelectValue />
               </SelectTrigger>

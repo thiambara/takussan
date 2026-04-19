@@ -30,7 +30,7 @@ function EmptyState({ onReset }: { onReset: () => void }) {
       <SearchX className="w-12 h-12 text-gray-300 mb-4" />
       <h3 className="text-lg font-bold text-gray-700 mb-1">Aucun bien trouvé</h3>
       <p className="text-sm text-gray-400 mb-6 max-w-xs">
-        Essayez d'élargir vos critères de recherche ou de supprimer certains filtres.
+        Essayez d&apos;élargir vos critères de recherche ou de supprimer certains filtres.
       </p>
       <button
         onClick={onReset}
