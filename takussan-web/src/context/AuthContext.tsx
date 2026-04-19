@@ -33,8 +33,9 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
   );
 }
 
+const noopSetUser = () => {};
+
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');
-  return ctx;
+  return ctx ?? { user: null, isLoading: false, setUser: noopSetUser };
 }
