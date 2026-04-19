@@ -1,0 +1,94 @@
+'use client';
+import { useCallback, useEffect, useState } from 'react';
+import Image from 'next/image';
+import useEmblaCarousel from 'embla-carousel-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import type { PropertyPhoto } from '@/types/property';
+
+interface PropertyMobileGalleryProps {
+  photos: PropertyPhoto[];
+  title: string;
+  onOpenLightbox: (startIndex: number) => void;
+}
+
+export function PropertyMobileGallery({ photos, title, onOpenLightbox }: PropertyMobileGalleryProps) {
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
+  const [selected, setSelected] = useState(0);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setSelected(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    emblaApi.on('select', onSelect);
+    // Sync initial snap state from the embla instance (external system).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelected(emblaApi.selectedScrollSnap());
+    return () => {
+      emblaApi.off('select', onSelect);
+    };
+  }, [emblaApi, onSelect]);
+
+  if (photos.length === 0) {
+    return (
+      <div className="aspect-[4/3] bg-stone-100 flex items-center justify-center text-stone-400">
+        Aucune photo
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative md:hidden">
+      <div className="overflow-hidden" ref={emblaRef}>
+        <div className="flex">
+          {photos.map((photo, i) => (
+            <button
+              key={photo.id}
+              type="button"
+              onClick={() => onOpenLightbox(i)}
+              className="relative flex-[0_0_100%] aspect-[4/3]"
+              aria-label={`Ouvrir la photo ${i + 1}`}
+            >
+              <Image
+                src={photo.preview}
+                alt={`${title} - photo ${i + 1}`}
+                fill
+                sizes="100vw"
+                className="object-cover"
+                priority={i === 0}
+              />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {photos.length > 1 && (
+        <>
+          <button
+            type="button"
+            onClick={() => emblaApi?.scrollPrev()}
+            aria-label="Photo précédente"
+            className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow-md disabled:opacity-50"
+            disabled={selected === 0}
+          >
+            <ChevronLeft className="size-4" aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={() => emblaApi?.scrollNext()}
+            aria-label="Photo suivante"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow-md disabled:opacity-50"
+            disabled={selected === photos.length - 1}
+          >
+            <ChevronRight className="size-4" aria-hidden />
+          </button>
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-xs text-white">
+            {selected + 1} / {photos.length}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
