@@ -79,7 +79,7 @@ export function SearchToolbar({
         <p className="text-sm font-semibold text-gray-700">
           {loading ? (
             <span className="inline-flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full border-2 border-[#0050cb] border-t-transparent animate-spin" />
+              <span className="w-3 h-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
               Chargement…
             </span>
           ) : (
@@ -92,7 +92,7 @@ export function SearchToolbar({
           <select
             value={filters.per_page ?? 20}
             onChange={(e) => onPerPageChange(Number(e.target.value))}
-            className="text-sm border border-gray-200 rounded-full px-3 py-1.5 text-gray-700 bg-white outline-none focus:ring-2 focus:ring-[#0050cb]/20 focus:border-[#0050cb] cursor-pointer transition-colors"
+            className="text-sm border border-gray-200 rounded-full px-3 py-1.5 text-gray-700 bg-white outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer transition-colors"
             aria-label="Résultats par page"
           >
             {[12, 20, 36, 60].map(n => (
@@ -104,7 +104,7 @@ export function SearchToolbar({
           <select
             value={filters.sort ?? 'relevance'}
             onChange={(e) => onSortChange(e.target.value as SearchFilters['sort'])}
-            className="text-sm border border-gray-200 rounded-full px-3 py-1.5 text-gray-700 bg-white outline-none focus:ring-2 focus:ring-[#0050cb]/20 focus:border-[#0050cb] cursor-pointer transition-colors"
+            className="text-sm border border-gray-200 rounded-full px-3 py-1.5 text-gray-700 bg-white outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer transition-colors"
           >
             {SORT_OPTIONS.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -114,12 +114,12 @@ export function SearchToolbar({
           {/* Filters button (mobile) */}
           <button
             onClick={onOpenSidebar}
-            className="md:hidden relative flex items-center gap-2 text-sm font-semibold border border-gray-300 rounded-full px-4 py-1.5 hover:border-[#0050cb] hover:text-[#0050cb] transition-colors"
+            className="md:hidden relative flex items-center gap-2 text-sm font-semibold border border-gray-300 rounded-full px-4 py-1.5 hover:border-primary hover:text-primary transition-colors"
           >
             <SlidersHorizontal className="w-4 h-4" />
             Filtres
             {activeCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#0050cb] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
                 {activeCount}
               </span>
             )}
@@ -134,7 +134,7 @@ export function SearchToolbar({
             <button
               key={subKey ? `${key}-${subKey}` : key}
               onClick={() => onRemoveFilter(key, subKey)}
-              className="flex items-center gap-1.5 text-xs font-semibold bg-[#0050cb]/8 text-[#0050cb] border border-[#0050cb]/20 rounded-full px-3 py-1 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors group"
+              className="flex items-center gap-1.5 text-xs font-semibold bg-primary/8 text-primary border border-primary/20 rounded-full px-3 py-1 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors group"
             >
               {label}
               <X className="w-3 h-3 opacity-60 group-hover:opacity-100" />

@@ -34,7 +34,7 @@ function EmptyState({ onReset }: { onReset: () => void }) {
       </p>
       <button
         onClick={onReset}
-        className="text-sm font-semibold text-[#0050cb] underline underline-offset-4 hover:text-[#0043a8] transition-colors"
+        className="text-sm font-semibold text-primary underline underline-offset-4 hover:text-primary/80 transition-colors"
       >
         Effacer tous les filtres
       </button>
@@ -65,7 +65,7 @@ export function PropertiesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa]">
+    <div className="min-h-screen bg-surface">
       <Navbar />
 
       {/* Spacer under fixed navbar (navbar row1 ~65px + category row2 ~68px) */}

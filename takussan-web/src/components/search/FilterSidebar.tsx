@@ -2,6 +2,9 @@
 
 import React, { useCallback } from 'react';
 import { X, RotateCcw, Search, Star, Tag } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import type { SearchFilters } from '@/types/search';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -34,8 +37,8 @@ function ChipGroup<T extends string | number>({
             onClick={() => onChange(isActive ? undefined : opt.value)}
             className={`px-3.5 py-1.5 rounded-full text-[13px] font-semibold border transition-all duration-150 ${
               isActive
-                ? 'bg-[#0050cb] border-[#0050cb] text-white'
-                : 'border-gray-200 text-gray-600 hover:border-[#0050cb] hover:text-[#0050cb]'
+                ? 'bg-primary border-primary text-primary-foreground'
+                : 'border-gray-200 text-gray-600 hover:border-primary hover:text-primary'
             }`}
           >
             {opt.label}
@@ -64,20 +67,20 @@ function RangeInputs({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <input
+        <Input
           type="number"
           placeholder={placeholderMin}
           value={valueMin ?? ''}
           onChange={(e) => onChange(e.target.value ? Number(e.target.value) : undefined, valueMax)}
-          className="min-w-0 w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#0050cb] focus:ring-2 focus:ring-[#0050cb]/10 transition"
+          className="rounded-xl"
         />
         <span className="shrink-0 text-gray-400 text-sm">–</span>
-        <input
+        <Input
           type="number"
           placeholder={placeholderMax}
           value={valueMax ?? ''}
           onChange={(e) => onChange(valueMin, e.target.value ? Number(e.target.value) : undefined)}
-          className="min-w-0 w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#0050cb] focus:ring-2 focus:ring-[#0050cb]/10 transition"
+          className="rounded-xl"
         />
       </div>
       {hint && <p className="text-[11px] text-gray-400">{hint}</p>}
@@ -167,19 +170,17 @@ export function FilterSidebar({
     <div className="flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
-        <h2 className="text-base font-bold text-gray-900">
+        <h2 className="text-base font-bold text-gray-900 flex items-center">
           Filtres
           {activeCount > 0 && (
-            <span className="ml-2 bg-[#0050cb] text-white text-[11px] font-bold px-2 py-0.5 rounded-full">
-              {activeCount}
-            </span>
+            <Badge className="ml-2">{activeCount}</Badge>
           )}
         </h2>
         <div className="flex items-center gap-2">
           {activeCount > 0 && (
             <button
               onClick={onReset}
-              className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#0050cb] transition-colors"
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-primary transition-colors"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               Tout effacer
@@ -224,8 +225,8 @@ export function FilterSidebar({
                   }}
                   className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all duration-150 ${
                     isActive
-                      ? 'bg-[#0050cb] border-[#0050cb] text-white'
-                      : 'border-gray-200 text-gray-600 hover:border-[#0050cb] hover:text-[#0050cb]'
+                      ? 'bg-primary border-primary text-primary-foreground'
+                      : 'border-gray-200 text-gray-600 hover:border-primary hover:text-primary'
                   }`}
                 >
                   {opt.label}
@@ -249,19 +250,19 @@ export function FilterSidebar({
         {/* 4. Location */}
         <Section title="Localisation">
           <div className="space-y-2">
-            <input
+            <Input
               type="text"
               placeholder="Ville (ex : Dakar, Mbour…)"
               value={filters.city ?? ''}
               onChange={(e) => set({ city: e.target.value || undefined })}
-              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#0050cb] focus:ring-2 focus:ring-[#0050cb]/10 transition"
+              className="rounded-xl"
             />
-            <input
+            <Input
               type="text"
               placeholder="Quartier (ex : Plateau, Almadies…)"
               value={filters.location ?? ''}
               onChange={(e) => set({ location: e.target.value || undefined })}
-              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#0050cb] focus:ring-2 focus:ring-[#0050cb]/10 transition"
+              className="rounded-xl"
             />
           </div>
         </Section>
@@ -314,13 +315,13 @@ export function FilterSidebar({
               onClick={() => set({ furnished: filters.furnished === true ? undefined : true })}
               className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border transition-all duration-150 ${
                 filters.furnished === true
-                  ? 'bg-[#0050cb]/5 border-[#0050cb] text-[#0050cb]'
+                  ? 'bg-primary/5 border-primary text-primary'
                   : 'border-gray-200 text-gray-600 hover:border-gray-300'
               }`}
             >
               <span
                 className={`relative shrink-0 w-10 h-5 rounded-full transition-colors duration-200 ${
-                  filters.furnished === true ? 'bg-[#0050cb]' : 'bg-gray-200'
+                  filters.furnished === true ? 'bg-primary' : 'bg-gray-200'
                 }`}
               >
                 <span
@@ -354,12 +355,12 @@ export function FilterSidebar({
         <Section title="Équipements">
           <div className="relative">
             <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            <input
+            <Input
               type="text"
               placeholder="piscine, parking, terrasse…"
               value={filters.tags ?? ''}
               onChange={(e) => set({ tags: e.target.value || undefined })}
-              className="w-full text-sm border border-gray-200 rounded-xl pl-9 pr-3 py-2 outline-none focus:border-[#0050cb] focus:ring-2 focus:ring-[#0050cb]/10 transition"
+              className="rounded-xl pl-9"
             />
           </div>
           <p className="text-[11px] text-gray-400 mt-1.5">Séparez par des virgules</p>
@@ -369,12 +370,12 @@ export function FilterSidebar({
         <Section title="Recherche avancée">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            <input
+            <Input
               type="text"
               placeholder="Mot-clé, référence, description…"
               value={filters.q ?? ''}
               onChange={(e) => set({ q: e.target.value || undefined })}
-              className="w-full text-sm border border-gray-200 rounded-xl pl-9 pr-3 py-2 outline-none focus:border-[#0050cb] focus:ring-2 focus:ring-[#0050cb]/10 transition"
+              className="rounded-xl pl-9"
             />
           </div>
         </Section>
@@ -402,12 +403,12 @@ export function FilterSidebar({
               {content}
             </div>
             <div className="px-5 py-4 border-t border-gray-100 bg-white shrink-0">
-              <button
+              <Button
                 onClick={onClose}
-                className="w-full bg-[#0050cb] text-white font-semibold py-3 rounded-full text-sm hover:bg-[#0043a8] transition-colors active:scale-[0.98]"
+                className="w-full rounded-full h-12 text-sm font-semibold"
               >
                 Voir les résultats
-              </button>
+              </Button>
             </div>
           </div>
         </div>
