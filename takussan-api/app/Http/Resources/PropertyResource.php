@@ -19,7 +19,7 @@ class PropertyResource extends JsonResource
     public function toArray(Request $request): array
     {
         $isDetail = $request->routeIs('public.properties.show') || $request->routeIs('properties.show');
-        $address = $this->resource->relationLoaded('address') ? $this->resource->address : $this->resource->address;
+        $address = $this->resource->relationLoaded('address') ? $this->resource->address : null;
 
         return [
             'id' => $this->id,
@@ -122,6 +122,15 @@ class PropertyResource extends JsonResource
 
     private function computeAverageRating(): ?float
     {
+        if ($this->resource->relationLoaded('reviews')) {
+            $reviews = $this->resource->reviews;
+            if ($reviews->isEmpty()) {
+                return null;
+            }
+
+            return round((float) $reviews->avg('rating'), 2);
+        }
+
         $avg = $this->resource->reviews()->where('is_approved', true)->avg('rating');
 
         return $avg !== null ? round((float) $avg, 2) : null;
@@ -129,6 +138,10 @@ class PropertyResource extends JsonResource
 
     private function computeReviewsCount(): int
     {
+        if ($this->resource->relationLoaded('reviews')) {
+            return $this->resource->reviews->count();
+        }
+
         return (int) $this->resource->reviews()->where('is_approved', true)->count();
     }
 
