@@ -1,8 +1,10 @@
 'use client';
 import Image from 'next/image';
+import { useState } from 'react';
 import { BadgeCheck, MessageCircle, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WhatsAppButton } from '@/components/contact/WhatsAppButton';
+import { apiFetch } from '@/lib/api';
 import type { PropertyAgencyLite, PropertyOwnerLite } from '@/types/property';
 
 interface PropertyAgentCardProps {
@@ -20,6 +22,26 @@ export function PropertyAgentCard({
   propertyTitle,
   onMessage,
 }: PropertyAgentCardProps) {
+  const [calling, setCalling] = useState(false);
+
+  async function handleCall() {
+    setCalling(true);
+    try {
+      const res = await apiFetch<{ phone: string | null }>(
+        `/public/properties/${propertySlug}/contact`,
+      );
+      if (res.phone) {
+        window.location.href = `tel:${res.phone.replace(/\s/g, '')}`;
+      } else {
+        alert('Numéro de téléphone indisponible pour ce bien.');
+      }
+    } catch {
+      alert('Impossible de récupérer le numéro. Veuillez réessayer.');
+    } finally {
+      setCalling(false);
+    }
+  }
+
   return (
     <div className="rounded-xl border border-stone-200 bg-white p-5 space-y-4">
       <div className="flex items-center gap-3">
@@ -60,14 +82,17 @@ export function PropertyAgentCard({
           <MessageCircle className="size-4" aria-hidden />
           Message
         </Button>
-        <a
-          href={`tel:+221`}
-          className="inline-flex items-center justify-center gap-2 rounded-md border border-stone-300 bg-white px-3 h-9 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors"
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleCall}
+          disabled={calling}
+          className="gap-2"
           aria-label="Appeler"
         >
           <Phone className="size-4" aria-hidden />
-          Appeler
-        </a>
+          {calling ? 'Connexion…' : 'Appeler'}
+        </Button>
       </div>
 
       <WhatsAppButton slug={propertySlug} title={propertyTitle} />
