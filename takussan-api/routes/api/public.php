@@ -33,5 +33,8 @@ Route::prefix('public')->name('public.')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('properties/{slug}/booking-request', [PublicPropertyController::class, 'bookingRequest'])
             ->name('properties.booking-request');
+
+        Route::post('properties/{slug}/contact-message', [PublicPropertyController::class, 'contactMessage'])
+            ->name('properties.contact-message');
     });
 });

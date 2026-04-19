@@ -8,7 +8,13 @@ use App\Http\Resources\PropertyResource;
 use App\Http\Resources\PropertyVisitResource;
 use App\Http\Resources\ReviewResource;
 use App\Models\Booking;
+use App\Models\Conversation;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\CollaboratorRole;
+use App\Models\Enums\ConversationStatus;
+use App\Models\Enums\ConversationType;
+use App\Models\Enums\MessageType;
+use App\Models\Enums\NotificationType;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\VisitStatus;
@@ -17,10 +23,12 @@ use App\Models\Property;
 use App\Models\PropertyReport;
 use App\Models\PropertyVisit;
 use App\Services\Model\CustomerService;
+use App\Services\Model\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
 
@@ -392,6 +400,79 @@ class PublicPropertyController extends Controller
 
         return $this->json([
             'data' => BookingResource::make($booking)->toArray($request),
+        ], 201);
+    }
+
+    public function contactMessage(Request $request, NotificationService $notifications, string $slug): JsonResponse
+    {
+        $property = Property::query()
+            ->with('owner', 'collaborators.user')
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        $data = $request->validate([
+            'message' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $user = $request->user();
+        abort_if($user === null, 401);
+
+        $primaryAgent = $property->collaborators
+            ->firstWhere('role', CollaboratorRole::Agent)?->user
+            ?? $property->owner;
+
+        abort_if($primaryAgent === null, 422, 'No recipient available.');
+        abort_if($primaryAgent->id === $user->id, 422, 'You cannot message yourself.');
+
+        $conversation = Conversation::query()
+            ->where('property_id', $property->id)
+            ->whereHas('participants', fn ($q) => $q->where('user_id', $user->id))
+            ->whereHas('participants', fn ($q) => $q->where('user_id', $primaryAgent->id))
+            ->first();
+
+        $conversation ??= DB::transaction(function () use ($user, $primaryAgent, $property) {
+            $conv = Conversation::create([
+                'type' => ConversationType::Direct->value,
+                'status' => ConversationStatus::Active->value,
+                'created_by' => $user->id,
+                'property_id' => $property->id,
+            ]);
+            $conv->participants()->attach([
+                $user->id => ['joined_at' => now()],
+                $primaryAgent->id => ['joined_at' => now()],
+            ]);
+
+            return $conv;
+        });
+
+        $message = $conversation->messages()->create([
+            'sender_id' => $user->id,
+            'content' => $data['message'],
+            'type' => MessageType::Text->value,
+        ]);
+
+        $conversation->update([
+            'last_message_id' => $message->id,
+            'last_message_preview' => mb_substr($data['message'], 0, 255),
+            'last_message_at' => now(),
+        ]);
+
+        $fullName = trim(($user->first_name ?? '').' '.($user->last_name ?? '')) ?: ($user->username ?? 'Utilisateur');
+        $notifications->notify(
+            $primaryAgent,
+            NotificationType::Message,
+            'Nouveau message',
+            $fullName.': '.mb_strimwidth($data['message'], 0, 80, '…'),
+            ['conversation_id' => $conversation->id, 'message_id' => $message->id],
+        );
+
+        return $this->json([
+            'data' => [
+                'conversation_id' => $conversation->id,
+                'redirect_to' => "/messages/{$conversation->id}",
+            ],
         ], 201);
     }
 
