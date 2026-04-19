@@ -7,10 +7,12 @@ use App\Http\Resources\PropertyResource;
 use App\Http\Resources\ReviewResource;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
+use App\Models\PropertyReport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Validation\Rule;
 
 class PublicPropertyController extends Controller
 {
@@ -265,6 +267,30 @@ class PublicPropertyController extends Controller
                 'distribution' => $distribution,
             ],
         ]);
+    }
+
+    public function report(Request $request, string $slug): JsonResponse
+    {
+        $property = Property::query()
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        $data = $request->validate([
+            'reason' => ['required', Rule::in(['spam', 'misleading', 'fraud', 'inappropriate_content', 'other'])],
+            'details' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        PropertyReport::create([
+            'property_id' => $property->id,
+            'reporter_user_id' => $request->user()?->id,
+            'reporter_ip' => $request->ip(),
+            'reason' => $data['reason'],
+            'details' => $data['details'] ?? null,
+        ]);
+
+        return $this->json(null, 204);
     }
 
     public function contact(string $slug): JsonResponse

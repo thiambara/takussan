@@ -21,4 +21,8 @@ Route::prefix('public')->name('public.')->group(function () {
 
     Route::get('properties/{slug}/reviews', [PublicPropertyController::class, 'reviews'])
         ->name('properties.reviews');
+
+    Route::post('properties/{slug}/report', [PublicPropertyController::class, 'report'])
+        ->middleware('throttle:5,60')
+        ->name('properties.report');
 });
