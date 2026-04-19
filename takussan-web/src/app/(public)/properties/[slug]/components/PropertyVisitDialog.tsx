@@ -60,7 +60,7 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
           : {
               visitor_name: name,
               visitor_email: email,
-              visitor_phone: phone || undefined,
+              visitor_phone: phone,
             }),
       });
       onOpenChange(false);
@@ -129,7 +129,8 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
               />
               <Input
                 type="tel"
-                placeholder="Téléphone (optionnel)"
+                required
+                placeholder="Téléphone"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
               />
