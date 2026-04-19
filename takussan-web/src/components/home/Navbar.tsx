@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Search, MapPin, Home, Menu, X, ChevronDown, Building2, TreePine, Store, Warehouse, Briefcase } from 'lucide-react';
-import { navLinks, categories } from '@/data/mockData';
+import React, { useState, useRef, useEffect } from 'react';
+import { Search, MapPin, Home, Menu, X, ChevronDown, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle } from 'lucide-react';
+import { navLinks, categories, moreCategories } from '@/data/mockData';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   apartment: Building2,
@@ -11,6 +11,16 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   store: Store,
   house: Warehouse,
   business: Briefcase,
+  studio: BedDouble,
+  room: BedDouble,
+  warehouse: Factory,
+  hotel: Hotel,
+  resort: Hotel,
+  garage: Car,
+  parking: ParkingCircle,
+  farm: Tractor,
+  factory: Factory,
+  other: HelpCircle,
 };
 
 export interface NavbarProps {
@@ -22,6 +32,19 @@ export function Navbar({ className }: NavbarProps) {
   const [location, setLocation] = useState('');
   const [transaction, setTransaction] = useState('Acheter');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+
+  // Close more dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <nav
@@ -66,26 +89,68 @@ export function Navbar({ className }: NavbarProps) {
             </button>
           </div>
 
-          {/* Category strip — flush left, no divider */}
-          <div className="flex gap-1 -ml-2">
+          {/* Category strip */}
+          <div className="flex items-center gap-0 -ml-2">
             {categories.map((cat) => {
               const Icon = iconMap[cat.icon] || Building2;
-              const isActive = activeCategory === cat.id;
+              const isActive = activeCategory === cat.type;
               return (
                 <button
                   key={cat.id}
-                  onClick={() => setActiveCategory(isActive ? null : cat.id)}
-                  className={`flex flex-col items-center gap-1.5 px-4 py-2.5 border-b-2 transition-all duration-150 ${
-                    isActive
-                      ? 'border-gray-900 text-gray-900'
-                      : 'border-transparent text-gray-500 hover:border-gray-400 hover:text-gray-700'
-                  }`}
+                  onClick={() => setActiveCategory(isActive ? null : cat.type)}
+                  className={`flex flex-col items-center gap-1 px-3 py-2 border-b-2 transition-all duration-150 ${isActive
+                    ? 'border-gray-900 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:border-gray-400 hover:text-gray-700'
+                    }`}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span className="text-xs font-semibold whitespace-nowrap">{cat.name}</span>
+                  <Icon className="w-[18px] h-[18px]" />
+                  <span className="text-[11px] font-semibold whitespace-nowrap">{cat.name}</span>
                 </button>
               );
             })}
+
+            {/* More dropdown button */}
+            <div className="relative" ref={moreRef}>
+              <button
+                onClick={() => setMoreOpen((o) => !o)}
+                className={`flex flex-col items-center gap-1 px-3 py-2 border-b-2 transition-all duration-150 ${moreCategories.some((c) => c.type === activeCategory)
+                  ? 'border-gray-900 text-gray-900'
+                  : 'border-transparent text-gray-500 hover:border-gray-400 hover:text-gray-700'
+                  }`}
+                aria-label="Plus de types"
+              >
+                {moreOpen ? <ChevronUp className="w-[18px] h-[18px]" /> : <PlusCircle className="w-[18px] h-[18px]" />}
+                <span className="text-[11px] font-semibold whitespace-nowrap">Plus</span>
+              </button>
+
+              {moreOpen && (
+                <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 p-3 z-50 grid grid-cols-2 gap-1 animate-in fade-in slide-in-from-top-2 duration-150">
+                  {moreCategories.map((cat) => {
+                    const Icon = iconMap[cat.icon] || HelpCircle;
+                    const isActive = activeCategory === cat.type;
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => {
+                          setActiveCategory(isActive ? null : cat.type);
+                          setMoreOpen(false);
+                        }}
+                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-colors ${isActive
+                          ? 'bg-[#0050cb]/10 text-[#0050cb] font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                          }`}
+                      >
+                        <Icon className="w-[18px] h-[18px] shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-[12px] font-semibold leading-none truncate">{cat.name}</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">{cat.count} biens</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -135,11 +200,10 @@ export function Navbar({ className }: NavbarProps) {
                 <button
                   key={t}
                   onClick={() => setTransaction(t)}
-                  className={`flex-1 py-2 rounded-full text-sm font-semibold transition-colors ${
-                    transaction === t
-                      ? 'bg-[#0050cb] text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                  className={`flex-1 py-2 rounded-full text-sm font-semibold transition-colors ${transaction === t
+                    ? 'bg-[#0050cb] text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
                 >
                   {t}
                 </button>
@@ -152,16 +216,15 @@ export function Navbar({ className }: NavbarProps) {
             <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {categories.map((cat) => {
                 const Icon = iconMap[cat.icon] || Building2;
-                const isActive = activeCategory === cat.id;
+                const isActive = activeCategory === cat.type;
                 return (
                   <button
                     key={cat.id}
-                    onClick={() => setActiveCategory(isActive ? null : cat.id)}
-                    className={`flex flex-col items-center gap-1 shrink-0 px-4 py-2.5 rounded-xl transition-colors ${
-                      isActive
-                        ? 'bg-[#0050cb]/10 text-[#0050cb]'
-                        : 'text-gray-500 hover:bg-gray-100'
-                    }`}
+                    onClick={() => setActiveCategory(isActive ? null : cat.type)}
+                    className={`flex flex-col items-center gap-1 shrink-0 px-4 py-2.5 rounded-xl transition-colors ${isActive
+                      ? 'bg-[#0050cb]/10 text-[#0050cb]'
+                      : 'text-gray-500 hover:bg-gray-100'
+                      }`}
                   >
                     <Icon className="w-5 h-5" />
                     <span className="text-xs font-semibold whitespace-nowrap">{cat.name}</span>
@@ -178,9 +241,8 @@ export function Navbar({ className }: NavbarProps) {
                 key={link.label}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
-                className={`font-semibold text-base transition-colors ${
-                  link.active ? 'text-[#0050cb]' : 'text-slate-700 hover:text-[#0050cb]'
-                }`}
+                className={`font-semibold text-base transition-colors ${link.active ? 'text-[#0050cb]' : 'text-slate-700 hover:text-[#0050cb]'
+                  }`}
               >
                 {link.label}
               </a>

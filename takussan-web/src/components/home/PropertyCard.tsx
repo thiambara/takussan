@@ -13,7 +13,26 @@ const RENT_PERIOD_LABEL: Record<RentPeriod, string> = {
   monthly: 'mois',
   yearly: 'an',
 };
-import type { PropertyListItem } from '@/types/property';
+import type { PropertyListItem, PropertyType } from '@/types/property';
+
+const PROPERTY_TYPE_LABEL: Record<PropertyType, string> = {
+  apartment: 'Appartement',
+  house: 'Maison',
+  villa: 'Villa',
+  studio: 'Studio',
+  room: 'Chambre',
+  land: 'Terrain',
+  office: 'Bureau',
+  shop: 'Boutique',
+  warehouse: 'Entrepôt',
+  factory: 'Usine',
+  farm: 'Ferme',
+  hotel: 'Hôtel',
+  resort: 'Complexe',
+  garage: 'Garage',
+  parking: 'Parking',
+  other: 'Autre',
+};
 
 const FALLBACK_IMAGE = 'https://placehold.co/800x533/e7e5e4/a8a29e?text=Photo+%C3%A0+venir';
 
@@ -58,9 +77,8 @@ export function PropertyCard({ property, index = 0, priority = false, className 
       <div
         ref={ref}
         style={{ animationDelay: `${index * 60}ms` }}
-        className={`group cursor-pointer transition-opacity duration-300 ${
-          visible ? 'animate-fade-in-up' : 'opacity-0'
-        } ${className || ''}`}
+        className={`group cursor-pointer transition-opacity duration-300 ${visible ? 'animate-fade-in-up' : 'opacity-0'
+          } ${className || ''}`}
       >
         {/* Image Container */}
         <div className="relative aspect-4/3 rounded-xl overflow-hidden mb-5">
@@ -75,16 +93,15 @@ export function PropertyCard({ property, index = 0, priority = false, className 
 
           {/* Transaction Badge */}
           <div
-            className={`absolute top-3 left-3 flex items-center gap-1.5 backdrop-blur-md text-white text-[10px] font-semibold tracking-wide px-2.5 py-1 rounded-full ${
-              isSale ? 'bg-[#0050cb]/80' : 'bg-[#2e7d32]/80'
-            }`}
+            className={`absolute top-4 left-4 flex items-center gap-1.5 backdrop-blur-md text-white text-[10px] font-semibold tracking-wide px-2.5 py-1 rounded-full ${isSale ? 'bg-[#0050cb]/80' : 'bg-[#2e7d32]/80'
+              }`}
           >
             <span className={`w-1.5 h-1.5 rounded-full ${isSale ? 'bg-sky-300' : 'bg-emerald-300'}`} />
             {isSale ? 'En vente' : 'En location'}
           </div>
 
           {/* Time Badge */}
-          <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-black/30 backdrop-blur-md text-white text-[10px] font-medium px-2 py-1 rounded-full">
+          <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-black/50 backdrop-blur-md text-white text-[10px] font-medium px-2 py-1 rounded-full shadow-sm">
             <Clock className="w-2.5 h-2.5 opacity-80" />
             {timeAgo}
           </div>
@@ -97,43 +114,44 @@ export function PropertyCard({ property, index = 0, priority = false, className 
               setIsFavorite((f) => !f);
             }}
             aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-            className={`absolute top-4 right-4 w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-200 ${
-              isFavorite
-                ? 'bg-white text-red-500'
-                : 'bg-white/20 text-white hover:bg-white hover:text-[#0050cb]'
-            }`}
+            className={`absolute top-4 right-4 w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-200 ${isFavorite
+              ? 'bg-white text-red-500'
+              : 'bg-white/20 text-white hover:bg-white hover:text-[#0050cb]'
+              }`}
           >
             <Heart className={`w-5 h-5 transition-all ${isFavorite ? 'fill-current' : ''}`} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="space-y-2">
-          <h3 className="font-bold text-lg text-gray-900">{property.title}</h3>
-          <p className="text-[#0050cb] font-bold">
+        <div className="space-y-1 mt-3">
+          <p className="text-[#0050cb] font-bold text-[15px] truncate" title={formatPrice(property.price, property.currency ?? 'XOF')}>
             {formatPrice(property.price, property.currency ?? 'XOF')}
             {property.contract_type === 'rent' && property.rent_period && (
-              <span className="text-sm font-semibold text-gray-400">
+              <span className="text-sm font-semibold text-gray-400 ml-0.5">
                 /{RENT_PERIOD_LABEL[property.rent_period]}
               </span>
             )}
           </p>
-          <p className="text-gray-500 text-sm flex items-center gap-1">
-            <MapPin className="w-4 h-4" />
-            {location}
+          <h3 className="font-semibold text-[14px] leading-snug text-gray-900 line-clamp-2 h-10" title={property.title}>
+            {property.title}
+          </h3>
+          <p className="text-gray-500 text-sm flex items-center gap-1.5 truncate" title={location}>
+            <MapPin className="w-4 h-4 shrink-0" />
+            <span className="truncate">{location}</span>
           </p>
-          <div className="flex items-center gap-4 pt-2 text-xs font-semibold text-gray-400">
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs font-semibold text-gray-400">
             {property.bedrooms != null && property.bedrooms > 0 && (
               <>
                 <span>{property.bedrooms} Ch.</span>
-                <span className="w-1 h-1 bg-gray-300 rounded-full" />
+                <span className="text-gray-300">&bull;</span>
               </>
             )}
-            <span>{surface}</span>
+            <span className="truncate">{surface}</span>
             {property.type && (
               <>
-                <span className="w-1 h-1 bg-gray-300 rounded-full" />
-                <span>{property.type}</span>
+                <span className="text-gray-300">&bull;</span>
+                <span className="truncate capitalize">{PROPERTY_TYPE_LABEL[property.type] || property.type}</span>
               </>
             )}
           </div>

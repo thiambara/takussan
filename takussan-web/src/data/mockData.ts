@@ -16,6 +16,7 @@ export interface Category {
   readonly name: string;
   readonly icon: string;
   readonly count: number;
+  readonly type: string | null; // matches PropertyType enum value from the backend
 }
 
 export const featuredProperties: readonly Property[] = [
@@ -313,12 +314,25 @@ export const latestProperties: readonly Property[] = [
 ];
 
 export const categories: readonly Category[] = [
-  { id: '1', name: 'Appartement', icon: 'apartment', count: 184 },
-  { id: '2', name: 'Villa', icon: 'villa', count: 47 },
-  { id: '3', name: 'Terrain', icon: 'terrain', count: 92 },
-  { id: '4', name: 'Commerce', icon: 'store', count: 63 },
-  { id: '5', name: 'Maison', icon: 'house', count: 118 },
-  { id: '6', name: 'Bureau', icon: 'business', count: 39 },
+  { id: '1', name: 'Appartement', icon: 'apartment', count: 184, type: 'apartment' },
+  { id: '2', name: 'Villa',       icon: 'villa',     count: 47,  type: 'villa' },
+  { id: '3', name: 'Terrain',    icon: 'terrain',   count: 92,  type: 'land' },
+  { id: '4', name: 'Commerce',   icon: 'store',     count: 63,  type: 'shop' },
+  { id: '5', name: 'Maison',     icon: 'house',     count: 118, type: 'house' },
+  { id: '6', name: 'Bureau',     icon: 'business',  count: 39,  type: 'office' },
+];
+
+export const moreCategories: readonly Category[] = [
+  { id: '7',  name: 'Studio',    icon: 'studio',    count: 56,  type: 'studio' },
+  { id: '8',  name: 'Chambre',   icon: 'room',      count: 72,  type: 'room' },
+  { id: '9',  name: 'Entrepôt', icon: 'warehouse', count: 14,  type: 'warehouse' },
+  { id: '10', name: 'Hôtel',    icon: 'hotel',     count: 9,   type: 'hotel' },
+  { id: '11', name: 'Complexe',  icon: 'resort',    count: 7,   type: 'resort' },
+  { id: '12', name: 'Garage',    icon: 'garage',    count: 22,  type: 'garage' },
+  { id: '13', name: 'Parking',   icon: 'parking',   count: 18,  type: 'parking' },
+  { id: '14', name: 'Ferme',     icon: 'farm',      count: 11,  type: 'farm' },
+  { id: '15', name: 'Usine',     icon: 'factory',   count: 6,   type: 'factory' },
+  { id: '16', name: 'Autre',     icon: 'other',     count: 8,   type: 'other' },
 ];
 
 export const navLinks = [
