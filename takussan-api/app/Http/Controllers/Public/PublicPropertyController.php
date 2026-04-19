@@ -162,7 +162,17 @@ class PublicPropertyController extends Controller
     public function show(Request $request, string $slug): PropertyResource
     {
         $property = Property::query()
-            ->with('address', 'media', 'tags', 'owner', 'agency')
+            ->with([
+                'address',
+                'media',
+                'tags',
+                'owner.media',
+                'agency.media',
+                'collaborators.user',
+                'documents.media',
+                'priceHistory',
+                'reviews' => fn ($q) => $q->where('is_approved', true),
+            ])
             ->public()
             ->whereNot('status', PropertyStatus::Draft)
             ->where('slug', $slug)
