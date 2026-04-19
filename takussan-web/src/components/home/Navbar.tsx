@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, MapPin, Home, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -91,9 +92,9 @@ export function Navbar({ className }: NavbarProps) {
     >
       <div className="flex items-start gap-4 px-6 py-3 max-w-[1440px] mx-auto">
         {/* Logo */}
-        <a href="/" className="text-xl font-bold tracking-tighter text-primary shrink-0 mt-2.5 hover:opacity-80 transition-opacity">
+        <Link href="/" className="text-xl font-bold tracking-tighter text-primary shrink-0 mt-2.5 hover:opacity-80 transition-opacity">
           Takussan
-        </a>
+        </Link>
 
         {/* Center column: Search bar + Categories stacked, left-aligned — desktop */}
         <div className="hidden md:flex flex-col max-w-xl w-full mx-auto gap-0">
@@ -113,7 +114,7 @@ export function Navbar({ className }: NavbarProps) {
             <div className="w-px h-6 bg-gray-200 shrink-0" />
             <div className="flex items-center gap-1.5 px-4 py-2.5 shrink-0">
               <Home className="w-4 h-4 text-primary" />
-              <Select value={transaction} onValueChange={setTransaction}>
+              <Select value={transaction} onValueChange={(v) => setTransaction(v ?? 'Acheter')}>
                 <SelectTrigger className="border-none shadow-none bg-transparent p-0 h-auto text-sm text-gray-900 font-medium focus-visible:ring-0 focus-visible:border-transparent gap-1">
                   <SelectValue />
                 </SelectTrigger>

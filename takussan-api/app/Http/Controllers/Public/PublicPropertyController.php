@@ -3,13 +3,34 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Resources\BookingResource;
 use App\Http\Resources\PropertyResource;
+use App\Http\Resources\PropertyVisitResource;
+use App\Http\Resources\ReviewResource;
+use App\Models\Booking;
+use App\Models\Conversation;
+use App\Models\Enums\BookingStatus;
+use App\Models\Enums\CollaboratorRole;
+use App\Models\Enums\ConversationStatus;
+use App\Models\Enums\ConversationType;
+use App\Models\Enums\MessageType;
+use App\Models\Enums\NotificationType;
 use App\Models\Enums\PropertyStatus;
+use App\Models\Enums\RentPeriod;
+use App\Models\Enums\VisitStatus;
+use App\Models\Enums\VisitType;
 use App\Models\Property;
+use App\Models\PropertyReport;
+use App\Models\PropertyVisit;
+use App\Services\Model\CustomerService;
+use App\Services\Model\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Validation\Rule;
 
 class PublicPropertyController extends Controller
 {
@@ -162,7 +183,17 @@ class PublicPropertyController extends Controller
     public function show(Request $request, string $slug): PropertyResource
     {
         $property = Property::query()
-            ->with('address', 'media', 'tags', 'owner', 'agency')
+            ->with([
+                'address',
+                'media',
+                'tags',
+                'owner.media',
+                'agency.media',
+                'collaborators.user',
+                'documents.media',
+                'priceHistory',
+                'reviews' => fn ($q) => $q->where('is_approved', true),
+            ])
             ->public()
             ->whereNot('status', PropertyStatus::Draft)
             ->where('slug', $slug)
@@ -175,6 +206,279 @@ class PublicPropertyController extends Controller
         }
 
         return new PropertyResource($property);
+    }
+
+    public function similar(string $slug): AnonymousResourceCollection
+    {
+        $property = Property::query()
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->with('address')
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        $priceMin = (float) $property->price * 0.7;
+        $priceMax = (float) $property->price * 1.3;
+
+        $baseQuery = fn () => Property::query()
+            ->with('address', 'media')
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->where('id', '!=', $property->id)
+            ->where('type', $property->type)
+            ->whereBetween('price', [$priceMin, $priceMax])
+            ->orderByDesc('featured')
+            ->orderByDesc('published_at')
+            ->limit(6);
+
+        $city = $property->address?->city;
+        $results = $city
+            ? $baseQuery()->whereHas('address', fn ($a) => $a->where('city', $city))->get()
+            : $baseQuery()->get();
+
+        if ($results->count() < 3) {
+            $results = $baseQuery()->get();
+        }
+
+        return PropertyResource::collection($results);
+    }
+
+    public function reviews(Request $request, string $slug): JsonResponse
+    {
+        $property = Property::query()
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        $paginated = $property->reviews()
+            ->where('is_approved', true)
+            ->with('author.media')
+            ->latest()
+            ->paginate((int) $request->input('per_page', 10));
+
+        $approved = $property->reviews()->where('is_approved', true);
+        $avg = round((float) ($approved->avg('rating') ?? 0), 2);
+
+        $raw = (clone $approved)
+            ->selectRaw('rating, count(*) as cnt')
+            ->groupBy('rating')
+            ->pluck('cnt', 'rating')
+            ->toArray();
+
+        $distribution = [
+            '5' => (int) ($raw[5] ?? 0),
+            '4' => (int) ($raw[4] ?? 0),
+            '3' => (int) ($raw[3] ?? 0),
+            '2' => (int) ($raw[2] ?? 0),
+            '1' => (int) ($raw[1] ?? 0),
+        ];
+
+        return $this->json([
+            'data' => ReviewResource::collection($paginated)->toArray($request),
+            'meta' => [
+                'total' => $paginated->total(),
+                'current_page' => $paginated->currentPage(),
+                'per_page' => $paginated->perPage(),
+                'last_page' => $paginated->lastPage(),
+                'average' => $avg,
+                'distribution' => $distribution,
+            ],
+        ]);
+    }
+
+    public function report(Request $request, string $slug): JsonResponse
+    {
+        $property = Property::query()
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        $data = $request->validate([
+            'reason' => ['required', Rule::in(['spam', 'misleading', 'fraud', 'inappropriate_content', 'other'])],
+            'details' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        PropertyReport::create([
+            'property_id' => $property->id,
+            'reporter_user_id' => $request->user()?->id,
+            'reporter_ip' => $request->ip(),
+            'reason' => $data['reason'],
+            'details' => $data['details'] ?? null,
+        ]);
+
+        return $this->json(null, 204);
+    }
+
+    public function visitRequest(Request $request, string $slug): JsonResponse
+    {
+        $property = Property::query()
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        $user = $request->user();
+
+        $rules = [
+            'scheduled_at' => ['required', 'date', 'after:now'],
+            'type' => ['nullable', Rule::enum(VisitType::class)],
+            'duration_minutes' => ['nullable', 'integer', 'min:15', 'max:240'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ];
+        if (! $user) {
+            $rules['visitor_name'] = ['required', 'string', 'max:120'];
+            $rules['visitor_email'] = ['required', 'email'];
+            $rules['visitor_phone'] = ['required', 'string', 'max:30'];
+        } else {
+            $rules['visitor_name'] = ['nullable', 'string', 'max:120'];
+            $rules['visitor_email'] = ['nullable', 'email'];
+            $rules['visitor_phone'] = ['nullable', 'string', 'max:30'];
+        }
+
+        $data = $request->validate($rules);
+
+        $visit = PropertyVisit::create([
+            'property_id' => $property->id,
+            'visitor_id' => $user?->id,
+            'scheduled_at' => $data['scheduled_at'],
+            'type' => $data['type'] ?? VisitType::InPerson->value,
+            'duration_minutes' => $data['duration_minutes'] ?? 30,
+            'status' => VisitStatus::Scheduled->value,
+            'visitor_name' => $data['visitor_name'] ?? trim(($user?->first_name ?? '').' '.($user?->last_name ?? '')) ?: null,
+            'visitor_email' => $data['visitor_email'] ?? $user?->email,
+            'visitor_phone' => $data['visitor_phone'] ?? $user?->phone,
+            'notes' => $data['notes'] ?? null,
+        ]);
+
+        return $this->json([
+            'data' => PropertyVisitResource::make($visit)->toArray($request),
+        ], 201);
+    }
+
+    public function bookingRequest(Request $request, CustomerService $customers, string $slug): JsonResponse
+    {
+        $property = Property::query()
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        $data = $request->validate([
+            'start_date' => ['required', 'date', 'after_or_equal:today'],
+            'end_date' => ['required', 'date', 'after:start_date'],
+            'guests' => ['required', 'integer', 'min:1', 'max:50'],
+            'message' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $user = $request->user();
+        abort_if($user === null, 401);
+
+        $customer = $customers->findOrCreateFromUser($user);
+
+        $start = Carbon::parse($data['start_date']);
+        $end = Carbon::parse($data['end_date']);
+        $nights = max(1, (int) $start->diffInDays($end));
+        $totalAmount = $property->rent_period === RentPeriod::Daily
+            ? (float) $property->price * $nights
+            : (float) $property->price;
+
+        $booking = Booking::create([
+            'property_id' => $property->id,
+            'customer_id' => $customer->id,
+            'created_by_id' => $user->id,
+            'agency_id' => $property->agency_id,
+            'start_date' => $data['start_date'],
+            'end_date' => $data['end_date'],
+            'total_amount' => $totalAmount,
+            'currency' => $property->currency,
+            'status' => BookingStatus::Pending->value,
+            'notes' => $data['message'] ?? null,
+            'metadata' => ['guests' => $data['guests']],
+        ]);
+
+        return $this->json([
+            'data' => BookingResource::make($booking)->toArray($request),
+        ], 201);
+    }
+
+    public function contactMessage(Request $request, NotificationService $notifications, string $slug): JsonResponse
+    {
+        $property = Property::query()
+            ->with('owner', 'collaborators.user')
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        $data = $request->validate([
+            'message' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $user = $request->user();
+        abort_if($user === null, 401);
+
+        $primaryAgent = $property->collaborators
+            ->firstWhere('role', CollaboratorRole::Agent)?->user
+            ?? $property->owner;
+
+        abort_if($primaryAgent === null, 422, 'No recipient available.');
+        abort_if($primaryAgent->id === $user->id, 422, 'You cannot message yourself.');
+
+        $conversation = DB::transaction(function () use ($user, $primaryAgent, $property) {
+            $existing = Conversation::query()
+                ->where('property_id', $property->id)
+                ->whereHas('participants', fn ($q) => $q->where('user_id', $user->id))
+                ->whereHas('participants', fn ($q) => $q->where('user_id', $primaryAgent->id))
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+
+            $conv = Conversation::create([
+                'type' => ConversationType::Direct->value,
+                'status' => ConversationStatus::Active->value,
+                'created_by' => $user->id,
+                'property_id' => $property->id,
+            ]);
+            $conv->participants()->attach([
+                $user->id => ['joined_at' => now()],
+                $primaryAgent->id => ['joined_at' => now()],
+            ]);
+
+            return $conv;
+        });
+
+        $message = $conversation->messages()->create([
+            'sender_id' => $user->id,
+            'content' => $data['message'],
+            'type' => MessageType::Text->value,
+        ]);
+
+        $conversation->update([
+            'last_message_id' => $message->id,
+            'last_message_preview' => mb_substr($data['message'], 0, 255),
+            'last_message_at' => now(),
+        ]);
+
+        $fullName = trim(($user->first_name ?? '').' '.($user->last_name ?? '')) ?: ($user->username ?? 'Utilisateur');
+        $notifications->notify(
+            $primaryAgent,
+            NotificationType::Message,
+            'Nouveau message',
+            $fullName.': '.mb_strimwidth($data['message'], 0, 80, '…'),
+            ['conversation_id' => $conversation->id, 'message_id' => $message->id],
+        );
+
+        return $this->json([
+            'data' => [
+                'conversation_id' => $conversation->id,
+                'redirect_to' => "/messages/{$conversation->id}",
+            ],
+        ], 201);
     }
 
     public function contact(string $slug): JsonResponse

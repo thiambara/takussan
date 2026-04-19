@@ -234,4 +234,9 @@ class Property extends AbstractModel implements HasMedia
     {
         return $this->morphMany(Document::class, 'documentable');
     }
+
+    public function favorites(): HasMany
+    {
+        return $this->hasMany(Favorite::class);
+    }
 }

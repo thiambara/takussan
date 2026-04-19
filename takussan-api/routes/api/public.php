@@ -15,4 +15,26 @@ Route::prefix('public')->name('public.')->group(function () {
 
     Route::get('properties/{slug}/contact', [PublicPropertyController::class, 'contact'])
         ->name('properties.contact');
+
+    Route::get('properties/{slug}/similar', [PublicPropertyController::class, 'similar'])
+        ->name('properties.similar');
+
+    Route::get('properties/{slug}/reviews', [PublicPropertyController::class, 'reviews'])
+        ->name('properties.reviews');
+
+    Route::post('properties/{slug}/report', [PublicPropertyController::class, 'report'])
+        ->middleware('throttle:5,60')
+        ->name('properties.report');
+
+    Route::post('properties/{slug}/visit-request', [PublicPropertyController::class, 'visitRequest'])
+        ->middleware('throttle:10,60')
+        ->name('properties.visit-request');
+
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('properties/{slug}/booking-request', [PublicPropertyController::class, 'bookingRequest'])
+            ->name('properties.booking-request');
+
+        Route::post('properties/{slug}/contact-message', [PublicPropertyController::class, 'contactMessage'])
+            ->name('properties.contact-message');
+    });
 });

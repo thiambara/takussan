@@ -29,7 +29,12 @@ export function useProperty(slug: string) {
     dispatch({ type: 'LOADING' });
     apiFetch<{ data: PropertyDetail }>(`/public/properties/${slug}`)
       .then(res => { if (!cancelled) dispatch({ type: 'SUCCESS', data: res.data }); })
-      .catch(() => { if (!cancelled) dispatch({ type: 'ERROR', message: 'Bien introuvable.' }); });
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : '';
+        const notFound = /\b404\b/.test(msg);
+        dispatch({ type: 'ERROR', message: notFound ? 'NOT_FOUND' : 'Bien introuvable.' });
+      });
     return () => { cancelled = true; };
   }, [slug]);
 

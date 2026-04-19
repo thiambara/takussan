@@ -30,6 +30,24 @@ class CustomerService
         $customer->update(['user_id' => $user->id]);
     }
 
+    public function findOrCreateFromUser(User $user): Customer
+    {
+        $existing = Customer::where('user_id', $user->id)->first();
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        return Customer::create([
+            'user_id' => $user->id,
+            'added_by_id' => $user->id,
+            'agency_id' => $user->agency_id,
+            'first_name' => $user->first_name ?? 'Client',
+            'last_name' => $user->last_name ?? '#'.$user->id,
+            'email' => $user->email,
+            'phone' => $user->phone,
+        ]);
+    }
+
     public function updatePipelineStage(Customer $customer, string $stage): Customer
     {
         abort_unless(
