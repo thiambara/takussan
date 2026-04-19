@@ -2,7 +2,9 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, MapPin, Home, Menu, X, ChevronDown, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle } from 'lucide-react';
+import { Search, MapPin, Home, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { navLinks, categories, moreCategories } from '@/data/mockData';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -89,7 +91,7 @@ export function Navbar({ className }: NavbarProps) {
     >
       <div className="flex items-start gap-4 px-6 py-3 max-w-[1440px] mx-auto">
         {/* Logo */}
-        <a href="/" className="text-xl font-bold tracking-tighter text-[#0050cb] shrink-0 mt-2.5 hover:opacity-80 transition-opacity">
+        <a href="/" className="text-xl font-bold tracking-tighter text-primary shrink-0 mt-2.5 hover:opacity-80 transition-opacity">
           Takussan
         </a>
 
@@ -98,7 +100,7 @@ export function Navbar({ className }: NavbarProps) {
           {/* Search Bar */}
           <div className="flex items-center bg-white border border-gray-300 rounded-full shadow-sm hover:shadow-md transition-shadow overflow-hidden">
             <div className="flex items-center gap-2 flex-1 px-4 py-2.5">
-              <MapPin className="w-4 h-4 text-[#0050cb] shrink-0" />
+              <MapPin className="w-4 h-4 text-primary shrink-0" />
               <input
                 type="text"
                 placeholder="Où cherchez-vous ?"
@@ -110,21 +112,21 @@ export function Navbar({ className }: NavbarProps) {
             </div>
             <div className="w-px h-6 bg-gray-200 shrink-0" />
             <div className="flex items-center gap-1.5 px-4 py-2.5 shrink-0">
-              <Home className="w-4 h-4 text-[#0050cb]" />
-              <select
-                value={transaction}
-                onChange={(e) => setTransaction(e.target.value)}
-                className="text-sm text-gray-900 font-medium outline-none bg-transparent appearance-none cursor-pointer pr-1"
-              >
-                <option>Acheter</option>
-                <option>Louer</option>
-                <option>Neuf</option>
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+              <Home className="w-4 h-4 text-primary" />
+              <Select value={transaction} onValueChange={setTransaction}>
+                <SelectTrigger className="border-none shadow-none bg-transparent p-0 h-auto text-sm text-gray-900 font-medium focus-visible:ring-0 focus-visible:border-transparent gap-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Acheter">Acheter</SelectItem>
+                  <SelectItem value="Louer">Louer</SelectItem>
+                  <SelectItem value="Neuf">Neuf</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <button
               onClick={handleSearch}
-              className="m-1.5 bg-[#0050cb] hover:bg-[#0043a8] text-white rounded-full p-2.5 transition-colors active:scale-95 shrink-0"
+              className="m-1.5 bg-primary hover:bg-primary/90 text-white rounded-full p-2.5 transition-colors active:scale-95 shrink-0"
               aria-label="Lancer la recherche"
             >
               <Search className="w-4 h-4" />
@@ -179,7 +181,7 @@ export function Navbar({ className }: NavbarProps) {
                           handleCategoryClick(cat.type, activeCategory);
                         }}
                         className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-colors ${isActive
-                          ? 'bg-[#0050cb]/10 text-[#0050cb] font-semibold'
+                          ? 'bg-primary/10 text-primary font-semibold'
                           : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                           }`}
                       >
@@ -199,12 +201,12 @@ export function Navbar({ className }: NavbarProps) {
 
         {/* Actions — desktop, aligned to top */}
         <div className="hidden md:flex items-center gap-3 shrink-0 ml-auto mt-2">
-          <button className="font-medium text-sm text-slate-600 hover:text-[#0050cb] transition-colors whitespace-nowrap">
+          <Button variant="ghost" className="text-slate-600 font-medium text-sm whitespace-nowrap h-auto py-2">
             Connexion
-          </button>
-          <button className="bg-[#0050cb] text-white px-5 py-2 rounded-full font-semibold text-sm hover:opacity-90 active:scale-95 duration-200 shadow-sm whitespace-nowrap">
+          </Button>
+          <Button className="rounded-full px-5 py-2 h-auto font-semibold text-sm shadow-sm whitespace-nowrap">
             Publier
-          </button>
+          </Button>
         </div>
 
           {/* Mobile: search pill → opens search page */}
@@ -217,7 +219,7 @@ export function Navbar({ className }: NavbarProps) {
               <span className="text-sm text-gray-400 truncate">Où cherchez-vous ?</span>
             </button>
           <button
-            className="p-2 rounded-lg text-slate-600 hover:text-[#0050cb] hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-lg text-slate-600 hover:text-primary hover:bg-gray-100 transition-colors"
             onClick={() => setMenuOpen((o) => !o)}
             aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
           >
@@ -232,7 +234,7 @@ export function Navbar({ className }: NavbarProps) {
             {/* Mobile search */}
             <div className="px-6 pt-5 pb-3">
               <div className="flex items-center gap-2 border border-gray-300 rounded-xl px-4 py-3 mb-2">
-                <MapPin className="w-4 h-4 text-[#0050cb] shrink-0" />
+                <MapPin className="w-4 h-4 text-primary shrink-0" />
                 <input
                   type="text"
                   placeholder="Où cherchez-vous ?"
@@ -248,7 +250,7 @@ export function Navbar({ className }: NavbarProps) {
                     key={t}
                     onClick={() => setTransaction(t)}
                     className={`flex-1 py-2 rounded-full text-sm font-semibold transition-colors ${transaction === t
-                      ? 'bg-[#0050cb] text-white'
+                      ? 'bg-primary text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                   >
@@ -256,12 +258,12 @@ export function Navbar({ className }: NavbarProps) {
                   </button>
                 ))}
               </div>
-              <button
+              <Button
                 onClick={() => { setMenuOpen(false); handleSearch(); }}
-                className="mt-3 w-full bg-[#0050cb] text-white py-2.5 rounded-full text-sm font-semibold hover:bg-[#0043a8] transition-colors active:scale-[0.98]"
+                className="mt-3 w-full rounded-full h-auto py-2.5 text-sm font-semibold"
               >
                 Rechercher
-              </button>
+              </Button>
             </div>
 
             {/* Mobile categories */}
@@ -278,7 +280,7 @@ export function Navbar({ className }: NavbarProps) {
                         handleCategoryClick(cat.type, activeCategory);
                       }}
                       className={`flex flex-col items-center gap-1 shrink-0 px-4 py-2.5 rounded-xl transition-colors ${isActive
-                        ? 'bg-[#0050cb]/10 text-[#0050cb]'
+                        ? 'bg-primary/10 text-primary'
                         : 'text-gray-500 hover:bg-gray-100'
                         }`}
                     >
@@ -297,7 +299,7 @@ export function Navbar({ className }: NavbarProps) {
                 key={link.label}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
-                className={`font-semibold text-base transition-colors ${link.active ? 'text-[#0050cb]' : 'text-slate-700 hover:text-[#0050cb]'
+                className={`font-semibold text-base transition-colors ${link.active ? 'text-primary' : 'text-slate-700 hover:text-primary'
                   }`}
               >
                 {link.label}
@@ -306,12 +308,12 @@ export function Navbar({ className }: NavbarProps) {
           </div>
 
           <div className="px-6 py-4 border-t border-gray-100 flex flex-col gap-3">
-            <button className="font-medium text-sm text-slate-600 hover:text-[#0050cb] transition-colors text-left">
+            <Button variant="ghost" className="text-slate-600 font-medium text-sm h-auto py-1 justify-start">
               Connexion
-            </button>
-            <button className="bg-[#0050cb] text-white px-6 py-3 rounded-full font-semibold text-sm hover:opacity-90 active:scale-95 duration-200 shadow-sm">
+            </Button>
+            <Button className="rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm">
               Publier une annonce
-            </button>
+            </Button>
           </div>
         </div>
       )}

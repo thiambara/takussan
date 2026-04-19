@@ -1,5 +1,6 @@
 'use client';
 import type { SearchFilters } from '@/types/search';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const QUARTERS = [
   'Almadies', 'Mermoz', 'Sacré-Cœur', 'Plateau', 'Fann',
@@ -47,14 +48,18 @@ export function SearchFilters({ filters, onSearch }: Props) {
       {/* Quartier */}
       <div>
         <label className="block text-sm font-medium text-stone-700 mb-2">Quartier</label>
-        <select
-          value={filters.location ?? ''}
-          onChange={e => update({ location: e.target.value || undefined })}
-          className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
+        <Select
+          value={filters.location ?? 'all'}
+          onValueChange={(v) => update({ location: v === 'all' ? undefined : v })}
         >
-          <option value="">Tous les quartiers</option>
-          {QUARTERS.map(q => <option key={q} value={q}>{q}</option>)}
-        </select>
+          <SelectTrigger className="w-full rounded-lg text-sm h-9">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les quartiers</SelectItem>
+            {QUARTERS.map(q => <SelectItem key={q} value={q}>{q}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Budget */}

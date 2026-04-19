@@ -2,6 +2,8 @@
 
 import { updateProfileAction } from '@/app/actions/auth';
 import { useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 type Props = {
   initialFirstName: string;
@@ -54,26 +56,26 @@ export default function ProfileForm({ initialFirstName, initialLastName, initial
           <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 mb-1">
             First name
           </label>
-          <input
+          <Input
             id="first_name"
             type="text"
             required
             value={form.first_name}
             onChange={update('first_name')}
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="rounded"
           />
         </div>
         <div>
           <label htmlFor="last_name" className="block text-sm font-medium text-gray-700 mb-1">
             Last name
           </label>
-          <input
+          <Input
             id="last_name"
             type="text"
             required
             value={form.last_name}
             onChange={update('last_name')}
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="rounded"
           />
         </div>
       </div>
@@ -103,13 +105,13 @@ export default function ProfileForm({ initialFirstName, initialLastName, initial
         />
       </div>
 
-      <button
+      <Button
         type="submit"
         disabled={loading}
-        className="w-full bg-blue-600 text-white py-2 rounded font-medium text-sm hover:bg-blue-700 disabled:opacity-50"
+        className="w-full rounded h-auto py-2"
       >
         {loading ? 'Saving…' : 'Save changes'}
-      </button>
+      </Button>
     </form>
   );
 }

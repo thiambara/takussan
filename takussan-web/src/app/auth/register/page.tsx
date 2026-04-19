@@ -5,6 +5,8 @@ import { register } from '@/lib/auth';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -57,13 +59,13 @@ export default function RegisterPage() {
             <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 mb-1">
               First name
             </label>
-            <input
+            <Input
               id="first_name"
               type="text"
               required
               value={form.first_name}
               onChange={update('first_name')}
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded"
             />
             {errors.first_name?.map((msg) => (
               <p key={msg} className="text-xs text-red-600 mt-1">{msg}</p>
@@ -73,13 +75,13 @@ export default function RegisterPage() {
             <label htmlFor="last_name" className="block text-sm font-medium text-gray-700 mb-1">
               Last name
             </label>
-            <input
+            <Input
               id="last_name"
               type="text"
               required
               value={form.last_name}
               onChange={update('last_name')}
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded"
             />
             {errors.last_name?.map((msg) => (
               <p key={msg} className="text-xs text-red-600 mt-1">{msg}</p>
@@ -89,14 +91,14 @@ export default function RegisterPage() {
 
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-          <input
+          <Input
             id="email"
             type="email"
             autoComplete="email"
             required
             value={form.email}
             onChange={update('email')}
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="rounded"
           />
           {errors.email?.map((msg) => (
             <p key={msg} className="text-xs text-red-600 mt-1">{msg}</p>
@@ -107,14 +109,14 @@ export default function RegisterPage() {
           <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
             Password
           </label>
-          <input
+          <Input
             id="password"
             type="password"
             autoComplete="new-password"
             required
             value={form.password}
             onChange={update('password')}
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="rounded"
           />
           {errors.password?.map((msg) => (
             <p key={msg} className="text-xs text-red-600 mt-1">{msg}</p>
@@ -125,29 +127,29 @@ export default function RegisterPage() {
           <label htmlFor="password_confirmation" className="block text-sm font-medium text-gray-700 mb-1">
             Confirm password
           </label>
-          <input
+          <Input
             id="password_confirmation"
             type="password"
             autoComplete="new-password"
             required
             value={form.password_confirmation}
             onChange={update('password_confirmation')}
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="rounded"
           />
         </div>
 
-        <button
+        <Button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded font-medium text-sm hover:bg-blue-700 disabled:opacity-50"
+          className="w-full rounded h-auto py-2"
         >
           {loading ? 'Creating account…' : 'Create account'}
-        </button>
+        </Button>
       </form>
 
       <p className="mt-4 text-center text-sm text-gray-600">
         Already have an account?{' '}
-        <Link href="/auth/login" className="text-blue-600 hover:underline">
+        <Link href="/auth/login" className="text-primary hover:underline">
           Sign in
         </Link>
       </p>

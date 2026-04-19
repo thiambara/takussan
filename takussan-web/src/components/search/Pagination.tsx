@@ -35,7 +35,7 @@ export function Pagination({ currentPage, lastPage, onPageChange }: PaginationPr
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
         aria-label="Page précédente"
-        className="w-9 h-9 flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-[#0050cb] hover:text-[#0050cb] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        className="w-9 h-9 flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-primary hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
       >
         <ChevronLeft className="w-4 h-4" />
       </button>
@@ -52,8 +52,8 @@ export function Pagination({ currentPage, lastPage, onPageChange }: PaginationPr
             aria-current={p === currentPage ? 'page' : undefined}
             className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-semibold transition-colors ${
               p === currentPage
-                ? 'bg-[#0050cb] text-white'
-                : 'border border-gray-200 text-gray-700 hover:border-[#0050cb] hover:text-[#0050cb]'
+                ? 'bg-primary text-primary-foreground'
+                : 'border border-gray-200 text-gray-700 hover:border-primary hover:text-primary'
             }`}
           >
             {p}
@@ -65,7 +65,7 @@ export function Pagination({ currentPage, lastPage, onPageChange }: PaginationPr
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === lastPage}
         aria-label="Page suivante"
-        className="w-9 h-9 flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-[#0050cb] hover:text-[#0050cb] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        className="w-9 h-9 flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-primary hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
       >
         <ChevronRight className="w-4 h-4" />
       </button>

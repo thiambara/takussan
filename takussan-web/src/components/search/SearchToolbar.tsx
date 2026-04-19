@@ -2,13 +2,20 @@
 
 import React from 'react';
 import { SlidersHorizontal, X } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { SearchFilters } from '@/types/search';
 
 const SORT_OPTIONS = [
-  { value: 'relevance',   label: 'Pertinence' },
+  { value: 'relevance',    label: 'Pertinence' },
   { value: 'price_asc',   label: 'Prix ↑' },
   { value: 'price_desc',  label: 'Prix ↓' },
-  { value: 'created_desc',label: 'Plus récent' },
+  { value: 'created_desc', label: 'Plus récent' },
 ] as const;
 
 const FILTER_LABELS: Partial<Record<keyof SearchFilters, (v: unknown) => string>> = {
@@ -89,27 +96,37 @@ export function SearchToolbar({
 
         <div className="flex items-center gap-3">
           {/* Per-page selector */}
-          <select
-            value={filters.per_page ?? 20}
-            onChange={(e) => onPerPageChange(Number(e.target.value))}
-            className="text-sm border border-gray-200 rounded-full px-3 py-1.5 text-gray-700 bg-white outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer transition-colors"
-            aria-label="Résultats par page"
+          <Select
+            value={String(filters.per_page ?? 20)}
+            onValueChange={(v) => onPerPageChange(Number(v))}
           >
-            {[12, 20, 36, 60].map(n => (
-              <option key={n} value={n}>{n} / page</option>
-            ))}
-          </select>
+            <SelectTrigger
+              className="h-auto rounded-full py-1.5 px-3 border-gray-200 bg-white text-gray-700 cursor-pointer"
+              aria-label="Résultats par page"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[12, 20, 36, 60].map(n => (
+                <SelectItem key={n} value={String(n)}>{n} / page</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           {/* Sort selector */}
-          <select
+          <Select
             value={filters.sort ?? 'relevance'}
-            onChange={(e) => onSortChange(e.target.value as SearchFilters['sort'])}
-            className="text-sm border border-gray-200 rounded-full px-3 py-1.5 text-gray-700 bg-white outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer transition-colors"
+            onValueChange={(v) => onSortChange(v as SearchFilters['sort'])}
           >
-            {SORT_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
+            <SelectTrigger className="h-auto rounded-full py-1.5 px-3 border-gray-200 bg-white text-gray-700 cursor-pointer">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SORT_OPTIONS.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           {/* Filters button (mobile) */}
           <button

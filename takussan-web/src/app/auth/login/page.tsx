@@ -5,6 +5,8 @@ import { login } from '@/lib/auth';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 function LoginForm() {
   const router = useRouter();
@@ -61,14 +63,14 @@ function LoginForm() {
           <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
             Email
           </label>
-          <input
+          <Input
             id="email"
             type="email"
             autoComplete="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="rounded"
           />
           {errors.email?.map((msg) => (
             <p key={msg} className="text-xs text-red-600 mt-1">{msg}</p>
@@ -79,14 +81,14 @@ function LoginForm() {
           <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
             Password
           </label>
-          <input
+          <Input
             id="password"
             type="password"
             autoComplete="current-password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="rounded"
           />
           {errors.password?.map((msg) => (
             <p key={msg} className="text-xs text-red-600 mt-1">{msg}</p>
@@ -94,23 +96,23 @@ function LoginForm() {
         </div>
 
         <div className="text-right">
-          <Link href="/auth/forgot-password" className="text-sm text-blue-600 hover:underline">
+          <Link href="/auth/forgot-password" className="text-sm text-primary hover:underline">
             Forgot password?
           </Link>
         </div>
 
-        <button
+        <Button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded font-medium text-sm hover:bg-blue-700 disabled:opacity-50"
+          className="w-full rounded h-auto py-2"
         >
           {loading ? 'Signing in…' : 'Sign in'}
-        </button>
+        </Button>
       </form>
 
       <p className="mt-4 text-center text-sm text-gray-600">
         No account?{' '}
-        <Link href="/auth/register" className="text-blue-600 hover:underline">
+        <Link href="/auth/register" className="text-primary hover:underline">
           Register
         </Link>
       </p>

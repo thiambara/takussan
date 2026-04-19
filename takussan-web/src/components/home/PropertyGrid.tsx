@@ -42,7 +42,7 @@ export function PropertyGrid({
         {viewAllHref && (
           <a
             href={viewAllHref}
-            className="text-sm font-semibold text-[#0050cb] hover:underline underline-offset-4 transition-colors"
+            className="text-sm font-semibold text-primary hover:underline underline-offset-4 transition-colors"
           >
             Voir plus →
           </a>

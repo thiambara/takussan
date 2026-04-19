@@ -93,7 +93,7 @@ export function PropertyCard({ property, index = 0, priority = false, className 
 
           {/* Transaction Badge */}
           <div
-            className={`absolute top-4 left-4 flex items-center gap-1.5 backdrop-blur-md text-white text-[10px] font-semibold tracking-wide px-2.5 py-1 rounded-full ${isSale ? 'bg-[#0050cb]/80' : 'bg-[#2e7d32]/80'
+            className={`absolute top-4 left-4 flex items-center gap-1.5 backdrop-blur-md text-white text-[10px] font-semibold tracking-wide px-2.5 py-1 rounded-full ${isSale ? 'bg-primary/80' : 'bg-emerald-800/80'
               }`}
           >
             <span className={`w-1.5 h-1.5 rounded-full ${isSale ? 'bg-sky-300' : 'bg-emerald-300'}`} />
@@ -116,7 +116,7 @@ export function PropertyCard({ property, index = 0, priority = false, className 
             aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
             className={`absolute top-4 right-4 w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-200 ${isFavorite
               ? 'bg-white text-red-500'
-              : 'bg-white/20 text-white hover:bg-white hover:text-[#0050cb]'
+              : 'bg-white/20 text-white hover:bg-white hover:text-primary'
               }`}
           >
             <Heart className={`w-5 h-5 transition-all ${isFavorite ? 'fill-current' : ''}`} />
@@ -125,7 +125,7 @@ export function PropertyCard({ property, index = 0, priority = false, className 
 
         {/* Content */}
         <div className="space-y-1 mt-3">
-          <p className="text-[#0050cb] font-bold text-[15px] truncate" title={formatPrice(property.price, property.currency ?? 'XOF')}>
+          <p className="text-primary font-bold text-[15px] truncate" title={formatPrice(property.price, property.currency ?? 'XOF')}>
             {formatPrice(property.price, property.currency ?? 'XOF')}
             {property.contract_type === 'rent' && property.rent_period && (
               <span className="text-sm font-semibold text-gray-400 ml-0.5">
