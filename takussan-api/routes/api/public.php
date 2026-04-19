@@ -29,4 +29,9 @@ Route::prefix('public')->name('public.')->group(function () {
     Route::post('properties/{slug}/visit-request', [PublicPropertyController::class, 'visitRequest'])
         ->middleware('throttle:10,60')
         ->name('properties.visit-request');
+
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('properties/{slug}/booking-request', [PublicPropertyController::class, 'bookingRequest'])
+            ->name('properties.booking-request');
+    });
 });

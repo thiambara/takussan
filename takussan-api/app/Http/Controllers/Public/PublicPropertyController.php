@@ -3,18 +3,24 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Resources\BookingResource;
 use App\Http\Resources\PropertyResource;
 use App\Http\Resources\PropertyVisitResource;
 use App\Http\Resources\ReviewResource;
+use App\Models\Booking;
+use App\Models\Enums\BookingStatus;
 use App\Models\Enums\PropertyStatus;
+use App\Models\Enums\RentPeriod;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
 use App\Models\Property;
 use App\Models\PropertyReport;
 use App\Models\PropertyVisit;
+use App\Services\Model\CustomerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
 
@@ -340,6 +346,52 @@ class PublicPropertyController extends Controller
 
         return $this->json([
             'data' => PropertyVisitResource::make($visit)->toArray($request),
+        ], 201);
+    }
+
+    public function bookingRequest(Request $request, CustomerService $customers, string $slug): JsonResponse
+    {
+        $property = Property::query()
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        $data = $request->validate([
+            'start_date' => ['required', 'date', 'after_or_equal:today'],
+            'end_date' => ['required', 'date', 'after:start_date'],
+            'guests' => ['required', 'integer', 'min:1', 'max:50'],
+            'message' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $user = $request->user();
+        abort_if($user === null, 401);
+
+        $customer = $customers->findOrCreateFromUser($user);
+
+        $start = Carbon::parse($data['start_date']);
+        $end = Carbon::parse($data['end_date']);
+        $nights = max(1, (int) $start->diffInDays($end));
+        $totalAmount = $property->rent_period === RentPeriod::Daily
+            ? (float) $property->price * $nights
+            : (float) $property->price;
+
+        $booking = Booking::create([
+            'property_id' => $property->id,
+            'customer_id' => $customer->id,
+            'created_by_id' => $user->id,
+            'agency_id' => $property->agency_id,
+            'start_date' => $data['start_date'],
+            'end_date' => $data['end_date'],
+            'total_amount' => $totalAmount,
+            'currency' => $property->currency,
+            'status' => BookingStatus::Pending->value,
+            'notes' => $data['message'] ?? null,
+            'metadata' => ['guests' => $data['guests']],
+        ]);
+
+        return $this->json([
+            'data' => BookingResource::make($booking)->toArray($request),
         ], 201);
     }
 
