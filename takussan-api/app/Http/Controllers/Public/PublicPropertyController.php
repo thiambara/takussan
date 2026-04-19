@@ -426,13 +426,18 @@ class PublicPropertyController extends Controller
         abort_if($primaryAgent === null, 422, 'No recipient available.');
         abort_if($primaryAgent->id === $user->id, 422, 'You cannot message yourself.');
 
-        $conversation = Conversation::query()
-            ->where('property_id', $property->id)
-            ->whereHas('participants', fn ($q) => $q->where('user_id', $user->id))
-            ->whereHas('participants', fn ($q) => $q->where('user_id', $primaryAgent->id))
-            ->first();
+        $conversation = DB::transaction(function () use ($user, $primaryAgent, $property) {
+            $existing = Conversation::query()
+                ->where('property_id', $property->id)
+                ->whereHas('participants', fn ($q) => $q->where('user_id', $user->id))
+                ->whereHas('participants', fn ($q) => $q->where('user_id', $primaryAgent->id))
+                ->lockForUpdate()
+                ->first();
 
-        $conversation ??= DB::transaction(function () use ($user, $primaryAgent, $property) {
+            if ($existing) {
+                return $existing;
+            }
+
             $conv = Conversation::create([
                 'type' => ConversationType::Direct->value,
                 'status' => ConversationStatus::Active->value,
