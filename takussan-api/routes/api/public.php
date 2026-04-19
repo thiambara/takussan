@@ -18,4 +18,7 @@ Route::prefix('public')->name('public.')->group(function () {
 
     Route::get('properties/{slug}/similar', [PublicPropertyController::class, 'similar'])
         ->name('properties.similar');
+
+    Route::get('properties/{slug}/reviews', [PublicPropertyController::class, 'reviews'])
+        ->name('properties.reviews');
 });

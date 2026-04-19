@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\PropertyResource;
+use App\Http\Resources\ReviewResource;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use Illuminate\Http\JsonResponse;
@@ -220,6 +221,50 @@ class PublicPropertyController extends Controller
         }
 
         return PropertyResource::collection($results);
+    }
+
+    public function reviews(Request $request, string $slug): JsonResponse
+    {
+        $property = Property::query()
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        $paginated = $property->reviews()
+            ->where('is_approved', true)
+            ->with('author.media')
+            ->latest()
+            ->paginate((int) $request->input('per_page', 10));
+
+        $approved = $property->reviews()->where('is_approved', true);
+        $avg = round((float) ($approved->avg('rating') ?? 0), 2);
+
+        $raw = (clone $approved)
+            ->selectRaw('rating, count(*) as cnt')
+            ->groupBy('rating')
+            ->pluck('cnt', 'rating')
+            ->toArray();
+
+        $distribution = [
+            '5' => (int) ($raw[5] ?? 0),
+            '4' => (int) ($raw[4] ?? 0),
+            '3' => (int) ($raw[3] ?? 0),
+            '2' => (int) ($raw[2] ?? 0),
+            '1' => (int) ($raw[1] ?? 0),
+        ];
+
+        return $this->json([
+            'data' => ReviewResource::collection($paginated)->toArray($request),
+            'meta' => [
+                'total' => $paginated->total(),
+                'current_page' => $paginated->currentPage(),
+                'per_page' => $paginated->perPage(),
+                'last_page' => $paginated->lastPage(),
+                'average' => $avg,
+                'distribution' => $distribution,
+            ],
+        ]);
     }
 
     public function contact(string $slug): JsonResponse

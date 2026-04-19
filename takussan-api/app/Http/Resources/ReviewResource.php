@@ -9,11 +9,21 @@ class ReviewResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $author = $this->resource->author;
+        $authorName = $author
+            ? (trim(($author->first_name ?? '').' '.($author->last_name ?? '')) ?: ($author->username ?? 'Anonyme'))
+            : 'Anonyme';
+
         return [
             'id' => $this->id,
             'reviewable_type' => $this->reviewable_type,
             'reviewable_id' => $this->reviewable_id,
             'author_id' => $this->author_id,
+            'author' => [
+                'id' => $author?->id,
+                'name' => $authorName,
+                'avatar_url' => $author?->getFirstMediaUrl('avatar') ?: null,
+            ],
             'rating' => $this->rating,
             'title' => $this->title,
             'content' => $this->content,
