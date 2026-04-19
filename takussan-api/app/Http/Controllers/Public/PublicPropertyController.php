@@ -187,6 +187,41 @@ class PublicPropertyController extends Controller
         return new PropertyResource($property);
     }
 
+    public function similar(string $slug): AnonymousResourceCollection
+    {
+        $property = Property::query()
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->with('address')
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        $priceMin = (float) $property->price * 0.7;
+        $priceMax = (float) $property->price * 1.3;
+
+        $baseQuery = fn () => Property::query()
+            ->with('address', 'media')
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->where('id', '!=', $property->id)
+            ->where('type', $property->type)
+            ->whereBetween('price', [$priceMin, $priceMax])
+            ->orderByDesc('featured')
+            ->orderByDesc('published_at')
+            ->limit(6);
+
+        $city = $property->address?->city;
+        $results = $city
+            ? $baseQuery()->whereHas('address', fn ($a) => $a->where('city', $city))->get()
+            : $baseQuery()->get();
+
+        if ($results->count() < 3) {
+            $results = $baseQuery()->get();
+        }
+
+        return PropertyResource::collection($results);
+    }
+
     public function contact(string $slug): JsonResponse
     {
         $property = Property::query()
