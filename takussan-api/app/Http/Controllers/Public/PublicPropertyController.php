@@ -4,10 +4,14 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\PropertyResource;
+use App\Http\Resources\PropertyVisitResource;
 use App\Http\Resources\ReviewResource;
 use App\Models\Enums\PropertyStatus;
+use App\Models\Enums\VisitStatus;
+use App\Models\Enums\VisitType;
 use App\Models\Property;
 use App\Models\PropertyReport;
+use App\Models\PropertyVisit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -291,6 +295,52 @@ class PublicPropertyController extends Controller
         ]);
 
         return $this->json(null, 204);
+    }
+
+    public function visitRequest(Request $request, string $slug): JsonResponse
+    {
+        $property = Property::query()
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        $user = $request->user();
+
+        $rules = [
+            'scheduled_at' => ['required', 'date', 'after:now'],
+            'type' => ['nullable', Rule::enum(VisitType::class)],
+            'duration_minutes' => ['nullable', 'integer', 'min:15', 'max:240'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ];
+        if (! $user) {
+            $rules['visitor_name'] = ['required', 'string', 'max:120'];
+            $rules['visitor_email'] = ['required', 'email'];
+            $rules['visitor_phone'] = ['required', 'string', 'max:30'];
+        } else {
+            $rules['visitor_name'] = ['nullable', 'string', 'max:120'];
+            $rules['visitor_email'] = ['nullable', 'email'];
+            $rules['visitor_phone'] = ['nullable', 'string', 'max:30'];
+        }
+
+        $data = $request->validate($rules);
+
+        $visit = PropertyVisit::create([
+            'property_id' => $property->id,
+            'visitor_id' => $user?->id,
+            'scheduled_at' => $data['scheduled_at'],
+            'type' => $data['type'] ?? VisitType::InPerson->value,
+            'duration_minutes' => $data['duration_minutes'] ?? 30,
+            'status' => VisitStatus::Scheduled->value,
+            'visitor_name' => $data['visitor_name'] ?? trim(($user?->first_name ?? '').' '.($user?->last_name ?? '')) ?: null,
+            'visitor_email' => $data['visitor_email'] ?? $user?->email,
+            'visitor_phone' => $data['visitor_phone'] ?? $user?->phone,
+            'notes' => $data['notes'] ?? null,
+        ]);
+
+        return $this->json([
+            'data' => PropertyVisitResource::make($visit)->toArray($request),
+        ], 201);
     }
 
     public function contact(string $slug): JsonResponse

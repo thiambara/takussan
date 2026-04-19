@@ -25,4 +25,8 @@ Route::prefix('public')->name('public.')->group(function () {
     Route::post('properties/{slug}/report', [PublicPropertyController::class, 'report'])
         ->middleware('throttle:5,60')
         ->name('properties.report');
+
+    Route::post('properties/{slug}/visit-request', [PublicPropertyController::class, 'visitRequest'])
+        ->middleware('throttle:10,60')
+        ->name('properties.visit-request');
 });
