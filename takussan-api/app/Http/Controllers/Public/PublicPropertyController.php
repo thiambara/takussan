@@ -36,7 +36,7 @@ class PublicPropertyController extends Controller
             'price_max' => 'nullable|numeric|min:0',
             'bedrooms' => 'nullable|integer|min:0|max:50',
             'bathrooms' => 'nullable|integer|min:0|max:50',
-            'type' => 'nullable|string',
+            'type' => 'nullable|string|max:500',
             'contract_type' => 'nullable|in:sale,rent',
             'rent_period' => 'nullable|string',
             'furnished' => 'nullable|boolean',
@@ -86,7 +86,8 @@ class PublicPropertyController extends Controller
             $query->where('bathrooms', $validated['bathrooms']);
         }
         if (! empty($validated['type'])) {
-            $query->where('type', $validated['type']);
+            $types = array_filter(explode(',', $validated['type']));
+            $query->whereIn('type', $types);
         }
         if (! empty($validated['contract_type'])) {
             $query->where('contract_type', $validated['contract_type']);

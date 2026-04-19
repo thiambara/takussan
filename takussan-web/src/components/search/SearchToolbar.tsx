@@ -42,7 +42,7 @@ export interface SearchToolbarProps {
   loading: boolean;
   filters: SearchFilters;
   activeCount: number;
-  onRemoveFilter: (key: keyof SearchFilters) => void;
+  onRemoveFilter: (key: keyof SearchFilters, subKey?: string) => void;
   onSortChange: (sort: SearchFilters['sort']) => void;
   onPerPageChange: (perPage: number) => void;
   onOpenSidebar: () => void;
@@ -58,8 +58,19 @@ export function SearchToolbar({
   onPerPageChange,
   onOpenSidebar,
 }: SearchToolbarProps) {
-  const activeTags = (Object.keys(filters) as (keyof SearchFilters)[])
-    .filter(k => !HIDDEN_FROM_TAGS.includes(k) && filters[k] !== undefined && filters[k] !== '');
+  const activeTags: { key: keyof SearchFilters; subKey?: string; label: string }[] = [];
+  (Object.keys(filters) as (keyof SearchFilters)[]).forEach(key => {
+    if (HIDDEN_FROM_TAGS.includes(key)) return;
+    const value = filters[key];
+    if (value === undefined || value === '') return;
+    if (key === 'type' && Array.isArray(value)) {
+      const labelFn = FILTER_LABELS['type']!;
+      value.forEach(v => activeTags.push({ key: 'type', subKey: v, label: labelFn(v) }));
+    } else {
+      const labelFn = FILTER_LABELS[key];
+      activeTags.push({ key, label: labelFn ? labelFn(value) : String(value) });
+    }
+  });
 
   return (
     <div className="mb-6 space-y-3">
@@ -119,20 +130,16 @@ export function SearchToolbar({
       {/* Active filter tags */}
       {activeTags.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {activeTags.map(key => {
-            const labelFn = FILTER_LABELS[key];
-            const label = labelFn ? labelFn(filters[key]) : String(filters[key]);
-            return (
-              <button
-                key={key}
-                onClick={() => onRemoveFilter(key)}
-                className="flex items-center gap-1.5 text-xs font-semibold bg-[#0050cb]/8 text-[#0050cb] border border-[#0050cb]/20 rounded-full px-3 py-1 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors group"
-              >
-                {label}
-                <X className="w-3 h-3 opacity-60 group-hover:opacity-100" />
-              </button>
-            );
-          })}
+          {activeTags.map(({ key, subKey, label }) => (
+            <button
+              key={subKey ? `${key}-${subKey}` : key}
+              onClick={() => onRemoveFilter(key, subKey)}
+              className="flex items-center gap-1.5 text-xs font-semibold bg-[#0050cb]/8 text-[#0050cb] border border-[#0050cb]/20 rounded-full px-3 py-1 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors group"
+            >
+              {label}
+              <X className="w-3 h-3 opacity-60 group-hover:opacity-100" />
+            </button>
+          ))}
         </div>
       )}
     </div>

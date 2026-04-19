@@ -91,7 +91,14 @@ export function PropertiesPage() {
               loading={loading}
               filters={filters}
               activeCount={activeCount}
-              onRemoveFilter={(key) => removeFilter(key)}
+              onRemoveFilter={(key, subKey) => {
+                if (key === 'type' && subKey) {
+                  const next = (filters.type ?? []).filter(t => t !== subKey);
+                  handleFilterChange({ type: next.length > 0 ? next : undefined });
+                } else {
+                  removeFilter(key);
+                }
+              }}
               onSortChange={(sort) => handleFilterChange({ sort })}
               onPerPageChange={(per_page) => handleFilterChange({ per_page })}
               onOpenSidebar={() => setSidebarOpen(true)}

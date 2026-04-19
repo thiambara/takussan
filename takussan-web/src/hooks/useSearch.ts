@@ -32,7 +32,6 @@ function filtersToParams(filters: SearchFilters): URLSearchParams {
     ['location',       filters.location],
     ['city',           filters.city],
     ['contract_type',  filters.contract_type],
-    ['type',           filters.type],
     ['rent_period',    filters.rent_period],
     ['price_min',      filters.price_min],
     ['price_max',      filters.price_max],
@@ -50,6 +49,7 @@ function filtersToParams(filters: SearchFilters): URLSearchParams {
   for (const [k, v] of entries) {
     if (v !== undefined && v !== '') params.set(k, String(v));
   }
+  if (filters.type?.length) params.set('type', filters.type.join(','));
   return params;
 }
 
@@ -61,7 +61,7 @@ function filtersFromSearchParams(sp: URLSearchParams): SearchFilters {
     location:      s('location'),
     city:          s('city'),
     contract_type: s('contract_type') as SearchFilters['contract_type'],
-    type:          s('type'),
+    type:          s('type') ? s('type')!.split(',').filter(Boolean) : undefined,
     rent_period:   s('rent_period') as SearchFilters['rent_period'],
     price_min:     n('price_min'),
     price_max:     n('price_max'),
@@ -74,6 +74,7 @@ function filtersFromSearchParams(sp: URLSearchParams): SearchFilters {
     tags:          s('tags'),
     sort:          s('sort') as SearchFilters['sort'],
     page:          n('page'),
+    per_page:      n('per_page'),
   };
 }
 

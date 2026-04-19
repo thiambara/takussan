@@ -3,7 +3,7 @@ export interface SearchFilters {
   location?: string;
   city?: string;
   contract_type?: 'sale' | 'rent';
-  type?: string;
+  type?: string[];
   rent_period?: 'daily' | 'weekly' | 'monthly' | 'yearly';
   price_min?: number;
   price_max?: number;

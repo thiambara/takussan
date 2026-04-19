@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { X, RotateCcw, Search, Star, Tag } from 'lucide-react';
 import type { SearchFilters } from '@/types/search';
 
@@ -18,20 +18,16 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function ChipGroup<T extends string | number>({
   options,
   value,
-  multi = false,
   onChange,
 }: {
   options: { label: string; value: T }[];
-  value: T | T[] | undefined;
-  multi?: boolean;
+  value: T | undefined;
   onChange: (v: T | undefined) => void;
 }) {
   return (
     <div className="flex flex-wrap gap-2">
       {options.map(opt => {
-        const isActive = multi
-          ? Array.isArray(value) && value.includes(opt.value)
-          : value === opt.value;
+        const isActive = value === opt.value;
         return (
           <button
             key={String(opt.value)}
@@ -50,44 +46,41 @@ function ChipGroup<T extends string | number>({
   );
 }
 
-function PriceSlider({
-  min, max, valueMin, valueMax,
+function RangeInputs({
+  placeholderMin,
+  placeholderMax,
+  valueMin,
+  valueMax,
+  hint,
   onChange,
 }: {
-  min: number; max: number;
-  valueMin: number | undefined; valueMax: number | undefined;
+  placeholderMin: string;
+  placeholderMax: string;
+  valueMin: number | undefined;
+  valueMax: number | undefined;
+  hint?: string;
   onChange: (min: number | undefined, max: number | undefined) => void;
 }) {
-  const fmt = (v: number) => v.toLocaleString('fr-SN');
-
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-3">
-        <div className="flex-1 relative">
-          <input
-            type="number"
-            placeholder="Min"
-            value={valueMin ?? ''}
-            onChange={(e) => onChange(e.target.value ? Number(e.target.value) : undefined, valueMax)}
-            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#0050cb] focus:ring-2 focus:ring-[#0050cb]/10 transition"
-          />
-        </div>
-        <span className="text-gray-400 text-sm">–</span>
-        <div className="flex-1 relative">
-          <input
-            type="number"
-            placeholder="Max"
-            value={valueMax ?? ''}
-            onChange={(e) => onChange(valueMin, e.target.value ? Number(e.target.value) : undefined)}
-            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#0050cb] focus:ring-2 focus:ring-[#0050cb]/10 transition"
-          />
-        </div>
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <input
+          type="number"
+          placeholder={placeholderMin}
+          value={valueMin ?? ''}
+          onChange={(e) => onChange(e.target.value ? Number(e.target.value) : undefined, valueMax)}
+          className="min-w-0 w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#0050cb] focus:ring-2 focus:ring-[#0050cb]/10 transition"
+        />
+        <span className="shrink-0 text-gray-400 text-sm">–</span>
+        <input
+          type="number"
+          placeholder={placeholderMax}
+          value={valueMax ?? ''}
+          onChange={(e) => onChange(valueMin, e.target.value ? Number(e.target.value) : undefined)}
+          className="min-w-0 w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#0050cb] focus:ring-2 focus:ring-[#0050cb]/10 transition"
+        />
       </div>
-      <p className="text-[11px] text-gray-400">
-        {valueMin !== undefined && `Min : ${fmt(valueMin)} FCFA`}
-        {valueMin !== undefined && valueMax !== undefined && ' · '}
-        {valueMax !== undefined && `Max : ${fmt(valueMax)} FCFA`}
-      </p>
+      {hint && <p className="text-[11px] text-gray-400">{hint}</p>}
     </div>
   );
 }
@@ -146,7 +139,6 @@ export interface FilterSidebarProps {
   onFilterChange: (patch: Partial<SearchFilters>) => void;
   onReset: () => void;
   activeCount: number;
-  // Mobile drawer
   open: boolean;
   onClose: () => void;
 }
@@ -164,8 +156,15 @@ export function FilterSidebar({
     [onFilterChange]
   );
 
+  const priceHint = (() => {
+    const parts = [];
+    if (filters.price_min !== undefined) parts.push(`≥ ${filters.price_min.toLocaleString('fr-SN')} FCFA`);
+    if (filters.price_max !== undefined) parts.push(`≤ ${filters.price_max.toLocaleString('fr-SN')} FCFA`);
+    return parts.join(' · ');
+  })();
+
   const content = (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
         <h2 className="text-base font-bold text-gray-900">
@@ -186,7 +185,6 @@ export function FilterSidebar({
               Tout effacer
             </button>
           )}
-          {/* Close button: visible only on mobile */}
           <button
             onClick={onClose}
             className="md:hidden w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-500"
@@ -197,24 +195,10 @@ export function FilterSidebar({
         </div>
       </div>
 
-      {/* Scrollable body */}
-      <div className="flex-1 overflow-y-auto px-5">
+      {/* Body */}
+      <div className="px-5">
 
-        {/* Full-text search */}
-        <Section title="Rechercher">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Mot-clé, référence, description…"
-              value={filters.q ?? ''}
-              onChange={(e) => set({ q: e.target.value || undefined })}
-              className="w-full text-sm border border-gray-200 rounded-xl pl-9 pr-3 py-2 outline-none focus:border-[#0050cb] focus:ring-2 focus:ring-[#0050cb]/10 transition"
-            />
-          </div>
-        </Section>
-
-        {/* Transaction */}
+        {/* 1. Transaction */}
         <Section title="Type de transaction">
           <ChipGroup
             options={CONTRACT_TYPES}
@@ -223,26 +207,35 @@ export function FilterSidebar({
           />
         </Section>
 
-        {/* Property type */}
+        {/* 2. Property type — multi-select */}
         <Section title="Type de bien">
           <div className="flex flex-wrap gap-2">
-            {PROPERTY_TYPES.map(opt => (
-              <button
-                key={opt.value}
-                onClick={() => set({ type: filters.type === opt.value ? undefined : opt.value })}
-                className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all duration-150 ${
-                  filters.type === opt.value
-                    ? 'bg-[#0050cb] border-[#0050cb] text-white'
-                    : 'border-gray-200 text-gray-600 hover:border-[#0050cb] hover:text-[#0050cb]'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+            {PROPERTY_TYPES.map(opt => {
+              const selected = filters.type ?? [];
+              const isActive = selected.includes(opt.value);
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => {
+                    const next = isActive
+                      ? selected.filter(t => t !== opt.value)
+                      : [...selected, opt.value];
+                    set({ type: next.length > 0 ? next : undefined });
+                  }}
+                  className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all duration-150 ${
+                    isActive
+                      ? 'bg-[#0050cb] border-[#0050cb] text-white'
+                      : 'border-gray-200 text-gray-600 hover:border-[#0050cb] hover:text-[#0050cb]'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
         </Section>
 
-        {/* Rent period — only shown when contract_type=rent */}
+        {/* 3. Rent period — conditional */}
         {filters.contract_type === 'rent' && (
           <Section title="Fréquence de loyer">
             <ChipGroup
@@ -253,18 +246,39 @@ export function FilterSidebar({
           </Section>
         )}
 
-        {/* Price */}
+        {/* 4. Location */}
+        <Section title="Localisation">
+          <div className="space-y-2">
+            <input
+              type="text"
+              placeholder="Ville (ex : Dakar, Mbour…)"
+              value={filters.city ?? ''}
+              onChange={(e) => set({ city: e.target.value || undefined })}
+              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#0050cb] focus:ring-2 focus:ring-[#0050cb]/10 transition"
+            />
+            <input
+              type="text"
+              placeholder="Quartier (ex : Plateau, Almadies…)"
+              value={filters.location ?? ''}
+              onChange={(e) => set({ location: e.target.value || undefined })}
+              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#0050cb] focus:ring-2 focus:ring-[#0050cb]/10 transition"
+            />
+          </div>
+        </Section>
+
+        {/* 5. Budget */}
         <Section title="Budget (FCFA)">
-          <PriceSlider
-            min={0}
-            max={2_000_000_000}
+          <RangeInputs
+            placeholderMin="Min"
+            placeholderMax="Max"
             valueMin={filters.price_min}
             valueMax={filters.price_max}
+            hint={priceHint || undefined}
             onChange={(min, max) => set({ price_min: min, price_max: max })}
           />
         </Section>
 
-        {/* Bedrooms */}
+        {/* 6. Chambres */}
         <Section title="Chambres">
           <ChipGroup
             options={BEDROOM_OPTIONS}
@@ -273,7 +287,7 @@ export function FilterSidebar({
           />
         </Section>
 
-        {/* Bathrooms */}
+        {/* 7. Salles de bain */}
         <Section title="Salles de bain">
           <ChipGroup
             options={BATHROOM_OPTIONS}
@@ -282,66 +296,20 @@ export function FilterSidebar({
           />
         </Section>
 
-        {/* Surface */}
+        {/* 8. Surface */}
         <Section title="Surface (m²)">
-          <div className="flex items-center gap-3">
-            <input
-              type="number"
-              placeholder="Min"
-              value={filters.area_min ?? ''}
-              onChange={(e) => set({ area_min: e.target.value ? Number(e.target.value) : undefined })}
-              className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#0050cb] focus:ring-2 focus:ring-[#0050cb]/10 transition"
-            />
-            <span className="text-gray-400 text-sm">–</span>
-            <input
-              type="number"
-              placeholder="Max"
-              value={filters.area_max ?? ''}
-              onChange={(e) => set({ area_max: e.target.value ? Number(e.target.value) : undefined })}
-              className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#0050cb] focus:ring-2 focus:ring-[#0050cb]/10 transition"
-            />
-          </div>
+          <RangeInputs
+            placeholderMin="Min m²"
+            placeholderMax="Max m²"
+            valueMin={filters.area_min}
+            valueMax={filters.area_max}
+            onChange={(min, max) => set({ area_min: min, area_max: max })}
+          />
         </Section>
 
-        {/* Localisation */}
-        <Section title="Localisation">
-          <div className="space-y-2">
-            <input
-              type="text"
-              placeholder="Ville (ex: Dakar, Mbour…)"
-              value={filters.city ?? ''}
-              onChange={(e) => set({ city: e.target.value || undefined })}
-              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#0050cb] focus:ring-2 focus:ring-[#0050cb]/10 transition"
-            />
-            <input
-              type="text"
-              placeholder="Quartier (ex: Plateau, Almadies…)"
-              value={filters.location ?? ''}
-              onChange={(e) => set({ location: e.target.value || undefined })}
-              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#0050cb] focus:ring-2 focus:ring-[#0050cb]/10 transition"
-            />
-          </div>
-        </Section>
-
-        {/* Tags */}
-        <Section title="Mots-clés / Équipements">
-          <div className="relative">
-            <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="ex: piscine, parking, terrasse…"
-              value={filters.tags ?? ''}
-              onChange={(e) => set({ tags: e.target.value || undefined })}
-              className="w-full text-sm border border-gray-200 rounded-xl pl-9 pr-3 py-2 outline-none focus:border-[#0050cb] focus:ring-2 focus:ring-[#0050cb]/10 transition"
-            />
-          </div>
-          <p className="text-[11px] text-gray-400 mt-1.5">Séparez les tags par des virgules</p>
-        </Section>
-
-        {/* État du bien */}
+        {/* 9. État */}
         <Section title="État du bien">
           <div className="space-y-2">
-            {/* Furnished */}
             <button
               onClick={() => set({ furnished: filters.furnished === true ? undefined : true })}
               className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border transition-all duration-150 ${
@@ -351,7 +319,7 @@ export function FilterSidebar({
               }`}
             >
               <span
-                className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${
+                className={`relative shrink-0 w-10 h-5 rounded-full transition-colors duration-200 ${
                   filters.furnished === true ? 'bg-[#0050cb]' : 'bg-gray-200'
                 }`}
               >
@@ -364,7 +332,6 @@ export function FilterSidebar({
               <span className="text-sm font-semibold">Meublé uniquement</span>
             </button>
 
-            {/* Featured */}
             <button
               onClick={() => set({ featured: filters.featured === true ? undefined : true })}
               className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border transition-all duration-150 ${
@@ -382,31 +349,59 @@ export function FilterSidebar({
             </button>
           </div>
         </Section>
+
+        {/* 10. Tags */}
+        <Section title="Équipements">
+          <div className="relative">
+            <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="piscine, parking, terrasse…"
+              value={filters.tags ?? ''}
+              onChange={(e) => set({ tags: e.target.value || undefined })}
+              className="w-full text-sm border border-gray-200 rounded-xl pl-9 pr-3 py-2 outline-none focus:border-[#0050cb] focus:ring-2 focus:ring-[#0050cb]/10 transition"
+            />
+          </div>
+          <p className="text-[11px] text-gray-400 mt-1.5">Séparez par des virgules</p>
+        </Section>
+
+        {/* 11. Full-text search */}
+        <Section title="Recherche avancée">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Mot-clé, référence, description…"
+              value={filters.q ?? ''}
+              onChange={(e) => set({ q: e.target.value || undefined })}
+              className="w-full text-sm border border-gray-200 rounded-xl pl-9 pr-3 py-2 outline-none focus:border-[#0050cb] focus:ring-2 focus:ring-[#0050cb]/10 transition"
+            />
+          </div>
+        </Section>
+
       </div>
     </div>
   );
 
-  // Desktop: static sidebar
-  // Mobile: bottom sheet with overlay
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-[264px] shrink-0 bg-white rounded-2xl border border-gray-100 shadow-sm self-start sticky top-[145px] max-h-[calc(100vh-160px)] overflow-hidden">
+      <aside className="hidden md:block w-[264px] shrink-0 bg-white rounded-2xl border border-gray-100 shadow-sm self-start sticky top-[145px]">
         {content}
       </aside>
 
       {/* Mobile drawer */}
       {open && (
         <div className="md:hidden fixed inset-0 z-50 flex flex-col justify-end">
-          {/* Overlay */}
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={onClose}
           />
-          {/* Sheet */}
           <div className="relative bg-white rounded-t-3xl max-h-[90vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300">
-            {content}
-            <div className="px-5 py-4 border-t border-gray-100 bg-white">
+            <div className="flex-1 overflow-y-auto">
+              {content}
+            </div>
+            <div className="px-5 py-4 border-t border-gray-100 bg-white shrink-0">
               <button
                 onClick={onClose}
                 className="w-full bg-[#0050cb] text-white font-semibold py-3 rounded-full text-sm hover:bg-[#0043a8] transition-colors active:scale-[0.98]"
