@@ -336,10 +336,10 @@ export const moreCategories: readonly Category[] = [
 ];
 
 export const navLinks = [
-  { label: 'Acheter', href: '#', active: true },
-  { label: 'Louer', href: '#', active: false },
-  { label: 'Vendre', href: '#', active: false },
-  { label: 'Nos Services', href: '#', active: false },
+  { label: 'Acheter',     href: '/properties?contract_type=sale', active: true },
+  { label: 'Louer',      href: '/properties?contract_type=rent', active: false },
+  { label: 'Vendre',     href: '#',                              active: false },
+  { label: 'Nos Services', href: '#',                           active: false },
 ] as const;
 
 export const footerLinks = {

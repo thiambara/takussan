@@ -35,7 +35,7 @@ export function HomePage({ className }: HomePageProps) {
           properties={latest.properties}
           loading={latest.loading}
           error={latest.error}
-          viewAllHref="/properties"
+          viewAllHref="/properties?sort=created_desc"
         />
       </main>
 

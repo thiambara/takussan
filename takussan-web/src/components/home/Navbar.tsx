@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Search, MapPin, Home, Menu, X, ChevronDown, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle } from 'lucide-react';
 import { navLinks, categories, moreCategories } from '@/data/mockData';
 
@@ -28,6 +29,7 @@ export interface NavbarProps {
 }
 
 export function Navbar({ className }: NavbarProps) {
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [location, setLocation] = useState('');
   const [transaction, setTransaction] = useState('Acheter');
@@ -46,15 +48,50 @@ export function Navbar({ className }: NavbarProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // ─── Navigation helpers ─────────────────────────────────────────────────────
+
+  const buildSearchUrl = useCallback((overrides: Record<string, string> = {}) => {
+    const params = new URLSearchParams();
+    // contract_type from transaction selector
+    if (transaction === 'Acheter') params.set('contract_type', 'sale');
+    if (transaction === 'Louer')   params.set('contract_type', 'rent');
+    // location text → city filter
+    if (location.trim()) params.set('city', location.trim());
+    // active category → type filter
+    if (activeCategory) params.set('type', activeCategory);
+    // apply overrides (e.g. from a category click)
+    Object.entries(overrides).forEach(([k, v]) => {
+      if (v === '') params.delete(k); else params.set(k, v);
+    });
+    const qs = params.toString();
+    return `/properties${qs ? '?' + qs : ''}`;
+  }, [transaction, location, activeCategory]);
+
+  const handleSearch = useCallback(() => {
+    router.push(buildSearchUrl());
+  }, [router, buildSearchUrl]);
+
+  const handleCategoryClick = useCallback((type: string | null, currentActive: string | null) => {
+    // toggle off if same, else navigate with new type
+    const newType = currentActive === type ? null : type;
+    setActiveCategory(newType);
+    const params = new URLSearchParams();
+    if (transaction === 'Acheter') params.set('contract_type', 'sale');
+    if (transaction === 'Louer')   params.set('contract_type', 'rent');
+    if (location.trim()) params.set('city', location.trim());
+    if (newType) params.set('type', newType);
+    router.push(`/properties${params.size ? '?' + params.toString() : ''}`);
+  }, [router, transaction, location]);
+
   return (
     <nav
       className={`fixed top-0 w-full z-50 bg-white border-b border-gray-200 ${className || ''}`}
     >
       <div className="flex items-start gap-4 px-6 py-3 max-w-[1440px] mx-auto">
-        {/* Logo — aligned to top of the search bar */}
-        <div className="text-xl font-bold tracking-tighter text-[#0050cb] shrink-0 mt-2.5">
+        {/* Logo */}
+        <a href="/" className="text-xl font-bold tracking-tighter text-[#0050cb] shrink-0 mt-2.5 hover:opacity-80 transition-opacity">
           Takussan
-        </div>
+        </a>
 
         {/* Center column: Search bar + Categories stacked, left-aligned — desktop */}
         <div className="hidden md:flex flex-col max-w-xl w-full mx-auto gap-0">
@@ -67,6 +104,7 @@ export function Navbar({ className }: NavbarProps) {
                 placeholder="Où cherchez-vous ?"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 className="w-full text-sm text-gray-900 placeholder:text-gray-400 font-medium outline-none bg-transparent"
               />
             </div>
@@ -84,7 +122,11 @@ export function Navbar({ className }: NavbarProps) {
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
             </div>
-            <button className="m-1.5 bg-[#0050cb] hover:bg-[#0043a8] text-white rounded-full p-2.5 transition-colors active:scale-95 shrink-0">
+            <button
+              onClick={handleSearch}
+              className="m-1.5 bg-[#0050cb] hover:bg-[#0043a8] text-white rounded-full p-2.5 transition-colors active:scale-95 shrink-0"
+              aria-label="Lancer la recherche"
+            >
               <Search className="w-4 h-4" />
             </button>
           </div>
@@ -97,7 +139,7 @@ export function Navbar({ className }: NavbarProps) {
               return (
                 <button
                   key={cat.id}
-                  onClick={() => setActiveCategory(isActive ? null : cat.type)}
+                  onClick={() => handleCategoryClick(cat.type, activeCategory)}
                   className={`flex flex-col items-center gap-1 px-3 py-2 border-b-2 transition-all duration-150 ${isActive
                     ? 'border-gray-900 text-gray-900'
                     : 'border-transparent text-gray-500 hover:border-gray-400 hover:text-gray-700'
@@ -134,6 +176,7 @@ export function Navbar({ className }: NavbarProps) {
                         onClick={() => {
                           setActiveCategory(isActive ? null : cat.type);
                           setMoreOpen(false);
+                          handleCategoryClick(cat.type, activeCategory);
                         }}
                         className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-colors ${isActive
                           ? 'bg-[#0050cb]/10 text-[#0050cb] font-semibold'
@@ -164,12 +207,15 @@ export function Navbar({ className }: NavbarProps) {
           </button>
         </div>
 
-        {/* Mobile: search pill + hamburger */}
-        <div className="flex md:hidden flex-1 items-center gap-3">
-          <button className="flex-1 flex items-center gap-2 bg-white border border-gray-300 rounded-full px-4 py-2.5 shadow-sm text-left">
-            <Search className="w-4 h-4 text-gray-400 shrink-0" />
-            <span className="text-sm text-gray-400 truncate">Où cherchez-vous ?</span>
-          </button>
+          {/* Mobile: search pill → opens search page */}
+          <div className="flex md:hidden flex-1 items-center gap-3">
+            <button
+              onClick={handleSearch}
+              className="flex-1 flex items-center gap-2 bg-white border border-gray-300 rounded-full px-4 py-2.5 shadow-sm text-left"
+            >
+              <Search className="w-4 h-4 text-gray-400 shrink-0" />
+              <span className="text-sm text-gray-400 truncate">Où cherchez-vous ?</span>
+            </button>
           <button
             className="p-2 rounded-lg text-slate-600 hover:text-[#0050cb] hover:bg-gray-100 transition-colors"
             onClick={() => setMenuOpen((o) => !o)}
@@ -183,56 +229,66 @@ export function Navbar({ className }: NavbarProps) {
       {/* Mobile menu panel */}
       {menuOpen && (
         <div className="md:hidden absolute top-full left-0 w-full bg-white border-t border-gray-100 shadow-lg">
-          {/* Mobile Search */}
-          <div className="px-6 pt-5 pb-3">
-            <div className="flex items-center gap-2 border border-gray-300 rounded-xl px-4 py-3 mb-2">
-              <MapPin className="w-4 h-4 text-[#0050cb] shrink-0" />
-              <input
-                type="text"
-                placeholder="Où cherchez-vous ?"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                className="flex-1 text-sm text-gray-900 placeholder:text-gray-400 font-medium outline-none bg-transparent"
-              />
-            </div>
-            <div className="flex gap-2">
-              {['Acheter', 'Louer', 'Neuf'].map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTransaction(t)}
-                  className={`flex-1 py-2 rounded-full text-sm font-semibold transition-colors ${transaction === t
-                    ? 'bg-[#0050cb] text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Mobile categories */}
-          <div className="px-6 pb-3 border-t border-gray-100 pt-3">
-            <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {categories.map((cat) => {
-                const Icon = iconMap[cat.icon] || Building2;
-                const isActive = activeCategory === cat.type;
-                return (
+            {/* Mobile search */}
+            <div className="px-6 pt-5 pb-3">
+              <div className="flex items-center gap-2 border border-gray-300 rounded-xl px-4 py-3 mb-2">
+                <MapPin className="w-4 h-4 text-[#0050cb] shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Où cherchez-vous ?"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { setMenuOpen(false); handleSearch(); } }}
+                  className="flex-1 text-sm text-gray-900 placeholder:text-gray-400 font-medium outline-none bg-transparent"
+                />
+              </div>
+              <div className="flex gap-2">
+                {['Acheter', 'Louer', 'Neuf'].map((t) => (
                   <button
-                    key={cat.id}
-                    onClick={() => setActiveCategory(isActive ? null : cat.type)}
-                    className={`flex flex-col items-center gap-1 shrink-0 px-4 py-2.5 rounded-xl transition-colors ${isActive
-                      ? 'bg-[#0050cb]/10 text-[#0050cb]'
-                      : 'text-gray-500 hover:bg-gray-100'
+                    key={t}
+                    onClick={() => setTransaction(t)}
+                    className={`flex-1 py-2 rounded-full text-sm font-semibold transition-colors ${transaction === t
+                      ? 'bg-[#0050cb] text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                   >
-                    <Icon className="w-5 h-5" />
-                    <span className="text-xs font-semibold whitespace-nowrap">{cat.name}</span>
+                    {t}
                   </button>
-                );
-              })}
+                ))}
+              </div>
+              <button
+                onClick={() => { setMenuOpen(false); handleSearch(); }}
+                className="mt-3 w-full bg-[#0050cb] text-white py-2.5 rounded-full text-sm font-semibold hover:bg-[#0043a8] transition-colors active:scale-[0.98]"
+              >
+                Rechercher
+              </button>
             </div>
-          </div>
+
+            {/* Mobile categories */}
+            <div className="px-6 pb-3 border-t border-gray-100 pt-3">
+              <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {categories.map((cat) => {
+                  const Icon = iconMap[cat.icon] || Building2;
+                  const isActive = activeCategory === cat.type;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => {
+                        setMenuOpen(false);
+                        handleCategoryClick(cat.type, activeCategory);
+                      }}
+                      className={`flex flex-col items-center gap-1 shrink-0 px-4 py-2.5 rounded-xl transition-colors ${isActive
+                        ? 'bg-[#0050cb]/10 text-[#0050cb]'
+                        : 'text-gray-500 hover:bg-gray-100'
+                        }`}
+                    >
+                      <Icon className="w-5 h-5" />
+                      <span className="text-xs font-semibold whitespace-nowrap">{cat.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
           {/* Mobile nav links */}
           <div className="flex flex-col px-6 py-3 gap-4 border-t border-gray-100">
