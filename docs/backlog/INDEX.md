@@ -63,6 +63,7 @@
 - [TCK-040](tickets/TCK-040-property-detail.md) — Fiche bien immersive `M · P0 · front`
 - [TCK-041](tickets/TCK-041-dashboard-agent-properties.md) — Dashboard Agent — Layout & biens `M · P0 · front`
 - [TCK-042](tickets/TCK-042-dashboard-agent-crm.md) — Dashboard Agent — CRM `M · P0 · front`
+- [TCK-060](tickets/TCK-060-auth-pages-oauth.md) — Cycle auth front + OAuth multi-provider `M · P0 · applicatif`
 
 ### Phase 3 — Opérations Métier (back + front alternés)
 
@@ -135,6 +136,7 @@ TCK-054 + TCK-055 + TCK-057 + TCK-024 ──▶ TCK-039 (search results)
 TCK-054 + TCK-055 + TCK-057 + TCK-035 ──▶ TCK-040 (property detail)
 TCK-054 + TCK-055 + TCK-056 + TCK-057 + TCK-036 ──▶ TCK-041 (dashboard agent — biens)
 TCK-054 + TCK-055 + TCK-056 + TCK-057 + TCK-020 ──▶ TCK-042 (dashboard agent — CRM)
+TCK-013 + TCK-054 + TCK-055 + TCK-056 + TCK-057 + TCK-058 + TCK-059 ──▶ TCK-060 (cycle auth front + OAuth)
 
 ── Phase 3 : Opérations Métier ──
 TCK-034 + TCK-020 + TCK-048 + TCK-051 ──▶ TCK-026 (bookings back)
@@ -175,3 +177,4 @@ TCK-054 + TCK-056 + TCK-057 + TCK-046 + TCK-024 ──▶ TCK-047 (favorites + m
 - **2026-04-16** — Refonte backlog IA : scission TCK-019 (XL) → TCK-034/035/036, scission TCK-025 (L) → TCK-038/039/040, ajout TCK-037 (Design System), extraction frontends TCK-041→045, conversion TCK-026/027/029 en backend-only, nouveau template avec family back/front.
 - **2026-04-16** — Ajout TCK-046 (favoris & carte backend) + TCK-047 (favoris, carte & partage frontend) pour couverture P1 complète de features.md §1.2.
 - **2026-04-16** — Refonte fondation : suppression TCK-001→012 (P2/P3/EF améliorations futures) + TCK-037 (absorbé). Création Phase 0 : TCK-048→053 (6 back fondation) + TCK-054→059 (6 front fondation). Mise à jour dépendances tous tickets existants.
+- **2026-04-20** — Ajout TCK-060 : refonte complète du cycle auth front (7 pages) + câblage OAuth multi-provider (Google, Facebook, Apple via Socialite) avec state CSRF.
