@@ -33,7 +33,7 @@ class User extends Authenticatable implements HasMedia, MustVerifyEmail
         'last_login_at', 'agency_id', 'added_by_id',
         'google_id', 'facebook_id', 'apple_id',
         'two_factor_enabled', 'two_factor_secret', 'two_factor_recovery_codes',
-        'email_verified_at', 'phone_verified_at',
+        'phone_verified_at',
         'notifications_email_enabled', 'notifications_push_enabled', 'notifications_sms_enabled',
         'metadata',
     ];

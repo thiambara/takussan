@@ -48,7 +48,7 @@ function LoginForm() {
           setGlobalError((err.data as { message?: string })?.message ?? 'Identifiants incorrects.');
         }
       } else {
-        setGlobalError('Une erreur inattendue est survenue.');
+        setGlobalError('La connexion au serveur a échoué. Vérifiez votre connexion internet et réessayez.');
       }
     } finally {
       setLoading(false);

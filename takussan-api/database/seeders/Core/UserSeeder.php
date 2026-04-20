@@ -39,13 +39,13 @@ class UserSeeder extends Seeder
                 'status' => UserStatus::Active,
                 'phone' => '+221770000000',
                 'password' => Hash::make('password'),
-                'email_verified_at' => Timeline::seedStart(),
                 'preferred_language' => 'fr',
                 'timezone' => 'Africa/Dakar',
                 'created_at' => Timeline::seedStart(),
                 'updated_at' => Timeline::seedStart(),
             ],
         );
+        $user->forceFill(['email_verified_at' => Timeline::seedStart()])->save();
         // assignment (which requires an agency_id pivot).
         $this->ctx->registerUser($user);
 
@@ -124,7 +124,6 @@ class UserSeeder extends Seeder
                 'status' => UserStatus::Active,
                 'phone' => $this->ctx->faker()->senegalesePhoneNumber(),
                 'password' => Hash::make('password'),
-                'email_verified_at' => $createdAt,
                 'preferred_language' => 'fr',
                 'timezone' => 'Africa/Dakar',
                 'agency_id' => $agency->id,
@@ -133,6 +132,7 @@ class UserSeeder extends Seeder
                 'updated_at' => $createdAt,
             ]),
         );
+        $user->forceFill(['email_verified_at' => $createdAt])->save();
 
         if ($role) {
             try {

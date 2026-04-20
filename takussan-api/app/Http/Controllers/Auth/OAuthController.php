@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Base\Controller;
 use App\Models\User;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -59,23 +60,32 @@ class OAuthController extends Controller
     {
         $providerIdColumn = $provider.'_id';
 
-        $user = User::where($providerIdColumn, $socialUser->getId())
-            ->orWhere('email', $socialUser->getEmail())
-            ->first();
-
-        if ($user === null) {
-            $nameParts = explode(' ', (string) $socialUser->getName(), 2);
-            $user = User::create([
-                'first_name' => $nameParts[0] ?? '',
-                'last_name' => $nameParts[1] ?? '',
-                'email' => $socialUser->getEmail(),
-                $providerIdColumn => $socialUser->getId(),
-                'email_verified_at' => now(),
-                'password' => bcrypt(Str::random(32)),
-            ]);
-        } else {
-            $user->update([$providerIdColumn => $socialUser->getId()]);
+        // 1. Trusted path: returning user already linked to this provider id.
+        $user = User::where($providerIdColumn, $socialUser->getId())->first();
+        if ($user !== null) {
+            return $user;
         }
+
+        // 2. Email collision: an account with the same email exists but was never linked
+        //    to this provider. We refuse to auto-link to prevent account takeover when
+        //    a provider returns an unverified or attacker-controlled email.
+        $email = $socialUser->getEmail();
+        if ($email !== null && User::where('email', $email)->exists()) {
+            abort(409, 'Un compte existe déjà avec cette adresse email. Connectez-vous avec votre mot de passe puis liez votre compte depuis vos paramètres.');
+        }
+
+        // 3. Truly new user: create and mark email as verified (OAuth provider owns it).
+        $nameParts = explode(' ', (string) $socialUser->getName(), 2);
+        $user = User::create([
+            'first_name' => $nameParts[0] ?? '',
+            'last_name' => $nameParts[1] ?? '',
+            'email' => $email,
+            $providerIdColumn => $socialUser->getId(),
+            'password' => bcrypt(Str::random(32)),
+        ]);
+        $user->forceFill(['email_verified_at' => now()])->save();
+
+        event(new Registered($user));
 
         return $user;
     }

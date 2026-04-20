@@ -44,7 +44,7 @@ function ResetPasswordForm() {
           setGlobalError((err.data as { message?: string })?.message ?? 'La réinitialisation a échoué.');
         }
       } else {
-        setGlobalError('Une erreur inattendue est survenue.');
+        setGlobalError('La connexion au serveur a échoué. Vérifiez votre connexion internet et réessayez.');
       }
     } finally {
       setLoading(false);

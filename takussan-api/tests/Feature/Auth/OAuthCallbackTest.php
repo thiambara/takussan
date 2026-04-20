@@ -36,22 +36,62 @@ class OAuthCallbackTest extends TestCase
         ]);
     }
 
-    public function test_callback_links_existing_user_by_email(): void
+    public function test_callback_returns_existing_user_linked_by_provider_id(): void
     {
-        $user = User::factory()->create(['email' => 'existing@example.com', 'google_id' => null]);
+        $user = User::factory()->create(['email' => 'known@example.com', 'google_id' => 'google-789']);
         Cache::put('oauth_state:valid', ['provider' => 'google'], now()->addMinutes(5));
 
         $socialUser = Mockery::mock(SocialiteUser::class);
-        $socialUser->shouldReceive('getId')->andReturn('google-456');
-        $socialUser->shouldReceive('getEmail')->andReturn('existing@example.com');
+        $socialUser->shouldReceive('getId')->andReturn('google-789');
+        $socialUser->shouldReceive('getEmail')->andReturn('known@example.com');
         $socialUser->shouldReceive('getName')->andReturn('Whatever');
+
+        Socialite::shouldReceive('driver->stateless->user')->andReturn($socialUser);
+
+        $response = $this->getJson('/api/auth/oauth/google/callback?code=abc&state=valid');
+
+        $response->assertStatus(200);
+        $this->assertSame($user->id, $response->json('data.user.id'));
+        $this->assertDatabaseCount('users', 1);
+    }
+
+    public function test_callback_rejects_email_collision_without_existing_provider_link(): void
+    {
+        // Defense against account takeover: an attacker controlling a social account
+        // with the victim's email must not be silently linked to the victim's record.
+        User::factory()->create(['email' => 'victim@example.com', 'google_id' => null]);
+        Cache::put('oauth_state:valid', ['provider' => 'google'], now()->addMinutes(5));
+
+        $socialUser = Mockery::mock(SocialiteUser::class);
+        $socialUser->shouldReceive('getId')->andReturn('attacker-google-id');
+        $socialUser->shouldReceive('getEmail')->andReturn('victim@example.com');
+        $socialUser->shouldReceive('getName')->andReturn('Attacker');
+
+        Socialite::shouldReceive('driver->stateless->user')->andReturn($socialUser);
+
+        $this->getJson('/api/auth/oauth/google/callback?code=abc&state=valid')
+            ->assertStatus(409);
+
+        $this->assertDatabaseCount('users', 1);
+        $this->assertDatabaseMissing('users', ['google_id' => 'attacker-google-id']);
+    }
+
+    public function test_callback_marks_new_oauth_user_email_as_verified(): void
+    {
+        Cache::put('oauth_state:valid', ['provider' => 'google'], now()->addMinutes(5));
+
+        $socialUser = Mockery::mock(SocialiteUser::class);
+        $socialUser->shouldReceive('getId')->andReturn('google-verify');
+        $socialUser->shouldReceive('getEmail')->andReturn('verify@example.com');
+        $socialUser->shouldReceive('getName')->andReturn('Verify Me');
 
         Socialite::shouldReceive('driver->stateless->user')->andReturn($socialUser);
 
         $this->getJson('/api/auth/oauth/google/callback?code=abc&state=valid')->assertStatus(200);
 
-        $this->assertSame('google-456', $user->fresh()->google_id);
-        $this->assertDatabaseCount('users', 1);
+        $user = User::where('email', 'verify@example.com')->first();
+        $this->assertNotNull($user);
+        $this->assertNotNull($user->email_verified_at);
     }
 
     public function test_callback_rejects_invalid_state(): void
