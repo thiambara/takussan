@@ -95,7 +95,7 @@ class OAuthController extends Controller
             'first_name' => $firstName,
             'last_name' => $lastName,
             'email' => $email,
-            'type' => 'owner',
+            'type' => 'individual',
             $providerIdColumn => $socialUser->getId(),
             'password' => bcrypt(Str::random(32)),
         ]);

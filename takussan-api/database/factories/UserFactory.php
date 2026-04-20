@@ -22,7 +22,7 @@ class UserFactory extends Factory
             'username' => fake()->unique()->userName(),
             'first_name' => fake()->firstName(),
             'last_name' => fake()->lastName(),
-            'type' => UserType::Owner,
+            'type' => UserType::Individual,
             'status' => UserStatus::Active,
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),

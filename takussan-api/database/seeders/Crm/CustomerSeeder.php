@@ -51,7 +51,7 @@ class CustomerSeeder extends Seeder
                         'username' => $slug.'-'.Str::random(4),
                         'first_name' => $firstName,
                         'last_name' => $lastName,
-                        'type' => UserType::Owner,
+                        'type' => UserType::Individual,
                         'status' => UserStatus::Active,
                         'email' => $email,
                         'phone' => $this->ctx->faker()->senegalesePhoneNumber(),

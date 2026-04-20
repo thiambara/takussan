@@ -11,10 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Change default from 'individual' to 'owner' to match UserType enum
-        // Note: SQLite doesn't support altering defaults directly, so we recreate the column
+        // Ensure default matches UserType::Individual enum value
         Schema::table('users', function (Blueprint $table) {
-            $table->string('type')->default('owner')->change();
+            $table->string('type')->default('individual')->change();
         });
     }
 

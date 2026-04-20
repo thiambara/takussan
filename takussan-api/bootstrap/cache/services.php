@@ -47,12 +47,13 @@
     43 => 'NunoMaduro\\Collision\\Adapters\\Laravel\\CollisionServiceProvider',
     44 => 'Termwind\\Laravel\\TermwindServiceProvider',
     45 => 'RyanChandler\\BladeCaptureDirective\\BladeCaptureDirectiveServiceProvider',
-    46 => 'Spatie\\Activitylog\\ActivitylogServiceProvider',
-    47 => 'Spatie\\MediaLibrary\\MediaLibraryServiceProvider',
-    48 => 'Spatie\\Permission\\PermissionServiceProvider',
-    49 => 'Spatie\\QueryBuilder\\QueryBuilderServiceProvider',
-    50 => 'App\\Providers\\AppServiceProvider',
-    51 => 'App\\Providers\\Filament\\AdminPanelProvider',
+    46 => 'SocialiteProviders\\Manager\\ServiceProvider',
+    47 => 'Spatie\\Activitylog\\ActivitylogServiceProvider',
+    48 => 'Spatie\\MediaLibrary\\MediaLibraryServiceProvider',
+    49 => 'Spatie\\Permission\\PermissionServiceProvider',
+    50 => 'Spatie\\QueryBuilder\\QueryBuilderServiceProvider',
+    51 => 'App\\Providers\\AppServiceProvider',
+    52 => 'App\\Providers\\Filament\\AdminPanelProvider',
   ),
   'eager' => 
   array (
@@ -253,7 +254,7 @@
     'validator' => 'Illuminate\\Validation\\ValidationServiceProvider',
     'validation.presence' => 'Illuminate\\Validation\\ValidationServiceProvider',
     'Illuminate\\Contracts\\Validation\\UncompromisedVerifier' => 'Illuminate\\Validation\\ValidationServiceProvider',
-    'Laravel\\Socialite\\Contracts\\Factory' => 'Laravel\\Socialite\\SocialiteServiceProvider',
+    'Laravel\\Socialite\\Contracts\\Factory' => 'SocialiteProviders\\Manager\\ServiceProvider',
     'command.tinker' => 'Laravel\\Tinker\\TinkerServiceProvider',
   ),
   'when' => 
@@ -301,6 +302,9 @@
     array (
     ),
     'Laravel\\Tinker\\TinkerServiceProvider' => 
+    array (
+    ),
+    'SocialiteProviders\\Manager\\ServiceProvider' => 
     array (
     ),
   ),

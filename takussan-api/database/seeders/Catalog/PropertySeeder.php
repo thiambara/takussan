@@ -32,7 +32,7 @@ class PropertySeeder extends Seeder
 
     private function seedAgencyProperties(Agency $agency): void
     {
-        $owners = $this->ctx->usersOfType($agency->id, UserType::Owner->value);
+        $owners = $this->ctx->usersOfType($agency->id, UserType::Individual->value);
         if ($owners->isEmpty()) {
             return;
         }

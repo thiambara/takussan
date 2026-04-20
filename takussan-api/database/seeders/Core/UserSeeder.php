@@ -88,7 +88,7 @@ class UserSeeder extends Seeder
                 'username' => "{$slug}-owner-{$i}",
                 'first_name' => $this->ctx->faker()->senegaleseFirstName(),
                 'last_name' => $this->ctx->faker()->senegaleseLastName(),
-                'type' => UserType::Owner,
+                'type' => UserType::Individual,
                 'role' => 'owner',
             ]);
         }
