@@ -12,14 +12,14 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#1f1b17]">Tableau de bord</h1>
-        <p className="mt-1 text-sm text-[#43474e]">Vue d&apos;ensemble de votre activité</p>
+        <h1 className="text-2xl font-bold text-app-ink">Tableau de bord</h1>
+        <p className="mt-1 text-sm text-app-ink-muted">Vue d&apos;ensemble de votre activité</p>
       </div>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {stats.map((label) => (
-          <div key={label} className="rounded-2xl bg-[#fcf2eb] p-6">
-            <p className="text-xs font-semibold text-[#43474e]">{label}</p>
-            <p className="mt-2 text-2xl font-bold text-[#1f1b17]">—</p>
+          <div key={label} className="rounded-2xl bg-app-surface-1 p-6">
+            <p className="text-xs font-semibold text-app-ink-muted">{label}</p>
+            <p className="mt-2 text-2xl font-bold text-app-ink">—</p>
           </div>
         ))}
       </div>

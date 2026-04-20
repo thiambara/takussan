@@ -27,7 +27,7 @@ export function AppTopbar({ user, onMenuToggle }: AppTopbarProps) {
   const initials = `${user.first_name[0] ?? ''}${user.last_name[0] ?? ''}`.toUpperCase();
 
   return (
-    <header className={cn('flex h-14 shrink-0 items-center gap-3 bg-[#022448] px-4')}>
+    <header className={cn('flex h-14 shrink-0 items-center gap-3 bg-app-topbar px-4')}>
       <button
         type="button"
         onClick={onMenuToggle}

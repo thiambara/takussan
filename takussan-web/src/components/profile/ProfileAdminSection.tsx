@@ -20,14 +20,14 @@ export function ProfileAdminSection({ user }: ProfileAdminSectionProps) {
   const primaryRole = getPrimaryRole(user.roles);
 
   return (
-    <section className="space-y-4 rounded-2xl bg-[#eae1da] p-6">
+    <section className="space-y-4 rounded-2xl bg-app-surface-3 p-6">
       <div>
-        <h2 className="text-lg font-bold text-[#1f1b17]">Administration</h2>
-        <p className="text-sm text-[#43474e]">Outils de gestion réservés aux administrateurs.</p>
+        <h2 className="text-lg font-bold text-app-ink">Administration</h2>
+        <p className="text-sm text-app-ink-muted">Outils de gestion réservés aux administrateurs.</p>
       </div>
       <div className="space-y-1">
-        <p className="text-xs font-semibold text-[#43474e]">Rôle admin</p>
-        <p className="text-sm font-semibold text-[#1f1b17]">
+        <p className="text-xs font-semibold text-app-ink-muted">Rôle admin</p>
+        <p className="text-sm font-semibold text-app-ink">
           {primaryRole ? ROLE_LABELS[primaryRole] : '—'}
         </p>
       </div>

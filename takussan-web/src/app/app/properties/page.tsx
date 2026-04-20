@@ -6,8 +6,8 @@ export default async function Page() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#1f1b17]">Mes biens</h1>
-        <p className="mt-1 text-sm text-[#43474e]">Gérez votre portefeuille immobilier</p>
+        <h1 className="text-2xl font-bold text-app-ink">Mes biens</h1>
+        <p className="mt-1 text-sm text-app-ink-muted">Gérez votre portefeuille immobilier</p>
       </div>
       <StubPlaceholder label="Mes biens" />
     </div>

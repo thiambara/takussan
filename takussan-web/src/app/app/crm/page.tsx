@@ -6,8 +6,8 @@ export default async function Page() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#1f1b17]">CRM</h1>
-        <p className="mt-1 text-sm text-[#43474e]">Gestion de votre portefeuille clients</p>
+        <h1 className="text-2xl font-bold text-app-ink">CRM</h1>
+        <p className="mt-1 text-sm text-app-ink-muted">Gestion de votre portefeuille clients</p>
       </div>
       <StubPlaceholder label="CRM" />
     </div>

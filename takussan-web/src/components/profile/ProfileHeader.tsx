@@ -35,6 +35,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
   const [lastName, setLastName] = useState(user.last_name);
   const [bio, setBio] = useState(user.bio ?? '');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const initials = `${user.first_name[0] ?? ''}${user.last_name[0] ?? ''}`.toUpperCase();
   const primaryRole = getPrimaryRole(user.roles);
@@ -42,12 +43,17 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
+    setError(null);
     const fd = new FormData();
     fd.append('first_name', firstName);
     fd.append('last_name', lastName);
     fd.append('bio', bio);
-    await updateProfileAction(fd);
+    const result = await updateProfileAction(fd);
     setLoading(false);
+    if (!result.ok) {
+      setError(result.message ?? 'Échec de la mise à jour du profil.');
+      return;
+    }
     setOpen(false);
   }
 
@@ -55,13 +61,13 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
     <section className="flex flex-col items-center gap-4 text-center">
       <Avatar className="size-24">
         {user.avatar_url ? <AvatarImage src={user.avatar_url} alt={user.full_name} /> : null}
-        <AvatarFallback className="bg-[#022448] text-2xl text-white">{initials}</AvatarFallback>
+        <AvatarFallback className="bg-app-topbar text-2xl text-white">{initials}</AvatarFallback>
       </Avatar>
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold text-[#1f1b17]">{user.full_name}</h1>
-        <p className="text-sm text-[#43474e]">{user.email}</p>
+        <h1 className="text-2xl font-bold text-app-ink">{user.full_name}</h1>
+        <p className="text-sm text-app-ink-muted">{user.email}</p>
         {primaryRole ? (
-          <span className="inline-block rounded-full bg-[#fcf2eb] px-3 py-1 text-xs font-semibold text-[#022448]">
+          <span className="inline-block rounded-full bg-app-surface-1 px-3 py-1 text-xs font-semibold text-app-topbar">
             {ROLE_LABELS[primaryRole]}
           </span>
         ) : null}
@@ -81,7 +87,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="space-y-1">
-              <label htmlFor="first_name" className="text-xs font-semibold text-[#43474e]">
+              <label htmlFor="first_name" className="text-xs font-semibold text-app-ink-muted">
                 Prénom
               </label>
               <Input
@@ -92,7 +98,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
               />
             </div>
             <div className="space-y-1">
-              <label htmlFor="last_name" className="text-xs font-semibold text-[#43474e]">
+              <label htmlFor="last_name" className="text-xs font-semibold text-app-ink-muted">
                 Nom
               </label>
               <Input
@@ -103,7 +109,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
               />
             </div>
             <div className="space-y-1">
-              <label htmlFor="bio" className="text-xs font-semibold text-[#43474e]">
+              <label htmlFor="bio" className="text-xs font-semibold text-app-ink-muted">
                 Bio
               </label>
               <Textarea
@@ -114,6 +120,11 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
                 rows={4}
               />
             </div>
+            {error ? (
+              <p role="alert" className="text-sm text-red-600">
+                {error}
+              </p>
+            ) : null}
             <div className="flex justify-end gap-2 pt-2">
               <Button
                 type="button"

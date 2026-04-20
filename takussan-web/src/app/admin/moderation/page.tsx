@@ -9,8 +9,8 @@ export default async function ModerationPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#1f1b17]">Modération</h1>
-        <p className="mt-1 text-sm text-[#43474e]">Traitement des signalements et des litiges</p>
+        <h1 className="text-2xl font-bold text-app-ink">Modération</h1>
+        <p className="mt-1 text-sm text-app-ink-muted">Traitement des signalements et des litiges</p>
       </div>
       <StubPlaceholder label="Modération" />
     </div>

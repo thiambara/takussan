@@ -1,5 +1,6 @@
 'use server';
 
+import { cache } from 'react';
 import { ApiError } from '@/lib/api';
 import { getMe, logout, resendVerification, updateProfile, UpdateProfilePayload } from '@/lib/auth';
 import { clearToken, getToken } from '@/lib/session';
@@ -55,7 +56,9 @@ export async function updateProfileAction(
   }
 }
 
-export async function getMeAction() {
+// Memoized per-request so layouts and pages can both call getMeAction()
+// without triggering duplicate HTTP requests to the API.
+const cachedGetMe = cache(async () => {
   const token = await getToken();
   if (!token) redirect('/auth/login');
 
@@ -68,4 +71,8 @@ export async function getMeAction() {
     }
     throw err;
   }
+});
+
+export async function getMeAction() {
+  return cachedGetMe();
 }

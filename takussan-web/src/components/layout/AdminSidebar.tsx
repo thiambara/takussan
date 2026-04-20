@@ -77,7 +77,7 @@ export function AdminSidebar({ user, className, onNavigate }: AdminSidebarProps)
   const initials = `${user.first_name[0] ?? ''}${user.last_name[0] ?? ''}`.toUpperCase();
 
   return (
-    <aside className={cn('flex h-full w-64 flex-col bg-[#022448] text-white', className)}>
+    <aside className={cn('flex h-full w-64 flex-col bg-app-topbar text-white', className)}>
       <div className="px-6 py-5">
         <Link
           href="/"

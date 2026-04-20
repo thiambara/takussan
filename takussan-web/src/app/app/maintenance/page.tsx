@@ -6,8 +6,8 @@ export default async function Page() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#1f1b17]">Maintenance</h1>
-        <p className="mt-1 text-sm text-[#43474e]">Demandes et suivi d&apos;interventions</p>
+        <h1 className="text-2xl font-bold text-app-ink">Maintenance</h1>
+        <p className="mt-1 text-sm text-app-ink-muted">Demandes et suivi d&apos;interventions</p>
       </div>
       <StubPlaceholder label="Maintenance" />
     </div>

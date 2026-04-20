@@ -44,6 +44,16 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Takussan private-app palette (warm heritage) */
+  --app-topbar: #022448;
+  --app-bg: #fff8f5;
+  --app-surface-1: #fcf2eb;
+  --app-surface-2: #f0e6e0;
+  --app-surface-3: #eae1da;
+  --app-ink: #1f1b17;
+  --app-ink-muted: #43474e;
+  --app-accent: #7d5630;
 }
 
 @theme inline {
@@ -83,6 +93,14 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-app-topbar: var(--app-topbar);
+  --color-app-bg: var(--app-bg);
+  --color-app-surface-1: var(--app-surface-1);
+  --color-app-surface-2: var(--app-surface-2);
+  --color-app-surface-3: var(--app-surface-3);
+  --color-app-ink: var(--app-ink);
+  --color-app-ink-muted: var(--app-ink-muted);
+  --color-app-accent: var(--app-accent);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);

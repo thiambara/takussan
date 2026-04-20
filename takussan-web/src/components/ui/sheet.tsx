@@ -52,7 +52,7 @@ function SheetContent({
         data-slot="sheet-content"
         data-side={side}
         className={cn(
-          "fixed inset-y-0 z-50 flex h-full w-72 flex-col bg-[#fcf2eb] shadow-[0_0_40px_0_rgba(31,27,23,0.04)] outline-none duration-200 data-open:animate-in data-closed:animate-out",
+          "fixed inset-y-0 z-50 flex h-full w-72 flex-col bg-app-surface-1 shadow-[0_0_40px_0_rgba(31,27,23,0.04)] outline-none duration-200 data-open:animate-in data-closed:animate-out",
           side === "left" &&
             "left-0 data-open:slide-in-from-left data-closed:slide-out-to-left",
           side === "right" &&

@@ -101,9 +101,9 @@ function SidebarItem({
       className={cn(
         'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
         active
-          ? 'bg-[#eae1da] text-[#022448] font-semibold'
-          : 'text-[#43474e] hover:bg-[#f0e6e0]',
-        emphasized && !active && 'text-[#022448] font-semibold',
+          ? 'bg-app-surface-3 text-app-topbar font-semibold'
+          : 'text-app-ink-muted hover:bg-app-surface-2',
+        emphasized && !active && 'text-app-topbar font-semibold',
       )}
     >
       <Icon className="size-4 shrink-0" />
@@ -118,15 +118,15 @@ function SidebarUserFooter({ user, onNavigate }: { user: User; onNavigate?: () =
     <Link
       href="/app/profile"
       onClick={onNavigate}
-      className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-[#f0e6e0]"
+      className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-app-surface-2"
     >
       <Avatar className="size-9">
         {user.avatar_url ? <AvatarImage src={user.avatar_url} alt={user.full_name} /> : null}
-        <AvatarFallback className="bg-[#022448] text-white">{initials}</AvatarFallback>
+        <AvatarFallback className="bg-app-topbar text-white">{initials}</AvatarFallback>
       </Avatar>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-[#1f1b17]">{user.full_name}</p>
-        <p className="truncate text-xs text-[#43474e]">Mon profil</p>
+        <p className="truncate text-sm font-semibold text-app-ink">{user.full_name}</p>
+        <p className="truncate text-xs text-app-ink-muted">Mon profil</p>
       </div>
     </Link>
   );
@@ -137,12 +137,12 @@ export function AppSidebar({ user, className, onNavigate }: AppSidebarProps) {
   const navItems = buildNavItems(user);
 
   return (
-    <aside className={cn('flex h-full w-64 flex-col bg-[#fcf2eb]', className)}>
+    <aside className={cn('flex h-full w-64 flex-col bg-app-surface-1', className)}>
       <div className="px-6 py-5">
         <Link
           href="/"
           onClick={onNavigate}
-          className="text-xl font-bold tracking-tighter text-[#022448]"
+          className="text-xl font-bold tracking-tighter text-app-topbar"
         >
           Takussan
         </Link>
