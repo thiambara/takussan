@@ -3,6 +3,9 @@
 import { forgotPassword } from '@/lib/auth';
 import Link from 'next/link';
 import { useState } from 'react';
+import { CheckCircle2, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -16,7 +19,7 @@ export default function ForgotPasswordPage() {
     try {
       await forgotPassword(email);
     } catch {
-      // Always show success to prevent email enumeration
+      // Toujours afficher succès pour éviter l'énumération des emails
     } finally {
       setSubmitted(true);
       setLoading(false);
@@ -25,51 +28,73 @@ export default function ForgotPasswordPage() {
 
   if (submitted) {
     return (
-      <div className="bg-white shadow rounded-lg p-8 text-center">
-        <h1 className="text-2xl font-bold mb-4">Check your email</h1>
-        <p className="text-gray-600 text-sm">
-          If an account exists for <strong>{email}</strong>, a password reset link has been sent.
+      <div>
+        <div className="flex items-center justify-center size-14 rounded-full bg-green-50 text-green-600 mb-6">
+          <CheckCircle2 className="size-7" />
+        </div>
+        <h1 className="font-headline text-3xl font-bold tracking-tight mb-2">
+          Vérifiez votre boîte mail
+        </h1>
+        <p className="text-muted-foreground text-sm mb-6">
+          Si un compte existe pour <strong className="text-foreground">{email}</strong>, un lien de
+          réinitialisation vient de vous être envoyé. Il est valable 60 minutes.
         </p>
-        <Link href="/auth/login" className="mt-6 inline-block text-sm text-blue-600 hover:underline">
-          Back to sign in
+        <Link
+          href="/auth/login"
+          className="inline-block text-sm text-primary font-semibold hover:underline"
+        >
+          ← Retour à la connexion
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="bg-white shadow rounded-lg p-8">
-      <h1 className="text-2xl font-bold mb-2 text-center">Forgot password</h1>
-      <p className="text-sm text-gray-600 mb-6 text-center">
-        Enter your email address and we&apos;ll send you a reset link.
+    <div>
+      <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-2">
+        Mot de passe oublié
+      </h1>
+      <p className="text-muted-foreground text-sm mb-8">
+        Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de
+        passe.
       </p>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-          <input
+          <label htmlFor="email" className="block text-sm font-medium mb-1.5">
+            Adresse email
+          </label>
+          <Input
             id="email"
             type="email"
             autoComplete="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="vous@exemple.com"
+            className="h-11"
           />
         </div>
 
-        <button
+        <Button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded font-medium text-sm hover:bg-blue-700 disabled:opacity-50"
+          className="w-full rounded-full h-11 text-base font-semibold"
         >
-          {loading ? 'Sending…' : 'Send reset link'}
-        </button>
+          {loading ? (
+            <>
+              <Loader2 className="size-4 animate-spin" />
+              Envoi en cours…
+            </>
+          ) : (
+            'Envoyer le lien'
+          )}
+        </Button>
       </form>
 
-      <p className="mt-4 text-center text-sm">
-        <Link href="/auth/login" className="text-blue-600 hover:underline">
-          Back to sign in
+      <p className="mt-6 text-center text-sm text-muted-foreground">
+        <Link href="/auth/login" className="text-primary font-semibold hover:underline">
+          ← Retour à la connexion
         </Link>
       </p>
     </div>

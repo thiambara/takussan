@@ -54,7 +54,6 @@ class CustomerSeeder extends Seeder
                         'type' => UserType::Owner,
                         'status' => UserStatus::Active,
                         'email' => $email,
-                        'email_verified_at' => $createdAt,
                         'phone' => $this->ctx->faker()->senegalesePhoneNumber(),
                         'password' => Hash::make('password'),
                         'preferred_language' => 'fr',
@@ -63,6 +62,7 @@ class CustomerSeeder extends Seeder
                         'created_at' => $createdAt,
                         'updated_at' => $createdAt,
                     ]);
+                    $user->forceFill(['email_verified_at' => $createdAt])->save();
                     try {
                         $user->syncRoles(['customer']);
                     } catch (RoleDoesNotExist) {

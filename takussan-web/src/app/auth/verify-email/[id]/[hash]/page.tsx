@@ -1,6 +1,8 @@
 import { getToken } from '@/lib/session';
 import { apiRequest } from '@/lib/api';
 import Link from 'next/link';
+import { CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 type Props = {
   params: Promise<{ id: string; hash: string }>;
@@ -13,39 +15,57 @@ export default async function VerifyEmailHashPage({ params, searchParams }: Prop
   const token = await getToken();
 
   let success = false;
-  let message = 'Verification failed or link has expired.';
 
   if (token) {
     try {
       const queryString = new URLSearchParams(query).toString();
       const path = `/api/auth/verify-email/${id}/${hash}${queryString ? `?${queryString}` : ''}`;
-      const result = await apiRequest<{ message: string }>(path, { token });
+      await apiRequest<{ message: string }>(path, { token });
       success = true;
-      message = result.message;
     } catch {
-      // message stays as default error
+      // success reste false
     }
   }
 
-  return (
-    <div className="bg-white shadow rounded-lg p-8 text-center">
-      <h1 className="text-2xl font-bold mb-4">Email verification</h1>
+  if (success) {
+    return (
+      <div>
+        <div className="flex items-center justify-center size-14 rounded-full bg-green-50 text-green-600 mb-6">
+          <CheckCircle2 className="size-7" />
+        </div>
+        <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-2">
+          Adresse email vérifiée
+        </h1>
+        <p className="text-muted-foreground text-sm mb-8">
+          Votre adresse est confirmée. Vous pouvez maintenant accéder à l&apos;ensemble des
+          fonctionnalités de Takussan.
+        </p>
+        <Link href="/dashboard">
+          <Button className="w-full rounded-full h-11 text-base font-semibold">
+            Accéder au tableau de bord
+          </Button>
+        </Link>
+      </div>
+    );
+  }
 
-      {success ? (
-        <>
-          <p className="text-green-600 mb-6">{message}</p>
-          <Link href="/dashboard" className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
-            Go to dashboard
-          </Link>
-        </>
-      ) : (
-        <>
-          <p className="text-red-600 mb-6">{message}</p>
-          <Link href="/auth/verify-email" className="text-sm text-blue-600 hover:underline">
-            Request a new verification email
-          </Link>
-        </>
-      )}
+  return (
+    <div>
+      <div className="flex items-center justify-center size-14 rounded-full bg-red-50 text-red-600 mb-6">
+        <AlertTriangle className="size-7" />
+      </div>
+      <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-2">
+        Vérification impossible
+      </h1>
+      <p className="text-muted-foreground text-sm mb-8">
+        Ce lien est invalide ou a expiré. Demandez un nouvel email de vérification depuis votre
+        espace.
+      </p>
+      <Link href="/auth/verify-email">
+        <Button className="w-full rounded-full h-11 text-base font-semibold">
+          Demander un nouveau lien
+        </Button>
+      </Link>
     </div>
   );
 }

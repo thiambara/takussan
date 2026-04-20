@@ -1,7 +1,10 @@
 'use client';
 
 import { resendVerificationEmailAction } from '@/app/actions/auth';
+import Link from 'next/link';
 import { useState } from 'react';
+import { Mail, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function VerifyEmailPage() {
   const [status, setStatus] = useState<'idle' | 'sent' | 'error'>('idle');
@@ -17,31 +20,58 @@ export default function VerifyEmailPage() {
   }
 
   return (
-    <div className="bg-white shadow rounded-lg p-8 text-center">
-      <h1 className="text-2xl font-bold mb-4">Verify your email</h1>
-      <p className="text-gray-600 text-sm mb-6">
-        We&apos;ve sent a verification link to your email address. Please check your inbox and click
-        the link to activate your account.
+    <div>
+      <div className="flex items-center justify-center size-14 rounded-full bg-primary/10 text-primary mb-6">
+        <Mail className="size-7" />
+      </div>
+      <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-2">
+        Vérifiez votre adresse email
+      </h1>
+      <p className="text-muted-foreground text-sm mb-8">
+        Nous avons envoyé un lien de vérification à votre adresse email. Cliquez sur le lien dans
+        le message pour activer votre compte.
       </p>
 
       {status === 'sent' && (
-        <p className="mb-4 text-sm text-green-600 bg-green-50 p-3 rounded">
-          Verification email resent. Please check your inbox.
-        </p>
+        <div
+          role="status"
+          className="mb-6 text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-4 py-3"
+        >
+          Email de vérification renvoyé. Pensez à vérifier votre dossier spam.
+        </div>
       )}
       {status === 'error' && (
-        <p className="mb-4 text-sm text-red-600 bg-red-50 p-3 rounded">
-          Failed to resend. Please try again.
-        </p>
+        <div
+          role="alert"
+          className="mb-6 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3"
+        >
+          Impossible de renvoyer l&apos;email. Réessayez dans quelques instants.
+        </div>
       )}
 
-      <button
-        onClick={handleResend}
-        disabled={loading}
-        className="text-sm text-blue-600 hover:underline disabled:opacity-50"
-      >
-        {loading ? 'Sending…' : 'Resend verification email'}
-      </button>
+      <div className="space-y-3">
+        <Button
+          onClick={handleResend}
+          disabled={loading}
+          className="w-full rounded-full h-11 text-base font-semibold"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="size-4 animate-spin" />
+              Envoi en cours…
+            </>
+          ) : (
+            "Renvoyer l'email de vérification"
+          )}
+        </Button>
+
+        <Link
+          href="/dashboard"
+          className="block text-center text-sm text-muted-foreground hover:text-foreground"
+        >
+          Continuer vers le tableau de bord
+        </Link>
+      </div>
     </div>
   );
 }

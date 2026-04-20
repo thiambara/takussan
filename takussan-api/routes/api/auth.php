@@ -57,8 +57,10 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     Route::delete('/sessions/{tokenId}', [SessionController::class, 'destroy']);
 });
 
-// OAuth (public — redirect URL returned as JSON for SPA)
-Route::prefix('auth')->group(function () {
-    Route::get('/oauth/google/redirect', [OAuthController::class, 'redirectToGoogle']);
-    Route::get('/oauth/google/callback', [OAuthController::class, 'handleGoogleCallback']);
+// OAuth (public — SPA flow, state stored server-side via Cache)
+Route::prefix('auth/oauth')->group(function () {
+    Route::get('/{provider}/redirect', [OAuthController::class, 'redirect'])
+        ->whereIn('provider', ['google', 'facebook', 'apple']);
+    Route::get('/{provider}/callback', [OAuthController::class, 'callback'])
+        ->whereIn('provider', ['google', 'facebook', 'apple']);
 });
