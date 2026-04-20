@@ -3,13 +3,15 @@
 import { Suspense, use, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { oauthCallback, type OAuthProvider } from '@/lib/auth';
+import { oauthCallback, type OAuthProvider, type User } from '@/lib/auth';
 import { ApiError } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
 const SUPPORTED_PROVIDERS: OAuthProvider[] = ['google', 'facebook', 'apple'];
 
 function CallbackInner({ provider }: { provider: OAuthProvider }) {
   const router = useRouter();
+  const { refreshUser, setUser } = useAuth();
   const params = useSearchParams();
   const code = params.get('code');
   const state = params.get('state');
@@ -25,12 +27,16 @@ function CallbackInner({ provider }: { provider: OAuthProvider }) {
 
     (async () => {
       try {
-        const { token } = await oauthCallback(provider, code, state);
+        const { token, user } = await oauthCallback(provider, code, state);
         await fetch('/api/auth/set-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token }),
         });
+        // Set user immediately like email/password flow does
+        setUser(user as User);
+        // Then refresh to ensure sync with server
+        await refreshUser();
         router.replace(redirectTo);
       } catch (err) {
         const msg = err instanceof ApiError ? 'oauth_failed' : 'oauth_unknown';

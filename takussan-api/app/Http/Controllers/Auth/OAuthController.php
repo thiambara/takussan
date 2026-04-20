@@ -52,7 +52,20 @@ class OAuthController extends Controller
 
         return $this->json(['data' => [
             'token' => $token,
-            'user' => ['id' => $user->id, 'email' => $user->email],
+            'user' => [
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'email' => $user->email,
+                'email_verified_at' => $user->email_verified_at?->toIso8601String(),
+                'bio' => $user->bio,
+                'type' => $user->type,
+                'status' => $user->status,
+                'google_id' => $user->google_id,
+                'facebook_id' => $user->facebook_id,
+                'apple_id' => $user->apple_id,
+                'metadata' => $user->metadata,
+            ],
         ]]);
     }
 
@@ -75,11 +88,14 @@ class OAuthController extends Controller
         }
 
         // 3. Truly new user: create and mark email as verified (OAuth provider owns it).
-        $nameParts = explode(' ', (string) $socialUser->getName(), 2);
+        $fullName = (string) $socialUser->getName();
+        $firstName = Str::beforeLast($fullName, ' ') ?: $fullName;
+        $lastName = Str::contains($fullName, ' ') ? Str::afterLast($fullName, ' ') : '';
         $user = User::create([
-            'first_name' => $nameParts[0] ?? '',
-            'last_name' => $nameParts[1] ?? '',
+            'first_name' => $firstName,
+            'last_name' => $lastName,
             'email' => $email,
+            'type' => 'owner',
             $providerIdColumn => $socialUser->getId(),
             'password' => bcrypt(Str::random(32)),
         ]);

@@ -9,9 +9,11 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { OAuthButtons, OAuthSeparator } from '@/components/auth/OAuthButtons';
+import { useAuth } from '@/context/AuthContext';
 
 function LoginForm() {
   const router = useRouter();
+  const { setUser } = useAuth();
   const searchParams = useSearchParams();
   const raw = searchParams.get('redirect') ?? '/dashboard';
   const redirectTo = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/dashboard';
@@ -29,7 +31,7 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      const { token } = await login({ email, password });
+      const { token, user } = await login({ email, password });
 
       await fetch('/api/auth/set-token', {
         method: 'POST',
@@ -37,6 +39,7 @@ function LoginForm() {
         body: JSON.stringify({ token }),
       });
 
+      setUser(user);
       router.push(redirectTo);
     } catch (err) {
       if (err instanceof ApiError) {

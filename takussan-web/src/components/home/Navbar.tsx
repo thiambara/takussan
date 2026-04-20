@@ -3,10 +3,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, MapPin, Home, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Search, MapPin, Home, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle } from 'lucide-react';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { navLinks, categories, moreCategories } from '@/data/mockData';
+import { useAuth } from '@/context/AuthContext';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   apartment: Building2,
@@ -33,12 +35,15 @@ export interface NavbarProps {
 
 export function Navbar({ className }: NavbarProps) {
   const router = useRouter();
+  const { user, isLoading, setUser } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [location, setLocation] = useState('');
   const [transaction, setTransaction] = useState('Acheter');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Close more dropdown when clicking outside
   useEffect(() => {
@@ -46,10 +51,23 @@ export function Navbar({ className }: NavbarProps) {
       if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
         setMoreOpen(false);
       }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  async function handleLogout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    setUser(null);
+    router.push('/');
+  }
+
+  const initials = user
+    ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
+    : '';
 
   // ─── Navigation helpers ─────────────────────────────────────────────────────
 
@@ -202,12 +220,63 @@ export function Navbar({ className }: NavbarProps) {
 
         {/* Actions — desktop, aligned to top */}
         <div className="hidden md:flex items-center gap-3 shrink-0 ml-auto mt-2">
-          <Button variant="ghost" className="text-slate-600 font-medium text-sm whitespace-nowrap h-auto py-2">
-            Connexion
-          </Button>
-          <Button className="rounded-full px-5 py-2 h-auto font-semibold text-sm shadow-sm whitespace-nowrap">
-            Publier
-          </Button>
+          {isLoading ? (
+            <div className="size-8 rounded-full bg-gray-100 animate-pulse" />
+          ) : user ? (
+            <>
+              <Link href="/dashboard/annonces/new" className={buttonVariants({ className: 'rounded-full px-5 py-2 h-auto font-semibold text-sm shadow-sm whitespace-nowrap' })}>
+                Publier
+              </Link>
+              <div ref={userMenuRef} className="relative">
+                <button
+                  onClick={() => setUserMenuOpen((v) => !v)}
+                  aria-label="Menu utilisateur"
+                  className="flex items-center gap-2 rounded-full px-2 py-1 hover:bg-gray-100 transition-colors"
+                >
+                  <Avatar size="default" className="bg-primary">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm font-medium text-slate-700 max-w-[120px] truncate">
+                    {user.first_name}
+                  </span>
+                </button>
+                {userMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-md border border-gray-100 py-1 z-50">
+                    <div className="px-4 py-2.5 border-b border-gray-100">
+                      <p className="text-sm font-semibold text-slate-800 truncate">{user.first_name} {user.last_name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    </div>
+                    <Link
+                      href="/dashboard/profile"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <UserCircle className="size-4 text-slate-400" />
+                      Mon profil
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <LogOut className="size-4 text-slate-400" />
+                      Déconnexion
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <Link href="/auth/login" className={buttonVariants({ variant: 'ghost', className: 'text-slate-600 font-medium text-sm whitespace-nowrap h-auto py-2' })}>
+                Connexion
+              </Link>
+              <Link href="/auth/login?redirect=/dashboard" className={buttonVariants({ className: 'rounded-full px-5 py-2 h-auto font-semibold text-sm shadow-sm whitespace-nowrap' })}>
+                Publier
+              </Link>
+            </>
+          )}
         </div>
 
           {/* Mobile: search pill → opens search page */}
@@ -309,12 +378,52 @@ export function Navbar({ className }: NavbarProps) {
           </div>
 
           <div className="px-6 py-4 border-t border-gray-100 flex flex-col gap-3">
-            <Button variant="ghost" className="text-slate-600 font-medium text-sm h-auto py-1 justify-start">
-              Connexion
-            </Button>
-            <Button className="rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm">
-              Publier une annonce
-            </Button>
+            {user ? (
+              <>
+                <div className="flex items-center gap-3 mb-1">
+                  <Avatar size="default" className="bg-primary">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">{user.first_name} {user.last_name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                  </div>
+                </div>
+                <Link
+                  href="/dashboard/profile"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-2.5 text-sm text-slate-700 py-1"
+                >
+                  <UserCircle className="size-4 text-slate-400" />
+                  Mon profil
+                </Link>
+                <Link
+                  href="/dashboard/annonces/new"
+                  onClick={() => setMenuOpen(false)}
+                  className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
+                >
+                  Publier une annonce
+                </Link>
+                <button
+                  onClick={() => { setMenuOpen(false); void handleLogout(); }}
+                  className="flex items-center gap-2.5 text-sm text-slate-700 py-1"
+                >
+                  <LogOut className="size-4 text-slate-400" />
+                  Déconnexion
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/auth/login" onClick={() => setMenuOpen(false)} className={buttonVariants({ variant: 'ghost', className: 'text-slate-600 font-medium text-sm h-auto py-1 justify-start' })}>
+                  Connexion
+                </Link>
+                <Link href="/auth/login?redirect=/dashboard" onClick={() => setMenuOpen(false)} className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}>
+                  Publier une annonce
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}
