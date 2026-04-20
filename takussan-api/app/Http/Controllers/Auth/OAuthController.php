@@ -6,67 +6,77 @@ use App\Http\Controllers\Base\Controller;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
+use Laravel\Socialite\Contracts\User as SocialiteUser;
+use Laravel\Socialite\Facades\Socialite;
 
 class OAuthController extends Controller
 {
-    public function redirectToGoogle(Request $request): JsonResponse
-    {
-        $state = Str::random(40);
-        $params = http_build_query([
-            'client_id' => config('services.google.client_id'),
-            'redirect_uri' => config('services.google.redirect'),
-            'response_type' => 'code',
-            'scope' => 'openid email profile',
-            'state' => $state,
-        ]);
+    private const ALLOWED_PROVIDERS = ['google', 'facebook', 'apple'];
 
-        return $this->json([
-            'data' => ['redirect_url' => 'https://accounts.google.com/o/oauth2/auth?'.$params],
-        ]);
+    public function redirect(string $provider): JsonResponse
+    {
+        abort_unless(in_array($provider, self::ALLOWED_PROVIDERS, true), 404);
+
+        $state = Str::random(40);
+        Cache::put('oauth_state:'.$state, ['provider' => $provider], now()->addMinutes(10));
+
+        $url = Socialite::driver($provider)
+            ->stateless()
+            ->with(['state' => $state])
+            ->redirect()
+            ->getTargetUrl();
+
+        return $this->json(['data' => ['redirect_url' => $url]]);
     }
 
-    public function handleGoogleCallback(Request $request): JsonResponse
+    public function callback(string $provider, Request $request): JsonResponse
     {
+        abort_unless(in_array($provider, self::ALLOWED_PROVIDERS, true), 404);
+
         $request->validate([
             'code' => ['required', 'string'],
+            'state' => ['required', 'string'],
         ]);
 
-        $tokenResponse = Http::asForm()->post('https://oauth2.googleapis.com/token', [
-            'code' => $request->input('code'),
-            'client_id' => config('services.google.client_id'),
-            'client_secret' => config('services.google.client_secret'),
-            'redirect_uri' => config('services.google.redirect'),
-            'grant_type' => 'authorization_code',
-        ]);
+        $cached = Cache::pull('oauth_state:'.$request->input('state'));
+        abort_unless($cached && $cached['provider'] === $provider, 422, 'Invalid or expired OAuth state.');
 
-        abort_unless($tokenResponse->successful(), 422, 'OAuth token exchange failed.');
+        /** @var SocialiteUser $socialUser */
+        $socialUser = Socialite::driver($provider)->stateless()->user();
 
-        $userInfo = Http::withToken($tokenResponse->json('access_token'))
-            ->get('https://www.googleapis.com/oauth2/v3/userinfo')
-            ->json();
+        $user = $this->findOrCreateUser($provider, $socialUser);
+        $token = $user->createToken($provider.'-oauth')->plainTextToken;
 
-        $user = User::where('google_id', $userInfo['sub'])
-            ->orWhere('email', $userInfo['email'])
+        return $this->json(['data' => [
+            'token' => $token,
+            'user' => ['id' => $user->id, 'email' => $user->email],
+        ]]);
+    }
+
+    private function findOrCreateUser(string $provider, SocialiteUser $socialUser): User
+    {
+        $providerIdColumn = $provider.'_id';
+
+        $user = User::where($providerIdColumn, $socialUser->getId())
+            ->orWhere('email', $socialUser->getEmail())
             ->first();
 
         if ($user === null) {
-            $nameParts = explode(' ', $userInfo['name'] ?? '', 2);
+            $nameParts = explode(' ', (string) $socialUser->getName(), 2);
             $user = User::create([
                 'first_name' => $nameParts[0] ?? '',
                 'last_name' => $nameParts[1] ?? '',
-                'email' => $userInfo['email'],
-                'google_id' => $userInfo['sub'],
+                'email' => $socialUser->getEmail(),
+                $providerIdColumn => $socialUser->getId(),
                 'email_verified_at' => now(),
                 'password' => bcrypt(Str::random(32)),
             ]);
         } else {
-            $user->update(['google_id' => $userInfo['sub']]);
+            $user->update([$providerIdColumn => $socialUser->getId()]);
         }
 
-        $token = $user->createToken('google-oauth')->plainTextToken;
-
-        return $this->json(['data' => ['token' => $token, 'user' => ['id' => $user->id, 'email' => $user->email]]]);
+        return $user;
     }
 }

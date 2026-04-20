@@ -14,13 +14,15 @@ use App\Observers\MessageObserver;
 use App\Observers\PropertyObserver;
 use App\Observers\PropertyVisitObserver;
 use App\Observers\ReviewObserver;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\ServiceProvider;
+use SocialiteProviders\Manager\SocialiteWasCalled;
 
 class AppServiceProvider extends ServiceProvider
 {
     public function register(): void {}
 
-    public function boot(): void
+    public function boot(Dispatcher $events): void
     {
         Property::observe(PropertyObserver::class);
         Message::observe(MessageObserver::class);
@@ -28,5 +30,7 @@ class AppServiceProvider extends ServiceProvider
         Review::observe(ReviewObserver::class);
         Lease::observe(LeaseObserver::class);
         PropertyVisit::observe(PropertyVisitObserver::class);
+
+        $events->listen(SocialiteWasCalled::class, 'SocialiteProviders\\Apple\\AppleExtendSocialite@handle');
     }
 }

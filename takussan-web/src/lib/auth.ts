@@ -1,5 +1,7 @@
 import { apiRequest } from './api';
 
+export type OAuthProvider = 'google' | 'facebook' | 'apple';
+
 export type User = {
   id: number;
   first_name: string;
@@ -9,6 +11,9 @@ export type User = {
   bio: string | null;
   type: string;
   status: string;
+  google_id?: string | null;
+  facebook_id?: string | null;
+  apple_id?: string | null;
   metadata: Record<string, unknown> | null;
 };
 
@@ -84,4 +89,26 @@ export async function resetPassword(payload: {
 
 export async function resendVerification(token: string): Promise<{ message: string }> {
   return apiRequest('/api/auth/email/resend', { method: 'POST', token });
+}
+
+export async function oauthRedirect(
+  provider: OAuthProvider,
+): Promise<{ redirect_url: string }> {
+  const res = await apiRequest<{ data: { redirect_url: string } }>(
+    `/api/auth/oauth/${provider}/redirect`,
+  );
+  return res.data;
+}
+
+export async function oauthCallback(
+  provider: OAuthProvider,
+  code: string,
+  state: string,
+): Promise<{ token: string; user: { id: number; email: string } }> {
+  const res = await apiRequest<{
+    data: { token: string; user: { id: number; email: string } };
+  }>(
+    `/api/auth/oauth/${provider}/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`,
+  );
+  return res.data;
 }
