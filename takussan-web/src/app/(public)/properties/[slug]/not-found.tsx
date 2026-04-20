@@ -16,7 +16,7 @@ export default function NotFound() {
           Voir les annonces
         </Link>
         <Link
-          href="/search"
+          href="/properties"
           className="inline-flex items-center justify-center rounded-md border border-stone-300 px-6 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors"
         >
           Lancer une recherche

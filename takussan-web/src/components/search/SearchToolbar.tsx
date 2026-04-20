@@ -97,7 +97,7 @@ export function SearchToolbar({
         <div className="flex items-center gap-3">
           {/* Per-page selector */}
           <Select
-            value={String(filters.per_page ?? 20)}
+            value={String(filters.per_page ?? 30)}
             onValueChange={(v) => onPerPageChange(Number(v))}
           >
             <SelectTrigger
@@ -107,7 +107,7 @@ export function SearchToolbar({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {[12, 20, 36, 60].map(n => (
+              {[30, 40, 60, 70].map(n => (
                 <SelectItem key={n} value={String(n)}>{n} / page</SelectItem>
               ))}
             </SelectContent>

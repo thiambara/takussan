@@ -138,8 +138,11 @@ export function useSearch() {
 
     dispatch({ type: 'LOADING', prev });
 
+    const apiParams = new URLSearchParams(qs);
+    if (!apiParams.has('per_page')) apiParams.set('per_page', '30');
+
     let cancelled = false;
-    apiFetch<SearchResult>(`/public/properties/search${qs ? '?' + qs : ''}`)
+    apiFetch<SearchResult>(`/public/properties/search?${apiParams.toString()}`)
       .then(result  => { if (!cancelled) dispatch({ type: 'SUCCESS', result }); })
       .catch(()     => { if (!cancelled) dispatch({ type: 'ERROR', prev }); });
 
