@@ -1,21 +1,9 @@
 import { apiRequest } from './api';
+import type { User as CanonicalUser } from '@/types/user';
 
 export type OAuthProvider = 'google' | 'facebook' | 'apple';
 
-export type User = {
-  id: number;
-  first_name: string;
-  last_name: string;
-  email: string;
-  email_verified_at: string | null;
-  bio: string | null;
-  type: string;
-  status: string;
-  google_id?: string | null;
-  facebook_id?: string | null;
-  apple_id?: string | null;
-  metadata: Record<string, unknown> | null;
-};
+export type User = CanonicalUser;
 
 export type AuthResponse = {
   token: string;
