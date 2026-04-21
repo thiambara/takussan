@@ -17,6 +17,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\Permission\Traits\HasRoles;
@@ -24,7 +26,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements HasMedia, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasQueryBuilder, HasRoles, InteractsWithMedia, Notifiable, SoftDeletes;
+    use HasApiTokens, HasFactory, HasQueryBuilder, HasRoles, InteractsWithMedia, LogsActivity, Notifiable, SoftDeletes;
 
     protected $fillable = [
         'username', 'first_name', 'last_name', 'type', 'status',
@@ -78,6 +80,33 @@ class User extends Authenticatable implements HasMedia, MustVerifyEmail
     public function getFullNameAttribute(): string
     {
         return trim("{$this->first_name} {$this->last_name}");
+    }
+
+    /**
+     * Whitelist: `password`, `remember_token`, and 2FA secrets are absent on
+     * purpose — they must never reach the activity log. The
+     * `dontLogIfAttributesChangedOnly` guard additionally short-circuits
+     * activity creation when a save only touched sensitive/mechanical fields.
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'username', 'email', 'first_name', 'last_name', 'phone',
+                'type', 'status', 'agency_id', 'preferred_language', 'timezone',
+                'email_verified_at', 'phone_verified_at',
+                'two_factor_enabled',
+                'notifications_email_enabled',
+                'notifications_push_enabled',
+                'notifications_sms_enabled',
+            ])
+            ->logOnlyDirty()
+            ->dontLogIfAttributesChangedOnly([
+                'password', 'remember_token',
+                'two_factor_secret', 'two_factor_recovery_codes',
+                'updated_at', 'last_login_at',
+            ])
+            ->dontLogEmptyChanges();
     }
 
     public function registerMediaCollections(): void
