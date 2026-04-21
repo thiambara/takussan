@@ -1,12 +1,12 @@
 ---
 id: TCK-060
 title: "Cycle auth front + OAuth multi-provider"
-status: todo
+status: done
 phase: P0
 family: applicatif
 estimate: M
 created: 2026-04-20
-updated: 2026-04-20 (enrichi pour agent d'impl\u00e9mentation)
+updated: 2026-04-21
 depends_on: [TCK-013, TCK-054, TCK-055, TCK-056, TCK-057, TCK-058, TCK-059]
 blocks: []
 spec_refs:

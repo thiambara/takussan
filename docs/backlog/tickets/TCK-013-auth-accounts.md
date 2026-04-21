@@ -1,12 +1,12 @@
 ---
 id: TCK-013
 title: Authentification & gestion de comptes
-status: todo
+status: done
 phase: P0
 family: applicatif
 estimate: L
 created: 2026-04-15
-updated: 2026-04-16
+updated: 2026-04-21
 depends_on: []
 blocks: [TCK-014, TCK-015, TCK-034, TCK-020, TCK-021, TCK-022, TCK-023, TCK-029, TCK-033]
 spec_refs:
@@ -74,4 +74,9 @@ Implémenter le cycle complet d'authentification et de gestion de profil utilisa
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Livré en plusieurs passes sur `master`/`dev` :
+- Endpoints P0/P1/P2 câblés dans `routes/api/auth.php` (AuthController, PasswordResetController, EmailVerificationController, PhoneVerificationController, TwoFactorController, SessionController, OAuthController, UserAdminController::deleteOwnAccount).
+- Rate limiting `throttle:5,10` sur `/auth/login`.
+- OAuth Google/Facebook/Apple via Socialite (PR #8 — TCK-060).
+- Exposition des rôles Spatie via `SetPermissionsTeamIdMiddleware` + fix migration team_id MySQL-safe (PR #10 — branche `expose-user-roles`).
+- Frontend : 7 pages auth + hydration SSR `AuthContext` (TCK-060).
