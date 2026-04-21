@@ -46,7 +46,14 @@ class UserSeeder extends Seeder
             ],
         );
         $user->forceFill(['email_verified_at' => Timeline::seedStart()])->save();
-        // assignment (which requires an agency_id pivot).
+        // Super admin is not tied to an agency. Assign the role with a null
+        // team context so it resolves regardless of the active team.
+        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
+        try {
+            $user->syncRoles(['super_admin']);
+        } catch (RoleDoesNotExist) {
+            // RolesAndPermissionsSeeder must run before UserSeeder.
+        }
         $this->ctx->registerUser($user);
 
         $avatarUrl = 'https://api.dicebear.com/7.x/avataaars/png?seed='.urlencode($user->username);
