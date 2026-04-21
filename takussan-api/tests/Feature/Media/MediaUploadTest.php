@@ -3,6 +3,7 @@
 namespace Tests\Feature\Media;
 
 use App\Models\User;
+use App\Policies\BasePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -152,5 +153,24 @@ class MediaUploadTest extends TestCase
             'model_type' => User::class,
             'model_id' => $owner->id,
         ])->assertForbidden();
+    }
+
+    public function test_cannot_upload_to_non_hasmedia_class_without_instantiating_it(): void
+    {
+        // Regression: the validator must reject a class that doesn't implement
+        // HasMedia *without* calling `new $type` on the user-supplied string —
+        // arbitrary class instantiation is a code-execution vector. Passing
+        // an abstract class proves no instantiation happens (instantiating an
+        // abstract class throws an Error, which would surface as a 500).
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/media', [
+            'file' => UploadedFile::fake()->image('hero.jpg'),
+            'collection' => 'photos',
+            'model_type' => BasePolicy::class,
+            'model_id' => 1,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['model_type']);
     }
 }

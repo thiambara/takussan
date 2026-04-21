@@ -66,8 +66,9 @@ class MediaUploadRequest extends FormRequest
                 return;
             }
 
-            $instance = new $type;
-            if (! $instance instanceof HasMedia) {
+            // Check the interface via reflection — never instantiate the
+            // user-supplied class (constructor side effects = remote code path).
+            if (! is_a($type, HasMedia::class, true)) {
                 $v->errors()->add('model_type', 'The model_type must implement HasMedia.');
             }
         });

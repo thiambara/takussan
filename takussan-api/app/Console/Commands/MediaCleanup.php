@@ -55,17 +55,8 @@ class MediaCleanup extends Command
             return true;
         }
 
-        // Use withTrashed() if the model uses SoftDeletes — soft-deleted
-        // targets still count as orphans for cleanup purposes.
-        if (method_exists($type, 'withTrashed')) {
-            $exists = $type::withTrashed()
-                ->whereKey($id)
-                ->whereNull('deleted_at')
-                ->exists();
-
-            return ! $exists;
-        }
-
+        // For SoftDeletes models the default scope already excludes trashed
+        // rows, so soft-deleted targets count as orphans (per ticket spec).
         return ! $type::query()->whereKey($id)->exists();
     }
 }

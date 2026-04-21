@@ -48,8 +48,13 @@ class MediaController extends Controller
             ->usingName($slug)
             ->toMediaCollection($data['collection']);
 
+        // refresh() to pick up generated_conversions written by the sync
+        // conversion job — fresh() would discard our reference and could
+        // (theoretically) return null.
+        $media->refresh();
+
         return $this->json([
-            'data' => (new MediaResource($media->fresh()))->toArray($request),
+            'data' => (new MediaResource($media))->toArray($request),
         ], Response::HTTP_CREATED);
     }
 
