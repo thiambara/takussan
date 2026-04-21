@@ -29,7 +29,6 @@
 
 ### Phase 0 — Fondation Frontend
 
-- [TCK-054](tickets/TCK-054-design-system-components.md) — Design System + Component Library `M · P0 · front`
 - [TCK-055](tickets/TCK-055-layout-navigation.md) — Layout System + Navigation `M · P0 · front`
 - [TCK-056](tickets/TCK-056-auth-middleware-protection.md) — Auth Middleware + Route Protection `S · P0 · front`
 - [TCK-057](tickets/TCK-057-api-client-react-query.md) — API Client + Data Fetching (React Query) `S · P0 · front`
@@ -87,6 +86,7 @@ _(vide)_
 - [TCK-052](tickets/TCK-052-scout-search-infrastructure.md) — Laravel Scout + Search Infrastructure `S · P0 · back`
 - [TCK-051](tickets/TCK-051-formrequest-validation.md) — FormRequest Base + Validation Patterns `S · P0 · back`
 - [TCK-053](tickets/TCK-053-test-infrastructure.md) — Test Infrastructure + Base Test Classes `M · P0 · back`
+- [TCK-054](tickets/TCK-054-design-system-components.md) — Design System + Component Library `M · P0 · front`
 
 ## ✅ Done
 
