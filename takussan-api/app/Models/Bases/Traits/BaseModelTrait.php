@@ -48,8 +48,18 @@ trait BaseModelTrait
      *
      * When the term is null/empty or the model is not Searchable, this is a
      * no-op so it is safe to chain unconditionally.
+     *
+     * Caveats:
+     * - A hard `$limit` must be applied to the Scout call; without it, engines
+     *   like Meilisearch silently fall back to their own default hitsPerPage
+     *   (~20), truncating results. Downstream DB pagination would then page
+     *   over that truncated set. The default cap is intentionally generous;
+     *   narrow results via additional filters before paginating in the UI.
+     * - Scout relevance ordering is *not* preserved on the resulting Eloquent
+     *   query. Callers needing relevance-ranked results should use
+     *   `Model::search($term)->paginate()` directly instead of this scope.
      */
-    public function scopeWithSearch(Builder $query, ?string $term): Builder
+    public function scopeWithSearch(Builder $query, ?string $term, int $limit = 1000): Builder
     {
         $term = is_string($term) ? trim($term) : '';
 
@@ -60,7 +70,7 @@ trait BaseModelTrait
         /** @var class-string<Model> $model */
         $model = static::class;
 
-        $ids = $model::search($term)->keys()->all();
+        $ids = $model::search($term)->take($limit)->keys()->all();
 
         if (empty($ids)) {
             return $query->whereRaw('1 = 0');

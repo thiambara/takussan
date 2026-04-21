@@ -124,6 +124,33 @@ class ScoutSearchTest extends TestCase
         $this->assertCount(3, $results);
     }
 
+    public function test_with_search_scope_returns_empty_when_no_index_match(): void
+    {
+        Property::factory()->count(3)->published()->create([
+            'title' => 'Riverside cottage',
+        ]);
+
+        // Term that cannot match any indexed document.
+        $results = Property::query()->withSearch('totallyabsentneedle')->get();
+
+        $this->assertCount(0, $results);
+    }
+
+    public function test_with_search_scope_caps_result_set_at_configured_limit(): void
+    {
+        // Forces the Scout Builder to carry a `limit`, which engines like
+        // Meilisearch would otherwise ignore and silently fall back to their
+        // own default hitsPerPage. Tests use CollectionEngine which honours
+        // `->take(...)` the same way (via Collection::take).
+        Property::factory()->count(5)->published()->create([
+            'title' => 'Beachfront villa needle',
+        ]);
+
+        $results = Property::query()->withSearch('needle', limit: 2)->get();
+
+        $this->assertCount(2, $results);
+    }
+
     public function test_draft_properties_are_not_indexed(): void
     {
         Property::factory()->draft()->create([
