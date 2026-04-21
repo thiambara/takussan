@@ -32,6 +32,11 @@ class BaseResourceTest extends TestCase
             {
                 return $this->enumLabel($value, $group, $locale);
             }
+
+            public function callMediaUrl(string $collection, ?string $conversion = null)
+            {
+                return $this->mediaUrl($collection, $conversion);
+            }
         };
     }
 
@@ -60,5 +65,12 @@ class BaseResourceTest extends TestCase
         // unchanged, helper must translate that into null.
         $this->assertNull($r->callEnumLabel(UserStatus::Active, 'nonexistent'));
         $this->assertNull($r->callEnumLabel(null, 'nonexistent'));
+    }
+
+    public function test_media_url_returns_null_when_resource_is_null(): void
+    {
+        // Guards against passing null to method_exists() when a resource
+        // wraps a nullable relation.
+        $this->assertNull($this->resource()->callMediaUrl('avatar'));
     }
 }

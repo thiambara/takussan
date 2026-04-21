@@ -33,7 +33,7 @@ abstract class BaseResource extends JsonResource
 
     protected function mediaUrl(string $collection, ?string $conversion = null): ?string
     {
-        if (! method_exists($this->resource, 'getFirstMediaUrl')) {
+        if ($this->resource === null || ! method_exists($this->resource, 'getFirstMediaUrl')) {
             return null;
         }
 

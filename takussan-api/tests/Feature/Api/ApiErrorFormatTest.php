@@ -4,6 +4,8 @@ namespace Tests\Feature\Api;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
+use RuntimeException;
+use Spatie\QueryBuilder\Exceptions\InvalidFilterQuery;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Tests\TestCase;
 
@@ -60,6 +62,41 @@ class ApiErrorFormatTest extends TestCase
         $response = $this->get('/api/auth/login');
 
         $response->assertStatus(405)
+            ->assertHeader('Content-Type', 'application/json')
+            ->assertJsonStructure(['message']);
+    }
+
+    public function test_invalid_filter_query_returns_json_400(): void
+    {
+        // Spatie's InvalidFilterQuery extends Symfony HttpException — render
+        // callback must transform it into a 400 JSON response.
+        Route::middleware('api')->get('/api/_test/invalid-filter', function () {
+            throw InvalidFilterQuery::filtersNotAllowed(
+                collect(['unknown_field']),
+                collect(['allowed_field']),
+            );
+        });
+
+        $response = $this->get('/api/_test/invalid-filter');
+
+        $response->assertStatus(400)
+            ->assertHeader('Content-Type', 'application/json')
+            ->assertJsonStructure(['message']);
+    }
+
+    public function test_unhandled_throwable_returns_json_500(): void
+    {
+        Route::middleware('api')->get('/api/_test/boom', function () {
+            throw new RuntimeException('Unhandled failure');
+        });
+
+        // Force non-debug so the default handler returns the canonical 5xx
+        // JSON shape instead of a debug trace.
+        config(['app.debug' => false]);
+
+        $response = $this->get('/api/_test/boom');
+
+        $response->assertStatus(500)
             ->assertHeader('Content-Type', 'application/json')
             ->assertJsonStructure(['message']);
     }
