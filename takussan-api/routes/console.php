@@ -20,3 +20,4 @@ Schedule::job(new SendLeasePaymentReminders)->dailyAt('08:00');
 Schedule::job(new SendSavedSearchAlerts)->dailyAt('09:00');
 Schedule::job(new SendPropertyVisitReminders)->dailyAt('07:00');
 Schedule::job(new SendOverdueInvoiceReminders)->dailyAt('10:00');
+Schedule::command('media:cleanup')->dailyAt('03:00');
