@@ -66,7 +66,7 @@ export default function VerifyEmailPage() {
         </Button>
 
         <Link
-          href="/dashboard"
+          href="/app"
           className="block text-center text-sm text-muted-foreground hover:text-foreground"
         >
           Continuer vers le tableau de bord

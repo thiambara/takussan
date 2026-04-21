@@ -40,7 +40,7 @@ export default async function VerifyEmailHashPage({ params, searchParams }: Prop
           Votre adresse est confirmée. Vous pouvez maintenant accéder à l&apos;ensemble des
           fonctionnalités de Takussan.
         </p>
-        <Link href="/dashboard">
+        <Link href="/app">
           <Button className="w-full rounded-full h-11 text-base font-semibold">
             Accéder au tableau de bord
           </Button>

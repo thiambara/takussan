@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\Auth\UpdateProfileRequest;
+use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
@@ -27,7 +28,7 @@ class AuthController extends Controller
 
         return $this->json([
             'message' => 'Registration successful. Please verify your email.',
-            'user' => $user,
+            'user' => new UserResource($user),
         ], 201);
     }
 
@@ -45,7 +46,7 @@ class AuthController extends Controller
 
         return $this->json([
             'token' => $token,
-            'user' => $user,
+            'user' => new UserResource($user),
         ]);
     }
 
@@ -58,7 +59,7 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
-        return $this->json($request->user());
+        return $this->json(new UserResource($request->user()));
     }
 
     public function updateProfile(UpdateProfileRequest $request): JsonResponse
@@ -75,6 +76,6 @@ class AuthController extends Controller
 
         $user->update($data);
 
-        return $this->json($user->fresh());
+        return $this->json(new UserResource($user->fresh()));
     }
 }

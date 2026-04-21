@@ -15,8 +15,8 @@ function LoginForm() {
   const router = useRouter();
   const { setUser } = useAuth();
   const searchParams = useSearchParams();
-  const raw = searchParams.get('redirect') ?? '/dashboard';
-  const redirectTo = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/dashboard';
+  const raw = searchParams.get('redirect') ?? '/app';
+  const redirectTo = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/app';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);

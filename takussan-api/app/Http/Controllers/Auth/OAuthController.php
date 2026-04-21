@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
@@ -52,20 +53,7 @@ class OAuthController extends Controller
 
         return $this->json(['data' => [
             'token' => $token,
-            'user' => [
-                'id' => $user->id,
-                'first_name' => $user->first_name,
-                'last_name' => $user->last_name,
-                'email' => $user->email,
-                'email_verified_at' => $user->email_verified_at?->toIso8601String(),
-                'bio' => $user->bio,
-                'type' => $user->type,
-                'status' => $user->status,
-                'google_id' => $user->google_id,
-                'facebook_id' => $user->facebook_id,
-                'apple_id' => $user->apple_id,
-                'metadata' => $user->metadata,
-            ],
+            'user' => (new UserResource($user))->toArray($request),
         ]]);
     }
 

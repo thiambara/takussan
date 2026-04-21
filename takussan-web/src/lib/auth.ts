@@ -92,10 +92,8 @@ export async function oauthCallback(
   provider: OAuthProvider,
   code: string,
   state: string,
-): Promise<{ token: string; user: { id: number; email: string } }> {
-  const res = await apiRequest<{
-    data: { token: string; user: { id: number; email: string } };
-  }>(
+): Promise<AuthResponse> {
+  const res = await apiRequest<{ data: AuthResponse }>(
     `/api/auth/oauth/${provider}/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`,
   );
   return res.data;

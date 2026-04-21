@@ -3,7 +3,7 @@
 import { Suspense, use, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { oauthCallback, type OAuthProvider, type User } from '@/lib/auth';
+import { oauthCallback, type OAuthProvider } from '@/lib/auth';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 
@@ -15,9 +15,9 @@ function CallbackInner({ provider }: { provider: OAuthProvider }) {
   const params = useSearchParams();
   const code = params.get('code');
   const state = params.get('state');
-  const rawRedirect = params.get('redirect') ?? '/dashboard';
+  const rawRedirect = params.get('redirect') ?? '/app';
   const redirectTo =
-    rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/dashboard';
+    rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/app';
 
   useEffect(() => {
     if (!code || !state) {
@@ -33,9 +33,7 @@ function CallbackInner({ provider }: { provider: OAuthProvider }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token }),
         });
-        // Set user immediately like email/password flow does
-        setUser(user as User);
-        // Then refresh to ensure sync with server
+        setUser(user);
         await refreshUser();
         router.replace(redirectTo);
       } catch (err) {
