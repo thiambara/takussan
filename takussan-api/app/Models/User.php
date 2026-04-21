@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasMediaConversions;
 use App\Models\Concerns\HasQueryBuilder;
 use App\Models\Enums\UserStatus;
 use App\Models\Enums\UserType;
@@ -27,6 +28,10 @@ class User extends Authenticatable implements HasMedia, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasQueryBuilder, HasRoles, InteractsWithMedia, LogsActivity, Notifiable, SoftDeletes;
+
+    use HasMediaConversions {
+        HasMediaConversions::registerMediaConversions insteadof InteractsWithMedia;
+    }
 
     protected $fillable = [
         'username', 'first_name', 'last_name', 'type', 'status',
@@ -112,6 +117,9 @@ class User extends Authenticatable implements HasMedia, MustVerifyEmail
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('avatar')->singleFile();
+        $this->addMediaCollection('avatars')->singleFile();
+        $this->addMediaCollection('photos');
+        $this->addMediaCollection('documents');
     }
 
     public function agency(): BelongsTo

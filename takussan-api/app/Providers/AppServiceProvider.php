@@ -15,10 +15,12 @@ use App\Observers\MessageObserver;
 use App\Observers\PropertyObserver;
 use App\Observers\PropertyVisitObserver;
 use App\Observers\ReviewObserver;
+use App\Policies\MediaPolicy;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use SocialiteProviders\Manager\SocialiteWasCalled;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -34,6 +36,9 @@ class AppServiceProvider extends ServiceProvider
         PropertyVisit::observe(PropertyVisitObserver::class);
 
         Gate::before(fn (User $user) => $user->hasRole('super_admin') ? true : null);
+
+        // Spatie Media lives outside App\Models so auto-discovery misses it.
+        Gate::policy(Media::class, MediaPolicy::class);
 
         $events->listen(SocialiteWasCalled::class, 'SocialiteProviders\\Apple\\AppleExtendSocialite@handle');
     }
