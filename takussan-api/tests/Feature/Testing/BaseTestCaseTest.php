@@ -42,6 +42,28 @@ class BaseTestCaseTest extends BaseTestCase
         $this->assertSame($agency->id, $second->agency_id);
     }
 
+    public function test_acting_as_role_accepts_agency_id_directly(): void
+    {
+        $user = $this->actingAsRole('customer');
+
+        $second = $this->actingAsRole('agent', ['agency_id' => $user->agency_id]);
+
+        $this->assertSame($user->agency_id, $second->agency_id);
+    }
+
+    public function test_acting_as_role_prefers_agency_model_over_agency_id_on_conflict(): void
+    {
+        $user = $this->actingAsRole('customer');
+        $agency = $user->agency()->firstOrFail();
+
+        $second = $this->actingAsRole('agent', [
+            'agency' => $agency,
+            'agency_id' => $user->agency_id + 9999,
+        ]);
+
+        $this->assertSame($agency->id, $second->agency_id);
+    }
+
     public function test_assert_json_structure_paginated_validates_pagination_shape(): void
     {
         Route::get('/_tests/paginated', fn () => [
