@@ -5,7 +5,6 @@ namespace Tests;
 use App\Models\Agency;
 use App\Models\User;
 use Database\Seeders\System\RolesAndPermissionsSeeder;
-use Illuminate\Support\Arr;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Assert;
 use Spatie\Permission\Models\Role;
@@ -17,17 +16,27 @@ abstract class BaseTestCase extends TestCase
      * Creates a user in a fresh agency, assigns the given role within that
      * agency's team context, and logs the user into the default guard.
      *
-     * @param  array<string,mixed>  $attributes  User attrs; pass `agency` to reuse one.
+     * Agency resolution (first match wins):
+     *   1. `agency`    — Agency model passed in $attributes
+     *   2. `agency_id` — raw id passed in $attributes
+     *   3. fresh Agency via factory
+     *
+     * @param  array<string,mixed>  $attributes  User attrs; pass `agency` or `agency_id` to reuse one.
      */
     protected function actingAsRole(string $role, array $attributes = [], ?string $guard = null): User
     {
         $this->ensureRolesSeeded();
 
-        $agency = $attributes['agency'] ?? Agency::factory()->create();
-        $user = User::factory()->create(array_merge(
-            ['agency_id' => $agency->id],
-            Arr::except($attributes, ['agency']),
-        ));
+        $agency = $attributes['agency'] ?? null;
+        unset($attributes['agency']);
+
+        if ($agency !== null) {
+            $attributes['agency_id'] = $agency->id;
+        } elseif (! isset($attributes['agency_id'])) {
+            $attributes['agency_id'] = Agency::factory()->create()->id;
+        }
+
+        $user = User::factory()->create($attributes);
 
         app(PermissionRegistrar::class)->setPermissionsTeamId($user->agency_id);
         $user->assignRole($role);

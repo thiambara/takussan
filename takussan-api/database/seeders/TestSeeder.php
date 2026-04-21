@@ -13,7 +13,11 @@ use Spatie\Permission\PermissionRegistrar;
  * Baseline fixtures for integration tests: one agency with one user per role.
  *
  * Users are keyed by role name in the returned context so callers can do
- * `$seeder->users['agent']` after running. Seeds roles+permissions idempotently.
+ * `$seeder->users['agent']` after running. Seeds roles+permissions idempotently
+ * (RolesAndPermissionsSeeder uses firstOrCreate).
+ *
+ * Side effect: leaves `PermissionRegistrar::setPermissionsTeamId()` pinned to
+ * the seeded agency so callers can `hasRole()` on the returned users directly.
  */
 class TestSeeder extends Seeder
 {
@@ -24,9 +28,7 @@ class TestSeeder extends Seeder
 
     public function run(): void
     {
-        if (Role::query()->count() === 0) {
-            $this->call(RolesAndPermissionsSeeder::class);
-        }
+        $this->call(RolesAndPermissionsSeeder::class);
 
         $this->agency = Agency::factory()->create();
 
