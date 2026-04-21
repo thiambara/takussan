@@ -224,7 +224,7 @@ export function Navbar({ className }: NavbarProps) {
             <div className="size-8 rounded-full bg-gray-100 animate-pulse" />
           ) : user ? (
             <>
-              <Link href="/dashboard/annonces/new" className={buttonVariants({ className: 'rounded-full px-5 py-2 h-auto font-semibold text-sm shadow-sm whitespace-nowrap' })}>
+              <Link href="/app/properties/new" className={buttonVariants({ className: 'rounded-full px-5 py-2 h-auto font-semibold text-sm shadow-sm whitespace-nowrap' })}>
                 Publier
               </Link>
               <div ref={userMenuRef} className="relative">
@@ -249,7 +249,7 @@ export function Navbar({ className }: NavbarProps) {
                       <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                     </div>
                     <Link
-                      href="/dashboard/profile"
+                      href="/app/profile"
                       onClick={() => setUserMenuOpen(false)}
                       className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-gray-50 transition-colors"
                     >
@@ -272,7 +272,7 @@ export function Navbar({ className }: NavbarProps) {
               <Link href="/auth/login" className={buttonVariants({ variant: 'ghost', className: 'text-slate-600 font-medium text-sm whitespace-nowrap h-auto py-2' })}>
                 Connexion
               </Link>
-              <Link href="/auth/login?redirect=/dashboard" className={buttonVariants({ className: 'rounded-full px-5 py-2 h-auto font-semibold text-sm shadow-sm whitespace-nowrap' })}>
+              <Link href="/auth/login?redirect=/app" className={buttonVariants({ className: 'rounded-full px-5 py-2 h-auto font-semibold text-sm shadow-sm whitespace-nowrap' })}>
                 Publier
               </Link>
             </>
@@ -392,7 +392,7 @@ export function Navbar({ className }: NavbarProps) {
                   </div>
                 </div>
                 <Link
-                  href="/dashboard/profile"
+                  href="/app/profile"
                   onClick={() => setMenuOpen(false)}
                   className="flex items-center gap-2.5 text-sm text-slate-700 py-1"
                 >
@@ -400,7 +400,7 @@ export function Navbar({ className }: NavbarProps) {
                   Mon profil
                 </Link>
                 <Link
-                  href="/dashboard/annonces/new"
+                  href="/app/properties/new"
                   onClick={() => setMenuOpen(false)}
                   className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
                 >
@@ -419,7 +419,7 @@ export function Navbar({ className }: NavbarProps) {
                 <Link href="/auth/login" onClick={() => setMenuOpen(false)} className={buttonVariants({ variant: 'ghost', className: 'text-slate-600 font-medium text-sm h-auto py-1 justify-start' })}>
                   Connexion
                 </Link>
-                <Link href="/auth/login?redirect=/dashboard" onClick={() => setMenuOpen(false)} className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}>
+                <Link href="/auth/login?redirect=/app" onClick={() => setMenuOpen(false)} className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}>
                   Publier une annonce
                 </Link>
               </>
