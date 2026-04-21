@@ -19,9 +19,13 @@ class SetPermissionsTeamIdMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
-        // The default guard is session-based; API requests authenticate via
-        // sanctum tokens, so we resolve both.
-        $user = $request->user() ?? $request->user('sanctum');
+        // Default guard is session-based; API callers authenticate via sanctum
+        // tokens. Only invoke the sanctum guard when a bearer token is actually
+        // present so unauthenticated endpoints don't pay for a token lookup.
+        $user = $request->user();
+        if (! $user && $request->bearerToken()) {
+            $user = $request->user('sanctum');
+        }
 
         if ($user) {
             app(PermissionRegistrar::class)->setPermissionsTeamId($user->agency_id);
