@@ -58,9 +58,11 @@ class AuditLogTest extends TestCase
                 'meta' => ['total', 'current_page', 'last_page', 'per_page'],
             ]);
 
+        // Two `created` entries exist: one auto-logged by the LogsActivity trait
+        // when the admin factory ran, plus the one manually seeded above.
         $this->getJson('/api/audit-log?log_name=default&event=created')
             ->assertOk()
-            ->assertJsonCount(1, 'data');
+            ->assertJsonCount(2, 'data');
     }
 
     public function test_admin_can_get_audit_logs_by_entity(): void
@@ -76,8 +78,9 @@ class AuditLogTest extends TestCase
             'subject_id' => $admin->id,
         ]);
 
+        // Two entries on this subject: auto-logged `created` + manually-seeded `updated`.
         $this->getJson("/api/audit-log/user/{$admin->id}")
             ->assertOk()
-            ->assertJsonCount(1, 'data');
+            ->assertJsonCount(2, 'data');
     }
 }
