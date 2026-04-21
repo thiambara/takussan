@@ -40,7 +40,7 @@ class DateRangeRule implements DataAwareRule, ValidationRule
         }
 
         if ($endDate->lessThan($startDate)) {
-            $fail(__('validation.custom.date_range', ['start' => $this->startField]));
+            $fail(__('validation.rules.date_range', ['start' => $this->startField]));
         }
     }
 }

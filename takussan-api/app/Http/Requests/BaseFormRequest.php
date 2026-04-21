@@ -13,7 +13,7 @@ abstract class BaseFormRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $this->replace($this->normalize($this->all()));
+        $this->replace($this->normalize($this->input()));
     }
 
     /**

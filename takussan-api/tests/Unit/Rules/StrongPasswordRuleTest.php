@@ -53,4 +53,15 @@ class StrongPasswordRuleTest extends TestCase
 
         $this->assertTrue($validator->fails());
     }
+
+    public function test_length_is_counted_in_characters_not_bytes(): void
+    {
+        // 7 multibyte characters (>= 8 bytes but < 8 chars) must fail.
+        $validator = Validator::make(
+            ['password' => 'Éèàù1!?'],
+            ['password' => [new StrongPasswordRule]],
+        );
+
+        $this->assertTrue($validator->fails(), 'Expected 7-character multibyte password to be rejected');
+    }
 }
