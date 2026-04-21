@@ -1,0 +1,139 @@
+<?php
+
+namespace Tests\Feature\Search;
+
+use App\Models\Enums\PropertyStatus;
+use App\Models\Enums\PropertyType;
+use App\Models\Enums\PropertyVisibility;
+use App\Models\Property;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Scout\EngineManager;
+use Laravel\Scout\Engines\CollectionEngine;
+use Tests\TestCase;
+
+class ScoutSearchTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Ensure the in-memory Scout driver is active regardless of ambient env.
+        config(['scout.driver' => 'collection']);
+    }
+
+    public function test_uses_collection_driver_in_tests(): void
+    {
+        $engine = app(EngineManager::class)->engine();
+
+        $this->assertInstanceOf(CollectionEngine::class, $engine);
+    }
+
+    public function test_full_text_search_returns_matching_properties(): void
+    {
+        $match = Property::factory()->published()->create([
+            'type' => PropertyType::House,
+            'title' => 'Luxury seaside quarantazor home',
+            'description' => 'Panoramic ocean view with private pool.',
+        ]);
+
+        Property::factory()->published()->create([
+            'type' => PropertyType::Studio,
+            'title' => 'Modern downtown flat',
+            'description' => 'Compact place near metro station.',
+        ]);
+
+        $results = Property::search('quarantazor')->get();
+
+        $this->assertCount(1, $results);
+        $this->assertTrue($results->first()->is($match));
+    }
+
+    public function test_search_results_are_paginable(): void
+    {
+        Property::factory()->count(6)->published()->create([
+            'type' => PropertyType::Apartment,
+            'title' => 'Zorgonium rental option',
+        ]);
+
+        $page = Property::search('zorgonium')->paginate(2);
+
+        $this->assertSame(2, $page->perPage());
+        $this->assertSame(6, $page->total());
+        $this->assertCount(2, $page->items());
+    }
+
+    public function test_searchable_array_excludes_sensitive_fields(): void
+    {
+        $property = Property::factory()->published()->create([
+            'title' => 'Test listing',
+            'description' => 'Sample description',
+            'price' => 12_345_678,
+        ]);
+
+        $payload = $property->toSearchableArray();
+
+        // Whitelist of expected public keys; anything else would leak.
+        $allowed = ['id', 'title', 'description', 'type', 'contract_type', 'rent_period', 'status', 'city'];
+        foreach (array_keys($payload) as $key) {
+            $this->assertContains($key, $allowed, "Key [{$key}] should not appear in search payload.");
+        }
+
+        // Sensitive business data must never reach the index.
+        $this->assertArrayNotHasKey('price', $payload);
+        $this->assertArrayNotHasKey('user_id', $payload);
+        $this->assertArrayNotHasKey('agency_id', $payload);
+        $this->assertArrayNotHasKey('metadata', $payload);
+    }
+
+    public function test_with_search_scope_composes_with_filters(): void
+    {
+        $match = Property::factory()->published()->create([
+            'title' => 'Charming riverside cottage',
+            'price' => 250_000,
+        ]);
+
+        Property::factory()->published()->create([
+            'title' => 'Charming riverside cottage',
+            'price' => 950_000,
+        ]);
+
+        Property::factory()->published()->create([
+            'title' => 'Urban loft',
+            'price' => 250_000,
+        ]);
+
+        $results = Property::query()
+            ->withSearch('cottage')
+            ->where('price', '<=', 500_000)
+            ->get();
+
+        $this->assertCount(1, $results);
+        $this->assertTrue($results->first()->is($match));
+    }
+
+    public function test_with_search_scope_is_noop_when_term_is_empty(): void
+    {
+        Property::factory()->count(3)->published()->create();
+
+        $results = Property::query()->withSearch(null)->get();
+        $this->assertCount(3, $results);
+
+        $results = Property::query()->withSearch('')->get();
+        $this->assertCount(3, $results);
+    }
+
+    public function test_draft_properties_are_not_indexed(): void
+    {
+        Property::factory()->draft()->create([
+            'title' => 'Hidden draft villa',
+            'visibility' => PropertyVisibility::Private,
+            'status' => PropertyStatus::Draft,
+        ]);
+
+        $results = Property::search('villa')->get();
+
+        $this->assertCount(0, $results);
+    }
+}

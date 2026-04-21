@@ -3,6 +3,8 @@
 namespace App\Models\Bases\Traits;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Laravel\Scout\Searchable;
 
 trait BaseModelTrait
 {
@@ -35,5 +37,43 @@ trait BaseModelTrait
         }
 
         return $query;
+    }
+
+    /**
+     * Restrict an Eloquent query to ids produced by a Scout full-text search.
+     *
+     * Composes Scout + subsequent query-scope / spatie-query-builder filtering.
+     * Usage:
+     *   Property::query()->withSearch($request->input('q'))->public()->paginate();
+     *
+     * When the term is null/empty or the model is not Searchable, this is a
+     * no-op so it is safe to chain unconditionally.
+     */
+    public function scopeWithSearch(Builder $query, ?string $term): Builder
+    {
+        $term = is_string($term) ? trim($term) : '';
+
+        if ($term === '' || ! static::isSearchable()) {
+            return $query;
+        }
+
+        /** @var class-string<Model> $model */
+        $model = static::class;
+
+        $ids = $model::search($term)->keys()->all();
+
+        if (empty($ids)) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereIn($query->getModel()->getQualifiedKeyName(), $ids);
+    }
+
+    /**
+     * True when the model uses Laravel Scout's Searchable trait.
+     */
+    public static function isSearchable(): bool
+    {
+        return in_array(Searchable::class, class_uses_recursive(static::class), true);
     }
 }
