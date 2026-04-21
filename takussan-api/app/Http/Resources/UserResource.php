@@ -19,6 +19,7 @@ class UserResource extends JsonResource
             'bio' => $this->bio,
             'avatar_url' => $this->getFirstMediaUrl('avatar') ?: null,
             'email_verified_at' => $this->email_verified_at?->toIso8601String(),
+            'agency_id' => $this->agency_id,
             'roles' => $this->getRoleNames()->values()->all(),
             'status' => $this->status?->value,
             'created_at' => $this->created_at?->toIso8601String(),
