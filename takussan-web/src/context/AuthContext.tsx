@@ -11,6 +11,13 @@ import {
 
 type AuthContextValue = {
   user: User | null;
+  /**
+   * Auth token (Sanctum). Exposed so client-side helpers like `useApiQuery`
+   * can forward it to `Authorization: Bearer ...`. Prefer same-origin Next
+   * route handlers for authenticated reads — they already read the HttpOnly
+   * cookie server-side — but direct cross-origin calls need this token.
+   */
+  token: string | null;
   isLoading: boolean;
   setUser: (user: User | null) => void;
   refreshUser: () => Promise<void>;
@@ -35,8 +42,17 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children, initialUser }: { children: React.ReactNode; initialUser?: User | null }) {
+export function AuthProvider({
+  children,
+  initialUser,
+  initialToken,
+}: {
+  children: React.ReactNode;
+  initialUser?: User | null;
+  initialToken?: string | null;
+}) {
   const [user, setUser] = useState<User | null>(initialUser ?? null);
+  const [token, setToken] = useState<string | null>(initialToken ?? null);
   const [isLoading, setIsLoading] = useState(initialUser === undefined);
   const hasRetriedRef = useRef(false);
 
@@ -100,18 +116,19 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
     }
   }, []);
 
-  const persistToken = useCallback(async (token: string) => {
+  const persistToken = useCallback(async (next: string) => {
     await fetch('/api/auth/set-token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ token: next }),
     });
   }, []);
 
   const login = useCallback(
     async (payload: LoginPayload) => {
-      const { token, user: u } = await apiLogin(payload);
-      await persistToken(token);
+      const { token: next, user: u } = await apiLogin(payload);
+      await persistToken(next);
+      setToken(next);
       setUser(u);
       return u;
     },
@@ -120,8 +137,9 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
 
   const register = useCallback(
     async (payload: RegisterPayload) => {
-      const { token, user: u } = await apiRegister(payload);
-      await persistToken(token);
+      const { token: next, user: u } = await apiRegister(payload);
+      await persistToken(next);
+      setToken(next);
       setUser(u);
       return u;
     },
@@ -134,6 +152,7 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
     } catch {
       // Even if the network call fails, drop the in-memory user.
     }
+    setToken(null);
     setUser(null);
   }, []);
 
@@ -141,6 +160,7 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
     <AuthContext.Provider
       value={{
         user,
+        token,
         isLoading,
         setUser: handleSetUser,
         refreshUser,
@@ -165,6 +185,7 @@ export function useAuth(): AuthContextValue {
   return (
     ctx ?? {
       user: null,
+      token: null,
       isLoading: false,
       setUser: noop,
       refreshUser: noopAsync,

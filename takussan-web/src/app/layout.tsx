@@ -6,6 +6,7 @@ import { getLocale, getMessages } from 'next-intl/server';
 import { getMe } from '@/lib/auth';
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { AuthProvider } from '@/context/AuthContext';
+import { QueryProvider } from '@/components/providers/QueryProvider';
 import { TIMEZONE } from '@/i18n/config';
 import './globals.css';
 
@@ -38,9 +39,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang={locale} className={`${geist.variable} ${manrope.variable} ${inter.variable}`}>
       <body className="font-sans antialiased">
         <NextIntlClientProvider locale={locale} messages={messages} timeZone={TIMEZONE}>
-          <AuthProvider initialUser={initialUser}>
-            {children}
-          </AuthProvider>
+          <QueryProvider>
+            <AuthProvider initialUser={initialUser} initialToken={token ?? null}>
+              {children}
+            </AuthProvider>
+          </QueryProvider>
         </NextIntlClientProvider>
       </body>
     </html>

@@ -1,3 +1,5 @@
+import type { SpatieQueryParams } from '@/types/api';
+
 // Base URL without /api suffix — used by apiRequest (which includes /api in its paths)
 const API_URL = process.env.NEXT_PUBLIC_API_URL
   ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
@@ -15,7 +17,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   return res.json() as Promise<T>;
 }
 
-type RequestOptions = {
+export type RequestOptions = {
   method?: string;
   body?: unknown;
   token?: string;
@@ -27,6 +29,7 @@ type RequestOptions = {
    * falls back to its default when absent.
    */
   locale?: string;
+  signal?: AbortSignal;
 };
 
 export class ApiError extends Error {
@@ -36,11 +39,39 @@ export class ApiError extends Error {
   ) {
     super(`API error ${status}`);
   }
+
+  /**
+   * Convenience — returns the server-provided message when available,
+   * otherwise a generic fallback. Useful for toasts.
+   */
+  get displayMessage(): string {
+    if (this.data && typeof this.data === 'object' && 'message' in this.data) {
+      const raw = (this.data as { message?: unknown }).message;
+      if (typeof raw === 'string' && raw.length > 0) return raw;
+    }
+    return `API error ${this.status}`;
+  }
+
+  /**
+   * Typed access to Laravel-style validation errors (`status === 422`).
+   */
+  get validationErrors(): Record<string, string[]> | undefined {
+    if (
+      this.status === 422 &&
+      this.data &&
+      typeof this.data === 'object' &&
+      'errors' in this.data
+    ) {
+      const raw = (this.data as { errors?: unknown }).errors;
+      if (raw && typeof raw === 'object') return raw as Record<string, string[]>;
+    }
+    return undefined;
+  }
 }
 
 export async function apiRequest<T>(
   path: string,
-  { method = 'GET', body, token, headers = {}, formData = false, locale }: RequestOptions = {},
+  { method = 'GET', body, token, headers = {}, formData = false, locale, signal }: RequestOptions = {},
 ): Promise<T> {
   const requestHeaders: Record<string, string> = {
     Accept: 'application/json',
@@ -65,6 +96,7 @@ export async function apiRequest<T>(
     body: body !== undefined
       ? formData ? (body as BodyInit) : JSON.stringify(body)
       : undefined,
+    signal,
   });
 
   const data = await response.json().catch(() => null);
@@ -74,4 +106,63 @@ export async function apiRequest<T>(
   }
 
   return data as T;
+}
+
+/**
+ * Serialize spatie/laravel-query-builder params. Prefer this over manual
+ * `URLSearchParams` so every caller gets the canonical shape:
+ *
+ *   ?filter[status]=active&include=owner&fields[properties]=id,title&sort=-created_at
+ *
+ * See CLAUDE.md → "API — Conventions frontend" and
+ * `docs/spatie-query-builder.md`.
+ */
+export function buildQueryString(params: SpatieQueryParams): string {
+  const qs = new URLSearchParams();
+
+  if (params.fields) {
+    for (const [table, cols] of Object.entries(params.fields)) {
+      const value: string = Array.isArray(cols)
+        ? (cols as readonly string[]).join(',')
+        : (cols as string);
+      if (value) qs.set(`fields[${table}]`, value);
+    }
+  }
+
+  if (params.filter) {
+    for (const [key, value] of Object.entries(params.filter)) {
+      if (value === null || value === undefined || value === '') continue;
+      if (Array.isArray(value)) {
+        qs.set(`filter[${key}]`, (value as readonly (string | number)[]).join(','));
+      } else {
+        qs.set(`filter[${key}]`, String(value));
+      }
+    }
+  }
+
+  if (params.include) {
+    const value: string = Array.isArray(params.include)
+      ? (params.include as readonly string[]).join(',')
+      : (params.include as string);
+    if (value) qs.set('include', value);
+  }
+
+  if (params.sort) {
+    const value: string = Array.isArray(params.sort)
+      ? (params.sort as readonly string[]).join(',')
+      : (params.sort as string);
+    if (value) qs.set('sort', value);
+  }
+
+  if (typeof params.page === 'number') qs.set('page', String(params.page));
+  if (typeof params.per_page === 'number') qs.set('per_page', String(params.per_page));
+
+  if (params.extra) {
+    for (const [key, value] of Object.entries(params.extra)) {
+      if (value === null || value === undefined || value === '') continue;
+      qs.set(key, String(value));
+    }
+  }
+
+  return qs.toString();
 }
