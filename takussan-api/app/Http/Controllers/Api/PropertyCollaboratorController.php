@@ -9,6 +9,7 @@ use App\Models\PropertyCollaborator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class PropertyCollaboratorController extends Controller
 {
@@ -34,6 +35,8 @@ class PropertyCollaboratorController extends Controller
         $exists = $property->collaborators()->where('user_id', $data['user_id'])->exists();
         abort_if($exists, 422, __('messages.collaborator_already_exists'));
 
+        $this->ensureCommissionWithinCap($property, (float) ($data['commission_share'] ?? 0));
+
         $collaborator = $property->collaborators()->create(array_merge($data, [
             'invited_at' => now(),
         ]));
@@ -50,6 +53,14 @@ class PropertyCollaboratorController extends Controller
             'role' => ['sometimes', Rule::enum(CollaboratorRole::class)],
             'commission_share' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
         ]);
+
+        if (array_key_exists('commission_share', $data)) {
+            $this->ensureCommissionWithinCap(
+                $property,
+                (float) ($data['commission_share'] ?? 0),
+                excludingCollaboratorId: $collaborator->id,
+            );
+        }
 
         $collaborator->fill($data)->save();
 
@@ -79,5 +90,23 @@ class PropertyCollaboratorController extends Controller
     protected function authorizeManage(Request $request, Property $property): void
     {
         $this->authorizeAccess($request, $property);
+    }
+
+    protected function ensureCommissionWithinCap(
+        Property $property,
+        float $candidateShare,
+        ?int $excludingCollaboratorId = null,
+    ): void {
+        $query = $property->collaborators();
+        if ($excludingCollaboratorId !== null) {
+            $query->where('id', '!=', $excludingCollaboratorId);
+        }
+        $currentTotal = (float) $query->sum('commission_share');
+
+        if (round($currentTotal + $candidateShare, 2) > 100.0) {
+            throw ValidationException::withMessages([
+                'commission_share' => [__('validation.commission_share_exceeds_cap')],
+            ]);
+        }
     }
 }

@@ -122,4 +122,110 @@ class PropertyCollaboratorTest extends TestCase
         $this->getJson("/api/properties/{$property->id}/collaborators")
             ->assertForbidden();
     }
+
+    public function test_store_rejects_when_total_commission_exceeds_100(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+
+        PropertyCollaborator::create([
+            'property_id' => $property->id,
+            'user_id' => User::factory()->create()->id,
+            'role' => CollaboratorRole::Agent->value,
+            'commission_share' => 60,
+            'invited_at' => now(),
+        ]);
+
+        $new = User::factory()->create();
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/properties/{$property->id}/collaborators", [
+            'user_id' => $new->id,
+            'role' => CollaboratorRole::Agent->value,
+            'commission_share' => 50,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['commission_share']);
+    }
+
+    public function test_store_allows_boundary_total_commission_of_exactly_100(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+
+        PropertyCollaborator::create([
+            'property_id' => $property->id,
+            'user_id' => User::factory()->create()->id,
+            'role' => CollaboratorRole::Agent->value,
+            'commission_share' => 60,
+            'invited_at' => now(),
+        ]);
+
+        $new = User::factory()->create();
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/properties/{$property->id}/collaborators", [
+            'user_id' => $new->id,
+            'role' => CollaboratorRole::Agent->value,
+            'commission_share' => 40,
+        ])->assertCreated();
+    }
+
+    public function test_update_rejects_when_total_commission_exceeds_100(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+
+        PropertyCollaborator::create([
+            'property_id' => $property->id,
+            'user_id' => User::factory()->create()->id,
+            'role' => CollaboratorRole::Agent->value,
+            'commission_share' => 60,
+            'invited_at' => now(),
+        ]);
+
+        $collab = PropertyCollaborator::create([
+            'property_id' => $property->id,
+            'user_id' => User::factory()->create()->id,
+            'role' => CollaboratorRole::Agent->value,
+            'commission_share' => 30,
+            'invited_at' => now(),
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->putJson("/api/properties/{$property->id}/collaborators/{$collab->id}", [
+            'commission_share' => 50,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['commission_share']);
+    }
+
+    public function test_update_allows_boundary_total_commission_of_exactly_100(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+
+        PropertyCollaborator::create([
+            'property_id' => $property->id,
+            'user_id' => User::factory()->create()->id,
+            'role' => CollaboratorRole::Agent->value,
+            'commission_share' => 60,
+            'invited_at' => now(),
+        ]);
+
+        $collab = PropertyCollaborator::create([
+            'property_id' => $property->id,
+            'user_id' => User::factory()->create()->id,
+            'role' => CollaboratorRole::Agent->value,
+            'commission_share' => 30,
+            'invited_at' => now(),
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->putJson("/api/properties/{$property->id}/collaborators/{$collab->id}", [
+            'commission_share' => 40,
+        ])->assertOk();
+    }
 }

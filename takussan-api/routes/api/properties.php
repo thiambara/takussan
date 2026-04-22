@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\PropertyCollaboratorController;
 use App\Http\Controllers\Api\PropertyController;
 use App\Http\Controllers\Api\PropertyMediaController;
 use App\Http\Controllers\Api\PropertyPriceHistoryController;
+use App\Http\Controllers\Api\PropertyTagController;
 use App\Http\Controllers\Api\ReviewController;
 use Illuminate\Support\Facades\Route;
 
@@ -36,6 +37,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('properties/{property}/collaborators', [PropertyCollaboratorController::class, 'store'])->name('properties.collaborators.store');
     Route::put('properties/{property}/collaborators/{collaborator}', [PropertyCollaboratorController::class, 'update'])->name('properties.collaborators.update');
     Route::delete('properties/{property}/collaborators/{collaborator}', [PropertyCollaboratorController::class, 'destroy'])->name('properties.collaborators.destroy');
+
+    // Tags (polymorphic attach/detach)
+    Route::post('properties/{property}/tags', [PropertyTagController::class, 'sync'])->name('properties.tags.sync');
+    Route::delete('properties/{property}/tags/{tag}', [PropertyTagController::class, 'destroy'])->name('properties.tags.destroy');
 
     // Price history
     Route::get('properties/{property}/price-history', [PropertyPriceHistoryController::class, 'index'])->name('properties.price-history.index');
