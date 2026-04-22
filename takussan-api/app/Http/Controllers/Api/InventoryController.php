@@ -3,16 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\InventoryStoreRequest;
+use App\Http\Requests\InventoryUpdateRequest;
 use App\Http\Resources\InventoryResource;
-use App\Models\Enums\InventoryCondition;
 use App\Models\Enums\InventoryStatus;
-use App\Models\Enums\InventoryType;
 use App\Models\Inventory;
 use App\Models\Lease;
+use App\Models\Property;
 use App\Services\Model\InventoryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class InventoryController extends Controller
 {
@@ -56,19 +56,29 @@ class InventoryController extends Controller
         ]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function indexForProperty(Request $request, Property $property): JsonResponse
     {
-        $data = $request->validate([
-            'lease_id' => ['required', 'exists:leases,id'],
-            'type' => ['required', Rule::enum(InventoryType::class)],
-            'conducted_at' => ['nullable', 'date'],
-            'general_condition' => ['required', Rule::enum(InventoryCondition::class)],
-            'rooms' => ['required', 'array', 'min:1'],
-            'rooms.*.name' => ['required', 'string'],
-            'rooms.*.condition' => ['required', 'string'],
-            'rooms.*.notes' => ['nullable', 'string'],
-            'notes' => ['nullable', 'string'],
+        $this->authorizePropertyAccess($request, $property);
+
+        $base = Inventory::query()->where('property_id', $property->id);
+
+        $paginator = Inventory::buildQuery($base, $request)
+            ->defaultSort('-conducted_at')
+            ->paginate();
+
+        return $this->json([
+            'data' => InventoryResource::collection($paginator)->toArray($request),
+            'meta' => [
+                'total' => $paginator->total(),
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+            ],
         ]);
+    }
+
+    public function store(InventoryStoreRequest $request): JsonResponse
+    {
+        $data = $request->validated();
 
         $lease = Lease::findOrFail($data['lease_id']);
         $user = $request->user();
@@ -91,7 +101,7 @@ class InventoryController extends Controller
         ]);
     }
 
-    public function update(Request $request, Inventory $inventory): JsonResponse
+    public function update(InventoryUpdateRequest $request, Inventory $inventory): JsonResponse
     {
         $this->authorizeManage($request, $inventory);
 
@@ -103,14 +113,7 @@ class InventoryController extends Controller
             'Only draft inventories can be edited.'
         );
 
-        $data = $request->validate([
-            'general_condition' => ['nullable', Rule::enum(InventoryCondition::class)],
-            'rooms' => ['nullable', 'array', 'min:1'],
-            'rooms.*.name' => ['required_with:rooms', 'string'],
-            'rooms.*.condition' => ['required_with:rooms', 'string'],
-            'rooms.*.notes' => ['nullable', 'string'],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $presentKeys = [];
         foreach (array_keys($data) as $key) {
@@ -218,6 +221,17 @@ class InventoryController extends Controller
             || $inventory->conducted_by === $user->id
             || ($property && $property->user_id === $user->id)
             || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
+
+        abort_unless($ok, 403);
+    }
+
+    protected function authorizePropertyAccess(Request $request, Property $property): void
+    {
+        $user = $request->user();
+
+        $ok = $user->hasRole(['admin', 'super_admin'])
+            || $property->user_id === $user->id
+            || ($user->agency_id && $property->agency_id === $user->agency_id);
 
         abort_unless($ok, 403);
     }

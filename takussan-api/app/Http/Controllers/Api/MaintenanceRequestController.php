@@ -11,6 +11,7 @@ use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\NotificationType;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
+use App\Services\Model\MaintenanceRequestService;
 use App\Services\Model\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,7 +19,10 @@ use Illuminate\Validation\Rule;
 
 class MaintenanceRequestController extends Controller
 {
-    public function __construct(protected NotificationService $notifications) {}
+    public function __construct(
+        protected NotificationService $notifications,
+        protected MaintenanceRequestService $service,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -45,6 +49,26 @@ class MaintenanceRequestController extends Controller
             'meta' => [
                 'total' => $paginator->total(),
                 'current_page' => $paginator->currentPage(),
+            ],
+        ]);
+    }
+
+    public function indexForProperty(Request $request, Property $property): JsonResponse
+    {
+        $this->authorizeAccessProperty($request, $property);
+
+        $base = MaintenanceRequest::query()->where('property_id', $property->id);
+
+        $paginator = MaintenanceRequest::buildQuery($base, $request)
+            ->defaultSort('-created_at')
+            ->paginate();
+
+        return $this->json([
+            'data' => MaintenanceRequestResource::collection($paginator)->toArray($request),
+            'meta' => [
+                'total' => $paginator->total(),
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
             ],
         ]);
     }
@@ -133,6 +157,77 @@ class MaintenanceRequestController extends Controller
         ]);
     }
 
+    public function updateStatus(Request $request, MaintenanceRequest $maintenanceRequest): JsonResponse
+    {
+        $this->authorizeManage($request, $maintenanceRequest);
+
+        $data = $request->validate([
+            'status' => ['required', Rule::enum(MaintenanceStatus::class)],
+        ]);
+
+        $target = MaintenanceStatus::from($data['status']);
+        $maintenanceRequest = $this->service->transition($maintenanceRequest, $target);
+
+        return $this->json([
+            'data' => MaintenanceRequestResource::make($maintenanceRequest)->toArray($request),
+        ]);
+    }
+
+    public function complete(Request $request, MaintenanceRequest $maintenanceRequest): JsonResponse
+    {
+        $this->authorizeManage($request, $maintenanceRequest);
+
+        $data = $request->validate([
+            'resolution_notes' => ['nullable', 'string'],
+            'cost' => ['nullable', 'numeric', 'min:0'],
+            'actual_cost' => ['nullable', 'numeric', 'min:0'],
+            'photos' => ['nullable', 'array'],
+            'photos.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+        ]);
+
+        // Reject ambiguous payloads rather than silently preferring one field.
+        if (array_key_exists('cost', $data) && array_key_exists('actual_cost', $data)
+            && $data['cost'] !== null && $data['actual_cost'] !== null) {
+            abort(422, 'Provide either `cost` or `actual_cost`, not both.');
+        }
+
+        $photos = $request->file('photos', []) ?? [];
+        $maintenanceRequest = $this->service->complete($maintenanceRequest, $data, is_array($photos) ? $photos : []);
+
+        return $this->json([
+            'data' => MaintenanceRequestResource::make($maintenanceRequest)->toArray($request),
+        ]);
+    }
+
+    public function uploadPhotos(Request $request, MaintenanceRequest $maintenanceRequest): JsonResponse
+    {
+        $this->authorizeAccess($request, $maintenanceRequest);
+
+        // Block uploads on terminal states — a closed or cancelled request
+        // should not accept new photos (prevents abuse and keeps the audit
+        // log on media consistent with the work actually performed).
+        if (in_array($maintenanceRequest->status, [MaintenanceStatus::Closed, MaintenanceStatus::Cancelled], true)) {
+            abort(422, 'Cannot upload photos to a closed or cancelled maintenance request.');
+        }
+
+        $data = $request->validate([
+            'photos' => ['required', 'array', 'min:1'],
+            'photos.*' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+            'collection' => ['nullable', 'string', Rule::in(['photos', 'completion_photos'])],
+        ]);
+
+        $collection = $data['collection'] ?? 'photos';
+
+        // Only managers can attach completion_photos.
+        if ($collection === 'completion_photos') {
+            $this->authorizeManage($request, $maintenanceRequest);
+        }
+
+        $added = $this->service->addPhotos($maintenanceRequest, $request->file('photos', []), $collection);
+
+        return $this->json(['data' => $added], 201);
+    }
+
     protected function authorizeAccess(Request $request, MaintenanceRequest $mr): void
     {
         $user = $request->user();
@@ -154,6 +249,16 @@ class MaintenanceRequestController extends Controller
             || $mr->assigned_to === $user->id
             || ($property && $property->user_id === $user->id)
             || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
+
+        abort_unless($ok, 403);
+    }
+
+    protected function authorizeAccessProperty(Request $request, Property $property): void
+    {
+        $user = $request->user();
+        $ok = $user->hasRole(['admin', 'super_admin'])
+            || $property->user_id === $user->id
+            || ($user->agency_id && $property->agency_id === $user->agency_id);
 
         abort_unless($ok, 403);
     }
