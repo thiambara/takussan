@@ -24,6 +24,8 @@ class LeasePaymentResource extends JsonResource
             'due_date' => $this->due_date?->toDateString(),
             'paid_at' => $this->paid_at?->toISOString(),
             'status' => $this->status?->value,
+            'paid_amount' => (float) $this->paid_amount,
+            'remaining_amount' => (float) $this->remaining_amount,
             'late_fee' => $this->late_fee !== null ? (float) $this->late_fee : null,
             'notes' => $this->notes,
             'created_at' => $this->created_at?->toISOString(),
