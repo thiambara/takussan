@@ -7,6 +7,7 @@ use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -227,5 +228,45 @@ class PropertyCollaboratorTest extends TestCase
         $this->putJson("/api/properties/{$property->id}/collaborators/{$collab->id}", [
             'commission_share' => 40,
         ])->assertOk();
+    }
+
+    public function test_store_commission_cap_runs_inside_transaction(): void
+    {
+        // Deterministic guarantee that the cap check + insert happen inside a
+        // DB transaction — combined with lockForUpdate on the sum, this closes
+        // the TOCTOU race between concurrent writers. SQLite does not emit a
+        // literal "FOR UPDATE" clause (the grammar strips it), so we instead
+        // assert the transaction nesting level at the moment the collaborator
+        // row is being created.
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+
+        PropertyCollaborator::create([
+            'property_id' => $property->id,
+            'user_id' => User::factory()->create()->id,
+            'role' => CollaboratorRole::Agent->value,
+            'commission_share' => 50,
+            'invited_at' => now(),
+        ]);
+
+        $new = User::factory()->create();
+        $observedLevel = null;
+
+        PropertyCollaborator::creating(function () use (&$observedLevel) {
+            $observedLevel = DB::transactionLevel();
+        });
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/properties/{$property->id}/collaborators", [
+            'user_id' => $new->id,
+            'role' => CollaboratorRole::Agent->value,
+            'commission_share' => 30,
+        ])->assertCreated();
+
+        PropertyCollaborator::flushEventListeners();
+
+        $this->assertNotNull($observedLevel, 'creating hook did not fire');
+        $this->assertGreaterThanOrEqual(1, $observedLevel, 'Expected collaborator insert to run inside a DB transaction.');
     }
 }

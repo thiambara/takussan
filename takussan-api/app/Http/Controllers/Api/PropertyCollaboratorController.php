@@ -8,6 +8,7 @@ use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -35,11 +36,16 @@ class PropertyCollaboratorController extends Controller
         $exists = $property->collaborators()->where('user_id', $data['user_id'])->exists();
         abort_if($exists, 422, __('messages.collaborator_already_exists'));
 
-        $this->ensureCommissionWithinCap($property, (float) ($data['commission_share'] ?? 0));
+        $collaborator = DB::transaction(function () use ($property, $data) {
+            $this->assertCommissionWithinCapLocked(
+                $property,
+                (float) ($data['commission_share'] ?? 0),
+            );
 
-        $collaborator = $property->collaborators()->create(array_merge($data, [
-            'invited_at' => now(),
-        ]));
+            return $property->collaborators()->create(array_merge($data, [
+                'invited_at' => now(),
+            ]));
+        });
 
         return $this->json(['data' => $collaborator->load('user')], 201);
     }
@@ -54,15 +60,17 @@ class PropertyCollaboratorController extends Controller
             'commission_share' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
         ]);
 
-        if (array_key_exists('commission_share', $data)) {
-            $this->ensureCommissionWithinCap(
-                $property,
-                (float) ($data['commission_share'] ?? 0),
-                excludingCollaboratorId: $collaborator->id,
-            );
-        }
+        DB::transaction(function () use ($property, $collaborator, $data) {
+            if (array_key_exists('commission_share', $data)) {
+                $this->assertCommissionWithinCapLocked(
+                    $property,
+                    (float) ($data['commission_share'] ?? 0),
+                    excludingCollaboratorId: $collaborator->id,
+                );
+            }
 
-        $collaborator->fill($data)->save();
+            $collaborator->fill($data)->save();
+        });
 
         return $this->json(['data' => $collaborator->refresh()->load('user')]);
     }
@@ -92,7 +100,12 @@ class PropertyCollaboratorController extends Controller
         $this->authorizeAccess($request, $property);
     }
 
-    protected function ensureCommissionWithinCap(
+    /**
+     * Sum existing collaborator shares with a row-level lock so concurrent
+     * writers serialize on the same rows and the 100% cap is enforced
+     * atomically. Must be called inside a DB::transaction.
+     */
+    protected function assertCommissionWithinCapLocked(
         Property $property,
         float $candidateShare,
         ?int $excludingCollaboratorId = null,
@@ -101,7 +114,7 @@ class PropertyCollaboratorController extends Controller
         if ($excludingCollaboratorId !== null) {
             $query->where('id', '!=', $excludingCollaboratorId);
         }
-        $currentTotal = (float) $query->sum('commission_share');
+        $currentTotal = (float) $query->lockForUpdate()->sum('commission_share');
 
         if (round($currentTotal + $candidateShare, 2) > 100.0) {
             throw ValidationException::withMessages([
