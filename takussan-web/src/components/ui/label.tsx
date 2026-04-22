@@ -18,7 +18,7 @@ function Label({
     <FieldPrimitive.Label
       data-slot="label"
       className={cn(
-        "text-sm font-medium leading-none text-foreground select-none peer-disabled:cursor-not-allowed peer-disabled:opacity-60 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-60",
+        "text-sm font-medium leading-none text-foreground select-none data-[disabled]:cursor-not-allowed data-[disabled]:opacity-60",
         className
       )}
       {...props}

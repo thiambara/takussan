@@ -2,8 +2,8 @@
 
 import * as React from "react"
 import { Toast as ToastPrimitive } from "@base-ui/react/toast"
-import { XIcon } from "lucide-react"
 
+import { X } from "@/components/icons"
 import { cn } from "@/lib/utils"
 
 /**
@@ -69,17 +69,13 @@ function Toaster({
               kindClasses(toast.type)
             )}
           >
-            {toast.title ? (
-              <ToastPrimitive.Title className="text-sm font-semibold leading-none" />
-            ) : null}
-            {toast.description ? (
-              <ToastPrimitive.Description className="text-sm opacity-90" />
-            ) : null}
+            <ToastPrimitive.Title className="text-sm font-semibold leading-none" />
+            <ToastPrimitive.Description className="text-sm opacity-90" />
             <ToastPrimitive.Close
               aria-label="Fermer la notification"
               className="absolute top-2 right-2 inline-flex size-6 items-center justify-center rounded-md opacity-60 outline-none transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/50"
             >
-              <XIcon className="size-3.5" />
+              <X className="size-3.5" />
             </ToastPrimitive.Close>
           </ToastPrimitive.Root>
         ))}

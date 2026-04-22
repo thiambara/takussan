@@ -5,6 +5,8 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 
+const DESKTOP_NAV_LABEL = "Navigation latérale"
+
 /**
  * Sidebar — generic vertical navigation shell.
  *
@@ -30,13 +32,18 @@ export interface SidebarProps {
 function SidebarSurface({
   className,
   children,
+  ariaLabel,
+  ariaLabelledBy,
 }: {
   className?: string
   children?: React.ReactNode
+  ariaLabel?: string
+  ariaLabelledBy?: string
 }) {
   return (
     <nav
-      aria-label="Navigation latérale"
+      aria-label={ariaLabelledBy ? undefined : ariaLabel}
+      aria-labelledby={ariaLabelledBy}
       className={cn(
         "flex h-full w-64 shrink-0 flex-col gap-1 border-r border-border bg-background p-4",
         className
@@ -54,20 +61,27 @@ export function Sidebar({
   onOpenChange,
   mobileTitle = "Navigation",
 }: SidebarProps) {
+  const mobileTitleId = React.useId()
   return (
     <>
       {/* Desktop */}
       <aside className={cn("hidden md:block", className)}>
-        <SidebarSurface>{children}</SidebarSurface>
+        <SidebarSurface ariaLabel={DESKTOP_NAV_LABEL}>{children}</SidebarSurface>
       </aside>
 
       {/* Mobile */}
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="left" className="w-72 p-0">
-          <div className="border-b border-border px-4 py-3 text-sm font-semibold text-foreground">
+          <h2
+            id={mobileTitleId}
+            className="border-b border-border px-4 py-3 text-sm font-semibold text-foreground"
+          >
             {mobileTitle}
-          </div>
-          <SidebarSurface className="w-full border-r-0">
+          </h2>
+          <SidebarSurface
+            className="w-full border-r-0"
+            ariaLabelledBy={mobileTitleId}
+          >
             {children}
           </SidebarSurface>
         </SheetContent>
