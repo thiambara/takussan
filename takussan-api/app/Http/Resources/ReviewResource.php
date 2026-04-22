@@ -28,6 +28,8 @@ class ReviewResource extends JsonResource
             'title' => $this->title,
             'content' => $this->content,
             'is_approved' => (bool) $this->is_approved,
+            'status' => $this->status?->value,
+            'reported_count' => (int) ($this->reported_count ?? 0),
             'reply_content' => $this->reply_content,
             'replied_at' => $this->replied_at?->toISOString(),
             'created_at' => $this->created_at?->toISOString(),

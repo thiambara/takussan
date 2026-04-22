@@ -1,7 +1,7 @@
 ---
 id: TCK-029
 title: Communication & messagerie
-status: todo
+status: review
 phase: P1
 family: back
 estimate: M
@@ -71,4 +71,20 @@ Implémenter la messagerie privée : conversations 1↔1, envoi de messages avec
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Réalisé (2026-04-22)
+
+- Migration `add_archived_at_to_conversation_participants` — colonne `archived_at` (nullable) par participant + index `(user_id, archived_at)`.
+- `Conversation::participants()` expose désormais `archived_at` dans le pivot.
+- `ConversationController` :
+  - `index` filtre les conversations archivées (`?archived=1` pour les surfacer).
+  - `markAsRead` (`PUT /conversations/{conversation}/read`) met à jour `last_read_at` du participant.
+  - `archive` / `unarchive` (`PUT /conversations/{conversation}/archive|unarchive`) — scope par participant (soft-hide).
+  - `sendMessage` dispatch maintenant `NotifyNewMessageJob` (fire-and-forget), marque la vue de l'expéditeur comme lue, et réinitialise `archived_at` pour les autres participants (réapparition dans leur liste).
+- `App\Jobs\NotifyNewMessageJob` — job queueable utilisant `NotificationService` pour expédier la notification `message` hors du cycle HTTP.
+- Tests : `ConversationArchiveReadTest` (7 — archive scope, unarchive, auto-unarchive sur nouveau message, markAsRead, guard non-participant, dispatch job). `ConversationTest` conservé.
+
+### Hors périmètre / reporté
+
+- Compteur de messages non-lus dans le resource (peut être ajouté sans migration — déjà supporté par `last_read_at`), reporté au ticket front TCK-045.
+- Pièces jointes media-library sur messages — champs `attachments` non activés ici (migration `create_messages_table` prépare déjà la structure, à câbler si TCK-015 merged).
+- Conversations de groupe multi-participants + recherche historique — P2, hors scope.

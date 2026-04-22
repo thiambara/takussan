@@ -55,5 +55,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('properties/{property}/reviews', [ReviewController::class, 'storeForProperty'])->name('properties.reviews.store');
     Route::post('reviews/{review}/reply', [ReviewController::class, 'reply'])->name('reviews.reply');
     Route::post('reviews/{review}/approve', [ReviewController::class, 'approve'])->name('reviews.approve');
+    Route::post('reviews/{review}/reject', [ReviewController::class, 'reject'])->name('reviews.reject');
     Route::post('reviews/{review}/report', [ReviewController::class, 'report'])->name('reviews.report');
 });

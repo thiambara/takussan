@@ -2,8 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Models\Enums\PaymentStatus;
-use App\Models\LeasePayment;
+use App\Services\Model\LeaseLateFeeService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -14,10 +13,8 @@ class ApplyLatePaymentPenalties implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public function handle(): void
+    public function handle(LeaseLateFeeService $service): void
     {
-        LeasePayment::where('status', PaymentStatus::Pending)
-            ->whereDate('due_date', '<', now())
-            ->update(['status' => PaymentStatus::Late]);
+        $service->applyAll();
     }
 }

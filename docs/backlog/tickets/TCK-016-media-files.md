@@ -1,7 +1,7 @@
 ---
 id: TCK-016
 title: Médias & fichiers
-status: todo
+status: review
 phase: P0
 family: applicatif
 estimate: M
@@ -65,4 +65,7 @@ Implémenter le système d'upload, de validation, de conversion et de gestion de
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Le delta résiduel est l'endpoint générique (non couplé) `POST /api/media/upload` : tout utilisateur authentifié peut y déposer un fichier sans fournir `model_type`/`model_id`. Le Media résultant est rattaché à l'utilisateur appelant (owner) pour conserver authZ/cleanup cohérents.
+- `MediaUploadRequest` (couplé à un modèle) reste en place pour `POST /api/media` — cas où le front connaît déjà la cible.
+- Nouvelle classe : `App\Http\Requests\GenericMediaUploadRequest` (règles MIME/size par collection, pas de `model_type`).
+- Tests : `tests/Feature/Media/MediaGenericUploadTest.php` (7 cas) ; `MediaUploadTest`, `MediaConversionTest`, `MediaDeleteTest` existants inchangés.

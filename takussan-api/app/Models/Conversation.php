@@ -57,7 +57,7 @@ class Conversation extends AbstractModel
     {
         return $this->belongsToMany(User::class, 'conversation_participants')
             ->using(ConversationParticipant::class)
-            ->withPivot(['role', 'last_read_at', 'is_muted', 'joined_at', 'left_at'])
+            ->withPivot(['role', 'last_read_at', 'is_muted', 'joined_at', 'left_at', 'archived_at'])
             ->withTimestamps();
     }
 

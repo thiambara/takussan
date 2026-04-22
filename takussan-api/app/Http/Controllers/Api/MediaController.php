@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\GenericMediaUploadRequest;
 use App\Http\Requests\MediaUploadRequest;
 use App\Http\Resources\MediaResource;
 use App\Models\User;
@@ -46,6 +47,36 @@ class MediaController extends Controller
             ->usingFileName($fileName)
             ->usingName($slug)
             ->toMediaCollection($data['collection']);
+
+        return $this->json([
+            'data' => (new MediaResource($media->fresh()))->toArray($request),
+        ], Response::HTTP_CREATED);
+    }
+
+    /**
+     * Generic, non-coupled upload: any authenticated user may upload a file.
+     * The resulting Media row is attached to the caller (owner) so cleanup
+     * and authorization remain well-defined even without a target model.
+     */
+    public function upload(GenericMediaUploadRequest $request): JsonResponse
+    {
+        $data = $request->validated();
+        $user = $request->user();
+
+        $collection = $data['collection'] ?? 'photos';
+
+        $upload = $request->file('file');
+        $original = $upload->getClientOriginalName();
+        $extension = $upload->getClientOriginalExtension();
+        $base = pathinfo($original, PATHINFO_FILENAME);
+        $slug = Str::slug($base) ?: 'file';
+        $fileName = $slug.($extension !== '' ? '.'.strtolower($extension) : '');
+
+        $media = $user
+            ->addMedia($upload->getRealPath())
+            ->usingFileName($fileName)
+            ->usingName($slug)
+            ->toMediaCollection($collection);
 
         return $this->json([
             'data' => (new MediaResource($media->fresh()))->toArray($request),

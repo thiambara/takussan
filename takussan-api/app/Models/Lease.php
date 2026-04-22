@@ -10,6 +10,7 @@ use App\Models\Enums\LeaseType;
 use App\Models\Enums\PaymentFrequency;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -98,6 +99,18 @@ class Lease extends AbstractModel
     public function guarantor(): BelongsTo
     {
         return $this->belongsTo(Guarantor::class);
+    }
+
+    /**
+     * Many-to-many guarantors (up to 3 per lease, enforced at API layer).
+     * The legacy `guarantor_id` FK is kept for backward compatibility
+     * until all consumers migrate to this relation.
+     */
+    public function guarantors(): BelongsToMany
+    {
+        return $this->belongsToMany(Guarantor::class, 'lease_guarantor')
+            ->withPivot(['role'])
+            ->withTimestamps();
     }
 
     public function terminatedBy(): BelongsTo

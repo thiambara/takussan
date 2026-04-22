@@ -19,4 +19,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('leases/{lease}/payments', [LeasePaymentController::class, 'store'])->name('leases.payments.store');
     Route::post('lease-payments/{payment}/mark-paid', [LeasePaymentController::class, 'markPaid'])
         ->name('lease-payments.mark-paid');
+
+    // Nested guarantors (many-to-many, max 3 per lease)
+    Route::get('leases/{lease}/guarantors', [LeaseController::class, 'listGuarantors'])->name('leases.guarantors.index');
+    Route::post('leases/{lease}/guarantors', [LeaseController::class, 'attachGuarantor'])->name('leases.guarantors.store');
+    Route::delete('leases/{lease}/guarantors/{guarantor}', [LeaseController::class, 'detachGuarantor'])->name('leases.guarantors.destroy');
 });

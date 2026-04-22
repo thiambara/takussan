@@ -5,12 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\ConversationResource;
 use App\Http\Resources\MessageResource;
+use App\Jobs\NotifyNewMessageJob;
 use App\Models\Conversation;
 use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
 use App\Models\Enums\MessageType;
-use App\Models\Enums\NotificationType;
-use App\Services\Model\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,13 +17,19 @@ use Illuminate\Validation\Rule;
 
 class ConversationController extends Controller
 {
-    public function __construct(protected NotificationService $notifications) {}
-
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
+        $includeArchived = (bool) $request->boolean('archived');
 
-        $paginator = Conversation::whereHas('participants', fn ($q) => $q->where('user_id', $user->id))
+        $paginator = Conversation::whereHas('participants', function ($q) use ($user, $includeArchived) {
+            $q->where('user_id', $user->id);
+            if ($includeArchived) {
+                $q->whereNotNull('conversation_participants.archived_at');
+            } else {
+                $q->whereNull('conversation_participants.archived_at');
+            }
+        })
             ->orderByDesc('last_message_at')
             ->paginate((int) $request->input('per_page', 20));
 
@@ -123,35 +128,100 @@ class ConversationController extends Controller
             'type' => ['nullable', Rule::enum(MessageType::class)],
         ]);
 
-        $message = $conversation->messages()->create([
-            'sender_id' => $request->user()->id,
-            'content' => $data['content'],
-            'type' => $data['type'] ?? MessageType::Text->value,
-        ]);
-
-        $conversation->update([
-            'last_message_id' => $message->id,
-            'last_message_preview' => mb_substr($message->content, 0, 255),
-            'last_message_at' => now(),
-        ]);
-
-        // Notify other participants
         $sender = $request->user();
-        $recipients = $conversation->participants()
-            ->where('users.id', '!=', $sender->id)
-            ->get();
 
-        $this->notifications->notifyMany(
-            $recipients,
-            NotificationType::Message,
-            'Nouveau message',
-            $sender->getFullNameAttribute().': '.mb_strimwidth($data['content'], 0, 80, '…'),
-            ['conversation_id' => $conversation->id, 'message_id' => $message->id],
-        );
+        // Group the message insert, conversation pointer update, sender
+        // read-marker and participant auto-unarchive in one transaction so
+        // a mid-write failure can't leave half of them applied.
+        $message = DB::transaction(function () use ($conversation, $sender, $data) {
+            $message = $conversation->messages()->create([
+                'sender_id' => $sender->id,
+                'content' => $data['content'],
+                'type' => $data['type'] ?? MessageType::Text->value,
+            ]);
+
+            $conversation->update([
+                'last_message_id' => $message->id,
+                'last_message_preview' => mb_substr($message->content, 0, 255),
+                'last_message_at' => now(),
+            ]);
+
+            // Auto-mark the sender's own read pointer so the new message
+            // doesn't show up as unread on the sender's side.
+            $conversation->participants()->updateExistingPivot($sender->id, [
+                'last_read_at' => now(),
+                'archived_at' => null,
+            ]);
+
+            // Un-archive the conversation for other participants so a new
+            // incoming message makes the thread reappear in their list.
+            DB::table('conversation_participants')
+                ->where('conversation_id', $conversation->id)
+                ->where('user_id', '!=', $sender->id)
+                ->update(['archived_at' => null]);
+
+            return $message;
+        });
+
+        // Fire-and-forget notification so we don't block the response on
+        // mail / broadcasting I/O. Dispatched after the transaction commits
+        // so the worker is guaranteed to see the persisted message.
+        NotifyNewMessageJob::dispatch($message->id);
 
         return $this->json([
             'data' => MessageResource::make($message)->toArray($request),
         ], 201);
+    }
+
+    public function markAsRead(Request $request, Conversation $conversation): JsonResponse
+    {
+        $this->ensureParticipant($request, $conversation);
+
+        $user = $request->user();
+        $conversation->participants()->updateExistingPivot($user->id, [
+            'last_read_at' => now(),
+        ]);
+
+        return $this->json([
+            'data' => [
+                'conversation_id' => $conversation->id,
+                'last_read_at' => now()->toISOString(),
+            ],
+        ]);
+    }
+
+    public function archive(Request $request, Conversation $conversation): JsonResponse
+    {
+        $this->ensureParticipant($request, $conversation);
+
+        $user = $request->user();
+        $conversation->participants()->updateExistingPivot($user->id, [
+            'archived_at' => now(),
+        ]);
+
+        return $this->json([
+            'data' => [
+                'conversation_id' => $conversation->id,
+                'archived_at' => now()->toISOString(),
+            ],
+        ]);
+    }
+
+    public function unarchive(Request $request, Conversation $conversation): JsonResponse
+    {
+        $this->ensureParticipant($request, $conversation);
+
+        $user = $request->user();
+        $conversation->participants()->updateExistingPivot($user->id, [
+            'archived_at' => null,
+        ]);
+
+        return $this->json([
+            'data' => [
+                'conversation_id' => $conversation->id,
+                'archived_at' => null,
+            ],
+        ]);
     }
 
     protected function ensureParticipant(Request $request, Conversation $conversation): void

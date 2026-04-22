@@ -111,6 +111,8 @@ class BookingService
             'Only pending bookings can be confirmed.'
         );
 
+        $this->assertNoOverlap($booking);
+
         $booking->update([
             'status' => BookingStatus::Confirmed,
             'confirmed_at' => now(),
@@ -160,6 +162,36 @@ class BookingService
         }
 
         return $booking;
+    }
+
+    /**
+     * Reject the confirmation if another confirmed booking already
+     * overlaps the target booking's date range on the same property.
+     * Bookings without dates are skipped (open-ended reservations).
+     */
+    protected function assertNoOverlap(Booking $booking): void
+    {
+        if (! $booking->start_date || ! $booking->end_date) {
+            return;
+        }
+
+        $overlap = Booking::query()
+            ->where('property_id', $booking->property_id)
+            ->where('id', '!=', $booking->id)
+            ->where('status', BookingStatus::Confirmed)
+            ->whereNotNull('start_date')
+            ->whereNotNull('end_date')
+            ->where(function ($q) use ($booking) {
+                $q->where('start_date', '<=', $booking->end_date)
+                    ->where('end_date', '>=', $booking->start_date);
+            })
+            ->exists();
+
+        abort_if(
+            $overlap,
+            422,
+            'Another confirmed booking already overlaps these dates on this property.'
+        );
     }
 
     public function cancel(Booking $booking, User $user, ?string $reason = null): Booking
