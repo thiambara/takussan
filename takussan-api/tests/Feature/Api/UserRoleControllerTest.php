@@ -5,6 +5,7 @@ namespace Tests\Feature\Api;
 use App\Models\Agency;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
 use Tests\ApiTestCase;
 
 /**
@@ -133,5 +134,58 @@ class UserRoleControllerTest extends ApiTestCase
 
         $this->apiPut("/api/users/{$target->id}/role", ['role' => 'hacker'])
             ->assertStatus(422);
+    }
+
+    public function test_agency_admin_cannot_change_role_of_user_without_agency(): void
+    {
+        $agency = Agency::factory()->create();
+        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+
+        // Target has no agency binding (e.g. public customer, orphan user).
+        $target = User::factory()->create(['agency_id' => null]);
+
+        $this->apiPut("/api/users/{$target->id}/role", ['role' => 'agent'])
+            ->assertForbidden();
+    }
+
+    public function test_role_assignment_does_not_create_ghost_guard_duplicates(): void
+    {
+        $agency = Agency::factory()->create();
+        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $target = User::factory()->create(['agency_id' => $agency->id]);
+
+        // Count roles named `agent` before the call.
+        $before = Role::where('name', 'agent')->count();
+
+        $this->apiPut("/api/users/{$target->id}/role", ['role' => 'agent'])
+            ->assertOk();
+
+        // No new `agent` row should be created under a ghost guard_name.
+        $rows = Role::where('name', 'agent')->get();
+        $this->assertLessThanOrEqual($before + 1, $rows->count(), 'agent role should not be duplicated per request guard.');
+        foreach ($rows as $row) {
+            $this->assertSame('web', $row->guard_name, 'role guard_name must stay aligned with the seeder (web).');
+        }
+    }
+
+    public function test_super_admin_assignment_does_not_create_duplicate_team_scoped_role(): void
+    {
+        $this->apiActingAsRole('super_admin');
+
+        $agency = Agency::factory()->create();
+        $target = User::factory()->create(['agency_id' => $agency->id]);
+
+        $before = Role::where('name', 'super_admin')->count();
+
+        $this->apiPut("/api/users/{$target->id}/role", ['role' => 'super_admin'])
+            ->assertOk();
+
+        // Assigning super_admin must not create a NEW super_admin row.
+        // Without the fix, findOrCreate in team context creates a duplicate.
+        $after = Role::where('name', 'super_admin')->count();
+        $this->assertSame($before, $after, 'super_admin should not be duplicated when assigned cross-tenant.');
+
+        // And the target user's super_admin must be the global one (team_id = null).
+        $this->assertTrue($target->fresh()->hasRole('super_admin'));
     }
 }

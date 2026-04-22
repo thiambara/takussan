@@ -46,19 +46,28 @@ class UserRoleController extends Controller
             abort(403, __('messages.only_super_admin_can_grant_super_admin'));
         }
 
-        // Agency admins can only manage users within their own agency.
-        if (
-            ! $actor->hasRole('super_admin')
-            && $user->agency_id !== null
-            && $user->agency_id !== $actor->agency_id
-        ) {
-            abort(403);
+        // Agency admins can only manage users within their own agency —
+        // both sides must match (a null agency on either is not a match).
+        if (! $actor->hasRole('super_admin')) {
+            if ($actor->agency_id === null || $user->agency_id !== $actor->agency_id) {
+                abort(403);
+            }
         }
 
-        // Ensure role exists in the user's team context (spatie teams=true).
+        // Resolve the team context for the assignment. `super_admin` is a
+        // cross-tenant role and must stay bound to team_id = null (matches
+        // how the seeder + BaseTestCase register it). Scoping it to an
+        // agency would create a duplicate role row in the registry.
         $registrar = app(PermissionRegistrar::class);
-        $registrar->setPermissionsTeamId($user->agency_id);
-        Role::findOrCreate($data['role']);
+        $teamId = $data['role'] === 'super_admin' ? null : $user->agency_id;
+        $registrar->setPermissionsTeamId($teamId);
+
+        // Ensure the role exists in the target team context under the `web`
+        // guard (matches RolesAndPermissionsSeeder). Without pinning the
+        // guard, spatie defaults to the current request guard — `sanctum`
+        // inside `auth:sanctum` routes — and creates a ghost duplicate role
+        // every call, fragmenting the role registry.
+        Role::findOrCreate($data['role'], 'web');
 
         // Replace all roles with the single new one.
         $user->syncRoles([$data['role']]);
