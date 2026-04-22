@@ -140,12 +140,12 @@ export function useApiMutation<TData, TVariables = void>(
         typeof shape.path === 'function' ? shape.path(variables) : shape.path;
       const body = shape.body ? shape.body(variables) : variables;
       return apiRequest<TData>(resolvedPath, {
+        ...request,
         method: shape.method ?? 'POST',
         body,
         formData: shape.formData,
         token: request?.token ?? token ?? undefined,
         locale: request?.locale ?? locale,
-        ...request,
       });
     },
     onSuccess: async (data, variables, ...rest2) => {
