@@ -1,7 +1,7 @@
 ---
 id: TCK-026
 title: Réservations courte durée & visites
-status: todo
+status: review
 phase: P1
 family: back
 estimate: M
@@ -77,4 +77,12 @@ Implémenter le flux complet de réservation courte durée (demande → acceptat
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Réalisé (2026-04-22)
+
+- `BookingService::confirm()` appelle désormais `assertNoOverlap()` : si une autre réservation `confirmed` pour le même bien chevauche les dates, 422 (`"Another confirmed booking already overlaps these dates on this property."`).
+- `ExpireBookings` job — déjà implémenté + planifié `hourly()` via `routes/console.php`. Transition `pending → expired` pour toute réservation passée dont `expires_at < now()`.
+- Tests : `BookingOverlapAndExpirationTest` (5) — rejet chevauchement, succès hors chevauchement, isolation par propriété, transition expiration, confirmed intouché.
+
+### Hors périmètre
+
+- Tout le reste (accessor `deposit_paid`, endpoints paiements, calendrier agrégé, visites, rappels) était déjà en place avant ce ticket (cf. `BookingPaymentController`, `CalendarController`, `PropertyVisitController`). Aucune modification nécessaire.
