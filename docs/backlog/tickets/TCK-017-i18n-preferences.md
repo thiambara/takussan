@@ -1,12 +1,12 @@
 ---
 id: TCK-017
 title: Internationalisation & préférences
-status: todo
+status: review
 phase: P0
 family: applicatif
 estimate: S
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-22
 depends_on: [TCK-058]
 blocks: []
 spec_refs:
@@ -64,4 +64,12 @@ Mettre en place le support multilingue (FR, EN, WO), la sélection de langue par
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Vague 2 — groupe B-IDENTITY (backend, 2026-04-22)** — pose la partie backend P0 i18n :
+
+- `SetLocaleMiddleware` réécrit : priorité `?lang=` → `preferred_language` utilisateur → négociation `Accept-Language` avec prise en compte des q-factors. Précédemment le header écrasait la préférence utilisateur. Enregistré en prepend sur le stack API dans `bootstrap/app.php`.
+- Fichiers `lang/{fr,en,wo}/pagination.php` créés (labels `previous`/`next`).
+- `lang/fr/validation.php` et `lang/en/validation.php` étendus avec les clés core Laravel (`required`, `email`, `min`, `max`, `unique`, `exists`) en plus des règles custom existantes.
+- `lang/wo/messages.php` et `lang/wo/validation.php` créés (traduction Wolof partielle — fallback en-ligne vers EN pour les clés non traduites).
+- Tests `LocaleMiddlewareTest` enrichis (9 cas incluant `preferred_language`, q-factors, user pref vs header, query param override).
+
+Reste à livrer : fichiers `fr.json`/`en.json`/`wo.json` Next.js, sélecteur de langue UI (TCK-017 côté front), timezone P1.

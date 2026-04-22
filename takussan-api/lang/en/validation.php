@@ -1,6 +1,20 @@
 <?php
 
 return [
+    // Core Laravel validation messages (subset).
+    'required' => 'The :attribute field is required.',
+    'email' => 'The :attribute must be a valid email address.',
+    'min' => [
+        'string' => 'The :attribute must be at least :min characters.',
+        'numeric' => 'The :attribute must be at least :min.',
+    ],
+    'max' => [
+        'string' => 'The :attribute may not be greater than :max characters.',
+        'numeric' => 'The :attribute may not be greater than :max.',
+    ],
+    'unique' => 'The :attribute has already been taken.',
+    'exists' => 'The selected :attribute is invalid.',
+
     'rules' => [
         'phone' => 'The phone number must be a valid Senegalese phone number (e.g. +221 77 123 45 67 or 771234567).',
         'currency' => 'The currency must be one of: :allowed.',
