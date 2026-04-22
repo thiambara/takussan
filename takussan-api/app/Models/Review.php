@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
+use App\Models\Enums\ReviewStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -16,6 +17,7 @@ class Review extends AbstractModel
         'reviewable_id', 'reviewable_type', 'author_id',
         'rating', 'title', 'content',
         'is_approved', 'approved_at', 'approved_by_id',
+        'status', 'reported_count',
         'reply_content', 'replied_by_id', 'replied_at', 'metadata',
     ];
 
@@ -24,6 +26,8 @@ class Review extends AbstractModel
         'is_approved' => 'boolean',
         'approved_at' => 'datetime',
         'replied_at' => 'datetime',
+        'status' => ReviewStatus::class,
+        'reported_count' => 'integer',
         'metadata' => 'array',
     ];
 

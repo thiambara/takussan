@@ -1,7 +1,7 @@
 ---
 id: TCK-033
 title: Avis & réputation
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: M
@@ -62,4 +62,17 @@ Implémenter le système d'avis publics avec notation, modération, réponses et
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Réalisé (2026-04-22)
+
+- Enum `App\Models\Enums\ReviewStatus` (pending / approved / rejected / reported) avec matrice de transitions (`allowedTransitions`, `canTransitionTo`).
+- Migration `add_moderation_workflow_to_reviews_table` — ajoute `status` et `reported_count` (les champs `reply_content`, `replied_by_id`, `replied_at`, `metadata` existaient déjà via la migration de création).
+- `ReviewController` : endpoints `reply`, `approve`, `reject`, `report` avec assertion de transition (422 si invalide). Signalement auto → `reported` quand `reported_count >= config('takussan.reviews.report_threshold', 1)`, sauf si `rejected`.
+- Modèle `Review` : cast `status => ReviewStatus`, fillable étendus.
+- `ReviewResource` expose `status`, `reported_count`, `reply_content`, `replied_at`.
+- Tests : `ReviewModerationWorkflowTest` (9) — transitions pending/approved/rejected/reported, autorisation admin, matrice d'enum. `ReviewTest` et `ReviewReportAndDocSearchTest` conservés.
+
+### Hors périmètre (reporté)
+
+- `GET /api/admin/reviews` listing + pagination — non couvert ici, à créer via ticket dédié si besoin produit.
+- Notifications admin déclenchées par un seuil — hook placé via statut `reported` mais dispatch d'une notification/job explicite reste à faire (dépend de TCK-022).
+- Détection d'avis suspects et badges de réputation — P3 hors périmètre.

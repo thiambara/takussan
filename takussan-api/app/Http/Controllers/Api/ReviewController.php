@@ -7,6 +7,7 @@ use App\Http\Resources\ReviewResource;
 use App\Models\Agency;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\ReviewStatus;
 use App\Models\Property;
 use App\Models\Review;
 use Illuminate\Http\JsonResponse;
@@ -57,6 +58,7 @@ class ReviewController extends Controller
         $review = $property->reviews()->create(array_merge($data, [
             'author_id' => $user->id,
             'is_approved' => false,
+            'status' => ReviewStatus::Pending,
         ]));
 
         return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
@@ -88,10 +90,27 @@ class ReviewController extends Controller
     {
         abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
 
+        $this->assertTransition($review, ReviewStatus::Approved);
+
         $review->update([
+            'status' => ReviewStatus::Approved,
             'is_approved' => true,
             'approved_at' => now(),
             'approved_by_id' => $request->user()->id,
+        ]);
+
+        return $this->json(['data' => ReviewResource::make($review->refresh())->toArray($request)]);
+    }
+
+    public function reject(Request $request, Review $review): JsonResponse
+    {
+        abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
+
+        $this->assertTransition($review, ReviewStatus::Rejected);
+
+        $review->update([
+            'status' => ReviewStatus::Rejected,
+            'is_approved' => false,
         ]);
 
         return $this->json(['data' => ReviewResource::make($review->refresh())->toArray($request)]);
@@ -135,6 +154,7 @@ class ReviewController extends Controller
         $review = $agency->reviews()->create(array_merge($data, [
             'author_id' => $user->id,
             'is_approved' => false,
+            'status' => ReviewStatus::Pending,
         ]));
 
         return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
@@ -156,8 +176,38 @@ class ReviewController extends Controller
         $metadata['reports'] = $reports;
         $metadata['reported'] = true;
 
-        $review->update(['metadata' => $metadata]);
+        $attrs = [
+            'metadata' => $metadata,
+            'reported_count' => ($review->reported_count ?? 0) + 1,
+        ];
+
+        // Automatically transition to `reported` once the threshold is
+        // reached so admins see the review in their moderation queue.
+        $threshold = (int) config('takussan.reviews.report_threshold', 1);
+        $currentStatus = $review->status ?? ReviewStatus::Pending;
+        if (
+            $attrs['reported_count'] >= $threshold
+            && $currentStatus !== ReviewStatus::Rejected
+            && $currentStatus->canTransitionTo(ReviewStatus::Reported)
+        ) {
+            $attrs['status'] = ReviewStatus::Reported;
+        }
+
+        $review->update($attrs);
 
         return $this->json(['message' => __('messages.review_reported')]);
+    }
+
+    /**
+     * Ensure the requested status transition is allowed, else 422.
+     */
+    protected function assertTransition(Review $review, ReviewStatus $target): void
+    {
+        $current = $review->status ?? ReviewStatus::Pending;
+        abort_unless(
+            $current->canTransitionTo($target),
+            422,
+            "Cannot transition review from {$current->value} to {$target->value}."
+        );
     }
 }
