@@ -28,9 +28,6 @@
 
 ### Phase 0 — Fondation Frontend
 
-- [TCK-056](tickets/TCK-056-auth-middleware-protection.md) — Auth Middleware + Route Protection `S · P0 · front`
-- [TCK-057](tickets/TCK-057-api-client-react-query.md) — API Client + Data Fetching (React Query) `S · P0 · front`
-- [TCK-058](tickets/TCK-058-i18n-setup.md) — i18n Setup (FR/EN/WO) `S · P0 · front`
 - [TCK-059](tickets/TCK-059-form-patterns-validation.md) — Form Patterns + Validation (Zod + RHF) `S · P0 · front`
 
 ### Phase 1 — Socle Backend
@@ -61,12 +58,7 @@
 
 ### Phase 1 — Socle Backend
 
-- [TCK-014](tickets/TCK-014-roles-permissions.md) — Rôles & permissions `M · P0 · applicatif` · seeder + `UserAdminController::assignRole` OK, endpoint dédié role-per-user + tests d'accès par rôle à finir
 - [TCK-015](tickets/TCK-015-agency-team.md) — Agence & équipe `M · P0 · applicatif` · CRUD + addAgent/removeAgent OK, PUT `/agencies/{agency}/members/{user}/role` et GET `/stats` manquants
-- [TCK-016](tickets/TCK-016-media-files.md) — Médias & fichiers `M · P0 · applicatif` · MediaController + PropertyMediaController OK, endpoint générique `/api/media/upload` non exposé
-- [TCK-022](tickets/TCK-022-notifications.md) — Notifications `M · P0 · applicatif` · AppNotification feed + mark-as-read OK, classes `app/Notifications/*`, templates localisés, broadcasting et digest jobs manquants
-- [TCK-035](tickets/TCK-035-property-address-media.md) — Property — Adresse & médias `S · P0 · back` · Address polymorphe + reorder photos OK, endpoint PUT/DELETE `/properties/{property}/address` manquant
-- [TCK-036](tickets/TCK-036-property-tags-collabs-price.md) — Property — Tags, collaborateurs & prix `M · P0 · back` · PriceHistory + PropertyCollaborator CRUD OK, validation `commission_share ≤ 100%` et attach/detach Tag polymorphe manquants
 
 ### Phase 2 — Front Public
 
@@ -75,14 +67,9 @@
 
 ### Phase 3 — Opérations Métier
 
-- [TCK-026](tickets/TCK-026-short-term-bookings.md) — Réservations courte durée (backend) `M · P1 · back` · BookingController CRUD OK, validation chevauchement dates + `ExpireBookingsJob` + tests manquants
-- [TCK-027](tickets/TCK-027-long-term-leases.md) — Location longue durée — baux (backend) `L · P1 · back` · LeaseController CRUD OK, `LeasePaymentScheduleJob` + `LeaseLateFeeService` + workflow garant manquants
 - [TCK-028](tickets/TCK-028-transactions-payments.md) — Transactions & paiements `L · P1 · applicatif` · BookingPayment/Invoice/Payout controllers présents, trait `HasPaymentAttributes` + endpoint `/payments/history` à valider
-- [TCK-029](tickets/TCK-029-messaging.md) — Communication & messagerie (backend) `M · P1 · back` · ConversationController CRUD OK, archivage, job notifications, read_status manquants
 - [TCK-030](tickets/TCK-030-maintenance-requests.md) — Maintenance & interventions `M · P1 · applicatif` · MaintenanceRequestController basique OK, photos workflow + completion + frontend manquants
 - [TCK-031](tickets/TCK-031-inventory-inspections.md) — État des lieux & inventaires `M · P1 · applicatif` · InventoryController basique OK, items JSON schema + signatures + export PDF + frontend manquants
-- [TCK-033](tickets/TCK-033-reviews-reputation.md) — Avis & réputation `M · P2 · applicatif` · ReviewController + approval OK, endpoints reply/report + workflow modération complet manquants
-- [TCK-046](tickets/TCK-046-favorites-map.md) — Favoris & carte interactive (backend) `M · P1 · back` · FavoriteController CRUD OK, endpoint `GET /api/public/properties/map?bounds=…` manquant (bloque TCK-047)
 
 ## 🚧 Doing
 
@@ -90,7 +77,29 @@ _(vide)_
 
 ## 👀 Review
 
-_(vide — tous les tickets review ont été mergés sur `dev`, voir Done)_
+> PR ouvertes vers `dev`, en attente de merge (Vague 1 — 2026-04-22).
+
+### Phase 0 — Fondation Frontend — [PR #25](https://github.com/thiambara/takussan/pull/25)
+
+- [TCK-056](tickets/TCK-056-auth-middleware-protection.md) — Auth Middleware + Route Protection `S · P0 · front`
+- [TCK-057](tickets/TCK-057-api-client-react-query.md) — API Client + Data Fetching (React Query) `S · P0 · front`
+- [TCK-058](tickets/TCK-058-i18n-setup.md) — i18n Setup (FR/EN/WO) `S · P0 · front`
+
+### Phase 1 — Socle Backend — [PR #24](https://github.com/thiambara/takussan/pull/24) (identité) · [PR #26](https://github.com/thiambara/takussan/pull/26) (property)
+
+- [TCK-014](tickets/TCK-014-roles-permissions.md) — Rôles & permissions `M · P0 · applicatif`
+- [TCK-016](tickets/TCK-016-media-files.md) — Médias & fichiers `M · P0 · applicatif`
+- [TCK-022](tickets/TCK-022-notifications.md) — Notifications `M · P0 · applicatif`
+- [TCK-035](tickets/TCK-035-property-address-media.md) — Property — Adresse & médias `S · P0 · back`
+- [TCK-036](tickets/TCK-036-property-tags-collabs-price.md) — Property — Tags, collaborateurs & prix `M · P0 · back`
+
+### Phase 3 — Opérations Métier — [PR #26](https://github.com/thiambara/takussan/pull/26) (favorites) · [PR #27](https://github.com/thiambara/takussan/pull/27) (ops)
+
+- [TCK-026](tickets/TCK-026-short-term-bookings.md) — Réservations courte durée (backend) `M · P1 · back`
+- [TCK-027](tickets/TCK-027-long-term-leases.md) — Location longue durée — baux (backend) `L · P1 · back`
+- [TCK-029](tickets/TCK-029-messaging.md) — Communication & messagerie (backend) `M · P1 · back`
+- [TCK-033](tickets/TCK-033-reviews-reputation.md) — Avis & réputation `M · P2 · applicatif`
+- [TCK-046](tickets/TCK-046-favorites-map.md) — Favoris & carte interactive (backend) `M · P1 · back`
 
 ## ✅ Done
 
@@ -209,3 +218,4 @@ TCK-054 + TCK-056 + TCK-057 + TCK-046 + TCK-024 ──▶ TCK-047 (favorites + m
 - **2026-04-20** — Ajout TCK-060 : refonte complète du cycle auth front (7 pages) + câblage OAuth multi-provider (Google, Facebook, Apple via Socialite) avec state CSRF.
 - **2026-04-21** — Réconciliation INDEX vs réalité : TCK-013 (auth) + TCK-040 (fiche bien) + TCK-060 (auth front + OAuth) passés en `done` — tous livrés sur `master`/`dev`.
 - **2026-04-22** — Audit complet backlog vs code (5 agents d'audit parallèles) : 13 tickets passés en `done` — les 8 ex-`review` (TCK-018, 048–054) déjà mergés sur `dev`, plus 5 tickets implémentés hors workflow (TCK-020 CRM, TCK-021 Documents, TCK-023 Admin, TCK-024 Search, TCK-034 Property CRUD). Nouvelle section `🔶 Partiellement implémenté` pour 17 tickets où du code est sur `dev` mais un delta résiduel subsiste (liste explicite des gaps par ticket). Section Todo réduite à 12 tickets vraiment non démarrés. Dédoublonnage TCK-050/051/052 (apparaissaient Todo + Review). Aucun changement de code applicatif.
+- **2026-04-22** — Vague 1 livrée (4 agents parallèles sur worktrees) : 13 tickets passés en `review` via 4 PRs indépendantes. PR #24 (B-USER : TCK-014, 022), PR #25 (F : TCK-056, 057, 058), PR #26 (B-PROP : TCK-035, 036, 046), PR #27 (B-OPS : TCK-016, 026, 027, 029, 033). Total ~90 nouveaux tests backend + 1 PR frontend (lint/build OK, tests front reportés — scaffold sans runner). Pint clean partout.
