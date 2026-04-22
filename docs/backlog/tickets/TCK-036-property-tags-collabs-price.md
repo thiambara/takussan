@@ -1,7 +1,7 @@
 ---
 id: TCK-036
 title: "Property — Tags, collaborateurs & historique prix"
-status: todo
+status: review
 phase: P0
 family: back
 estimate: M

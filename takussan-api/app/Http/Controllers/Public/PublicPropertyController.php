@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\BookingResource;
+use App\Http\Resources\PropertyMapGeoJsonResource;
 use App\Http\Resources\PropertyResource;
 use App\Http\Resources\PropertyVisitResource;
 use App\Http\Resources\ReviewResource;
@@ -34,6 +35,13 @@ use Illuminate\Validation\Rule;
 
 class PublicPropertyController extends Controller
 {
+    /**
+     * Maximum number of features returned by the /public/properties/map endpoint.
+     * Caps payload size for wide viewports; clients should tighten bounds or
+     * apply filters when truncated.
+     */
+    public const MAP_MAX_RESULTS = 500;
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $properties = Property::query()
@@ -178,6 +186,89 @@ class PublicPropertyController extends Controller
                 'total' => $paginated->total(),
             ],
         ];
+    }
+
+    public function map(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'bounds' => [
+                'required',
+                'string',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    $parts = explode(',', (string) $value);
+                    if (count($parts) !== 4) {
+                        $fail(__('validation.bounds_format'));
+
+                        return;
+                    }
+                    foreach ($parts as $p) {
+                        if (! is_numeric(trim($p))) {
+                            $fail(__('validation.bounds_format'));
+
+                            return;
+                        }
+                    }
+                    [$swLat, $swLng, $neLat, $neLng] = array_map('floatval', $parts);
+                    if ($swLat < -90 || $swLat > 90 || $neLat < -90 || $neLat > 90
+                        || $swLng < -180 || $swLng > 180 || $neLng < -180 || $neLng > 180) {
+                        $fail(__('validation.bounds_format'));
+                    }
+                },
+            ],
+            'type' => ['nullable', 'string', 'max:100'],
+            'contract_type' => ['nullable', 'in:sale,rent'],
+            'price_min' => ['nullable', 'numeric', 'min:0'],
+            'price_max' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        [$swLat, $swLng, $neLat, $neLng] = array_map('floatval', explode(',', $validated['bounds']));
+        $minLat = min($swLat, $neLat);
+        $maxLat = max($swLat, $neLat);
+        $minLng = min($swLng, $neLng);
+        $maxLng = max($swLng, $neLng);
+
+        $query = Property::query()
+            ->with('address', 'media')
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->whereHas('address', function ($q) use ($minLat, $maxLat, $minLng, $maxLng) {
+                $q->whereNotNull('latitude')
+                    ->whereNotNull('longitude')
+                    ->whereBetween('latitude', [$minLat, $maxLat])
+                    ->whereBetween('longitude', [$minLng, $maxLng]);
+            });
+
+        if (! empty($validated['type'])) {
+            $types = array_filter(explode(',', $validated['type']));
+            $query->whereIn('type', $types);
+        }
+        if (! empty($validated['contract_type'])) {
+            $query->where('contract_type', $validated['contract_type']);
+        }
+        if (isset($validated['price_min'])) {
+            $query->where('price', '>=', $validated['price_min']);
+        }
+        if (isset($validated['price_max'])) {
+            $query->where('price', '<=', $validated['price_max']);
+        }
+
+        $properties = $query->limit(self::MAP_MAX_RESULTS + 1)->get();
+        $truncated = $properties->count() > self::MAP_MAX_RESULTS;
+        if ($truncated) {
+            $properties = $properties->take(self::MAP_MAX_RESULTS);
+        }
+
+        $features = PropertyMapGeoJsonResource::collection($properties);
+
+        return $this->json([
+            'type' => 'FeatureCollection',
+            'features' => $features->toArray($request),
+            'meta' => [
+                'limit' => self::MAP_MAX_RESULTS,
+                'returned' => $properties->count(),
+                'truncated' => $truncated,
+            ],
+        ]);
     }
 
     public function show(Request $request, string $slug): PropertyResource

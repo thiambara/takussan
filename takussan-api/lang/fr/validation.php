@@ -7,4 +7,7 @@ return [
         'date_range' => 'La date doit être postérieure ou égale à :start.',
         'strong_password' => 'Le mot de passe doit contenir au moins 8 caractères, dont une majuscule, une minuscule, un chiffre et un caractère spécial.',
     ],
+
+    'bounds_format' => 'Le champ :attribute doit contenir quatre nombres séparés par des virgules : sw_lat,sw_lng,ne_lat,ne_lng.',
+    'commission_share_exceeds_cap' => 'La somme des commissions pour cette propriété ne peut excéder 100%.',
 ];
