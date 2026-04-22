@@ -14,8 +14,8 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::job(new ExpireBookings)->hourly();
-Schedule::job(new ApplyLatePaymentPenalties)->dailyAt('06:00');
+Schedule::job(new ExpireBookings)->hourly()->withoutOverlapping();
+Schedule::job(new ApplyLatePaymentPenalties)->dailyAt('06:00')->withoutOverlapping();
 Schedule::job(new SendLeasePaymentReminders)->dailyAt('08:00');
 Schedule::job(new SendSavedSearchAlerts)->dailyAt('09:00');
 Schedule::job(new SendPropertyVisitReminders)->dailyAt('07:00');
