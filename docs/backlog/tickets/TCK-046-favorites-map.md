@@ -1,7 +1,7 @@
 ---
 id: TCK-046
 title: "Favoris & carte interactive"
-status: todo
+status: review
 phase: P1
 family: back
 estimate: M
