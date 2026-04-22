@@ -59,40 +59,54 @@ export function AuthProvider({
   useEffect(() => {
     if (initialUser !== undefined) return;
 
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    const controller = new AbortController();
+
     const fetchUser = async () => {
       try {
-        const r = await fetch('/api/auth/me');
+        const r = await fetch('/api/auth/me', { signal: controller.signal });
+        if (cancelled) return;
         if (r.ok) {
           const u = await r.json();
-          setUser(u);
+          if (!cancelled) setUser(u);
         } else {
-          setUser(null);
+          if (!cancelled) setUser(null);
           // If we got 401 and this is first load, try once more after delay
           // This handles race conditions where cookie isn't ready yet
           if (r.status === 401 && !hasRetriedRef.current) {
             hasRetriedRef.current = true;
-            setTimeout(() => {
-              fetch('/api/auth/me')
+            retryTimer = setTimeout(() => {
+              fetch('/api/auth/me', { signal: controller.signal })
                 .then((r2) => (r2.ok ? r2.json() : null))
                 .then((u) => {
+                  if (cancelled) return;
                   if (u) setUser(u);
                   else {
                     // Second try failed, logout to clean state
                     fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
                   }
                 })
-                .catch(() => setUser(null));
+                .catch(() => {
+                  if (!cancelled) setUser(null);
+                });
             }, 500);
           }
         }
       } catch {
-        setUser(null);
+        if (!cancelled) setUser(null);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
     fetchUser();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, [initialUser]);
 
   const handleSetUser = useCallback((u: User | null) => setUser(u), []);
