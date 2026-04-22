@@ -1,12 +1,12 @@
 ---
 id: TCK-056
 title: "Auth Middleware + Route Protection"
-status: todo
+status: review
 phase: P0
 family: front
 estimate: S
 created: 2026-04-16
-updated: 2026-04-16
+updated: 2026-04-22
 depends_on: [TCK-054]
 blocks: [TCK-055, TCK-041, TCK-042, TCK-043, TCK-044, TCK-045, TCK-047]
 spec_refs:
@@ -60,3 +60,10 @@ Les routes protégées sont inaccessibles sans authentification et l'utilisateur
 
 - Layout complet (→ TCK-055)
 - Rôles/permissions côté front (→ P1, après TCK-014)
+
+## Notes d'implémentation
+
+- **Middleware file**: lives at `src/proxy.ts` (Next.js 16 renamed `middleware.ts` → `proxy.ts`). Matcher: `/app/:path*`, `/admin/:path*`, `/auth/:path*`. `/admin` was added alongside `/app` because the admin area is equally auth-gated.
+- **Auth helpers** (`login` / `register` / `logout`) are exposed on `AuthContext` itself rather than in a side hook — this lets pages import a single `useAuth()` and keeps the token-persistence (`/api/auth/set-token`) centralized. Existing login/OAuth pages still manually call `apiLogin` + `setUser` — that still works and is not refactored here (out of scope).
+- **`useRequireAuth`**: client-side belt-and-braces guard on top of the server-side proxy; used for post-hydration flows (modals, interactive components) that can't rely solely on the middleware.
+- Commit SHA: _pending_.

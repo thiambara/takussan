@@ -1,13 +1,36 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import type { User } from '@/lib/auth';
+import {
+  login as apiLogin,
+  register as apiRegister,
+  type LoginPayload,
+  type RegisterPayload,
+  type User,
+} from '@/lib/auth';
 
 type AuthContextValue = {
   user: User | null;
   isLoading: boolean;
   setUser: (user: User | null) => void;
   refreshUser: () => Promise<void>;
+  /**
+   * Authenticate with email+password, persist the auth cookie via
+   * `/api/auth/set-token`, and update the in-memory user. Returns the
+   * authenticated user on success; throws on failure.
+   */
+  login: (payload: LoginPayload) => Promise<User>;
+  /**
+   * Register a new account, persist the auth cookie, and update the
+   * in-memory user. Returns the freshly created user.
+   */
+  register: (payload: RegisterPayload) => Promise<User>;
+  /**
+   * Revoke the backend token and clear the local auth cookie. Does not
+   * navigate — callers decide where to go next (the `useRequireAuth` hook
+   * redirects automatically, while Navbar redirects to `/`).
+   */
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -77,17 +100,77 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
     }
   }, []);
 
+  const persistToken = useCallback(async (token: string) => {
+    await fetch('/api/auth/set-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+  }, []);
+
+  const login = useCallback(
+    async (payload: LoginPayload) => {
+      const { token, user: u } = await apiLogin(payload);
+      await persistToken(token);
+      setUser(u);
+      return u;
+    },
+    [persistToken],
+  );
+
+  const register = useCallback(
+    async (payload: RegisterPayload) => {
+      const { token, user: u } = await apiRegister(payload);
+      await persistToken(token);
+      setUser(u);
+      return u;
+    },
+    [persistToken],
+  );
+
+  const logout = useCallback(async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // Even if the network call fails, drop the in-memory user.
+    }
+    setUser(null);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, setUser: handleSetUser, refreshUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        setUser: handleSetUser,
+        refreshUser,
+        login,
+        register,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
-const noopSetUser = () => {};
-const noopRefreshUser = async () => {};
+const noop = () => {};
+const noopAsync = async () => {};
+const noopThrow = async () => {
+  throw new Error('AuthProvider is missing. Wrap the app tree in <AuthProvider>.');
+};
 
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
-  return ctx ?? { user: null, isLoading: false, setUser: noopSetUser, refreshUser: noopRefreshUser };
+  return (
+    ctx ?? {
+      user: null,
+      isLoading: false,
+      setUser: noop,
+      refreshUser: noopAsync,
+      login: noopThrow as AuthContextValue['login'],
+      register: noopThrow as AuthContextValue['register'],
+      logout: noopAsync,
+    }
+  );
 }
