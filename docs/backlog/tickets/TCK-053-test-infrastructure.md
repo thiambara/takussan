@@ -1,12 +1,12 @@
 ---
 id: TCK-053
 title: "Test Infrastructure + Base Test Classes"
-status: review
+status: done
 phase: P0
 family: back
 estimate: M
 created: 2026-04-16
-updated: 2026-04-21
+updated: 2026-04-22
 depends_on: [TCK-048, TCK-049]
 blocks: []
 spec_refs:

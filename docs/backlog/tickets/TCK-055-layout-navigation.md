@@ -6,7 +6,7 @@ phase: P0
 family: front
 estimate: M
 created: 2026-04-16
-updated: 2026-04-16
+updated: 2026-04-22
 depends_on: [TCK-054, TCK-056]
 blocks: [TCK-038, TCK-039, TCK-040, TCK-041, TCK-042]
 spec_refs:

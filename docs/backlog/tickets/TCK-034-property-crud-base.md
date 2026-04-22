@@ -1,12 +1,12 @@
 ---
 id: TCK-034
 title: "Property — Modèle & CRUD base"
-status: todo
+status: done
 phase: P0
 family: back
 estimate: M
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-22
 depends_on: [TCK-013, TCK-014, TCK-015, TCK-016, TCK-048, TCK-051]
 blocks: [TCK-035, TCK-036, TCK-024]
 spec_refs:

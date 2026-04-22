@@ -1,12 +1,12 @@
 ---
 id: TCK-048
 title: "API Response Infrastructure (base resource + error handler)"
-status: review
+status: done
 phase: P0
 family: back
 estimate: M
 created: 2026-04-16
-updated: 2026-04-21
+updated: 2026-04-22
 depends_on: [TCK-013]
 blocks: [TCK-034, TCK-020, TCK-024, TCK-026, TCK-027, TCK-029, TCK-046]
 spec_refs:

@@ -1,12 +1,12 @@
 ---
 id: TCK-050
 title: "Spatie MediaLibrary + Upload Infrastructure"
-status: review
+status: done
 phase: P0
 family: back
 estimate: S
 created: 2026-04-16
-updated: 2026-04-21
+updated: 2026-04-22
 depends_on: [TCK-048]
 blocks: [TCK-016, TCK-035]
 spec_refs:

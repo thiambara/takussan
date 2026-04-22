@@ -6,7 +6,7 @@ phase: P0
 family: applicatif
 estimate: M
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-22
 depends_on: [TCK-013, TCK-050]
 blocks: [TCK-034, TCK-021]
 spec_refs:

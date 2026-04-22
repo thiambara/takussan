@@ -1,12 +1,12 @@
 ---
 id: TCK-020
 title: CRM & relation client
-status: todo
+status: done
 phase: P0
 family: applicatif
 estimate: L
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-22
 depends_on: [TCK-013, TCK-014, TCK-048, TCK-051]
 blocks: [TCK-026, TCK-027]
 spec_refs:

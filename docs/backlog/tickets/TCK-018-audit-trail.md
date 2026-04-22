@@ -1,7 +1,7 @@
 ---
 id: TCK-018
 title: Audit & traçabilité
-status: review
+status: done
 phase: P0
 family: applicatif
 estimate: S

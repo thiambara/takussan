@@ -1,12 +1,12 @@
 ---
 id: TCK-049
 title: "Spatie Permission + ActivityLog Setup"
-status: review
+status: done
 phase: P0
 family: back
 estimate: M
 created: 2026-04-16
-updated: 2026-04-21
+updated: 2026-04-22
 depends_on: [TCK-013]
 blocks: [TCK-014, TCK-015, TCK-018, TCK-023]
 spec_refs:
