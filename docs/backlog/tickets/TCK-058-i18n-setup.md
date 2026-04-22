@@ -70,4 +70,4 @@ L'application est disponible en français, anglais et wolof, et l'utilisateur pe
 - **Wolof fallback**: implemented in `src/i18n/request.ts` via a recursive `mergeMessages()` (fr as base + wo overrides) rather than relying on next-intl runtime fallback, which resolves missing keys only per-namespace. This keeps fallback transparent to `useTranslations()` callers.
 - **Locale resolution order**: cookie → `Accept-Language` header → `fr` default.
 - **Accept-Language → backend**: `apiRequest()` now accepts an optional `locale` that sets the `Accept-Language` header; callers in server components can pass `await getLocale()` from `next-intl/server`.
-- Commit SHA: _pending_.
+- Commit SHA: `b8ab2fb`.
