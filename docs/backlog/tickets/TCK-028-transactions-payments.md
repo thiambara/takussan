@@ -1,7 +1,7 @@
 ---
 id: TCK-028
 title: Transactions & paiements
-status: todo
+status: review
 phase: P1
 family: applicatif
 estimate: L
@@ -79,4 +79,39 @@ Implémenter la génération de factures, les reversements aux bailleurs après 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Vague 2 — Groupe B-PAYMENTS (2026-04-22) :
+
+- **`HasPaymentAttributes`** enrichi : scopes `partiallyPaid()` et `overdue()` (branche
+  `due_date` appliquée conditionnellement puisque `booking_payments` n'a pas cette
+  colonne), accesseurs `paid_amount` et `remaining_amount` calculés dynamiquement
+  (partiel via `metadata.paid_amount`, remboursé via `refund_amount`). Boot du
+  trait ajoute un guard `updating` qui bloque toute transition d'un statut
+  terminal (`paid`, `refunded`) vers un statut ouvert (`pending`,
+  `partially_paid`, `late`) avec `abort(422)`.
+- **`Invoice::booted()`** et **`Payout::booted()`** : guards analogues pour
+  interdire `paid → draft/sent/overdue` (invoices) et
+  `completed → pending/scheduled/processing` (payouts). Les transitions
+  autorisées restent gérées par `InvoiceService`/`PayoutService`.
+- **Router unifié** `POST /api/payments` (`PaymentController::store`) :
+  `payable_type` in `{booking,lease}` + `payable_id` → délègue à
+  `BookingPaymentService::create` ou `LeasePaymentService::create`. Valide via
+  `PaymentStoreRequest` (règles dynamiques selon `payable_type`, `payment_type`
+  enum adapté). Autorisations réutilisent la même logique que les contrôleurs
+  nested (owner/agency/admin).
+- **Historique consolidé** `GET /api/payments/history` : merge en mémoire de
+  `BookingPayment` + `LeasePayment` (volume borné par le scoping utilisateur),
+  filtres `entity_type` (`property|lease|customer|booking`), `entity_id`,
+  `status`, `date_from`, `date_to`, pagination + totaux agrégés
+  (`count`, `amount`, `paid_amount`, `remaining_amount`). Non spatie-QB pour
+  rester simple sur un merge de deux tables hétérogènes.
+- Les resources `BookingPaymentResource` et `LeasePaymentResource` exposent
+  désormais `paid_amount` et `remaining_amount`.
+- Tests ajoutés (tous verts) :
+  `PaymentRegistrationTest` (8), `PaymentHistoryTest` (8),
+  `PaymentStatusTransitionTest` (12). Les suites existantes
+  `BookingPaymentTest` / `InvoiceTest` / `PayoutTest` restent vertes.
+- Routes enregistrées via le glob auto-load `routes/api/payments.php`
+  (pas de modif `bootstrap/app.php` nécessaire).
+- P1-suite et P2/P3 déjà marqués hors périmètre — livrés dans TCK-026/027 pour
+  invoices/payouts/history, reste à livrer pages Next.js (Vague 3 ou ticket
+  séparé).

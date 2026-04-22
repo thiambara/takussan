@@ -55,6 +55,42 @@ class Payout extends AbstractModel
         'payment_method', 'scheduled_at', 'processed_at', 'created_at', 'updated_at',
     ];
 
+    protected static function booted(): void
+    {
+        static::updating(function (self $payout): void {
+            if (! $payout->isDirty('status')) {
+                return;
+            }
+
+            $original = $payout->getOriginal('status');
+            $originalEnum = $original instanceof PayoutStatus
+                ? $original
+                : (is_string($original) ? PayoutStatus::tryFrom($original) : null);
+
+            $newEnum = $payout->status instanceof PayoutStatus
+                ? $payout->status
+                : (is_string($payout->status) ? PayoutStatus::tryFrom($payout->status) : null);
+
+            if ($originalEnum === null || $newEnum === null) {
+                return;
+            }
+
+            // A completed payout cannot revert to pending/scheduled/processing.
+            $open = [
+                PayoutStatus::Pending,
+                PayoutStatus::Scheduled,
+                PayoutStatus::Processing,
+            ];
+            if ($originalEnum === PayoutStatus::Completed && in_array($newEnum, $open, true)) {
+                abort(422, sprintf(
+                    'Invalid payout status transition: %s → %s.',
+                    $originalEnum->value,
+                    $newEnum->value,
+                ));
+            }
+        });
+    }
+
     public function lease(): BelongsTo
     {
         return $this->belongsTo(Lease::class);

@@ -23,6 +23,8 @@ class BookingPaymentResource extends JsonResource
             'status' => is_object($this->status) ? $this->status->value : $this->status,
             'refund_amount' => $this->refund_amount !== null ? (float) $this->refund_amount : null,
             'refund_reason' => $this->refund_reason,
+            'paid_amount' => (float) $this->paid_amount,
+            'remaining_amount' => (float) $this->remaining_amount,
             'paid_at' => $this->paid_at?->toISOString(),
             'transaction_id' => $this->transaction_id,
             'notes' => $this->notes,
