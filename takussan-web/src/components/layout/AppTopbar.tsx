@@ -2,19 +2,10 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Menu, Search, LogOut, UserCircle, ShieldCheck } from 'lucide-react';
+import { Menu, Search } from 'lucide-react';
 import type { User } from '@/types/user';
-import { isAdmin } from '@/lib/roles';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
-} from '@/components/ui/dropdown-menu';
-import { logoutAction } from '@/app/actions/auth';
+import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
+import { UserMenu } from './UserMenu';
 import { cn } from '@/lib/utils';
 
 interface AppTopbarProps {
@@ -24,7 +15,6 @@ interface AppTopbarProps {
 
 export function AppTopbar({ user, onMenuToggle }: AppTopbarProps) {
   const router = useRouter();
-  const initials = `${user.first_name[0] ?? ''}${user.last_name[0] ?? ''}`.toUpperCase();
 
   return (
     <header className={cn('flex h-14 shrink-0 items-center gap-3 bg-app-topbar px-4')}>
@@ -50,39 +40,14 @@ export function AppTopbar({ user, onMenuToggle }: AppTopbarProps) {
         <span>Rechercher des biens...</span>
       </button>
 
-      <div className="ml-auto">
-        <DropdownMenu>
-          <DropdownMenuTrigger className="inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm text-white hover:bg-white/10">
-            <Avatar className="size-8">
-              {user.avatar_url ? <AvatarImage src={user.avatar_url} alt={user.full_name} /> : null}
-              <AvatarFallback className="bg-white/20 text-white text-xs">{initials}</AvatarFallback>
-            </Avatar>
-            <span className="hidden sm:inline">{user.first_name}</span>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuLabel>{user.full_name}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push('/app/profile')}>
-              <UserCircle className="size-4" />
-              <span>Mon profil</span>
-            </DropdownMenuItem>
-            {isAdmin(user.roles) && (
-              <DropdownMenuItem onClick={() => router.push('/admin')}>
-                <ShieldCheck className="size-4" />
-                <span>Administration</span>
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={async () => {
-                await logoutAction();
-              }}
-            >
-              <LogOut className="size-4" />
-              <span>Déconnexion</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <div className="ml-auto flex items-center gap-2">
+        {/* TCK-017 — language switcher persisted via cookie + (when logged in)
+            PATCH /api/users/me by the client inside the switcher. */}
+        <LanguageSwitcher
+          variant="compact"
+          className="bg-white/10 text-white ring-white/10 hover:bg-white/20"
+        />
+        <UserMenu user={user} variant="dark" />
       </div>
     </header>
   );

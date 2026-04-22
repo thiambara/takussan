@@ -2,24 +2,33 @@ import * as React from "react"
 import Link from "next/link"
 
 import { cn } from "@/lib/utils"
+import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher"
 
 /**
- * Header — generic public header shell.
+ * Header — generic public header shell used by the `(public)` layout
+ * consumers that opt in to the shared chrome.
  *
- * Empty structural skeleton intended to be populated by TCK-055
- * (Layout System + Navigation). The authenticated app uses the
- * richer AppTopbar; this component targets public pages that
- * only need brand + a thin slot row.
+ * Provides brand + primary nav slot + language switcher + actions slot
+ * (auth buttons / user menu). The marketing home page still uses its own
+ * domain-specific `Navbar` with search + categories — this generic Header
+ * is the opt-in alternative for lighter public pages.
  */
 export interface HeaderProps {
   readonly className?: string
-  /** Nav items injected by consumers (TCK-055 will wire this). */
+  /** Nav items slot (inject `<Navigation orientation="horizontal">` here). */
   readonly children?: React.ReactNode
-  /** Right-hand slot for auth buttons, CTAs, etc. */
+  /** Right-hand slot for auth buttons / `<UserMenu>` / CTAs. */
   readonly actions?: React.ReactNode
+  /** Show the language switcher (defaults to true). */
+  readonly showLanguageSwitcher?: boolean
 }
 
-export function Header({ className, children, actions }: HeaderProps) {
+export function Header({
+  className,
+  children,
+  actions,
+  showLanguageSwitcher = true,
+}: HeaderProps) {
   return (
     <header
       className={cn(
@@ -36,7 +45,6 @@ export function Header({ className, children, actions }: HeaderProps) {
           Takussan
         </Link>
 
-        {/* Primary nav slot — nav items injected by TCK-055 */}
         <nav
           aria-label="Navigation principale"
           className="hidden flex-1 items-center gap-6 md:flex"
@@ -44,8 +52,10 @@ export function Header({ className, children, actions }: HeaderProps) {
           {children}
         </nav>
 
-        {/* Actions slot (auth, CTA) */}
-        <div className="ml-auto flex items-center gap-2">{actions}</div>
+        <div className="ml-auto flex items-center gap-2">
+          {showLanguageSwitcher ? <LanguageSwitcher variant="compact" /> : null}
+          {actions}
+        </div>
       </div>
     </header>
   )

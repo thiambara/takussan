@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { navLinks, categories, moreCategories } from '@/data/mockData';
 import { useAuth } from '@/context/AuthContext';
+import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   apartment: Building2,
@@ -220,6 +221,7 @@ export function Navbar({ className }: NavbarProps) {
 
         {/* Actions — desktop, aligned to top */}
         <div className="hidden md:flex items-center gap-3 shrink-0 ml-auto mt-2">
+          <LanguageSwitcher variant="compact" />
           {isLoading ? (
             <div className="size-8 rounded-full bg-gray-100 animate-pulse" />
           ) : user ? (

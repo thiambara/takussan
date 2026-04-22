@@ -1,12 +1,12 @@
 ---
 id: TCK-059
 title: "Form Patterns + Validation (Zod + RHF)"
-status: todo
+status: review
 phase: P0
 family: front
 estimate: S
 created: 2026-04-16
-updated: 2026-04-16
+updated: 2026-04-22
 depends_on: [TCK-054, TCK-057]
 blocks: [TCK-043, TCK-044, TCK-045]
 spec_refs:
@@ -63,3 +63,10 @@ Tout formulaire de l'application suit un pattern cohérent avec validation côt�
 
 - Formulaires métier spécifiques (→ tickets domaine)
 - Upload de fichiers dans les formulaires (→ TCK-050 + tickets domaine)
+
+## Notes d'implémentation
+
+- zod v4 a supprimé `required_error` sur `z.string(...)` — on utilise `min(1, '…')` pour imposer un champ requis.
+- `useApiForm` impose un cast interne sur `zodResolver(schema)` (resolver + form options) pour contourner l'incompatibilité de types entre `ZodType<T>` (v4) et la surcharge publique de `@hookform/resolvers/zod`. Le comportement runtime reste typé côté appelant.
+- Vitest + jsdom + RTL ajoutés (`npm test`) — aucune infrastructure de test existante côté front.
+- `accept_cgu` est un champ UI-only ; il est retiré du payload avant envoi à `POST /api/auth/register`.

@@ -1,6 +1,25 @@
+import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+
+/**
+ * Auth layout — centered form panel with a visual panel on desktop.
+ *
+ * Applied to all routes inside `(auth)` (login, register, forgot-password,
+ * reset-password, verify-email, oauth). Routes stay on `/auth/...` URLs —
+ * the parentheses make the segment URL-invisible while still grouping the
+ * layout.
+ *
+ * SEO: noindex for all auth pages — these are transactional.
+ */
+export const metadata: Metadata = {
+  title: {
+    template: '%s — Takussan',
+    default: 'Authentification — Takussan',
+  },
+  robots: { index: false, follow: false },
+};
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (

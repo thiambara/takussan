@@ -64,6 +64,12 @@ Mettre en place le support multilingue (FR, EN, WO), la sélection de langue par
 
 ## Notes d'implémentation
 
+- Portée TCK-017 côté **front** uniquement dans cette itération (Wave 2 / Groupe F).
+- `LanguageSwitcher` est maintenant câblé dans le header public (home `Navbar`) et dans le header dashboard (`AppTopbar`).
+- `setLocaleAction` persiste désormais le choix via `PATCH /api/users/me` (`{preferred_language}`) pour les utilisateurs connectés ; échec silencieux si l'endpoint n'est pas encore disponible (cookie `NEXT_LOCALE` suffit). Quand le backend expose la route (côté TCK-017 back), aucune modif front à prévoir.
+- Helper `src/lib/format.ts` : `formatDate`, `formatDateTime`, `formatNumber`, `formatCurrency`, `formatPercent` via `Intl.*` avec mapping locale → BCP-47 (`fr-SN`, `en-GB`, `wo`) et timezone par défaut `Africa/Dakar`. Couvert par `src/lib/__tests__/format.test.ts`.
+- Messages `src/messages/*.json` inchangés (ils existent déjà via TCK-058).
+
 **Vague 2 — groupe B-IDENTITY (backend, 2026-04-22)** — pose la partie backend P0 i18n :
 
 - `SetLocaleMiddleware` réécrit : priorité `?lang=` → `preferred_language` utilisateur → négociation `Accept-Language` avec prise en compte des q-factors. Précédemment le header écrasait la préférence utilisateur. Enregistré en prepend sur le stack API dans `bootstrap/app.php`.
