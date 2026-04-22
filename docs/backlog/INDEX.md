@@ -41,7 +41,6 @@
 - [TCK-015](tickets/TCK-015-agency-team.md) — Agence & équipe `M · P0 · applicatif`
 - [TCK-016](tickets/TCK-016-media-files.md) — Médias & fichiers `M · P0 · applicatif`
 - [TCK-017](tickets/TCK-017-i18n-preferences.md) — Internationalisation & préférences `S · P0 · applicatif`
-- [TCK-018](tickets/TCK-018-audit-trail.md) — Audit & traçabilité `S · P0 · applicatif`
 - [TCK-034](tickets/TCK-034-property-crud-base.md) — Property — Modèle & CRUD base `M · P0 · back`
 - [TCK-035](tickets/TCK-035-property-address-media.md) — Property — Adresse & médias `S · P0 · back`
 - [TCK-036](tickets/TCK-036-property-tags-collabs-price.md) — Property — Tags, collaborateurs & historique prix `M · P0 · back`
@@ -80,11 +79,12 @@ _(vide)_
 
 ## 👀 Review
 
+- [TCK-018](tickets/TCK-018-audit-trail.md) — Audit & traçabilité `S · P0 · applicatif`
 - [TCK-048](tickets/TCK-048-base-model-api-response.md) — API Response Infrastructure (base resource + error handler) `M · P0 · back`
 - [TCK-049](tickets/TCK-049-spatie-permission-activitylog.md) — Spatie Permission + ActivityLog Setup `M · P0 · back`
 - [TCK-050](tickets/TCK-050-spatie-medialibrary-upload.md) — Spatie MediaLibrary + Upload Infrastructure `S · P0 · back`
-- [TCK-052](tickets/TCK-052-scout-search-infrastructure.md) — Laravel Scout + Search Infrastructure `S · P0 · back`
 - [TCK-051](tickets/TCK-051-formrequest-validation.md) — FormRequest Base + Validation Patterns `S · P0 · back`
+- [TCK-052](tickets/TCK-052-scout-search-infrastructure.md) — Laravel Scout + Search Infrastructure `S · P0 · back`
 - [TCK-053](tickets/TCK-053-test-infrastructure.md) — Test Infrastructure + Base Test Classes `M · P0 · back`
 - [TCK-054](tickets/TCK-054-design-system-components.md) — Design System + Component Library `M · P0 · front`
 

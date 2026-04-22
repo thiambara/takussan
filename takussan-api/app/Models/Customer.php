@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
+use App\Models\Bases\Auditable;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\IdType;
@@ -12,10 +13,32 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\Support\LogOptions;
 
 class Customer extends AbstractModel
 {
-    use HasFactory, SoftDeletes;
+    use Auditable, HasFactory, SoftDeletes;
+
+    /**
+     * Override the default Auditable whitelist to exclude the `id_number`
+     * field (government ID), which is sensitive and should not be surfaced
+     * in the activity log payloads.
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'user_id', 'agency_id', 'added_by_id',
+                'first_name', 'last_name', 'email', 'phone',
+                'id_type', 'occupation',
+                'emergency_contact_name', 'emergency_contact_phone',
+                'status', 'pipeline_stage',
+            ])
+            ->logOnlyDirty()
+            ->dontLogIfAttributesChangedOnly(['id_number', 'notes', 'metadata', 'updated_at'])
+            ->dontLogEmptyChanges()
+            ->useLogName(class_basename(static::class));
+    }
 
     protected $fillable = [
         'user_id', 'agency_id', 'added_by_id',

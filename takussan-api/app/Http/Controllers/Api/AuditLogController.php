@@ -3,9 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Activity;
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\QueryBuilder;
 
 class AuditLogController extends Controller
 {
@@ -13,8 +18,11 @@ class AuditLogController extends Controller
     {
         abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
 
+        // `Str::studly` handles multi-word slugs (`booking_payment` → `BookingPayment`)
+        // which plain `ucfirst` cannot — the latter would leave the underscore
+        // intact and never match `\App\Models\BookingPayment`.
         $query = Activity::query()->with('causer')
-            ->where('subject_type', 'like', '%'.ucfirst($entity))
+            ->where('subject_type', 'like', '%'.Str::studly($entity))
             ->where('subject_id', $id);
 
         $order = $request->input('order', 'desc') === 'asc' ? 'asc' : 'desc';
@@ -46,6 +54,9 @@ class AuditLogController extends Controller
     {
         abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
 
+        // Accept legacy flat params (?log_name=, ?event=, ?from=, ?to=, ?causer_id=…)
+        // AND spatie-style nested filters (?filter[log_name]=, ?filter[date_from]=…).
+        // Validation covers only the flat params; spatie handles its own parsing.
         $filters = $request->validate([
             'log_name' => ['nullable', 'string'],
             'event' => ['nullable', 'string'],
@@ -61,39 +72,60 @@ class AuditLogController extends Controller
 
         // Only eager-load causer (the only relation exposed in the response).
         // `subject` is intentionally not loaded to avoid N+1 on heterogeneous morphs.
-        $query = Activity::query()->with('causer');
+        $baseQuery = Activity::query()->with('causer');
 
+        // Flat-param path (back-compat with /api/audit-log callers that predate
+        // spatie/query-builder adoption on this endpoint).
         if (! empty($filters['log_name'])) {
-            $query->where('log_name', $filters['log_name']);
+            $baseQuery->where('log_name', $filters['log_name']);
         }
 
         if (! empty($filters['event'])) {
-            $query->where('event', $filters['event']);
+            $baseQuery->where('event', $filters['event']);
         }
 
         if (! empty($filters['causer_id'])) {
-            $query->where('causer_id', $filters['causer_id']);
+            $baseQuery->where('causer_id', $filters['causer_id']);
         }
 
         if (! empty($filters['causer_type'])) {
-            $query->where('causer_type', $filters['causer_type']);
+            $baseQuery->where('causer_type', $filters['causer_type']);
         }
 
         if (! empty($filters['subject_type'])) {
-            $query->where('subject_type', $filters['subject_type']);
+            $baseQuery->where('subject_type', $filters['subject_type']);
         }
 
         if (! empty($filters['subject_id'])) {
-            $query->where('subject_id', $filters['subject_id']);
+            $baseQuery->where('subject_id', $filters['subject_id']);
         }
 
         if (! empty($filters['from'])) {
-            $query->where('created_at', '>=', $filters['from']);
+            $baseQuery->where('created_at', '>=', $this->normalizeRangeBoundary($filters['from'], false));
         }
 
         if (! empty($filters['to'])) {
-            $query->where('created_at', '<=', $filters['to']);
+            $baseQuery->where('created_at', '<=', $this->normalizeRangeBoundary($filters['to'], true));
         }
+
+        // Spatie-style nested filters: allow `filter[causer_id]=`, `filter[event]=`,
+        // `filter[log_name]=`, `filter[subject_type]=`, `filter[subject_id]=`,
+        // and the date range via `filter[date_from]` / `filter[date_to]`.
+        $query = QueryBuilder::for($baseQuery, $request)
+            ->allowedFilters(
+                AllowedFilter::exact('log_name'),
+                AllowedFilter::exact('event'),
+                AllowedFilter::exact('causer_id'),
+                AllowedFilter::exact('causer_type'),
+                AllowedFilter::exact('subject_type'),
+                AllowedFilter::exact('subject_id'),
+                AllowedFilter::callback('date_from', function (Builder $q, string $value): void {
+                    $q->where('created_at', '>=', $this->normalizeRangeBoundary($value, false));
+                }),
+                AllowedFilter::callback('date_to', function (Builder $q, string $value): void {
+                    $q->where('created_at', '<=', $this->normalizeRangeBoundary($value, true));
+                }),
+            );
 
         $order = ($filters['order'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
         $paginator = $query->orderBy('created_at', $order)
@@ -128,5 +160,24 @@ class AuditLogController extends Controller
                 'per_page' => $paginator->perPage(),
             ],
         ]);
+    }
+
+    /**
+     * Normalize a date-range boundary so date-only inputs cover the full day.
+     *
+     * `?to=2026-04-22` would otherwise compile to `created_at <= 2026-04-22 00:00:00`
+     * and silently drop every row from that day. When the caller passes a
+     * date-only value (no time component), expand it to start/end-of-day based
+     * on whether it is a lower or upper bound. Full datetimes pass through.
+     */
+    private function normalizeRangeBoundary(string $value, bool $isUpperBound): string
+    {
+        $parsed = Carbon::parse($value);
+
+        if (! str_contains($value, ':')) {
+            return ($isUpperBound ? $parsed->endOfDay() : $parsed->startOfDay())->toDateTimeString();
+        }
+
+        return $parsed->toDateTimeString();
     }
 }
