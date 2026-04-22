@@ -10,11 +10,43 @@ import {
 } from './config';
 
 /**
+ * Parse an `Accept-Language` header into primary language tags
+ * sorted by client preference (q-factor descending).
+ *
+ * Handles inputs like `fr;q=0.1, en;q=0.9` where the first-listed
+ * tag is NOT the preferred one. Tags with malformed q-factors keep
+ * the RFC 7231 default of 1.0. Returns lowercased primary subtags
+ * (e.g. `fr` from `fr-CA`).
+ */
+function parseAcceptLanguage(header: string): string[] {
+  return header
+    .split(',')
+    .map((item) => {
+      const [rawTag, ...params] = item.split(';');
+      const tag = rawTag?.trim().split('-')[0]?.toLowerCase();
+      if (!tag) return null;
+      let q = 1.0;
+      for (const param of params) {
+        const match = param.trim().match(/^q=([0-9.]+)$/i);
+        if (match) {
+          const parsed = Number.parseFloat(match[1]!);
+          if (Number.isFinite(parsed)) q = parsed;
+          break;
+        }
+      }
+      return { tag, q };
+    })
+    .filter((entry): entry is { tag: string; q: number } => entry !== null)
+    .sort((a, b) => b.q - a.q)
+    .map((entry) => entry.tag);
+}
+
+/**
  * Resolve the active locale for the current request.
  *
  * Precedence:
  * 1. `NEXT_LOCALE` cookie set by the user via the LanguageSwitcher
- * 2. `Accept-Language` header (first supported locale)
+ * 2. `Accept-Language` header (first supported locale by q-factor)
  * 3. {@link DEFAULT_LOCALE}
  */
 async function resolveLocale(): Promise<Locale> {
@@ -25,11 +57,7 @@ async function resolveLocale(): Promise<Locale> {
   const headerList = await headers();
   const acceptLanguage = headerList.get('accept-language');
   if (acceptLanguage) {
-    const candidates = acceptLanguage
-      .split(',')
-      .map((part) => part.split(';')[0]?.trim().split('-')[0]?.toLowerCase())
-      .filter(Boolean);
-    for (const candidate of candidates) {
+    for (const candidate of parseAcceptLanguage(acceptLanguage)) {
       if (isLocale(candidate)) return candidate;
     }
   }
