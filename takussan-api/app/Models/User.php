@@ -6,6 +6,8 @@ use App\Models\Concerns\HasMediaConversions;
 use App\Models\Concerns\HasQueryBuilder;
 use App\Models\Enums\UserStatus;
 use App\Models\Enums\UserType;
+use App\Notifications\RegistrationConfirmationNotification;
+use App\Notifications\ResetPasswordNotification;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -218,5 +220,23 @@ class User extends Authenticatable implements HasMedia, MustVerifyEmail
             ->using(ConversationParticipant::class)
             ->withPivot(['role', 'last_read_at', 'is_muted', 'joined_at', 'left_at'])
             ->withTimestamps();
+    }
+
+    /**
+     * Override to dispatch our localized ResetPasswordNotification
+     * (TCK-022) instead of the Laravel built-in.
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ResetPasswordNotification($token));
+    }
+
+    /**
+     * Override to dispatch our localized RegistrationConfirmationNotification
+     * (TCK-022) instead of the Laravel built-in VerifyEmail notification.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new RegistrationConfirmationNotification);
     }
 }
