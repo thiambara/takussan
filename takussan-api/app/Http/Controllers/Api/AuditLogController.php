@@ -7,6 +7,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
@@ -17,8 +18,11 @@ class AuditLogController extends Controller
     {
         abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
 
+        // `Str::studly` handles multi-word slugs (`booking_payment` → `BookingPayment`)
+        // which plain `ucfirst` cannot — the latter would leave the underscore
+        // intact and never match `\App\Models\BookingPayment`.
         $query = Activity::query()->with('causer')
-            ->where('subject_type', 'like', '%'.ucfirst($entity))
+            ->where('subject_type', 'like', '%'.Str::studly($entity))
             ->where('subject_id', $id);
 
         $order = $request->input('order', 'desc') === 'asc' ? 'asc' : 'desc';

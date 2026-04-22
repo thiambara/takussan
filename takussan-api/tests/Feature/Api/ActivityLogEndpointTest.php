@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Agency;
+use App\Models\BookingPayment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -205,5 +206,29 @@ class ActivityLogEndpointTest extends TestCase
         $this->getJson("/api/activity-log/user/{$admin->id}")
             ->assertOk()
             ->assertJsonCount(2, 'data');
+    }
+
+    public function test_canonical_entity_route_resolves_multi_word_slug(): void
+    {
+        $this->actingAsAdmin();
+
+        // Seed a log whose subject_type is a multi-word model FQCN. The
+        // controller translates the URL segment (`booking_payment`) into a
+        // suffix filter against `subject_type LIKE '%…'`. Plain `ucfirst`
+        // would produce `Booking_payment` and miss `\App\Models\BookingPayment`
+        // entirely — `Str::studly` is what maps the slug correctly.
+        $seeded = Activity::create([
+            'log_name' => 'default',
+            'description' => 'created',
+            'event' => 'created',
+            'subject_type' => BookingPayment::class,
+            'subject_id' => 42,
+        ]);
+
+        $response = $this->getJson('/api/activity-log/booking_payment/42')
+            ->assertOk();
+
+        $ids = array_column($response->json('data'), 'id');
+        $this->assertContains($seeded->id, $ids);
     }
 }
