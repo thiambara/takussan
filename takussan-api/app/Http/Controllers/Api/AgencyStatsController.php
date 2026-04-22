@@ -46,17 +46,18 @@ class AgencyStatsController extends Controller
             ->where('status', LeaseStatus::Active->value)
             ->count();
 
-        // Sum of commissions on leases signed during the current month.
-        // Uses `signed_at` when available, otherwise `created_at` (leases are
-        // routinely created before signature).
+        // Sum of commissions on leases actually signed during the current month.
+        // Commission is earned at signature — unsigned (draft/pending_signature)
+        // leases must not contribute, and a lease signed then terminated in the
+        // same window is treated as cancelled.
         $commissionMonth = (float) Lease::where('agency_id', $agency->id)
-            ->where(function ($q) use ($monthStart, $monthEnd): void {
-                $q->whereBetween('signed_at', [$monthStart, $monthEnd])
-                    ->orWhere(function ($qq) use ($monthStart, $monthEnd): void {
-                        $qq->whereNull('signed_at')
-                            ->whereBetween('created_at', [$monthStart, $monthEnd]);
-                    });
-            })
+            ->whereNotNull('signed_at')
+            ->whereBetween('signed_at', [$monthStart, $monthEnd])
+            ->whereNotIn('status', [
+                LeaseStatus::Draft->value,
+                LeaseStatus::PendingSignature->value,
+                LeaseStatus::Terminated->value,
+            ])
             ->sum('commission_amount');
 
         return $this->json([

@@ -69,7 +69,9 @@ class SetLocaleMiddleware
                 $tag = trim($tag);
 
                 if (preg_match('/q\s*=\s*([0-9.]+)/i', $params, $m)) {
-                    $q = (float) $m[1];
+                    // RFC 7231 §5.3.1: q-factor must be in [0, 1] with up to 3 decimals.
+                    // Clamp to defend against malformed values like `q=999` or `q=1.2.3`.
+                    $q = max(0.0, min(1.0, (float) $m[1]));
                 }
             } else {
                 $tag = $part;

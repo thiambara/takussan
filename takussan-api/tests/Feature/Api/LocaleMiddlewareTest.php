@@ -120,4 +120,19 @@ class LocaleMiddlewareTest extends TestCase
         // Falls through to header negotiation.
         $this->assertEquals('en', app()->getLocale());
     }
+
+    public function test_malformed_q_factor_is_clamped(): void
+    {
+        // Unsupported preferred_language so header drives negotiation.
+        $user = User::factory()->create(['preferred_language' => 'zz']);
+        Sanctum::actingAs($user);
+
+        // `q=999` must not out-rank a legitimate `q=1` (clamped to 1.0 per RFC 7231).
+        // `q=1.2.3` parses as 1.2 via (float) cast — must also clamp to 1.0.
+        // Both candidates end up at q=1.0; first-seen (en) wins via stable arsort.
+        $this->getJson('/api/dashboard/stats', ['Accept-Language' => 'en;q=1, wo;q=999, fr;q=1.2.3'])
+            ->assertOk();
+
+        $this->assertEquals('en', app()->getLocale());
+    }
 }
