@@ -14,6 +14,11 @@ use Symfony\Component\HttpFoundation\Response;
  * agency_id`. Role lookups (`getRoleNames`, `hasRole`, etc.) filter on the
  * current team context; without this middleware the context is null and
  * agency-scoped role assignments resolve to an empty set.
+ *
+ * `super_admin` is a cross-tenant role — its pivot is stored with a null
+ * `agency_id`. To detect it before locking the team context to the user's
+ * agency, we probe under a null context first; if the user is super_admin the
+ * context stays null so `hasRole('super_admin')` keeps resolving downstream.
  */
 class SetPermissionsTeamIdMiddleware
 {
@@ -28,7 +33,16 @@ class SetPermissionsTeamIdMiddleware
         }
 
         if ($user) {
-            app(PermissionRegistrar::class)->setPermissionsTeamId($user->agency_id);
+            $registrar = app(PermissionRegistrar::class);
+
+            // Probe cross-tenant role under null team context; the `roles`
+            // relation will be re-queried after the team id is finalized.
+            $registrar->setPermissionsTeamId(null);
+            $user->unsetRelation('roles');
+            $isSuperAdmin = $user->hasRole('super_admin');
+            $user->unsetRelation('roles');
+
+            $registrar->setPermissionsTeamId($isSuperAdmin ? null : $user->agency_id);
         }
 
         return $next($request);
