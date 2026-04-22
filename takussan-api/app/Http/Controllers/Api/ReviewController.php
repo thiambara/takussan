@@ -73,6 +73,15 @@ class ReviewController extends Controller
             || ($user->agency_id && isset($reviewable->agency_id) && $reviewable->agency_id === $user->agency_id);
         abort_unless($ok, 403);
 
+        // Rejected is a terminal state: no public-facing view, no reply.
+        // Reply is not a ReviewStatus transition so assertTransition() does
+        // not fit — just guard directly on the terminal state.
+        abort_if(
+            ($review->status ?? ReviewStatus::Pending) === ReviewStatus::Rejected,
+            422,
+            'Cannot reply to a rejected review.'
+        );
+
         $data = $request->validate([
             'reply_content' => ['required', 'string'],
         ]);

@@ -176,6 +176,23 @@ class ReviewModerationWorkflowTest extends TestCase
         $this->postJson("/api/reviews/{$review->id}/reject")->assertForbidden();
     }
 
+    public function test_cannot_reply_to_rejected_review(): void
+    {
+        // Rejected is a terminal moderation state — it's invisible to the
+        // public, so letting admin/owner still reply to it is nonsensical
+        // and lets through noise into the audit trail.
+        $review = Review::factory()->create([
+            'status' => ReviewStatus::Rejected,
+            'is_approved' => false,
+        ]);
+
+        Sanctum::actingAs($this->admin());
+
+        $this->postJson("/api/reviews/{$review->id}/reply", [
+            'reply_content' => 'too late',
+        ])->assertStatus(422);
+    }
+
     public function test_enum_transition_map(): void
     {
         $this->assertTrue(ReviewStatus::Pending->canTransitionTo(ReviewStatus::Approved));
