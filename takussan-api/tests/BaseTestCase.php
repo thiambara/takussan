@@ -7,7 +7,6 @@ use App\Models\User;
 use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Assert;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 abstract class BaseTestCase extends TestCase
@@ -20,6 +19,10 @@ abstract class BaseTestCase extends TestCase
      *   1. `agency`    — Agency model passed in $attributes
      *   2. `agency_id` — raw id passed in $attributes
      *   3. fresh Agency via factory
+     *
+     * `super_admin` is assigned with a null team context so `hasRole()` keeps
+     * resolving to true after subsequent `setPermissionsTeamId()` calls in the
+     * same test (cross-tenant role — no agency binding).
      *
      * @param  array<string,mixed>  $attributes  User attrs; pass `agency` or `agency_id` to reuse one.
      */
@@ -38,7 +41,8 @@ abstract class BaseTestCase extends TestCase
 
         $user = User::factory()->create($attributes);
 
-        app(PermissionRegistrar::class)->setPermissionsTeamId($user->agency_id);
+        $registrar = app(PermissionRegistrar::class);
+        $registrar->setPermissionsTeamId($role === 'super_admin' ? null : $user->agency_id);
         $user->assignRole($role);
 
         $this->actingAs($user, $guard);
@@ -67,8 +71,6 @@ abstract class BaseTestCase extends TestCase
 
     protected function ensureRolesSeeded(): void
     {
-        if (Role::query()->count() === 0) {
-            $this->seed(RolesAndPermissionsSeeder::class);
-        }
+        $this->seed(RolesAndPermissionsSeeder::class);
     }
 }
