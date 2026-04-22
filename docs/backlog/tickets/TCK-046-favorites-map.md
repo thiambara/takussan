@@ -6,7 +6,7 @@ phase: P1
 family: back
 estimate: M
 created: 2026-04-16
-updated: 2026-04-16
+updated: 2026-04-22
 depends_on: [TCK-034, TCK-024]
 blocks: [TCK-047]
 spec_refs:

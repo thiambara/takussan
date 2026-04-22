@@ -1,12 +1,12 @@
 ---
 id: TCK-023
 title: Administration & configuration
-status: todo
+status: done
 phase: P0
 family: applicatif
 estimate: M
 created: 2026-04-15
-updated: 2026-04-16
+updated: 2026-04-22
 depends_on: [TCK-013, TCK-014, TCK-049]
 blocks: []
 spec_refs:

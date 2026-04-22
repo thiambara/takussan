@@ -1,12 +1,12 @@
 ---
 id: TCK-051
 title: "FormRequest Base + Validation Patterns"
-status: review
+status: done
 phase: P0
 family: back
 estimate: S
 created: 2026-04-16
-updated: 2026-04-21
+updated: 2026-04-22
 depends_on: [TCK-048]
 blocks: [TCK-034, TCK-020, TCK-026, TCK-027]
 spec_refs:

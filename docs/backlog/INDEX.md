@@ -17,19 +17,17 @@
 | `family` | `back` · `front` · `applicatif` · `technique` · `evolution` |
 | `estimate` | `S` ≤2j · `M` 3–5j · `L` 6–10j · `XL` >10j |
 
+> ⚠️ **Section "Partiellement implémenté"** — le code est sur `dev` mais le ticket n'est pas
+> fermable en l'état. Voir la rubrique `## État réel (audit 2026-04-22)` dans chaque
+> ticket pour le delta restant. Statut frontmatter reste `todo` tant que le gap n'est pas
+> clos.
+
 ---
 
 ## 📋 Todo
 
-### Phase 0 — Fondation Backend
-
-- [TCK-050](tickets/TCK-050-spatie-medialibrary-upload.md) — Spatie MediaLibrary + Upload Infrastructure `S · P0 · back`
-- [TCK-051](tickets/TCK-051-formrequest-validation.md) — FormRequest Base + Validation Patterns `S · P0 · back`
-- [TCK-052](tickets/TCK-052-scout-search-infrastructure.md) — Laravel Scout + Search Infrastructure `S · P0 · back`
-
 ### Phase 0 — Fondation Frontend
 
-- [TCK-055](tickets/TCK-055-layout-navigation.md) — Layout System + Navigation `M · P0 · front`
 - [TCK-056](tickets/TCK-056-auth-middleware-protection.md) — Auth Middleware + Route Protection `S · P0 · front`
 - [TCK-057](tickets/TCK-057-api-client-react-query.md) — API Client + Data Fetching (React Query) `S · P0 · front`
 - [TCK-058](tickets/TCK-058-i18n-setup.md) — i18n Setup (FR/EN/WO) `S · P0 · front`
@@ -37,41 +35,54 @@
 
 ### Phase 1 — Socle Backend
 
-- [TCK-014](tickets/TCK-014-roles-permissions.md) — Rôles & permissions `M · P0 · applicatif`
-- [TCK-015](tickets/TCK-015-agency-team.md) — Agence & équipe `M · P0 · applicatif`
-- [TCK-016](tickets/TCK-016-media-files.md) — Médias & fichiers `M · P0 · applicatif`
 - [TCK-017](tickets/TCK-017-i18n-preferences.md) — Internationalisation & préférences `S · P0 · applicatif`
-- [TCK-034](tickets/TCK-034-property-crud-base.md) — Property — Modèle & CRUD base `M · P0 · back`
-- [TCK-035](tickets/TCK-035-property-address-media.md) — Property — Adresse & médias `S · P0 · back`
-- [TCK-036](tickets/TCK-036-property-tags-collabs-price.md) — Property — Tags, collaborateurs & historique prix `M · P0 · back`
-- [TCK-020](tickets/TCK-020-crm-customers.md) — CRM & relation client `L · P0 · applicatif`
-- [TCK-021](tickets/TCK-021-documents-contracts.md) — Documents & contrats `M · P0 · applicatif`
-- [TCK-022](tickets/TCK-022-notifications.md) — Notifications `M · P0 · applicatif`
-- [TCK-023](tickets/TCK-023-admin-configuration.md) — Administration & configuration `M · P0 · applicatif`
-- [TCK-024](tickets/TCK-024-search-filters.md) — Recherche & filtres (backend) `M · P0 · applicatif`
 
-### Phase 2 — Front Public & Dashboard
+### Phase 2 — Front Dashboard
 
-- [TCK-038](tickets/TCK-038-homepage-discovery.md) — Page d'accueil & découverte `S · P0 · front`
-- [TCK-039](tickets/TCK-039-search-results.md) — Liste résultats de recherche `M · P0 · front`
 - [TCK-041](tickets/TCK-041-dashboard-agent-properties.md) — Dashboard Agent — Layout & biens `M · P0 · front`
 - [TCK-042](tickets/TCK-042-dashboard-agent-crm.md) — Dashboard Agent — CRM `M · P0 · front`
 
-### Phase 3 — Opérations Métier (back + front alternés)
+### Phase 3 — Frontends Ops
 
-- [TCK-026](tickets/TCK-026-short-term-bookings.md) — Réservations courte durée (backend) `M · P1 · back`
 - [TCK-043](tickets/TCK-043-bookings-frontend.md) — Réservations — Frontend tunnel `M · P1 · front`
-- [TCK-027](tickets/TCK-027-long-term-leases.md) — Location longue durée — baux (backend) `L · P1 · back`
 - [TCK-044](tickets/TCK-044-leases-frontend.md) — Baux — Frontend gestion `M · P1 · front`
-- [TCK-028](tickets/TCK-028-transactions-payments.md) — Transactions & paiements `L · P1 · applicatif`
-- [TCK-029](tickets/TCK-029-messaging.md) — Communication & messagerie (backend) `M · P1 · back`
 - [TCK-045](tickets/TCK-045-messaging-frontend.md) — Messagerie — Frontend `M · P1 · front`
-- [TCK-030](tickets/TCK-030-maintenance-requests.md) — Maintenance & interventions `M · P1 · applicatif`
-- [TCK-031](tickets/TCK-031-inventory-inspections.md) — État des lieux & inventaires `M · P1 · applicatif`
-- [TCK-032](tickets/TCK-032-reporting-dashboards.md) — Reporting & tableaux de bord `L · P1 · applicatif`
-- [TCK-033](tickets/TCK-033-reviews-reputation.md) — Avis & réputation `M · P2 · applicatif`
-- [TCK-046](tickets/TCK-046-favorites-map.md) — Favoris & carte interactive (backend) `M · P1 · back`
 - [TCK-047](tickets/TCK-047-share-saved-searches-front.md) — Favoris, carte & partage — Frontend `M · P1 · front`
+
+### Phase 3 — Backend non démarré
+
+- [TCK-032](tickets/TCK-032-reporting-dashboards.md) — Reporting & tableaux de bord `L · P1 · applicatif`
+
+## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
+
+### Phase 0 — Fondation Frontend
+
+- [TCK-055](tickets/TCK-055-layout-navigation.md) — Layout System + Navigation `M · P0 · front` · AppShell/AdminShell en place, route groups et Header/Footer publics à compléter
+
+### Phase 1 — Socle Backend
+
+- [TCK-014](tickets/TCK-014-roles-permissions.md) — Rôles & permissions `M · P0 · applicatif` · seeder + `UserAdminController::assignRole` OK, endpoint dédié role-per-user + tests d'accès par rôle à finir
+- [TCK-015](tickets/TCK-015-agency-team.md) — Agence & équipe `M · P0 · applicatif` · CRUD + addAgent/removeAgent OK, PUT `/agencies/{agency}/members/{user}/role` et GET `/stats` manquants
+- [TCK-016](tickets/TCK-016-media-files.md) — Médias & fichiers `M · P0 · applicatif` · MediaController + PropertyMediaController OK, endpoint générique `/api/media/upload` non exposé
+- [TCK-022](tickets/TCK-022-notifications.md) — Notifications `M · P0 · applicatif` · AppNotification feed + mark-as-read OK, classes `app/Notifications/*`, templates localisés, broadcasting et digest jobs manquants
+- [TCK-035](tickets/TCK-035-property-address-media.md) — Property — Adresse & médias `S · P0 · back` · Address polymorphe + reorder photos OK, endpoint PUT/DELETE `/properties/{property}/address` manquant
+- [TCK-036](tickets/TCK-036-property-tags-collabs-price.md) — Property — Tags, collaborateurs & prix `M · P0 · back` · PriceHistory + PropertyCollaborator CRUD OK, validation `commission_share ≤ 100%` et attach/detach Tag polymorphe manquants
+
+### Phase 2 — Front Public
+
+- [TCK-038](tickets/TCK-038-homepage-discovery.md) — Page d'accueil & découverte `S · P0 · front` · Hero + PropertyGrid présents, recherche Hero non câblée sur `/properties?search=`
+- [TCK-039](tickets/TCK-039-search-results.md) — Liste résultats de recherche `M · P0 · front` · PropertiesPage présent (150 lignes), vérifier tri / pagination / états vides
+
+### Phase 3 — Opérations Métier
+
+- [TCK-026](tickets/TCK-026-short-term-bookings.md) — Réservations courte durée (backend) `M · P1 · back` · BookingController CRUD OK, validation chevauchement dates + `ExpireBookingsJob` + tests manquants
+- [TCK-027](tickets/TCK-027-long-term-leases.md) — Location longue durée — baux (backend) `L · P1 · back` · LeaseController CRUD OK, `LeasePaymentScheduleJob` + `LeaseLateFeeService` + workflow garant manquants
+- [TCK-028](tickets/TCK-028-transactions-payments.md) — Transactions & paiements `L · P1 · applicatif` · BookingPayment/Invoice/Payout controllers présents, trait `HasPaymentAttributes` + endpoint `/payments/history` à valider
+- [TCK-029](tickets/TCK-029-messaging.md) — Communication & messagerie (backend) `M · P1 · back` · ConversationController CRUD OK, archivage, job notifications, read_status manquants
+- [TCK-030](tickets/TCK-030-maintenance-requests.md) — Maintenance & interventions `M · P1 · applicatif` · MaintenanceRequestController basique OK, photos workflow + completion + frontend manquants
+- [TCK-031](tickets/TCK-031-inventory-inspections.md) — État des lieux & inventaires `M · P1 · applicatif` · InventoryController basique OK, items JSON schema + signatures + export PDF + frontend manquants
+- [TCK-033](tickets/TCK-033-reviews-reputation.md) — Avis & réputation `M · P2 · applicatif` · ReviewController + approval OK, endpoints reply/report + workflow modération complet manquants
+- [TCK-046](tickets/TCK-046-favorites-map.md) — Favoris & carte interactive (backend) `M · P1 · back` · FavoriteController CRUD OK, endpoint `GET /api/public/properties/map?bounds=…` manquant (bloque TCK-047)
 
 ## 🚧 Doing
 
@@ -79,18 +90,35 @@ _(vide)_
 
 ## 👀 Review
 
-- [TCK-018](tickets/TCK-018-audit-trail.md) — Audit & traçabilité `S · P0 · applicatif`
+_(vide — tous les tickets review ont été mergés sur `dev`, voir Done)_
+
+## ✅ Done
+
+### Phase 0 — Fondation Backend
+
 - [TCK-048](tickets/TCK-048-base-model-api-response.md) — API Response Infrastructure (base resource + error handler) `M · P0 · back`
 - [TCK-049](tickets/TCK-049-spatie-permission-activitylog.md) — Spatie Permission + ActivityLog Setup `M · P0 · back`
 - [TCK-050](tickets/TCK-050-spatie-medialibrary-upload.md) — Spatie MediaLibrary + Upload Infrastructure `S · P0 · back`
 - [TCK-051](tickets/TCK-051-formrequest-validation.md) — FormRequest Base + Validation Patterns `S · P0 · back`
 - [TCK-052](tickets/TCK-052-scout-search-infrastructure.md) — Laravel Scout + Search Infrastructure `S · P0 · back`
 - [TCK-053](tickets/TCK-053-test-infrastructure.md) — Test Infrastructure + Base Test Classes `M · P0 · back`
+
+### Phase 0 — Fondation Frontend
+
 - [TCK-054](tickets/TCK-054-design-system-components.md) — Design System + Component Library `M · P0 · front`
 
-## ✅ Done
+### Phase 1 — Socle Backend
 
 - [TCK-013](tickets/TCK-013-auth-accounts.md) — Authentification & gestion de comptes `L · P0 · applicatif`
+- [TCK-018](tickets/TCK-018-audit-trail.md) — Audit & traçabilité `S · P0 · applicatif`
+- [TCK-020](tickets/TCK-020-crm-customers.md) — CRM & relation client `L · P0 · applicatif`
+- [TCK-021](tickets/TCK-021-documents-contracts.md) — Documents & contrats `M · P0 · applicatif`
+- [TCK-023](tickets/TCK-023-admin-configuration.md) — Administration & configuration `M · P0 · applicatif`
+- [TCK-024](tickets/TCK-024-search-filters.md) — Recherche & filtres (backend) `M · P0 · applicatif`
+- [TCK-034](tickets/TCK-034-property-crud-base.md) — Property — Modèle & CRUD base `M · P0 · back`
+
+### Phase 2 — Front Public
+
 - [TCK-040](tickets/TCK-040-property-detail.md) — Fiche bien immersive `M · P0 · front`
 - [TCK-060](tickets/TCK-060-auth-pages-oauth.md) — Cycle auth front + OAuth multi-provider `M · P0 · applicatif`
 
@@ -180,3 +208,4 @@ TCK-054 + TCK-056 + TCK-057 + TCK-046 + TCK-024 ──▶ TCK-047 (favorites + m
 - **2026-04-16** — Refonte fondation : suppression TCK-001→012 (P2/P3/EF améliorations futures) + TCK-037 (absorbé). Création Phase 0 : TCK-048→053 (6 back fondation) + TCK-054→059 (6 front fondation). Mise à jour dépendances tous tickets existants.
 - **2026-04-20** — Ajout TCK-060 : refonte complète du cycle auth front (7 pages) + câblage OAuth multi-provider (Google, Facebook, Apple via Socialite) avec state CSRF.
 - **2026-04-21** — Réconciliation INDEX vs réalité : TCK-013 (auth) + TCK-040 (fiche bien) + TCK-060 (auth front + OAuth) passés en `done` — tous livrés sur `master`/`dev`.
+- **2026-04-22** — Audit complet backlog vs code (5 agents d'audit parallèles) : 13 tickets passés en `done` — les 8 ex-`review` (TCK-018, 048–054) déjà mergés sur `dev`, plus 5 tickets implémentés hors workflow (TCK-020 CRM, TCK-021 Documents, TCK-023 Admin, TCK-024 Search, TCK-034 Property CRUD). Nouvelle section `🔶 Partiellement implémenté` pour 17 tickets où du code est sur `dev` mais un delta résiduel subsiste (liste explicite des gaps par ticket). Section Todo réduite à 12 tickets vraiment non démarrés. Dédoublonnage TCK-050/051/052 (apparaissaient Todo + Review). Aucun changement de code applicatif.
