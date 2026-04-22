@@ -28,16 +28,20 @@ class DailyNotificationDigest extends Mailable implements ShouldQueue
         public User $user,
         public Collection $notifications,
         public string $targetLocale = 'en',
-    ) {}
+    ) {
+        // Ensure the whole Mailable (subject + markdown view) renders in
+        // the recipient's language. Without this, the Blade template's
+        // `__()` calls resolve against the worker's app locale, not the
+        // recipient's `preferred_language`.
+        $this->locale($this->targetLocale);
+    }
 
     public function envelope(): Envelope
     {
-        $subject = __('notifications.digest.subject', [
-            'count' => $this->notifications->count(),
-        ], $this->targetLocale);
-
         return new Envelope(
-            subject: $subject,
+            subject: __('notifications.digest.subject', [
+                'count' => $this->notifications->count(),
+            ], $this->targetLocale),
         );
     }
 

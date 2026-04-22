@@ -97,6 +97,53 @@ class NotificationDigestTest extends TestCase
         Mail::assertNothingOutgoing();
     }
 
+    public function test_digest_renders_subject_in_recipient_target_locale(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'fr@example.com',
+            'notifications_email_enabled' => true,
+            'preferred_language' => 'fr',
+        ]);
+
+        $notifications = collect([$this->makeNotification($user, ['is_read' => false])]);
+
+        // App locale stays EN; mailable must still render in FR via targetLocale.
+        app()->setLocale('en');
+        $mail = new DailyNotificationDigest(user: $user, notifications: $notifications, targetLocale: 'fr');
+
+        $envelope = $mail->envelope();
+        $this->assertSame(
+            __('notifications.digest.subject', ['count' => 1], 'fr'),
+            $envelope->subject,
+            'digest subject should render in target locale, not app locale.',
+        );
+    }
+
+    public function test_digest_body_renders_in_recipient_target_locale(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'fr@example.com',
+            'notifications_email_enabled' => true,
+            'preferred_language' => 'fr',
+        ]);
+
+        $notifications = collect([$this->makeNotification($user, ['is_read' => false, 'title' => 'Salam', 'body' => 'hello'])]);
+
+        app()->setLocale('en');
+        $mail = new DailyNotificationDigest(user: $user, notifications: $notifications, targetLocale: 'fr');
+
+        // Render the mailable through the Mail facade — Laravel swaps the
+        // locale via `$this->locale()` before rendering the view.
+        $rendered = $mail->render();
+
+        // The FR intro string must appear in the rendered body.
+        $this->assertStringContainsString(
+            __('notifications.digest.intro', [], 'fr'),
+            $rendered,
+            'digest view should render translations in the target locale.',
+        );
+    }
+
     protected function makeNotification(User $user, array $overrides = []): AppNotification
     {
         $notification = AppNotification::create(array_merge([
