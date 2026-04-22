@@ -14,6 +14,7 @@ use App\Models\Property;
 use App\Services\Model\LeaseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class LeaseController extends Controller
@@ -153,9 +154,6 @@ class LeaseController extends Controller
     {
         $this->authorizeManage($request, $lease);
 
-        $count = $lease->guarantors()->count();
-        abort_if($count >= 3, 422, 'A lease cannot have more than 3 guarantors.');
-
         $data = $request->validate([
             'guarantor_id' => ['nullable', 'exists:guarantors,id'],
             'role' => ['nullable', 'string', 'max:50'],
@@ -174,11 +172,6 @@ class LeaseController extends Controller
 
         if (! empty($data['guarantor_id'])) {
             $guarantor = Guarantor::findOrFail($data['guarantor_id']);
-            abort_if(
-                $lease->guarantors()->where('guarantors.id', $guarantor->id)->exists(),
-                422,
-                'Guarantor already attached to this lease.'
-            );
         } else {
             $guarantor = Guarantor::create([
                 'first_name' => $data['first_name'],
@@ -196,9 +189,30 @@ class LeaseController extends Controller
             ]);
         }
 
-        $lease->guarantors()->attach($guarantor->id, [
-            'role' => $data['role'] ?? null,
-        ]);
+        // Atomic cap check + attach: without the transaction+lock, two
+        // concurrent requests can both observe count()==2 and both insert,
+        // yielding 4 rows. The unique (lease_id, guarantor_id) index only
+        // prevents duplicates, not the cap. lockForUpdate serializes racers
+        // on the pivot rows for this lease so only one wins the cap check.
+        DB::transaction(function () use ($lease, $guarantor, $data) {
+            $pivotRows = $lease->guarantors()->lockForUpdate()->get(['guarantors.id']);
+
+            abort_if(
+                $pivotRows->contains('id', $guarantor->id),
+                422,
+                'Guarantor already attached to this lease.'
+            );
+
+            abort_if(
+                $pivotRows->count() >= 3,
+                422,
+                __('validation.max_guarantors_reached')
+            );
+
+            $lease->guarantors()->attach($guarantor->id, [
+                'role' => $data['role'] ?? null,
+            ]);
+        });
 
         return $this->json([
             'data' => [

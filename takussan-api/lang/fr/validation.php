@@ -7,4 +7,6 @@ return [
         'date_range' => 'La date doit être postérieure ou égale à :start.',
         'strong_password' => 'Le mot de passe doit contenir au moins 8 caractères, dont une majuscule, une minuscule, un chiffre et un caractère spécial.',
     ],
+
+    'max_guarantors_reached' => 'Un bail ne peut pas avoir plus de 3 garants.',
 ];
