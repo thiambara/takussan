@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\Api\AgencyController;
+use App\Http\Controllers\Api\AgencyMemberRoleController;
 use App\Http\Controllers\Api\AgencyRoleController;
+use App\Http\Controllers\Api\AgencyStatsController;
 use App\Http\Controllers\Api\ReviewController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,9 +15,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('agencies/{agency}', [AgencyController::class, 'update']);
     Route::delete('agencies/{agency}', [AgencyController::class, 'destroy'])->name('agencies.destroy');
 
-    // Agent management
+    // Agent management (legacy aliases kept — /members is the TCK-015 canonical path).
     Route::post('agencies/{agency}/agents', [AgencyController::class, 'addAgent'])->name('agencies.agents.store');
     Route::delete('agencies/{agency}/agents/{user}', [AgencyController::class, 'removeAgent'])->name('agencies.agents.destroy');
+    Route::post('agencies/{agency}/members', [AgencyController::class, 'addAgent'])->name('agencies.members.store');
+    Route::delete('agencies/{agency}/members/{user}', [AgencyController::class, 'removeAgent'])->name('agencies.members.destroy');
+
+    // Agency-scoped member role assignment.
+    Route::put('agencies/{agency}/members/{user}/role', [AgencyMemberRoleController::class, 'update'])->name('agencies.members.role.update');
+
+    // Agency stats (P1 — simple aggregates, no cache).
+    Route::get('agencies/{agency}/stats', [AgencyStatsController::class, 'show'])->name('agencies.stats.show');
 
     // Agency reviews
     Route::get('agencies/{agency}/reviews', [ReviewController::class, 'indexForAgency'])->name('agencies.reviews.index');
