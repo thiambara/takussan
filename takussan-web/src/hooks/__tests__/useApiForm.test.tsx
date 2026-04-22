@@ -72,6 +72,34 @@ describe('mapValidationErrorsToForm', () => {
     expect(unknown).toEqual(['Boom']);
   });
 
+  it('routes dotted Laravel keys onto nested field paths', () => {
+    const setError = vi.fn();
+    const fakeForm = { setError } as unknown as Parameters<
+      typeof mapValidationErrorsToForm<FormValues>
+    >[1];
+
+    const unknown = mapValidationErrorsToForm<FormValues>(
+      {
+        'address.city': ['Ville requise.'],
+        'items.0.quantity': ['Doit être > 0.'],
+        something_else: ['Bruit'],
+      },
+      fakeForm,
+      ['address', 'address.city', 'items'],
+    );
+
+    expect(setError).toHaveBeenCalledWith('address.city', {
+      type: 'server',
+      message: 'Ville requise.',
+    });
+    // `items.0.quantity` is matched via the `items` prefix.
+    expect(setError).toHaveBeenCalledWith('items.0.quantity', {
+      type: 'server',
+      message: 'Doit être > 0.',
+    });
+    expect(unknown).toEqual(['Bruit']);
+  });
+
   it('ignores empty message arrays', () => {
     const setError = vi.fn();
     const fakeForm = { setError } as unknown as Parameters<
@@ -187,6 +215,13 @@ describe('useApiForm', () => {
 
     await waitFor(() => {
       expect(result.current.globalError).toBe('Captcha incorrect.');
+    });
+    // Global errors also land on RHF's `root.serverError` slot so consumers
+    // observing `formState.errors.root` see them.
+    await waitFor(() => {
+      expect(
+        result.current.form.getFieldState('root.serverError' as never).error?.message,
+      ).toBe('Captcha incorrect.');
     });
   });
 

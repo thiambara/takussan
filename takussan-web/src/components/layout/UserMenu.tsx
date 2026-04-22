@@ -34,7 +34,11 @@ export interface UserMenuProps {
  */
 export function UserMenu({ user, className, variant = 'dark' }: UserMenuProps) {
   const router = useRouter();
-  const initials = `${user.first_name[0] ?? ''}${user.last_name[0] ?? ''}`.toUpperCase();
+  // Use `Array.from` so names starting with an emoji or astral character
+  // (surrogate pair) don't produce a broken half-glyph in the avatar.
+  const firstInitial = Array.from(user.first_name ?? '')[0] ?? '';
+  const lastInitial = Array.from(user.last_name ?? '')[0] ?? '';
+  const initials = `${firstInitial}${lastInitial}`.toUpperCase();
   const isDark = variant === 'dark';
 
   return (

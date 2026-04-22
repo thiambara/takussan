@@ -1,15 +1,15 @@
 import type { Metadata } from 'next';
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
-import { AUTH_COOKIE_NAME } from '@/lib/constants';
+import { getMeAction } from '@/app/actions/auth';
 
 /**
  * Dashboard route group layout.
  *
  * Protects every route under `(dashboard)` — i.e. `/app/*` and `/admin/*` —
- * by checking the auth cookie here rather than duplicating the gate in each
- * nested layout. The child layouts (`AppShell` and `AdminShell`) remain
- * responsible for their own chrome (topbar + sidebar).
+ * by calling `getMeAction()`, which reads the auth cookie and actually hits
+ * `/api/users/me`. A stale or revoked token triggers `clearToken()` +
+ * redirect to `/auth/login` (handled inside `getMeAction`), so children
+ * never render with an invalid session. Result is cached per-request so
+ * nested layouts can call `getMeAction()` again without a duplicate fetch.
  *
  * SEO: noindex for every dashboard page — these are authenticated, private.
  */
@@ -26,7 +26,6 @@ export default async function DashboardGroupLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = await cookies();
-  if (!cookieStore.get(AUTH_COOKIE_NAME)?.value) redirect('/auth/login');
+  await getMeAction();
   return <>{children}</>;
 }

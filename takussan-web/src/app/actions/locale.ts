@@ -30,6 +30,9 @@ export async function setLocaleAction(locale: Locale): Promise<void> {
     maxAge: LOCALE_COOKIE_MAX_AGE,
     path: '/',
     sameSite: 'lax',
+    // Match the auth-cookie hygiene: ship `Secure` in prod so the locale
+    // preference is never leaked over plaintext HTTP.
+    secure: process.env.NODE_ENV === 'production',
   });
 
   const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;

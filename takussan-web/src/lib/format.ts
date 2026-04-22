@@ -12,19 +12,21 @@ import { TIMEZONE, type Locale } from '@/i18n/config';
 
 /**
  * Map our app locale codes onto BCP-47 tags that the `Intl` APIs recognise.
- * Wolof (`wo`) isn't supported by every browser runtime; we fall back to
- * French formatting so numbers and dates still render sanely.
+ * Wolof (`wo`) isn't shipped in CLDR for most runtimes; Intl silently falls
+ * back to the root locale (English-style formatting) when passed a single
+ * unsupported tag. Passing an array lets us force an explicit fallback to
+ * `fr-SN` so Wolof users still see Senegalese number/date conventions.
  */
-function toIntlLocale(locale: Locale): string {
+function toIntlLocale(locale: Locale): string | readonly string[] {
   switch (locale) {
     case 'fr':
       return 'fr-SN';
     case 'en':
       return 'en-GB';
     case 'wo':
-      // `wo` BCP-47 tag — Node/Chrome fall back to a compatible CLDR locale
-      // where Wolof data isn't shipped, which is acceptable for now.
-      return 'wo';
+      // Intl falls back left-to-right. If `wo` has CLDR data the runtime
+      // uses it; otherwise it uses `fr-SN`, never the root/English default.
+      return ['wo', 'fr-SN'] as const;
     default:
       return 'fr-SN';
   }
@@ -50,7 +52,7 @@ export function formatDate(
   if (Number.isNaN(date.getTime())) return '';
 
   const { timeZone = TIMEZONE, ...rest } = options;
-  return new Intl.DateTimeFormat(toIntlLocale(locale), {
+  return new Intl.DateTimeFormat(toIntlLocale(locale) as string | string[], {
     dateStyle: 'medium',
     timeZone,
     ...rest,
@@ -82,7 +84,7 @@ export function formatNumber(
   options: Intl.NumberFormatOptions = {},
 ): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '';
-  return new Intl.NumberFormat(toIntlLocale(locale), options).format(value);
+  return new Intl.NumberFormat(toIntlLocale(locale) as string | string[], options).format(value);
 }
 
 /**

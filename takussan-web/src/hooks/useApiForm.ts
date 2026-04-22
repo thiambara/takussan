@@ -63,9 +63,42 @@ export interface UseApiFormReturn<TValues extends FieldValues> {
 }
 
 /**
+ * Flatten a nested object into dotted paths. `{ address: { city: '' } }` →
+ * `['address', 'address.city']`. Arrays are treated as leaves so numeric
+ * Laravel keys like `items.0.quantity` line up with array-shaped defaults.
+ */
+function collectKnownPaths(input: unknown, prefix = ''): string[] {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return prefix === '' ? [] : [prefix];
+  }
+  const paths: string[] = [];
+  for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
+    const path = prefix === '' ? key : `${prefix}.${key}`;
+    paths.push(path);
+    paths.push(...collectKnownPaths(value, path));
+  }
+  return paths;
+}
+
+/**
+ * True when the Laravel key `field` targets a form field we control.
+ * Accepts exact matches (`email`), nested matches (`address.city`), and
+ * array-indexed matches (`items.0.quantity` → known path `items.0.quantity`
+ * OR prefix `items`).
+ */
+function isFieldKnown(field: string, knownFields: readonly string[]): boolean {
+  if (knownFields.includes(field)) return true;
+  // `items.0.quantity` should still route when only `items` is known —
+  // RHF accepts dotted paths directly.
+  return knownFields.some((k) => field.startsWith(`${k}.`));
+}
+
+/**
  * Maps Laravel 422 validation errors (`{errors: {field: [msg, ...]}}`)
- * back onto the react-hook-form instance. Unknown keys are aggregated
- * into a single "root" error so the caller can still surface them.
+ * back onto the react-hook-form instance. Supports nested Laravel keys
+ * (e.g. `address.city`, `items.0.quantity`) by matching against any
+ * known top-level or dotted path. Unknown keys are aggregated into a
+ * single "root" error so the caller can still surface them.
  *
  * Exported for unit testing — see `useApiForm.test.ts`.
  */
@@ -78,7 +111,7 @@ export function mapValidationErrorsToForm<TValues extends FieldValues>(
   for (const [field, messages] of Object.entries(errors)) {
     if (!messages || messages.length === 0) continue;
     const message = messages[0];
-    if (knownFields.includes(field)) {
+    if (isFieldKnown(field, knownFields)) {
       form.setError(field as Path<TValues>, { type: 'server', message });
     } else {
       unknown.push(message);
@@ -156,18 +189,25 @@ export function useApiForm<
         if (onSuccess) await onSuccess(result, values);
       } catch (err) {
         if (err instanceof ApiError && err.status === 422 && err.validationErrors) {
-          const knownFields = Object.keys(defaultValues as Record<string, unknown>);
+          // Flatten nested defaults so Laravel keys like `address.city` or
+          // `items.0.quantity` map onto the right RHF paths.
+          const knownFields = collectKnownPaths(defaultValues);
           const unknown = mapValidationErrorsToForm(
             err.validationErrors,
             form,
             knownFields,
           );
           if (unknown.length > 0) {
-            setGlobalError(unknown.join(' '));
+            const message = unknown.join(' ');
+            setGlobalError(message);
+            // Also expose via RHF so devtools / `formState.errors.root`
+            // consumers see it — FormGlobalError can use either.
+            form.setError('root.serverError', { type: 'server', message });
           }
         } else {
           const message = extractApiErrorMessage(err, 'La soumission a échoué. Réessayez.');
           setGlobalError(message);
+          form.setError('root.serverError', { type: 'server', message });
           if (onError && err instanceof Error) onError(err);
         }
       } finally {
