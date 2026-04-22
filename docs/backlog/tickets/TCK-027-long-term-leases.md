@@ -1,7 +1,7 @@
 ---
 id: TCK-027
 title: Location longue durée (baux)
-status: todo
+status: review
 phase: P1
 family: back
 estimate: L
@@ -73,4 +73,26 @@ Implémenter la gestion complète des baux : création, garants, échéancier de
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Réalisé (2026-04-22)
+
+- **LeasePaymentScheduleJob** : `GenerateLeasePaymentSchedule` déjà en place, dispatché via `LeaseService::activate()` (signature = activation du bail). Idempotent (no-op si paiements existent déjà). Tests existants conservés.
+- **LeaseLateFeeService** (`app/Services/Model/LeaseLateFeeService.php`) :
+  - `calculate()` — renvoie `amount * rate` au-delà de `due_date + graceDays`, 0 sinon.
+  - `apply()` — écrit `late_fee` + bascule le statut `PaymentStatus::Late`. Idempotent (no-op si `late_fee > 0`).
+  - `applyAll()` — sweep tous les paiements `pending|late` non encore pénalisés. Configurable via `takussan.leases.late_fee_rate` (défaut 0.05) et `takussan.leases.late_fee_grace_days` (défaut 5).
+  - `App\Jobs\ApplyLatePaymentPenalties` câblé au service (au lieu de l'update brut précédent). Toujours planifié `dailyAt('06:00')`.
+- **Garant workflow** (pivot many-to-many jusqu'à 3) :
+  - Migration `create_lease_guarantor_pivot_table` avec index `(lease_id, guarantor_id)` unique + `role` optionnel.
+  - `Lease::guarantors()` / `Guarantor::leasesPivot()` belongsToMany (le FK legacy `guarantor_id` sur `leases` est conservé pour compat).
+  - Endpoints dans `LeaseController` : `GET /api/leases/{lease}/guarantors`, `POST /api/leases/{lease}/guarantors` (attach existant ou création inline), `DELETE /api/leases/{lease}/guarantors/{guarantor}`.
+  - Règle 422 : max 3 garants par bail, et rejet des doublons.
+- **Tests** :
+  - `LeaseLateFeeServiceTest` (6) — calc, grace, rate, apply, idempotence, sweep.
+  - `LeaseGuarantorTest` (7) — attach inline / by-id, limite de 3, doublon, detach, guard, listing.
+  - Tous les tests lease existants conservés. 564/564 tests passent sur la suite complète.
+
+### Hors périmètre / reporté
+
+- `reference_number` additionnel, `guarantor-documents` upload media-library : hors delta. Les documents garants passent par `DocumentController` polymorphique existant.
+- Relances (`LeasePaymentReminderJob`) et révision annuelle : déjà en place / P2 respectivement.
+- Signature électronique, espace locataire : P3 futur.

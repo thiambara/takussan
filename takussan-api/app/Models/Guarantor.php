@@ -6,6 +6,7 @@ use App\Models\Bases\AbstractModel;
 use App\Models\Enums\IdType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -35,6 +36,13 @@ class Guarantor extends AbstractModel
     public function leases(): HasMany
     {
         return $this->hasMany(Lease::class);
+    }
+
+    public function leasesPivot(): BelongsToMany
+    {
+        return $this->belongsToMany(Lease::class, 'lease_guarantor')
+            ->withPivot(['role'])
+            ->withTimestamps();
     }
 
     public function documents(): MorphMany
