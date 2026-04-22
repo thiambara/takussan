@@ -35,6 +35,13 @@ use Illuminate\Validation\Rule;
 
 class PublicPropertyController extends Controller
 {
+    /**
+     * Maximum number of features returned by the /public/properties/map endpoint.
+     * Caps payload size for wide viewports; clients should tighten bounds or
+     * apply filters when truncated.
+     */
+    public const MAP_MAX_RESULTS = 500;
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $properties = Property::query()
@@ -245,11 +252,22 @@ class PublicPropertyController extends Controller
             $query->where('price', '<=', $validated['price_max']);
         }
 
-        $features = PropertyMapGeoJsonResource::collection($query->get());
+        $properties = $query->limit(self::MAP_MAX_RESULTS + 1)->get();
+        $truncated = $properties->count() > self::MAP_MAX_RESULTS;
+        if ($truncated) {
+            $properties = $properties->take(self::MAP_MAX_RESULTS);
+        }
+
+        $features = PropertyMapGeoJsonResource::collection($properties);
 
         return $this->json([
             'type' => 'FeatureCollection',
             'features' => $features->toArray($request),
+            'meta' => [
+                'limit' => self::MAP_MAX_RESULTS,
+                'returned' => $properties->count(),
+                'truncated' => $truncated,
+            ],
         ]);
     }
 

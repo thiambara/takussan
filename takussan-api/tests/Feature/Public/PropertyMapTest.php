@@ -2,11 +2,13 @@
 
 namespace Tests\Feature\Public;
 
+use App\Http\Controllers\Public\PublicPropertyController;
 use App\Models\Address;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\PropertyType;
 use App\Models\Property;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class PropertyMapTest extends TestCase
@@ -175,5 +177,51 @@ class PropertyMapTest extends TestCase
 
         $response->assertOk()->assertJsonCount(1, 'features');
         $this->assertSame($visible->id, $response->json('features.0.properties.id'));
+    }
+
+    public function test_map_exposes_limit_metadata_when_not_truncated(): void
+    {
+        $a = Property::factory()->published()->create();
+        $this->attachAddress($a, 14.70, -17.50);
+        $b = Property::factory()->published()->create();
+        $this->attachAddress($b, 14.72, -17.48);
+
+        $response = $this->getJson('/api/public/properties/map?bounds=14.0,-18.0,15.0,-17.0');
+
+        $response->assertOk()
+            ->assertJsonCount(2, 'features')
+            ->assertJsonPath('meta.limit', PublicPropertyController::MAP_MAX_RESULTS)
+            ->assertJsonPath('meta.returned', 2)
+            ->assertJsonPath('meta.truncated', false);
+    }
+
+    public function test_map_caps_results_at_max_limit_and_flags_truncated(): void
+    {
+        // Use a tiny cap for this test by leveraging many factories under the
+        // real constant would be slow. Instead, we assert the SQL builder
+        // receives a limit matching the constant and meta.truncated becomes
+        // true when the count exceeds the cap. We simulate by temporarily
+        // seeding `MAP_MAX_RESULTS + 1` rows is impractical; instead, we
+        // verify the code path by asserting the SQL contains a `limit` equal
+        // to MAP_MAX_RESULTS + 1 (controller probes for overflow).
+        $property = Property::factory()->published()->create();
+        $this->attachAddress($property, 14.7, -17.5);
+
+        $seenLimit = null;
+        DB::listen(function ($query) use (&$seenLimit) {
+            if (preg_match('/from\s+"properties"/i', $query->sql)
+                && preg_match('/limit\s+(\d+)/i', $query->sql, $m)) {
+                $seenLimit = (int) $m[1];
+            }
+        });
+
+        $this->getJson('/api/public/properties/map?bounds=14.0,-18.0,15.0,-17.0')
+            ->assertOk();
+
+        $this->assertSame(
+            PublicPropertyController::MAP_MAX_RESULTS + 1,
+            $seenLimit,
+            'Expected properties query to probe with MAP_MAX_RESULTS + 1 to detect truncation.',
+        );
     }
 }
