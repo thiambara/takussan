@@ -1,7 +1,7 @@
 ---
 id: TCK-015
 title: Agence & équipe
-status: todo
+status: review
 phase: P0
 family: applicatif
 estimate: M
@@ -66,4 +66,11 @@ Implémenter la création et configuration d'agences, la gestion des agents et l
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Vague 2 — groupe B-IDENTITY (backend, 2026-04-22)** — livre la partie API du P0 manquant et du P1 stats :
+
+- `AgencyMemberRoleController::update` (PUT `/api/agencies/{agency}/members/{user}/role`) : controller dédié, scope agence, refuse un user hors agence (422), bloque l'attribution de `super_admin` hors super_admin (403), utilise `syncRoles` (remplace les rôles précédents) et `findOrCreate($name, 'web')` pour éviter la fragmentation par guard.
+- Alias routes `/api/agencies/{agency}/members` (POST/DELETE) sur `AgencyController@addAgent/removeAgent` — la voie canonique TCK-015 sans casser les appels existants sous `/agents`.
+- `AgencyStatsController::show` (GET `/api/agencies/{agency}/stats`) : `properties_count`, `members_count`, `customers_count`, `active_leases_count`, `commission_month` (somme des `commission_amount` sur les leases signés dans le mois courant, fallback `created_at` si `signed_at` est null). Aucune mise en cache (MVP).
+- Tests feature : `AgencyRoleAssignmentTest` (10 cas) + `AgencyStatsTest` (5 cas). Totalité de la suite verte (660 passed).
+
+Pages Next.js et tests frontend restent à livrer par un autre groupe.

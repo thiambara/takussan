@@ -17,12 +17,15 @@ class LeasePaymentService
      */
     public function create(Lease $lease, User $user, array $data): LeasePayment
     {
+        // Preserve caller-provided status when explicit; default to pending.
+        $status = $data['status'] ?? PaymentStatus::Pending->value;
+
         return $lease->payments()->create(array_merge($data, [
             'reference_number' => ReferenceNumberGenerator::leasePayment(),
             'payer_id' => $lease->tenant_id,
             'collector_id' => $user->id,
             'currency' => $lease->currency?->value ?? 'XOF',
-            'status' => PaymentStatus::Pending->value,
+            'status' => $status instanceof PaymentStatus ? $status->value : $status,
         ]));
     }
 

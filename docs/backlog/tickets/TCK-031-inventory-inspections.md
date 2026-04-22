@@ -1,7 +1,7 @@
 ---
 id: TCK-031
 title: État des lieux & inventaires
-status: todo
+status: review
 phase: P1
 family: applicatif
 estimate: M
@@ -61,4 +61,53 @@ Implémenter la création et gestion d'inventaires d'entrée et de sortie avec p
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Schéma de colonnes (divergence ticket ↔ spec)
+
+Le ticket listait `type` (check_in/check_out) et `items` (JSON). La spec **`models-spec.md` §24** (source de vérité) utilise :
+
+- `type` → valeurs `move_in` / `move_out` (enum `InventoryType`)
+- `items` → **colonne `rooms`** (JSON) — les noms divergent mais la sémantique est identique
+- `conducted_by_id` → `conducted_by` (FK users, sans suffixe `_id`)
+- `tenant_signature_at` / `landlord_signature_at` → `tenant_signed_at` / `owner_signed_at` (déjà implémentés — voir workflow submit → sign dans InventoryService)
+
+Aucune migration additive nécessaire : le schéma existant couvre tous les besoins.
+
+### Schéma JSON `rooms` (étendu)
+
+Pour répondre au critère "chaque élément d'une pièce a un état (bon, usé, endommagé, manquant)", le schéma `rooms` accepte désormais un sous-tableau optionnel `elements` par pièce :
+
+```json
+[
+  {
+    "name": "Salon",
+    "condition": "good",
+    "notes": "optionnel",
+    "elements": [
+      {"label": "Canapé", "state": "bon"|"usé"|"endommagé"|"manquant", "notes": "optionnel"}
+    ]
+  }
+]
+```
+
+Validé via `App\Http\Requests\InventoryStoreRequest` et `InventoryUpdateRequest` — règles imbriquées sur `rooms.*.elements.*.label` et `rooms.*.elements.*.state`. Les états autorisés sont exposés via la constante `InventoryStoreRequest::ELEMENT_STATES`.
+
+Rétrocompatible : une pièce sans `elements` reste valide (comportement existant préservé).
+
+### Endpoints livrés
+
+- `POST /api/inventories` — contrôleur passe au FormRequest (`InventoryStoreRequest`)
+- `PUT/PATCH /api/inventories/{id}` — idem via `InventoryUpdateRequest`; reste réservé aux inventaires `draft`
+- `GET /api/properties/{property}/inventories` — liste par bien (spatie : filtres sur `type`, `status`, etc. ; tri défaut `-conducted_at`)
+- Le reste (`show`, `submit`, `sign`, `dispute`, `uploadRoomPhotos`) inchangé.
+
+### Signatures (P2 pré-livré)
+
+Les colonnes `tenant_signed_at` / `owner_signed_at` et le workflow `POST /api/inventories/{id}/sign` étaient déjà livrés par un ticket antérieur. Rien à ajouter.
+
+### Hors périmètre confirmé
+
+- Export PDF (dompdf/snappy non installé) → P2 futur
+- Comparaison auto entrée/sortie (diff rooms) → P3 futur
+- Frontend Next.js → Vague 3
+
+Voir PR feat/wave2-back-ops.

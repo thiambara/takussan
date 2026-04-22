@@ -56,7 +56,7 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('photos');
-        $this->addMediaCollection('resolution_photos');
+        $this->addMediaCollection('completion_photos');
     }
 
     public function property(): BelongsTo

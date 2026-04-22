@@ -49,6 +49,38 @@ class Invoice extends AbstractModel
         'subtotal', 'tax_amount', 'total_amount', 'currency', 'created_at', 'updated_at',
     ];
 
+    protected static function booted(): void
+    {
+        static::updating(function (self $invoice): void {
+            if (! $invoice->isDirty('status')) {
+                return;
+            }
+
+            $original = $invoice->getOriginal('status');
+            $originalEnum = $original instanceof InvoiceStatus
+                ? $original
+                : (is_string($original) ? InvoiceStatus::tryFrom($original) : null);
+
+            $newEnum = $invoice->status instanceof InvoiceStatus
+                ? $invoice->status
+                : (is_string($invoice->status) ? InvoiceStatus::tryFrom($invoice->status) : null);
+
+            if ($originalEnum === null || $newEnum === null) {
+                return;
+            }
+
+            // An invoice that has been paid cannot revert to draft/sent/overdue.
+            $open = [InvoiceStatus::Draft, InvoiceStatus::Sent, InvoiceStatus::Overdue];
+            if ($originalEnum === InvoiceStatus::Paid && in_array($newEnum, $open, true)) {
+                abort(422, sprintf(
+                    'Invalid invoice status transition: %s → %s.',
+                    $originalEnum->value,
+                    $newEnum->value,
+                ));
+            }
+        });
+    }
+
     public function invoiceable(): MorphTo
     {
         return $this->morphTo();
