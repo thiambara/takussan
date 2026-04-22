@@ -161,4 +161,19 @@ class PropertyMapTest extends TestCase
 
         $response->assertOk()->assertJsonCount(0, 'features');
     }
+
+    public function test_map_excludes_soft_deleted_properties(): void
+    {
+        $visible = Property::factory()->published()->create();
+        $this->attachAddress($visible, 14.7, -17.5);
+
+        $trashed = Property::factory()->published()->create();
+        $this->attachAddress($trashed, 14.72, -17.48);
+        $trashed->delete();
+
+        $response = $this->getJson('/api/public/properties/map?bounds=14.0,-18.0,15.0,-17.0');
+
+        $response->assertOk()->assertJsonCount(1, 'features');
+        $this->assertSame($visible->id, $response->json('features.0.properties.id'));
+    }
 }

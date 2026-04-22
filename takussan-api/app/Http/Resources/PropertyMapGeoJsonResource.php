@@ -15,9 +15,7 @@ class PropertyMapGeoJsonResource extends JsonResource
 
     public function toArray(Request $request): array
     {
-        $address = $this->resource->relationLoaded('address')
-            ? $this->resource->address
-            : $this->resource->address;
+        $address = $this->resource->address;
 
         $lat = $address?->latitude !== null ? (float) $address->latitude : null;
         $lng = $address?->longitude !== null ? (float) $address->longitude : null;
