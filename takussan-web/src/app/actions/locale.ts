@@ -2,6 +2,8 @@
 
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
+import { apiRequest } from '@/lib/api';
+import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import {
   LOCALE_COOKIE_MAX_AGE,
   LOCALE_COOKIE_NAME,
@@ -12,6 +14,11 @@ import {
 /**
  * Persist the user's locale choice in the `NEXT_LOCALE` cookie and revalidate
  * the current page so the next render uses the new messages.
+ *
+ * TCK-017: when the visitor is authenticated, also best-effort PATCH
+ * `/api/users/me` so the preference follows the user across devices.
+ * Anonymous visitors rely on the cookie only; any network/endpoint failure
+ * is swallowed — the cookie already satisfies the UX.
  */
 export async function setLocaleAction(locale: Locale): Promise<void> {
   if (!isLocale(locale)) {
@@ -24,6 +31,19 @@ export async function setLocaleAction(locale: Locale): Promise<void> {
     path: '/',
     sameSite: 'lax',
   });
+
+  const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
+  if (token) {
+    try {
+      await apiRequest('/api/users/me', {
+        method: 'PATCH',
+        token,
+        body: { preferred_language: locale },
+      });
+    } catch {
+      // Endpoint may not be live yet, or user lost auth — cookie still wins.
+    }
+  }
 
   revalidatePath('/', 'layout');
 }
