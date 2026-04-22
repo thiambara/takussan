@@ -16,6 +16,9 @@ use App\Observers\PropertyObserver;
 use App\Observers\PropertyVisitObserver;
 use App\Observers\ReviewObserver;
 use App\Policies\MediaPolicy;
+use Illuminate\Auth\Events\Registered;
+use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -41,5 +44,19 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Media::class, MediaPolicy::class);
 
         $events->listen(SocialiteWasCalled::class, 'SocialiteProviders\\Apple\\AppleExtendSocialite@handle');
+
+        // TCK-022: dispatch the email verification notification on user
+        // registration (Laravel no longer auto-registers this in the
+        // "modern" bootstrap structure).
+        $events->listen(Registered::class, SendEmailVerificationNotification::class);
+
+        // TCK-022: build the password reset URL against the configured
+        // frontend URL — avoids depending on a named route defined in
+        // another host (`password.reset`).
+        ResetPassword::createUrlUsing(function (object $notifiable, string $token): string {
+            $frontend = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/');
+
+            return $frontend.'/reset-password?token='.$token.'&email='.urlencode($notifiable->getEmailForPasswordReset());
+        });
     }
 }

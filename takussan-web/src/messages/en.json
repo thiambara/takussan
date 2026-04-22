@@ -1,0 +1,93 @@
+{
+  "common": {
+    "appName": "Takussan",
+    "tagline": "Real estate in Senegal",
+    "actions": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "edit": "Edit",
+      "confirm": "Confirm",
+      "close": "Close",
+      "search": "Search",
+      "filter": "Filter",
+      "viewMore": "View more",
+      "loadMore": "Load more",
+      "retry": "Retry"
+    },
+    "status": {
+      "loading": "Loading…",
+      "empty": "No results",
+      "error": "An error occurred"
+    },
+    "navigation": {
+      "home": "Home",
+      "properties": "Properties",
+      "favorites": "Favorites",
+      "messages": "Messages",
+      "dashboard": "Dashboard",
+      "profile": "Profile",
+      "settings": "Settings"
+    },
+    "languageSwitcher": {
+      "label": "Language",
+      "current": "Current language: {locale}"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Log in",
+      "submit": "Log in",
+      "email": "Email address",
+      "password": "Password",
+      "forgotPassword": "Forgot password?",
+      "noAccount": "Don't have an account?",
+      "register": "Create account"
+    },
+    "register": {
+      "title": "Create account",
+      "submit": "Sign up",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "passwordConfirmation": "Confirm password",
+      "hasAccount": "Already have an account?"
+    },
+    "logout": "Log out",
+    "sessionExpired": "Your session has expired. Please log in again."
+  },
+  "property": {
+    "list": {
+      "title": "Available properties",
+      "empty": "No property matches your criteria."
+    },
+    "fields": {
+      "price": "Price",
+      "surface": "Surface",
+      "rooms": "Rooms",
+      "bedrooms": "Bedrooms",
+      "bathrooms": "Bathrooms",
+      "address": "Address",
+      "description": "Description"
+    },
+    "status": {
+      "available": "Available",
+      "rented": "Rented",
+      "sold": "Sold",
+      "pending": "Pending"
+    }
+  },
+  "dashboard": {
+    "welcome": "Hello, {name}",
+    "overview": "Overview",
+    "myProperties": "My properties",
+    "myBookings": "My bookings",
+    "myLeases": "My leases"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "network": "Cannot reach the server.",
+    "unauthorized": "You are not allowed to perform this action.",
+    "notFound": "Resource not found.",
+    "validation": "Some fields are invalid."
+  }
+}

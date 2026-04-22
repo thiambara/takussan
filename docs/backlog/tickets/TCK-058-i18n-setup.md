@@ -1,12 +1,12 @@
 ---
 id: TCK-058
 title: "i18n Setup (FR/EN/WO)"
-status: todo
+status: review
 phase: P0
 family: front
 estimate: S
 created: 2026-04-16
-updated: 2026-04-16
+updated: 2026-04-22
 depends_on: [TCK-054]
 blocks: [TCK-038, TCK-017]
 spec_refs:
@@ -63,3 +63,11 @@ L'application est disponible en français, anglais et wolof, et l'utilisateur pe
 - Traduction automatique des contenus utilisateurs (→ P3)
 - Devise configurable (→ P2)
 - Backend i18n (→ TCK-017)
+
+## Notes d'implémentation
+
+- **Routing strategy**: cookie-based (`NEXT_LOCALE`), not URL-prefixed. Preserves the existing route tree (`/auth/*`, `/app/*`, `/admin/*`, public `/properties/*`) — URL-prefix would have required mass-renaming every route.
+- **Wolof fallback**: implemented in `src/i18n/request.ts` via a recursive `mergeMessages()` (fr as base + wo overrides) rather than relying on next-intl runtime fallback, which resolves missing keys only per-namespace. This keeps fallback transparent to `useTranslations()` callers.
+- **Locale resolution order**: cookie → `Accept-Language` header → `fr` default.
+- **Accept-Language → backend**: `apiRequest()` now accepts an optional `locale` that sets the `Accept-Language` header; callers in server components can pass `await getLocale()` from `next-intl/server`.
+- Commit SHA: `b8ab2fb`.

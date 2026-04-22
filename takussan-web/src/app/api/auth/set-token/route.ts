@@ -7,9 +7,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const { token } = await request.json();
   const response = NextResponse.json({ ok: true });
 
-  // Debug: Log token presence (not the actual token for security)
-  console.log('[set-token] Token received:', token ? 'yes' : 'no');
-
   if (!token) {
     response.cookies.delete(AUTH_COOKIE_NAME);
     return response;
