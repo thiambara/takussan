@@ -15,7 +15,7 @@ class ConversationParticipant extends Pivot
 
     protected $fillable = [
         'conversation_id', 'user_id', 'role',
-        'last_read_at', 'is_muted', 'joined_at', 'left_at',
+        'last_read_at', 'is_muted', 'joined_at', 'left_at', 'archived_at',
     ];
 
     protected $casts = [
@@ -23,5 +23,6 @@ class ConversationParticipant extends Pivot
         'is_muted' => 'boolean',
         'joined_at' => 'datetime',
         'left_at' => 'datetime',
+        'archived_at' => 'datetime',
     ];
 }
