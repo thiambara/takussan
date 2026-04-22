@@ -14,6 +14,14 @@ class BookingPaymentService
      */
     public function create(Booking $booking, User $user, array $data): BookingPayment
     {
+        $status = (isset($data['status']) && $data['status'] !== null && $data['status'] !== '')
+            ? $data['status']
+            : PaymentStatus::Paid->value;
+        // Only stamp `paid_at` when the row is actually paid; otherwise leave
+        // it null so the payment shows as pending/partial/etc. correctly.
+        $isPaid = $status === PaymentStatus::Paid->value
+            || ($status instanceof PaymentStatus && $status === PaymentStatus::Paid);
+
         return $booking->payments()->create([
             'payer_id' => $booking->customer_id,
             'collector_id' => $user->id,
@@ -23,8 +31,8 @@ class BookingPaymentService
             'currency' => $booking->currency?->value ?? 'XOF',
             'payment_type' => $data['payment_type'],
             'payment_method' => $data['payment_method'] ?? null,
-            'status' => PaymentStatus::Paid->value,
-            'paid_at' => $data['paid_at'] ?? now(),
+            'status' => $status instanceof PaymentStatus ? $status->value : $status,
+            'paid_at' => $isPaid ? ($data['paid_at'] ?? now()) : ($data['paid_at'] ?? null),
             'transaction_id' => $data['transaction_id'] ?? null,
             'notes' => $data['notes'] ?? null,
         ]);

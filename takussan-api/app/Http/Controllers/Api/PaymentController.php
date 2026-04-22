@@ -47,6 +47,7 @@ class PaymentController extends Controller
                 'amount' => $data['amount'],
                 'payment_type' => $data['payment_type'],
                 'payment_method' => $data['payment_method'] ?? null,
+                'status' => $data['status'] ?? null,
                 'paid_at' => $data['paid_at'] ?? null,
                 'transaction_id' => $data['transaction_id'] ?? null,
                 'notes' => $data['notes'] ?? null,
@@ -65,7 +66,7 @@ class PaymentController extends Controller
         abort_unless($lease, 404, 'Lease not found.');
         $this->authorizeLeaseManage($user, $lease);
 
-        $payment = $this->leasePayments->create($lease, $user, [
+        $leaseData = [
             'amount' => $data['amount'],
             'payment_type' => $data['payment_type'],
             'payment_method' => $data['payment_method'] ?? null,
@@ -75,7 +76,12 @@ class PaymentController extends Controller
             'paid_at' => $data['paid_at'] ?? null,
             'transaction_id' => $data['transaction_id'] ?? null,
             'notes' => $data['notes'] ?? null,
-        ]);
+        ];
+        // Allow client to declare intent (e.g. paid on receipt, partially paid).
+        if (! empty($data['status'])) {
+            $leaseData['status'] = $data['status'];
+        }
+        $payment = $this->leasePayments->create($lease, $user, $leaseData);
 
         return $this->json([
             'data' => LeasePaymentResource::make($payment->refresh())->toArray($request) + [
@@ -174,18 +180,32 @@ class PaymentController extends Controller
         $page = max((int) $request->input('page', 1), 1);
         $sort = (string) $request->input('sort', '-date');
 
-        // Fetch everything matching the filters, then merge, sort, and paginate in-memory.
-        // Volume is small (per-user scoped); union-in-DB would require compatible columns.
-        $bookingRows = $bookingQuery->get()->map(fn (BookingPayment $p) => $this->bookingRow($p));
-        $leaseRows = $leaseQuery->get()->map(fn (LeasePayment $p) => $this->leaseRow($p));
+        // Hard cap to keep the merge-in-PHP strategy bounded. Beyond this the
+        // caller must narrow the filter (entity, date range, status). The
+        // `meta.truncated` flag warns that totals are computed on the capped
+        // slice only.
+        $maxRows = self::HISTORY_HARD_LIMIT;
+        $bookingCount = (clone $bookingQuery)->toBase()->getCountForPagination();
+        $leaseCount = (clone $leaseQuery)->toBase()->getCountForPagination();
+        $truncated = ($bookingCount + $leaseCount) > $maxRows;
+
+        $bookingRows = $bookingQuery->limit($maxRows)->get()
+            ->map(fn (BookingPayment $p) => $this->bookingRow($p));
+        $leaseRows = $leaseQuery->limit($maxRows)->get()
+            ->map(fn (LeasePayment $p) => $this->leaseRow($p));
 
         $merged = $bookingRows->concat($leaseRows)->values();
         $merged = $this->applySort($merged, $sort);
 
+        if ($merged->count() > $maxRows) {
+            $merged = $merged->take($maxRows)->values();
+            $truncated = true;
+        }
+
         $total = $merged->count();
         $items = $merged->slice(($page - 1) * $perPage, $perPage)->values();
 
-        // Totals across the filtered dataset (not only the current page).
+        // Totals across the (potentially truncated) filtered dataset.
         $totals = [
             'count' => $total,
             'amount' => round((float) $merged->sum('amount'), 2),
@@ -208,9 +228,13 @@ class PaymentController extends Controller
                 'last_page' => $paginator->lastPage(),
                 'per_page' => $paginator->perPage(),
                 'totals' => $totals,
+                'truncated' => $truncated,
+                'limit' => $maxRows,
             ],
         ]);
     }
+
+    protected const HISTORY_HARD_LIMIT = 5000;
 
     /**
      * @param  Builder<BookingPayment>  $bookingQuery

@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentMethod;
+use App\Models\Enums\PaymentStatus;
 use Illuminate\Validation\Rule;
 
 class PaymentStoreRequest extends BaseFormRequest
@@ -24,7 +25,8 @@ class PaymentStoreRequest extends BaseFormRequest
         $rules = [
             'payable_type' => ['required', 'string', Rule::in(['booking', 'lease'])],
             'payable_id' => ['required', 'integer', 'min:1'],
-            'amount' => ['required', 'numeric', 'min:0'],
+            'amount' => ['required', 'numeric', 'gt:0'],
+            'status' => ['nullable', Rule::enum(PaymentStatus::class)],
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
             'paid_at' => ['nullable', 'date'],
             'transaction_id' => ['nullable', 'string'],

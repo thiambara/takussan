@@ -152,6 +152,69 @@ class PaymentStatusTransitionTest extends TestCase
         $this->assertSame(PayoutStatus::Completed, $payout->fresh()->status);
     }
 
+    public function test_paid_payment_cannot_flip_to_failed(): void
+    {
+        $payment = BookingPayment::factory()->paid()->create();
+
+        $this->assertHttpException(422, function () use ($payment): void {
+            $payment->update(['status' => PaymentStatus::Failed]);
+        });
+    }
+
+    public function test_refunded_payment_cannot_flip_to_paid(): void
+    {
+        $payment = BookingPayment::factory()->paid()->create(['amount' => 50_000]);
+        $payment->update([
+            'status' => PaymentStatus::Refunded,
+            'refund_amount' => 50_000,
+        ]);
+
+        $this->assertHttpException(422, function () use ($payment): void {
+            $payment->update(['status' => PaymentStatus::Paid]);
+        });
+    }
+
+    public function test_failed_payment_can_retry_to_pending(): void
+    {
+        $payment = LeasePayment::factory()->create(['status' => PaymentStatus::Failed]);
+
+        $payment->update(['status' => PaymentStatus::Pending]);
+
+        $this->assertSame(PaymentStatus::Pending, $payment->fresh()->status);
+    }
+
+    public function test_refund_amount_cannot_exceed_payment_amount(): void
+    {
+        $payment = BookingPayment::factory()->paid()->create(['amount' => 100_000]);
+
+        $this->assertHttpException(422, function () use ($payment): void {
+            $payment->update([
+                'status' => PaymentStatus::Refunded,
+                'refund_amount' => 150_000,
+            ]);
+        });
+    }
+
+    public function test_metadata_paid_amount_must_be_non_negative_numeric(): void
+    {
+        $payment = BookingPayment::factory()->create([
+            'status' => PaymentStatus::Pending,
+            'amount' => 100_000,
+        ]);
+
+        $this->assertHttpException(422, function () use ($payment): void {
+            $payment->update(['metadata' => ['paid_amount' => -10]]);
+        });
+
+        $payment2 = BookingPayment::factory()->create([
+            'status' => PaymentStatus::Pending,
+            'amount' => 100_000,
+        ]);
+        $this->assertHttpException(422, function () use ($payment2): void {
+            $payment2->update(['metadata' => ['paid_amount' => 'not-a-number']]);
+        });
+    }
+
     public function test_booking_payment_accessors_return_expected_values(): void
     {
         $pending = BookingPayment::factory()->create([

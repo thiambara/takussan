@@ -31,8 +31,93 @@ trait HasPaymentAttributes
         ]);
     }
 
+    /**
+     * Explicit allowed transitions matrix. Any pair not listed here is rejected.
+     *
+     * Rules:
+     *   - `pending`/`partially_paid`/`late` are interchangeable open states and
+     *     can move to any terminal state (`paid`, `refunded`) or to `failed`.
+     *   - `failed` is recoverable — a retried collection can flow back to any
+     *     open state or to `paid`, but not directly to `refunded`.
+     *   - `paid` may only be refunded (no retroactive flip to failed).
+     *   - `refunded` is terminal.
+     *
+     * @var array<string, list<PaymentStatus>>
+     */
+    protected static array $allowedPaymentTransitions = [];
+
+    protected static function paymentTransitionMatrix(): array
+    {
+        if (self::$allowedPaymentTransitions !== []) {
+            return self::$allowedPaymentTransitions;
+        }
+
+        $openAndTerminals = [
+            PaymentStatus::Paid,
+            PaymentStatus::PartiallyPaid,
+            PaymentStatus::Late,
+            PaymentStatus::Failed,
+            PaymentStatus::Refunded,
+        ];
+
+        return self::$allowedPaymentTransitions = [
+            PaymentStatus::Pending->value => $openAndTerminals,
+            PaymentStatus::PartiallyPaid->value => [
+                PaymentStatus::Paid,
+                PaymentStatus::PartiallyPaid,
+                PaymentStatus::Late,
+                PaymentStatus::Failed,
+                PaymentStatus::Refunded,
+            ],
+            PaymentStatus::Late->value => [
+                PaymentStatus::Paid,
+                PaymentStatus::PartiallyPaid,
+                PaymentStatus::Late,
+                PaymentStatus::Failed,
+                PaymentStatus::Refunded,
+            ],
+            PaymentStatus::Failed->value => [
+                PaymentStatus::Pending,
+                PaymentStatus::Paid,
+                PaymentStatus::PartiallyPaid,
+                PaymentStatus::Late,
+                PaymentStatus::Failed,
+            ],
+            PaymentStatus::Paid->value => [
+                PaymentStatus::Paid,
+                PaymentStatus::Refunded,
+            ],
+            PaymentStatus::Refunded->value => [
+                PaymentStatus::Refunded,
+            ],
+        ];
+    }
+
     public static function bootHasPaymentAttributes(): void
     {
+        static::saving(function ($payment): void {
+            // Refund amount must never exceed the total amount, regardless of
+            // the write path (service, controller, direct model update).
+            if ($payment->isDirty('refund_amount')) {
+                $refund = (float) ($payment->getAttributes()['refund_amount'] ?? 0);
+                $amount = (float) ($payment->getAttributes()['amount'] ?? 0);
+                if ($refund < 0 || $refund > $amount) {
+                    abort(422, 'Refund amount must be between 0 and the payment amount.');
+                }
+            }
+
+            // metadata.paid_amount is a monetary value — enforce non-negative numeric.
+            if ($payment->isDirty('metadata')) {
+                $metadata = $payment->metadata;
+                if (is_array($metadata) && array_key_exists('paid_amount', $metadata)) {
+                    $metaPaid = $metadata['paid_amount'];
+                    if (! is_numeric($metaPaid) || (float) $metaPaid < 0) {
+                        abort(422, 'metadata.paid_amount must be a non-negative number.');
+                    }
+                }
+            }
+        });
+
         static::updating(function ($payment): void {
             if (! $payment->isDirty('status')) {
                 return;
@@ -52,17 +137,10 @@ trait HasPaymentAttributes
                 return;
             }
 
-            // Terminal states: once a payment is paid or refunded, it cannot
-            // revert to pending/partially_paid/late.
-            $terminalOrigins = [PaymentStatus::Paid, PaymentStatus::Refunded];
-            $openTargets = [
-                PaymentStatus::Pending,
-                PaymentStatus::PartiallyPaid,
-                PaymentStatus::Late,
-            ];
+            $matrix = self::paymentTransitionMatrix();
+            $allowed = $matrix[$originalEnum->value] ?? [];
 
-            if (in_array($originalEnum, $terminalOrigins, true)
-                && in_array($newEnum, $openTargets, true)) {
+            if (! in_array($newEnum, $allowed, true)) {
                 abort(422, sprintf(
                     'Invalid payment status transition: %s → %s.',
                     $originalEnum->value,
@@ -136,8 +214,12 @@ trait HasPaymentAttributes
                 ? ($this->metadata['paid_amount'] ?? 0)
                 : 0);
 
+            // Allow overpayment to surface honestly (no silent clamp): partial
+            // payments at the collector, tips, rounding, currency fees can all
+            // cause `metadata.paid_amount > amount` legitimately. `remaining_amount`
+            // still floors at 0 so UIs don't go negative.
             if ($status === PaymentStatus::Paid) {
-                return $metaPaid > 0 ? min($metaPaid, $amount) : $amount;
+                return $metaPaid > 0 ? $metaPaid : $amount;
             }
 
             if ($status === PaymentStatus::Refunded) {
@@ -146,7 +228,7 @@ trait HasPaymentAttributes
                 return max(0.0, $amount - $refund);
             }
 
-            return max(0.0, min($metaPaid, $amount));
+            return max(0.0, $metaPaid);
         });
     }
 
