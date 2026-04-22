@@ -140,6 +140,34 @@ class ActivityLogEndpointTest extends TestCase
         }
     }
 
+    public function test_filter_by_date_only_boundary_covers_full_day(): void
+    {
+        $this->actingAsAdmin();
+
+        // Seed an Activity at noon on a deterministic target date. Without the
+        // boundary-normalization fix, passing the same date-only string as
+        // `filter[date_to]` compiles to `created_at <= YYYY-MM-DD 00:00:00`,
+        // which would silently drop every row from that day.
+        $target = now()->startOfMonth()->addDays(15)->setTime(12, 0, 0);
+        $seeded = Activity::create([
+            'log_name' => 'default',
+            'description' => 'updated',
+            'event' => 'updated',
+            'subject_type' => User::class,
+            'subject_id' => 1,
+            'created_at' => $target,
+            'updated_at' => $target,
+        ]);
+
+        $dateOnly = $target->toDateString();
+
+        $response = $this->getJson("/api/activity-log?filter[date_from]={$dateOnly}&filter[date_to]={$dateOnly}")
+            ->assertOk();
+
+        $ids = array_column($response->json('data'), 'id');
+        $this->assertContains($seeded->id, $ids);
+    }
+
     public function test_filter_by_event_via_spatie_nested_syntax(): void
     {
         $this->actingAsAdmin();
