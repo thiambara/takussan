@@ -35,7 +35,7 @@ class AppServiceProvider extends ServiceProvider
         Lease::observe(LeaseObserver::class);
         PropertyVisit::observe(PropertyVisitObserver::class);
 
-        Gate::before(fn (User $user) => $user->hasRole('super_admin') ? true : null);
+        Gate::before(fn (?User $user) => $user?->hasRole('super_admin') ? true : null);
 
         // Spatie Media lives outside App\Models so auto-discovery misses it.
         Gate::policy(Media::class, MediaPolicy::class);
