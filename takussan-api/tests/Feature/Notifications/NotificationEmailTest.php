@@ -11,6 +11,7 @@ use App\Notifications\NewBookingNotification;
 use App\Notifications\RegistrationConfirmationNotification;
 use App\Notifications\ResetPasswordNotification;
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
@@ -125,6 +126,23 @@ class NotificationEmailTest extends TestCase
                 && in_array('database', $channels)
                 && ! in_array('broadcast', $channels);
         });
+    }
+
+    public function test_user_implements_has_locale_preference_for_queued_notifications(): void
+    {
+        // Regression: queued notifications run on a worker where app locale
+        // defaults to config value. Laravel only swaps to the user's locale
+        // for recipients implementing HasLocalePreference::preferredLocale().
+        // Without it, emails go out in the default locale regardless of
+        // `preferred_language` — breaking TCK-022 AC.
+        $user = User::factory()->create(['preferred_language' => 'fr']);
+
+        $this->assertInstanceOf(
+            HasLocalePreference::class,
+            $user,
+            'User must implement HasLocalePreference so queued notifications pick up preferred_language.',
+        );
+        $this->assertSame('fr', $user->preferredLocale());
     }
 
     public function test_new_booking_notification_payload_includes_reference(): void
