@@ -17,6 +17,7 @@ return [
     'cannot_block_self' => 'Vous ne pouvez pas bloquer votre propre compte.',
     'cannot_delete_self' => 'Vous ne pouvez pas supprimer votre propre compte via cette route.',
     'collaborator_already_exists' => 'Ce collaborateur est déjà ajouté à ce bien.',
+    'only_super_admin_can_grant_super_admin' => 'Seul un super administrateur peut attribuer le rôle super_admin.',
 
     // Lease
     'lease_cannot_terminate' => 'Seuls les baux actifs ou en attente de signature peuvent être résiliés.',

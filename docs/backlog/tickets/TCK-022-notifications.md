@@ -1,7 +1,7 @@
 ---
 id: TCK-022
 title: Notifications
-status: todo
+status: review
 phase: P0
 family: applicatif
 estimate: M
@@ -70,4 +70,49 @@ Implémenter le système complet de notifications : centre in-app, emails transa
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Résidu implémenté (wave1 back-user)
+
+Delta restant sur le périmètre back couvert ici — le feed in-app, les endpoints `GET/PUT /api/notifications` et le marquage comme lu existent déjà (cf. `NotificationController`, `NotificationService`, `AppNotification`). Ce commit ajoute les classes `Notification` dédiées, les templates localisés, la config broadcasting et le digest quotidien.
+
+### Fichiers créés
+
+- `app/Notifications/RegistrationConfirmationNotification.php` — étend `Illuminate\Auth\Notifications\VerifyEmail`, wording localisé via `notifications.registration.*`.
+- `app/Notifications/ResetPasswordNotification.php` — étend `Illuminate\Auth\Notifications\ResetPassword`, wording localisé via `notifications.password_reset.*`. URL reset pointant vers `config('app.frontend_url')` via `ResetPassword::createUrlUsing` (dans `AppServiceProvider::boot`).
+- `app/Notifications/NewBookingNotification.php` — `ShouldQueue`, canaux dynamiques (`mail`, `database`, `broadcast`) selon `notifications_email_enabled` / `notifications_push_enabled` de l'utilisateur. `broadcastType() = 'booking.created'`.
+- `app/Mail/DailyNotificationDigest.php` — `Mailable` (ShouldQueue) avec vue Markdown `emails.notifications.digest`, sujet et corps localisés via `$targetLocale`.
+- `app/Jobs/SendDailyNotificationDigest.php` — chunk les utilisateurs avec email activé, agrège les `AppNotification` non lues des dernières 24 h, envoie un digest par destinataire (retourne `int $sent`).
+- `config/broadcasting.php` — default `null` (env `BROADCAST_CONNECTION`), connections `reverb`, `pusher`, `ably`, `log`, `null`.
+- `routes/channels.php` — canal privé `App.Models.User.{userId}` (auth : `$user->id === $userId`).
+- `lang/{en,fr,wo}/notifications.php` — clés `salutation`, `registration.*`, `password_reset.*`, `new_booking.*`, `digest.*`.
+- `resources/views/emails/notifications/digest.blade.php` — template Markdown (`@component('mail::message')`).
+
+### Fichiers modifiés
+
+- `app/Providers/AppServiceProvider.php` — listener `Registered → SendEmailVerificationNotification`, `ResetPassword::createUrlUsing` (URL frontend).
+- `app/Models/User.php` — override `sendPasswordResetNotification()` et `sendEmailVerificationNotification()` pour utiliser nos classes localisées.
+- `bootstrap/app.php` — enregistre `routes/channels.php`.
+- `routes/console.php` — planifie `SendDailyNotificationDigest` quotidien à 18:00.
+
+### Tests ajoutés (16 nouveaux tests)
+
+- `tests/Feature/Notifications/NotificationEmailTest.php` (8 tests) — `Notification::fake()` + assertions locale FR/EN, canaux selon préférences utilisateur.
+- `tests/Feature/Notifications/NotificationBroadcastTest.php` (4 tests) — config broadcasting safe en tests, event `NewNotification` cible le canal privé utilisateur, callback d'auth.
+- `tests/Feature/Notifications/NotificationDigestTest.php` (4 tests) — `Mail::fake()` + `assertQueued`, digest envoyé uniquement aux utilisateurs éligibles, agrégation correcte.
+- `tests/Feature/Auth/AuthPasswordResetTest.php` + `AuthEmailVerificationTest.php` — imports alias pour cibler les nouvelles classes (`NotificationFake` exige un match exact).
+
+### AC vérifiés
+
+- Emails transactionnels localisés (FR/EN/WO) via `__('notifications.*', [], $user->locale)`.
+- Préférences par canal respectées (`NewBookingNotification::via()` inspecte `notifications_email_enabled`/`push_enabled`).
+- Broadcasting privé par utilisateur, safe en tests (default driver `null`).
+- Digest quotidien opérationnel (job schedulé, tests queue-based).
+
+### Hors périmètre (reste à traiter dans tickets ultérieurs)
+
+- Endpoint `PUT /api/auth/notification-preferences` (P1 — pas bloquant pour wave1).
+- Service Worker Web Push, SMS, WhatsApp, page Next.js préférences (front + P2/P3).
+
+### Résultats
+
+- `./vendor/bin/pint` : pass (clean).
+- `php artisan test` : 562 tests / 1611 assertions, tous verts.
