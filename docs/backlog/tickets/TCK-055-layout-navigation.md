@@ -1,7 +1,7 @@
 ---
 id: TCK-055
 title: "Layout System + Navigation"
-status: todo
+status: review
 phase: P0
 family: front
 estimate: M
@@ -63,3 +63,11 @@ L'application a des layouts cohérents par zone (public, auth, dashboard) et une
 
 - Contenu des pages métier (→ tickets domaine)
 - Design system composants (→ TCK-054)
+
+## Notes d'implémentation
+
+- Les pages auth existantes restent aux URL `/auth/*`. Groupées dans `src/app/(auth)/auth/` pour partager le layout du groupe (parenthèses URL-invisibles).
+- Les dashboards `/app/*` et `/admin/*` sont regroupés sous `src/app/(dashboard)/` avec un layout racine qui enforce la garde `AUTH_COOKIE_NAME` une seule fois (les layouts enfants ne dupliquent plus).
+- `Navigation` est un primitive agnostique (horizontal / vertical) — `buildDashboardNavItems` reproduit la logique existante de `AppSidebar` et reste appelable depuis header et sidebar.
+- `UserMenu` factorise le dropdown déjà présent dans `AppTopbar` (variants `dark`/`light`).
+- La `HomePage` conserve son `Navbar` métier (barre de recherche + catégories) — le `Header` générique sert les pages publiques légères.
