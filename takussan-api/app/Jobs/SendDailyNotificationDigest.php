@@ -66,8 +66,11 @@ class SendDailyNotificationDigest implements ShouldQueue
                 notifications: $notifications,
                 targetLocale: $locale,
             ));
-        } catch (\Throwable) {
-            // Mail not configured — skip silently, same pattern as NotificationService.
+        } catch (\Throwable $e) {
+            // Report the exception so it lands in logs / error tracker, but
+            // don't rethrow — the rest of the digest should still send for
+            // other users (bad mail creds, SMTP outages, etc.).
+            report($e);
         }
     }
 }
