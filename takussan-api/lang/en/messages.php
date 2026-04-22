@@ -17,6 +17,7 @@ return [
     'cannot_block_self' => 'You cannot block your own account.',
     'cannot_delete_self' => 'You cannot delete your own account via this route.',
     'collaborator_already_exists' => 'This collaborator is already added to this property.',
+    'only_super_admin_can_grant_super_admin' => 'Only a super admin can grant the super_admin role.',
 
     // Lease
     'lease_cannot_terminate' => 'Only active or pending-signature leases can be terminated.',
