@@ -21,6 +21,12 @@ type RequestOptions = {
   token?: string;
   headers?: Record<string, string>;
   formData?: boolean;
+  /**
+   * Locale to forward to the backend via `Accept-Language` for localized
+   * responses (error messages, mail templates, etc.). Optional — the backend
+   * falls back to its default when absent.
+   */
+  locale?: string;
 };
 
 export class ApiError extends Error {
@@ -34,7 +40,7 @@ export class ApiError extends Error {
 
 export async function apiRequest<T>(
   path: string,
-  { method = 'GET', body, token, headers = {}, formData = false }: RequestOptions = {},
+  { method = 'GET', body, token, headers = {}, formData = false, locale }: RequestOptions = {},
 ): Promise<T> {
   const requestHeaders: Record<string, string> = {
     Accept: 'application/json',
@@ -47,6 +53,10 @@ export async function apiRequest<T>(
 
   if (token) {
     requestHeaders['Authorization'] = `Bearer ${token}`;
+  }
+
+  if (locale && !requestHeaders['Accept-Language']) {
+    requestHeaders['Accept-Language'] = locale;
   }
 
   const response = await fetch(`${API_URL}${path}`, {

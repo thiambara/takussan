@@ -1,0 +1,42 @@
+{
+  "common": {
+    "appName": "Takussan",
+    "tagline": "Kër yu Senegaal",
+    "actions": {
+      "save": "Denc",
+      "cancel": "Bàyyi",
+      "confirm": "Dëgglu",
+      "close": "Tëj",
+      "search": "Seet",
+      "retry": "Jéemat"
+    },
+    "status": {
+      "loading": "Yëngu…",
+      "empty": "Amul dara"
+    },
+    "navigation": {
+      "home": "Kër",
+      "properties": "Kër yi",
+      "favorites": "Yi ma bëgg",
+      "messages": "Bataaxal",
+      "dashboard": "Taablo",
+      "profile": "Sama profil"
+    },
+    "languageSwitcher": {
+      "label": "Làkk"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Dugg",
+      "submit": "Dugg",
+      "email": "Email",
+      "password": "Baatu-jub"
+    },
+    "logout": "Génn"
+  },
+  "errors": {
+    "generic": "Am na jafe-jafe. Jéemat.",
+    "unauthorized": "Dara tëj nga."
+  }
+}

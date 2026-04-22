@@ -1,9 +1,12 @@
 import type { Metadata } from 'next';
 import { Geist, Manrope, Inter } from 'next/font/google';
 import { cookies } from 'next/headers';
+import { NextIntlClientProvider } from 'next-intl';
+import { getLocale, getMessages } from 'next-intl/server';
 import { getMe } from '@/lib/auth';
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { AuthProvider } from '@/context/AuthContext';
+import { TIMEZONE } from '@/i18n/config';
 import './globals.css';
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist' });
@@ -28,12 +31,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     }
   }
 
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
-    <html lang="fr" className={`${geist.variable} ${manrope.variable} ${inter.variable}`}>
+    <html lang={locale} className={`${geist.variable} ${manrope.variable} ${inter.variable}`}>
       <body className="font-sans antialiased">
-        <AuthProvider initialUser={initialUser}>
-          {children}
-        </AuthProvider>
+        <NextIntlClientProvider locale={locale} messages={messages} timeZone={TIMEZONE}>
+          <AuthProvider initialUser={initialUser}>
+            {children}
+          </AuthProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

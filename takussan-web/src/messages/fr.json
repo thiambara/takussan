@@ -1,0 +1,93 @@
+{
+  "common": {
+    "appName": "Takussan",
+    "tagline": "Immobilier au Sénégal",
+    "actions": {
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "delete": "Supprimer",
+      "edit": "Modifier",
+      "confirm": "Confirmer",
+      "close": "Fermer",
+      "search": "Rechercher",
+      "filter": "Filtrer",
+      "viewMore": "Voir plus",
+      "loadMore": "Charger plus",
+      "retry": "Réessayer"
+    },
+    "status": {
+      "loading": "Chargement…",
+      "empty": "Aucun résultat",
+      "error": "Une erreur est survenue"
+    },
+    "navigation": {
+      "home": "Accueil",
+      "properties": "Biens",
+      "favorites": "Favoris",
+      "messages": "Messages",
+      "dashboard": "Tableau de bord",
+      "profile": "Profil",
+      "settings": "Paramètres"
+    },
+    "languageSwitcher": {
+      "label": "Langue",
+      "current": "Langue actuelle : {locale}"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Connexion",
+      "submit": "Se connecter",
+      "email": "Adresse e-mail",
+      "password": "Mot de passe",
+      "forgotPassword": "Mot de passe oublié ?",
+      "noAccount": "Pas encore de compte ?",
+      "register": "Créer un compte"
+    },
+    "register": {
+      "title": "Créer un compte",
+      "submit": "S'inscrire",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "passwordConfirmation": "Confirmer le mot de passe",
+      "hasAccount": "Déjà un compte ?"
+    },
+    "logout": "Se déconnecter",
+    "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter."
+  },
+  "property": {
+    "list": {
+      "title": "Biens disponibles",
+      "empty": "Aucun bien ne correspond à vos critères."
+    },
+    "fields": {
+      "price": "Prix",
+      "surface": "Surface",
+      "rooms": "Pièces",
+      "bedrooms": "Chambres",
+      "bathrooms": "Salles de bain",
+      "address": "Adresse",
+      "description": "Description"
+    },
+    "status": {
+      "available": "Disponible",
+      "rented": "Loué",
+      "sold": "Vendu",
+      "pending": "En attente"
+    }
+  },
+  "dashboard": {
+    "welcome": "Bonjour, {name}",
+    "overview": "Vue d'ensemble",
+    "myProperties": "Mes biens",
+    "myBookings": "Mes réservations",
+    "myLeases": "Mes baux"
+  },
+  "errors": {
+    "generic": "Une erreur est survenue. Veuillez réessayer.",
+    "network": "Impossible de joindre le serveur.",
+    "unauthorized": "Vous n'êtes pas autorisé à effectuer cette action.",
+    "notFound": "Ressource introuvable.",
+    "validation": "Certains champs sont invalides."
+  }
+}
