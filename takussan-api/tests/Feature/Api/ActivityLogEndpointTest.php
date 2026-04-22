@@ -1,0 +1,181 @@
+<?php
+
+namespace Tests\Feature\Api;
+
+use App\Models\Agency;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
+use Spatie\Activitylog\Models\Activity;
+use Spatie\Permission\Models\Role;
+use Tests\TestCase;
+
+/**
+ * Endpoint tests for the canonical `/api/activity-log` route (TCK-018 P1).
+ *
+ * The legacy `/api/audit-log` route is covered by `AuditLogTest` and kept
+ * green as a back-compat regression surface — this file focuses on the
+ * new route and the spatie/laravel-query-builder filters added in this
+ * ticket (`filter[causer_id]`, `filter[date_from]`, `filter[date_to]`).
+ */
+class ActivityLogEndpointTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected Agency $agency;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->agency = Agency::factory()->create();
+        Role::create(['name' => 'admin', 'team_id' => $this->agency->id]);
+        setPermissionsTeamId($this->agency->id);
+    }
+
+    private function actingAsAdmin(): User
+    {
+        $admin = User::factory()->create(['agency_id' => $this->agency->id]);
+        $admin->assignRole('admin');
+        Sanctum::actingAs($admin);
+
+        return $admin;
+    }
+
+    public function test_non_admin_is_forbidden_on_canonical_route(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/activity-log')->assertStatus(403);
+    }
+
+    public function test_canonical_route_returns_same_payload_shape_as_legacy(): void
+    {
+        $this->actingAsAdmin();
+
+        $this->getJson('/api/activity-log')
+            ->assertOk()
+            ->assertJsonStructure([
+                'data' => [
+                    '*' => [
+                        'id', 'log_name', 'event', 'description',
+                        'causer_type', 'causer_id', 'subject_type', 'subject_id',
+                    ],
+                ],
+                'meta' => ['total', 'current_page', 'last_page', 'per_page'],
+            ]);
+    }
+
+    public function test_filter_by_causer_id_via_spatie_nested_syntax(): void
+    {
+        $admin = $this->actingAsAdmin();
+        $otherUser = User::factory()->create(['agency_id' => $this->agency->id]);
+
+        // Seed two logs with distinct causers.
+        Activity::create([
+            'log_name' => 'default',
+            'description' => 'created',
+            'event' => 'created',
+            'subject_type' => User::class,
+            'subject_id' => $admin->id,
+            'causer_type' => User::class,
+            'causer_id' => $admin->id,
+        ]);
+        Activity::create([
+            'log_name' => 'default',
+            'description' => 'created',
+            'event' => 'created',
+            'subject_type' => User::class,
+            'subject_id' => $otherUser->id,
+            'causer_type' => User::class,
+            'causer_id' => $otherUser->id,
+        ]);
+
+        $response = $this->getJson('/api/activity-log?filter[causer_id]='.$otherUser->id)
+            ->assertOk();
+
+        // Every returned row must belong to the filtered causer.
+        $causerIds = array_column($response->json('data'), 'causer_id');
+        $this->assertNotEmpty($causerIds);
+        foreach ($causerIds as $id) {
+            $this->assertSame($otherUser->id, $id);
+        }
+    }
+
+    public function test_filter_by_date_range_via_spatie_nested_syntax(): void
+    {
+        $this->actingAsAdmin();
+
+        Activity::create([
+            'log_name' => 'default',
+            'description' => 'created',
+            'event' => 'created',
+            'subject_type' => User::class,
+            'subject_id' => 1,
+            'created_at' => now()->subDays(30),
+            'updated_at' => now()->subDays(30),
+        ]);
+        $recent = Activity::create([
+            'log_name' => 'default',
+            'description' => 'updated',
+            'event' => 'updated',
+            'subject_type' => User::class,
+            'subject_id' => 1,
+            'created_at' => now()->subDay(),
+            'updated_at' => now()->subDay(),
+        ]);
+
+        $from = now()->subDays(2)->toDateTimeString();
+        $to = now()->toDateTimeString();
+
+        $response = $this->getJson("/api/activity-log?filter[date_from]={$from}&filter[date_to]={$to}")
+            ->assertOk();
+
+        $ids = array_column($response->json('data'), 'id');
+        $this->assertContains($recent->id, $ids);
+        // The 30-day-old entry must not leak through the range filter.
+        foreach ($response->json('data') as $row) {
+            $this->assertGreaterThanOrEqual($from, $row['created_at']);
+        }
+    }
+
+    public function test_filter_by_event_via_spatie_nested_syntax(): void
+    {
+        $this->actingAsAdmin();
+
+        Activity::create([
+            'log_name' => 'default',
+            'description' => 'deleted',
+            'event' => 'deleted',
+            'subject_type' => User::class,
+            'subject_id' => 1,
+        ]);
+
+        $response = $this->getJson('/api/activity-log?filter[event]=deleted')
+            ->assertOk();
+
+        $events = array_column($response->json('data'), 'event');
+        $this->assertNotEmpty($events);
+        foreach ($events as $event) {
+            $this->assertSame('deleted', $event);
+        }
+    }
+
+    public function test_canonical_entity_route_returns_entity_scoped_logs(): void
+    {
+        $admin = $this->actingAsAdmin();
+
+        Activity::create([
+            'log_name' => 'default',
+            'description' => 'updated',
+            'subject_type' => User::class,
+            'subject_id' => $admin->id,
+        ]);
+
+        // Factory-created admin already has an auto `created` log + seeded one above.
+        $this->getJson("/api/activity-log/user/{$admin->id}")
+            ->assertOk()
+            ->assertJsonCount(2, 'data');
+    }
+}
