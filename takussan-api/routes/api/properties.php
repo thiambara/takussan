@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\FavoriteController;
+use App\Http\Controllers\Api\PropertyAddressController;
 use App\Http\Controllers\Api\PropertyCollaboratorController;
 use App\Http\Controllers\Api\PropertyController;
 use App\Http\Controllers\Api\PropertyMediaController;
@@ -19,6 +20,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('properties/{property}/unpublish', [PropertyController::class, 'unpublish'])->name('properties.unpublish');
     Route::post('properties/{property}/view', [PropertyController::class, 'recordView'])->name('properties.view');
     Route::get('properties/{property}/children', [PropertyController::class, 'children'])->name('properties.children');
+
+    // Address (upsert + clear)
+    Route::put('properties/{property}/address', [PropertyAddressController::class, 'upsert'])->name('properties.address.upsert');
+    Route::delete('properties/{property}/address', [PropertyAddressController::class, 'destroy'])->name('properties.address.destroy');
 
     // Media
     Route::get('properties/{property}/media', [PropertyMediaController::class, 'index'])->name('properties.media.index');

@@ -1,7 +1,7 @@
 ---
 id: TCK-035
 title: "Property — Adresse & médias"
-status: todo
+status: review
 phase: P0
 family: back
 estimate: S
@@ -58,3 +58,7 @@ Un agent peut associer une adresse géolocalisée et des photos à un bien immob
 
 - Plans, vidéos, visites virtuelles (→ P1, TCK-036)
 - Carte interactive (→ TCK-039)
+
+## Notes d'implémentation
+
+- Delta résiduel: `PUT /api/properties/{property}/address` (upsert: 201 si création, 200 si update) + `DELETE /api/properties/{property}/address` (204). Controller `PropertyAddressController` dédié — le create/update "inline" via PropertyController reste fonctionnel.
