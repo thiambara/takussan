@@ -66,4 +66,4 @@ Les routes protégées sont inaccessibles sans authentification et l'utilisateur
 - **Middleware file**: lives at `src/proxy.ts` (Next.js 16 renamed `middleware.ts` → `proxy.ts`). Matcher: `/app/:path*`, `/admin/:path*`, `/auth/:path*`. `/admin` was added alongside `/app` because the admin area is equally auth-gated.
 - **Auth helpers** (`login` / `register` / `logout`) are exposed on `AuthContext` itself rather than in a side hook — this lets pages import a single `useAuth()` and keeps the token-persistence (`/api/auth/set-token`) centralized. Existing login/OAuth pages still manually call `apiLogin` + `setUser` — that still works and is not refactored here (out of scope).
 - **`useRequireAuth`**: client-side belt-and-braces guard on top of the server-side proxy; used for post-hydration flows (modals, interactive components) that can't rely solely on the middleware.
-- Commit SHA: _pending_.
+- Commit SHA: `4b4971e`.
