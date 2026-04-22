@@ -130,34 +130,42 @@ class ConversationController extends Controller
 
         $sender = $request->user();
 
-        $message = $conversation->messages()->create([
-            'sender_id' => $sender->id,
-            'content' => $data['content'],
-            'type' => $data['type'] ?? MessageType::Text->value,
-        ]);
+        // Group the message insert, conversation pointer update, sender
+        // read-marker and participant auto-unarchive in one transaction so
+        // a mid-write failure can't leave half of them applied.
+        $message = DB::transaction(function () use ($conversation, $sender, $data) {
+            $message = $conversation->messages()->create([
+                'sender_id' => $sender->id,
+                'content' => $data['content'],
+                'type' => $data['type'] ?? MessageType::Text->value,
+            ]);
 
-        $conversation->update([
-            'last_message_id' => $message->id,
-            'last_message_preview' => mb_substr($message->content, 0, 255),
-            'last_message_at' => now(),
-        ]);
+            $conversation->update([
+                'last_message_id' => $message->id,
+                'last_message_preview' => mb_substr($message->content, 0, 255),
+                'last_message_at' => now(),
+            ]);
 
-        // Auto-mark the sender's own read pointer so the new message
-        // doesn't show up as unread on the sender's side.
-        $conversation->participants()->updateExistingPivot($sender->id, [
-            'last_read_at' => now(),
-            'archived_at' => null,
-        ]);
+            // Auto-mark the sender's own read pointer so the new message
+            // doesn't show up as unread on the sender's side.
+            $conversation->participants()->updateExistingPivot($sender->id, [
+                'last_read_at' => now(),
+                'archived_at' => null,
+            ]);
 
-        // Un-archive the conversation for other participants so a new
-        // incoming message makes the thread reappear in their list.
-        DB::table('conversation_participants')
-            ->where('conversation_id', $conversation->id)
-            ->where('user_id', '!=', $sender->id)
-            ->update(['archived_at' => null]);
+            // Un-archive the conversation for other participants so a new
+            // incoming message makes the thread reappear in their list.
+            DB::table('conversation_participants')
+                ->where('conversation_id', $conversation->id)
+                ->where('user_id', '!=', $sender->id)
+                ->update(['archived_at' => null]);
+
+            return $message;
+        });
 
         // Fire-and-forget notification so we don't block the response on
-        // mail / broadcasting I/O.
+        // mail / broadcasting I/O. Dispatched after the transaction commits
+        // so the worker is guaranteed to see the persisted message.
         NotifyNewMessageJob::dispatch($message->id);
 
         return $this->json([

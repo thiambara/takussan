@@ -118,6 +118,37 @@ class ReviewModerationWorkflowTest extends TestCase
         $this->assertSame(1, (int) $review->reported_count);
     }
 
+    public function test_report_is_deduped_per_user(): void
+    {
+        // With threshold=2, a single user hitting the endpoint twice must
+        // not count as two distinct reports — otherwise one actor could
+        // trip the auto-report transition alone.
+        config()->set('takussan.reviews.report_threshold', 2);
+
+        $review = Review::factory()->create([
+            'status' => ReviewStatus::Pending,
+            'is_approved' => false,
+        ]);
+
+        $reporter = User::factory()->create();
+        Sanctum::actingAs($reporter);
+
+        $this->postJson("/api/reviews/{$review->id}/report", ['reason' => 'spam'])->assertOk();
+        $this->postJson("/api/reviews/{$review->id}/report", ['reason' => 'spam again'])->assertOk();
+
+        $review->refresh();
+        $this->assertSame(1, (int) $review->reported_count);
+        $this->assertSame(ReviewStatus::Pending, $review->status);
+
+        // A different reporter trips the threshold.
+        Sanctum::actingAs(User::factory()->create());
+        $this->postJson("/api/reviews/{$review->id}/report", ['reason' => 'spam'])->assertOk();
+
+        $review->refresh();
+        $this->assertSame(2, (int) $review->reported_count);
+        $this->assertSame(ReviewStatus::Reported, $review->status);
+    }
+
     public function test_report_does_not_transition_rejected_review(): void
     {
         config()->set('takussan.reviews.report_threshold', 1);

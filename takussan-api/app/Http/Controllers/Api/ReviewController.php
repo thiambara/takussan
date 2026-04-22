@@ -166,10 +166,23 @@ class ReviewController extends Controller
             'reason' => ['required', 'string', 'max:500'],
         ]);
 
+        $userId = (int) $request->user()->id;
+
         $metadata = $review->metadata ?? [];
         $reports = $metadata['reports'] ?? [];
+
+        // Dedupe: each user can only count as one report against a review.
+        // Without this, a single user hitting the endpoint N times would
+        // trigger the auto-report threshold and game the moderation queue.
+        $alreadyReported = collect($reports)
+            ->contains(fn ($r) => (int) ($r['user_id'] ?? 0) === $userId);
+
+        if ($alreadyReported) {
+            return $this->json(['message' => __('messages.review_reported')]);
+        }
+
         $reports[] = [
-            'user_id' => $request->user()->id,
+            'user_id' => $userId,
             'reason' => $data['reason'],
             'reported_at' => now()->toISOString(),
         ];
