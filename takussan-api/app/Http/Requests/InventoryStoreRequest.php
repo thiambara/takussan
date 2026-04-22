@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Enums\InventoryCondition;
+use App\Models\Enums\InventoryElementState;
 use App\Models\Enums\InventoryType;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -24,6 +25,9 @@ use Illuminate\Validation\Rule;
  */
 class InventoryStoreRequest extends FormRequest
 {
+    /**
+     * @deprecated Use {@see InventoryElementState} enum instead.
+     */
     public const ELEMENT_STATES = ['bon', 'usé', 'endommagé', 'manquant'];
 
     public function authorize(): bool
@@ -40,11 +44,11 @@ class InventoryStoreRequest extends FormRequest
             'general_condition' => ['required', Rule::enum(InventoryCondition::class)],
             'rooms' => ['required', 'array', 'min:1'],
             'rooms.*.name' => ['required', 'string', 'max:255'],
-            'rooms.*.condition' => ['required', 'string'],
+            'rooms.*.condition' => ['required', Rule::enum(InventoryCondition::class)],
             'rooms.*.notes' => ['nullable', 'string'],
             'rooms.*.elements' => ['nullable', 'array'],
             'rooms.*.elements.*.label' => ['required_with:rooms.*.elements', 'string', 'max:255'],
-            'rooms.*.elements.*.state' => ['required_with:rooms.*.elements', 'string', Rule::in(self::ELEMENT_STATES)],
+            'rooms.*.elements.*.state' => ['required_with:rooms.*.elements', Rule::enum(InventoryElementState::class)],
             'rooms.*.elements.*.notes' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
         ];

@@ -185,6 +185,12 @@ class MaintenanceRequestController extends Controller
             'photos.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
         ]);
 
+        // Reject ambiguous payloads rather than silently preferring one field.
+        if (array_key_exists('cost', $data) && array_key_exists('actual_cost', $data)
+            && $data['cost'] !== null && $data['actual_cost'] !== null) {
+            abort(422, 'Provide either `cost` or `actual_cost`, not both.');
+        }
+
         $photos = $request->file('photos', []) ?? [];
         $maintenanceRequest = $this->service->complete($maintenanceRequest, $data, is_array($photos) ? $photos : []);
 
@@ -196,6 +202,13 @@ class MaintenanceRequestController extends Controller
     public function uploadPhotos(Request $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
         $this->authorizeAccess($request, $maintenanceRequest);
+
+        // Block uploads on terminal states — a closed or cancelled request
+        // should not accept new photos (prevents abuse and keeps the audit
+        // log on media consistent with the work actually performed).
+        if (in_array($maintenanceRequest->status, [MaintenanceStatus::Closed, MaintenanceStatus::Cancelled], true)) {
+            abort(422, 'Cannot upload photos to a closed or cancelled maintenance request.');
+        }
 
         $data = $request->validate([
             'photos' => ['required', 'array', 'min:1'],

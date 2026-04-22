@@ -78,6 +78,62 @@ class MaintenanceCompletionTest extends TestCase
         ])->assertForbidden();
     }
 
+    public function test_cost_and_actual_cost_together_is_rejected(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $mr = MaintenanceRequest::factory()->create([
+            'property_id' => $property->id,
+            'requester_id' => User::factory()->create()->id,
+            'status' => MaintenanceStatus::InProgress,
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->putJson("/api/maintenance-requests/{$mr->id}/complete", [
+            'cost' => 10_000,
+            'actual_cost' => 12_000,
+        ])->assertStatus(422);
+    }
+
+    public function test_cannot_upload_photos_on_cancelled_request(): void
+    {
+        Storage::fake('public');
+
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $mr = MaintenanceRequest::factory()->create([
+            'property_id' => $property->id,
+            'requester_id' => User::factory()->create()->id,
+            'status' => MaintenanceStatus::Cancelled,
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/maintenance-requests/{$mr->id}/photos", [
+            'photos' => [UploadedFile::fake()->image('x.jpg')],
+        ])->assertStatus(422);
+    }
+
+    public function test_cannot_upload_photos_on_closed_request(): void
+    {
+        Storage::fake('public');
+
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $mr = MaintenanceRequest::factory()->create([
+            'property_id' => $property->id,
+            'requester_id' => User::factory()->create()->id,
+            'status' => MaintenanceStatus::Closed,
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/maintenance-requests/{$mr->id}/photos", [
+            'photos' => [UploadedFile::fake()->image('x.jpg')],
+        ])->assertStatus(422);
+    }
+
     public function test_completion_photos_and_initial_photos_stored_in_separate_collections(): void
     {
         Storage::fake('public');

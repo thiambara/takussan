@@ -108,6 +108,24 @@ class InventoryItemsValidationTest extends TestCase
             ->assertJsonValidationErrors('rooms.0.elements.0.state');
     }
 
+    public function test_room_condition_must_match_inventory_condition_enum(): void
+    {
+        $owner = User::factory()->create();
+        $lease = $this->lease($owner);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson('/api/inventories', [
+            'lease_id' => $lease->id,
+            'type' => InventoryType::MoveIn->value,
+            'general_condition' => InventoryCondition::Good->value,
+            'rooms' => [
+                ['name' => 'Salon', 'condition' => 'pristine'], // not an enum value
+            ],
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('rooms.0.condition');
+    }
+
     public function test_valid_payload_with_all_four_states(): void
     {
         $owner = User::factory()->create();
