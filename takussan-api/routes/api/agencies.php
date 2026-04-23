@@ -18,8 +18,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Agent management (legacy aliases kept — /members is the TCK-015 canonical path).
     Route::post('agencies/{agency}/agents', [AgencyController::class, 'addAgent'])->name('agencies.agents.store');
     Route::delete('agencies/{agency}/agents/{user}', [AgencyController::class, 'removeAgent'])->name('agencies.agents.destroy');
+    Route::get('agencies/{agency}/members', [AgencyController::class, 'listMembers'])->name('agencies.members.index');
     Route::post('agencies/{agency}/members', [AgencyController::class, 'addAgent'])->name('agencies.members.store');
     Route::delete('agencies/{agency}/members/{user}', [AgencyController::class, 'removeAgent'])->name('agencies.members.destroy');
+    // PATCH alias for member role assignment — mirrors the PUT canonical route.
+    Route::patch('agencies/{agency}/members/{user}', [AgencyMemberRoleController::class, 'update'])->name('agencies.members.update');
 
     // Agency-scoped member role assignment.
     Route::put('agencies/{agency}/members/{user}/role', [AgencyMemberRoleController::class, 'update'])->name('agencies.members.role.update');

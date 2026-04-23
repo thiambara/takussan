@@ -14,6 +14,8 @@ return [
     'user_already_in_agency' => 'This user already belongs to another agency.',
     'user_not_in_agency' => 'This user is not a member of this agency.',
     'cannot_remove_primary_admin' => 'Cannot remove the primary admin of the agency.',
+    'cannot_remove_last_agency_admin' => 'Cannot remove the last agency admin of the agency.',
+    'user_not_found_by_email' => 'No active user was found for this email address.',
     'cannot_block_self' => 'You cannot block your own account.',
     'cannot_delete_self' => 'You cannot delete your own account via this route.',
     'collaborator_already_exists' => 'This collaborator is already added to this property.',

@@ -1,7 +1,7 @@
 ---
 id: TCK-065
 title: "Admin — Gestion équipe (ajout / retrait agents)"
-status: todo
+status: doing
 phase: P1
 family: front
 estimate: M
@@ -76,4 +76,16 @@ Liste d'équipe claire, à la Slack workspace members / Linear team. Ligne = mem
 
 ## Notes d'implémentation
 
-_(Rempli à l'implémentation)_
+- Backend (TCK-015 extension) :
+  - `GET /api/agencies/{id}/members` ajouté (spatie filters + sparse fieldsets + `filter[role]`).
+  - `POST /api/agencies/{id}/members` accepte désormais `email` OU `user_id`, avec `role` optionnel (`agent` | `agency_admin`).
+  - Guard backend : impossible de retirer le dernier `agency_admin` (422 + traduction FR/EN/WO).
+  - Alias `PATCH /api/agencies/{id}/members/{user}` ajouté en plus du `PUT ../role` existant.
+- Frontend :
+  - Nouvelle page `/admin/team` — gate `isAdmin` + fallback si pas d'`agency_id`.
+  - Composants : `TeamManagement`, `InviteMemberDialog` (RHF + Zod via `useApiForm`), `ConfirmRemoveDialog`.
+  - Entrée sidebar renommée `/admin/users` → `/admin/team`.
+  - Requêtes via React Query + Spatie params (`fields[users]`, `filter[role]`, `filter[search]`, `sort`).
+- Tests :
+  - Backend : 7 nouveaux tests (`AgencyMembersListTest`).
+  - Frontend : 4 nouveaux tests (`TeamManagement.test.tsx`).
