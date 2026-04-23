@@ -10,6 +10,7 @@ use App\Models\Enums\AgencyStatus;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
 
@@ -167,23 +168,28 @@ class AgencyController extends Controller
         abort_if($user->agency_id !== $agency->id, 422, __('messages.user_not_in_agency'));
         abort_if($user->id === $agency->primary_admin_id, 422, __('messages.cannot_remove_primary_admin'));
 
-        // Guard: block removing the last agency_admin of the agency so an
-        // admin doesn't accidentally lock themselves + their team out of
-        // admin-only views (UI also hides the action, but enforce server-side).
-        if ($user->hasRole('agency_admin')) {
-            $remainingAdmins = User::where('agency_id', $agency->id)
-                ->whereHas('roles', fn ($q) => $q->where('name', 'agency_admin'))
-                ->where('id', '!=', $user->id)
-                ->count();
-            abort_if($remainingAdmins === 0, 422, __('messages.cannot_remove_last_agency_admin'));
-        }
-
-        $user->update(['agency_id' => null]);
-        foreach (['agent', 'agency_admin'] as $role) {
-            if ($user->hasRole($role)) {
-                $user->removeRole($role);
+        // Race guard: wrap the last-admin check + mutation in a transaction
+        // with a row lock on the target. Without this, two concurrent DELETEs
+        // for two distinct agency_admins can both observe "one admin remains"
+        // and both succeed, leaving the agency with zero admins.
+        DB::transaction(function () use ($user, $agency) {
+            $locked = User::where('id', $user->id)->lockForUpdate()->first();
+            if ($locked && $locked->hasRole('agency_admin')) {
+                $remainingAdmins = User::where('agency_id', $agency->id)
+                    ->whereHas('roles', fn ($q) => $q->where('name', 'agency_admin'))
+                    ->where('id', '!=', $user->id)
+                    ->lockForUpdate()
+                    ->count();
+                abort_if($remainingAdmins === 0, 422, __('messages.cannot_remove_last_agency_admin'));
             }
-        }
+
+            $user->update(['agency_id' => null]);
+            foreach (['agent', 'agency_admin'] as $role) {
+                if ($user->hasRole($role)) {
+                    $user->removeRole($role);
+                }
+            }
+        });
 
         return $this->json(['data' => ['user_id' => $user->id, 'removed' => true]]);
     }

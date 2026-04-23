@@ -126,4 +126,48 @@ class AgencyMembersListTest extends TestCase
         $this->deleteJson("/api/agencies/{$agency->id}/members/{$onlyAdmin->id}")
             ->assertStatus(422);
     }
+
+    public function test_cannot_demote_last_agency_admin_via_role_endpoint(): void
+    {
+        [$admin, $agency] = $this->createAdminWithAgency();
+
+        // Sole agency_admin of the agency. Attempting to downgrade to `agent`
+        // must fail — the DELETE path already guards this; the PATCH/PUT role
+        // endpoint must apply the same invariant.
+        $onlyAdmin = User::factory()->create(['agency_id' => $agency->id]);
+        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
+        $onlyAdmin->assignRole('agency_admin');
+
+        Sanctum::actingAs($admin);
+
+        $this->patchJson("/api/agencies/{$agency->id}/members/{$onlyAdmin->id}", [
+            'role' => 'agent',
+        ])->assertStatus(422);
+
+        $this->putJson("/api/agencies/{$agency->id}/members/{$onlyAdmin->id}/role", [
+            'role' => 'agent',
+        ])->assertStatus(422);
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
+        $this->assertTrue($onlyAdmin->refresh()->hasRole('agency_admin'));
+    }
+
+    public function test_can_demote_agency_admin_when_other_admins_remain(): void
+    {
+        [$admin, $agency] = $this->createAdminWithAgency();
+
+        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
+        $adminA = User::factory()->create(['agency_id' => $agency->id]);
+        $adminA->assignRole('agency_admin');
+        $adminB = User::factory()->create(['agency_id' => $agency->id]);
+        $adminB->assignRole('agency_admin');
+
+        Sanctum::actingAs($admin);
+
+        // With two agency_admins, demoting one is allowed.
+        $this->patchJson("/api/agencies/{$agency->id}/members/{$adminA->id}", [
+            'role' => 'agent',
+        ])->assertOk();
+    }
 }

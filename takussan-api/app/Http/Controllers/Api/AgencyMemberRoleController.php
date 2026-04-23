@@ -7,6 +7,7 @@ use App\Models\Agency;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -48,17 +49,34 @@ class AgencyMemberRoleController extends Controller
             abort(403, __('messages.only_super_admin_can_grant_super_admin'));
         }
 
-        $registrar = app(PermissionRegistrar::class);
-        $teamId = $data['role'] === 'super_admin' ? null : $agency->id;
-        $registrar->setPermissionsTeamId($teamId);
+        // Last-admin invariant: if the target currently holds `agency_admin`
+        // and the new role strips it, block when no other agency_admin exists
+        // for this agency — otherwise the team loses admin-only access.
+        // Wrapped in a transaction with row locks to prevent concurrent role
+        // changes from both observing "one admin remains" and both succeeding.
+        DB::transaction(function () use ($user, $agency, $data) {
+            $locked = User::where('id', $user->id)->lockForUpdate()->first();
+            if ($data['role'] !== 'agency_admin' && $locked && $locked->hasRole('agency_admin')) {
+                $remainingAdmins = User::where('agency_id', $agency->id)
+                    ->whereHas('roles', fn ($q) => $q->where('name', 'agency_admin'))
+                    ->where('id', '!=', $user->id)
+                    ->lockForUpdate()
+                    ->count();
+                abort_if($remainingAdmins === 0, 422, __('messages.cannot_remove_last_agency_admin'));
+            }
 
-        // Ensure the role exists in the target team context under the `web`
-        // guard (matches RolesAndPermissionsSeeder) — without pinning the
-        // guard, spatie would default to the current request guard and create
-        // a ghost duplicate role row.
-        Role::findOrCreate($data['role'], 'web');
+            $registrar = app(PermissionRegistrar::class);
+            $teamId = $data['role'] === 'super_admin' ? null : $agency->id;
+            $registrar->setPermissionsTeamId($teamId);
 
-        $user->syncRoles([$data['role']]);
+            // Ensure the role exists in the target team context under the `web`
+            // guard (matches RolesAndPermissionsSeeder) — without pinning the
+            // guard, spatie would default to the current request guard and create
+            // a ghost duplicate role row.
+            Role::findOrCreate($data['role'], 'web');
+
+            $user->syncRoles([$data['role']]);
+        });
 
         return $this->json([
             'data' => [
