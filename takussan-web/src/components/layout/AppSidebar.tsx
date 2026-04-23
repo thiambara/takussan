@@ -14,6 +14,10 @@ import {
   Users,
   ShieldCheck,
   PlusCircle,
+  BarChart3,
+  Download,
+  Gauge,
+  BellRing,
   Heart,
   BookmarkCheck,
   ClipboardList,
@@ -82,6 +86,19 @@ function buildNavItems(user: User): NavItem[] {
 
   items.push({ href: '/app/messages', label: 'Messagerie', icon: MessageSquare });
   items.push({ href: '/app/documents', label: 'Documents', icon: FolderOpen });
+
+  // TCK-032 overview/stats
+  items.push({ href: '/app/overview', label: 'Statistiques', icon: BarChart3 });
+  if (isAdmin(roles) || isAgent(roles) || isOwner(roles)) {
+    // TCK-032 overview/stats — exports (P2)
+    items.push({ href: '/app/overview/exports', label: 'Exports', icon: Download });
+  }
+  if (isAdmin(roles)) {
+    // TCK-032 overview/stats — KPIs personnalisables (P3)
+    items.push({ href: '/app/overview/kpis', label: 'KPIs', icon: Gauge });
+    // TCK-032 overview/stats — alertes (P3)
+    items.push({ href: '/app/overview/alerts', label: 'Alertes', icon: BellRing });
+  }
 
   if (isAdmin(roles)) {
     items.push({ href: '/admin', label: 'Administration', icon: ShieldCheck, emphasized: true });
