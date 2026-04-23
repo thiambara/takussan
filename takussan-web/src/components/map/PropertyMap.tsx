@@ -15,7 +15,6 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatPrice } from '@/lib/utils';
 import {
-  boundsToString,
   usePropertyMapQuery,
   type MapBounds,
   type PropertyMapFeature,
@@ -132,8 +131,6 @@ export function PropertyMap({
           zoom={DEFAULT_ZOOM}
           scrollWheelZoom
           className="h-full w-full"
-          // Re-mount cleanly: see https://react-leaflet.js.org/docs/start-introduction/
-          key={boundsToString(bounds ?? { swLat: 0, swLng: 0, neLat: 0, neLng: 0 })}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
