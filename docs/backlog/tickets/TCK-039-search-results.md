@@ -1,12 +1,12 @@
 ---
 id: TCK-039
 title: "Liste résultats de recherche"
-status: todo
+status: review
 phase: P0
 family: front
 estimate: M
 created: 2026-04-15
-updated: 2026-04-22
+updated: 2026-04-23
 depends_on: [TCK-054, TCK-055, TCK-057, TCK-024]
 blocks: []
 spec_refs:
@@ -70,3 +70,17 @@ Un visiteur peut rechercher et filtrer les biens pour trouver celui qui correspo
 - Favoris (→ TCK-046/047)
 - Comparateur de biens (→ P2 futur)
 - Recherche vocale (→ P3 futur)
+
+## Notes d'implémentation (Wave 3)
+
+- Page `/properties` pilotée désormais par
+  `src/components/property/PropertiesDiscoveryPage.tsx` (Wave 3). Les
+  pièces existantes `FilterSidebar` / `SearchToolbar` / `Pagination`
+  (Wave 2) sont réutilisées ; la carte Wave 3 + bouton « Sauvegarder la
+  recherche » sont ajoutés au-dessus de la grille, avec un toggle
+  Liste / Carte.
+- Les cartes sont rendues par le `PropertyCard` canonique
+  (`src/components/property/PropertyCard.tsx`), qui intègre le bouton
+  favoris connecté à l'API (TCK-047).
+- URL-sync, tri, filtres actifs, empty state, pagination restent
+  couverts par `useSearch` — inchangé.
