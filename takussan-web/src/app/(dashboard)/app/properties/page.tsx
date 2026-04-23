@@ -1,15 +1,85 @@
-import { getMeAction } from '@/app/actions/auth';
-import { StubPlaceholder } from '@/components/shared/StubPlaceholder';
+import Link from 'next/link';
+import { forbidden } from 'next/navigation';
+import { Plus } from 'lucide-react';
 
-export default async function Page() {
-  await getMeAction();
+import { getMeAction } from '@/app/actions/auth';
+import { getToken } from '@/lib/session';
+import { fetchDashboardProperties } from '@/lib/queries/properties';
+import { isAdmin, isAgent, isOwner } from '@/lib/roles';
+import { PropertyList } from '@/components/property-dashboard/PropertyList';
+import { PropertyListFilters } from '@/components/property-dashboard/PropertyListFilters';
+import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
+
+/**
+ * TCK-041 — dashboard agent, liste des biens.
+ *
+ * Auth gate : enforced by the `(dashboard)` layout (redirects to
+ * `/auth/login`). Role gate : agents / agency_admin / super_admin / owner.
+ * Scoping by agency is handled server-side by the `PropertyPolicy` +
+ * controller query in takussan-api.
+ */
+
+export const dynamic = 'force-dynamic';
+
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+function asString(value: string | string[] | undefined): string | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value;
+}
+
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const user = await getMeAction();
+  if (!(isAgent(user.roles) || isAdmin(user.roles) || isOwner(user.roles))) {
+    forbidden();
+  }
+
+  const params = await searchParams;
+  const token = await getToken();
+  // `getMeAction` already redirects on missing token, so this is defensive.
+  if (!token) forbidden();
+
+  const page = Number.parseInt(asString(params.page) ?? '1', 10) || 1;
+  const filters = {
+    status: asString(params.status),
+    type: asString(params.type),
+    contract_type: asString(params.contract_type),
+    search: asString(params.search),
+  };
+
+  const response = await fetchDashboardProperties(token, {
+    page,
+    perPage: 20,
+    filters,
+  });
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-app-ink">Mes biens</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">Gérez votre portefeuille immobilier</p>
-      </div>
-      <StubPlaceholder label="Mes biens" />
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-app-ink">Mes biens</h1>
+          <p className="mt-1 text-sm text-app-ink-muted">
+            Gérez votre portefeuille immobilier : publication, statut, visibilité.
+          </p>
+        </div>
+        <Link
+          href="/app/properties/new"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+        >
+          <Plus className="size-4" aria-hidden="true" />
+          Publier un bien
+        </Link>
+      </header>
+
+      <PropertyListFilters />
+
+      <PropertyList page={response} />
+
+      <PropertyPagination meta={response.meta} />
     </div>
   );
 }
