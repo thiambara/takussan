@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { MediaManager, type MediaItem } from '@/components/media';
 import {
@@ -26,6 +26,12 @@ export function PropertyMediaPanel({ propertyId }: PropertyMediaPanelProps) {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Mirror of the full media-id set to diff server responses against.
+  // `items` is only set on initial mount; MediaManager owns its own grid
+  // state afterwards, so we track previously-seen ids in a ref that is
+  // updated on every successful upload. Without this, a second upload
+  // would re-emit the first batch as "new" and the grid would duplicate.
+  const knownIdsRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -36,8 +42,10 @@ export function PropertyMediaPanel({ propertyId }: PropertyMediaPanelProps) {
       if (!res.ok) {
         setError(res.message);
       } else {
+        const data = res.data ?? [];
+        knownIdsRef.current = new Set(data.map((m) => m.id));
         setItems(
-          (res.data ?? []).map((m) => ({
+          data.map((m) => ({
             id: m.id,
             thumbnail: m.thumbnail,
             preview: m.preview,
@@ -61,20 +69,21 @@ export function PropertyMediaPanel({ propertyId }: PropertyMediaPanelProps) {
       if (!res.ok) throw new Error(res.message);
       // Refresh to pick up server-assigned ids / thumbnails.
       const list = await fetchPropertyMediaAction(propertyId);
-      const prevIds = new Set(items.map((m) => m.id));
       if (!list.ok) return [];
-      const next = (list.data ?? [])
-        .filter((m) => !prevIds.has(m.id))
-        .map((m) => ({
-          id: m.id,
-          thumbnail: m.thumbnail,
-          preview: m.preview,
-          original: m.original,
-          order: m.order,
-        }));
-      return next;
+      const data = list.data ?? [];
+      const fresh = data.filter((m) => !knownIdsRef.current.has(m.id));
+      // Update the ref BEFORE returning so concurrent/rapid uploads don't
+      // re-emit the same items twice.
+      for (const m of fresh) knownIdsRef.current.add(m.id);
+      return fresh.map((m) => ({
+        id: m.id,
+        thumbnail: m.thumbnail,
+        preview: m.preview,
+        original: m.original,
+        order: m.order,
+      }));
     },
-    [items, propertyId],
+    [propertyId],
   );
 
   const handleReorder = useCallback(
@@ -89,6 +98,7 @@ export function PropertyMediaPanel({ propertyId }: PropertyMediaPanelProps) {
     async (mediaId: number) => {
       const res = await deletePropertyMediaAction(propertyId, mediaId);
       if (!res.ok) throw new Error(res.message);
+      knownIdsRef.current.delete(mediaId);
     },
     [propertyId],
   );
