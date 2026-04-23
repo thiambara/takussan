@@ -26,8 +26,8 @@ Un visiteur peut explorer les biens sur une carte interactive, un utilisateur co
 
 ### Favoris
 
-- `POST /api/properties/{property}/favorite` — ajouter
-- `DELETE /api/properties/{property}/favorite` — retirer
+- `POST /api/favorites` — corps `{ property_id }` pour ajouter
+- `DELETE /api/favorites/{property}` — retirer (ID du bien dans l'URL)
 - `GET /api/favorites` — liste paginée
 
 ### Carte interactive
@@ -38,8 +38,10 @@ Un visiteur peut explorer les biens sur une carte interactive, un utilisateur co
 ### Recherches sauvegardées
 
 - `GET /api/saved-searches` — liste de l'utilisateur
-- `POST /api/saved-searches` — créer (name, filters JSON, notify bool)
+- `POST /api/saved-searches` — créer `{ name, criteria: Record<string, unknown>, notification_frequency?: 'off'|'daily'|'weekly'|'instant' }`
 - `DELETE /api/saved-searches/{id}` — supprimer
+
+> **Note** : le contrat utilise `notification_frequency` (enum 4 valeurs) et non un booléen `notify`. Défaut `off` côté front (silencieux). L'activation réelle des alertes email/push est couverte par TCK-022 P2.
 
 ### Partage
 

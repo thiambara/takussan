@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { PropertyCard } from '@/components/home/PropertyCard';
+import { PropertyCard } from '@/components/property/PropertyCard';
 import { useSimilarProperties } from '@/hooks/useSimilarProperties';
 
 interface PropertySimilarProps {

@@ -26,7 +26,7 @@
 
 ## 📋 Todo
 
-_(vide — Vague 3 a vidé le backlog Todo)_
+_(vide — Vague 3 a vidé le backlog Todo, TCK-061 est passé en review)_
 
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
@@ -41,6 +41,11 @@ _(vide)_
 > **Vague 1** — PRs mergées sur `dev` 2026-04-22 (#24, #25, #26, #27 + sync #28). Statut reste `review` jusqu'à confirmation AC.
 > **Vague 2** — PRs mergées sur `dev` 2026-04-22 (#29, #30, #31, #32 + sync #33).
 > **Vague 3** — PRs ouvertes vers `dev` 2026-04-23 (#34, #35, #36, #37, #38) en attente de merge.
+> **TCK-061** — Cleanup & dette Vague 3 implémenté 2026-04-23 (branche `chore/tck-061-cleanup-vague3`).
+
+### Dette technique — Post-Vague 3
+
+- [TCK-061](tickets/TCK-061-cleanup-dette-vague3.md) — Cleanup & dette technique post-Vague 3 `S · P2 · technique`
 
 ### Phase 0 — Fondation Frontend — Vague 1 [PR #25](https://github.com/thiambara/takussan/pull/25) · Vague 2 [PR #32](https://github.com/thiambara/takussan/pull/32)
 
@@ -209,3 +214,4 @@ TCK-054 + TCK-056 + TCK-057 + TCK-046 + TCK-024 ──▶ TCK-047 (favorites + m
 - **2026-04-22** — Vague 1 livrée (4 agents parallèles sur worktrees) : 13 tickets passés en `review` via 4 PRs indépendantes. PR #24 (B-USER : TCK-014, 022), PR #25 (F : TCK-056, 057, 058), PR #26 (B-PROP : TCK-035, 036, 046), PR #27 (B-OPS : TCK-016, 026, 027, 029, 033). Total ~90 nouveaux tests backend + 1 PR frontend (lint/build OK, tests front reportés — scaffold sans runner). Pint clean partout.
 - **2026-04-22** — Vague 2 livrée (4 agents parallèles sur worktrees) : 7 tickets passés en `review` via 4 PRs indépendantes. PR #29 (B-IDENTITY : TCK-015 rôle membre + stats, TCK-017 SetLocale + lang fr/en/wo), PR #30 (B-PAYMENTS : TCK-028 `POST /payments`, `GET /payments/history`, guards de transitions au niveau modèle), PR #31 (B-OPS : TCK-030 completion workflow + medialibrary `completion_photos`, TCK-031 JSON schema `rooms.*.elements.*` validé), PR #32 (F : TCK-055 route groups `(public)`/`(auth)`/`(dashboard)` + Navigation/UserMenu, TCK-059 RHF+Zod + `useApiForm` + mapping 422, TCK-017 front `LanguageSwitcher` câblé + `PATCH /users/me` + Intl helpers). Backend : 669 → 677 tests verts (32 nouveaux) sans régression, Pint clean. Frontend : 22 tests Vitest + lint/build OK. Pages Next.js pour TCK-030/031 explicitement reportées Vague 3.
 - **2026-04-23** — Vague 3 livrée (5 agents parallèles sur worktrees) : 9 tickets passés en `review` via 5 PRs indépendantes ciblant `dev`. PR #34 (G-OPS : TCK-043 tunnel réservation multi-étapes, TCK-044 baux + échéancier + paiements + garants, TCK-045 messagerie chat avec polling 3s visibility-aware + pièces jointes). PR #35 (G-MAINT : TCK-030/031 frontends — dashboard maintenance + inventaires avec RoomEditor dynamique par pièce + elements.*.state). PR #36 (G-DISCOVERY : TCK-038 homepage Hero + featured/latest, TCK-039 `/properties` avec filtres URL-synced + toggle liste/carte Leaflet, TCK-047 favoris + carte interactive + partage Web Share API + recherches sauvegardées). PR #37 (G-DASHBOARD : TCK-041 dashboard agent biens CRUD + formulaire multi-section + photos, TCK-042 CRM clients pipeline + notes timeline + documents ; ancien stub `/app/crm` → redirect 308 vers `/app/customers`). PR #38 (G-REPORTING : TCK-032 full P1+P2+P3 — 4 controllers dashboard par rôle + `KpiConfig` + `ThresholdAlert` + commande scheduled hourly + notification + 8 pages `/app/overview/*` avec charts SVG homegrown, 677 → 775 tests backend verts ; composer deps ajoutées : dompdf + laravel-excel). Frontend Vitest : 22 → 199 tests verts cumulés (tous PRs additifs). Divergences spec frontend captées dans les notes des tickets (favorites route path, saved_search `notification_frequency` vs `notify`, Navbar `q=` vs `search=`). Orphelins identifiés (cleanup ticket à suivre) : `src/components/home/PropertyCard.tsx`, `src/components/properties/PropertyCard.tsx`, `src/hooks/useFavorite.ts`, `src/app/actions/property.ts#toggleFavoriteAction`.
+- **2026-04-23** — Création TCK-061 (cleanup & dette technique post-Vague 3) : consolide orphelins frontend, divergences spec/impl (saved_search `notify` vs `notification_frequency`, favoris route path, homepage search param `q=`/`city=`/`search=`), règles métier hard-codées (acompte 30 %), et bug pré-existant `DashboardController::tenantStats()` référençant `reported_by_id` inexistant.

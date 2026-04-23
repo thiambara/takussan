@@ -105,7 +105,7 @@ class DashboardController extends Controller
             'active_lease' => $customer ? Lease::where('tenant_id', $customer->id)->where('status', LeaseStatus::Active)->count() : 0,
             'pending_bookings' => $customer ? Booking::where('customer_id', $customer->id)->where('status', BookingStatus::Pending)->count() : 0,
             'overdue_payments' => $customer ? LeasePayment::where('payer_id', $customer->id)->whereIn('status', [PaymentStatus::Pending, PaymentStatus::Late])->whereDate('due_date', '<', now())->count() : 0,
-            'open_maintenance' => $customer ? MaintenanceRequest::where('reported_by_id', $userId)->whereIn('status', [MaintenanceStatus::Open, MaintenanceStatus::InProgress])->count() : 0,
+            'open_maintenance' => $customer ? MaintenanceRequest::where('requester_id', $userId)->whereIn('status', [MaintenanceStatus::Open, MaintenanceStatus::InProgress])->count() : 0,
         ];
     }
 }

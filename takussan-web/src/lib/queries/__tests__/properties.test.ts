@@ -102,6 +102,8 @@ describe('validateCustomerDocumentFile', () => {
     expect(validateCustomerDocumentFile(makeFile(1024, 'application/pdf'))).toBeNull();
     expect(validateCustomerDocumentFile(makeFile(1024, 'image/jpeg'))).toBeNull();
     expect(validateCustomerDocumentFile(makeFile(1024, 'image/png'))).toBeNull();
+  });
+});
 
 describe('boundsToString', () => {
   it('serializes bounds to the backend-expected format', () => {
