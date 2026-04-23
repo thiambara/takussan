@@ -1,7 +1,7 @@
 ---
 id: TCK-063
 title: "Paiements — Frontend historique, factures, payouts"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -79,4 +79,18 @@ Tableau financier dense, à la Stripe Dashboard / Pennylane. Ligne = paiement ; 
 
 ## Notes d'implémentation
 
-_(Rempli à l'implémentation)_
+- **Page** `src/app/(dashboard)/app/payments/page.tsx` — stub remplacé, délègue à `<PaymentsTabs>`.
+- **Composants** `src/components/payments/` :
+  - `PaymentsTabs` — 3 onglets Historique / Factures / Payouts, onglet courant persisté en URL (`?tab=...`), toolbar "Générer facture" / "Créer reversement".
+  - `PaymentsHistoryTable` — table dense, statuts colorés via Badge, montants via `formatCurrency` (XOF par défaut §2.8), lien vers Bail/Réservation, totaux depuis `meta.totals`, mention "plafond" si `meta.truncated`.
+  - `PaymentsHistoryFilters` — statut, type d'entité, ID entité, plage de dates ; tout persisté en URL (AC1).
+  - `InvoicesTable` / `PayoutsTable` — tables compactes avec transition vers `InvoiceDetailDialog` / `PayoutDetailDialog`.
+  - `CreateInvoiceDialog` — formulaire RHF+Zod avec `useFieldArray` pour les lignes, calcul sous-total → TVA → total en live, envoie `subtotal` au backend (conforme à `InvoiceController::store`).
+  - `CreatePayoutDialog` — commission auto-calculée depuis `commission_rate` × gross, montant net affiché en live, bloque submit si net ≤ 0 (AC4).
+  - `InvoiceDetailDialog` / `PayoutDetailDialog` — timeline statut + boutons d'action contextuels (send / mark-paid / mark-processed / cancel), respecte les transitions légales côté backend.
+- **Hooks** `src/lib/queries/payments.ts` — `usePaymentsHistory`, `useInvoices`/`useInvoice`/`useCreateInvoice`/`useInvoiceSend`/`useInvoiceMarkPaid`/`useInvoiceCancel`, `usePayouts`/`usePayout`/`useCreatePayout`/`usePayoutMarkProcessed`/`usePayoutMarkFailed`/`usePayoutCancel`. Sparse fieldsets + filtres spatie systématiques.
+- **Types** `src/types/invoice.ts` — `Invoice`, `Payout`, `PaymentHistoryRow`, `PaymentHistoryTotals`, statuts typés.
+- **Schémas** `src/lib/schemas/payment.ts` — `createInvoiceSchema` (items, due ≥ issue, invoiceable pair), `createPayoutSchema` (net > 0, période cohérente).
+- **Constantes** `src/components/payments/constants.ts` — labels FR + variants Badge pour 3 familles de statuts + helpers `computePayoutNet` / `commissionFromRate` (testés).
+- **Tests** : `src/components/payments/__tests__/constants.test.ts` + `src/lib/schemas/__tests__/payment.test.ts`. Tous verts.
+- **Hors périmètre** : passerelles Wave/Orange/Stripe, rapprochement bancaire, relances auto.
