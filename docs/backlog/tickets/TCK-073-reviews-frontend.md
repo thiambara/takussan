@@ -1,7 +1,7 @@
 ---
 id: TCK-073
 title: "Avis — Laisser & répondre publiquement (frontend)"
-status: todo
+status: review
 phase: P2
 family: front
 estimate: M
@@ -77,4 +77,67 @@ Formulaire "Laisser un avis" à la Airbnb post-stay / Google Reviews. Stars cliq
 
 ## Notes d'implémentation
 
-_(Rempli à l'implémentation)_
+### Écarts par rapport au contrat ticket
+
+Le ticket listait `POST /api/reviews`, `GET /api/reviews` et
+`POST|PATCH|DELETE /api/reviews/{id}/response`. Les routes réellement livrées
+par TCK-033 sont :
+
+- `POST /api/properties/{property}/reviews` (pas `/api/reviews`) — la création
+  est scopée sur la relation polymorphique côté backend.
+- `POST /api/reviews/{review}/reply` (pas `/response`) — endpoint unique,
+  pas de PATCH ni de DELETE.
+- `GET /api/reviews` existe mais est réservé à la file de modération admin
+  (403 pour les autres rôles).
+
+Le frontend cible les routes livrées. L'édition d'une réponse passe par un
+ré-POST sur `/reply` (le contrôleur fait un `update()`), ce qui suffit pour
+l'AC5 côté « édition ».
+
+### Hors scope faute de backend (remonté pour ticket futur)
+
+- **Suppression d'une réponse** : aucune route `DELETE /reply` côté backend ;
+  l'UI n'expose donc pas d'action « Supprimer la réponse ». AC5 « suppressible »
+  n'est pas couvert tant que TCK-033 n'expose pas cette route (ou qu'un POST
+  avec `reply_content` vide n'est pas toléré — actuellement `required`).
+- **Liste GET des avis de l'utilisateur courant** : pas de route
+  `GET /api/reviews?filter[author_id]=me`. `/app/profile/reviews` liste donc
+  les séjours (`bookings` completed) et baux éligibles du client, avec un CTA
+  vers la fiche publique. C'est actionnable et évite de dupliquer la modération
+  admin. À compléter avec une vraie vue « mes avis » si un endpoint dédié est
+  ajouté plus tard.
+
+### Décisions UX
+
+- Le formulaire « Laisser un avis » reste sur la fiche publique
+  `(public)/properties/[slug]` dans la section `<PropertyReviews>` (ancre
+  `#avis`). Les CTA (booking/lease/profil) font un deep-link vers cette
+  ancre plutôt que d'ouvrir une modale — on évite ainsi de dupliquer la
+  récupération du bien et de ses avis existants.
+- Côté frontend, `rating` reste un entier 1-5 (aligné avec la validation
+  backend `integer|min:1|max:5`), malgré le `decimal(2,1)` côté schéma — le
+  backend accepte les entiers.
+- Le commentaire minimal de 10 caractères est une contrainte UX front seule
+  (backend : `nullable`). Si l'utilisateur contourne en DevTools, la publication
+  réussit quand même — c'est une aide à la qualité, pas un invariant métier.
+- `canReplyToReview()` mirror exactement la policy backend
+  (`ReviewController@reply`) : owner, membre de l'agence du bien, ou admin.
+
+### Coordination inter-tickets
+
+- Aucun conflit avec TCK-075 (Visites) : les modifications sur la fiche
+  publique se résument à une nouvelle prop `ownerId`/`agencyId` passée à
+  `<PropertyReviews>`, qui vit dans sa propre section distincte de la carte
+  de réservation/visite.
+
+### Tests
+
+- `PropertyReviewForm` : guard note requise, commentaire ≥ 10 chars, flow
+  submit, erreur 422.
+- `PropertyReviewReplyForm` : guard longueur, submit, mode édition, annuler.
+- `canReplyToReview` : guard des 6 scénarios anonyme/owner/agent/admin/autre.
+- `LeaveReviewCta` : rendu du deep-link `#avis`.
+- `canBookingLeaveReview` / `canLeaseLeaveReview` : prédicats d'éligibilité.
+
+Total : 24 tests ajoutés, 233 tests verts au total.
+
