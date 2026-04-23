@@ -30,11 +30,6 @@ class PhoneVerificationService
         return ! $this->cache->has($this->cooldownKey($user));
     }
 
-    public function resendCooldownSeconds(User $user): int
-    {
-        return (int) ($this->cache->get($this->cooldownKey($user).':ttl') ?? 0);
-    }
-
     /**
      * Generate + store a fresh OTP, enforce cooldown, and dispatch SMS.
      * Returns the OTP only in non-production environments (useful for tests).

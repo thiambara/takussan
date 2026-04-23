@@ -59,7 +59,10 @@ class AuthController extends Controller
 
             $authorized = false;
             if ($code) {
-                $authorized = $this->twoFactorService->verifyCode(
+                // verifyCodeForUser enforces single-use: a code already
+                // accepted within the ±30 s window cannot be replayed.
+                $authorized = $this->twoFactorService->verifyCodeForUser(
+                    $user,
                     $user->two_factor_secret,
                     (string) $code,
                 );

@@ -82,9 +82,14 @@ export type ActiveSession = {
   name: string;
   last_used_at: string | null;
   created_at: string | null;
-  ip: string | null;
-  user_agent: string | null;
   current: boolean;
+  /**
+   * Not currently populated — the default Sanctum `personal_access_tokens`
+   * schema has no `ip` / `user_agent` columns. Kept optional so a follow-up
+   * ticket can opt-in without changing the type.
+   */
+  ip?: string | null;
+  user_agent?: string | null;
 };
 
 export async function listActiveSessions(token: string): Promise<ActiveSession[]> {

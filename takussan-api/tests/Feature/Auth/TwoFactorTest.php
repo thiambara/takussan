@@ -220,4 +220,21 @@ class TwoFactorTest extends TestCase
         $this->getJson('/api/auth/two-factor/recovery-codes')->assertUnauthorized();
         $this->postJson('/api/auth/two-factor/recovery-codes/regenerate')->assertUnauthorized();
     }
+
+    public function test_totp_code_cannot_be_replayed(): void
+    {
+        $secret = (new Google2FA)->generateSecretKey();
+        $user = User::factory()->create([
+            'two_factor_enabled' => true,
+            'two_factor_secret' => $secret,
+        ]);
+
+        $service = app(TwoFactorService::class);
+        $code = $this->currentCode($secret);
+
+        $this->assertTrue($service->verifyCodeForUser($user, $secret, $code));
+        // Second attempt with the exact same code within the same 30 s step
+        // must fail — otherwise an attacker can replay a captured OTP.
+        $this->assertFalse($service->verifyCodeForUser($user, $secret, $code));
+    }
 }

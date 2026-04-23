@@ -43,7 +43,7 @@ class TwoFactorController extends Controller
         ]);
 
         abort_unless(
-            $this->service->verifyCode($user->two_factor_secret, $request->input('code')),
+            $this->service->verifyCodeForUser($user, $user->two_factor_secret, $request->input('code')),
             422,
             'Invalid TOTP code.',
         );
@@ -78,7 +78,11 @@ class TwoFactorController extends Controller
             $authorized = \Hash::check($request->input('password'), $user->password);
         }
         if (! $authorized && $request->filled('code')) {
-            $authorized = $this->service->verifyCode($user->two_factor_secret, $request->input('code'));
+            $authorized = $this->service->verifyCodeForUser(
+                $user,
+                $user->two_factor_secret,
+                $request->input('code'),
+            );
         }
         abort_unless($authorized, 422, 'Invalid password or code.');
 

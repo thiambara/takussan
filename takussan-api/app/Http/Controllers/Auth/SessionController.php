@@ -12,6 +12,11 @@ class SessionController extends Controller
     {
         $currentId = $request->user()->currentAccessToken()?->id;
 
+        // NOTE: the default Sanctum `personal_access_tokens` schema has no
+        // `ip` / `user_agent` columns — we intentionally omit them from the
+        // response rather than shipping always-null fields to the client.
+        // A follow-up ticket should add those columns + a middleware that
+        // stamps them on token use (see PR #47 review).
         $tokens = $request->user()->tokens()
             ->orderByDesc('last_used_at')
             ->get()
@@ -20,8 +25,6 @@ class SessionController extends Controller
                 'name' => $token->name,
                 'last_used_at' => $token->last_used_at?->toISOString(),
                 'created_at' => $token->created_at?->toISOString(),
-                'ip' => $token->ip ?? null,
-                'user_agent' => $token->user_agent ?? null,
                 'current' => $token->id === $currentId,
             ]);
 

@@ -3,6 +3,7 @@
 namespace App\Services\Auth;
 
 use App\Models\User;
+use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Support\Str;
 use PragmaRX\Google2FA\Google2FA;
 
@@ -18,10 +19,21 @@ use PragmaRX\Google2FA\Google2FA;
  *
  * Recovery codes are single-use: verifyRecoveryCode() pops the matching
  * code from the list and persists.
+ *
+ * Replay protection: every successful TOTP verification records the used
+ * 30-second timestamp in the cache under `totp-last:{user_id}`. Subsequent
+ * verifications refuse any timestamp <= that, so a 6-digit code cannot be
+ * re-used within its ±30 s validity window.
  */
 class TwoFactorService
 {
-    public function __construct(private readonly Google2FA $google2fa) {}
+    /** Cache TTL long enough to cover the whole validity window (±1 step). */
+    private const REPLAY_TTL_SECONDS = 120;
+
+    public function __construct(
+        private readonly Google2FA $google2fa,
+        private readonly CacheRepository $cache,
+    ) {}
 
     public function generateSecret(): string
     {
@@ -42,6 +54,13 @@ class TwoFactorService
         );
     }
 
+    /**
+     * Validate a 6-digit TOTP code (stateless — no replay protection).
+     *
+     * Prefer {@see verifyCodeForUser()} whenever a User is in scope: it
+     * layers single-use semantics on top of the raw TOTP check so a code
+     * cannot be replayed within its ±30 s validity window.
+     */
     public function verifyCode(string $secret, string $code): bool
     {
         $code = preg_replace('/\s+/', '', $code);
@@ -51,6 +70,41 @@ class TwoFactorService
 
         // window=1 allows ±30s clock skew — standard for TOTP
         return (bool) $this->google2fa->verifyKey($secret, $code, 1);
+    }
+
+    /**
+     * Validate a 6-digit TOTP code and reject codes already consumed.
+     *
+     * `verifyKeyNewer` returns the 30-second timestamp used for the match
+     * (or false). We persist the last accepted timestamp per user and
+     * refuse any value <= that, blocking replay within the ±30 s window.
+     */
+    public function verifyCodeForUser(User $user, string $secret, string $code): bool
+    {
+        $code = preg_replace('/\s+/', '', $code);
+        if (! preg_match('/^\d{6}$/', $code)) {
+            return false;
+        }
+
+        $lastKey = $this->replayKey($user);
+        // Always pass a non-null $oldTimestamp so verifyKeyNewer returns the
+        // matched 30-second step (rather than `true`), giving us the value
+        // we need to persist for replay prevention. 0 = "no previous code".
+        $lastTimestamp = (int) $this->cache->get($lastKey, 0);
+
+        $used = $this->google2fa->verifyKeyNewer($secret, $code, $lastTimestamp, 1);
+        if ($used === false || $used === true) {
+            return false;
+        }
+
+        $this->cache->put($lastKey, (int) $used, self::REPLAY_TTL_SECONDS);
+
+        return true;
+    }
+
+    private function replayKey(User $user): string
+    {
+        return "totp-last:{$user->id}";
     }
 
     /** @return array<int,string> */
