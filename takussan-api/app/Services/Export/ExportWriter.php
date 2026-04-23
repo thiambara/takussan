@@ -2,18 +2,18 @@
 
 namespace App\Services\Export;
 
-use Barryvdh\DomPDF\Facade\Pdf;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Facades\Excel;
-use Symfony\Component\HttpFoundation\Response;
+use Spatie\LaravelPdf\Facades\Pdf;
+use Spatie\LaravelPdf\PdfBuilder;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Writes dataset payloads ({columns, rows}) in CSV, XLSX and PDF formats.
  *
- * Each writer returns a Symfony response ready to be sent through the Laravel
- * controller — callers stay format-agnostic.
+ * Each writer returns a Responsable / Response object ready to be returned from
+ * a Laravel controller — callers stay format-agnostic.
  */
 class ExportWriter
 {
@@ -75,14 +75,15 @@ class ExportWriter
         }, $filename);
     }
 
-    public function pdf(array $payload): Response
+    public function pdf(array $payload): PdfBuilder
     {
         $filename = ($payload['filename'] ?? 'export').'.pdf';
         $html = $this->renderPdfHtml($payload);
 
-        $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape');
-
-        return $pdf->download($filename);
+        return Pdf::html($html)
+            ->format('a4')
+            ->landscape()
+            ->download($filename);
     }
 
     protected function renderPdfHtml(array $payload): string
