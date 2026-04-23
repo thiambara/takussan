@@ -12,6 +12,7 @@ import type { LeaseStatus } from '@/types/lease';
 import { LeaseSchedule } from './LeaseSchedule';
 import { LeasePaymentDialog } from './LeasePaymentDialog';
 import { GuarantorSection } from './GuarantorSection';
+import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 
 const STATUS_LABEL: Record<LeaseStatus, string> = {
   draft: 'Brouillon',
@@ -78,6 +79,11 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <AddDocumentButton
+            documentableType="lease"
+            documentableId={leaseId}
+            displayLabel={lease.reference_number || `Bail #${lease.id}`}
+          />
           <Button
             type="button"
             variant="outline"
