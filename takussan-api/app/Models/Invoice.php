@@ -46,7 +46,8 @@ class Invoice extends AbstractModel
         'id', 'customer_id', 'issued_by_id', 'agency_id',
         'invoiceable_id', 'invoiceable_type',
         'reference_number', 'status', 'issue_date', 'due_date',
-        'subtotal', 'tax_amount', 'total_amount', 'currency', 'created_at', 'updated_at',
+        'subtotal', 'tax_rate', 'tax_amount', 'total_amount', 'currency',
+        'notes', 'created_at', 'updated_at',
     ];
 
     protected static function booted(): void
