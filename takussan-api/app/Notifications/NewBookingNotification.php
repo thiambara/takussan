@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Booking;
+use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\BroadcastMessage;
@@ -20,18 +21,24 @@ class NewBookingNotification extends Notification implements ShouldQueue
 
     public function __construct(public Booking $booking) {}
 
+    public const EVENT_TYPE = 'booking_request';
+
     /**
      * @return list<string>
      */
     public function via(object $notifiable): array
     {
-        $channels = ['database'];
+        $resolver = app(PreferenceResolver::class);
+        $channels = [];
 
-        if ($notifiable->notifications_email_enabled ?? true) {
+        // `database` maps to the `inapp` channel in our preference model.
+        if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_INAPP)) {
+            $channels[] = 'database';
+        }
+        if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_EMAIL)) {
             $channels[] = 'mail';
         }
-
-        if ($notifiable->notifications_push_enabled ?? true) {
+        if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_PUSH)) {
             $channels[] = 'broadcast';
         }
 

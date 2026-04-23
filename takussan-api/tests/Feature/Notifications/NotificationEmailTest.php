@@ -5,6 +5,7 @@ namespace Tests\Feature\Notifications;
 use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\NotificationPreference;
 use App\Models\Property;
 use App\Models\User;
 use App\Notifications\NewBookingNotification;
@@ -37,7 +38,10 @@ class NotificationEmailTest extends TestCase
         $notification = new RegistrationConfirmationNotification;
         $mail = $notification->toMail($user);
 
-        $rendered = json_encode($mail->toArray());
+        // `json_encode` escapes UTF-8 by default (é → é). Serialize
+        // with JSON_UNESCAPED_UNICODE so the assertion can match against
+        // the real translation string.
+        $rendered = json_encode($mail->toArray(), JSON_UNESCAPED_UNICODE);
         $this->assertStringContainsString(__('notifications.registration.action'), $rendered);
     }
 
@@ -91,11 +95,13 @@ class NotificationEmailTest extends TestCase
         Notification::fake();
 
         $agency = Agency::factory()->create();
-        $user = User::factory()->create([
-            'agency_id' => $agency->id,
-            'notifications_email_enabled' => false,
-            'notifications_push_enabled' => true,
-        ]);
+        $user = User::factory()->create(['agency_id' => $agency->id]);
+        // Flip the booking_request × email preference off via the canonical
+        // matrix (the legacy flat boolean is no longer authoritative).
+        NotificationPreference::updateOrCreate(
+            ['user_id' => $user->id, 'event_type' => NewBookingNotification::EVENT_TYPE, 'channel' => 'email'],
+            ['enabled' => false],
+        );
         $booking = $this->makeBookingFor($user);
 
         $user->notify(new NewBookingNotification($booking));
@@ -112,11 +118,11 @@ class NotificationEmailTest extends TestCase
         Notification::fake();
 
         $agency = Agency::factory()->create();
-        $user = User::factory()->create([
-            'agency_id' => $agency->id,
-            'notifications_email_enabled' => true,
-            'notifications_push_enabled' => false,
-        ]);
+        $user = User::factory()->create(['agency_id' => $agency->id]);
+        NotificationPreference::updateOrCreate(
+            ['user_id' => $user->id, 'event_type' => NewBookingNotification::EVENT_TYPE, 'channel' => 'push'],
+            ['enabled' => false],
+        );
         $booking = $this->makeBookingFor($user);
 
         $user->notify(new NewBookingNotification($booking));
