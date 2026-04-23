@@ -6,6 +6,7 @@ import { fetchDashboardProperty } from '@/lib/queries/properties';
 import { ApiError } from '@/lib/api';
 import { isAdmin, isAgent, isOwner } from '@/lib/roles';
 import { PropertyForm } from '@/components/property-form';
+import { PropertyMediaPanel } from '@/components/property-dashboard/PropertyMediaPanel';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 
 /**
@@ -56,6 +57,7 @@ export default async function Page({ params }: { params: Params }) {
         />
       </header>
       <PropertyForm mode="edit" property={property} />
+      <PropertyMediaPanel propertyId={property.id} />
     </div>
   );
 }

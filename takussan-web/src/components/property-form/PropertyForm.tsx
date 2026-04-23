@@ -2,9 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
-import { Loader2, UploadCloud, X } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { MediaDropzone } from '@/components/media';
 import {
   FormCheckbox,
   FormGlobalError,
@@ -25,7 +26,6 @@ import {
   uploadPropertyPhotosAction,
 } from '@/app/actions/dashboard-properties';
 import type { PropertyDetail } from '@/types/property';
-import { cn } from '@/lib/utils';
 
 import {
   CONTRACT_TYPE_OPTIONS,
@@ -94,26 +94,10 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
 
-  const onPhotosChange = useCallback(
-    (files: FileList | null) => {
-      if (!files || files.length === 0) return;
-      const next: File[] = [];
-      for (const file of Array.from(files)) {
-        if (!file.type.startsWith('image/')) {
-          setPhotoError('Seules les images sont acceptées.');
-          return;
-        }
-        if (file.size > 10 * 1024 * 1024) {
-          setPhotoError('Chaque photo doit peser moins de 10 Mo.');
-          return;
-        }
-        next.push(file);
-      }
-      setPhotoError(null);
-      setPendingPhotos((prev) => [...prev, ...next]);
-    },
-    [],
-  );
+  const onPhotosChange = useCallback((files: File[]) => {
+    setPhotoError(null);
+    setPendingPhotos((prev) => [...prev, ...files]);
+  }, []);
 
   const removePhoto = useCallback((index: number) => {
     setPendingPhotos((prev) => prev.filter((_, i) => i !== index));
@@ -143,6 +127,8 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
           setPhotoUploading(true);
           try {
             const formData = new FormData();
+            // Server action re-reads `photos` then builds the backend
+            // payload as `photos[]` on the outbound request itself.
             for (const file of pendingPhotos) formData.append('photos', file);
             const uploadResult = await uploadPropertyPhotosAction(
               result.id,
@@ -347,12 +333,16 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
             ne sont pas affectées.
           </p>
         </header>
-        <PhotoDropzone
+        <MediaDropzone
           onChange={onPhotosChange}
           files={pendingPhotos}
           onRemove={removePhoto}
-          error={photoError}
         />
+        {photoError ? (
+          <p className="text-xs text-destructive" role="alert">
+            {photoError}
+          </p>
+        ) : null}
       </section>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -382,86 +372,3 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
   );
 }
 
-function PhotoDropzone({
-  onChange,
-  files,
-  onRemove,
-  error,
-}: {
-  onChange: (files: FileList | null) => void;
-  files: File[];
-  onRemove: (index: number) => void;
-  error: string | null;
-}) {
-  const [isDragOver, setIsDragOver] = useState(false);
-
-  return (
-    <div>
-      <label
-        htmlFor="property-photos-input"
-        onDragEnter={(e) => {
-          e.preventDefault();
-          setIsDragOver(true);
-        }}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDragOver(true);
-        }}
-        onDragLeave={() => setIsDragOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setIsDragOver(false);
-          onChange(e.dataTransfer.files);
-        }}
-        className={cn(
-          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-app-surface-3 bg-app-surface-2/40 px-6 py-10 text-center text-sm text-app-ink-muted transition-colors hover:border-app-accent/60',
-          isDragOver && 'border-app-accent bg-app-surface-2',
-        )}
-      >
-        <UploadCloud className="size-6 text-app-accent" aria-hidden="true" />
-        <p className="text-sm font-medium text-app-ink">
-          Glissez-déposez vos photos ici
-        </p>
-        <p className="text-xs">ou cliquez pour sélectionner — 10 Mo par photo.</p>
-        <input
-          id="property-photos-input"
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={(e) => onChange(e.target.files)}
-          className="sr-only"
-        />
-      </label>
-
-      {error ? (
-        <p className="mt-2 text-xs text-destructive" role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      {files.length > 0 ? (
-        <ul className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
-          {files.map((file, index) => (
-            <li
-              key={`${file.name}-${index}`}
-              className="group relative overflow-hidden rounded-lg bg-app-surface-2 p-2 text-xs"
-            >
-              <span className="block truncate text-app-ink">{file.name}</span>
-              <span className="block text-app-ink-muted">
-                {(file.size / (1024 * 1024)).toFixed(2)} Mo
-              </span>
-              <button
-                type="button"
-                onClick={() => onRemove(index)}
-                className="absolute right-1 top-1 rounded-full bg-app-bg/70 p-1 text-app-ink transition-opacity hover:bg-app-bg"
-                aria-label={`Retirer ${file.name}`}
-              >
-                <X className="size-3" aria-hidden="true" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  );
-}
