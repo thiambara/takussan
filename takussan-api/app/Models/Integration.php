@@ -29,7 +29,9 @@ class Integration extends AbstractModel
 
     protected static array $requestSortable = ['id', 'created_at', 'provider'];
 
-    protected static array $queryFields = ['id', 'agency_id', 'provider', 'is_active', 'last_used_at', 'created_at', 'updated_at'];
+    // `metadata` is allowed so the admin UI can list provider notes via
+    // sparse fieldsets (TCK-068). `credentials` remains hidden at all layers.
+    protected static array $queryFields = ['id', 'agency_id', 'provider', 'is_active', 'last_used_at', 'metadata', 'created_at', 'updated_at'];
 
     public function agency(): BelongsTo
     {

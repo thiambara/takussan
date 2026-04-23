@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\Agency;
 use App\Models\Enums\TagType;
+use App\Models\Property;
 use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -128,5 +129,21 @@ class TagTest extends TestCase
         Sanctum::actingAs($user);
 
         $this->deleteJson("/api/tags/{$tag->id}")->assertForbidden();
+    }
+
+    public function test_delete_tag_in_use_returns_409(): void
+    {
+        $admin = $this->superAdmin();
+        $tag = Tag::factory()->create(['type' => TagType::Amenity]);
+        $property = Property::factory()->create();
+        $tag->properties()->attach($property->id);
+
+        Sanctum::actingAs($admin);
+
+        $this->deleteJson("/api/tags/{$tag->id}")
+            ->assertStatus(409)
+            ->assertJsonPath('usage', 1);
+
+        $this->assertDatabaseHas('tags', ['id' => $tag->id]);
     }
 }

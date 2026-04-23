@@ -19,6 +19,14 @@ return [
     'collaborator_already_exists' => 'Ce collaborateur est déjà ajouté à ce bien.',
     'only_super_admin_can_grant_super_admin' => 'Seul un super administrateur peut attribuer le rôle super_admin.',
 
+    // Integrations
+    'integration_inactive' => 'L\'intégration est désactivée. Activez-la avant de la tester.',
+    'integration_missing_credentials' => 'Aucun identifiant configuré pour cette intégration.',
+    'integration_test_ok' => 'Connexion :provider vérifiée avec succès.',
+
+    // Tags
+    'tag_in_use' => 'Ce tag est encore utilisé par un ou plusieurs biens ou clients.',
+
     // Lease
     'lease_cannot_terminate' => 'Seuls les baux actifs ou en attente de signature peuvent être résiliés.',
     'lease_must_be_ended_for_refund' => 'Le bail doit être terminé ou expiré pour rembourser la caution.',
