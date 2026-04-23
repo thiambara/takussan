@@ -6,6 +6,7 @@ import { fetchDashboardProperty } from '@/lib/queries/properties';
 import { ApiError } from '@/lib/api';
 import { isAdmin, isAgent, isOwner } from '@/lib/roles';
 import { PropertyForm } from '@/components/property-form';
+import { PropertyMediaPanel } from '@/components/property-dashboard/PropertyMediaPanel';
 
 /**
  * TCK-041 — page d'édition d'un bien existant.
@@ -48,6 +49,7 @@ export default async function Page({ params }: { params: Params }) {
         </p>
       </header>
       <PropertyForm mode="edit" property={property} />
+      <PropertyMediaPanel propertyId={property.id} />
     </div>
   );
 }

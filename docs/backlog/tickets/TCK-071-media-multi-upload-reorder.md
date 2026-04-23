@@ -1,7 +1,7 @@
 ---
 id: TCK-071
 title: "Médias — Upload multiple + reorder drag-drop"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: S
@@ -73,4 +73,12 @@ Inspiré Airbnb host / Unsplash upload. Zone de drop large avec feedback visuel 
 
 ## Notes d'implémentation
 
-_(Rempli à l'implémentation)_
+- Nouveau composant `MediaManager` (`src/components/media/MediaManager.tsx`) réutilisable : dropzone multi-fichiers, validation client (MIME whitelist + `maxSize` + `maxFiles`), barres de progression par fichier (animation optimiste — l'action server action ne remonte pas de progrès XHR), grille triable via **HTML5 drag-drop natif** (pas de dépendance supplémentaire — `@dnd-kit` évalué et écarté pour garder le bundle léger, la spec laisse le choix libre).
+- Réorganisation optimiste : la grille se met à jour avant l'appel server action, rollback sur erreur via un snapshot local. La 1re position = couverture. Action explicite "Définir comme couverture" disponible au survol (pousse l'élément en tête, persiste via `reorderPropertyMediaAction`).
+- Export complémentaire `MediaDropzone` (sans grille sortable) pour les flux qui composent un lot de fichiers *avant* persistance (PropertyForm create/edit, InventoryDetail upload par pièce).
+- Endpoint backend `PUT /api/properties/{id}/media/reorder` avec `{ order: number[] }` déjà présent (`PropertyMediaController::reorder`). Le contrat pressenti `PATCH ... { media_ids: [...] }` dans le ticket a été remplacé par l'existant — pas de bascule full-stack nécessaire. Divergence minuscule documentée ici.
+- Fix collatéral : `uploadPropertyPhotos` pointait vers l'endpoint historique `/api/properties/:id/photos` (inexistant) — redirigé vers `/api/properties/:id/media`.
+- Intégrations : (1) `PropertyForm` (création/édition), (2) `PropertyMediaPanel` monté dans `app/properties/[id]/page.tsx`, (3) `InventoryDetail` upload par pièce.
+- Tests Vitest (6 cas) : validation MIME/taille dropzone, rendu grille + cover, erreur per-file sans bloquer les uploads valides, reorder HTML5 drag-drop → `onReorder([3,1,2])` + nouvelle couverture.
+- AC6 : `npm run build` ✓ (Next 16 turbopack), `npm run test` ✓ (114/114).
+- PR : https://github.com/thiambara/takussan/pull/&lt;REMPLIR_APRES_CREATION&gt;

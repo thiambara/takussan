@@ -6,10 +6,14 @@ import { getToken } from '@/lib/session';
 import {
   createProperty,
   deleteProperty,
+  deletePropertyMedia,
+  fetchPropertyMedia,
+  reorderPropertyMedia,
   updateProperty,
   updatePropertyStatus,
   updatePropertyVisibility,
   uploadPropertyPhotos,
+  type PropertyMediaItem,
 } from '@/lib/queries/properties';
 import type { PropertyFormPayload } from '@/lib/schemas/property';
 import type { PropertyDetail } from '@/types/property';
@@ -150,6 +154,58 @@ export async function uploadPropertyPhotosAction(
   }
   try {
     await uploadPropertyPhotos(auth.token, propertyId, files);
+    revalidatePath(`/app/properties/${propertyId}`);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, ...mapError(e) };
+  }
+}
+
+/**
+ * TCK-071 — list the current media (used by `MediaManager` on mount).
+ */
+export async function fetchPropertyMediaAction(
+  propertyId: number,
+): Promise<ActionResult<PropertyMediaItem[]>> {
+  const auth = await requireToken();
+  if (!auth.ok) return auth.result;
+  try {
+    const data = await fetchPropertyMedia(auth.token, propertyId);
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, ...mapError(e) };
+  }
+}
+
+/**
+ * TCK-071 — delete one media item.
+ */
+export async function deletePropertyMediaAction(
+  propertyId: number,
+  mediaId: number,
+): Promise<ActionResult> {
+  const auth = await requireToken();
+  if (!auth.ok) return auth.result;
+  try {
+    await deletePropertyMedia(auth.token, propertyId, mediaId);
+    revalidatePath(`/app/properties/${propertyId}`);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, ...mapError(e) };
+  }
+}
+
+/**
+ * TCK-071 — persist a new order. First id = cover photo.
+ */
+export async function reorderPropertyMediaAction(
+  propertyId: number,
+  mediaIds: number[],
+): Promise<ActionResult> {
+  const auth = await requireToken();
+  if (!auth.ok) return auth.result;
+  try {
+    await reorderPropertyMedia(auth.token, propertyId, mediaIds);
     revalidatePath(`/app/properties/${propertyId}`);
     return { ok: true };
   } catch (e) {
