@@ -14,6 +14,7 @@ import {
   Users,
   ShieldCheck,
   PlusCircle,
+  ClipboardList,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
@@ -75,6 +76,12 @@ function buildNavItems(user: User): NavItem[] {
 
   if (isAdmin(roles)) {
     items.push({ href: '/admin', label: 'Administration', icon: ShieldCheck, emphasized: true });
+  }
+
+  // TCK-030 maintenance — entry already pushed above for agent/admin/service_provider.
+  // TCK-031 inventories — agency-side workflow (entrée/sortie par bail).
+  if (isAgent(roles) || isAdmin(roles) || isOwner(roles)) {
+    items.push({ href: '/app/inventories', label: 'États des lieux', icon: ClipboardList });
   }
 
   // Dedup by href while preserving first occurrence
