@@ -6,6 +6,8 @@ use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\MaintenanceStatus;
+use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -96,5 +98,38 @@ class DashboardStatsTest extends TestCase
 
         $this->getJson('/api/dashboard/stats')->assertOk()
             ->assertJsonStructure(['data' => ['active_lease', 'overdue_payments']]);
+    }
+
+    public function test_tenant_stats_counts_open_maintenance_by_requester(): void
+    {
+        $dummyAgency = Agency::factory()->create();
+        Role::create(['name' => 'tenant', 'team_id' => $dummyAgency->id]);
+        setPermissionsTeamId($dummyAgency->id);
+
+        $tenantUser = User::factory()->create(['agency_id' => $dummyAgency->id]);
+        $tenantUser->assignRole('tenant');
+        Customer::factory()->create(['user_id' => $tenantUser->id]);
+
+        $property = Property::factory()->create();
+        MaintenanceRequest::factory()->count(2)->create([
+            'property_id' => $property->id,
+            'requester_id' => $tenantUser->id,
+            'status' => MaintenanceStatus::Open,
+        ]);
+        MaintenanceRequest::factory()->create([
+            'property_id' => $property->id,
+            'requester_id' => $tenantUser->id,
+            'status' => MaintenanceStatus::Completed,
+        ]);
+        MaintenanceRequest::factory()->create([
+            'property_id' => $property->id,
+            'requester_id' => User::factory()->create()->id,
+            'status' => MaintenanceStatus::Open,
+        ]);
+
+        Sanctum::actingAs($tenantUser);
+
+        $this->getJson('/api/dashboard/stats')->assertOk()
+            ->assertJsonPath('data.open_maintenance', 2);
     }
 }

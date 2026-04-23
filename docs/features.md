@@ -118,7 +118,7 @@ Réservation ponctuelle d'un bien (saisonnier, visite payante, pré-réservation
 |------|---------|----------------|
 | P1 | 🏠 | Demander une réservation (dates, montant, caution) |
 | P1 | 🏢🧑‍💼 | Accepter, refuser ou annuler une demande |
-| P1 | 🏠🏢 | Paiement d'acompte et solde |
+| P1 | 🏠🏢 | Paiement d'acompte et solde — **acompte = 30 % du total** (estimation affichée dans le tunnel de réservation, règle stable). Quand le besoin de varier par bien/contrat apparaîtra, déplacer le calcul backend via un endpoint `GET /api/bookings/quote`. |
 | P1 | 🏢 | Vue calendrier agrégée à partir des réservations confirmées et des visites planifiées |
 | P1 | 🏠🏢 | Consultation des paiements liés à la réservation |
 | P2 | 🏠 | Expiration automatique des demandes non traitées |

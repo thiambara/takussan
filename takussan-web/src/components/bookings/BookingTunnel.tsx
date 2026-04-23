@@ -21,6 +21,9 @@ import type { Booking } from '@/types/booking';
 import { BookingStepper, type BookingStep } from './BookingStepper';
 import { BookingSummary } from './BookingSummary';
 
+/** Fraction du total proposée en acompte dans le tunnel public (cf. features.md §1.3). */
+const BOOKING_DEPOSIT_RATE = 0.3;
+
 interface BookingTunnelProps {
   readonly property: PropertyDetail;
 }
@@ -84,7 +87,10 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
 
   const isRent = property.contract_type === 'rent';
   const totalAmount = isRent && nights > 0 ? property.price * nights : property.price;
-  const depositAmount = Math.round(totalAmount * 0.3);
+  // 30 % of total — règle stable documentée dans docs/features.md §1.3.
+  // Si la règle devient variable (par bien / contrat), migrer vers un endpoint
+  // backend `GET /api/bookings/quote` qui renverra `deposit_amount`.
+  const depositAmount = Math.round(totalAmount * BOOKING_DEPOSIT_RATE);
 
   async function handleNext() {
     setGlobalError(null);

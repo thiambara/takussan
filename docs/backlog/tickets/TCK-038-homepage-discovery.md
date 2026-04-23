@@ -23,7 +23,7 @@ Un visiteur atterrit sur la page d'accueil et est immédiatement inspiré à exp
 
 - `GET /api/public/properties?featured=true` — biens en vedette
 - `GET /api/public/properties?sort=created_at&order=desc&per_page=6` — derniers ajouts
-- `GET /api/public/properties?search={query}` — recherche plein-texte (depuis TCK-024)
+- `GET /api/public/properties/search?q={query}&city={location}&type=&contract_type=&price_min=&price_max=&bedrooms=&sort=&page=` — recherche plein-texte (titre/description) + filtres structurés. Paramètre `q` pour le texte libre, `city` pour la localisation saisie. Cf. TCK-024.
 - Réponse paginée standard Laravel avec données Property (title, price, type, contract_type, photos thumbnail, address.city, address.neighborhood)
 
 ## Direction UX / Artistique
@@ -37,7 +37,7 @@ Un visiteur atterrit sur la page d'accueil et est immédiatement inspiré à exp
 ## Contraintes strictes (métier)
 
 - Les données viennent exclusivement de l'API Laravel (pas de mock, pas de données en dur)
-- La barre de recherche redirige vers la page de résultats (→ TCK-039)
+- La barre de recherche redirige vers la page de résultats (→ TCK-039). Le champ « Où cherchez-vous ? » de la Navbar pousse un paramètre `city=` (intention : localisation) ; un paramètre `q=` libre reste disponible pour un champ « mot-clé » futur.
 - Responsive obligatoire
 - Les PropertyCards créées ici seront réutilisées dans TCK-039
 
@@ -47,12 +47,12 @@ Un visiteur atterrit sur la page d'accueil et est immédiatement inspiré à exp
 - [ ] Section biens en vedette (featured)
 - [ ] Section derniers ajouts
 - [ ] Skeletons pour chaque section
-- [ ] Redirection vers `/properties?search={query}` au submit recherche
+- [ ] Redirection vers `/properties?city={query}` au submit recherche (champ localisation de la Navbar). Pour une recherche plein-texte par mot-clé, utiliser `q=`.
 
 ## Critères d'acceptation
 
 - [ ] La homepage affiche les biens en vedette et les derniers ajouts depuis l'API
-- [ ] La barre de recherche redirige vers `/properties?search={query}`
+- [ ] La barre de recherche redirige vers `/properties?city={query}` (ou `q=` pour un champ mot-clé)
 - [ ] Les skeletons s'affichent pendant le chargement
 
 ## Hors périmètre
@@ -69,8 +69,9 @@ Un visiteur atterrit sur la page d'accueil et est immédiatement inspiré à exp
   reste en place mais n'est plus référencé — à retirer dans un pass de
   cleanup.
 - La barre de recherche provient du `Navbar` (déjà existant en Wave 2).
-  Elle redirige vers `/properties` en mappant l'entrée utilisateur sur
-  `city=` (la navbar est typée « Où cherchez-vous ? ») plutôt que sur
-  `search={query}` comme le suggère le ticket. Divergence mineure
-  relative au wording AC — le back-end n'expose pas `search=` mais `q=`.
+  Elle redirige vers `/properties?city={query}` — cohérent avec le
+  label « Où cherchez-vous ? » et aligné sur le filtre `city` du
+  back-end. Le paramètre `q=` (titre/description fulltext) reste
+  disponible pour un futur champ « mot-clé ». Spec TCK-038 alignée sur
+  ce comportement via TCK-061.
 - Skeletons élégants par section (7 cartes en placeholder).
