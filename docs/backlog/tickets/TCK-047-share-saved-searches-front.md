@@ -1,12 +1,12 @@
 ---
 id: TCK-047
 title: "Favoris, carte & partage — Frontend"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
 created: 2026-04-16
-updated: 2026-04-16
+updated: 2026-04-23
 depends_on: [TCK-054, TCK-056, TCK-057, TCK-046, TCK-024]
 blocks: []
 spec_refs:
@@ -89,3 +89,46 @@ Un visiteur peut explorer les biens sur une carte interactive, un utilisateur co
 - Biens similaires / suggestions personnalisées (→ P2)
 - Historique local biens consultés (→ P2)
 - Filtres avancés amenités (→ TCK-039 P1)
+
+## Notes d'implémentation (Wave 3)
+
+- **Librairie cartographique** : Leaflet + react-leaflet (déjà installés,
+  open source, sans clé API). Le composant
+  `src/components/map/PropertyMap.tsx` est chargé via `next/dynamic`
+  avec `ssr: false` pour tenir le bundle serveur propre et éviter les
+  accès `window` à l'hydratation. Les pins utilisent une icône SVG
+  inline pour ne pas dépendre des assets de `leaflet/dist/images` qui
+  n'ont pas de loader Next configuré.
+- **Clustering** : non implémenté dans ce pass — la route back-end
+  `/api/public/properties/map` plafonne déjà à `MAP_MAX_RESULTS` et
+  renvoie `meta.truncated` ; l'UI affiche un badge « zoom pour
+  affiner » quand la troncature est active. Follow-up possible avec
+  `leaflet.markercluster` si l'usage le justifie.
+- **Favoris** : nouveau composant canonique
+  `components/favorites/FavoriteButton.tsx` connecté directement à
+  `POST/DELETE /api/favorites` via les mutations de
+  `src/lib/queries/favorites.ts`. Bouton cœur utilisé dans le nouveau
+  `PropertyCard` (`components/property/PropertyCard.tsx`). Le hook
+  legacy `useFavorite` (app action côté Next) reste en place pour la
+  fiche détail ; il contient un bug mineur (utilise un favorite id
+  comme URL param de `DELETE` alors que le back-end attend le property
+  id) — hors périmètre car le fichier n'est pas dans la surface Wave 3.
+- **Divergence de contrat** : le ticket mentionne
+  `POST/DELETE /api/properties/{property}/favorite` mais le back-end
+  expose `POST /api/favorites { property_id }` et
+  `DELETE /api/favorites/{property}`. Frontend suit le back-end.
+- **Partage** : `components/share/ShareButton.tsx` — Web Share API
+  avec fallback copier-le-lien + feedback visuel (pill « Lien copié »).
+  Le dialogue détaillé existant (`PropertyShareDialog`) reste
+  accessible sur la fiche détail.
+- **Recherches sauvegardées** : dialogue modal depuis le bouton
+  `SaveSearchButton` sur `/properties`. Les filtres actifs sont
+  sérialisés en `criteria` JSON. Le back-end expose
+  `notification_frequency` (`off|daily|weekly|instant`) plutôt que le
+  `notify` bool du ticket — on envoie `off` par défaut.
+- **Pages dashboard** : `/app/favorites` et `/app/saved-searches`
+  + entrées correspondantes dans la `AppSidebar` (éditée de façon
+  additive — aucun autre item modifié).
+- **Tests ajoutés (18 nouveaux)** : schemas search, query keys/bounds,
+  ShareButton (Web Share + fallback clipboard), FavoriteButton (auth
+  redirect + localStorage fallback).

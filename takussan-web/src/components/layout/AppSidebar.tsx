@@ -14,6 +14,8 @@ import {
   Users,
   ShieldCheck,
   PlusCircle,
+  Heart,
+  BookmarkCheck,
   ClipboardList,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -53,6 +55,14 @@ function buildNavItems(user: User): NavItem[] {
     });
     items.push({ href: '/app/crm', label: 'CRM', icon: Users });
   }
+
+  // Discovery shortcuts (Wave 3 / TCK-047) — visible for every signed-in user.
+  items.push({ href: '/app/favorites', label: 'Mes favoris', icon: Heart });
+  items.push({
+    href: '/app/saved-searches',
+    label: 'Recherches sauvegardées',
+    icon: BookmarkCheck,
+  });
 
   if (isCustomer(roles)) {
     items.push({ href: '/app/bookings', label: 'Mes réservations', icon: CalendarCheck });
