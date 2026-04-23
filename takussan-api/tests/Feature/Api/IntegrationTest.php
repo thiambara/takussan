@@ -94,6 +94,31 @@ class IntegrationTest extends TestCase
             ->assertJsonPath('data.ok', false);
     }
 
+    public function test_list_accepts_metadata_in_sparse_fieldset(): void
+    {
+        // Regression (review): the admin UI requests
+        // `fields[integrations]=...,metadata,...` — the column must be
+        // in the allowedFields list (spatie throws 400 otherwise). Also
+        // double-checks that `credentials` is never exposed by the resource.
+        $agency = Agency::factory()->create();
+        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
+        $agencyAdmin = User::factory()->create(['agency_id' => $agency->id]);
+        Role::findOrCreate('agency_admin');
+        $agencyAdmin->assignRole('agency_admin');
+
+        Integration::factory()->create([
+            'agency_id' => $agency->id,
+            'metadata' => ['notes' => 'prod'],
+        ]);
+
+        Sanctum::actingAs($agencyAdmin);
+
+        $this->getJson('/api/integrations?fields[integrations]=id,provider,agency_id,is_active,last_used_at,metadata,created_at,updated_at')
+            ->assertOk()
+            ->assertJsonPath('data.0.metadata.notes', 'prod')
+            ->assertJsonMissing(['credentials']);
+    }
+
     public function test_agency_admin_cannot_manage_other_agency_integrations(): void
     {
         $agency1 = Agency::factory()->create();
