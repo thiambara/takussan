@@ -1,12 +1,13 @@
 ---
 id: TCK-067
 title: "Admin — Modération avis & signalements UI"
-status: doing
+status: review
 phase: P2
 family: front
 estimate: M
 created: 2026-04-23
 updated: 2026-04-23
+pr: https://github.com/thiambara/takussan/pull/46
 depends_on: [TCK-033, TCK-057, TCK-054, TCK-018]
 blocks: []
 spec_refs:

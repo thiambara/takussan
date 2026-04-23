@@ -1,12 +1,13 @@
 ---
 id: TCK-065
 title: "Admin — Gestion équipe (ajout / retrait agents)"
-status: doing
+status: review
 phase: P1
 family: front
 estimate: M
 created: 2026-04-23
 updated: 2026-04-23
+pr: https://github.com/thiambara/takussan/pull/46
 depends_on: [TCK-015, TCK-014, TCK-057, TCK-054]
 blocks: []
 spec_refs:
