@@ -91,4 +91,4 @@ Exposer deux endpoints backend permettant respectivement de dupliquer un bien (a
 - Migration ajoute `archived_at` (timestamp nullable indexé) — séparé de `deleted_at` pour que l'archivage reste un statut logique et non une suppression douce.
 - Routes : `properties/bulk-archive` déclarée **avant** `properties/{property}/*` pour éviter la collision avec `{property}`.
 - 14 tests Feature, filtre `php artisan test --filter=PropertyDuplicationTest --filter=PropertyBulkArchiveTest` → vert. Pint clean.
-- PR : https://github.com/thiambara/takussan/pull/&lt;REMPLIR_APRES_CREATION&gt;
+- PR : https://github.com/thiambara/takussan/pull/44

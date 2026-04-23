@@ -81,4 +81,4 @@ Inspiré Airbnb host / Unsplash upload. Zone de drop large avec feedback visuel 
 - Intégrations : (1) `PropertyForm` (création/édition), (2) `PropertyMediaPanel` monté dans `app/properties/[id]/page.tsx`, (3) `InventoryDetail` upload par pièce.
 - Tests Vitest (6 cas) : validation MIME/taille dropzone, rendu grille + cover, erreur per-file sans bloquer les uploads valides, reorder HTML5 drag-drop → `onReorder([3,1,2])` + nouvelle couverture.
 - AC6 : `npm run build` ✓ (Next 16 turbopack), `npm run test` ✓ (114/114).
-- PR : https://github.com/thiambara/takussan/pull/&lt;REMPLIR_APRES_CREATION&gt;
+- PR : https://github.com/thiambara/takussan/pull/44
