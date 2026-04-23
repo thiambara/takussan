@@ -77,6 +77,14 @@ function buildNavItems(user: User): NavItem[] {
     items.push({ href: '/admin', label: 'Administration', icon: ShieldCheck, emphasized: true });
   }
 
+  // --- Wave 3 Ops Frontend nav entries (dedup below preserves first occurrence) ---
+  // TCK-043 bookings
+  items.push({ href: '/app/bookings', label: isCustomer(roles) ? 'Mes réservations' : 'Réservations', icon: CalendarCheck });
+  // TCK-044 leases
+  items.push({ href: '/app/leases', label: isCustomer(roles) ? 'Mes baux' : 'Baux', icon: FileText });
+  // TCK-045 messages
+  items.push({ href: '/app/messages', label: 'Messagerie', icon: MessageSquare });
+
   // Dedup by href while preserving first occurrence
   const seen = new Set<string>();
   return items.filter((item) => {
