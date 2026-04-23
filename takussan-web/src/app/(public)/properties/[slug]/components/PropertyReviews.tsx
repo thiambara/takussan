@@ -1,9 +1,11 @@
 'use client';
 import Image from 'next/image';
-import { Star } from 'lucide-react';
+import { useState } from 'react';
+import { Star, MessageSquareReply, Pencil } from 'lucide-react';
 import { usePropertyReviews } from '@/hooks/usePropertyReviews';
 import { useAuth } from '@/context/AuthContext';
 import { PropertyReviewForm } from './PropertyReviewForm';
+import { PropertyReviewReplyForm } from './PropertyReviewReplyForm';
 import type { PropertyReview } from '@/types/review';
 
 interface PropertyReviewsProps {
@@ -11,6 +13,16 @@ interface PropertyReviewsProps {
   propertyId: number;
   averageRating: number | null;
   reviewsCount: number;
+  /**
+   * Property owner user id — required to show the "Répondre" CTA to the right
+   * account. Null for listings where the owner card isn't loaded.
+   */
+  ownerId?: number | null;
+  /**
+   * Property agency id — used to show the "Répondre" CTA to agents belonging
+   * to the listing agency (matches backend policy in `ReviewController@reply`).
+   */
+  agencyId?: number | null;
 }
 
 function formatDate(iso: string): string {
@@ -21,7 +33,16 @@ function formatDate(iso: string): string {
   });
 }
 
-function ReviewItem({ review }: { review: PropertyReview }) {
+interface ReviewItemProps {
+  review: PropertyReview;
+  canReply: boolean;
+  onReply: (reviewId: number, replyContent: string) => Promise<void>;
+}
+
+function ReviewItem({ review, canReply, onReply }: ReviewItemProps) {
+  const [editing, setEditing] = useState(false);
+  const hasReply = Boolean(review.reply_content);
+
   return (
     <li className="border-b border-stone-200 pb-4 last:border-b-0">
       <div className="flex items-start gap-3">
@@ -57,11 +78,57 @@ function ReviewItem({ review }: { review: PropertyReview }) {
           </div>
           {review.title && <p className="font-medium text-stone-900 mt-2">{review.title}</p>}
           {review.content && <p className="text-sm text-stone-700 mt-1">{review.content}</p>}
-          {review.reply_content && (
-            <div className="mt-3 ml-2 pl-3 border-l-2 border-stone-200 text-sm text-stone-600">
-              <p className="text-xs font-medium text-stone-500 mb-0.5">Réponse du propriétaire</p>
-              {review.reply_content}
+
+          {hasReply && !editing && (
+            <div
+              className="mt-3 ml-2 pl-3 border-l-2 border-stone-200 text-sm text-stone-600"
+              data-testid="review-reply"
+            >
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="text-xs font-medium text-stone-500">
+                  Réponse de l’agent
+                  {review.replied_at && (
+                    <span className="ml-2 text-stone-400 font-normal">
+                      · {formatDate(review.replied_at)}
+                    </span>
+                  )}
+                </p>
+                {canReply && (
+                  <button
+                    type="button"
+                    onClick={() => setEditing(true)}
+                    className="inline-flex items-center gap-1 text-xs text-stone-600 hover:text-stone-900"
+                  >
+                    <Pencil className="size-3" aria-hidden /> Modifier
+                  </button>
+                )}
+              </div>
+              <p className="mt-1 whitespace-pre-line">{review.reply_content}</p>
             </div>
+          )}
+
+          {canReply && !hasReply && !editing && (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
+              data-testid="review-reply-trigger"
+            >
+              <MessageSquareReply className="size-3.5" aria-hidden />
+              Répondre
+            </button>
+          )}
+
+          {canReply && editing && (
+            <PropertyReviewReplyForm
+              reviewId={review.id}
+              initialContent={review.reply_content}
+              onSubmit={async (id, content) => {
+                await onReply(id, content);
+                setEditing(false);
+              }}
+              onCancel={() => setEditing(false)}
+            />
           )}
         </div>
       </div>
@@ -101,12 +168,52 @@ function RatingDistribution({
   );
 }
 
-export function PropertyReviews({ slug, propertyId, averageRating, reviewsCount }: PropertyReviewsProps) {
+/**
+ * Determine whether the currently authenticated user may reply publicly to
+ * reviews on a property. Mirrors the backend rule in `ReviewController@reply`:
+ * owner, matching agency member, or admin.
+ */
+export function canReplyToReview({
+  userId,
+  userRoles,
+  userAgencyId,
+  ownerId,
+  propertyAgencyId,
+}: {
+  userId: number | null | undefined;
+  userRoles: readonly string[];
+  userAgencyId: number | null | undefined;
+  ownerId: number | null | undefined;
+  propertyAgencyId: number | null | undefined;
+}): boolean {
+  if (!userId) return false;
+  if (userRoles.includes('super_admin') || userRoles.includes('agency_admin')) return true;
+  if (ownerId && userId === ownerId) return true;
+  if (userAgencyId && propertyAgencyId && userAgencyId === propertyAgencyId) return true;
+  return false;
+}
+
+export function PropertyReviews({
+  slug,
+  propertyId,
+  averageRating,
+  reviewsCount,
+  ownerId,
+  agencyId,
+}: PropertyReviewsProps) {
   const { user } = useAuth();
-  const { data, loading, error, submit } = usePropertyReviews(slug, propertyId);
+  const { data, loading, error, submit, reply } = usePropertyReviews(slug, propertyId);
+
+  const canReply = canReplyToReview({
+    userId: user?.id,
+    userRoles: user?.roles ?? [],
+    userAgencyId: user?.agency_id ?? null,
+    ownerId,
+    propertyAgencyId: agencyId,
+  });
 
   return (
-    <section className="space-y-4">
+    <section id="avis" className="space-y-4 scroll-mt-24">
       <div className="flex items-baseline justify-between gap-2 flex-wrap">
         <h2 className="text-xl font-semibold text-stone-900">
           Avis {reviewsCount > 0 && <span className="text-stone-500 text-base">({reviewsCount})</span>}
@@ -136,7 +243,7 @@ export function PropertyReviews({ slug, propertyId, averageRating, reviewsCount 
       {data && data.data.length > 0 && (
         <ul className="space-y-4">
           {data.data.map((r) => (
-            <ReviewItem key={r.id} review={r} />
+            <ReviewItem key={r.id} review={r} canReply={canReply} onReply={reply} />
           ))}
         </ul>
       )}
