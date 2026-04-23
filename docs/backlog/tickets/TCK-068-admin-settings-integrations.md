@@ -84,4 +84,4 @@ Page de paramètres structurée par groupes, à la Vercel / GitHub settings. Nav
 - **Robustesse legacy :** `credentials` est castée `encrypted:array` côté modèle mais le contrôleur existant fait `json_encode` avant création — `test()` normalise donc string→array en lecture pour ne pas casser sur des rows historiques.
 - Feature flags : pas d'implémentation dédiée — les drapeaux sont gérés comme des settings `feature_flags:*` classiques via l'UI existante. Ticket P3 pour une table dédiée si besoin.
 - Tests Vitest : rendu carte provider, flow test success/failure, masquage du secret jusqu'au clic "Afficher". Test PHP : `test_test_endpoint_reports_ok_with_credentials` + `test_test_endpoint_reports_ko_when_inactive`.
-- PR : https://github.com/thiambara/takussan/pull/TBD
+- PR : https://github.com/thiambara/takussan/pull/45

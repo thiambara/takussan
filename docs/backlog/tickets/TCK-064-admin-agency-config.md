@@ -80,4 +80,4 @@ Page de paramètres calme, à la Linear / Stripe settings. Sections verticales (
 - Logo uploadé via `POST /api/media` (collection `logo`). **Modif backend :** `MediaUploadRequest::COLLECTIONS` élargi pour accepter `logo`. Parité SVG écartée (backend n'autorise pas le MIME SVG pour éviter XSS) — la contrainte du ticket est assouplie à JPG/PNG/WEBP et reportée à l'uniformisation des collections media.
 - `AgencyResource` complété : expose maintenant `settings` + `primary_admin_id` pour rendre la page self-contained.
 - Tests Vitest : `agencyFormSchema` (rate hors bornes, email/téléphone invalides, devise), `normaliseAgencyForm`, `validateAgencyLogoFile`, mapping query params `fetchAgency`.
-- PR : https://github.com/thiambara/takussan/pull/TBD
+- PR : https://github.com/thiambara/takussan/pull/45
