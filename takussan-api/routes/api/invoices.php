@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\DocumentPdfController;
 use App\Http\Controllers\Api\InvoiceController;
 use Illuminate\Support\Facades\Route;
 
@@ -10,4 +11,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('invoices/{invoice}/send', [InvoiceController::class, 'send'])->name('invoices.send');
     Route::post('invoices/{invoice}/mark-paid', [InvoiceController::class, 'markPaid'])->name('invoices.mark-paid');
     Route::post('invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
+
+    // TCK-077 — PDF
+    Route::get('invoices/{invoice}/pdf', [DocumentPdfController::class, 'invoice'])
+        ->name('invoices.pdf');
 });

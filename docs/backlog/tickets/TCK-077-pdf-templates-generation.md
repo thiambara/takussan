@@ -1,7 +1,7 @@
 ---
 id: TCK-077
 title: "Documents — Génération PDF depuis templates"
-status: todo
+status: review
 phase: P2
 family: back
 estimate: M
@@ -101,4 +101,31 @@ public function stream(string $template, array $data): Response  // streamed res
 
 ## Notes d'implémentation
 
-_(Rempli à l'implémentation)_
+- **Service unique** : `App\Services\Pdf\DocumentPdfService` avec la signature
+  `render / stream / store` demandée par le ticket. Conçu pour absorber le
+  template inventaire de TCK-076 sans refacto (aucune logique spécifique
+  receipts/invoices/leases dans le service — tout est dans les Blade).
+- **Helper `formatCurrency`** annoncé §2.8 non présent dans le repo : les
+  templates formatent via `number_format($n, 0, ',', ' ').' '.$currency`
+  directement. À centraliser plus tard si plusieurs templates le dupliquent
+  (ticket dédié possible).
+- **`Response` non streamée** : `stream()` renvoie un `Illuminate\Http\Response`
+  classique avec `Content-Type: application/pdf` et
+  `Content-Disposition: inline` — cohérent avec l'attente d'un PDF complet
+  servi à la volée. `streamedContent()` n'est donc pas applicable côté test.
+- **Assertions de contenu** : le driver dompdf (utilisé en CI, cf.
+  `phpunit.xml`) compresse les flux de page, ce qui rend les `str_contains`
+  sur les octets PDF peu fiables. On assert donc contenu-métier via
+  `View::make(...)->render()` au niveau HTML (cf. service test), et on se
+  contente de `%PDF-` + heuristique de taille sur les bytes binaires côté
+  endpoint.
+- **Autorisation** : logiques centralisées dans `DocumentPdfController`
+  (pas de `Policy` dédiée). Rationalisé par la forme courte (3 méthodes
+  `authorize*`) et cohérent avec le pattern déjà en place sur
+  `LeaseController::authorizeAccess`.
+- **`Document::store()`** persiste via medialibrary (`addMediaFromString`)
+  sur la collection `file` existante ; le type `DocumentType` est deviné
+  depuis le nom du template.
+- Doc : `docs/pdf-templates.md` (recette "ajouter un template en 5 min").
+- Tests : `php artisan test --filter=Pdf` → 13 verts, dont les 6 listés au
+  ticket. Full suite : 846 verts. Pint clean.

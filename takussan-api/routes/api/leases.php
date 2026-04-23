@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\DocumentPdfController;
 use App\Http\Controllers\Api\LeaseController;
 use App\Http\Controllers\Api\LeasePaymentController;
 use Illuminate\Support\Facades\Route;
@@ -24,4 +25,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('leases/{lease}/guarantors', [LeaseController::class, 'listGuarantors'])->name('leases.guarantors.index');
     Route::post('leases/{lease}/guarantors', [LeaseController::class, 'attachGuarantor'])->name('leases.guarantors.store');
     Route::delete('leases/{lease}/guarantors/{guarantor}', [LeaseController::class, 'detachGuarantor'])->name('leases.guarantors.destroy');
+
+    // TCK-077 — PDF receipts & contract
+    Route::get('leases/{lease}/receipts/{payment}/pdf', [DocumentPdfController::class, 'receipt'])
+        ->name('leases.receipts.pdf');
+    Route::get('leases/{lease}/contract/pdf', [DocumentPdfController::class, 'leaseContract'])
+        ->name('leases.contract.pdf');
 });
