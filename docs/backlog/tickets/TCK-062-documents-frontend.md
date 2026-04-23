@@ -1,7 +1,7 @@
 ---
 id: TCK-062
 title: "Documents — Frontend bibliothèque & partage"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -79,4 +79,16 @@ Bibliothèque silencieuse et efficace, à la Google Drive / Notion files. Liste 
 
 ## Notes d'implémentation
 
-_(Rempli à l'implémentation)_
+- **Page** `src/app/(dashboard)/app/documents/page.tsx` — wrapper auth + rendu `<DocumentsLibrary>`.
+- **Composants** `src/components/documents/` :
+  - `DocumentsLibrary` — liste groupée par catégorie, drag-drop zone globale, pagination via `PropertyPagination`.
+  - `DocumentsFilters` — recherche + `type` + `documentable_type`, filtres persistés en URL (`useSearchParams` / `router.replace`).
+  - `DocumentUploadDialog` — formulaire RHF + Zod, drag-drop inline, pré-remplissage optionnel (`defaultDocumentable`) ; multipart/form-data via `useApiMutation({ formData: true })`.
+  - `DocumentShareDialog` — TTL (1h/24h/7j/30j), mot de passe, max downloads, copie lien + révocation ; stockage des liens en local-state (pas d'endpoint `index` côté back).
+  - `AddDocumentButton` — bouton réutilisable, monté sur fiche bien/bail/client avec `documentable_type`/`documentable_id` pré-remplis (AC5).
+- **Hooks** `src/lib/queries/documents.ts` — `useDocuments`, `useDocument`, `useUploadDocument`, `useDeleteDocument`, `useCreateShareLink`, `useRevokeShareLink`. Sparse fieldsets obligatoires (`fields[documents]=...`), filtre spatie `filter[type]`, `filter[documentable_type]`, `filter[search]`.
+- **Types** `src/types/document.ts` — `Document`, `DocumentShareLink`, `DocumentType`, `DocumentableType`.
+- **Schémas** `src/lib/schemas/document.ts` — `documentUploadSchema`, `shareLinkSchema`.
+- **Intégrations** : `AddDocumentButton` ajouté en en-tête de `/app/properties/[id]`, `/app/customers/[id]` et dans `LeaseDetail`.
+- **Tests** : `src/lib/schemas/__tests__/document.test.ts` (upload + share-link) + `src/components/documents/__tests__/constants.test.ts` (resolveDocumentableAlias / Href, dictionnaires). Tous verts.
+- **Hors périmètre** (conforme au ticket) : signature électronique, OCR, versions, templates PDF.

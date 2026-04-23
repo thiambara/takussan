@@ -7,3 +7,5 @@ export * from './inventory';
 export * from './booking';
 export * from './lease';
 export * from './message';
+export * from './document';
+
