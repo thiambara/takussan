@@ -66,8 +66,10 @@ const cachedGetMe = cache(async () => {
     return await getMe(token);
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) {
-      await clearToken();
-      redirect('/auth/login');
+      // getMeAction is called during RSC render from layouts/pages, where
+      // cookies() is read-only. Redirect to a Route Handler that clears
+      // the stale cookie and bounces to /auth/login.
+      redirect('/api/auth/session-expired');
     }
     throw err;
   }
