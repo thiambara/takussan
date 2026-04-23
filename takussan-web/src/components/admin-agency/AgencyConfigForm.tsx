@@ -220,7 +220,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
         <div>
           <h2 className="text-base font-semibold text-app-ink">Logo</h2>
           <p className="mt-1 text-xs text-app-ink-muted">
-            JPG, PNG, WEBP ou SVG — 2 Mo maximum. Le logo est affiché dans l’espace
+            JPG, PNG ou WEBP — 2 Mo maximum. Le logo est affiché dans l’espace
             agent et sur les documents générés.
           </p>
         </div>
