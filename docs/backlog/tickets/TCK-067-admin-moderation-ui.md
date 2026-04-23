@@ -1,7 +1,7 @@
 ---
 id: TCK-067
 title: "Admin — Modération avis & signalements UI"
-status: todo
+status: doing
 phase: P2
 family: front
 estimate: M
@@ -75,4 +75,28 @@ File d'attente à la Discourse / Reddit mod queue. Colonne principale = liste de
 
 ## Notes d'implémentation
 
-_(Rempli à l'implémentation)_
+- Backend (TCK-033 extension) :
+  - `GET /api/reviews` — file de modération globale (admin/super_admin). Support de
+    `filter[moderation_status]=pending|flagged|approved|rejected`,
+    `filter[reported]=1`, `filter[subject_type]=…`, sort `-reported_count,-created_at`.
+    Meta expose `pending_count` pour le badge sidebar.
+  - `PATCH /api/reviews/{id}/moderate` — endpoint unifié, body `{ decision, reason }`.
+    Raison requise pour `hide|delete|ignore`. `delete` → soft-delete (SoftDeletes).
+  - `GET /api/reviews/{id}/reports` — liste des signalements avec reporter + motif.
+- Frontend :
+  - Stub `/admin/moderation/page.tsx` remplacé par `<ModerationWorkspace>` (split vue).
+  - `<ModerationQueueList>` : file triée, badge statut/signalements.
+  - `<ModerationDetail>` : panneau détail, actions Approuver/Masquer/Supprimer/Ignorer
+    avec raison textarea requise (sauf `approve`). Confirmation explicite pour `delete`.
+  - Badge sidebar `/admin/moderation` alimenté par `meta.pending_count` (poll 60s).
+- Tests :
+  - Backend : 9 nouveaux tests (`ReviewModerationQueueTest`).
+  - Frontend : 3 nouveaux tests (`ModerationWorkspace.test.tsx`).
+
+### Divergences spec
+
+- Les actions `approve|hide|delete|ignore` passent par `PATCH /reviews/{id}/moderate`
+  en plus des routes POST historiques (`approve`, `reject`, `report`). Les deux
+  coexistent — l'API historique reste compatible.
+- Les "reports" sont stockés dans `review.metadata.reports[]` (structure déjà
+  existante de TCK-033) — pas de table dédiée.

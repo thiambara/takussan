@@ -57,4 +57,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('reviews/{review}/approve', [ReviewController::class, 'approve'])->name('reviews.approve');
     Route::post('reviews/{review}/reject', [ReviewController::class, 'reject'])->name('reviews.reject');
     Route::post('reviews/{review}/report', [ReviewController::class, 'report'])->name('reviews.report');
+
+    // Global reviews (admin moderation queue)
+    Route::get('reviews', [ReviewController::class, 'index'])->name('reviews.index');
+    Route::patch('reviews/{review}/moderate', [ReviewController::class, 'moderate'])->name('reviews.moderate');
+    Route::get('reviews/{review}/reports', [ReviewController::class, 'reports'])->name('reviews.reports');
 });
