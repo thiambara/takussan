@@ -34,13 +34,10 @@ const CATEGORY_OPTIONS = MAINTENANCE_CATEGORIES.map((c) => ({
   label: MAINTENANCE_CATEGORY_LABEL[c],
 }));
 
-const PRIORITY_OPTIONS = [
-  { value: '', label: 'Choisir (optionnel)' },
-  ...MAINTENANCE_PRIORITIES.map((p) => ({
-    value: p,
-    label: MAINTENANCE_PRIORITY_LABEL[p],
-  })),
-];
+const PRIORITY_OPTIONS = MAINTENANCE_PRIORITIES.map((p) => ({
+  value: p,
+  label: MAINTENANCE_PRIORITY_LABEL[p],
+}));
 
 /**
  * Report-a-problem form. Submits the request, then — if the user
