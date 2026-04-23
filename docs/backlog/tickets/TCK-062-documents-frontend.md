@@ -79,6 +79,7 @@ Bibliothèque silencieuse et efficace, à la Google Drive / Notion files. Liste 
 
 ## Notes d'implémentation
 
+- **PR** : https://github.com/thiambara/takussan/pull/43 (groupe V4-C — avec TCK-063).
 - **Page** `src/app/(dashboard)/app/documents/page.tsx` — wrapper auth + rendu `<DocumentsLibrary>`.
 - **Composants** `src/components/documents/` :
   - `DocumentsLibrary` — liste groupée par catégorie, drag-drop zone globale, pagination via `PropertyPagination`.

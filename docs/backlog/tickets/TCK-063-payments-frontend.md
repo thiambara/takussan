@@ -79,6 +79,7 @@ Tableau financier dense, à la Stripe Dashboard / Pennylane. Ligne = paiement ; 
 
 ## Notes d'implémentation
 
+- **PR** : https://github.com/thiambara/takussan/pull/43 (groupe V4-C — avec TCK-062).
 - **Page** `src/app/(dashboard)/app/payments/page.tsx` — stub remplacé, délègue à `<PaymentsTabs>`.
 - **Composants** `src/components/payments/` :
   - `PaymentsTabs` — 3 onglets Historique / Factures / Payouts, onglet courant persisté en URL (`?tab=...`), toolbar "Générer facture" / "Créer reversement".
