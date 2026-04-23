@@ -50,7 +50,6 @@ function buildNavItems(user: User): NavItem[] {
       icon: PlusCircle,
       emphasized: true,
     });
-    items.push({ href: '/app/crm', label: 'CRM', icon: Users });
   }
 
   if (isCustomer(roles)) {
@@ -75,6 +74,14 @@ function buildNavItems(user: User): NavItem[] {
 
   if (isAdmin(roles)) {
     items.push({ href: '/admin', label: 'Administration', icon: ShieldCheck, emphasized: true });
+  }
+
+  // TCK-041 dashboard agent — biens: the `/app/properties` and
+  // `/app/properties/new` entries above are now owned by TCK-041 (dashboard
+  // agent CRUD). The dedup filter at the bottom keeps first occurrences.
+  // TCK-042 dashboard agent — CRM
+  if (isAgent(roles) || isAdmin(roles) || isOwner(roles)) {
+    items.push({ href: '/app/customers', label: 'Clients (CRM)', icon: Users });
   }
 
   // Dedup by href while preserving first occurrence
