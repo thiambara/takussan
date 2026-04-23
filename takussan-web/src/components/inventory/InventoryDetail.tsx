@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useLocale } from 'next-intl';
 
+import { MediaDropzone } from '@/components/media';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Button } from '@/components/ui/button';
 import { formatDateTime } from '@/lib/format';
@@ -170,36 +171,37 @@ function RoomCard({
       ) : null}
 
       {canUpload ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-dashed border-app-surface-3 p-3">
-          <input
-            type="file"
-            multiple
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(e) => setPhotos(Array.from(e.target.files ?? []))}
-            className="text-xs text-app-ink-muted"
-            aria-label={`Photos pour ${room.name}`}
+        <div className="mt-3 space-y-3 rounded-md border border-dashed border-app-surface-3 p-3">
+          <MediaDropzone
+            onChange={(next) => setPhotos((prev) => [...prev, ...next])}
+            files={photos}
+            onRemove={(index) =>
+              setPhotos((prev) => prev.filter((_, i) => i !== index))
+            }
           />
-          <Button
-            type="button"
-            size="sm"
-            disabled={photos.length === 0 || upload.isPending}
-            onClick={async () => {
-              if (photos.length === 0) return;
-              try {
-                await upload.mutateAsync({ files: photos, roomName: room.name });
-                setPhotos([]);
-              } catch {
-                // Error surfaced via `upload.isError` below.
-              }
-            }}
-          >
-            {upload.isPending ? 'Envoi…' : 'Envoyer les photos'}
-          </Button>
-          {upload.isError ? (
-            <span className="text-xs text-destructive">
-              L&apos;envoi a échoué. Réessayez.
-            </span>
-          ) : null}
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              disabled={photos.length === 0 || upload.isPending}
+              onClick={async () => {
+                if (photos.length === 0) return;
+                try {
+                  await upload.mutateAsync({ files: photos, roomName: room.name });
+                  setPhotos([]);
+                } catch {
+                  // Error surfaced via `upload.isError` below.
+                }
+              }}
+            >
+              {upload.isPending ? 'Envoi…' : 'Envoyer les photos'}
+            </Button>
+            {upload.isError ? (
+              <span className="text-xs text-destructive">
+                L&apos;envoi a échoué. Réessayez.
+              </span>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </article>

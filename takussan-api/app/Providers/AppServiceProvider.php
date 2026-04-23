@@ -17,6 +17,7 @@ use App\Observers\PropertyVisitObserver;
 use App\Observers\ReviewObserver;
 use App\Observers\UserObserver;
 use App\Policies\MediaPolicy;
+use App\Policies\PropertyPolicy;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -44,6 +45,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Spatie Media lives outside App\Models so auto-discovery misses it.
         Gate::policy(Media::class, MediaPolicy::class);
+
+        // TCK-074 — explicit bind so `$user->can('duplicate', $property)` resolves.
+        Gate::policy(Property::class, PropertyPolicy::class);
 
         $events->listen(SocialiteWasCalled::class, 'SocialiteProviders\\Apple\\AppleExtendSocialite@handle');
 

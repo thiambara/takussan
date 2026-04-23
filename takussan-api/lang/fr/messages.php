@@ -14,10 +14,20 @@ return [
     'user_already_in_agency' => 'Cet utilisateur appartient déjà à une autre agence.',
     'user_not_in_agency' => 'Cet utilisateur ne fait pas partie de cette agence.',
     'cannot_remove_primary_admin' => 'Impossible de retirer l\'administrateur principal de l\'agence.',
+    'cannot_remove_last_agency_admin' => 'Impossible de retirer le dernier administrateur de l\'agence.',
+    'user_not_found_by_email' => 'Aucun utilisateur actif n\'a été trouvé pour cet email.',
     'cannot_block_self' => 'Vous ne pouvez pas bloquer votre propre compte.',
     'cannot_delete_self' => 'Vous ne pouvez pas supprimer votre propre compte via cette route.',
     'collaborator_already_exists' => 'Ce collaborateur est déjà ajouté à ce bien.',
     'only_super_admin_can_grant_super_admin' => 'Seul un super administrateur peut attribuer le rôle super_admin.',
+
+    // Integrations
+    'integration_inactive' => 'L\'intégration est désactivée. Activez-la avant de la tester.',
+    'integration_missing_credentials' => 'Aucun identifiant configuré pour cette intégration.',
+    'integration_test_ok' => 'Connexion :provider vérifiée avec succès.',
+
+    // Tags
+    'tag_in_use' => 'Ce tag est encore utilisé par un ou plusieurs biens ou clients.',
 
     // Lease
     'lease_cannot_terminate' => 'Seuls les baux actifs ou en attente de signature peuvent être résiliés.',

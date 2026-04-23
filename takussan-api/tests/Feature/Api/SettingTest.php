@@ -66,6 +66,31 @@ class SettingTest extends TestCase
             ->assertJsonPath('data.scope_id', $agency->id);
     }
 
+    public function test_list_accepts_value_in_sparse_fieldset(): void
+    {
+        // Regression (review): the frontend admin UI requests
+        // `fields[settings]=id,key,value,scope,...` — the `value` column
+        // must be in the model's allowedFields list or spatie returns 400.
+        $agency = Agency::factory()->create();
+        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
+        $admin = User::factory()->create(['agency_id' => $agency->id]);
+        Role::findOrCreate('super_admin');
+        $admin->assignRole('super_admin');
+
+        Sanctum::actingAs($admin);
+
+        $this->postJson('/api/settings', [
+            'key' => 'site_name',
+            'value' => ['name' => 'Takussan'],
+            'scope' => SettingScope::Global->value,
+            'scope_id' => null,
+        ])->assertCreated();
+
+        $this->getJson('/api/settings?fields[settings]=id,key,value,scope,scope_id,updated_by_id,updated_at')
+            ->assertOk()
+            ->assertJsonPath('data.0.value.name', 'Takussan');
+    }
+
     public function test_regular_agent_cannot_manage_settings(): void
     {
         $agency = Agency::factory()->create();

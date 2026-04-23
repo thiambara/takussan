@@ -25,6 +25,8 @@ class AgencyResource extends JsonResource
             'active_leases_count' => $this->active_leases_count,
             'average_rating' => $this->average_rating !== null ? (float) $this->average_rating : null,
             'logo_url' => $this->getFirstMediaUrl('logo') ?: null,
+            'settings' => $this->settings ?? null,
+            'primary_admin_id' => $this->primary_admin_id,
             'created_at' => $this->created_at?->toISOString(),
         ];
     }

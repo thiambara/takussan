@@ -21,6 +21,8 @@ return [
     'user_already_in_agency' => 'Jàngalekat bi nekk na ci beneen agence.',
     'user_not_in_agency' => 'Jàngalekat bi nekkul ci agence bi.',
     'cannot_remove_primary_admin' => 'Mën nañu digal admin bu njëkk bi.',
+    'cannot_remove_last_agency_admin' => 'Du ñu mën digal mujj admin bi ci agence bi.',
+    'user_not_found_by_email' => 'Ngemb bu email bi, jàngalekat amul.',
     'cannot_block_self' => 'Mën nga téqale sa bopp.',
     'cannot_delete_self' => 'Mën nga far sa bopp ci yoon wii.',
     'collaborator_already_exists' => 'Jàngalekat bi ci mbaar mi nekk na.',

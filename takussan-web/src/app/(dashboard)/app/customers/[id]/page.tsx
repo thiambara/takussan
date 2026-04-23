@@ -11,6 +11,7 @@ import {
 import { isAdmin, isAgent, isOwner } from '@/lib/roles';
 import { Badge } from '@/components/ui/badge';
 import { CustomerDetailTabs } from '@/components/customer-dashboard/CustomerDetailTabs';
+import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 import {
   CUSTOMER_STATUS_LABELS,
   PIPELINE_STAGE_LABELS,
@@ -69,19 +70,26 @@ export default async function Page({ params }: { params: Params }) {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-app-ink-muted">
-          Client · #{customer.id}
-        </p>
-        <h1 className="text-2xl font-bold text-app-ink">
-          {customer.first_name} {customer.last_name}
-        </h1>
-        <div className="flex flex-wrap items-center gap-2 text-sm text-app-ink-muted">
-          {customer.email ? <span>{customer.email}</span> : null}
-          {customer.phone ? <span>{customer.phone}</span> : null}
-          {pipelineLabel ? <Badge variant="outline">{pipelineLabel}</Badge> : null}
-          <Badge variant="outline">{statusLabel}</Badge>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-app-ink-muted">
+            Client · #{customer.id}
+          </p>
+          <h1 className="text-2xl font-bold text-app-ink">
+            {customer.first_name} {customer.last_name}
+          </h1>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-app-ink-muted">
+            {customer.email ? <span>{customer.email}</span> : null}
+            {customer.phone ? <span>{customer.phone}</span> : null}
+            {pipelineLabel ? <Badge variant="outline">{pipelineLabel}</Badge> : null}
+            <Badge variant="outline">{statusLabel}</Badge>
+          </div>
         </div>
+        <AddDocumentButton
+          documentableType="customer"
+          documentableId={customer.id}
+          displayLabel={`${customer.first_name} ${customer.last_name}`}
+        />
       </header>
 
       <CustomerDetailTabs

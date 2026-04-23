@@ -14,6 +14,7 @@ export type User = {
   email_verified_at: string | null;
   phone_verified_at: string | null;
   two_factor_enabled: boolean;
+  agency_id?: number | null;
   roles: UserRole[];
   status: UserStatus;
   created_at: string;

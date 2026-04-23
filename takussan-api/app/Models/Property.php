@@ -37,7 +37,7 @@ class Property extends AbstractModel implements HasMedia
         'area', 'bedrooms', 'bathrooms', 'furnished',
         'floor_number', 'total_floors', 'year_built', 'parking_spaces',
         'featured', 'lot_position', 'level', 'admin_monitored',
-        'available_from', 'published_at', 'metadata',
+        'available_from', 'published_at', 'archived_at', 'metadata',
     ];
 
     protected $casts = [
@@ -56,6 +56,7 @@ class Property extends AbstractModel implements HasMedia
         'admin_monitored' => 'boolean',
         'available_from' => 'date',
         'published_at' => 'datetime',
+        'archived_at' => 'datetime',
         'metadata' => 'array',
     ];
 

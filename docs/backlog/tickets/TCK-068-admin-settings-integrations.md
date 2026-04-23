@@ -1,7 +1,7 @@
 ---
 id: TCK-068
 title: "Admin — Paramètres globaux & intégrations"
-status: todo
+status: review
 phase: P2
 family: front
 estimate: M
@@ -78,4 +78,10 @@ Page de paramètres structurée par groupes, à la Vercel / GitHub settings. Nav
 
 ## Notes d'implémentation
 
-_(Rempli à l'implémentation)_
+- Page `/admin/settings` refactorisée : nav secondaire (Général · Tags · Intégrations) + `SettingsManager` (table clé/valeur, filtre par scope, édition inline, confirmation explicite pour clés sensibles `maintenance_mode`/`feature_flags`). Seul `super_admin` peut éditer les settings `global` (check front + back).
+- Sous-page `/admin/settings/integrations` : `IntegrationsManager` en cartes par provider (toggle actif, tester, configurer, supprimer). Dialog partagé create/edit, `SecretInput` avec toggle afficher/masquer, payload `edit` omet `credentials` si vide pour préserver le secret stocké.
+- **Nouvelle route backend :** `POST /api/integrations/{id}/test` → `IntegrationController@test`. Version minimaliste (actif + credentials non vide) ; les vraies vérifs par provider (Wave, Stripe…) relèvent d'un ticket paiement P2. Route `PATCH` aliasée ajoutée pour cohérence avec les autres routes.
+- **Robustesse legacy :** `credentials` est castée `encrypted:array` côté modèle mais le contrôleur existant fait `json_encode` avant création — `test()` normalise donc string→array en lecture pour ne pas casser sur des rows historiques.
+- Feature flags : pas d'implémentation dédiée — les drapeaux sont gérés comme des settings `feature_flags:*` classiques via l'UI existante. Ticket P3 pour une table dédiée si besoin.
+- Tests Vitest : rendu carte provider, flow test success/failure, masquage du secret jusqu'au clic "Afficher". Test PHP : `test_test_endpoint_reports_ok_with_credentials` + `test_test_endpoint_reports_ko_when_inactive`.
+- PR : https://github.com/thiambara/takussan/pull/45

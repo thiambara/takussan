@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard,
   Building2,
@@ -12,17 +13,21 @@ import {
   Settings,
   ArrowLeft,
   Shield,
+  Briefcase,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
 import { isSuperAdmin } from '@/lib/roles';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
+import { fetchModerationQueue } from '@/lib/queries/reviews-moderation';
 
 interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
+  badge?: number;
 }
 
 interface AdminSidebarProps {
@@ -31,15 +36,22 @@ interface AdminSidebarProps {
   onNavigate?: () => void;
 }
 
-function buildAdminItems(user: User): NavItem[] {
+function buildAdminItems(user: User, pendingCount: number): NavItem[] {
   const items: NavItem[] = [{ href: '/admin', label: 'Tableau de bord', icon: LayoutDashboard }];
   if (isSuperAdmin(user.roles)) {
     items.push({ href: '/admin/properties', label: 'Biens', icon: Building2 });
   }
+  items.push({ href: '/admin/team', label: 'Équipe', icon: Users });
   items.push({ href: '/admin/users', label: 'Équipe', icon: Users });
+  items.push({ href: '/admin/agency', label: 'Agence', icon: Briefcase });
   items.push({ href: '/admin/finances', label: 'Finances', icon: CreditCard });
   if (isSuperAdmin(user.roles)) {
-    items.push({ href: '/admin/moderation', label: 'Modération', icon: Shield });
+    items.push({
+      href: '/admin/moderation',
+      label: 'Modération',
+      icon: Shield,
+      badge: pendingCount || undefined,
+    });
   }
   items.push({ href: '/admin/roles', label: 'Rôles & Permissions', icon: ShieldCheck });
   items.push({ href: '/admin/audit', label: "Journal d'audit", icon: FileText });
@@ -51,6 +63,7 @@ function AdminItem({
   href,
   label,
   icon: Icon,
+  badge,
   active,
   onNavigate,
 }: NavItem & { active: boolean; onNavigate?: () => void }) {
@@ -66,14 +79,34 @@ function AdminItem({
       )}
     >
       <Icon className="size-4 shrink-0" />
-      <span className="truncate">{label}</span>
+      <span className="truncate flex-1">{label}</span>
+      {badge ? (
+        <span
+          className="inline-flex min-w-5 items-center justify-center rounded-full bg-red-500/80 px-1.5 text-[10px] font-bold text-white"
+          aria-label={`${badge} en attente`}
+        >
+          {badge}
+        </span>
+      ) : null}
     </Link>
   );
 }
 
 export function AdminSidebar({ user, className, onNavigate }: AdminSidebarProps) {
   const pathname = usePathname();
-  const items = buildAdminItems(user);
+  const { token } = useAuth();
+
+  // Poll the moderation queue count so the sidebar badge stays fresh.
+  const { data: modMeta } = useQuery({
+    queryKey: ['reviews-moderation', 'pending-count'],
+    queryFn: () =>
+      fetchModerationQueue(token ?? '', { perPage: 1 }).then((r) => r.meta),
+    enabled: Boolean(token) && isSuperAdmin(user.roles),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
+  const items = buildAdminItems(user, modMeta?.pending_count ?? 0);
   const initials = `${user.first_name[0] ?? ''}${user.last_name[0] ?? ''}`.toUpperCase();
 
   return (
@@ -89,14 +122,22 @@ export function AdminSidebar({ user, className, onNavigate }: AdminSidebarProps)
         <p className="mt-1 text-xs uppercase tracking-wider text-white/60">Administration</p>
       </div>
       <nav className="flex-1 space-y-1 px-3">
-        {items.map((item) => (
-          <AdminItem
-            key={item.href}
-            {...item}
-            active={pathname === item.href}
-            onNavigate={onNavigate}
-          />
-        ))}
+        {items.map((item) => {
+          // Exact match for the dashboard root, prefix match for nested routes
+          // so "Paramètres" stays highlighted on /admin/settings/tags etc.
+          const active =
+            item.href === '/admin'
+              ? pathname === '/admin'
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
+          return (
+            <AdminItem
+              key={item.href}
+              {...item}
+              active={active}
+              onNavigate={onNavigate}
+            />
+          );
+        })}
       </nav>
       <div className="space-y-2 px-3 pb-4">
         <Link
