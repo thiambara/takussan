@@ -2,10 +2,10 @@ import { forbidden } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin, isAgent, isOwner } from '@/lib/roles';
-import { PropertyForm } from '@/components/property-form';
+import { CustomerForm } from '@/components/customer-form';
 
 /**
- * TCK-041 — page de création d'un bien.
+ * TCK-042 — ajout d'un client CRM.
  */
 
 export const dynamic = 'force-dynamic';
@@ -19,13 +19,13 @@ export default async function Page() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-app-ink">Publier un bien</h1>
+        <h1 className="text-2xl font-bold text-app-ink">Ajouter un client</h1>
         <p className="mt-1 text-sm text-app-ink-muted">
-          Remplissez les informations essentielles. Vous pourrez enrichir la
-          fiche après publication.
+          Indiquez au minimum un prénom et un nom. Un contact peut exister sans
+          compte utilisateur.
         </p>
       </header>
-      <PropertyForm mode="create" />
+      <CustomerForm mode="create" />
     </div>
   );
 }

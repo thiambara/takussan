@@ -53,7 +53,6 @@ function buildNavItems(user: User): NavItem[] {
       icon: PlusCircle,
       emphasized: true,
     });
-    items.push({ href: '/app/crm', label: 'CRM', icon: Users });
   }
 
   // Discovery shortcuts (Wave 3 / TCK-047) — visible for every signed-in user.
@@ -88,6 +87,13 @@ function buildNavItems(user: User): NavItem[] {
     items.push({ href: '/admin', label: 'Administration', icon: ShieldCheck, emphasized: true });
   }
 
+  // TCK-041 dashboard agent — biens: the `/app/properties` and
+  // `/app/properties/new` entries above are now owned by TCK-041 (dashboard
+  // agent CRUD). The dedup filter at the bottom keeps first occurrences.
+  // TCK-042 dashboard agent — CRM
+  if (isAgent(roles) || isAdmin(roles) || isOwner(roles)) {
+    items.push({ href: '/app/customers', label: 'Clients (CRM)', icon: Users });
+  }
   // TCK-030 maintenance — entry already pushed above for agent/admin/service_provider.
   // TCK-031 inventories — agency-side workflow (entrée/sortie par bail).
   if (isAgent(roles) || isAdmin(roles) || isOwner(roles)) {
