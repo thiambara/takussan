@@ -1,12 +1,12 @@
 ---
 id: TCK-038
 title: "Page d'accueil & découverte"
-status: todo
+status: review
 phase: P0
 family: front
 estimate: S
 created: 2026-04-15
-updated: 2026-04-22
+updated: 2026-04-23
 depends_on: [TCK-054, TCK-055, TCK-058, TCK-024]
 blocks: []
 spec_refs:
@@ -60,3 +60,17 @@ Un visiteur atterrit sur la page d'accueil et est immédiatement inspiré à exp
 - Page résultats de recherche (→ TCK-039)
 - Fiche bien (→ TCK-040)
 - Favoris (→ P1)
+
+## Notes d'implémentation (Wave 3)
+
+- Homepage refactorée dans `src/components/property/HomepageDiscovery.tsx`
+  (nouvelle surface canonique) ; `src/app/(public)/page.tsx` pointe
+  désormais vers ce composant. L'ancien `src/components/HomePage.tsx`
+  reste en place mais n'est plus référencé — à retirer dans un pass de
+  cleanup.
+- La barre de recherche provient du `Navbar` (déjà existant en Wave 2).
+  Elle redirige vers `/properties` en mappant l'entrée utilisateur sur
+  `city=` (la navbar est typée « Où cherchez-vous ? ») plutôt que sur
+  `search={query}` comme le suggère le ticket. Divergence mineure
+  relative au wording AC — le back-end n'expose pas `search=` mais `q=`.
+- Skeletons élégants par section (7 cartes en placeholder).

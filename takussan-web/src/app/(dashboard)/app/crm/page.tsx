@@ -1,15 +1,9 @@
-import { getMeAction } from '@/app/actions/auth';
-import { StubPlaceholder } from '@/components/shared/StubPlaceholder';
+import { permanentRedirect } from 'next/navigation';
 
-export default async function Page() {
-  await getMeAction();
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-app-ink">CRM</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">Gestion de votre portefeuille clients</p>
-      </div>
-      <StubPlaceholder label="CRM" />
-    </div>
-  );
+/**
+ * TCK-042 — the CRM section moved from `/app/crm` to `/app/customers`.
+ * Keeping a permanent redirect so any bookmarked links still resolve.
+ */
+export default function Page() {
+  permanentRedirect('/app/customers');
 }
