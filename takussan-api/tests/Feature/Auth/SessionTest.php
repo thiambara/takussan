@@ -37,7 +37,7 @@ class SessionTest extends TestCase
         $this->assertEquals('my-device', $current['name']);
     }
 
-    public function test_can_delete_a_session(): void
+    public function test_can_delete_another_session(): void
     {
         $user = User::factory()->create();
         $token1 = $user->createToken('device-1');
@@ -49,6 +49,19 @@ class SessionTest extends TestCase
             ->assertNoContent();
 
         $this->assertDatabaseMissing('personal_access_tokens', ['id' => $tokenId]);
+    }
+
+    public function test_cannot_revoke_current_session(): void
+    {
+        $user = User::factory()->create();
+        $token = $user->createToken('my-device');
+        $tokenId = $token->accessToken->id;
+
+        $this->withToken($token->plainTextToken)
+            ->deleteJson("/api/auth/sessions/{$tokenId}")
+            ->assertStatus(422);
+
+        $this->assertDatabaseHas('personal_access_tokens', ['id' => $tokenId]);
     }
 
     public function test_cannot_delete_another_users_session(): void

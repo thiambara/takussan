@@ -6,11 +6,12 @@ import { Suspense, useState } from 'react';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { OAuthButtons, OAuthSeparator } from '@/components/auth/OAuthButtons';
 import { FormInput, FormGlobalError } from '@/components/forms';
 import { loginSchema, type LoginFormValues } from '@/lib/schemas';
 import { useApiForm } from '@/hooks/useApiForm';
-import { login } from '@/lib/auth';
+import { login, isTwoFactorChallenge, type LoginResponse } from '@/lib/auth';
 import { useAuth } from '@/context/AuthContext';
 
 function LoginForm() {
@@ -21,23 +22,165 @@ function LoginForm() {
   const redirectTo = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/app';
   const [showPassword, setShowPassword] = useState(false);
 
+  // TCK-069 — 2FA challenge. When the first POST returns `requires_2fa`,
+  // we keep the credentials in state and render a second form that
+  // re-submits with `two_factor_code` or `recovery_code`.
+  const [challenge, setChallenge] = useState<{
+    email: string;
+    password: string;
+  } | null>(null);
+  const [useRecovery, setUseRecovery] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [challengeError, setChallengeError] = useState<string | null>(null);
+  const [challengePending, setChallengePending] = useState(false);
+
   const defaultValues: LoginFormValues = { email: '', password: '' };
 
-  const { form, isSubmitting, globalError, handleSubmit } = useApiForm<LoginFormValues, { token: string; user: Awaited<ReturnType<typeof login>>['user'] }>({
+  const { form, isSubmitting, globalError, handleSubmit } = useApiForm<
+    LoginFormValues,
+    LoginResponse
+  >({
     schema: loginSchema,
     defaultValues,
     formOptions: { mode: 'onTouched' },
     onSubmit: (values) => login(values),
-    onSuccess: async ({ token, user }) => {
+    onSuccess: async (result, values) => {
+      if (isTwoFactorChallenge(result)) {
+        setChallenge({ email: values.email, password: values.password });
+        return;
+      }
       await fetch('/api/auth/set-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ token: result.token }),
       });
-      setUser(user);
+      setUser(result.user);
       router.push(redirectTo);
     },
   });
+
+  async function handleChallengeSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!challenge) return;
+    setChallengePending(true);
+    setChallengeError(null);
+    try {
+      const result = await login({
+        email: challenge.email,
+        password: challenge.password,
+        ...(useRecovery
+          ? { recovery_code: twoFactorCode }
+          : { two_factor_code: twoFactorCode }),
+      });
+      if (isTwoFactorChallenge(result)) {
+        setChallengeError(result.message ?? 'Code invalide.');
+        return;
+      }
+      await fetch('/api/auth/set-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: result.token }),
+      });
+      setUser(result.user);
+      router.push(redirectTo);
+    } catch (err) {
+      setChallengeError(
+        err instanceof Error && 'displayMessage' in err
+          ? (err as { displayMessage: string }).displayMessage
+          : 'Code invalide.',
+      );
+    } finally {
+      setChallengePending(false);
+    }
+  }
+
+  if (challenge) {
+    return (
+      <div>
+        <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-2">
+          Authentification à deux facteurs
+        </h1>
+        <p className="text-muted-foreground text-sm mb-8">
+          {useRecovery
+            ? 'Entrez un de vos codes de récupération à usage unique.'
+            : 'Entrez le code à 6 chiffres généré par votre application d’authentification.'}
+        </p>
+
+        {challengeError ? (
+          <FormGlobalError>{challengeError}</FormGlobalError>
+        ) : null}
+
+        <form onSubmit={handleChallengeSubmit} className="space-y-5">
+          <div className="space-y-1">
+            <label
+              htmlFor="two-factor-code"
+              className="block text-sm font-medium"
+            >
+              {useRecovery ? 'Code de récupération' : 'Code à 6 chiffres'}
+            </label>
+            <Input
+              id="two-factor-code"
+              value={twoFactorCode}
+              onChange={(e) =>
+                setTwoFactorCode(
+                  useRecovery
+                    ? e.target.value.toUpperCase().slice(0, 11)
+                    : e.target.value.replace(/\D/g, '').slice(0, 6),
+                )
+              }
+              inputMode={useRecovery ? 'text' : 'numeric'}
+              pattern={useRecovery ? undefined : '\\d{6}'}
+              autoComplete="one-time-code"
+              placeholder={useRecovery ? 'XXXXX-XXXXX' : '123456'}
+              className="h-11"
+              required
+            />
+          </div>
+
+          <Button
+            type="submit"
+            disabled={challengePending || twoFactorCode.length < (useRecovery ? 11 : 6)}
+            className="w-full rounded-full h-11 text-base font-semibold"
+          >
+            {challengePending ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Vérification…
+              </>
+            ) : (
+              'Vérifier'
+            )}
+          </Button>
+        </form>
+
+        <div className="mt-6 flex items-center justify-between text-sm">
+          <button
+            type="button"
+            className="text-primary hover:underline"
+            onClick={() => {
+              setUseRecovery((v) => !v);
+              setTwoFactorCode('');
+              setChallengeError(null);
+            }}
+          >
+            {useRecovery ? 'Utiliser mon application' : 'Utiliser un code de récupération'}
+          </button>
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              setChallenge(null);
+              setTwoFactorCode('');
+              setChallengeError(null);
+              setUseRecovery(false);
+            }}
+          >
+            Annuler
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

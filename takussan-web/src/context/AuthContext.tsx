@@ -4,7 +4,9 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 import {
   login as apiLogin,
   register as apiRegister,
+  isTwoFactorChallenge,
   type LoginPayload,
+  type LoginResponse,
   type RegisterPayload,
   type User,
 } from '@/lib/auth';
@@ -24,9 +26,11 @@ type AuthContextValue = {
   /**
    * Authenticate with email+password, persist the auth cookie via
    * `/api/auth/set-token`, and update the in-memory user. Returns the
-   * authenticated user on success; throws on failure.
+   * authenticated user on success, or a `{ requires_2fa: true }` challenge
+   * when 2FA is enabled — the caller must then re-submit with
+   * `two_factor_code` / `recovery_code`.
    */
-  login: (payload: LoginPayload) => Promise<User>;
+  login: (payload: LoginPayload) => Promise<LoginResponse & { challenge?: true }>;
   /**
    * Register a new account, persist the auth cookie, and update the
    * in-memory user. Returns the freshly created user.
@@ -140,11 +144,16 @@ export function AuthProvider({
 
   const login = useCallback(
     async (payload: LoginPayload) => {
-      const { token: next, user: u } = await apiLogin(payload);
-      await persistToken(next);
-      setToken(next);
-      setUser(u);
-      return u;
+      const res = await apiLogin(payload);
+      if (isTwoFactorChallenge(res)) {
+        // Do not persist anything — the caller renders the 2FA step and
+        // will re-invoke login() with `two_factor_code` or `recovery_code`.
+        return res;
+      }
+      await persistToken(res.token);
+      setToken(res.token);
+      setUser(res.user);
+      return res;
     },
     [persistToken],
   );

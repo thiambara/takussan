@@ -10,6 +10,24 @@ export type AuthResponse = {
   user: User;
 };
 
+/**
+ * TCK-069 — when the account has 2FA enabled, `login` returns a 200 with
+ * `{ requires_2fa: true }` (no token) instead of `AuthResponse`. Callers
+ * must re-post the credentials with `two_factor_code` or `recovery_code`.
+ */
+export type TwoFactorChallenge = {
+  requires_2fa: true;
+  message?: string;
+};
+
+export type LoginResponse = AuthResponse | TwoFactorChallenge;
+
+export function isTwoFactorChallenge(
+  res: LoginResponse,
+): res is TwoFactorChallenge {
+  return (res as TwoFactorChallenge).requires_2fa === true;
+}
+
 export type RegisterPayload = {
   first_name: string;
   last_name: string;
@@ -21,6 +39,9 @@ export type RegisterPayload = {
 export type LoginPayload = {
   email: string;
   password: string;
+  two_factor_code?: string;
+  recovery_code?: string;
+  device_name?: string;
 };
 
 export type UpdateProfilePayload = {
@@ -34,7 +55,7 @@ export async function register(payload: RegisterPayload): Promise<AuthResponse &
   return apiRequest('/api/auth/register', { method: 'POST', body: payload });
 }
 
-export async function login(payload: LoginPayload): Promise<AuthResponse> {
+export async function login(payload: LoginPayload): Promise<LoginResponse> {
   return apiRequest('/api/auth/login', { method: 'POST', body: payload });
 }
 

@@ -44,6 +44,8 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
 
     // Phone verification
     Route::post('/verify-phone', [PhoneVerificationController::class, 'verify']);
+    Route::post('/phone/verify-otp', [PhoneVerificationController::class, 'verify']);
+    Route::post('/phone/send-otp', [PhoneVerificationController::class, 'resend'])->middleware('throttle:3,1');
     Route::post('/phone/resend', [PhoneVerificationController::class, 'resend'])->middleware('throttle:3,1');
 
     // Two-factor authentication
@@ -51,6 +53,7 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     Route::post('/two-factor/confirm', [TwoFactorController::class, 'confirm']);
     Route::post('/two-factor/disable', [TwoFactorController::class, 'disable']);
     Route::get('/two-factor/recovery-codes', [TwoFactorController::class, 'recoveryCodes']);
+    Route::post('/two-factor/recovery-codes/regenerate', [TwoFactorController::class, 'regenerateRecoveryCodes']);
 
     // Session management
     Route::get('/sessions', [SessionController::class, 'index']);

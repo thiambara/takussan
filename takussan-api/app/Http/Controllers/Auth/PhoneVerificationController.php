@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Base\Controller;
+use App\Services\Auth\PhoneVerificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PhoneVerificationController extends Controller
 {
+    public function __construct(private readonly PhoneVerificationService $service) {}
+
     public function verify(Request $request): JsonResponse
     {
         $request->validate([
@@ -16,10 +19,15 @@ class PhoneVerificationController extends Controller
 
         $user = $request->user();
         abort_if($user->phone_verified_at !== null, 422, 'Phone already verified.');
+        abort_unless($user->phone !== null, 422, 'No phone number on file.');
 
-        // OTP verification logic goes here (integrate SMS provider).
-        // For now we mark as verified if the user confirms the code.
-        $user->update(['phone_verified_at' => now()]);
+        abort_unless(
+            $this->service->verifyOtp($user, $request->input('code')),
+            422,
+            'Invalid or expired verification code.',
+        );
+
+        $user->forceFill(['phone_verified_at' => now()])->save();
 
         return $this->json(['data' => ['verified' => true]]);
     }
@@ -29,9 +37,20 @@ class PhoneVerificationController extends Controller
         $user = $request->user();
         abort_if($user->phone_verified_at !== null, 422, 'Phone already verified.');
         abort_unless($user->phone !== null, 422, 'No phone number on file.');
+        abort_unless(
+            $this->service->canResend($user),
+            429,
+            'Please wait before requesting another code.',
+        );
 
-        // Dispatch SMS OTP here via SMS provider.
+        $debugCode = $this->service->sendOtp($user);
 
-        return $this->json(['data' => ['sent' => true]]);
+        $payload = ['sent' => true];
+        if ($debugCode !== null) {
+            // Only leaked outside production — useful for Feature tests & dev.
+            $payload['debug_code'] = $debugCode;
+        }
+
+        return $this->json(['data' => $payload]);
     }
 }

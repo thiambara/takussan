@@ -4,6 +4,7 @@ namespace Tests\Feature\Auth;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PragmaRX\Google2FA\Google2FA;
 use Tests\TestCase;
 
 class AuthLoginTest extends TestCase
@@ -96,5 +97,83 @@ class AuthLoginTest extends TestCase
         ]);
 
         $response->assertStatus(429);
+    }
+
+    public function test_login_with_two_factor_requires_challenge(): void
+    {
+        $secret = (new Google2FA)->generateSecretKey();
+        $user = User::factory()->create([
+            'password' => bcrypt('password123'),
+            'two_factor_enabled' => true,
+            'two_factor_secret' => $secret,
+        ]);
+
+        $response = $this->postJson('/api/auth/login', [
+            'email' => $user->email,
+            'password' => 'password123',
+        ])->assertOk();
+
+        $response->assertJsonPath('requires_2fa', true);
+        $response->assertJsonMissing(['token']);
+    }
+
+    public function test_login_with_valid_two_factor_code_returns_token(): void
+    {
+        $secret = (new Google2FA)->generateSecretKey();
+        $user = User::factory()->create([
+            'password' => bcrypt('password123'),
+            'two_factor_enabled' => true,
+            'two_factor_secret' => $secret,
+        ]);
+
+        $code = (new Google2FA)->getCurrentOtp($secret);
+
+        $this->postJson('/api/auth/login', [
+            'email' => $user->email,
+            'password' => 'password123',
+            'two_factor_code' => $code,
+        ])
+            ->assertOk()
+            ->assertJsonStructure(['token', 'user']);
+    }
+
+    public function test_login_with_invalid_two_factor_code_is_rejected(): void
+    {
+        $user = User::factory()->create([
+            'password' => bcrypt('password123'),
+            'two_factor_enabled' => true,
+            'two_factor_secret' => (new Google2FA)->generateSecretKey(),
+        ]);
+
+        $this->postJson('/api/auth/login', [
+            'email' => $user->email,
+            'password' => 'password123',
+            'two_factor_code' => '000000',
+        ])->assertStatus(401);
+    }
+
+    public function test_login_with_recovery_code_consumes_it(): void
+    {
+        $user = User::factory()->create([
+            'password' => bcrypt('password123'),
+            'two_factor_enabled' => true,
+            'two_factor_secret' => (new Google2FA)->generateSecretKey(),
+            'two_factor_recovery_codes' => json_encode(['AAAAA-BBBBB', 'CCCCC-DDDDD']),
+        ]);
+
+        $this->postJson('/api/auth/login', [
+            'email' => $user->email,
+            'password' => 'password123',
+            'recovery_code' => 'AAAAA-BBBBB',
+        ])
+            ->assertOk()
+            ->assertJsonStructure(['token']);
+
+        // The code is now consumed — second attempt with the same recovery fails.
+        $this->postJson('/api/auth/login', [
+            'email' => $user->email,
+            'password' => 'password123',
+            'recovery_code' => 'AAAAA-BBBBB',
+        ])->assertStatus(401);
     }
 }
