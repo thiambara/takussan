@@ -129,4 +129,4 @@ PhoneVerificationTest, SessionTest — incluant impossibilité de révoquer
 sa propre session, consommation single-use des recovery codes, cooldown
 429 sur send-otp). 9 tests front (TwoFactorSection, PhoneVerificationSection).
 
-PR : _(sera ajouté après création)_
+PR : https://github.com/thiambara/takussan/pull/47

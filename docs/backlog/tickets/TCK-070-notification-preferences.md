@@ -134,4 +134,4 @@ sms bloqué, observer auto-création, rejet des events/channels inconnus,
 inapp jamais persisté) + 5 tests front (render, toggle, locked cells,
 erreur serveur, complétude des labels).
 
-PR : _(sera ajouté après création)_
+PR : https://github.com/thiambara/takussan/pull/47
