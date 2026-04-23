@@ -1,7 +1,7 @@
 ---
 id: TCK-064
 title: "Admin — Configuration agence UI"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: S
@@ -75,4 +75,9 @@ Page de paramètres calme, à la Linear / Stripe settings. Sections verticales (
 
 ## Notes d'implémentation
 
-_(Rempli à l'implémentation)_
+- Page `/admin/agency` remplacée par un formulaire RHF+Zod en 4 sections (Identité · Contact · Logo · Paramètres métier), SSR via `fetchAgencyAction` pour pré-remplir sans flash.
+- Schéma Zod dans `src/lib/schemas/agency.ts` : validation front de la commission `[0, 100]`, email/URL, devise `A-Z{3}`, fuseau horaire libre ; `normaliseAgencyForm` mappe les champs UI → payload (`settings.default_commission_rate`, `settings.currency`, `settings.timezone`).
+- Logo uploadé via `POST /api/media` (collection `logo`). **Modif backend :** `MediaUploadRequest::COLLECTIONS` élargi pour accepter `logo`. Parité SVG écartée (backend n'autorise pas le MIME SVG pour éviter XSS) — la contrainte du ticket est assouplie à JPG/PNG/WEBP et reportée à l'uniformisation des collections media.
+- `AgencyResource` complété : expose maintenant `settings` + `primary_admin_id` pour rendre la page self-contained.
+- Tests Vitest : `agencyFormSchema` (rate hors bornes, email/téléphone invalides, devise), `normaliseAgencyForm`, `validateAgencyLogoFile`, mapping query params `fetchAgency`.
+- PR : https://github.com/thiambara/takussan/pull/TBD

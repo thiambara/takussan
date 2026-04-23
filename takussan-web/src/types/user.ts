@@ -12,6 +12,7 @@ export type User = {
   bio: string | null;
   avatar_url: string | null;
   email_verified_at: string | null;
+  agency_id: number | null;
   roles: UserRole[];
   status: UserStatus;
   created_at: string;
