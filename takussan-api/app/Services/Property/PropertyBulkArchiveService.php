@@ -68,6 +68,12 @@ class PropertyBulkArchiveService
         if (! empty($authorized)) {
             DB::transaction(function () use ($authorized, $actor, $reason, &$archivedIds): void {
                 foreach ($authorized as $property) {
+                    // Capture the prior status BEFORE `save()` — Eloquent's
+                    // `finishSave()` calls `syncOriginal()` on success, which
+                    // would otherwise overwrite the original with 'archived'
+                    // and make the audit entry meaningless.
+                    $previousStatus = $property->status?->value;
+
                     $property->forceFill([
                         'status' => PropertyStatus::Archived,
                         'visibility' => PropertyVisibility::Private,
@@ -79,7 +85,7 @@ class PropertyBulkArchiveService
                         ->causedBy($actor)
                         ->withProperties([
                             'reason' => $reason,
-                            'previous_status' => $property->getOriginal('status'),
+                            'previous_status' => $previousStatus,
                         ])
                         ->event('property.archived_bulk')
                         ->log('property.archived_bulk');

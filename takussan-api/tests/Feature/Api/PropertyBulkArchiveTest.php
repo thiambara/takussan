@@ -167,6 +167,34 @@ class PropertyBulkArchiveTest extends TestCase
         );
     }
 
+    public function test_activity_previous_status_reflects_pre_archive_value(): void
+    {
+        // Regression: Eloquent syncs original attributes on save, so reading
+        // `getOriginal('status')` AFTER `save()` would wrongly return
+        // 'archived'. The activity log must capture the prior status.
+        $owner = User::factory()->create();
+        $p = Property::factory()->create([
+            'user_id' => $owner->id,
+            'status' => PropertyStatus::Available,
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson('/api/properties/bulk-archive', [
+            'property_ids' => [$p->id],
+        ])->assertOk();
+
+        /** @var Activity|null $entry */
+        $entry = Activity::query()
+            ->where('description', 'property.archived_bulk')
+            ->where('subject_id', $p->id)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($entry);
+        $this->assertSame('available', $entry->properties['previous_status'] ?? null);
+    }
+
     public function test_validates_property_ids_required(): void
     {
         $me = User::factory()->create();
