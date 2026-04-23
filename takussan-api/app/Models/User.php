@@ -170,6 +170,11 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         return $this->hasMany(AppNotification::class);
     }
 
+    public function notificationPreferences(): HasMany
+    {
+        return $this->hasMany(NotificationPreference::class);
+    }
+
     public function leases(): HasMany
     {
         return $this->hasMany(Lease::class, 'landlord_id');

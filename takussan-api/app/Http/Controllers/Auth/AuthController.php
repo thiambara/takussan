@@ -8,13 +8,17 @@ use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\Auth\UpdateProfileRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\Auth\TwoFactorService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
+    public function __construct(private readonly TwoFactorService $twoFactorService) {}
+
     public function register(RegisterRequest $request): JsonResponse
     {
         $user = User::create([
@@ -34,15 +38,52 @@ class AuthController extends Controller
 
     public function login(LoginRequest $request): JsonResponse
     {
-        if (! Auth::attempt($request->only('email', 'password'))) {
+        $user = User::where('email', $request->input('email'))->first();
+
+        if (! $user || ! Hash::check($request->input('password'), $user->password)) {
             return $this->json(['message' => 'Invalid credentials.'], 401);
         }
 
-        /** @var User $user */
-        $user = Auth::user();
+        // Password OK — challenge for 2FA if enabled. The caller must repost
+        // with either a valid TOTP code or a single-use recovery code.
+        if ($user->two_factor_enabled) {
+            $code = $request->input('two_factor_code');
+            $recovery = $request->input('recovery_code');
+
+            if (! $code && ! $recovery) {
+                return $this->json([
+                    'requires_2fa' => true,
+                    'message' => 'Two-factor authentication required.',
+                ], 200);
+            }
+
+            $authorized = false;
+            if ($code) {
+                // verifyCodeForUser enforces single-use: a code already
+                // accepted within the ±30 s window cannot be replayed.
+                $authorized = $this->twoFactorService->verifyCodeForUser(
+                    $user,
+                    $user->two_factor_secret,
+                    (string) $code,
+                );
+            }
+            if (! $authorized && $recovery) {
+                $authorized = $this->twoFactorService->verifyRecoveryCode($user, (string) $recovery);
+            }
+
+            if (! $authorized) {
+                return $this->json([
+                    'requires_2fa' => true,
+                    'message' => 'Invalid two-factor or recovery code.',
+                ], 401);
+            }
+        }
+
+        Auth::setUser($user);
         $user->update(['last_login_at' => now()]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $tokenName = (string) ($request->input('device_name') ?: 'auth_token');
+        $token = $user->createToken($tokenName)->plainTextToken;
 
         return $this->json([
             'token' => $token,

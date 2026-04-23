@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\ThresholdAlert;
+use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -20,12 +21,24 @@ class ThresholdAlertTriggered extends Notification
         public readonly float $value,
     ) {}
 
+    public const EVENT_TYPE = 'threshold_alert';
+
     /**
-     * @return array<int,string>
+     * @return list<string>
      */
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        $resolver = app(PreferenceResolver::class);
+        $channels = [];
+
+        if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_INAPP)) {
+            $channels[] = 'database';
+        }
+        if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_EMAIL)) {
+            $channels[] = 'mail';
+        }
+
+        return $channels;
     }
 
     public function toMail(object $notifiable): MailMessage

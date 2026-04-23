@@ -1,7 +1,7 @@
 ---
 id: TCK-070
 title: "Préférences notifications (canaux + fréquence)"
-status: todo
+status: review
 phase: P1
 family: applicatif
 estimate: M
@@ -94,4 +94,44 @@ Matrice simple et dense, à la Slack notification preferences / GitHub notificat
 
 ## Notes d'implémentation
 
-_(Rempli à l'implémentation)_
+**Modèle de données** : table `notification_preferences` avec unique
+composite `(user_id, event_type, channel)`. Chaque row = un toggle.
+`inapp` n'est jamais persisté (géré en dur par le resolver).
+
+**PreferenceResolver** : point central `shouldSend(user, event, channel): bool`.
+Règles invariantes :
+- `inapp` toujours actif (short-circuit avant lecture DB).
+- `CRITICAL_EVENTS` (`password_reset`, `security_alert`, `email_verification`)
+  bypassent les préférences user, mais **uniquement** sur inapp + email
+  (jamais forcer SMS/push).
+- `sms` nécessite `phone_verified_at` — sinon bloqué peu importe la pref.
+- Fallback `DEFAULTS` (inapp=on, email=on, push=on, sms=off) quand aucune
+  row n'existe.
+
+**Auto-provisionnement** : `App\Observers\UserObserver::created()` insère
+la matrice complète (sans inapp) à la création d'un user. Seeder
+`NotificationPreferenceSeeder` backfill idempotent les users existants
+(500-row chunks, `insertOrIgnore`).
+
+**Intégration existante** : `NewBookingNotification` et `ThresholdAlertTriggered`
+consultent désormais le resolver dans `via()`. Les flags plats legacy
+(`notifications_email_enabled`, etc.) restent en base pour compat BC
+mais ne sont plus autoritaires — marqués "legacy" dans la réponse API.
+
+**Endpoints** :
+- `GET/PATCH /api/me/notification-preferences` (alias canonique §ticket)
+- `GET/PUT/PATCH /api/notifications/preferences` (alias historique)
+
+**Frontend** : page `/app/profile/notifications` avec matrice regroupée
+en 6 catégories (Messages, Réservations, Baux, Maintenance, Avis, Alertes).
+Toggle → PATCH optimiste via TanStack Query `onMutate`/`onError`.
+Cellules verrouillées (inapp, sms non vérifié) grisées avec raison en
+tooltip. Bannière incitative vers TCK-069 quand le téléphone n'est pas
+vérifié.
+
+**Tests** : 10 Feature tests back (matrix, bulk update, critical bypass,
+sms bloqué, observer auto-création, rejet des events/channels inconnus,
+inapp jamais persisté) + 5 tests front (render, toggle, locked cells,
+erreur serveur, complétude des labels).
+
+PR : https://github.com/thiambara/takussan/pull/47

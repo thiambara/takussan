@@ -25,6 +25,7 @@ use Database\Seeders\Crm\SavedSearchSeeder;
 use Database\Seeders\Crm\UserCustomerRelationshipSeeder;
 use Database\Seeders\Engagement\ActivityLogBackfillSeeder;
 use Database\Seeders\Engagement\AppNotificationSeeder;
+use Database\Seeders\Engagement\NotificationPreferenceSeeder;
 use Database\Seeders\Engagement\ReviewSeeder;
 use Database\Seeders\Operations\ConversationSeeder;
 use Database\Seeders\Operations\DocumentSeeder;
@@ -83,6 +84,7 @@ class YearOfActivitySeeder extends Seeder
         // Engagement
         ReviewSeeder::class,
         AppNotificationSeeder::class,
+        NotificationPreferenceSeeder::class,
         ActivityLogBackfillSeeder::class,
     ];
 

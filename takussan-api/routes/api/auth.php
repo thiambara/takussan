@@ -43,14 +43,25 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
         ->name('verification.send');
 
     // Phone verification
-    Route::post('/verify-phone', [PhoneVerificationController::class, 'verify']);
+    // OTP entry is rate-limited to curb brute force on the 6-digit code
+    // (1 000 000 combinations — at 5/min an attacker would still need
+    // ~3 800 hours on average, further capped by the 5-min TTL of each
+    // OTP).
+    Route::post('/verify-phone', [PhoneVerificationController::class, 'verify'])->middleware('throttle:5,1');
+    Route::post('/phone/verify-otp', [PhoneVerificationController::class, 'verify'])->middleware('throttle:5,1');
+    Route::post('/phone/send-otp', [PhoneVerificationController::class, 'resend'])->middleware('throttle:3,1');
     Route::post('/phone/resend', [PhoneVerificationController::class, 'resend'])->middleware('throttle:3,1');
 
     // Two-factor authentication
+    // /confirm and /disable both gate on a 6-digit TOTP (or password on
+    // /disable). Without throttling, an attacker with a stolen session
+    // cookie could brute-force the 10^6 keyspace in minutes — TOTP's
+    // ±30 s window extends the valid range and makes this realistic.
     Route::post('/two-factor/enable', [TwoFactorController::class, 'enable']);
-    Route::post('/two-factor/confirm', [TwoFactorController::class, 'confirm']);
-    Route::post('/two-factor/disable', [TwoFactorController::class, 'disable']);
+    Route::post('/two-factor/confirm', [TwoFactorController::class, 'confirm'])->middleware('throttle:5,1');
+    Route::post('/two-factor/disable', [TwoFactorController::class, 'disable'])->middleware('throttle:5,1');
     Route::get('/two-factor/recovery-codes', [TwoFactorController::class, 'recoveryCodes']);
+    Route::post('/two-factor/recovery-codes/regenerate', [TwoFactorController::class, 'regenerateRecoveryCodes']);
 
     // Session management
     Route::get('/sessions', [SessionController::class, 'index']);

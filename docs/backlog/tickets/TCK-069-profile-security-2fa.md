@@ -1,7 +1,7 @@
 ---
 id: TCK-069
 title: "Profile Security — 2FA, sessions actives, OTP téléphone"
-status: todo
+status: review
 phase: P1
 family: applicatif
 estimate: L
@@ -96,4 +96,37 @@ Dashboard de sécurité sérieux et clair, à la GitHub / Cloudflare security se
 
 ## Notes d'implémentation
 
-_(Rempli à l'implémentation)_
+**Bibliothèque 2FA** : `pragmarx/google2fa:^9.0` (composer). Wrap dans
+`App\Services\Auth\TwoFactorService` — génération de secret (32 chars),
+vérification TOTP avec fenêtre ±30s, génération de 8 recovery codes
+(format `XXXXX-XXXXX`) stockés en clair dans une colonne `text` chiffrée
+côté Eloquent (`protected $casts = [... => 'encrypted']`).
+
+**Driver SMS** : stub de dev — `App\Services\Auth\PhoneVerificationService`
+log l'OTP via `Log::channel(...)->info(...)` et renvoie le code dans la
+réponse hors production (clé `debug_code`) pour les tests Feature. Prod
+devra swap pour Twilio / Vonage / Orange API. OTP = 6 chiffres, TTL 5 min,
+cooldown de renvoi 60 s, anti-abuse via route `throttle:3,1`.
+
+**Sessions actives** : liste + révocation via les `personal_access_tokens`
+Sanctum existants. Le token courant est exposé avec `current: true` et
+refuse d'être supprimé (422 — message "use logout instead").
+
+**Flow login 2FA** : première requête POST `/api/auth/login` avec
+email/password retourne `{ requires_2fa: true }` (200) sans token. Le
+client repose avec `two_factor_code` (TOTP) **ou** `recovery_code` (consommé
+en single-use via `TwoFactorService::verifyRecoveryCode`). Un code
+invalide renvoie 401.
+
+**Frontend** : QR code rendu via `api.qrserver.com` en `<img>` (pas de
+lib JS ajoutée) + secret affiché texte comme fallback (saisie manuelle).
+Recovery codes affichés une seule fois immédiatement après confirm /
+regenerate. Sessions listées via TanStack Query (évite l'avertissement
+React Compiler sur `setState` dans `useEffect`).
+
+**Tests** : 15 Feature tests back (TwoFactorTest, AuthLoginTest 2FA,
+PhoneVerificationTest, SessionTest — incluant impossibilité de révoquer
+sa propre session, consommation single-use des recovery codes, cooldown
+429 sur send-otp). 9 tests front (TwoFactorSection, PhoneVerificationSection).
+
+PR : https://github.com/thiambara/takussan/pull/47

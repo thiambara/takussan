@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { getMeAction } from '@/app/actions/auth';
 import { isAgent, isOwner, isCustomer, isAdmin } from '@/lib/roles';
 import { ProfileLayout } from '@/components/profile/ProfileLayout';
@@ -20,6 +21,23 @@ export default async function ProfilePage() {
       {isOwner(user.roles) && <ProfileOwnerSection user={user} />}
       {isAdmin(user.roles) && <ProfileAdminSection user={user} />}
       <ProfileSecuritySection />
+
+      <section className="rounded-2xl bg-app-surface-1 p-6">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-app-ink">Notifications</h2>
+            <p className="text-sm text-app-ink-muted">
+              Choisissez les canaux utilisés pour chaque type d&apos;événement.
+            </p>
+          </div>
+          <Link
+            href="/app/profile/notifications"
+            className="rounded-md border border-app-surface-3 bg-white px-3 py-2 text-sm font-semibold text-app-ink hover:bg-app-surface-3"
+          >
+            Gérer les préférences
+          </Link>
+        </div>
+      </section>
     </ProfileLayout>
   );
 }

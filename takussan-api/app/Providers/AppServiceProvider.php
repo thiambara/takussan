@@ -15,6 +15,7 @@ use App\Observers\MessageObserver;
 use App\Observers\PropertyObserver;
 use App\Observers\PropertyVisitObserver;
 use App\Observers\ReviewObserver;
+use App\Observers\UserObserver;
 use App\Policies\MediaPolicy;
 use App\Policies\PropertyPolicy;
 use Illuminate\Auth\Events\Registered;
@@ -38,6 +39,7 @@ class AppServiceProvider extends ServiceProvider
         Review::observe(ReviewObserver::class);
         Lease::observe(LeaseObserver::class);
         PropertyVisit::observe(PropertyVisitObserver::class);
+        User::observe(UserObserver::class);
 
         Gate::before(fn (?User $user) => $user?->hasRole('super_admin') ? true : null);
 

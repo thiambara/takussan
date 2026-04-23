@@ -7,11 +7,32 @@ use App\Models\AppNotification;
 use App\Models\Enums\NotificationChannel;
 use App\Models\Enums\NotificationType;
 use App\Models\User;
+use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
 
 class NotificationService
 {
+    /**
+     * Map the app's business NotificationType enum to the canonical
+     * event_type strings consumed by {@see PreferenceResolver}. When a
+     * type isn't mapped, we fall back to the raw enum value which simply
+     * skips per-user preferences (defaults apply).
+     *
+     * @var array<string,string>
+     */
+    private const TYPE_TO_EVENT = [
+        'booking' => 'booking_request',
+        'payment' => 'lease_payment_due',
+        'lease' => 'lease_payment_due',
+        'maintenance' => 'maintenance_status_changed',
+        'visit' => 'visit_reminder',
+        'message' => 'message_received',
+        'system' => 'threshold_alert',
+    ];
+
+    public function __construct(private readonly PreferenceResolver $resolver) {}
+
     public function notify(
         User $user,
         NotificationType $type,
@@ -22,6 +43,8 @@ class NotificationService
         ?string $referenceableType = null,
         ?int $referenceableId = null,
     ): AppNotification {
+        $eventType = self::TYPE_TO_EVENT[$type->value] ?? $type->value;
+
         $notification = AppNotification::create([
             'user_id' => $user->id,
             'type' => $type,
@@ -34,17 +57,16 @@ class NotificationService
             'sent_at' => now(),
         ]);
 
-        // Send email if user has email notifications enabled
-        if ($user->notifications_email_enabled && $user->email) {
+        // Email fan-out — gated by the user's per-event preference.
+        if ($user->email && $this->resolver->shouldSend($user, $eventType, PreferenceResolver::CHANNEL_EMAIL)) {
             $this->sendEmail($user, $title, $body);
         }
 
-        // Broadcast in real-time if broadcasting is configured
         if (class_exists(NewNotification::class)) {
             try {
                 event(new NewNotification($notification));
             } catch (\Throwable) {
-                // Broadcasting not configured — silently skip
+                // Broadcasting not configured — silently skip.
             }
         }
 
@@ -75,7 +97,7 @@ class NotificationService
                     ->subject($title);
             });
         } catch (\Throwable) {
-            // Mail not configured in this environment — silently skip
+            // Mail not configured in this environment — silently skip.
         }
     }
 }
