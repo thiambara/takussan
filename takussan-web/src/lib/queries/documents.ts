@@ -19,15 +19,22 @@ import type {
  * the created links in the mutation cache.
  */
 
+/**
+ * Sparse fieldset for the documents list.
+ *
+ * IMPORTANT: these MUST be actual columns on the `documents` table. Virtual
+ * attributes produced by the backend `DocumentResource` (e.g. `file_url`,
+ * `file_name`, `file_size`, `mime_type` — all resolved from the Spatie
+ * medialibrary collection) are NOT listed in `Document::$queryFields`, so
+ * requesting them via `fields[documents]=...` would trigger
+ * `InvalidFieldQuery` (HTTP 400). The resource hydrates those extras on every
+ * response regardless of the selected columns.
+ */
 export const DOCUMENT_LIST_FIELDS = [
   'id',
   'name',
   'type',
   'description',
-  'mime_type',
-  'file_size',
-  'file_url',
-  'file_name',
   'documentable_type',
   'documentable_id',
   'is_verified',

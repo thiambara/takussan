@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FileText, Plus, Send } from 'lucide-react';
+import { FileText, Send } from 'lucide-react';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -105,7 +105,3 @@ export function PaymentsTabs({ defaultCommissionRate }: PaymentsTabsProps) {
     </div>
   );
 }
-
-// Avoid unused-import warnings for icons used only conditionally. Ensures
-// the `Plus` import stays useful as we extend the toolbar in the future.
-void Plus;

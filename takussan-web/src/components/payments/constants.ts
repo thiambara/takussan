@@ -11,14 +11,18 @@ import type { InvoiceStatus, PayoutStatus } from '@/types/invoice';
 
 type BadgeVariant = 'default' | 'secondary' | 'outline' | 'destructive';
 
+/**
+ * Must stay aligned with `App\Models\Enums\PaymentStatus` (pending, paid,
+ * late, partially_paid, failed, refunded). The backend rejects any other
+ * value with HTTP 422 on `GET /api/payments/history?filter[status]=...`.
+ */
 export type PaymentStatus =
   | 'pending'
   | 'paid'
   | 'late'
   | 'partially_paid'
   | 'failed'
-  | 'refunded'
-  | 'cancelled';
+  | 'refunded';
 
 export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
   pending: 'En attente',
@@ -27,7 +31,6 @@ export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
   partially_paid: 'Partiellement payé',
   failed: 'Échec',
   refunded: 'Remboursé',
-  cancelled: 'Annulé',
 };
 
 export const PAYMENT_STATUS_VARIANT: Record<PaymentStatus, BadgeVariant> = {
@@ -37,7 +40,6 @@ export const PAYMENT_STATUS_VARIANT: Record<PaymentStatus, BadgeVariant> = {
   partially_paid: 'secondary',
   failed: 'destructive',
   refunded: 'secondary',
-  cancelled: 'outline',
 };
 
 export const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
