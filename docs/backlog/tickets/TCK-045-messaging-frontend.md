@@ -1,12 +1,12 @@
 ---
 id: TCK-045
 title: "Messagerie — Frontend"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-23
 depends_on: [TCK-054, TCK-056, TCK-057, TCK-059, TCK-029]
 blocks: []
 spec_refs:
@@ -65,3 +65,23 @@ Un utilisateur peut échanger des messages avec un agent ou bailleur à propos d
 - Backend messagerie (→ TCK-029)
 - Conversations de groupe (→ P2)
 - Appels audio/vidéo (→ P3)
+
+## Notes d'implémentation
+
+### Temps réel — polling plutôt que WebSocket
+
+Choix : **React Query `refetchInterval`** (pas de WebSocket pour le P1).
+
+- Messages de la conversation ouverte : `3 s` quand l'onglet est visible, `false` (pause) quand caché (`document.visibilitychange`).
+- Liste des conversations : `10 s` en permanence (badge non-lu).
+- `staleTime: 0` sur ces deux hooks pour que tout focus retour déclenche un fetch.
+
+Raisonnement : le backend actuel (Laravel Sanctum + nginx) ne dispose pas encore d'un canal Pusher / Soketi / Reverb. Le polling donne ~3 s de latence perçue, largement suffisant pour du chat conversationnel, sans complexifier l'infra. Migration WebSocket envisageable en P2 — l'API React Query se remplacera par `invalidateQueries()` côté listener sans toucher l'UI.
+
+### Upload pièces jointes
+
+Multipart après envoi : on envoie d'abord le message (`POST /messages`), on récupère son `id`, puis on pousse le fichier via `POST /messages/{id}/attachments`. Validation client : 10 Mo max, MIME images + PDF + doc/docx (cf. `schemas/message.ts`).
+
+### Badge non-lus dans la nav
+
+Non implémenté sur la sidebar dans ce ticket (évite de toucher la shared nav au-delà des markers Wave 3). Un ticket de suivi pourra câbler un compteur global — hook `useConversations()` expose déjà `unread_count` par conversation.
