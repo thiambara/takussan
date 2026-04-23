@@ -8,5 +8,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('tags', [TagController::class, 'store'])->name('tags.store');
     Route::get('tags/{tag}', [TagController::class, 'show'])->name('tags.show');
     Route::put('tags/{tag}', [TagController::class, 'update'])->name('tags.update');
+    Route::patch('tags/{tag}', [TagController::class, 'update']);
     Route::delete('tags/{tag}', [TagController::class, 'destroy'])->name('tags.destroy');
 });

@@ -65,6 +65,18 @@ class TagController extends Controller
     public function destroy(Request $request, Tag $tag): JsonResponse
     {
         abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
+
+        // TCK-066: protect deletion when the tag is still attached to any
+        // taggable model (currently properties or customers). The admin UI
+        // surfaces the 409 and offers a fallback action (rename / detach).
+        $usage = $tag->properties()->count() + $tag->customers()->count();
+        if ($usage > 0) {
+            return $this->json([
+                'message' => __('messages.tag_in_use'),
+                'usage' => $usage,
+            ], 409);
+        }
+
         $tag->delete();
 
         return $this->json(null, 204);

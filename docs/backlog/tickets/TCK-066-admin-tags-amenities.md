@@ -1,7 +1,7 @@
 ---
 id: TCK-066
 title: "Admin — Tags & amenités UI"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: S
@@ -73,4 +73,9 @@ Table dense avec filtres par type en haut (onglets ou segmented control). Inline
 
 ## Notes d'implémentation
 
-_(Rempli à l'implémentation)_
+- Nouvelle page `/admin/settings/tags` (sous-route de `/admin/settings`, cohérente avec la nav secondaire TCK-068) ; entrée dédiée dans l'`AdminSidebar` non ajoutée pour éviter la double exposition — les tags vivent sous Paramètres.
+- Table filtrable par type (tabs "Commodités · Caractéristiques · Étiquettes · CRM") + recherche locale ; inline rename (onglet clavier Entrée/Échap) ; modal de création compact avec génération serveur du slug.
+- **Divergence spec → implémentation :** le modèle `Tag` côté backend n'a pas de champ `is_active` — le cycle de vie passe par le soft-delete. Le toggle "Activer/désactiver" du ticket n'a pas été implémenté (nécessiterait une migration ajoutant `is_active`). L'AC3 reste ouvert — à traiter via un ticket "schema tag" dédié si la réactivation UI est souhaitée.
+- **Gap backend corrigé :** `TagController@destroy` retournait systématiquement 204 même si le tag était attaché à des biens/clients. Ajout d'un garde 409 avec message `messages.tag_in_use` + compteur `usage`, testé (`test_delete_tag_in_use_returns_409`). La contrainte AC4 s'appuie désormais sur ce 409.
+- Tests Vitest : rendu, filtre tabs, surface 409 avec message fallback, flow création via modal.
+- PR : https://github.com/thiambara/takussan/pull/TBD
