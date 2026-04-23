@@ -1,5 +1,5 @@
 import { getMeAction } from '@/app/actions/auth';
-import { StubPlaceholder } from '@/components/shared/StubPlaceholder';
+import { MaintenanceList } from '@/components/maintenance';
 
 export default async function Page() {
   await getMeAction();
@@ -7,9 +7,11 @@ export default async function Page() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-app-ink">Maintenance</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">Demandes et suivi d&apos;interventions</p>
+        <p className="mt-1 text-sm text-app-ink-muted">
+          Demandes et suivi d&apos;interventions
+        </p>
       </div>
-      <StubPlaceholder label="Maintenance" />
+      <MaintenanceList />
     </div>
   );
 }
