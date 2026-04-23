@@ -49,10 +49,11 @@ class Payout extends AbstractModel
     protected static array $requestRangeFilters = ['net_amount', 'gross_amount'];
 
     protected static array $queryFields = [
-        'id', 'lease_id', 'booking_id', 'agency_id', 'landlord_id',
+        'id', 'lease_id', 'booking_id', 'agency_id', 'landlord_id', 'issued_by_id',
         'reference_number', 'status', 'period_start', 'period_end',
-        'gross_amount', 'commission_amount', 'net_amount', 'currency',
-        'payment_method', 'scheduled_at', 'processed_at', 'created_at', 'updated_at',
+        'gross_amount', 'commission_amount', 'fees_amount', 'net_amount', 'currency',
+        'payment_method', 'transaction_id', 'scheduled_at', 'processed_at',
+        'failed_reason', 'notes', 'created_at', 'updated_at',
     ];
 
     protected static function booted(): void
