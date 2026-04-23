@@ -26,28 +26,11 @@
 
 ## 📋 Todo
 
-### Phase 2 — Front Dashboard
-
-- [TCK-041](tickets/TCK-041-dashboard-agent-properties.md) — Dashboard Agent — Layout & biens `M · P0 · front`
-- [TCK-042](tickets/TCK-042-dashboard-agent-crm.md) — Dashboard Agent — CRM `M · P0 · front`
-
-### Phase 3 — Frontends Ops
-
-- [TCK-043](tickets/TCK-043-bookings-frontend.md) — Réservations — Frontend tunnel `M · P1 · front`
-- [TCK-044](tickets/TCK-044-leases-frontend.md) — Baux — Frontend gestion `M · P1 · front`
-- [TCK-045](tickets/TCK-045-messaging-frontend.md) — Messagerie — Frontend `M · P1 · front`
-- [TCK-047](tickets/TCK-047-share-saved-searches-front.md) — Favoris, carte & partage — Frontend `M · P1 · front`
-
-### Phase 3 — Backend non démarré
-
-- [TCK-032](tickets/TCK-032-reporting-dashboards.md) — Reporting & tableaux de bord `L · P1 · applicatif`
+_(vide — Vague 3 a vidé le backlog Todo)_
 
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
-### Phase 2 — Front Public
-
-- [TCK-038](tickets/TCK-038-homepage-discovery.md) — Page d'accueil & découverte `S · P0 · front` · Hero + PropertyGrid présents, recherche Hero non câblée sur `/properties?search=`
-- [TCK-039](tickets/TCK-039-search-results.md) — Liste résultats de recherche `M · P0 · front` · PropertiesPage présent (150 lignes), vérifier tri / pagination / états vides
+_(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 
 ## 🚧 Doing
 
@@ -56,7 +39,8 @@ _(vide)_
 ## 👀 Review
 
 > **Vague 1** — PRs mergées sur `dev` 2026-04-22 (#24, #25, #26, #27 + sync #28). Statut reste `review` jusqu'à confirmation AC.
-> **Vague 2** — PRs ouvertes vers `dev` 2026-04-22 (#29, #30, #31, #32) en attente de merge.
+> **Vague 2** — PRs mergées sur `dev` 2026-04-22 (#29, #30, #31, #32 + sync #33).
+> **Vague 3** — PRs ouvertes vers `dev` 2026-04-23 (#34, #35, #36, #37, #38) en attente de merge.
 
 ### Phase 0 — Fondation Frontend — Vague 1 [PR #25](https://github.com/thiambara/takussan/pull/25) · Vague 2 [PR #32](https://github.com/thiambara/takussan/pull/32)
 
@@ -76,16 +60,34 @@ _(vide)_
 - [TCK-035](tickets/TCK-035-property-address-media.md) — Property — Adresse & médias `S · P0 · back` (PR #26)
 - [TCK-036](tickets/TCK-036-property-tags-collabs-price.md) — Property — Tags, collaborateurs & prix `M · P0 · back` (PR #26)
 
-### Phase 3 — Opérations Métier — Vague 1 [PR #26](https://github.com/thiambara/takussan/pull/26) (favorites) · [PR #27](https://github.com/thiambara/takussan/pull/27) (ops) · Vague 2 [PR #30](https://github.com/thiambara/takussan/pull/30) (payments) · [PR #31](https://github.com/thiambara/takussan/pull/31) (maintenance+inventory)
+### Phase 2 — Front Public & Discovery — Vague 3 [PR #36](https://github.com/thiambara/takussan/pull/36)
+
+- [TCK-038](tickets/TCK-038-homepage-discovery.md) — Page d'accueil & découverte `S · P0 · front` (PR #36)
+- [TCK-039](tickets/TCK-039-search-results.md) — Liste résultats de recherche `M · P0 · front` (PR #36)
+- [TCK-047](tickets/TCK-047-share-saved-searches-front.md) — Favoris, carte & partage — Frontend `M · P1 · front` (PR #36)
+
+### Phase 2 — Front Dashboard Agent — Vague 3 [PR #37](https://github.com/thiambara/takussan/pull/37)
+
+- [TCK-041](tickets/TCK-041-dashboard-agent-properties.md) — Dashboard Agent — Layout & biens `M · P0 · front` (PR #37)
+- [TCK-042](tickets/TCK-042-dashboard-agent-crm.md) — Dashboard Agent — CRM `M · P0 · front` (PR #37)
+
+### Phase 3 — Opérations Métier — Vague 1 [PR #26](https://github.com/thiambara/takussan/pull/26) (favorites) · [PR #27](https://github.com/thiambara/takussan/pull/27) (ops) · Vague 2 [PR #30](https://github.com/thiambara/takussan/pull/30) (payments) · [PR #31](https://github.com/thiambara/takussan/pull/31) (maintenance+inventory back) · Vague 3 [PR #34](https://github.com/thiambara/takussan/pull/34) (ops front) · [PR #35](https://github.com/thiambara/takussan/pull/35) (maintenance+inventory front)
 
 - [TCK-026](tickets/TCK-026-short-term-bookings.md) — Réservations courte durée (backend) `M · P1 · back` (PR #27)
 - [TCK-027](tickets/TCK-027-long-term-leases.md) — Location longue durée — baux (backend) `L · P1 · back` (PR #27)
 - [TCK-028](tickets/TCK-028-transactions-payments.md) — Transactions & paiements `L · P1 · applicatif` (PR #30)
 - [TCK-029](tickets/TCK-029-messaging.md) — Communication & messagerie (backend) `M · P1 · back` (PR #27)
-- [TCK-030](tickets/TCK-030-maintenance-requests.md) — Maintenance & interventions (backend) `M · P1 · applicatif` (PR #31 · frontend reporté)
-- [TCK-031](tickets/TCK-031-inventory-inspections.md) — État des lieux & inventaires (backend) `M · P1 · applicatif` (PR #31 · frontend + PDF reportés)
+- [TCK-030](tickets/TCK-030-maintenance-requests.md) — Maintenance & interventions `M · P1 · applicatif` (PR #31 back + #35 front)
+- [TCK-031](tickets/TCK-031-inventory-inspections.md) — État des lieux & inventaires `M · P1 · applicatif` (PR #31 back + #35 front · export PDF reporté P2)
 - [TCK-033](tickets/TCK-033-reviews-reputation.md) — Avis & réputation `M · P2 · applicatif` (PR #27)
+- [TCK-043](tickets/TCK-043-bookings-frontend.md) — Réservations — Frontend tunnel `M · P1 · front` (PR #34)
+- [TCK-044](tickets/TCK-044-leases-frontend.md) — Baux — Frontend gestion `M · P1 · front` (PR #34)
+- [TCK-045](tickets/TCK-045-messaging-frontend.md) — Messagerie — Frontend `M · P1 · front` (PR #34)
 - [TCK-046](tickets/TCK-046-favorites-map.md) — Favoris & carte interactive (backend) `M · P1 · back` (PR #26)
+
+### Reporting transverse — Vague 3 [PR #38](https://github.com/thiambara/takussan/pull/38)
+
+- [TCK-032](tickets/TCK-032-reporting-dashboards.md) — Reporting & tableaux de bord `L · P1 · applicatif` (PR #38 — P1+P2+P3 full)
 
 ## ✅ Done
 
@@ -206,3 +208,4 @@ TCK-054 + TCK-056 + TCK-057 + TCK-046 + TCK-024 ──▶ TCK-047 (favorites + m
 - **2026-04-22** — Audit complet backlog vs code (5 agents d'audit parallèles) : 13 tickets passés en `done` — les 8 ex-`review` (TCK-018, 048–054) déjà mergés sur `dev`, plus 5 tickets implémentés hors workflow (TCK-020 CRM, TCK-021 Documents, TCK-023 Admin, TCK-024 Search, TCK-034 Property CRUD). Nouvelle section `🔶 Partiellement implémenté` pour 17 tickets où du code est sur `dev` mais un delta résiduel subsiste (liste explicite des gaps par ticket). Section Todo réduite à 12 tickets vraiment non démarrés. Dédoublonnage TCK-050/051/052 (apparaissaient Todo + Review). Aucun changement de code applicatif.
 - **2026-04-22** — Vague 1 livrée (4 agents parallèles sur worktrees) : 13 tickets passés en `review` via 4 PRs indépendantes. PR #24 (B-USER : TCK-014, 022), PR #25 (F : TCK-056, 057, 058), PR #26 (B-PROP : TCK-035, 036, 046), PR #27 (B-OPS : TCK-016, 026, 027, 029, 033). Total ~90 nouveaux tests backend + 1 PR frontend (lint/build OK, tests front reportés — scaffold sans runner). Pint clean partout.
 - **2026-04-22** — Vague 2 livrée (4 agents parallèles sur worktrees) : 7 tickets passés en `review` via 4 PRs indépendantes. PR #29 (B-IDENTITY : TCK-015 rôle membre + stats, TCK-017 SetLocale + lang fr/en/wo), PR #30 (B-PAYMENTS : TCK-028 `POST /payments`, `GET /payments/history`, guards de transitions au niveau modèle), PR #31 (B-OPS : TCK-030 completion workflow + medialibrary `completion_photos`, TCK-031 JSON schema `rooms.*.elements.*` validé), PR #32 (F : TCK-055 route groups `(public)`/`(auth)`/`(dashboard)` + Navigation/UserMenu, TCK-059 RHF+Zod + `useApiForm` + mapping 422, TCK-017 front `LanguageSwitcher` câblé + `PATCH /users/me` + Intl helpers). Backend : 669 → 677 tests verts (32 nouveaux) sans régression, Pint clean. Frontend : 22 tests Vitest + lint/build OK. Pages Next.js pour TCK-030/031 explicitement reportées Vague 3.
+- **2026-04-23** — Vague 3 livrée (5 agents parallèles sur worktrees) : 9 tickets passés en `review` via 5 PRs indépendantes ciblant `dev`. PR #34 (G-OPS : TCK-043 tunnel réservation multi-étapes, TCK-044 baux + échéancier + paiements + garants, TCK-045 messagerie chat avec polling 3s visibility-aware + pièces jointes). PR #35 (G-MAINT : TCK-030/031 frontends — dashboard maintenance + inventaires avec RoomEditor dynamique par pièce + elements.*.state). PR #36 (G-DISCOVERY : TCK-038 homepage Hero + featured/latest, TCK-039 `/properties` avec filtres URL-synced + toggle liste/carte Leaflet, TCK-047 favoris + carte interactive + partage Web Share API + recherches sauvegardées). PR #37 (G-DASHBOARD : TCK-041 dashboard agent biens CRUD + formulaire multi-section + photos, TCK-042 CRM clients pipeline + notes timeline + documents ; ancien stub `/app/crm` → redirect 308 vers `/app/customers`). PR #38 (G-REPORTING : TCK-032 full P1+P2+P3 — 4 controllers dashboard par rôle + `KpiConfig` + `ThresholdAlert` + commande scheduled hourly + notification + 8 pages `/app/overview/*` avec charts SVG homegrown, 677 → 775 tests backend verts ; composer deps ajoutées : dompdf + laravel-excel). Frontend Vitest : 22 → 199 tests verts cumulés (tous PRs additifs). Divergences spec frontend captées dans les notes des tickets (favorites route path, saved_search `notification_frequency` vs `notify`, Navbar `q=` vs `search=`). Orphelins identifiés (cleanup ticket à suivre) : `src/components/home/PropertyCard.tsx`, `src/components/properties/PropertyCard.tsx`, `src/hooks/useFavorite.ts`, `src/app/actions/property.ts#toggleFavoriteAction`.
