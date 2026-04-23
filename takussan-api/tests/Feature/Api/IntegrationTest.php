@@ -49,6 +49,51 @@ class IntegrationTest extends TestCase
             ->assertNoContent();
     }
 
+    public function test_test_endpoint_reports_ok_with_credentials(): void
+    {
+        $agency = Agency::factory()->create();
+        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
+        $agencyAdmin = User::factory()->create(['agency_id' => $agency->id]);
+        Role::findOrCreate('agency_admin');
+        $agencyAdmin->assignRole('agency_admin');
+
+        Sanctum::actingAs($agencyAdmin);
+
+        // Create the integration through the public API so encryption/casts
+        // use the same path as the UI — `test()` reads credentials back.
+        $created = $this->postJson('/api/integrations', [
+            'provider' => 'stripe',
+            'credentials' => ['api_key' => 'sk_live_abc'],
+            'is_active' => true,
+        ])->assertCreated();
+
+        $integrationId = $created->json('data.id');
+
+        $this->postJson("/api/integrations/{$integrationId}/test")
+            ->assertOk()
+            ->assertJsonPath('data.ok', true);
+    }
+
+    public function test_test_endpoint_reports_ko_when_inactive(): void
+    {
+        $agency = Agency::factory()->create();
+        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
+        $agencyAdmin = User::factory()->create(['agency_id' => $agency->id]);
+        Role::findOrCreate('agency_admin');
+        $agencyAdmin->assignRole('agency_admin');
+
+        $integration = Integration::factory()->create([
+            'agency_id' => $agency->id,
+            'is_active' => false,
+        ]);
+
+        Sanctum::actingAs($agencyAdmin);
+
+        $this->postJson("/api/integrations/{$integration->id}/test")
+            ->assertOk()
+            ->assertJsonPath('data.ok', false);
+    }
+
     public function test_agency_admin_cannot_manage_other_agency_integrations(): void
     {
         $agency1 = Agency::factory()->create();
