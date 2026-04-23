@@ -16,6 +16,7 @@ import {
   PlusCircle,
   Heart,
   BookmarkCheck,
+  ClipboardList,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
@@ -86,6 +87,19 @@ function buildNavItems(user: User): NavItem[] {
   if (isAdmin(roles)) {
     items.push({ href: '/admin', label: 'Administration', icon: ShieldCheck, emphasized: true });
   }
+
+  // TCK-030 maintenance — entry already pushed above for agent/admin/service_provider.
+  // TCK-031 inventories — agency-side workflow (entrée/sortie par bail).
+  if (isAgent(roles) || isAdmin(roles) || isOwner(roles)) {
+    items.push({ href: '/app/inventories', label: 'États des lieux', icon: ClipboardList });
+  }
+  // --- Wave 3 Ops Frontend nav entries (dedup below preserves first occurrence) ---
+  // TCK-043 bookings
+  items.push({ href: '/app/bookings', label: isCustomer(roles) ? 'Mes réservations' : 'Réservations', icon: CalendarCheck });
+  // TCK-044 leases
+  items.push({ href: '/app/leases', label: isCustomer(roles) ? 'Mes baux' : 'Baux', icon: FileText });
+  // TCK-045 messages
+  items.push({ href: '/app/messages', label: 'Messagerie', icon: MessageSquare });
 
   // Dedup by href while preserving first occurrence
   const seen = new Set<string>();
