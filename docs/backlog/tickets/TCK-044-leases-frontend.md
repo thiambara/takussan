@@ -1,12 +1,12 @@
 ---
 id: TCK-044
 title: "Baux — Frontend gestion"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-23
 depends_on: [TCK-054, TCK-056, TCK-057, TCK-059, TCK-027]
 blocks: []
 spec_refs:
@@ -68,3 +68,10 @@ Un agent gère les baux, l'échéancier et les paiements depuis le dashboard.
 - Backend baux (→ TCK-027)
 - Renouvellement/résiliation (→ P2)
 - Signature électronique (→ P3)
+
+## Notes d'implémentation
+
+- Échéancier rendu en tableau (densité > calendrier pour le use case agent). Statut `late` dérivé côté client si `due_date` est passée et status non `paid`, en plus du flag serveur.
+- Garants : modèle `Guarantor` possède une FK côté `Lease` (un seul garant direct côté bail dans la spec). La contrainte "max 3 garants" est gérée côté UI via `guarantorsCount` (passé en prop) + bouton disabled. L'upload de pièces (CNI, revenus) utilise la route `POST /api/leases/{lease}/guarantors` et spatie/medialibrary côté back — l'ajout multipart peut être ajouté en TCK de suivi si besoin.
+- Sélection locataire/bailleur : pour rester dans le périmètre "delta", on demande les IDs directement dans le formulaire — un autocomplete CRM peut être ajouté plus tard (dépend d'une liste `/api/customers` / `/api/users` dédiée).
+- Paiement en retard → `bg-red-50/50` + badge destructive sur chaque ligne d'échéance (contraste suffisant, distinctement visible).

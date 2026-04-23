@@ -1,12 +1,12 @@
 ---
 id: TCK-043
 title: "Réservations — Frontend tunnel"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-23
 depends_on: [TCK-054, TCK-056, TCK-057, TCK-059, TCK-026]
 blocks: []
 spec_refs:
@@ -63,3 +63,10 @@ Un locataire peut demander une réservation en parcourant un tunnel clair et ras
 - Backend réservations (→ TCK-026)
 - Calendrier de disponibilités (→ P2)
 - Annulation avec remboursement (→ P3 futur)
+
+## Notes d'implémentation
+
+- Le tunnel vit sous `src/app/(public)/bookings/page.tsx?property=<slug>`, entrée accessible depuis la fiche bien (le bouton existant `PropertyReservationDialog` n'a pas été touché — Discovery group). Le stepper local est piloté par un `useState<number>` + `trigger()` par sous-ensemble de champs.
+- L'acompte est une estimation client de 30 % du total (aucune règle métier backend). Ajuster si la future spec le précise.
+- Redirection anonyme : push manuel vers `/auth/login?redirect=/bookings?property=<slug>` plutôt que `useRequireAuth` pour garder la séquence "le bien d'abord, puis le login".
+- Paiement d'acompte : composant `BookingPaymentDialog` branché depuis la fiche réservation dashboard (`/app/bookings/[id]`).
