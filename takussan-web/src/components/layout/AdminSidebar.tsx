@@ -13,6 +13,7 @@ import {
   Settings,
   ArrowLeft,
   Shield,
+  Briefcase,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
@@ -41,6 +42,8 @@ function buildAdminItems(user: User, pendingCount: number): NavItem[] {
     items.push({ href: '/admin/properties', label: 'Biens', icon: Building2 });
   }
   items.push({ href: '/admin/team', label: 'Équipe', icon: Users });
+  items.push({ href: '/admin/users', label: 'Équipe', icon: Users });
+  items.push({ href: '/admin/agency', label: 'Agence', icon: Briefcase });
   items.push({ href: '/admin/finances', label: 'Finances', icon: CreditCard });
   if (isSuperAdmin(user.roles)) {
     items.push({
@@ -119,14 +122,22 @@ export function AdminSidebar({ user, className, onNavigate }: AdminSidebarProps)
         <p className="mt-1 text-xs uppercase tracking-wider text-white/60">Administration</p>
       </div>
       <nav className="flex-1 space-y-1 px-3">
-        {items.map((item) => (
-          <AdminItem
-            key={item.href}
-            {...item}
-            active={pathname === item.href}
-            onNavigate={onNavigate}
-          />
-        ))}
+        {items.map((item) => {
+          // Exact match for the dashboard root, prefix match for nested routes
+          // so "Paramètres" stays highlighted on /admin/settings/tags etc.
+          const active =
+            item.href === '/admin'
+              ? pathname === '/admin'
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
+          return (
+            <AdminItem
+              key={item.href}
+              {...item}
+              active={active}
+              onNavigate={onNavigate}
+            />
+          );
+        })}
       </nav>
       <div className="space-y-2 px-3 pb-4">
         <Link

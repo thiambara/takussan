@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('properties', [PropertyController::class, 'index'])->name('properties.index');
     Route::post('properties', [PropertyController::class, 'store'])->name('properties.store');
+    // TCK-074 — bulk actions (must be declared before the `{property}` route).
+    Route::post('properties/bulk-archive', [PropertyController::class, 'bulkArchive'])->name('properties.bulk-archive');
+    Route::post('properties/{property}/duplicate', [PropertyController::class, 'duplicate'])->name('properties.duplicate');
     Route::get('properties/{property}', [PropertyController::class, 'show'])->name('properties.show');
     Route::put('properties/{property}', [PropertyController::class, 'update'])->name('properties.update');
     Route::patch('properties/{property}', [PropertyController::class, 'update']);

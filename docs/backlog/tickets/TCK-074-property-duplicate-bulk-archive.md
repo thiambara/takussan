@@ -1,7 +1,7 @@
 ---
 id: TCK-074
 title: "Property — Dupliquer + archivage en lot"
-status: todo
+status: review
 phase: P2
 family: back
 estimate: S
@@ -84,4 +84,11 @@ Exposer deux endpoints backend permettant respectivement de dupliquer un bien (a
 
 ## Notes d'implémentation
 
-_(Rempli à l'implémentation)_
+- Implémenté via `PropertyDuplicationService` + `PropertyBulkArchiveService` sous `App\Services\Property\`.
+- Duplication : `Property::replicate()` avec liste d'exclusion (`reference_number`, `slug`, compteurs, `published_at`, `archived_at`, `deleted_at`). Le boot hook `Property::booted()` régénère `reference_number` + `slug`. La copie des médias passe par `spatie/laravel-medialibrary::copy()` **hors transaction** — éviter que les écritures disque soient rollback par une erreur DB indépendante.
+- Bulk archive : passe en `status=archived` + `visibility=private` + `archived_at=now()` ; rapport per-id (`not_found`, `forbidden`, `already_archived`). Transactionnel : toute exception annule l'intégralité du batch.
+- `PropertyPolicy` (nouveau) expose `duplicate` + `bulkArchive` ; déclaré explicitement dans `AppServiceProvider::boot` via `Gate::policy(Property::class, PropertyPolicy::class)` car `Property` est déjà mappé par un comportement custom et l'auto-découverte de Laravel ne le détecterait pas de façon déterministe.
+- Migration ajoute `archived_at` (timestamp nullable indexé) — séparé de `deleted_at` pour que l'archivage reste un statut logique et non une suppression douce.
+- Routes : `properties/bulk-archive` déclarée **avant** `properties/{property}/*` pour éviter la collision avec `{property}`.
+- 14 tests Feature, filtre `php artisan test --filter=PropertyDuplicationTest --filter=PropertyBulkArchiveTest` → vert. Pint clean.
+- PR : https://github.com/thiambara/takussan/pull/44

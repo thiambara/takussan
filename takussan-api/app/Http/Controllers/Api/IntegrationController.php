@@ -103,4 +103,58 @@ class IntegrationController extends Controller
 
         return $this->json(null, 204);
     }
+
+    /**
+     * Lightweight connectivity check for a configured integration — TCK-068.
+     *
+     * The current iteration is intentionally minimal: we verify that the
+     * integration is active and that credentials are present/non-empty,
+     * and surface a provider-aware message. Real provider-specific checks
+     * (Wave, Stripe, Orange Money…) belong in a dedicated Vague P2 ticket.
+     */
+    public function test(Request $request, Integration $integration): JsonResponse
+    {
+        $user = $request->user();
+
+        abort_unless(
+            $user->hasRole(['admin', 'super_admin']) || ($user->hasRole('agency_admin') && $user->agency_id === $integration->agency_id),
+            403
+        );
+
+        if (! $integration->is_active) {
+            return $this->json([
+                'data' => [
+                    'ok' => false,
+                    'message' => __('messages.integration_inactive'),
+                ],
+            ]);
+        }
+
+        // `credentials` lives behind an `encrypted:array` cast, but legacy
+        // controllers also sometimes write a pre-encoded JSON string, so
+        // normalise both shapes before deciding the integration is empty.
+        $credentials = $integration->credentials ?? [];
+        if (is_string($credentials)) {
+            $decoded = json_decode($credentials, true);
+            $credentials = is_array($decoded) ? $decoded : [];
+        }
+        if (! is_array($credentials) || count($credentials) === 0) {
+            return $this->json([
+                'data' => [
+                    'ok' => false,
+                    'message' => __('messages.integration_missing_credentials'),
+                ],
+            ]);
+        }
+
+        $integration->forceFill(['last_used_at' => now()])->save();
+
+        return $this->json([
+            'data' => [
+                'ok' => true,
+                'message' => __('messages.integration_test_ok', ['provider' => $integration->provider]),
+                'last_used_at' => $integration->last_used_at?->toIso8601String(),
+            ],
+        ]);
+    }
 }

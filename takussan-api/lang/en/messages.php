@@ -21,6 +21,14 @@ return [
     'collaborator_already_exists' => 'This collaborator is already added to this property.',
     'only_super_admin_can_grant_super_admin' => 'Only a super admin can grant the super_admin role.',
 
+    // Integrations
+    'integration_inactive' => 'The integration is disabled. Enable it before testing.',
+    'integration_missing_credentials' => 'No credentials configured for this integration.',
+    'integration_test_ok' => ':provider connection verified successfully.',
+
+    // Tags
+    'tag_in_use' => 'This tag is still attached to one or more properties or customers.',
+
     // Lease
     'lease_cannot_terminate' => 'Only active or pending-signature leases can be terminated.',
     'lease_must_be_ended_for_refund' => 'The lease must be terminated or expired to refund the deposit.',

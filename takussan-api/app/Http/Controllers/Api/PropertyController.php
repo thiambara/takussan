@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\PropertyBulkArchiveRequest;
+use App\Http\Requests\PropertyDuplicateRequest;
 use App\Http\Resources\PropertyResource;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\Currency;
@@ -11,6 +13,8 @@ use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RentPeriod;
 use App\Models\Property;
+use App\Services\Property\PropertyBulkArchiveService;
+use App\Services\Property\PropertyDuplicationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -217,6 +221,50 @@ class PropertyController extends Controller
         }
 
         return $this->json(['data' => ['views_count' => $property->refresh()->views_count]]);
+    }
+
+    /**
+     * TCK-074 — duplicate a property as a new draft.
+     */
+    public function duplicate(
+        PropertyDuplicateRequest $request,
+        Property $property,
+        PropertyDuplicationService $service,
+    ): JsonResponse {
+        abort_unless($request->user()->can('duplicate', $property), 403);
+
+        $clone = $service->duplicate(
+            source: $property,
+            actor: $request->user(),
+            options: $request->only(['copy_media', 'copy_collaborators', 'title_suffix']),
+        );
+
+        return $this->json(
+            ['data' => PropertyResource::make($clone->load('address'))->toArray($request)],
+            201
+        );
+    }
+
+    /**
+     * TCK-074 — archive a batch of properties. Returns the per-id outcome.
+     */
+    public function bulkArchive(
+        PropertyBulkArchiveRequest $request,
+        PropertyBulkArchiveService $service,
+    ): JsonResponse {
+        abort_unless($request->user()->can('bulkArchive', Property::class), 403);
+
+        $result = $service->archive(
+            propertyIds: $request->input('property_ids'),
+            actor: $request->user(),
+            reason: $request->input('reason'),
+        );
+
+        return $this->json([
+            'archived' => $result['archived'],
+            'failed' => $result['failed'],
+            'archived_ids' => $result['archived_ids'],
+        ]);
     }
 
     public function children(Request $request, Property $property): JsonResponse

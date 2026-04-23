@@ -22,7 +22,9 @@ class Setting extends AbstractModel
 
     protected static array $requestSortable = ['id', 'created_at', 'key'];
 
-    protected static array $queryFields = ['id', 'key', 'scope', 'scope_id', 'updated_by_id', 'created_at', 'updated_at'];
+    // `value` is intentionally exposed via sparse fieldsets so the admin UI can
+    // fetch the current payload (TCK-068); secrets live in Integration, not here.
+    protected static array $queryFields = ['id', 'key', 'value', 'scope', 'scope_id', 'updated_by_id', 'created_at', 'updated_at'];
 
     public function updatedBy(): BelongsTo
     {

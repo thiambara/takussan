@@ -9,7 +9,7 @@ use Spatie\MediaLibrary\HasMedia;
 
 class MediaUploadRequest extends FormRequest
 {
-    public const COLLECTIONS = ['photos', 'documents', 'avatars'];
+    public const COLLECTIONS = ['photos', 'documents', 'avatars', 'logo'];
 
     public const MAX_PHOTO_KB = 10 * 1024;   // 10MB
 
