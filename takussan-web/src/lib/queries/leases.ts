@@ -74,6 +74,19 @@ export function useLeases(params: UseLeasesParams = {}) {
   );
 }
 
+export type LeasePropertyLite = {
+  id: number;
+  title: string;
+  slug: string;
+  main_photo_url: string | null;
+};
+
+export type LeaseWithRelations = Lease & {
+  guarantor?: Guarantor;
+  payments?: LeasePayment[];
+  property?: LeasePropertyLite;
+};
+
 export function useLease(id: number | null | undefined) {
   const spatieParams: SpatieQueryParams = {
     fields: {
@@ -83,7 +96,7 @@ export function useLease(id: number | null | undefined) {
     include: ['property', 'guarantor', 'payments'],
   };
 
-  return useApiQuery<ApiResponse<Lease & { guarantor?: Guarantor; payments?: LeasePayment[] }>>(
+  return useApiQuery<ApiResponse<LeaseWithRelations>>(
     ['leases', 'detail', id],
     `/api/leases/${id ?? ''}`,
     {
