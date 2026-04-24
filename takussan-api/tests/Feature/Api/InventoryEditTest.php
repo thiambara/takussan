@@ -70,9 +70,10 @@ class InventoryEditTest extends TestCase
 
         Sanctum::actingAs($owner);
 
+        // TCK-076 AC5 — signed inventories return 409 on PATCH.
         $this->patchJson("/api/inventories/{$inventory->id}", [
             'notes' => 'trying to tamper',
-        ])->assertStatus(422);
+        ])->assertStatus(409);
     }
 
     public function test_cannot_edit_pending_signature_inventory(): void
