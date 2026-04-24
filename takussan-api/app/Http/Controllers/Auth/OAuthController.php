@@ -20,7 +20,12 @@ use Laravel\Socialite\Facades\Socialite;
  */
 class OAuthController extends Controller
 {
-    private const ALLOWED_PROVIDERS = ['google', 'facebook', 'apple'];
+    // TCK-081 — Facebook and Apple moved to dedicated controllers in
+    // App\Http\Controllers\Api\Auth. This controller now serves Google only;
+    // keep the guard tight so a route-file mistake can't route an unsupported
+    // provider here (callback hardcodes `markEmailVerified: true`, which is
+    // incorrect for Facebook's unreliable `email_verified` claim).
+    private const ALLOWED_PROVIDERS = ['google'];
 
     public function __construct(private readonly OAuthProvisioningService $provisioning) {}
 

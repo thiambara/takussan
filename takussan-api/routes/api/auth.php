@@ -70,13 +70,17 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     Route::delete('/sessions/{tokenId}', [SessionController::class, 'destroy']);
 });
 
-// OAuth (public — SPA flow, state stored server-side via Cache)
-Route::prefix('auth/oauth')->group(function () {
+// OAuth (public — SPA flow, state stored server-side via Cache).
+// Throttled: redirect creates a 10-min cache entry per hit, and callback
+// brute-forcing random state strings would otherwise be free. 60/min per
+// IP mirrors Laravel's default API throttle and leaves plenty of room
+// for retries while blocking cheap enumeration.
+Route::prefix('auth/oauth')->middleware('throttle:60,1')->group(function () {
     // Dedicated Facebook/Apple controllers (TCK-081) — declared before the
     // generic `{provider}` route so Laravel matches them first.
     Route::get('/facebook/redirect', [FacebookOAuthController::class, 'redirect']);
     Route::get('/facebook/callback', [FacebookOAuthController::class, 'callback']);
-    Route::match(['get', 'post'], '/apple/redirect', [AppleOAuthController::class, 'redirect']);
+    Route::get('/apple/redirect', [AppleOAuthController::class, 'redirect']);
     // Apple returns the callback via `response_mode=form_post` → POST.
     // We still accept GET for parity with the other providers and local tests.
     Route::match(['get', 'post'], '/apple/callback', [AppleOAuthController::class, 'callback']);
