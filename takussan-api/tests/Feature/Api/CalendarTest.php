@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
@@ -13,6 +14,8 @@ use App\Models\PropertyVisit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class CalendarTest extends TestCase
@@ -277,5 +280,88 @@ class CalendarTest extends TestCase
 
         $this->getJson("/api/calendar?start_date={$from}&end_date={$to}&types[]=booking&types[]=invalid")
             ->assertStatus(422);
+    }
+
+    /**
+     * TCK-078 — `property_ids[]` narrows the feed to a multi-property
+     * subset (dashboard "show only these 3 properties" filter chip).
+     */
+    public function test_calendar_filters_by_multiple_property_ids(): void
+    {
+        $owner = User::factory()->create();
+        $propertyA = Property::factory()->create(['user_id' => $owner->id]);
+        $propertyB = Property::factory()->create(['user_id' => $owner->id]);
+        $propertyC = Property::factory()->create(['user_id' => $owner->id]);
+
+        foreach ([$propertyA, $propertyB, $propertyC] as $p) {
+            Booking::factory()->create([
+                'property_id' => $p->id,
+                'status' => BookingStatus::Confirmed,
+                'start_date' => now()->addDay()->toDateString(),
+                'end_date' => now()->addDays(3)->toDateString(),
+            ]);
+        }
+
+        Sanctum::actingAs($owner);
+
+        $from = now()->toDateString();
+        $to = now()->addWeek()->toDateString();
+        $response = $this->getJson(
+            "/api/calendar?start_date={$from}&end_date={$to}&property_ids[]={$propertyA->id}&property_ids[]={$propertyC->id}"
+        );
+        $response->assertOk()->assertJsonCount(2, 'data');
+        $ids = collect($response->json('data'))->pluck('property_id')->sort()->values()->all();
+        $this->assertEquals([$propertyA->id, $propertyC->id], $ids);
+    }
+
+    /**
+     * TCK-078 — `agency_id` is admin-only: returns the calendar of a
+     * specific agency for cross-agency oversight.
+     */
+    public function test_calendar_agency_filter_is_admin_only(): void
+    {
+        $agency = Agency::factory()->create();
+        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
+        Role::findOrCreate('super_admin');
+        $admin = User::factory()->create(['agency_id' => $agency->id]);
+        $admin->assignRole('super_admin');
+
+        $targetAgency = Agency::factory()->create();
+        $propertyInTarget = Property::factory()->create(['agency_id' => $targetAgency->id]);
+        $propertyOutside = Property::factory()->create();
+
+        Booking::factory()->create([
+            'property_id' => $propertyInTarget->id,
+            'status' => BookingStatus::Confirmed,
+            'start_date' => now()->addDay()->toDateString(),
+            'end_date' => now()->addDays(3)->toDateString(),
+        ]);
+        Booking::factory()->create([
+            'property_id' => $propertyOutside->id,
+            'status' => BookingStatus::Confirmed,
+            'start_date' => now()->addDay()->toDateString(),
+            'end_date' => now()->addDays(3)->toDateString(),
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $from = now()->toDateString();
+        $to = now()->addWeek()->toDateString();
+        $response = $this->getJson("/api/calendar?start_date={$from}&end_date={$to}&agency_id={$targetAgency->id}");
+        $response->assertOk()->assertJsonCount(1, 'data');
+        $this->assertSame($propertyInTarget->id, $response->json('data.0.property_id'));
+    }
+
+    public function test_calendar_agency_filter_is_forbidden_for_non_admin(): void
+    {
+        $regular = User::factory()->create();
+        $target = Agency::factory()->create();
+
+        Sanctum::actingAs($regular);
+
+        $from = now()->toDateString();
+        $to = now()->addWeek()->toDateString();
+        $this->getJson("/api/calendar?start_date={$from}&end_date={$to}&agency_id={$target->id}")
+            ->assertForbidden();
     }
 }

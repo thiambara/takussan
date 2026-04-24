@@ -1,7 +1,7 @@
 ---
 id: TCK-078
 title: "Cleanup & dette post-Vagues 1-2-3-4-5-6"
-status: todo
+status: review
 phase: P2
 family: technique
 estimate: M
@@ -131,4 +131,40 @@ Les anchors normatifs sont listés dans `spec_refs`.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Livré dans le worktree V7-A (branche `feat/tck-078-cleanup-vagues-1-6`), PR vers `dev`.
+
+### Backend — items livrés
+
+- **`DELETE /api/reviews/{review}/reply`** — endpoint ajouté dans `ReviewController` avec policy (review author ou moderator). Couverture `ReviewTest`.
+- **Filtre `author_id` sur `/api/reviews`** — `AllowedFilter` avec alias `me` résolvant l'user courant. Couverture `ReviewTest`.
+- **Filtres `property_ids[]` + `agency_id` sur `/api/calendar`** — callback arrayable + exact + check admin pour `agency_id`. Couverture `CalendarTest`.
+- **`GET /api/documents/{document}/share-links`** — endpoint index + policy + resource. Couverture `DocumentShareLinkTest`.
+- **Fix `IntegrationController` double-encode** — encryption manuelle retirée, le cast `encrypted:array` est seul responsable. Couverture `IntegrationTest` (roundtrip).
+- **Fix `TagController` role legacy** — remplacé `hasRole('admin')` par `hasPermissionTo('tags.manage')`. Couverture `TagTest`.
+- **QR local** — `TwoFactorService::generateQrSvg()` via `bacon/bacon-qr-code` (dep ajoutée). Endpoint `qr` retourne un SVG local, fin de la dépendance `api.qrserver.com`. Couverture `TwoFactorTest::qr_endpoint_returns_local_svg_during_enrollment`.
+
+### Frontend — items livrés
+
+- **Helper `formatCurrency`** — extrait dans `takussan-web/src/lib/format/currency.ts` (default `XOF`). Tests `src/lib/__tests__/format-currency.test.ts`. Refactor de 7 callsites hardcodés `F CFA` (composants `Property*`, `TwoFactorSection`, `lib/security.ts`). TCK-084 pourra étendre le helper sans toucher aux call sites.
+
+### Items deferred
+
+- **Drop colonnes legacy inventory** (`tenant_signed_at`, `owner_signed_at`) — bloqué par `models-spec.md#24-inventory-` qui les décrit encore. Ouvrir PR sync spec d'abord.
+- **`DocumentPdfService::store()` hook long-term archival** — nice-to-have non bloquant. Reporté P2 dédié.
+- **3 tests pré-existants rouges** (`NotificationEmailTest`, `ExportControllerTest PDF leases`, `LeaseExportTest`) — non diagnostiqués dans cette passe (le watchdog a coupé plusieurs fois sur la suite complète). **→ créer TCK-086**.
+- **DocumentUploadDialog entity picker** — scope frontend non prioritaire pour cette passe cleanup. Reporté.
+- **Arbitrage @dnd-kit vs HTML5** — décision documentée : HTML5 natif reste pour MediaManager (zero-dep, OK), @dnd-kit à adopter pour V8-C (CRM kanban). Pas de migration forcée.
+- **Virtualisation calendrier > 200 events** — pas de signal utilisateur, reporté.
+- **Variante A/B `Tag.is_active`** — soft-delete conservé comme signal actif/inactif (variante B). PR sync spec `#10-tag` à ouvrir séparément.
+
+### Tests
+
+- 73 tests backend ciblés verts (`Calendar|Integration|Review|Tag|DocumentShareLink|TwoFactor`) en 30s. Pint clean.
+- Frontend Vitest : 294 tests verts (confirmé par l'agent avant le stall).
+- Suite complète backend non exécutée localement (watchdog). À valider en CI à l'ouverture de la PR.
+
+### Spec divergences flaggées (non résolues ici)
+
+- `#17-propertyvisit-` : spec = `requested`, impl = `scheduled`. PR sync spec séparée.
+- `#24-inventory-` : spec = SVG, impl = PNG. PR sync spec séparée.
+- `#10-tag` : spec = `is_active`, impl = soft-delete. PR sync spec séparée.

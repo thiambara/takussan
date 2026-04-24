@@ -1,16 +1,14 @@
 import { TrendingDown, TrendingUp, Minus } from 'lucide-react';
+import { formatCurrency } from '@/lib/format/currency';
 import type { PropertyPriceHistoryItem } from '@/types/property';
 
 interface PropertyPriceHistoryProps {
   history: PropertyPriceHistoryItem[];
 }
 
+// TCK-078 — shared helper, XOF default (TCK-084 will swap for multi-currency).
 function formatPrice(price: number, currency: string): string {
-  return new Intl.NumberFormat('fr-SN', {
-    style: 'currency',
-    currency: currency || 'XOF',
-    maximumFractionDigits: 0,
-  }).format(price);
+  return formatCurrency(price, currency || 'XOF');
 }
 
 function formatDate(iso: string): string {

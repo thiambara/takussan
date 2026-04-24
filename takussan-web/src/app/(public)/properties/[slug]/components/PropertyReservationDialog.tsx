@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
 import { useBookingRequest } from '@/hooks/useBookingRequest';
+import { formatCurrency } from '@/lib/format/currency';
 import type { PropertyDetail } from '@/types/property';
 
 interface PropertyReservationDialogProps {
@@ -22,12 +23,9 @@ interface PropertyReservationDialogProps {
   onSuccess?: () => void;
 }
 
+// TCK-078 — shared helper so TCK-084 can swap multi-currency in one place.
 function formatPrice(price: number, currency: string | null): string {
-  return new Intl.NumberFormat('fr-SN', {
-    style: 'currency',
-    currency: currency ?? 'XOF',
-    maximumFractionDigits: 0,
-  }).format(price);
+  return formatCurrency(price, currency ?? 'XOF');
 }
 
 export function PropertyReservationDialog({

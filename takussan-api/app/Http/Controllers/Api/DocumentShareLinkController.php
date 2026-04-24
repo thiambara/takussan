@@ -14,6 +14,34 @@ class DocumentShareLinkController extends Controller
 {
     public function __construct(protected DocumentShareLinkService $shareLinks) {}
 
+    /**
+     * TCK-078 — list active share links for a given document (used by the
+     * "share" tab in the document detail drawer so the user can revoke or
+     * copy URLs without leaving the page).
+     *
+     * "Active" = not revoked, not expired, still under the max_downloads
+     * ceiling when one is set. Expired/revoked links stay in the table for
+     * audit but are hidden from this listing; admins can see the full
+     * history via the audit-log endpoint.
+     */
+    public function index(Request $request, Document $document): JsonResponse
+    {
+        $this->authorizeDocument($request, $document);
+
+        $links = $document->shareLinks()
+            ->whereNull('revoked_at')
+            ->where(function ($q): void {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
+            ->orderByDesc('created_at')
+            ->get();
+
+        return $this->json([
+            'data' => $links->map(fn (DocumentShareLink $l) => $this->format($l))->values(),
+            'meta' => ['total' => $links->count()],
+        ]);
+    }
+
     public function store(Request $request, Document $document): JsonResponse
     {
         $this->authorizeDocument($request, $document);
