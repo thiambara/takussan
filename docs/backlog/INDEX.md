@@ -36,6 +36,42 @@
 - [TCK-084](tickets/TCK-084-multi-currency.md) — Devise configurable par agence (XOF / EUR / USD) `M · P2 · applicatif`
 - [TCK-085](tickets/TCK-085-group-conversations.md) — Conversations de groupe (multi-participants) `M · P2 · applicatif`
 
+### Vague 9 — P1 résiduels + P2 baux & paiements
+
+- [TCK-086](tickets/TCK-086-property-hierarchy.md) — Hiérarchie de biens (immeuble → étages → lots) `M · P1 · back`
+- [TCK-087](tickets/TCK-087-lease-late-fees.md) — Pénalités de retard automatiques sur loyers `S · P1 · applicatif`
+- [TCK-088](tickets/TCK-088-lease-deposit-refund.md) — Remboursement de la caution en fin de bail `S · P1 · applicatif`
+- [TCK-089](tickets/TCK-089-lease-renewal-amendment.md) — Renouvellement bail / avenant `M · P2 · applicatif`
+- [TCK-090](tickets/TCK-090-lease-early-termination.md) — Résiliation anticipée + pénalités `M · P2 · applicatif`
+- [TCK-091](tickets/TCK-091-lease-rent-review.md) — Révision annuelle du loyer `S · P2 · applicatif`
+- [TCK-092](tickets/TCK-092-invoice-overdue-reminders.md) — Relance automatique factures en retard `S · P2 · applicatif`
+
+### Vague 10 — P2 CRM / Messaging / Maintenance
+
+- [TCK-093](tickets/TCK-093-customer-segmentation-tags.md) — Segmentation & tags clients `S · P2 · applicatif`
+- [TCK-094](tickets/TCK-094-fulltext-messages-documents.md) — Recherche full-text messages & documents `M · P2 · back`
+- [TCK-095](tickets/TCK-095-maintenance-quote-validation.md) — Demande de devis maintenance + validation `M · P2 · applicatif`
+- [TCK-096](tickets/TCK-096-maintenance-priority.md) — Priorisation demandes maintenance `S · P2 · applicatif`
+- [TCK-097](tickets/TCK-097-document-version-history.md) — Historique versions documents `S · P2 · applicatif`
+
+### Vague 11 — P2 modération / discovery / transverses
+
+- [TCK-098](tickets/TCK-098-property-moderation-approval.md) — Modération & validation avant publication bien `M · P2 · applicatif`
+- [TCK-099](tickets/TCK-099-property-similar-suggestions.md) — Biens similaires / suggestions personnalisées `M · P2 · back`
+- [TCK-100](tickets/TCK-100-property-recently-viewed.md) — Historique local biens consultés `S · P2 · front`
+- [TCK-101](tickets/TCK-101-booking-request-auto-expire.md) — Expiration automatique demandes de réservation `S · P2 · applicatif`
+- [TCK-102](tickets/TCK-102-sms-notifications-driver.md) — SMS notifications critiques (driver prod) `S · P2 · applicatif`
+- [TCK-103](tickets/TCK-103-notifications-digest.md) — Digest quotidien / hebdomadaire `M · P2 · applicatif`
+- [TCK-104](tickets/TCK-104-audit-trail-export.md) — Export audit trail `S · P2 · applicatif`
+
+### Vague 12 — P2 perf / médias / permissions / compta
+
+- [TCK-105](tickets/TCK-105-cdn-modern-image-formats.md) — CDN + webp/avif `S · P2 · technique`
+- [TCK-106](tickets/TCK-106-property-photo-watermark.md) — Watermark auto photos biens `S · P2 · applicatif`
+- [TCK-107](tickets/TCK-107-search-autocomplete.md) — Autocomplétion recherche `S · P2 · front`
+- [TCK-108](tickets/TCK-108-permission-temporary-delegation.md) — Délégation temporaire permissions `M · P2 · applicatif`
+- [TCK-109](tickets/TCK-109-bank-reconciliation-assist.md) — Rapprochement bancaire semi-automatique `L · P2 · applicatif`
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
@@ -280,6 +316,38 @@ TCK-039 + TCK-046 + TCK-047 ──▶ TCK-082 (property comparator)
 TCK-020 + TCK-042 ──▶ TCK-083 (CRM prospect pipeline)
 TCK-015 + TCK-017 + TCK-064 ──▶ TCK-084 (multi-currency)
 TCK-029 + TCK-045 ──▶ TCK-085 (group conversations)
+
+── Vague 9 : P1 résiduels + P2 baux/paiements ──
+TCK-034 + TCK-035 + TCK-036 ──▶ TCK-086 (property hierarchy)
+TCK-027 + TCK-028 ──▶ TCK-087 (lease late fees)
+TCK-027 + TCK-028 ──▶ TCK-088 (lease deposit refund)
+TCK-027 ──▶ TCK-089 (lease renewal/amendment)
+TCK-027 + TCK-028 ──▶ TCK-090 (lease early termination)
+TCK-027 + TCK-018 ──▶ TCK-091 (lease rent review)
+TCK-028 ──▶ TCK-092 (invoice overdue reminders)
+
+── Vague 10 : P2 CRM/Messaging/Maintenance ──
+TCK-020 + TCK-042 ──▶ TCK-093 (customer segmentation tags)
+TCK-029 + TCK-021 + TCK-052 ──▶ TCK-094 (fulltext messages & documents)
+TCK-030 ──▶ TCK-095 (maintenance quote validation)
+TCK-030 ──▶ TCK-096 (maintenance priority)
+TCK-021 + TCK-062 ──▶ TCK-097 (document version history)
+
+── Vague 11 : P2 modération/discovery/transverses ──
+TCK-034 + TCK-067 ──▶ TCK-098 (property moderation approval)
+TCK-034 + TCK-024 + TCK-040 ──▶ TCK-099 (property similar suggestions)
+TCK-039 + TCK-040 ──▶ TCK-100 (property recently viewed)
+TCK-026 ──▶ TCK-101 (booking auto-expire)
+TCK-022 + TCK-069 + TCK-070 ──▶ TCK-102 (sms driver prod)
+TCK-022 + TCK-070 ──▶ TCK-103 (notifications digest)
+TCK-018 ──▶ TCK-104 (audit trail export)
+
+── Vague 12 : P2 perf/médias/permissions/compta ──
+TCK-016 + TCK-050 ──▶ TCK-105 (cdn webp/avif)
+TCK-016 + TCK-050 + TCK-035 ──▶ TCK-106 (property photo watermark)
+TCK-024 + TCK-052 + TCK-039 ──▶ TCK-107 (search autocomplete)
+TCK-014 + TCK-049 ──▶ TCK-108 (permission temporary delegation)
+TCK-028 + TCK-077 + TCK-079 ──▶ TCK-109 (bank reconciliation assist)
 ```
 
 ---
@@ -319,3 +387,4 @@ TCK-029 + TCK-045 ──▶ TCK-085 (group conversations)
 - **2026-04-24** — Création **TCK-078** (cleanup & dette post-Vagues 1-2-3-4-5-6) : consolide les 15+ follow-ups flaggés dans les notes tickets V4/V5/V6 et l'historique INDEX. Backend : endpoints manquants (`DELETE /reviews/{id}/reply`, `author_id=me`, `property_ids[]` + `agency_id` sur `/api/calendar`, `GET /documents/{id}/share-links`), bugs pré-existants (`IntegrationController` double-encode, `TagController` rôle legacy `admin` vs `agency_admin`, 3 tests rouges `NotificationEmailTest` / `ExportControllerTest PDF leases` / `LeaseExportTest`), migration drop colonnes legacy inventaire, archivage PDF long terme via `DocumentPdfService::store()`. Frontend : retrait dép externe `api.qrserver.com`, helper `formatCurrency`, virtualisation calendrier > 200 events, picker entité `DocumentUploadDialog`, arbitrage `@dnd-kit` vs HTML5 natif. Specs : PRs sync séparées pour `#17-propertyvisit-` (`requested` vs `scheduled`), `#24-inventory-` (SVG vs PNG), `#10-tag` (`is_active` vs soft-delete). V1-V3 pas retouchées — déjà couvertes par TCK-061 (`review`).
 - **2026-04-24** — **Création Vague 7 backlog** (hors-périmètre V4-V6) : 7 tickets P2 (TCK-079 → TCK-085) couvrant les items exclus volontairement des vagues précédentes. **TCK-079** (XL · applicatif) — Passerelle paiement Wave/Orange Money/Lemon Squeezy (drivers, webhook signé `X-Signature` HMAC-SHA256, idempotence, scope agence via Integration §31 ; LS = merchant of record avec package officiel `lemonsqueezy/laravel` + trait `Billable` sur Agency, reconciliation gross/fees/net ; XOF refusé sur LS). **TCK-080** (M · applicatif) — Suppression compte RGPD avec délai 30j, ré-auth + 2FA, anonymisation irréversible préservant historique comptable. **TCK-081** (S · applicatif) — OAuth Facebook + Apple (Socialite) complétant TCK-060 (Google), avec client_secret JWT dynamique pour Apple. **TCK-082** (M · front) — Comparateur 2-4 biens côte à côte, persistance localStorage, URL partageable, highlight divergences. **TCK-083** (M · applicatif) — Pipeline CRM kanban 6 stades (lead→converted/lost), drag-drop optimistic, tasks polymorphes + rappels 24h, stats conversion. **TCK-084** (M · applicatif) — Devise par agence XOF/EUR/USD, helper `formatCurrency` centralisé, Blade directive `@currency`, biens/baux existants non recalculés. **TCK-085** (M · applicatif) — Conversations groupe 3-20 participants via `ConversationType=group` + role admin/member, system messages immuables, quitter/promouvoir avec garde-fou dernier admin. Graphe de dépendances étendu (V7). Exclus volontairement (pas ticketés) : hiérarchie biens P1 modeste (à absorber dans TCK-036 si besoin), révision loyer (endpoint trivial à intégrer en fermant TCK-027), accusés lecture > 5 participants (EF avec trigger), conversion multi-devises P3, export RGPD portabilité P2 dédié, rapprochement bancaire P2 dédié, relance factures P2 dédié, campagnes email/SMS P3.
 - **2026-04-24** — **Vague 7 livrée** (3 agents parallèles sur worktrees, 2 relances après watchdog stalls en fin de course — finalisation manuelle via SendMessage puis push/PR) : 3 tickets passés en `review` via 3 PRs indépendantes ciblant `dev`. **PR #59** (V7-A Cleanup dette V1-V6 : TCK-078 — `DELETE /api/reviews/{review}/reply`, `filter[author_id]=me`, `filter[property_ids][]` + `filter[agency_id]` sur `/api/calendar`, `GET /api/documents/{id}/share-links`, fix `IntegrationController` double-encode, fix `TagController` rôle legacy `admin` → permission `tags.manage`, swap QR `api.qrserver.com` → `bacon/bacon-qr-code` local, helper frontend `formatCurrency` + refactor 7 callsites ; 73 tests backend ciblés verts + 294 Vitest ; deferred : drop colonnes legacy inventory (bloqué sync spec), 3 tests pré-existants rouges → TCK-086 à créer, picker entité DocumentUploadDialog, virtualisation calendrier). **PR #60** (V7-B OAuth FB/Apple : TCK-081 — `OAuthProvisioningService` provider-agnostic, `AppleClientSecretGenerator` ES256 JWT cached 10min via `firebase/php-jwt`, `FacebookOAuthController` + `AppleOAuthController` avec signed state et provider binding, packages `socialiteproviders/{facebook,apple}` installés, 9 clés env documentées ; 18 tests OAuth verts via phpunit direct ; frontend zero-change — `<OAuthButtons>` pré-câblé dans TCK-060 avec les 3 providers). **PR #61** (V7-C Comparateur biens : TCK-082 — `CompareContext` + `useReducer` capé à 4, `useCompare` avec localStorage 24h TTL, `lib/compare.ts` helpers purs (`highlightDivergent`, `parseIdsFromUrl`), `CompareFloatingBar` + `CompareTable` desktop + `CompareCarousel` mobile swipe + `CompareEmptyState`, `/compare` server component cold-share friendly, PropertyCard toggle + toast 5e bloqué, zero nouvelle dépendance ; 6 tests backend + 44 Vitest ; backend `AllowedFilter::exact('id')` + sparse fieldsets exposés). Watchdog stream idle timeout a coupé les 3 agents pendant la phase finale tests/PR — finalisé manuellement sans perte : ticket → `review`, notes remplies, commits + push + PRs ouvertes. Divergences flaggées (non résolues ici) : specs `#17-propertyvisit-`, `#24-inventory-`, `#10-tag` — PRs sync séparées à prévoir. Sync centrale INDEX via cette même PR.
+- **2026-04-24** — **Création Vagues 9-12 backlog** (figeage roadmap V2 complète) : 24 tickets (TCK-086 → TCK-109) couvrant le reste des features `P1` non encore livrés et l'intégralité des features `P2` non ticketées dans `features.md`. Roadmap V2 désormais close — seuls les `P3` (différenciateurs futurs) restent à ticketer après prise de décision produit post-V2. **Vague 9 — P1 résiduels + P2 baux/paiements (7 tickets)** : TCK-086 hiérarchie biens (parent_id auto-ref Property), TCK-087 pénalités retard auto loyers (job daily + % configurable), TCK-088 remboursement caution fin bail, TCK-089 renouvellement/avenant bail (parent_lease_id), TCK-090 résiliation anticipée + calcul pénalités, TCK-091 révision annuelle loyer (PATCH dédié journalisé), TCK-092 relance auto factures en retard (cadence J+3/J+7/J+15). **Vague 10 — P2 CRM/Messaging/Maintenance (5 tickets)** : TCK-093 segmentation tags clients (Tag polymorphe étendu Customer), TCK-094 full-text Scout messages+documents (`/api/search/messages` + `/api/search/documents`), TCK-095 demande devis maintenance + validation (quote_requested → submitted → approved/rejected), TCK-096 priorisation maintenance (Priority enum urgent/high/normal/low), TCK-097 historique versions documents (collection medialibrary + ActivityLog). **Vague 11 — P2 modération/discovery/transverses (7 tickets)** : TCK-098 modération avant publication bien (pending_review → approved/rejected, queue admin), TCK-099 biens similaires (`/api/properties/{id}/similar`), TCK-100 historique local biens consultés (localStorage carrousel), TCK-101 expiration auto demandes réservation (job scheduled), TCK-102 driver SMS prod (Twilio/Wave Business via Integration), TCK-103 digest quotidien/hebdo (respect `NotificationPreference.frequency`), TCK-104 export audit trail (CSV/XLSX restreint admin). **Vague 12 — P2 perf/médias/permissions/compta (5 tickets)** : TCK-105 CDN + webp/avif (Bunny/Cloudflare conversion à la volée), TCK-106 watermark auto photos biens (logo agence sur conversions Web), TCK-107 autocomplétion recherche (`/api/search/suggest` dropdown instantané), TCK-108 délégation temporaire permissions (rôle date début/fin auto-revoke), TCK-109 rapprochement bancaire semi-auto (import CSV/OFX + appariement assisté). Graphe de dépendances étendu V9-V12. Tickets `P3` non ticketés (à phaser post-V2 selon décision produit) : §1.1 suivi admin/import MLS/estimation IA, §1.2 recherche vocale, §1.3 annulation+remboursement partiel, §1.4 signature électronique bail/espace locataire, §1.5 commissions auto/comptabilité FEC, §1.6 campagnes email-SMS, §1.7 accusés lecture >5/audio-vidéo/traduction, §1.8 facturation directe/contrats récurrents, §1.9 comparaison entrée-sortie/IA dégradations, §1.10 signature électronique/OCR, §1.11 détection avis suspects/badges, §1.12 multi-branches/congés/SaaS/marketplace, §2.1 magic link, §2.2 policies dynamiques, §2.3 WhatsApp, §2.4 sémantique embeddings, §2.7 streaming vidéo, §2.8 multi-devise conversion/traduction contenus, §2.9 mode maintenance/feature flags.
