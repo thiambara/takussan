@@ -44,7 +44,7 @@ fournisseur renvoie un webhook de confirmation.
 
 - `App\Services\Payments\Drivers\WaveDriver` (API Wave Business — checkout session)
 - `App\Services\Payments\Drivers\OrangeMoneyDriver` (API Orange Money Merchant)
-- `App\Services\Payments\Drivers\LemonSqueezyDriver` (API Lemon Squeezy — `POST /v1/checkouts` avec `store_id` + `variant_id` dynamique, URL renvoyée par `data.attributes.url`)
+- `App\Services\Payments\Drivers\LemonSqueezyDriver` — **utilise obligatoirement le package officiel `lemonsqueezy/laravel`** (`composer require lemonsqueezy/laravel`). Le driver enveloppe la facade `LemonSqueezy` et le trait `Billable` (appliqué sur `User`/`Agency` selon le scope de l'intégration). Checkout créé via `$billable->checkout($variantId)->withCustomPrice($amount)` (amount en cents) ; URL de redirection renvoyée par `->url()`. Les webhooks sont exposés sur la route publique `webhooks/lemon-squeezy` fournie par le package, avec vérification de signature `X-Signature` automatique si `LEMON_SQUEEZY_SIGNING_SECRET` est défini. Les events du package (`OrderCreated`, `SubscriptionCreated`, `PaymentRefunded`…) sont écoutés par un `LemonSqueezyEventListener` qui fait le pont vers `PaymentGatewayService::handleWebhookEvent()`.
 
 Chaque driver implémente `PaymentDriverContract` :
 `initiate(Payable $entity, int $amount, string $currency, array $meta): CheckoutSession`
@@ -89,9 +89,11 @@ succès sans confirmation serveur.
   doublon de transition d'état.
 - **Vérification de signature** — chaque webhook doit vérifier HMAC/shared
   secret du provider via le `credentials` chiffré de `Integration`. Pas de
-  secret dans le code ou l'env. Pour Lemon Squeezy : header `X-Signature`,
-  HMAC-SHA256 du raw body avec le `signing_secret` configuré lors de la
-  création du webhook côté LS (constante comparaison via `hash_equals`).
+  secret dans le code ou l'env. Pour Lemon Squeezy : **la vérification est
+  déléguée au package `lemonsqueezy/laravel`** qui valide `X-Signature`
+  (HMAC-SHA256, comparaison `hash_equals`) automatiquement via son middleware
+  de route. Notre webhook controller local ne re-vérifie pas — il écoute
+  uniquement les events Laravel émis par le package.
 - **Transitions d'état garde-fou** — un paiement `paid` ne peut pas repasser
   en `pending`. Les guards du modèle (TCK-028) restent la source de vérité ;
   le webhook ne fait qu'appeler `markAsPaid()` / `markAsFailed()`.
@@ -108,9 +110,13 @@ succès sans confirmation serveur.
   pas XOF — utilisez Wave ou Orange Money pour un paiement en XOF").
 - **Lemon Squeezy : prix dynamique** — LS fonctionne historiquement avec des
   `Variants` pré-configurées. Pour un montant arbitraire (loyer, facture), on
-  utilise `custom_price` en cents dans le payload `POST /v1/checkouts` (pattern
+  utilise `custom_price` en cents via le builder du package :
+  `$billable->checkout($variantId)->withCustomPrice($amountCents)` (pattern
   "pay what you want" côté LS). Un seul `store_id` + un seul `variant_id`
-  "container" suffit par agence.
+  "container" suffit par agence. Le `store_id` + `api_key` + `signing_secret`
+  de LS sont stockés chiffrés dans `Integration.credentials` (pas en `.env`
+  pour supporter plusieurs agences) ; le driver les charge dans la config
+  runtime du package avant chaque appel.
 - **Lemon Squeezy : merchant of record** — LS collecte la TVA/sales tax et le
   reverse sur un payout mensuel (moins frais ~5% + 0.50$). Le montant net
   reçu ≠ le montant facturé. À réconcilier dans `BookingPayment.metadata` :
@@ -121,7 +127,11 @@ succès sans confirmation serveur.
 - [ ] Migration aucune sur payments (réutilise `transaction_id` + `metadata`)
 - [ ] Contract `App\Contracts\Payments\PaymentDriverContract`
 - [ ] Service `App\Services\Payments\PaymentGatewayService` (sélection driver)
-- [ ] Drivers `WaveDriver`, `OrangeMoneyDriver`, `LemonSqueezyDriver` (3 classes)
+- [ ] `composer require lemonsqueezy/laravel` + publish config (`config/lemon-squeezy.php`)
+- [ ] Appliquer le trait `LemonSqueezy\Laravel\Billable` sur `App\Models\Agency` (scope intégration = agence)
+- [ ] Drivers `WaveDriver`, `OrangeMoneyDriver`, `LemonSqueezyDriver` (3 classes) — le `LemonSqueezyDriver` enveloppe le package, ne réimplémente PAS le HTTP client ni la signature webhook
+- [ ] Listener `LemonSqueezyEventListener` (écoute `OrderCreated` / `OrderRefunded` / `SubscriptionCreated` du package, route vers `PaymentGatewayService`)
+- [ ] `EventServiceProvider` : enregistrer le listener
 - [ ] Controller `App\Http\Controllers\Api\PaymentGatewayController` (initiate / verify)
 - [ ] Controller webhook `App\Http\Controllers\Api\Webhooks\PaymentWebhookController`
 - [ ] FormRequest `InitiatePaymentRequest` (provider, return_url, cancel_url)
@@ -132,7 +142,8 @@ succès sans confirmation serveur.
 - [ ] Enum `PaymentProvider` (wave, orange_money, lemon_squeezy) si pas déjà présent
 - [ ] Tests `PaymentGatewayInitiateTest` (happy path + 3 providers + scope agence + devise mismatch XOF ↔ LS)
 - [ ] Tests `PaymentWebhookTest` (signature OK/KO, idempotence, transition interdite)
-- [ ] Tests `LemonSqueezyDriverTest` / `WaveDriverTest` / `OrangeMoneyDriverTest` (mock HTTP)
+- [ ] Tests `LemonSqueezyDriverTest` / `WaveDriverTest` / `OrangeMoneyDriverTest` (mock HTTP) — pour LS, fake le builder du package via un spy, pas un mock HTTP bas niveau
+- [ ] Tests `LemonSqueezyEventListenerTest` (dispatch d'un `OrderCreated` factice → `BookingPayment` transition correcte)
 - [ ] Tests `LemonSqueezyFeesReconciliationTest` (extraction `gross/fees/net` depuis webhook `order_created`)
 - [ ] Page UI `/app/payments/return` (callback provider)
 - [ ] Composant `PaymentProviderPicker` (modale sélection)
@@ -152,6 +163,8 @@ succès sans confirmation serveur.
 - [ ] AC8 — page `/app/payments/return` affiche `pending` ≥ 800 ms puis poll jusqu'à résolution (max 2 min) puis redirige
 - [ ] AC9 — bouton "Payer en ligne" masqué si aucun provider configuré pour l'agence
 - [ ] AC10 — webhook LS `order_created` → `BookingPayment.metadata` contient `gross_amount`, `fees_amount`, `net_amount` (cents) extraits de la payload
+- [ ] AC11 — le package `lemonsqueezy/laravel` est présent dans `composer.json` (prod), la config est publiée, le trait `Billable` est appliqué sur `Agency`
+- [ ] AC12 — un event `LemonSqueezy\Laravel\Events\OrderCreated` dispatché en test déclenche bien le listener et mute l'entité Payment (vérifié avec `Event::fake` + `Event::dispatch`)
 
 ## Hors périmètre
 
