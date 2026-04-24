@@ -19,7 +19,10 @@ Schedule::job(new ExpireBookings)->hourly()->withoutOverlapping();
 Schedule::job(new ApplyLatePaymentPenalties)->dailyAt('06:00')->withoutOverlapping();
 Schedule::job(new SendLeasePaymentReminders)->dailyAt('08:00');
 Schedule::job(new SendSavedSearchAlerts)->dailyAt('09:00');
-Schedule::job(new SendPropertyVisitReminders)->dailyAt('07:00');
+// TCK-075 — Runs every 5 minutes to flush reminders for both the 24h and 1h
+// pre-visit windows. Dedup happens through `PropertyVisit.metadata` markers
+// so re-runs are idempotent even if the job overlaps with a prior tick.
+Schedule::job(new SendPropertyVisitReminders)->everyFiveMinutes()->withoutOverlapping();
 Schedule::job(new SendOverdueInvoiceReminders)->dailyAt('10:00');
 Schedule::job(new SendDailyNotificationDigest)->dailyAt('18:00');
 Schedule::command('media:cleanup')->dailyAt('03:00');

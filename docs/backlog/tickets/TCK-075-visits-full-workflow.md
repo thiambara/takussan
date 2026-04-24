@@ -1,12 +1,12 @@
 ---
 id: TCK-075
 title: "Visites — Planification complète (types, feedback, rappels)"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: L
 created: 2026-04-23
-updated: 2026-04-23
+updated: 2026-04-24
 depends_on: [TCK-026, TCK-022, TCK-057, TCK-054]
 blocks: [TCK-072]
 spec_refs:
@@ -101,4 +101,42 @@ Flow simple et confiant, à la Doctolib rdv / Cal.com booking. Sélection du cr�
 
 ## Notes d'implémentation
 
-_(Rempli à l'implémentation)_
+- **Status enum** : la spec (`models-spec.md §17`) fige la valeur initiale à
+  `scheduled`. Le ticket parle de « requested » mais c'est un libellé
+  UX — aucun changement d'enum backend. Les badges frontend libellent
+  `scheduled` en « Demandée ».
+- **Service** : `App\Services\Visit\VisitSchedulingService` porte les
+  deux invariants (overlap + quota = 3). Injecté par constructor dans
+  `PropertyVisitController` ; les erreurs remontent en `422` pour que le
+  frontend puisse les présenter comme validation.
+- **Notifications** : trois classes Laravel-natives (`VisitRequestedNotification`,
+  `VisitConfirmedNotification`, `VisitReminderNotification`) qui
+  reposent sur `PreferenceResolver` (TCK-070) via la clé d'événement
+  canonique `visit_reminder`. Pas d'invention de clé — on re-use la
+  matrice existante.
+- **Job de rappel** : réécrit pour tourner toutes les 5 min avec deux
+  fenêtres (`24h` et `1h` — tolérance ±5 min). Idempotent via les
+  marqueurs `metadata.reminder_24h_sent_at` / `metadata.reminder_1h_sent_at`.
+  Ancienne signature `handle(NotificationService)` remplacée par `handle()`
+  avec `Notification::send()` — `ScheduledJobsTest` mis à jour en conséquence.
+- **Feedback** : colonne `rating`/`feedback` conservée pour le retour
+  visiteur ; le retour agent est stocké dans `metadata.feedback_agent`
+  (pas de nouvelle colonne, changement non-destructif). Fenêtre de 24 h
+  configurable via `config/visits.php` / `VISITS_FEEDBACK_WINDOW_HOURS`.
+- **Routes** : ajout de `GET /api/property-visits/{id}`,
+  `POST /api/property-visits/{id}/feedback` et `DELETE /api/property-visits/{id}`
+  (alias `cancel`). Les routes existantes `/confirm`, `/complete`,
+  `/cancel` restent le chemin canonique ; `PATCH` supporte maintenant
+  `status` pour des UIs plus ergonomiques, avec contrôle d'overlap.
+- **Frontend** : le bouton "Demander une visite" était déjà en place
+  (`PropertyBookingCard` + `PropertyVisitDialog`). Les nouveautés
+  portent sur `/app/visits` (page avec tabs À venir / Passées, filtrage
+  côté serveur via `filter[scheduled_at_min/max]`), la page détail
+  `/app/visits/[id]` avec actions contextuelles (confirmer / terminer /
+  annuler), et le composant `VisitFeedbackForm` (double rôle customer + agent).
+- **Sidebar** : entrée `/app/visits` ajoutée pour tous les rôles avec
+  label adapté (`Mes visites` / `Visites`).
+- **Résultats tests** : `php artisan test` 850 passés (dont 24 ajoutés
+  dans `PropertyVisitWorkflowTest`). `npm run test` 220 passés (dont 11
+  sur le workflow visites). Pint clean. `npm run build` OK — nouvelles
+  routes `/app/visits` et `/app/visits/[id]` présentes au manifeste.

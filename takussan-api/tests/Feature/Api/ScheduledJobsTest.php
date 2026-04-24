@@ -11,8 +11,10 @@ use App\Models\Invoice;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
+use App\Notifications\VisitReminderNotification;
 use App\Services\Model\NotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class ScheduledJobsTest extends TestCase
@@ -21,6 +23,8 @@ class ScheduledJobsTest extends TestCase
 
     public function test_visit_reminder_job_sends_notifications(): void
     {
+        Notification::fake();
+
         $agent = User::factory()->create();
         $visitor = User::factory()->create();
         $property = Property::factory()->create();
@@ -29,41 +33,33 @@ class ScheduledJobsTest extends TestCase
             'property_id' => $property->id,
             'agent_id' => $agent->id,
             'visitor_id' => $visitor->id,
-            'status' => VisitStatus::Scheduled,
+            'status' => VisitStatus::Confirmed,
             'scheduled_at' => now()->addDay(),
         ]);
 
-        // Job should not throw
-        $job = new SendPropertyVisitReminders;
-        $job->handle(app(NotificationService::class));
+        (new SendPropertyVisitReminders)->handle();
 
-        // Notifications should have been created
-        $this->assertDatabaseHas('app_notifications', [
-            'user_id' => $agent->id,
-        ]);
-        $this->assertDatabaseHas('app_notifications', [
-            'user_id' => $visitor->id,
-        ]);
+        Notification::assertSentTo($agent, VisitReminderNotification::class);
+        Notification::assertSentTo($visitor, VisitReminderNotification::class);
     }
 
     public function test_visit_reminder_ignores_non_tomorrow_visits(): void
     {
+        Notification::fake();
+
         $agent = User::factory()->create();
         $property = Property::factory()->create();
 
         PropertyVisit::factory()->create([
             'property_id' => $property->id,
             'agent_id' => $agent->id,
-            'status' => VisitStatus::Scheduled,
+            'status' => VisitStatus::Confirmed,
             'scheduled_at' => now()->addDays(5),
         ]);
 
-        $job = new SendPropertyVisitReminders;
-        $job->handle(app(NotificationService::class));
+        (new SendPropertyVisitReminders)->handle();
 
-        $this->assertDatabaseMissing('app_notifications', [
-            'user_id' => $agent->id,
-        ]);
+        Notification::assertNothingSentTo($agent);
     }
 
     public function test_overdue_invoice_job_updates_status_and_notifies(): void

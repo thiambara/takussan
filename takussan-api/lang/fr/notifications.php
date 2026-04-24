@@ -35,4 +35,25 @@ return [
         'intro' => 'Voici un résumé des notifications reçues depuis hier.',
         'footer' => 'Consultez le centre de notifications pour voir toutes vos alertes.',
     ],
+
+    'visit_requested' => [
+        'subject' => 'Nouvelle demande de visite pour :property',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Un visiteur a demandé une visite pour :property.',
+        'schedule' => 'Créneau demandé : :datetime.',
+    ],
+
+    'visit_confirmed' => [
+        'subject' => 'Visite confirmée pour :property',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Votre demande de visite pour :property est confirmée.',
+        'schedule' => 'Planifiée le : :datetime.',
+    ],
+
+    'visit_reminder' => [
+        'subject' => 'Rappel : visite à venir pour :property',
+        'greeting' => 'Bonjour,',
+        'intro_24h' => 'Rappel — votre visite pour :property est prévue demain à :datetime.',
+        'intro_1h' => 'Rappel — votre visite pour :property commence dans environ une heure, à :datetime.',
+    ],
 ];
