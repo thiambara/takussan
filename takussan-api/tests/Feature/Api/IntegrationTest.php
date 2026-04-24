@@ -6,6 +6,8 @@ use App\Models\Agency;
 use App\Models\Integration;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -117,6 +119,47 @@ class IntegrationTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.metadata.notes', 'prod')
             ->assertJsonMissing(['credentials']);
+    }
+
+    /**
+     * TCK-078 regression: make sure credentials land as a proper array
+     * round-trip (no double-encoded JSON string). The previous controller
+     * called json_encode() before handing the value to the encrypted:array
+     * cast, so reads returned a stringified JSON blob instead of the
+     * original payload.
+     */
+    public function test_credentials_are_stored_as_array_and_decrypt_once(): void
+    {
+        $agency = Agency::factory()->create();
+        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
+        $agencyAdmin = User::factory()->create(['agency_id' => $agency->id]);
+        Role::findOrCreate('agency_admin');
+        $agencyAdmin->assignRole('agency_admin');
+
+        Sanctum::actingAs($agencyAdmin);
+
+        $created = $this->postJson('/api/integrations', [
+            'provider' => 'stripe',
+            'credentials' => ['api_key' => 'sk_live_xyz', 'webhook_secret' => 'whsec_test'],
+            'is_active' => true,
+        ])->assertCreated();
+
+        $integrationId = $created->json('data.id');
+        $integration = Integration::findOrFail($integrationId);
+
+        // The cast must surface a PHP array, not a JSON-encoded string.
+        $this->assertIsArray($integration->credentials);
+        $this->assertSame('sk_live_xyz', $integration->credentials['api_key']);
+        $this->assertSame('whsec_test', $integration->credentials['webhook_secret']);
+
+        // Also confirm the on-disk payload decrypts to exactly one layer
+        // of JSON (array, not a string).
+        $raw = DB::table('integrations')
+            ->where('id', $integrationId)
+            ->value('credentials');
+        $decoded = json_decode(Crypt::decryptString($raw), true);
+        $this->assertIsArray($decoded);
+        $this->assertSame('sk_live_xyz', $decoded['api_key']);
     }
 
     public function test_agency_admin_cannot_manage_other_agency_integrations(): void

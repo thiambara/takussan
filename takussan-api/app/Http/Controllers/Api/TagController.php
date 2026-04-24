@@ -25,7 +25,14 @@ class TagController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
+        // TCK-078: `admin` is a legacy alias predating the Spatie role setup
+        // in TCK-014. Canonical roles for tag management are agency_admin and
+        // super_admin — keep the legacy name in the tuple so environments
+        // that still carry it around in fixtures don't lock themselves out.
+        abort_unless(
+            $request->user()->hasRole(['agency_admin', 'super_admin', 'admin']),
+            403,
+        );
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
@@ -47,7 +54,14 @@ class TagController extends Controller
 
     public function update(Request $request, Tag $tag): JsonResponse
     {
-        abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
+        // TCK-078: `admin` is a legacy alias predating the Spatie role setup
+        // in TCK-014. Canonical roles for tag management are agency_admin and
+        // super_admin — keep the legacy name in the tuple so environments
+        // that still carry it around in fixtures don't lock themselves out.
+        abort_unless(
+            $request->user()->hasRole(['agency_admin', 'super_admin', 'admin']),
+            403,
+        );
 
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:100'],
@@ -64,7 +78,14 @@ class TagController extends Controller
 
     public function destroy(Request $request, Tag $tag): JsonResponse
     {
-        abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
+        // TCK-078: `admin` is a legacy alias predating the Spatie role setup
+        // in TCK-014. Canonical roles for tag management are agency_admin and
+        // super_admin — keep the legacy name in the tuple so environments
+        // that still carry it around in fixtures don't lock themselves out.
+        abort_unless(
+            $request->user()->hasRole(['agency_admin', 'super_admin', 'admin']),
+            403,
+        );
 
         // TCK-066: protect deletion when the tag is still attached to any
         // taggable model (currently properties or customers). The admin UI

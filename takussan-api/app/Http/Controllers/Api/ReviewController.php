@@ -25,9 +25,26 @@ class ReviewController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
+        $user = $request->user();
+        $authorFilter = $request->query('filter.author_id')
+            ?? data_get($request->query('filter', []), 'author_id');
+
+        // `filter[author_id]=me` (or `auth`) is the non-admin escape hatch:
+        // lets an author list their own reviews from the profile page
+        // without exposing the full moderation queue. Any other value keeps
+        // the admin-only lock.
+        $isSelfFilter = in_array($authorFilter, ['me', 'auth', (string) $user->id], true);
+        abort_unless(
+            $isSelfFilter || $user->hasRole(['admin', 'super_admin']),
+            403,
+        );
 
         $query = Review::query()->with(['author', 'reviewable']);
+
+        if ($authorFilter !== null && $authorFilter !== '') {
+            $authorId = $isSelfFilter ? $user->id : (int) $authorFilter;
+            $query->where('author_id', $authorId);
+        }
 
         $status = $request->query('filter.moderation_status')
             ?? data_get($request->query('filter', []), 'moderation_status');
@@ -250,6 +267,34 @@ class ReviewController extends Controller
         ]));
 
         return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
+    }
+
+    /**
+     * TCK-078 — delete the reply authored by the property/agency owner
+     * (or an admin) on a review. Keeps the review itself intact; only the
+     * `reply_content` block is wiped so the public view reverts to a
+     * "no reply yet" state.
+     */
+    public function deleteReply(Request $request, Review $review): JsonResponse
+    {
+        $user = $request->user();
+        $reviewable = $review->reviewable;
+
+        $ok = $user->hasRole(['admin', 'super_admin'])
+            || ($review->replied_by_id && $review->replied_by_id === $user->id)
+            || ($reviewable && isset($reviewable->user_id) && $reviewable->user_id === $user->id)
+            || ($user->agency_id && $reviewable && isset($reviewable->agency_id) && $reviewable->agency_id === $user->agency_id);
+        abort_unless($ok, 403);
+
+        abort_if($review->reply_content === null, 404, 'Review has no reply to delete.');
+
+        $review->update([
+            'reply_content' => null,
+            'replied_by_id' => null,
+            'replied_at' => null,
+        ]);
+
+        return $this->json(['data' => ReviewResource::make($review->refresh())->toArray($request)]);
     }
 
     public function reply(Request $request, Review $review): JsonResponse

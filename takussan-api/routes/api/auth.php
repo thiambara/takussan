@@ -60,6 +60,8 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     // cookie could brute-force the 10^6 keyspace in minutes — TOTP's
     // ±30 s window extends the valid range and makes this realistic.
     Route::post('/two-factor/enable', [TwoFactorController::class, 'enable']);
+    // TCK-078 — QR as inline SVG, replaces api.qrserver.com.
+    Route::get('/two-factor/qr', [TwoFactorController::class, 'qr']);
     Route::post('/two-factor/confirm', [TwoFactorController::class, 'confirm'])->middleware('throttle:5,1');
     Route::post('/two-factor/disable', [TwoFactorController::class, 'disable'])->middleware('throttle:5,1');
     Route::get('/two-factor/recovery-codes', [TwoFactorController::class, 'recoveryCodes']);

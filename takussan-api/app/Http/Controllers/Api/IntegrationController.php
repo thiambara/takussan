@@ -54,9 +54,10 @@ class IntegrationController extends Controller
             'You can only manage your own agency integrations.'
         );
 
-        if (isset($data['credentials'])) {
-            $data['credentials'] = json_encode($data['credentials']);
-        }
+        // TCK-078: the Integration model casts `credentials` as
+        // `encrypted:array`, so Eloquent already serialises + encrypts on
+        // the way in. Calling json_encode here would double-encode and
+        // store a JSON-encoded string instead of the structured payload.
 
         $integration = Integration::create(array_merge($data, [
             'agency_id' => $agencyId,
@@ -81,9 +82,8 @@ class IntegrationController extends Controller
             'metadata' => ['sometimes', 'nullable', 'array'],
         ]);
 
-        if (isset($data['credentials'])) {
-            $data['credentials'] = json_encode($data['credentials']);
-        }
+        // TCK-078: see store() — the model cast handles JSON + encryption,
+        // writing the raw array keeps round-trips lossless.
 
         $integration->fill($data)->save();
 
