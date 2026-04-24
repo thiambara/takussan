@@ -7,6 +7,7 @@ import {
   Building2,
   CalendarCheck,
   CalendarClock,
+  CalendarDays,
   FileText,
   CreditCard,
   MessageSquare,
@@ -122,6 +123,10 @@ function buildNavItems(user: User): NavItem[] {
   items.push({ href: '/app/bookings', label: isCustomer(roles) ? 'Mes réservations' : 'Réservations', icon: CalendarCheck });
   // TCK-075 visits — customers see their requests, agents see what to manage.
   items.push({ href: '/app/visits', label: isCustomer(roles) ? 'Mes visites' : 'Visites', icon: CalendarClock });
+  // TCK-072 — calendrier agrégé (visible pour agent/owner/admin qui gèrent un catalogue)
+  if (isAgent(roles) || isOwner(roles) || isAdmin(roles)) {
+    items.push({ href: '/app/calendar', label: 'Calendrier', icon: CalendarDays });
+  }
   // TCK-044 leases
   items.push({ href: '/app/leases', label: isCustomer(roles) ? 'Mes baux' : 'Baux', icon: FileText });
   // TCK-045 messages
