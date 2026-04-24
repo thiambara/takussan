@@ -62,6 +62,42 @@ describe('canReplyToReview', () => {
     ).toBe(true);
   });
 
+  it('returns true for admin regardless of ownership (matches backend reply policy)', () => {
+    expect(
+      canReplyToReview({
+        userId: 2,
+        userRoles: ['admin'],
+        userAgencyId: null,
+        ownerId: 99,
+        propertyAgencyId: 42,
+      }),
+    ).toBe(true);
+  });
+
+  it('returns true for agency_admin whose agency matches the listing', () => {
+    expect(
+      canReplyToReview({
+        userId: 3,
+        userRoles: ['agency_admin'],
+        userAgencyId: 7,
+        ownerId: 99,
+        propertyAgencyId: 7,
+      }),
+    ).toBe(true);
+  });
+
+  it('returns false for agency_admin from a different agency (no role bypass)', () => {
+    expect(
+      canReplyToReview({
+        userId: 4,
+        userRoles: ['agency_admin'],
+        userAgencyId: 7,
+        ownerId: 99,
+        propertyAgencyId: 42,
+      }),
+    ).toBe(false);
+  });
+
   it('returns false for an authenticated customer that is not involved', () => {
     expect(
       canReplyToReview({

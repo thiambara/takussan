@@ -53,15 +53,16 @@ function leaseToEntry(l: Lease & { property?: { slug?: string; title?: string } 
  */
 export function ProfileReviewsList() {
   const bookingsQuery = useBookings({ status: 'completed', per_page: 20 });
-  const leasesQuery = useLeases({ per_page: 20 });
+  const leasesQuery = useLeases({
+    status: 'active,expired,terminated,renewed',
+    per_page: 20,
+  });
 
   const loading = bookingsQuery.isLoading || leasesQuery.isLoading;
   const errored = bookingsQuery.isError || leasesQuery.isError;
 
   const bookings = bookingsQuery.data?.data ?? [];
-  const leases = (leasesQuery.data?.data ?? []).filter((l) =>
-    ['active', 'expired', 'terminated', 'renewed'].includes(l.status),
-  );
+  const leases = leasesQuery.data?.data ?? [];
 
   const entries: ReviewableEntry[] = [
     ...bookings.map(bookingToEntry),
