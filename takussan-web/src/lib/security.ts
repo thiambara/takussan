@@ -12,6 +12,10 @@ import { apiRequest } from './api';
 export type TwoFactorEnableResponse = {
   secret: string;
   qr_url: string;
+  // TCK-078 — inline SVG data URI rendered server-side (replaces the
+  // api.qrserver.com proxy). Optional so older backend deploys still
+  // surface a readable type during rolling upgrades.
+  qr_svg?: string;
 };
 
 export type TwoFactorConfirmResponse = {

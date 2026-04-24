@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\Auth\AppleOAuthController;
+use App\Http\Controllers\Api\Auth\FacebookOAuthController;
 use App\Http\Controllers\Api\UserAdminController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\EmailVerificationController;
@@ -58,6 +60,8 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     // cookie could brute-force the 10^6 keyspace in minutes — TOTP's
     // ±30 s window extends the valid range and makes this realistic.
     Route::post('/two-factor/enable', [TwoFactorController::class, 'enable']);
+    // TCK-078 — QR as inline SVG, replaces api.qrserver.com.
+    Route::get('/two-factor/qr', [TwoFactorController::class, 'qr']);
     Route::post('/two-factor/confirm', [TwoFactorController::class, 'confirm'])->middleware('throttle:5,1');
     Route::post('/two-factor/disable', [TwoFactorController::class, 'disable'])->middleware('throttle:5,1');
     Route::get('/two-factor/recovery-codes', [TwoFactorController::class, 'recoveryCodes']);
@@ -68,10 +72,26 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     Route::delete('/sessions/{tokenId}', [SessionController::class, 'destroy']);
 });
 
-// OAuth (public — SPA flow, state stored server-side via Cache)
-Route::prefix('auth/oauth')->group(function () {
+// OAuth (public — SPA flow, state stored server-side via Cache).
+// Throttled: redirect creates a 10-min cache entry per hit, and callback
+// brute-forcing random state strings would otherwise be free. 60/min per
+// IP mirrors Laravel's default API throttle and leaves plenty of room
+// for retries while blocking cheap enumeration.
+Route::prefix('auth/oauth')->middleware('throttle:60,1')->group(function () {
+    // Dedicated Facebook/Apple controllers (TCK-081) — declared before the
+    // generic `{provider}` route so Laravel matches them first.
+    Route::get('/facebook/redirect', [FacebookOAuthController::class, 'redirect']);
+    Route::get('/facebook/callback', [FacebookOAuthController::class, 'callback']);
+    Route::get('/apple/redirect', [AppleOAuthController::class, 'redirect']);
+    // Apple returns the callback via `response_mode=form_post` → POST.
+    // We still accept GET for parity with the other providers and local tests.
+    Route::match(['get', 'post'], '/apple/callback', [AppleOAuthController::class, 'callback']);
+
+    // Legacy / generic OAuth (TCK-060 — currently only Google). Kept as
+    // the parametric fallback to preserve the original URL contract
+    // while Facebook/Apple are routed to their dedicated controllers.
     Route::get('/{provider}/redirect', [OAuthController::class, 'redirect'])
-        ->whereIn('provider', ['google', 'facebook', 'apple']);
+        ->whereIn('provider', ['google']);
     Route::get('/{provider}/callback', [OAuthController::class, 'callback'])
-        ->whereIn('provider', ['google', 'facebook', 'apple']);
+        ->whereIn('provider', ['google']);
 });

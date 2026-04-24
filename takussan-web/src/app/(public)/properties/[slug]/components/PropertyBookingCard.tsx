@@ -1,6 +1,7 @@
 'use client';
 import { Calendar, KeyRound, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { formatCurrency } from '@/lib/format/currency';
 import type { PropertyDetail } from '@/types/property';
 
 interface PropertyBookingCardProps {
@@ -10,12 +11,10 @@ interface PropertyBookingCardProps {
   onMessage: () => void;
 }
 
+// TCK-078 — thin wrapper over the shared formatCurrency helper so the
+// component keeps its existing call signature.
 function formatPrice(price: number, currency: string | null): string {
-  return new Intl.NumberFormat('fr-SN', {
-    style: 'currency',
-    currency: currency ?? 'XOF',
-    maximumFractionDigits: 0,
-  }).format(price);
+  return formatCurrency(price, currency ?? 'XOF');
 }
 
 export function PropertyBookingCard({

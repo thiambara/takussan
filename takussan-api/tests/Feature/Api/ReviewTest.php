@@ -160,4 +160,93 @@ class ReviewTest extends TestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors(['rating']);
     }
+
+    /**
+     * TCK-078 — the owner (or an admin) can retract a reply they previously
+     * published. The review itself remains; only the reply columns are
+     * wiped so the public view reverts to the unanswered state.
+     */
+    public function test_owner_can_delete_reply_on_own_property_review(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $review = Review::factory()->create([
+            'reviewable_id' => $property->id,
+            'reviewable_type' => Property::class,
+            'reply_content' => 'Thanks!',
+            'replied_by_id' => $owner->id,
+            'replied_at' => now(),
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->deleteJson("/api/reviews/{$review->id}/reply")
+            ->assertOk()
+            ->assertJsonPath('data.reply_content', null);
+
+        $this->assertNull($review->fresh()->reply_content);
+        $this->assertNull($review->fresh()->replied_by_id);
+    }
+
+    public function test_unrelated_user_cannot_delete_reply(): void
+    {
+        $owner = User::factory()->create();
+        $outsider = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $review = Review::factory()->create([
+            'reviewable_id' => $property->id,
+            'reviewable_type' => Property::class,
+            'reply_content' => 'Thanks!',
+            'replied_by_id' => $owner->id,
+            'replied_at' => now(),
+        ]);
+
+        Sanctum::actingAs($outsider);
+
+        $this->deleteJson("/api/reviews/{$review->id}/reply")->assertForbidden();
+    }
+
+    public function test_delete_reply_returns_404_when_no_reply(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $review = Review::factory()->create([
+            'reviewable_id' => $property->id,
+            'reviewable_type' => Property::class,
+            'reply_content' => null,
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->deleteJson("/api/reviews/{$review->id}/reply")->assertNotFound();
+    }
+
+    /**
+     * TCK-078 — `/app/profile/reviews` uses `filter[author_id]=me` to list
+     * the current user's own reviews without needing admin privileges.
+     */
+    public function test_author_can_list_own_reviews_via_filter_author_id_me(): void
+    {
+        $user = User::factory()->create();
+        $other = User::factory()->create();
+
+        Review::factory()->count(2)->create(['author_id' => $user->id]);
+        Review::factory()->count(3)->create(['author_id' => $other->id]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/reviews?filter[author_id]=me')
+            ->assertOk()
+            ->assertJsonCount(2, 'data');
+    }
+
+    public function test_non_admin_without_author_filter_is_forbidden_on_reviews_index(): void
+    {
+        $user = User::factory()->create();
+        Review::factory()->count(2)->create();
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/reviews')->assertForbidden();
+    }
 }

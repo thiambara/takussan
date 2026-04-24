@@ -10,6 +10,10 @@ Route::prefix('public')->name('public.')->group(function () {
     Route::get('properties/search', [PublicPropertyController::class, 'search'])
         ->name('properties.search');
 
+    Route::get('properties/compare', [PublicPropertyController::class, 'compare'])
+        ->middleware('throttle:30,1')
+        ->name('properties.compare');
+
     Route::get('properties/map', [PublicPropertyController::class, 'map'])
         ->middleware('throttle:60,1')
         ->name('properties.map');

@@ -3,17 +3,15 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Clock } from 'lucide-react';
 import { useRecentlyViewed } from '@/hooks/useRecentlyViewed';
+import { formatCurrency } from '@/lib/format/currency';
 
 interface PropertyRecentlyViewedProps {
   excludeId: number;
 }
 
+// TCK-078 — shared formatter (XOF default until TCK-084 introduces i18n).
 function formatPrice(price: number, currency: string): string {
-  return new Intl.NumberFormat('fr-SN', {
-    style: 'currency',
-    currency: currency || 'XOF',
-    maximumFractionDigits: 0,
-  }).format(price);
+  return formatCurrency(price, currency || 'XOF');
 }
 
 export function PropertyRecentlyViewed({ excludeId }: PropertyRecentlyViewedProps) {

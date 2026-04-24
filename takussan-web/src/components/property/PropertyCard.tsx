@@ -11,6 +11,7 @@ import type {
   RentPeriod,
 } from '@/types/property';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
+import { CompareToggleButton } from '@/components/compare/CompareToggleButton';
 
 /**
  * Canonical PropertyCard used by the homepage, search results and any
@@ -80,6 +81,8 @@ export interface PropertyCardProps {
   readonly className?: string;
   /** Hide the favorite button (e.g. when the card is already inside a favourites list). */
   readonly hideFavorite?: boolean;
+  /** Hide the compare toggle — defaults to visible on public discovery cards (TCK-082). */
+  readonly hideCompare?: boolean;
 }
 
 export function PropertyCard({
@@ -88,6 +91,7 @@ export function PropertyCard({
   priority = false,
   className,
   hideFavorite = false,
+  hideCompare = false,
 }: PropertyCardProps) {
   const isSale = property.contract_type === 'sale';
   const ref = useRef<HTMLDivElement>(null);
@@ -149,6 +153,15 @@ export function PropertyCard({
             <FavoriteButton
               propertyId={property.id}
               className="absolute top-4 right-4"
+            />
+          )}
+
+          {/* Compare toggle (TCK-082) — sits below the favorite button. */}
+          {!hideCompare && (
+            <CompareToggleButton
+              propertyId={property.id}
+              size="sm"
+              className={hideFavorite ? 'absolute top-4 right-4' : 'absolute top-16 right-4'}
             />
           )}
         </div>

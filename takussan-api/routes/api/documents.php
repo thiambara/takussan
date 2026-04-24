@@ -12,6 +12,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
 
     // Document share links
+    // TCK-078 — index lists active (non-revoked, non-expired) links for a document
+    Route::get('documents/{document}/share-links', [DocumentShareLinkController::class, 'index'])->name('document-share-links.index');
     Route::post('documents/{document}/share', [DocumentShareLinkController::class, 'store'])->name('document-share-links.store');
     Route::delete('documents/{document}/share/{link}', [DocumentShareLinkController::class, 'destroy'])->name('document-share-links.destroy');
 });

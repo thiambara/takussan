@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Services\Auth\TwoFactorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class TwoFactorController extends Controller
 {
@@ -28,7 +29,36 @@ class TwoFactorController extends Controller
             'data' => [
                 'secret' => $secret,
                 'qr_url' => $this->service->qrCodeUrl($user, $secret),
+                // TCK-078 — embed the QR as data URI so the SPA does not
+                // have to hit the external api.qrserver.com proxy. Keep
+                // `qr_url` for copy/paste fallback.
+                'qr_svg' => 'data:image/svg+xml;base64,'.base64_encode(
+                    $this->service->qrCodeSvg($user, $secret),
+                ),
             ],
+        ]);
+    }
+
+    /**
+     * TCK-078 — standalone QR endpoint: returns the scanner image as an
+     * inline SVG so the dialog can reload it without hitting an external
+     * service. Only callable while the user is mid-enrollment (pending
+     * confirm()), which mirrors the previous `qr_url` contract.
+     */
+    public function qr(Request $request): Response
+    {
+        $user = $request->user();
+        abort_unless(
+            $user->two_factor_secret !== null && ! $user->two_factor_enabled,
+            422,
+            'Two-factor authentication is not in a setup state.',
+        );
+
+        $svg = $this->service->qrCodeSvg($user, $user->two_factor_secret);
+
+        return response($svg, 200, [
+            'Content-Type' => 'image/svg+xml',
+            'Cache-Control' => 'no-store, max-age=0',
         ]);
     }
 

@@ -28,7 +28,11 @@ interface TwoFactorSectionProps {
 
 export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionProps) {
   const [enabled, setEnabled] = useState(initialEnabled);
-  const [setup, setSetup] = useState<{ secret: string; qrUrl: string } | null>(null);
+  const [setup, setSetup] = useState<{
+    secret: string;
+    qrUrl: string;
+    qrSvg: string | null;
+  } | null>(null);
   const [code, setCode] = useState('');
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
   const [disablePassword, setDisablePassword] = useState('');
@@ -44,7 +48,13 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
         setError(result.message);
         return;
       }
-      setSetup({ secret: result.data.secret, qrUrl: result.data.qr_url });
+      // TCK-078 — prefer the inline SVG data URI returned by the API
+      // (no external call); keep qr_url for the manual-paste fallback.
+      setSetup({
+        secret: result.data.secret,
+        qrUrl: result.data.qr_url,
+        qrSvg: result.data.qr_svg ?? null,
+      });
     });
   }
 
@@ -92,11 +102,12 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
     });
   }
 
-  // Google Chart / qrserver used as a one-off QR renderer so we don't pull
-  // in a dedicated JS lib — the otpauth URL stays available as a copy fallback.
-  const qrImageSrc = setup
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(setup.qrUrl)}`
-    : null;
+  // TCK-078 — QR is now rendered server-side via bacon/bacon-qr-code and
+  // returned as an inline SVG data URI. This keeps the TOTP secret on our
+  // infra (the previous api.qrserver.com proxy leaked it to a third party
+  // and added an external availability dependency). The otpauth URL stays
+  // around as a copy-paste fallback below the image.
+  const qrImageSrc = setup?.qrSvg ?? null;
 
   return (
     <div className="rounded-2xl border border-app-surface-3 bg-white p-6">

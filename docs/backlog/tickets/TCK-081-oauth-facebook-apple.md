@@ -1,7 +1,7 @@
 ---
 id: TCK-081
 title: "OAuth Facebook & Apple (Socialite)"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: S
@@ -108,4 +108,32 @@ demander plus tard dans l'onboarding (page `/app/settings/profile`).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Livré dans le worktree V7-B (branche `feat/tck-081-oauth-facebook-apple`).
+
+### Backend
+
+- **`OAuthProvisioningService` refactored** to be provider-agnostic — resolves by `{provider}_id`, then by `email`, then creates. Google path backward compatible.
+- **`App\Services\Auth\AppleClientSecretGenerator`** — ES256 JWT signed with Apple `.p8` via `firebase/php-jwt`, cached 10 min in Laravel cache. `generate()` + `forgetCache()`. `RuntimeException` if team_id / key path missing.
+- **Controllers** — `FacebookOAuthController` + `AppleOAuthController` with `redirect()` + `callback()`, following the Google pattern. Signed state stored in session, verified at callback (rejects state bound to a different provider).
+- **Socialite providers** — `socialiteproviders/apple` + `socialiteproviders/facebook` installed, event listener registered in `EventServiceProvider`.
+- **Config** — `config/services.php` gets `facebook` + `apple` blocks. `.env.example` documents the 9 new keys.
+- **Email verification** — Apple = verified immediately; Facebook = unverified (standard verification email sent).
+- **Collision guard** — email matches User with a different `{provider}_id` set → 422.
+- **Apple name handling** — `name` used only if present in callback (Apple sends it once), never overwrites existing fields.
+
+### Tests
+
+- `FacebookOAuthTest` (6) + `AppleOAuthTest` (7) + `AppleClientSecretGeneratorTest` (5) = **18 tests, 68 assertions, ~3.2s** via `vendor/bin/phpunit`.
+- Note: `php artisan test` displays these as `!` risky-warnings (PHPUnit 12 flags any emitted PHP warning in the suite). `vendor/bin/phpunit` confirms green.
+- `tests/fixtures/apple_test_key.p8` — throwaway EC key generated locally (NEVER a real Apple key).
+
+### Frontend
+
+No changes needed. `<OAuthButtons>` + `OAuthProvider = 'google' | 'facebook' | 'apple'` were stubbed during TCK-060 with Facebook + Apple icons and `oauthRedirect(provider)` click handler. The backend routes now satisfy the existing frontend calls. `/login` + `/signup` both render the component, so all 3 providers activate.
+
+### Deferred
+
+- Provider disconnection UI (`/app/settings/connected-accounts`) — P3.
+- LinkedIn / Microsoft OAuth — P3.
+- Magic link login — P3.
+- `docs/oauth-setup.md` detailed setup guide — skipped to keep PR focused; `.env.example` comments suffice.

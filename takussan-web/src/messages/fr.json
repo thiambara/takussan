@@ -89,5 +89,58 @@
     "unauthorized": "Vous n'êtes pas autorisé à effectuer cette action.",
     "notFound": "Ressource introuvable.",
     "validation": "Certains champs sont invalides."
+  },
+  "compare": {
+    "eyebrow": "Comparateur",
+    "title": "Comparer des biens",
+    "subtitle": "{count} biens sélectionnés — comparez pour décider.",
+    "unavailableNotice": "{missing} bien(s) ne sont plus disponibles et ont été retirés du comparatif.",
+    "actions": {
+      "view": "Voir le bien",
+      "remove": "Retirer"
+    },
+    "values": {
+      "yes": "Oui",
+      "no": "Non"
+    },
+    "rows": {
+      "price": "Prix",
+      "contractType": "Type de transaction",
+      "type": "Type de bien",
+      "rentPeriod": "Périodicité",
+      "city": "Ville",
+      "quarter": "Quartier",
+      "area": "Surface",
+      "bedrooms": "Chambres",
+      "bathrooms": "Salles de bain",
+      "floor": "Étage",
+      "furnished": "Meublé",
+      "yearBuilt": "Année de construction",
+      "parking": "Places de parking",
+      "amenities": "Équipements",
+      "tags": "Autres"
+    },
+    "table": {
+      "ariaLabel": "Tableau comparatif des biens",
+      "header": "Critère",
+      "unavailable": "Bien indisponible",
+      "divergentTooltip": "Cette valeur diverge entre les biens"
+    },
+    "carousel": {
+      "ariaLabel": "Comparaison mobile — balayez pour voir chaque bien"
+    },
+    "empty": {
+      "title": "Sélectionnez au moins 2 biens",
+      "description": "Ajoutez des biens au comparateur depuis la liste ou la fiche d'un bien pour les comparer côte à côte.",
+      "cta": "Rechercher des biens"
+    },
+    "floatingBar": {
+      "ariaLabel": "Biens sélectionnés pour la comparaison",
+      "title": "Comparateur",
+      "count": "{count} / {max} bien(s)",
+      "cta": "Comparer ({count})",
+      "removeAria": "Retirer le bien #{id} du comparateur",
+      "clearAria": "Vider le comparateur"
+    }
   }
 }

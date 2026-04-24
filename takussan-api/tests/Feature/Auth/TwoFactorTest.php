@@ -23,13 +23,46 @@ class TwoFactorTest extends TestCase
         $user = User::factory()->create(['two_factor_enabled' => false]);
         Sanctum::actingAs($user);
 
-        $this->postJson('/api/auth/two-factor/enable')
+        $response = $this->postJson('/api/auth/two-factor/enable')
             ->assertOk()
-            ->assertJsonStructure(['data' => ['secret', 'qr_url']]);
+            ->assertJsonStructure(['data' => ['secret', 'qr_url', 'qr_svg']]);
 
         $fresh = $user->fresh();
         $this->assertFalse($fresh->two_factor_enabled);
         $this->assertNotNull($fresh->two_factor_secret);
+
+        // TCK-078 — qr_svg is an inline data URI (no external call).
+        $this->assertStringStartsWith('data:image/svg+xml;base64,', $response->json('data.qr_svg'));
+    }
+
+    /**
+     * TCK-078 — GET /api/auth/two-factor/qr serves the QR locally via
+     * bacon/bacon-qr-code (no api.qrserver.com round-trip). Only reachable
+     * while the user is mid-enrollment.
+     */
+    public function test_qr_endpoint_returns_local_svg_during_enrollment(): void
+    {
+        $user = User::factory()->create(['two_factor_enabled' => false]);
+        Sanctum::actingAs($user);
+
+        // Trigger enrollment so the secret is generated.
+        $this->postJson('/api/auth/two-factor/enable')->assertOk();
+
+        $response = $this->getJson('/api/auth/two-factor/qr');
+        $response->assertOk();
+        $this->assertSame('image/svg+xml', $response->headers->get('Content-Type'));
+        $this->assertStringContainsString('<svg', $response->getContent());
+    }
+
+    public function test_qr_endpoint_rejects_user_without_active_setup(): void
+    {
+        $user = User::factory()->create([
+            'two_factor_enabled' => false,
+            'two_factor_secret' => null,
+        ]);
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/auth/two-factor/qr')->assertStatus(422);
     }
 
     public function test_enable_fails_if_already_enabled(): void

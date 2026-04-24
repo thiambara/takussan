@@ -89,5 +89,58 @@
     "unauthorized": "You are not allowed to perform this action.",
     "notFound": "Resource not found.",
     "validation": "Some fields are invalid."
+  },
+  "compare": {
+    "eyebrow": "Comparator",
+    "title": "Compare properties",
+    "subtitle": "{count} properties selected — compare to decide.",
+    "unavailableNotice": "{missing} property(ies) are no longer available and have been removed.",
+    "actions": {
+      "view": "View property",
+      "remove": "Remove"
+    },
+    "values": {
+      "yes": "Yes",
+      "no": "No"
+    },
+    "rows": {
+      "price": "Price",
+      "contractType": "Transaction",
+      "type": "Property type",
+      "rentPeriod": "Billing period",
+      "city": "City",
+      "quarter": "Neighborhood",
+      "area": "Area",
+      "bedrooms": "Bedrooms",
+      "bathrooms": "Bathrooms",
+      "floor": "Floor",
+      "furnished": "Furnished",
+      "yearBuilt": "Year built",
+      "parking": "Parking spots",
+      "amenities": "Amenities",
+      "tags": "Other tags"
+    },
+    "table": {
+      "ariaLabel": "Property comparison table",
+      "header": "Criterion",
+      "unavailable": "Property unavailable",
+      "divergentTooltip": "This value differs across the selected properties"
+    },
+    "carousel": {
+      "ariaLabel": "Mobile comparison — swipe horizontally across each property"
+    },
+    "empty": {
+      "title": "Select at least 2 properties",
+      "description": "Add properties to the comparator from the listing or a property page to compare them side by side.",
+      "cta": "Search properties"
+    },
+    "floatingBar": {
+      "ariaLabel": "Properties selected for comparison",
+      "title": "Comparator",
+      "count": "{count} / {max} propertie(s)",
+      "cta": "Compare ({count})",
+      "removeAria": "Remove property #{id} from the comparator",
+      "clearAria": "Clear comparator"
+    }
   }
 }

@@ -32,6 +32,11 @@ class CalendarController extends Controller
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'property_id' => ['sometimes', 'integer', 'exists:properties,id'],
+            // TCK-078 — admin multi-property view supports `property_ids[]`.
+            'property_ids' => ['sometimes', 'array'],
+            'property_ids.*' => ['integer', 'exists:properties,id'],
+            // TCK-078 — admin-only cross-agency view.
+            'agency_id' => ['sometimes', 'integer', 'exists:agencies,id'],
             'types' => ['sometimes', 'array'],
             'types.*' => ['string', 'in:booking,visit'],
         ]);
@@ -39,11 +44,24 @@ class CalendarController extends Controller
         $start = Carbon::parse($validated['start_date']);
         $end = Carbon::parse($validated['end_date']);
         $propertyId = $validated['property_id'] ?? null;
+        $propertyIds = collect($validated['property_ids'] ?? [])
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
         $types = collect($validated['types'] ?? ['booking', 'visit'])->unique();
 
         $isAdmin = $user->hasRole(['admin', 'super_admin']);
         $userId = $user->id;
         $agencyId = $user->agency_id;
+
+        // Cross-agency filter is admin-only so a tenant of agency A cannot
+        // probe agency B's agenda by passing `agency_id=B`.
+        $agencyFilter = null;
+        if (array_key_exists('agency_id', $validated)) {
+            abort_unless($isAdmin, 403, 'Only administrators can query other agencies.');
+            $agencyFilter = (int) $validated['agency_id'];
+        }
 
         $scopeToUser = function (Builder $q) use ($userId, $agencyId): void {
             $q->whereHas('property', function (Builder $p) use ($userId, $agencyId): void {
@@ -69,6 +87,12 @@ class CalendarController extends Controller
 
             if ($propertyId) {
                 $bookingsQuery->where('property_id', $propertyId);
+            }
+            if (! empty($propertyIds)) {
+                $bookingsQuery->whereIn('property_id', $propertyIds);
+            }
+            if ($agencyFilter !== null) {
+                $bookingsQuery->whereHas('property', fn (Builder $p) => $p->where('agency_id', $agencyFilter));
             }
             if (! $isAdmin) {
                 $bookingsQuery->where($scopeToUser);
@@ -103,6 +127,12 @@ class CalendarController extends Controller
 
             if ($propertyId) {
                 $visitsQuery->where('property_id', $propertyId);
+            }
+            if (! empty($propertyIds)) {
+                $visitsQuery->whereIn('property_id', $propertyIds);
+            }
+            if ($agencyFilter !== null) {
+                $visitsQuery->whereHas('property', fn (Builder $p) => $p->where('agency_id', $agencyFilter));
             }
             if (! $isAdmin) {
                 $visitsQuery->where(function (Builder $q) use ($userId, $scopeToUser): void {

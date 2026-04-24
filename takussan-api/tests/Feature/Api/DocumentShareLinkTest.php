@@ -140,4 +140,78 @@ class DocumentShareLinkTest extends TestCase
 
         $this->getJson("/api/share/{$token}?password=secret1234")->assertOk();
     }
+
+    /**
+     * TCK-078 — the new index endpoint surfaces only active links: no
+     * revoked ones, no expired ones. Admin-only listing is not needed —
+     * document owner/admin access mirrors the store/destroy guard.
+     */
+    public function test_index_returns_only_active_share_links(): void
+    {
+        $owner = User::factory()->create();
+        $document = $this->createDocument($owner);
+
+        Sanctum::actingAs($owner);
+
+        // One active link.
+        $this->postJson("/api/documents/{$document->id}/share")
+            ->assertCreated();
+
+        // One revoked link.
+        $revokedToken = $this->postJson("/api/documents/{$document->id}/share")
+            ->json('data.token');
+        $revokedLink = DocumentShareLink::where('token', $revokedToken)->firstOrFail();
+        $revokedLink->update(['revoked_at' => now()]);
+
+        // One expired link — create active then expire via DB update so we
+        // bypass the `after:now` validator on `expires_at`.
+        $expiredToken = $this->postJson("/api/documents/{$document->id}/share", [
+            'expires_at' => now()->addDay()->toDateTimeString(),
+        ])->json('data.token');
+        DocumentShareLink::where('token', $expiredToken)
+            ->update(['expires_at' => now()->subHour()]);
+
+        $this->getJson("/api/documents/{$document->id}/share-links")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('meta.total', 1);
+    }
+
+    /**
+     * TCK-078 follow-up — an exhausted link (downloads_count >= max_downloads)
+     * is considered inactive by the service-layer `validate()`, so the index
+     * must not advertise it as a live URL.
+     */
+    public function test_index_hides_exhausted_share_links(): void
+    {
+        $owner = User::factory()->create();
+        $document = $this->createDocument($owner);
+
+        DocumentShareLink::create([
+            'document_id' => $document->id,
+            'created_by_id' => $owner->id,
+            'token' => 'exhausted-token-789',
+            'max_downloads' => 2,
+            'downloads_count' => 2,
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->getJson("/api/documents/{$document->id}/share-links")
+            ->assertOk()
+            ->assertJsonCount(0, 'data')
+            ->assertJsonPath('meta.total', 0);
+    }
+
+    public function test_index_is_forbidden_for_unrelated_user(): void
+    {
+        $owner = User::factory()->create();
+        $outsider = User::factory()->create();
+        $document = $this->createDocument($owner);
+
+        Sanctum::actingAs($outsider);
+
+        $this->getJson("/api/documents/{$document->id}/share-links")
+            ->assertForbidden();
+    }
 }
