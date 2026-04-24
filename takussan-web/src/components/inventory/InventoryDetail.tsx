@@ -6,12 +6,12 @@ import { useLocale } from 'next-intl';
 import { MediaDropzone } from '@/components/media';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/context/AuthContext';
 import { formatDateTime } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import {
   useDisputeInventory,
   useInventory,
-  useSignInventory,
   useSubmitInventory,
   useUploadInventoryRoomPhotos,
 } from '@/lib/queries/inventory';
@@ -26,6 +26,8 @@ import {
   InventoryStatusBadge,
   InventoryTypeBadge,
 } from './InventoryBadges';
+import { InventorySignatures } from './InventorySignatures';
+import { InventoryPdfButton } from './InventoryPdfButton';
 
 export function InventoryDetail({ id }: { readonly id: number }) {
   const query = useInventory(id);
@@ -98,6 +100,8 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
       </header>
 
       <ActionBar inventory={inventory} />
+
+      <SignatureSection inventory={inventory} />
 
       <section className="space-y-3">
         <h3 className="text-sm font-semibold text-app-ink">
@@ -210,16 +214,17 @@ function RoomCard({
 
 function ActionBar({ inventory }: { readonly inventory: Inventory }) {
   const submit = useSubmitInventory(inventory.id);
-  const sign = useSignInventory(inventory.id);
   const dispute = useDisputeInventory(inventory.id);
   const [reason, setReason] = useState('');
   const [showDispute, setShowDispute] = useState(false);
 
   const canSubmit = inventory.status === 'draft';
-  const canSign = inventory.status === 'pending_signature';
   const canDispute = inventory.status === 'pending_signature' || inventory.status === 'signed';
+  // PDF download is surfaced here (always visible when signed) so it sits
+  // next to the other actions. Signing itself happens in <SignatureSection>.
+  const showPdfAction = inventory.signed_at !== undefined && inventory.signed_at !== null;
 
-  if (!canSubmit && !canSign && !canDispute) {
+  if (!canSubmit && !canDispute && !showPdfAction) {
     return (
       <div className="rounded-2xl bg-app-surface-1 p-5 text-sm text-app-ink-muted">
         Cet état des lieux est dans un état terminal (
@@ -230,7 +235,7 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
 
   return (
     <div className="space-y-3 rounded-2xl bg-app-surface-1 p-5">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {canSubmit ? (
           <Button
             type="button"
@@ -238,15 +243,6 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
             disabled={submit.isPending}
           >
             {submit.isPending ? 'Envoi…' : 'Soumettre pour signature'}
-          </Button>
-        ) : null}
-        {canSign ? (
-          <Button
-            type="button"
-            onClick={() => sign.mutate()}
-            disabled={sign.isPending}
-          >
-            {sign.isPending ? 'Signature…' : 'Signer'}
           </Button>
         ) : null}
         {canDispute ? (
@@ -257,6 +253,12 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
           >
             {showDispute ? 'Annuler le litige' : 'Contester'}
           </Button>
+        ) : null}
+        {showPdfAction ? (
+          <InventoryPdfButton
+            inventoryId={inventory.id}
+            signedAt={inventory.signed_at ?? null}
+          />
         ) : null}
       </div>
 
@@ -296,5 +298,41 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Renders the two-party signature block. The canvas is only offered while
+ * the inventory is actively signable (`draft` or `pending_signature`).
+ *
+ * The `canSignTenant` / `canSignLandlord` flags here are UX-only hints to
+ * hide the canvas for users who obviously can't sign a given role (e.g. a
+ * `customer` user shouldn't see a landlord canvas). The backend enforces
+ * the real rule via `InventorySignatureService::authorizeRole()`.
+ */
+function SignatureSection({ inventory }: { readonly inventory: Inventory }) {
+  const { user } = useAuth();
+
+  const signable =
+    inventory.status === 'draft' || inventory.status === 'pending_signature';
+
+  const roles = user?.roles ?? [];
+  const isCustomer = roles.includes('customer');
+  const isPrivileged = roles.some((r) =>
+    ['agent', 'agency_admin', 'owner', 'super_admin'].includes(r),
+  );
+
+  // Admins see both canvases; customer-only users only the tenant one;
+  // privileged users only the landlord one. Absent a logged-in user we
+  // simply don't expose any canvas — the backend would 401 anyway.
+  const canSignTenant = signable && (isCustomer || roles.includes('super_admin'));
+  const canSignLandlord = signable && (isPrivileged || roles.includes('super_admin'));
+
+  return (
+    <InventorySignatures
+      inventory={inventory}
+      canSignTenant={canSignTenant}
+      canSignLandlord={canSignLandlord}
+    />
   );
 }
