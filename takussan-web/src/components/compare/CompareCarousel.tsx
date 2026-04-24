@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { ExternalLink, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { cn, formatPrice } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import {
   buildCompareRows,
   COMPARE_ROW_DEFS,
@@ -55,10 +55,8 @@ function formatCell(
     return value ? t('values.yes') : t('values.no');
   }
 
-  if (row.id === 'price' && typeof value === 'number') {
-    return formatPrice(value, 'XOF');
-  }
-
+  // Price arrives pre-formatted from `buildCell` (currency-aware);
+  // only `area` still needs a client-side unit suffix.
   if (row.id === 'area' && typeof value === 'number') {
     return `${value} m²`;
   }

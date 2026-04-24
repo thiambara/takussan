@@ -85,4 +85,19 @@ class PropertyCompareTest extends TestCase
 
         $this->getJson("/api/public/properties/compare?ids={$property->id}")->assertOk();
     }
+
+    /**
+     * When every parsed id is invalid (zeros / negatives / non-numeric),
+     * the controller short-circuits with an empty payload. It must still
+     * include `returned_ids` in meta — the frontend's useCompare reducer
+     * reads that field as an array and would crash on `undefined`.
+     */
+    public function test_all_invalid_ids_return_empty_meta_with_both_keys(): void
+    {
+        $response = $this->getJson('/api/public/properties/compare?ids=0,-1,abc');
+
+        $response->assertOk()
+            ->assertJsonPath('meta.requested_ids', [])
+            ->assertJsonPath('meta.returned_ids', []);
+    }
 }

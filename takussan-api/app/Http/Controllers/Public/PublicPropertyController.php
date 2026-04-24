@@ -216,7 +216,13 @@ class PublicPropertyController extends Controller
             ->values();
 
         if ($ids->isEmpty()) {
-            return $this->json(['data' => [], 'meta' => ['requested_ids' => []]]);
+            // Keep `returned_ids` in the empty payload so the frontend's
+            // `returnedIds.length < requestedIds.length` check in
+            // useCompare.ts can't hit `.length` on undefined.
+            return $this->json([
+                'data' => [],
+                'meta' => ['requested_ids' => [], 'returned_ids' => []],
+            ]);
         }
 
         $properties = Property::query()

@@ -8,7 +8,6 @@ import { useTranslations } from 'next-intl';
 
 import type { PropertyDetail } from '@/types/property';
 import { cn } from '@/lib/utils';
-import { formatPrice } from '@/lib/utils';
 import {
   buildCompareRows,
   COMPARE_ROW_DEFS,
@@ -68,10 +67,8 @@ function formatCell(
     return value ? t('values.yes') : t('values.no');
   }
 
-  if (row.id === 'price' && typeof value === 'number') {
-    return formatPrice(value, 'XOF');
-  }
-
+  // Price arrives pre-formatted from `buildCell` (currency-aware);
+  // only `area` still needs a client-side unit suffix.
   if (row.id === 'area' && typeof value === 'number') {
     return `${value} m²`;
   }

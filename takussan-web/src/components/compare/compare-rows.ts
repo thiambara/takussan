@@ -1,5 +1,6 @@
 import type { PropertyDetail, PropertyTag } from '@/types/property';
 import { type CompareRow, highlightDivergent, type HighlightedRow } from '@/lib/compare';
+import { formatPrice } from '@/lib/utils';
 
 /**
  * TCK-082 — transforms the list of fetched properties into a stable set
@@ -65,7 +66,13 @@ export function buildCell(
 
   switch (def.id) {
     case 'price':
-      return property.price;
+      // Pre-format with the property's own currency. Returning the raw
+      // number here would force the renderer to assume a single currency
+      // (originally hardcoded to XOF) and display EUR/USD/XAF listings
+      // with the wrong symbol. Pre-formatted strings also give
+      // `highlightDivergent` the correct divergence signal across mixed
+      // currencies.
+      return formatPrice(property.price, property.currency || 'XOF');
     case 'contract_type':
       return property.contract_type_label ?? property.contract_type ?? null;
     case 'type':
