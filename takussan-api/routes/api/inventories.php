@@ -13,6 +13,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('inventories/{inventory}/sign', [InventoryController::class, 'sign'])->name('inventories.sign');
     Route::post('inventories/{inventory}/dispute', [InventoryController::class, 'dispute'])->name('inventories.dispute');
     Route::post('inventories/{inventory}/room-photos', [InventoryController::class, 'uploadRoomPhotos'])->name('inventories.room-photos');
+    // TCK-076 — PDF export, available once both parties have signed.
+    Route::get('inventories/{inventory}/pdf', [InventoryController::class, 'downloadPdf'])->name('inventories.pdf');
 
     // List by property
     Route::get('properties/{property}/inventories', [InventoryController::class, 'indexForProperty'])->name('properties.inventories.index');

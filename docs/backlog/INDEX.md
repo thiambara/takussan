@@ -42,7 +42,6 @@
 ### Tickets Todo
 
 - [TCK-072](tickets/TCK-072-calendar-agenda.md) — Calendrier agrégé agent/owner `M · P1 · front` (Vague 6-B, bloqué par TCK-075)
-- [TCK-076](tickets/TCK-076-inventory-signature-pdf.md) — Inventaires — Signature deux parties + export PDF `M · P2 · applicatif` (Vague 6-A, bloqué par TCK-077)
 
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
@@ -72,6 +71,10 @@ _(vide)_
 ### Vague 5 — Visites full-stack — [PR #52](https://github.com/thiambara/takussan/pull/52)
 
 - [TCK-075](tickets/TCK-075-visits-full-workflow.md) — Visites — Planification complète (types, feedback, rappels) `L · P2 · applicatif` (PR #52)
+
+### Vague 6-A — Inventaires signature + PDF — [PR #55](https://github.com/thiambara/takussan/pull/55)
+
+- [TCK-076](tickets/TCK-076-inventory-signature-pdf.md) — Inventaires — Signature deux parties + export PDF `M · P2 · applicatif` (PR #55)
 
 ### Dette technique — Post-Vague 3
 
