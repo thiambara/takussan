@@ -26,22 +26,9 @@
 
 ## 📋 Todo
 
-> **Vague 4 livrée 2026-04-23** — 11 tickets passés en review via 5 PRs indépendantes (#43–#47). **Vague 5 livrée 2026-04-23** — 3 tickets passés en review via 3 PRs parallèles (#50, #51, #52). **Vague 6 restante** — 2 tickets, 2 PRs parallèles bloqués par V5.
+> **Vagues 4 → 6 livrées et mergées sur `dev`** — 16 tickets (TCK-062 → TCK-077) passés en `review` via 10 PRs parallèles. Backlog MVP vidé. Voir section Review.
 
-### 🌊 Plan des vagues restantes
-
-#### Vague 6 — 2 PRs parallèles (consomment Vague 5)
-
-> Ne démarrent qu'après merge Vague 5 (TCK-077 → TCK-076 ; TCK-075 → TCK-072). Indépendants entre eux.
-
-| PR | Tickets | Surface | Estimate |
-|----|---------|---------|----------|
-| **V6-A** Signature inventaire + PDF | TCK-076 | Canvas signature front + endpoints sign + PDF via service V5-A | M |
-| **V6-B** Calendrier agrégé | TCK-072 | Vue mois/semaine/jour consolidant bookings + visites (V5-B) | M |
-
-### Tickets Todo
-
-- [TCK-072](tickets/TCK-072-calendar-agenda.md) — Calendrier agrégé agent/owner `M · P1 · front` (Vague 6-B, bloqué par TCK-075)
+_(aucun ticket)_
 
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
@@ -57,8 +44,9 @@ _(vide)_
 > **Vague 2** — PRs mergées sur `dev` 2026-04-22 (#29, #30, #31, #32 + sync #33).
 > **Vague 3** — PRs ouvertes vers `dev` 2026-04-23 (#34, #35, #36, #37, #38) en attente de merge.
 > **TCK-061** — Cleanup & dette Vague 3 implémenté 2026-04-23 (branche `chore/tck-061-cleanup-vague3`).
-> **Vague 4** — PRs ouvertes vers `dev` 2026-04-23 (#43, #44, #45, #46, #47 + sync #48) en attente de merge. 11 tickets livrés.
-> **Vague 5** — PRs ouvertes vers `dev` 2026-04-23 (#50, #51, #52) en attente de merge. 3 tickets livrés.
+> **Vague 4** — PRs mergées sur `dev` 2026-04-23 (#43, #44, #45, #46, #47 + sync #48). 11 tickets livrés.
+> **Vague 5** — PRs mergées sur `dev` 2026-04-24 (#50, #51, #52 + sync #53). 3 tickets livrés.
+> **Vague 6** — PRs mergées sur `dev` 2026-04-24 (#54, #55). 2 tickets livrés.
 
 ### Vague 5 — Avis front — [PR #50](https://github.com/thiambara/takussan/pull/50)
 
@@ -75,6 +63,10 @@ _(vide)_
 ### Vague 6-A — Inventaires signature + PDF — [PR #55](https://github.com/thiambara/takussan/pull/55)
 
 - [TCK-076](tickets/TCK-076-inventory-signature-pdf.md) — Inventaires — Signature deux parties + export PDF `M · P2 · applicatif` (PR #55)
+
+### Vague 6-B — Calendrier agrégé — [PR #54](https://github.com/thiambara/takussan/pull/54)
+
+- [TCK-072](tickets/TCK-072-calendar-agenda.md) — Calendrier agrégé agent/owner `M · P1 · front` (PR #54)
 
 ### Dette technique — Post-Vague 3
 
@@ -295,3 +287,4 @@ TCK-021 + TCK-027 + TCK-028 ──▶ TCK-077 (PDF templates)
 - **2026-04-23** — **Vague 4 livrée** (5 agents parallèles sur worktrees, relance nécessaire après coupure quota mi-parcours) : 11 tickets passés en `review` via 5 PRs indépendantes ciblant `dev`. **PR #43** (V4-C Ops stubs : TCK-062 documents biblio/upload/partage/intégration fiche bien-bail-client, TCK-063 paiements 3 onglets historique/factures/payouts ; 35 fichiers, 144/144 Vitest). **PR #44** (V4-E Media & dup : TCK-071 MediaManager drag-drop natif HTML5, TCK-074 PropertyDuplication/BulkArchive services+policies+tests ; 23 fichiers, 14/14 tests ciblés, 114/114 Vitest). **PR #45** (V4-A Admin config : TCK-064 agency-config-form, TCK-066 tags-manager, TCK-068 settings/integrations avec test endpoint ; 40 fichiers, 17/17 tests ciblés, 146/146 Vitest). **PR #46** (V4-B Admin team & modération : TCK-065 team management + invite dialog, TCK-067 moderation workspace avec split view ; 16 nouveaux tests back + 7 Vitest). **PR #47** (V4-D Security & prefs : TCK-069 2FA/OTP/sessions via `pragmarx/google2fa`, TCK-070 NotificationPreference + PreferenceResolver + bypass notifications critiques ; 40 fichiers, 796/797 back, 122/122 Vitest — driver SMS log stub à swap prod, QR via api.qrserver.com). Nouveaux tests cumulés : ~45 back + ~47 front. Sync centrale INDEX via PR #48 après merge des 5 groupes. Divergences notables captées dans les notes tickets (TCK-064 SVG refusé XSS, TCK-066 Tag.is_active inexistant → soft-delete, TCK-069 driver SMS stub, TCK-071 HTML5 native vs @dnd-kit). Follow-ups accumulés pour ticket dette post-V4 : IntegrationController double-encode credentials, TagController role `admin` legacy vs `agency_admin` canonique, GET /api/documents/{id}/share-links manquant, picker entité DocumentUploadDialog, `Tag.is_active` migration, 2 tests pré-existants (`NotificationEmailTest`, `ExportControllerTest PDF leases`, `LeaseExportTest`), QR sans dep externe.
 - **2026-04-23** — **Vague 5 livrée** (3 agents parallèles sur worktrees) : 3 tickets passés en `review` via 3 PRs indépendantes ciblant `dev`. **PR #50** (V5-C Avis front : TCK-073 — formulaire "Laisser un avis" post-booking/post-lease, section "Répondre" agent/owner sur fiche bien, `/app/profile/reviews` ; 31 fichiers test, 233/233 Vitest ; deux gaps backend flaggés follow-up — `DELETE /reviews/{id}/reply` absent, filtre `author_id=me` absent). **PR #51** (V5-A PDF backend : TCK-077 — `App\Services\Pdf\DocumentPdfService` avec `render/stream/store`, 3 endpoints `/leases/{lease}/receipts/{payment}/pdf`, `/invoices/{invoice}/pdf`, `/leases/{lease}/contract/pdf`, 4 templates Blade (`layouts/base`, `receipts/rent`, `invoices/default`, `leases/contract`), `docs/pdf-templates.md` ; 13 tests Pdf + 846/846 suite ; helper `formatCurrency` spec §2.8 absent — formatage inline). **PR #52** (V5-B Visites full-stack : TCK-075 — `VisitSchedulingService` (overlap + quota 3 visites), 3 notifications (requested/confirmed/reminder) avec `PreferenceResolver`, `SendPropertyVisitReminders` every 5 min windows 24h+1h idempotent via `metadata.reminder_*_sent_at`, `config/visits.php`, endpoints show/feedback/destroy, lang fr/en ; frontend `/app/visits` + `[id]` + tabs À venir/Passées + feedback dual-role ; 850 back + 220 front + Pint clean ; spec inconsistency `requested` vs `scheduled` résolue sur `scheduled` côté DB). Tests cumulés : 846 → 850 back (+28 ciblés Visit) et 199 → 464 front (+24 reviews, +11 visits, existants). Sync centrale INDEX via cette même PR.
 - **2026-04-23** — Audit complet code ↔ specs (backend + frontend) puis création Vagues 4/5/6 : **16 tickets** (TCK-062 → TCK-077) séquencés en **3 vagues / 10 PRs parallèles** (V4=5 PRs, V5=3 PRs, V6=2 PRs). V4 couvre les gaps MVP indépendants (admin UI, documents/paiements stubs, sécurité full-stack, médias+duplication). V5 pose les enablers P2 (PDF service, visites, avis front). V6 consomme V5 (signature inventaire PDF via V5-A, calendrier via V5-B). **Frontend Admin** (5 tickets P1/P2) : config agence, équipe, tags/amenités, modération, settings/intégrations — tous remplacent les pages stubs `/admin/*`. **Frontend Ops** (4 tickets P1/P2) : bibliothèque documents, paiements/factures/payouts, calendrier agrégé, avis utilisateurs. **Applicatif transverse** (3 tickets P1) : 2FA+sessions+OTP téléphone (full-stack), préférences notifications (full-stack), multi-upload+reorder médias. **Backend P2** (4 tickets) : duplication/archivage bien, visites planification complète (full-stack), signature inventaire + PDF, service PDF templates centralisé (quittance/facture/bail). Exclus volontairement : passerelle paiement Wave/Orange (P2 complexe, ticket dédié à venir), suppression RGPD (P2), OAuth Facebook/Apple (P2), comparateur biens (P2), pipeline prospects (P2), multi-devises (P2), hiérarchie biens (P1 modeste — à absorber dans TCK-036 si besoin), conversations groupe (P2), révision loyer (endpoint trivial — à intégrer en fermant TCK-027).
+- **2026-04-24** — **Vague 6 livrée** (2 agents parallèles sur worktrees, relance après coupure quota mi-parcours) : 2 tickets passés en `review` via 2 PRs indépendantes ciblant `dev`, mergées le jour même. **PR #54** (V6-B Calendrier : TCK-072 — `CalendarController` étendu avec `types[]`/`property_id`/scope collab accepté/payload enrichi ; frontend `/app/calendar` avec `{Month,Week,Day,List}View` + `EventDetailSheet` + helpers `calendar-date.ts` **custom zero-dep** (grille CSS 7×6 + date maths maison, ni `react-big-calendar` ni `fullcalendar`) ; +7 back, +32 front ; divergences flaggées — `property_ids[]` multi-select back absent, virtualisation 200+ events absente, `agency_id` param non implémenté). **PR #55** (V6-A Signature inventaire + PDF : TCK-076 — migration additive `signature_data`/`*_signature_hash`/`signed_at`, `InventorySignatureService`, endpoint `POST /sign` rétrocompat + `GET /inventories/{id}/pdf` + 409 sur PATCH signé ; frontend `SignaturePad` canvas zero-dep PNG base64 + `InventorySignatures` + `InventoryPdfButton` ; template Blade `pdf/inventories/report.blade.php` via `DocumentPdfService` (V5-A) ; +12 back, +10 front ; divergences — colonnes legacy `tenant_signed_at`/`owner_signed_at` conservées additives, PNG au lieu de SVG, follow-up archivage long terme via `DocumentPdfService::store()`). **Backlog MVP désormais vidé** (16 tickets V4→V6 livrés). Sync centrale INDEX via cette même PR.
