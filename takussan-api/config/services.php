@@ -49,7 +49,13 @@ return [
 
     'apple' => [
         'client_id' => env('APPLE_CLIENT_ID'),
-        'client_secret' => env('APPLE_CLIENT_SECRET'),
+        // Generated dynamically at runtime by AppleClientSecretGenerator from
+        // the .p8 private key. Left null so that the service never reads a
+        // stale value from env.
+        'client_secret' => null,
+        'team_id' => env('APPLE_TEAM_ID'),
+        'key_id' => env('APPLE_KEY_ID'),
+        'private_key_path' => env('APPLE_PRIVATE_KEY_PATH'),
         'redirect' => env('APPLE_REDIRECT_URI'),
     ],
 
