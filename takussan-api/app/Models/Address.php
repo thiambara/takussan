@@ -26,4 +26,26 @@ class Address extends AbstractModel
     {
         return $this->morphTo();
     }
+
+    /**
+     * Composed, human-readable full address used by PDF templates and other views.
+     * Returns null when every component is empty so callers can rely on ??-fallbacks.
+     */
+    public function getFullAddressAttribute(): ?string
+    {
+        $cityLine = trim(implode(' ', array_filter([
+            $this->postal_code ?? null,
+            $this->city ?? null,
+        ], fn ($p) => $p !== null && $p !== '')));
+
+        $parts = array_filter([
+            $this->street ?? null,
+            $this->neighborhood ?? null,
+            $cityLine !== '' ? $cityLine : null,
+            $this->region ?? null,
+            $this->country ?? null,
+        ], fn ($p) => $p !== null && $p !== '');
+
+        return $parts === [] ? null : implode(', ', $parts);
+    }
 }
