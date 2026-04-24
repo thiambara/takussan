@@ -50,8 +50,13 @@ class InventoryFactory extends Factory
             'status' => InventoryStatus::Signed,
             'tenant_signed' => true,
             'tenant_signed_at' => now(),
+            'tenant_signature_data' => 'data:image/png;base64,'.base64_encode('tenant-sig'),
+            'tenant_signature_hash' => hash('sha256', 'tenant-sig'),
             'owner_signed' => true,
             'owner_signed_at' => now(),
+            'owner_signature_data' => 'data:image/png;base64,'.base64_encode('owner-sig'),
+            'owner_signature_hash' => hash('sha256', 'owner-sig'),
+            'signed_at' => now(),
         ]);
     }
 }
