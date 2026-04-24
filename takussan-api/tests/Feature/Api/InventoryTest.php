@@ -105,6 +105,9 @@ class InventoryTest extends TestCase
     {
         $owner = User::factory()->create();
         $property = Property::factory()->create(['user_id' => $owner->id]);
+        // TCK-076 AC5 — Signed inventories are immutable and PATCH now returns
+        // 409. Non-signed transitional states (pending_signature, disputed)
+        // still produce the historical 422 "only draft" response.
         $inventory = Inventory::factory()->create([
             'property_id' => $property->id,
             'conducted_by' => $owner->id,
@@ -115,7 +118,7 @@ class InventoryTest extends TestCase
 
         $this->patchJson("/api/inventories/{$inventory->id}", [
             'notes' => 'update attempt',
-        ])->assertStatus(422);
+        ])->assertStatus(409);
     }
 
     public function test_owner_signs_then_tenant_signs_marks_signed(): void
