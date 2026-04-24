@@ -142,5 +142,51 @@
       "removeAria": "Retirer le bien #{id} du comparateur",
       "clearAria": "Vider le comparateur"
     }
+  },
+  "payments": {
+    "gateway": {
+      "button": {
+        "payOnline": "Payer en ligne"
+      },
+      "picker": {
+        "title": "Choisir un mode de paiement",
+        "description": "Sélectionnez le fournisseur via lequel le paiement sera traité.",
+        "select": "Sélectionner",
+        "unavailable": "Non disponible — devise non supportée ou intégration absente. Contactez votre administrateur.",
+        "contactAdmin": "Contacter l’admin",
+        "cancel": "Annuler",
+        "confirm": "Continuer",
+        "redirecting": "Redirection…"
+      },
+      "return": {
+        "success": {
+          "title": "Paiement confirmé",
+          "body": "Merci ! Votre paiement a été enregistré."
+        },
+        "failed": {
+          "title": "Paiement échoué",
+          "body": "Le paiement n’a pas pu aboutir. Vous pouvez réessayer."
+        },
+        "pending": {
+          "title": "Paiement en cours",
+          "body": "Nous vérifions le statut du paiement avec le fournisseur — cela peut prendre quelques secondes."
+        },
+        "unknown": {
+          "title": "Statut indisponible",
+          "body": "Nous n’avons pas pu vérifier le statut. Réessayez plus tard."
+        },
+        "invalid": {
+          "title": "Paramètres invalides",
+          "body": "Lien de retour incorrect."
+        },
+        "actions": {
+          "backToPayments": "Retour aux paiements",
+          "refresh": "Actualiser"
+        }
+      },
+      "error": {
+        "generic": "Une erreur est survenue, réessayez."
+      }
+    }
   }
 }
