@@ -1,6 +1,6 @@
 ---
 id: TCK-079
-title: "Passerelle de paiement Wave / Orange Money / Stripe"
+title: "Passerelle de paiement Wave / Orange Money / Lemon Squeezy"
 status: todo
 phase: P2
 family: applicatif
@@ -19,16 +19,23 @@ spec_refs:
     - docs/models-spec.md#25-invoice-
     - docs/models-spec.md#28-payout-
     - docs/models-spec.md#31-integration-
-tags: [back, front, payments, integration, gateway, wave, orange-money, stripe]
+tags: [back, front, payments, integration, gateway, wave, orange-money, lemon-squeezy]
 ---
+
+> **Note spec** — `features.md` §1.5 mentionne « Wave, Orange Money, Stripe » comme
+> exemples. Le choix technique pour la carte internationale est **Lemon Squeezy**
+> (merchant of record : VAT/tax collection incluses). Ouvrir une PR sur
+> `features.md` pour ajuster la formulation ("ex. Wave, Orange Money, Lemon Squeezy")
+> avant le merge de l'implémentation de ce ticket.
 
 ## Objectif utilisateur
 
 Permettre à un agent/admin de déclencher un paiement (réservation, bail, facture)
 directement depuis la plateforme via une passerelle mobile money (Wave, Orange
-Money) ou carte bancaire (Stripe), et de voir le paiement se réconcilier
-automatiquement avec les `BookingPayment` / `LeasePayment` / `Invoice` existants
-lorsque le fournisseur renvoie un webhook de confirmation.
+Money) ou carte bancaire internationale (Lemon Squeezy, merchant of record avec
+collecte de TVA incluse), et de voir le paiement se réconcilier automatiquement
+avec les `BookingPayment` / `LeasePayment` / `Invoice` existants lorsque le
+fournisseur renvoie un webhook de confirmation.
 
 ## Contrat de données
 
@@ -37,7 +44,7 @@ lorsque le fournisseur renvoie un webhook de confirmation.
 
 - `App\Services\Payments\Drivers\WaveDriver` (API Wave Business — checkout session)
 - `App\Services\Payments\Drivers\OrangeMoneyDriver` (API Orange Money Merchant)
-- `App\Services\Payments\Drivers\StripeDriver` (PaymentIntent)
+- `App\Services\Payments\Drivers\LemonSqueezyDriver` (API Lemon Squeezy — `POST /v1/checkouts` avec `store_id` + `variant_id` dynamique, URL renvoyée par `data.attributes.url`)
 
 Chaque driver implémente `PaymentDriverContract` :
 `initiate(Payable $entity, int $amount, string $currency, array $meta): CheckoutSession`
@@ -66,10 +73,10 @@ BookingPayment/LeasePayment** : les données passerelle vont dans `metadata` (d�
 est en cours (webhook pas encore reçu), afficher un état `pending` avec
 pull-to-refresh manuel et polling léger (15s intervalle, max 2 min).
 
-**Modale de sélection du provider** : logos Wave / Orange Money / Stripe côte à
-côte, chaque tuile désactivée si l'intégration n'est pas configurée (tooltip
-"Contacter l'admin"). Préférence persistée localement (`localStorage`) — la
-prochaine fois, pré-sélection du dernier provider utilisé.
+**Modale de sélection du provider** : logos Wave / Orange Money / Lemon Squeezy
+côte à côte, chaque tuile désactivée si l'intégration n'est pas configurée
+(tooltip "Contacter l'admin"). Préférence persistée localement (`localStorage`)
+— la prochaine fois, pré-sélection du dernier provider utilisé.
 
 **Page de retour provider** : état de chargement ≥ 800 ms pour laisser le temps
 au webhook d'arriver, puis affichage final. Jamais de message définitif de
@@ -82,7 +89,9 @@ succès sans confirmation serveur.
   doublon de transition d'état.
 - **Vérification de signature** — chaque webhook doit vérifier HMAC/shared
   secret du provider via le `credentials` chiffré de `Integration`. Pas de
-  secret dans le code ou l'env.
+  secret dans le code ou l'env. Pour Lemon Squeezy : header `X-Signature`,
+  HMAC-SHA256 du raw body avec le `signing_secret` configuré lors de la
+  création du webhook côté LS (constante comparaison via `hash_equals`).
 - **Transitions d'état garde-fou** — un paiement `paid` ne peut pas repasser
   en `pending`. Les guards du modèle (TCK-028) restent la source de vérité ;
   le webhook ne fait qu'appeler `markAsPaid()` / `markAsFailed()`.
@@ -91,16 +100,28 @@ succès sans confirmation serveur.
   L'admin UI expose uniquement un placeholder `••••••••` + date `last_used_at`.
 - **Scope agence** — un paiement ne peut être initié que via une `Integration`
   appartenant à l'agence du bien (ou une intégration globale `agency_id=null`).
-- **Devise obligatoire** — `Wave` / `Orange Money` exigent XOF ; `Stripe`
-  accepte multi. Si mismatch entre la devise du paiement et celle supportée
-  par le driver, refuser 422 avant `initiate`.
+- **Devise obligatoire** — `Wave` / `Orange Money` exigent XOF ; **Lemon
+  Squeezy ne supporte PAS XOF** (ni aucune devise africaine). Supportées : USD,
+  EUR, GBP, CAD, AUD + ~20 autres. Si mismatch entre la devise du paiement
+  (dérivée de l'agence via TCK-084) et celle supportée par le driver, refuser
+  422 avant `initiate` avec un message explicite ("Lemon Squeezy ne supporte
+  pas XOF — utilisez Wave ou Orange Money pour un paiement en XOF").
+- **Lemon Squeezy : prix dynamique** — LS fonctionne historiquement avec des
+  `Variants` pré-configurées. Pour un montant arbitraire (loyer, facture), on
+  utilise `custom_price` en cents dans le payload `POST /v1/checkouts` (pattern
+  "pay what you want" côté LS). Un seul `store_id` + un seul `variant_id`
+  "container" suffit par agence.
+- **Lemon Squeezy : merchant of record** — LS collecte la TVA/sales tax et le
+  reverse sur un payout mensuel (moins frais ~5% + 0.50$). Le montant net
+  reçu ≠ le montant facturé. À réconcilier dans `BookingPayment.metadata` :
+  stocker `gross_amount`, `fees_amount`, `net_amount` séparément.
 
 ## Delta à produire
 
 - [ ] Migration aucune sur payments (réutilise `transaction_id` + `metadata`)
 - [ ] Contract `App\Contracts\Payments\PaymentDriverContract`
 - [ ] Service `App\Services\Payments\PaymentGatewayService` (sélection driver)
-- [ ] Drivers `WaveDriver`, `OrangeMoneyDriver`, `StripeDriver` (3 classes)
+- [ ] Drivers `WaveDriver`, `OrangeMoneyDriver`, `LemonSqueezyDriver` (3 classes)
 - [ ] Controller `App\Http\Controllers\Api\PaymentGatewayController` (initiate / verify)
 - [ ] Controller webhook `App\Http\Controllers\Api\Webhooks\PaymentWebhookController`
 - [ ] FormRequest `InitiatePaymentRequest` (provider, return_url, cancel_url)
@@ -108,10 +129,11 @@ succès sans confirmation serveur.
 - [ ] Routes authentifiées `POST /payments/{payment}/initiate`, `GET /payments/{payment}/verify`
 - [ ] Policy update `BookingPaymentPolicy` / `LeasePaymentPolicy` — ability `initiate`
 - [ ] Seeder `IntegrationSeeder` (fixtures de test uniquement)
-- [ ] Enum `PaymentProvider` (wave, orange_money, stripe) si pas déjà présent
-- [ ] Tests `PaymentGatewayInitiateTest` (happy path + 3 providers + scope agence + devise mismatch)
+- [ ] Enum `PaymentProvider` (wave, orange_money, lemon_squeezy) si pas déjà présent
+- [ ] Tests `PaymentGatewayInitiateTest` (happy path + 3 providers + scope agence + devise mismatch XOF ↔ LS)
 - [ ] Tests `PaymentWebhookTest` (signature OK/KO, idempotence, transition interdite)
-- [ ] Tests `StripeDriverTest` / `WaveDriverTest` / `OrangeMoneyDriverTest` (mock HTTP)
+- [ ] Tests `LemonSqueezyDriverTest` / `WaveDriverTest` / `OrangeMoneyDriverTest` (mock HTTP)
+- [ ] Tests `LemonSqueezyFeesReconciliationTest` (extraction `gross/fees/net` depuis webhook `order_created`)
 - [ ] Page UI `/app/payments/return` (callback provider)
 - [ ] Composant `PaymentProviderPicker` (modale sélection)
 - [ ] Bouton "Payer en ligne" intégré dans `BookingDetail`, `LeaseDetail`, `InvoiceDetail`
@@ -126,9 +148,10 @@ succès sans confirmation serveur.
 - [ ] AC4 — webhook avec `transaction_id` déjà traité renvoie 200 et n'émet pas de double transition (idempotence)
 - [ ] AC5 — un paiement `paid` reste `paid` après un webhook `pending` tardif
 - [ ] AC6 — `Integration.credentials` n'est jamais exposé dans aucune resource API (même pour admin)
-- [ ] AC7 — tentative Wave/OM avec devise ≠ XOF → 422 avant appel HTTP
+- [ ] AC7 — tentative Wave/OM avec devise ≠ XOF → 422 avant appel HTTP ; tentative Lemon Squeezy avec XOF → 422 avec message explicite
 - [ ] AC8 — page `/app/payments/return` affiche `pending` ≥ 800 ms puis poll jusqu'à résolution (max 2 min) puis redirige
 - [ ] AC9 — bouton "Payer en ligne" masqué si aucun provider configuré pour l'agence
+- [ ] AC10 — webhook LS `order_created` → `BookingPayment.metadata` contient `gross_amount`, `fees_amount`, `net_amount` (cents) extraits de la payload
 
 ## Hors périmètre
 
