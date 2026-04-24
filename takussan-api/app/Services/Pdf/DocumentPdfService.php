@@ -5,8 +5,10 @@ namespace App\Services\Pdf;
 use App\Models\Agency;
 use App\Models\Document;
 use App\Models\Enums\DocumentType;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\View;
 use Spatie\LaravelPdf\Facades\Pdf;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
@@ -91,16 +93,22 @@ class DocumentPdfService
         ]);
 
         $document->documentable()->associate($attachTo);
-        $document->save();
 
-        // Persist bytes via medialibrary. fromString keeps the binary in-
-        // memory — no temp-file cleanup required.
-        $document->addMediaFromString($bytes)
-            ->usingFileName($name)
-            ->usingName($document->name)
-            ->toMediaCollection('file');
+        // Wrap persistence so a media-write failure rolls back the Document row
+        // (avoids orphan DB rows pointing at no media). A file written before
+        // the failure is harmless: nothing in the DB references it.
+        return DB::transaction(function () use ($document, $bytes, $name) {
+            $document->save();
 
-        return $document->refresh();
+            // Persist bytes via medialibrary. fromString keeps the binary in-
+            // memory — no temp-file cleanup required.
+            $document->addMediaFromString($bytes)
+                ->usingFileName($name)
+                ->usingName($document->name)
+                ->toMediaCollection('file');
+
+            return $document->refresh();
+        });
     }
 
     /**
@@ -115,17 +123,28 @@ class DocumentPdfService
             $logoUrl = $data['agency_logo_url'] ?? null;
         }
 
-        return array_merge([
-            'generated_at' => now(),
+        // Normalize generated_at: callers may pass a Carbon, a parseable string,
+        // or omit it entirely. The footer needs a Carbon or translatedFormat()
+        // fatals.
+        $rawGeneratedAt = $data['generated_at'] ?? null;
+        $generatedAt = $rawGeneratedAt instanceof Carbon
+            ? $rawGeneratedAt
+            : ($rawGeneratedAt ? Carbon::parse($rawGeneratedAt) : now());
+
+        $merged = array_merge([
             'agency' => $agency,
             'agency_logo_url' => $logoUrl,
             'title' => $data['title'] ?? 'Document',
             'document_label' => $data['document_label'] ?? 'Document',
-            'footer_note' => sprintf(
-                'Document généré le %s — Takussan',
-                ($data['generated_at'] ?? now())->translatedFormat('d/m/Y H:i'),
-            ),
         ], $data);
+
+        $merged['generated_at'] = $generatedAt;
+        $merged['footer_note'] = sprintf(
+            'Document généré le %s — Takussan',
+            $generatedAt->translatedFormat('d/m/Y H:i'),
+        );
+
+        return $merged;
     }
 
     protected function assertTemplateExists(string $template): void

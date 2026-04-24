@@ -93,6 +93,7 @@ class DocumentPdfController extends Controller
         $isAgency = $user->agency_id && $user->agency_id === $lease->agency_id;
         $isCollab = (bool) $lease->property?->collaborators()
             ->where('user_id', $user->id)
+            ->whereNotNull('accepted_at')
             ->exists();
         $isAdmin = $user->hasRole(['admin', 'super_admin']);
 
