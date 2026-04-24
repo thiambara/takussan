@@ -69,7 +69,13 @@ export interface Inventory {
   readonly notes: string | null;
   readonly tenant_signed: boolean;
   readonly tenant_signed_at: string | null;
+  readonly tenant_signature_hash?: string | null;
   readonly owner_signed: boolean;
   readonly owner_signed_at: string | null;
+  readonly owner_signature_hash?: string | null;
+  readonly signed_at?: string | null;
   readonly created_at: string;
 }
+
+/** TCK-076 — explicit role accepted by `POST /inventories/{id}/sign`. */
+export type InventorySignatureRole = 'tenant' | 'landlord';

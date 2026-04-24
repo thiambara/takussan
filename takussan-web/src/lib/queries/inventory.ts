@@ -11,7 +11,12 @@
 
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import type { PaginatedResponse, ApiResponse, SpatieQueryParams } from '@/types/api';
-import type { Inventory, InventoryStatus, InventoryType } from '@/types/inventory';
+import type {
+  Inventory,
+  InventorySignatureRole,
+  InventoryStatus,
+  InventoryType,
+} from '@/types/inventory';
 import type {
   InventoryCreateInput,
   InventoryDisputeInput,
@@ -46,7 +51,10 @@ const DETAIL_FIELDS = [
   'rooms',
   'notes',
   'tenant_signed',
+  'tenant_signature_hash',
   'owner_signed',
+  'owner_signature_hash',
+  'signed_at',
 ] as const;
 
 export interface InventoryListParams {
@@ -139,10 +147,27 @@ export function useSubmitInventory(id: number) {
   );
 }
 
-/** `POST /api/inventories/{id}/sign` — marks the current user's signature. */
+/**
+ * `POST /api/inventories/{id}/sign` — TCK-076 role-explicit payload.
+ *
+ * When called without arguments (legacy behaviour used by early UIs), the
+ * backend falls back to inferring the role from the caller identity and
+ * skips the signature payload persistence. Prefer passing `{role,
+ * signature}` to store an actual signature capture.
+ */
+export interface InventorySignInput {
+  readonly role: InventorySignatureRole;
+  /** Base64-encoded PNG/SVG payload — typically a canvas `toDataURL()`. */
+  readonly signature: string;
+}
+
 export function useSignInventory(id: number) {
-  return useApiMutation<ApiResponse<Inventory>, void>(
-    { path: `/api/inventories/${id}/sign`, method: 'POST', body: () => ({}) },
+  return useApiMutation<ApiResponse<Inventory>, InventorySignInput | void>(
+    {
+      path: `/api/inventories/${id}/sign`,
+      method: 'POST',
+      body: (input) => (input ?? {}) as Record<string, unknown>,
+    },
     { invalidate: [inventoryKeys.all, inventoryKeys.detail(id)] },
   );
 }
