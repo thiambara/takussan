@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\Auth\AppleOAuthController;
+use App\Http\Controllers\Api\Auth\FacebookOAuthController;
 use App\Http\Controllers\Api\UserAdminController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\EmailVerificationController;
@@ -70,8 +72,20 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
 
 // OAuth (public — SPA flow, state stored server-side via Cache)
 Route::prefix('auth/oauth')->group(function () {
+    // Dedicated Facebook/Apple controllers (TCK-081) — declared before the
+    // generic `{provider}` route so Laravel matches them first.
+    Route::get('/facebook/redirect', [FacebookOAuthController::class, 'redirect']);
+    Route::get('/facebook/callback', [FacebookOAuthController::class, 'callback']);
+    Route::match(['get', 'post'], '/apple/redirect', [AppleOAuthController::class, 'redirect']);
+    // Apple returns the callback via `response_mode=form_post` → POST.
+    // We still accept GET for parity with the other providers and local tests.
+    Route::match(['get', 'post'], '/apple/callback', [AppleOAuthController::class, 'callback']);
+
+    // Legacy / generic OAuth (TCK-060 — currently only Google). Kept as
+    // the parametric fallback to preserve the original URL contract
+    // while Facebook/Apple are routed to their dedicated controllers.
     Route::get('/{provider}/redirect', [OAuthController::class, 'redirect'])
-        ->whereIn('provider', ['google', 'facebook', 'apple']);
+        ->whereIn('provider', ['google']);
     Route::get('/{provider}/callback', [OAuthController::class, 'callback'])
-        ->whereIn('provider', ['google', 'facebook', 'apple']);
+        ->whereIn('provider', ['google']);
 });
