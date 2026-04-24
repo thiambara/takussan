@@ -84,10 +84,11 @@ class PropertyVisitController extends Controller
             unset($data['agent_id']);
         }
 
-        // TCK-075 — a visitor cannot stack more than N active visits per property.
-        $this->scheduling->assertQuota($property, $user, $data['customer_id'] ?? null);
-
-        $visit = PropertyVisit::create(array_merge($data, [
+        // TCK-075 — a visitor cannot stack more than N active visits per
+        // property. Quota check + insert are wrapped in a transaction
+        // with row-level locks to close the TOCTOU race between two
+        // concurrent booking requests from the same visitor.
+        $visit = $this->scheduling->createOrFail($property, $user, array_merge($data, [
             'visitor_id' => $user->id,
             'type' => $data['type'] ?? VisitType::InPerson->value,
             'status' => VisitStatus::Scheduled->value,
@@ -109,22 +110,26 @@ class PropertyVisitController extends Controller
             'Cannot edit a completed or cancelled visit.'
         );
 
+        // `status` is intentionally NOT part of this validator: every
+        // status transition must go through a dedicated endpoint
+        // (/confirm, /complete, /cancel). Those endpoints enforce valid
+        // source states AND set the paired timestamp columns
+        // (completed_at, cancelled_at) plus the overlap/quota guards.
+        // Allowing free-form PATCH on `status` would let clients jump
+        // from scheduled → completed without populating `completed_at`,
+        // which silently breaks the feedback-window lockout.
         $data = $request->validate([
             'scheduled_at' => ['sometimes', 'date'],
             'agent_id' => ['sometimes', 'nullable', 'exists:users,id'],
             'duration_minutes' => ['sometimes', 'nullable', 'integer', 'min:5'],
             'notes' => ['sometimes', 'nullable', 'string'],
             'type' => ['sometimes', Rule::enum(VisitType::class)],
-            'status' => ['sometimes', Rule::enum(VisitStatus::class)],
         ]);
 
-        // If the request flips status to `confirmed`, it must first pass
-        // the overlap guard. Dedicated endpoints (/confirm) remain the
-        // canonical path but PATCH is supported for ergonomic UIs.
-        $willConfirm = array_key_exists('status', $data) && $data['status'] === VisitStatus::Confirmed->value;
-
-        if ($willConfirm || ($visit->status === VisitStatus::Confirmed
-            && (array_key_exists('scheduled_at', $data) || array_key_exists('duration_minutes', $data)))) {
+        // Reschedule of a confirmed visit must re-check overlap on the
+        // new slot before persisting.
+        if ($visit->status === VisitStatus::Confirmed
+            && (array_key_exists('scheduled_at', $data) || array_key_exists('duration_minutes', $data))) {
             $newStart = array_key_exists('scheduled_at', $data)
                 ? Carbon::parse($data['scheduled_at'])
                 : $visit->scheduled_at;
@@ -136,24 +141,19 @@ class PropertyVisitController extends Controller
 
         $visit->fill($data)->save();
 
-        if ($willConfirm) {
-            $this->notifyConfirmed($visit->fresh(['property', 'visitor']));
-        }
-
         return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->toArray($request)]);
     }
 
     public function confirm(Request $request, PropertyVisit $visit): JsonResponse
     {
         $this->authorizeManage($request, $visit);
-        abort_unless($visit->status === VisitStatus::Scheduled, 422, 'Only scheduled visits can be confirmed.');
 
-        // TCK-075 AC2 — reject confirmation that would clash with another
-        // confirmed visit on the same property.
-        $this->scheduling->assertNoOverlap($visit);
-
-        $visit->update(['status' => VisitStatus::Confirmed]);
-        $visit->refresh()->load('property', 'visitor');
+        // TCK-075 AC2 — source-state check, overlap guard and status
+        // flip happen inside a single DB transaction with row-level
+        // locks so two concurrent confirm calls cannot both pass the
+        // overlap check and both win.
+        $visit = $this->scheduling->confirmOrFail($visit);
+        $visit->load('property', 'visitor');
 
         $this->notifyConfirmed($visit);
 

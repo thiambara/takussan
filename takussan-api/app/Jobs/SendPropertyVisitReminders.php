@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
 /**
@@ -60,26 +61,48 @@ class SendPropertyVisitReminders implements ShouldQueue
 
     private function notifyFor(PropertyVisit $visit, string $window, string $metaKey): void
     {
-        $metadata = $visit->metadata ?? [];
-        if (! empty($metadata[$metaKey])) {
-            return;
-        }
+        // Claim + send atomically: take a row lock on the visit, re-read
+        // metadata inside the transaction, and only dispatch if the
+        // marker is still empty. Without this, two concurrent scheduler
+        // ticks could both pass the "not sent yet" check and both emit
+        // the same reminder. Transaction + lockForUpdate is DB-agnostic
+        // (works on SQLite/MySQL/Postgres) and avoids driver-specific
+        // JSON_SET/jsonb_set shenanigans.
+        DB::transaction(function () use ($visit, $window, $metaKey) {
+            $fresh = PropertyVisit::query()
+                ->whereKey($visit->id)
+                ->lockForUpdate()
+                ->first();
 
-        $recipients = collect();
-        if ($visit->visitor) {
-            $recipients->push($visit->visitor);
-        }
-        if ($visit->agent && (! $visit->visitor || $visit->agent->id !== $visit->visitor->id)) {
-            $recipients->push($visit->agent);
-        }
+            if (! $fresh) {
+                return;
+            }
 
-        if ($recipients->isEmpty()) {
-            return;
-        }
+            $metadata = $fresh->metadata ?? [];
+            if (! empty($metadata[$metaKey])) {
+                return;
+            }
 
-        Notification::send($recipients, new VisitReminderNotification($visit, $window));
+            // Reload the relations we need on the locked row; the
+            // eager-loaded copy passed in above is outside the lock.
+            $fresh->loadMissing(['property', 'visitor', 'agent']);
 
-        $metadata[$metaKey] = now()->toIso8601String();
-        $visit->forceFill(['metadata' => $metadata])->save();
+            $recipients = collect();
+            if ($fresh->visitor) {
+                $recipients->push($fresh->visitor);
+            }
+            if ($fresh->agent && (! $fresh->visitor || $fresh->agent->id !== $fresh->visitor->id)) {
+                $recipients->push($fresh->agent);
+            }
+
+            if ($recipients->isEmpty()) {
+                return;
+            }
+
+            Notification::send($recipients, new VisitReminderNotification($fresh, $window));
+
+            $metadata[$metaKey] = now()->toIso8601String();
+            $fresh->forceFill(['metadata' => $metadata])->save();
+        });
     }
 }
