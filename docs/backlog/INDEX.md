@@ -72,9 +72,9 @@ _(vide)_
 
 - [TCK-075](tickets/TCK-075-visits-full-workflow.md) — Visites — Planification complète (types, feedback, rappels) `L · P2 · applicatif` (PR #52)
 
-### Vague 6-A — Inventaires signature + PDF
+### Vague 6-A — Inventaires signature + PDF — [PR #55](https://github.com/thiambara/takussan/pull/55)
 
-- [TCK-076](tickets/TCK-076-inventory-signature-pdf.md) — Inventaires — Signature deux parties + export PDF `M · P2 · applicatif` (PR à ouvrir)
+- [TCK-076](tickets/TCK-076-inventory-signature-pdf.md) — Inventaires — Signature deux parties + export PDF `M · P2 · applicatif` (PR #55)
 
 ### Dette technique — Post-Vague 3
 
