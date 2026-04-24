@@ -3,6 +3,10 @@
 namespace App\Services\Auth;
 
 use App\Models\User;
+use BaconQrCode\Renderer\Image\SvgImageBackEnd;
+use BaconQrCode\Renderer\ImageRenderer;
+use BaconQrCode\Renderer\RendererStyle\RendererStyle;
+use BaconQrCode\Writer;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Support\Str;
 use PragmaRX\Google2FA\Google2FA;
@@ -52,6 +56,25 @@ class TwoFactorService
             $secret,
             $issuer,
         );
+    }
+
+    /**
+     * Render the 2FA QR code as an inline SVG (text/xml). We went with the
+     * local bacon/bacon-qr-code renderer as part of TCK-078: the previous
+     * UI hit api.qrserver.com, which leaked the otpauth URL (including the
+     * shared secret) to a third party and made 2FA enrollment dependent
+     * on external availability. SVG keeps the payload small, scales
+     * cleanly in the React dialog, and requires no extra PHP extensions
+     * beyond what PHP 8.3 already ships.
+     */
+    public function qrCodeSvg(User $user, string $secret, int $size = 200): string
+    {
+        $renderer = new ImageRenderer(
+            new RendererStyle($size),
+            new SvgImageBackEnd,
+        );
+
+        return (new Writer($renderer))->writeString($this->qrCodeUrl($user, $secret));
     }
 
     /**

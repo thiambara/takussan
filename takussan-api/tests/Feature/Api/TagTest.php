@@ -28,6 +28,32 @@ class TagTest extends TestCase
         return $user;
     }
 
+    private function agencyAdmin(): User
+    {
+        $agency = Agency::factory()->create();
+        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
+        Role::findOrCreate('agency_admin');
+        $user = User::factory()->create(['agency_id' => $agency->id]);
+        $user->assignRole('agency_admin');
+
+        return $user;
+    }
+
+    /**
+     * TCK-078 regression: before the cleanup, TagController only accepted
+     * the legacy `admin` role, so a correctly-assigned `agency_admin` was
+     * locked out of the tag CRUD endpoints.
+     */
+    public function test_agency_admin_can_create_tag(): void
+    {
+        Sanctum::actingAs($this->agencyAdmin());
+
+        $this->postJson('/api/tags', [
+            'name' => 'Balcon',
+            'type' => TagType::Amenity->value,
+        ])->assertStatus(201);
+    }
+
     public function test_anyone_can_list_tags(): void
     {
         Tag::factory()->count(3)->create(['type' => TagType::Amenity]);
