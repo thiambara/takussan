@@ -75,9 +75,13 @@ class OAuthProvisioningService
         // 3. Truly new user: create and (optionally) mark email as verified.
         [$firstName, $lastName] = $this->resolveName($socialUser, $explicitName);
 
+        // DB schema requires NOT-NULL first_name/last_name. When the
+        // provider tells us nothing (Apple "no name after first consent",
+        // Facebook without public_profile scope), we store empty strings
+        // and let the onboarding flow prompt the user to complete them.
         $attributes = [
-            'first_name' => $firstName,
-            'last_name' => $lastName,
+            'first_name' => $firstName ?? '',
+            'last_name' => $lastName ?? '',
             'email' => $email,
             'type' => 'individual',
             $providerIdColumn => $providerId,
