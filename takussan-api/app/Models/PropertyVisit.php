@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Filters\RangeFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
@@ -32,6 +33,13 @@ class PropertyVisit extends AbstractModel
 
     protected static array $requestFilterable = ['property_id', 'visitor_id', 'customer_id', 'agent_id', 'type', 'status'];
 
+    /**
+     * TCK-075 — `scheduled_at_min` / `scheduled_at_max` power the "À venir /
+     * Passées" tabs on the frontend (`/app/visits`). Spatie exposes them as
+     * `filter[scheduled_at_min]=…` via {@see RangeFilter}.
+     */
+    protected static array $requestRangeFilters = ['scheduled_at'];
+
     protected static array $requestSortable = ['id', 'created_at', 'scheduled_at', 'status'];
 
     protected static array $requestLoadable = ['property', 'visitor', 'customer', 'agent'];
@@ -39,6 +47,7 @@ class PropertyVisit extends AbstractModel
     protected static array $queryFields = [
         'id', 'property_id', 'visitor_id', 'customer_id', 'agent_id',
         'type', 'status', 'scheduled_at', 'completed_at', 'duration_minutes',
+        'feedback', 'rating', 'notes', 'metadata',
         'created_at', 'updated_at',
     ];
 

@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Building2,
   CalendarCheck,
+  CalendarClock,
   FileText,
   CreditCard,
   MessageSquare,
@@ -119,6 +120,8 @@ function buildNavItems(user: User): NavItem[] {
   // --- Wave 3 Ops Frontend nav entries (dedup below preserves first occurrence) ---
   // TCK-043 bookings
   items.push({ href: '/app/bookings', label: isCustomer(roles) ? 'Mes réservations' : 'Réservations', icon: CalendarCheck });
+  // TCK-075 visits — customers see their requests, agents see what to manage.
+  items.push({ href: '/app/visits', label: isCustomer(roles) ? 'Mes visites' : 'Visites', icon: CalendarClock });
   // TCK-044 leases
   items.push({ href: '/app/leases', label: isCustomer(roles) ? 'Mes baux' : 'Baux', icon: FileText });
   // TCK-045 messages
