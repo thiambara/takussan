@@ -23,8 +23,11 @@ class InventoryResource extends JsonResource
             'notes' => $this->notes,
             'tenant_signed' => (bool) $this->tenant_signed,
             'tenant_signed_at' => $this->tenant_signed_at?->toISOString(),
+            'tenant_signature_hash' => $this->tenant_signature_hash,
             'owner_signed' => (bool) $this->owner_signed,
             'owner_signed_at' => $this->owner_signed_at?->toISOString(),
+            'owner_signature_hash' => $this->owner_signature_hash,
+            'signed_at' => $this->signed_at?->toISOString(),
             'created_at' => $this->created_at?->toISOString(),
         ];
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\InventorySignRequest;
 use App\Http\Requests\InventoryStoreRequest;
 use App\Http\Requests\InventoryUpdateRequest;
 use App\Http\Resources\InventoryResource;
@@ -10,13 +11,20 @@ use App\Models\Enums\InventoryStatus;
 use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\Property;
+use App\Services\Inventory\InventorySignatureService;
 use App\Services\Model\InventoryService;
+use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class InventoryController extends Controller
 {
-    public function __construct(protected InventoryService $inventories) {}
+    public function __construct(
+        protected InventoryService $inventories,
+        protected InventorySignatureService $signatures,
+        protected DocumentPdfService $pdf,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -105,6 +113,16 @@ class InventoryController extends Controller
     {
         $this->authorizeManage($request, $inventory);
 
+        // TCK-076 AC5 — once signed, an inventory is immutable: PATCH returns
+        // 409 with a clear message. Other non-draft states (pending_signature,
+        // disputed) keep the historical 422 response from TCK-031.
+        if ($inventory->status === InventoryStatus::Signed) {
+            abort(
+                SymfonyResponse::HTTP_CONFLICT,
+                'Signed inventories are immutable.'
+            );
+        }
+
         // Status guard runs BEFORE validation so non-draft inventories fail
         // with a clear 422 "only draft" message instead of generic validation errors.
         abort_unless(
@@ -141,11 +159,87 @@ class InventoryController extends Controller
 
     public function sign(Request $request, Inventory $inventory): JsonResponse
     {
-        $inventory = $this->inventories->sign($inventory, $request->user());
+        // TCK-076 — explicit role + signature payload. We still support the
+        // legacy payload-less call (used by TCK-031 tests): when no `role`
+        // is provided, fall back to the historical InventoryService::sign
+        // that infers the role from the caller identity (no signature data
+        // stored, only the boolean + timestamp).
+        if ($request->has('role') || $request->has('signature')) {
+            $signRequest = InventorySignRequest::createFrom($request);
+            $signRequest->setContainer(app())->setRedirector(app('redirect'));
+            $signRequest->validateResolved();
+            $data = $signRequest->validated();
+
+            $inventory = $this->signatures->sign(
+                $inventory,
+                $request->user(),
+                $data['role'],
+                $data['signature'],
+            );
+        } else {
+            $inventory = $this->inventories->sign($inventory, $request->user());
+        }
 
         return $this->json([
             'data' => InventoryResource::make($inventory)->toArray($request),
         ]);
+    }
+
+    public function downloadPdf(Request $request, Inventory $inventory): SymfonyResponse
+    {
+        $this->authorizeAccess($request, $inventory);
+
+        abort_unless(
+            $inventory->signed_at !== null
+                || ($inventory->tenant_signed && $inventory->owner_signed),
+            SymfonyResponse::HTTP_CONFLICT,
+            'Inventory PDF is available only once both parties have signed.'
+        );
+
+        $inventory->loadMissing(['lease', 'property.address', 'tenant']);
+        // Make signature payloads temporarily visible so the Blade template
+        // can embed them as <img src="data:..."> without leaking through any
+        // JSON resource.
+        $inventory->makeVisible(['tenant_signature_data', 'owner_signature_data']);
+
+        $property = $inventory->property;
+        $landlord = $property?->user;
+        $agency = $property?->agency;
+
+        $roomPhotos = $this->groupRoomPhotos($inventory);
+
+        $filename = sprintf('etat-des-lieux-%d.pdf', $inventory->id);
+
+        return $this->pdf->stream('pdf.inventories.report', [
+            'title' => 'État des lieux #'.$inventory->id,
+            'document_label' => 'État des lieux',
+            'inventory' => $inventory,
+            'lease' => $inventory->lease,
+            'property' => $property,
+            'tenant' => $inventory->tenant,
+            'landlord' => $landlord,
+            'agency' => $agency,
+            'room_photos' => $roomPhotos,
+            'tenant_signature' => $inventory->tenant_signature_data,
+            'owner_signature' => $inventory->owner_signature_data,
+            'traceability_hash' => $this->signatures->traceabilityHash($inventory),
+            'filename' => $filename,
+        ]);
+    }
+
+    /**
+     * @return array<string, array<int, string>>
+     */
+    protected function groupRoomPhotos(Inventory $inventory): array
+    {
+        $grouped = [];
+        foreach ($inventory->getMedia('room_photos') as $media) {
+            $room = (string) ($media->getCustomProperty('room_name') ?? 'Autres');
+            $grouped[$room] ??= [];
+            $grouped[$room][] = $media->getUrl();
+        }
+
+        return $grouped;
     }
 
     public function dispute(Request $request, Inventory $inventory): JsonResponse
