@@ -50,6 +50,8 @@ class PreferenceResolver
         'saved_search_match',
         'visit_reminder',
         'threshold_alert',
+        // TCK-083 — fired by `tasks:send-due-reminders` ~24 h before due_at.
+        'task_due_reminder',
     ];
 
     /**

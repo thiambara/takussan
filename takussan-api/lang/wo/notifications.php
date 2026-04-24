@@ -35,4 +35,10 @@ return [
         'intro' => 'Lii mooy àq-àq yi nga jot ca demba.',
         'footer' => 'Gis senter bu notifications ngir gis sa yëkkati yépp.',
     ],
+
+    'task_due_reminder' => [
+        'subject' => 'Fàttalikuwaay : ligéey bi nag — :title',
+        'greeting' => 'Salaam,',
+        'intro' => 'Sa ligéey « :title » dafa wàcc ëllëg ci :datetime.',
+    ],
 ];

@@ -56,4 +56,10 @@ return [
         'intro_24h' => 'Reminder — your visit for :property is scheduled tomorrow at :datetime.',
         'intro_1h' => 'Reminder — your visit for :property starts in about an hour at :datetime.',
     ],
+
+    'task_due_reminder' => [
+        'subject' => 'Reminder: task due soon — :title',
+        'greeting' => 'Hello,',
+        'intro' => 'Your task ":title" is due tomorrow at :datetime.',
+    ],
 ];

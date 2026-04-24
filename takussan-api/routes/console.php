@@ -27,3 +27,7 @@ Schedule::job(new SendOverdueInvoiceReminders)->dailyAt('10:00');
 Schedule::job(new SendDailyNotificationDigest)->dailyAt('18:00');
 Schedule::command('media:cleanup')->dailyAt('03:00');
 Schedule::command('dashboard:check-alerts')->hourly()->withoutOverlapping(); // TCK-032 P3
+// TCK-083 — Hourly reminder for tasks whose `due_at` falls in the
+// 23–25 h window. Idempotence is guaranteed by the marker stored in
+// `tasks.metadata.reminder_24h_sent_at` (see SendTaskDueReminders).
+Schedule::command('tasks:send-due-reminders')->hourly()->withoutOverlapping();

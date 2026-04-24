@@ -1,12 +1,13 @@
 ---
 id: TCK-083
 title: "Pipeline de prospects CRM (kanban + stages + conversion)"
-status: todo
+status: doing
 phase: P2
 family: applicatif
 estimate: M
 created: 2026-04-24
 updated: 2026-04-24
+
 depends_on: [TCK-020, TCK-042]
 blocks: []
 spec_refs:

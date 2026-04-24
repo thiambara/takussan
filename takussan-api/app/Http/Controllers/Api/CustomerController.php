@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
+use App\Models\CustomerNote;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\IdType;
 use App\Models\UserCustomerRelationship;
+use App\Services\Crm\PipelineStatsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -92,9 +94,32 @@ class CustomerController extends Controller
             'pipeline_stage' => ['sometimes', Rule::enum(CustomerPipelineStage::class)],
             'status' => ['sometimes', Rule::enum(CustomerStatus::class)],
             'notes' => ['sometimes', 'nullable', 'string'],
+            // TCK-083 — optional reason captured when transitioning to a
+            // terminal stage (`converted`/`lost`). Persisted as a CustomerNote.
+            'reason' => ['sometimes', 'nullable', 'string', 'max:5000'],
         ]);
 
+        $reason = $data['reason'] ?? null;
+        unset($data['reason']);
+
+        $oldStage = $customer->pipeline_stage;
         $customer->fill($data)->save();
+
+        if (array_key_exists('pipeline_stage', $data)) {
+            $newStage = $customer->pipeline_stage;
+            $isTerminal = $newStage === CustomerPipelineStage::Converted
+                || $newStage === CustomerPipelineStage::Lost;
+            if ($isTerminal && $newStage !== $oldStage && $reason !== null && trim($reason) !== '') {
+                CustomerNote::create([
+                    'customer_id' => $customer->id,
+                    'author_id' => $request->user()->id,
+                    'body' => __($newStage === CustomerPipelineStage::Converted
+                        ? 'Conversion : '
+                        : 'Perte : ').$reason,
+                    'pinned' => true,
+                ]);
+            }
+        }
 
         return $this->json([
             'data' => CustomerResource::make($customer->refresh())->toArray($request),
@@ -142,12 +167,40 @@ class CustomerController extends Controller
 
         $data = $request->validate([
             'pipeline_stage' => ['required', Rule::enum(CustomerPipelineStage::class)],
+            'reason' => ['sometimes', 'nullable', 'string', 'max:5000'],
         ]);
 
+        $oldStage = $customer->pipeline_stage;
         $customer->update(['pipeline_stage' => $data['pipeline_stage']]);
+
+        $newStage = $customer->pipeline_stage;
+        $isTerminal = $newStage === CustomerPipelineStage::Converted
+            || $newStage === CustomerPipelineStage::Lost;
+        $reason = $data['reason'] ?? null;
+        if ($isTerminal && $newStage !== $oldStage && $reason !== null && trim($reason) !== '') {
+            CustomerNote::create([
+                'customer_id' => $customer->id,
+                'author_id' => $request->user()->id,
+                'body' => ($newStage === CustomerPipelineStage::Converted
+                    ? 'Conversion : '
+                    : 'Perte : ').$reason,
+                'pinned' => true,
+            ]);
+        }
 
         return $this->json([
             'data' => CustomerResource::make($customer->refresh())->toArray($request),
+        ]);
+    }
+
+    /**
+     * TCK-083 — pipeline metrics for the kanban top bar.
+     * Returns 4 metrics scoped to the agent / agency.
+     */
+    public function pipelineStats(Request $request, PipelineStatsService $service): JsonResponse
+    {
+        return $this->json([
+            'data' => $service->compute($request->user()),
         ]);
     }
 

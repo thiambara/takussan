@@ -59,9 +59,9 @@ class Customer extends AbstractModel
 
     protected static array $requestSortable = ['id', 'created_at', 'first_name', 'last_name', 'status'];
 
-    protected static array $requestLoadable = ['user', 'agency', 'addresses', 'tags'];
+    protected static array $requestLoadable = ['user', 'agency', 'addresses', 'tags', 'addedBy', 'notes', 'tasks'];
 
-    protected static array $requestCountable = ['bookings', 'leases', 'notes'];
+    protected static array $requestCountable = ['bookings', 'leases', 'notes', 'tasks'];
 
     protected static array $requestSearchFields = ['first_name', 'last_name', 'email', 'phone'];
 
@@ -135,5 +135,13 @@ class Customer extends AbstractModel
     public function tags(): MorphToMany
     {
         return $this->morphToMany(Tag::class, 'taggable');
+    }
+
+    /**
+     * TCK-083 — CRM tasks attached to this customer (polymorphic).
+     */
+    public function tasks(): MorphMany
+    {
+        return $this->morphMany(Task::class, 'taskable');
     }
 }
