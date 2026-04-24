@@ -38,5 +38,58 @@
   "errors": {
     "generic": "Am na jafe-jafe. Jéemat.",
     "unauthorized": "Dara tëj nga."
+  },
+  "compare": {
+    "eyebrow": "Méengal",
+    "title": "Méengal kër yi",
+    "subtitle": "{count} kër yu tànn — méengal ngir tànn.",
+    "unavailableNotice": "{missing} kër yoo amul, dañ leen jëla.",
+    "actions": {
+      "view": "Xool kër bi",
+      "remove": "Jëla"
+    },
+    "values": {
+      "yes": "Waaw",
+      "no": "Déedéet"
+    },
+    "rows": {
+      "price": "Njëg",
+      "contractType": "Xarala",
+      "type": "Xeetu kër",
+      "rentPeriod": "Jamono",
+      "city": "Dëkk",
+      "quarter": "Gox",
+      "area": "Màndargam",
+      "bedrooms": "Néeg yi",
+      "bathrooms": "Duus yi",
+      "floor": "Etaas",
+      "furnished": "Ak meebel",
+      "yearBuilt": "Atum tabax",
+      "parking": "Parking",
+      "amenities": "Jumtukaay",
+      "tags": "Yeneen"
+    },
+    "table": {
+      "ariaLabel": "Tàbloo méengal kër yi",
+      "header": "Kàllaama",
+      "unavailable": "Kër amul",
+      "divergentTooltip": "Li ëpp ci kër yi wuute na"
+    },
+    "carousel": {
+      "ariaLabel": "Méengal mobil — daag ngir xool kër bu jàll"
+    },
+    "empty": {
+      "title": "Tànn lu ëpp 2 kër",
+      "description": "Yokk kër yi ci méengal ngir méengal leen.",
+      "cta": "Seet kër yi"
+    },
+    "floatingBar": {
+      "ariaLabel": "Kër yu tànn ngir méengal",
+      "title": "Méengal",
+      "count": "{count} / {max} kër",
+      "cta": "Méengal ({count})",
+      "removeAria": "Jëla kër #{id} ci méengal bi",
+      "clearAria": "Fommi méengal bi"
+    }
   }
 }

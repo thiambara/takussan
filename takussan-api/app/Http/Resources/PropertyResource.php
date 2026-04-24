@@ -18,7 +18,9 @@ class PropertyResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $isDetail = $request->routeIs('public.properties.show') || $request->routeIs('properties.show');
+        $isDetail = $request->routeIs('public.properties.show')
+            || $request->routeIs('properties.show')
+            || $request->routeIs('public.properties.compare');
         $address = $this->resource->relationLoaded('address') ? $this->resource->address : null;
 
         return [

@@ -42,6 +42,12 @@ class PublicPropertyController extends Controller
      */
     public const MAP_MAX_RESULTS = 500;
 
+    /**
+     * Maximum number of properties returned by the /public/properties/compare
+     * endpoint. Matches the frontend comparator cap (TCK-082).
+     */
+    public const COMPARE_MAX_IDS = 4;
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $properties = Property::query()
@@ -186,6 +192,53 @@ class PublicPropertyController extends Controller
                 'total' => $paginated->total(),
             ],
         ];
+    }
+
+    /**
+     * TCK-082 — side-by-side property comparator.
+     *
+     * Fetches up to {@see self::COMPARE_MAX_IDS} published properties in a
+     * single payload. Eager-loads `address`, `tags` and media needed by the
+     * comparison grid. Unknown or unpublished ids are silently dropped so
+     * the frontend can render a "no longer available" placeholder for them.
+     */
+    public function compare(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'ids' => ['required', 'string', 'max:200'],
+        ]);
+
+        $ids = collect(explode(',', (string) $validated['ids']))
+            ->map(fn ($v) => (int) trim($v))
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->take(self::COMPARE_MAX_IDS)
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return $this->json(['data' => [], 'meta' => ['requested_ids' => []]]);
+        }
+
+        $properties = Property::query()
+            ->with(['address', 'media', 'tags'])
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->whereIn('id', $ids)
+            ->get()
+            ->keyBy('id');
+
+        $ordered = $ids
+            ->map(fn (int $id) => $properties->get($id))
+            ->filter()
+            ->values();
+
+        return $this->json([
+            'data' => PropertyResource::collection($ordered)->toArray($request),
+            'meta' => [
+                'requested_ids' => $ids->all(),
+                'returned_ids' => $ordered->pluck('id')->all(),
+            ],
+        ]);
     }
 
     public function map(Request $request): JsonResponse

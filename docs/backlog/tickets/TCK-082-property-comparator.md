@@ -1,7 +1,7 @@
 ---
 id: TCK-082
 title: "Comparateur de biens côte à côte"
-status: todo
+status: review
 phase: P2
 family: front
 estimate: M
@@ -118,4 +118,48 @@ placeholder avec CTA "Rechercher des biens".
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Livré dans le worktree V7-C (branche `feat/tck-082-property-comparator`).
+
+### Backend
+
+- **`PublicPropertyController` / `routes/api/public.php`** — `AllowedFilter::exact('id')` ajouté (spatie accepte `filter[id]=1,2,3` comme multi-valeur via la virgule). Pas de nouvelle route.
+- **`PropertyResource`** — sparse fieldsets préservés ; les attributs du comparateur (`surface`, `bedrooms`, `bathrooms`, `floor`, `furnished`, `elevator`) exposés à la demande via `fields[properties]=...`.
+- **`tests/Feature/Public/PropertyCompareTest`** — 6 tests, 32 assertions (~1.6s) : filter[id] multi-ids, sparse fieldsets, bien inexistant retourne 200 partiel, > 4 ids accepté serveur (cap côté client), eager includes `address,primaryMedia,amenities,tags`.
+
+### Frontend
+
+**Arbo choisie** (intentional, pas prescriptif par CLAUDE.md) :
+
+- `src/context/CompareContext.tsx` — contexte React + reducer. Exposée via `useCompare()` hook. Store shape `{ ids: number[] }` cap à 4.
+- `src/hooks/useCompare.ts` — wrapper avec helpers `toggle(id)`, `remove(id)`, `clear()`, `isSelected(id)`. Persistance `localStorage` key `takussan.compare.v1` avec TTL 24h (timestamp stocké, purge au mount si expiré).
+- `src/lib/compare.ts` — helpers purs : `highlightDivergent(rows)` (renvoie un Set des indexes de lignes divergentes), `formatComparisonRow(property, field)` (formate une cellule), `parseIdsFromUrl(searchParams)` (URL → array, clamp à 4).
+- `src/components/compare/CompareFloatingBar.tsx` — pill bottom-right sticky, avatar stack (3 photos + "+N"), CTA "Comparer (N)" → `/compare?ids=…`.
+- `src/components/compare/CompareTable.tsx` — desktop grid. Lignes divergentes highlighted (badge subtle + bg tint). Chaque colonne : photo, titre, prix, bouton "Voir" + "Retirer".
+- `src/components/compare/CompareCarousel.tsx` — mobile version : 1 colonne/bien, swipe horizontal par ligne.
+- `src/components/compare/CompareEmptyState.tsx` — affiché si < 2 ids dans l'URL.
+- `src/app/(public)/compare/page.tsx` — server component qui fetch `/api/properties?filter[id]=…&fields[properties]=…&include=…` avec sparse fieldsets (cf. CLAUDE.md), puis hydrate CompareContext. `/compare` cold-share fonctionne (URL = source).
+- `src/components/property/PropertyCard.tsx` — toggle "Comparer" ajouté (icône scale), appelle `toggle(id)`. Toast "Maximum 4 biens" au 5ᵉ.
+
+**State management** — React Context + useReducer (zero-dep, cohérent avec la stack). Pas de Zustand/Jotai — pas nécessaire pour un store aussi simple. Le `layout.tsx` public wrap le tree avec `<CompareProvider>`.
+
+**A11y** — `role="table"` + `scope="col"`, contraste AA vérifié sur les cellules highlighted, labels FR/EN/WO dans `src/messages/{fr,en,wo}.json` sous namespace `compare.*`.
+
+### Tests
+
+- Backend : 6 tests verts (~1.6s via phpunit direct)
+- Frontend Vitest : 4 fichiers tests, 44 tests verts (~2s) — `useCompare` persistence + cap, `highlightDivergent`, `CompareFloatingBar`, `CompareTable`, `CompareCarousel`
+- Pint clean, lint + build confirmés verts par l'agent avant le stall
+
+### Décisions UX
+
+- **Cap à 4** : 5ᵉ bloqué avec toast (AC2 satisfait)
+- **Cold-share** : URL prime sur localStorage au mount de `/compare` (AC4)
+- **Persistance 24h** : timestamp JSON dans localStorage, purge automatique si expiré au mount
+- **Mobile** : carrousel horizontal ligne-par-ligne plutôt que tabs — meilleur pour comparer visuellement prix vs surface
+- **Divergent highlight** : `highlightDivergent` compare par ligne ; toutes valeurs identiques → pas de highlight ; au moins 1 différence → row background subtle + badge
+
+### Deferred
+
+- "Biens similaires" (P2 dédié) — pas ici.
+- Historique local biens consultés (P2 dédié).
+- Export PDF du comparatif (P3).

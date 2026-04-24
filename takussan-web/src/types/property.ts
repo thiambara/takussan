@@ -140,3 +140,16 @@ export interface PaginatedProperties {
     total: number;
   };
 }
+
+/**
+ * Response shape for `GET /api/public/properties/compare?ids=...` (TCK-082).
+ * The backend returns a subset of `PropertyDetail` — enough to render a
+ * side-by-side comparison table.
+ */
+export interface PropertyCompareResponse {
+  data: PropertyDetail[];
+  meta: {
+    requested_ids: number[];
+    returned_ids: number[];
+  };
+}
