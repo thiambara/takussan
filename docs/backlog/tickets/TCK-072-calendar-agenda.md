@@ -1,12 +1,12 @@
 ---
 id: TCK-072
 title: "Calendrier agrégé agent / owner (visites + réservations)"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
 created: 2026-04-23
-updated: 2026-04-23
+updated: 2026-04-24
 depends_on: [TCK-026, TCK-027, TCK-075, TCK-057, TCK-054]
 blocks: []
 spec_refs:
@@ -73,3 +73,82 @@ Agenda lisible à la Cal.com / Google Calendar. Vue mois par défaut, bascule se
 ## Notes d'implémentation
 
 _(Rempli à l'implémentation)_
+
+## État réel (audit 2026-04-24)
+
+### Livré
+
+**Backend (`takussan-api`)**
+
+- `GET /api/calendar` (préexistant) enrichi :
+  - accepte `types[]` (`booking`, `visit`) et `property_id`
+  - scope d'accès étendu : owner direct OU membre de l'agence OU
+    **collaborateur accepté** (`property_collaborators.accepted_at`)
+    — ceci couvre la contrainte AC1 (« événements des biens sur
+    lesquels il a un `PropertyCollaborator` »)
+  - payload de chaque événement : `resource_url` (deep-link front),
+    `reference`, `property_slug`, `all_day`, `duration_minutes`
+- Tests Feature : `CalendarTest` étendu de 3 → 7 tests (types, property,
+  collaborateur accepté vs pending).
+
+**Frontend (`takussan-web`)**
+
+- `/app/calendar` (page serveur, auth via `getMeAction`)
+- `components/calendar/` : `CalendarPage`, `MonthView`, `WeekView`,
+  `DayView`, `ListView`, `EventDetailSheet`, `event-colors.ts`
+- `lib/calendar-date.ts` : helpers lundi-first (`monthGrid`, `weekDays`,
+  `visibleRange`, `eventTouchesDay`, etc.) — dépendance zéro
+- `lib/queries/calendar.ts` : `useCalendar` basé sur `useApiQuery`,
+  sérialise proprement `types[]` en query multi-valeurs + `staleTime 30s`
+- `types/calendar.ts`
+- Sidebar : entrée **Calendrier** (icône `CalendarDays`) pour
+  `agent | owner | admin`
+- Panneau slide-over détail avec deep-link
+  `/app/bookings/{id}` ou `/app/visits/{id}`
+- Filtre bien (select) dérivé des événements rendus (évite un appel
+  API supplémentaire)
+- Segmented control type (booking/visit) qui conserve le filtre sur
+  bascule de vue
+
+### Tests
+
+- Backend : **866 passed** (+7 nouveaux sur `CalendarTest`)
+- Frontend : **279 passed (36 files)** (+32 nouveaux : 19 sur les
+  helpers date, 13 sur `CalendarPage` — bascule vues, click → panneau,
+  densité « +N autres », filtre bien, skeleton, erreur, today button)
+- `npm run build` : vert, route `/app/calendar` compilée en dynamic.
+- `npm run lint` : 0 erreurs (warnings préexistants non liés).
+
+### Choix de lib calendrier
+
+**Implémentation maison légère** (sans `react-big-calendar` ni
+`fullcalendar`). Justification :
+
+- Grille 6×7 et week/day/list = quelques dizaines de lignes de CSS grid
+- Aucune dépendance externe (bundle preserved, pas de CSS global à
+  purger)
+- Stylable entièrement en Tailwind — cohérent avec le reste du design
+  system Takussan (shadcn + base-ui)
+- Event model trivial (un booking = plage all-day, une visite = instant)
+  ne justifie pas les 200 ko+ de `react-big-calendar`
+
+### Divergences / follow-ups
+
+- **AC5 (200+ events lisibles)** : densité gérée par `maxPerDay=3` +
+  compteur `+N autres`. Pas de virtualisation — probablement suffisant
+  pour un mois d'activité agent/owner ; si un admin d'agence gère des
+  centaines de biens, prévoir un ticket de dette pour paginer / scinder
+  la vue mois par agence.
+- **AC2 (bascule conserve filtre bien)** : respecté côté state local ;
+  cependant le filtre bien est **dérivé des événements affichés** (pas
+  d'appel `/api/properties`) — si l'utilisateur change de mois et que
+  le bien filtré n'a plus d'événement, l'option disparaît. Acceptable
+  pour une v1 ; si on veut persistance, il faudra fetcher l'index
+  des biens.
+- **Filtre multi-select bien** (direction UX du ticket) : backend
+  `/api/calendar` n'accepte qu'un `property_id` scalaire.
+  Implémenté en **single-select**. Pour passer en multi, prévoir
+  `property_ids[]` côté back (out-of-scope TCK-072).
+- **`agency_id` filter** évoqué dans le « contrat de données » mais non
+  implémenté : pas de cas d'usage immédiat, le scope est déjà géré par
+  le back selon le rôle.
