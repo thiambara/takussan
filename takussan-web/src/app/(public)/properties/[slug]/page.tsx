@@ -128,6 +128,8 @@ function PropertyDetailContent({ property }: { property: NonNullable<ReturnType<
             propertyId={property.id}
             averageRating={property.average_rating}
             reviewsCount={property.reviews_count}
+            ownerId={property.owner?.id ?? null}
+            agencyId={property.agency?.id ?? null}
           />
           <div className="pt-2">
             <PropertyReportButton slug={property.slug} />

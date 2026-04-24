@@ -1,0 +1,93 @@
+'use client';
+
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+
+interface PropertyReviewReplyFormProps {
+  reviewId: number;
+  initialContent?: string | null;
+  onSubmit: (reviewId: number, replyContent: string) => Promise<void>;
+  onCancel?: () => void;
+}
+
+export const REPLY_MIN = 5;
+export const REPLY_MAX = 1000;
+
+/**
+ * Inline form for agent/owner to post or edit a public reply to a review.
+ *
+ * Backend surface: `POST /api/reviews/{id}/reply` performs an upsert, so the
+ * same form is reused for initial post and edit. Deleting a reply is not
+ * supported by the backend yet (see TCK-073 Notes d'implémentation).
+ */
+export function PropertyReviewReplyForm({
+  reviewId,
+  initialContent,
+  onSubmit,
+  onCancel,
+}: PropertyReviewReplyFormProps) {
+  const [content, setContent] = useState(initialContent ?? '');
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  const trimmed = content.trim();
+  const tooShort = trimmed.length < REPLY_MIN;
+
+  async function handleSubmit(e: React.FormEvent): Promise<void> {
+    e.preventDefault();
+    if (tooShort) {
+      setError(`Votre réponse doit contenir au moins ${REPLY_MIN} caractères.`);
+      return;
+    }
+    setError(null);
+    setPending(true);
+    try {
+      await onSubmit(reviewId, trimmed);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de l’envoi.');
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="mt-3 ml-2 pl-3 border-l-2 border-stone-300 space-y-2"
+      aria-label={initialContent ? 'Modifier ma réponse' : 'Répondre à cet avis'}
+    >
+      <p className="text-xs font-medium text-stone-500">
+        {initialContent ? 'Modifier ma réponse' : 'Répondre publiquement'}
+      </p>
+      <Textarea
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        rows={3}
+        maxLength={REPLY_MAX}
+        placeholder="Répondez de manière claire et professionnelle…"
+        aria-label="Contenu de la réponse"
+      />
+      <div className="flex justify-between items-center gap-2 text-xs text-stone-500">
+        <span>
+          {trimmed.length}/{REPLY_MAX}
+        </span>
+        {error && (
+          <span role="alert" className="text-red-600">
+            {error}
+          </span>
+        )}
+      </div>
+      <div className="flex justify-end gap-2">
+        {onCancel && (
+          <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
+            Annuler
+          </Button>
+        )}
+        <Button type="submit" disabled={pending || tooShort}>
+          {pending ? 'Envoi…' : initialContent ? 'Enregistrer' : 'Publier la réponse'}
+        </Button>
+      </div>
+    </form>
+  );
+}

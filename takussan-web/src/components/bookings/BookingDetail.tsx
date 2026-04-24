@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import type { Locale } from '@/i18n/config';
 import type { BookingStatus } from '@/types/booking';
 import { BookingPaymentDialog } from './BookingPaymentDialog';
+import { LeaveReviewCta } from '@/components/reviews/LeaveReviewCta';
+import { canBookingLeaveReview } from '@/components/reviews/reviewEligibility';
 
 const STATUS_LABEL: Record<BookingStatus, string> = {
   pending: 'En attente',
@@ -134,6 +136,14 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           <h2 className="text-sm font-semibold text-stone-900">Message</h2>
           <p className="mt-2 whitespace-pre-line text-sm text-stone-700">{booking.notes}</p>
         </div>
+      )}
+
+      {canBookingLeaveReview(booking) && booking.property?.slug && (
+        <LeaveReviewCta
+          slug={booking.property.slug}
+          context="Votre séjour est terminé."
+          propertyTitle={booking.property.title}
+        />
       )}
 
       <section className="rounded-xl border border-stone-200 bg-white p-5">

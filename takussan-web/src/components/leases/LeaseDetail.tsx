@@ -13,6 +13,8 @@ import { LeaseSchedule } from './LeaseSchedule';
 import { LeasePaymentDialog } from './LeasePaymentDialog';
 import { GuarantorSection } from './GuarantorSection';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
+import { LeaveReviewCta } from '@/components/reviews/LeaveReviewCta';
+import { canLeaseLeaveReview } from '@/components/reviews/reviewEligibility';
 
 const STATUS_LABEL: Record<LeaseStatus, string> = {
   draft: 'Brouillon',
@@ -164,6 +166,18 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
             </div>
           )}
         </section>
+      )}
+
+      {canLeaseLeaveReview(lease) && lease.property?.slug && (
+        <LeaveReviewCta
+          slug={lease.property.slug}
+          context={
+            lease.status === 'active'
+              ? 'Votre bail est en cours.'
+              : 'Votre bail est terminé.'
+          }
+          propertyTitle={lease.property.title}
+        />
       )}
 
       <LeasePaymentDialog

@@ -127,6 +127,29 @@ export async function reportReview(
   }
 }
 
+/**
+ * Post (or overwrite) the public reply on a review. Backend exposes a single
+ * `POST /api/reviews/{review}/reply` endpoint that performs an upsert — we
+ * reuse it for both initial post and edit (see TCK-073 notes).
+ */
+export async function submitReviewReply(
+  reviewId: number,
+  replyContent: string,
+): Promise<ActionResult> {
+  const token = await getToken();
+  if (!token) return { ok: false, status: 401, message: 'Authentification requise.' };
+  try {
+    await apiRequest(`/api/reviews/${reviewId}/reply`, {
+      method: 'POST',
+      body: { reply_content: replyContent },
+      token,
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, ...errorFromApi(e) };
+  }
+}
+
 export async function toggleFavoriteAction(
   propertyId: number,
   currentFavoriteId: number | null,

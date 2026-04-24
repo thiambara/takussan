@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/api';
-import { reportReview, submitReview } from '@/app/actions/property';
+import { reportReview, submitReview, submitReviewReply } from '@/app/actions/property';
 import type { PropertyReviewsResponse } from '@/types/review';
 
 type State = {
@@ -46,5 +46,14 @@ export function usePropertyReviews(slug: string, propertyId: number) {
     if (!res.ok) throw new Error(res.message);
   }, []);
 
-  return { ...state, submit, report, refetch };
+  const reply = useCallback(
+    async (reviewId: number, replyContent: string) => {
+      const res = await submitReviewReply(reviewId, replyContent);
+      if (!res.ok) throw new Error(res.message);
+      refetch();
+    },
+    [refetch],
+  );
+
+  return { ...state, submit, report, reply, refetch };
 }

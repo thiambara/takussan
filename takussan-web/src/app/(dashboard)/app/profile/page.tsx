@@ -38,6 +38,25 @@ export default async function ProfilePage() {
           </Link>
         </div>
       </section>
+
+      {isCustomer(user.roles) && (
+        <section className="rounded-2xl bg-app-surface-1 p-6">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-app-ink">Avis</h2>
+              <p className="text-sm text-app-ink-muted">
+                Séjours et baux sur lesquels vous pouvez laisser un avis public.
+              </p>
+            </div>
+            <Link
+              href="/app/profile/reviews"
+              className="rounded-md border border-app-surface-3 bg-white px-3 py-2 text-sm font-semibold text-app-ink hover:bg-app-surface-3"
+            >
+              Voir mes avis
+            </Link>
+          </div>
+        </section>
+      )}
     </ProfileLayout>
   );
 }
