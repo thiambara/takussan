@@ -177,6 +177,32 @@ class DocumentShareLinkTest extends TestCase
             ->assertJsonPath('meta.total', 1);
     }
 
+    /**
+     * TCK-078 follow-up — an exhausted link (downloads_count >= max_downloads)
+     * is considered inactive by the service-layer `validate()`, so the index
+     * must not advertise it as a live URL.
+     */
+    public function test_index_hides_exhausted_share_links(): void
+    {
+        $owner = User::factory()->create();
+        $document = $this->createDocument($owner);
+
+        DocumentShareLink::create([
+            'document_id' => $document->id,
+            'created_by_id' => $owner->id,
+            'token' => 'exhausted-token-789',
+            'max_downloads' => 2,
+            'downloads_count' => 2,
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->getJson("/api/documents/{$document->id}/share-links")
+            ->assertOk()
+            ->assertJsonCount(0, 'data')
+            ->assertJsonPath('meta.total', 0);
+    }
+
     public function test_index_is_forbidden_for_unrelated_user(): void
     {
         $owner = User::factory()->create();

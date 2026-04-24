@@ -33,6 +33,10 @@ class DocumentShareLinkController extends Controller
             ->where(function ($q): void {
                 $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
             })
+            ->where(function ($q): void {
+                $q->whereNull('max_downloads')
+                    ->orWhereColumn('downloads_count', '<', 'max_downloads');
+            })
             ->orderByDesc('created_at')
             ->get();
 
