@@ -1,7 +1,7 @@
 ---
 id: TCK-066
 title: "Admin — Tags & amenités UI"
-status: review
+status: done
 phase: P1
 family: front
 estimate: S

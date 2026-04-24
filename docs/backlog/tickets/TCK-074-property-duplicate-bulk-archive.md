@@ -1,7 +1,7 @@
 ---
 id: TCK-074
 title: "Property — Dupliquer + archivage en lot"
-status: review
+status: done
 phase: P2
 family: back
 estimate: S

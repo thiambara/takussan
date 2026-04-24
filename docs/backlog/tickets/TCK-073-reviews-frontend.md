@@ -1,7 +1,7 @@
 ---
 id: TCK-073
 title: "Avis — Laisser & répondre publiquement (frontend)"
-status: review
+status: done
 phase: P2
 family: front
 estimate: M

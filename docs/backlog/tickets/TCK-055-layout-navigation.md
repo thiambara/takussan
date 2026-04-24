@@ -1,7 +1,7 @@
 ---
 id: TCK-055
 title: "Layout System + Navigation"
-status: review
+status: done
 phase: P0
 family: front
 estimate: M

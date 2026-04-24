@@ -154,7 +154,7 @@ Do **not** summarize the diff. Do **not** restate the AC. If you have nothing no
 **18. Update the frontmatter.**
 
 ```yaml
-status: review   # default — let the user confirm before `done`
+status: done   # default — let the user confirm before `done`
 updated: <today>
 ```
 

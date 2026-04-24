@@ -1,7 +1,7 @@
 ---
 id: TCK-029
 title: Communication & messagerie
-status: review
+status: done
 phase: P1
 family: back
 estimate: M

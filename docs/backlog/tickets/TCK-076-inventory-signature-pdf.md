@@ -1,7 +1,7 @@
 ---
 id: TCK-076
 title: "Inventaires — Signature deux parties + export PDF"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: M

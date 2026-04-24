@@ -1,7 +1,7 @@
 ---
 id: TCK-068
 title: "Admin — Paramètres globaux & intégrations"
-status: review
+status: done
 phase: P2
 family: front
 estimate: M

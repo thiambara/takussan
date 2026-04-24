@@ -1,7 +1,7 @@
 ---
 id: TCK-063
 title: "Paiements — Frontend historique, factures, payouts"
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

@@ -1,7 +1,7 @@
 ---
 id: TCK-069
 title: "Profile Security — 2FA, sessions actives, OTP téléphone"
-status: review
+status: done
 phase: P1
 family: applicatif
 estimate: L

@@ -1,7 +1,7 @@
 ---
 id: TCK-071
 title: "Médias — Upload multiple + reorder drag-drop"
-status: review
+status: done
 phase: P1
 family: front
 estimate: S

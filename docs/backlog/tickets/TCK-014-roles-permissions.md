@@ -1,7 +1,7 @@
 ---
 id: TCK-014
 title: Rôles & permissions
-status: review
+status: done
 phase: P0
 family: applicatif
 estimate: M

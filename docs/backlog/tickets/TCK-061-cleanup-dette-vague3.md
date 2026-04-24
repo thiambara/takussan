@@ -1,7 +1,7 @@
 ---
 id: TCK-061
 title: "Cleanup & dette technique post-Vague 3"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: S

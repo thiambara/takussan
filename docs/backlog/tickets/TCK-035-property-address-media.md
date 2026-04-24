@@ -1,7 +1,7 @@
 ---
 id: TCK-035
 title: "Property — Adresse & médias"
-status: review
+status: done
 phase: P0
 family: back
 estimate: S

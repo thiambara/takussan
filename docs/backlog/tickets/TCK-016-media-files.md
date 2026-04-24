@@ -1,7 +1,7 @@
 ---
 id: TCK-016
 title: Médias & fichiers
-status: review
+status: done
 phase: P0
 family: applicatif
 estimate: M

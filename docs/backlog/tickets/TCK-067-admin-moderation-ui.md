@@ -1,7 +1,7 @@
 ---
 id: TCK-067
 title: "Admin — Modération avis & signalements UI"
-status: review
+status: done
 phase: P2
 family: front
 estimate: M

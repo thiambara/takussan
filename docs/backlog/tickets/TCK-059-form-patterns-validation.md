@@ -1,7 +1,7 @@
 ---
 id: TCK-059
 title: "Form Patterns + Validation (Zod + RHF)"
-status: review
+status: done
 phase: P0
 family: front
 estimate: S

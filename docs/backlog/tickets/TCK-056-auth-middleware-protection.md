@@ -1,7 +1,7 @@
 ---
 id: TCK-056
 title: "Auth Middleware + Route Protection"
-status: review
+status: done
 phase: P0
 family: front
 estimate: S

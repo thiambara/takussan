@@ -1,7 +1,7 @@
 ---
 id: TCK-072
 title: "Calendrier agrégé agent / owner (visites + réservations)"
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

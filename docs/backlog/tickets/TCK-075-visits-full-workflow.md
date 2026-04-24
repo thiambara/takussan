@@ -1,7 +1,7 @@
 ---
 id: TCK-075
 title: "Visites — Planification complète (types, feedback, rappels)"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: L

@@ -1,6 +1,6 @@
 # Story 1.1: Authentification & gestion de comptes (TCK-013)
 
-Status: review
+status: done
 
 ## Story
 

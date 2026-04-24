@@ -1,7 +1,7 @@
 ---
 id: TCK-026
 title: Réservations courte durée & visites
-status: review
+status: done
 phase: P1
 family: back
 estimate: M

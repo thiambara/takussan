@@ -1,7 +1,7 @@
 ---
 id: TCK-017
 title: Internationalisation & préférences
-status: review
+status: done
 phase: P0
 family: applicatif
 estimate: S

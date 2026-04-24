@@ -1,7 +1,7 @@
 ---
 id: TCK-077
 title: "Documents — Génération PDF depuis templates"
-status: review
+status: done
 phase: P2
 family: back
 estimate: M

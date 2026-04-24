@@ -1,7 +1,7 @@
 ---
 id: TCK-031
 title: État des lieux & inventaires
-status: review
+status: done
 phase: P1
 family: applicatif
 estimate: M

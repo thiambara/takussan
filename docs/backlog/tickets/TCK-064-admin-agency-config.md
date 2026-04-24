@@ -1,7 +1,7 @@
 ---
 id: TCK-064
 title: "Admin — Configuration agence UI"
-status: review
+status: done
 phase: P1
 family: front
 estimate: S

@@ -1,7 +1,7 @@
 ---
 id: TCK-022
 title: Notifications
-status: review
+status: done
 phase: P0
 family: applicatif
 estimate: M

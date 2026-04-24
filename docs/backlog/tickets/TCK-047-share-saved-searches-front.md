@@ -1,7 +1,7 @@
 ---
 id: TCK-047
 title: "Favoris, carte & partage — Frontend"
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

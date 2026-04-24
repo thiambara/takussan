@@ -1,7 +1,7 @@
 ---
 id: TCK-038
 title: "Page d'accueil & découverte"
-status: review
+status: done
 phase: P0
 family: front
 estimate: S

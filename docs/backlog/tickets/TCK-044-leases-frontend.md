@@ -1,7 +1,7 @@
 ---
 id: TCK-044
 title: "Baux — Frontend gestion"
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

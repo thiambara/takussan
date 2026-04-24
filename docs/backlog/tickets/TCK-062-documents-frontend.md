@@ -1,7 +1,7 @@
 ---
 id: TCK-062
 title: "Documents — Frontend bibliothèque & partage"
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

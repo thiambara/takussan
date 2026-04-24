@@ -1,7 +1,7 @@
 ---
 id: TCK-065
 title: "Admin — Gestion équipe (ajout / retrait agents)"
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

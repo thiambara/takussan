@@ -1,7 +1,7 @@
 ---
 id: TCK-039
 title: "Liste résultats de recherche"
-status: review
+status: done
 phase: P0
 family: front
 estimate: M

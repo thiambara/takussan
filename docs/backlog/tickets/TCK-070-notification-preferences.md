@@ -1,7 +1,7 @@
 ---
 id: TCK-070
 title: "Préférences notifications (canaux + fréquence)"
-status: review
+status: done
 phase: P1
 family: applicatif
 estimate: M

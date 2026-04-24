@@ -1,7 +1,7 @@
 ---
 id: TCK-045
 title: "Messagerie — Frontend"
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

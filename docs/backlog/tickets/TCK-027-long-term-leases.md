@@ -1,7 +1,7 @@
 ---
 id: TCK-027
 title: Location longue durée (baux)
-status: review
+status: done
 phase: P1
 family: back
 estimate: L

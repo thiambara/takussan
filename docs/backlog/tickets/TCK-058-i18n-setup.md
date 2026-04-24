@@ -1,7 +1,7 @@
 ---
 id: TCK-058
 title: "i18n Setup (FR/EN/WO)"
-status: review
+status: done
 phase: P0
 family: front
 estimate: S

@@ -1,7 +1,7 @@
 ---
 id: TCK-057
 title: "API Client + Data Fetching (React Query)"
-status: review
+status: done
 phase: P0
 family: front
 estimate: S

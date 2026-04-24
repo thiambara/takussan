@@ -1,7 +1,7 @@
 ---
 id: TCK-015
 title: Agence & équipe
-status: review
+status: done
 phase: P0
 family: applicatif
 estimate: M

@@ -1,7 +1,7 @@
 ---
 id: TCK-028
 title: Transactions & paiements
-status: review
+status: done
 phase: P1
 family: applicatif
 estimate: L

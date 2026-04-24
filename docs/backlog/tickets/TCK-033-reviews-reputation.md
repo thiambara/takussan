@@ -1,7 +1,7 @@
 ---
 id: TCK-033
 title: Avis & réputation
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: M
