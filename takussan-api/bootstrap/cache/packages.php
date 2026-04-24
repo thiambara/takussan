@@ -129,6 +129,13 @@
       0 => 'Laravel\\Tinker\\TinkerServiceProvider',
     ),
   ),
+  'lemonsqueezy/laravel' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'LemonSqueezy\\Laravel\\LemonSqueezyServiceProvider',
+    ),
+  ),
   'livewire/livewire' => 
   array (
     'aliases' => 

@@ -1,7 +1,7 @@
 ---
 id: TCK-079
 title: "Passerelle de paiement Wave / Orange Money / Lemon Squeezy"
-status: todo
+status: doing
 phase: P2
 family: applicatif
 estimate: XL
