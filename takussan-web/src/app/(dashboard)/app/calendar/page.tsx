@@ -1,5 +1,7 @@
+import { forbidden } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
 import { CalendarPage } from '@/components/calendar/CalendarPage';
+import { isAdmin, isAgent, isOwner } from '@/lib/roles';
 
 export const metadata = {
   title: 'Calendrier',
@@ -11,9 +13,19 @@ export const metadata = {
  * Vue mois/semaine/jour/liste consolidant réservations courte durée et
  * visites planifiées. Scope et sécurité sont gérés côté back
  * (`/api/calendar`) en fonction du rôle de l'utilisateur.
+ *
+ * Role gate : l'agrégateur calendrier n'a de sens que pour agent /
+ * owner / admin (il scope par `property.user_id` / `agency_id` /
+ * collaborateur accepté, pas par `customer_id`). Un customer n'y
+ * trouverait jamais ses propres réservations — on renvoie donc 403
+ * avant de servir la page, en accord avec la contrainte métier du
+ * ticket et le gate sidebar.
  */
 export default async function Page() {
-  await getMeAction();
+  const user = await getMeAction();
+  if (!(isAgent(user.roles) || isOwner(user.roles) || isAdmin(user.roles))) {
+    forbidden();
+  }
   return (
     <div className="space-y-6">
       <div>
