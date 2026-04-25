@@ -28,7 +28,7 @@ class LeasePayment extends AbstractModel
                 'reference_number', 'amount', 'currency',
                 'payment_method', 'payment_type',
                 'period_start', 'period_end', 'due_date', 'paid_at', 'status',
-                'late_fee',
+                'late_fee_amount', 'late_fee_applied_at',
             ])
             ->logOnlyDirty()
             ->dontLogIfAttributesChangedOnly(['transaction_id', 'notes', 'metadata', 'updated_at'])
@@ -41,7 +41,7 @@ class LeasePayment extends AbstractModel
         'reference_number', 'amount', 'currency',
         'payment_method', 'payment_type',
         'period_start', 'period_end', 'due_date', 'paid_at', 'status',
-        'late_fee', 'transaction_id', 'notes', 'metadata',
+        'late_fee_amount', 'late_fee_applied_at', 'transaction_id', 'notes', 'metadata',
     ];
 
     protected $casts = [
@@ -49,7 +49,8 @@ class LeasePayment extends AbstractModel
         'period_start' => 'date',
         'period_end' => 'date',
         'due_date' => 'date',
-        'late_fee' => 'decimal:2',
+        'late_fee_amount' => 'decimal:2',
+        'late_fee_applied_at' => 'datetime',
         'metadata' => 'array',
     ];
 
