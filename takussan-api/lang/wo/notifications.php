@@ -93,4 +93,21 @@ return [
         'intro' => 'Avenant am na ci sa luwé (:reference). Conditions yu bees yi tàmbali nañ.',
         'period' => 'Période : :start ba :end.',
     ],
+
+    'lease_early_termination' => [
+        'greeting' => 'Salaam,',
+        'penalty_line' => 'Pénalité tas bu jëkk : :amount :currency. War ngaa fey ko bala bisu njëlbeen bi.',
+        'requested' => [
+            'subject' => 'Tas bu jëkk laaj — luwé :reference',
+            'intro' => 'Tas bu jëkk laaj nañ ko ci luwé :reference. Bisu njëlbeen : :date.',
+        ],
+        'cancelled' => [
+            'subject' => 'Tas bu jëkk neenal — luwé :reference',
+            'intro' => 'Tas bu jëkk laaj bi neenal nañ ko. Luwé bi des ci jàpp.',
+        ],
+        'confirmed' => [
+            'subject' => 'Luwé jeex na — :reference',
+            'intro' => 'Luwé :reference jeex na — bisu :date.',
+        ],
+    ],
 ];

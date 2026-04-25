@@ -35,6 +35,19 @@ class LeaseResource extends JsonResource
             'payment_day' => $this->payment_day,
             'signed_at' => $this->signed_at?->toISOString(),
             'terminated_at' => $this->terminated_at?->toISOString(),
+            // TCK-090 — early termination workflow exposed for the dashboard
+            // banner / countdown / cancel button. Kept inline rather than
+            // gated behind whenLoaded() because the columns are always on
+            // the row, so the round-trip cost is zero.
+            'early_termination_requested_at' => $this->early_termination_requested_at?->toISOString(),
+            'early_termination_requested_by' => $this->early_termination_requested_by,
+            'early_termination_effective_date' => $this->early_termination_effective_date?->toDateString(),
+            'early_termination_penalty_amount' => $this->early_termination_penalty_amount !== null
+                ? (float) $this->early_termination_penalty_amount
+                : null,
+            'early_termination_reason' => $this->early_termination_reason,
+            'early_termination_invoice_id' => $this->early_termination_invoice_id,
+            'notice_period_days' => $this->notice_period_days,
             'property' => $this->whenLoaded('property', fn () => PropertyResource::make($this->property)),
             'tenant' => $this->whenLoaded('tenant', fn () => CustomerResource::make($this->tenant)),
             'renewed_from' => $this->whenLoaded('renewedFrom', fn () => self::make($this->renewedFrom)),

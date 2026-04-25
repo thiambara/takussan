@@ -416,6 +416,36 @@
       "timeline_amendment": "Avenant {n}",
       "timeline_current": "courant"
     },
+    "early_termination": {
+      "cta": "Résilier le bail",
+      "dialog_title": "Résiliation anticipée",
+      "dialog_subtitle": "Choisissez la date effective et le motif. La pénalité estimée s'affichera en temps réel.",
+      "field_effective_date": "Date effective de fin",
+      "field_reason": "Motif",
+      "field_reason_placeholder": "Ex. déménagement, vente du bien, défaut…",
+      "notice_hint": "Préavis minimum {days} jours. Date la plus proche : {min}.",
+      "notice_too_short": "Préavis insuffisant — choisissez une date plus tardive.",
+      "estimate_title": "Pénalité estimée",
+      "estimate_breakdown": "{months} mois × loyer = {amount} {currency}",
+      "estimate_zero": "Aucune pénalité — la date dépasse la fin contractuelle.",
+      "submit": "Confirmer la résiliation",
+      "submitting": "Envoi en cours…",
+      "cancel": "Annuler",
+      "back": "Précédent",
+      "confirm_cancel": "Oui, annuler",
+      "error_generic": "Action impossible.",
+      "banner_eyebrow": "Bail en résiliation",
+      "banner_countdown": "Fin dans {days} jours",
+      "banner_due_today": "Fin aujourd'hui",
+      "banner_effective": "Date effective : {date}",
+      "banner_penalty_label": "Pénalité",
+      "banner_invoice_label": "Facture pénalité",
+      "banner_reason_label": "Motif",
+      "banner_cancel_request": "Annuler la résiliation",
+      "cancelled_toast_title": "Résiliation annulée",
+      "cancelled_toast_body": "Le bail revient à l'état actif.",
+      "cancel_failed_title": "L'annulation a échoué"
+    },
     "error_generic": "Action impossible."
   }
 }

@@ -46,4 +46,16 @@ return [
     'refund_reason_required_for_partial' => 'Su delloo gi gen, motivation lañu war a indi.',
     'deposit_refund_payout_note' => 'Delloo kaution — luwé :reference',
     'deposit_retention_invoice_line' => 'Téye kaution — :reason',
+
+    // Lease — early termination (TCK-090)
+    'lease_early_termination_status_not_requestable' => 'Luwé yi jàpp walla yi jeex rekk la ñu mën a tas bu jëkk bisu mujj.',
+    'lease_early_termination_already_in_progress' => 'Tas bu jëkk a soxla ci luwé bii.',
+    'lease_early_termination_notice_too_short' => 'Préavis bi du dégaal. Bisu njëlbeen bi war a doon ci :min walla ci kanam.',
+    'lease_early_termination_after_end_date' => 'Bisu njëlbeen war a doon ci kanam bisu jeex bi. Jëfandikoo yoon wii ñu duggal mujj bi normal.',
+    'lease_early_termination_not_in_progress' => 'Amul tas bu jëkk ci luwé bii.',
+    'lease_early_termination_window_closed' => 'Tasal-tasal-ji jeex na — bisu njëlbeen bi weesu na.',
+    'lease_early_termination_penalty_paid' => 'Pénalités yi fey nañu — du nu mën a tasal tasal-ji.',
+    'lease_early_termination_penalty_unpaid' => 'Pénalités yi war nañu fey bala luwé bi jeex.',
+    'lease_early_termination_too_early' => 'Bisu njëlbeen bi agsiwul ba tey.',
+    'lease_early_termination_invoice_line' => 'Pénalité tas bu jëkk — luwé :reference (njëlbeen :effective)',
 ];
