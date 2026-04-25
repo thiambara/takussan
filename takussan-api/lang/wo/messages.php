@@ -36,4 +36,9 @@ return [
     'lease_must_be_ended_for_refund' => 'Luwé bi war a jeex walla mujj bala ñu delloo kaution.',
     'deposit_already_refunded' => 'Kaution bi delloo nañu ko ba noppi.',
     'no_deposit_to_refund' => 'Amul kaution bu ñuy delloo.',
+    'refund_amount_required' => 'Mbënd mi war a am, bu nu war a delloo.',
+    'refund_amount_exceeds_remaining' => 'Mbënd mi gënal kaution bi des.',
+    'refund_reason_required_for_partial' => 'Su delloo gi gen, motivation lañu war a indi.',
+    'deposit_refund_payout_note' => 'Delloo kaution — luwé :reference',
+    'deposit_retention_invoice_line' => 'Téye kaution — :reason',
 ];
