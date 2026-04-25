@@ -107,6 +107,14 @@ class Property extends AbstractModel implements HasMedia
                 $m->reference_number = 'TK-'.now()->format('Y').'-'.strtoupper(Str::random(6));
             }
         });
+
+        // Soft-cascade: the FK `ON DELETE SET NULL` only fires on hard-delete,
+        // so a soft-deleted parent would leave children pointing to an invisible row.
+        static::deleting(function (self $m) {
+            if (! $m->isForceDeleting()) {
+                self::query()->where('parent_id', $m->id)->update(['parent_id' => null]);
+            }
+        });
     }
 
     public function toSearchableArray(): array

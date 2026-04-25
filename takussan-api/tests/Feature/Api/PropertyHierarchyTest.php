@@ -58,6 +58,41 @@ class PropertyHierarchyTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrors(['parent_id']);
     }
 
+    public function test_attaching_property_with_subtree_that_overflows_max_depth_returns_422(): void
+    {
+        // Existing chain: parent (depth 3 after root1→root2 chain).
+        $user = User::factory()->create();
+        $root = Property::factory()->create(['user_id' => $user->id]);
+        $mid = Property::factory()->create(['user_id' => $user->id, 'parent_id' => $root->id]);
+        $newParent = Property::factory()->create(['user_id' => $user->id, 'parent_id' => $mid->id]); // depth 3
+
+        // Standalone subtree of height 2 (parent + child). Attaching its root under
+        // a depth-3 parent would push the child to depth 5 (> MAX_DEPTH=4).
+        $subtreeRoot = Property::factory()->create(['user_id' => $user->id]);
+        Property::factory()->create(['user_id' => $user->id, 'parent_id' => $subtreeRoot->id]);
+
+        Sanctum::actingAs($user);
+
+        $this->patchJson("/api/properties/{$subtreeRoot->id}", [
+            'parent_id' => $newParent->id,
+        ])->assertStatus(422)->assertJsonValidationErrors(['parent_id']);
+    }
+
+    public function test_soft_deleting_parent_nulls_out_children_parent_id(): void
+    {
+        $user = User::factory()->create();
+        $parent = Property::factory()->create(['user_id' => $user->id]);
+        $child = Property::factory()->create(['user_id' => $user->id, 'parent_id' => $parent->id]);
+
+        $parent->delete(); // soft-delete
+
+        $this->assertDatabaseHas('properties', [
+            'id' => $child->id,
+            'parent_id' => null,
+            'deleted_at' => null,
+        ]);
+    }
+
     public function test_attaching_to_different_agency_returns_422(): void
     {
         Role::findOrCreate('super_admin');

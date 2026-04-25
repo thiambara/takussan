@@ -41,6 +41,27 @@ class HierarchyService
     }
 
     /**
+     * Height of the subtree rooted at `$property` (1 = leaf, 2 = leaf+children, ...).
+     * Bounded by MAX_DEPTH+1 to defuse any pre-existing pathological data.
+     */
+    public function subtreeHeight(Property $property): int
+    {
+        $maxChildHeight = 0;
+
+        foreach ($property->children()->get() as $child) {
+            $childHeight = $this->subtreeHeight($child);
+            if ($childHeight > $maxChildHeight) {
+                $maxChildHeight = $childHeight;
+            }
+            if ($maxChildHeight >= self::MAX_DEPTH) {
+                break;
+            }
+        }
+
+        return $maxChildHeight + 1;
+    }
+
+    /**
      * Whether attaching `$property` under `$parent` would form a cycle.
      */
     public function wouldCreateCycle(Property $property, Property $parent): bool
@@ -100,8 +121,10 @@ class HierarchyService
             ]);
         }
 
-        $newDepth = $this->depth($parent) + 1;
-        if ($newDepth > self::MAX_DEPTH) {
+        // Account for the property's own subtree — attaching a 2-level subtree
+        // under a depth-3 parent would push leaves to depth 5.
+        $deepestLeafDepth = $this->depth($parent) + $this->subtreeHeight($property);
+        if ($deepestLeafDepth > self::MAX_DEPTH) {
             throw ValidationException::withMessages([
                 'parent_id' => __('messages.property_hierarchy_max_depth_exceeded'),
             ]);
