@@ -13,12 +13,27 @@ class TagController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $paginator = Tag::buildQuery(null, $request)
+        $base = Tag::query();
+
+        // For CRM tags, scope to tags used by the requesting user's agency customers.
+        // This lets autocomplete show only tags relevant to the agent's agency.
+        if ($request->input('filter.type') === TagType::Crm->value) {
+            $user = $request->user();
+            if ($user && ! $user->hasRole(['admin', 'super_admin']) && $user->agency_id) {
+                $agencyId = $user->agency_id;
+                $base->whereHas('customers', fn ($q) => $q->where('agency_id', $agencyId));
+            }
+        }
+
+        $paginator = Tag::buildQuery($base, $request)
             ->defaultSort('name')
             ->paginate();
 
+        $user = $request->user();
+        $agencyId = $user?->agency_id;
+
         return $this->json([
-            'data' => $paginator->getCollection()->map(fn (Tag $t) => $this->format($t))->values(),
+            'data' => $paginator->getCollection()->map(fn (Tag $t) => $this->format($t, $agencyId))->values(),
             'meta' => ['total' => $paginator->total(), 'current_page' => $paginator->currentPage()],
         ]);
     }
@@ -103,8 +118,14 @@ class TagController extends Controller
         return $this->json(null, 204);
     }
 
-    private function format(Tag $tag): array
+    private function format(Tag $tag, ?int $agencyId = null): array
     {
+        $usageCount = null;
+        if ($agencyId !== null) {
+            $usageCount = $tag->customers()->where('agency_id', $agencyId)->count()
+                + $tag->properties()->count();
+        }
+
         return [
             'id' => $tag->id,
             'name' => $tag->name,
@@ -113,6 +134,7 @@ class TagController extends Controller
             'icon' => $tag->icon,
             'color' => $tag->color,
             'description' => $tag->description,
+            'usage_count' => $usageCount,
             'created_at' => $tag->created_at?->toISOString(),
         ];
     }

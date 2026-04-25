@@ -17,7 +17,7 @@ class TagFactory extends Factory
         return [
             'name' => ucfirst($name),
             'slug' => Str::slug($name).'-'.Str::random(4),
-            'type' => fake()->randomElement(['feature', 'amenity', 'segment']),
+            'type' => fake()->randomElement(['feature', 'amenity', 'crm']),
         ];
     }
 }

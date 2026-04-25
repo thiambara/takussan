@@ -35,7 +35,6 @@ _(vide — Vague 9 entièrement passée en review)_
 
 ### Vague 10 — P2 CRM / Messaging / Maintenance
 
-- [TCK-093](tickets/TCK-093-customer-segmentation-tags.md) — Segmentation & tags clients `S · P2 · applicatif`
 - [TCK-094](tickets/TCK-094-fulltext-messages-documents.md) — Recherche full-text messages & documents `M · P2 · back`
 - [TCK-095](tickets/TCK-095-maintenance-quote-validation.md) — Demande de devis maintenance + validation `M · P2 · applicatif`
 - [TCK-096](tickets/TCK-096-maintenance-priority.md) — Priorisation demandes maintenance `S · P2 · applicatif`
@@ -65,7 +64,7 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 
 ## 🚧 Doing
 
-_(vide)_
+- [TCK-093](tickets/TCK-093-customer-segmentation-tags.md) — Segmentation & tags clients `S · P2 · applicatif`
 
 ## 👀 Review
 
@@ -216,7 +215,6 @@ _(vide)_
 ### Phase 2 — Front Dashboard Agent — Vague 3 [PR #37](https://github.com/thiambara/takussan/pull/37)
 
 - [TCK-041](tickets/TCK-041-dashboard-agent-properties.md) — Dashboard Agent — Layout & biens `M · P0 · front` (PR #37)
-- [TCK-042](tickets/TCK-042-dashboard-agent-crm.md) — Dashboard Agent — CRM `M · P0 · front` (PR #37)
 
 ### Phase 3 — Opérations Métier — Vague 1 [PR #26](https://github.com/thiambara/takussan/pull/26) (favorites) · [PR #27](https://github.com/thiambara/takussan/pull/27) (ops) · Vague 2 [PR #30](https://github.com/thiambara/takussan/pull/30) (payments) · [PR #31](https://github.com/thiambara/takussan/pull/31) (maintenance+inventory back) · Vague 3 [PR #34](https://github.com/thiambara/takussan/pull/34) (ops front) · [PR #35](https://github.com/thiambara/takussan/pull/35) (maintenance+inventory front)
 
@@ -260,6 +258,10 @@ _(vide)_
 - [TCK-023](tickets/TCK-023-admin-configuration.md) — Administration & configuration `M · P0 · applicatif`
 - [TCK-024](tickets/TCK-024-search-filters.md) — Recherche & filtres (backend) `M · P0 · applicatif`
 - [TCK-034](tickets/TCK-034-property-crud-base.md) — Property — Modèle & CRUD base `M · P0 · back`
+
+### Phase 2 — Front Dashboard Agent
+
+- [TCK-042](tickets/TCK-042-dashboard-agent-crm.md) — Dashboard Agent — CRM `M · P0 · front` (PR #37)
 
 ### Phase 2 — Front Public
 

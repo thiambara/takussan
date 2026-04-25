@@ -7,6 +7,7 @@ use App\Models\Bases\Auditable;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\IdType;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\Support\LogOptions;
+use Spatie\QueryBuilder\AllowedFilter;
 
 class Customer extends AbstractModel
 {
@@ -71,6 +73,31 @@ class Customer extends AbstractModel
         'status', 'pipeline_stage', 'occupation',
         'created_at', 'updated_at',
     ];
+
+    /** @return array<int, AllowedFilter> */
+    protected static function getAllowedQueryFilters(): array
+    {
+        $filters = parent::getAllowedQueryFilters();
+
+        $filters[] = AllowedFilter::callback('tags', function (Builder $q, mixed $value) {
+            $names = is_array($value) ? $value : explode(',', (string) $value);
+            $names = array_filter(array_map('trim', $names));
+            if (empty($names)) {
+                return;
+            }
+            $q->whereHas('tags', fn (Builder $t) => $t->whereIn('name', $names));
+        });
+
+        $filters[] = AllowedFilter::callback('tags_all', function (Builder $q, mixed $value) {
+            $names = is_array($value) ? $value : explode(',', (string) $value);
+            $names = array_filter(array_map('trim', $names));
+            foreach ($names as $name) {
+                $q->whereHas('tags', fn (Builder $t) => $t->where('name', $name));
+            }
+        });
+
+        return $filters;
+    }
 
     public function getFullNameAttribute(): string
     {

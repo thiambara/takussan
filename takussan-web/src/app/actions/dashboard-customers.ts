@@ -4,14 +4,17 @@ import { revalidatePath } from 'next/cache';
 import { ApiError } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import {
+  attachCustomerTags,
   createCustomer,
   createCustomerNote,
+  detachCustomerTag,
   updateCustomer,
   uploadCustomerDocument,
   validateCustomerDocumentFile,
 } from '@/lib/queries/customers';
 import type { CustomerFormPayload } from '@/lib/schemas/customer';
 import type { CustomerDetail, CustomerNote, CustomerDocument } from '@/types/customer';
+import type { Tag } from '@/types/tag';
 
 /**
  * Dashboard Agent — CRM server actions (TCK-042).
@@ -98,6 +101,38 @@ export async function createCustomerNoteAction(
     const data = await createCustomerNote(auth.token, customerId, trimmed);
     revalidatePath(`/app/customers/${customerId}`);
     return { ok: true, data };
+  } catch (e) {
+    return { ok: false, ...mapError(e) };
+  }
+}
+
+export async function attachCustomerTagsAction(
+  customerId: number,
+  tags: string[],
+): Promise<ActionResult<Pick<Tag, 'id' | 'name' | 'slug' | 'color'>[]>> {
+  const auth = await requireToken();
+  if (!auth.ok) return auth.result;
+  try {
+    const data = await attachCustomerTags(auth.token, customerId, tags);
+    revalidatePath(`/app/customers/${customerId}`);
+    revalidatePath('/app/customers');
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, ...mapError(e) };
+  }
+}
+
+export async function detachCustomerTagAction(
+  customerId: number,
+  tagId: number,
+): Promise<ActionResult> {
+  const auth = await requireToken();
+  if (!auth.ok) return auth.result;
+  try {
+    await detachCustomerTag(auth.token, customerId, tagId);
+    revalidatePath(`/app/customers/${customerId}`);
+    revalidatePath('/app/customers');
+    return { ok: true };
   } catch (e) {
     return { ok: false, ...mapError(e) };
   }

@@ -1,12 +1,12 @@
 ---
 id: TCK-093
 title: "Segmentation & tags clients"
-status: todo
+status: doing
 phase: P2
 family: applicatif
 estimate: S
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-25
 depends_on: [TCK-020, TCK-042]
 blocks: []
 spec_refs:

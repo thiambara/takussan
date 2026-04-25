@@ -4,7 +4,10 @@ import { UserPlus } from 'lucide-react';
 
 import { getMeAction } from '@/app/actions/auth';
 import { getToken } from '@/lib/session';
-import { fetchDashboardCustomers } from '@/lib/queries/customers';
+import {
+  fetchCrmTags,
+  fetchDashboardCustomers,
+} from '@/lib/queries/customers';
 import { isAdmin, isAgent, isOwner } from '@/lib/roles';
 import { CustomerList } from '@/components/customer-dashboard/CustomerList';
 import { CustomerListFilters } from '@/components/customer-dashboard/CustomerListFilters';
@@ -12,6 +15,7 @@ import { PropertyPagination } from '@/components/property-dashboard/PropertyPagi
 
 /**
  * TCK-042 — dashboard agent CRM, liste des clients.
+ * TCK-093 — tags filter support.
  */
 
 export const dynamic = 'force-dynamic';
@@ -42,13 +46,13 @@ export default async function Page({
     status: asString(params.status),
     pipeline_stage: asString(params.pipeline_stage),
     search: asString(params.search),
+    tags: asString(params.tags),
   };
 
-  const response = await fetchDashboardCustomers(token, {
-    page,
-    perPage: 20,
-    filters,
-  });
+  const [response, crmTags] = await Promise.all([
+    fetchDashboardCustomers(token, { page, perPage: 20, filters }),
+    fetchCrmTags(token).catch(() => []),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -69,7 +73,7 @@ export default async function Page({
         </Link>
       </header>
 
-      <CustomerListFilters />
+      <CustomerListFilters crmTags={crmTags} />
 
       <CustomerList page={response} />
 
