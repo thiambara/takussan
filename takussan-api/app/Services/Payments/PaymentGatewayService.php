@@ -186,10 +186,10 @@ class PaymentGatewayService
             PaymentProvider::LemonSqueezy->value,
             $type,
             $transactionId,
-            $driver->extractFees($attributes) + [
+            array_merge($driver->extractFees($attributes), [
                 'lemon_squeezy_event' => $eventName,
                 'custom_data' => $attributes['first_order_item']['custom_data'] ?? $payload['meta']['custom_data'] ?? [],
-            ],
+            ]),
         );
 
         $this->applyEventToMatchingPayment($event);
