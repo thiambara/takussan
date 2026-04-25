@@ -24,6 +24,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('properties/{property}/unpublish', [PropertyController::class, 'unpublish'])->name('properties.unpublish');
     Route::post('properties/{property}/view', [PropertyController::class, 'recordView'])->name('properties.view');
     Route::get('properties/{property}/children', [PropertyController::class, 'children'])->name('properties.children');
+    Route::get('properties/{property}/ancestors', [PropertyController::class, 'ancestors'])->name('properties.ancestors');
 
     // Address (upsert + clear)
     Route::put('properties/{property}/address', [PropertyAddressController::class, 'upsert'])->name('properties.address.upsert');

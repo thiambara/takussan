@@ -50,6 +50,15 @@ class PropertyPolicy extends BasePolicy
     }
 
     /**
+     * TCK-086 — attaching a child under a parent requires update rights on
+     * both ends.
+     */
+    public function updateParent(User $user, Property $child, Property $parent): bool
+    {
+        return $this->update($user, $child) && $this->update($user, $parent);
+    }
+
+    /**
      * Bulk-archive is granted when the user is authenticated; per-property
      * authorization is delegated to the service which evaluates each id
      * through the `update` policy.
