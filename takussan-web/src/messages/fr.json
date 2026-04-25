@@ -151,6 +151,66 @@
       "clearAria": "Vider le comparateur"
     }
   },
+  "messaging": {
+    "listHeading": "Conversations",
+    "newGroup": "Nouveau groupe",
+    "emptyState": "Sélectionnez une conversation pour afficher les messages.",
+    "system": {
+      "participantAdded": "{actor} a ajouté {target} au groupe.",
+      "participantRemoved": "{actor} a retiré {target} du groupe.",
+      "roleChanged": "{actor} a changé le rôle de {target} en {role}.",
+      "renamed": "{actor} a renommé le groupe en « {subject} »."
+    },
+    "group": {
+      "create": {
+        "title": "Nouveau groupe",
+        "step1Description": "Ajoutez 2 participants minimum (vous serez automatiquement inclus).",
+        "step2Description": "Donnez un sujet au groupe et associez-le optionnellement à un bien ou un bail.",
+        "participantsLabel": "Participants",
+        "participantInputPlaceholder": "ID utilisateur",
+        "participantsHint": "Saisissez les IDs un par un. Le serveur vérifie les permissions.",
+        "add": "Ajouter",
+        "removeParticipant": "Retirer #{id}",
+        "minParticipants": "Minimum {min} participants au total (vous compris).",
+        "maxParticipants": "Maximum {max} participants au total.",
+        "duplicate": "Cet utilisateur est déjà ajouté.",
+        "invalidId": "ID invalide.",
+        "subjectLabel": "Sujet",
+        "subjectRequired": "Le sujet est obligatoire.",
+        "propertyLabel": "Bien (optionnel)",
+        "leaseLabel": "Bail (optionnel)",
+        "cancel": "Annuler",
+        "next": "Suivant",
+        "back": "Retour",
+        "create": "Créer le groupe",
+        "createFailed": "Impossible de créer le groupe."
+      },
+      "info": {
+        "title": "Infos du groupe",
+        "subjectLine": "Sujet : {subject}",
+        "renameLabel": "Renommer le groupe",
+        "renameSave": "Enregistrer",
+        "renameFailed": "Impossible de renommer.",
+        "participantsHeading": "Participants ({count})",
+        "addLabel": "Inviter un participant",
+        "addPlaceholder": "ID utilisateur",
+        "addFailed": "Impossible d'ajouter.",
+        "add": "Ajouter",
+        "you": "vous",
+        "roleAdmin": "Admin",
+        "roleMember": "Membre",
+        "promote": "Promouvoir admin",
+        "demote": "Rétrograder en membre",
+        "remove": "Retirer du groupe",
+        "mute": "Couper les notifications",
+        "unmute": "Réactiver les notifications",
+        "leave": "Quitter le groupe",
+        "lastAdminLeaveBlocked": "Vous êtes le dernier admin — promouvez quelqu'un avant de partir.",
+        "lastAdminLeaveHint": "Promouvez un autre membre admin avant de partir.",
+        "invalidId": "ID invalide."
+      }
+    }
+  },
   "payments": {
     "gateway": {
       "button": {

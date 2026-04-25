@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Conversation;
 use App\Listeners\Payments\LemonSqueezyEventListener;
 use App\Models\Favorite;
 use App\Models\Lease;
@@ -17,6 +18,7 @@ use App\Observers\PropertyObserver;
 use App\Observers\PropertyVisitObserver;
 use App\Observers\ReviewObserver;
 use App\Observers\UserObserver;
+use App\Policies\ConversationPolicy;
 use App\Policies\MediaPolicy;
 use App\Policies\PropertyPolicy;
 use App\Services\Formatting\CurrencyFormatter;
@@ -61,6 +63,8 @@ class AppServiceProvider extends ServiceProvider
         // TCK-074 — explicit bind so `$user->can('duplicate', $property)` resolves.
         Gate::policy(Property::class, PropertyPolicy::class);
 
+        // TCK-085 — group conversation gates (admin-only mutations + system-message immutability).
+        Gate::policy(Conversation::class, ConversationPolicy::class);
         // TCK-084 — `@currency($amount, $currency)` Blade directive used by
         // PDF templates. Accepts either a Currency enum case or its string
         // value so existing templates that thread `$invoice->currency` (a
