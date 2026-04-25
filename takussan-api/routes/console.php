@@ -1,11 +1,11 @@
 <?php
 
 use App\Jobs\ExpireBookings;
+use App\Jobs\Invoice\SendOverdueRemindersJob;
 use App\Jobs\Lease\ApplyLateFeesJob;
 use App\Jobs\Lease\ConfirmEarlyTerminationsJob;
 use App\Jobs\SendDailyNotificationDigest;
 use App\Jobs\SendLeasePaymentReminders;
-use App\Jobs\SendOverdueInvoiceReminders;
 use App\Jobs\SendPropertyVisitReminders;
 use App\Jobs\SendSavedSearchAlerts;
 use Illuminate\Foundation\Inspiring;
@@ -24,11 +24,14 @@ Schedule::job(new ApplyLateFeesJob)->dailyAt('02:00')->withoutOverlapping();
 Schedule::job(new ConfirmEarlyTerminationsJob)->dailyAt('03:00')->withoutOverlapping();
 Schedule::job(new SendLeasePaymentReminders)->dailyAt('08:00');
 Schedule::job(new SendSavedSearchAlerts)->dailyAt('09:00');
+// TCK-092 — Per-offset overdue invoice reminders (default J+3, J+7, J+15).
+// Replaces the legacy `SendOverdueInvoiceReminders` (single-shot mark-and-
+// notify). Idempotent on `reminders_sent_count`; agency-scoped queries.
+Schedule::job(new SendOverdueRemindersJob)->dailyAt('09:00')->withoutOverlapping();
 // TCK-075 — Runs every 5 minutes to flush reminders for both the 24h and 1h
 // pre-visit windows. Dedup happens through `PropertyVisit.metadata` markers
 // so re-runs are idempotent even if the job overlaps with a prior tick.
 Schedule::job(new SendPropertyVisitReminders)->everyFiveMinutes()->withoutOverlapping();
-Schedule::job(new SendOverdueInvoiceReminders)->dailyAt('10:00');
 Schedule::job(new SendDailyNotificationDigest)->dailyAt('18:00');
 Schedule::command('media:cleanup')->dailyAt('03:00');
 Schedule::command('dashboard:check-alerts')->hourly()->withoutOverlapping(); // TCK-032 P3

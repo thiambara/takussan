@@ -1,12 +1,12 @@
 ---
 id: TCK-092
 title: "Relance automatique factures en retard"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: S
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-25
 depends_on: [TCK-028]
 blocks: []
 spec_refs:
@@ -140,4 +140,62 @@ sprint si demandé._
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Décisions non triviales
+
+- **Statuts éligibles : `Sent` + `Overdue` (pas `pending`/`partial`).** La
+  spec parle de "pending|partial" mais l'enum `InvoiceStatus` n'expose
+  que `(Draft, Sent, Paid, Overdue, Cancelled, Void)`. `Sent` et
+  `Overdue` sont les équivalents naturels — c'est aussi ce que faisait
+  l'ancien job. Constante `OverdueReminderService::REMINDABLE_STATUSES`
+  pour pouvoir évoluer si `Pending`/`Partial` arrive plus tard.
+- **Promotion `Sent → Overdue` à la première relance.** L'ancien
+  `SendOverdueInvoiceReminders` flippait le status dès qu'une invoice
+  passait `due_date`, indépendamment de toute relance. La nouvelle
+  approche promeut au moment de la première relance — pas avant — pour
+  qu'aucun signal user-visible ne précède l'email.
+- **Date matching via `whereDate()`.** Les colonnes `due_date` sont
+  typées `date` côté migration mais SQLite/MySQL peuvent les
+  sérialiser en `Y-m-d H:i:s`. Un `whereIn('due_date', [...])` direct ne
+  matche pas un `'2026-04-22 00:00:00'` stocké contre `'2026-04-22'`. La
+  query du service boucle donc sur `orWhereDate('due_date', ...)` pour
+  chaque offset (cf. test-driven debug session : count=0 jusqu'à ce
+  fix).
+- **Idempotence à deux niveaux.** Le compteur `reminders_sent_count`
+  protège contre les re-runs inter-jour (cap dur), et
+  `last_reminder_sent_at::date` agit comme garde-fou intra-jour si deux
+  ticks chevauchants se télescopent (le `withoutOverlapping()` du
+  scheduler couvre déjà le cas mais la garde service-level reste utile
+  pour les invocations directes / tests).
+- **Bucket attendu vs actually-sent.** Si le job rate un offset (ex.
+  J+3 manqué, le job tourne à J+4 puis à J+7), le compteur est encore à
+  0 quand on rencontre J+7 — le service envoie alors la J+7
+  (expectedBucket=2) et passe le compteur à 1. La J+3 manquée n'est pas
+  rattrapée (hors scope V1 — comportement documenté). À J+15 le
+  compteur passe à 2 puis à 3 ; le cap se déclenche.
+- **Audit-only quand le destinataire n'a pas de User.** Si le
+  `Customer.user_id` est null, l'invoice est tout de même "stamped"
+  (count + last_reminder_sent_at + activity log avec
+  `channel = audit_only`) mais aucune notification n'est dispatchée.
+  Cela aligne sur le requirement métier "marquée comme tentée".
+- **Suppression du legacy `SendOverdueInvoiceReminders`.** L'ancien job
+  faisait `mark Sent → Overdue + notify once`. Le nouveau job intègre
+  les deux (promotion lazy + relances multi-offset) ; garder les deux
+  produirait un double-envoi à J+0. Les deux tests stale dans
+  `ScheduledJobsTest` (`test_overdue_invoice_job_*`) sont remplacés par
+  `OverdueReminderServiceTest` + `SendOverdueRemindersJobTest`.
+- **Settings unwrap.** `Setting.value` est cast `array`. La convention
+  observée ailleurs (`lease.rent_review_max_pct`,
+  `lease.early_termination_penalty_months`) range la valeur sous
+  `['value' => …]`. Le service support les deux formes (wrappé ou pas)
+  pour rester compatible avec les seeders existants et les overrides
+  ad-hoc en console.
+
+### Tests
+
+```
+php artisan test --filter='OverdueReminderServiceTest|SendOverdueRemindersJobTest|InvoiceOverdueReminderNotificationTest'
+# 18 passed (51 assertions)
+
+php artisan test
+# 1146 passed (3319 assertions) — 0 régression
+```

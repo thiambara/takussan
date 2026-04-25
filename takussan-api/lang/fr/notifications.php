@@ -139,4 +139,12 @@ return [
         'effective' => 'Date d\'effet : :date.',
         'reason' => 'Motif : :reason',
     ],
+
+    'invoice_reminder_sent' => [
+        'subject' => 'Rappel — facture :reference en retard',
+        'greeting' => 'Bonjour,',
+        'intro' => 'La facture :reference est en retard de :days jours (échéance : :due_date).',
+        'amount' => 'Montant dû : :amount :currency.',
+        'cta' => 'Merci de procéder au règlement dès que possible pour éviter de nouveaux rappels.',
+    ],
 ];
