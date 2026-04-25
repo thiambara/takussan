@@ -3,8 +3,9 @@
 @php
     // Expected variables:
     //   $lease, $landlord, $tenant, $property, $agency, $guarantors (collection|array)
-    $currency = $lease->currency?->value ?? $lease->currency ?? 'XOF';
-    $fmt = fn ($n) => number_format((float) $n, 0, ',', ' ').' '.$currency;
+    // TCK-084 — currency follows the lease (locked at signature) with the
+    // agency's current currency as a fallback for legacy rows.
+    $currency = $lease->currency ?? $agency?->currency ?? 'XOF';
     $guarantors = $guarantors ?? collect();
     $start = $lease->start_date?->translatedFormat('d/m/Y') ?? '—';
     $end = $lease->end_date?->translatedFormat('d/m/Y') ?? 'indéterminée';
@@ -60,11 +61,11 @@
     <table class="kv">
         <tr>
             <th>Loyer mensuel</th>
-            <td class="amount"><strong>{{ $fmt($lease->monthly_rent) }}</strong></td>
+            <td class="amount"><strong>@currency($lease->monthly_rent, $currency)</strong></td>
         </tr>
         <tr>
             <th>Dépôt de garantie (caution)</th>
-            <td class="amount">{{ $fmt($lease->deposit_amount) }}</td>
+            <td class="amount">@currency($lease->deposit_amount, $currency)</td>
         </tr>
         <tr>
             <th>Fréquence de paiement</th>

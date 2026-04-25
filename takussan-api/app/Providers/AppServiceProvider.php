@@ -19,10 +19,12 @@ use App\Observers\ReviewObserver;
 use App\Observers\UserObserver;
 use App\Policies\MediaPolicy;
 use App\Policies\PropertyPolicy;
+use App\Services\Formatting\CurrencyFormatter;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -34,7 +36,12 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class AppServiceProvider extends ServiceProvider
 {
-    public function register(): void {}
+    public function register(): void
+    {
+        // TCK-084 — share a single CurrencyFormatter so both the Blade
+        // directive and any controller/service can resolve the same instance.
+        $this->app->singleton(CurrencyFormatter::class);
+    }
 
     public function boot(Dispatcher $events): void
     {
@@ -53,6 +60,14 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-074 — explicit bind so `$user->can('duplicate', $property)` resolves.
         Gate::policy(Property::class, PropertyPolicy::class);
+
+        // TCK-084 — `@currency($amount, $currency)` Blade directive used by
+        // PDF templates. Accepts either a Currency enum case or its string
+        // value so existing templates that thread `$invoice->currency` (a
+        // BackedEnum) keep compiling. Falls back to XOF for legacy rows.
+        Blade::directive('currency', function (string $expression): string {
+            return "<?php echo \\App\\Support\\Blade\\CurrencyDirective::render({$expression}); ?>";
+        });
 
         $events->listen(SocialiteWasCalled::class, 'SocialiteProviders\\Apple\\AppleExtendSocialite@handle');
         $events->listen(SocialiteWasCalled::class, 'SocialiteProviders\\Facebook\\FacebookExtendSocialite@handle');

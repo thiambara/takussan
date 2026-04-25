@@ -39,6 +39,14 @@
     "generic": "Am na jafe-jafe. Jéemat.",
     "unauthorized": "Dara tëj nga."
   },
+  "agency": {
+    "currency": {
+      "label": "Xaalis",
+      "placeholder": "Tànn xaalis",
+      "preview": "100 000 dañ koy wone ni: {example}",
+      "warningOnChange": "Soppi xaalis di jëf rekk ci yu bees yi (kër, baat, ak fay). Yi am ba tey, ci xaalis bu ñu jëkk a séddale lañu nekk."
+    }
+  },
   "compare": {
     "eyebrow": "Méengal",
     "title": "Méengal kër yi",

@@ -90,6 +90,14 @@
     "notFound": "Ressource introuvable.",
     "validation": "Certains champs sont invalides."
   },
+  "agency": {
+    "currency": {
+      "label": "Devise",
+      "placeholder": "Sélectionner une devise",
+      "preview": "100 000 sera affiché : {example}",
+      "warningOnChange": "Le changement de devise ne s’applique qu’aux nouveaux biens, baux et paiements. Les enregistrements existants conservent leur devise d’origine."
+    }
+  },
   "compare": {
     "eyebrow": "Comparateur",
     "title": "Comparer des biens",

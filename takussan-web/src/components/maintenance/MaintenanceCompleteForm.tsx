@@ -89,7 +89,7 @@ export function MaintenanceCompleteForm({
       <FormInput
         name="actual_cost"
         control={form.control}
-        label="Coût réel (XOF)"
+        label="Coût réel"
         type="number"
         min={0}
         step="100"

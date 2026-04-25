@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\Currency;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -22,7 +23,7 @@ class Agency extends AbstractModel implements HasMedia
 
     protected $fillable = [
         'name', 'slug', 'license_number', 'description',
-        'email', 'phone', 'website', 'commission_rate',
+        'email', 'phone', 'website', 'commission_rate', 'currency',
         'founded_at', 'is_verified', 'verified_at',
         'primary_admin_id', 'status', 'metadata', 'settings',
     ];
@@ -34,8 +35,13 @@ class Agency extends AbstractModel implements HasMedia
         'commission_rate' => 'decimal:2',
         'average_rating' => 'decimal:2',
         'status' => AgencyStatus::class,
+        'currency' => Currency::class,
         'metadata' => 'array',
         'settings' => 'array',
+    ];
+
+    protected $attributes = [
+        'currency' => 'XOF',
     ];
 
     protected static array $requestFilterable = ['status', 'is_verified', 'primary_admin_id'];
@@ -50,7 +56,7 @@ class Agency extends AbstractModel implements HasMedia
 
     protected static array $queryFields = [
         'id', 'name', 'slug', 'license_number', 'description',
-        'email', 'phone', 'website', 'commission_rate',
+        'email', 'phone', 'website', 'commission_rate', 'currency',
         'founded_at', 'is_verified', 'status', 'created_at', 'updated_at',
     ];
 
