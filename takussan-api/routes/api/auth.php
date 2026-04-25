@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Auth\AccountDeletionController;
 use App\Http\Controllers\Api\Auth\AppleOAuthController;
 use App\Http\Controllers\Api\Auth\FacebookOAuthController;
 use App\Http\Controllers\Api\UserAdminController;
@@ -70,6 +71,14 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     // Session management
     Route::get('/sessions', [SessionController::class, 'index']);
     Route::delete('/sessions/{tokenId}', [SessionController::class, 'destroy']);
+
+    // TCK-080 — RGPD self-service account deletion (request → grace → execute).
+    // Creating a request revokes ALL Sanctum tokens, so the throttle on POST
+    // is generous; DELETE/GET stay on the default API throttle.
+    Route::get('/me/deletion-request', [AccountDeletionController::class, 'show']);
+    Route::post('/me/deletion-request', [AccountDeletionController::class, 'store'])
+        ->middleware('throttle:5,10');
+    Route::delete('/me/deletion-request', [AccountDeletionController::class, 'destroy']);
 });
 
 // OAuth (public — SPA flow, state stored server-side via Cache).

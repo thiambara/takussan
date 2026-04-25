@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { TwoFactorSection } from './security/TwoFactorSection';
 import { PhoneVerificationSection } from './security/PhoneVerificationSection';
 import { ActiveSessionsSection } from './security/ActiveSessionsSection';
+import { AccountDeletionSection } from './security/AccountDeletionSection';
 
 /**
  * TCK-069 — Sécurité du profil :
@@ -11,6 +12,8 @@ import { ActiveSessionsSection } from './security/ActiveSessionsSection';
  *  - Authentification à deux facteurs (TOTP + recovery codes)
  *  - Vérification du téléphone par OTP SMS
  *  - Sessions actives (liste + révocation)
+ *
+ * TCK-080 — Suppression de compte (RGPD) avec délai de grâce.
  */
 export function ProfileSecuritySection() {
   const { user } = useAuth();
@@ -56,6 +59,8 @@ export function ProfileSecuritySection() {
       />
 
       <ActiveSessionsSection />
+
+      <AccountDeletionSection twoFactorEnabled={Boolean(user?.two_factor_enabled)} />
     </section>
   );
 }

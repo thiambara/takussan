@@ -100,6 +100,51 @@
       "clearAria": "Fommi méengal bi"
     }
   },
+  "account": {
+    "deletion": {
+      "section": {
+        "title": "Suufeel sama kont",
+        "description": "Suufeel bi sax-sax la, soo jeexee waxtu wi. Donné yu personnel anonimiser nañ leen, te donné yu jaadu téé yi nu kàllaaxoo.",
+        "cta": "Suufeel sama kont"
+      },
+      "dialog": {
+        "title": "Suufeel sa kont",
+        "step1Title": "Lu tax nga di dem ?",
+        "step1Description": "Tànn benn motif. Loolu dafa wax nu yokk Takussan.",
+        "step2Title": "Dëggal ak baatu jubaale",
+        "step2Description": "Ngir kaarange, dugal sa baatu jubaale ak, soo amee 2FA, dugal sa kod 2FA.",
+        "reasonOptions": {
+          "service_completed": "Pareelu naa jëfundikoo serbi bi",
+          "quality_issue": "Jafe-jafe ci kalité",
+          "privacy": "Soxla yu vie privée",
+          "other": "Yeneen"
+        },
+        "reasonOtherPlaceholder": "Wax tuuti motif bi (kenn la)",
+        "passwordLabel": "Baatu jubaale",
+        "twoFactorLabel": "Kod 2FA (6 ay nimero)",
+        "next": "Wàcc",
+        "back": "Dellu",
+        "confirmCta": "Suufeel sax-sax",
+        "obligationsTitle": "Am nga obligation yu nekk ci ñu",
+        "obligationsHint": "Defalu leen ba pare laata nga suufeel sa kont.",
+        "successTitle": "Nañu jot sa ndogal",
+        "successBody": "Sa kont di nañu ko suufeel ci {days} fan. Manga ko aju saa su nekk."
+      },
+      "banner": {
+        "title": "Suufeel bi tëju ci waxtu",
+        "message": "Sa kont di nañu ko suufeel ci {days} fan.",
+        "messageSingular": "Sa kont di nañu ko suufeel ëllëg.",
+        "messageToday": "Sa kont di nañu ko suufeel tey.",
+        "cancel": "Aju ndogal li"
+      },
+      "errors": {
+        "generic": "Am na njuumte, jéemal ko ba pare.",
+        "passwordInvalid": "Baatu jubaale dañ a doy.",
+        "twoFactorInvalid": "Kod 2FA dañ a doy.",
+        "obligations": "Am nga obligation yu nekk ci ñu te dañu mënul suufeel."
+      }
+    }
+  },
   "messaging": {
     "listHeading": "Waxtaan",
     "newGroup": "Bantu bu bees",
