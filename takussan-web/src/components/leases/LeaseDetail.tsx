@@ -133,7 +133,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
 
       <section>
         <h2 className="mb-3 text-sm font-semibold text-app-ink">Échéancier</h2>
-        <LeaseSchedule leaseId={leaseId} />
+        <LeaseSchedule leaseId={leaseId} agencyId={lease.agency_id ?? null} />
       </section>
 
       <GuarantorSection

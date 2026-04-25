@@ -150,5 +150,51 @@
       "removeAria": "Remove property #{id} from the comparator",
       "clearAria": "Clear comparator"
     }
+  },
+  "payments": {
+    "gateway": {
+      "button": {
+        "payOnline": "Pay online"
+      },
+      "picker": {
+        "title": "Select a payment method",
+        "description": "Choose the provider that will process this payment.",
+        "select": "Select",
+        "unavailable": "Unavailable — currency not supported or integration missing. Contact your administrator.",
+        "contactAdmin": "Contact admin",
+        "cancel": "Cancel",
+        "confirm": "Continue",
+        "redirecting": "Redirecting…"
+      },
+      "return": {
+        "success": {
+          "title": "Payment confirmed",
+          "body": "Thank you! Your payment has been recorded."
+        },
+        "failed": {
+          "title": "Payment failed",
+          "body": "The payment did not go through. You can try again."
+        },
+        "pending": {
+          "title": "Payment pending",
+          "body": "We are confirming the status with the provider — this may take a few seconds."
+        },
+        "unknown": {
+          "title": "Status unavailable",
+          "body": "We could not verify the status. Try again later."
+        },
+        "invalid": {
+          "title": "Invalid parameters",
+          "body": "Return link is malformed."
+        },
+        "actions": {
+          "backToPayments": "Back to payments",
+          "refresh": "Refresh"
+        }
+      },
+      "error": {
+        "generic": "Something went wrong, please try again."
+      }
+    }
   }
 }

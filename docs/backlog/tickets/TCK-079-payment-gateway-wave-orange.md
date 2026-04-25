@@ -1,7 +1,7 @@
 ---
 id: TCK-079
 title: "Passerelle de paiement Wave / Orange Money / Lemon Squeezy"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: XL
@@ -178,4 +178,10 @@ succès sans confirmation serveur.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Idempotence webhook** : pas de table dédiée — le journal des events est stocké dans `BookingPayment.metadata.gateway_events[]` (json existant). Évite une migration et garde la traçabilité co-localisée avec le paiement.
+- **Lemon Squeezy** : driver enveloppe le package `lemonsqueezy/laravel ^1.9` (trait `Billable` appliqué sur `Agency`). Le webhook public `webhooks/lemon-squeezy` est exposé par le package ; nous écoutons uniquement les events Laravel (`OrderCreated`, `OrderRefunded`) via `LemonSqueezyEventListener` qui appelle `PaymentGatewayService::handleLemonSqueezyEvent()`. Aucune re-vérification de signature côté local.
+- **Custom price LS** : `$billable->checkout($variantId)->withCustomPrice($amountCents)` — credentials (`store_id`, `api_key`, `signing_secret`, `variant_id`) chargés depuis `Integration.credentials` chiffré et injectés dans la config runtime du package avant chaque appel.
+- **Currency guard** : `wave`/`orange_money` n'acceptent que XOF ; `lemon_squeezy` rejette XOF (et toutes devises africaines). 422 retourné AVANT tout appel HTTP via `PaymentGatewayService::guardCurrency()`.
+- **PR** : feat/tck-079-payment-gateway → dev (à ouvrir).
+- **Tests** : 21 tests verts (4 fichiers : Initiate / Webhook / EventListener / Driver).
+- **Hors périmètre** assumé : pas d'UI admin pour configurer les credentials (TCK-068), pas de remboursement en ligne, pas de conversion multi-devises.
