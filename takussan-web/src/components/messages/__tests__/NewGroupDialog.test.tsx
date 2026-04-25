@@ -81,7 +81,7 @@ describe('<NewGroupDialog>', () => {
     expect(mutateAsyncMock).toHaveBeenCalledWith({
       type: 'group',
       subject: 'Visite Almadies',
-      participant_ids: [5, 6],
+      participants: [5, 6],
     });
     expect(onCreated).toHaveBeenCalledWith(99);
     expect(onClose).toHaveBeenCalled();

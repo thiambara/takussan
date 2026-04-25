@@ -191,7 +191,7 @@ export function useUploadAttachment(conversationId: number, messageId: number) {
 export type CreateGroupConversationPayload = {
   type: 'group';
   subject: string;
-  participant_ids: number[];
+  participants: number[];
   property_id?: number;
   lease_id?: number;
   maintenance_request_id?: number;

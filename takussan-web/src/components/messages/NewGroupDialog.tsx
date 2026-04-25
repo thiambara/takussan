@@ -116,7 +116,7 @@ export function NewGroupDialog({
     const payload: CreateGroupConversationPayload = {
       type: 'group',
       subject: subject.trim(),
-      participant_ids: participants,
+      participants,
     };
     if (propertyId) payload.property_id = Number(propertyId);
     if (leaseId) payload.lease_id = Number(leaseId);
