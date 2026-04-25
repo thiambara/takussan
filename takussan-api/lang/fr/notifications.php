@@ -62,7 +62,7 @@ return [
         'greeting' => 'Bonjour,',
         'intro' => 'Votre tâche « :title » est due demain à :datetime.',
     ],
-  
+
     'account_deletion_requested' => [
         'subject' => 'Demande de suppression de compte enregistrée',
         'greeting' => 'Bonjour,',
@@ -87,7 +87,7 @@ return [
         'retention' => 'Conformément à nos obligations légales, certains enregistrements comptables (paiements, factures) sont conservés sous forme anonyme pendant 10 ans.',
         'contact' => 'Pour toute question, contactez notre service client.',
     ],
-  
+
     'conversation_invite' => [
         'subject' => 'Invitation à un groupe : :subject',
         'greeting' => 'Bonjour,',
