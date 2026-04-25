@@ -129,6 +129,11 @@ class Property extends AbstractModel implements HasMedia
             && $this->status !== PropertyStatus::Draft;
     }
 
+    public function scopeRoots(Builder $query): Builder
+    {
+        return $query->whereNull('parent_id');
+    }
+
     public function scopePublic(Builder $query): Builder
     {
         return $query->where('visibility', PropertyVisibility::Public)
