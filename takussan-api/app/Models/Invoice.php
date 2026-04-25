@@ -22,6 +22,7 @@ class Invoice extends AbstractModel
         'issue_date', 'due_date',
         'subtotal', 'tax_rate', 'tax_amount', 'total_amount', 'currency',
         'notes', 'metadata',
+        'last_reminder_sent_at', 'reminders_sent_count',
     ];
 
     protected $casts = [
@@ -34,6 +35,8 @@ class Invoice extends AbstractModel
         'tax_amount' => 'decimal:2',
         'total_amount' => 'decimal:2',
         'metadata' => 'array',
+        'last_reminder_sent_at' => 'datetime',
+        'reminders_sent_count' => 'integer',
     ];
 
     protected static array $requestFilterable = ['customer_id', 'issued_by_id', 'agency_id', 'status', 'currency', 'invoiceable_type'];
@@ -47,7 +50,8 @@ class Invoice extends AbstractModel
         'invoiceable_id', 'invoiceable_type',
         'reference_number', 'status', 'issue_date', 'due_date',
         'subtotal', 'tax_rate', 'tax_amount', 'total_amount', 'currency',
-        'notes', 'created_at', 'updated_at',
+        'notes', 'last_reminder_sent_at', 'reminders_sent_count',
+        'created_at', 'updated_at',
     ];
 
     protected static function booted(): void

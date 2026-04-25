@@ -131,4 +131,12 @@ return [
             'intro' => 'Lease :reference has been closed as of :date.',
         ],
     ],
+
+    'invoice_reminder_sent' => [
+        'subject' => 'Reminder — invoice :reference overdue',
+        'greeting' => 'Hello,',
+        'intro' => 'Invoice :reference is :days days overdue (due date: :due_date).',
+        'amount' => 'Amount due: :amount :currency.',
+        'cta' => 'Please settle the invoice as soon as possible to avoid further reminders.',
+    ],
 ];

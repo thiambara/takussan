@@ -110,4 +110,12 @@ return [
             'intro' => 'Luwé :reference jeex na — bisu :date.',
         ],
     ],
+
+    'invoice_reminder_sent' => [
+        'subject' => 'Faalewu — fakture :reference dafa yengul',
+        'greeting' => 'Salaam,',
+        'intro' => 'Fakture :reference yengul na :days fan (échéance : :due_date).',
+        'amount' => 'Mbooloom dëgg : :amount :currency.',
+        'cta' => 'Bëgg na nga fey ko ba leegi ngir bañ jot beneen faalewu.',
+    ],
 ];
