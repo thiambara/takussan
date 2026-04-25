@@ -1,12 +1,12 @@
 ---
 id: TCK-090
 title: "Résiliation anticipée + pénalités"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: M
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-25
 depends_on: [TCK-027, TCK-028]
 blocks: []
 spec_refs:
@@ -165,4 +165,84 @@ pattern".
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Implémentation 2026-04-25** :
+
+- **Enum `LeaseStatus::Terminating` ajouté** (PHP enum case `Terminating` →
+  string `terminating`). C'est un nouveau case ; pas de migration enum côté
+  DB grâce au cast Eloquent vers string. `LeasesList.tsx` /
+  `LeaseDetail.tsx` ont été élargis pour mapper le nouveau statut au label
+  "Résiliation en cours" sans casser le typage `Record<LeaseStatus, …>`.
+- **InvoiceStatus utilisé : `Sent`, pas `pending`**. Le ticket parle d'un
+  invoice "en statut `pending`" mais l'enum local n'a pas de case `Pending`
+  (Draft / Sent / Paid / Overdue / Cancelled / Void). On pose la facture en
+  `Sent` (= émise, attend paiement) — sémantiquement équivalent. Annulation
+  de la résiliation → invoice flippe à `Cancelled` (pas supprimée).
+- **Période de cancellation** : tant que `effective_date > today` ET
+  l'invoice n'est pas `Paid`. L'AC parle de "non payée" — j'ai gardé la
+  vérification permissive (toute transition vers Paid bloque l'annulation),
+  même si l'invoice était passée par Cancelled puis "ressuscitée" — vu la
+  surface, ce cas n'arrive pas en pratique.
+- **Service `EarlyTerminationService`** publie une méthode `computePenalty()`
+  publique pour permettre une estimation client/serveur sans ouvrir la
+  requête (utile pour le wizard frontend en preview). Le frontend re-calcule
+  côté client la même formule (cap `min(setting_months, months_remaining)`)
+  pour le feedback live ; le serveur reste autoritaire au moment de
+  `request()`.
+- **Setting `lease.early_termination_penalty_months`** lu via le modèle
+  `Setting` (clé/valeur JSON). Default = 2 si la clé n'existe pas. Pas de
+  surcharge par bail dans cette V1 — la colonne dédiée mentionnée dans le
+  ticket reste un follow-up.
+- **Notice par défaut = 30 jours**. Le ticket mentionne "30 ou 60" — la
+  config par bail (`notice_period_days`) écrase cette valeur quand elle est
+  posée. La constante `EarlyTerminationService::DEFAULT_NOTICE_DAYS` la
+  centralise pour les deux côtés.
+- **Listener unique `NotifyOnEarlyTermination`** avec `handleRequested` /
+  `handleCancelled` / `handleConfirmed` plutôt que trois listeners séparés.
+  Une seule classe `LeaseEarlyTerminationNotification` paramétrée par
+  `transition` ; les translations sont groupées sous
+  `notifications.lease_early_termination.{transition}.*`. Économie d'~150
+  lignes pour zéro perte de surface API.
+- **Permission `leases.terminate`** créée via `RolesAndPermissionsSeeder` et
+  attribuée à `agency_admin` / `agent` / `owner`. Le **tenant** peut
+  initier sur SON propre bail sans cette permission (court-circuit dans
+  `LeasePolicy::requestEarlyTermination` via `tenant.user_id === user.id`),
+  comme demandé par la spec ("locataire ne peut résilier que son propre
+  bail"). La confirmation finale (`confirm`) reste agency-side uniquement —
+  un locataire ne marque pas son propre bail comme définitivement clôturé.
+- **Job `ConfirmEarlyTerminationsJob`** schedulé `daily()->at('03:00')`
+  (créneau libre — `ApplyLateFeesJob` à 02:00, `media:cleanup` à 03:00 ne
+  conflicte pas). Le job avale `ValidationException` sur les leases dont
+  l'invoice n'est pas payée ou la date pas atteinte — idempotent : la prochaine
+  passe ré-essaiera.
+- **Index `leases_status_early_termination_idx`** sur `(status,
+  early_termination_effective_date)` — borne le scan du job au sous-ensemble
+  `terminating` au lieu d'un table-scan complet.
+- **Tests**:
+  - Backend : 12 (`EarlyTerminationServiceTest`) + 8
+    (`LeaseEarlyTerminationEndpointTest`) + 4
+    (`ConfirmEarlyTerminationsJobTest`) = **24 verts ciblés**.
+  - Suite complète backend : 1130 verts (177 s) — aucune régression.
+  - Frontend : 4 (`EarlyTerminationDialog`) + 3 (`EarlyTerminationBanner`) =
+    7 verts ciblés. Suite Vitest complète : 382 verts.
+- **Pré-existants conservés non-bloquants** : `tsc` lève toujours les
+  erreurs déjà héritées (`ConversationInfoSheet` exports manquants TCK-085,
+  `SignaturePad.test.tsx` typing canvas TCK-076, divers tests `properties`/
+  `admin-queries` tuple typing). Pas de nouvelle erreur TCK-090.
+- **Notification::fake() dans les tests** : la table `notifications`
+  (Laravel default) n'est pas migrée dans ce projet — l'audit
+  notifications utilise `app_notifications` (TCK-022). Comme mon listener
+  notifie `tenant.user + landlord` (et `landlord` est toujours un User dans
+  les scaffolds), j'ai dû `Notification::fake()` au `setUp` pour que la
+  méthode `Notification::send` court-circuite avant la table inexistante.
+  Les anciens listeners (`NotifyTenantOfRenewal`, `NotifyTenantOfDepositRefund`)
+  contournaient le problème en early-returnant quand `tenant.user === null`
+  — mais ils ne notifient pas le bailleur, donc ne valident pas le full
+  cas du spec. À considérer comme dette : ajouter une migration
+  `notifications` Laravel par défaut quand un autre ticket touchera au sujet.
+- **Hotfixes TCK-089 stashés** : 3 fichiers frontend modifiés post-merge
+  TCK-089 (provider hoisting `app/layout.tsx`, `(public)/layout.tsx`
+  passthrough, `properties.ts` retrait `'use client'` + `main_photo_url`)
+  étaient sur `dev` non commités au début de TCK-090. Ils ont été stashés
+  (`git stash list` → `tck-089-post-merge-hotfixes`) pour ne pas polluer
+  cette PR — à restaurer dans une PR distincte ou à intégrer dans le
+  prochain ticket touchant au layout dashboard.

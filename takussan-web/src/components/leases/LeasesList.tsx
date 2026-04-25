@@ -13,6 +13,8 @@ const STATUS_LABEL: Record<LeaseStatus, string> = {
   pending_signature: 'À signer',
   active: 'Actif',
   expired: 'Expiré',
+  // TCK-090
+  terminating: 'Résiliation en cours',
   terminated: 'Résilié',
   renewed: 'Renouvelé',
 };
@@ -25,6 +27,7 @@ const STATUS_VARIANT: Record<
   pending_signature: 'outline',
   active: 'default',
   expired: 'secondary',
+  terminating: 'outline',
   terminated: 'destructive',
   renewed: 'secondary',
 };

@@ -332,3 +332,46 @@ export function useLeaseChain(leaseId: number | null | undefined) {
     },
   );
 }
+
+// TCK-090 — Résiliation anticipée + pénalités.
+export type RequestEarlyTerminationPayload = {
+  effective_date: string;
+  reason?: string;
+  requested_by_role?: string;
+};
+
+export function useRequestEarlyTermination(leaseId: number) {
+  return useApiMutation<ApiResponse<Lease>, RequestEarlyTerminationPayload>(
+    { path: `/api/leases/${leaseId}/early-termination`, method: 'POST' },
+    {
+      invalidate: [
+        ['leases', 'detail', leaseId],
+        ['leases', 'list'],
+      ],
+    },
+  );
+}
+
+export function useCancelEarlyTermination(leaseId: number) {
+  return useApiMutation<ApiResponse<Lease>, void>(
+    { path: `/api/leases/${leaseId}/early-termination`, method: 'DELETE' },
+    {
+      invalidate: [
+        ['leases', 'detail', leaseId],
+        ['leases', 'list'],
+      ],
+    },
+  );
+}
+
+export function useConfirmEarlyTermination(leaseId: number) {
+  return useApiMutation<ApiResponse<Lease>, void>(
+    { path: `/api/leases/${leaseId}/early-termination/confirm`, method: 'POST' },
+    {
+      invalidate: [
+        ['leases', 'detail', leaseId],
+        ['leases', 'list'],
+      ],
+    },
+  );
+}

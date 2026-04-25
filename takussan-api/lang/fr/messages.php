@@ -48,6 +48,18 @@ return [
     'deposit_refund_payout_note' => 'Remboursement de caution — bail :reference',
     'deposit_retention_invoice_line' => 'Retenue caution — :reason',
 
+    // Lease — early termination (TCK-090)
+    'lease_early_termination_status_not_requestable' => 'Seuls les baux actifs ou expirés peuvent être résiliés par anticipation.',
+    'lease_early_termination_already_in_progress' => 'Une résiliation anticipée est déjà en cours sur ce bail.',
+    'lease_early_termination_notice_too_short' => 'Le préavis minimum n\'est pas respecté. La date effective doit être au plus tôt le :min.',
+    'lease_early_termination_after_end_date' => 'La date effective doit être strictement antérieure à la fin contractuelle. Utilisez la fin de bail normale.',
+    'lease_early_termination_not_in_progress' => 'Aucune résiliation anticipée en cours sur ce bail.',
+    'lease_early_termination_window_closed' => 'La fenêtre d\'annulation est dépassée — la date effective est passée.',
+    'lease_early_termination_penalty_paid' => 'Les pénalités ont déjà été réglées — la résiliation ne peut plus être annulée.',
+    'lease_early_termination_penalty_unpaid' => 'Les pénalités doivent être réglées avant de finaliser la résiliation.',
+    'lease_early_termination_too_early' => 'La date effective n\'est pas encore atteinte.',
+    'lease_early_termination_invoice_line' => 'Pénalité de résiliation anticipée — bail :reference (effet le :effective)',
+
     // Notifications
     'new_maintenance_title' => 'Nouvelle demande de maintenance',
     'new_maintenance_body' => 'Une demande de maintenance a été soumise pour :property.',

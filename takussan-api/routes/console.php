@@ -2,6 +2,7 @@
 
 use App\Jobs\ExpireBookings;
 use App\Jobs\Lease\ApplyLateFeesJob;
+use App\Jobs\Lease\ConfirmEarlyTerminationsJob;
 use App\Jobs\SendDailyNotificationDigest;
 use App\Jobs\SendLeasePaymentReminders;
 use App\Jobs\SendOverdueInvoiceReminders;
@@ -17,6 +18,10 @@ Artisan::command('inspire', function () {
 
 Schedule::job(new ExpireBookings)->hourly()->withoutOverlapping();
 Schedule::job(new ApplyLateFeesJob)->dailyAt('02:00')->withoutOverlapping();
+// TCK-090 — Closes leases whose effective_date has passed AND whose
+// penalty invoice is settled. Idempotent: unpaid penalties are skipped
+// silently and reprocessed on the next sweep.
+Schedule::job(new ConfirmEarlyTerminationsJob)->dailyAt('03:00')->withoutOverlapping();
 Schedule::job(new SendLeasePaymentReminders)->dailyAt('08:00');
 Schedule::job(new SendSavedSearchAlerts)->dailyAt('09:00');
 // TCK-075 — Runs every 5 minutes to flush reminders for both the 24h and 1h
