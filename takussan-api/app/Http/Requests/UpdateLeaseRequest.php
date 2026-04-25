@@ -33,17 +33,24 @@ class UpdateLeaseRequest extends BaseFormRequest
     }
 
     /**
-     * TCK-091 — Reject `monthly_rent` in the generic PATCH payload to
-     * make sure every rent change goes through the dedicated rent-review
-     * endpoint (which enforces variation guards, journals the change in
-     * the activity log, and notifies the tenant).
+     * TCK-091 — Reject `monthly_rent` (and `sale_price`) in the generic
+     * PATCH payload so every rent change flows through the dedicated
+     * rent-review endpoint (which enforces variation guards, journals
+     * the change in the activity log, and notifies the tenant). The
+     * error is reported on the actual offending key(s) so the frontend
+     * can highlight the right field.
      */
     protected function passedValidation(): void
     {
-        if ($this->has('monthly_rent') || $this->has('sale_price')) {
-            throw ValidationException::withMessages([
-                'monthly_rent' => [__('messages.lease_rent_use_dedicated_endpoint')],
-            ])->status(422);
+        $offending = [];
+        foreach (['monthly_rent', 'sale_price'] as $key) {
+            if ($this->has($key)) {
+                $offending[$key] = [__('messages.lease_rent_use_dedicated_endpoint')];
+            }
+        }
+
+        if ($offending !== []) {
+            throw ValidationException::withMessages($offending)->status(422);
         }
     }
 

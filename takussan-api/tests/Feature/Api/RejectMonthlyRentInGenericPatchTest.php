@@ -48,9 +48,15 @@ class RejectMonthlyRentInGenericPatchTest extends TestCase
         [$landlord, $lease] = $this->scaffold();
         Sanctum::actingAs($landlord);
 
-        $this->patchJson("/api/leases/{$lease->id}", [
+        $response = $this->patchJson("/api/leases/{$lease->id}", [
             'sale_price' => 50_000_000,
         ])->assertStatus(422);
+
+        // The error must point at the actual offending key so the
+        // frontend can highlight the right field.
+        $errors = $response->json('errors') ?? [];
+        $this->assertArrayHasKey('sale_price', $errors);
+        $this->assertArrayNotHasKey('monthly_rent', $errors);
     }
 
     public function test_generic_patch_still_accepts_late_fee_config(): void

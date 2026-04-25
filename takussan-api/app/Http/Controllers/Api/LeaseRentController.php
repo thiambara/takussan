@@ -44,7 +44,6 @@ class LeaseRentController extends Controller
         $perPage = max(1, min((int) $request->input('per_page', 20), 100));
 
         $paginator = Activity::query()
-            ->with('causer')
             ->where('subject_type', Lease::class)
             ->where('subject_id', $lease->id)
             ->where('event', 'lease_rent_reviewed')
