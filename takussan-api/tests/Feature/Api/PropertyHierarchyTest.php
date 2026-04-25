@@ -155,4 +155,24 @@ class PropertyHierarchyTest extends TestCase
         $this->assertSame(1, $svc->depth($root->refresh()));
         $this->assertSame(2, $svc->depth($mid->refresh()->load('parent')));
     }
+
+    public function test_subtree_height_terminates_on_cyclic_data(): void
+    {
+        // Defensive regression: if a cycle ever slips past validation (direct
+        // DB insert, raw SQL, …), `subtreeHeight` must terminate via the
+        // traversal budget instead of recursing until stack overflow.
+        $agency = Agency::factory()->create();
+        $user = User::factory()->create(['agency_id' => $agency->id]);
+
+        $a = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id]);
+        $b = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id, 'parent_id' => $a->id]);
+
+        // Bypass validation to wire A → B → A (B is A's child, A is B's child).
+        Property::query()->whereKey($a->id)->update(['parent_id' => $b->id]);
+
+        $height = app(HierarchyService::class)->subtreeHeight($a->refresh());
+
+        $this->assertGreaterThan(0, $height);
+        $this->assertLessThanOrEqual(HierarchyService::TRAVERSAL_HARD_CAP + 1, $height);
+    }
 }

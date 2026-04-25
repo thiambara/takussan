@@ -78,12 +78,21 @@ class HierarchyService
     /**
      * Height of the subtree rooted at $node (1 if leaf, 2 if has direct
      * children only, etc.). Used to enforce MAX_DEPTH on re-parenting.
+     *
+     * The remaining-budget parameter mirrors `descendants()` /  `ancestors()`'s
+     * `TRAVERSAL_HARD_CAP`: it bounds the recursion in case pathological data
+     * (a cycle that slipped past validation, a direct DB insert) ever forms a
+     * loop in `children`.
      */
-    public function subtreeHeight(Property $node): int
+    public function subtreeHeight(Property $node, int $budget = self::TRAVERSAL_HARD_CAP): int
     {
+        if ($budget <= 0) {
+            return 1;
+        }
+
         $maxChildHeight = 0;
         foreach ($node->children as $child) {
-            $height = $this->subtreeHeight($child);
+            $height = $this->subtreeHeight($child, $budget - 1);
             if ($height > $maxChildHeight) {
                 $maxChildHeight = $height;
             }
