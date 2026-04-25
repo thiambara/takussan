@@ -58,4 +58,15 @@ return [
     'lease_early_termination_penalty_unpaid' => 'Pénalités yi war nañu fey bala luwé bi jeex.',
     'lease_early_termination_too_early' => 'Bisu njëlbeen bi agsiwul ba tey.',
     'lease_early_termination_invoice_line' => 'Pénalité tas bu jëkk — luwé :reference (njëlbeen :effective)',
+
+    // Lease — rent review (TCK-091)
+    'lease_rent_review_status_not_reviewable' => 'Luwé yi jàpp rekk la ñu mën a yeesalaat layeer bi.',
+    'lease_rent_review_reason_required' => 'Mboor mu jaadu, 5 ba 500 caractères.',
+    'lease_rent_review_invalid_amount' => 'Layeer bu bees bi war a doon yu gen 0.',
+    'lease_rent_review_no_baseline' => 'Luwé bii amul layeer mensuel — du nu mën a yeesalaat.',
+    'lease_rent_review_variation_excessive' => 'Variation gënal seuil bi ( :max % ). Variation : :variation %. Yónnee force=true su nga am permission.',
+    'lease_rent_review_force_not_allowed' => 'Amuloo ndimbal ngir forcer variation bu kawe (leases.rent_review_force).',
+    'lease_rent_review_no_back_dating' => 'Bisu njëlbeen bi du wàcc ci ginnaaw tey.',
+    'lease_rent_review_effective_date_invalid' => 'Bisu njëlbeen bi baaxul.',
+    'lease_rent_use_dedicated_endpoint' => 'Layeer war na soppi ci PATCH /api/leases/{id}/rent ngir traçabilité.',
 ];

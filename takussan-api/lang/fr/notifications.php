@@ -131,4 +131,12 @@ return [
             'intro' => 'Le bail :reference est désormais clôturé à compter du :date.',
         ],
     ],
+
+    'lease_rent_reviewed' => [
+        'subject' => 'Révision du loyer — bail :reference',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Le loyer mensuel du bail :reference a été révisé : :old → :new :currency.',
+        'effective' => 'Date d\'effet : :date.',
+        'reason' => 'Motif : :reason',
+    ],
 ];

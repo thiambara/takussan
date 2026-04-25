@@ -131,4 +131,12 @@ return [
             'intro' => 'Lease :reference has been closed as of :date.',
         ],
     ],
+
+    'lease_rent_reviewed' => [
+        'subject' => 'Rent review — lease :reference',
+        'greeting' => 'Hello,',
+        'intro' => 'The monthly rent of lease :reference has been reviewed: :old → :new :currency.',
+        'effective' => 'Effective date: :date.',
+        'reason' => 'Reason: :reason',
+    ],
 ];

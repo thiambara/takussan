@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\LeaseDepositRefundController;
 use App\Http\Controllers\Api\LeaseEarlyTerminationController;
 use App\Http\Controllers\Api\LeasePaymentController;
 use App\Http\Controllers\Api\LeaseRenewalController;
+use App\Http\Controllers\Api\LeaseRentController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -36,6 +37,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('leases/{lease}/early-termination', [LeaseEarlyTerminationController::class, 'store'])->name('leases.early-termination.store');
     Route::delete('leases/{lease}/early-termination', [LeaseEarlyTerminationController::class, 'destroy'])->name('leases.early-termination.destroy');
     Route::post('leases/{lease}/early-termination/confirm', [LeaseEarlyTerminationController::class, 'confirm'])->name('leases.early-termination.confirm');
+
+    // TCK-091 — Rent review on an active lease. The generic
+    // `LeaseController@update` deliberately rejects `monthly_rent` so
+    // that every rent change flows through this dedicated endpoint and
+    // gets journaled in the activity log.
+    Route::patch('leases/{lease}/rent', [LeaseRentController::class, 'update'])->name('leases.rent.update');
+    Route::get('leases/{lease}/rent-history', [LeaseRentController::class, 'index'])->name('leases.rent-history.index');
 
     // Nested payments
     Route::get('leases/{lease}/payments', [LeasePaymentController::class, 'index'])->name('leases.payments.index');

@@ -60,6 +60,17 @@ return [
     'lease_early_termination_too_early' => 'La date effective n\'est pas encore atteinte.',
     'lease_early_termination_invoice_line' => 'Pénalité de résiliation anticipée — bail :reference (effet le :effective)',
 
+    // Lease — rent review (TCK-091)
+    'lease_rent_review_status_not_reviewable' => 'Seuls les baux actifs peuvent faire l\'objet d\'une révision de loyer.',
+    'lease_rent_review_reason_required' => 'Le motif est obligatoire (entre 5 et 500 caractères).',
+    'lease_rent_review_invalid_amount' => 'Le nouveau loyer doit être strictement supérieur à zéro.',
+    'lease_rent_review_no_baseline' => 'Le bail ne possède pas de loyer mensuel — révision impossible.',
+    'lease_rent_review_variation_excessive' => 'Variation supérieure au seuil autorisé (:max %). Variation calculée : :variation %. Repassez avec force=true si vous avez la permission requise.',
+    'lease_rent_review_force_not_allowed' => 'Vous n\'avez pas la permission de forcer une variation excessive (leases.rent_review_force).',
+    'lease_rent_review_no_back_dating' => 'La date d\'effet ne peut pas être antérieure à aujourd\'hui.',
+    'lease_rent_review_effective_date_invalid' => 'La date d\'effet est invalide.',
+    'lease_rent_use_dedicated_endpoint' => 'Le loyer doit être modifié via PATCH /api/leases/{id}/rent pour garantir la traçabilité.',
+
     // Notifications
     'new_maintenance_title' => 'Nouvelle demande de maintenance',
     'new_maintenance_body' => 'Une demande de maintenance a été soumise pour :property.',

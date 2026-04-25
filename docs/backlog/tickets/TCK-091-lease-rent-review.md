@@ -1,12 +1,12 @@
 ---
 id: TCK-091
 title: "Révision annuelle du loyer"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: S
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-25
 depends_on: [TCK-027, TCK-018]
 blocks: []
 spec_refs:
@@ -137,4 +137,52 @@ d'un ticket UI dédié si nécessaire._
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Décisions non triviales
+
+- **Statut éligible réduit à `Active`.** La spec mentionne
+  `[active, ending_soon]`, mais `LeaseStatus` n'a pas de cas
+  `ending_soon`. Implémenté avec `Active` uniquement (constante
+  `RentReviewService::REVIEWABLE_STATUSES`) ; si un cas `EndingSoon` est
+  introduit plus tard (ou un statut dérivé `is_ending_soon` calculé sur
+  `end_date`), il suffira de l'ajouter à la constante.
+- **Effective_date `>= today` accepté.** La règle "Pas de back-dating"
+  rejette les dates strictement antérieures à `today` ; la date du jour
+  est valide. Une date future est autorisée et journalisée — la mise à
+  jour de `monthly_rent` est immédiate (la spec laisse au job de
+  génération de loyers le soin de prendre en compte la date d'effet
+  comme cut-off, hors périmètre TCK-091).
+- **Variation `> max_pct + 0.0001` au lieu de `> max_pct`.** Tolérance
+  flottante minuscule pour éviter qu'une variation calculée à
+  19.99999999 % soit considérée hors plafond.
+- **Permission `force` exigée même si `force=true` est passé sans
+  variation excessive.** En pratique, le branch `force_not_allowed`
+  n'est exécuté que si la variation dépasse réellement le seuil — un
+  utilisateur sans la permission peut quand même envoyer `force=true`
+  tant que la variation reste sous le seuil (pas d'effet).
+- **`UpdateLeaseRequest` rejette `monthly_rent` ET `sale_price`** dans
+  `passedValidation()` (après les rules) — un AC distinct n'a pas été
+  demandé pour `sale_price`, mais le ticket TCK-027 expose la même
+  contrainte de traçabilité ; le test couvre les deux pour éviter une
+  régression silencieuse.
+- **AllowedFilter spatie non utilisé sur `/rent-history`.** Le
+  paginator natif suffit (filtre fixe par lease + event), `Spatie\
+  QueryBuilder` n'apporterait que de la complexité ; l'AC7 est couvert
+  par l'order desc + le sparse fields hardcodé du controller.
+
+### Hooks tests
+
+`Notification::fake()` est appelé dans `setUp()` des 3 fichiers de
+test qui exercent le listener (le projet ne ship pas la table
+`notifications` par défaut). `RolesAndPermissionsSeeder` est seedé
+dans `RentReviewServiceTest::setUp()` pour que
+`givePermissionTo('leases.rent_review_force')` résolve la permission.
+
+### Tests
+
+```
+php artisan test --filter='RentReviewServiceTest|LeaseRentEndpointTest|LeaseRentHistoryEndpointTest|RejectMonthlyRentInGenericPatchTest'
+# 23 passed (51 assertions)
+
+php artisan test
+# 1128 passed (3265 assertions) — 0 régression
+```

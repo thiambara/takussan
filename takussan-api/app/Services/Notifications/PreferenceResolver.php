@@ -50,6 +50,8 @@ class PreferenceResolver
         // TCK-090 — fired on every early-termination transition
         // (requested / cancelled / confirmed).
         'lease_early_termination',
+        // TCK-091 — fired when the rent on an active lease is reviewed.
+        'lease_rent_reviewed',
         'maintenance_status_changed',
         'review_received',
         'saved_search_match',
