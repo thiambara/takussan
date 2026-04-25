@@ -9,6 +9,7 @@ use App\Models\LeasePayment;
 use App\Models\Setting;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\DB;
 
 /**
  * TCK-087 — Calculates and applies late-fee penalties on overdue lease
@@ -112,25 +113,40 @@ class LateFeeCalculator
         $percent = (float) ($payment->lease->late_fee_percent ?? 0);
         $base = $this->base($payment);
 
-        $payment->forceFill([
-            'late_fee_amount' => $amount,
-            'late_fee_applied_at' => $now,
-            'status' => PaymentStatus::Late,
-        ])->save();
+        // Guard against concurrent invocations (manual dispatch outside the
+        // scheduler's `withoutOverlapping` lock) by re-checking inside a
+        // row-level transaction. Without this, two workers can both read
+        // `late_fee_applied_at = null` and both write a fee.
+        return DB::transaction(function () use ($payment, $now, $amount, $percent, $base) {
+            $locked = LeasePayment::query()
+                ->whereKey($payment->id)
+                ->lockForUpdate()
+                ->first();
 
-        activity('LeasePayment')
-            ->performedOn($payment)
-            ->withProperties([
-                'amount' => $amount,
-                'percent' => $percent,
-                'base' => $base,
-            ])
-            ->event('late_fee_applied')
-            ->log('late_fee_applied');
+            if ($locked === null || $locked->late_fee_applied_at !== null) {
+                return 0.0;
+            }
 
-        LeasePaymentLateFeeApplied::dispatch($payment->fresh(), $amount, $percent, $base);
+            $locked->forceFill([
+                'late_fee_amount' => $amount,
+                'late_fee_applied_at' => $now,
+                'status' => PaymentStatus::Late,
+            ])->save();
 
-        return $amount;
+            activity('LeasePayment')
+                ->performedOn($locked)
+                ->withProperties([
+                    'amount' => $amount,
+                    'percent' => $percent,
+                    'base' => $base,
+                ])
+                ->event('late_fee_applied')
+                ->log('late_fee_applied');
+
+            LeasePaymentLateFeeApplied::dispatch($locked->fresh(), $amount, $percent, $base);
+
+            return $amount;
+        });
     }
 
     /**

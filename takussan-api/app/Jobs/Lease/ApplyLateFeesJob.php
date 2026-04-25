@@ -3,6 +3,7 @@
 namespace App\Jobs\Lease;
 
 use App\Models\Enums\PaymentStatus;
+use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Services\Lease\LateFeeCalculator;
 use Carbon\Carbon;
@@ -27,9 +28,13 @@ class ApplyLateFeesJob implements ShouldQueue
         $now = now();
         $applied = 0;
 
-        $agencyIds = LeasePayment::query()
-            ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
-            ->select('leases.agency_id')
+        // Restrict to agencies that actually have leases configured for late
+        // fees — keeps the per-agency fan-out bounded on tenants that haven't
+        // opted in.
+        $agencyIds = Lease::query()
+            ->whereNotNull('late_fee_percent')
+            ->where('late_fee_percent', '>', 0)
+            ->select('agency_id')
             ->distinct()
             ->pluck('agency_id');
 
