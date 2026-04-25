@@ -29,10 +29,15 @@ class ConfirmEarlyTerminationsJob implements ShouldQueue
         $today = now()->startOfDay()->toDateString();
         $confirmed = 0;
 
+        // `early_termination_effective_date` is a DATE column — comparing
+        // it directly against the date string keeps the planner on
+        // `leases_status_early_termination_idx`. Wrapping the column in
+        // `whereDate(...)` forces a function call on every row and skips
+        // the index on PostgreSQL.
         Lease::query()
             ->where('status', LeaseStatus::Terminating->value)
             ->whereNotNull('early_termination_effective_date')
-            ->whereDate('early_termination_effective_date', '<=', $today)
+            ->where('early_termination_effective_date', '<=', $today)
             ->orderBy('id')
             ->chunkById(100, function ($chunk) use ($service, &$confirmed) {
                 foreach ($chunk as $lease) {

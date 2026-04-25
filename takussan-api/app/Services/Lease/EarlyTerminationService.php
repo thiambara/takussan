@@ -139,7 +139,15 @@ class EarlyTerminationService
                 ])->status(422);
             }
 
-            if ($this->isPenaltyPaid($lease)) {
+            // Lock the penalty invoice (when present) before checking its
+            // status: without the lock, a payment processor could flip
+            // Sent → Paid in a parallel transaction between this guard and
+            // the void below, and we'd cancel a paid invoice. The lease
+            // lock above is not enough — payments don't touch the lease row.
+            $invoiceId = $lease->early_termination_invoice_id;
+            $invoice = $invoiceId ? Invoice::query()->lockForUpdate()->find($invoiceId) : null;
+
+            if ($invoice && $invoice->status === InvoiceStatus::Paid) {
                 throw ValidationException::withMessages([
                     'invoice' => [__('messages.lease_early_termination_penalty_paid')],
                 ])->status(422);
@@ -148,12 +156,8 @@ class EarlyTerminationService
             // Void the pending penalty invoice if it exists; we keep the row
             // for audit (rather than delete it) and the cancelled state is
             // documented in `Invoice::booted` transitions.
-            $invoiceId = $lease->early_termination_invoice_id;
-            if ($invoiceId) {
-                $invoice = Invoice::find($invoiceId);
-                if ($invoice && $invoice->status !== InvoiceStatus::Paid) {
-                    $invoice->forceFill(['status' => InvoiceStatus::Cancelled])->save();
-                }
+            if ($invoice) {
+                $invoice->forceFill(['status' => InvoiceStatus::Cancelled])->save();
             }
 
             $lease->forceFill([
