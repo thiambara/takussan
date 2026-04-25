@@ -83,6 +83,26 @@ class CustomerTagsTest extends TestCase
         $this->assertTrue(Tag::where('name', 'bailleur stratégique')->where('type', TagType::Crm->value)->exists());
     }
 
+    public function test_attach_reuses_existing_tag_with_different_case(): void
+    {
+        // Seeder-style: pre-existing tag stored capitalised. Attaching the
+        // normalised lowercase name must reuse that row, not create a duplicate
+        // or fail on the `tags.name` unique constraint.
+        $existing = Tag::factory()->create(['name' => 'VIP', 'type' => TagType::Crm]);
+
+        $user = User::factory()->create();
+        $customer = Customer::factory()->create(['added_by_id' => $user->id]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/customers/{$customer->id}/tags", [
+            'tags' => ['vip'],
+        ])->assertOk();
+
+        $this->assertSame(1, Tag::where('type', TagType::Crm->value)->count());
+        $this->assertSame([$existing->id], $customer->refresh()->tags->pluck('id')->all());
+    }
+
     public function test_attach_rejects_11th_tag(): void
     {
         $user = User::factory()->create();

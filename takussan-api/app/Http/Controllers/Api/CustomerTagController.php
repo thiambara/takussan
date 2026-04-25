@@ -19,31 +19,40 @@ class CustomerTagController extends Controller
 
         $names = $request->normalizedNames();
 
-        $existingTagIds = $customer->tags()->pluck('tags.id')->all();
-        $existingCount = count($existingTagIds);
+        // Names already attached to this customer (case-insensitive comparison
+        // because seeded tags can be capitalized while the request is normalized
+        // to lowercase). Count once instead of per-name exists() queries.
+        $alreadyAttachedLower = $customer->tags()
+            ->pluck('tags.name')
+            ->map(fn (string $n) => mb_strtolower($n))
+            ->all();
 
-        // Count only names not already attached
-        $newNames = array_filter($names, function (string $name) use ($customer) {
-            return ! $customer->tags()->where('name', $name)->exists();
-        });
+        $newNames = array_values(array_diff($names, $alreadyAttachedLower));
 
-        if ($existingCount + count($newNames) > 10) {
+        if (count($alreadyAttachedLower) + count($newNames) > 10) {
             return $this->json([
                 'message' => __('validation.max.array', ['attribute' => 'tags', 'max' => 10]),
             ], 422);
         }
 
         foreach ($names as $name) {
-            $tag = Tag::firstOrCreate(
-                ['name' => $name, 'type' => TagType::Crm->value],
-                ['slug' => Str::slug($name).'-'.Str::random(4), 'type' => TagType::Crm->value],
-            );
+            // The `tags.name` column has a single unique index (no compound on type).
+            // Looking up case-insensitively avoids a unique-constraint violation when a
+            // tag was seeded or created from another module with a different capitalisation.
+            $tag = Tag::whereRaw('LOWER(name) = ?', [$name])->first();
+            if ($tag === null) {
+                $tag = Tag::create([
+                    'name' => $name,
+                    'slug' => Str::slug($name).'-'.Str::random(4),
+                    'type' => TagType::Crm->value,
+                ]);
+            }
 
             if (! $customer->tags()->where('tags.id', $tag->id)->exists()) {
                 $customer->tags()->attach($tag->id);
                 activity()
                     ->performedOn($customer)
-                    ->withProperties(['tag_name' => $name, 'tag_id' => $tag->id])
+                    ->withProperties(['tag_name' => $tag->name, 'tag_id' => $tag->id])
                     ->event('tag.attached')
                     ->log('tag.attached');
             }
