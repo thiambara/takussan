@@ -4,8 +4,10 @@ namespace App\Providers;
 
 use App\Events\Lease\LeaseDepositRefunded;
 use App\Events\Lease\LeasePaymentLateFeeApplied;
+use App\Events\Lease\LeaseRenewed;
 use App\Listeners\Lease\NotifyTenantOfDepositRefund;
 use App\Listeners\Lease\NotifyTenantOfLateFee;
+use App\Listeners\Lease\NotifyTenantOfRenewal;
 use App\Listeners\Payments\LemonSqueezyEventListener;
 use App\Models\Conversation;
 use App\Models\Favorite;
@@ -96,6 +98,9 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-088 — notify the tenant when their lease deposit is refunded.
         $events->listen(LeaseDepositRefunded::class, NotifyTenantOfDepositRefund::class);
+
+        // TCK-089 — notify the tenant when their lease has been renewed.
+        $events->listen(LeaseRenewed::class, NotifyTenantOfRenewal::class);
 
         // TCK-022: dispatch the email verification notification on user
         // registration (Laravel no longer auto-registers this in the

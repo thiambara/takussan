@@ -335,6 +335,36 @@
         "submitting": "Yónnee…"
       },
       "error_generic": "Delloo gi am na njuumte, jeemal ndax."
-    }
+    },
+    "renewal": {
+      "cta": "Yeesalaat luwé",
+      "wizard_title": "Yeesalaat ci luwé",
+      "wizard_subtitle": "Avenant ci luwé bii nekk fi",
+      "step_period": "Période",
+      "step_terms": "Conditions yi",
+      "step_summary": "Récapitulatif",
+      "field_start_date": "Bisu tàmbali",
+      "field_end_date": "Bisu mujj",
+      "field_monthly_rent": "Loyer ci weer",
+      "field_deposit_amount": "Kaution",
+      "field_late_fee_percent": "Pénalité (%)",
+      "field_late_fee_grace_days": "Bis grace",
+      "field_terms": "Conditions yi",
+      "rent_evolution": "Loyer : {sign}{percent}% (de {from} ba {to})",
+      "next": "Topp",
+      "back": "Dellu",
+      "cancel": "Bañ",
+      "submit": "Dëggal yeesalaat",
+      "submitting": "Yónnee…",
+      "error_generic": "Yeesalaat am na njuumte, jeemal ndax.",
+      "diff_modified": "Soppi",
+      "diff_unchanged": "Du soppi",
+      "tenant_immutable": "Locataire ak mbaar mën nañu ko soppi ci avenant.",
+      "timeline_title": "Chaîne luwé",
+      "timeline_root": "Luwé bu njëkk",
+      "timeline_amendment": "Avenant {n}",
+      "timeline_current": "tey"
+    },
+    "error_generic": "Lu ñu mën a def amul."
   }
 }

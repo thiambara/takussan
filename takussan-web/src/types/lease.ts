@@ -36,6 +36,7 @@ export type Lease = {
   tenant_id: number;
   agency_id: number | null;
   booking_id: number | null;
+  renewed_from_lease_id: number | null;
   reference_number: string;
   type: LeaseType;
   status: LeaseStatus;

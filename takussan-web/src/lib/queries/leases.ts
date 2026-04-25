@@ -281,3 +281,54 @@ export function useRefundDeposit(leaseId: number) {
     },
   );
 }
+
+// TCK-089 — Renouvellement / avenant + chaîne historique.
+export type RenewLeasePayload = {
+  start_date: string;
+  end_date?: string;
+  monthly_rent?: number;
+  deposit_amount?: number;
+  late_fee_percent?: number;
+  late_fee_grace_days?: number;
+  terms?: string;
+  special_conditions?: string;
+};
+
+export function useRenewLease(leaseId: number) {
+  return useApiMutation<ApiResponse<Lease>, RenewLeasePayload>(
+    { path: `/api/leases/${leaseId}/renew`, method: 'POST' },
+    {
+      invalidate: [
+        ['leases', 'detail', leaseId],
+        ['leases', 'list'],
+        ['leases', 'chain', leaseId],
+      ],
+    },
+  );
+}
+
+const CHAIN_FIELDS: string[] = [
+  'id',
+  'reference_number',
+  'status',
+  'start_date',
+  'end_date',
+  'monthly_rent',
+  'deposit_amount',
+  'late_fee_percent',
+  'late_fee_grace_days',
+  'terms',
+  'renewed_from_lease_id',
+  'currency',
+];
+
+export function useLeaseChain(leaseId: number | null | undefined) {
+  return useApiQuery<{ data: Lease[] }>(
+    ['leases', 'chain', leaseId],
+    `/api/leases/${leaseId ?? ''}/chain`,
+    {
+      params: { fields: { leases: CHAIN_FIELDS } },
+      enabled: Boolean(leaseId),
+    },
+  );
+}

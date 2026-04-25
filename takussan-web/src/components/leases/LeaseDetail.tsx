@@ -13,6 +13,8 @@ import { LeaseSchedule } from './LeaseSchedule';
 import { LeasePaymentDialog } from './LeasePaymentDialog';
 import { GuarantorSection } from './GuarantorSection';
 import { DepositRefundBanner } from './DepositRefundBanner';
+import { LeaseRenewalDialog } from './LeaseRenewalDialog';
+import { LeaseChainTimeline } from './LeaseChainTimeline';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 import { LeaveReviewCta } from '@/components/reviews/LeaveReviewCta';
 import { canLeaseLeaveReview } from '@/components/reviews/reviewEligibility';
@@ -34,6 +36,7 @@ interface LeaseDetailProps {
 export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   const locale = useLocale() as Locale;
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [renewalOpen, setRenewalOpen] = useState(false);
   const { user } = useAuth();
   const { data, isLoading, isError } = useLease(leaseId);
   const { data: paymentsData } = useLeasePayments(leaseId);
@@ -48,6 +51,9 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
       ['super_admin', 'admin', 'agency_admin', 'agent', 'owner'].includes(r),
     );
   }, [user]);
+
+  // TCK-089 — same role gate as refund_deposit (server checks `leases.renew`).
+  const canRenew = canRefundDeposit;
 
   const latePaymentsCount = useMemo(() => {
     const list = paymentsData?.data ?? [];
@@ -110,8 +116,19 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
           <Button type="button" onClick={() => setPaymentOpen(true)}>
             Enregistrer un paiement
           </Button>
+          {canRenew && (lease.status === 'active' || lease.status === 'expired') && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setRenewalOpen(true)}
+            >
+              Renouveler le bail
+            </Button>
+          )}
         </div>
       </div>
+
+      <LeaseChainTimeline leaseId={leaseId} currentId={leaseId} />
 
       <DepositRefundBanner lease={lease} canRefund={canRefundDeposit} />
 
@@ -199,6 +216,12 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
         leaseId={leaseId}
         open={paymentOpen}
         onOpenChange={setPaymentOpen}
+      />
+
+      <LeaseRenewalDialog
+        open={renewalOpen}
+        onOpenChange={setRenewalOpen}
+        parent={lease}
       />
     </div>
   );

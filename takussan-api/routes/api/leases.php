@@ -1,9 +1,11 @@
 <?php
 
 use App\Http\Controllers\Api\DocumentPdfController;
+use App\Http\Controllers\Api\LeaseChainController;
 use App\Http\Controllers\Api\LeaseController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
 use App\Http\Controllers\Api\LeasePaymentController;
+use App\Http\Controllers\Api\LeaseRenewalController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -13,7 +15,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('leases/{lease}', [LeaseController::class, 'update'])->name('leases.update');
     Route::post('leases/{lease}/activate', [LeaseController::class, 'activate'])->name('leases.activate');
     Route::post('leases/{lease}/terminate', [LeaseController::class, 'terminate'])->name('leases.terminate');
-    Route::post('leases/{lease}/renew', [LeaseController::class, 'renew'])->name('leases.renew');
+    // TCK-089 — replaces the legacy `LeaseController@renew` (TCK-027) which
+    // did not enforce no-active-child / max-chain / tenant-immutable / event.
+    Route::post('leases/{lease}/renew', [LeaseRenewalController::class, 'store'])->name('leases.renew');
+    Route::get('leases/{lease}/chain', [LeaseChainController::class, 'index'])->name('leases.chain');
     Route::post('leases/{lease}/payments/generate-schedule', [LeaseController::class, 'generateSchedule'])->name('leases.payments.generate-schedule');
 
     // TCK-088 — caution refund. Replaces the legacy `/refund-deposit`

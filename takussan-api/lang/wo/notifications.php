@@ -86,4 +86,11 @@ return [
         'intro' => 'Sa kaution ci luwé :reference, delloo nañ la — :amount :currency.',
         'retention' => 'Téye nañ :amount :currency. Mboor : :reason.',
     ],
+
+    'lease_renewed' => [
+        'subject' => 'Sa luwé yeesalaat nañ ko — :reference',
+        'greeting' => 'Salaam,',
+        'intro' => 'Avenant am na ci sa luwé (:reference). Conditions yu bees yi tàmbali nañ.',
+        'period' => 'Période : :start ba :end.',
+    ],
 ];

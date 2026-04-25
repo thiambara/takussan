@@ -33,11 +33,13 @@ class RolesAndPermissionsSeeder extends Seeder
         // Granted to agency-side roles only (admin / agency_admin / agent /
         // owner). Tenants and customers are deliberately excluded.
         Permission::firstOrCreate(['name' => 'leases.refund_deposit', 'guard_name' => 'web']);
+        // TCK-089 — same restriction for lease renewal/amendment.
+        Permission::firstOrCreate(['name' => 'leases.renew', 'guard_name' => 'web']);
 
         $depositRefundExtras = [
-            'agency_admin' => ['leases.refund_deposit'],
-            'agent' => ['leases.refund_deposit'],
-            'owner' => ['leases.refund_deposit'],
+            'agency_admin' => ['leases.refund_deposit', 'leases.renew'],
+            'agent' => ['leases.refund_deposit', 'leases.renew'],
+            'owner' => ['leases.refund_deposit', 'leases.renew'],
         ];
 
         $roles = [

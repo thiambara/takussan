@@ -43,4 +43,28 @@ class LeasePolicy extends BasePolicy
 
         return $user->hasRole(['admin', 'super_admin']);
     }
+
+    /**
+     * TCK-089 — Renouveler un bail (créer un avenant chaîné).
+     * Réservé à l'agency-side : landlord, membre d'agence, ou admin.
+     * Requiert la permission `leases.renew` (Spatie) afin que les rôles
+     * `tenant` / `customer` ne puissent pas la déclencher même par
+     * accident côté UI.
+     */
+    public function renew(User $user, Lease $lease): bool
+    {
+        if (! $user->can('leases.renew')) {
+            return false;
+        }
+
+        if ($user->id === $lease->landlord_id) {
+            return true;
+        }
+
+        if ($user->agency_id !== null && $user->agency_id === $lease->agency_id) {
+            return true;
+        }
+
+        return $user->hasRole(['admin', 'super_admin']);
+    }
 }

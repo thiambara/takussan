@@ -45,6 +45,8 @@ class PreferenceResolver
         'booking_status_changed',
         'lease_payment_due',
         'lease_payment_overdue',
+        // TCK-089 — fired when a lease is renewed/amended (parent → child).
+        'lease_renewed',
         'maintenance_status_changed',
         'review_received',
         'saved_search_match',

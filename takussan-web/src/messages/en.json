@@ -387,6 +387,36 @@
         "submitting": "Submitting…"
       },
       "error_generic": "Refund failed, please retry."
-    }
+    },
+    "renewal": {
+      "cta": "Renew lease",
+      "wizard_title": "Lease renewal",
+      "wizard_subtitle": "Amendment chained to the current lease",
+      "step_period": "Period",
+      "step_terms": "Financial terms",
+      "step_summary": "Summary",
+      "field_start_date": "Start date",
+      "field_end_date": "End date",
+      "field_monthly_rent": "Monthly rent",
+      "field_deposit_amount": "Deposit",
+      "field_late_fee_percent": "Late-fee rate (%)",
+      "field_late_fee_grace_days": "Grace days",
+      "field_terms": "Terms",
+      "rent_evolution": "Rent evolution: {sign}{percent}% (from {from} to {to})",
+      "next": "Next",
+      "back": "Back",
+      "cancel": "Cancel",
+      "submit": "Confirm renewal",
+      "submitting": "Creating amendment…",
+      "error_generic": "Renewal failed, please retry.",
+      "diff_modified": "Changed",
+      "diff_unchanged": "Unchanged",
+      "tenant_immutable": "Tenant and property cannot be changed in an amendment.",
+      "timeline_title": "Lease chain",
+      "timeline_root": "Root lease",
+      "timeline_amendment": "Amendment {n}",
+      "timeline_current": "current"
+    },
+    "error_generic": "Action failed."
   }
 }

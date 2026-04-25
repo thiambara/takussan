@@ -107,4 +107,11 @@ return [
         'intro' => 'Your deposit for lease :reference has been refunded — :amount :currency.',
         'retention' => 'A retention of :amount :currency has been applied. Reason: :reason.',
     ],
+
+    'lease_renewed' => [
+        'subject' => 'Your lease has been renewed — :reference',
+        'greeting' => 'Hello,',
+        'intro' => 'An amendment has been created for your lease (:reference). The new terms now apply.',
+        'period' => 'Period: from :start to :end.',
+    ],
 ];

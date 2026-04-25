@@ -7,6 +7,7 @@ use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
+use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -81,7 +82,12 @@ class LeaseTest extends TestCase
 
     public function test_can_renew_active_lease(): void
     {
+        // TCK-089 — renewal route now lives on `LeaseRenewalController`,
+        // requires the `leases.renew` permission, returns the child lease
+        // already in `active` status, and accepts `start_date` in payload.
+        $this->seed(RolesAndPermissionsSeeder::class);
         $landlord = User::factory()->create();
+        $landlord->assignRole('owner');
         $lease = Lease::factory()->active()->create([
             'landlord_id' => $landlord->id,
             'end_date' => now()->subDay()->toDateString(),
@@ -90,16 +96,20 @@ class LeaseTest extends TestCase
         Sanctum::actingAs($landlord);
 
         $this->postJson("/api/leases/{$lease->id}/renew", [
+            'start_date' => now()->toDateString(),
             'end_date' => now()->addYear()->toDateString(),
             'monthly_rent' => 450000,
         ])->assertCreated()
-            ->assertJsonPath('data.status', 'draft')
+            ->assertJsonPath('data.status', 'active')
             ->assertJsonPath('data.monthly_rent', 450000);
     }
 
     public function test_cannot_renew_inactive_lease(): void
     {
+        // TCK-089 — `Draft` is not a renewable status; service returns 422.
+        $this->seed(RolesAndPermissionsSeeder::class);
         $landlord = User::factory()->create();
+        $landlord->assignRole('owner');
         $lease = Lease::factory()->create([
             'landlord_id' => $landlord->id,
             'status' => LeaseStatus::Draft->value,
@@ -109,6 +119,7 @@ class LeaseTest extends TestCase
         Sanctum::actingAs($landlord);
 
         $this->postJson("/api/leases/{$lease->id}/renew", [
+            'start_date' => now()->toDateString(),
             'end_date' => now()->addYear()->toDateString(),
         ])->assertStatus(422);
     }

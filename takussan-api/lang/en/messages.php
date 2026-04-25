@@ -34,6 +34,11 @@ return [
 
     // Lease
     'lease_cannot_terminate' => 'Only active or pending-signature leases can be terminated.',
+    'lease_renewal_status_not_renewable' => 'Only active or expired leases can be renewed.',
+    'lease_renewal_active_child_exists' => 'This lease already has an active amendment. Terminate or wait for it to expire before creating a new one.',
+    'lease_renewal_max_chain_exceeded' => 'The renewal chain cannot exceed :max levels.',
+    'lease_renewal_field_immutable' => 'The :field field cannot be changed in an amendment — create a new lease instead.',
+    'lease_renewal_end_after_start' => 'The end date must be after the start date.',
     'lease_must_be_ended_for_refund' => 'The lease must be terminated or expired to refund the deposit.',
     'deposit_already_refunded' => 'The deposit has already been fully refunded for this lease.',
     'no_deposit_to_refund' => 'No deposit amount to refund.',
