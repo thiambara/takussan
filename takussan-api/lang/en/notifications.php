@@ -56,4 +56,29 @@ return [
         'intro_24h' => 'Reminder — your visit for :property is scheduled tomorrow at :datetime.',
         'intro_1h' => 'Reminder — your visit for :property starts in about an hour at :datetime.',
     ],
+
+    'account_deletion_requested' => [
+        'subject' => 'Account deletion request received',
+        'greeting' => 'Hello,',
+        'intro' => 'We have registered your account deletion request. It will be executed on :date.',
+        'consequences' => 'Your personal data will be irreversibly anonymized. Accounting and legal records (payments, leases, invoices) will be retained anonymously in accordance with applicable law.',
+        'action' => 'Cancel deletion',
+        'ignore' => 'If you did not initiate this request, cancel it immediately and change your password.',
+    ],
+
+    'account_deletion_reminder' => [
+        'subject' => 'Reminder: account deletion in :days days',
+        'greeting' => 'Hello,',
+        'intro' => 'Your account will be deleted in :days days, on :date. If you change your mind, you can still cancel the deletion.',
+        'action' => 'Cancel deletion',
+        'ignore' => 'If you confirm the deletion, no further action is required.',
+    ],
+
+    'account_deletion_executed' => [
+        'subject' => 'Your account has been deleted',
+        'greeting' => 'Hello,',
+        'intro' => 'Your Takussan account has been deleted and your personal data has been irreversibly anonymized.',
+        'retention' => 'In accordance with legal obligations, certain accounting records (payments, invoices) are kept anonymously for 10 years.',
+        'contact' => 'For any questions, please contact our support team.',
+    ],
 ];

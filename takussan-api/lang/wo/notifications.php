@@ -35,4 +35,29 @@ return [
         'intro' => 'Lii mooy àq-àq yi nga jot ca demba.',
         'footer' => 'Gis senter bu notifications ngir gis sa yëkkati yépp.',
     ],
+
+    'account_deletion_requested' => [
+        'subject' => 'Ndogalu suufeel kont nañ ko jaaxal',
+        'greeting' => 'Salaam,',
+        'intro' => 'Jot nañu sa ndogalu suufeel kont. Dina jaarukoo ci :date.',
+        'consequences' => 'Sa donné personnel ya, dañ leen di anonimiser sax-sax. Donné yu jaadu ag téé yi (paye, bail, fakture) dañ leen di kàllaaxoo waaye sànni leen sa tur.',
+        'action' => 'Aju ndogal li',
+        'ignore' => 'Bu yaa ko sàppal-li, aju ko leegi te soppi sa baatu jubaale.',
+    ],
+
+    'account_deletion_reminder' => [
+        'subject' => 'Faalewu : suufeel kont ci :days fan',
+        'greeting' => 'Salaam,',
+        'intro' => 'Sa kont di nañu ko suufeel ci :days fan, ci :date. Soo soppee xel, manga ko aju ba leegi.',
+        'action' => 'Aju ndogal li',
+        'ignore' => 'Soo dëggee suufeel bi, ñakkul wax dara.',
+    ],
+
+    'account_deletion_executed' => [
+        'subject' => 'Sa kont suufeel nañ ko',
+        'greeting' => 'Salaam,',
+        'intro' => 'Sa kont Takussan suufeel nañ ko, te sa donné personnel anonimiser nañ leen sax-sax.',
+        'retention' => 'Naka noonu mu nekke ci yoonu réew, doxal yi nu mëniw (paye, fakture) lañ kàllaaxoo waaye anonim ci 10 at.',
+        'contact' => 'Yoonu sa laaj, jokkok ekipu jëfundikuwaay ya.',
+    ],
 ];
