@@ -1,8 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { ConversationList } from './ConversationList';
 import { ChatView } from './ChatView';
+import { NewGroupDialog } from './NewGroupDialog';
 
 /**
  * Two-pane messaging layout: conversation list on the left, active chat on
@@ -10,22 +14,44 @@ import { ChatView } from './ChatView';
  * added later without changing the API surface.
  */
 export function MessagesPage() {
+  const t = useTranslations('messaging');
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [groupOpen, setGroupOpen] = useState(false);
 
   return (
     <div className="grid h-[calc(100vh-12rem)] grid-cols-[320px_1fr] overflow-hidden rounded-xl border border-stone-200 bg-white">
-      <aside className="border-r border-stone-200 overflow-y-auto">
-        <ConversationList selectedId={selectedId} onSelect={setSelectedId} />
+      <aside className="flex flex-col border-r border-stone-200">
+        <div className="flex items-center justify-between border-b border-stone-200 p-2">
+          <h2 className="text-sm font-semibold text-stone-700">{t('listHeading')}</h2>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={() => setGroupOpen(true)}
+            data-testid="new-group-button"
+          >
+            <Plus className="mr-1 size-4" aria-hidden />
+            {t('newGroup')}
+          </Button>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <ConversationList selectedId={selectedId} onSelect={setSelectedId} />
+        </div>
       </aside>
       <section className="flex flex-col overflow-hidden">
         {selectedId ? (
           <ChatView conversationId={selectedId} />
         ) : (
           <div className="flex flex-1 items-center justify-center bg-stone-50 p-8 text-center text-sm text-stone-500">
-            Sélectionnez une conversation pour afficher les messages.
+            {t('emptyState')}
           </div>
         )}
       </section>
+      <NewGroupDialog
+        open={groupOpen}
+        onClose={() => setGroupOpen(false)}
+        onCreated={(id) => setSelectedId(id)}
+      />
     </div>
   );
 }

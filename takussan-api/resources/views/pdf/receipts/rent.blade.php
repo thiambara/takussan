@@ -4,8 +4,9 @@
     // Expected variables:
     //   $lease, $payment, $tenant, $property, $agency
     //   $generated_at
-    $currency = $payment->currency?->value ?? $payment->currency ?? 'XOF';
-    $amount = number_format((float) $payment->amount, 0, ',', ' ');
+    // TCK-084 — `@currency` handles locale + symbol; the payment row carries
+    // the locked currency, with agency-fallback for legacy data.
+    $currency = $payment->currency ?? $agency?->currency ?? 'XOF';
     $periodLabel = null;
     if ($payment->period_start) {
         $periodLabel = $payment->period_start->translatedFormat('F Y');
@@ -53,7 +54,7 @@
         @endif
         <tr>
             <th>Montant</th>
-            <td class="amount"><strong>{{ $amount }} {{ $currency }}</strong></td>
+            <td class="amount"><strong>@currency($payment->amount, $currency)</strong></td>
         </tr>
         <tr>
             <th>Méthode</th>

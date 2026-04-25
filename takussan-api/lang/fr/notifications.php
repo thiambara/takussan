@@ -62,4 +62,35 @@ return [
         'greeting' => 'Bonjour,',
         'intro' => 'Votre tâche « :title » est due demain à :datetime.',
     ],
+  
+    'account_deletion_requested' => [
+        'subject' => 'Demande de suppression de compte enregistrée',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Nous avons enregistré votre demande de suppression de compte. Elle sera exécutée le :date.',
+        'consequences' => 'Vos données personnelles seront anonymisées de manière irréversible. Les enregistrements comptables et légaux (paiements, baux, factures) seront conservés sous forme anonyme conformément à la loi.',
+        'action' => 'Annuler la suppression',
+        'ignore' => 'Si vous n\'êtes pas à l\'origine de cette demande, annulez-la immédiatement et changez votre mot de passe.',
+    ],
+
+    'account_deletion_reminder' => [
+        'subject' => 'Rappel : suppression de compte dans :days jours',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Votre compte sera supprimé dans :days jours, le :date. Si vous changez d\'avis, vous pouvez encore annuler la suppression.',
+        'action' => 'Annuler la suppression',
+        'ignore' => 'Si vous confirmez la suppression, aucune action n\'est requise.',
+    ],
+
+    'account_deletion_executed' => [
+        'subject' => 'Votre compte a été supprimé',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Votre compte Takussan a été supprimé et vos données personnelles ont été anonymisées de manière irréversible.',
+        'retention' => 'Conformément à nos obligations légales, certains enregistrements comptables (paiements, factures) sont conservés sous forme anonyme pendant 10 ans.',
+        'contact' => 'Pour toute question, contactez notre service client.',
+    ],
+  
+    'conversation_invite' => [
+        'subject' => 'Invitation à un groupe : :subject',
+        'greeting' => 'Bonjour,',
+        'intro' => ':inviter vous a ajouté au groupe « :subject ».',
+    ],
 ];

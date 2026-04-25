@@ -46,6 +46,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         'phone_verified_at',
         'notifications_email_enabled', 'notifications_push_enabled', 'notifications_sms_enabled',
         'metadata',
+        'deletion_requested_at',
     ];
 
     protected $hidden = [
@@ -58,6 +59,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             'email_verified_at' => 'datetime',
             'phone_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'deletion_requested_at' => 'datetime',
             'password' => 'hashed',
             'type' => UserType::class,
             'status' => UserStatus::class,
@@ -107,6 +109,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
                 'notifications_email_enabled',
                 'notifications_push_enabled',
                 'notifications_sms_enabled',
+                'deletion_requested_at',
             ])
             ->logOnlyDirty()
             ->dontLogIfAttributesChangedOnly([
@@ -226,6 +229,20 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             ->using(ConversationParticipant::class)
             ->withPivot(['role', 'last_read_at', 'is_muted', 'joined_at', 'left_at'])
             ->withTimestamps();
+    }
+
+    /**
+     * TCK-080 — pending RGPD deletion request (at most one per user, enforced
+     * by the UNIQUE on `account_deletion_requests.user_id`).
+     */
+    public function deletionRequest(): HasOne
+    {
+        return $this->hasOne(AccountDeletionRequest::class);
+    }
+
+    public function hasPendingDeletionRequest(): bool
+    {
+        return $this->deletion_requested_at !== null;
     }
 
     /**

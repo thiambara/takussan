@@ -27,6 +27,8 @@ import {
   INVOICE_STATUS_LABEL,
   INVOICE_STATUS_VARIANT,
 } from './constants';
+import { PayOnlineButton } from './PayOnlineButton';
+import { usePaymentProviders } from '@/hooks/usePaymentProviders';
 
 interface InvoiceDetailDialogProps {
   readonly invoiceId: number | null;
@@ -53,6 +55,7 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
 
   const invoice = data?.data;
   const status = (invoice?.status ?? 'draft') as InvoiceStatus;
+  const { providers } = usePaymentProviders(invoice?.agency_id ?? null);
 
   return (
     <Dialog open={invoiceId !== null} onOpenChange={(open) => !open && onClose()}>
@@ -156,6 +159,14 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
                 >
                   {cancel.isPending ? '…' : 'Annuler la facture'}
                 </Button>
+              ) : null}
+              {status !== 'paid' && status !== 'cancelled' && status !== 'void' && invoiceId ? (
+                <PayOnlineButton
+                  paymentType="invoices"
+                  paymentId={invoiceId}
+                  currency={invoice.currency || 'XOF'}
+                  availableProviders={providers}
+                />
               ) : null}
               <Button variant="ghost" type="button" onClick={onClose}>
                 Fermer

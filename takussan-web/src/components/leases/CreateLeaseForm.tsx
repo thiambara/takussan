@@ -25,12 +25,13 @@ const PAYMENT_FREQUENCY_OPTIONS = [
   { value: 'yearly', label: 'Annuel' },
 ];
 
-const CURRENCY_OPTIONS = [
-  { value: 'XOF', label: 'XOF (FCFA)' },
-  { value: 'XAF', label: 'XAF' },
-  { value: 'EUR', label: 'EUR' },
-  { value: 'USD', label: 'USD' },
-];
+// TCK-084 — share the centralised currency catalogue.
+import { CURRENCY_METADATA } from '@/lib/format/currency';
+
+const CURRENCY_OPTIONS = (['XOF', 'EUR', 'USD', 'XAF'] as const).map((code) => ({
+  value: code,
+  label: `${code} (${CURRENCY_METADATA[code].symbol})`,
+}));
 
 export function CreateLeaseForm() {
   const router = useRouter();

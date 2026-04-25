@@ -1,7 +1,7 @@
 ---
 id: TCK-080
 title: "Suppression de compte avec anonymisation (RGPD)"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: M
@@ -141,4 +141,14 @@ finale (J+30) avec accusé de suppression téléchargeable.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Service** `AccountDeletionService` — `requestDeletion / cancelDeletion / executeDeletion / anonymizeUser`. Délai de grâce paramétrable via `config/account.php` → `deletion_grace_days` (default 30, surcharge `.env` `ACCOUNT_DELETION_GRACE_DAYS`).
+- **Anti-escalade** : refus 422 si l'utilisateur est landlord avec `Lease.active`, ou s'il a des `LeasePayment` pending via une relation customer. Liste les obligations dans la réponse pour permettre à l'utilisateur de les fermer.
+- **Tokens revoked at request time** (pas à l'exécution) — l'utilisateur est déconnecté immédiatement ; il peut se reconnecter (re-créant un token) pour annuler.
+- **2FA** : si `two_factor_enabled`, un code TOTP valide est exigé en plus du password (re-vérifié serveur-side via `Google2FA`).
+- **Anonymisation** : `email → deleted-{id}@takussan.local`, `first_name/last_name/phone/bio/avatar/google_id/facebook_id/apple_id → null`, `deleted_at → now`. `BookingPayment`/`LeasePayment`/`Invoice`/`Lease`/`Booking`/`Payout`/`ActivityLog` **conservés** (obligations comptables 10 ans). `Customer` rattachés via `user_id` → dissociés (`user_id=null`), notes/interactions CRM préservées.
+- **Command** `account:execute-deletions` schedulé `hourly` dans `routes/console.php` ; envoie aussi le rappel J-7 (idempotent via `metadata.reminder_sent_at`). `--dry-run` ne mute rien.
+- **ActivityLog** : 3 transitions loggées (request / cancel / execute) avec acteur = self.
+- **Frontend** : `<AccountDeletionSection>` placé dans `/app/profile/security` (composé dans `<ProfileSecuritySection>`), `<AccountDeletionDialog>` 2-step (radio raison + password + 2FA si actif), `<AccountDeletionBanner>` global dans le layout dashboard avec compte à rebours jour-précis et bouton "Annuler". Server actions dans `app/actions/account-deletion.ts`.
+- **Hors périmètre confirmés** : suppression admin d'un autre compte, export RGPD (portabilité), suppression immédiate, suppression d'agence.
+- **Tests** : 22 verts (`AccountDeletionRequestTest` 7, `AccountDeletionCancelTest` 4, `AccountDeletionExecuteTest` 7, `AccountDeletionScheduledTest` 4) + Vitest 338/338 (pas de nouveaux tests frontend ajoutés — composants UI simples, à enrichir si besoin via TCK-cleanup).
+- **PR** : feat/tck-080-account-deletion-rgpd → dev (à ouvrir).

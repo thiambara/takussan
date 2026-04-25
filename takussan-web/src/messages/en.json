@@ -90,6 +90,14 @@
     "notFound": "Resource not found.",
     "validation": "Some fields are invalid."
   },
+  "agency": {
+    "currency": {
+      "label": "Currency",
+      "placeholder": "Select a currency",
+      "preview": "100,000 will be displayed as: {example}",
+      "warningOnChange": "Changing the currency only applies to new properties, leases and payments. Existing records keep their original currency."
+    }
+  },
   "compare": {
     "eyebrow": "Comparator",
     "title": "Compare properties",
@@ -198,6 +206,158 @@
       },
       "errors": {
         "moveFailed": "Could not move the card. Please retry."
+      }
+    }
+  },
+  "account": {
+    "deletion": {
+      "section": {
+        "title": "Delete my account",
+        "description": "Deletion is irreversible after the grace period. Your personal data is anonymized and legal records are retained.",
+        "cta": "Delete my account"
+      },
+      "dialog": {
+        "title": "Delete your account",
+        "step1Title": "Why are you leaving?",
+        "step1Description": "Pick a reason. This helps us improve Takussan.",
+        "step2Title": "Confirm with your password",
+        "step2Description": "For security reasons, please re-enter your password and, if enabled, your 2FA code.",
+        "reasonOptions": {
+          "service_completed": "I'm done using the service",
+          "quality_issue": "Quality issue",
+          "privacy": "Privacy concerns",
+          "other": "Other"
+        },
+        "reasonOtherPlaceholder": "Briefly describe your reason (optional)",
+        "passwordLabel": "Password",
+        "twoFactorLabel": "2FA code (6 digits)",
+        "next": "Continue",
+        "back": "Back",
+        "confirmCta": "Permanently delete",
+        "obligationsTitle": "You have outstanding obligations",
+        "obligationsHint": "Please complete them before deleting your account.",
+        "successTitle": "Request received",
+        "successBody": "Your account will be deleted in {days} days. You can still cancel anytime from this page."
+      },
+      "banner": {
+        "title": "Scheduled deletion",
+        "message": "Your account will be deleted in {days} days.",
+        "messageSingular": "Your account will be deleted tomorrow.",
+        "messageToday": "Your account will be deleted today.",
+        "cancel": "Cancel deletion"
+      },
+      "errors": {
+        "generic": "Something went wrong, please try again.",
+        "passwordInvalid": "Incorrect password.",
+        "twoFactorInvalid": "Invalid 2FA code.",
+        "obligations": "You have outstanding obligations preventing deletion."
+      }
+    }
+  },
+  "messaging": {
+    "listHeading": "Conversations",
+    "newGroup": "New group",
+    "emptyState": "Select a conversation to view messages.",
+    "system": {
+      "participantAdded": "{actor} added {target} to the group.",
+      "participantRemoved": "{actor} removed {target} from the group.",
+      "roleChanged": "{actor} changed {target}'s role to {role}.",
+      "renamed": "{actor} renamed the group to \"{subject}\"."
+    },
+    "group": {
+      "create": {
+        "title": "New group",
+        "step1Description": "Add at least 2 participants (you'll be included automatically).",
+        "step2Description": "Give the group a subject and optionally link it to a property or lease.",
+        "participantsLabel": "Participants",
+        "participantInputPlaceholder": "User ID",
+        "participantsHint": "Enter IDs one at a time. The server enforces permissions.",
+        "add": "Add",
+        "removeParticipant": "Remove #{id}",
+        "minParticipants": "At least {min} participants total (including you).",
+        "maxParticipants": "At most {max} participants total.",
+        "duplicate": "This user is already added.",
+        "invalidId": "Invalid ID.",
+        "subjectLabel": "Subject",
+        "subjectRequired": "Subject is required.",
+        "propertyLabel": "Property (optional)",
+        "leaseLabel": "Lease (optional)",
+        "cancel": "Cancel",
+        "next": "Next",
+        "back": "Back",
+        "create": "Create group",
+        "createFailed": "Failed to create the group."
+      },
+      "info": {
+        "title": "Group info",
+        "subjectLine": "Subject: {subject}",
+        "renameLabel": "Rename group",
+        "renameSave": "Save",
+        "renameFailed": "Failed to rename.",
+        "participantsHeading": "Participants ({count})",
+        "addLabel": "Invite a participant",
+        "addPlaceholder": "User ID",
+        "addFailed": "Failed to add.",
+        "add": "Add",
+        "you": "you",
+        "roleAdmin": "Admin",
+        "roleMember": "Member",
+        "promote": "Promote to admin",
+        "demote": "Demote to member",
+        "remove": "Remove from group",
+        "mute": "Mute notifications",
+        "unmute": "Unmute notifications",
+        "leave": "Leave group",
+        "lastAdminLeaveBlocked": "You're the last admin — promote someone before leaving.",
+        "lastAdminLeaveHint": "Promote another member to admin before leaving.",
+        "invalidId": "Invalid ID."
+      }
+    }
+  },
+  "payments": {
+    "gateway": {
+      "button": {
+        "payOnline": "Pay online"
+      },
+      "picker": {
+        "title": "Select a payment method",
+        "description": "Choose the provider that will process this payment.",
+        "select": "Select",
+        "unavailable": "Unavailable — currency not supported or integration missing. Contact your administrator.",
+        "contactAdmin": "Contact admin",
+        "cancel": "Cancel",
+        "confirm": "Continue",
+        "redirecting": "Redirecting…"
+      },
+      "return": {
+        "success": {
+          "title": "Payment confirmed",
+          "body": "Thank you! Your payment has been recorded."
+        },
+        "failed": {
+          "title": "Payment failed",
+          "body": "The payment did not go through. You can try again."
+        },
+        "pending": {
+          "title": "Payment pending",
+          "body": "We are confirming the status with the provider — this may take a few seconds."
+        },
+        "unknown": {
+          "title": "Status unavailable",
+          "body": "We could not verify the status. Try again later."
+        },
+        "invalid": {
+          "title": "Invalid parameters",
+          "body": "Return link is malformed."
+        },
+        "actions": {
+          "backToPayments": "Back to payments",
+          "refresh": "Refresh"
+        }
+      },
+      "error": {
+        "generic": "Something went wrong, please try again."
+
       }
     }
   }

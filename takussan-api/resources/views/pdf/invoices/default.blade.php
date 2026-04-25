@@ -3,8 +3,10 @@
 @php
     // Expected variables:
     //   $invoice, $customer, $agency, $lines (array of {label, qty, unit_price, total})
-    $currency = $invoice->currency?->value ?? $invoice->currency ?? 'XOF';
-    $fmt = fn ($n) => number_format((float) $n, 0, ',', ' ').' '.$currency;
+    // TCK-084 — `@currency` resolves agency-level formatting. The invoice is
+    // the source of truth for which currency we settled on at issuance time;
+    // we fall back to the agency's current currency, then XOF for safety.
+    $currency = $invoice->currency ?? $agency?->currency ?? 'XOF';
     $lines = $lines ?? [[
         'label' => 'Prestation',
         'qty' => 1,
@@ -79,25 +81,25 @@
                 <tr>
                     <td>{{ $line['label'] ?? '—' }}</td>
                     <td class="right">{{ $line['qty'] ?? 1 }}</td>
-                    <td class="right amount">{{ $fmt($line['unit_price'] ?? 0) }}</td>
-                    <td class="right amount">{{ $fmt($line['total'] ?? 0) }}</td>
+                    <td class="right amount">@currency($line['unit_price'] ?? 0, $currency)</td>
+                    <td class="right amount">@currency($line['total'] ?? 0, $currency)</td>
                 </tr>
             @endforeach
         </tbody>
         <tfoot>
             <tr>
                 <td colspan="3" class="right">Sous-total</td>
-                <td class="right amount">{{ $fmt($invoice->subtotal) }}</td>
+                <td class="right amount">@currency($invoice->subtotal, $currency)</td>
             </tr>
             @if ((float) ($invoice->tax_amount ?? 0) > 0)
             <tr>
                 <td colspan="3" class="right">TVA ({{ rtrim(rtrim(number_format((float) $invoice->tax_rate, 2), '0'), '.') }}%)</td>
-                <td class="right amount">{{ $fmt($invoice->tax_amount) }}</td>
+                <td class="right amount">@currency($invoice->tax_amount, $currency)</td>
             </tr>
             @endif
             <tr>
                 <td colspan="3" class="right">Total TTC</td>
-                <td class="right amount"><strong>{{ $fmt($invoice->total_amount) }}</strong></td>
+                <td class="right amount"><strong>@currency($invoice->total_amount, $currency)</strong></td>
             </tr>
         </tfoot>
     </table>

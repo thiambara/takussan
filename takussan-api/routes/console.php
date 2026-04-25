@@ -31,3 +31,5 @@ Schedule::command('dashboard:check-alerts')->hourly()->withoutOverlapping(); // 
 // 23–25 h window. Idempotence is guaranteed by the marker stored in
 // `tasks.metadata.reminder_24h_sent_at` (see SendTaskDueReminders).
 Schedule::command('tasks:send-due-reminders')->hourly()->withoutOverlapping();
+// TCK-080 — RGPD: send J-N reminders + execute scheduled anonymizations.
+Schedule::command('account:execute-deletions')->hourly()->withoutOverlapping();

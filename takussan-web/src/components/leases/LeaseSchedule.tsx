@@ -8,9 +8,13 @@ import { Badge } from '@/components/ui/badge';
 import type { Locale } from '@/i18n/config';
 import type { LeasePayment } from '@/types/lease';
 import { cn } from '@/lib/utils';
+import { PayOnlineButton } from '@/components/payments/PayOnlineButton';
+import { usePaymentProviders } from '@/hooks/usePaymentProviders';
 
 interface LeaseScheduleProps {
   readonly leaseId: number;
+  /** Agency owning the lease — drives which gateway providers are available. */
+  readonly agencyId?: number | null;
 }
 
 /**
@@ -35,9 +39,10 @@ const STATUS_LABEL: Record<ReturnType<typeof displayStatus>, string> = {
   other: 'Autre',
 };
 
-export function LeaseSchedule({ leaseId }: LeaseScheduleProps) {
+export function LeaseSchedule({ leaseId, agencyId }: LeaseScheduleProps) {
   const locale = useLocale() as Locale;
   const { data, isLoading, isError } = useLeasePayments(leaseId);
+  const { providers } = usePaymentProviders(agencyId ?? null);
 
   const payments = useMemo(() => data?.data ?? [], [data]);
 
@@ -69,6 +74,7 @@ export function LeaseSchedule({ leaseId }: LeaseScheduleProps) {
             <th className="px-4 py-2 font-medium">Échéance</th>
             <th className="px-4 py-2 font-medium">Montant</th>
             <th className="px-4 py-2 font-medium">Statut</th>
+            <th className="px-4 py-2 font-medium" aria-label="Actions" />
           </tr>
         </thead>
         <tbody className="divide-y divide-stone-100">
@@ -109,6 +115,16 @@ export function LeaseSchedule({ leaseId }: LeaseScheduleProps) {
                   >
                     {STATUS_LABEL[st]}
                   </Badge>
+                </td>
+                <td className="px-4 py-2 text-right">
+                  {st !== 'paid' && (
+                    <PayOnlineButton
+                      paymentType="lease-payments"
+                      paymentId={p.id}
+                      currency={p.currency}
+                      availableProviders={providers}
+                    />
+                  )}
                 </td>
               </tr>
             );

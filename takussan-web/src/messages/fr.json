@@ -90,6 +90,14 @@
     "notFound": "Ressource introuvable.",
     "validation": "Certains champs sont invalides."
   },
+  "agency": {
+    "currency": {
+      "label": "Devise",
+      "placeholder": "Sélectionner une devise",
+      "preview": "100 000 sera affiché : {example}",
+      "warningOnChange": "Le changement de devise ne s’applique qu’aux nouveaux biens, baux et paiements. Les enregistrements existants conservent leur devise d’origine."
+    }
+  },
   "compare": {
     "eyebrow": "Comparateur",
     "title": "Comparer des biens",
@@ -198,6 +206,157 @@
       },
       "errors": {
         "moveFailed": "Impossible de déplacer la carte. Réessayez."
+      }
+    }
+  },
+  "account": {
+    "deletion": {
+      "section": {
+        "title": "Supprimer mon compte",
+        "description": "La suppression est irréversible après le délai de grâce. Vos données personnelles sont anonymisées et les enregistrements légaux conservés.",
+        "cta": "Supprimer mon compte"
+      },
+      "dialog": {
+        "title": "Supprimer votre compte",
+        "step1Title": "Pourquoi souhaitez-vous partir ?",
+        "step1Description": "Choisissez un motif. Cela nous aide à améliorer Takussan.",
+        "step2Title": "Confirmer avec votre mot de passe",
+        "step2Description": "Pour des raisons de sécurité, ressaisissez votre mot de passe et, si activée, votre 2FA.",
+        "reasonOptions": {
+          "service_completed": "J'ai terminé d'utiliser le service",
+          "quality_issue": "Problème de qualité",
+          "privacy": "Préoccupations de vie privée",
+          "other": "Autre"
+        },
+        "reasonOtherPlaceholder": "Décrivez brièvement votre motif (optionnel)",
+        "passwordLabel": "Mot de passe",
+        "twoFactorLabel": "Code 2FA (6 chiffres)",
+        "next": "Continuer",
+        "back": "Retour",
+        "confirmCta": "Supprimer définitivement",
+        "obligationsTitle": "Vous avez des obligations en cours",
+        "obligationsHint": "Vous devez d'abord les terminer pour pouvoir supprimer votre compte.",
+        "successTitle": "Demande enregistrée",
+        "successBody": "Votre compte sera supprimé dans {days} jours. Vous pouvez encore annuler à tout moment depuis cette page."
+      },
+      "banner": {
+        "title": "Suppression programmée",
+        "message": "Votre compte sera supprimé dans {days} jours.",
+        "messageSingular": "Votre compte sera supprimé demain.",
+        "messageToday": "Votre compte sera supprimé aujourd'hui.",
+        "cancel": "Annuler la suppression"
+      },
+      "errors": {
+        "generic": "Une erreur est survenue, veuillez réessayer.",
+        "passwordInvalid": "Mot de passe incorrect.",
+        "twoFactorInvalid": "Code 2FA invalide.",
+        "obligations": "Vous avez des obligations en cours qui empêchent la suppression."
+      }
+    }
+  },
+  "messaging": {
+    "listHeading": "Conversations",
+    "newGroup": "Nouveau groupe",
+    "emptyState": "Sélectionnez une conversation pour afficher les messages.",
+    "system": {
+      "participantAdded": "{actor} a ajouté {target} au groupe.",
+      "participantRemoved": "{actor} a retiré {target} du groupe.",
+      "roleChanged": "{actor} a changé le rôle de {target} en {role}.",
+      "renamed": "{actor} a renommé le groupe en « {subject} »."
+    },
+    "group": {
+      "create": {
+        "title": "Nouveau groupe",
+        "step1Description": "Ajoutez 2 participants minimum (vous serez automatiquement inclus).",
+        "step2Description": "Donnez un sujet au groupe et associez-le optionnellement à un bien ou un bail.",
+        "participantsLabel": "Participants",
+        "participantInputPlaceholder": "ID utilisateur",
+        "participantsHint": "Saisissez les IDs un par un. Le serveur vérifie les permissions.",
+        "add": "Ajouter",
+        "removeParticipant": "Retirer #{id}",
+        "minParticipants": "Minimum {min} participants au total (vous compris).",
+        "maxParticipants": "Maximum {max} participants au total.",
+        "duplicate": "Cet utilisateur est déjà ajouté.",
+        "invalidId": "ID invalide.",
+        "subjectLabel": "Sujet",
+        "subjectRequired": "Le sujet est obligatoire.",
+        "propertyLabel": "Bien (optionnel)",
+        "leaseLabel": "Bail (optionnel)",
+        "cancel": "Annuler",
+        "next": "Suivant",
+        "back": "Retour",
+        "create": "Créer le groupe",
+        "createFailed": "Impossible de créer le groupe."
+      },
+      "info": {
+        "title": "Infos du groupe",
+        "subjectLine": "Sujet : {subject}",
+        "renameLabel": "Renommer le groupe",
+        "renameSave": "Enregistrer",
+        "renameFailed": "Impossible de renommer.",
+        "participantsHeading": "Participants ({count})",
+        "addLabel": "Inviter un participant",
+        "addPlaceholder": "ID utilisateur",
+        "addFailed": "Impossible d'ajouter.",
+        "add": "Ajouter",
+        "you": "vous",
+        "roleAdmin": "Admin",
+        "roleMember": "Membre",
+        "promote": "Promouvoir admin",
+        "demote": "Rétrograder en membre",
+        "remove": "Retirer du groupe",
+        "mute": "Couper les notifications",
+        "unmute": "Réactiver les notifications",
+        "leave": "Quitter le groupe",
+        "lastAdminLeaveBlocked": "Vous êtes le dernier admin — promouvez quelqu'un avant de partir.",
+        "lastAdminLeaveHint": "Promouvez un autre membre admin avant de partir.",
+        "invalidId": "ID invalide."
+      }
+    }
+  },
+  "payments": {
+    "gateway": {
+      "button": {
+        "payOnline": "Payer en ligne"
+      },
+      "picker": {
+        "title": "Choisir un mode de paiement",
+        "description": "Sélectionnez le fournisseur via lequel le paiement sera traité.",
+        "select": "Sélectionner",
+        "unavailable": "Non disponible — devise non supportée ou intégration absente. Contactez votre administrateur.",
+        "contactAdmin": "Contacter l’admin",
+        "cancel": "Annuler",
+        "confirm": "Continuer",
+        "redirecting": "Redirection…"
+      },
+      "return": {
+        "success": {
+          "title": "Paiement confirmé",
+          "body": "Merci ! Votre paiement a été enregistré."
+        },
+        "failed": {
+          "title": "Paiement échoué",
+          "body": "Le paiement n’a pas pu aboutir. Vous pouvez réessayer."
+        },
+        "pending": {
+          "title": "Paiement en cours",
+          "body": "Nous vérifions le statut du paiement avec le fournisseur — cela peut prendre quelques secondes."
+        },
+        "unknown": {
+          "title": "Statut indisponible",
+          "body": "Nous n’avons pas pu vérifier le statut. Réessayez plus tard."
+        },
+        "invalid": {
+          "title": "Paramètres invalides",
+          "body": "Lien de retour incorrect."
+        },
+        "actions": {
+          "backToPayments": "Retour aux paiements",
+          "refresh": "Actualiser"
+        }
+      },
+      "error": {
+        "generic": "Une erreur est survenue, réessayez."
       }
     }
   }

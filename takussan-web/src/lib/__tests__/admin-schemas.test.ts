@@ -81,6 +81,9 @@ describe('agencyFormSchema', () => {
     expect(payload.name).toBe('Agence ABC');
     expect(payload.email).toBe('hello@agence.sn');
     expect(payload.commission_rate).toBe(8);
+    // TCK-084 — `currency` is now a first-class column on top of being
+    // mirrored under `settings.currency` for legacy callers.
+    expect(payload.currency).toBe('XOF');
     expect(payload.settings).toMatchObject({
       default_commission_rate: 8,
       currency: 'XOF',
