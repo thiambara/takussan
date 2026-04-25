@@ -9,11 +9,14 @@ import { Button } from '@/components/ui/button';
 import {
   FormGlobalError,
   FormInput,
+  FormSelect,
   FormSuccess,
   FormTextarea,
 } from '@/components/forms';
 import { useApiForm } from '@/hooks/useApiForm';
 import { ApiError } from '@/lib/api';
+import { CURRENCY_METADATA, formatCurrency, type CurrencyCode } from '@/lib/format/currency';
+import { useTranslations } from 'next-intl';
 import {
   agencyFormSchema,
   AGENCY_LOGO_ACCEPT,
@@ -45,6 +48,13 @@ function toDefaults(agency: Agency): AgencyFormValues {
     typeof settings.default_commission_rate === 'number'
       ? settings.default_commission_rate
       : agency.commission_rate;
+  // TCK-084 — agency-level `currency` is now a first-class column. We still
+  // accept the legacy `settings.currency` value as a fallback so previously
+  // saved agencies migrate without an explicit data backfill.
+  const currency =
+    agency.currency
+    ?? (typeof settings.currency === 'string' ? settings.currency : '')
+    ?? '';
   return {
     name: agency.name ?? '',
     license_number: agency.license_number ?? '',
@@ -53,10 +63,19 @@ function toDefaults(agency: Agency): AgencyFormValues {
     phone: agency.phone ?? '',
     website: agency.website ?? '',
     commission_rate: commission !== null && commission !== undefined ? String(commission) : '',
-    currency: typeof settings.currency === 'string' ? settings.currency : '',
+    currency: currency.toUpperCase(),
     timezone: typeof settings.timezone === 'string' ? settings.timezone : '',
   };
 }
+
+const CURRENCY_OPTIONS = (Object.keys(CURRENCY_METADATA) as CurrencyCode[])
+  // Surface only the three core currencies in the UI (XAF stays available
+  // server-side for legacy data but the spec scopes the picker to XOF/EUR/USD).
+  .filter((code) => code === 'XOF' || code === 'EUR' || code === 'USD')
+  .map((code) => ({
+    value: code,
+    label: `${code} (${CURRENCY_METADATA[code].symbol})`,
+  }));
 
 export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
   const router = useRouter();
@@ -88,6 +107,8 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
     });
 
   const { control } = form;
+  const t = useTranslations('agency.currency');
+  const selectedCurrency = (form.watch('currency') || 'XOF').toUpperCase() as CurrencyCode;
 
   function handleLogoPick(ev: React.ChangeEvent<HTMLInputElement>) {
     setLogoError(null);
@@ -292,13 +313,18 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
             inputMode="decimal"
             placeholder="5"
           />
-          <FormInput
-            control={control}
-            name="currency"
-            label="Devise"
-            placeholder="XOF"
-            maxLength={3}
-          />
+          <div>
+            <FormSelect
+              control={control}
+              name="currency"
+              label={t('label')}
+              options={CURRENCY_OPTIONS}
+              placeholder={t('placeholder')}
+            />
+            <p className="mt-1.5 text-xs text-app-ink-muted">
+              {t('preview', { example: formatCurrency(100_000, selectedCurrency) })}
+            </p>
+          </div>
           <FormInput
             control={control}
             name="timezone"

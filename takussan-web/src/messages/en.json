@@ -90,6 +90,14 @@
     "notFound": "Resource not found.",
     "validation": "Some fields are invalid."
   },
+  "agency": {
+    "currency": {
+      "label": "Currency",
+      "placeholder": "Select a currency",
+      "preview": "100,000 will be displayed as: {example}",
+      "warningOnChange": "Changing the currency only applies to new properties, leases and payments. Existing records keep their original currency."
+    }
+  },
   "compare": {
     "eyebrow": "Comparator",
     "title": "Compare properties",

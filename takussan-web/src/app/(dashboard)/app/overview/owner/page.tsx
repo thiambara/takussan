@@ -77,7 +77,7 @@ export default async function OwnerDashboardPage() {
               labels: ts.months,
               series: [
                 {
-                  name: 'Cashflow (XOF)',
+                  name: 'Cashflow',
                   values: (ts.cashflow as number[]) ?? [],
                   color: 'stroke-emerald-500',
                 },

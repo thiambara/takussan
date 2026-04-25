@@ -95,7 +95,7 @@ export default async function AgentDashboardPage() {
               labels: ts.months,
               series: [
                 {
-                  name: 'Commissions (XOF)',
+                  name: 'Commissions',
                   values: (ts.commissions as number[]) ?? [],
                   color: 'stroke-emerald-500',
                 },
