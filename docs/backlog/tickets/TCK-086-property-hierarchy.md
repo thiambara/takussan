@@ -1,12 +1,12 @@
 ---
 id: TCK-086
 title: "Hiérarchie de biens (immeuble → étages → lots)"
-status: todo
+status: review
 phase: P1
 family: back
 estimate: M
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-25
 depends_on: [TCK-034, TCK-035, TCK-036]
 blocks: []
 spec_refs:
@@ -124,4 +124,42 @@ si nécessaire._
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Migration non créée** — `parent_id` était déjà présent dans la table
+  initiale `2026_04_17_160005_create_properties_table` (FK self
+  `nullOnDelete()`). Le ticket prévoit une migration additive
+  conditionnelle, ici inutile.
+- **Filtre `parent_id`** — `parent_id` retiré de `$requestFilterable`
+  (qui ne déclare que `AllowedFilter::exact`) et réinjecté via un override
+  de `getAllowedQueryFilters()` qui interprète `null` / chaîne vide /
+  `"null"` comme `whereNull`. Sans ça, `filter[parent_id]=null`
+  passe la string littérale au where et ne matche aucun root.
+- **Soft-cascade explicite** — la FK `ON DELETE SET NULL` ne se déclenche
+  qu'au hard-delete. Comme `Property` utilise `SoftDeletes`, le hook
+  `static::deleting()` met explicitement `children()->update(['parent_id' => null])`
+  avant chaque suppression (soft ou hard). Test couvre uniquement la
+  voie soft-delete (le path `forceDelete()` traverse aussi le hook).
+- **`PropertyController::children()` retiré** — la méthode inline
+  paginait sans pipeline spatie ni sparse fieldsets. Remplacée par un
+  contrôleur dédié `PropertyChildrenController@index` qui passe par
+  `Property::buildQuery()`. La route `properties.children` pointe désormais
+  vers le nouveau contrôleur (même URL, même nom de route).
+- **Validation re-parenting** — la règle composite `parent_id` est portée
+  par une classe anonyme dans `UpdatePropertyRequest::parentIdRule()`.
+  Trois invariants stricts dans cet ordre : same-agency, anti-cycle,
+  max-depth. La règle ne s'exécute que si `parent_id !== null` (détacher
+  vers la racine est toujours autorisé tant que la policy passe).
+- **Profondeur max 4 niveaux** — `HierarchyService::wouldExceedMaxDepth()`
+  combine `depth($candidateParent) + subtreeHeight($node) > 4`. Le node
+  conserve donc son sous-arbre intact à condition que la hauteur totale
+  reste sous le plafond.
+- **Policy `updateParent`** — méthode ajoutée à `PropertyPolicy` (pas de
+  Gate global). Vérifie `update` sur le child ET sur le candidate parent
+  via le contrôleur (`Gate::forUser($user)->allows('updateParent',
+  [$child, $newParent])`). Détacher (parent_id=null) ne demande
+  l'autorisation que sur l'enfant.
+- **Tests cumulés** : 1058 backend verts (+17 ciblés TCK-086 :
+  9 hierarchy + 4 children + 4 ancestors). Pint clean.
+- **AC8 satisfait par construction** — `Property::scopePublic()` filtre
+  visibility/published_at/status sans regarder le parent : un enfant
+  publié reste public même si le parent est draft. Pas de test
+  dédié (couvert par les tests publics existants).

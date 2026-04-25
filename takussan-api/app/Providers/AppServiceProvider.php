@@ -2,8 +2,8 @@
 
 namespace App\Providers;
 
-use App\Models\Conversation;
 use App\Listeners\Payments\LemonSqueezyEventListener;
+use App\Models\Conversation;
 use App\Models\Favorite;
 use App\Models\Lease;
 use App\Models\Message;

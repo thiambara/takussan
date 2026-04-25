@@ -9,6 +9,9 @@ return [
     // Property
     'property_cannot_publish' => 'Les biens vendus ou loués ne peuvent pas être publiés.',
     'property_cannot_unpublish' => 'Seuls les biens disponibles peuvent être dépubliés.',
+    'property_parent_cycle_detected' => 'Un bien ne peut pas être placé sous lui-même ou un de ses descendants.',
+    'property_parent_max_depth_exceeded' => 'La profondeur maximale de la hiérarchie est limitée à 4 niveaux.',
+    'property_parent_same_agency_required' => 'Le bien parent doit appartenir à la même agence que l\'enfant.',
 
     // User / Agency
     'user_already_in_agency' => 'Cet utilisateur appartient déjà à une autre agence.',

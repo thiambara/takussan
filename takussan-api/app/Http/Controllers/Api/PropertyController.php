@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\PropertyBulkArchiveRequest;
 use App\Http\Requests\PropertyDuplicateRequest;
+use App\Http\Requests\UpdatePropertyRequest;
 use App\Http\Resources\PropertyResource;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\Currency;
@@ -18,6 +19,7 @@ use App\Services\Property\PropertyDuplicationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
 
@@ -118,35 +120,20 @@ class PropertyController extends Controller
         ]);
     }
 
-    public function update(Request $request, Property $property): JsonResponse
+    public function update(UpdatePropertyRequest $request, Property $property): JsonResponse
     {
         $this->authorizeManage($request, $property);
 
-        $data = $request->validate([
-            'title' => ['sometimes', 'string', 'max:255'],
-            'description' => ['sometimes', 'nullable', 'string'],
-            'type' => ['sometimes', Rule::enum(PropertyType::class)],
-            'contract_type' => ['sometimes', Rule::enum(ContractType::class)],
-            'rent_period' => ['sometimes', 'nullable', Rule::enum(RentPeriod::class)],
-            'status' => ['sometimes', Rule::enum(PropertyStatus::class)],
-            'visibility' => ['sometimes', Rule::enum(PropertyVisibility::class)],
-            'price' => ['sometimes', 'numeric', 'min:0'],
-            'currency' => ['sometimes', Rule::enum(Currency::class)],
-            'area' => ['sometimes', 'nullable', 'integer', 'min:0'],
-            'bedrooms' => ['sometimes', 'nullable', 'integer', 'min:0'],
-            'bathrooms' => ['sometimes', 'nullable', 'integer', 'min:0'],
-            'furnished' => ['sometimes', 'boolean'],
-            'featured' => ['sometimes', 'boolean', Rule::prohibitedIf(! $request->user()->hasRole(['admin', 'super_admin']))],
-            'available_from' => ['sometimes', 'nullable', 'date'],
-            'address' => ['sometimes', 'nullable', 'array'],
-            'address.street' => ['sometimes', 'nullable', 'string'],
-            'address.neighborhood' => ['sometimes', 'nullable', 'string'],
-            'address.city' => ['sometimes', 'nullable', 'string'],
-            'address.region' => ['sometimes', 'nullable', 'string'],
-            'address.country' => ['sometimes', 'nullable', 'string', 'size:2'],
-            'address.latitude' => ['sometimes', 'nullable', 'numeric'],
-            'address.longitude' => ['sometimes', 'nullable', 'numeric'],
-        ]);
+        $data = $request->validated();
+
+        // TCK-086 — re-parenting requires update rights on the candidate parent.
+        if (array_key_exists('parent_id', $data)) {
+            $newParent = $data['parent_id'] !== null ? Property::find($data['parent_id']) : null;
+            abort_unless(
+                Gate::forUser($request->user())->allows('updateParent', [$property, $newParent]),
+                403
+            );
+        }
 
         DB::transaction(function () use ($data, $property) {
             $addressData = $data['address'] ?? null;
@@ -264,20 +251,6 @@ class PropertyController extends Controller
             'archived' => $result['archived'],
             'failed' => $result['failed'],
             'archived_ids' => $result['archived_ids'],
-        ]);
-    }
-
-    public function children(Request $request, Property $property): JsonResponse
-    {
-        $this->authorizeAccess($request, $property);
-        $children = $property->children()->with('address')->paginate((int) $request->input('per_page', 20));
-
-        return $this->json([
-            'data' => PropertyResource::collection($children)->toArray($request),
-            'meta' => [
-                'total' => $children->total(),
-                'current_page' => $children->currentPage(),
-            ],
         ]);
     }
 

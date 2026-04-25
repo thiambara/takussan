@@ -16,6 +16,9 @@ return [
     // Property
     'property_cannot_publish' => 'Mbaar yi ñu jaay walla ñu luwé du ñu mën a siiwal.',
     'property_cannot_unpublish' => 'Mbaar yi ñu mën a jël rekk la ñu mën a xëccu.',
+    'property_parent_cycle_detected' => 'Mbaar du mën a nekk ci suufam walla ci suuf seen sàccu.',
+    'property_parent_max_depth_exceeded' => 'Profondeer bu max ci hiérarchie bi mooy 4 niveau.',
+    'property_parent_same_agency_required' => 'Mbaar bu nekk parent dañ ko nekkati ci agence bu mel ni doom bi.',
 
     // User / Agency
     'user_already_in_agency' => 'Jàngalekat bi nekk na ci beneen agence.',

@@ -58,4 +58,22 @@ class PropertyPolicy extends BasePolicy
     {
         return $user !== null;
     }
+
+    /**
+     * TCK-086 — re-parenting requires update rights on the child AND on the
+     * candidate parent (when one is provided). Detaching to root only needs
+     * update rights on the child.
+     */
+    public function updateParent(User $user, Property $child, ?Property $newParent = null): bool
+    {
+        if (! $this->update($user, $child)) {
+            return false;
+        }
+
+        if ($newParent === null) {
+            return true;
+        }
+
+        return $this->update($user, $newParent);
+    }
 }
