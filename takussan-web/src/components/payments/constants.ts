@@ -78,12 +78,16 @@ export const PAYOUT_STATUS_VARIANT: Record<PayoutStatus, BadgeVariant> = {
   cancelled: 'outline',
 };
 
-export const CURRENCY_OPTIONS = [
-  { value: 'XOF', label: 'XOF (F CFA)' },
-  { value: 'XAF', label: 'XAF' },
-  { value: 'EUR', label: 'EUR' },
-  { value: 'USD', label: 'USD' },
-] as const;
+// TCK-084 — labels derived from the central currency metadata so the picker
+// always advertises the right symbol next to the ISO code.
+import { CURRENCY_METADATA } from '@/lib/format/currency';
+
+export const CURRENCY_OPTIONS = (
+  ['XOF', 'EUR', 'USD', 'XAF'] as const
+).map((code) => ({
+  value: code,
+  label: `${code} (${CURRENCY_METADATA[code].symbol})`,
+}));
 
 export const PAYMENT_METHOD_OPTIONS = [
   { value: 'cash', label: 'Espèces' },

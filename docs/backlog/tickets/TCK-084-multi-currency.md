@@ -1,7 +1,7 @@
 ---
 id: TCK-084
 title: "Devise configurable par agence (XOF / EUR / USD)"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: M
@@ -147,4 +147,10 @@ du prix pour éviter toute confusion.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Migration** additive `add_currency_to_agencies_table` (char(3) default `XOF`). Idempotente via `Schema::hasColumn`.
+- **Backend** : `Currency` enum (XOF/EUR/USD) avec metadata (symbol, decimals, locale, position). `CurrencyFormatter` (`format`/`parse`) basé sur `NumberFormatter` (ext-intl). Blade directive `@currency($amount, $currency)` enregistrée via `CurrencyDirective::register()` dans `AppServiceProvider::boot()`.
+- **Frontend** : `formatCurrency` étendu (héritage TCK-078) avec metadata `{symbol, decimals, locale}`. Hook `useAgencyCurrency` lit l'agency via React Query (sparse fields `id,currency`). `<Money>` accepte `currency` direct OU `agencyId` (auto-resolve). 8+ callsites refactorés (BookingPaymentDialog, CreateLeaseForm, MaintenanceCompleteForm, payments/constants, overview agent/owner pages).
+- **PDF templates** : `pdf/invoices/default.blade.php`, `pdf/leases/contract.blade.php`, `pdf/receipts/rent.blade.php` consomment `@currency($amount, $currency)`. Devise propagée au template via le builder du `DocumentPdfService` (le contexte fournit `$currency` ou `'XOF'` par défaut).
+- **Hors périmètre** : aucune conversion temps réel, devise par bien override (TCK-099+ ou ticket dédié si besoin émerge), arrondi XOF géré dans `CurrencyFormatter` (decimals=0).
+- **Tests** : 22 backend (`AgencyCurrencyUpdateTest` 6 + `CurrencyFormatterTest` 6 + `CurrencyPdfRegressionTest` 10) + Vitest 353/353 verts (Money/useAgencyCurrency/formatCurrency).
+- **PR** : feat/tck-084-multi-currency → dev (à ouvrir).

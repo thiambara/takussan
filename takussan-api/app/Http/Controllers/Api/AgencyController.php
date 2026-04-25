@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\AgencyUpdateRequest;
 use App\Http\Resources\AgencyResource;
 use App\Http\Resources\UserResource;
 use App\Models\Agency;
 use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\Currency;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -47,11 +49,13 @@ class AgencyController extends Controller
             'phone' => ['nullable', 'string'],
             'website' => ['nullable', 'url'],
             'commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'currency' => ['nullable', Rule::enum(Currency::class)],
             'status' => ['nullable', Rule::enum(AgencyStatus::class)],
         ]);
 
         $agency = Agency::create(array_merge($data, [
             'primary_admin_id' => $user->id,
+            'currency' => $data['currency'] ?? Currency::default()->value,
             'status' => $data['status'] ?? AgencyStatus::Active->value,
         ]));
 
@@ -63,20 +67,11 @@ class AgencyController extends Controller
         return $this->json(['data' => AgencyResource::make($agency)->toArray($request)]);
     }
 
-    public function update(Request $request, Agency $agency): JsonResponse
+    public function update(AgencyUpdateRequest $request, Agency $agency): JsonResponse
     {
         abort_unless($agency->primary_admin_id === $request->user()->id || $request->user()->hasRole(['admin', 'super_admin']), 403);
 
-        $data = $request->validate([
-            'name' => ['sometimes', 'string'],
-            'license_number' => ['sometimes', 'nullable', 'string'],
-            'description' => ['sometimes', 'nullable', 'string'],
-            'email' => ['sometimes', 'nullable', 'email'],
-            'phone' => ['sometimes', 'nullable', 'string'],
-            'website' => ['sometimes', 'nullable', 'url'],
-            'commission_rate' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
-            'settings' => ['sometimes', 'nullable', 'array'],
-        ]);
+        $data = $request->validated();
 
         $agency->fill($data)->save();
 

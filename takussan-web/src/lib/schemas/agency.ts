@@ -74,6 +74,8 @@ export interface AgencyFormPayload {
   phone?: string | null;
   website?: string | null;
   commission_rate?: number | null;
+  /** TCK-084 — first-class column, not nested under `settings`. */
+  currency?: string;
   settings?: Record<string, unknown>;
 }
 
@@ -92,6 +94,9 @@ export function normaliseAgencyForm(values: AgencyFormValues): AgencyFormPayload
   const settings: Record<string, unknown> = {};
   if (commission !== null) settings.default_commission_rate = commission;
   const currency = emptyToNull(values.currency);
+  // TCK-084 — keep mirroring `currency` inside `settings` for backwards
+  // compatibility with surfaces that still read the legacy path; the
+  // first-class column is the source of truth.
   if (currency !== null) settings.currency = currency.toUpperCase();
   const timezone = emptyToNull(values.timezone);
   if (timezone !== null) settings.timezone = timezone;
@@ -104,6 +109,7 @@ export function normaliseAgencyForm(values: AgencyFormValues): AgencyFormPayload
     phone: emptyToNull(values.phone),
     website: emptyToNull(values.website),
     commission_rate: commission,
+    ...(currency !== null ? { currency: currency.toUpperCase() } : {}),
     ...(Object.keys(settings).length > 0 ? { settings } : {}),
   };
 }

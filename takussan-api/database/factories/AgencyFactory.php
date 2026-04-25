@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Agency;
 use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\Currency;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -28,6 +29,7 @@ class AgencyFactory extends Factory
             'is_verified' => fake()->boolean(70),
             'verified_at' => fake()->optional()->dateTimeBetween('-2 years'),
             'status' => AgencyStatus::Active,
+            'currency' => Currency::XOF,
         ];
     }
 }

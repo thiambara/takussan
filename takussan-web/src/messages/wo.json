@@ -39,6 +39,14 @@
     "generic": "Am na jafe-jafe. Jéemat.",
     "unauthorized": "Dara tëj nga."
   },
+  "agency": {
+    "currency": {
+      "label": "Xaalis",
+      "placeholder": "Tànn xaalis",
+      "preview": "100 000 dañ koy wone ni: {example}",
+      "warningOnChange": "Soppi xaalis di jëf rekk ci yu bees yi (kër, baat, ak fay). Yi am ba tey, ci xaalis bu ñu jëkk a séddale lañu nekk."
+    }
+  },
   "compare": {
     "eyebrow": "Méengal",
     "title": "Méengal kër yi",
@@ -149,6 +157,52 @@
         "lastAdminLeaveBlocked": "Yaw rekk a admin — promóte keneen ba pare gennal.",
         "lastAdminLeaveHint": "Promóte beneen membre admin balaa nga gennal.",
         "invalidId": "ID bu jaaxle."
+      }
+    }
+  },
+  "payments": {
+    "gateway": {
+      "button": {
+        "payOnline": "Fey ci internet"
+      },
+      "picker": {
+        "title": "Tànn anam fey",
+        "description": "Tànnal kiy joxe njëgam la.",
+        "select": "Tànn",
+        "unavailable": "Aaye — devise bi ñu defu ko walla integration bi amul. Wax ak admin bi.",
+        "contactAdmin": "Wax ak admin",
+        "cancel": "Bayyi",
+        "confirm": "Topp",
+        "redirecting": "Yoonal…"
+      },
+      "return": {
+        "success": {
+          "title": "Pewam bi am na",
+          "body": "Jërejëf ! Pewam bi noon na."
+        },
+        "failed": {
+          "title": "Pewam dañu mënul",
+          "body": "Pewam bi mënul jeex. Mën nga ko jeem yeneen yoon."
+        },
+        "pending": {
+          "title": "Pewam ngiy taxaw",
+          "body": "Nu di ko seet ak fournisseur bi — mën na yagg lu tuuti."
+        },
+        "unknown": {
+          "title": "Statut bi kenn xamuko",
+          "body": "Mënuñu ko seet, jeem nga ko ndax."
+        },
+        "invalid": {
+          "title": "Lien bi aayoo",
+          "body": "Lien bi mënuñu jëfandikoo."
+        },
+        "actions": {
+          "backToPayments": "Dellu ci pewam yi",
+          "refresh": "Reefresh"
+        }
+      },
+      "error": {
+        "generic": "Lu ñu xamul am na, jeemal ndax."
       }
     }
   }

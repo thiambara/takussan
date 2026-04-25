@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import type { Locale } from '@/i18n/config';
 import type { BookingStatus } from '@/types/booking';
 import { BookingPaymentDialog } from './BookingPaymentDialog';
+import { PayOnlineButton } from '@/components/payments/PayOnlineButton';
+import { usePaymentProviders } from '@/hooks/usePaymentProviders';
 import { LeaveReviewCta } from '@/components/reviews/LeaveReviewCta';
 import { canBookingLeaveReview } from '@/components/reviews/reviewEligibility';
 
@@ -39,6 +41,8 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const locale = useLocale() as Locale;
   const [paymentOpen, setPaymentOpen] = useState(false);
   const { data, isLoading, isError } = useBooking(bookingId);
+  const agencyId = data?.data?.agency_id ?? null;
+  const { providers } = usePaymentProviders(agencyId);
 
   if (isLoading) {
     return <div className="h-48 animate-pulse rounded-xl bg-app-surface-1" />;
@@ -151,14 +155,24 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         {booking.booking_payments && booking.booking_payments.length > 0 ? (
           <ul className="mt-3 divide-y divide-stone-100 text-sm">
             {booking.booking_payments.map((p) => (
-              <li key={p.id} className="flex justify-between py-2">
+              <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <span className="text-stone-600">
                   {formatDateTime(p.payment_date ?? p.created_at, locale)} ·{' '}
                   <span className="capitalize">{p.payment_type}</span>
                 </span>
-                <span className="font-medium text-stone-900">
-                  {formatCurrency(p.amount, locale)}
-                  <span className="ml-2 text-xs text-stone-500">{p.status}</span>
+                <span className="flex items-center gap-2 text-stone-900">
+                  <span className="font-medium">
+                    {formatCurrency(p.amount, locale)}
+                  </span>
+                  <span className="text-xs text-stone-500">{p.status}</span>
+                  {p.status === 'pending' && (
+                    <PayOnlineButton
+                      paymentType="booking-payments"
+                      paymentId={p.id}
+                      currency={p.currency}
+                      availableProviders={providers}
+                    />
+                  )}
                 </span>
               </li>
             ))}
