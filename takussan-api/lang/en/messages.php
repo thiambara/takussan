@@ -48,6 +48,18 @@ return [
     'deposit_refund_payout_note' => 'Deposit refund — lease :reference',
     'deposit_retention_invoice_line' => 'Deposit retention — :reason',
 
+    // Lease — early termination (TCK-090)
+    'lease_early_termination_status_not_requestable' => 'Only active or expired leases can be terminated early.',
+    'lease_early_termination_already_in_progress' => 'An early termination is already in progress for this lease.',
+    'lease_early_termination_notice_too_short' => 'Notice period not respected. The effective date must be on or after :min.',
+    'lease_early_termination_after_end_date' => 'The effective date must be strictly before the contractual end. Use the regular end-of-lease flow.',
+    'lease_early_termination_not_in_progress' => 'No early termination is currently in progress for this lease.',
+    'lease_early_termination_window_closed' => 'Cancellation window has closed — the effective date has passed.',
+    'lease_early_termination_penalty_paid' => 'The penalty has already been paid — early termination can no longer be cancelled.',
+    'lease_early_termination_penalty_unpaid' => 'The penalty must be settled before the lease can be marked as terminated.',
+    'lease_early_termination_too_early' => 'The effective date has not yet been reached.',
+    'lease_early_termination_invoice_line' => 'Early termination penalty — lease :reference (effective :effective)',
+
     // Lease — rent review (TCK-091)
     'lease_rent_review_status_not_reviewable' => 'Only active leases can have their rent reviewed.',
     'lease_rent_review_reason_required' => 'A reason is required (between 5 and 500 characters).',

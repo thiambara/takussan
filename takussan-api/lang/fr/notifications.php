@@ -115,6 +115,23 @@ return [
         'period' => 'Période : du :start au :end.',
     ],
 
+    'lease_early_termination' => [
+        'greeting' => 'Bonjour,',
+        'penalty_line' => 'Pénalité de résiliation anticipée : :amount :currency. À régler avant la date effective.',
+        'requested' => [
+            'subject' => 'Résiliation anticipée demandée — bail :reference',
+            'intro' => 'Une demande de résiliation anticipée a été initiée sur le bail :reference. Date effective : :date.',
+        ],
+        'cancelled' => [
+            'subject' => 'Résiliation anticipée annulée — bail :reference',
+            'intro' => 'La demande de résiliation anticipée du bail :reference a été annulée. Le bail reste actif.',
+        ],
+        'confirmed' => [
+            'subject' => 'Bail résilié — :reference',
+            'intro' => 'Le bail :reference est désormais clôturé à compter du :date.',
+        ],
+    ],
+
     'lease_rent_reviewed' => [
         'subject' => 'Révision du loyer — bail :reference',
         'greeting' => 'Bonjour,',

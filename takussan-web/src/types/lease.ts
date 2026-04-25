@@ -8,6 +8,8 @@ export type LeaseStatus =
   | 'pending_signature'
   | 'active'
   | 'expired'
+  // TCK-090 — early-termination request in flight (notice period running).
+  | 'terminating'
   | 'terminated'
   | 'renewed';
 
@@ -60,6 +62,15 @@ export type Lease = {
   signed_at: string | null;
   terminated_at: string | null;
   termination_reason: string | null;
+  // TCK-090 — early-termination workflow snapshot. Always present on the
+  // resource (the columns exist; null when no request is open).
+  early_termination_requested_at?: string | null;
+  early_termination_requested_by?: number | null;
+  early_termination_effective_date?: string | null;
+  early_termination_penalty_amount?: number | null;
+  early_termination_reason?: string | null;
+  early_termination_invoice_id?: number | null;
+  notice_period_days?: number | null;
   created_at: string;
   updated_at: string;
 };

@@ -41,6 +41,17 @@ const DETAIL_FIELDS: string[] = [
   'deposit_refunded_amount',
   'deposit_refunded_at',
   'deposit_refund_reason',
+  // TCK-090 — early-termination workflow snapshot. Required by the
+  // `EarlyTerminationBanner` rendered on the lease detail page; without
+  // these fields in the sparse fieldset, `early_termination_effective_date`
+  // would be undefined and the banner would silently never render.
+  'early_termination_requested_at',
+  'early_termination_requested_by',
+  'early_termination_effective_date',
+  'early_termination_penalty_amount',
+  'early_termination_reason',
+  'early_termination_invoice_id',
+  'notice_period_days',
 ];
 
 export type UseLeasesParams = {
@@ -329,6 +340,49 @@ export function useLeaseChain(leaseId: number | null | undefined) {
     {
       params: { fields: { leases: CHAIN_FIELDS } },
       enabled: Boolean(leaseId),
+    },
+  );
+}
+
+// TCK-090 — Résiliation anticipée + pénalités.
+export type RequestEarlyTerminationPayload = {
+  effective_date: string;
+  reason?: string;
+  requested_by_role?: string;
+};
+
+export function useRequestEarlyTermination(leaseId: number) {
+  return useApiMutation<ApiResponse<Lease>, RequestEarlyTerminationPayload>(
+    { path: `/api/leases/${leaseId}/early-termination`, method: 'POST' },
+    {
+      invalidate: [
+        ['leases', 'detail', leaseId],
+        ['leases', 'list'],
+      ],
+    },
+  );
+}
+
+export function useCancelEarlyTermination(leaseId: number) {
+  return useApiMutation<ApiResponse<Lease>, void>(
+    { path: `/api/leases/${leaseId}/early-termination`, method: 'DELETE' },
+    {
+      invalidate: [
+        ['leases', 'detail', leaseId],
+        ['leases', 'list'],
+      ],
+    },
+  );
+}
+
+export function useConfirmEarlyTermination(leaseId: number) {
+  return useApiMutation<ApiResponse<Lease>, void>(
+    { path: `/api/leases/${leaseId}/early-termination/confirm`, method: 'POST' },
+    {
+      invalidate: [
+        ['leases', 'detail', leaseId],
+        ['leases', 'list'],
+      ],
     },
   );
 }

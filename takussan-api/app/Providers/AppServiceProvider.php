@@ -3,9 +3,13 @@
 namespace App\Providers;
 
 use App\Events\Lease\LeaseDepositRefunded;
+use App\Events\Lease\LeaseEarlyTerminationCancelled;
+use App\Events\Lease\LeaseEarlyTerminationConfirmed;
+use App\Events\Lease\LeaseEarlyTerminationRequested;
 use App\Events\Lease\LeasePaymentLateFeeApplied;
 use App\Events\Lease\LeaseRenewed;
 use App\Events\Lease\LeaseRentReviewed;
+use App\Listeners\Lease\NotifyOnEarlyTermination;
 use App\Listeners\Lease\NotifyTenantOfDepositRefund;
 use App\Listeners\Lease\NotifyTenantOfLateFee;
 use App\Listeners\Lease\NotifyTenantOfRenewal;
@@ -103,6 +107,11 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-089 — notify the tenant when their lease has been renewed.
         $events->listen(LeaseRenewed::class, NotifyTenantOfRenewal::class);
+
+        // TCK-090 — notify stakeholders on every early-termination transition.
+        $events->listen(LeaseEarlyTerminationRequested::class, [NotifyOnEarlyTermination::class, 'handleRequested']);
+        $events->listen(LeaseEarlyTerminationCancelled::class, [NotifyOnEarlyTermination::class, 'handleCancelled']);
+        $events->listen(LeaseEarlyTerminationConfirmed::class, [NotifyOnEarlyTermination::class, 'handleConfirmed']);
 
         // TCK-091 — notify the tenant when the rent on their lease is reviewed.
         $events->listen(LeaseRentReviewed::class, NotifyTenantOfRentReview::class);

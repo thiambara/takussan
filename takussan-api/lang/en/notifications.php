@@ -115,6 +115,23 @@ return [
         'period' => 'Period: from :start to :end.',
     ],
 
+    'lease_early_termination' => [
+        'greeting' => 'Hello,',
+        'penalty_line' => 'Early termination penalty: :amount :currency. Due before the effective date.',
+        'requested' => [
+            'subject' => 'Early termination requested — lease :reference',
+            'intro' => 'An early termination has been requested on lease :reference. Effective date: :date.',
+        ],
+        'cancelled' => [
+            'subject' => 'Early termination cancelled — lease :reference',
+            'intro' => 'The early termination request on lease :reference has been cancelled. The lease remains active.',
+        ],
+        'confirmed' => [
+            'subject' => 'Lease terminated — :reference',
+            'intro' => 'Lease :reference has been closed as of :date.',
+        ],
+    ],
+
     'lease_rent_reviewed' => [
         'subject' => 'Rent review — lease :reference',
         'greeting' => 'Hello,',

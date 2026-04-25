@@ -69,6 +69,71 @@ class LeasePolicy extends BasePolicy
     }
 
     /**
+     * TCK-090 — Initiate early termination of a lease.
+     *
+     * Allowed actors:
+     *   - Tenant of this lease (via `tenant.user_id`).
+     *   - Agency-side actor (landlord / agency member / admin) holding the
+     *     `leases.terminate` permission — covers an agent acting on the
+     *     bailleur's behalf.
+     *
+     * `super_admin` is granted globally via `Gate::before`.
+     */
+    public function requestEarlyTermination(User $user, Lease $lease): bool
+    {
+        if ($lease->tenant && $lease->tenant->user_id === $user->id) {
+            return true;
+        }
+
+        if (! $user->can('leases.terminate')) {
+            return false;
+        }
+
+        if ($user->id === $lease->landlord_id) {
+            return true;
+        }
+
+        if ($user->agency_id !== null && $user->agency_id === $lease->agency_id) {
+            return true;
+        }
+
+        return $user->hasRole(['admin', 'super_admin']);
+    }
+
+    /**
+     * TCK-090 — Cancel a pending early-termination request. Same actors as
+     * `requestEarlyTermination`: whoever can open the request can call it
+     * back (within the cancellation window — service-level guard).
+     */
+    public function cancelEarlyTermination(User $user, Lease $lease): bool
+    {
+        return $this->requestEarlyTermination($user, $lease);
+    }
+
+    /**
+     * TCK-090 — Confirm the transition into `terminated`. Restricted to
+     * agency-side actors and the daily job (which authenticates as a
+     * system user with the permission). Tenants do not get to mark the
+     * lease as definitively closed.
+     */
+    public function confirmEarlyTermination(User $user, Lease $lease): bool
+    {
+        if (! $user->can('leases.terminate')) {
+            return false;
+        }
+
+        if ($user->id === $lease->landlord_id) {
+            return true;
+        }
+
+        if ($user->agency_id !== null && $user->agency_id === $lease->agency_id) {
+            return true;
+        }
+
+        return $user->hasRole(['admin', 'super_admin']);
+    }
+
+    /**
      * TCK-091 — Annual rent review. Restricted to agency-side actors
      * (landlord, agency members, admin) holding `leases.rent_review`.
      * The tenant cannot self-review their own rent — they receive a

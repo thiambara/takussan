@@ -417,6 +417,36 @@
       "timeline_amendment": "Amendment {n}",
       "timeline_current": "current"
     },
+    "early_termination": {
+      "cta": "Terminate lease",
+      "dialog_title": "Early termination",
+      "dialog_subtitle": "Pick the effective date and reason. The estimated penalty will update live.",
+      "field_effective_date": "Effective end date",
+      "field_reason": "Reason",
+      "field_reason_placeholder": "e.g. relocation, sale, default…",
+      "notice_hint": "Minimum notice {days} days. Earliest date: {min}.",
+      "notice_too_short": "Notice period too short — pick a later date.",
+      "estimate_title": "Estimated penalty",
+      "estimate_breakdown": "{months} months × rent = {amount} {currency}",
+      "estimate_zero": "No penalty — the date is past the contractual end.",
+      "submit": "Confirm termination",
+      "submitting": "Submitting…",
+      "cancel": "Cancel",
+      "back": "Back",
+      "confirm_cancel": "Yes, cancel",
+      "error_generic": "Action failed.",
+      "banner_eyebrow": "Lease being terminated",
+      "banner_countdown": "Ends in {days} days",
+      "banner_due_today": "Ends today",
+      "banner_effective": "Effective date: {date}",
+      "banner_penalty_label": "Penalty",
+      "banner_invoice_label": "Penalty invoice",
+      "banner_reason_label": "Reason",
+      "banner_cancel_request": "Cancel termination",
+      "cancelled_toast_title": "Termination cancelled",
+      "cancelled_toast_body": "The lease has been reactivated.",
+      "cancel_failed_title": "Failed to cancel"
+    },
     "error_generic": "Action failed."
   }
 }

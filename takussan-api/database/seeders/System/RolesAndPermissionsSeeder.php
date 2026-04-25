@@ -35,6 +35,11 @@ class RolesAndPermissionsSeeder extends Seeder
         Permission::firstOrCreate(['name' => 'leases.refund_deposit', 'guard_name' => 'web']);
         // TCK-089 — same restriction for lease renewal/amendment.
         Permission::firstOrCreate(['name' => 'leases.renew', 'guard_name' => 'web']);
+        // TCK-090 — early-termination / penalty workflow. The tenant can
+        // initiate without this permission (handled directly in the
+        // policy); agency-side actors need it explicitly so a customer
+        // role can't accidentally trigger it via the API surface.
+        Permission::firstOrCreate(['name' => 'leases.terminate', 'guard_name' => 'web']);
         // TCK-091 — annual rent review (`PATCH /leases/{id}/rent`). The
         // `_force` flag bypasses the variation-pct guard (default 20 %)
         // and is granted only to agency_admin / owner.
@@ -42,9 +47,9 @@ class RolesAndPermissionsSeeder extends Seeder
         Permission::firstOrCreate(['name' => 'leases.rent_review_force', 'guard_name' => 'web']);
 
         $depositRefundExtras = [
-            'agency_admin' => ['leases.refund_deposit', 'leases.renew', 'leases.rent_review', 'leases.rent_review_force'],
-            'agent' => ['leases.refund_deposit', 'leases.renew', 'leases.rent_review'],
-            'owner' => ['leases.refund_deposit', 'leases.renew', 'leases.rent_review', 'leases.rent_review_force'],
+            'agency_admin' => ['leases.refund_deposit', 'leases.renew', 'leases.terminate', 'leases.rent_review', 'leases.rent_review_force'],
+            'agent' => ['leases.refund_deposit', 'leases.renew', 'leases.terminate', 'leases.rent_review'],
+            'owner' => ['leases.refund_deposit', 'leases.renew', 'leases.terminate', 'leases.rent_review', 'leases.rent_review_force'],
         ];
 
         $roles = [

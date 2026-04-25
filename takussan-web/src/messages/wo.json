@@ -365,6 +365,36 @@
       "timeline_amendment": "Avenant {n}",
       "timeline_current": "tey"
     },
+    "early_termination": {
+      "cta": "Tas luwé bi",
+      "dialog_title": "Tas bu jëkk",
+      "dialog_subtitle": "Tànnal bisu njëlbeen ak motivation. Pénalité bi di na feeñu ci li ngay sopp.",
+      "field_effective_date": "Bisu njëlbeen",
+      "field_reason": "Motivation",
+      "field_reason_placeholder": "Misaal: tukki, jaay, défaut…",
+      "notice_hint": "Préavis bu mën jeex : {days} fan. Bisu njëkk : {min}.",
+      "notice_too_short": "Préavis bu gëna gàtt — tànnal bisu yokk.",
+      "estimate_title": "Pénalité bi gënal",
+      "estimate_breakdown": "{months} weer × loyer = {amount} {currency}",
+      "estimate_zero": "Pénalité ammul — bis bi weesu na bisu mujj contrat bi.",
+      "submit": "Dëggal tas bi",
+      "submitting": "Yónnee…",
+      "cancel": "Bañ",
+      "back": "Dellu",
+      "confirm_cancel": "Waaw, neenal",
+      "error_generic": "Lu ñu mën a def amul.",
+      "banner_eyebrow": "Luwé di tas",
+      "banner_countdown": "Jeex ci {days} fan",
+      "banner_due_today": "Jeex tey",
+      "banner_effective": "Bisu njëlbeen : {date}",
+      "banner_penalty_label": "Pénalité",
+      "banner_invoice_label": "Facture pénalité",
+      "banner_reason_label": "Motivation",
+      "banner_cancel_request": "Neenal tas bi",
+      "cancelled_toast_title": "Tas bi neenal",
+      "cancelled_toast_body": "Luwé bi delloo na ci jàpp.",
+      "cancel_failed_title": "Neenal bi am na njuumte"
+    },
     "error_generic": "Lu ñu mën a def amul."
   }
 }

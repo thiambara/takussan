@@ -33,6 +33,10 @@ class Lease extends AbstractModel implements HasMedia
         'late_fee_percent', 'late_fee_grace_days',
         'terms', 'special_conditions',
         'signed_at', 'terminated_at', 'termination_reason', 'terminated_by_id', 'metadata',
+        // TCK-090 — early-termination workflow.
+        'early_termination_requested_at', 'early_termination_requested_by',
+        'early_termination_effective_date', 'early_termination_penalty_amount',
+        'early_termination_reason', 'notice_period_days', 'early_termination_invoice_id',
     ];
 
     protected $casts = [
@@ -54,6 +58,11 @@ class Lease extends AbstractModel implements HasMedia
         'renewal_date' => 'date',
         'signed_at' => 'datetime',
         'terminated_at' => 'datetime',
+        // TCK-090
+        'early_termination_requested_at' => 'datetime',
+        'early_termination_effective_date' => 'date',
+        'early_termination_penalty_amount' => 'decimal:2',
+        'notice_period_days' => 'integer',
         'metadata' => 'array',
     ];
 
@@ -75,6 +84,12 @@ class Lease extends AbstractModel implements HasMedia
         'deposit_amount', 'deposit_refunded_amount', 'deposit_refunded_at', 'deposit_refund_reason',
         'payment_frequency', 'late_fee_percent', 'late_fee_grace_days',
         'signed_at', 'terminated_at', 'created_at', 'updated_at',
+        // TCK-090 — exposed so the frontend banner can read the workflow
+        // state without a second round-trip (effective_date countdown,
+        // penalty amount, invoice link).
+        'early_termination_requested_at', 'early_termination_requested_by',
+        'early_termination_effective_date', 'early_termination_penalty_amount',
+        'early_termination_reason', 'notice_period_days', 'early_termination_invoice_id',
     ];
 
     public function property(): BelongsTo
@@ -132,6 +147,16 @@ class Lease extends AbstractModel implements HasMedia
     public function terminatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'terminated_by_id');
+    }
+
+    public function earlyTerminationRequestedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'early_termination_requested_by');
+    }
+
+    public function earlyTerminationInvoice(): BelongsTo
+    {
+        return $this->belongsTo(Invoice::class, 'early_termination_invoice_id');
     }
 
     public function payments(): HasMany

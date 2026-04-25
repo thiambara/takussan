@@ -15,6 +15,8 @@ import { GuarantorSection } from './GuarantorSection';
 import { DepositRefundBanner } from './DepositRefundBanner';
 import { LeaseRenewalDialog } from './LeaseRenewalDialog';
 import { LeaseChainTimeline } from './LeaseChainTimeline';
+import { EarlyTerminationDialog } from './EarlyTerminationDialog';
+import { EarlyTerminationBanner } from './EarlyTerminationBanner';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 import { LeaveReviewCta } from '@/components/reviews/LeaveReviewCta';
 import { canLeaseLeaveReview } from '@/components/reviews/reviewEligibility';
@@ -25,6 +27,8 @@ const STATUS_LABEL: Record<LeaseStatus, string> = {
   pending_signature: 'À signer',
   active: 'Actif',
   expired: 'Expiré',
+  // TCK-090 — early-termination request in flight.
+  terminating: 'Résiliation en cours',
   terminated: 'Résilié',
   renewed: 'Renouvelé',
 };
@@ -37,6 +41,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   const locale = useLocale() as Locale;
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [renewalOpen, setRenewalOpen] = useState(false);
+  const [earlyTerminationOpen, setEarlyTerminationOpen] = useState(false);
   const { user } = useAuth();
   const { data, isLoading, isError } = useLease(leaseId);
   const { data: paymentsData } = useLeasePayments(leaseId);
@@ -54,6 +59,12 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
 
   // TCK-089 — same role gate as refund_deposit (server checks `leases.renew`).
   const canRenew = canRefundDeposit;
+
+  // TCK-090 — Same role gate; the API additionally allows a tenant on
+  // their own lease, but tenants don't reach this dashboard surface — they
+  // hit the public/tenant flow. Status-eligibility is checked just before
+  // rendering the button.
+  const canRequestTermination = canRefundDeposit;
 
   const latePaymentsCount = useMemo(() => {
     const list = paymentsData?.data ?? [];
@@ -125,10 +136,23 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
               Renouveler le bail
             </Button>
           )}
+          {canRequestTermination &&
+            (lease.status === 'active' || lease.status === 'expired') && (
+              <Button
+                type="button"
+                variant="outline"
+                className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+                onClick={() => setEarlyTerminationOpen(true)}
+              >
+                Résilier le bail
+              </Button>
+            )}
         </div>
       </div>
 
       <LeaseChainTimeline leaseId={leaseId} currentId={leaseId} />
+
+      <EarlyTerminationBanner lease={lease} canCancel={canRequestTermination} />
 
       <DepositRefundBanner lease={lease} canRefund={canRefundDeposit} />
 
@@ -222,6 +246,12 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
         open={renewalOpen}
         onOpenChange={setRenewalOpen}
         parent={lease}
+      />
+
+      <EarlyTerminationDialog
+        open={earlyTerminationOpen}
+        onOpenChange={setEarlyTerminationOpen}
+        lease={lease}
       />
     </div>
   );

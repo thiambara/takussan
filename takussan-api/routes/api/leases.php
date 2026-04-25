@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\DocumentPdfController;
 use App\Http\Controllers\Api\LeaseChainController;
 use App\Http\Controllers\Api\LeaseController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
+use App\Http\Controllers\Api\LeaseEarlyTerminationController;
 use App\Http\Controllers\Api\LeasePaymentController;
 use App\Http\Controllers\Api\LeaseRenewalController;
 use App\Http\Controllers\Api\LeaseRentController;
@@ -27,6 +28,15 @@ Route::middleware('auth:sanctum')->group(function () {
     // amount/reason/attachments/payout/invoice.
     Route::post('leases/{lease}/deposit-refund', [LeaseDepositRefundController::class, 'store'])->name('leases.deposit-refund.store');
     Route::get('leases/{lease}/deposit-refund', [LeaseDepositRefundController::class, 'show'])->name('leases.deposit-refund.show');
+
+    // TCK-090 — early termination workflow. The legacy `LeaseController@terminate`
+    // is preserved for instant terminations of `pending_signature`/`active`
+    // leases without notice (e.g. force-majeure path); this set of routes
+    // implements the formal request → cancel → confirm flow with notice
+    // period and penalty invoice.
+    Route::post('leases/{lease}/early-termination', [LeaseEarlyTerminationController::class, 'store'])->name('leases.early-termination.store');
+    Route::delete('leases/{lease}/early-termination', [LeaseEarlyTerminationController::class, 'destroy'])->name('leases.early-termination.destroy');
+    Route::post('leases/{lease}/early-termination/confirm', [LeaseEarlyTerminationController::class, 'confirm'])->name('leases.early-termination.confirm');
 
     // TCK-091 — Rent review on an active lease. The generic
     // `LeaseController@update` deliberately rejects `monthly_rent` so
