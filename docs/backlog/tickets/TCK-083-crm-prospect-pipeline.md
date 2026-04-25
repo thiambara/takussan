@@ -1,7 +1,7 @@
 ---
 id: TCK-083
 title: "Pipeline de prospects CRM (kanban + stages + conversion)"
-status: doing
+status: review
 phase: P2
 family: applicatif
 estimate: M
@@ -138,4 +138,11 @@ widget → drill-down.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Backend** : `GET /api/customers/pipeline-stats` exposé via `PipelineStatsService` — retourne `stage_counts`, `stage_changes_last_30d`, `avg_time_in_stage`, `conversion_rate`, scopé à l'agence de l'agent (ou self si pas d'agence). `PATCH /customers/{id}` et `/customers/{id}/pipeline-stage` acceptent un `reason` optionnel ; transitions vers `converted` / `lost` créent automatiquement une `CustomerNote` épinglée portant la raison. Customer expose `addedBy`, `notes`, `tasks` includes pour kanban.
+- **Tasks** : commande horaire `tasks:send-due-reminders` (job `SendTaskDueReminders` + `TaskDueReminderNotification`) — fenêtre 24h avant `due_at`, idempotente via `tasks.metadata.reminder_24h_sent_at` (migration additive). `task_due_reminder` enregistré dans `PreferenceResolver::EVENTS`.
+- **Frontend** : `/app/crm/pipeline` rend 6 colonnes via `PipelineKanban` + `PipelineColumn` + `PipelineCard`. Drag-drop optimistic via `@dnd-kit/core` (déjà standard ailleurs avec @dnd-kit). `useCustomerStageMutation` rollback en cas d'erreur API + toast. `ReasonDialog` exigé pour `converted` / `lost`. `CustomerDetailSheet` panneau latéral avec 4 tabs (Overview / Notes / Tasks / Activity). `PipelineStatsBar` consomme `pipeline-stats`.
+- **Sparse fieldsets** : tous les `useApiQuery` utilisent `fields[customers]`, `include=addedBy,notes,tasks`, `filter[pipeline_stage]` (Spatie AllowedFilter::exact). `pipelineKeys` factory pour les queryKey.
+- **Hors périmètre** confirmés : segmentation/tags, campagnes, import CSV, scoring auto, sync email Gmail/Outlook (EF).
+- **Tests** : 14 backend (`CustomerPipelineTest` 8 + `TaskReminderTest` 6) + 8 Vitest (`PipelineKanban` 4 + `PipelineStatsBar` 2 + `useCustomerStageMutation` 2). Lint clean (0 errors).
+- **Dette** : ajouter `dnd-kit/core` ^6.3.1 dans `package.json` (manquait — installé ce ticket).
+- **PR** : feat/tck-083-crm-prospect-pipeline → dev (à ouvrir).

@@ -142,5 +142,63 @@
       "removeAria": "Retirer le bien #{id} du comparateur",
       "clearAria": "Vider le comparateur"
     }
+  },
+  "crm": {
+    "pipeline": {
+      "title": "Pipeline de prospects",
+      "subtitle": "Suivez vos contacts CRM par étape, déplacez les cartes pour les faire avancer.",
+      "empty": "Aucun élément à afficher.",
+      "emptyColumn": "Aucun client",
+      "stage": {
+        "lead": "Lead",
+        "prospect": "Prospect",
+        "qualified": "Qualifié",
+        "negotiating": "Négociation",
+        "converted": "Converti",
+        "lost": "Perdu"
+      },
+      "stats": {
+        "active": "Prospects actifs",
+        "newWeek": "Nouveaux cette semaine",
+        "conversionRate": "Taux de conversion 30j",
+        "avgQualified": "Temps moyen — Qualifié",
+        "changes30d": "Changements 30j"
+      },
+      "fields": {
+        "phone": "Téléphone",
+        "email": "Email",
+        "occupation": "Profession",
+        "stage": "Étape",
+        "tasksCount": "Tâches actives"
+      },
+      "actions": {
+        "cancel": "Annuler",
+        "confirm": "Confirmer",
+        "close": "Fermer"
+      },
+      "reasonDialog": {
+        "title": "Passer en {stage} — préciser la raison",
+        "placeholder": "Ex. : converti suite à signature du bail le 10 mai…"
+      },
+      "tabs": {
+        "overview": "Aperçu",
+        "notes": "Notes",
+        "tasks": "Tâches",
+        "activity": "Activité"
+      },
+      "notes": {
+        "add": "Ajouter une note",
+        "placeholder": "Écrivez une note…",
+        "pinned": "Épinglée"
+      },
+      "tasks": {
+        "add": "Ajouter une tâche",
+        "titlePlaceholder": "Titre de la tâche",
+        "toggle": "Marquer terminée"
+      },
+      "errors": {
+        "moveFailed": "Impossible de déplacer la carte. Réessayez."
+      }
+    }
   }
 }

@@ -142,5 +142,63 @@
       "removeAria": "Remove property #{id} from the comparator",
       "clearAria": "Clear comparator"
     }
+  },
+  "crm": {
+    "pipeline": {
+      "title": "Prospect pipeline",
+      "subtitle": "Track your CRM contacts by stage, drag cards to move them forward.",
+      "empty": "Nothing to show.",
+      "emptyColumn": "No customers",
+      "stage": {
+        "lead": "Lead",
+        "prospect": "Prospect",
+        "qualified": "Qualified",
+        "negotiating": "Negotiating",
+        "converted": "Converted",
+        "lost": "Lost"
+      },
+      "stats": {
+        "active": "Active prospects",
+        "newWeek": "New this week",
+        "conversionRate": "30-day conversion rate",
+        "avgQualified": "Average — Qualified",
+        "changes30d": "Stage changes 30d"
+      },
+      "fields": {
+        "phone": "Phone",
+        "email": "Email",
+        "occupation": "Occupation",
+        "stage": "Stage",
+        "tasksCount": "Open tasks"
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "confirm": "Confirm",
+        "close": "Close"
+      },
+      "reasonDialog": {
+        "title": "Move to {stage} — give a reason",
+        "placeholder": "e.g. converted after lease signed on May 10…"
+      },
+      "tabs": {
+        "overview": "Overview",
+        "notes": "Notes",
+        "tasks": "Tasks",
+        "activity": "Activity"
+      },
+      "notes": {
+        "add": "Add a note",
+        "placeholder": "Write a note…",
+        "pinned": "Pinned"
+      },
+      "tasks": {
+        "add": "Add a task",
+        "titlePlaceholder": "Task title",
+        "toggle": "Mark complete"
+      },
+      "errors": {
+        "moveFailed": "Could not move the card. Please retry."
+      }
+    }
   }
 }
