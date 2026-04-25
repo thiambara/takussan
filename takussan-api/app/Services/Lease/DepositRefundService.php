@@ -36,6 +36,8 @@ class DepositRefundService
      */
     public function refund(Lease $lease, User $issuedBy, array $data): array
     {
+        // Cheap pre-flight: status / non-zero deposit / amount shape don't
+        // change under contention so they're worth failing fast on.
         abort_unless(
             in_array($lease->status, [LeaseStatus::Terminated, LeaseStatus::Expired], true),
             422,
@@ -45,25 +47,34 @@ class DepositRefundService
         $deposit = (float) ($lease->deposit_amount ?? 0);
         abort_if($deposit <= 0, 422, __('messages.no_deposit_to_refund'));
 
-        $remaining = (float) $lease->deposit_remaining;
-        abort_if($remaining <= 0, 422, __('messages.deposit_already_refunded'));
-
         $amount = round((float) ($data['amount'] ?? 0), 2);
         abort_if($amount <= 0, 422, __('messages.refund_amount_required'));
-        abort_if(
-            $amount > $remaining + 0.001,
-            422,
-            __('messages.refund_amount_exceeds_remaining')
-        );
 
         $reason = isset($data['reason']) ? trim((string) $data['reason']) : '';
-        $isPartial = $amount + 0.001 < $remaining;
-        abort_if($isPartial && $reason === '', 422, __('messages.refund_reason_required_for_partial'));
-
         $currency = $lease->currency?->value ?? 'XOF';
-        $retained = round($remaining - $amount, 2);
 
-        return DB::transaction(function () use ($lease, $issuedBy, $amount, $reason, $retained, $currency, $data) {
+        return DB::transaction(function () use ($lease, $issuedBy, $amount, $reason, $currency, $data) {
+            // Re-fetch under a row lock so two concurrent partial refunds can't
+            // each observe `deposit_refunded_amount=0` and over-credit the
+            // tenant. The remaining-amount and partial-vs-full checks are
+            // evaluated against the locked state, not the stale input.
+            $lease = Lease::query()
+                ->whereKey($lease->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $remaining = (float) $lease->deposit_remaining;
+            abort_if($remaining <= 0, 422, __('messages.deposit_already_refunded'));
+            abort_if(
+                $amount > $remaining + 0.001,
+                422,
+                __('messages.refund_amount_exceeds_remaining')
+            );
+
+            $isPartial = $amount + 0.001 < $remaining;
+            abort_if($isPartial && $reason === '', 422, __('messages.refund_reason_required_for_partial'));
+
+            $retained = round($remaining - $amount, 2);
             $now = now();
 
             $payment = LeasePayment::create([

@@ -6,6 +6,7 @@ use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Payout;
+use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
@@ -14,8 +15,12 @@ use Illuminate\Queue\SerializesModels;
  * caution refund. Carries the lease, the LeasePayment row that records the
  * refund, the outflow Payout, the optional retention Invoice, and the
  * decomposed amounts so listeners don't need to re-derive them.
+ *
+ * `ShouldDispatchAfterCommit` defers the dispatch until the surrounding
+ * DB transaction commits — the tenant must not get a "refund applied"
+ * notification for a transaction that ultimately rolls back.
  */
-class LeaseDepositRefunded
+class LeaseDepositRefunded implements ShouldDispatchAfterCommit
 {
     use Dispatchable, SerializesModels;
 

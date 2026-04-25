@@ -134,6 +134,24 @@ class DepositRefundServiceTest extends TestCase
         ]);
     }
 
+    public function test_refund_uses_persisted_state_not_stale_input(): void
+    {
+        // Simulates the concurrent-partial-refund race: two workers each hold a
+        // reference to the same in-memory $lease (deposit_refunded_amount = 0).
+        // After worker A persists 400k, worker B's reference is stale. The
+        // lockForUpdate inside refund() must re-read the persisted state so
+        // worker B accumulates onto 400k rather than overwriting it.
+        $lease = $this->lease(['deposit_amount' => 600000, 'status' => LeaseStatus::Terminated]);
+        $stale = $lease;
+
+        $this->service->refund($lease, $this->issuer, ['amount' => 400000, 'reason' => 'A']);
+
+        $result = $this->service->refund($stale, $this->issuer, ['amount' => 200000]);
+
+        $this->assertSame(600000.0, (float) $result['lease']->deposit_refunded_amount);
+        $this->assertSame(0.0, $result['lease']->deposit_remaining);
+    }
+
     /** @param array<string,mixed> $overrides */
     protected function lease(array $overrides = []): Lease
     {
