@@ -57,18 +57,19 @@ class Lease extends AbstractModel implements HasMedia
         'metadata' => 'array',
     ];
 
-    protected static array $requestFilterable = ['property_id', 'landlord_id', 'tenant_id', 'agency_id', 'type', 'status', 'currency', 'payment_frequency'];
+    protected static array $requestFilterable = ['property_id', 'landlord_id', 'tenant_id', 'agency_id', 'type', 'status', 'currency', 'payment_frequency', 'renewed_from_lease_id'];
 
     protected static array $requestSortable = ['id', 'created_at', 'start_date', 'end_date', 'monthly_rent'];
 
-    protected static array $requestLoadable = ['property', 'landlord', 'tenant', 'agency', 'guarantor'];
+    protected static array $requestLoadable = ['property', 'landlord', 'tenant', 'agency', 'guarantor', 'renewedFrom', 'renewals'];
 
-    protected static array $requestCountable = ['payments', 'maintenanceRequests', 'documents'];
+    protected static array $requestCountable = ['payments', 'maintenanceRequests', 'documents', 'renewals'];
 
     protected static array $requestRangeFilters = ['monthly_rent'];
 
     protected static array $queryFields = [
         'id', 'property_id', 'landlord_id', 'tenant_id', 'agency_id',
+        'renewed_from_lease_id',
         'reference_number', 'type', 'status',
         'start_date', 'end_date', 'monthly_rent', 'currency',
         'deposit_amount', 'deposit_refunded_amount', 'deposit_refunded_at', 'deposit_refund_reason',
@@ -104,6 +105,11 @@ class Lease extends AbstractModel implements HasMedia
     public function renewedFrom(): BelongsTo
     {
         return $this->belongsTo(self::class, 'renewed_from_lease_id');
+    }
+
+    public function renewals(): HasMany
+    {
+        return $this->hasMany(self::class, 'renewed_from_lease_id');
     }
 
     public function guarantor(): BelongsTo

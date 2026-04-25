@@ -53,40 +53,6 @@ class LeaseService
         return $lease->refresh();
     }
 
-    /** @param array<string,mixed> $data */
-    public function renew(Lease $lease, array $data): Lease
-    {
-        abort_unless(
-            in_array($lease->status, [LeaseStatus::Active, LeaseStatus::Expired], true),
-            422,
-            'Only active or expired leases can be renewed.'
-        );
-
-        $newLease = Lease::create([
-            'property_id' => $lease->property_id,
-            'landlord_id' => $lease->landlord_id,
-            'tenant_id' => $lease->tenant_id,
-            'agency_id' => $lease->agency_id,
-            'guarantor_id' => $lease->guarantor_id,
-            'renewed_from_lease_id' => $lease->id,
-            'reference_number' => ReferenceNumberGenerator::lease(),
-            'type' => $lease->type,
-            'status' => LeaseStatus::Draft,
-            'start_date' => $lease->end_date?->addDay() ?? now(),
-            'end_date' => $data['end_date'],
-            'monthly_rent' => $data['monthly_rent'] ?? $lease->monthly_rent,
-            'currency' => $lease->currency,
-            'deposit_amount' => $lease->deposit_amount,
-            'payment_frequency' => $lease->payment_frequency,
-            'payment_day' => $lease->payment_day,
-            'terms' => $data['terms'] ?? $lease->terms,
-        ]);
-
-        $lease->update(['status' => LeaseStatus::Renewed]);
-
-        return $newLease;
-    }
-
     public function generateSchedule(Lease $lease): int
     {
         abort_unless($lease->status === LeaseStatus::Active, 422, 'Only active leases can generate a payment schedule.');

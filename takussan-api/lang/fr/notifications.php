@@ -107,4 +107,11 @@ return [
         'intro' => 'Votre caution pour le bail :reference a été remboursée pour un montant de :amount :currency.',
         'retention' => 'Une retenue de :amount :currency a été appliquée. Motif : :reason.',
     ],
+
+    'lease_renewed' => [
+        'subject' => 'Votre bail a été renouvelé — :reference',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Un avenant a été créé pour votre bail (:reference). Les nouvelles conditions sont désormais applicables.',
+        'period' => 'Période : du :start au :end.',
+    ],
 ];

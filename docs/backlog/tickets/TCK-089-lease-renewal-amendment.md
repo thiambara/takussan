@@ -1,12 +1,12 @@
 ---
 id: TCK-089
 title: "Renouvellement bail / avenant"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: M
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-25
 depends_on: [TCK-027]
 blocks: []
 spec_refs:
@@ -149,4 +149,71 @@ sérénité — éviter une UI alarmiste sur les hausses.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Implémentation 2026-04-25** :
+
+- **Nom de colonne aligné sur le spec, pas sur le ticket** : `models-spec.md`
+  §14 documente `renewed_from_lease_id` (la colonne TCK-027 existe déjà avec
+  ce nom). Le ticket utilisait l'alias `parent_lease_id` — j'ai préservé le
+  nom canonique partout (Eloquent `renewedFrom()` / `renewals()`, includes
+  Spatie, payload, FormRequest, FK). Pas de migration de colonne, juste
+  l'index `leases_renewed_from_idx` ajouté pour les requêtes de chaîne.
+- **`LeaseRenewalService` remplace `LeaseService::renew`** (TCK-027 stub).
+  L'ancienne implémentation ne gérait ni anti-overlap, ni max-chain, ni
+  immutabilité tenant/property, ni event/notification. La route
+  `POST /api/leases/{lease}/renew` pointe désormais sur
+  `LeaseRenewalController` (le `LeaseController::renew` historique a été
+  supprimé) ; le controller appelle le nouveau service après autorisation
+  via `Gate::forUser($user)->allows('renew', $lease)`.
+- **Statuts renouvelables** : seul `Active` ou `Expired` autorisent le
+  renouvellement. L'enum `LeaseStatus` n'a pas de case `EndingSoon` (le
+  ticket le mentionne mais c'est une feature future) — quand le case sera
+  ajouté il suffira de l'inclure dans `RENEWABLE_PARENT_STATUSES`.
+- **Soft-cascade non applicable ici** : un parent renouvelé devient
+  `Renewed` (pas supprimé) — le child reste indépendant et survit. Pas
+  besoin de hook `deleting`. Le FK `nullOnDelete` du parent (TCK-027)
+  reste en place pour le cas hard-delete.
+- **Continuité dates** : si le payload demande un `start_date` antérieur à
+  `parent.end_date`, le parent voit son `end_date` rétroactivement ajusté à
+  `start_date - 1` (sauf si ça remonte avant `parent.start_date`, auquel
+  cas on clamp). C'est tracé via la persistance Auditable du Lease.
+- **Setting `lease.require_signature`** détermine si le child démarre en
+  `PendingSignature` ou directement `Active` (avec `signed_at = now()`).
+  Le workflow signature électronique reste hors-scope (P3).
+- **ActivityLog double entrée** : `lease_renewed` sur le parent (avec
+  diff complet des champs trackés) + `lease_created` sur le child (avec
+  `parent_lease_id`/`renewed_from_lease_id`). Les listings d'activité
+  affichent ainsi les deux côtés du lien sans corrélation manuelle.
+- **Notification `lease_renewed`** ajoutée à
+  `PreferenceResolver::EVENTS` — respecte les toggles user existants
+  (TCK-070). 3 canaux (database/mail/broadcast) ; SMS reste off par
+  défaut comme pour les autres events non-critiques.
+- **Permission `leases.renew`** créée via `RolesAndPermissionsSeeder` et
+  attribuée à `agency_admin` / `agent` / `owner` (mêmes rôles que
+  `leases.refund_deposit`). Tenants et customers explicitement exclus —
+  un PATCH `parent_id` côté UI échoue avec 403, même si la fiche bail
+  affiche le bouton (le frontend gate via `canRenew` aussi par rôle).
+- **Frontend `Label` natif** dans `LeaseRenewalDialog` : le composant
+  shadcn `<Label>` est wrappé sur `@base-ui/react` `Field.Label` qui
+  exige un `<Field.Root>` parent et throw en jsdom. Pour un wizard
+  léger sans validation react-hook-form, `<label htmlFor>` natif suffit
+  — testable en jsdom et sans surface API perdue.
+- **Wizard frontend** est zero-dep (`useState` plutôt qu'un stepper
+  externe). Le diff visuel à l'étape 3 met en surbrillance amber les
+  champs modifiés ; les inchangés restent stone neutre. Pas de Field
+  picker pour tenant/property — l'API les rejette en 422 (`prohibited`)
+  donc on ne les expose même pas côté UI.
+- **Build pré-cassé non-touché** : `next build` échoue déjà sur `dev`
+  pour `ConversationInfoSheet` (TCK-085) qui importe `SheetDescription`/
+  `SheetHeader`/`SheetTitle` non exportés par `ui/sheet.tsx`. Ce
+  ticket ne touche pas à `messages/` — ajouté à la liste de cleanup
+  follow-ups (TCK-078 successor).
+- **Tests** :
+  - Backend ciblés : 8 (`LeaseRenewalServiceTest`) + 5
+    (`LeaseRenewalEndpointTest`) + 4 (`LeaseChainEndpointTest`) + 3
+    (`LeaseRenewedNotificationTest`) = **20 verts**.
+  - 2 tests pré-existants de `LeaseTest` (renew happy + inactive)
+    réajustés au nouveau contrat (status `active` au lieu de `draft`,
+    permission seed, `start_date` accepté).
+  - Frontend : 3 tests Vitest sur `LeaseRenewalDialog` (default
+    `start_date`, transition steps avec diff, hint immutabilité).
+  - Suite complète Vitest : **375 verts**.

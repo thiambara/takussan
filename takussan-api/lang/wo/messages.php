@@ -33,6 +33,10 @@ return [
 
     // Lease
     'lease_cannot_terminate' => 'Luwé yi jàpp walla yi ñu baaxal rekk la ñu mën tas.',
+    'lease_renewal_status_not_renewable' => 'Luwé yi jàpp walla yi jeex rekk la ñu mën a yeesalaat.',
+    'lease_renewal_active_child_exists' => 'Luwé bii am na ba noppi avenant bu jàpp. Tasal ko walla xaarël ba mu jeex.',
+    'lease_renewal_max_chain_exceeded' => 'Yeesalaat bi du wàcc :max niveau.',
+    'lease_renewal_field_immutable' => 'Champ bi :field mën nañu ko soppi ci avenant — sose luwé bu bees.',
     'lease_must_be_ended_for_refund' => 'Luwé bi war a jeex walla mujj bala ñu delloo kaution.',
     'deposit_already_refunded' => 'Kaution bi delloo nañu ko ba noppi.',
     'no_deposit_to_refund' => 'Amul kaution bu ñuy delloo.',

@@ -17,6 +17,7 @@ class LeaseResource extends JsonResource
             'tenant_id' => $this->tenant_id,
             'agency_id' => $this->agency_id,
             'booking_id' => $this->booking_id,
+            'renewed_from_lease_id' => $this->renewed_from_lease_id,
             'type' => $this->type?->value,
             'status' => $this->status?->value,
             'start_date' => $this->start_date?->toDateString(),
@@ -36,6 +37,9 @@ class LeaseResource extends JsonResource
             'terminated_at' => $this->terminated_at?->toISOString(),
             'property' => $this->whenLoaded('property', fn () => PropertyResource::make($this->property)),
             'tenant' => $this->whenLoaded('tenant', fn () => CustomerResource::make($this->tenant)),
+            'renewed_from' => $this->whenLoaded('renewedFrom', fn () => self::make($this->renewedFrom)),
+            'renewals' => $this->whenLoaded('renewals', fn () => self::collection($this->renewals)),
+            'renewals_count' => $this->whenCounted('renewals'),
             'created_at' => $this->created_at?->toISOString(),
         ];
     }
