@@ -96,9 +96,9 @@ _(vide)_
 
 - [TCK-089](tickets/TCK-089-lease-renewal-amendment.md) — Renouvellement bail / avenant `M · P2 · applicatif`
 
-### Vague 9-E — Résiliation anticipée + pénalités
+### Vague 9-E — Résiliation anticipée + pénalités — [PR #75](https://github.com/thiambara/takussan/pull/75)
 
-- [TCK-090](tickets/TCK-090-lease-early-termination.md) — Résiliation anticipée + pénalités `M · P2 · applicatif`
+- [TCK-090](tickets/TCK-090-lease-early-termination.md) — Résiliation anticipée + pénalités `M · P2 · applicatif` (PR #75)
 
 ### Vague 8-A — Passerelle de paiement Wave / OM / Lemon Squeezy — [PR #64](https://github.com/thiambara/takussan/pull/64)
 
