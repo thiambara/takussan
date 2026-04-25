@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\UpdateLeaseRequest;
 use App\Http\Resources\LeaseResource;
 use App\Models\Enums\Currency;
 use App\Models\Enums\IdType;
@@ -88,6 +89,25 @@ class LeaseController extends Controller
         ]);
     }
 
+    /**
+     * TCK-087 — Edit lease-level late-fee configuration. Lifecycle
+     * changes (status, dates, rent…) flow through their dedicated
+     * actions; this endpoint is intentionally narrow.
+     */
+    public function update(UpdateLeaseRequest $request, Lease $lease): JsonResponse
+    {
+        $this->authorizeManage($request, $lease);
+
+        $data = $request->validated();
+        if ($data !== []) {
+            $lease->fill($data)->save();
+        }
+
+        return $this->json([
+            'data' => LeaseResource::make($lease->fresh())->toArray($request),
+        ]);
+    }
+
     public function activate(Request $request, Lease $lease): JsonResponse
     {
         $this->authorizeManage($request, $lease);
@@ -136,14 +156,6 @@ class LeaseController extends Controller
         $count = $this->leases->generateSchedule($lease);
 
         return $this->json(['data' => ['payments_created' => $count]]);
-    }
-
-    public function refundDeposit(Request $request, Lease $lease): JsonResponse
-    {
-        $this->authorizeManage($request, $lease);
-        $payment = $this->leases->refundDeposit($lease);
-
-        return $this->json(['data' => $payment], 201);
     }
 
     /**

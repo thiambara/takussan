@@ -1,12 +1,12 @@
 ---
 id: TCK-087
 title: "Pénalités de retard automatiques sur loyers"
-status: todo
+status: review
 phase: P1
 family: applicatif
 estimate: S
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-25
 depends_on: [TCK-027, TCK-028]
 blocks: []
 spec_refs:
@@ -133,4 +133,41 @@ attendu comme un champ supplémentaire dans le ticket UI loyers
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Implémentation 2026-04-25** :
+
+- Migrations additives : `add_late_fee_columns_to_leases_table` (`late_fee_percent`
+  decimal 5,2 + `late_fee_grace_days` smallint, nullables) ;
+  `add_late_fee_columns_to_lease_payments_table` renomme `late_fee` → `late_fee_amount`
+  (clé canonique du spec) et ajoute `late_fee_applied_at` timestamp nullable
+  (drapeau d'idempotence). L'ancien champ `late_fee` du scaffolding TCK-027 est
+  ainsi unifié sous le nom du spec — pas de double colonne.
+- `App\Services\Lease\LateFeeCalculator` remplace l'ancien `LeaseLateFeeService` :
+  `compute()` (sans persister), `isApplicable()`, `apply()` (persiste +
+  ActivityLog `event=late_fee_applied` + `LeasePaymentLateFeeApplied::dispatch`).
+  Base de calcul = `remaining_amount` (partial pay correct) ; cap optionnel via
+  `Setting('late_fees.cap_percent')` clamp en pourcentage de `amount`.
+- `App\Jobs\Lease\ApplyLateFeesJob` parcourt agence par agence (chunk 200) en
+  filtrant `late_fee_percent IS NOT NULL AND > 0` et `late_fee_applied_at IS NULL`
+  — idempotence stricte. Schedule `dailyAt('02:00')` dans `routes/console.php`
+  (remplace l'ancien `06:00` du scaffolding).
+- `App\Events\Lease\LeasePaymentLateFeeApplied(payment, amount, percent, base)`
+  + listener `App\Listeners\Lease\NotifyTenantOfLateFee` (queued, ShouldQueue) →
+  envoie `LeasePaymentLateFeeNotification` au `lease.tenant.user` ; channels
+  filtrés par `PreferenceResolver` sur l'event existant `lease_payment_overdue`
+  (réutilisation du toggle UI de TCK-070).
+- `LeaseController::update(UpdateLeaseRequest)` : nouveau PATCH `/api/leases/{lease}`
+  ne validant que `late_fee_percent` (0–50) et `late_fee_grace_days` (0–30).
+  Pas de leak sur les autres champs cycle de vie (terminate/renew restent dédiés).
+- `LeasePaymentResource` expose `late_fee_amount` + `late_fee_applied_at` ; les
+  champs sont déjà filtrables via `fields[lease_payments]=…` côté client (pas
+  besoin d'AllowedInclude `lateFee` — sparse fieldsets directs).
+- Tests : `LateFeeCalculatorTest` (5 — happy/grace/partial/percent zéro/cap),
+  `ApplyLateFeesJobTest` (3 — idempotence/multi-agences/no-op percent zéro),
+  `LeasePaymentLateFeeNotificationTest` (3 — event→notif/email-off/default-on).
+  Tous verts. 1046 tests backend globaux toujours verts.
+- Suppressions : `App\Jobs\ApplyLatePaymentPenalties`,
+  `App\Services\Model\LeaseLateFeeService` et son test (remplacés par les
+  nouveaux artefacts du spec). `lang/{en,fr}/notifications.php` :
+  bloc `lease_late_fee_applied` (4 clés). `wo` non traduit (cohérent avec les
+  autres entrées).
+

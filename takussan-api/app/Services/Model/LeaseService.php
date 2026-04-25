@@ -180,34 +180,4 @@ class LeaseService
 
         return $lease->refresh();
     }
-
-    public function refundDeposit(Lease $lease): LeasePayment
-    {
-        abort_unless(
-            in_array($lease->status, [LeaseStatus::Terminated, LeaseStatus::Expired], true),
-            422,
-            __('messages.lease_must_be_ended_for_refund')
-        );
-
-        $existingRefund = $lease->payments()
-            ->where('payment_type', LeasePaymentType::DepositRefund->value)
-            ->exists();
-        abort_if($existingRefund, 422, __('messages.deposit_already_refunded'));
-
-        $amount = (float) ($lease->deposit_amount ?? 0);
-        abort_if($amount <= 0, 422, __('messages.no_deposit_to_refund'));
-
-        return LeasePayment::create([
-            'lease_id' => $lease->id,
-            'reference_number' => ReferenceNumberGenerator::leasePayment(),
-            'payer_id' => $lease->tenant_id,
-            'payment_type' => LeasePaymentType::DepositRefund->value,
-            'amount' => $amount,
-            'currency' => $lease->currency?->value ?? 'XOF',
-            'status' => PaymentStatus::Pending,
-            'due_date' => now()->addDays(30)->toDateString(),
-            'period_start' => now()->toDateString(),
-            'period_end' => now()->addDays(30)->toDateString(),
-        ]);
-    }
 }

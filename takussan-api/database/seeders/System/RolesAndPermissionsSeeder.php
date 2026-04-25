@@ -29,12 +29,23 @@ class RolesAndPermissionsSeeder extends Seeder
             }
         }
 
+        // TCK-088 — custom action that does not fit the generic CRUD set.
+        // Granted to agency-side roles only (admin / agency_admin / agent /
+        // owner). Tenants and customers are deliberately excluded.
+        Permission::firstOrCreate(['name' => 'leases.refund_deposit', 'guard_name' => 'web']);
+
+        $depositRefundExtras = [
+            'agency_admin' => ['leases.refund_deposit'],
+            'agent' => ['leases.refund_deposit'],
+            'owner' => ['leases.refund_deposit'],
+        ];
+
         $roles = [
             'super_admin' => Permission::pluck('name')->toArray(),
             'admin' => Permission::pluck('name')->toArray(),
-            'agency_admin' => $this->permissionsFor(['properties', 'bookings', 'leases', 'lease_payments', 'customers', 'conversations', 'messages', 'maintenance_requests', 'property_visits', 'documents', 'saved_searches', 'reviews']),
-            'agent' => $this->permissionsFor(['properties', 'bookings', 'leases', 'customers', 'conversations', 'messages', 'property_visits', 'documents', 'saved_searches', 'reviews'], ['view', 'create', 'update']),
-            'owner' => $this->permissionsFor(['properties', 'bookings', 'leases', 'lease_payments', 'conversations', 'messages', 'maintenance_requests', 'property_visits', 'documents', 'reviews'], ['view', 'create', 'update']),
+            'agency_admin' => array_merge($this->permissionsFor(['properties', 'bookings', 'leases', 'lease_payments', 'customers', 'conversations', 'messages', 'maintenance_requests', 'property_visits', 'documents', 'saved_searches', 'reviews']), $depositRefundExtras['agency_admin']),
+            'agent' => array_merge($this->permissionsFor(['properties', 'bookings', 'leases', 'customers', 'conversations', 'messages', 'property_visits', 'documents', 'saved_searches', 'reviews'], ['view', 'create', 'update']), $depositRefundExtras['agent']),
+            'owner' => array_merge($this->permissionsFor(['properties', 'bookings', 'leases', 'lease_payments', 'conversations', 'messages', 'maintenance_requests', 'property_visits', 'documents', 'reviews'], ['view', 'create', 'update']), $depositRefundExtras['owner']),
             'tenant' => $this->permissionsFor(['bookings', 'leases', 'lease_payments', 'conversations', 'messages', 'maintenance_requests', 'property_visits', 'documents', 'favorites', 'saved_searches', 'reviews'], ['view', 'create']),
             'customer' => $this->permissionsFor(['properties', 'bookings', 'favorites', 'saved_searches', 'reviews', 'conversations', 'messages', 'property_visits'], ['view', 'create']),
             'service_provider' => $this->permissionsFor(['maintenance_requests', 'conversations', 'messages', 'documents'], ['view', 'update']),

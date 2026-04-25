@@ -41,7 +41,14 @@ return [
         'greeting' => 'Salaam,',
         'intro' => 'Sa ligéey « :title » dafa wàcc ëllëg ci :datetime.',
     ],
-  
+
+    'lease_late_fee_applied' => [
+        'subject' => 'Penalité di yengul ñu ko teg ci paye :reference',
+        'greeting' => 'Salaam,',
+        'intro' => 'Penalité di yengul bu :amount :currency, ñu ko teg ci paye :reference.',
+        'details' => 'Ñu ko jeem ci :percent % bi des ci montant bi (:base :currency).',
+    ],
+
     'account_deletion_requested' => [
         'subject' => 'Ndogalu suufeel kont nañ ko jaaxal',
         'greeting' => 'Salaam,',
@@ -66,10 +73,17 @@ return [
         'retention' => 'Naka noonu mu nekke ci yoonu réew, doxal yi nu mëniw (paye, fakture) lañ kàllaaxoo waaye anonim ci 10 at.',
         'contact' => 'Yoonu sa laaj, jokkok ekipu jëfundikuwaay ya.',
     ],
-  
+
     'conversation_invite' => [
         'subject' => 'Wax bi : :subject',
         'greeting' => 'Salaam,',
         'intro' => ':inviter dafa la wëlbati ci kuréel bu : « :subject ».',
+    ],
+
+    'lease_deposit_refunded' => [
+        'subject' => 'Delloo kaution — luwé :reference',
+        'greeting' => 'Salaam,',
+        'intro' => 'Sa kaution ci luwé :reference, delloo nañ la — :amount :currency.',
+        'retention' => 'Téye nañ :amount :currency. Mboor : :reason.',
     ],
 ];

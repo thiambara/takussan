@@ -308,5 +308,33 @@
         "generic": "Lu ñu xamul am na, jeemal ndax."
       }
     }
+  },
+  "lease": {
+    "deposit": {
+      "banner": {
+        "none_title": "Kaution bi ñu war a delloo",
+        "partial_title": "Kaution bi delloo nañu ko ay genn-wàll",
+        "full_title": "Kaution bi delloo nañu ko ba noppi",
+        "refunded_summary": "{refunded} delloo ci {total} — {date}",
+        "reason_prefix": "Mboor téye",
+        "cta": "Delloo kaution",
+        "continue_cta": "Sopp lépp"
+      },
+      "modal": {
+        "title": "Delloo kaution",
+        "subtitle": "Mooy mbënd mi te boo téyee, indeel firnde.",
+        "amount_label": "Mbënd delloo",
+        "remaining": "Kaution bi des : {amount} {currency}",
+        "breakdown_refund": "Yaa delloo {amount} {currency}",
+        "breakdown_retained": "Yaa téye {amount} {currency}",
+        "reason_label": "Mboor téye",
+        "reason_placeholder": "Niki defar, paye-bewul…",
+        "attachments_label": "Firnde yi (foto, fakture)",
+        "cancel": "Bayyi",
+        "submit": "Dëggal delloo",
+        "submitting": "Yónnee…"
+      },
+      "error_generic": "Delloo gi am na njuumte, jeemal ndax."
+    }
   }
 }

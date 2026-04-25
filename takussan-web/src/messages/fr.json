@@ -359,5 +359,33 @@
         "generic": "Une erreur est survenue, réessayez."
       }
     }
+  },
+  "lease": {
+    "deposit": {
+      "banner": {
+        "none_title": "Caution à rembourser",
+        "partial_title": "Caution partiellement remboursée",
+        "full_title": "Caution intégralement remboursée",
+        "refunded_summary": "{refunded} remboursés sur {total} — {date}",
+        "reason_prefix": "Motif retenue",
+        "cta": "Rembourser la caution",
+        "continue_cta": "Solder le remboursement"
+      },
+      "modal": {
+        "title": "Rembourser la caution",
+        "subtitle": "Confirmez le montant et joignez les justificatifs si vous retenez tout ou partie.",
+        "amount_label": "Montant remboursé",
+        "remaining": "Caution restante : {amount} {currency}",
+        "breakdown_refund": "Vous remboursez {amount} {currency}",
+        "breakdown_retained": "Vous retenez {amount} {currency}",
+        "reason_label": "Motif de retenue",
+        "reason_placeholder": "Ex. réparations, impayés…",
+        "attachments_label": "Justificatifs (photos, factures)",
+        "cancel": "Annuler",
+        "submit": "Confirmer le remboursement",
+        "submitting": "Envoi en cours…"
+      },
+      "error_generic": "Le remboursement a échoué, réessayez."
+    }
   }
 }
