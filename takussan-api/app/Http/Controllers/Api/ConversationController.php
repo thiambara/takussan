@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Conversation\CreateGroupConversationRequest;
 use App\Http\Resources\ConversationResource;
 use App\Http\Resources\MessageResource;
 use App\Jobs\NotifyNewMessageJob;
@@ -10,6 +11,7 @@ use App\Models\Conversation;
 use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
 use App\Models\Enums\MessageType;
+use App\Services\Messaging\GroupConversationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +26,8 @@ class ConversationController extends Controller
 
         $paginator = Conversation::whereHas('participants', function ($q) use ($user, $includeArchived) {
             $q->where('user_id', $user->id);
+            // TCK-085 — participants who left a group no longer see it.
+            $q->whereNull('conversation_participants.left_at');
             if ($includeArchived) {
                 $q->whereNotNull('conversation_participants.archived_at');
             } else {
@@ -39,8 +43,15 @@ class ConversationController extends Controller
         ]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(Request $request, GroupConversationService $groups): JsonResponse
     {
+        // TCK-085 — group requests get the dedicated FormRequest
+        // (subject required, 3..20 total participants).
+        $type = $request->input('type', ConversationType::Direct->value);
+        if ($type === ConversationType::Group->value) {
+            return $this->storeGroup($request, $groups);
+        }
+
         $data = $request->validate([
             'subject' => ['nullable', 'string'],
             'type' => ['nullable', Rule::enum(ConversationType::class)],
@@ -94,6 +105,95 @@ class ConversationController extends Controller
         return $this->json([
             'data' => ConversationResource::make($conversation)->toArray($request),
         ], 201);
+    }
+
+    /**
+     * TCK-085 — `POST /conversations` with `type = group`.
+     *
+     * The body is validated by `CreateGroupConversationRequest` (subject
+     * required, 2..19 *other* participants → 3..20 total). The creator is
+     * promoted to admin automatically by the service.
+     */
+    protected function storeGroup(Request $request, GroupConversationService $groups): JsonResponse
+    {
+        // Re-validate via the dedicated FormRequest. We instantiate it
+        // manually because we branched off `Request` after the route hit
+        // — Laravel's container resolution already happened.
+        $form = CreateGroupConversationRequest::createFrom($request);
+        $form->setContainer(app())->setRedirector(app('redirect'));
+        $form->validateResolved();
+        $data = $form->validated();
+
+        $user = $request->user();
+
+        $conversation = $groups->create(
+            $user,
+            $data['subject'],
+            array_map('intval', $data['participants']),
+            $data['property_id'] ?? null,
+            $data['lease_id'] ?? null,
+            $data['maintenance_request_id'] ?? null,
+        );
+
+        if (! empty($data['initial_message'])) {
+            $conversation->messages()->create([
+                'sender_id' => $user->id,
+                'content' => $data['initial_message'],
+                'type' => MessageType::Text->value,
+            ]);
+            $conversation->refresh();
+        }
+
+        return $this->json([
+            'data' => ConversationResource::make($conversation)->toArray($request),
+        ], 201);
+    }
+
+    /**
+     * TCK-085 — `PATCH /conversations/{conversation}` for admin-only
+     * rename. Body: `{ subject }`. Per-participant mute is handled by
+     * the dedicated `toggleMute` route.
+     */
+    public function update(Request $request, Conversation $conversation, GroupConversationService $groups): JsonResponse
+    {
+        $this->ensureParticipant($request, $conversation);
+
+        $user = $request->user();
+        abort_unless($user->can('rename', $conversation), 403, __('messaging.errors.admin_only'));
+
+        $data = $request->validate([
+            'subject' => ['required', 'string', 'max:255'],
+        ]);
+
+        $groups->rename($conversation, $user, $data['subject']);
+
+        return $this->json([
+            'data' => ConversationResource::make($conversation->fresh())->toArray($request),
+        ]);
+    }
+
+    /**
+     * TCK-085 — Toggle per-participant mute. Stored on
+     * `ConversationParticipant.is_muted`. Notifications honour this
+     * flag at fan-out time (see {@see NotifyNewMessageJob}).
+     */
+    public function toggleMute(Request $request, Conversation $conversation, GroupConversationService $groups): JsonResponse
+    {
+        $this->ensureParticipant($request, $conversation);
+
+        $data = $request->validate([
+            'is_muted' => ['required', 'boolean'],
+        ]);
+
+        $user = $request->user();
+        $groups->setMute($conversation, $user, (bool) $data['is_muted']);
+
+        return $this->json([
+            'data' => [
+                'conversation_id' => $conversation->id,
+                'is_muted' => (bool) $data['is_muted'],
+            ],
+        ]);
     }
 
     public function show(Request $request, Conversation $conversation): JsonResponse
@@ -230,7 +330,12 @@ class ConversationController extends Controller
         if ($user->hasRole(['admin', 'super_admin'])) {
             return;
         }
-        $isParticipant = $conversation->participants()->where('user_id', $user->id)->exists();
+        // TCK-085 — `left_at != null` means the user already exited the
+        // group; they no longer have read/write access.
+        $isParticipant = $conversation->participants()
+            ->where('user_id', $user->id)
+            ->wherePivotNull('left_at')
+            ->exists();
         abort_unless($isParticipant, 403);
     }
 }

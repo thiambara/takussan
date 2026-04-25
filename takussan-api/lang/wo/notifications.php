@@ -35,4 +35,10 @@ return [
         'intro' => 'Lii mooy àq-àq yi nga jot ca demba.',
         'footer' => 'Gis senter bu notifications ngir gis sa yëkkati yépp.',
     ],
+
+    'conversation_invite' => [
+        'subject' => 'Wax bi : :subject',
+        'greeting' => 'Salaam,',
+        'intro' => ':inviter dafa la wëlbati ci kuréel bu : « :subject ».',
+    ],
 ];

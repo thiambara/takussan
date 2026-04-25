@@ -56,4 +56,10 @@ return [
         'intro_24h' => 'Reminder — your visit for :property is scheduled tomorrow at :datetime.',
         'intro_1h' => 'Reminder — your visit for :property starts in about an hour at :datetime.',
     ],
+
+    'conversation_invite' => [
+        'subject' => 'Group invite: :subject',
+        'greeting' => 'Hello,',
+        'intro' => ':inviter has added you to the group ":subject".',
+    ],
 ];
