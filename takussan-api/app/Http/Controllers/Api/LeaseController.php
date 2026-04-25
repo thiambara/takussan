@@ -138,14 +138,6 @@ class LeaseController extends Controller
         return $this->json(['data' => ['payments_created' => $count]]);
     }
 
-    public function refundDeposit(Request $request, Lease $lease): JsonResponse
-    {
-        $this->authorizeManage($request, $lease);
-        $payment = $this->leases->refundDeposit($lease);
-
-        return $this->json(['data' => $payment], 201);
-    }
-
     /**
      * Attach an existing guarantor or create+attach a new one to the lease.
      * Enforces the business rule: max 3 guarantors per lease.

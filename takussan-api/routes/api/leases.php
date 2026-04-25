@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\DocumentPdfController;
 use App\Http\Controllers\Api\LeaseController;
+use App\Http\Controllers\Api\LeaseDepositRefundController;
 use App\Http\Controllers\Api\LeasePaymentController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,7 +14,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('leases/{lease}/terminate', [LeaseController::class, 'terminate'])->name('leases.terminate');
     Route::post('leases/{lease}/renew', [LeaseController::class, 'renew'])->name('leases.renew');
     Route::post('leases/{lease}/payments/generate-schedule', [LeaseController::class, 'generateSchedule'])->name('leases.payments.generate-schedule');
-    Route::post('leases/{lease}/refund-deposit', [LeaseController::class, 'refundDeposit'])->name('leases.refund-deposit');
+
+    // TCK-088 — caution refund. Replaces the legacy `/refund-deposit`
+    // endpoint (TCK-027) which only handled a single full refund without
+    // amount/reason/attachments/payout/invoice.
+    Route::post('leases/{lease}/deposit-refund', [LeaseDepositRefundController::class, 'store'])->name('leases.deposit-refund.store');
+    Route::get('leases/{lease}/deposit-refund', [LeaseDepositRefundController::class, 'show'])->name('leases.deposit-refund.show');
 
     // Nested payments
     Route::get('leases/{lease}/payments', [LeasePaymentController::class, 'index'])->name('leases.payments.index');

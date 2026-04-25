@@ -37,6 +37,10 @@ const DETAIL_FIELDS: string[] = [
   'signed_at',
   'terminated_at',
   'termination_reason',
+  // TCK-088 — deposit refund block (banner + modal pre-fill).
+  'deposit_refunded_amount',
+  'deposit_refunded_at',
+  'deposit_refund_reason',
 ];
 
 export type UseLeasesParams = {
@@ -237,5 +241,43 @@ export function useCreateGuarantor(leaseId: number) {
   return useApiMutation<ApiResponse<Guarantor>, CreateGuarantorPayload>(
     { path: `/api/leases/${leaseId}/guarantors`, method: 'POST' },
     { invalidate: [['leases', 'detail', leaseId]] },
+  );
+}
+
+// TCK-088 — Deposit refund: state read + refund mutation.
+export type DepositRefundState = {
+  deposit_amount: number;
+  deposit_refunded_amount: number;
+  deposit_remaining: number;
+  deposit_refunded_at: string | null;
+  deposit_refund_reason: string | null;
+  state: 'none' | 'partial' | 'full';
+  attachments: Array<{ id: number; name: string; url: string }>;
+};
+
+export function useDepositRefundState(leaseId: number | null | undefined) {
+  return useApiQuery<ApiResponse<DepositRefundState>>(
+    ['leases', 'deposit-refund', leaseId],
+    `/api/leases/${leaseId ?? ''}/deposit-refund`,
+    { enabled: Boolean(leaseId) },
+  );
+}
+
+export type RefundDepositPayload = {
+  amount: number;
+  reason?: string;
+  attachments?: number[];
+};
+
+export function useRefundDeposit(leaseId: number) {
+  return useApiMutation<ApiResponse<unknown>, RefundDepositPayload>(
+    { path: `/api/leases/${leaseId}/deposit-refund`, method: 'POST' },
+    {
+      invalidate: [
+        ['leases', 'detail', leaseId],
+        ['leases', 'deposit-refund', leaseId],
+        ['leases', 'payments', leaseId],
+      ],
+    },
   );
 }

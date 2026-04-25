@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
-use App\Models\Conversation;
+use App\Events\Lease\LeaseDepositRefunded;
+use App\Listeners\Lease\NotifyTenantOfDepositRefund;
 use App\Listeners\Payments\LemonSqueezyEventListener;
+use App\Models\Conversation;
 use App\Models\Favorite;
 use App\Models\Lease;
 use App\Models\Message;
@@ -19,6 +21,7 @@ use App\Observers\PropertyVisitObserver;
 use App\Observers\ReviewObserver;
 use App\Observers\UserObserver;
 use App\Policies\ConversationPolicy;
+use App\Policies\LeasePolicy;
 use App\Policies\MediaPolicy;
 use App\Policies\PropertyPolicy;
 use App\Services\Formatting\CurrencyFormatter;
@@ -65,6 +68,9 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-085 — group conversation gates (admin-only mutations + system-message immutability).
         Gate::policy(Conversation::class, ConversationPolicy::class);
+
+        // TCK-088 — explicit bind for `$user->can('refundDeposit', $lease)`.
+        Gate::policy(Lease::class, LeasePolicy::class);
         // TCK-084 — `@currency($amount, $currency)` Blade directive used by
         // PDF templates. Accepts either a Currency enum case or its string
         // value so existing templates that thread `$invoice->currency` (a
@@ -82,6 +88,9 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(LemonSqueezyOrderCreated::class, [LemonSqueezyEventListener::class, 'handleOrderCreated']);
         Event::listen(LemonSqueezyOrderRefunded::class, [LemonSqueezyEventListener::class, 'handleOrderRefunded']);
         Event::listen(LemonSqueezySubscriptionCreated::class, [LemonSqueezyEventListener::class, 'handleSubscriptionCreated']);
+
+        // TCK-088 — notify the tenant when their lease deposit is refunded.
+        $events->listen(LeaseDepositRefunded::class, NotifyTenantOfDepositRefund::class);
 
         // TCK-022: dispatch the email verification notification on user
         // registration (Laravel no longer auto-registers this in the

@@ -62,7 +62,7 @@ return [
         'greeting' => 'Bonjour,',
         'intro' => 'Votre tâche « :title » est due demain à :datetime.',
     ],
-  
+
     'account_deletion_requested' => [
         'subject' => 'Demande de suppression de compte enregistrée',
         'greeting' => 'Bonjour,',
@@ -87,10 +87,17 @@ return [
         'retention' => 'Conformément à nos obligations légales, certains enregistrements comptables (paiements, factures) sont conservés sous forme anonyme pendant 10 ans.',
         'contact' => 'Pour toute question, contactez notre service client.',
     ],
-  
+
     'conversation_invite' => [
         'subject' => 'Invitation à un groupe : :subject',
         'greeting' => 'Bonjour,',
         'intro' => ':inviter vous a ajouté au groupe « :subject ».',
+    ],
+
+    'lease_deposit_refunded' => [
+        'subject' => 'Remboursement de la caution — bail :reference',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Votre caution pour le bail :reference a été remboursée pour un montant de :amount :currency.',
+        'retention' => 'Une retenue de :amount :currency a été appliquée. Motif : :reason.',
     ],
 ];

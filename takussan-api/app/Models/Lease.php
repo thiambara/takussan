@@ -14,10 +14,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Lease extends AbstractModel
+class Lease extends AbstractModel implements HasMedia
 {
-    use Auditable, HasFactory, SoftDeletes;
+    use Auditable, HasFactory, InteractsWithMedia, SoftDeletes;
 
     protected $fillable = [
         'property_id', 'landlord_id', 'tenant_id', 'agency_id',
@@ -25,7 +27,8 @@ class Lease extends AbstractModel
         'reference_number', 'type', 'status',
         'start_date', 'end_date', 'renewal_date',
         'monthly_rent', 'sale_price', 'currency',
-        'deposit_amount', 'commission_amount', 'commission_rate',
+        'deposit_amount', 'deposit_refunded_amount', 'deposit_refunded_at', 'deposit_refund_reason',
+        'commission_amount', 'commission_rate',
         'payment_frequency', 'payment_day',
         'terms', 'special_conditions',
         'signed_at', 'terminated_at', 'termination_reason', 'terminated_by_id', 'metadata',
@@ -39,6 +42,8 @@ class Lease extends AbstractModel
         'monthly_rent' => 'decimal:2',
         'sale_price' => 'decimal:2',
         'deposit_amount' => 'decimal:2',
+        'deposit_refunded_amount' => 'decimal:2',
+        'deposit_refunded_at' => 'datetime',
         'commission_amount' => 'decimal:2',
         'commission_rate' => 'decimal:2',
         'start_date' => 'date',
@@ -62,7 +67,8 @@ class Lease extends AbstractModel
     protected static array $queryFields = [
         'id', 'property_id', 'landlord_id', 'tenant_id', 'agency_id',
         'reference_number', 'type', 'status',
-        'start_date', 'end_date', 'monthly_rent', 'currency', 'deposit_amount',
+        'start_date', 'end_date', 'monthly_rent', 'currency',
+        'deposit_amount', 'deposit_refunded_amount', 'deposit_refunded_at', 'deposit_refund_reason',
         'payment_frequency', 'signed_at', 'terminated_at', 'created_at', 'updated_at',
     ];
 
@@ -136,5 +142,32 @@ class Lease extends AbstractModel
     public function documents(): MorphMany
     {
         return $this->morphMany(Document::class, 'documentable');
+    }
+
+    public function payouts(): HasMany
+    {
+        return $this->hasMany(Payout::class);
+    }
+
+    public function invoices(): MorphMany
+    {
+        return $this->morphMany(Invoice::class, 'invoiceable');
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('lease_deposit_refund');
+    }
+
+    /**
+     * Caution restant à rembourser (deposit_amount − deposit_refunded_amount),
+     * borné à 0. Lecture seule.
+     */
+    public function getDepositRemainingAttribute(): float
+    {
+        $total = (float) ($this->deposit_amount ?? 0);
+        $refunded = (float) ($this->deposit_refunded_amount ?? 0);
+
+        return max(round($total - $refunded, 2), 0.0);
     }
 }
