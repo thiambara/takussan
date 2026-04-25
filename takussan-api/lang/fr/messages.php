@@ -38,6 +38,7 @@ return [
     'lease_renewal_active_child_exists' => 'Ce bail a déjà un avenant actif. Résiliez-le ou attendez son expiration avant d\'en créer un nouveau.',
     'lease_renewal_max_chain_exceeded' => 'La chaîne de renouvellements ne peut pas dépasser :max niveaux.',
     'lease_renewal_field_immutable' => 'Le champ :field ne peut pas être modifié dans un avenant — créez un nouveau bail.',
+    'lease_renewal_end_after_start' => 'La date de fin doit être postérieure à la date de début.',
     'lease_must_be_ended_for_refund' => 'Le bail doit être terminé ou expiré pour rembourser la caution.',
     'deposit_already_refunded' => 'La caution a déjà été intégralement remboursée pour ce bail.',
     'no_deposit_to_refund' => 'Aucun montant de caution à rembourser.',

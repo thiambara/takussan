@@ -405,6 +405,7 @@
       "rent_evolution": "Rent evolution: {sign}{percent}% (from {from} to {to})",
       "next": "Next",
       "back": "Back",
+      "cancel": "Cancel",
       "submit": "Confirm renewal",
       "submitting": "Creating amendment…",
       "error_generic": "Renewal failed, please retry.",

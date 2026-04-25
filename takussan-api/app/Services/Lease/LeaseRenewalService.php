@@ -50,18 +50,40 @@ class LeaseRenewalService
      */
     public function renew(Lease $parent, array $data, ?User $actor = null): Lease
     {
-        $this->guardParentStatus($parent);
+        // L'immutabilité tenant/property/landlord est purement payload :
+        // pas besoin de la base, donc inutile d'attendre la transaction.
         $this->guardImmutableFields($data);
-        $this->guardNoActiveChild($parent);
-        $this->guardMaxChainDepth($parent);
 
         return DB::transaction(function () use ($parent, $data, $actor) {
+            // Verrou ligne sur le parent pour serialiser les renew()
+            // concurrents : sans ça, deux requêtes simultanées peuvent
+            // toutes deux passer guardNoActiveChild() et créer deux
+            // enfants. Le lock est levé automatiquement à la sortie
+            // de la transaction.
+            $parent = Lease::query()->lockForUpdate()->findOrFail($parent->id);
+
+            $this->guardParentStatus($parent);
+            $this->guardNoActiveChild($parent);
+            $this->guardMaxChainDepth($parent);
+
             $parentStart = $parent->start_date ? Carbon::parse($parent->start_date) : null;
             $parentEnd = $parent->end_date ? Carbon::parse($parent->end_date) : null;
 
             $startDate = isset($data['start_date'])
                 ? Carbon::parse($data['start_date'])
                 : ($parentEnd?->copy()->addDay() ?? Carbon::today());
+
+            $endDate = isset($data['end_date']) ? Carbon::parse($data['end_date']) : null;
+
+            // Invariant chronologie : si end_date est fourni, il doit être
+            // strictement après start_date (qu'il soit explicite ou hérité
+            // de parent.end_date+1). Le FormRequest ne couvre que le cas
+            // où start_date est dans le payload.
+            if ($endDate !== null && $endDate->lte($startDate)) {
+                throw ValidationException::withMessages([
+                    'end_date' => [__('messages.lease_renewal_end_after_start')],
+                ])->status(422);
+            }
 
             // Continuité dates : si chevauchement explicite, on ajuste
             // rétroactivement le end_date du parent à start_date - 1.
@@ -72,8 +94,6 @@ class LeaseRenewalService
                 }
                 $parent->forceFill(['end_date' => $adjusted])->save();
             }
-
-            $endDate = isset($data['end_date']) ? Carbon::parse($data['end_date']) : null;
 
             $requireSignature = $this->requireSignatureFlag();
             $childStatus = $requireSignature ? LeaseStatus::PendingSignature : LeaseStatus::Active;

@@ -353,6 +353,7 @@
       "rent_evolution": "Loyer : {sign}{percent}% (de {from} ba {to})",
       "next": "Topp",
       "back": "Dellu",
+      "cancel": "Bañ",
       "submit": "Dëggal yeesalaat",
       "submitting": "Yónnee…",
       "error_generic": "Yeesalaat am na njuumte, jeemal ndax.",

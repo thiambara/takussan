@@ -348,7 +348,7 @@ export function LeaseRenewalDialog({
             variant="ghost"
             onClick={() => (step === 1 ? onOpenChange(false) : setStep((step - 1) as Step))}
           >
-            {step === 1 ? t('back') : t('back')}
+            {step === 1 ? t('cancel') : t('back')}
           </Button>
           {step < 3 ? (
             <Button

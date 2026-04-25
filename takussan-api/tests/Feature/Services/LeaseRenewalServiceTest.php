@@ -103,6 +103,22 @@ class LeaseRenewalServiceTest extends TestCase
         ]);
     }
 
+    public function test_renew_rejects_when_end_date_before_inherited_start_date(): void
+    {
+        // Si end_date est fourni sans start_date, le service hérite
+        // start_date = parent.end_date + 1. Le FormRequest's `after:start_date`
+        // ne peut pas valider ce cas (start_date n'est pas dans le payload),
+        // donc le service doit lever 422 lui-même.
+        [$service, $parent] = $this->scaffold();
+
+        $this->expectException(ValidationException::class);
+        $service->renew($parent, [
+            // parent.end_date = now() ; inherited start_date = now()+1
+            // end_date = now() est antérieur → invalid
+            'end_date' => now()->toDateString(),
+        ]);
+    }
+
     public function test_renew_enforces_max_chain_depth(): void
     {
         $service = app(LeaseRenewalService::class);

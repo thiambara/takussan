@@ -404,6 +404,7 @@
       "rent_evolution": "Évolution loyer : {sign}{percent}% (de {from} à {to})",
       "next": "Suivant",
       "back": "Précédent",
+      "cancel": "Annuler",
       "submit": "Confirmer le renouvellement",
       "submitting": "Création de l'avenant…",
       "error_generic": "Le renouvellement a échoué, réessayez.",
