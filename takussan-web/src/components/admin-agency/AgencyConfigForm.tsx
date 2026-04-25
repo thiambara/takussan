@@ -109,6 +109,8 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
   const { control } = form;
   const t = useTranslations('agency.currency');
   const selectedCurrency = (form.watch('currency') || 'XOF').toUpperCase() as CurrencyCode;
+  const originalCurrency = (agency.currency ?? 'XOF').toUpperCase() as CurrencyCode;
+  const currencyChanged = selectedCurrency !== originalCurrency;
 
   function handleLogoPick(ev: React.ChangeEvent<HTMLInputElement>) {
     setLogoError(null);
@@ -324,6 +326,14 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
             <p className="mt-1.5 text-xs text-app-ink-muted">
               {t('preview', { example: formatCurrency(100_000, selectedCurrency) })}
             </p>
+            {currencyChanged ? (
+              <p
+                role="alert"
+                className="mt-1.5 rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-900"
+              >
+                {t('warningOnChange')}
+              </p>
+            ) : null}
           </div>
           <FormInput
             control={control}
