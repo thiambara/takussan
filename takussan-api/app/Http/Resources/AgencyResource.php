@@ -19,6 +19,7 @@ class AgencyResource extends JsonResource
             'phone' => $this->phone,
             'website' => $this->website,
             'commission_rate' => $this->commission_rate !== null ? (float) $this->commission_rate : null,
+            'currency' => $this->currency?->value ?? 'XOF',
             'is_verified' => (bool) $this->is_verified,
             'status' => $this->status?->value,
             'properties_count' => $this->properties_count,

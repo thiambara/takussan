@@ -90,6 +90,14 @@
     "notFound": "Resource not found.",
     "validation": "Some fields are invalid."
   },
+  "agency": {
+    "currency": {
+      "label": "Currency",
+      "placeholder": "Select a currency",
+      "preview": "100,000 will be displayed as: {example}",
+      "warningOnChange": "Changing the currency only applies to new properties, leases and payments. Existing records keep their original currency."
+    }
+  },
   "compare": {
     "eyebrow": "Comparator",
     "title": "Compare properties",
@@ -185,6 +193,113 @@
         "passwordInvalid": "Incorrect password.",
         "twoFactorInvalid": "Invalid 2FA code.",
         "obligations": "You have outstanding obligations preventing deletion."
+      }
+    }
+  },
+  "messaging": {
+    "listHeading": "Conversations",
+    "newGroup": "New group",
+    "emptyState": "Select a conversation to view messages.",
+    "system": {
+      "participantAdded": "{actor} added {target} to the group.",
+      "participantRemoved": "{actor} removed {target} from the group.",
+      "roleChanged": "{actor} changed {target}'s role to {role}.",
+      "renamed": "{actor} renamed the group to \"{subject}\"."
+    },
+    "group": {
+      "create": {
+        "title": "New group",
+        "step1Description": "Add at least 2 participants (you'll be included automatically).",
+        "step2Description": "Give the group a subject and optionally link it to a property or lease.",
+        "participantsLabel": "Participants",
+        "participantInputPlaceholder": "User ID",
+        "participantsHint": "Enter IDs one at a time. The server enforces permissions.",
+        "add": "Add",
+        "removeParticipant": "Remove #{id}",
+        "minParticipants": "At least {min} participants total (including you).",
+        "maxParticipants": "At most {max} participants total.",
+        "duplicate": "This user is already added.",
+        "invalidId": "Invalid ID.",
+        "subjectLabel": "Subject",
+        "subjectRequired": "Subject is required.",
+        "propertyLabel": "Property (optional)",
+        "leaseLabel": "Lease (optional)",
+        "cancel": "Cancel",
+        "next": "Next",
+        "back": "Back",
+        "create": "Create group",
+        "createFailed": "Failed to create the group."
+      },
+      "info": {
+        "title": "Group info",
+        "subjectLine": "Subject: {subject}",
+        "renameLabel": "Rename group",
+        "renameSave": "Save",
+        "renameFailed": "Failed to rename.",
+        "participantsHeading": "Participants ({count})",
+        "addLabel": "Invite a participant",
+        "addPlaceholder": "User ID",
+        "addFailed": "Failed to add.",
+        "add": "Add",
+        "you": "you",
+        "roleAdmin": "Admin",
+        "roleMember": "Member",
+        "promote": "Promote to admin",
+        "demote": "Demote to member",
+        "remove": "Remove from group",
+        "mute": "Mute notifications",
+        "unmute": "Unmute notifications",
+        "leave": "Leave group",
+        "lastAdminLeaveBlocked": "You're the last admin — promote someone before leaving.",
+        "lastAdminLeaveHint": "Promote another member to admin before leaving.",
+        "invalidId": "Invalid ID."
+      }
+    }
+  },
+  "payments": {
+    "gateway": {
+      "button": {
+        "payOnline": "Pay online"
+      },
+      "picker": {
+        "title": "Select a payment method",
+        "description": "Choose the provider that will process this payment.",
+        "select": "Select",
+        "unavailable": "Unavailable — currency not supported or integration missing. Contact your administrator.",
+        "contactAdmin": "Contact admin",
+        "cancel": "Cancel",
+        "confirm": "Continue",
+        "redirecting": "Redirecting…"
+      },
+      "return": {
+        "success": {
+          "title": "Payment confirmed",
+          "body": "Thank you! Your payment has been recorded."
+        },
+        "failed": {
+          "title": "Payment failed",
+          "body": "The payment did not go through. You can try again."
+        },
+        "pending": {
+          "title": "Payment pending",
+          "body": "We are confirming the status with the provider — this may take a few seconds."
+        },
+        "unknown": {
+          "title": "Status unavailable",
+          "body": "We could not verify the status. Try again later."
+        },
+        "invalid": {
+          "title": "Invalid parameters",
+          "body": "Return link is malformed."
+        },
+        "actions": {
+          "backToPayments": "Back to payments",
+          "refresh": "Refresh"
+        }
+      },
+      "error": {
+        "generic": "Something went wrong, please try again."
+
       }
     }
   }

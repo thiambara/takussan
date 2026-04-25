@@ -110,10 +110,14 @@ class DocumentPdfServiceTest extends TestCase
             'footer_note' => 'Document généré le 23/04/2026 00:00 — Takussan',
         ])->render();
 
-        $this->assertStringContainsString('Awa Diop', $html);
-        $this->assertStringContainsString('400 000', $html);
-        $this->assertStringContainsString('XOF', $html);
-        $this->assertStringContainsString('Takussan', $html);
+        // Normalise NBSP / NNBSP introduced by ICU's locale-aware grouping.
+        $normalized = preg_replace('/[\x{00A0}\x{202F}\x{2009}]/u', ' ', $html) ?? $html;
+
+        $this->assertStringContainsString('Awa Diop', $normalized);
+        $this->assertStringContainsString('400 000', $normalized);
+        // TCK-084 — XOF displays as "F CFA" (verbose CFA franc symbol).
+        $this->assertStringContainsString('F CFA', $normalized);
+        $this->assertStringContainsString('Takussan', $normalized);
         // Pagination markers come from the base layout
         $this->assertStringContainsString('page-number', $html);
         $this->assertStringContainsString('page-total', $html);
@@ -138,8 +142,11 @@ class DocumentPdfServiceTest extends TestCase
             'footer_note' => 'Document généré le 23/04/2026 00:00 — Takussan',
         ])->render();
 
-        $this->assertStringContainsString('https://example.com/logo.png', $html);
-        $this->assertStringContainsString('250 000', $html);
-        $this->assertStringContainsString('Total TTC', $html);
+        // Normalise NBSP / NNBSP introduced by ICU's locale-aware grouping.
+        $normalized = preg_replace('/[\x{00A0}\x{202F}\x{2009}]/u', ' ', $html) ?? $html;
+
+        $this->assertStringContainsString('https://example.com/logo.png', $normalized);
+        $this->assertStringContainsString('250 000', $normalized);
+        $this->assertStringContainsString('Total TTC', $normalized);
     }
 }

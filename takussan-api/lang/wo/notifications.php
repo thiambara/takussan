@@ -60,4 +60,10 @@ return [
         'retention' => 'Naka noonu mu nekke ci yoonu réew, doxal yi nu mëniw (paye, fakture) lañ kàllaaxoo waaye anonim ci 10 at.',
         'contact' => 'Yoonu sa laaj, jokkok ekipu jëfundikuwaay ya.',
     ],
+  
+    'conversation_invite' => [
+        'subject' => 'Wax bi : :subject',
+        'greeting' => 'Salaam,',
+        'intro' => ':inviter dafa la wëlbati ci kuréel bu : « :subject ».',
+    ],
 ];

@@ -32,8 +32,15 @@ class NotifyNewMessageJob implements ShouldQueue
         }
 
         $sender = $message->sender;
+        // TCK-085 — Exclude:
+        //   - the sender themselves
+        //   - participants who muted this conversation (notif suppressed,
+        //     message still persisted and visible in the thread)
+        //   - participants who left the group (`left_at != null`)
         $recipients = $message->conversation->participants()
-            ->where('users.id', '!=', $message->sender_id)
+            ->when($message->sender_id !== null, fn ($q) => $q->where('users.id', '!=', $message->sender_id))
+            ->wherePivot('is_muted', false)
+            ->wherePivotNull('left_at')
             ->get();
 
         if ($recipients->isEmpty()) {

@@ -81,4 +81,10 @@ return [
         'retention' => 'Conformément à nos obligations légales, certains enregistrements comptables (paiements, factures) sont conservés sous forme anonyme pendant 10 ans.',
         'contact' => 'Pour toute question, contactez notre service client.',
     ],
+  
+    'conversation_invite' => [
+        'subject' => 'Invitation à un groupe : :subject',
+        'greeting' => 'Bonjour,',
+        'intro' => ':inviter vous a ajouté au groupe « :subject ».',
+    ],
 ];

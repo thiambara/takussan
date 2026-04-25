@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useLocale } from 'next-intl';
-import { Paperclip, Send } from 'lucide-react';
+import { Info, Paperclip, Send, Users } from 'lucide-react';
 import {
   useConversation,
   useMessages,
@@ -19,6 +19,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { formatDateTime } from '@/lib/format';
 import { isAllowedAttachment, sendMessageSchema, type SendMessageFormValues } from '@/lib/schemas/message';
 import { cn } from '@/lib/utils';
+import { SystemMessageBubble } from './SystemMessageBubble';
+import { ConversationInfoSheet } from './ConversationInfoSheet';
 import type { Locale } from '@/i18n/config';
 import type { Message } from '@/types/message';
 
@@ -41,6 +43,7 @@ export function ChatView({ conversationId }: ChatViewProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -68,6 +71,11 @@ export function ChatView({ conversationId }: ChatViewProps) {
 
   const messages = messagesData?.data ?? [];
   const conversation = conversationData?.data;
+  const isGroup = conversation?.type === 'group';
+  const myParticipant = conversation?.participants?.find(
+    (p) => p.user_id === user?.id && !p.left_at,
+  );
+  const isMuted = Boolean(myParticipant?.is_muted);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -131,7 +139,11 @@ export function ChatView({ conversationId }: ChatViewProps) {
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center gap-3 border-b border-stone-200 bg-white px-4 py-3">
-        {conversation?.property && (
+        {isGroup ? (
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-stone-200">
+            <Users className="size-5 text-stone-600" aria-hidden />
+          </div>
+        ) : conversation?.property ? (
           <div className="relative size-10 shrink-0 overflow-hidden rounded-lg bg-stone-100">
             {conversation.property.main_photo_url && (
               <Image
@@ -143,14 +155,20 @@ export function ChatView({ conversationId }: ChatViewProps) {
               />
             )}
           </div>
-        )}
+        ) : null}
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-sm font-semibold text-stone-900">
             {conversation?.subject ??
               conversation?.property?.title ??
               `Conversation #${conversationId}`}
           </h2>
-          {conversation?.property && (
+          {isGroup && conversation?.participants && (
+            <p className="text-xs text-stone-500">
+              {conversation.participants.filter((p) => !p.left_at).length} participants
+              {isMuted && ' · 🔕'}
+            </p>
+          )}
+          {!isGroup && conversation?.property && (
             <Link
               href={`/properties/${conversation.property.slug}`}
               className="text-xs text-stone-500 hover:underline"
@@ -159,7 +177,27 @@ export function ChatView({ conversationId }: ChatViewProps) {
             </Link>
           )}
         </div>
+        {isGroup && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => setInfoOpen(true)}
+            aria-label="Group info"
+            data-testid="group-info-button"
+          >
+            <Info className="size-4" aria-hidden />
+          </Button>
+        )}
       </header>
+      {isGroup && (
+        <ConversationInfoSheet
+          open={infoOpen}
+          onClose={() => setInfoOpen(false)}
+          conversation={conversation}
+          currentMute={isMuted}
+        />
+      )}
 
       <div
         ref={scrollRef}
@@ -178,14 +216,18 @@ export function ChatView({ conversationId }: ChatViewProps) {
           </p>
         ) : (
           <ul className="space-y-3">
-            {messages.map((m) => (
-              <MessageBubble
-                key={m.id}
-                message={m}
-                isOwn={m.sender_id === user?.id}
-                locale={locale}
-              />
-            ))}
+            {messages.map((m) =>
+              m.type === 'system' ? (
+                <SystemMessageBubble key={m.id} message={m} />
+              ) : (
+                <MessageBubble
+                  key={m.id}
+                  message={m}
+                  isOwn={m.sender_id === user?.id}
+                  locale={locale}
+                />
+              ),
+            )}
           </ul>
         )}
       </div>

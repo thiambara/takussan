@@ -39,6 +39,14 @@
     "generic": "Am na jafe-jafe. Jéemat.",
     "unauthorized": "Dara tëj nga."
   },
+  "agency": {
+    "currency": {
+      "label": "Xaalis",
+      "placeholder": "Tànn xaalis",
+      "preview": "100 000 dañ koy wone ni: {example}",
+      "warningOnChange": "Soppi xaalis di jëf rekk ci yu bees yi (kër, baat, ak fay). Yi am ba tey, ci xaalis bu ñu jëkk a séddale lañu nekk."
+    }
+  },
   "compare": {
     "eyebrow": "Méengal",
     "title": "Méengal kër yi",
@@ -134,6 +142,112 @@
         "passwordInvalid": "Baatu jubaale dañ a doy.",
         "twoFactorInvalid": "Kod 2FA dañ a doy.",
         "obligations": "Am nga obligation yu nekk ci ñu te dañu mënul suufeel."
+      }
+    }
+  },
+  "messaging": {
+    "listHeading": "Waxtaan",
+    "newGroup": "Bantu bu bees",
+    "emptyState": "Tànn benn waxtaan ngir gis bataaxal yi.",
+    "system": {
+      "participantAdded": "{actor} dafa yokk {target} ci kuréel gi.",
+      "participantRemoved": "{actor} dafa génn {target} ci kuréel gi.",
+      "roleChanged": "{actor} soppil na ndëgg {target} ci {role}.",
+      "renamed": "{actor} tudd waaye kuréel gi « {subject} »."
+    },
+    "group": {
+      "create": {
+        "title": "Bantu bu bees",
+        "step1Description": "Yokk lu néew 2 nit (yaw lañu lay boole automatiquement).",
+        "step2Description": "Joxal kuréel gi lépp lu am, te bind ko ci benn ber walla benn kontaaru waxtaanu (lu ñu bëgg).",
+        "participantsLabel": "Ñi bokk",
+        "participantInputPlaceholder": "ID utilisateur",
+        "participantsHint": "Bind ID yi benn-benn. Server bi mooy seet permissions yi.",
+        "add": "Yokk",
+        "removeParticipant": "Génn #{id}",
+        "minParticipants": "Lu néew {min} nit ci kuréel gi (boole yaw).",
+        "maxParticipants": "Lu ëpp {max} nit ci kuréel gi.",
+        "duplicate": "Nit ki yokk nañu ko ba pare.",
+        "invalidId": "ID bu jaaxle.",
+        "subjectLabel": "Sujet",
+        "subjectRequired": "Sujet bi danu ko soxla.",
+        "propertyLabel": "Ber (lu ñu bëgg)",
+        "leaseLabel": "Kontaaru lokal (lu ñu bëgg)",
+        "cancel": "Bayyi",
+        "next": "Topp",
+        "back": "Dellu",
+        "create": "Sosal kuréel gi",
+        "createFailed": "Mënul sosal kuréel gi."
+      },
+      "info": {
+        "title": "Xibaaru kuréel gi",
+        "subjectLine": "Sujet: {subject}",
+        "renameLabel": "Tudd waaye kuréel gi",
+        "renameSave": "Wéral",
+        "renameFailed": "Mënul tudd waaye.",
+        "participantsHeading": "Ñi bokk ({count})",
+        "addLabel": "Yokk benn nit",
+        "addPlaceholder": "ID utilisateur",
+        "addFailed": "Mënul yokk.",
+        "add": "Yokk",
+        "you": "yaw",
+        "roleAdmin": "Admin",
+        "roleMember": "Bokk",
+        "promote": "Promóte ci admin",
+        "demote": "Wàcce ci bokk",
+        "remove": "Génn ci kuréel gi",
+        "mute": "Tëj notifications yi",
+        "unmute": "Ubbil notifications yi",
+        "leave": "Génn ci kuréel gi",
+        "lastAdminLeaveBlocked": "Yaw rekk a admin — promóte keneen ba pare gennal.",
+        "lastAdminLeaveHint": "Promóte beneen membre admin balaa nga gennal.",
+        "invalidId": "ID bu jaaxle."
+      }
+    }
+  },
+  "payments": {
+    "gateway": {
+      "button": {
+        "payOnline": "Fey ci internet"
+      },
+      "picker": {
+        "title": "Tànn anam fey",
+        "description": "Tànnal kiy joxe njëgam la.",
+        "select": "Tànn",
+        "unavailable": "Aaye — devise bi ñu defu ko walla integration bi amul. Wax ak admin bi.",
+        "contactAdmin": "Wax ak admin",
+        "cancel": "Bayyi",
+        "confirm": "Topp",
+        "redirecting": "Yoonal…"
+      },
+      "return": {
+        "success": {
+          "title": "Pewam bi am na",
+          "body": "Jërejëf ! Pewam bi noon na."
+        },
+        "failed": {
+          "title": "Pewam dañu mënul",
+          "body": "Pewam bi mënul jeex. Mën nga ko jeem yeneen yoon."
+        },
+        "pending": {
+          "title": "Pewam ngiy taxaw",
+          "body": "Nu di ko seet ak fournisseur bi — mën na yagg lu tuuti."
+        },
+        "unknown": {
+          "title": "Statut bi kenn xamuko",
+          "body": "Mënuñu ko seet, jeem nga ko ndax."
+        },
+        "invalid": {
+          "title": "Lien bi aayoo",
+          "body": "Lien bi mënuñu jëfandikoo."
+        },
+        "actions": {
+          "backToPayments": "Dellu ci pewam yi",
+          "refresh": "Reefresh"
+        }
+      },
+      "error": {
+        "generic": "Lu ñu xamul am na, jeemal ndax."
       }
     }
   }

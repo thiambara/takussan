@@ -81,4 +81,10 @@ return [
         'retention' => 'In accordance with legal obligations, certain accounting records (payments, invoices) are kept anonymously for 10 years.',
         'contact' => 'For any questions, please contact our support team.',
     ],
+  
+    'conversation_invite' => [
+        'subject' => 'Group invite: :subject',
+        'greeting' => 'Hello,',
+        'intro' => ':inviter has added you to the group ":subject".',
+    ],
 ];

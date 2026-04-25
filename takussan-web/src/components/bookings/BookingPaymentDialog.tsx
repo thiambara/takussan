@@ -81,7 +81,7 @@ export function BookingPaymentDialog({
             control={form.control}
             name="amount"
             type="number"
-            label="Montant (XOF)"
+            label="Montant"
             required
             min={0}
             step={100}
