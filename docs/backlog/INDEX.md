@@ -99,9 +99,9 @@ _(vide)_
 
 - [TCK-090](tickets/TCK-090-lease-early-termination.md) — Résiliation anticipée + pénalités `M · P2 · applicatif` (PR #75)
 
-### Vague 9-G — Relance automatique factures en retard
+### Vague 9-G — Relance automatique factures en retard — [PR #77](https://github.com/thiambara/takussan/pull/77)
 
-- [TCK-092](tickets/TCK-092-invoice-overdue-reminders.md) — Relance automatique factures en retard `S · P2 · applicatif`
+- [TCK-092](tickets/TCK-092-invoice-overdue-reminders.md) — Relance automatique factures en retard `S · P2 · applicatif` (PR #77)
 
 ### Vague 8-A — Passerelle de paiement Wave / OM / Lemon Squeezy — [PR #64](https://github.com/thiambara/takussan/pull/64)
 
