@@ -74,9 +74,9 @@ _(vide)_
 
 ## 👀 Review
 
-### Vague 9-B — Hiérarchie de biens (immeuble → étages → lots)
+### Vague 9-B — Hiérarchie de biens (immeuble → étages → lots) — [PR #73](https://github.com/thiambara/takussan/pull/73)
 
-- [TCK-086](tickets/TCK-086-property-hierarchy.md) — Hiérarchie de biens (immeuble → étages → lots) `M · P1 · back`
+- [TCK-086](tickets/TCK-086-property-hierarchy.md) — Hiérarchie de biens (immeuble → étages → lots) `M · P1 · back` (PR #73)
 
 > **Vague 1** — PRs mergées sur `dev` 2026-04-22 (#24, #25, #26, #27 + sync #28). Statut reste `review` jusqu'à confirmation AC.
 > **Vague 2** — PRs mergées sur `dev` 2026-04-22 (#29, #30, #31, #32 + sync #33).
