@@ -9,6 +9,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('leases', [LeaseController::class, 'index'])->name('leases.index');
     Route::post('leases', [LeaseController::class, 'store'])->name('leases.store');
     Route::get('leases/{lease}', [LeaseController::class, 'show'])->name('leases.show');
+    Route::patch('leases/{lease}', [LeaseController::class, 'update'])->name('leases.update');
     Route::post('leases/{lease}/activate', [LeaseController::class, 'activate'])->name('leases.activate');
     Route::post('leases/{lease}/terminate', [LeaseController::class, 'terminate'])->name('leases.terminate');
     Route::post('leases/{lease}/renew', [LeaseController::class, 'renew'])->name('leases.renew');

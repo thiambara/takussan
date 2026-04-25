@@ -26,7 +26,8 @@ class LeasePaymentResource extends JsonResource
             'status' => $this->status?->value,
             'paid_amount' => (float) $this->paid_amount,
             'remaining_amount' => (float) $this->remaining_amount,
-            'late_fee' => $this->late_fee !== null ? (float) $this->late_fee : null,
+            'late_fee_amount' => $this->late_fee_amount !== null ? (float) $this->late_fee_amount : null,
+            'late_fee_applied_at' => $this->late_fee_applied_at?->toISOString(),
             'notes' => $this->notes,
             'created_at' => $this->created_at?->toISOString(),
         ];

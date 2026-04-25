@@ -57,6 +57,13 @@ return [
         'intro_1h' => 'Rappel — votre visite pour :property commence dans environ une heure, à :datetime.',
     ],
 
+    'lease_late_fee_applied' => [
+        'subject' => 'Pénalité de retard appliquée sur le paiement :reference',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Une pénalité de retard de :amount :currency a été appliquée au paiement :reference.',
+        'details' => 'Calculée à :percent % du solde restant dû (:base :currency).',
+    ],
+
     'task_due_reminder' => [
         'subject' => 'Rappel : tâche due bientôt — :title',
         'greeting' => 'Bonjour,',

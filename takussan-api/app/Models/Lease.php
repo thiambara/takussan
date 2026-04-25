@@ -27,6 +27,7 @@ class Lease extends AbstractModel
         'monthly_rent', 'sale_price', 'currency',
         'deposit_amount', 'commission_amount', 'commission_rate',
         'payment_frequency', 'payment_day',
+        'late_fee_percent', 'late_fee_grace_days',
         'terms', 'special_conditions',
         'signed_at', 'terminated_at', 'termination_reason', 'terminated_by_id', 'metadata',
     ];
@@ -41,6 +42,8 @@ class Lease extends AbstractModel
         'deposit_amount' => 'decimal:2',
         'commission_amount' => 'decimal:2',
         'commission_rate' => 'decimal:2',
+        'late_fee_percent' => 'decimal:2',
+        'late_fee_grace_days' => 'integer',
         'start_date' => 'date',
         'end_date' => 'date',
         'renewal_date' => 'date',
@@ -63,7 +66,8 @@ class Lease extends AbstractModel
         'id', 'property_id', 'landlord_id', 'tenant_id', 'agency_id',
         'reference_number', 'type', 'status',
         'start_date', 'end_date', 'monthly_rent', 'currency', 'deposit_amount',
-        'payment_frequency', 'signed_at', 'terminated_at', 'created_at', 'updated_at',
+        'payment_frequency', 'late_fee_percent', 'late_fee_grace_days',
+        'signed_at', 'terminated_at', 'created_at', 'updated_at',
     ];
 
     public function property(): BelongsTo

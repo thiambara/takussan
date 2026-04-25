@@ -48,7 +48,8 @@ class LeasePaymentFactory extends Factory
         return $this->state([
             'status' => PaymentStatus::Late,
             'due_date' => now()->subDays(10)->toDateString(),
-            'late_fee' => 15_000,
+            'late_fee_amount' => 15_000,
+            'late_fee_applied_at' => now()->subDays(2),
         ]);
     }
 }

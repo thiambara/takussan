@@ -63,6 +63,13 @@ return [
         'intro' => 'Your task ":title" is due tomorrow at :datetime.',
     ],
 
+    'lease_late_fee_applied' => [
+        'subject' => 'Late fee applied on payment :reference',
+        'greeting' => 'Hello,',
+        'intro' => 'A late fee of :amount :currency has been applied to payment :reference.',
+        'details' => 'Computed at :percent% of the remaining balance (:base :currency).',
+    ],
+
     'account_deletion_requested' => [
         'subject' => 'Account deletion request received',
         'greeting' => 'Hello,',

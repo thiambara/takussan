@@ -42,12 +42,12 @@ class ExportDataService
                 'due_date' => $p->due_date?->toDateString(),
                 'paid_at' => $p->paid_at?->toDateTimeString(),
                 'status' => $p->status?->value,
-                'late_fee' => (float) $p->late_fee,
+                'late_fee_amount' => (float) $p->late_fee_amount,
             ];
         })->all();
 
         return [
-            'columns' => ['id', 'reference', 'lease', 'payer', 'amount', 'currency', 'payment_method', 'payment_type', 'due_date', 'paid_at', 'status', 'late_fee'],
+            'columns' => ['id', 'reference', 'lease', 'payer', 'amount', 'currency', 'payment_method', 'payment_type', 'due_date', 'paid_at', 'status', 'late_fee_amount'],
             'rows' => $rows,
             'filename' => 'payments-'.now()->format('Ymd-His'),
         ];

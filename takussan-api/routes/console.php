@@ -1,7 +1,7 @@
 <?php
 
-use App\Jobs\ApplyLatePaymentPenalties;
 use App\Jobs\ExpireBookings;
+use App\Jobs\Lease\ApplyLateFeesJob;
 use App\Jobs\SendDailyNotificationDigest;
 use App\Jobs\SendLeasePaymentReminders;
 use App\Jobs\SendOverdueInvoiceReminders;
@@ -16,7 +16,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::job(new ExpireBookings)->hourly()->withoutOverlapping();
-Schedule::job(new ApplyLatePaymentPenalties)->dailyAt('06:00')->withoutOverlapping();
+Schedule::job(new ApplyLateFeesJob)->dailyAt('02:00')->withoutOverlapping();
 Schedule::job(new SendLeasePaymentReminders)->dailyAt('08:00');
 Schedule::job(new SendSavedSearchAlerts)->dailyAt('09:00');
 // TCK-075 — Runs every 5 minutes to flush reminders for both the 24h and 1h
