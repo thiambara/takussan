@@ -1,7 +1,7 @@
 ---
 id: TCK-091
 title: "Révision annuelle du loyer"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: S

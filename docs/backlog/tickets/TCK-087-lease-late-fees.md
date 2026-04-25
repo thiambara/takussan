@@ -1,7 +1,7 @@
 ---
 id: TCK-087
 title: "Pénalités de retard automatiques sur loyers"
-status: review
+status: done
 phase: P1
 family: applicatif
 estimate: S

@@ -1,7 +1,7 @@
 ---
 id: TCK-092
 title: "Relance automatique factures en retard"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: S

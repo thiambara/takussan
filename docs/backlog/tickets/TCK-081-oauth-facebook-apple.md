@@ -1,7 +1,7 @@
 ---
 id: TCK-081
 title: "OAuth Facebook & Apple (Socialite)"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: S

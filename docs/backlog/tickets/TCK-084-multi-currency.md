@@ -1,7 +1,7 @@
 ---
 id: TCK-084
 title: "Devise configurable par agence (XOF / EUR / USD)"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: M

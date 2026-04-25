@@ -1,7 +1,7 @@
 ---
 id: TCK-090
 title: "Résiliation anticipée + pénalités"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: M

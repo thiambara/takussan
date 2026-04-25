@@ -1,7 +1,7 @@
 ---
 id: TCK-083
 title: "Pipeline de prospects CRM (kanban + stages + conversion)"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: M

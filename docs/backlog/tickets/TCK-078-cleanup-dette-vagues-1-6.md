@@ -1,7 +1,7 @@
 ---
 id: TCK-078
 title: "Cleanup & dette post-Vagues 1-2-3-4-5-6"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: M

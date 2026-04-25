@@ -1,7 +1,7 @@
 ---
 id: TCK-085
 title: "Conversations de groupe (multi-participants)"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: M

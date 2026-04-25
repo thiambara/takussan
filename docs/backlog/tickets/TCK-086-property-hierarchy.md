@@ -1,7 +1,7 @@
 ---
 id: TCK-086
 title: "Hiérarchie de biens (immeuble → étages → lots)"
-status: review
+status: done
 phase: P1
 family: back
 estimate: M

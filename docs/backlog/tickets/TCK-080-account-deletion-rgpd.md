@@ -1,7 +1,7 @@
 ---
 id: TCK-080
 title: "Suppression de compte avec anonymisation (RGPD)"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: M

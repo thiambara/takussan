@@ -1,7 +1,7 @@
 ---
 id: TCK-082
 title: "Comparateur de biens côte à côte"
-status: review
+status: done
 phase: P2
 family: front
 estimate: M

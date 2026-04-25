@@ -1,7 +1,7 @@
 ---
 id: TCK-089
 title: "Renouvellement bail / avenant"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: M
