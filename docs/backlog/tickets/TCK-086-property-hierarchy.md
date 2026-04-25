@@ -1,12 +1,12 @@
 ---
 id: TCK-086
 title: "Hiérarchie de biens (immeuble → étages → lots)"
-status: todo
+status: review
 phase: P1
 family: back
 estimate: M
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-25
 depends_on: [TCK-034, TCK-035, TCK-036]
 blocks: []
 spec_refs:
@@ -124,4 +124,25 @@ si nécessaire._
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Implémentation 2026-04-25** :
+
+- Migration `parent_id` déjà présente dans `create_properties_table` (FK
+  `nullOnDelete()` → soft-cascade automatique côté DB).
+- `App\Services\Property\HierarchyService` : `ancestors()`, `depth()`,
+  `wouldCreateCycle()`, `validateAttachment()`. Constante `MAX_DEPTH = 4`,
+  garde de traversée à 10 niveaux (anti-DoS).
+- `Property::scopeRoots()` ajouté ; `parent_id` déjà dans `$requestFilterable`,
+  `parent` / `children` déjà dans `$requestLoadable` et `children` dans
+  `$requestCountable`.
+- `PropertyController::update()` accepte `parent_id` (`integer` + `exists`),
+  délègue la validation métier à `HierarchyService` et autorise le parent via
+  `authorizeManage()`. `findOrFail` pour la sécurité.
+- `PropertyController::children()` utilise `Property::buildQuery()` (filters,
+  sort, fields, includes spatie complet).
+- `PropertyController::ancestors()` + route nommée `properties.ancestors`.
+- `PropertyPolicy::updateParent()` : update sur enfant ET parent.
+- Lang `messages.php` (fr/en) : 4 clés `property_hierarchy_*`.
+- Tests : `PropertyHierarchyTest` (8), `PropertyChildrenEndpointTest` (4),
+  `PropertyAncestorsEndpointTest` (3) — toutes passent. 190 tests Property
+  globaux verts.
+

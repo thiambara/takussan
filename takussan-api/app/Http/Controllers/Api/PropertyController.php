@@ -13,6 +13,7 @@ use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RentPeriod;
 use App\Models\Property;
+use App\Services\Property\HierarchyService;
 use App\Services\Property\PropertyBulkArchiveService;
 use App\Services\Property\PropertyDuplicationService;
 use Illuminate\Http\JsonResponse;
@@ -137,6 +138,7 @@ class PropertyController extends Controller
             'bathrooms' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'furnished' => ['sometimes', 'boolean'],
             'featured' => ['sometimes', 'boolean', Rule::prohibitedIf(! $request->user()->hasRole(['admin', 'super_admin']))],
+            'parent_id' => ['sometimes', 'nullable', 'integer', 'exists:properties,id'],
             'available_from' => ['sometimes', 'nullable', 'date'],
             'address' => ['sometimes', 'nullable', 'array'],
             'address.street' => ['sometimes', 'nullable', 'string'],
@@ -147,6 +149,15 @@ class PropertyController extends Controller
             'address.latitude' => ['sometimes', 'nullable', 'numeric'],
             'address.longitude' => ['sometimes', 'nullable', 'numeric'],
         ]);
+
+        if (array_key_exists('parent_id', $data)) {
+            $newParentId = $data['parent_id'];
+            if ($newParentId !== null) {
+                $parent = Property::query()->findOrFail($newParentId);
+                $this->authorizeManage($request, $parent);
+            }
+            app(HierarchyService::class)->validateAttachment($property, $newParentId);
+        }
 
         DB::transaction(function () use ($data, $property) {
             $addressData = $data['address'] ?? null;
@@ -270,13 +281,34 @@ class PropertyController extends Controller
     public function children(Request $request, Property $property): JsonResponse
     {
         $this->authorizeAccess($request, $property);
-        $children = $property->children()->with('address')->paginate((int) $request->input('per_page', 20));
+
+        $base = Property::query()->where('parent_id', $property->id)->with('address');
+
+        $paginator = Property::buildQuery($base, $request)
+            ->defaultSort('-created_at')
+            ->paginate((int) $request->input('per_page', 20));
 
         return $this->json([
-            'data' => PropertyResource::collection($children)->toArray($request),
+            'data' => PropertyResource::collection($paginator)->toArray($request),
             'meta' => [
-                'total' => $children->total(),
-                'current_page' => $children->currentPage(),
+                'total' => $paginator->total(),
+                'per_page' => $paginator->perPage(),
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+            ],
+        ]);
+    }
+
+    public function ancestors(Request $request, Property $property, HierarchyService $hierarchy): JsonResponse
+    {
+        $this->authorizeAccess($request, $property);
+
+        $chain = $hierarchy->ancestors($property->load('parent'));
+
+        return $this->json([
+            'data' => PropertyResource::collection($chain)->toArray($request),
+            'meta' => [
+                'total' => $chain->count(),
             ],
         ]);
     }
