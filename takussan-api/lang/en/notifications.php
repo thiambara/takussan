@@ -100,4 +100,11 @@ return [
         'greeting' => 'Hello,',
         'intro' => ':inviter has added you to the group ":subject".',
     ],
+
+    'lease_deposit_refunded' => [
+        'subject' => 'Deposit refund — lease :reference',
+        'greeting' => 'Hello,',
+        'intro' => 'Your deposit for lease :reference has been refunded — :amount :currency.',
+        'retention' => 'A retention of :amount :currency has been applied. Reason: :reason.',
+    ],
 ];

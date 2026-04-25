@@ -100,4 +100,11 @@ return [
         'greeting' => 'Bonjour,',
         'intro' => ':inviter vous a ajouté au groupe « :subject ».',
     ],
+
+    'lease_deposit_refunded' => [
+        'subject' => 'Remboursement de la caution — bail :reference',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Votre caution pour le bail :reference a été remboursée pour un montant de :amount :currency.',
+        'retention' => 'Une retenue de :amount :currency a été appliquée. Motif : :reason.',
+    ],
 ];

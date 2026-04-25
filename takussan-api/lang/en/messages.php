@@ -36,8 +36,13 @@ return [
     // Lease
     'lease_cannot_terminate' => 'Only active or pending-signature leases can be terminated.',
     'lease_must_be_ended_for_refund' => 'The lease must be terminated or expired to refund the deposit.',
-    'deposit_already_refunded' => 'The deposit has already been refunded for this lease.',
+    'deposit_already_refunded' => 'The deposit has already been fully refunded for this lease.',
     'no_deposit_to_refund' => 'No deposit amount to refund.',
+    'refund_amount_required' => 'A non-zero refund amount is required.',
+    'refund_amount_exceeds_remaining' => 'Amount exceeds the remaining deposit balance.',
+    'refund_reason_required_for_partial' => 'A reason is required for a partial refund.',
+    'deposit_refund_payout_note' => 'Deposit refund — lease :reference',
+    'deposit_retention_invoice_line' => 'Deposit retention — :reason',
 
     // Notifications
     'new_maintenance_title' => 'New maintenance request',

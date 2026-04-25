@@ -79,4 +79,11 @@ return [
         'greeting' => 'Salaam,',
         'intro' => ':inviter dafa la wëlbati ci kuréel bu : « :subject ».',
     ],
+
+    'lease_deposit_refunded' => [
+        'subject' => 'Delloo kaution — luwé :reference',
+        'greeting' => 'Salaam,',
+        'intro' => 'Sa kaution ci luwé :reference, delloo nañ la — :amount :currency.',
+        'retention' => 'Téye nañ :amount :currency. Mboor : :reason.',
+    ],
 ];

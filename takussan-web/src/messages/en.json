@@ -360,5 +360,33 @@
 
       }
     }
+  },
+  "lease": {
+    "deposit": {
+      "banner": {
+        "none_title": "Deposit pending refund",
+        "partial_title": "Deposit partially refunded",
+        "full_title": "Deposit fully refunded",
+        "refunded_summary": "{refunded} refunded out of {total} — {date}",
+        "reason_prefix": "Retention reason",
+        "cta": "Refund deposit",
+        "continue_cta": "Settle remaining refund"
+      },
+      "modal": {
+        "title": "Refund the deposit",
+        "subtitle": "Confirm the amount and attach supporting documents if you retain all or part of it.",
+        "amount_label": "Refund amount",
+        "remaining": "Remaining deposit: {amount} {currency}",
+        "breakdown_refund": "You refund {amount} {currency}",
+        "breakdown_retained": "You retain {amount} {currency}",
+        "reason_label": "Retention reason",
+        "reason_placeholder": "E.g. repairs, unpaid rent…",
+        "attachments_label": "Supporting documents (photos, invoices)",
+        "cancel": "Cancel",
+        "submit": "Confirm refund",
+        "submitting": "Submitting…"
+      },
+      "error_generic": "Refund failed, please retry."
+    }
   }
 }

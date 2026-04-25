@@ -1,12 +1,12 @@
 ---
 id: TCK-088
 title: "Remboursement de la caution en fin de bail"
-status: todo
+status: review
 phase: P1
 family: applicatif
 estimate: S
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-25
 depends_on: [TCK-027, TCK-028]
 blocks: []
 spec_refs:
@@ -151,4 +151,38 @@ d'urgence ni d'alarme.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Ancien endpoint TCK-027 supprimé** — `POST /api/leases/{id}/refund-deposit` (et
+  `LeaseService::refundDeposit`) ne géraient qu'un remboursement total
+  sans `amount` / `reason` / pièces jointes / Payout / Invoice. Remplacé
+  par `POST/GET /api/leases/{id}/deposit-refund` côté
+  `LeaseDepositRefundController` + `App\Services\Lease\DepositRefundService`.
+  Les 3 tests originaux ont été portés sur le nouveau endpoint.
+- **Idempotence** lue désormais via `deposit_remaining ≤ 0` (et non plus
+  l'existence d'un `LeasePayment` de type `deposit_refund`) — autorise donc
+  les remboursements partiels successifs jusqu'à épuisement.
+- **Permission custom** `leases.refund_deposit` ajoutée hors du loop CRUD
+  uniforme du seeder, avec `array_merge(...)` ciblé pour `agency_admin`,
+  `agent` et `owner` (admin/super_admin obtiennent tout via `pluck`).
+- **Politique d'autorisation** : `LeasePolicy@refundDeposit` combine
+  `leases.refund_deposit` ET un check de scope (landlord_id / agency_id /
+  admin). Le tenant lié au customer du bail est explicitement exclu —
+  une notification email + in-app le tient au courant à la place.
+- **Pièces jointes** : double chemin
+  - `attachments[]` (IDs de média existants → re-labellisés `lease_deposit_refund`)
+  - `uploads[]` (nouveaux fichiers multipart → ajoutés directement)
+  Le frontend V1 utilise uniquement `uploads[]` côté modale, pour
+  éviter le besoin d'une étape pré-upload.
+- **JSON int vs float** : `assertJsonPath` faisait un strict-compare entre
+  `500000` (PHP int post-`json_decode`) et `500000.0` (float PHP). Les
+  tests d'endpoint utilisent désormais `assertEquals` sur la valeur lue
+  du payload pour rester laxes sur le type numérique.
+- **HttpException::getCode()** retourne 0 — les invariants 422 sont
+  vérifiés via un helper `assertAborts422()` qui inspecte
+  `getStatusCode()` au lieu d'`expectExceptionCode()`.
+- **Build frontend** échoue actuellement sur `src/components/messages/ConversationInfoSheet.tsx`
+  (TCK-085, ré-export `SheetTitle`/`SheetHeader`/`SheetDescription` manquant
+  dans `ui/sheet.tsx`) — bug **pré-existant sur dev**, sans rapport avec
+  TCK-088. À aiguiller vers TCK-078 ou un cleanup post-Vague 8.
+- **Tests cumulés** : backend 1059 verts (+18 ciblés deposit refund),
+  frontend 373 vitest verts (+5 ciblés deposit refund schema). Pint clean,
+  ESLint 0 erreur sur les fichiers modifiés.

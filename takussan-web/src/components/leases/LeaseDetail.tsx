@@ -12,9 +12,11 @@ import type { LeaseStatus } from '@/types/lease';
 import { LeaseSchedule } from './LeaseSchedule';
 import { LeasePaymentDialog } from './LeasePaymentDialog';
 import { GuarantorSection } from './GuarantorSection';
+import { DepositRefundBanner } from './DepositRefundBanner';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 import { LeaveReviewCta } from '@/components/reviews/LeaveReviewCta';
 import { canLeaseLeaveReview } from '@/components/reviews/reviewEligibility';
+import { useAuth } from '@/context/AuthContext';
 
 const STATUS_LABEL: Record<LeaseStatus, string> = {
   draft: 'Brouillon',
@@ -32,9 +34,20 @@ interface LeaseDetailProps {
 export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   const locale = useLocale() as Locale;
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const { user } = useAuth();
   const { data, isLoading, isError } = useLease(leaseId);
   const { data: paymentsData } = useLeasePayments(leaseId);
   const generateSchedule = useGenerateSchedule(leaseId);
+
+  // TCK-088 — display the refund action only to roles that hold
+  // `leases.refund_deposit` server-side. Backend re-checks scope
+  // (landlord_id / agency_id) and will 403 if it doesn't match.
+  const canRefundDeposit = useMemo(() => {
+    const roles = user?.roles ?? [];
+    return roles.some((r) =>
+      ['super_admin', 'admin', 'agency_admin', 'agent', 'owner'].includes(r),
+    );
+  }, [user]);
 
   const latePaymentsCount = useMemo(() => {
     const list = paymentsData?.data ?? [];
@@ -99,6 +112,8 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
           </Button>
         </div>
       </div>
+
+      <DepositRefundBanner lease={lease} canRefund={canRefundDeposit} />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <dl className="rounded-xl border border-stone-200 bg-white p-5 text-sm">

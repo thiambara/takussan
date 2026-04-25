@@ -168,3 +168,39 @@ export const generateScheduleSchema = z.object({
 });
 
 export type GenerateScheduleFormValues = z.infer<typeof generateScheduleSchema>;
+
+// TCK-088 — refund deposit modal. The "reason required iff partial" rule
+// is enforced via .superRefine() against `depositRemaining` passed at
+// construction time, so the schema instance is built per-render.
+export function buildDepositRefundSchema(depositRemaining: number) {
+  return z
+    .object({
+      amount: z.number().positive('Le montant doit être supérieur à 0.'),
+      reason: z
+        .string()
+        .trim()
+        .max(2000)
+        .optional()
+        .or(z.literal('').transform(() => undefined)),
+      attachments: z.array(z.number().int()).optional(),
+    })
+    .superRefine((values, ctx) => {
+      if (values.amount > depositRemaining + 0.001) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['amount'],
+          message: 'Le montant dépasse la caution restante.',
+        });
+      }
+      const isPartial = values.amount + 0.001 < depositRemaining;
+      if (isPartial && (!values.reason || values.reason.length === 0)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['reason'],
+          message: 'Un motif est obligatoire pour un remboursement partiel.',
+        });
+      }
+    });
+}
+
+export type DepositRefundFormValues = z.infer<ReturnType<typeof buildDepositRefundSchema>>;

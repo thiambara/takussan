@@ -46,6 +46,9 @@ export type Lease = {
   sale_price: number | null;
   currency: Currency;
   deposit_amount: number | null;
+  deposit_refunded_amount: number | null;
+  deposit_refunded_at: string | null;
+  deposit_refund_reason: string | null;
   commission_amount: number | null;
   commission_rate: number | null;
   payment_frequency: PaymentFrequency;

@@ -36,8 +36,13 @@ return [
     // Lease
     'lease_cannot_terminate' => 'Seuls les baux actifs ou en attente de signature peuvent être résiliés.',
     'lease_must_be_ended_for_refund' => 'Le bail doit être terminé ou expiré pour rembourser la caution.',
-    'deposit_already_refunded' => 'La caution a déjà été remboursée pour ce bail.',
+    'deposit_already_refunded' => 'La caution a déjà été intégralement remboursée pour ce bail.',
     'no_deposit_to_refund' => 'Aucun montant de caution à rembourser.',
+    'refund_amount_required' => 'Le montant du remboursement est obligatoire et doit être supérieur à zéro.',
+    'refund_amount_exceeds_remaining' => 'Le montant dépasse la caution restante à rembourser.',
+    'refund_reason_required_for_partial' => 'Un motif est obligatoire pour un remboursement partiel.',
+    'deposit_refund_payout_note' => 'Remboursement de caution — bail :reference',
+    'deposit_retention_invoice_line' => 'Retenue caution — :reason',
 
     // Notifications
     'new_maintenance_title' => 'Nouvelle demande de maintenance',
