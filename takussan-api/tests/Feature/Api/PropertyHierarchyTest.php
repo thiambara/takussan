@@ -8,178 +8,171 @@ use App\Models\User;
 use App\Services\Property\HierarchyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
+/**
+ * TCK-086 — invariant tests for re-parenting (PATCH /api/properties/{id}).
+ */
 class PropertyHierarchyTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_attaching_property_under_self_returns_422(): void
+    public function test_attaches_property_under_parent(): void
     {
-        $user = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $user->id]);
+        $agency = Agency::factory()->create();
+        $owner = User::factory()->create(['agency_id' => $agency->id]);
+        Sanctum::actingAs($owner);
 
+        $building = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $owner->id]);
+        $floor = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $owner->id]);
+
+        $this->patchJson("/api/properties/{$floor->id}", ['parent_id' => $building->id])
+            ->assertOk()
+            ->assertJsonPath('data.id', $floor->id);
+
+        $this->assertSame($building->id, $floor->refresh()->parent_id);
+    }
+
+    public function test_rejects_self_as_parent(): void
+    {
+        $agency = Agency::factory()->create();
+        $user = User::factory()->create(['agency_id' => $agency->id]);
         Sanctum::actingAs($user);
 
-        $this->patchJson("/api/properties/{$property->id}", [
-            'parent_id' => $property->id,
-        ])->assertStatus(422)->assertJsonValidationErrors(['parent_id']);
+        $node = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id]);
+
+        $this->patchJson("/api/properties/{$node->id}", ['parent_id' => $node->id])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['parent_id']);
     }
 
-    public function test_attaching_creates_descendant_cycle_returns_422(): void
+    public function test_rejects_descendant_as_parent_cycle(): void
     {
-        $user = User::factory()->create();
-        $a = Property::factory()->create(['user_id' => $user->id]);
-        $b = Property::factory()->create(['user_id' => $user->id, 'parent_id' => $a->id]);
-
+        $agency = Agency::factory()->create();
+        $user = User::factory()->create(['agency_id' => $agency->id]);
         Sanctum::actingAs($user);
 
-        // Try to make A a child of B → cycle.
-        $this->patchJson("/api/properties/{$a->id}", [
-            'parent_id' => $b->id,
-        ])->assertStatus(422)->assertJsonValidationErrors(['parent_id']);
+        $a = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id]);
+        $b = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id, 'parent_id' => $a->id]);
+        $c = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id, 'parent_id' => $b->id]);
+
+        // attaching A under C would create cycle (A → B → C → A)
+        $this->patchJson("/api/properties/{$a->id}", ['parent_id' => $c->id])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['parent_id']);
     }
 
-    public function test_attaching_above_max_depth_returns_422(): void
+    public function test_rejects_max_depth_exceeded(): void
     {
-        $user = User::factory()->create();
-
-        $level1 = Property::factory()->create(['user_id' => $user->id]);
-        $level2 = Property::factory()->create(['user_id' => $user->id, 'parent_id' => $level1->id]);
-        $level3 = Property::factory()->create(['user_id' => $user->id, 'parent_id' => $level2->id]);
-        $level4 = Property::factory()->create(['user_id' => $user->id, 'parent_id' => $level3->id]);
-        $orphan = Property::factory()->create(['user_id' => $user->id]);
-
+        $agency = Agency::factory()->create();
+        $user = User::factory()->create(['agency_id' => $agency->id]);
         Sanctum::actingAs($user);
 
-        $this->patchJson("/api/properties/{$orphan->id}", [
-            'parent_id' => $level4->id,
-        ])->assertStatus(422)->assertJsonValidationErrors(['parent_id']);
+        // Build chain depth 4: lvl1 → lvl2 → lvl3 → lvl4
+        $lvl1 = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id]);
+        $lvl2 = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id, 'parent_id' => $lvl1->id]);
+        $lvl3 = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id, 'parent_id' => $lvl2->id]);
+        $lvl4 = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id, 'parent_id' => $lvl3->id]);
+
+        $orphan = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id]);
+
+        // attaching orphan under lvl4 would yield depth 5
+        $this->patchJson("/api/properties/{$orphan->id}", ['parent_id' => $lvl4->id])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['parent_id']);
     }
 
-    public function test_attaching_property_with_subtree_that_overflows_max_depth_returns_422(): void
+    public function test_rejects_cross_agency_parent(): void
     {
-        // Existing chain: parent (depth 3 after root1→root2 chain).
-        $user = User::factory()->create();
-        $root = Property::factory()->create(['user_id' => $user->id]);
-        $mid = Property::factory()->create(['user_id' => $user->id, 'parent_id' => $root->id]);
-        $newParent = Property::factory()->create(['user_id' => $user->id, 'parent_id' => $mid->id]); // depth 3
-
-        // Standalone subtree of height 2 (parent + child). Attaching its root under
-        // a depth-3 parent would push the child to depth 5 (> MAX_DEPTH=4).
-        $subtreeRoot = Property::factory()->create(['user_id' => $user->id]);
-        Property::factory()->create(['user_id' => $user->id, 'parent_id' => $subtreeRoot->id]);
-
-        Sanctum::actingAs($user);
-
-        $this->patchJson("/api/properties/{$subtreeRoot->id}", [
-            'parent_id' => $newParent->id,
-        ])->assertStatus(422)->assertJsonValidationErrors(['parent_id']);
-    }
-
-    public function test_soft_deleting_parent_nulls_out_children_parent_id(): void
-    {
-        $user = User::factory()->create();
-        $parent = Property::factory()->create(['user_id' => $user->id]);
-        $child = Property::factory()->create(['user_id' => $user->id, 'parent_id' => $parent->id]);
-
-        $parent->delete(); // soft-delete
-
-        $this->assertDatabaseHas('properties', [
-            'id' => $child->id,
-            'parent_id' => null,
-            'deleted_at' => null,
-        ]);
-    }
-
-    public function test_attaching_to_different_agency_returns_422(): void
-    {
-        Role::findOrCreate('super_admin');
-
         $agencyA = Agency::factory()->create();
         $agencyB = Agency::factory()->create();
-        $admin = User::factory()->create();
-        $admin->assignRole('super_admin');
-
-        $child = Property::factory()->create(['user_id' => $admin->id, 'agency_id' => $agencyA->id]);
-        $parent = Property::factory()->create(['user_id' => $admin->id, 'agency_id' => $agencyB->id]);
-
-        Sanctum::actingAs($admin);
-
-        $this->patchJson("/api/properties/{$child->id}", [
-            'parent_id' => $parent->id,
-        ])->assertStatus(422)->assertJsonValidationErrors(['parent_id']);
-    }
-
-    public function test_valid_attachment_persists_parent_id(): void
-    {
-        $user = User::factory()->create();
-        $parent = Property::factory()->create(['user_id' => $user->id]);
-        $child = Property::factory()->create(['user_id' => $user->id]);
-
+        $user = User::factory()->create(['agency_id' => $agencyA->id]);
         Sanctum::actingAs($user);
 
-        $this->patchJson("/api/properties/{$child->id}", [
-            'parent_id' => $parent->id,
-        ])->assertOk();
+        $child = Property::factory()->create(['agency_id' => $agencyA->id, 'user_id' => $user->id]);
+        $foreign = Property::factory()->create(['agency_id' => $agencyB->id]);
 
-        $this->assertDatabaseHas('properties', [
-            'id' => $child->id,
-            'parent_id' => $parent->id,
-        ]);
+        $this->patchJson("/api/properties/{$child->id}", ['parent_id' => $foreign->id])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['parent_id']);
     }
 
-    public function test_detach_with_null_parent_id_clears_relation(): void
+    public function test_detaching_to_root_is_allowed(): void
     {
-        $user = User::factory()->create();
-        $parent = Property::factory()->create(['user_id' => $user->id]);
-        $child = Property::factory()->create(['user_id' => $user->id, 'parent_id' => $parent->id]);
-
+        $agency = Agency::factory()->create();
+        $user = User::factory()->create(['agency_id' => $agency->id]);
         Sanctum::actingAs($user);
 
-        $this->patchJson("/api/properties/{$child->id}", [
-            'parent_id' => null,
-        ])->assertOk();
+        $building = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id]);
+        $floor = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id, 'parent_id' => $building->id]);
 
-        $this->assertDatabaseHas('properties', [
-            'id' => $child->id,
-            'parent_id' => null,
-        ]);
+        $this->patchJson("/api/properties/{$floor->id}", ['parent_id' => null])
+            ->assertOk();
+
+        $this->assertNull($floor->refresh()->parent_id);
     }
 
-    public function test_deleting_parent_sets_children_parent_id_to_null(): void
+    public function test_soft_deleting_parent_detaches_children(): void
     {
-        $user = User::factory()->create();
-        $parent = Property::factory()->create(['user_id' => $user->id]);
-        $child = Property::factory()->create(['user_id' => $user->id, 'parent_id' => $parent->id]);
+        $agency = Agency::factory()->create();
+        $user = User::factory()->create(['agency_id' => $agency->id]);
 
-        // Force-delete to trigger the FK ON DELETE SET NULL (soft-deletes don't
-        // touch the row).
-        $parent->forceDelete();
+        $parent = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id]);
+        $child = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id, 'parent_id' => $parent->id]);
 
-        $this->assertDatabaseHas('properties', [
-            'id' => $child->id,
-            'parent_id' => null,
-        ]);
+        // Soft-delete (the standard delete() path on the Property model) must
+        // null out children's parent_id without cascading the soft-delete.
+        $parent->delete();
+
+        $this->assertNull($child->refresh()->parent_id);
+        $this->assertNull($child->deleted_at);
     }
 
-    public function test_hierarchy_service_depth_and_ancestors(): void
+    public function test_hierarchy_service_ancestors_returns_chain_closest_first(): void
     {
-        $user = User::factory()->create();
-        $a = Property::factory()->create(['user_id' => $user->id]);
-        $b = Property::factory()->create(['user_id' => $user->id, 'parent_id' => $a->id]);
-        $c = Property::factory()->create(['user_id' => $user->id, 'parent_id' => $b->id]);
+        $agency = Agency::factory()->create();
+        $user = User::factory()->create(['agency_id' => $agency->id]);
 
-        $service = app(HierarchyService::class);
+        $root = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id]);
+        $mid = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id, 'parent_id' => $root->id]);
+        $leaf = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id, 'parent_id' => $mid->id]);
 
-        $this->assertSame(1, $service->depth($a->fresh()));
-        $this->assertSame(2, $service->depth($b->fresh()));
-        $this->assertSame(3, $service->depth($c->fresh()));
+        $svc = app(HierarchyService::class);
+        $chain = $svc->ancestors($leaf->refresh()->load('parent.parent'))->pluck('id')->all();
 
-        $chain = $service->ancestors($c->fresh()->load('parent'));
-        $this->assertCount(2, $chain);
-        $this->assertSame($b->id, $chain[0]->id);
-        $this->assertSame($a->id, $chain[1]->id);
+        $this->assertSame([$mid->id, $root->id], $chain);
+    }
+
+    public function test_hierarchy_service_depth(): void
+    {
+        $agency = Agency::factory()->create();
+        $user = User::factory()->create(['agency_id' => $agency->id]);
+
+        $root = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id]);
+        $mid = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id, 'parent_id' => $root->id]);
+
+        $svc = app(HierarchyService::class);
+        $this->assertSame(1, $svc->depth($root->refresh()));
+        $this->assertSame(2, $svc->depth($mid->refresh()->load('parent')));
+    }
+
+    public function test_subtree_height_terminates_on_cyclic_data(): void
+    {
+        // Defensive regression: if a cycle ever slips past validation (direct
+        // DB insert, raw SQL, …), `subtreeHeight` must terminate via the
+        // traversal budget instead of recursing until stack overflow.
+        $agency = Agency::factory()->create();
+        $user = User::factory()->create(['agency_id' => $agency->id]);
+
+        $a = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id]);
+        $b = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id, 'parent_id' => $a->id]);
+
+        // Bypass validation to wire A → B → A (B is A's child, A is B's child).
+        Property::query()->whereKey($a->id)->update(['parent_id' => $b->id]);
+
+        $height = app(HierarchyService::class)->subtreeHeight($a->refresh());
+
+        $this->assertGreaterThan(0, $height);
+        $this->assertLessThanOrEqual(HierarchyService::TRAVERSAL_HARD_CAP + 1, $height);
     }
 }

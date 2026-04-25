@@ -4,28 +4,36 @@ namespace App\Services\Property;
 
 use App\Models\Property;
 use Illuminate\Support\Collection;
-use Illuminate\Validation\ValidationException;
 
 class HierarchyService
 {
-    public const MAX_DEPTH = 4;
-
-    private const TRAVERSAL_GUARD = 10;
+    /**
+     * Hard cap on tree traversal to defuse pathological inputs and prevent
+     * runaway recursion if a cycle slipped past validation.
+     */
+    public const TRAVERSAL_HARD_CAP = 10;
 
     /**
-     * Returns the chain of ancestors from closest to farthest.
+     * Maximum depth allowed: immeuble (1) → étage (2) → lot (3) → sous-lot (4).
+     */
+    public const MAX_DEPTH = 4;
+
+    /**
+     * Walk the parent chain from $node (exclusive) up to the root.
+     *
+     * Returned order: closest ancestor first → furthest ancestor last.
      *
      * @return Collection<int, Property>
      */
-    public function ancestors(Property $property): Collection
+    public function ancestors(Property $node): Collection
     {
         $chain = collect();
-        $current = $property->parent;
+        $cursor = $node->parent;
         $hops = 0;
 
-        while ($current !== null && $hops < self::TRAVERSAL_GUARD) {
-            $chain->push($current);
-            $current = $current->parent;
+        while ($cursor !== null && $hops < self::TRAVERSAL_HARD_CAP) {
+            $chain->push($cursor);
+            $cursor = $cursor->parent;
             $hops++;
         }
 
@@ -33,101 +41,85 @@ class HierarchyService
     }
 
     /**
-     * 1-based depth: a root property has depth 1.
+     * Direct + indirect descendants of $node (BFS).
+     *
+     * @return Collection<int, Property>
      */
-    public function depth(Property $property): int
+    public function descendants(Property $node): Collection
     {
-        return $this->ancestors($property)->count() + 1;
-    }
-
-    /**
-     * Height of the subtree rooted at `$property` (1 = leaf, 2 = leaf+children, ...).
-     * Bounded by MAX_DEPTH+1 to defuse any pre-existing pathological data.
-     */
-    public function subtreeHeight(Property $property): int
-    {
-        $maxChildHeight = 0;
-
-        foreach ($property->children()->get() as $child) {
-            $childHeight = $this->subtreeHeight($child);
-            if ($childHeight > $maxChildHeight) {
-                $maxChildHeight = $childHeight;
-            }
-            if ($maxChildHeight >= self::MAX_DEPTH) {
-                break;
-            }
-        }
-
-        return $maxChildHeight + 1;
-    }
-
-    /**
-     * Whether attaching `$property` under `$parent` would form a cycle.
-     */
-    public function wouldCreateCycle(Property $property, Property $parent): bool
-    {
-        if ($property->id === $parent->id) {
-            return true;
-        }
-
-        $current = $parent;
+        $bag = collect();
+        $frontier = collect([$node]);
         $hops = 0;
 
-        while ($current !== null && $hops < self::TRAVERSAL_GUARD) {
-            if ((string) $current->id === (string) $property->id) {
-                return true;
+        while ($frontier->isNotEmpty() && $hops < self::TRAVERSAL_HARD_CAP) {
+            $next = collect();
+            foreach ($frontier as $current) {
+                /** @var Property $current */
+                foreach ($current->children as $child) {
+                    $bag->push($child);
+                    $next->push($child);
+                }
             }
-            $current = $current->parent;
+            $frontier = $next;
             $hops++;
         }
 
-        return false;
+        return $bag;
     }
 
     /**
-     * Validates an attachment of `$property` under a target parent (or detach
-     * when `$parentId` is null). Throws a 422 ValidationException with stable
-     * error keys consumable by the frontend.
+     * 1-based depth of $node measured from its root (root = 1, étage = 2, lot = 3…).
      */
-    public function validateAttachment(Property $property, int|string|null $parentId): void
+    public function depth(Property $node): int
     {
-        if ($parentId === null) {
-            return;
+        return $this->ancestors($node)->count() + 1;
+    }
+
+    /**
+     * Height of the subtree rooted at $node (1 if leaf, 2 if has direct
+     * children only, etc.). Used to enforce MAX_DEPTH on re-parenting.
+     *
+     * The remaining-budget parameter mirrors `descendants()` /  `ancestors()`'s
+     * `TRAVERSAL_HARD_CAP`: it bounds the recursion in case pathological data
+     * (a cycle that slipped past validation, a direct DB insert) ever forms a
+     * loop in `children`.
+     */
+    public function subtreeHeight(Property $node, int $budget = self::TRAVERSAL_HARD_CAP): int
+    {
+        if ($budget <= 0) {
+            return 1;
         }
 
-        if ((string) $parentId === (string) $property->id) {
-            throw ValidationException::withMessages([
-                'parent_id' => __('messages.property_hierarchy_cycle'),
-            ]);
+        $maxChildHeight = 0;
+        foreach ($node->children as $child) {
+            $height = $this->subtreeHeight($child, $budget - 1);
+            if ($height > $maxChildHeight) {
+                $maxChildHeight = $height;
+            }
         }
 
-        $parent = Property::query()->find($parentId);
+        return 1 + $maxChildHeight;
+    }
 
-        if ($parent === null) {
-            throw ValidationException::withMessages([
-                'parent_id' => __('messages.property_hierarchy_parent_not_found'),
-            ]);
+    /**
+     * True if attaching $node under $candidateParent would create a cycle
+     * (candidate is the node itself or any of its descendants).
+     */
+    public function wouldCreateCycle(Property $node, Property $candidateParent): bool
+    {
+        if ($candidateParent->id === $node->id) {
+            return true;
         }
 
-        if ($property->agency_id !== $parent->agency_id) {
-            throw ValidationException::withMessages([
-                'parent_id' => __('messages.property_hierarchy_same_agency_required'),
-            ]);
-        }
+        return $this->descendants($node)->contains(fn (Property $d) => $d->id === $candidateParent->id);
+    }
 
-        if ($this->wouldCreateCycle($property, $parent)) {
-            throw ValidationException::withMessages([
-                'parent_id' => __('messages.property_hierarchy_cycle'),
-            ]);
-        }
-
-        // Account for the property's own subtree — attaching a 2-level subtree
-        // under a depth-3 parent would push leaves to depth 5.
-        $deepestLeafDepth = $this->depth($parent) + $this->subtreeHeight($property);
-        if ($deepestLeafDepth > self::MAX_DEPTH) {
-            throw ValidationException::withMessages([
-                'parent_id' => __('messages.property_hierarchy_max_depth_exceeded'),
-            ]);
-        }
+    /**
+     * True if attaching $node under $candidateParent would push the tree
+     * past MAX_DEPTH levels.
+     */
+    public function wouldExceedMaxDepth(Property $node, Property $candidateParent): bool
+    {
+        return $this->depth($candidateParent) + $this->subtreeHeight($node) > self::MAX_DEPTH;
     }
 }

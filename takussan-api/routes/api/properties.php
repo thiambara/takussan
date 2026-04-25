@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\PropertyAddressController;
+use App\Http\Controllers\Api\PropertyAncestorsController;
+use App\Http\Controllers\Api\PropertyChildrenController;
 use App\Http\Controllers\Api\PropertyCollaboratorController;
 use App\Http\Controllers\Api\PropertyController;
 use App\Http\Controllers\Api\PropertyMediaController;
@@ -23,8 +25,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('properties/{property}/publish', [PropertyController::class, 'publish'])->name('properties.publish');
     Route::post('properties/{property}/unpublish', [PropertyController::class, 'unpublish'])->name('properties.unpublish');
     Route::post('properties/{property}/view', [PropertyController::class, 'recordView'])->name('properties.view');
-    Route::get('properties/{property}/children', [PropertyController::class, 'children'])->name('properties.children');
-    Route::get('properties/{property}/ancestors', [PropertyController::class, 'ancestors'])->name('properties.ancestors');
+    Route::get('properties/{property}/children', [PropertyChildrenController::class, 'index'])->name('properties.children');
+    Route::get('properties/{property}/ancestors', [PropertyAncestorsController::class, 'index'])->name('properties.ancestors');
 
     // Address (upsert + clear)
     Route::put('properties/{property}/address', [PropertyAddressController::class, 'upsert'])->name('properties.address.upsert');

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\PropertyBulkArchiveRequest;
 use App\Http\Requests\PropertyDuplicateRequest;
+use App\Http\Requests\UpdatePropertyRequest;
 use App\Http\Resources\PropertyResource;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\Currency;
@@ -13,12 +14,12 @@ use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RentPeriod;
 use App\Models\Property;
-use App\Services\Property\HierarchyService;
 use App\Services\Property\PropertyBulkArchiveService;
 use App\Services\Property\PropertyDuplicationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
 
@@ -119,44 +120,19 @@ class PropertyController extends Controller
         ]);
     }
 
-    public function update(Request $request, Property $property): JsonResponse
+    public function update(UpdatePropertyRequest $request, Property $property): JsonResponse
     {
         $this->authorizeManage($request, $property);
 
-        $data = $request->validate([
-            'title' => ['sometimes', 'string', 'max:255'],
-            'description' => ['sometimes', 'nullable', 'string'],
-            'type' => ['sometimes', Rule::enum(PropertyType::class)],
-            'contract_type' => ['sometimes', Rule::enum(ContractType::class)],
-            'rent_period' => ['sometimes', 'nullable', Rule::enum(RentPeriod::class)],
-            'status' => ['sometimes', Rule::enum(PropertyStatus::class)],
-            'visibility' => ['sometimes', Rule::enum(PropertyVisibility::class)],
-            'price' => ['sometimes', 'numeric', 'min:0'],
-            'currency' => ['sometimes', Rule::enum(Currency::class)],
-            'area' => ['sometimes', 'nullable', 'integer', 'min:0'],
-            'bedrooms' => ['sometimes', 'nullable', 'integer', 'min:0'],
-            'bathrooms' => ['sometimes', 'nullable', 'integer', 'min:0'],
-            'furnished' => ['sometimes', 'boolean'],
-            'featured' => ['sometimes', 'boolean', Rule::prohibitedIf(! $request->user()->hasRole(['admin', 'super_admin']))],
-            'parent_id' => ['sometimes', 'nullable', 'integer', 'exists:properties,id'],
-            'available_from' => ['sometimes', 'nullable', 'date'],
-            'address' => ['sometimes', 'nullable', 'array'],
-            'address.street' => ['sometimes', 'nullable', 'string'],
-            'address.neighborhood' => ['sometimes', 'nullable', 'string'],
-            'address.city' => ['sometimes', 'nullable', 'string'],
-            'address.region' => ['sometimes', 'nullable', 'string'],
-            'address.country' => ['sometimes', 'nullable', 'string', 'size:2'],
-            'address.latitude' => ['sometimes', 'nullable', 'numeric'],
-            'address.longitude' => ['sometimes', 'nullable', 'numeric'],
-        ]);
+        $data = $request->validated();
 
+        // TCK-086 — re-parenting requires update rights on the candidate parent.
         if (array_key_exists('parent_id', $data)) {
-            $newParentId = $data['parent_id'];
-            if ($newParentId !== null) {
-                $parent = Property::query()->findOrFail($newParentId);
-                $this->authorizeManage($request, $parent);
-            }
-            app(HierarchyService::class)->validateAttachment($property, $newParentId);
+            $newParent = $data['parent_id'] !== null ? Property::find($data['parent_id']) : null;
+            abort_unless(
+                Gate::forUser($request->user())->allows('updateParent', [$property, $newParent]),
+                403
+            );
         }
 
         DB::transaction(function () use ($data, $property) {
@@ -275,41 +251,6 @@ class PropertyController extends Controller
             'archived' => $result['archived'],
             'failed' => $result['failed'],
             'archived_ids' => $result['archived_ids'],
-        ]);
-    }
-
-    public function children(Request $request, Property $property): JsonResponse
-    {
-        $this->authorizeAccess($request, $property);
-
-        $base = Property::query()->where('parent_id', $property->id)->with('address');
-
-        $paginator = Property::buildQuery($base, $request)
-            ->defaultSort('-created_at')
-            ->paginate((int) $request->input('per_page', 20));
-
-        return $this->json([
-            'data' => PropertyResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'per_page' => $paginator->perPage(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-            ],
-        ]);
-    }
-
-    public function ancestors(Request $request, Property $property, HierarchyService $hierarchy): JsonResponse
-    {
-        $this->authorizeAccess($request, $property);
-
-        $chain = $hierarchy->ancestors($property->load('parent'));
-
-        return $this->json([
-            'data' => PropertyResource::collection($chain)->toArray($request),
-            'meta' => [
-                'total' => $chain->count(),
-            ],
         ]);
     }
 

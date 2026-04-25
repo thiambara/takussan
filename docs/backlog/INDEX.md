@@ -31,7 +31,6 @@
 
 ### Vague 9 — P1 résiduels + P2 baux & paiements
 
-- [TCK-086](tickets/TCK-086-property-hierarchy.md) — Hiérarchie de biens (immeuble → étages → lots) `M · P1 · back`
 - [TCK-087](tickets/TCK-087-lease-late-fees.md) — Pénalités de retard automatiques sur loyers `S · P1 · applicatif`
 - [TCK-088](tickets/TCK-088-lease-deposit-refund.md) — Remboursement de la caution en fin de bail `S · P1 · applicatif`
 - [TCK-089](tickets/TCK-089-lease-renewal-amendment.md) — Renouvellement bail / avenant `M · P2 · applicatif`
@@ -78,6 +77,10 @@ _(vide)_
 ### Vague 9-A — Remboursement caution fin de bail — [PR #72](https://github.com/thiambara/takussan/pull/72)
 
 - [TCK-088](tickets/TCK-088-lease-deposit-refund.md) — Remboursement de la caution en fin de bail `S · P1 · applicatif` (PR #72)
+
+### Vague 9-B — Hiérarchie de biens (immeuble → étages → lots) — [PR #73](https://github.com/thiambara/takussan/pull/73)
+
+- [TCK-086](tickets/TCK-086-property-hierarchy.md) — Hiérarchie de biens (immeuble → étages → lots) `M · P1 · back` (PR #73)
 
 > **Vague 1** — PRs mergées sur `dev` 2026-04-22 (#24, #25, #26, #27 + sync #28). Statut reste `review` jusqu'à confirmation AC.
 > **Vague 2** — PRs mergées sur `dev` 2026-04-22 (#29, #30, #31, #32 + sync #33).

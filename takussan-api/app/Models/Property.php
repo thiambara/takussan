@@ -24,6 +24,7 @@ use Laravel\Scout\Searchable;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Spatie\QueryBuilder\AllowedFilter;
 
 class Property extends AbstractModel implements HasMedia
 {
@@ -62,7 +63,7 @@ class Property extends AbstractModel implements HasMedia
 
     /** @var array<int,string> */
     protected static array $requestFilterable = [
-        'user_id', 'agency_id', 'parent_id', 'type', 'contract_type', 'rent_period',
+        'user_id', 'agency_id', 'type', 'contract_type', 'rent_period',
         'status', 'visibility', 'title_type', 'price', 'bedrooms', 'bathrooms',
         'area', 'currency', 'featured', 'furnished', 'published_at',
     ];
@@ -108,12 +109,10 @@ class Property extends AbstractModel implements HasMedia
             }
         });
 
-        // Soft-cascade: the FK `ON DELETE SET NULL` only fires on hard-delete,
-        // so a soft-deleted parent would leave children pointing to an invisible row.
+        // TCK-086 — soft-cascade: detach children when the parent is (soft-)deleted.
+        // Hard deletes also flow through this hook before the FK ON DELETE SET NULL fires.
         static::deleting(function (self $m) {
-            if (! $m->isForceDeleting()) {
-                self::query()->where('parent_id', $m->id)->update(['parent_id' => null]);
-            }
+            $m->children()->update(['parent_id' => null]);
         });
     }
 
@@ -137,11 +136,6 @@ class Property extends AbstractModel implements HasMedia
             && $this->status !== PropertyStatus::Draft;
     }
 
-    public function scopeRoots(Builder $query): Builder
-    {
-        return $query->whereNull('parent_id');
-    }
-
     public function scopePublic(Builder $query): Builder
     {
         return $query->where('visibility', PropertyVisibility::Public)
@@ -159,6 +153,41 @@ class Property extends AbstractModel implements HasMedia
     public function scopeAvailable(Builder $query): Builder
     {
         return $query->where('status', PropertyStatus::Available);
+    }
+
+    public function scopeRoots(Builder $query): Builder
+    {
+        return $query->whereNull('parent_id');
+    }
+
+    /**
+     * @return array<int, AllowedFilter>
+     */
+    protected static function getAllowedQueryFilters(): array
+    {
+        $filters = parent::getAllowedQueryFilters();
+
+        $filters[] = AllowedFilter::callback('parent_id', function (Builder $q, mixed $value): void {
+            $isNull = $value === null
+                || $value === ''
+                || (is_string($value) && strtolower($value) === 'null');
+
+            if ($isNull) {
+                $q->whereNull('parent_id');
+
+                return;
+            }
+
+            if (is_array($value)) {
+                $q->whereIn('parent_id', $value);
+
+                return;
+            }
+
+            $q->where('parent_id', $value);
+        });
+
+        return $filters;
     }
 
     public function registerMediaCollections(): void

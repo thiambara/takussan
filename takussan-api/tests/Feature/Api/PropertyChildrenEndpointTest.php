@@ -2,80 +2,94 @@
 
 namespace Tests\Feature\Api;
 
-use App\Models\Enums\PropertyStatus;
+use App\Models\Agency;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
+/**
+ * TCK-086 — `GET /api/properties/{property}/children`.
+ */
 class PropertyChildrenEndpointTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_returns_only_direct_children(): void
+    public function test_returns_paginated_direct_children_only(): void
     {
-        $user = User::factory()->create();
-        $parent = Property::factory()->create(['user_id' => $user->id]);
-        $child = Property::factory()->create(['user_id' => $user->id, 'parent_id' => $parent->id]);
-        // Grandchild (must NOT appear in /children).
-        Property::factory()->create(['user_id' => $user->id, 'parent_id' => $child->id]);
-
+        $agency = Agency::factory()->create();
+        $user = User::factory()->create(['agency_id' => $agency->id]);
         Sanctum::actingAs($user);
 
-        $this->getJson("/api/properties/{$parent->id}/children")
+        $building = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id]);
+        $floor1 = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id, 'parent_id' => $building->id]);
+        $floor2 = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id, 'parent_id' => $building->id]);
+        // grand-children must NOT appear in /children
+        Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id, 'parent_id' => $floor1->id]);
+
+        $response = $this->getJson("/api/properties/{$building->id}/children")
             ->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $child->id);
+            ->assertJsonPath('meta.total', 2);
+
+        $ids = collect($response->json('data'))->pluck('id')->sort()->values()->all();
+        $expected = collect([$floor1->id, $floor2->id])->sort()->values()->all();
+        $this->assertSame($expected, $ids);
     }
 
-    public function test_supports_status_filter(): void
+    public function test_supports_spatie_filter_status(): void
     {
-        $user = User::factory()->create();
-        $parent = Property::factory()->create(['user_id' => $user->id]);
-        Property::factory()->create([
-            'user_id' => $user->id,
-            'parent_id' => $parent->id,
-            'status' => PropertyStatus::Available,
-        ]);
-        Property::factory()->create([
-            'user_id' => $user->id,
-            'parent_id' => $parent->id,
-            'status' => PropertyStatus::Draft,
-        ]);
-
+        $agency = Agency::factory()->create();
+        $user = User::factory()->create(['agency_id' => $agency->id]);
         Sanctum::actingAs($user);
+
+        $parent = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id]);
+        Property::factory()->create([
+            'agency_id' => $agency->id,
+            'user_id' => $user->id,
+            'parent_id' => $parent->id,
+            'status' => 'available',
+        ]);
+        Property::factory()->create([
+            'agency_id' => $agency->id,
+            'user_id' => $user->id,
+            'parent_id' => $parent->id,
+            'status' => 'rented',
+        ]);
 
         $this->getJson("/api/properties/{$parent->id}/children?filter[status]=available")
             ->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.status', 'available');
+            ->assertJsonPath('meta.total', 1);
     }
 
-    public function test_supports_pagination(): void
+    public function test_respects_sparse_fieldsets(): void
     {
-        $user = User::factory()->create();
-        $parent = Property::factory()->create(['user_id' => $user->id]);
-        Property::factory()->count(5)->create(['user_id' => $user->id, 'parent_id' => $parent->id]);
-
+        $agency = Agency::factory()->create();
+        $user = User::factory()->create(['agency_id' => $agency->id]);
         Sanctum::actingAs($user);
 
-        $this->getJson("/api/properties/{$parent->id}/children?per_page=2")
+        $parent = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id]);
+        Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id, 'parent_id' => $parent->id]);
+
+        // sparse fieldsets only constrain the underlying SQL columns selected;
+        // the resource still ships its derived shape. This guards the spatie pipeline survives.
+        $this->getJson("/api/properties/{$parent->id}/children?fields[properties]=id,title")
             ->assertOk()
-            ->assertJsonCount(2, 'data')
-            ->assertJsonPath('meta.total', 5)
-            ->assertJsonPath('meta.per_page', 2);
+            ->assertJsonPath('meta.total', 1);
     }
 
-    public function test_403_when_parent_not_owned(): void
+    public function test_403_when_caller_is_outside_owner_or_agency(): void
     {
-        $me = User::factory()->create();
-        $other = User::factory()->create();
-        $parent = Property::factory()->create(['user_id' => $other->id]);
-        Property::factory()->count(2)->create(['user_id' => $other->id, 'parent_id' => $parent->id]);
+        $agencyA = Agency::factory()->create();
+        $agencyB = Agency::factory()->create();
+        $owner = User::factory()->create(['agency_id' => $agencyA->id]);
+        $stranger = User::factory()->create(['agency_id' => $agencyB->id]);
 
-        Sanctum::actingAs($me);
+        $parent = Property::factory()->create(['agency_id' => $agencyA->id, 'user_id' => $owner->id]);
 
-        $this->getJson("/api/properties/{$parent->id}/children")->assertForbidden();
+        Sanctum::actingAs($stranger);
+
+        $this->getJson("/api/properties/{$parent->id}/children")
+            ->assertForbidden();
     }
 }

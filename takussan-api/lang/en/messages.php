@@ -9,10 +9,9 @@ return [
     // Property
     'property_cannot_publish' => 'Sold or rented properties cannot be published.',
     'property_cannot_unpublish' => 'Only available properties can be unpublished.',
-    'property_hierarchy_cycle' => 'A property cannot be its own ancestor.',
-    'property_hierarchy_max_depth_exceeded' => 'The maximum hierarchy depth is reached.',
-    'property_hierarchy_same_agency_required' => 'The parent must belong to the same agency.',
-    'property_hierarchy_parent_not_found' => 'The parent property cannot be found.',
+    'property_parent_cycle_detected' => 'A property cannot be placed under itself or one of its descendants.',
+    'property_parent_max_depth_exceeded' => 'The maximum hierarchy depth is 4 levels.',
+    'property_parent_same_agency_required' => 'The parent property must belong to the same agency as the child.',
 
     // User / Agency
     'user_already_in_agency' => 'This user already belongs to another agency.',
