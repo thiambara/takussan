@@ -1,7 +1,7 @@
 ---
 id: TCK-085
 title: "Conversations de groupe (multi-participants)"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: M
@@ -156,4 +156,11 @@ dans la liste ; notifications push suppressed pour cette conversation.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Backend** : `GroupConversationService` orchestre create/add/remove/promote/leave avec garde "dernier admin". `SystemMessageFactory` émet 4 events immuables (`participant_added`, `participant_removed`, `role_changed`, `renamed`) avec `sender_id=null` (migration `make_messages_sender_id_nullable_for_system`). Policy `ConversationPolicy` autorise admin-only pour add/remove/promote/rename ; member peut self-leave.
+- **Scope check** (AddParticipantsRequest) : agence du bien/bail OU agence de l'acteur OU conversation partagée précédente OU `UserCustomerRelationship`. Refus 422 sinon.
+- **Last_message caches** : `MessageObserver` met à jour les caches après messages texte ET system.
+- **Notifications** : `ConversationInviteNotification` envoyée aux nouveaux ajoutés ; respecte `PreferenceResolver` ; `is_muted` sur `ConversationParticipant` suppress les notifs au niveau du dispatch (`NotifyNewMessageJob`).
+- **Frontend** : `<NewGroupDialog>` wizard 2 étapes (input texte ID utilisateur — autocomplete utilisateurs deferé en follow-up, le serveur applique le scope check au submit). `<ConversationInfoSheet>` panneau latéral avec rename / participants / mute / leave. `<SystemMessageBubble>` neutre inline. `<ConversationList>` distingue les groupes via icône Users + badge "Groupe" + 🔕 si muté. Hooks `useCreateGroupConversation`, `useAddParticipants`, `useRemoveParticipant`, `useUpdateParticipantRole`, `useRenameConversation`, `useToggleMute` avec invalidation React Query.
+- **Suivi** : autocomplete user search (le ticket l'évoque) → ticket dédié plus tard, l'endpoint `/api/users` étant admin-only ; pour V1, saisie d'ID brut + validation backend.
+- **Tests** : 29 backend (`GroupConversationCreationTest` 5, `ParticipantManagementTest` 14, `SystemMessagesTest` 8, `GroupMuteTest` 2) + 6 Vitest (`SystemMessageBubble` 3, `NewGroupDialog` 3) verts.
+- **PR** : feat/tck-085-group-conversations → dev (à ouvrir).

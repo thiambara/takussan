@@ -183,3 +183,113 @@ export function useUploadAttachment(conversationId: number, messageId: number) {
     },
   );
 }
+
+// =============================================================================
+// TCK-085 — Group conversations
+// =============================================================================
+
+export type CreateGroupConversationPayload = {
+  type: 'group';
+  subject: string;
+  participant_ids: number[];
+  property_id?: number;
+  lease_id?: number;
+  maintenance_request_id?: number;
+};
+
+export function useCreateGroupConversation() {
+  return useApiMutation<ApiResponse<Conversation>, CreateGroupConversationPayload>(
+    { path: '/api/conversations', method: 'POST' },
+    { invalidate: [['conversations', 'list']] },
+  );
+}
+
+export type AddParticipantsPayload = {
+  user_ids: number[];
+  role?: 'member' | 'admin';
+};
+
+export function useAddParticipants(conversationId: number) {
+  return useApiMutation<ApiResponse<{ added_user_ids: number[] }>, AddParticipantsPayload>(
+    {
+      path: `/api/conversations/${conversationId}/participants`,
+      method: 'POST',
+    },
+    {
+      invalidate: [
+        ['conversations', 'detail', conversationId],
+        ['conversations', conversationId, 'messages'],
+      ],
+    },
+  );
+}
+
+export function useRemoveParticipant(conversationId: number) {
+  return useApiMutation<ApiResponse<{ removed_user_id: number }>, { user_id: number }>(
+    {
+      path: ({ user_id }) =>
+        `/api/conversations/${conversationId}/participants/${user_id}`,
+      method: 'DELETE',
+    },
+    {
+      invalidate: [
+        ['conversations', 'detail', conversationId],
+        ['conversations', conversationId, 'messages'],
+        ['conversations', 'list'],
+      ],
+    },
+  );
+}
+
+export type UpdateParticipantPayload = {
+  user_id: number;
+  role: 'member' | 'admin';
+};
+
+export function useUpdateParticipantRole(conversationId: number) {
+  return useApiMutation<ApiResponse<{ user_id: number; role: 'member' | 'admin' }>, UpdateParticipantPayload>(
+    {
+      path: ({ user_id }) =>
+        `/api/conversations/${conversationId}/participants/${user_id}`,
+      method: 'PATCH',
+      body: ({ role }) => ({ role }),
+    },
+    {
+      invalidate: [
+        ['conversations', 'detail', conversationId],
+        ['conversations', conversationId, 'messages'],
+      ],
+    },
+  );
+}
+
+export function useRenameConversation(conversationId: number) {
+  return useApiMutation<ApiResponse<Conversation>, { subject: string }>(
+    {
+      path: `/api/conversations/${conversationId}`,
+      method: 'PATCH',
+    },
+    {
+      invalidate: [
+        ['conversations', 'detail', conversationId],
+        ['conversations', 'list'],
+        ['conversations', conversationId, 'messages'],
+      ],
+    },
+  );
+}
+
+export function useToggleMute(conversationId: number) {
+  return useApiMutation<ApiResponse<{ is_muted: boolean }>, { is_muted: boolean }>(
+    {
+      path: `/api/conversations/${conversationId}/mute`,
+      method: 'PUT',
+    },
+    {
+      invalidate: [
+        ['conversations', 'detail', conversationId],
+        ['conversations', 'list'],
+      ],
+    },
+  );
+}

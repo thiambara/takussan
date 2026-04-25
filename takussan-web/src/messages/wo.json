@@ -91,5 +91,65 @@
       "removeAria": "Jëla kër #{id} ci méengal bi",
       "clearAria": "Fommi méengal bi"
     }
+  },
+  "messaging": {
+    "listHeading": "Waxtaan",
+    "newGroup": "Bantu bu bees",
+    "emptyState": "Tànn benn waxtaan ngir gis bataaxal yi.",
+    "system": {
+      "participantAdded": "{actor} dafa yokk {target} ci kuréel gi.",
+      "participantRemoved": "{actor} dafa génn {target} ci kuréel gi.",
+      "roleChanged": "{actor} soppil na ndëgg {target} ci {role}.",
+      "renamed": "{actor} tudd waaye kuréel gi « {subject} »."
+    },
+    "group": {
+      "create": {
+        "title": "Bantu bu bees",
+        "step1Description": "Yokk lu néew 2 nit (yaw lañu lay boole automatiquement).",
+        "step2Description": "Joxal kuréel gi lépp lu am, te bind ko ci benn ber walla benn kontaaru waxtaanu (lu ñu bëgg).",
+        "participantsLabel": "Ñi bokk",
+        "participantInputPlaceholder": "ID utilisateur",
+        "participantsHint": "Bind ID yi benn-benn. Server bi mooy seet permissions yi.",
+        "add": "Yokk",
+        "removeParticipant": "Génn #{id}",
+        "minParticipants": "Lu néew {min} nit ci kuréel gi (boole yaw).",
+        "maxParticipants": "Lu ëpp {max} nit ci kuréel gi.",
+        "duplicate": "Nit ki yokk nañu ko ba pare.",
+        "invalidId": "ID bu jaaxle.",
+        "subjectLabel": "Sujet",
+        "subjectRequired": "Sujet bi danu ko soxla.",
+        "propertyLabel": "Ber (lu ñu bëgg)",
+        "leaseLabel": "Kontaaru lokal (lu ñu bëgg)",
+        "cancel": "Bayyi",
+        "next": "Topp",
+        "back": "Dellu",
+        "create": "Sosal kuréel gi",
+        "createFailed": "Mënul sosal kuréel gi."
+      },
+      "info": {
+        "title": "Xibaaru kuréel gi",
+        "subjectLine": "Sujet: {subject}",
+        "renameLabel": "Tudd waaye kuréel gi",
+        "renameSave": "Wéral",
+        "renameFailed": "Mënul tudd waaye.",
+        "participantsHeading": "Ñi bokk ({count})",
+        "addLabel": "Yokk benn nit",
+        "addPlaceholder": "ID utilisateur",
+        "addFailed": "Mënul yokk.",
+        "add": "Yokk",
+        "you": "yaw",
+        "roleAdmin": "Admin",
+        "roleMember": "Bokk",
+        "promote": "Promóte ci admin",
+        "demote": "Wàcce ci bokk",
+        "remove": "Génn ci kuréel gi",
+        "mute": "Tëj notifications yi",
+        "unmute": "Ubbil notifications yi",
+        "leave": "Génn ci kuréel gi",
+        "lastAdminLeaveBlocked": "Yaw rekk a admin — promóte keneen ba pare gennal.",
+        "lastAdminLeaveHint": "Promóte beneen membre admin balaa nga gennal.",
+        "invalidId": "ID bu jaaxle."
+      }
+    }
   }
 }

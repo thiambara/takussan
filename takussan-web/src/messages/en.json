@@ -142,5 +142,65 @@
       "removeAria": "Remove property #{id} from the comparator",
       "clearAria": "Clear comparator"
     }
+  },
+  "messaging": {
+    "listHeading": "Conversations",
+    "newGroup": "New group",
+    "emptyState": "Select a conversation to view messages.",
+    "system": {
+      "participantAdded": "{actor} added {target} to the group.",
+      "participantRemoved": "{actor} removed {target} from the group.",
+      "roleChanged": "{actor} changed {target}'s role to {role}.",
+      "renamed": "{actor} renamed the group to \"{subject}\"."
+    },
+    "group": {
+      "create": {
+        "title": "New group",
+        "step1Description": "Add at least 2 participants (you'll be included automatically).",
+        "step2Description": "Give the group a subject and optionally link it to a property or lease.",
+        "participantsLabel": "Participants",
+        "participantInputPlaceholder": "User ID",
+        "participantsHint": "Enter IDs one at a time. The server enforces permissions.",
+        "add": "Add",
+        "removeParticipant": "Remove #{id}",
+        "minParticipants": "At least {min} participants total (including you).",
+        "maxParticipants": "At most {max} participants total.",
+        "duplicate": "This user is already added.",
+        "invalidId": "Invalid ID.",
+        "subjectLabel": "Subject",
+        "subjectRequired": "Subject is required.",
+        "propertyLabel": "Property (optional)",
+        "leaseLabel": "Lease (optional)",
+        "cancel": "Cancel",
+        "next": "Next",
+        "back": "Back",
+        "create": "Create group",
+        "createFailed": "Failed to create the group."
+      },
+      "info": {
+        "title": "Group info",
+        "subjectLine": "Subject: {subject}",
+        "renameLabel": "Rename group",
+        "renameSave": "Save",
+        "renameFailed": "Failed to rename.",
+        "participantsHeading": "Participants ({count})",
+        "addLabel": "Invite a participant",
+        "addPlaceholder": "User ID",
+        "addFailed": "Failed to add.",
+        "add": "Add",
+        "you": "you",
+        "roleAdmin": "Admin",
+        "roleMember": "Member",
+        "promote": "Promote to admin",
+        "demote": "Demote to member",
+        "remove": "Remove from group",
+        "mute": "Mute notifications",
+        "unmute": "Unmute notifications",
+        "leave": "Leave group",
+        "lastAdminLeaveBlocked": "You're the last admin — promote someone before leaving.",
+        "lastAdminLeaveHint": "Promote another member to admin before leaving.",
+        "invalidId": "Invalid ID."
+      }
+    }
   }
 }
