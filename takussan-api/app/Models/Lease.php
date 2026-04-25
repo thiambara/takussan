@@ -30,6 +30,7 @@ class Lease extends AbstractModel implements HasMedia
         'deposit_amount', 'deposit_refunded_amount', 'deposit_refunded_at', 'deposit_refund_reason',
         'commission_amount', 'commission_rate',
         'payment_frequency', 'payment_day',
+        'late_fee_percent', 'late_fee_grace_days',
         'terms', 'special_conditions',
         'signed_at', 'terminated_at', 'termination_reason', 'terminated_by_id', 'metadata',
     ];
@@ -46,6 +47,8 @@ class Lease extends AbstractModel implements HasMedia
         'deposit_refunded_at' => 'datetime',
         'commission_amount' => 'decimal:2',
         'commission_rate' => 'decimal:2',
+        'late_fee_percent' => 'decimal:2',
+        'late_fee_grace_days' => 'integer',
         'start_date' => 'date',
         'end_date' => 'date',
         'renewal_date' => 'date',
@@ -69,7 +72,8 @@ class Lease extends AbstractModel implements HasMedia
         'reference_number', 'type', 'status',
         'start_date', 'end_date', 'monthly_rent', 'currency',
         'deposit_amount', 'deposit_refunded_amount', 'deposit_refunded_at', 'deposit_refund_reason',
-        'payment_frequency', 'signed_at', 'terminated_at', 'created_at', 'updated_at',
+        'payment_frequency', 'late_fee_percent', 'late_fee_grace_days',
+        'signed_at', 'terminated_at', 'created_at', 'updated_at',
     ];
 
     public function property(): BelongsTo

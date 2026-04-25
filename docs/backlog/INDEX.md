@@ -33,6 +33,7 @@
 
 - [TCK-086](tickets/TCK-086-property-hierarchy.md) — Hiérarchie de biens (immeuble → étages → lots) `M · P1 · back`
 - [TCK-087](tickets/TCK-087-lease-late-fees.md) — Pénalités de retard automatiques sur loyers `S · P1 · applicatif`
+- [TCK-088](tickets/TCK-088-lease-deposit-refund.md) — Remboursement de la caution en fin de bail `S · P1 · applicatif`
 - [TCK-089](tickets/TCK-089-lease-renewal-amendment.md) — Renouvellement bail / avenant `M · P2 · applicatif`
 - [TCK-090](tickets/TCK-090-lease-early-termination.md) — Résiliation anticipée + pénalités `M · P2 · applicatif`
 - [TCK-091](tickets/TCK-091-lease-rent-review.md) — Révision annuelle du loyer `S · P2 · applicatif`
@@ -87,6 +88,14 @@ _(vide)_
 > **Vague 6** — PRs mergées sur `dev` 2026-04-24 (#54, #55). 2 tickets livrés.
 > **Vague 7** — PRs ouvertes vers `dev` 2026-04-24 (#59, #60, #61) en attente de merge. 3 tickets livrés (TCK-078 cleanup, TCK-081 OAuth, TCK-082 comparateur).
 > **Vague 8** — PRs ouvertes vers `dev` 2026-04-25 (#64, #65, #66, #67, #68) en attente de merge. 5 tickets livrés (TCK-079 payments gateway, TCK-080 RGPD, TCK-083 CRM pipeline, TCK-084 multi-currency, TCK-085 group conversations).
+
+### Vague 9-A — Hiérarchie de biens — [PR #70](https://github.com/thiambara/takussan/pull/70)
+
+- [TCK-086](tickets/TCK-086-property-hierarchy.md) — Hiérarchie de biens (immeuble → étages → lots) `M · P1 · back` (PR #70)
+
+### Vague 9-B — Pénalités de retard automatiques sur loyers
+
+- [TCK-087](tickets/TCK-087-lease-late-fees.md) — Pénalités de retard automatiques sur loyers `S · P1 · applicatif`
 
 ### Vague 8-A — Passerelle de paiement Wave / OM / Lemon Squeezy — [PR #64](https://github.com/thiambara/takussan/pull/64)
 

@@ -3,7 +3,9 @@
 namespace App\Providers;
 
 use App\Events\Lease\LeaseDepositRefunded;
+use App\Events\Lease\LeasePaymentLateFeeApplied;
 use App\Listeners\Lease\NotifyTenantOfDepositRefund;
+use App\Listeners\Lease\NotifyTenantOfLateFee;
 use App\Listeners\Payments\LemonSqueezyEventListener;
 use App\Models\Conversation;
 use App\Models\Favorite;
@@ -85,6 +87,9 @@ class AppServiceProvider extends ServiceProvider
         // TCK-079 — bridge lemonsqueezy/laravel webhook events onto our
         // domain payment gateway service. The package validates X-Signature
         // upstream; we only need to map events to local payment rows.
+        // TCK-087 — fire tenant notification when a late fee is applied.
+        Event::listen(LeasePaymentLateFeeApplied::class, NotifyTenantOfLateFee::class);
+
         Event::listen(LemonSqueezyOrderCreated::class, [LemonSqueezyEventListener::class, 'handleOrderCreated']);
         Event::listen(LemonSqueezyOrderRefunded::class, [LemonSqueezyEventListener::class, 'handleOrderRefunded']);
         Event::listen(LemonSqueezySubscriptionCreated::class, [LemonSqueezyEventListener::class, 'handleSubscriptionCreated']);
