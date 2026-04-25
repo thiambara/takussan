@@ -49,6 +49,12 @@ class InvoiceOverdueReminderNotificationTest extends TestCase
 
     public function test_to_mail_renders_subject_amount_and_due_date(): void
     {
+        // Pin the locale: another notification test in the same suite
+        // toggles `app()->setLocale('fr')` and the CI runner sometimes
+        // schedules this test after that one without going through the
+        // sibling's `finally` (e.g. when running in random order).
+        app()->setLocale('en');
+
         $user = User::factory()->create();
         $invoice = $this->makeInvoice($user, ['reference_number' => 'INV-2026-0042']);
 
