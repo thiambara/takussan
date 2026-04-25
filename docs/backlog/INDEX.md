@@ -74,9 +74,9 @@ _(vide)_
 
 ## 👀 Review
 
-### Vague 9-A — Remboursement caution fin de bail
+### Vague 9-A — Remboursement caution fin de bail — [PR #72](https://github.com/thiambara/takussan/pull/72)
 
-- [TCK-088](tickets/TCK-088-lease-deposit-refund.md) — Remboursement de la caution en fin de bail `S · P1 · applicatif`
+- [TCK-088](tickets/TCK-088-lease-deposit-refund.md) — Remboursement de la caution en fin de bail `S · P1 · applicatif` (PR #72)
 
 > **Vague 1** — PRs mergées sur `dev` 2026-04-22 (#24, #25, #26, #27 + sync #28). Statut reste `review` jusqu'à confirmation AC.
 > **Vague 2** — PRs mergées sur `dev` 2026-04-22 (#29, #30, #31, #32 + sync #33).
