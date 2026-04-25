@@ -132,6 +132,14 @@ return [
         ],
     ],
 
+    'lease_rent_reviewed' => [
+        'subject' => 'Révision du loyer — bail :reference',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Le loyer mensuel du bail :reference a été révisé : :old → :new :currency.',
+        'effective' => 'Date d\'effet : :date.',
+        'reason' => 'Motif : :reason',
+    ],
+
     'invoice_reminder_sent' => [
         'subject' => 'Rappel — facture :reference en retard',
         'greeting' => 'Bonjour,',

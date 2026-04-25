@@ -132,4 +132,27 @@ class LeasePolicy extends BasePolicy
 
         return $user->hasRole(['admin', 'super_admin']);
     }
+
+    /**
+     * TCK-091 — Annual rent review. Restricted to agency-side actors
+     * (landlord, agency members, admin) holding `leases.rent_review`.
+     * The tenant cannot self-review their own rent — they receive a
+     * notification once the agency-side actor confirms the change.
+     */
+    public function reviewRent(User $user, Lease $lease): bool
+    {
+        if (! $user->can('leases.rent_review')) {
+            return false;
+        }
+
+        if ($user->id === $lease->landlord_id) {
+            return true;
+        }
+
+        if ($user->agency_id !== null && $user->agency_id === $lease->agency_id) {
+            return true;
+        }
+
+        return $user->hasRole(['admin', 'super_admin']);
+    }
 }

@@ -111,6 +111,14 @@ return [
         ],
     ],
 
+    'lease_rent_reviewed' => [
+        'subject' => 'Yeesalaat layeer — luwé :reference',
+        'greeting' => 'Salaam,',
+        'intro' => 'Layeer mensuel bu luwé :reference yeesalaat nañ ko : :old → :new :currency.',
+        'effective' => 'Bisu njëlbeen : :date.',
+        'reason' => 'Mboor : :reason',
+    ],
+
     'invoice_reminder_sent' => [
         'subject' => 'Faalewu — fakture :reference dafa yengul',
         'greeting' => 'Salaam,',

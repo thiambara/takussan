@@ -132,6 +132,14 @@ return [
         ],
     ],
 
+    'lease_rent_reviewed' => [
+        'subject' => 'Rent review — lease :reference',
+        'greeting' => 'Hello,',
+        'intro' => 'The monthly rent of lease :reference has been reviewed: :old → :new :currency.',
+        'effective' => 'Effective date: :date.',
+        'reason' => 'Reason: :reason',
+    ],
+
     'invoice_reminder_sent' => [
         'subject' => 'Reminder — invoice :reference overdue',
         'greeting' => 'Hello,',

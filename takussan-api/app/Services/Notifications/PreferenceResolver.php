@@ -50,6 +50,8 @@ class PreferenceResolver
         // TCK-090 — fired on every early-termination transition
         // (requested / cancelled / confirmed).
         'lease_early_termination',
+        // TCK-091 — fired when the rent on an active lease is reviewed.
+        'lease_rent_reviewed',
         // TCK-092 — fired by SendOverdueRemindersJob on each scheduled offset.
         'invoice_reminder_sent',
         'maintenance_status_changed',

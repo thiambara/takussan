@@ -8,10 +8,12 @@ use App\Events\Lease\LeaseEarlyTerminationConfirmed;
 use App\Events\Lease\LeaseEarlyTerminationRequested;
 use App\Events\Lease\LeasePaymentLateFeeApplied;
 use App\Events\Lease\LeaseRenewed;
+use App\Events\Lease\LeaseRentReviewed;
 use App\Listeners\Lease\NotifyOnEarlyTermination;
 use App\Listeners\Lease\NotifyTenantOfDepositRefund;
 use App\Listeners\Lease\NotifyTenantOfLateFee;
 use App\Listeners\Lease\NotifyTenantOfRenewal;
+use App\Listeners\Lease\NotifyTenantOfRentReview;
 use App\Listeners\Payments\LemonSqueezyEventListener;
 use App\Models\Conversation;
 use App\Models\Favorite;
@@ -110,6 +112,9 @@ class AppServiceProvider extends ServiceProvider
         $events->listen(LeaseEarlyTerminationRequested::class, [NotifyOnEarlyTermination::class, 'handleRequested']);
         $events->listen(LeaseEarlyTerminationCancelled::class, [NotifyOnEarlyTermination::class, 'handleCancelled']);
         $events->listen(LeaseEarlyTerminationConfirmed::class, [NotifyOnEarlyTermination::class, 'handleConfirmed']);
+
+        // TCK-091 — notify the tenant when the rent on their lease is reviewed.
+        $events->listen(LeaseRentReviewed::class, NotifyTenantOfRentReview::class);
 
         // TCK-022: dispatch the email verification notification on user
         // registration (Laravel no longer auto-registers this in the
