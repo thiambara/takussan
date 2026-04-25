@@ -17,7 +17,7 @@ class Task extends AbstractModel
     protected $fillable = [
         'title', 'description', 'taskable_id', 'taskable_type',
         'assigned_to_id', 'created_by_id', 'due_at', 'completed_at',
-        'status', 'priority',
+        'status', 'priority', 'metadata',
     ];
 
     protected $casts = [
@@ -25,6 +25,7 @@ class Task extends AbstractModel
         'priority' => TaskPriority::class,
         'due_at' => 'datetime',
         'completed_at' => 'datetime',
+        'metadata' => 'array',
     ];
 
     protected static array $requestFilterable = ['taskable_id', 'taskable_type', 'assigned_to_id', 'created_by_id', 'status', 'priority'];

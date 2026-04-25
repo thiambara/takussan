@@ -100,6 +100,64 @@
       "clearAria": "Fommi méengal bi"
     }
   },
+  "crm": {
+    "pipeline": {
+      "title": "Pipeline prospects",
+      "subtitle": "Toppal sa contacts CRM ci étape yu, géer carte yi ngir jiitu leen.",
+      "empty": "Amul lu nu wone.",
+      "emptyColumn": "Amul kiliyaan",
+      "stage": {
+        "lead": "Lead",
+        "prospect": "Prospect",
+        "qualified": "Qualifié",
+        "negotiating": "Waxtaan",
+        "converted": "Converti",
+        "lost": "Reer"
+      },
+      "stats": {
+        "active": "Prospects aktif",
+        "newWeek": "Yu bees ci ayubés bi",
+        "conversionRate": "Taux conversion 30 fan",
+        "avgQualified": "Diir bu Qualifié",
+        "changes30d": "Coppite 30 fan"
+      },
+      "fields": {
+        "phone": "Telefon",
+        "email": "Email",
+        "occupation": "Liggéey",
+        "stage": "Étape",
+        "tasksCount": "Tasks ubbeeku"
+      },
+      "actions": {
+        "cancel": "Bayyi",
+        "confirm": "Dëgëral",
+        "close": "Tëj"
+      },
+      "reasonDialog": {
+        "title": "Wéyal ci {stage} — joxal raison bi",
+        "placeholder": "Misaal: converti gnaan lay signe bail bi 10 mee…"
+      },
+      "tabs": {
+        "overview": "Xolal",
+        "notes": "Mbind",
+        "tasks": "Tasks",
+        "activity": "Aktiwite"
+      },
+      "notes": {
+        "add": "Yokk benn mbind",
+        "placeholder": "Bind benn mbind…",
+        "pinned": "Bopp"
+      },
+      "tasks": {
+        "add": "Yokk benn task",
+        "titlePlaceholder": "Tur task bi",
+        "toggle": "Sëgg mu paré"
+      },
+      "errors": {
+        "moveFailed": "Mënuñu géer carte bi. Jéemaat."
+      }
+    }
+  },
   "account": {
     "deletion": {
       "section": {

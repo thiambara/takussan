@@ -57,6 +57,12 @@ return [
         'intro_1h' => 'Reminder — your visit for :property starts in about an hour at :datetime.',
     ],
 
+    'task_due_reminder' => [
+        'subject' => 'Reminder: task due soon — :title',
+        'greeting' => 'Hello,',
+        'intro' => 'Your task ":title" is due tomorrow at :datetime.',
+    ],
+  
     'account_deletion_requested' => [
         'subject' => 'Account deletion request received',
         'greeting' => 'Hello,',

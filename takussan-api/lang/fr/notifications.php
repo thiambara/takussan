@@ -57,6 +57,12 @@ return [
         'intro_1h' => 'Rappel — votre visite pour :property commence dans environ une heure, à :datetime.',
     ],
 
+    'task_due_reminder' => [
+        'subject' => 'Rappel : tâche due bientôt — :title',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Votre tâche « :title » est due demain à :datetime.',
+    ],
+  
     'account_deletion_requested' => [
         'subject' => 'Demande de suppression de compte enregistrée',
         'greeting' => 'Bonjour,',

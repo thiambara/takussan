@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
+    Route::get('customers/pipeline-stats', [CustomerController::class, 'pipelineStats'])->name('customers.pipeline-stats');
     Route::post('customers', [CustomerController::class, 'store'])->name('customers.store');
     Route::get('customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
     Route::put('customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');

@@ -36,6 +36,12 @@ return [
         'footer' => 'Gis senter bu notifications ngir gis sa yëkkati yépp.',
     ],
 
+    'task_due_reminder' => [
+        'subject' => 'Fàttalikuwaay : ligéey bi nag — :title',
+        'greeting' => 'Salaam,',
+        'intro' => 'Sa ligéey « :title » dafa wàcc ëllëg ci :datetime.',
+    ],
+  
     'account_deletion_requested' => [
         'subject' => 'Ndogalu suufeel kont nañ ko jaaxal',
         'greeting' => 'Salaam,',
