@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\LeaseController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
 use App\Http\Controllers\Api\LeasePaymentController;
 use App\Http\Controllers\Api\LeaseRenewalController;
+use App\Http\Controllers\Api\LeaseRentController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -26,6 +27,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // amount/reason/attachments/payout/invoice.
     Route::post('leases/{lease}/deposit-refund', [LeaseDepositRefundController::class, 'store'])->name('leases.deposit-refund.store');
     Route::get('leases/{lease}/deposit-refund', [LeaseDepositRefundController::class, 'show'])->name('leases.deposit-refund.show');
+
+    // TCK-091 — Rent review on an active lease. The generic
+    // `LeaseController@update` deliberately rejects `monthly_rent` so
+    // that every rent change flows through this dedicated endpoint and
+    // gets journaled in the activity log.
+    Route::patch('leases/{lease}/rent', [LeaseRentController::class, 'update'])->name('leases.rent.update');
+    Route::get('leases/{lease}/rent-history', [LeaseRentController::class, 'index'])->name('leases.rent-history.index');
 
     // Nested payments
     Route::get('leases/{lease}/payments', [LeasePaymentController::class, 'index'])->name('leases.payments.index');

@@ -48,6 +48,17 @@ return [
     'deposit_refund_payout_note' => 'Deposit refund — lease :reference',
     'deposit_retention_invoice_line' => 'Deposit retention — :reason',
 
+    // Lease — rent review (TCK-091)
+    'lease_rent_review_status_not_reviewable' => 'Only active leases can have their rent reviewed.',
+    'lease_rent_review_reason_required' => 'A reason is required (between 5 and 500 characters).',
+    'lease_rent_review_invalid_amount' => 'The new rent must be strictly greater than zero.',
+    'lease_rent_review_no_baseline' => 'The lease has no monthly rent — review impossible.',
+    'lease_rent_review_variation_excessive' => 'Variation above the allowed threshold (:max %). Variation: :variation %. Resend with force=true if you hold the required permission.',
+    'lease_rent_review_force_not_allowed' => 'You do not have permission to force an excessive variation (leases.rent_review_force).',
+    'lease_rent_review_no_back_dating' => 'The effective date cannot be earlier than today.',
+    'lease_rent_review_effective_date_invalid' => 'The effective date is invalid.',
+    'lease_rent_use_dedicated_endpoint' => 'The rent must be updated through PATCH /api/leases/{id}/rent to guarantee traceability.',
+
     // Notifications
     'new_maintenance_title' => 'New maintenance request',
     'new_maintenance_body' => 'A maintenance request has been submitted for :property.',

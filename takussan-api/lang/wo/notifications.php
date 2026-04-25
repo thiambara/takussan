@@ -93,4 +93,12 @@ return [
         'intro' => 'Avenant am na ci sa luwé (:reference). Conditions yu bees yi tàmbali nañ.',
         'period' => 'Période : :start ba :end.',
     ],
+
+    'lease_rent_reviewed' => [
+        'subject' => 'Yeesalaat layeer — luwé :reference',
+        'greeting' => 'Salaam,',
+        'intro' => 'Layeer mensuel bu luwé :reference yeesalaat nañ ko : :old → :new :currency.',
+        'effective' => 'Bisu njëlbeen : :date.',
+        'reason' => 'Mboor : :reason',
+    ],
 ];

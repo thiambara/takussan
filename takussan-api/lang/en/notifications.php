@@ -114,4 +114,12 @@ return [
         'intro' => 'An amendment has been created for your lease (:reference). The new terms now apply.',
         'period' => 'Period: from :start to :end.',
     ],
+
+    'lease_rent_reviewed' => [
+        'subject' => 'Rent review — lease :reference',
+        'greeting' => 'Hello,',
+        'intro' => 'The monthly rent of lease :reference has been reviewed: :old → :new :currency.',
+        'effective' => 'Effective date: :date.',
+        'reason' => 'Reason: :reason',
+    ],
 ];

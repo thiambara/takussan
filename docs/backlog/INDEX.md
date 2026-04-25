@@ -32,7 +32,6 @@
 ### Vague 9 — P1 résiduels + P2 baux & paiements
 
 - [TCK-090](tickets/TCK-090-lease-early-termination.md) — Résiliation anticipée + pénalités `M · P2 · applicatif`
-- [TCK-091](tickets/TCK-091-lease-rent-review.md) — Révision annuelle du loyer `S · P2 · applicatif`
 - [TCK-092](tickets/TCK-092-invoice-overdue-reminders.md) — Relance automatique factures en retard `S · P2 · applicatif`
 
 ### Vague 10 — P2 CRM / Messaging / Maintenance
@@ -70,6 +69,10 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 _(vide)_
 
 ## 👀 Review
+
+### Vague 9-F — Révision annuelle du loyer
+
+- [TCK-091](tickets/TCK-091-lease-rent-review.md) — Révision annuelle du loyer `S · P2 · applicatif`
 
 ### Vague 9-A — Remboursement caution fin de bail — [PR #72](https://github.com/thiambara/takussan/pull/72)
 

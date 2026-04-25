@@ -46,4 +46,15 @@ return [
     'refund_reason_required_for_partial' => 'Su delloo gi gen, motivation lañu war a indi.',
     'deposit_refund_payout_note' => 'Delloo kaution — luwé :reference',
     'deposit_retention_invoice_line' => 'Téye kaution — :reason',
+
+    // Lease — rent review (TCK-091)
+    'lease_rent_review_status_not_reviewable' => 'Luwé yi jàpp rekk la ñu mën a yeesalaat layeer bi.',
+    'lease_rent_review_reason_required' => 'Mboor mu jaadu, 5 ba 500 caractères.',
+    'lease_rent_review_invalid_amount' => 'Layeer bu bees bi war a doon yu gen 0.',
+    'lease_rent_review_no_baseline' => 'Luwé bii amul layeer mensuel — du nu mën a yeesalaat.',
+    'lease_rent_review_variation_excessive' => 'Variation gënal seuil bi ( :max % ). Variation : :variation %. Yónnee force=true su nga am permission.',
+    'lease_rent_review_force_not_allowed' => 'Amuloo ndimbal ngir forcer variation bu kawe (leases.rent_review_force).',
+    'lease_rent_review_no_back_dating' => 'Bisu njëlbeen bi du wàcc ci ginnaaw tey.',
+    'lease_rent_review_effective_date_invalid' => 'Bisu njëlbeen bi baaxul.',
+    'lease_rent_use_dedicated_endpoint' => 'Layeer war na soppi ci PATCH /api/leases/{id}/rent ngir traçabilité.',
 ];
