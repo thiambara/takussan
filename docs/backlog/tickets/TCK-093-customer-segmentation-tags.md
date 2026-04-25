@@ -1,7 +1,7 @@
 ---
 id: TCK-093
 title: "Segmentation & tags clients"
-status: doing
+status: review
 phase: P2
 family: applicatif
 estimate: S
@@ -116,4 +116,45 @@ URL avec query string).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Branche** : `claude/implement-segmentation-tags-ycNvd` — commit `86edd71`
+
+**Décisions architecturales**
+
+- *Scope agence sans migration* — le spec §10 ne prévoit pas `agency_id` sur `Tag`.
+  L'isolation agence est obtenue à la couche query : `fetchCrmTags` filtre via
+  `whereHas('customers', fn => agency_id = $agencyId)`. La boundary est donc le
+  customer, pas le tag. Conséquence : un tag `vip` créé par deux agences différentes
+  partage la même ligne ; seule l'association taggable est propre à l'agence.
+  À revisiter si unicité-par-agence est requise (migration `agency_id NOT NULL` +
+  contrainte `UNIQUE(name, agency_id, type)`).
+
+- *`filter[type]=crm` vs `customer`* — le ticket utilise l'URL example
+  `filter[type]=customer` mais l'enum `TagType` n'a que `Crm = 'crm'`.
+  Implémenté avec `TagType::Crm` (`crm`) pour rester fidèle à la spec modèle.
+
+- *`CustomerController::show()` re-fetché via `buildQuery`* — la version initiale
+  de `show()` retournait le customer injecté par route model binding, ignorant
+  `?include=tags`. Corrigé : `Customer::buildQuery(Customer::where('id', $id), $request)->firstOrFail()`
+  pour que `AllowedInclude::relationship('tags')` soit honoré.
+
+- *TagFactory bug* — l'usine générée utilisait `'segment'` comme valeur de `type`,
+  valeur absente de `TagType`. Corrigé en `'crm'` (seule valeur pertinente dans le
+  contexte CRM ; autres valeurs seront ajoutées lors de tickets dédiés).
+
+- *Pas de composant Popover natif* — `src/components/ui/` n'expose pas de Popover.
+  Le filtre multi-tags est un div contrôlé avec positionnement absolu +
+  `useRef` + `useEffect` pour la détection outside-click.
+
+- *Couleur déterministe côté frontend* — palette de 8 ensembles (bg/text/border)
+  cyclée via `hashCode(name) % 8`. Pas de stockage en base (champ `color` non utilisé
+  pour les tags CRM), sauf override manuel future.
+
+**Gotchas / surprises**
+
+- Build pré-existant cassé dans `ConversationInfoSheet.tsx` (TCK-085) : type error
+  non liée au présent ticket. Ignorée — à adresser dans TCK-078 ou TCK-085 follow-up.
+- `Agency::factory()->count(2)->create()` requis dans les tests d'isolation agence ;
+  utiliser `agency_id = 1` directement viole la FK en SQLite in-memory.
+
+**Tous les AC validés** (14 tests backend + 15 tests Vitest) :
+AC1 ✅ · AC2 ✅ · AC3 ✅ · AC4 ✅ · AC5 ✅ · AC6 ✅ · AC7 ✅ · AC8 ✅

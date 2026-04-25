@@ -64,9 +64,13 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 
 ## 🚧 Doing
 
-- [TCK-093](tickets/TCK-093-customer-segmentation-tags.md) — Segmentation & tags clients `S · P2 · applicatif`
+_(vide)_
 
 ## 👀 Review
+
+### Vague 10-A — Segmentation & tags clients
+
+- [TCK-093](tickets/TCK-093-customer-segmentation-tags.md) — Segmentation & tags clients `S · P2 · applicatif`
 
 ### Vague 9-F — Révision annuelle du loyer — [PR #76](https://github.com/thiambara/takussan/pull/76)
 
