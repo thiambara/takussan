@@ -9,6 +9,7 @@ use App\Notifications\InvoiceOverdueReminderNotification;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
 /**
@@ -105,6 +106,13 @@ class OverdueReminderService
      * dispatch the reminder if so. Returns true when a reminder was
      * actually sent (false on skip / opt-out / cap).
      *
+     * The state mutation is wrapped in `DB::transaction` + `lockForUpdate`
+     * to close a race where two workers (or a cron + manual call) both
+     * observe `reminders_sent_count = 0` and both increment + dispatch.
+     * The lock is released as soon as the row is stamped; the queued
+     * notification is sent outside the transaction so the queue dispatch
+     * never holds the row.
+     *
      * @param  list<int>  $offsets
      */
     public function processOne(Invoice $invoice, array $offsets, CarbonInterface $now): bool
@@ -117,11 +125,6 @@ class OverdueReminderService
             return false;
         }
 
-        $cap = count($offsets);
-        if ((int) ($invoice->reminders_sent_count ?? 0) >= $cap) {
-            return false;
-        }
-
         $today = Carbon::instance($now)->startOfDay();
         $due = Carbon::parse($invoice->due_date)->startOfDay();
         $daysOverdue = (int) $due->diffInDays($today, false);
@@ -130,49 +133,74 @@ class OverdueReminderService
             return false;
         }
 
-        // Fallback intra-day idempotence: if a reminder has already been
-        // sent today (any offset), do not send a second one. This catches
-        // races across overlapping cron runs even if the count column is
-        // momentarily inconsistent.
-        if ($invoice->last_reminder_sent_at !== null
-            && Carbon::parse($invoice->last_reminder_sent_at)->isSameDay($today)
-        ) {
-            return false;
-        }
-
+        $cap = count($offsets);
         $expectedBucket = array_search($daysOverdue, $offsets, true) + 1;
-        $alreadySent = (int) ($invoice->reminders_sent_count ?? 0);
-        if ($alreadySent >= $expectedBucket) {
-            // Already crossed this offset bucket — typical when the job
-            // missed a day and now sees a later offset (we still send the
-            // current one but never resend a prior one).
-            return false;
-        }
 
-        $recipient = $invoice->customer?->user;
+        $recipient = DB::transaction(function () use ($invoice, $now, $today, $daysOverdue, $cap, $expectedBucket) {
+            // Re-read the row under a lock so we observe the freshest
+            // state — another worker may have just stamped it.
+            $fresh = Invoice::query()->lockForUpdate()->find($invoice->id);
+            if ($fresh === null) {
+                return null;
+            }
 
-        // Always record the attempt: even if the recipient opted out
-        // (or has no User account), the audit log has to reflect that
-        // we tried — that's the spec's "tentée" semantics.
-        $invoice->forceFill([
-            'last_reminder_sent_at' => $now,
-            'reminders_sent_count' => $alreadySent + 1,
-            // Promote `Sent` → `Overdue` lazily here, mirroring what the
-            // legacy job did, but only after the first reminder fires so
-            // we don't pre-emptively flip status before any user-visible
-            // signal. Subsequent reminders keep the row in `Overdue`.
-            'status' => InvoiceStatus::Overdue,
-        ])->save();
+            if (! in_array($fresh->status, self::REMINDABLE_STATUSES, true)) {
+                return null;
+            }
 
-        activity('Invoice')
-            ->performedOn($invoice)
-            ->withProperties([
-                'offset_days' => $daysOverdue,
-                'recipient_email' => $recipient?->email,
-                'channel' => $recipient ? 'email_inapp' : 'audit_only',
-            ])
-            ->event('invoice_reminder_sent')
-            ->log('invoice_reminder_sent');
+            $alreadySent = (int) ($fresh->reminders_sent_count ?? 0);
+            if ($alreadySent >= $cap) {
+                return null;
+            }
+
+            // Fallback intra-day idempotence: if a reminder has already been
+            // sent today (any offset), do not send a second one.
+            if ($fresh->last_reminder_sent_at !== null
+                && Carbon::parse($fresh->last_reminder_sent_at)->isSameDay($today)
+            ) {
+                return null;
+            }
+
+            if ($alreadySent >= $expectedBucket) {
+                // Already crossed this offset bucket — typical when the job
+                // missed a day and now sees a later offset (we still send the
+                // current one but never resend a prior one).
+                return null;
+            }
+
+            // The chunk query already eager-loaded `customer.user`; reuse
+            // it instead of triggering an extra select inside the lock.
+            $recipient = $invoice->customer?->user;
+
+            // Always record the attempt: even if the recipient opted out
+            // (or has no User account), the audit log has to reflect that
+            // we tried — that's the spec's "tentée" semantics.
+            $fresh->forceFill([
+                'last_reminder_sent_at' => $now,
+                'reminders_sent_count' => $alreadySent + 1,
+                // Promote `Sent` → `Overdue` lazily here, mirroring what the
+                // legacy job did, but only after the first reminder fires so
+                // we don't pre-emptively flip status before any user-visible
+                // signal. Subsequent reminders keep the row in `Overdue`.
+                'status' => InvoiceStatus::Overdue,
+            ])->save();
+
+            activity('Invoice')
+                ->performedOn($fresh)
+                ->withProperties([
+                    'offset_days' => $daysOverdue,
+                    'recipient_email' => $recipient?->email,
+                    'channel' => $recipient ? 'email_inapp' : 'audit_only',
+                ])
+                ->event('invoice_reminder_sent')
+                ->log('invoice_reminder_sent');
+
+            // Refresh the chunk-fed instance so callers see the new
+            // counters / status without re-querying.
+            $invoice->setRawAttributes($fresh->getAttributes(), true);
+
+            return $recipient;
+        });
 
         if ($recipient === null) {
             return false;
