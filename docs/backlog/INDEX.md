@@ -70,9 +70,9 @@ _(vide)_
 
 ## 👀 Review
 
-### Vague 9-F — Révision annuelle du loyer
+### Vague 9-F — Révision annuelle du loyer — [PR #76](https://github.com/thiambara/takussan/pull/76)
 
-- [TCK-091](tickets/TCK-091-lease-rent-review.md) — Révision annuelle du loyer `S · P2 · applicatif`
+- [TCK-091](tickets/TCK-091-lease-rent-review.md) — Révision annuelle du loyer `S · P2 · applicatif` (PR #76)
 
 ### Vague 9-A — Remboursement caution fin de bail — [PR #72](https://github.com/thiambara/takussan/pull/72)
 
