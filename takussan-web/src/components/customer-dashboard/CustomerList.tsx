@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { UserPlus } from 'lucide-react';
 
+import { CustomerTagChips } from '@/components/customer-dashboard/CustomerTagPicker';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { PaginatedResponse } from '@/types/api';
@@ -12,9 +13,10 @@ import {
 
 interface CustomerListProps {
   readonly page: PaginatedResponse<CustomerListItem>;
+  readonly onTagClick?: (name: string) => void;
 }
 
-export function CustomerList({ page }: CustomerListProps) {
+export function CustomerList({ page, onTagClick }: CustomerListProps) {
   const { data: customers, meta } = page;
   if (!customers || customers.length === 0) return <EmptyState />;
 
@@ -26,6 +28,7 @@ export function CustomerList({ page }: CustomerListProps) {
             <tr className="bg-app-surface-2/50 text-left text-xs uppercase tracking-wide text-app-ink-muted">
               <th className="px-4 py-3 font-semibold">Client</th>
               <th className="px-4 py-3 font-semibold">Contact</th>
+              <th className="px-4 py-3 font-semibold">Tags</th>
               <th className="px-4 py-3 font-semibold">Pipeline</th>
               <th className="px-4 py-3 font-semibold">Statut</th>
             </tr>
@@ -59,6 +62,13 @@ export function CustomerList({ page }: CustomerListProps) {
                   {!customer.email && !customer.phone ? '—' : null}
                 </td>
                 <td className="px-4 py-3">
+                  {customer.tags && customer.tags.length > 0 ? (
+                    <CustomerTagChips tags={customer.tags} onTagClick={onTagClick} />
+                  ) : (
+                    <span className="text-xs text-app-ink-muted">—</span>
+                  )}
+                </td>
+                <td className="px-4 py-3">
                   <PipelineBadge stage={customer.pipeline_stage} />
                 </td>
                 <td className="px-4 py-3">
@@ -87,6 +97,11 @@ export function CustomerList({ page }: CustomerListProps) {
                 <PipelineBadge stage={customer.pipeline_stage} />
                 <StatusBadge status={customer.status} />
               </div>
+              {customer.tags && customer.tags.length > 0 && (
+                <div className="mt-1.5">
+                  <CustomerTagChips tags={customer.tags} onTagClick={onTagClick} />
+                </div>
+              )}
             </Link>
           </li>
         ))}

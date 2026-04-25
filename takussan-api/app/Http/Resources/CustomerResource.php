@@ -24,6 +24,15 @@ class CustomerResource extends JsonResource
             'user_id' => $this->user_id,
             'notes' => $this->notes,
             'created_at' => $this->created_at?->toISOString(),
+            'tags' => $this->when(
+                $this->relationLoaded('tags'),
+                fn () => $this->tags->map(fn ($t) => [
+                    'id' => $t->id,
+                    'name' => $t->name,
+                    'slug' => $t->slug,
+                    'color' => $t->color,
+                ])->values(),
+            ),
         ];
     }
 }

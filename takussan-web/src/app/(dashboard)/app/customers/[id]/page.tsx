@@ -4,6 +4,7 @@ import { getMeAction } from '@/app/actions/auth';
 import { getToken } from '@/lib/session';
 import { ApiError } from '@/lib/api';
 import {
+  fetchCrmTags,
   fetchCustomerNotes,
   fetchCustomerRelationships,
   fetchDashboardCustomer,
@@ -11,6 +12,7 @@ import {
 import { isAdmin, isAgent, isOwner } from '@/lib/roles';
 import { Badge } from '@/components/ui/badge';
 import { CustomerDetailTabs } from '@/components/customer-dashboard/CustomerDetailTabs';
+import { CustomerTagPickerSection } from '@/components/customer-dashboard/CustomerTagPickerSection';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 import {
   CUSTOMER_STATUS_LABELS,
@@ -47,11 +49,13 @@ export default async function Page({ params }: { params: Params }) {
   let customer;
   let notes;
   let relationships;
+  let crmTagSuggestions: Awaited<ReturnType<typeof fetchCrmTags>> = [];
   try {
-    [customer, notes, relationships] = await Promise.all([
+    [customer, notes, relationships, crmTagSuggestions] = await Promise.all([
       fetchDashboardCustomer(token, customerId),
       fetchCustomerNotes(token, customerId),
       fetchCustomerRelationships(token, customerId),
+      fetchCrmTags(token).catch(() => []),
     ]);
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) notFound();
@@ -62,6 +66,7 @@ export default async function Page({ params }: { params: Params }) {
   }
 
   const documents = (customer as CustomerWithIncludes).documents ?? [];
+  const initialTags = (customer as { tags?: { id: number; name: string; slug: string; color: string | null }[] }).tags ?? [];
 
   const pipelineLabel = customer.pipeline_stage
     ? PIPELINE_STAGE_LABELS[customer.pipeline_stage]
@@ -91,6 +96,12 @@ export default async function Page({ params }: { params: Params }) {
           displayLabel={`${customer.first_name} ${customer.last_name}`}
         />
       </header>
+
+      <CustomerTagPickerSection
+        customerId={customer.id}
+        initialTags={initialTags}
+        suggestions={crmTagSuggestions}
+      />
 
       <CustomerDetailTabs
         customer={customer}

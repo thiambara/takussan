@@ -11,6 +11,7 @@ import type {
   CustomerDocument,
   CustomerRelationship,
 } from '@/types/customer';
+import type { Tag } from '@/types/tag';
 import type { CustomerFormPayload } from '@/lib/schemas/customer';
 
 /**
@@ -31,6 +32,8 @@ export const DASHBOARD_CUSTOMER_FIELDS = [
   'created_at',
 ] as const;
 
+export const TAG_FIELDS = ['id', 'name', 'color', 'usage_count'] as const;
+
 export const DASHBOARD_CUSTOMER_DETAIL_FIELDS = [
   ...DASHBOARD_CUSTOMER_FIELDS,
   'birth_date',
@@ -48,6 +51,8 @@ export interface DashboardCustomerFilters {
   readonly status?: string;
   readonly pipeline_stage?: string;
   readonly search?: string;
+  readonly tags?: string;
+  readonly tags_all?: string;
 }
 
 export interface FetchDashboardCustomersParams {
@@ -67,10 +72,13 @@ function buildListParams({
   if (filters?.status) filter.status = filters.status;
   if (filters?.pipeline_stage) filter.pipeline_stage = filters.pipeline_stage;
   if (filters?.search) filter.search = filters.search;
+  if (filters?.tags) filter.tags = filters.tags;
+  if (filters?.tags_all) filter.tags_all = filters.tags_all;
 
   return {
     fields: { customers: DASHBOARD_CUSTOMER_FIELDS },
     filter,
+    include: ['tags'],
     sort: sort ?? '-created_at',
     page: page ?? 1,
     per_page: perPage ?? 20,
@@ -94,7 +102,7 @@ export async function fetchDashboardCustomer(
 ): Promise<CustomerDetail> {
   const qs = buildQueryString({
     fields: { customers: DASHBOARD_CUSTOMER_DETAIL_FIELDS },
-    include: ['notes', 'documents'],
+    include: ['notes', 'documents', 'tags'],
   });
   const res = await apiRequest<ApiResponse<CustomerDetail>>(
     `/api/customers/${customerId}${qs ? `?${qs}` : ''}`,
@@ -184,6 +192,45 @@ export async function fetchCustomerRelationships(
 ): Promise<CustomerRelationship[]> {
   const res = await apiRequest<ApiResponse<CustomerRelationship[]>>(
     `/api/customers/${customerId}/relationships`,
+    { token },
+  );
+  return res.data;
+}
+
+export async function attachCustomerTags(
+  token: string,
+  customerId: number,
+  tags: string[],
+): Promise<Pick<Tag, 'id' | 'name' | 'slug' | 'color'>[]> {
+  const res = await apiRequest<ApiResponse<Pick<Tag, 'id' | 'name' | 'slug' | 'color'>[]>>(
+    `/api/customers/${customerId}/tags`,
+    { method: 'POST', body: { tags }, token },
+  );
+  return res.data;
+}
+
+export async function detachCustomerTag(
+  token: string,
+  customerId: number,
+  tagId: number,
+): Promise<void> {
+  await apiRequest<void>(`/api/customers/${customerId}/tags/${tagId}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
+export async function fetchCrmTags(
+  token: string,
+): Promise<Pick<Tag, 'id' | 'name' | 'color'>[]> {
+  const qs = buildQueryString({
+    filter: { type: 'crm' },
+    fields: { tags: TAG_FIELDS },
+    sort: '-usage_count',
+    per_page: 50,
+  });
+  const res = await apiRequest<{ data: Pick<Tag, 'id' | 'name' | 'color'>[] }>(
+    `/api/tags${qs ? `?${qs}` : ''}`,
     { token },
   );
   return res.data;

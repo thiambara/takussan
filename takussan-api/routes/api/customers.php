@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\CustomerNoteController;
+use App\Http\Controllers\Api\CustomerTagController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -19,4 +20,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('customers/{customer}/notes', [CustomerNoteController::class, 'index'])->name('customer-notes.index');
     Route::post('customers/{customer}/notes', [CustomerNoteController::class, 'store'])->name('customer-notes.store');
     Route::delete('customers/{customer}/notes/{note}', [CustomerNoteController::class, 'destroy'])->name('customer-notes.destroy');
+
+    // Customer tags (TCK-093)
+    Route::post('customers/{customer}/tags', [CustomerTagController::class, 'store'])->name('customers.tags.store');
+    Route::delete('customers/{customer}/tags/{tag}', [CustomerTagController::class, 'destroy'])->name('customers.tags.destroy');
 });

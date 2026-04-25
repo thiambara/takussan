@@ -8,6 +8,7 @@
  */
 
 import type { PaginatedResponse } from './api';
+import type { Tag } from './tag';
 
 export type IdType = 'id_card' | 'passport' | 'driving_license';
 
@@ -31,6 +32,7 @@ export interface CustomerListItem {
   status: CustomerStatus;
   pipeline_stage: CustomerPipelineStage | null;
   occupation?: string | null;
+  tags?: Pick<Tag, 'id' | 'name' | 'slug' | 'color'>[];
   created_at: string;
   updated_at?: string;
 }

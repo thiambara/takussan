@@ -74,6 +74,9 @@ class CustomerController extends Controller
     {
         $this->authorizeAccess($request, $customer);
 
+        // Re-fetch through the query builder so ?include= params (e.g. tags) are honoured.
+        $customer = Customer::buildQuery(Customer::where('id', $customer->id), $request)->firstOrFail();
+
         return $this->json([
             'data' => CustomerResource::make($customer)->toArray($request),
         ]);
