@@ -40,6 +40,8 @@ export type Booking = {
   property_id: number;
   customer_id: number;
   created_by_id: number;
+  agency_id?: number | null;
+  currency?: 'XOF' | 'XAF' | 'EUR' | 'USD' | null;
   reference_number: string | null;
   status: BookingStatus;
   booking_date: string;

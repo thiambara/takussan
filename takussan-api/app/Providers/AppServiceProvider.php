@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Listeners\Payments\LemonSqueezyEventListener;
 use App\Models\Favorite;
 use App\Models\Lease;
 use App\Models\Message;
@@ -22,8 +23,12 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use LemonSqueezy\Laravel\Events\OrderCreated as LemonSqueezyOrderCreated;
+use LemonSqueezy\Laravel\Events\OrderRefunded as LemonSqueezyOrderRefunded;
+use LemonSqueezy\Laravel\Events\SubscriptionCreated as LemonSqueezySubscriptionCreated;
 use SocialiteProviders\Manager\SocialiteWasCalled;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -51,6 +56,13 @@ class AppServiceProvider extends ServiceProvider
 
         $events->listen(SocialiteWasCalled::class, 'SocialiteProviders\\Apple\\AppleExtendSocialite@handle');
         $events->listen(SocialiteWasCalled::class, 'SocialiteProviders\\Facebook\\FacebookExtendSocialite@handle');
+
+        // TCK-079 — bridge lemonsqueezy/laravel webhook events onto our
+        // domain payment gateway service. The package validates X-Signature
+        // upstream; we only need to map events to local payment rows.
+        Event::listen(LemonSqueezyOrderCreated::class, [LemonSqueezyEventListener::class, 'handleOrderCreated']);
+        Event::listen(LemonSqueezyOrderRefunded::class, [LemonSqueezyEventListener::class, 'handleOrderRefunded']);
+        Event::listen(LemonSqueezySubscriptionCreated::class, [LemonSqueezyEventListener::class, 'handleSubscriptionCreated']);
 
         // TCK-022: dispatch the email verification notification on user
         // registration (Laravel no longer auto-registers this in the

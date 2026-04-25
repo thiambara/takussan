@@ -10,12 +10,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
+use LemonSqueezy\Laravel\Billable as LemonSqueezyBillable;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Agency extends AbstractModel implements HasMedia
 {
-    use HasFactory, InteractsWithMedia, SoftDeletes;
+    // TCK-079: Lemon Squeezy `Billable` makes Agency the scope used to
+    // create checkouts (`$agency->checkout(...)->withCustomPrice(...)`).
+    use HasFactory, InteractsWithMedia, LemonSqueezyBillable, SoftDeletes;
 
     protected $fillable = [
         'name', 'slug', 'license_number', 'description',
