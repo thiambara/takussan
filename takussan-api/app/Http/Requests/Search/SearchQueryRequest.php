@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Search;
 
+use App\Models\Enums\DocumentType;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class SearchQueryRequest extends FormRequest
 {
@@ -17,7 +19,7 @@ class SearchQueryRequest extends FormRequest
         return [
             'q' => ['required', 'string', 'min:2', 'max:200'],
             'filter.conversation' => ['nullable', 'integer', 'exists:conversations,id'],
-            'filter.type' => ['nullable', 'string'],
+            'filter.type' => ['nullable', Rule::enum(DocumentType::class)],
             'filter.date_from' => ['nullable', 'date'],
             'filter.date_to' => ['nullable', 'date', 'after_or_equal:filter.date_from'],
             'sort' => ['nullable', 'string', 'in:relevance,-created_at'],

@@ -39,6 +39,9 @@ class DocumentSearchService
 
         $perPage = (int) ($params['per_page'] ?? 20);
 
-        return $query->paginate($perPage);
+        $paginator = $query->paginate($perPage);
+        $paginator->getCollection()->loadMissing('media');
+
+        return $paginator;
     }
 }
