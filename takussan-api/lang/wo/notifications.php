@@ -34,6 +34,18 @@ return [
         'greeting' => 'Salaam,',
         'intro' => 'Lii mooy àq-àq yi nga jot ca demba.',
         'footer' => 'Gis senter bu notifications ngir gis sa yëkkati yépp.',
+        'see_all' => 'Gis notifications yépp',
+        'unsubscribe' => 'Yëgël ci kanam bu digest',
+    ],
+
+    'types' => [
+        'booking' => 'Réservations',
+        'payment' => 'Paiements',
+        'lease' => 'Baux',
+        'maintenance' => 'Maintenance',
+        'visit' => 'Visites',
+        'message' => 'Messages',
+        'system' => 'Système',
     ],
 
     'task_due_reminder' => [

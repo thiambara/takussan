@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\HasMediaConversions;
 use App\Models\Concerns\HasQueryBuilder;
+use App\Models\Enums\EmailFrequency;
 use App\Models\Enums\UserStatus;
 use App\Models\Enums\UserType;
 use App\Notifications\RegistrationConfirmationNotification;
@@ -45,6 +46,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         'two_factor_enabled', 'two_factor_secret', 'two_factor_recovery_codes',
         'phone_verified_at',
         'notifications_email_enabled', 'notifications_push_enabled', 'notifications_sms_enabled',
+        'email_frequency', 'digest_send_at', 'digest_day_of_week',
         'metadata',
         'deletion_requested_at',
     ];
@@ -69,6 +71,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             'notifications_email_enabled' => 'boolean',
             'notifications_push_enabled' => 'boolean',
             'notifications_sms_enabled' => 'boolean',
+            'email_frequency' => EmailFrequency::class,
             'metadata' => 'array',
         ];
     }

@@ -34,6 +34,18 @@ return [
         'greeting' => 'Hello,',
         'intro' => 'Here is a summary of the notifications you received since yesterday.',
         'footer' => 'Visit the notification center to see all your alerts.',
+        'see_all' => 'See all notifications',
+        'unsubscribe' => 'Unsubscribe from digest emails',
+    ],
+
+    'types' => [
+        'booking' => 'Bookings',
+        'payment' => 'Payments',
+        'lease' => 'Leases',
+        'maintenance' => 'Maintenance',
+        'visit' => 'Visits',
+        'message' => 'Messages',
+        'system' => 'System',
     ],
 
     'visit_requested' => [

@@ -31,6 +31,9 @@ class UserFactory extends Factory
             'remember_token' => Str::random(10),
             'preferred_language' => 'fr',
             'timezone' => 'Africa/Dakar',
+            'notifications_email_enabled' => true,
+            'notifications_push_enabled' => true,
+            'notifications_sms_enabled' => true,
         ];
     }
 
