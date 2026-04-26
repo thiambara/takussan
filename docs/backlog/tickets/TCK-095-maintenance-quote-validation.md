@@ -1,12 +1,12 @@
 ---
 id: TCK-095
 title: "Demande de devis maintenance + validation"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: M
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-26
 depends_on: [TCK-030]
 blocks: []
 spec_refs:

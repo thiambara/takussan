@@ -13,6 +13,10 @@ import type {
 export const MAINTENANCE_STATUS_LABEL: Record<MaintenanceStatus, string> = {
   open: 'Ouverte',
   acknowledged: 'Prise en compte',
+  quote_requested: 'Devis demandé',
+  quote_submitted: 'Devis soumis',
+  approved: 'Devis approuvé',
+  rejected: 'Devis rejeté',
   assigned: 'Assignée',
   in_progress: 'En cours',
   completed: 'Terminée',
@@ -42,6 +46,10 @@ export const MAINTENANCE_CATEGORY_LABEL: Record<MaintenanceCategory, string> = {
 const STATUS_TONE: Record<MaintenanceStatus, string> = {
   open: 'bg-blue-100 text-blue-800',
   acknowledged: 'bg-indigo-100 text-indigo-800',
+  quote_requested: 'bg-fuchsia-100 text-fuchsia-800',
+  quote_submitted: 'bg-purple-100 text-purple-800',
+  approved: 'bg-lime-100 text-lime-800',
+  rejected: 'bg-rose-100 text-rose-800',
   assigned: 'bg-violet-100 text-violet-800',
   in_progress: 'bg-amber-100 text-amber-800',
   completed: 'bg-emerald-100 text-emerald-800',

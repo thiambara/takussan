@@ -19,6 +19,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // Media upload (photos / completion_photos)
     Route::post('maintenance-requests/{maintenanceRequest}/photos', [MaintenanceRequestController::class, 'uploadPhotos'])->name('maintenance-requests.photos');
 
+    // Quote and Validation workflow
+    Route::post('maintenance-requests/{maintenanceRequest}/quote/request', [\App\Http\Controllers\Api\MaintenanceQuoteController::class, 'requestQuote'])->name('maintenance-requests.quote.request');
+    Route::post('maintenance-requests/{maintenanceRequest}/quote/submit', [\App\Http\Controllers\Api\MaintenanceQuoteController::class, 'submitQuote'])->name('maintenance-requests.quote.submit');
+    Route::post('maintenance-requests/{maintenanceRequest}/quote/approve', [\App\Http\Controllers\Api\MaintenanceQuoteController::class, 'approveQuote'])->name('maintenance-requests.quote.approve');
+    Route::post('maintenance-requests/{maintenanceRequest}/quote/reject', [\App\Http\Controllers\Api\MaintenanceQuoteController::class, 'rejectQuote'])->name('maintenance-requests.quote.reject');
+    Route::post('maintenance-requests/{maintenanceRequest}/start', [\App\Http\Controllers\Api\MaintenanceQuoteController::class, 'start'])->name('maintenance-requests.start');
+
     // History per property
     Route::get('properties/{property}/maintenance-requests', [MaintenanceRequestController::class, 'indexForProperty'])->name('properties.maintenance-requests.index');
 });

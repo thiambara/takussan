@@ -23,6 +23,15 @@ import {
   MaintenanceStatusBadge,
 } from './MaintenanceStatusBadge';
 import { MaintenanceCompleteForm } from './MaintenanceCompleteForm';
+import { MaintenanceStepper } from './MaintenanceStepper';
+import { QuoteCard } from './QuoteCard';
+import { QuoteSubmitForm } from './QuoteSubmitForm';
+import { QuoteRejectionModal } from './QuoteRejectionModal';
+import { 
+  useApproveMaintenanceQuote, 
+  useRequestMaintenanceQuote, 
+  useStartMaintenance 
+} from '@/lib/queries/maintenance';
 
 /**
  * Detail screen — renders the request payload plus the action bar
@@ -41,6 +50,7 @@ export function MaintenanceDetail({ id }: { readonly id: number }) {
 function MaintenanceDetailBody({ request }: { readonly request: MaintenanceRequest }) {
   const locale = useLocale() as Locale;
   const [completeOpen, setCompleteOpen] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -89,7 +99,21 @@ function MaintenanceDetailBody({ request }: { readonly request: MaintenanceReque
         </dl>
       </header>
 
-      <StatusActions request={request} onComplete={() => setCompleteOpen(true)} />
+      <MaintenanceStepper request={request} />
+      <QuoteCard request={request} />
+      <QuoteSubmitForm request={request} />
+
+      <StatusActions 
+        request={request} 
+        onComplete={() => setCompleteOpen(true)} 
+        onReject={() => setRejectOpen(true)}
+      />
+
+      <QuoteRejectionModal
+        id={request.id}
+        open={rejectOpen}
+        onClose={() => setRejectOpen(false)}
+      />
 
       {completeOpen ? (
         <MaintenanceCompleteForm
@@ -118,11 +142,17 @@ function MaintenanceDetailBody({ request }: { readonly request: MaintenanceReque
 function StatusActions({
   request,
   onComplete,
+  onReject,
 }: {
   readonly request: MaintenanceRequest;
   readonly onComplete: () => void;
+  readonly onReject: () => void;
 }) {
   const transition = useTransitionMaintenanceStatus(request.id);
+  const requestQuoteMutation = useRequestMaintenanceQuote(request.id);
+  const approveQuoteMutation = useApproveMaintenanceQuote(request.id);
+  const startWorkMutation = useStartMaintenance(request.id);
+
   const allowed = MAINTENANCE_TRANSITIONS[request.status];
 
   if (allowed.length === 0) {
@@ -139,8 +169,34 @@ function StatusActions({
       onComplete();
       return;
     }
+    
+    // Quote flow handles special transitions via their own endpoints
+    if (next === 'quote_requested') {
+      requestQuoteMutation.mutate();
+      return;
+    }
+    if (next === 'approved') {
+      approveQuoteMutation.mutate();
+      return;
+    }
+    if (next === 'rejected') {
+      onReject();
+      return;
+    }
+    if (next === 'in_progress' && request.status === 'approved') {
+      startWorkMutation.mutate();
+      return;
+    }
+
+    // Default transition (open -> acknowledged, assigned -> in_progress, etc.)
     transition.mutate({ status: next });
   };
+
+  const isPending = 
+    transition.isPending || 
+    requestQuoteMutation.isPending || 
+    approveQuoteMutation.isPending || 
+    startWorkMutation.isPending;
 
   return (
     <div className="rounded-2xl bg-app-surface-1 p-5">
@@ -150,9 +206,10 @@ function StatusActions({
           <Button
             key={next}
             type="button"
-            variant={next === 'cancelled' ? 'outline' : 'default'}
-            disabled={transition.isPending}
+            variant={next === 'cancelled' || next === 'rejected' ? 'outline' : 'default'}
+            disabled={isPending}
             onClick={() => trigger(next)}
+            className={next === 'rejected' ? 'text-destructive border-destructive hover:bg-destructive/10' : ''}
           >
             {MAINTENANCE_STATUS_LABEL[next]}
           </Button>

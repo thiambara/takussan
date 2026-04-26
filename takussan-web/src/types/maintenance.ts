@@ -11,6 +11,10 @@
 export type MaintenanceStatus =
   | 'open'
   | 'acknowledged'
+  | 'quote_requested'
+  | 'quote_submitted'
+  | 'approved'
+  | 'rejected'
   | 'assigned'
   | 'in_progress'
   | 'completed'
@@ -33,6 +37,10 @@ export type MaintenanceCategory =
 export const MAINTENANCE_STATUSES: readonly MaintenanceStatus[] = [
   'open',
   'acknowledged',
+  'quote_requested',
+  'quote_submitted',
+  'approved',
+  'rejected',
   'assigned',
   'in_progress',
   'completed',
@@ -67,7 +75,11 @@ export const MAINTENANCE_CATEGORIES: readonly MaintenanceCategory[] = [
 export const MAINTENANCE_TRANSITIONS: Readonly<
   Record<MaintenanceStatus, readonly MaintenanceStatus[]>
 > = {
-  open: ['acknowledged', 'assigned', 'in_progress', 'cancelled'],
+  open: ['acknowledged', 'assigned', 'in_progress', 'cancelled', 'quote_requested'],
+  quote_requested: ['quote_submitted'],
+  rejected: ['quote_submitted'],
+  quote_submitted: ['approved', 'rejected'],
+  approved: ['in_progress'],
   acknowledged: ['assigned', 'in_progress', 'cancelled'],
   assigned: ['in_progress', 'cancelled'],
   in_progress: ['completed', 'cancelled'],
@@ -89,6 +101,12 @@ export interface MaintenanceRequest {
   readonly status: MaintenanceStatus;
   readonly estimated_cost: number | null;
   readonly actual_cost: number | null;
+  readonly quote_amount: number | null;
+  readonly quote_currency: string | null;
+  readonly quote_submitted_at: string | null;
+  readonly quote_decision_at: string | null;
+  readonly quote_decision_by_id: number | null;
+  readonly quote_rejection_reason: string | null;
   readonly scheduled_at: string | null;
   readonly started_at: string | null;
   readonly completed_at: string | null;
