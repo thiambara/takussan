@@ -1,7 +1,7 @@
 ---
 id: TCK-094
 title: "Recherche full-text messages & documents"
-status: review
+status: done
 phase: P2
 family: back
 estimate: M
