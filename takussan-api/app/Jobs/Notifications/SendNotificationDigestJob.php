@@ -38,6 +38,7 @@ class SendNotificationDigestJob implements ShouldQueue
     {
         User::query()
             ->whereIn('email_frequency', [EmailFrequency::Daily->value, EmailFrequency::Weekly->value])
+            ->where('notifications_email_enabled', true)
             ->whereNotNull('email')
             ->chunkById(200, function ($users) {
                 foreach ($users as $user) {
@@ -52,11 +53,13 @@ class SendNotificationDigestJob implements ShouldQueue
     {
         $tz = $user->timezone ?: 'Africa/Dakar';
         $localNow = now()->setTimezone($tz);
-        $localHour = $localNow->format('H:i');
 
-        // Only match the configured send hour (hourly precision).
+        // Hourly precision: the orchestrator runs every hour at minute 0, so
+        // we match on the hour component only. This also tolerates the
+        // ":30"-style values some users may save in digest_send_at.
+        $localHour = (int) $localNow->format('G');
         $sendAt = $user->digest_send_at ?? '08:00';
-        $sendHour = substr($sendAt, 0, 5); // HH:MM
+        $sendHour = (int) substr($sendAt, 0, 2);
 
         if ($localHour !== $sendHour) {
             return false;

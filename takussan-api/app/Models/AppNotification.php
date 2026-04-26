@@ -41,7 +41,7 @@ class AppNotification extends AbstractModel
      */
     public function isCritical(): bool
     {
-        return (bool) ($this->data['is_critical'] ?? false);
+        return (bool) (($this->data ?? [])['is_critical'] ?? false);
     }
 
     public function scopeUndigested(Builder $query): Builder

@@ -31,8 +31,13 @@ class BuildUserDigestJob implements ShouldQueue
     {
         $frequency = $this->user->email_frequency;
 
-        // Guard: only process digest-eligible users.
+        // Guard: only process digest-eligible users. Re-checked here because
+        // preferences may have changed between dispatch and worker execution.
         if (! in_array($frequency, [EmailFrequency::Daily, EmailFrequency::Weekly], true)) {
+            return;
+        }
+
+        if (! $this->user->notifications_email_enabled || ! $this->user->email) {
             return;
         }
 

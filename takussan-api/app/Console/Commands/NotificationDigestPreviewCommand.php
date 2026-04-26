@@ -38,14 +38,18 @@ class NotificationDigestPreviewCommand extends Command
             return self::FAILURE;
         }
 
-        // Force daily frequency without persisting so the job always fires.
-        $original = $user->email_frequency;
+        // Force daily frequency + email-enabled in-memory so the job always
+        // fires regardless of the user's saved preferences. Not persisted.
+        $originalFrequency = $user->email_frequency;
+        $originalEmailEnabled = $user->notifications_email_enabled;
         $user->email_frequency = EmailFrequency::Daily;
+        $user->notifications_email_enabled = true;
 
         $this->info("Dispatching digest preview for {$user->email}…");
         BuildUserDigestJob::dispatchSync($user);
 
-        $user->email_frequency = $original;
+        $user->email_frequency = $originalFrequency;
+        $user->notifications_email_enabled = $originalEmailEnabled;
 
         $this->info('Done.');
 

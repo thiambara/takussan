@@ -138,6 +138,48 @@ class SendNotificationDigestJobTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function test_skips_users_with_email_notifications_disabled(): void
+    {
+        Queue::fake();
+
+        User::factory()->create([
+            'email_frequency' => EmailFrequency::Daily,
+            'digest_send_at' => '08:00',
+            'timezone' => 'Africa/Dakar',
+            'email' => 'optedout@example.com',
+            'notifications_email_enabled' => false,
+        ]);
+
+        Carbon::setTestNow(Carbon::parse('2026-04-27 08:00:00', 'Africa/Dakar')->utc());
+
+        (new SendNotificationDigestJob)->handle();
+
+        Queue::assertNotPushed(BuildUserDigestJob::class);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_dispatches_when_send_at_has_non_zero_minutes(): void
+    {
+        Queue::fake();
+
+        // 08:30 should still match the 08:XX hourly tick.
+        $user = User::factory()->create([
+            'email_frequency' => EmailFrequency::Daily,
+            'digest_send_at' => '08:30',
+            'timezone' => 'Africa/Dakar',
+            'email' => 'halfhour@example.com',
+        ]);
+
+        Carbon::setTestNow(Carbon::parse('2026-04-27 08:00:00', 'Africa/Dakar')->utc());
+
+        (new SendNotificationDigestJob)->handle();
+
+        Queue::assertPushed(BuildUserDigestJob::class, fn ($job) => $job->user->id === $user->id);
+
+        Carbon::setTestNow();
+    }
+
     public function test_respects_user_timezone_for_send_time(): void
     {
         Queue::fake();

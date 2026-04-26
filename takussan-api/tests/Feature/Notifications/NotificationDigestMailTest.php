@@ -148,6 +148,23 @@ class NotificationDigestMailTest extends TestCase
         Mail::assertNothingOutgoing();
     }
 
+    public function test_skips_user_with_email_notifications_disabled(): void
+    {
+        Mail::fake();
+
+        $user = User::factory()->create([
+            'email_frequency' => EmailFrequency::Daily,
+            'email' => 'noemail@example.com',
+            'notifications_email_enabled' => false,
+        ]);
+
+        $this->makeNotification($user);
+
+        (new BuildUserDigestJob($user))->handle(app(DigestBuilderService::class));
+
+        Mail::assertNothingOutgoing();
+    }
+
     public function test_skips_off_user(): void
     {
         Mail::fake();
