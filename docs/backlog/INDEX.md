@@ -39,7 +39,6 @@ _(vide — TCK-097 en cours)_
 
 ### Vague 11 — P2 modération / discovery / transverses
 
-- [TCK-101](tickets/TCK-101-booking-request-auto-expire.md) — Expiration automatique demandes de réservation `S · P2 · applicatif`
 - [TCK-102](tickets/TCK-102-sms-notifications-driver.md) — SMS notifications critiques (driver prod) `S · P2 · applicatif`
 - [TCK-103](tickets/TCK-103-notifications-digest.md) — Digest quotidien / hebdomadaire `M · P2 · applicatif`
 - [TCK-104](tickets/TCK-104-audit-trail-export.md) — Export audit trail `S · P2 · applicatif`
@@ -293,6 +292,10 @@ _(vide)_
 
 - [TCK-040](tickets/TCK-040-property-detail.md) — Fiche bien immersive `M · P0 · front`
 - [TCK-060](tickets/TCK-060-auth-pages-oauth.md) — Cycle auth front + OAuth multi-provider `M · P0 · applicatif`
+
+### Vague 11 — P2 modération / discovery / transverses
+
+- [TCK-101](tickets/TCK-101-booking-request-auto-expire.md) — Expiration automatique demandes de réservation `S · P2 · applicatif`
 
 ---
 

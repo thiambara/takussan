@@ -147,4 +147,13 @@ return [
         'amount' => 'Montant dû : :amount :currency.',
         'cta' => 'Merci de procéder au règlement dès que possible pour éviter de nouveaux rappels.',
     ],
+
+    'booking_expired' => [
+        'subject' => 'Demande de réservation #:reference expirée',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Votre demande de réservation #:reference pour :property a expiré.',
+        'expired_reason' => 'La demande de réservation n\'a pas reçu de réponse dans le délai imparti par l\'agence.',
+        'next_steps' => 'Vous pouvez soumettre une nouvelle demande si le bien est toujours disponible.',
+        'unknown_property' => 'Bien inconnu',
+    ],
 ];
