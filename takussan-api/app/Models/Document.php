@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Scout\Searchable;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Document extends AbstractModel implements HasMedia
 {
@@ -68,6 +69,25 @@ class Document extends AbstractModel implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('file')->singleFile();
+
+        // Versioning collection — multiple files, ordered by order_column
+        // (= version number set in custom_properties.version_number).
+        $this->addMediaCollection('versions')
+            ->useDisk(config('media-library.disk_name', 'public'));
+    }
+
+    /**
+     * Return the media item currently marked as the active version, if any.
+     * Uses a direct DB query to avoid Spatie's in-memory collection cache.
+     */
+    public function activeVersion(): ?Media
+    {
+        return Media::query()
+            ->where('model_type', self::class)
+            ->where('model_id', $this->id)
+            ->where('collection_name', 'versions')
+            ->get()
+            ->first(fn (Media $m) => (bool) $m->getCustomProperty('is_active', false));
     }
 
     public function documentable(): MorphTo

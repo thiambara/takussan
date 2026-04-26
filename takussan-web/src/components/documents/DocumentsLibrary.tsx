@@ -11,6 +11,7 @@ import {
   UploadCloud,
   Download,
   AlertCircle,
+  History,
   Plus,
 } from 'lucide-react';
 
@@ -280,6 +281,18 @@ function DocumentRow({ doc, locale, onShare, onDelete, deleting }: DocumentRowPr
         </p>
       </div>
       <div className="flex items-center gap-2">
+        {/* Versions link — TCK-097 */}
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          render={
+            <Link href={`/app/documents/${doc.id}`}>
+              <History className="mr-1 size-4" aria-hidden="true" />
+              Versions
+            </Link>
+          }
+        />
         {doc.file_url ? (
           <Button
             type="button"
