@@ -1,12 +1,12 @@
 ---
 id: TCK-098
 title: "Modération & validation avant publication bien"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: M
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-26
 depends_on: [TCK-034, TCK-067]
 blocks: []
 spec_refs:
@@ -128,4 +128,8 @@ status : `pending_review` (orange "En attente de validation"),
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- `moderation_required` est une colonne booléenne directe sur `agencies` (pas dans le JSON `settings`), pour des requêtes propres dans le `PropertyObserver`.
+- Le hook de modération est dans `PropertyObserver::creating()` (pas `saving`) pour ne pas intercepter les mises à jour postérieures à la création.
+- Les gates de modération (`approve-property`, `reject-property`, `resubmit-property`) sont des gates nommées dans `AppServiceProvider` pour éviter la collision avec le `PropertyPolicy` déjà lié à `Property::class`.
+- `PropertyModerationPolicy::canModerate()` vérifie le scope agence pour les `agency_admin` ; les `super_admin` sont exemptés via `Gate::before` global.
+- Les champs de modération (`rejection_reason`, `*_at`, `*_by_user_id`) sont systématiquement inclus dans `PropertyResource` pour que le bandeau agent fonctionne sans second round-trip.

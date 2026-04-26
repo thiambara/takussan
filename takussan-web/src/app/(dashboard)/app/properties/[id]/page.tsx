@@ -8,6 +8,7 @@ import { isAdmin, isAgent, isOwner } from '@/lib/roles';
 import { PropertyForm } from '@/components/property-form';
 import { PropertyMediaPanel } from '@/components/property-dashboard/PropertyMediaPanel';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
+import { PropertyModerationBanner } from '@/components/property-form/PropertyModerationBanner';
 
 /**
  * TCK-041 — page d'édition d'un bien existant.
@@ -56,6 +57,8 @@ export default async function Page({ params }: { params: Params }) {
           displayLabel={property.title}
         />
       </header>
+      {/* TCK-098 — show moderation status to the agent */}
+      <PropertyModerationBanner property={property} />
       <PropertyForm mode="edit" property={property} />
       <PropertyMediaPanel propertyId={property.id} />
     </div>

@@ -39,7 +39,6 @@ _(vide — TCK-097 en cours)_
 
 ### Vague 11 — P2 modération / discovery / transverses
 
-- [TCK-098](tickets/TCK-098-property-moderation-approval.md) — Modération & validation avant publication bien `M · P2 · applicatif`
 - [TCK-099](tickets/TCK-099-property-similar-suggestions.md) — Biens similaires / suggestions personnalisées `M · P2 · back`
 - [TCK-100](tickets/TCK-100-property-recently-viewed.md) — Historique local biens consultés `S · P2 · front`
 - [TCK-101](tickets/TCK-101-booking-request-auto-expire.md) — Expiration automatique demandes de réservation `S · P2 · applicatif`
@@ -64,6 +63,10 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 _(vide)_
 
 ## 👀 Review
+
+### Vague 11 — Modération biens
+
+- [TCK-098](tickets/TCK-098-property-moderation-approval.md) — Modération & validation avant publication bien `M · P2 · applicatif`
 
 ### Vague 10-E — Historique versions documents
 

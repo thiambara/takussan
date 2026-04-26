@@ -33,6 +33,7 @@ use App\Observers\UserObserver;
 use App\Policies\ConversationPolicy;
 use App\Policies\LeasePolicy;
 use App\Policies\MediaPolicy;
+use App\Policies\PropertyModerationPolicy;
 use App\Policies\PropertyPolicy;
 use App\Services\Formatting\CurrencyFormatter;
 use Illuminate\Auth\Events\Registered;
@@ -81,6 +82,12 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-088 — explicit bind for `$user->can('refundDeposit', $lease)`.
         Gate::policy(Lease::class, LeasePolicy::class);
+
+        // TCK-098 — property moderation gates (approve, reject, resubmit).
+        // Named gates avoid collision with the existing PropertyPolicy.
+        Gate::define('approve-property', [PropertyModerationPolicy::class, 'approve']);
+        Gate::define('reject-property', [PropertyModerationPolicy::class, 'reject']);
+        Gate::define('resubmit-property', [PropertyModerationPolicy::class, 'resubmit']);
         // TCK-084 — `@currency($amount, $currency)` Blade directive used by
         // PDF templates. Accepts either a Currency enum case or its string
         // value so existing templates that thread `$invoice->currency` (a

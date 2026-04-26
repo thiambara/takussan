@@ -62,6 +62,7 @@ export const agencyFormSchema = z.object({
       'Code devise invalide (ex : XOF, EUR).',
     ),
   timezone: z.string().trim().max(64, 'Fuseau horaire trop long.'),
+  moderation_required: z.boolean(),
 });
 
 export type AgencyFormValues = z.infer<typeof agencyFormSchema>;
@@ -77,6 +78,8 @@ export interface AgencyFormPayload {
   /** TCK-084 — first-class column, not nested under `settings`. */
   currency?: string;
   settings?: Record<string, unknown>;
+  /** TCK-098 — whether new property publications require admin approval. */
+  moderation_required?: boolean;
 }
 
 function emptyToNull(v: string | undefined): string | null {
@@ -111,6 +114,7 @@ export function normaliseAgencyForm(values: AgencyFormValues): AgencyFormPayload
     commission_rate: commission,
     ...(currency !== null ? { currency: currency.toUpperCase() } : {}),
     ...(Object.keys(settings).length > 0 ? { settings } : {}),
+    moderation_required: values.moderation_required,
   };
 }
 

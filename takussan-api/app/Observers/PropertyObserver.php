@@ -2,11 +2,36 @@
 
 namespace App\Observers;
 
+use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Models\PropertyPriceHistory;
 
 class PropertyObserver
 {
+    public function creating(Property $property): void
+    {
+        if (! $property->agency_id) {
+            return;
+        }
+
+        $agency = $property->agency ?? $property->agency()->first();
+        if (! $agency?->moderation_required) {
+            return;
+        }
+
+        // Agency requires moderation: intercept any activation attempt and
+        // put the property into the review queue instead.
+        $activatableStatuses = [
+            PropertyStatus::Available,
+            PropertyStatus::Published,
+        ];
+
+        if (in_array($property->status, $activatableStatuses, true)) {
+            $property->status = PropertyStatus::PendingReview;
+            $property->submitted_at = now();
+        }
+    }
+
     public function updated(Property $property): void
     {
         if ($property->wasChanged('price') && $property->getOriginal('price') !== null) {
