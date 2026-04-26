@@ -51,7 +51,19 @@ const LIST_FIELDS = [
   'created_at',
 ] as const;
 
-const DETAIL_FIELDS = [...LIST_FIELDS, 'description', 'estimated_cost', 'started_at', 'resolution_notes'] as const;
+const DETAIL_FIELDS = [
+  ...LIST_FIELDS,
+  'description',
+  'estimated_cost',
+  'started_at',
+  'resolution_notes',
+  'quote_amount',
+  'quote_currency',
+  'quote_submitted_at',
+  'quote_decision_at',
+  'quote_decision_by_id',
+  'quote_rejection_reason',
+] as const;
 
 export interface MaintenanceListParams {
   readonly status?: MaintenanceStatus;
@@ -189,5 +201,56 @@ export function useUploadMaintenancePhotos() {
     {
       invalidate: ({ variables }) => [maintenanceKeys.detail(variables.id), maintenanceKeys.all],
     },
+  );
+}
+
+export function useRequestMaintenanceQuote(id: number) {
+  return useApiMutation<ApiResponse<MaintenanceRequest>, void>(
+    { path: `/api/maintenance-requests/${id}/quote/request`, method: 'POST' },
+    { invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
+  );
+}
+
+export function useSubmitMaintenanceQuote(id: number) {
+  return useApiMutation<
+    ApiResponse<MaintenanceRequest>,
+    { amount: number; currency?: string; attachments?: File[] }
+  >(
+    {
+      path: `/api/maintenance-requests/${id}/quote/submit`,
+      method: 'POST',
+      formData: true,
+      body: (vars) => {
+        const fd = new FormData();
+        fd.append('amount', vars.amount.toString());
+        if (vars.currency) fd.append('currency', vars.currency);
+        if (vars.attachments) {
+          vars.attachments.forEach((file) => fd.append('attachments[]', file));
+        }
+        return fd;
+      },
+    },
+    { invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
+  );
+}
+
+export function useApproveMaintenanceQuote(id: number) {
+  return useApiMutation<ApiResponse<MaintenanceRequest>, void>(
+    { path: `/api/maintenance-requests/${id}/quote/approve`, method: 'POST' },
+    { invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
+  );
+}
+
+export function useRejectMaintenanceQuote(id: number) {
+  return useApiMutation<ApiResponse<MaintenanceRequest>, { reason: string }>(
+    { path: `/api/maintenance-requests/${id}/quote/reject`, method: 'POST' },
+    { invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
+  );
+}
+
+export function useStartMaintenance(id: number) {
+  return useApiMutation<ApiResponse<MaintenanceRequest>, void>(
+    { path: `/api/maintenance-requests/${id}/start`, method: 'POST' },
+    { invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
   );
 }

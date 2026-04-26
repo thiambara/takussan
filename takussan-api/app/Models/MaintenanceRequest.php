@@ -22,6 +22,8 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
         'property_id', 'lease_id', 'requester_id', 'assigned_to',
         'title', 'description', 'category', 'priority', 'status',
         'estimated_cost', 'actual_cost',
+        'quote_amount', 'quote_currency', 'quote_submitted_at',
+        'quote_decision_at', 'quote_decision_by_id', 'quote_rejection_reason',
         'scheduled_at', 'started_at', 'completed_at',
         'resolution_notes', 'resolution_report', 'metadata',
     ];
@@ -32,6 +34,9 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
         'status' => MaintenanceStatus::class,
         'estimated_cost' => 'decimal:2',
         'actual_cost' => 'decimal:2',
+        'quote_amount' => 'decimal:2',
+        'quote_submitted_at' => 'datetime',
+        'quote_decision_at' => 'datetime',
         'scheduled_at' => 'datetime',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
@@ -49,7 +54,9 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
     protected static array $queryFields = [
         'id', 'property_id', 'lease_id', 'requester_id', 'assigned_to',
         'title', 'category', 'priority', 'status',
-        'estimated_cost', 'actual_cost', 'scheduled_at', 'completed_at',
+        'estimated_cost', 'actual_cost', 'quote_amount', 'quote_currency',
+        'quote_submitted_at', 'quote_decision_at',
+        'scheduled_at', 'completed_at',
         'created_at', 'updated_at',
     ];
 
@@ -57,6 +64,7 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
     {
         $this->addMediaCollection('photos');
         $this->addMediaCollection('completion_photos');
+        $this->addMediaCollection('quotes');
     }
 
     public function property(): BelongsTo
@@ -77,6 +85,11 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function quoteDecisionBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'quote_decision_by_id');
     }
 
     public function conversation(): HasOne
