@@ -8,12 +8,11 @@ import {
   RECENTLY_VIEWED_KEY,
 } from '@/lib/recently-viewed';
 
-// ── Mock apiFetch + buildQueryString ──────────────────────────────────────────
+// ── Mock apiFetch ─────────────────────────────────────────────────────────────
 
 const apiFetchMock = vi.fn();
 vi.mock('@/lib/api', () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
-  buildQueryString: vi.fn(() => 'mocked-qs'),
 }));
 
 import { useRecentlyViewed } from '../useRecentlyViewed';
@@ -244,5 +243,23 @@ describe('useRecentlyViewed', () => {
 
     expect(result.current.items).toEqual([]);
     expect(result.current.loading).toBe(false);
+  });
+
+  it('calls the dedicated /public/properties/by-ids endpoint with a csv ids param', async () => {
+    recentlyViewedStorage.push(1);
+    recentlyViewedStorage.push(2);
+    recentlyViewedStorage.push(3);
+    apiFetchMock.mockResolvedValue({ data: [] });
+
+    renderHook(() => useRecentlyViewed());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(apiFetchMock).toHaveBeenCalledOnce();
+    const url = apiFetchMock.mock.calls[0]![0] as string;
+    expect(url.startsWith('/public/properties/by-ids?')).toBe(true);
+    expect(url).toMatch(/[?&]ids=3%2C2%2C1(?:&|$)/);
   });
 });

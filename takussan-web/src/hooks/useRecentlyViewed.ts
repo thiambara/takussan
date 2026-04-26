@@ -1,11 +1,8 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { apiFetch, buildQueryString } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 import { recentlyViewedStorage } from '@/lib/recently-viewed';
 import type { PropertyListItem } from '@/types/property';
-
-const RECENTLY_VIEWED_FIELDS =
-  'id,slug,title,price,currency,type,contract_type,rent_period,bedrooms,bathrooms,area,furnished,featured,main_photo_url,published_at,created_at';
 
 type State = {
   items: PropertyListItem[];
@@ -19,29 +16,30 @@ export function useRecentlyViewed(excludeId?: number): State & {
   // Start with empty/false so SSR output matches first client render (hydration-safe).
   const [state, setState] = useState<State>({ items: [], loading: false });
 
-  const fetchItems = useCallback(
-    async (currentExcludeId?: number) => {
-      recentlyViewedStorage.purgeExpired();
-      const entries = recentlyViewedStorage.read(currentExcludeId);
+  useEffect(() => {
+    let cancelled = false;
 
-      if (entries.length === 0) {
-        setState({ items: [], loading: false });
-        return;
-      }
+    recentlyViewedStorage.purgeExpired();
+    const entries = recentlyViewedStorage.read(excludeId);
 
-      setState((s) => ({ ...s, loading: true }));
+    if (entries.length === 0) {
+      setState((s) => (s.items.length === 0 && !s.loading ? s : { items: [], loading: false }));
+      return () => {
+        cancelled = true;
+      };
+    }
 
-      const ids = entries.map((e) => e.id).join(',');
-      const qs = buildQueryString({
-        filter: { ids },
-        include: ['address', 'primaryMedia'],
-        fields: { properties: RECENTLY_VIEWED_FIELDS },
-      });
+    setState((s) => (s.loading ? s : { ...s, loading: true }));
 
-      try {
-        const resp = await apiFetch<{ data: PropertyListItem[] }>(
-          `/public/properties?${qs}`,
-        );
+    // TCK-100 — `/public/properties/by-ids` is a dedicated batch endpoint
+    // that mirrors the `compare` contract. The legacy `/public/properties`
+    // index ignores `filter[ids]` (no Spatie QueryBuilder), which is why
+    // this hook used to return arbitrary recent properties.
+    const qs = new URLSearchParams({ ids: entries.map((e) => e.id).join(',') });
+
+    apiFetch<{ data: PropertyListItem[] }>(`/public/properties/by-ids?${qs}`)
+      .then((resp) => {
+        if (cancelled) return;
         const returnedIds = new Set(resp.data.map((p) => p.id));
 
         // Silently purge ghost IDs (deleted / unpublished properties).
@@ -49,22 +47,21 @@ export function useRecentlyViewed(excludeId?: number): State & {
         if (ghostIds.length > 0) recentlyViewedStorage.purgeIds(ghostIds);
 
         // Restore most-recent-first order from the store.
-        const idOrder = entries.map((e) => e.id);
-        const sorted = idOrder
-          .filter((id) => returnedIds.has(id))
-          .map((id) => resp.data.find((p) => p.id === id)!);
+        const sorted = entries
+          .map((e) => resp.data.find((p) => p.id === e.id))
+          .filter((p): p is PropertyListItem => p !== undefined);
 
         setState({ items: sorted, loading: false });
-      } catch {
+      })
+      .catch(() => {
+        if (cancelled) return;
         setState({ items: [], loading: false });
-      }
-    },
-    [],
-  );
+      });
 
-  useEffect(() => {
-    fetchItems(excludeId);
-  }, [excludeId, fetchItems]);
+    return () => {
+      cancelled = true;
+    };
+  }, [excludeId]);
 
   const push = useCallback((id: number) => {
     recentlyViewedStorage.push(id);

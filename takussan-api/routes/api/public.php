@@ -14,6 +14,10 @@ Route::prefix('public')->name('public.')->group(function () {
         ->middleware('throttle:30,1')
         ->name('properties.compare');
 
+    Route::get('properties/by-ids', [PublicPropertyController::class, 'byIds'])
+        ->middleware('throttle:60,1')
+        ->name('properties.by-ids');
+
     Route::get('properties/map', [PublicPropertyController::class, 'map'])
         ->middleware('throttle:60,1')
         ->name('properties.map');
