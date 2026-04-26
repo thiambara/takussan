@@ -1,7 +1,7 @@
 ---
 id: TCK-103
 title: "Digest quotidien / hebdomadaire"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: M

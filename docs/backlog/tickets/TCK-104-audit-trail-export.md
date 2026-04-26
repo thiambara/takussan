@@ -1,7 +1,7 @@
 ---
 id: TCK-104
 title: "Export audit trail"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: S
