@@ -5,23 +5,29 @@ import Link from 'next/link';
 
 import { DocumentVersionsList } from '@/components/documents/DocumentVersionsList';
 import { useDocumentWithVersions } from '@/lib/queries/documents';
+import type { UserRole } from '@/types/user';
 
 interface DocumentDetailClientProps {
   readonly documentId: number;
   readonly currentUserId: number | null;
+  readonly currentUserRoles: readonly UserRole[];
 }
 
 /**
  * Client component for the document detail page.
  * Shows document metadata and the version history accordion.
  */
-export function DocumentDetailClient({ documentId, currentUserId }: DocumentDetailClientProps) {
+export function DocumentDetailClient({
+  documentId,
+  currentUserId,
+  currentUserRoles,
+}: DocumentDetailClientProps) {
   const { data, isLoading, isError } = useDocumentWithVersions(documentId);
   const document = data?.data;
 
+  const isAdmin = currentUserRoles.includes('super_admin');
   const canManage =
-    currentUserId !== null &&
-    (document?.uploaded_by === currentUserId);
+    isAdmin || (currentUserId !== null && document?.uploaded_by === currentUserId);
 
   if (isLoading) {
     return (

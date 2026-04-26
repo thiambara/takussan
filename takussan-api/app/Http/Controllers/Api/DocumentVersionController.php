@@ -101,51 +101,39 @@ class DocumentVersionController extends Controller
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Authorization helpers (delegate to DocumentController logic)
+    // Authorization helpers — mirror DocumentController::authorizeUpload semantics:
+    // admins/super_admins, the original uploader, or anyone who can manage the
+    // underlying documentable can both read and manage versions.
     // ─────────────────────────────────────────────────────────────────────────
 
     protected function authorizeAccess(Request $request, Document $document): void
     {
-        $user = $request->user();
-        if ($user->hasRole(['admin', 'super_admin'])) {
-            return;
-        }
-        if ($document->uploaded_by === $user->id) {
-            return;
-        }
-        // If user can manage the documentable, they can read its versions.
-        $this->authorizeManageDocumentable($user, $document);
+        $this->ensureCanActOn($request->user(), $document);
     }
 
     protected function authorizeManage(Request $request, Document $document): void
     {
-        $user = $request->user();
+        $this->ensureCanActOn($request->user(), $document);
+    }
+
+    private function ensureCanActOn(User $user, Document $document): void
+    {
         if ($user->hasRole(['admin', 'super_admin'])) {
             return;
         }
         if ($document->uploaded_by === $user->id) {
             return;
         }
-        $this->authorizeManageDocumentable($user, $document);
-    }
 
-    private function authorizeManageDocumentable($user, Document $document): void
-    {
-        // Reuse the same permission check as DocumentController::authorizeUpload.
         $documentable = $document->documentable;
         abort_if($documentable === null, 403);
-
-        $documentController = app(DocumentController::class);
-        // Reflection-free: call the protected method via the controller instance.
-        // We cannot call protected from here directly, so replicate the essential logic.
-        $ok = $this->checkDocumentableAccess($user, $documentable);
-        abort_unless($ok, 403);
+        abort_unless($this->checkDocumentableAccess($user, $documentable), 403);
     }
 
     /**
      * Mirrors DocumentController::authorizeUpload() without the abort_unless.
      */
-    private function checkDocumentableAccess($user, $documentable): bool
+    private function checkDocumentableAccess(User $user, $documentable): bool
     {
         if ($documentable instanceof Property) {
             return $documentable->user_id === $user->id

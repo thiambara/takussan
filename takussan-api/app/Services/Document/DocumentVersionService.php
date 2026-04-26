@@ -6,6 +6,7 @@ use App\Models\Document;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
@@ -34,7 +35,7 @@ class DocumentVersionService
      */
     public function uploadVersion(Document $document, UploadedFile $file, User $actor, ?string $comment = null): Media
     {
-        return \DB::transaction(function () use ($document, $file, $actor, $comment): Media {
+        return DB::transaction(function () use ($document, $file, $actor, $comment): Media {
             // Deactivate previous active version.
             $this->deactivateAll($document);
 
@@ -90,7 +91,7 @@ class DocumentVersionService
             'Version does not belong to this document.'
         );
 
-        return \DB::transaction(function () use ($document, $media, $actor): Media {
+        return DB::transaction(function () use ($document, $media, $actor): Media {
             // Deactivate all, then reactivate the target.
             $this->deactivateAll($document);
 

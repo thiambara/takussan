@@ -17,6 +17,9 @@ class DocumentResource extends JsonResource
         // Active version from the `versions` collection (if the collection is loaded).
         $activeVersion = $this->activeVersion();
 
+        $includes = array_filter(array_map('trim', explode(',', (string) $request->query('include', ''))));
+        $includeVersions = in_array('versions', $includes, true);
+
         return [
             'id' => $this->id,
             'documentable_id' => $this->documentable_id,
@@ -39,7 +42,7 @@ class DocumentResource extends JsonResource
                 ? DocumentVersionResource::make($activeVersion)->toArray($request)
                 : null,
             // Versions list — only included when explicitly requested via include=versions.
-            'versions' => $request->has('include') && str_contains($request->string('include'), 'versions')
+            'versions' => $includeVersions
                 ? DocumentVersionResource::collection($this->getMedia(DocumentVersionService::COLLECTION)
                     ->sortByDesc(fn ($m) => $m->getCustomProperty('version_number', 0))
                     ->values()

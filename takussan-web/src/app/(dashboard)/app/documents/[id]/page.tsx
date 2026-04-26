@@ -18,7 +18,11 @@ export default async function DocumentDetailPage({
 
   return (
     <div className="space-y-6">
-      <DocumentDetailClient documentId={documentId} currentUserId={me?.id ?? null} />
+      <DocumentDetailClient
+        documentId={documentId}
+        currentUserId={me?.id ?? null}
+        currentUserRoles={me?.roles ?? []}
+      />
     </div>
   );
 }

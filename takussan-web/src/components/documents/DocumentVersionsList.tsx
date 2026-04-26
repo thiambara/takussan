@@ -269,14 +269,11 @@ function RestoreConfirmDialog({ open, version, documentId, onOpenChange }: Resto
 
 interface VersionRowProps {
   readonly version: DocumentVersion;
-  readonly documentId: number;
   readonly canManage: boolean;
   readonly onRestoreClick: (v: DocumentVersion) => void;
 }
 
-function VersionRow({ version, documentId, canManage, onRestoreClick }: VersionRowProps) {
-  const downloadHref = `/api/documents/${documentId}/versions/${version.id}/download`;
-
+function VersionRow({ version, canManage, onRestoreClick }: VersionRowProps) {
   return (
     <li className="flex items-start gap-3 rounded-lg border border-app-surface-3 bg-app-surface-2 px-4 py-3">
       {/* Version badge */}
@@ -308,15 +305,17 @@ function VersionRow({ version, documentId, canManage, onRestoreClick }: VersionR
 
       {/* Actions */}
       <div className="flex shrink-0 items-center gap-1">
-        <a
-          href={downloadHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex size-8 items-center justify-center rounded-md text-app-ink-muted transition-colors hover:bg-app-surface-3 hover:text-app-ink"
-          aria-label="Télécharger cette version"
-        >
-          <Download className="size-4" aria-hidden="true" />
-        </a>
+        {version.url ? (
+          <a
+            href={version.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex size-8 items-center justify-center rounded-md text-app-ink-muted transition-colors hover:bg-app-surface-3 hover:text-app-ink"
+            aria-label="Télécharger cette version"
+          >
+            <Download className="size-4" aria-hidden="true" />
+          </a>
+        ) : null}
         {canManage && !version.is_active ? (
           <button
             type="button"
@@ -438,7 +437,6 @@ export function DocumentVersionsList({
                 <VersionRow
                   key={v.id}
                   version={v}
-                  documentId={documentId}
                   canManage={canManage}
                   onRestoreClick={setRestoreTarget}
                 />
