@@ -61,6 +61,7 @@ function Toaster({
           <ToastPrimitive.Root
             key={toast.id}
             toast={toast}
+            duration={(toast as any).duration}
             className={cn(
               "relative flex w-full flex-col gap-1 rounded-xl border p-4 pr-10 shadow-md outline-none",
               "data-[starting-style]:translate-x-4 data-[starting-style]:opacity-0",
@@ -71,6 +72,11 @@ function Toaster({
           >
             <ToastPrimitive.Title className="text-sm font-semibold leading-none" />
             <ToastPrimitive.Description className="text-sm opacity-90" />
+            {(toast as any).action && (
+              <div className="mt-2 text-sm font-medium">
+                {(toast as any).action}
+              </div>
+            )}
             <ToastPrimitive.Close
               aria-label="Fermer la notification"
               className="absolute top-2 right-2 inline-flex size-6 items-center justify-center rounded-md opacity-60 outline-none transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/50"

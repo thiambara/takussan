@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 
+import { Controller } from 'react-hook-form';
+
 import {
   FormGlobalError,
   FormInput,
@@ -23,6 +25,7 @@ import {
   MAINTENANCE_CATEGORIES,
   MAINTENANCE_PRIORITIES,
 } from '@/types/maintenance';
+import { MaintenancePrioritySelector } from './MaintenancePrioritySelector';
 
 import {
   MAINTENANCE_CATEGORY_LABEL,
@@ -111,21 +114,33 @@ export function MaintenanceForm({
         required
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <FormSelect
-          name="category"
-          control={form.control}
-          options={CATEGORY_OPTIONS}
-          label="Catégorie"
-          required
-        />
-        <FormSelect
-          name="priority"
-          control={form.control}
-          options={PRIORITY_OPTIONS}
-          label="Priorité"
-          placeholder="Normale par défaut"
-        />
+      <div className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-2">
+          <FormSelect
+            name="category"
+            control={form.control}
+            options={CATEGORY_OPTIONS}
+            label="Catégorie"
+            required
+          />
+        </div>
+        
+        <div>
+          <label className="mb-2 block text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+            Priorité <span className="text-muted-foreground font-normal">(Normale par défaut)</span>
+          </label>
+          <Controller
+            control={form.control}
+            name="priority"
+            render={({ field }) => (
+              <MaintenancePrioritySelector
+                value={field.value || 'normal'}
+                onChange={field.onChange}
+                disabled={isSubmitting}
+              />
+            )}
+          />
+        </div>
       </div>
 
       <div>

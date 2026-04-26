@@ -357,7 +357,6 @@
       },
       "error": {
         "generic": "Something went wrong, please try again."
-
       }
     }
   },
@@ -448,5 +447,13 @@
       "cancel_failed_title": "Failed to cancel"
     },
     "error_generic": "Action failed."
+  },
+  "maintenance": {
+    "priority": {
+      "urgent": "Urgent",
+      "high": "High",
+      "normal": "Normal",
+      "low": "Low"
+    }
   }
 }

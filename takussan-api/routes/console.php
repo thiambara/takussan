@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\EscalateUrgentMaintenanceJob;
 use App\Jobs\ExpireBookings;
 use App\Jobs\Invoice\SendOverdueRemindersJob;
 use App\Jobs\Lease\ApplyLateFeesJob;
@@ -41,3 +42,5 @@ Schedule::command('dashboard:check-alerts')->hourly()->withoutOverlapping(); // 
 Schedule::command('tasks:send-due-reminders')->hourly()->withoutOverlapping();
 // TCK-080 — RGPD: send J-N reminders + execute scheduled anonymizations.
 Schedule::command('account:execute-deletions')->hourly()->withoutOverlapping();
+// TCK-096 — Escalate urgent maintenance requests to agency managers
+Schedule::job(new EscalateUrgentMaintenanceJob)->hourly()->withoutOverlapping();

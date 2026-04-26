@@ -396,5 +396,13 @@
       "cancel_failed_title": "Neenal bi am na njuumte"
     },
     "error_generic": "Lu ñu mën a def amul."
+  },
+  "maintenance": {
+    "priority": {
+      "urgent": "Njaaxum",
+      "high": "Kawe",
+      "normal": "Yem",
+      "low": "Suufe"
+    }
   }
 }

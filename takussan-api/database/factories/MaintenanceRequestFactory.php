@@ -22,7 +22,7 @@ class MaintenanceRequestFactory extends Factory
             'title' => fake()->sentence(4),
             'description' => fake()->paragraph(),
             'category' => MaintenanceCategory::Plumbing,
-            'priority' => MaintenancePriority::Medium,
+            'priority' => MaintenancePriority::Normal,
             'status' => MaintenanceStatus::Open,
         ];
     }
