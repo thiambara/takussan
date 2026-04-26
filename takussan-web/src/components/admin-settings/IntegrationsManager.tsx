@@ -17,6 +17,7 @@ import {
 import { FormError, FormGlobalError } from '@/components/forms';
 import {
   integrationFormSchema,
+  isSmsProvider,
   normaliseIntegrationForm,
   type IntegrationFormValues,
 } from '@/lib/schemas/setting';
@@ -45,7 +46,12 @@ const PROVIDER_SUGGESTIONS = [
   { value: 'orange_money', label: 'Orange Money' },
   { value: 'stripe', label: 'Stripe' },
   { value: 'mailgun', label: 'Mailgun' },
-  { value: 'twilio', label: 'Twilio' },
+  // TCK-102 — SMS multi-provider. `sms_free` and `sms_expresso` sont
+  // réservés (placeholders) tant qu'aucun contrat carrier-direct
+  // n'existe ; ils ne figurent pas ici.
+  { value: 'sms_orange', label: 'SMS — Orange Sénégal' },
+  { value: 'sms_mtarget', label: 'SMS — Mtarget' },
+  { value: 'sms_lafricamobile', label: 'SMS — LAfricaMobile' },
 ];
 
 function emptyForm(): IntegrationFormValues {
@@ -56,6 +62,16 @@ function emptyForm(): IntegrationFormValues {
     api_secret: '',
     webhook_url: '',
     notes: '',
+    sms_client_id: '',
+    sms_client_secret: '',
+    sms_sender_address: '',
+    sms_sender_name: '',
+    sms_username: '',
+    sms_password: '',
+    sms_sender_id: '',
+    sms_service_id: '',
+    sms_accountid: '',
+    sms_host: '',
   };
 }
 
@@ -329,17 +345,25 @@ function IntegrationDialog({
 }: IntegrationDialogProps) {
   const [values, setValues] = useState<IntegrationFormValues>(() => {
     if (mode === 'edit' && integration) {
-      const notes =
+      const meta =
         integration.metadata && typeof integration.metadata === 'object'
-          ? String((integration.metadata as Record<string, unknown>).notes ?? '')
-          : '';
+          ? (integration.metadata as Record<string, unknown>)
+          : {};
+      const readMeta = (key: string) => String(meta[key] ?? '');
       return {
+        ...emptyForm(),
         provider: integration.provider,
         is_active: integration.is_active,
-        api_key: '',
-        api_secret: '',
-        webhook_url: '',
-        notes,
+        notes: readMeta('notes'),
+        // Pre-fill the non-secret SMS fields stored in metadata so the
+        // user sees the current sender address / host / sender id /
+        // service id without re-typing. Secrets remain blank — the
+        // backend never returns them.
+        sms_sender_address: readMeta('sender_address'),
+        sms_sender_name: readMeta('sender_name'),
+        sms_sender_id: readMeta('sender_id'),
+        sms_service_id: readMeta('service_id'),
+        sms_host: readMeta('host'),
       };
     }
     return emptyForm();
@@ -403,37 +427,48 @@ function IntegrationDialog({
             </datalist>
             <FormError>{errors.provider?.[0]}</FormError>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <SecretInput
-              id="int-api-key"
-              label="Clé API"
-              placeholder={mode === 'edit' ? '•••••••• (inchangé)' : ''}
-              value={values.api_key}
-              onChange={(v) => setValues((current) => ({ ...current, api_key: v }))}
-              error={errors.api_key?.[0] ?? errors['credentials.api_key']?.[0]}
-            />
-            <SecretInput
-              id="int-api-secret"
-              label="Secret"
-              placeholder={mode === 'edit' ? '•••••••• (inchangé)' : ''}
-              value={values.api_secret}
-              onChange={(v) => setValues((current) => ({ ...current, api_secret: v }))}
-              error={errors.api_secret?.[0] ?? errors['credentials.api_secret']?.[0]}
-            />
-          </div>
-          <div>
-            <label htmlFor="int-webhook" className="mb-1.5 block text-sm font-medium">
-              URL de webhook
-            </label>
-            <Input
-              id="int-webhook"
-              type="url"
-              value={values.webhook_url}
-              onChange={(e) => setValues((v) => ({ ...v, webhook_url: e.target.value }))}
-              placeholder="https://exemple.sn/webhook"
-            />
-            <FormError>{errors.webhook_url?.[0]}</FormError>
-          </div>
+          <SmsProviderFieldset
+            provider={values.provider}
+            mode={mode}
+            values={values}
+            errors={errors}
+            onChange={(patch) => setValues((current) => ({ ...current, ...patch }))}
+          />
+          {!isSmsProvider(values.provider) ? (
+            <>
+              <div className="grid gap-4 md:grid-cols-2">
+                <SecretInput
+                  id="int-api-key"
+                  label="Clé API"
+                  placeholder={mode === 'edit' ? '•••••••• (inchangé)' : ''}
+                  value={values.api_key}
+                  onChange={(v) => setValues((current) => ({ ...current, api_key: v }))}
+                  error={errors.api_key?.[0] ?? errors['credentials.api_key']?.[0]}
+                />
+                <SecretInput
+                  id="int-api-secret"
+                  label="Secret"
+                  placeholder={mode === 'edit' ? '•••••••• (inchangé)' : ''}
+                  value={values.api_secret}
+                  onChange={(v) => setValues((current) => ({ ...current, api_secret: v }))}
+                  error={errors.api_secret?.[0] ?? errors['credentials.api_secret']?.[0]}
+                />
+              </div>
+              <div>
+                <label htmlFor="int-webhook" className="mb-1.5 block text-sm font-medium">
+                  URL de webhook
+                </label>
+                <Input
+                  id="int-webhook"
+                  type="url"
+                  value={values.webhook_url}
+                  onChange={(e) => setValues((v) => ({ ...v, webhook_url: e.target.value }))}
+                  placeholder="https://exemple.sn/webhook"
+                />
+                <FormError>{errors.webhook_url?.[0]}</FormError>
+              </div>
+            </>
+          ) : null}
           <div>
             <label htmlFor="int-notes" className="mb-1.5 block text-sm font-medium">
               Notes (interne)
@@ -475,6 +510,191 @@ function IntegrationDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+interface SmsProviderFieldsetProps {
+  readonly provider: string;
+  readonly mode: 'create' | 'edit';
+  readonly values: IntegrationFormValues;
+  readonly errors: Record<string, string[]>;
+  readonly onChange: (patch: Partial<IntegrationFormValues>) => void;
+}
+
+/**
+ * TCK-102 — Provider-specific credential fields for the multi-provider
+ * SMS router (Orange / Mtarget / LAfricaMobile). Renders nothing for
+ * non-SMS providers — the dialog falls back to its generic fields.
+ *
+ * Display strategy: secrets (passwords / client_secret / accountid /
+ * username) use {@see SecretInput}; non-secret display values
+ * (sender_address, sender_id, host, …) are plain inputs because the
+ * backend stores them in `metadata` rather than `credentials`.
+ */
+function SmsProviderFieldset({
+  provider,
+  mode,
+  values,
+  errors,
+  onChange,
+}: SmsProviderFieldsetProps) {
+  if (!isSmsProvider(provider)) return null;
+  const editPlaceholder = mode === 'edit' ? '•••••••• (inchangé)' : '';
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+        <strong className="font-semibold">Conformité ARTP / Sénégal :</strong>{' '}
+        souscription business soumise à la fourniture du <strong>NINEA</strong>{' '}
+        et du <strong>RCCM</strong> (Loi 2018-28, Art. 36, en vigueur depuis
+        janvier 2025). Les SMS sont interdits entre 22h et 06h Africa/Dakar
+        sauf 2FA / OTP / alertes de sécurité.
+      </div>
+
+      {provider === 'sms_orange' ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          <SecretInput
+            id="int-orange-client-id"
+            label="Client ID"
+            placeholder={editPlaceholder}
+            value={values.sms_client_id}
+            onChange={(v) => onChange({ sms_client_id: v })}
+            error={errors.sms_client_id?.[0] ?? errors['credentials.client_id']?.[0]}
+          />
+          <SecretInput
+            id="int-orange-client-secret"
+            label="Client secret"
+            placeholder={editPlaceholder}
+            value={values.sms_client_secret}
+            onChange={(v) => onChange({ sms_client_secret: v })}
+            error={errors.sms_client_secret?.[0] ?? errors['credentials.client_secret']?.[0]}
+          />
+          <div>
+            <label htmlFor="int-orange-sender-address" className="mb-1.5 block text-sm font-medium">
+              Sender address (SIM Orange SN)
+            </label>
+            <Input
+              id="int-orange-sender-address"
+              value={values.sms_sender_address}
+              onChange={(e) => onChange({ sms_sender_address: e.target.value })}
+              placeholder="tel:+221771234567"
+              autoComplete="off"
+            />
+            <FormError>{errors.sms_sender_address?.[0]}</FormError>
+          </div>
+          <div>
+            <label htmlFor="int-orange-sender-name" className="mb-1.5 block text-sm font-medium">
+              Sender name (≤ 11, whitelist Orange)
+            </label>
+            <Input
+              id="int-orange-sender-name"
+              value={values.sms_sender_name}
+              onChange={(e) => onChange({ sms_sender_name: e.target.value })}
+              placeholder="TAKUSSAN"
+              maxLength={11}
+              autoComplete="off"
+            />
+            <FormError>{errors.sms_sender_name?.[0]}</FormError>
+          </div>
+        </div>
+      ) : null}
+
+      {provider === 'sms_mtarget' ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          <SecretInput
+            id="int-mtarget-username"
+            label="Username"
+            placeholder={editPlaceholder}
+            value={values.sms_username}
+            onChange={(v) => onChange({ sms_username: v })}
+            error={errors.sms_username?.[0] ?? errors['credentials.username']?.[0]}
+          />
+          <SecretInput
+            id="int-mtarget-password"
+            label="Password"
+            placeholder={editPlaceholder}
+            value={values.sms_password}
+            onChange={(v) => onChange({ sms_password: v })}
+            error={errors.sms_password?.[0] ?? errors['credentials.password']?.[0]}
+          />
+          <div>
+            <label htmlFor="int-mtarget-sender-id" className="mb-1.5 block text-sm font-medium">
+              Sender ID (≤ 11, alphanum)
+            </label>
+            <Input
+              id="int-mtarget-sender-id"
+              value={values.sms_sender_id}
+              onChange={(e) => onChange({ sms_sender_id: e.target.value })}
+              placeholder="TAKUSSAN"
+              maxLength={11}
+              autoComplete="off"
+            />
+            <FormError>{errors.sms_sender_id?.[0]}</FormError>
+          </div>
+          <div>
+            <label htmlFor="int-mtarget-service-id" className="mb-1.5 block text-sm font-medium">
+              Service ID (optionnel)
+            </label>
+            <Input
+              id="int-mtarget-service-id"
+              value={values.sms_service_id}
+              onChange={(e) => onChange({ sms_service_id: e.target.value })}
+              autoComplete="off"
+            />
+            <FormError>{errors.sms_service_id?.[0]}</FormError>
+          </div>
+        </div>
+      ) : null}
+
+      {provider === 'sms_lafricamobile' ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          <SecretInput
+            id="int-lam-accountid"
+            label="Account ID"
+            placeholder={editPlaceholder}
+            value={values.sms_accountid}
+            onChange={(v) => onChange({ sms_accountid: v })}
+            error={errors.sms_accountid?.[0] ?? errors['credentials.accountid']?.[0]}
+          />
+          <SecretInput
+            id="int-lam-password"
+            label="Password"
+            placeholder={editPlaceholder}
+            value={values.sms_password}
+            onChange={(v) => onChange({ sms_password: v })}
+            error={errors.sms_password?.[0] ?? errors['credentials.password']?.[0]}
+          />
+          <div>
+            <label htmlFor="int-lam-sender-id" className="mb-1.5 block text-sm font-medium">
+              Sender ID (≤ 11, ne doit pas commencer par un chiffre)
+            </label>
+            <Input
+              id="int-lam-sender-id"
+              value={values.sms_sender_id}
+              onChange={(e) => onChange({ sms_sender_id: e.target.value })}
+              placeholder="Takussan"
+              maxLength={11}
+              autoComplete="off"
+            />
+            <FormError>{errors.sms_sender_id?.[0]}</FormError>
+          </div>
+          <div>
+            <label htmlFor="int-lam-host" className="mb-1.5 block text-sm font-medium">
+              Host LAMPUSH (optionnel — override par défaut)
+            </label>
+            <Input
+              id="int-lam-host"
+              type="url"
+              value={values.sms_host}
+              onChange={(e) => onChange({ sms_host: e.target.value })}
+              placeholder="https://lampush-tls.lafricamobile.com"
+              autoComplete="off"
+            />
+            <FormError>{errors.sms_host?.[0]}</FormError>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

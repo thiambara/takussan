@@ -30,6 +30,8 @@ describe('agencyFormSchema', () => {
     commission_rate: '',
     currency: '',
     timezone: '',
+    // TCK-098 added this required boolean to the schema.
+    moderation_required: false,
   };
 
   it('accepts minimal valid input', () => {
@@ -141,6 +143,9 @@ describe('tagFormSchema', () => {
 });
 
 describe('integrationFormSchema & normaliseIntegrationForm', () => {
+  // TCK-102 — the schema gained SMS-specific fields (sms_client_id…
+  // sms_host); they default to '' so existing call sites keep working,
+  // but the IntegrationFormValues type now requires all of them.
   const base = {
     provider: 'wave',
     is_active: true,
@@ -148,6 +153,16 @@ describe('integrationFormSchema & normaliseIntegrationForm', () => {
     api_secret: 'sk_test_abc',
     webhook_url: '',
     notes: '',
+    sms_client_id: '',
+    sms_client_secret: '',
+    sms_sender_address: '',
+    sms_sender_name: '',
+    sms_username: '',
+    sms_password: '',
+    sms_sender_id: '',
+    sms_service_id: '',
+    sms_accountid: '',
+    sms_host: '',
   };
 
   it('requires a provider', () => {

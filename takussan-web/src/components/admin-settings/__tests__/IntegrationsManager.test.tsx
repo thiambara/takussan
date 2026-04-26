@@ -84,4 +84,65 @@ describe('<IntegrationsManager />', () => {
     await user.click(screen.getAllByRole('button', { name: 'Afficher' })[1]);
     expect(secret).toHaveAttribute('type', 'text');
   });
+
+  it('renders Orange SMS specific fields when provider = sms_orange (TCK-102)', async () => {
+    const user = userEvent.setup();
+    render(<IntegrationsManager initialIntegrations={[]} />);
+
+    await user.click(screen.getByRole('button', { name: /Ajouter une intégration/ }));
+    const providerInput = await screen.findByLabelText(/Fournisseur/);
+    await user.clear(providerInput);
+    await user.type(providerInput, 'sms_orange');
+
+    expect(screen.getByLabelText('Client ID')).toBeInTheDocument();
+    expect(screen.getByLabelText('Client secret')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Sender address/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Sender name/)).toBeInTheDocument();
+    // ARTP banner present.
+    expect(screen.getByText(/Conformité ARTP/i)).toBeInTheDocument();
+    // Generic "Clé API" / "Secret" fields are hidden.
+    expect(screen.queryByLabelText('Clé API')).not.toBeInTheDocument();
+  });
+
+  it('renders LAfricaMobile specific fields when provider = sms_lafricamobile (TCK-102)', async () => {
+    const user = userEvent.setup();
+    render(<IntegrationsManager initialIntegrations={[]} />);
+
+    await user.click(screen.getByRole('button', { name: /Ajouter une intégration/ }));
+    const providerInput = await screen.findByLabelText(/Fournisseur/);
+    await user.clear(providerInput);
+    await user.type(providerInput, 'sms_lafricamobile');
+
+    expect(screen.getByLabelText('Account ID')).toBeInTheDocument();
+    expect(screen.getByLabelText('Password')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Sender ID/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Host LAMPUSH/)).toBeInTheDocument();
+  });
+
+  it('submits Orange credentials in the right shape (TCK-102)', async () => {
+    createMock.mockResolvedValue({ ok: true, data: { id: 99, provider: 'sms_orange' } });
+    const user = userEvent.setup();
+    render(<IntegrationsManager initialIntegrations={[]} />);
+
+    await user.click(screen.getByRole('button', { name: /Ajouter une intégration/ }));
+    const providerInput = await screen.findByLabelText(/Fournisseur/);
+    await user.clear(providerInput);
+    await user.type(providerInput, 'sms_orange');
+    await user.type(screen.getByLabelText('Client ID'), 'cid-123');
+    await user.type(screen.getByLabelText('Client secret'), 'csec-456');
+    await user.type(screen.getByLabelText(/Sender address/), 'tel:+221771234567');
+    await user.type(screen.getByLabelText(/Sender name/), 'TAKUSSAN');
+    await user.click(screen.getByRole('button', { name: /Ajouter$/ }));
+
+    expect(createMock).toHaveBeenCalledTimes(1);
+    const payload = createMock.mock.calls[0][0];
+    expect(payload).toMatchObject({
+      provider: 'sms_orange',
+      is_active: true,
+      credentials: { client_id: 'cid-123', client_secret: 'csec-456' },
+      metadata: { sender_address: 'tel:+221771234567', sender_name: 'TAKUSSAN' },
+    });
+    // Generic credentials must not leak.
+    expect(payload.credentials).not.toHaveProperty('api_key');
+  });
 });

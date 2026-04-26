@@ -1,7 +1,7 @@
 ---
 id: TCK-102
 title: "SMS notifications critiques (driver prod, multi-provider)"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: M
@@ -446,4 +446,90 @@ non-erreur (cap, quiet hours).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Décisions non-évidentes
+
+- **Pas de `propaganistas/laravel-phone`.** L'interface E.164 est
+  servie par un mini-helper `App\Services\Notifications\Sms\PhoneNumber`
+  (regex `^\+[1-9]\d{7,14}$` + extraction préfixe SN). Évite une
+  nouvelle dépendance pour ~40 lignes de code. Si un parser plus strict
+  devient nécessaire (parsing par pays / format E.164 long), le
+  package se branche en `normalize()` sans toucher aux drivers.
+- **Pas de migration `add_sms_integration_types`.** Le modèle
+  `Integration` existant utilise `provider` (string) + `credentials`
+  (encrypted array) + `metadata` (json). On y a écrit nos valeurs
+  `sms_orange` / `sms_mtarget` / `sms_lafricamobile` directement —
+  validation au niveau service via `config('sms.allowed_integration_providers')`.
+  Les types `sms_free` et `sms_expresso` y figurent comme placeholders
+  "réservés mais inactifs" (cf. § Hors périmètre). Pas d'enum DB pour
+  rester compatible avec le schéma `provider:string` du modèle.
+- **LAM driver = JSON loop, pas XML batch.** La doc LAMPUSH décrit
+  deux modes : JSON unitaire ou XML multi-message. Le driver fait une
+  requête HTTP par destinataire (JSON). AC14 reste vert : 30 numéros
+  Orange → 30 calls Orange (contrainte API), 20 numéros Free → 20
+  calls LAM (au lieu d'un batch XML). Le passage XML est trivial mais
+  ajoute du parsing pour un gain marginal au volume v1 ; à activer si
+  les coûts d'établissement TLS deviennent un problème.
+- **Cap Orange pré-filtre dans le router, pas dans le driver.** Plus
+  économe (pas de call HTTP qui sera de toute façon refusé), permet
+  un statut `deferred_to_fallback` distinct de `failed` (les bypass
+  par quota/quiet hours ne polluent pas les métriques d'erreur
+  provider). Le driver reste idempotent : il pourrait être appelé
+  unitairement sans le router et fonctionnerait quand même.
+- **Quiet hours différé via `SendDeferredSmsJob` en queue.** En env
+  `testing` (`QUEUE_CONNECTION=sync`), le job s'exécuterait synchrone
+  et ré-entrerait le router immédiatement avec `bypass_quiet_hours=true`.
+  Les tests de quiet hours utilisent `Queue::fake()` pour intercepter
+  ce dispatch.
+- **Webhook lookup en deux phases.** `delivery_attempts` est un JSON
+  ; pour rester portable (SQLite en tests, MySQL en prod) le
+  `DeliveryAttemptUpdater` filtre les candidats avec un `LIKE
+  %provider_message_id%` puis scanne les entrées en PHP. Suffisant au
+  volume v1 ; un index dédié (table séparée ou `JSON_VALUE` index)
+  serait un suivi P3 si le throughput webhook devient critique.
+- **LAM webhook = path signé Laravel.** La GET URL est générée par
+  send via `URL::signedRoute(...)` et inclut `notification_id` ; cela
+  fournit à la fois la signature et un lookup direct sans scan JSON.
+- **`AppNotification` schema delta.** Une seule colonne ajoutée :
+  `delivery_attempts json nullable`. Cast `array` ajouté au modèle.
+  Les notifications existantes restent non impactées (NULL = aucun
+  envoi SMS tracé).
+
+### Fichiers touchés (inventaire)
+
+- Migrations : `2026_04_26_160847_add_delivery_attempts_to_app_notifications.php`
+- Config : `config/sms.php`
+- Services : `App\Services\Notifications\Sms\` (interface, DTO,
+  PhoneNumber, OperatorResolver, QuietHoursGuard, OrangeDailyCapTracker,
+  OrangeOAuthTokenCache, IntegrationLocator, SmsSegmentCalculator,
+  DeliveryAttemptUpdater, SmsRouterDriver) + `Drivers\` (Log, Orange,
+  Mtarget, LAfricaMobile)
+- Job : `App\Jobs\SendDeferredSmsJob`
+- Channel : `App\Notifications\Channels\SmsChannel` + concerns
+  `Critical` & `SupportsSms`
+- Webhooks : `App\Http\Controllers\Webhook\` (3 controllers) +
+  `App\Http\Middleware\RestrictIpMiddleware` + `routes/api/sms-webhooks.php`
+- Bootstrap : `bootstrap/app.php` (alias `restrict.ip`),
+  `app/Providers/AppServiceProvider.php` (singletons + `sms` channel)
+- Modèle : `app/Models/AppNotification.php` (cast + fillable
+  `delivery_attempts`)
+- Factory : `database/factories/AppNotificationFactory.php` (nouvelle)
+- Tests : 4 unit + 6 feature (50 tests, 120 assertions, vert)
+- Doc : `docs/integrations/sms.md`
+
+### Tests passés
+
+```
+php artisan test
+> Tests: 1315 passed (3747 assertions)
+```
+
+(Nouveaux : 50 tests SMS — 0 régression sur les 1265 existants.)
+
+### Suivi (P3, hors v1)
+
+- Driver carrier-direct Free SN (Yas) / Expresso SN une fois un
+  contrat B2B signé.
+- Index dédié pour la lookup webhook si le throughput le justifie.
+- LAM en mode XML batch si réduction des coûts TLS souhaitée.
+- 5 TPS Orange — semaphore Redis encore non câblé (le cap 3/jour/MSISDN
+  l'est).

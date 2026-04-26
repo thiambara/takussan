@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\ForceJsonResponseMiddleware;
+use App\Http\Middleware\RestrictIpMiddleware;
 use App\Http\Middleware\SetLocaleMiddleware;
 use App\Http\Middleware\SetPermissionsTeamIdMiddleware;
 use Illuminate\Foundation\Application;
@@ -23,6 +24,10 @@ return Application::configure(basePath: dirname(__DIR__))
             ForceJsonResponseMiddleware::class,
             SetLocaleMiddleware::class,
             SetPermissionsTeamIdMiddleware::class,
+        ]);
+        // TCK-102 — alias the SMS webhook IP allowlist middleware.
+        $middleware->alias([
+            'restrict.ip' => RestrictIpMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
