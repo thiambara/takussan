@@ -1,12 +1,12 @@
 ---
 id: TCK-094
 title: "Recherche full-text messages & documents"
-status: todo
+status: doing
 phase: P2
 family: back
 estimate: M
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-26
 depends_on: [TCK-029, TCK-021, TCK-052]
 blocks: []
 spec_refs:

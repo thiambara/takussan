@@ -9,12 +9,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Laravel\Scout\Searchable;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Document extends AbstractModel implements HasMedia
 {
-    use HasFactory, InteractsWithMedia, SoftDeletes;
+    use HasFactory, InteractsWithMedia, Searchable, SoftDeletes;
 
     protected $fillable = [
         'documentable_id', 'documentable_type', 'uploaded_by',
@@ -44,6 +45,25 @@ class Document extends AbstractModel implements HasMedia
         'name', 'type', 'description', 'is_verified', 'expiry_date',
         'created_at', 'updated_at',
     ];
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'title' => $this->name,
+            'description' => $this->description,
+            'type' => $this->type?->value,
+            'documentable_type' => $this->documentable_type,
+            'documentable_id' => $this->documentable_id,
+            'uploaded_by' => $this->uploaded_by,
+            'created_at' => $this->created_at?->timestamp,
+        ];
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->trashed();
+    }
 
     public function registerMediaCollections(): void
     {
