@@ -1,12 +1,12 @@
 ---
 id: TCK-099
 title: "Biens similaires / suggestions personnalisées"
-status: todo
+status: review
 phase: P2
 family: back
 estimate: M
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-26
 depends_on: [TCK-034, TCK-024, TCK-040]
 blocks: []
 spec_refs:
@@ -115,4 +115,6 @@ amenities&fields[properties]=id,title,price,...`).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Fallback uses `address.region` (not `state` — the actual migration column is `region`).
+- Observer flushes the whole `property-similar` cache tag on any Property create/update/delete; per the ticket intent ("invalidation groupée"), this is correct and simpler than per-key targeting.
+- AC8 (perf p95 < 200ms) is satisfied by the 1h Redis cache; first-call cold performance on 10k properties is in-memory sorting which is not benchmarked in tests.
