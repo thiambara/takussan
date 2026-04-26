@@ -22,6 +22,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { fetchModerationQueue } from '@/lib/queries/reviews-moderation';
+import { fetchPropertyModerationQueue } from '@/lib/queries/property-moderation';
 
 interface NavItem {
   href: string;
@@ -36,7 +37,11 @@ interface AdminSidebarProps {
   onNavigate?: () => void;
 }
 
-function buildAdminItems(user: User, pendingCount: number): NavItem[] {
+function buildAdminItems(
+  user: User,
+  reviewPendingCount: number,
+  propertyPendingCount: number,
+): NavItem[] {
   const items: NavItem[] = [{ href: '/admin', label: 'Tableau de bord', icon: LayoutDashboard }];
   if (isSuperAdmin(user.roles)) {
     items.push({ href: '/admin/properties', label: 'Biens', icon: Building2 });
@@ -48,11 +53,18 @@ function buildAdminItems(user: User, pendingCount: number): NavItem[] {
   if (isSuperAdmin(user.roles)) {
     items.push({
       href: '/admin/moderation',
-      label: 'Modération',
+      label: 'Modération avis',
       icon: Shield,
-      badge: pendingCount || undefined,
+      badge: reviewPendingCount || undefined,
     });
   }
+  // TCK-098 — property moderation is accessible to agency_admin + super_admin.
+  items.push({
+    href: '/admin/moderation/properties',
+    label: 'Modération biens',
+    icon: Building2,
+    badge: propertyPendingCount || undefined,
+  });
   items.push({ href: '/admin/roles', label: 'Rôles & Permissions', icon: ShieldCheck });
   items.push({ href: '/admin/audit', label: "Journal d'audit", icon: FileText });
   items.push({ href: '/admin/settings', label: 'Paramètres', icon: Settings });
@@ -96,7 +108,6 @@ export function AdminSidebar({ user, className, onNavigate }: AdminSidebarProps)
   const pathname = usePathname();
   const { token } = useAuth();
 
-  // Poll the moderation queue count so the sidebar badge stays fresh.
   const { data: modMeta } = useQuery({
     queryKey: ['reviews-moderation', 'pending-count'],
     queryFn: () =>
@@ -106,7 +117,17 @@ export function AdminSidebar({ user, className, onNavigate }: AdminSidebarProps)
     staleTime: 30_000,
   });
 
-  const items = buildAdminItems(user, modMeta?.pending_count ?? 0);
+  // TCK-098 — poll property moderation count (available to agency_admin too).
+  const { data: propModMeta } = useQuery({
+    queryKey: ['property-moderation', 'pending-count'],
+    queryFn: () =>
+      fetchPropertyModerationQueue(token ?? '', { perPage: 1 }).then((r) => r.meta),
+    enabled: Boolean(token),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
+  const items = buildAdminItems(user, modMeta?.pending_count ?? 0, propModMeta?.pending_count ?? 0);
   const initials = `${user.first_name[0] ?? ''}${user.last_name[0] ?? ''}`.toUpperCase();
 
   return (

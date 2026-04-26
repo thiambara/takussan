@@ -80,12 +80,24 @@ class PropertyResource extends JsonResource
                 'icon' => $tag->icon,
                 'color' => $tag->color,
             ])->values()->all()),
-            'owner' => $this->when($isDetail, fn () => $this->buildOwner()),
-            'agency' => $this->when($isDetail, fn () => $this->buildAgency()),
+            'owner' => $this->when(
+                $isDetail || $this->resource->relationLoaded('owner'),
+                fn () => $this->buildOwner()
+            ),
+            'agency' => $this->when(
+                $isDetail || $this->resource->relationLoaded('agency'),
+                fn () => $this->buildAgency()
+            ),
             'documents' => $this->when($isDetail, fn () => $this->buildDocuments()),
             'price_history' => $this->when($isDetail, fn () => $this->buildPriceHistory()),
             'published_at' => $this->published_at?->toISOString(),
             'created_at' => $this->created_at?->toISOString(),
+            // TCK-098 — moderation fields (always included so the agent dashboard
+            // can render the status banner without a second round-trip).
+            'rejection_reason' => $this->rejection_reason,
+            'submitted_at' => $this->submitted_at?->toISOString(),
+            'approved_at' => $this->approved_at?->toISOString(),
+            'rejected_at' => $this->rejected_at?->toISOString(),
         ];
     }
 

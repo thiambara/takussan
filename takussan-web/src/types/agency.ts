@@ -39,6 +39,8 @@ export interface Agency {
   average_rating?: number | null;
   logo_url: string | null;
   settings: AgencySettings | null;
+  /** TCK-098 — when true, new property publications require admin approval. */
+  moderation_required?: boolean;
   primary_admin_id: number | null;
   created_at?: string;
 }

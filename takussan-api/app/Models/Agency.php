@@ -26,6 +26,7 @@ class Agency extends AbstractModel implements HasMedia
         'email', 'phone', 'website', 'commission_rate', 'currency',
         'founded_at', 'is_verified', 'verified_at',
         'primary_admin_id', 'status', 'metadata', 'settings',
+        'moderation_required',
     ];
 
     protected $casts = [
@@ -38,6 +39,7 @@ class Agency extends AbstractModel implements HasMedia
         'currency' => Currency::class,
         'metadata' => 'array',
         'settings' => 'array',
+        'moderation_required' => 'boolean',
     ];
 
     protected $attributes = [
@@ -57,7 +59,7 @@ class Agency extends AbstractModel implements HasMedia
     protected static array $queryFields = [
         'id', 'name', 'slug', 'license_number', 'description',
         'email', 'phone', 'website', 'commission_rate', 'currency',
-        'founded_at', 'is_verified', 'status', 'created_at', 'updated_at',
+        'founded_at', 'is_verified', 'status', 'moderation_required', 'created_at', 'updated_at',
     ];
 
     protected static function booted(): void

@@ -27,6 +27,7 @@ class AgencyResource extends JsonResource
             'average_rating' => $this->average_rating !== null ? (float) $this->average_rating : null,
             'logo_url' => $this->getFirstMediaUrl('logo') ?: null,
             'settings' => $this->settings ?? null,
+            'moderation_required' => (bool) ($this->moderation_required ?? false),
             'primary_admin_id' => $this->primary_admin_id,
             'created_at' => $this->created_at?->toISOString(),
         ];

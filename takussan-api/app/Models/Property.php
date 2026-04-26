@@ -39,6 +39,8 @@ class Property extends AbstractModel implements HasMedia
         'floor_number', 'total_floors', 'year_built', 'parking_spaces',
         'featured', 'lot_position', 'level', 'admin_monitored',
         'available_from', 'published_at', 'archived_at', 'metadata',
+        'rejection_reason', 'submitted_at', 'approved_at', 'rejected_at',
+        'approved_by_user_id', 'rejected_by_user_id',
     ];
 
     protected $casts = [
@@ -58,6 +60,9 @@ class Property extends AbstractModel implements HasMedia
         'available_from' => 'date',
         'published_at' => 'datetime',
         'archived_at' => 'datetime',
+        'submitted_at' => 'datetime',
+        'approved_at' => 'datetime',
+        'rejected_at' => 'datetime',
         'metadata' => 'array',
     ];
 
@@ -133,7 +138,11 @@ class Property extends AbstractModel implements HasMedia
     public function shouldBeSearchable(): bool
     {
         return $this->visibility === PropertyVisibility::Public
-            && $this->status !== PropertyStatus::Draft;
+            && ! in_array($this->status, [
+                PropertyStatus::Draft,
+                PropertyStatus::PendingReview,
+                PropertyStatus::Rejected,
+            ], true);
     }
 
     public function scopePublic(Builder $query): Builder
@@ -147,6 +156,8 @@ class Property extends AbstractModel implements HasMedia
                 PropertyStatus::Archived,
                 PropertyStatus::UnderMaintenance,
                 PropertyStatus::Unavailable,
+                PropertyStatus::PendingReview,
+                PropertyStatus::Rejected,
             ]);
     }
 
@@ -281,5 +292,15 @@ class Property extends AbstractModel implements HasMedia
     public function favorites(): HasMany
     {
         return $this->hasMany(Favorite::class);
+    }
+
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by_user_id');
+    }
+
+    public function rejectedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejected_by_user_id');
     }
 }

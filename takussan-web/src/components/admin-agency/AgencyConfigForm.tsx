@@ -65,6 +65,7 @@ function toDefaults(agency: Agency): AgencyFormValues {
     commission_rate: commission !== null && commission !== undefined ? String(commission) : '',
     currency: currency.toUpperCase(),
     timezone: typeof settings.timezone === 'string' ? settings.timezone : '',
+    moderation_required: agency.moderation_required ?? false,
   };
 }
 
@@ -341,6 +342,29 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
             label="Fuseau horaire"
             placeholder="Africa/Dakar"
           />
+        </div>
+
+        {/* TCK-098 — moderation toggle */}
+        <div className="flex items-start gap-4 rounded-lg border border-input bg-background px-4 py-3">
+          <input
+            id="moderation_required"
+            type="checkbox"
+            {...form.register('moderation_required')}
+            className="mt-0.5 size-4 cursor-pointer rounded border-input accent-primary"
+          />
+          <div>
+            <label
+              htmlFor="moderation_required"
+              className="cursor-pointer text-sm font-medium text-app-ink"
+            >
+              Modération obligatoire avant publication
+            </label>
+            <p className="mt-0.5 text-xs text-app-ink-muted">
+              Quand cette option est activée, tout nouveau bien soumis par un agent sera en statut
+              &laquo;&nbsp;En attente de validation&nbsp;&raquo; jusqu&apos;à l&apos;approbation d&apos;un
+              administrateur, avant d&apos;être visible publiquement.
+            </p>
+          </div>
         </div>
       </section>
 
