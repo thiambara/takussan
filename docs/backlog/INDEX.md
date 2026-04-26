@@ -61,9 +61,13 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 
 ## 🚧 Doing
 
-- [TCK-096](tickets/TCK-096-maintenance-priority.md) — Priorisation demandes maintenance `S · P2 · applicatif`
+_(vide)_
 
 ## 👀 Review
+
+### Vague 10-D — Priorisation demandes maintenance — [PR #81](https://github.com/thiambara/takussan/pull/81)
+
+- [TCK-096](tickets/TCK-096-maintenance-priority.md) — Priorisation demandes maintenance `S · P2 · applicatif` (PR #81)
 
 ### Vague 10-C — Demande de devis maintenance + validation
 
