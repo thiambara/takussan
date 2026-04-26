@@ -1,12 +1,12 @@
 ---
 id: TCK-097
 title: "Historique versions documents"
-status: todo
+status: doing
 phase: P2
 family: applicatif
 estimate: S
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-26
 depends_on: [TCK-021, TCK-062]
 blocks: []
 spec_refs:
