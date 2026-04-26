@@ -39,7 +39,7 @@ _(vide — TCK-097 en cours)_
 
 ### Vague 11 — P2 modération / discovery / transverses
 
-- [TCK-104](tickets/TCK-104-audit-trail-export.md) — Export audit trail `S · P2 · applicatif`
+_(vide — TCK-104 en cours)_
 
 ### Vague 12 — P2 perf / médias / permissions / compta
 
@@ -58,6 +58,10 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 _(vide)_
 
 ## 👀 Review
+
+### Vague 11 — Export audit trail
+
+- [TCK-104](tickets/TCK-104-audit-trail-export.md) — Export audit trail `S · P2 · applicatif`
 
 ### Vague 11 — Digest quotidien / hebdomadaire
 

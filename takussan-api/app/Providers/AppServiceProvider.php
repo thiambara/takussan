@@ -31,6 +31,7 @@ use App\Observers\PropertyObserver;
 use App\Observers\PropertyVisitObserver;
 use App\Observers\ReviewObserver;
 use App\Observers\UserObserver;
+use App\Policies\ActivityLogPolicy;
 use App\Policies\ConversationPolicy;
 use App\Policies\LeasePolicy;
 use App\Policies\MediaPolicy;
@@ -61,6 +62,7 @@ use LemonSqueezy\Laravel\Events\OrderCreated as LemonSqueezyOrderCreated;
 use LemonSqueezy\Laravel\Events\OrderRefunded as LemonSqueezyOrderRefunded;
 use LemonSqueezy\Laravel\Events\SubscriptionCreated as LemonSqueezySubscriptionCreated;
 use SocialiteProviders\Manager\SocialiteWasCalled;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class AppServiceProvider extends ServiceProvider
@@ -126,6 +128,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Spatie Media lives outside App\Models so auto-discovery misses it.
         Gate::policy(Media::class, MediaPolicy::class);
+
+        // TCK-104 — Spatie Activity also lives outside App\Models.
+        Gate::policy(Activity::class, ActivityLogPolicy::class);
 
         // TCK-074 — explicit bind so `$user->can('duplicate', $property)` resolves.
         Gate::policy(Property::class, PropertyPolicy::class);

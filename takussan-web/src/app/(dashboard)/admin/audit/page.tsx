@@ -1,15 +1,25 @@
+import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
-import { StubPlaceholder } from '@/components/shared/StubPlaceholder';
+import { isAdmin } from '@/lib/roles';
+import { AuditTrail } from '@/components/admin/AuditTrail';
 
-export default async function Page() {
-  await getMeAction();
+/**
+ * TCK-104 — Admin audit trail page.
+ * Requires agency_admin or super_admin role.
+ */
+export default async function AuditPage() {
+  const user = await getMeAction();
+  if (!isAdmin(user.roles)) redirect('/admin');
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-app-ink">Journal d&apos;audit</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">Traçabilité des actions sensibles</p>
+        <p className="mt-1 text-sm text-app-ink-muted">
+          Traçabilité de toutes les actions sensibles sur la plateforme.
+        </p>
       </div>
-      <StubPlaceholder label="Audit" />
+      <AuditTrail />
     </div>
   );
 }

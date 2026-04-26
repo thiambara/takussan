@@ -1,12 +1,12 @@
 ---
 id: TCK-104
 title: "Export audit trail"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: S
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-26
 depends_on: [TCK-018]
 blocks: []
 spec_refs:
@@ -142,4 +142,9 @@ async via job + email avec lien (cf. contraintes).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Agency scope** : l'agence-admin voit uniquement les logs dont le `causer` est un User appartenant à son agence (`users.agency_id`). Le filtre côté subject (objet modifié) est une amélioration P3 — les sujets sont des morphs hétérogènes et nécessiteraient des sous-requêtes par type.
+- **Policy** : `Activity` est un modèle de package → `Gate::policy(Activity::class, ActivityLogPolicy::class)` enregistré dans `AppServiceProvider` (même pattern que `Media`).
+- **Route download async** : route `activity-logs.export.download` publique (pas de `auth:sanctum`) validée par signature Laravel (`URL::temporarySignedRoute`, TTL 24h). La route export principale reste protégée par `auth:sanctum`.
+- **`$log->properties` null** : le cast spatie retourne `null` (pas une collection vide) si la colonne est NULL en DB. Défensif via `$log->properties ?? collect()`.
+- **Frontend** : UI navigateur non testée (pas de navigateur disponible) — type-check OK, aucune erreur sur les nouveaux fichiers.
+- **Endpoint URL** : `/api/activity-logs/export` (plural) dans `routes/api/audit-log.php`, distinct du `/api/activity-log` (singular) de TCK-018 pour éviter la collision de route.
