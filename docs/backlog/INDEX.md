@@ -41,6 +41,7 @@ _(vide — TCK-097 en cours)_
 
 - [TCK-103](tickets/TCK-103-notifications-digest.md) — Digest quotidien / hebdomadaire `M · P2 · applicatif`
 - [TCK-104](tickets/TCK-104-audit-trail-export.md) — Export audit trail `S · P2 · applicatif`
+- [TCK-110](tickets/TCK-110-sms-driver-hardening-followups.md) — Durcissement SMS driver (OAuth lock, table delivery_attempts, metadata edit) `M · P2 · technique`
 
 ### Vague 12 — P2 perf / médias / permissions / compta
 
@@ -409,6 +410,7 @@ TCK-034 + TCK-024 + TCK-040 ──▶ TCK-099 (property similar suggestions)
 TCK-039 + TCK-040 ──▶ TCK-100 (property recently viewed)
 TCK-026 ──▶ TCK-101 (booking auto-expire)
 TCK-022 + TCK-069 + TCK-070 ──▶ TCK-102 (sms driver prod)
+TCK-102 ──▶ TCK-110 (sms driver hardening — OAuth lock + delivery_attempts table + metadata edit)
 TCK-022 + TCK-070 ──▶ TCK-103 (notifications digest)
 TCK-018 ──▶ TCK-104 (audit trail export)
 
