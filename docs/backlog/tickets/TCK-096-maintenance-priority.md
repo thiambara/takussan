@@ -1,12 +1,12 @@
 ---
 id: TCK-096
 title: "Priorisation demandes maintenance"
-status: todo
+status: doing
 phase: P2
 family: applicatif
 estimate: S
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-26
 depends_on: [TCK-030]
 blocks: []
 spec_refs:

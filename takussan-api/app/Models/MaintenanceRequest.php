@@ -6,13 +6,18 @@ use App\Models\Bases\AbstractModel;
 use App\Models\Enums\MaintenanceCategory;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
+use App\Sorts\MaintenancePrioritySort;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Http\Request;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\QueryBuilder\AllowedSort;
+use Spatie\QueryBuilder\QueryBuilder;
 
 class MaintenanceRequest extends AbstractModel implements HasMedia
 {
@@ -59,6 +64,23 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
         'scheduled_at', 'completed_at',
         'created_at', 'updated_at',
     ];
+
+    public static function buildQuery(?Builder $baseQuery = null, ?Request $request = null): QueryBuilder
+    {
+        $subject = $baseQuery ?? static::class;
+
+        return QueryBuilder::for($subject, $request)
+            ->allowedFilters(...static::getAllowedQueryFilters())
+            ->allowedSorts(
+                'id',
+                'created_at',
+                'scheduled_at',
+                'status',
+                AllowedSort::custom('priority', new MaintenancePrioritySort),
+            )
+            ->allowedIncludes(...static::getAllowedQueryIncludes())
+            ->allowedFields(...(static::$queryFields ?? []));
+    }
 
     public function registerMediaCollections(): void
     {

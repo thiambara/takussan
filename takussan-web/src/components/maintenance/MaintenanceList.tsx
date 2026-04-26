@@ -106,9 +106,13 @@ export function MaintenanceList() {
               </div>
             );
           }
-          return (
+
+          const urgentRequests = data.data.filter((r) => r.priority === 'urgent');
+          const otherRequests = data.data.filter((r) => r.priority !== 'urgent');
+
+          const renderList = (requests: typeof data.data) => (
             <ul className="space-y-2">
-              {data.data.map((request) => (
+              {requests.map((request) => (
                 <li
                   key={request.id}
                   className="rounded-xl bg-app-surface-1 shadow-sm transition-colors hover:bg-app-surface-2"
@@ -136,12 +140,37 @@ export function MaintenanceList() {
                   </Link>
                 </li>
               ))}
-              {data.meta.last_page > 1 ? (
-                <li className="pt-3 text-center text-xs text-app-ink-muted">
-                  Page {data.meta.current_page} / {data.meta.last_page} — {data.meta.total} demandes
-                </li>
-              ) : null}
             </ul>
+          );
+
+          return (
+            <div className="space-y-6">
+              {urgentRequests.length > 0 && (
+                <div className="space-y-3">
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-red-600 dark:text-red-400">
+                    Urgences prioritaires
+                  </h2>
+                  {renderList(urgentRequests)}
+                </div>
+              )}
+              
+              {otherRequests.length > 0 && (
+                <div className="space-y-3">
+                  {urgentRequests.length > 0 && (
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-app-ink-muted">
+                      Autres demandes
+                    </h2>
+                  )}
+                  {renderList(otherRequests)}
+                </div>
+              )}
+
+              {data.meta.last_page > 1 ? (
+                <div className="pt-3 text-center text-xs text-app-ink-muted">
+                  Page {data.meta.current_page} / {data.meta.last_page} — {data.meta.total} demandes
+                </div>
+              ) : null}
+            </div>
           );
         }}
       </QueryBoundary>

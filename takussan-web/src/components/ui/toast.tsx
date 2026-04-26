@@ -17,12 +17,22 @@ import { cn } from "@/lib/utils"
 
 type ToastKind = "info" | "success" | "warning" | "error"
 
+/**
+ * Custom data accepted under `toast.add({ data: { action } })`.
+ * `action` renders below the description — typically a link or button.
+ * For sticky toasts, callers pass `timeout: 0` to `toast.add` directly
+ * (Base UI handles dismissal via the toast object's own `timeout`).
+ */
+type ToastData = {
+  action?: React.ReactNode
+}
+
 function ToastProvider(props: ToastPrimitive.Provider.Props) {
   return <ToastPrimitive.Provider {...props} />
 }
 
 function useToast() {
-  return ToastPrimitive.useToastManager()
+  return ToastPrimitive.useToastManager<ToastData>()
 }
 
 function kindClasses(kind: string | undefined) {
@@ -46,7 +56,7 @@ function Toaster({
   className,
   ...props
 }: Omit<ToastPrimitive.Viewport.Props, "children">) {
-  const { toasts } = ToastPrimitive.useToastManager()
+  const { toasts } = ToastPrimitive.useToastManager<ToastData>()
   return (
     <ToastPrimitive.Portal>
       <ToastPrimitive.Viewport
@@ -71,6 +81,11 @@ function Toaster({
           >
             <ToastPrimitive.Title className="text-sm font-semibold leading-none" />
             <ToastPrimitive.Description className="text-sm opacity-90" />
+            {toast.data?.action && (
+              <div className="mt-2 text-sm font-medium">
+                {toast.data.action}
+              </div>
+            )}
             <ToastPrimitive.Close
               aria-label="Fermer la notification"
               className="absolute top-2 right-2 inline-flex size-6 items-center justify-center rounded-md opacity-60 outline-none transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/50"

@@ -11,10 +11,12 @@ use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\NotificationType;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
+use App\Notifications\UrgentMaintenanceCreatedNotification;
 use App\Services\Model\MaintenanceRequestService;
 use App\Services\Model\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
 
 class MaintenanceRequestController extends Controller
@@ -41,7 +43,7 @@ class MaintenanceRequestController extends Controller
         }
 
         $paginator = MaintenanceRequest::buildQuery($base, $request)
-            ->defaultSort('-created_at')
+            ->defaultSort('-priority', '-created_at')
             ->paginate();
 
         return $this->json([
@@ -60,7 +62,7 @@ class MaintenanceRequestController extends Controller
         $base = MaintenanceRequest::query()->where('property_id', $property->id);
 
         $paginator = MaintenanceRequest::buildQuery($base, $request)
-            ->defaultSort('-created_at')
+            ->defaultSort('-priority', '-created_at')
             ->paginate();
 
         return $this->json([
@@ -104,11 +106,24 @@ class MaintenanceRequestController extends Controller
         $mr = MaintenanceRequest::create(array_merge($data, [
             'requester_id' => $user->id,
             'status' => MaintenanceStatus::Open->value,
+            'priority' => $data['priority'] ?? MaintenancePriority::Normal->value,
         ]));
 
         // Notify agency agents and property owner
         $property = $property->refresh();
         $owner = $property->owner;
+
+        if ($mr->priority === MaintenancePriority::Urgent) {
+            $assignedAgent = $mr->assignee;
+            $manager = $property->agency?->primaryAdmin;
+
+            $notifiables = collect([$assignedAgent, $manager])->filter()->unique('id');
+
+            if ($notifiables->isNotEmpty()) {
+                Notification::send($notifiables, new UrgentMaintenanceCreatedNotification($mr));
+            }
+        }
+
         if ($owner && $owner->id !== $user->id) {
             $this->notifications->notify(
                 $owner,

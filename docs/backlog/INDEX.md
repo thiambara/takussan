@@ -35,7 +35,6 @@ _(vide — Vague 9 entièrement passée en review)_
 
 ### Vague 10 — P2 CRM / Messaging / Maintenance
 
-- [TCK-096](tickets/TCK-096-maintenance-priority.md) — Priorisation demandes maintenance `S · P2 · applicatif`
 - [TCK-097](tickets/TCK-097-document-version-history.md) — Historique versions documents `S · P2 · applicatif`
 
 ### Vague 11 — P2 modération / discovery / transverses
@@ -65,6 +64,10 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 _(vide)_
 
 ## 👀 Review
+
+### Vague 10-D — Priorisation demandes maintenance — [PR #81](https://github.com/thiambara/takussan/pull/81)
+
+- [TCK-096](tickets/TCK-096-maintenance-priority.md) — Priorisation demandes maintenance `S · P2 · applicatif` (PR #81)
 
 ### Vague 10-C — Demande de devis maintenance + validation
 

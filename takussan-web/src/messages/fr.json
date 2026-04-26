@@ -447,5 +447,13 @@
       "cancel_failed_title": "L'annulation a échoué"
     },
     "error_generic": "Action impossible."
+  },
+  "maintenance": {
+    "priority": {
+      "urgent": "Urgent",
+      "high": "Haute",
+      "normal": "Normale",
+      "low": "Basse"
+    }
   }
 }
