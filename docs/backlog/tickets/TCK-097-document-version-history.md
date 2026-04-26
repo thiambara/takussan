@@ -1,7 +1,7 @@
 ---
 id: TCK-097
 title: "Historique versions documents"
-status: doing
+status: review
 phase: P2
 family: applicatif
 estimate: S
