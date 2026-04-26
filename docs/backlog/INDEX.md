@@ -35,7 +35,6 @@ _(vide — Vague 9 entièrement passée en review)_
 
 ### Vague 10 — P2 CRM / Messaging / Maintenance
 
-- [TCK-094](tickets/TCK-094-fulltext-messages-documents.md) — Recherche full-text messages & documents `M · P2 · back`
 - [TCK-095](tickets/TCK-095-maintenance-quote-validation.md) — Demande de devis maintenance + validation `M · P2 · applicatif`
 - [TCK-096](tickets/TCK-096-maintenance-priority.md) — Priorisation demandes maintenance `S · P2 · applicatif`
 - [TCK-097](tickets/TCK-097-document-version-history.md) — Historique versions documents `S · P2 · applicatif`
@@ -67,6 +66,10 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 _(vide)_
 
 ## 👀 Review
+
+### Vague 10-B — Recherche full-text messages & documents — [PR #79](https://github.com/thiambara/takussan/pull/79)
+
+- [TCK-094](tickets/TCK-094-fulltext-messages-documents.md) — Recherche full-text messages & documents `M · P2 · back` (PR #79)
 
 ### Vague 10-A — Segmentation & tags clients
 
