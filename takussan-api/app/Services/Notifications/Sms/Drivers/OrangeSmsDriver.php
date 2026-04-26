@@ -9,8 +9,10 @@ use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Notifications\Sms\SmsDriverInterface;
 use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Notifications\Sms\SmsSegmentCalculator;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Http\Client\Factory as HttpFactory;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -102,9 +104,11 @@ class OrangeSmsDriver implements SmsDriverInterface
                 continue;
             }
             if ($response->status() === 401) {
-                // Token might have just expired — drop cache and retry once.
-                $this->tokenCache->forget($integration->id);
-                $token = $this->getToken($integration->id, $creds);
+                // Token might have just expired. Re-read the cache under the
+                // OAuth lock — if a peer worker already refreshed, we use
+                // their token; only the first 401 in the window actually
+                // triggers a new `/oauth/v3/token` round-trip.
+                $token = $this->refreshTokenIfStale($integration->id, $token, $creds);
                 if ($token === null) {
                     $results[$recipient] = SmsResult::failed($recipient, $this->id(), 'orange_oauth_failed');
 
@@ -160,6 +164,75 @@ class OrangeSmsDriver implements SmsDriverInterface
         if ($cached !== null) {
             return $cached;
         }
+
+        // Single-flight refresh: under burst load (N queue workers waking
+        // at the same minute) only one process should hit Orange's
+        // `/oauth/v3/token`, the rest must read the freshly cached token.
+        return $this->withOAuthLock($integrationId, function () use ($integrationId, $creds): ?string {
+            // Double-check: another worker may have refreshed while we
+            // were waiting for the lock.
+            $cached = $this->tokenCache->get($integrationId);
+            if ($cached !== null) {
+                return $cached;
+            }
+
+            return $this->refreshToken($integrationId, $creds);
+        });
+    }
+
+    /**
+     * Called from the 401 retry path. Re-reads the cache under the OAuth
+     * lock; if a peer already refreshed since we attempted the send, we
+     * adopt their token. Only when the cache still holds the token we
+     * just used (or is empty) do we actually call `/oauth/v3/token`.
+     *
+     * @param  array<string,mixed>  $creds
+     */
+    private function refreshTokenIfStale(int $integrationId, string $previousToken, array $creds): ?string
+    {
+        return $this->withOAuthLock($integrationId, function () use ($integrationId, $previousToken, $creds): ?string {
+            $cached = $this->tokenCache->get($integrationId);
+            if ($cached !== null && $cached !== $previousToken) {
+                return $cached;
+            }
+            $this->tokenCache->forget($integrationId);
+
+            return $this->refreshToken($integrationId, $creds);
+        });
+    }
+
+    /**
+     * Acquire the per-integration OAuth lock and run the callback.
+     * Falls back to running the callback directly if the configured
+     * cache store cannot lock (defensive — the framework's database /
+     * redis / file stores all support locks).
+     *
+     * @template T
+     *
+     * @param  \Closure(): T  $callback
+     * @return T
+     */
+    private function withOAuthLock(int $integrationId, \Closure $callback)
+    {
+        $key = "sms:orange:oauth:{$integrationId}";
+        $lock = Cache::lock($key, 10);
+        try {
+            return $lock->block(5, $callback);
+        } catch (LockTimeoutException $e) {
+            Log::warning('[sms.orange] OAuth lock timeout', ['key' => $key]);
+
+            return $callback();
+        }
+    }
+
+    /**
+     * Actually call Orange's OAuth endpoint and write the result to the
+     * cache. Caller MUST hold the OAuth lock for {@see $integrationId}.
+     *
+     * @param  array<string,mixed>  $creds
+     */
+    private function refreshToken(int $integrationId, array $creds): ?string
+    {
         $clientId = (string) ($creds['client_id'] ?? '');
         $clientSecret = (string) ($creds['client_secret'] ?? '');
         if ($clientId === '' || $clientSecret === '') {

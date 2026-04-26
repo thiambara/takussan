@@ -3,6 +3,7 @@
 namespace Tests\Feature\Http\Webhook;
 
 use App\Models\AppNotification;
+use App\Models\NotificationDeliveryAttempt;
 use App\Models\User;
 use App\Services\Notifications\Sms\SmsResult;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,18 +23,18 @@ class OrangeSmsWebhookTest extends TestCase
     private function makeNotificationWithOrangeAttempt(string $providerMessageId): AppNotification
     {
         $user = User::factory()->create();
-
-        return AppNotification::factory()->create([
-            'user_id' => $user->id,
-            'delivery_attempts' => [[
-                'attempt' => 1,
-                'provider' => 'orange',
-                'to' => '+221771111111',
-                'status' => SmsResult::STATUS_SENT,
-                'provider_message_id' => $providerMessageId,
-                'sent_at' => now()->toAtomString(),
-            ]],
+        $notification = AppNotification::factory()->create(['user_id' => $user->id]);
+        NotificationDeliveryAttempt::query()->create([
+            'app_notification_id' => $notification->id,
+            'attempt' => 1,
+            'provider' => 'orange',
+            'to' => '+221771111111',
+            'status' => SmsResult::STATUS_SENT,
+            'provider_message_id' => $providerMessageId,
+            'sent_at' => now(),
         ]);
+
+        return $notification;
     }
 
     public function test_delivered_status_marks_attempt_delivered(): void
@@ -52,8 +53,11 @@ class OrangeSmsWebhookTest extends TestCase
         ]);
 
         $response->assertOk();
-        $attempts = AppNotification::find($n->id)->refresh()->getAttribute('delivery_attempts');
-        $this->assertSame(SmsResult::STATUS_DELIVERED, $attempts[1]['status']);
+        $attempt = NotificationDeliveryAttempt::query()
+            ->where('app_notification_id', $n->id)
+            ->where('provider_message_id', 'orange-msg-1')
+            ->first();
+        $this->assertSame(SmsResult::STATUS_DELIVERED, $attempt->status);
     }
 
     public function test_invalid_token_returns_404(): void
@@ -99,8 +103,10 @@ class OrangeSmsWebhookTest extends TestCase
         $this->postJson('/api/webhooks/sms/orange/status/tck-102-token', $payload)->assertOk();
         $this->postJson('/api/webhooks/sms/orange/status/tck-102-token', $payload)->assertOk();
 
-        $attempts = AppNotification::find($n->id)->refresh()->getAttribute('delivery_attempts');
-        $deliveredCount = count(array_filter($attempts, fn ($a) => ($a['status'] ?? null) === SmsResult::STATUS_DELIVERED));
+        $deliveredCount = NotificationDeliveryAttempt::query()
+            ->where('app_notification_id', $n->id)
+            ->where('status', SmsResult::STATUS_DELIVERED)
+            ->count();
         $this->assertSame(1, $deliveredCount);
     }
 }

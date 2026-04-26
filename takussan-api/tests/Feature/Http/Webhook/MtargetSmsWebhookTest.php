@@ -3,6 +3,7 @@
 namespace Tests\Feature\Http\Webhook;
 
 use App\Models\AppNotification;
+use App\Models\NotificationDeliveryAttempt;
 use App\Models\User;
 use App\Services\Notifications\Sms\SmsResult;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,18 +23,18 @@ class MtargetSmsWebhookTest extends TestCase
     private function makeNotificationWithAttempt(string $providerMessageId): AppNotification
     {
         $user = User::factory()->create();
-
-        return AppNotification::factory()->create([
-            'user_id' => $user->id,
-            'delivery_attempts' => [[
-                'attempt' => 1,
-                'provider' => 'mtarget',
-                'to' => '+221771111111',
-                'status' => SmsResult::STATUS_SENT,
-                'provider_message_id' => $providerMessageId,
-                'sent_at' => now()->toAtomString(),
-            ]],
+        $notification = AppNotification::factory()->create(['user_id' => $user->id]);
+        NotificationDeliveryAttempt::query()->create([
+            'app_notification_id' => $notification->id,
+            'attempt' => 1,
+            'provider' => 'mtarget',
+            'to' => '+221771111111',
+            'status' => SmsResult::STATUS_SENT,
+            'provider_message_id' => $providerMessageId,
+            'sent_at' => now(),
         ]);
+
+        return $notification;
     }
 
     public function test_delivered_status_3_marks_delivered(): void
@@ -46,8 +47,11 @@ class MtargetSmsWebhookTest extends TestCase
             'DestinationAdress' => '221771111111',
         ]);
         $response->assertOk();
-        $attempts = AppNotification::find($n->id)->refresh()->getAttribute('delivery_attempts');
-        $this->assertSame(SmsResult::STATUS_DELIVERED, $attempts[1]['status']);
+        $attempt = NotificationDeliveryAttempt::query()
+            ->where('app_notification_id', $n->id)
+            ->where('provider_message_id', 'mtg-1')
+            ->first();
+        $this->assertSame(SmsResult::STATUS_DELIVERED, $attempt->status);
     }
 
     public function test_unknown_msgid_returns_404(): void

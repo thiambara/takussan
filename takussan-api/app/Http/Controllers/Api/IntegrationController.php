@@ -85,6 +85,19 @@ class IntegrationController extends Controller
         // TCK-078: see store() — the model cast handles JSON + encryption,
         // writing the raw array keeps round-trips lossless.
 
+        // TCK-110: PUT-style replacement for metadata. When the client
+        // sends the `metadata` key (even as an empty object) it means
+        // "replace the stored metadata entirely" — so clearing a single
+        // field via the form actually wipes it server-side. When the
+        // key is absent from the body, the stored metadata is left
+        // untouched. `fill()` already gives us this behaviour for the
+        // present-key-empty-object case (overwrites with `[]`); we
+        // normalise `null` to `[]` so a payload of `metadata: null`
+        // also clears.
+        if ($request->has('metadata') && ! isset($data['metadata'])) {
+            $data['metadata'] = [];
+        }
+
         $integration->fill($data)->save();
 
         return $this->json(['data' => IntegrationResource::make($integration->refresh())->toArray($request)]);

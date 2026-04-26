@@ -3,6 +3,7 @@
 namespace Tests\Feature\Http\Webhook;
 
 use App\Models\AppNotification;
+use App\Models\NotificationDeliveryAttempt;
 use App\Models\User;
 use App\Services\Notifications\Sms\SmsResult;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,18 +24,18 @@ class LAfricaMobileSmsWebhookTest extends TestCase
     private function makeNotificationWithAttempt(string $pushId): AppNotification
     {
         $user = User::factory()->create();
-
-        return AppNotification::factory()->create([
-            'user_id' => $user->id,
-            'delivery_attempts' => [[
-                'attempt' => 1,
-                'provider' => 'lafricamobile',
-                'to' => '+221761111111',
-                'status' => SmsResult::STATUS_SENT,
-                'provider_message_id' => $pushId,
-                'sent_at' => now()->toAtomString(),
-            ]],
+        $notification = AppNotification::factory()->create(['user_id' => $user->id]);
+        NotificationDeliveryAttempt::query()->create([
+            'app_notification_id' => $notification->id,
+            'attempt' => 1,
+            'provider' => 'lafricamobile',
+            'to' => '+221761111111',
+            'status' => SmsResult::STATUS_SENT,
+            'provider_message_id' => $pushId,
+            'sent_at' => now(),
         ]);
+
+        return $notification;
     }
 
     public function test_delivered_status_6_marks_delivered_on_signed_url(): void
@@ -49,8 +50,11 @@ class LAfricaMobileSmsWebhookTest extends TestCase
         ]);
         $response = $this->getJson($url);
         $response->assertOk();
-        $attempts = AppNotification::find($n->id)->refresh()->getAttribute('delivery_attempts');
-        $this->assertSame(SmsResult::STATUS_DELIVERED, $attempts[1]['status']);
+        $attempt = NotificationDeliveryAttempt::query()
+            ->where('app_notification_id', $n->id)
+            ->where('provider_message_id', 'lam-1')
+            ->first();
+        $this->assertSame(SmsResult::STATUS_DELIVERED, $attempt->status);
     }
 
     public function test_unsigned_url_returns_403(): void

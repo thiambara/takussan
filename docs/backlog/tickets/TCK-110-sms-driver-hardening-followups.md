@@ -1,7 +1,7 @@
 ---
 id: TCK-110
 title: "Durcissement SMS driver — race conditions OAuth, SSRF métadonnées, table delivery_attempts normalisée"
-status: todo
+status: review
 phase: P2
 family: technique
 estimate: M
@@ -160,4 +160,30 @@ silencieuse des champs `metadata` quand un admin "vide" un champ.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Drop legacy `delivery_attempts` JSON column — déféré.** Le ticket
+  marque la migration `drop_delivery_attempts_from_app_notifications`
+  comme « non bloquante, à merger dans une release ultérieure ». Cette
+  PR ne crée donc PAS la migration de drop : la colonne reste
+  présente, vide pour toutes les nouvelles notifications (plus aucun
+  écrit n'y atterrit), prête à être supprimée par une PR de suivi
+  une fois le backfill validé en prod. AC3 satisfait par la branche
+  « vide » (« vide OU absente »).
+- **Index `(provider, provider_message_id)` strictement unique.** Les
+  `provider_message_id` peuvent légitimement collisionner _entre
+  providers_ (ex. deux providers utilisant des UUID v4). L'index
+  unique est sur la **paire** : `('orange', 'shared-id')` et
+  `('mtarget', 'shared-id')` cohabitent — couvert par
+  `NotificationDeliveryAttemptsTableTest::test_unique_index_allows_same_id_for_different_providers`.
+- **`metadata: {}` côté contrôleur.** Le payload utilise
+  `$request->has('metadata')` pour distinguer « clé absente » de
+  « clé présente avec valeur vide ». Quand la clé est présente mais
+  l'array validé est `null`, on coerce en `[]` pour que `fill()`
+  écrase effectivement la colonne JSON. Cas couvert par
+  `IntegrationMetadataEditTest`.
+- **Mtarget HMAC.** Investigation : Mtarget v2 (SMSPRO) ne publie
+  toujours pas de signature de payload. Section explicite ajoutée à
+  `docs/integrations/sms.md` (« Posture Mtarget — HMAC absent »)
+  documentant le risque résiduel et l'obligation IP allowlist en
+  prod. AC5 satisfait par la branche « documentation ».
+- **Tests.** 1325 backend (+9 nouveaux) verts en 227s ; 427 frontend
+  (+2 nouveaux) verts. Pint clean.
