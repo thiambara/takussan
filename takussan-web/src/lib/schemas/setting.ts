@@ -236,7 +236,16 @@ export function normaliseIntegrationForm(
     delete (payload as Partial<IntegrationFormPayload>).credentials;
   }
 
-  if (Object.keys(metadata).length > 0) payload.metadata = metadata;
+  // TCK-110: in `edit` mode, ALWAYS send `metadata` (even when empty)
+  // so the backend can distinguish "field cleared" from "field
+  // unchanged". The controller treats the presence of the key as a
+  // full replacement (PUT semantics). On `create`, an empty object is
+  // omitted so the row's default is preserved.
+  if (mode === 'edit') {
+    payload.metadata = metadata;
+  } else if (Object.keys(metadata).length > 0) {
+    payload.metadata = metadata;
+  }
 
   return payload;
 }

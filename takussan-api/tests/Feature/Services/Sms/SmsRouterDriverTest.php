@@ -6,6 +6,7 @@ use App\Jobs\SendDeferredSmsJob;
 use App\Models\Agency;
 use App\Models\AppNotification;
 use App\Models\Integration;
+use App\Models\NotificationDeliveryAttempt;
 use App\Services\Notifications\Sms\IntegrationLocator;
 use App\Services\Notifications\Sms\OrangeDailyCapTracker;
 use App\Services\Notifications\Sms\SmsResult;
@@ -164,11 +165,14 @@ class SmsRouterDriverTest extends TestCase
         $this->assertSame('mtarget', $results['+221771234567']->provider);
         $this->assertSame(SmsResult::STATUS_SENT, $results['+221771234567']->status);
 
-        $attempts = AppNotification::find($notification->id)->refresh()->getAttribute('delivery_attempts');
+        $attempts = NotificationDeliveryAttempt::query()
+            ->where('app_notification_id', $notification->id)
+            ->orderBy('attempt')
+            ->get();
         $this->assertCount(3, $attempts);
-        $this->assertSame('orange', $attempts[0]['provider']);
-        $this->assertSame('lafricamobile', $attempts[1]['provider']);
-        $this->assertSame('mtarget', $attempts[2]['provider']);
+        $this->assertSame('orange', $attempts[0]->provider);
+        $this->assertSame('lafricamobile', $attempts[1]->provider);
+        $this->assertSame('mtarget', $attempts[2]->provider);
     }
 
     public function test_orange_daily_cap_defers_to_lam_without_calling_orange(): void
@@ -196,10 +200,13 @@ class SmsRouterDriverTest extends TestCase
         $this->assertSame('lafricamobile', $results['+221771234567']->provider);
         Http::assertNotSent(fn ($request) => str_contains((string) $request->url(), 'orange.com'));
 
-        $attempts = AppNotification::find($notification->id)->refresh()->getAttribute('delivery_attempts');
-        $this->assertSame(SmsResult::STATUS_DEFERRED_TO_FALLBACK, $attempts[0]['status']);
-        $this->assertSame('orange_daily_cap_reached', $attempts[0]['failure_reason']);
-        $this->assertSame('lafricamobile', $attempts[1]['provider']);
+        $attempts = NotificationDeliveryAttempt::query()
+            ->where('app_notification_id', $notification->id)
+            ->orderBy('attempt')
+            ->get();
+        $this->assertSame(SmsResult::STATUS_DEFERRED_TO_FALLBACK, $attempts[0]->status);
+        $this->assertSame('orange_daily_cap_reached', $attempts[0]->failure_reason);
+        $this->assertSame('lafricamobile', $attempts[1]->provider);
     }
 
     public function test_quiet_hours_defers_non_critical_without_calling_any_driver(): void

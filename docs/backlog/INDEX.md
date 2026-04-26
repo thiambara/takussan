@@ -41,7 +41,6 @@ _(vide — TCK-097 en cours)_
 
 - [TCK-103](tickets/TCK-103-notifications-digest.md) — Digest quotidien / hebdomadaire `M · P2 · applicatif`
 - [TCK-104](tickets/TCK-104-audit-trail-export.md) — Export audit trail `S · P2 · applicatif`
-- [TCK-110](tickets/TCK-110-sms-driver-hardening-followups.md) — Durcissement SMS driver (OAuth lock, table delivery_attempts, metadata edit) `M · P2 · technique`
 
 ### Vague 12 — P2 perf / médias / permissions / compta
 
@@ -64,6 +63,10 @@ _(vide)_
 ### Vague 11 — SMS notifications critiques (driver prod)
 
 - [TCK-102](tickets/TCK-102-sms-notifications-driver.md) — SMS notifications critiques (driver prod) `S · P2 · applicatif`
+
+### Vague 11 — Durcissement SMS driver
+
+- [TCK-110](tickets/TCK-110-sms-driver-hardening-followups.md) — Durcissement SMS driver (OAuth lock, table delivery_attempts, metadata edit) `M · P2 · technique`
 
 ### Vague 11 — Historique local biens consultés
 

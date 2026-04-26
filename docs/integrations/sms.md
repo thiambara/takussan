@@ -99,16 +99,44 @@ Aucun provider n'expose de signature HMAC. La sécurité repose sur :
    où `{token}` est `config('sms.webhook_url_token')`. Rotater en cas
    de compromission, mettre à jour le dashboard du provider.
 2. **IP allowlist** — `RestrictIpMiddleware` (alias `restrict.ip:{provider}`)
-   lit `config('sms.webhook_allowed_ips.{provider}')`. Vide ⇒ pas de
-   filtrage (utile uniquement en `local` / `testing`).
-3. **Matching `provider_message_id`** — un payload qui ne pointe sur
-   aucune ligne de `delivery_attempts` retourne **404 silencieux**,
-   pas 200.
+   lit `config('sms.webhook_allowed_ips.{provider}')`. Vide en
+   production ⇒ **403 fail-closed** (durci par TCK-102). Vide en
+   `local`/`testing` ⇒ filtrage désactivé.
+3. **Matching `(provider, provider_message_id)`** — un payload qui ne
+   pointe sur aucune ligne de `notification_delivery_attempts` (TCK-110)
+   retourne **404 silencieux**, pas 200. L'index unique
+   `(provider, provider_message_id)` empêche les collisions de type
+   `mtg-77` ↔ `mtg-770`.
 4. **Idempotence** — la même paire `(provider, provider_message_id,
    status)` reçue plusieurs fois ne crée qu'une seule entrée
    `delivered`.
 5. **LAM** — en plus, signature Laravel `signed` (signed-route) car
    l'URL est unique par message.
+
+### Posture Mtarget — HMAC absent (résidu de risque documenté)
+
+L'API Mtarget v2 (Mtarget Public API, _SMSPRO_) documente le DLR comme
+un POST form-urlencoded vers une URL configurée au niveau du compte.
+**Aucune signature HMAC ni en-tête de vérification de payload n'est
+exposée par le provider** au moment de l'investigation TCK-110
+(2026-04-26). Les options Mtarget couvrent uniquement la liste
+d'origines IP (annoncée dans la doc dev.mtarget.fr) et le path token
+choisi par l'intégrateur. Conséquence opérationnelle :
+
+- **IP allowlist obligatoire en production.** `config('sms.webhook_allowed_ips.mtarget')`
+  doit être renseigné avec les ranges d'expédition Mtarget. Le
+  middleware `restrict.ip:mtarget` renvoie `403` si la liste est vide
+  en environnement `production`.
+- **Risque résiduel.** Un attaquant disposant à la fois (a) du token
+  de path — placé dans `SMS_WEBHOOK_URL_TOKEN`, jamais loggé — et (b)
+  d'une IP usurpée dans le range Mtarget pourrait forger un DLR. Cas
+  ramené à un mauvais `provider_message_id` ⇒ 404, et même un match
+  réussi ne ferait que basculer une entrée `sent` en `delivered` sur
+  un message déjà parti (pas d'effet de bord financier ou de fuite).
+- **Si Mtarget publie une signature de payload dans une révision
+  ultérieure de l'API**, le câblage se fait dans
+  `MtargetSmsStatusController::__invoke` après validation du token
+  et avant le lookup `applyStatus`.
 
 ## Réglementation ARTP
 

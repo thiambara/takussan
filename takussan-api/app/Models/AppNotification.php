@@ -7,6 +7,7 @@ use App\Models\Enums\NotificationChannel;
 use App\Models\Enums\NotificationType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AppNotification extends AbstractModel
 {
@@ -35,6 +36,16 @@ class AppNotification extends AbstractModel
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * TCK-110 — Normalised delivery attempts. Replaces the JSON
+     * `delivery_attempts` column for fast `(provider, message_id)`
+     * webhook lookups.
+     */
+    public function deliveryAttempts(): HasMany
+    {
+        return $this->hasMany(NotificationDeliveryAttempt::class)->orderBy('attempt');
     }
 
     public function reference()

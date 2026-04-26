@@ -4,14 +4,18 @@ namespace App\Services\Notifications\Sms;
 
 use App\Jobs\SendDeferredSmsJob;
 use App\Models\AppNotification;
+use App\Models\NotificationDeliveryAttempt;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Support\Facades\DB;
 
 /**
- * TCK-102 — Composite SMS driver. Groups recipients by operator and
- * walks the configured fallback chain for each group, accumulating
- * per-recipient attempts in `AppNotification.delivery_attempts`.
+ * TCK-102 / TCK-110 — Composite SMS driver. Groups recipients by
+ * operator and walks the configured fallback chain for each group,
+ * recording per-recipient attempts as
+ * {@see NotificationDeliveryAttempt} rows (the legacy JSON column
+ * `app_notifications.delivery_attempts` is no longer written to —
+ * see TCK-110 for the migration).
  *
  * - ARTP quiet-hours window → defers non-critical sends until 06h via
  *   {@see SendDeferredSmsJob}.
@@ -237,17 +241,30 @@ class SmsRouterDriver implements SmsDriverInterface
         if (! $notificationId) {
             return;
         }
-        // Lock the row for the read-modify-write so a concurrent webhook
-        // DLR (which also rewrites `delivery_attempts`) cannot clobber
-        // the attempt we are about to append.
+        // Insert into the normalised `notification_delivery_attempts`
+        // table. The unique index on (provider, provider_message_id)
+        // makes DLR webhook lookups O(1) and prevents substring
+        // collisions across notifications. Inserting with the
+        // notification's row locked guarantees a stable per-notification
+        // attempt sequence under concurrent appends.
         DB::transaction(function () use ($notificationId, $attempt, $result): void {
             $notification = AppNotification::query()->lockForUpdate()->find($notificationId);
             if (! $notification) {
                 return;
             }
-            $attempts = (array) ($notification->getAttribute('delivery_attempts') ?? []);
-            $attempts[] = $result->toAttempt($attempt);
-            $notification->forceFill(['delivery_attempts' => $attempts])->save();
+            NotificationDeliveryAttempt::query()->create([
+                'app_notification_id' => $notification->id,
+                'attempt' => $attempt,
+                'provider' => $result->provider,
+                'provider_message_id' => $result->providerMessageId,
+                'to' => $result->to,
+                'status' => $result->status,
+                'failure_reason' => $result->failureReason,
+                'cost_estimate' => $result->costEstimate,
+                'segments_count' => $result->segmentsCount,
+                'sent_at' => $result->sentAt,
+                'delivered_at' => $result->deliveredAt,
+            ]);
         });
     }
 }

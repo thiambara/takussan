@@ -193,6 +193,17 @@ describe('integrationFormSchema & normaliseIntegrationForm', () => {
     const p = normaliseIntegrationForm({ ...base, notes: 'prod account' }, 'create');
     expect(p.metadata).toEqual({ notes: 'prod account' });
   });
+
+  // TCK-110 — distinguishing "field cleared" from "field unchanged".
+  it('always sends metadata (even empty) on edit so cleared fields propagate', () => {
+    const p = normaliseIntegrationForm({ ...base, notes: '' }, 'edit');
+    expect(p.metadata).toEqual({});
+  });
+
+  it('omits metadata on create when no metadata fields are populated', () => {
+    const p = normaliseIntegrationForm({ ...base, notes: '' }, 'create');
+    expect(p.metadata).toBeUndefined();
+  });
 });
 
 describe('setting value helpers', () => {
