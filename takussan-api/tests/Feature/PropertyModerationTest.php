@@ -187,6 +187,34 @@ class PropertyModerationTest extends BaseTestCase
     }
 
     // ─────────────────────────────────────────────────────────────────────
+    // Queue index — must include owner + agency so the admin UI can render
+    // the agent name and agency name without a second round-trip.
+    // ─────────────────────────────────────────────────────────────────────
+
+    public function test_moderation_queue_includes_owner_and_agency(): void
+    {
+        $agency = Agency::factory()->create(['moderation_required' => true]);
+        $agent = User::factory()->create(['agency_id' => $agency->id]);
+        Property::factory()->create([
+            'agency_id' => $agency->id,
+            'user_id' => $agent->id,
+            'status' => PropertyStatus::PendingReview,
+            'submitted_at' => now(),
+        ]);
+
+        $this->actingAsRole('agency_admin', ['agency_id' => $agency->id]);
+
+        $response = $this->getJson('/api/admin/properties/moderation');
+
+        $response->assertOk();
+        $first = $response->json('data.0');
+        $this->assertNotNull($first['owner'] ?? null, 'owner must be present in queue items');
+        $this->assertSame($agent->id, $first['owner']['id']);
+        $this->assertNotNull($first['agency'] ?? null, 'agency must be present in queue items');
+        $this->assertSame($agency->id, $first['agency']['id']);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
     // AC7 — Agent from another agency cannot approve/reject (403)
     // ─────────────────────────────────────────────────────────────────────
 
