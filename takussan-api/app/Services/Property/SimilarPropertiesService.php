@@ -30,9 +30,12 @@ class SimilarPropertiesService
 
         $candidates = $this->fetchCandidates($source, $city, null);
 
-        // Fallback: fewer candidates than requested → expand to same region
-        if ($candidates->count() < $limit) {
-            $candidates = $this->fetchCandidates($source, null, $region);
+        // Fallback: merge same-region candidates (instead of replacing), so city
+        // matches with NULL/divergent region aren't dropped and locality scoring
+        // can still rank same-city candidates above region-only ones.
+        if ($candidates->count() < $limit && $region !== null) {
+            $regionCandidates = $this->fetchCandidates($source, null, $region);
+            $candidates = $candidates->concat($regionCandidates)->unique('id')->values();
         }
 
         return $this->rankByScore($source, $candidates)->take($limit);
@@ -61,16 +64,35 @@ class SimilarPropertiesService
     {
         $sourceTagIds = $source->tags->pluck('id')->all();
         $sourcePrice = (float) $source->price;
+        $sourceCity = $source->address?->city;
+        $sourceRegion = $source->address?->region;
 
         return $candidates
-            ->sortByDesc(fn (Property $c) => $this->score($source, $c, $sourceTagIds, $sourcePrice))
+            ->sortByDesc(fn (Property $c) => $this->score($source, $c, $sourceTagIds, $sourcePrice, $sourceCity, $sourceRegion))
             ->values();
     }
 
     /** @param list<int> $sourceTagIds */
-    private function score(Property $source, Property $candidate, array $sourceTagIds, float $sourcePrice): int
-    {
+    private function score(
+        Property $source,
+        Property $candidate,
+        array $sourceTagIds,
+        float $sourcePrice,
+        ?string $sourceCity,
+        ?string $sourceRegion,
+    ): int {
         $score = 0;
+
+        // Locality: same city +10, same region (different city) +5.
+        // Ensures city neighbours rank above region-only candidates after the
+        // merged-fallback returns both sets.
+        $candidateCity = $candidate->address?->city;
+        $candidateRegion = $candidate->address?->region;
+        if ($sourceCity !== null && $candidateCity === $sourceCity) {
+            $score += 10;
+        } elseif ($sourceRegion !== null && $candidateRegion === $sourceRegion) {
+            $score += 5;
+        }
 
         // Same property type: +40
         if ($candidate->type !== null && $candidate->type === $source->type) {
