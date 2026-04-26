@@ -441,6 +441,98 @@ class PropertySimilarTest extends TestCase
         $this->assertNotContains($rentProperty->id, $ids);
     }
 
+    // ── Locality scoring & merged fallback ────────────────────────────────────
+
+    public function test_same_city_outranks_same_region_only(): void
+    {
+        $source = $this->createPublishedPropertyInCity('Dakar', [
+            'type' => PropertyType::Villa,
+            'contract_type' => ContractType::Sale,
+            'price' => 100_000_000,
+            'area' => 200,
+            'bedrooms' => 3,
+        ]);
+
+        // Same city → gets +10 locality bonus
+        $sameCity = $this->createPublishedPropertyInCity('Dakar', [
+            'type' => PropertyType::Apartment,
+            'contract_type' => ContractType::Sale,
+            'price' => 100_000_000,
+            'area' => 500,
+            'bedrooms' => 5,
+        ]);
+
+        // Same region, different city → gets +5
+        $sameRegionOnly = Property::factory()->published()->create([
+            'type' => PropertyType::Apartment,
+            'contract_type' => ContractType::Sale,
+            'price' => 100_000_000,
+            'area' => 500,
+            'bedrooms' => 5,
+        ]);
+        Address::factory()->create([
+            'addressable_id' => $sameRegionOnly->id,
+            'addressable_type' => Property::class,
+            'city' => 'Thiès',
+            'region' => 'Dakar',
+        ]);
+
+        $response = $this->getJson("/api/public/properties/{$source->slug}/similar");
+
+        $response->assertOk();
+        $ids = collect($response->json('data'))->pluck('id')->all();
+
+        $this->assertContains($sameCity->id, $ids);
+        $this->assertContains($sameRegionOnly->id, $ids);
+        $this->assertLessThan(
+            array_search($sameRegionOnly->id, $ids),
+            array_search($sameCity->id, $ids),
+            'Same-city candidate should rank above same-region-only candidate',
+        );
+    }
+
+    public function test_fallback_merges_city_candidates_with_null_region(): void
+    {
+        // Source has city + region populated.
+        $source = $this->createPublishedPropertyInCity('Dakar', [
+            'type' => PropertyType::Villa,
+            'contract_type' => ContractType::Sale,
+        ]);
+
+        // City match but address.region is NULL — under the old "replace" fallback
+        // this candidate was dropped because the region query didn't match it.
+        $cityMatchNullRegion = Property::factory()->published()->create([
+            'type' => PropertyType::Villa,
+            'contract_type' => ContractType::Sale,
+        ]);
+        Address::factory()->create([
+            'addressable_id' => $cityMatchNullRegion->id,
+            'addressable_type' => Property::class,
+            'city' => 'Dakar',
+            'region' => null,
+        ]);
+
+        // A few region-only candidates so the city set is below the limit and fallback fires.
+        foreach (range(1, 3) as $i) {
+            $p = Property::factory()->published()->create([
+                'type' => PropertyType::Villa,
+                'contract_type' => ContractType::Sale,
+            ]);
+            Address::factory()->create([
+                'addressable_id' => $p->id,
+                'addressable_type' => Property::class,
+                'city' => 'Thiès',
+                'region' => 'Dakar',
+            ]);
+        }
+
+        $response = $this->getJson("/api/public/properties/{$source->slug}/similar");
+
+        $response->assertOk();
+        $ids = collect($response->json('data'))->pluck('id')->all();
+        $this->assertContains($cityMatchNullRegion->id, $ids);
+    }
+
     // ── Observer cache invalidation ───────────────────────────────────────────
 
     public function test_observer_invalidates_cache_on_create(): void
