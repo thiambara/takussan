@@ -375,10 +375,14 @@ class PropertySimilarTest extends TestCase
 
     public function test_common_tags_boost_score(): void
     {
+        // Pin area/bedrooms so the only difference between candidates is tag overlap;
+        // factory defaults are random and would make the tag-boost signal non-deterministic.
         $source = $this->createPublishedPropertyInCity('Dakar', [
             'type' => PropertyType::Villa,
             'contract_type' => ContractType::Sale,
             'price' => 100_000_000,
+            'area' => 200,
+            'bedrooms' => 3,
         ]);
 
         $tag1 = Tag::factory()->create();
@@ -389,6 +393,8 @@ class PropertySimilarTest extends TestCase
             'type' => PropertyType::Apartment,
             'contract_type' => ContractType::Sale,
             'price' => 100_000_000,
+            'area' => 500,
+            'bedrooms' => 5,
         ]);
         $withTags->tags()->attach([$tag1->id, $tag2->id]);
 
@@ -396,6 +402,8 @@ class PropertySimilarTest extends TestCase
             'type' => PropertyType::Apartment,
             'contract_type' => ContractType::Sale,
             'price' => 100_000_000,
+            'area' => 500,
+            'bedrooms' => 5,
         ]);
 
         $response = $this->getJson("/api/public/properties/{$source->slug}/similar");
@@ -403,13 +411,13 @@ class PropertySimilarTest extends TestCase
         $response->assertOk();
         $ids = collect($response->json('data'))->pluck('id')->all();
 
-        if (in_array($withTags->id, $ids) && in_array($withoutTags->id, $ids)) {
-            $this->assertLessThan(
-                array_search($withTags->id, $ids),
-                array_search($withoutTags->id, $ids),
-                'Property with common tags should rank higher'
-            );
-        }
+        $this->assertContains($withTags->id, $ids);
+        $this->assertContains($withoutTags->id, $ids);
+        $this->assertLessThan(
+            array_search($withoutTags->id, $ids),
+            array_search($withTags->id, $ids),
+            'Property with common tags should rank higher'
+        );
     }
 
     // ── Contract type hard filter ─────────────────────────────────────────────
