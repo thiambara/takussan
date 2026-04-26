@@ -1,16 +1,23 @@
-import { AlertCircle, AlertTriangle, ArrowDown, Circle } from 'lucide-react';
+import { AlertCircle, AlertTriangle, ArrowDown, Circle, type LucideIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
-import type { MaintenancePriority } from './MaintenancePriorityBadge';
+import type { MaintenancePriority } from '@/types/maintenance';
 
 interface MaintenancePrioritySelectorProps {
-  value: MaintenancePriority;
-  onChange: (value: MaintenancePriority) => void;
-  className?: string;
-  disabled?: boolean;
+  readonly value: MaintenancePriority;
+  readonly onChange: (value: MaintenancePriority) => void;
+  readonly className?: string;
+  readonly disabled?: boolean;
 }
 
-const PRIORITIES: { value: MaintenancePriority; icon: any; colorClass: string; activeClass: string }[] = [
+interface PriorityOption {
+  value: MaintenancePriority;
+  icon: LucideIcon;
+  colorClass: string;
+  activeClass: string;
+}
+
+const PRIORITIES: readonly PriorityOption[] = [
   {
     value: 'urgent',
     icon: AlertTriangle,
@@ -35,7 +42,7 @@ const PRIORITIES: { value: MaintenancePriority; icon: any; colorClass: string; a
     colorClass: 'text-blue-600 dark:text-blue-400',
     activeClass: 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-500',
   },
-];
+] as const;
 
 export function MaintenancePrioritySelector({
   value,

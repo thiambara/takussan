@@ -21,7 +21,7 @@ export type MaintenanceStatus =
   | 'closed'
   | 'cancelled';
 
-export type MaintenancePriority = 'low' | 'medium' | 'high' | 'urgent';
+export type MaintenancePriority = 'low' | 'normal' | 'high' | 'urgent';
 
 export type MaintenanceCategory =
   | 'plumbing'
@@ -50,7 +50,7 @@ export const MAINTENANCE_STATUSES: readonly MaintenanceStatus[] = [
 
 export const MAINTENANCE_PRIORITIES: readonly MaintenancePriority[] = [
   'low',
-  'medium',
+  'normal',
   'high',
   'urgent',
 ] as const;

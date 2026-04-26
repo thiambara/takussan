@@ -71,10 +71,13 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
 
         return QueryBuilder::for($subject, $request)
             ->allowedFilters(...static::getAllowedQueryFilters())
-            ->allowedSorts([
-                'id', 'created_at', 'scheduled_at', 'status',
+            ->allowedSorts(
+                'id',
+                'created_at',
+                'scheduled_at',
+                'status',
                 AllowedSort::custom('priority', new MaintenancePrioritySort),
-            ])
+            )
             ->allowedIncludes(...static::getAllowedQueryIncludes())
             ->allowedFields(...(static::$queryFields ?? []));
     }

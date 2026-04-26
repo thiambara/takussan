@@ -14,22 +14,23 @@ class UrgentMaintenanceCreatedNotification extends Notification implements Shoul
 {
     use Queueable;
 
-    public const EVENT_TYPE = 'maintenance_status_changed'; // Using an existing preference type or we can create a new one, but for now we'll stick to a generic one or 'maintenance_status_changed'. Since it's an urgent notification, it might bypass some preferences. Wait, the spec says "bypass" in TCK-070. Let's just use 'maintenance_status_changed' but bypass if needed. The instruction says "si configuré" for push/email, so we still check preferences.
+    public const EVENT_TYPE = 'maintenance_status_changed';
 
-    public function __construct(public MaintenanceRequest $maintenanceRequest)
-    {
+    public function __construct(
+        public MaintenanceRequest $maintenanceRequest,
+        public bool $isEscalation = false,
+    ) {
         $this->onQueue('notifications-urgent');
     }
 
     public function via(object $notifiable): array
     {
         $resolver = app(PreferenceResolver::class);
-        $channels = [];
 
-        // Critical notifications often bypass user preferences, but the ticket says "(si configuré) pour email + push"
-        // so we check preferences, but maybe force in-app. The spec says "envoie une AppNotification + email + push (si configuré)".
-        // So in-app is mandatory.
-        $channels[] = 'database';
+        // In-app is mandatory for urgent — bypass per-user prefs (CHANNEL_INAPP
+        // is locked-on in PreferenceResolver, but we hardcode `database` to be
+        // explicit about the contract for an urgent event).
+        $channels = ['database'];
 
         if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_EMAIL)) {
             $channels[] = 'mail';
@@ -44,22 +45,33 @@ class UrgentMaintenanceCreatedNotification extends Notification implements Shoul
     public function toMail(object $notifiable): MailMessage
     {
         $title = $this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id;
+        $subjectPrefix = $this->isEscalation ? 'ESCALADE URGENTE' : 'URGENT';
 
-        return (new MailMessage)
-            ->subject('URGENT: Nouvelle demande de maintenance - '.$title)
-            ->greeting('Bonjour,')
-            ->line('Une demande de maintenance URGENTE a été soumise pour le bien.')
-            ->line("Intervention: {$title}")
+        $mail = (new MailMessage)
+            ->subject("{$subjectPrefix}: ".$title)
+            ->greeting('Bonjour,');
+
+        if ($this->isEscalation) {
+            $mail->line("La demande de maintenance #{$this->maintenanceRequest->id} ({$title}) est URGENTE et n'a pas été traitée depuis plus de 30 minutes.");
+        } else {
+            $mail->line('Une demande de maintenance URGENTE a été soumise pour le bien.')
+                ->line("Intervention: {$title}");
+        }
+
+        return $mail
             ->line('Veuillez prendre en charge cette demande immédiatement.')
             ->salutation(__('notifications.salutation'));
     }
 
     public function toArray(object $notifiable): array
     {
+        $prefix = $this->isEscalation ? 'Escalade urgente' : 'Urgent';
+
         return [
             'maintenance_request_id' => $this->maintenanceRequest->id,
-            'title' => 'Urgent: '.($this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id),
+            'title' => "{$prefix}: ".($this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id),
             'priority' => 'urgent',
+            'escalation' => $this->isEscalation,
         ];
     }
 
@@ -70,6 +82,6 @@ class UrgentMaintenanceCreatedNotification extends Notification implements Shoul
 
     public function broadcastType(): string
     {
-        return 'maintenance.urgent_created';
+        return $this->isEscalation ? 'maintenance.urgent_escalated' : 'maintenance.urgent_created';
     }
 }

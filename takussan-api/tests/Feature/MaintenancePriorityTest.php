@@ -10,7 +10,6 @@ use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\User;
 use App\Notifications\UrgentMaintenanceCreatedNotification;
-use App\Services\Model\NotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
@@ -79,9 +78,13 @@ class MaintenancePriorityTest extends TestCase
         ]);
 
         $job = new EscalateUrgentMaintenanceJob;
-        $job->handle(app(NotificationService::class));
+        $job->handle();
 
-        Notification::assertSentTo($manager, UrgentMaintenanceCreatedNotification::class);
+        Notification::assertSentTo(
+            $manager,
+            UrgentMaintenanceCreatedNotification::class,
+            fn (UrgentMaintenanceCreatedNotification $notif) => $notif->isEscalation === true,
+        );
         $mr->refresh();
         $this->assertNotNull($mr->metadata['escalated_at']);
     }

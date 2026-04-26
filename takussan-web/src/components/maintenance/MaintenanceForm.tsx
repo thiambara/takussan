@@ -21,25 +21,14 @@ import {
   useCreateMaintenanceRequest,
   useUploadMaintenancePhotos,
 } from '@/lib/queries/maintenance';
-import {
-  MAINTENANCE_CATEGORIES,
-  MAINTENANCE_PRIORITIES,
-} from '@/types/maintenance';
+import { MAINTENANCE_CATEGORIES } from '@/types/maintenance';
 import { MaintenancePrioritySelector } from './MaintenancePrioritySelector';
 
-import {
-  MAINTENANCE_CATEGORY_LABEL,
-  MAINTENANCE_PRIORITY_LABEL,
-} from './labels';
+import { MAINTENANCE_CATEGORY_LABEL } from './labels';
 
 const CATEGORY_OPTIONS = MAINTENANCE_CATEGORIES.map((c) => ({
   value: c,
   label: MAINTENANCE_CATEGORY_LABEL[c],
-}));
-
-const PRIORITY_OPTIONS = MAINTENANCE_PRIORITIES.map((p) => ({
-  value: p,
-  label: MAINTENANCE_PRIORITY_LABEL[p],
 }));
 
 /**

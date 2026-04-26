@@ -17,12 +17,22 @@ import { cn } from "@/lib/utils"
 
 type ToastKind = "info" | "success" | "warning" | "error"
 
+/**
+ * Custom data accepted under `toast.add({ data: { action } })`.
+ * `action` renders below the description — typically a link or button.
+ * For sticky toasts, callers pass `timeout: 0` to `toast.add` directly
+ * (Base UI handles dismissal via the toast object's own `timeout`).
+ */
+type ToastData = {
+  action?: React.ReactNode
+}
+
 function ToastProvider(props: ToastPrimitive.Provider.Props) {
   return <ToastPrimitive.Provider {...props} />
 }
 
 function useToast() {
-  return ToastPrimitive.useToastManager()
+  return ToastPrimitive.useToastManager<ToastData>()
 }
 
 function kindClasses(kind: string | undefined) {
@@ -46,7 +56,7 @@ function Toaster({
   className,
   ...props
 }: Omit<ToastPrimitive.Viewport.Props, "children">) {
-  const { toasts } = ToastPrimitive.useToastManager()
+  const { toasts } = ToastPrimitive.useToastManager<ToastData>()
   return (
     <ToastPrimitive.Portal>
       <ToastPrimitive.Viewport
@@ -61,7 +71,6 @@ function Toaster({
           <ToastPrimitive.Root
             key={toast.id}
             toast={toast}
-            duration={(toast as any).duration}
             className={cn(
               "relative flex w-full flex-col gap-1 rounded-xl border p-4 pr-10 shadow-md outline-none",
               "data-[starting-style]:translate-x-4 data-[starting-style]:opacity-0",
@@ -72,9 +81,9 @@ function Toaster({
           >
             <ToastPrimitive.Title className="text-sm font-semibold leading-none" />
             <ToastPrimitive.Description className="text-sm opacity-90" />
-            {(toast as any).action && (
+            {toast.data?.action && (
               <div className="mt-2 text-sm font-medium">
-                {(toast as any).action}
+                {toast.data.action}
               </div>
             )}
             <ToastPrimitive.Close

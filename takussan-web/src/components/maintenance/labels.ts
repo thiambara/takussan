@@ -26,7 +26,7 @@ export const MAINTENANCE_STATUS_LABEL: Record<MaintenanceStatus, string> = {
 
 export const MAINTENANCE_PRIORITY_LABEL: Record<MaintenancePriority, string> = {
   low: 'Faible',
-  medium: 'Normale',
+  normal: 'Normale',
   high: 'Élevée',
   urgent: 'Urgente',
 };
@@ -63,7 +63,7 @@ export function maintenanceStatusBadgeClass(status: MaintenanceStatus): string {
 
 const PRIORITY_TONE: Record<MaintenancePriority, string> = {
   low: 'bg-slate-100 text-slate-700',
-  medium: 'bg-sky-100 text-sky-800',
+  normal: 'bg-sky-100 text-sky-800',
   high: 'bg-orange-100 text-orange-800',
   urgent: 'bg-red-100 text-red-800',
 };

@@ -1,16 +1,15 @@
-import { AlertCircle, AlertTriangle, ArrowDown, Circle } from 'lucide-react';
+import { AlertCircle, AlertTriangle, ArrowDown, Circle, type LucideIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-
-export type MaintenancePriority = 'urgent' | 'high' | 'normal' | 'low';
+import type { MaintenancePriority } from '@/types/maintenance';
 
 interface MaintenancePriorityBadgeProps {
-  priority: MaintenancePriority | string | null | undefined;
-  className?: string;
+  readonly priority: MaintenancePriority;
+  readonly className?: string;
 }
 
-const PRIORITY_CONFIG = {
+const PRIORITY_CONFIG: Record<MaintenancePriority, { color: string; icon: LucideIcon }> = {
   urgent: {
     color: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-900',
     icon: AlertTriangle,
@@ -31,9 +30,7 @@ const PRIORITY_CONFIG = {
 
 export function MaintenancePriorityBadge({ priority, className }: MaintenancePriorityBadgeProps) {
   const t = useTranslations('maintenance.priority');
-
-  const normalizedPriority = (priority?.toLowerCase() as MaintenancePriority) || 'normal';
-  const config = PRIORITY_CONFIG[normalizedPriority] || PRIORITY_CONFIG.normal;
+  const config = PRIORITY_CONFIG[priority] ?? PRIORITY_CONFIG.normal;
   const Icon = config.icon;
 
   return (
@@ -42,7 +39,7 @@ export function MaintenancePriorityBadge({ priority, className }: MaintenancePri
       className={cn('flex w-fit items-center gap-1.5 px-2 py-0.5 whitespace-nowrap', config.color, className)}
     >
       <Icon className="h-3 w-3" />
-      <span>{t(normalizedPriority)}</span>
+      <span>{t(priority)}</span>
     </Badge>
   );
 }

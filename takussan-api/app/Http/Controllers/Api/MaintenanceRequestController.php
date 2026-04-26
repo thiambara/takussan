@@ -113,7 +113,7 @@ class MaintenanceRequestController extends Controller
         $property = $property->refresh();
         $owner = $property->owner;
 
-        if ($mr->priority->value === MaintenancePriority::Urgent->value) {
+        if ($mr->priority === MaintenancePriority::Urgent) {
             $assignedAgent = $mr->assignee;
             $manager = $property->agency?->primaryAdmin;
 
