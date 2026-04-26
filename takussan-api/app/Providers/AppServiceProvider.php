@@ -23,6 +23,7 @@ use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\Review;
 use App\Models\User;
+use App\Notifications\Channels\SmsChannel;
 use App\Observers\FavoriteObserver;
 use App\Observers\LeaseObserver;
 use App\Observers\MessageObserver;
@@ -36,10 +37,22 @@ use App\Policies\MediaPolicy;
 use App\Policies\PropertyModerationPolicy;
 use App\Policies\PropertyPolicy;
 use App\Services\Formatting\CurrencyFormatter;
+use App\Services\Notifications\Sms\Drivers\LAfricaMobileSmsDriver;
+use App\Services\Notifications\Sms\Drivers\LogSmsDriver;
+use App\Services\Notifications\Sms\Drivers\MtargetSmsDriver;
+use App\Services\Notifications\Sms\Drivers\OrangeSmsDriver;
+use App\Services\Notifications\Sms\IntegrationLocator;
+use App\Services\Notifications\Sms\OperatorResolver;
+use App\Services\Notifications\Sms\OrangeDailyCapTracker;
+use App\Services\Notifications\Sms\OrangeOAuthTokenCache;
+use App\Services\Notifications\Sms\QuietHoursGuard;
+use App\Services\Notifications\Sms\SmsDriverInterface;
+use App\Services\Notifications\Sms\SmsRouterDriver;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -57,6 +70,46 @@ class AppServiceProvider extends ServiceProvider
         // TCK-084 — share a single CurrencyFormatter so both the Blade
         // directive and any controller/service can resolve the same instance.
         $this->app->singleton(CurrencyFormatter::class);
+
+        // TCK-102 — register the multi-provider SMS stack. Each leaf
+        // driver is a singleton so its in-process state (Mtarget batch
+        // counter, LAM ret_url cache, etc.) survives across notifications
+        // dispatched in the same request. The router collects them by id.
+        $this->app->singleton(IntegrationLocator::class);
+        $this->app->singleton(OperatorResolver::class);
+        $this->app->singleton(QuietHoursGuard::class);
+        $this->app->singleton(OrangeDailyCapTracker::class);
+        $this->app->singleton(OrangeOAuthTokenCache::class);
+        $this->app->singleton(LogSmsDriver::class);
+        $this->app->singleton(OrangeSmsDriver::class);
+        $this->app->singleton(MtargetSmsDriver::class);
+        $this->app->singleton(LAfricaMobileSmsDriver::class);
+        $this->app->singleton(SmsRouterDriver::class, function ($app): SmsRouterDriver {
+            return new SmsRouterDriver(
+                drivers: [
+                    'orange' => $app->make(OrangeSmsDriver::class),
+                    'mtarget' => $app->make(MtargetSmsDriver::class),
+                    'lafricamobile' => $app->make(LAfricaMobileSmsDriver::class),
+                    'log' => $app->make(LogSmsDriver::class),
+                ],
+                operators: $app->make(OperatorResolver::class),
+                quietHours: $app->make(QuietHoursGuard::class),
+                orangeCap: $app->make(OrangeDailyCapTracker::class),
+                integrations: $app->make(IntegrationLocator::class),
+                config: $app->make('config'),
+            );
+        });
+        // The interface resolves to whatever driver is active in this
+        // env: in `local`/`testing` we default to log-only, otherwise the
+        // router orchestrates the real providers.
+        $this->app->bind(SmsDriverInterface::class, function ($app): SmsDriverInterface {
+            $default = (string) $app['config']->get('sms.default_driver', 'router');
+
+            return match ($default) {
+                'log' => $app->make(LogSmsDriver::class),
+                default => $app->make(SmsRouterDriver::class),
+            };
+        });
     }
 
     public function boot(Dispatcher $events): void
@@ -127,6 +180,11 @@ class AppServiceProvider extends ServiceProvider
         // registration (Laravel no longer auto-registers this in the
         // "modern" bootstrap structure).
         $events->listen(Registered::class, SendEmailVerificationNotification::class);
+
+        // TCK-102 — register the `sms` notification channel so any
+        // Notification can list `SmsChannel::class` (or simply `'sms'`
+        // via Notifiable::notify) in its via() return.
+        $this->app->make(ChannelManager::class)->extend('sms', fn ($app) => $app->make(SmsChannel::class));
 
         // TCK-022: build the password reset URL against the configured
         // frontend URL — avoids depending on a named route defined in
