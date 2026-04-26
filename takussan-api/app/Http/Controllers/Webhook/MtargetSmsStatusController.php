@@ -20,7 +20,7 @@ class MtargetSmsStatusController extends Controller
     public function __invoke(Request $request, DeliveryAttemptUpdater $updater): JsonResponse
     {
         $token = (string) config('sms.webhook_url_token', '');
-        if ($token === '' || $request->route('token') !== $token) {
+        if ($token === '' || ! hash_equals($token, (string) $request->route('token'))) {
             abort(404);
         }
 

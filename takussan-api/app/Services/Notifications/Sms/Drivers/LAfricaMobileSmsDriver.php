@@ -52,7 +52,7 @@ class LAfricaMobileSmsDriver implements SmsDriverInterface
             return $this->failAll($recipients, 'lam_integration_missing');
         }
         $creds = $integration->credentials ?? [];
-        $url = (string) ($creds['host'] ?? $integration->metadata['host'] ?? $this->config->get('sms.lafricamobile.send_url'));
+        $url = $this->resolveSendUrl($creds, $integration->metadata ?? []);
         $senderId = (string) ($context['sender_id']
             ?? $integration->metadata['sender_id']
             ?? $creds['sender_id']
@@ -112,15 +112,57 @@ class LAfricaMobileSmsDriver implements SmsDriverInterface
     /**
      * Per-message return URL signed by Laravel + secret token + the
      * notification id; the LAM webhook controller validates all three.
+     * The TTL prevents an indefinite replay window if LAM logs/leaks
+     * the URL — DLRs after the window are rejected as
+     * "Invalid signature".
      */
     private function buildReturnUrl(int $notificationId): string
     {
         $token = (string) $this->config->get('sms.webhook_url_token', '');
+        $ttlDays = (int) $this->config->get('sms.lafricamobile.dlr_signature_ttl_days', 7);
 
-        return URL::signedRoute('sms.webhook.lafricamobile', [
-            'token' => $token,
-            'notification' => $notificationId,
-        ]);
+        return URL::temporarySignedRoute(
+            'sms.webhook.lafricamobile',
+            now()->addDays(max(1, $ttlDays)),
+            [
+                'token' => $token,
+                'notification' => $notificationId,
+            ],
+        );
+    }
+
+    /**
+     * Pin the LAM endpoint to known hosts. Without this an admin (or an
+     * attacker who has compromised an Integration row) could redirect
+     * authenticated POSTs — including the LAM `password` field — to an
+     * internal address (`169.254.169.254`, Redis, …). Default config
+     * URL is allowed by definition; per-integration overrides must
+     * resolve to an `https://*.lafricamobile.com` host.
+     *
+     * @param  array<string,mixed>  $creds
+     * @param  array<string,mixed>  $metadata
+     */
+    private function resolveSendUrl(array $creds, array $metadata): string
+    {
+        $default = (string) $this->config->get('sms.lafricamobile.send_url');
+        $override = (string) ($creds['host'] ?? $metadata['host'] ?? '');
+        if ($override === '' || $override === $default) {
+            return $default;
+        }
+        $parts = parse_url($override);
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+        $host = strtolower((string) ($parts['host'] ?? ''));
+        $isAllowed = $scheme === 'https'
+            && ($host === 'lafricamobile.com' || str_ends_with($host, '.lafricamobile.com'));
+        if (! $isAllowed) {
+            Log::warning('[sms.lam] rejected non-allowlisted host override', [
+                'host' => $host !== '' ? $host : '(unparseable)',
+            ]);
+
+            return $default;
+        }
+
+        return $override;
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Services\Notifications\Sms;
 
 use App\Models\AppNotification;
+use Illuminate\Support\Facades\DB;
 
 /**
  * TCK-102 — Idempotently update one entry of `delivery_attempts` JSON
@@ -31,60 +32,72 @@ class DeliveryAttemptUpdater
         // We then scan attempts in PHP to find the exact (provider,
         // provider_message_id) match — this avoids relying on
         // whereJsonContains, whose semantics differ between drivers.
+        // Wildcard chars (`%`, `_`, `\`) in the provider id must be
+        // escaped so a provider can't smuggle them in to broaden the
+        // match across notifications.
         $query = AppNotification::query()->whereNotNull('delivery_attempts');
         if ($hintNotificationId) {
             $query->where('id', $hintNotificationId);
         } else {
-            $query->where('delivery_attempts', 'LIKE', '%'.$providerMessageId.'%');
+            $escaped = addcslashes($providerMessageId, '\\%_');
+            $query->where('delivery_attempts', 'LIKE', '%'.$escaped.'%');
         }
-        $notification = null;
-        foreach ($query->get() as $candidate) {
+        $candidateId = null;
+        foreach ($query->get(['id', 'delivery_attempts']) as $candidate) {
             foreach ((array) $candidate->getAttribute('delivery_attempts') as $entry) {
                 if (
                     ($entry['provider'] ?? null) === $provider
                     && ($entry['provider_message_id'] ?? null) === $providerMessageId
                 ) {
-                    $notification = $candidate;
+                    $candidateId = $candidate->id;
                     break 2;
                 }
             }
         }
-        if (! $notification) {
+        if (! $candidateId) {
             return false;
         }
 
-        $attempts = (array) $notification->getAttribute('delivery_attempts');
-        $matched = false;
-        foreach ($attempts as &$entry) {
-            if (
-                ($entry['provider'] ?? null) === $provider
-                && ($entry['provider_message_id'] ?? null) === $providerMessageId
-                && ($entry['status'] ?? null) === $newStatus
-            ) {
-                // Idempotent — already applied.
-                return true;
+        // Re-load under a row lock so concurrent DLRs / router writes
+        // serialize on this notification and we don't lose attempts.
+        return DB::transaction(function () use (
+            $candidateId, $provider, $providerMessageId, $newStatus, $failureReason, $deliveredAt
+        ): bool {
+            $notification = AppNotification::query()->lockForUpdate()->find($candidateId);
+            if (! $notification) {
+                return false;
             }
-        }
-        unset($entry);
+            $attempts = (array) ($notification->getAttribute('delivery_attempts') ?? []);
+            foreach ($attempts as $entry) {
+                if (
+                    ($entry['provider'] ?? null) === $provider
+                    && ($entry['provider_message_id'] ?? null) === $providerMessageId
+                    && ($entry['status'] ?? null) === $newStatus
+                ) {
+                    // Idempotent — already applied.
+                    return true;
+                }
+            }
 
-        $maxAttempt = 0;
-        foreach ($attempts as $entry) {
-            $maxAttempt = max($maxAttempt, (int) ($entry['attempt'] ?? 0));
-        }
-        $newEntry = [
-            'attempt' => $maxAttempt + 1,
-            'provider' => $provider,
-            'provider_message_id' => $providerMessageId,
-            'status' => $newStatus,
-            'failure_reason' => $failureReason,
-            'sent_at' => null,
-        ];
-        if ($deliveredAt) {
-            $newEntry['delivered_at'] = $deliveredAt->format(DATE_ATOM);
-        }
-        $attempts[] = $newEntry;
-        $notification->forceFill(['delivery_attempts' => $attempts])->save();
+            $maxAttempt = 0;
+            foreach ($attempts as $entry) {
+                $maxAttempt = max($maxAttempt, (int) ($entry['attempt'] ?? 0));
+            }
+            $newEntry = [
+                'attempt' => $maxAttempt + 1,
+                'provider' => $provider,
+                'provider_message_id' => $providerMessageId,
+                'status' => $newStatus,
+                'failure_reason' => $failureReason,
+                'sent_at' => null,
+            ];
+            if ($deliveredAt) {
+                $newEntry['delivered_at'] = $deliveredAt->format(DATE_ATOM);
+            }
+            $attempts[] = $newEntry;
+            $notification->forceFill(['delivery_attempts' => $attempts])->save();
 
-        return true;
+            return true;
+        });
     }
 }

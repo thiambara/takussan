@@ -6,6 +6,7 @@ use App\Jobs\SendDeferredSmsJob;
 use App\Models\AppNotification;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
+use Illuminate\Support\Facades\DB;
 
 /**
  * TCK-102 — Composite SMS driver. Groups recipients by operator and
@@ -236,12 +237,17 @@ class SmsRouterDriver implements SmsDriverInterface
         if (! $notificationId) {
             return;
         }
-        $notification = AppNotification::query()->find($notificationId);
-        if (! $notification) {
-            return;
-        }
-        $attempts = (array) ($notification->getAttribute('delivery_attempts') ?? []);
-        $attempts[] = $result->toAttempt($attempt);
-        $notification->forceFill(['delivery_attempts' => $attempts])->save();
+        // Lock the row for the read-modify-write so a concurrent webhook
+        // DLR (which also rewrites `delivery_attempts`) cannot clobber
+        // the attempt we are about to append.
+        DB::transaction(function () use ($notificationId, $attempt, $result): void {
+            $notification = AppNotification::query()->lockForUpdate()->find($notificationId);
+            if (! $notification) {
+                return;
+            }
+            $attempts = (array) ($notification->getAttribute('delivery_attempts') ?? []);
+            $attempts[] = $result->toAttempt($attempt);
+            $notification->forceFill(['delivery_attempts' => $attempts])->save();
+        });
     }
 }

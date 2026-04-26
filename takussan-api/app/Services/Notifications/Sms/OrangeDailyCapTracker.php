@@ -46,8 +46,14 @@ class OrangeDailyCapTracker
     public function increment(string $e164): void
     {
         $key = $this->key($e164);
-        $current = (int) ($this->cache->get($key) ?? 0);
-        $this->cache->put($key, $current + 1, self::TTL_SECONDS);
+        // `add` is atomic-create; if the key already exists we fall back
+        // to atomic `increment`. Two concurrent calls cannot both land
+        // the same value here — the previous read-modify-write pattern
+        // could under-count and let the MSISDN exceed Orange's 3/day cap.
+        if ($this->cache->add($key, 1, self::TTL_SECONDS)) {
+            return;
+        }
+        $this->cache->increment($key);
     }
 
     public function reset(string $e164): void
