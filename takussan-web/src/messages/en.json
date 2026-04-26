@@ -455,5 +455,13 @@
       "normal": "Normal",
       "low": "Low"
     }
+  },
+  "recentlyViewed": {
+    "title": "Recently viewed",
+    "clearHistory": "Clear history",
+    "confirmTitle": "Clear history?",
+    "confirmBody": "Your browsing history will be removed from this browser. This action cannot be undone.",
+    "confirmCta": "Clear",
+    "cancel": "Cancel"
   }
 }

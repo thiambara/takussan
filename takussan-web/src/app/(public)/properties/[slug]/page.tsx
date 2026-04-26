@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useParams, notFound } from 'next/navigation';
 import { useProperty } from '@/hooks/useProperty';
 import { useFavorite } from '@/hooks/useFavorite';
-import { pushRecent } from '@/lib/recently-viewed';
+import { recentlyViewedStorage } from '@/lib/recently-viewed';
 
 import { PropertyBreadcrumb } from './components/PropertyBreadcrumb';
 import { PropertyHeader } from './components/PropertyHeader';
@@ -59,15 +59,8 @@ function PropertyDetailContent({ property }: { property: NonNullable<ReturnType<
   const [messageOpen, setMessageOpen] = useState(false);
 
   useEffect(() => {
-    pushRecent({
-      id: property.id,
-      slug: property.slug,
-      title: property.title,
-      price: property.price,
-      currency: property.currency ?? 'XOF',
-      main_photo_url: property.main_photo_url,
-    });
-  }, [property]);
+    recentlyViewedStorage.push(property.id);
+  }, [property.id]);
 
   const photos = property.photos;
   const pageUrl =

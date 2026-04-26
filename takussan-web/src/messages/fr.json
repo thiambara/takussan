@@ -455,5 +455,13 @@
       "normal": "Normale",
       "low": "Basse"
     }
+  },
+  "recentlyViewed": {
+    "title": "Vus récemment",
+    "clearHistory": "Effacer l'historique",
+    "confirmTitle": "Effacer l'historique ?",
+    "confirmBody": "Vos biens consultés seront supprimés de votre navigateur. Cette action est irréversible.",
+    "confirmCta": "Effacer",
+    "cancel": "Annuler"
   }
 }
