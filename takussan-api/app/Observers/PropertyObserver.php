@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Models\PropertyPriceHistory;
+use App\Services\Property\SimilarPropertiesService;
 
 class PropertyObserver
 {
@@ -44,6 +45,8 @@ class PropertyObserver
                 'changed_by_id' => auth()->id(),
             ]);
         }
+
+        app(SimilarPropertiesService::class)->invalidateForProperty($property);
     }
 
     public function created(Property $property): void
@@ -51,6 +54,8 @@ class PropertyObserver
         if ($property->agency_id) {
             $property->agency()->increment('properties_count');
         }
+
+        app(SimilarPropertiesService::class)->invalidateForProperty($property);
     }
 
     public function deleted(Property $property): void
@@ -58,5 +63,7 @@ class PropertyObserver
         if ($property->agency_id) {
             $property->agency()->decrement('properties_count');
         }
+
+        app(SimilarPropertiesService::class)->invalidateForProperty($property);
     }
 }
