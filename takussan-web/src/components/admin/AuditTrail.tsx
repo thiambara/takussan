@@ -81,9 +81,10 @@ export function AuditTrail() {
     date_to: dateTo || undefined,
     event: event || undefined,
     subject_type: subjectType || undefined,
+    search: search || undefined,
     page,
     per_page: 50,
-  }), [dateFrom, dateTo, event, subjectType, page]);
+  }), [dateFrom, dateTo, event, subjectType, search, page]);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['audit-logs', filters],

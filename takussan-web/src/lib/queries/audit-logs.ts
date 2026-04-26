@@ -1,4 +1,4 @@
-import { apiRequest, buildQueryString } from '@/lib/api';
+import { apiRequest } from '@/lib/api';
 import type { PaginatedResponse } from '@/types/api';
 
 export interface ActivityLogEntry {
@@ -37,6 +37,7 @@ export async function fetchAuditLogs(
   if (filters.date_to) params['filter[date_to]'] = filters.date_to;
   if (filters.event) params['filter[event]'] = filters.event;
   if (filters.subject_type) params['filter[subject_type]'] = filters.subject_type;
+  if (filters.search) params['filter[search]'] = filters.search;
   if (filters.page) params['page'] = String(filters.page);
   params['per_page'] = String(filters.per_page ?? 50);
   params['order'] = 'desc';

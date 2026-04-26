@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -52,7 +53,13 @@ class AuditLogController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
+        $authedUser = $request->user();
+        // TCK-104 — `agency_admin` can browse the audit dashboard scoped
+        // to their own agency. `admin` is preserved for legacy clients.
+        abort_unless(
+            $authedUser->hasRole(['admin', 'agency_admin', 'super_admin']),
+            403
+        );
 
         // Accept legacy flat params (?log_name=, ?event=, ?from=, ?to=, ?causer_id=…)
         // AND spatie-style nested filters (?filter[log_name]=, ?filter[date_from]=…).
@@ -73,6 +80,21 @@ class AuditLogController extends Controller
         // Only eager-load causer (the only relation exposed in the response).
         // `subject` is intentionally not loaded to avoid N+1 on heterogeneous morphs.
         $baseQuery = Activity::query()->with('causer');
+
+        // TCK-104 — agency_admin sees only logs caused by users from their
+        // agency. super_admin / legacy `admin` retain global visibility.
+        if ($authedUser->hasRole('agency_admin') && ! $authedUser->hasRole('super_admin')) {
+            $agencyId = $authedUser->agency_id;
+            if (! $agencyId) {
+                $baseQuery->whereRaw('0 = 1');
+            } else {
+                $baseQuery->where('causer_type', User::class)
+                    ->whereIn(
+                        'causer_id',
+                        User::query()->where('agency_id', $agencyId)->select('id')
+                    );
+            }
+        }
 
         // Flat-param path (back-compat with /api/audit-log callers that predate
         // spatie/query-builder adoption on this endpoint).
@@ -124,6 +146,9 @@ class AuditLogController extends Controller
                 }),
                 AllowedFilter::callback('date_to', function (Builder $q, string $value): void {
                     $q->where('created_at', '<=', $this->normalizeRangeBoundary($value, true));
+                }),
+                AllowedFilter::callback('search', function (Builder $q, string $value): void {
+                    $q->where('description', 'like', '%'.$value.'%');
                 }),
             );
 

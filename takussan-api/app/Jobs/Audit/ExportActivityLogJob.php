@@ -5,7 +5,6 @@ namespace App\Jobs\Audit;
 use App\Models\User;
 use App\Notifications\ActivityLogExportReadyNotification;
 use App\Services\Audit\ActivityLogExporter;
-use App\Services\Export\ExportWriter;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -13,7 +12,10 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Maatwebsite\Excel\Concerns\FromArray;
+use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Excel as ExcelType;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ExportActivityLogJob implements ShouldQueue
 {
@@ -24,7 +26,7 @@ class ExportActivityLogJob implements ShouldQueue
         public readonly array $filters,
     ) {}
 
-    public function handle(ActivityLogExporter $exporter, ExportWriter $writer): void
+    public function handle(ActivityLogExporter $exporter): void
     {
         $format = $this->filters['format'] ?? 'csv';
         $payload = $exporter->buildPayload($this->user, $this->filters);
@@ -33,7 +35,7 @@ class ExportActivityLogJob implements ShouldQueue
         $filename = $payload['filename'].'.'.$format;
         $storagePath = 'exports/audit/'.$filename;
 
-        $content = $this->generateContent($writer, $format, $payload);
+        $content = $this->generateContent($format, $payload);
         Storage::put($storagePath, $content);
 
         $downloadUrl = URL::temporarySignedRoute(
@@ -49,25 +51,56 @@ class ExportActivityLogJob implements ShouldQueue
         ));
     }
 
-    private function generateContent(ExportWriter $writer, string $format, array $payload): string
+    private function generateContent(string $format, array $payload): string
     {
         if ($format === 'xlsx') {
-            $response = $writer->xlsx($payload);
+            // Render directly to a binary string. Capturing
+            // BinaryFileResponse::sendContent() via output buffering is
+            // brittle in a queue worker (no active SAPI buffer), so use
+            // PhpSpreadsheet's raw() exporter instead.
+            $columns = $payload['columns'];
+            $rows = array_map(
+                fn ($row) => array_map(fn ($col) => $row[$col] ?? '', $columns),
+                $payload['rows']
+            );
+            $sheet = new class($columns, $rows) implements FromArray, WithHeadings
+            {
+                public function __construct(private readonly array $columns, private readonly array $rows) {}
 
-            // BinaryFileResponse — capture via temporary file
-            ob_start();
-            $response->sendContent();
+                public function array(): array
+                {
+                    return $this->rows;
+                }
 
-            return (string) ob_get_clean();
+                public function headings(): array
+                {
+                    return $this->columns;
+                }
+            };
+
+            return (string) Excel::raw($sheet, ExcelType::XLSX);
         }
 
-        // CSV: capture the streamed response
-        $response = $writer->csv($payload);
-        assert($response instanceof StreamedResponse);
+        // CSV: render rows into an in-memory buffer using fputcsv so
+        // escaping matches what ExportWriter::csv() produces synchronously.
+        $columns = $payload['columns'];
+        $rows = $payload['rows'];
 
-        ob_start();
-        $response->sendContent();
+        $handle = fopen('php://temp', 'w+b');
+        // UTF-8 BOM so Excel on Windows recognises encoding.
+        fwrite($handle, "\xEF\xBB\xBF");
+        fputcsv($handle, $columns);
+        foreach ($rows as $row) {
+            $line = [];
+            foreach ($columns as $col) {
+                $line[] = $row[$col] ?? '';
+            }
+            fputcsv($handle, $line);
+        }
+        rewind($handle);
+        $content = (string) stream_get_contents($handle);
+        fclose($handle);
 
-        return (string) ob_get_clean();
+        return $content;
     }
 }

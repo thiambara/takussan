@@ -78,11 +78,17 @@ class ActivityLogExporter
             return;
         }
 
-        $agencyUserIds = User::where('agency_id', $agencyId)->pluck('id');
-
-        $query->where(function (Builder $q) use ($agencyUserIds): void {
-            $q->whereIn('causer_id', $agencyUserIds)
-                ->where('causer_type', 'like', '%\\Models\\User');
+        // Use exact morph-class match + correlated subquery on user IDs.
+        // Earlier revisions used `causer_type LIKE '%\Models\User'` which
+        // was unreliable: MySQL's LIKE treats `\` as the escape character,
+        // so the literal backslashes in the FQCN were eaten and the filter
+        // matched nothing in production (SQLite test runs hid the bug).
+        $query->where(function (Builder $q) use ($agencyId): void {
+            $q->where('causer_type', User::class)
+                ->whereIn(
+                    'causer_id',
+                    User::query()->where('agency_id', $agencyId)->select('id')
+                );
         });
     }
 
