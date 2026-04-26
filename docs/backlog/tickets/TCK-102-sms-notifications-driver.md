@@ -1,7 +1,7 @@
 ---
 id: TCK-102
 title: "SMS notifications critiques (driver prod, multi-provider)"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: M
