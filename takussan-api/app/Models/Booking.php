@@ -22,7 +22,7 @@ class Booking extends AbstractModel
         'reference_number', 'status',
         'total_amount', 'deposit_amount', 'currency',
         'start_date', 'end_date', 'notes',
-        'confirmed_at', 'cancelled_at', 'expires_at',
+        'confirmed_at', 'cancelled_at', 'expires_at', 'expired_at', 'expiry_reason',
         'cancellation_by', 'cancellation_reason', 'metadata',
     ];
 
@@ -37,6 +37,7 @@ class Booking extends AbstractModel
         'confirmed_at' => 'datetime',
         'cancelled_at' => 'datetime',
         'expires_at' => 'datetime',
+        'expired_at' => 'datetime',
         'metadata' => 'array',
     ];
 

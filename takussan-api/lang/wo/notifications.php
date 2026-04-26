@@ -126,4 +126,13 @@ return [
         'amount' => 'Mbooloom dëgg : :amount :currency.',
         'cta' => 'Bëgg na nga fey ko ba leegi ngir bañ jot beneen faalewu.',
     ],
+
+    'booking_expired' => [
+        'subject' => 'Laaj reservation #:reference dafa faat',
+        'greeting' => 'Salaam,',
+        'intro' => 'Sa laaj reservation #:reference ci :property dafa faat.',
+        'expired_reason' => 'Laaj bi dafa baña am xalu lu ko jàpp ci diiwaan bi agence bi teg.',
+        'next_steps' => 'Moo man laa laaj waat bu bees su dëkku bi dafa am.',
+        'unknown_property' => 'Dëkku bu xamul',
+    ],
 ];

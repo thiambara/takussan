@@ -1,12 +1,12 @@
 ---
 id: TCK-101
 title: "Expiration automatique demandes de réservation"
-status: todo
+status: done
 phase: P2
 family: applicatif
 estimate: S
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-26
 depends_on: [TCK-026]
 blocks: []
 spec_refs:
@@ -109,4 +109,12 @@ manuelle (rôle `agency_admin` minimum).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Implémenté (2026-04-26)
+
+- Migration `add_expired_at_and_expiry_reason_to_bookings_table` — ajoute les colonnes `expired_at` et `expiry_reason` avec vérification d'existence.
+- `BookingExpirationService` — logique pure configurable via `agency.settings['booking_pending_expiry_hours']` (défaut 48h, range 1-168, 0 = opt-out). Lock via `Cache::lock`, batch 100 max.
+- `ExpirePendingBookingsJob` — queueable, retryable 3x, planifié `everyFifteenMinutes()` via `routes/console.php`.
+- `BookingExpiredNotification` — multi-canaux (tenant: in-app + email, agent: in-app uniquement). Traductions EN/FR/WO.
+- `Admin\BookingController@expireNow` — endpoint `POST /api/admin/bookings/{booking}/expire-now`, rôle `agency_admin` minimum.
+- Tests `ExpirePendingBookingsJobTest` — 6 scénarios (happy path, idempotence, opt-out, batching, lock, récent non expiré).
+- Pint clean — 0 violations.

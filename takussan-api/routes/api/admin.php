@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\BookingController;
 use App\Http\Controllers\Api\Admin\PropertyModerationController;
 use Illuminate\Support\Facades\Route;
 
@@ -23,6 +24,12 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
             ->name('admin.properties.moderation.reject');
         Route::post('{property}/resubmit', [PropertyModerationController::class, 'resubmit'])
             ->name('admin.properties.moderation.resubmit');
+    });
+
+    // TCK-101 — Booking manual expiration
+    Route::prefix('bookings')->group(function () {
+        Route::post('{booking}/expire-now', [BookingController::class, 'expireNow'])
+            ->name('admin.bookings.expire-now');
     });
 
 });

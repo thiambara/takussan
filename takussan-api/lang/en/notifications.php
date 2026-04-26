@@ -147,4 +147,13 @@ return [
         'amount' => 'Amount due: :amount :currency.',
         'cta' => 'Please settle the invoice as soon as possible to avoid further reminders.',
     ],
+
+    'booking_expired' => [
+        'subject' => 'Booking request #:reference expired',
+        'greeting' => 'Hello,',
+        'intro' => 'Your booking request #:reference for :property has expired.',
+        'expired_reason' => 'The reservation request was not responded to within the agency\'s specified timeframe.',
+        'next_steps' => 'You may submit a new booking request if the property is still available.',
+        'unknown_property' => 'Unknown property',
+    ],
 ];
