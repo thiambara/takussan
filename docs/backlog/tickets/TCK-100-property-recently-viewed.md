@@ -1,12 +1,12 @@
 ---
 id: TCK-100
 title: "Historique local biens consultés"
-status: todo
+status: review
 phase: P2
 family: front
 estimate: S
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-26
 depends_on: [TCK-039, TCK-040]
 blocks: []
 spec_refs:
@@ -121,4 +121,8 @@ afficher), masquer entièrement le bloc.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Storage rewritten: key changed `takussan.recent_properties` → `takussan.recently-viewed`, type trimmed to `{ id, viewed_at }` (was rich object), cap 10 → 12, +30-day TTL + `purgeIds()`.
+- `useRecentlyViewed` now fetches from `/public/properties?filter[ids]=…&include=address,primaryMedia` at mount (instead of reading cached data from localStorage). Ghost IDs (unpublished/deleted properties not returned by API) are silently purged from the store.
+- `RecentlyViewedCarousel` is a standalone client component usable on both the homepage and property detail page; `PropertyRecentlyViewed` becomes a thin wrapper passing `excludeId`.
+- Hydration safety: `useState({ items: [], loading: false })` — localStorage access only in `useEffect`, so the SSR and initial client renders are identical.
+- The loading threshold in the carousel (`!loading && items.length < 2`) ensures the skeleton is shown while fetching, avoiding a flash-of-hidden-content on first render.

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Navbar } from '@/components/home/Navbar';
 import { Footer } from '@/components/home/Footer';
 import { PropertyCard } from '@/components/property/PropertyCard';
+import { RecentlyViewedCarousel } from '@/components/property/RecentlyViewedCarousel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useProperties } from '@/hooks/useProperties';
 import type { PropertyListItem } from '@/types/property';
@@ -122,6 +123,8 @@ export function HomepageDiscovery() {
           loading={latest.loading}
           error={latest.error}
         />
+
+        <RecentlyViewedCarousel />
       </main>
 
       <Footer />

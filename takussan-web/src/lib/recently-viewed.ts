@@ -1,31 +1,71 @@
-const KEY = 'takussan.recent_properties';
-const MAX = 10;
+export const RECENTLY_VIEWED_KEY = 'takussan.recently-viewed';
+export const RECENTLY_VIEWED_MAX = 12;
+export const RECENTLY_VIEWED_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-export type RecentItem = {
+export type RecentlyViewedEntry = {
   id: number;
-  slug: string;
-  title: string;
-  price: number;
-  currency: string;
-  main_photo_url: string | null;
-  viewed_at: string;
+  viewed_at: string; // ISO timestamp
 };
 
-export function pushRecent(item: Omit<RecentItem, 'viewed_at'>): void {
-  if (typeof window === 'undefined') return;
-  const items: RecentItem[] = JSON.parse(localStorage.getItem(KEY) ?? '[]');
-  const filtered = items.filter((i) => i.id !== item.id);
-  filtered.unshift({ ...item, viewed_at: new Date().toISOString() });
-  localStorage.setItem(KEY, JSON.stringify(filtered.slice(0, MAX)));
-}
+export type RecentlyViewedStore = RecentlyViewedEntry[];
 
-export function readRecent(excludeId?: number): RecentItem[] {
+function readRaw(): RecentlyViewedStore {
   if (typeof window === 'undefined') return [];
-  const items: RecentItem[] = JSON.parse(localStorage.getItem(KEY) ?? '[]');
-  return excludeId ? items.filter((i) => i.id !== excludeId) : items;
+  try {
+    const raw = window.localStorage.getItem(RECENTLY_VIEWED_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (e): e is RecentlyViewedEntry =>
+        e !== null &&
+        typeof e === 'object' &&
+        typeof e.id === 'number' &&
+        typeof e.viewed_at === 'string',
+    );
+  } catch {
+    return [];
+  }
 }
 
-export function clearRecent(): void {
+function writeRaw(entries: RecentlyViewedStore): void {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem(KEY);
+  try {
+    window.localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(entries));
+  } catch {
+    /* quota / private mode — silently ignore */
+  }
 }
+
+export const recentlyViewedStorage = {
+  push(id: number): void {
+    const now = new Date().toISOString();
+    const entries = readRaw().filter((e) => e.id !== id);
+    entries.unshift({ id, viewed_at: now });
+    writeRaw(entries.slice(0, RECENTLY_VIEWED_MAX));
+  },
+
+  read(excludeId?: number): RecentlyViewedStore {
+    const entries = readRaw();
+    return excludeId !== undefined ? entries.filter((e) => e.id !== excludeId) : entries;
+  },
+
+  purgeExpired(now: number = Date.now()): void {
+    const cutoff = now - RECENTLY_VIEWED_TTL_MS;
+    writeRaw(readRaw().filter((e) => new Date(e.viewed_at).getTime() > cutoff));
+  },
+
+  purgeIds(ids: number[]): void {
+    const set = new Set(ids);
+    writeRaw(readRaw().filter((e) => !set.has(e.id)));
+  },
+
+  clear(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.removeItem(RECENTLY_VIEWED_KEY);
+    } catch {
+      /* ignore */
+    }
+  },
+};

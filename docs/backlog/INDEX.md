@@ -39,7 +39,6 @@ _(vide — TCK-097 en cours)_
 
 ### Vague 11 — P2 modération / discovery / transverses
 
-- [TCK-100](tickets/TCK-100-property-recently-viewed.md) — Historique local biens consultés `S · P2 · front`
 - [TCK-101](tickets/TCK-101-booking-request-auto-expire.md) — Expiration automatique demandes de réservation `S · P2 · applicatif`
 - [TCK-102](tickets/TCK-102-sms-notifications-driver.md) — SMS notifications critiques (driver prod) `S · P2 · applicatif`
 - [TCK-103](tickets/TCK-103-notifications-digest.md) — Digest quotidien / hebdomadaire `M · P2 · applicatif`
@@ -62,6 +61,10 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 _(vide)_
 
 ## 👀 Review
+
+### Vague 11 — Historique local biens consultés
+
+- [TCK-100](tickets/TCK-100-property-recently-viewed.md) — Historique local biens consultés `S · P2 · front`
 
 ### Vague 11 — Biens similaires
 

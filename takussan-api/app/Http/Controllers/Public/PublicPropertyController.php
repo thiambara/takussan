@@ -50,6 +50,12 @@ class PublicPropertyController extends Controller
      */
     public const COMPARE_MAX_IDS = 4;
 
+    /**
+     * Maximum number of properties returned by the /public/properties/by-ids
+     * endpoint. Matches the recently-viewed cap on the frontend (TCK-100).
+     */
+    public const BY_IDS_MAX_IDS = 20;
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $properties = Property::query()
@@ -229,6 +235,55 @@ class PublicPropertyController extends Controller
 
         $properties = Property::query()
             ->with(['address', 'media', 'tags'])
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->whereIn('id', $ids)
+            ->get()
+            ->keyBy('id');
+
+        $ordered = $ids
+            ->map(fn (int $id) => $properties->get($id))
+            ->filter()
+            ->values();
+
+        return $this->json([
+            'data' => PropertyResource::collection($ordered)->toArray($request),
+            'meta' => [
+                'requested_ids' => $ids->all(),
+                'returned_ids' => $ordered->pluck('id')->all(),
+            ],
+        ]);
+    }
+
+    /**
+     * TCK-100 — batch fetch published properties by id (recently-viewed
+     * carousel). Mirrors the contract of {@see self::compare()} but with a
+     * larger cap and lighter eager-loads (no `tags`). Unknown / unpublished
+     * ids are silently dropped so the frontend can purge ghost entries from
+     * its local store.
+     */
+    public function byIds(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'ids' => ['required', 'string', 'max:300'],
+        ]);
+
+        $ids = collect(explode(',', (string) $validated['ids']))
+            ->map(fn ($v) => (int) trim($v))
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->take(self::BY_IDS_MAX_IDS)
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return $this->json([
+                'data' => [],
+                'meta' => ['requested_ids' => [], 'returned_ids' => []],
+            ]);
+        }
+
+        $properties = Property::query()
+            ->with(['address', 'media'])
             ->public()
             ->whereNot('status', PropertyStatus::Draft)
             ->whereIn('id', $ids)

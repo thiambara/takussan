@@ -404,5 +404,13 @@
       "normal": "Yem",
       "low": "Suufe"
     }
+  },
+  "recentlyViewed": {
+    "title": "Xooloon ci kanam",
+    "clearHistory": "Fommi xooloon bi",
+    "confirmTitle": "Fommi xooloon bi ?",
+    "confirmBody": "Kër yi nga xool dañu leen jëla ci sa navigateur. Mënuñu ko delloo.",
+    "confirmCta": "Fommi",
+    "cancel": "Bàyyi"
   }
 }
