@@ -71,25 +71,25 @@ class BookingExpirationService
         try {
             $expiredCount = 0;
             $errors = [];
+            $remaining = self::BATCH_SIZE;
 
-            // Get all agencies with their settings
-            $agencies = Agency::all();
+            foreach (Agency::cursor() as $agency) {
+                if ($remaining <= 0) {
+                    break;
+                }
 
-            foreach ($agencies as $agency) {
                 if (! $this->isAutoExpirationEnabled($agency)) {
                     continue;
                 }
 
-                $thresholdHours = $this->getExpiryThresholdHours($agency);
-                $cutoffTime = now()->subHours($thresholdHours);
-
-                // Fetch eligible bookings for this agency
-                $bookings = $this->getEligibleBookings($agency, $cutoffTime);
+                $cutoffTime = now()->subHours($this->getExpiryThresholdHours($agency));
+                $bookings = $this->getEligibleBookings($agency, $cutoffTime, $remaining);
 
                 foreach ($bookings as $booking) {
                     try {
                         $this->expireBooking($booking);
                         $expiredCount++;
+                        $remaining--;
                     } catch (\Exception $e) {
                         $errors[] = "Failed to expire booking {$booking->id}: {$e->getMessage()}";
                         Log::error('Booking expiration failed', ['booking_id' => $booking->id, 'error' => $e->getMessage()]);
@@ -104,15 +104,20 @@ class BookingExpirationService
     }
 
     /**
-     * Expire a single booking manually (admin action).
+     * Expire a single booking manually (admin action). Returns true on
+     * success, false if the booking is no longer in an expirable state
+     * (e.g. raced to confirmed/cancelled/expired between controller check
+     * and service call).
      */
-    public function expireBookingManually(Booking $booking, ?int $userId = null): void
+    public function expireBookingManually(Booking $booking, ?int $userId = null): bool
     {
-        if (! $this->canBeExpired($booking)) {
-            throw new \InvalidArgumentException('Booking cannot be expired: status is '.$booking->status->value);
-        }
+        return DB::transaction(function () use ($booking, $userId) {
+            $booking->refresh();
 
-        DB::transaction(function () use ($booking, $userId) {
+            if (! $this->canBeExpired($booking)) {
+                return false;
+            }
+
             $booking->update([
                 'status' => BookingStatus::Expired,
                 'expired_at' => now(),
@@ -121,20 +126,22 @@ class BookingExpirationService
 
             $this->logExpiration($booking, 'manual', $userId);
             $this->sendNotifications($booking);
+
+            return true;
         });
     }
 
     /**
      * Get eligible bookings for expiration (pending, created before cutoff, not already expired).
      */
-    private function getEligibleBookings(Agency $agency, \DateTimeInterface $cutoffTime): Collection
+    private function getEligibleBookings(Agency $agency, \DateTimeInterface $cutoffTime, int $limit): Collection
     {
-        return Booking::with(['customer', 'property', 'property.owner'])
+        return Booking::with(['customer.user', 'property.owner', 'agency.primaryAdmin', 'createdBy'])
             ->where('agency_id', $agency->id)
             ->where('status', BookingStatus::Pending)
             ->where('created_at', '<', $cutoffTime)
             ->whereNull('expired_at')
-            ->limit(self::BATCH_SIZE)
+            ->limit($limit)
             ->get();
     }
 

@@ -2,6 +2,7 @@
 
 use App\Jobs\Booking\ExpirePendingBookingsJob;
 use App\Jobs\EscalateUrgentMaintenanceJob;
+use App\Jobs\ExpireBookings;
 use App\Jobs\Invoice\SendOverdueRemindersJob;
 use App\Jobs\Lease\ApplyLateFeesJob;
 use App\Jobs\Lease\ConfirmEarlyTerminationsJob;
@@ -17,7 +18,11 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+// TCK-101 — Auto-expires pending bookings whose `created_at` is older than the
+// agency-configured threshold. Distinct from `ExpireBookings` below, which
+// handles the legacy `expires_at` deadline set at booking creation.
 Schedule::job(new ExpirePendingBookingsJob)->everyFifteenMinutes()->withoutOverlapping();
+Schedule::job(new ExpireBookings)->hourly()->withoutOverlapping();
 Schedule::job(new ApplyLateFeesJob)->dailyAt('02:00')->withoutOverlapping();
 // TCK-090 — Closes leases whose effective_date has passed AND whose
 // penalty invoice is settled. Idempotent: unpaid penalties are skipped

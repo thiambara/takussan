@@ -46,8 +46,17 @@ class BookingController extends Controller
             ], 422);
         }
 
-        // Perform the expiration
-        $this->expirationService->expireBookingManually($booking, $user->id);
+        // Perform the expiration. Returns false if the booking raced to a
+        // non-expirable state between the check above and the service call.
+        $expired = $this->expirationService->expireBookingManually($booking, $user->id);
+
+        if (! $expired) {
+            return $this->json([
+                'message' => 'Booking cannot be expired.',
+                'reason' => 'Booking status changed before expiration could be applied.',
+                'current_status' => $booking->fresh()->status->value,
+            ], 422);
+        }
 
         return $this->json([
             'message' => 'Booking has been manually expired.',
