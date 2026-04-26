@@ -41,7 +41,7 @@ class QuoteSubmittedNotification extends Notification implements ShouldQueue
         $title = $this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id;
 
         return (new MailMessage)
-            ->subject('Devis soumis pour: ' . $title)
+            ->subject('Devis soumis pour: '.$title)
             ->greeting('Bonjour,')
             ->line("Un devis a été soumis pour l'intervention: {$title}.")
             ->line("Montant du devis: {$this->maintenanceRequest->quote_amount} {$this->maintenanceRequest->quote_currency}")
@@ -53,7 +53,7 @@ class QuoteSubmittedNotification extends Notification implements ShouldQueue
     {
         return [
             'maintenance_request_id' => $this->maintenanceRequest->id,
-            'title' => 'Devis soumis pour: ' . ($this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id),
+            'title' => 'Devis soumis pour: '.($this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id),
         ];
     }
 

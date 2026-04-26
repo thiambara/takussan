@@ -152,12 +152,12 @@ class MaintenanceQuoteWorkflow
 
     protected function resolveCurrency(MaintenanceRequest $mr): string
     {
-        if ($mr->lease && $mr->lease->currency) {
-            return $mr->lease->currency->value ?? $mr->lease->currency;
+        if ($mr->lease?->currency) {
+            return $mr->lease->currency->value;
         }
 
-        if ($mr->property && $mr->property->agency && $mr->property->agency->currency) {
-            return $mr->property->agency->currency->value ?? $mr->property->agency->currency;
+        if ($mr->property?->agency?->currency) {
+            return $mr->property->agency->currency->value;
         }
 
         return 'XOF';

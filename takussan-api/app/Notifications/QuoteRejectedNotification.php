@@ -41,11 +41,11 @@ class QuoteRejectedNotification extends Notification implements ShouldQueue
         $title = $this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id;
 
         return (new MailMessage)
-            ->subject('Devis rejeté pour: ' . $title)
+            ->subject('Devis rejeté pour: '.$title)
             ->greeting('Bonjour,')
             ->line("Votre devis pour l'intervention: {$title} a été rejeté.")
             ->line("Motif du rejet: {$this->maintenanceRequest->quote_rejection_reason}")
-            ->line("Vous pouvez soumettre un nouveau devis modifié.")
+            ->line('Vous pouvez soumettre un nouveau devis modifié.')
             ->salutation(__('notifications.salutation'));
     }
 
@@ -53,7 +53,7 @@ class QuoteRejectedNotification extends Notification implements ShouldQueue
     {
         return [
             'maintenance_request_id' => $this->maintenanceRequest->id,
-            'title' => 'Devis rejeté pour: ' . ($this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id),
+            'title' => 'Devis rejeté pour: '.($this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id),
         ];
     }
 

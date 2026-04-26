@@ -31,8 +31,11 @@ export function QuoteCard({ request }: { readonly request: MaintenanceRequest })
         <div>
           <dt className="text-xs font-semibold text-app-ink-muted uppercase tracking-wide">Montant</dt>
           <dd className="mt-1 font-medium text-app-ink">
-            {request.quote_amount !== null ? formatCurrency(request.quote_amount, locale) : '—'}
-            {request.quote_currency ? ` ${request.quote_currency}` : ''}
+            {request.quote_amount !== null
+              ? formatCurrency(request.quote_amount, locale, {
+                  currency: request.quote_currency ?? 'XOF',
+                })
+              : '—'}
           </dd>
         </div>
         <div>

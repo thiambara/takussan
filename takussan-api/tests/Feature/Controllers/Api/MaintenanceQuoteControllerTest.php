@@ -7,7 +7,6 @@ use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -21,7 +20,7 @@ class MaintenanceQuoteControllerTest extends TestCase
         $agent = User::factory()->create();
         $property = Property::factory()->create(['user_id' => $agent->id]);
         $provider = User::factory()->create();
-        
+
         $mr = MaintenanceRequest::factory()->create([
             'property_id' => $property->id,
             'assigned_to' => $provider->id,
@@ -39,7 +38,7 @@ class MaintenanceQuoteControllerTest extends TestCase
     {
         Notification::fake();
         $provider = User::factory()->create();
-        
+
         $mr = MaintenanceRequest::factory()->create([
             'assigned_to' => $provider->id,
             'status' => MaintenanceStatus::QuoteRequested,
@@ -60,7 +59,7 @@ class MaintenanceQuoteControllerTest extends TestCase
     {
         $provider = User::factory()->create();
         $otherProvider = User::factory()->create();
-        
+
         $mr = MaintenanceRequest::factory()->create([
             'assigned_to' => $otherProvider->id,
             'status' => MaintenanceStatus::QuoteRequested,
@@ -79,7 +78,7 @@ class MaintenanceQuoteControllerTest extends TestCase
         Notification::fake();
         $agent = User::factory()->create();
         $property = Property::factory()->create(['user_id' => $agent->id]);
-        
+
         $mr = MaintenanceRequest::factory()->create([
             'property_id' => $property->id,
             'status' => MaintenanceStatus::QuoteSubmitted,
@@ -97,7 +96,7 @@ class MaintenanceQuoteControllerTest extends TestCase
         Notification::fake();
         $agent = User::factory()->create();
         $property = Property::factory()->create(['user_id' => $agent->id]);
-        
+
         $mr = MaintenanceRequest::factory()->create([
             'property_id' => $property->id,
             'status' => MaintenanceStatus::QuoteSubmitted,
@@ -110,7 +109,7 @@ class MaintenanceQuoteControllerTest extends TestCase
 
         $response->assertOk();
         $this->assertEquals(MaintenanceStatus::Rejected->value, $response->json('data.status'));
-        
+
         $mr->refresh();
         $this->assertEquals('Le prix est beaucoup trop élevé', $mr->quote_rejection_reason);
     }

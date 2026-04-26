@@ -7,7 +7,6 @@ use App\Models\MaintenanceRequest;
 use App\Models\User;
 use App\Services\Maintenance\MaintenanceQuoteWorkflow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
@@ -32,7 +31,7 @@ class MaintenanceQuoteWorkflowTest extends TestCase
         $this->workflow->requestQuote($mr);
 
         $this->assertEquals(MaintenanceStatus::QuoteRequested, $mr->fresh()->status);
-        
+
         $this->assertDatabaseHas('activity_log', [
             'subject_type' => MaintenanceRequest::class,
             'subject_id' => $mr->id,

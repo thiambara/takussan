@@ -22,7 +22,7 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
   const { form, handleSubmit, isSubmitting, globalError } = useApiForm<FormValues, unknown>({
     schema,
     defaultValues: {
-      amount: undefined as any,
+      amount: undefined as unknown as number,
       currency: '',
     },
     onSubmit: async (values) => {

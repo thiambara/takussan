@@ -41,10 +41,10 @@ class QuoteApprovedNotification extends Notification implements ShouldQueue
         $title = $this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id;
 
         return (new MailMessage)
-            ->subject('Devis approuvé pour: ' . $title)
+            ->subject('Devis approuvé pour: '.$title)
             ->greeting('Bonjour,')
             ->line("Votre devis pour l'intervention: {$title} a été approuvé.")
-            ->line("Vous pouvez maintenant commencer les travaux.")
+            ->line('Vous pouvez maintenant commencer les travaux.')
             ->salutation(__('notifications.salutation'));
     }
 
@@ -52,7 +52,7 @@ class QuoteApprovedNotification extends Notification implements ShouldQueue
     {
         return [
             'maintenance_request_id' => $this->maintenanceRequest->id,
-            'title' => 'Devis approuvé pour: ' . ($this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id),
+            'title' => 'Devis approuvé pour: '.($this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id),
         ];
     }
 

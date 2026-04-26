@@ -41,7 +41,7 @@ class MaintenanceQuoteRequestedNotification extends Notification implements Shou
         $title = $this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id;
 
         return (new MailMessage)
-            ->subject('Demande de devis pour: ' . $title)
+            ->subject('Demande de devis pour: '.$title)
             ->greeting('Bonjour,')
             ->line("Une demande de devis a été requise pour l'intervention: {$title}.")
             ->line('Merci de soumettre votre devis dès que possible.')
@@ -52,7 +52,7 @@ class MaintenanceQuoteRequestedNotification extends Notification implements Shou
     {
         return [
             'maintenance_request_id' => $this->maintenanceRequest->id,
-            'title' => 'Demande de devis pour: ' . ($this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id),
+            'title' => 'Demande de devis pour: '.($this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id),
         ];
     }
 

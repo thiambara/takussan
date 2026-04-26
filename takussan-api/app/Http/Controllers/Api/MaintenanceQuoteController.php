@@ -6,10 +6,10 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Maintenance\RejectQuoteRequest;
 use App\Http\Requests\Maintenance\SubmitQuoteRequest;
 use App\Http\Resources\MaintenanceRequestResource;
+use App\Models\Enums\NotificationType;
 use App\Models\MaintenanceRequest;
 use App\Services\Maintenance\MaintenanceQuoteWorkflow;
 use App\Services\Model\NotificationService;
-use App\Models\Enums\NotificationType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -30,7 +30,7 @@ class MaintenanceQuoteController extends Controller
             $this->notifications->notify(
                 $mr->assignee,
                 NotificationType::Maintenance,
-                'Demande de devis pour: ' . $mr->title,
+                'Demande de devis pour: '.$mr->title,
                 "Une demande de devis a été requise pour l'intervention: {$mr->title}.",
                 ['maintenance_request_id' => $mr->id],
             );
@@ -47,7 +47,7 @@ class MaintenanceQuoteController extends Controller
 
         $data = $request->validated();
         $attachments = $request->file('attachments', []) ?? [];
-        if (!is_array($attachments)) {
+        if (! is_array($attachments)) {
             $attachments = [$attachments];
         }
 
@@ -59,7 +59,7 @@ class MaintenanceQuoteController extends Controller
             $this->notifications->notify(
                 $notifiable,
                 NotificationType::Maintenance,
-                'Devis soumis pour: ' . $mr->title,
+                'Devis soumis pour: '.$mr->title,
                 "Un devis de {$mr->quote_amount} {$mr->quote_currency} a été soumis pour l'intervention: {$mr->title}.",
                 ['maintenance_request_id' => $mr->id],
             );
@@ -80,7 +80,7 @@ class MaintenanceQuoteController extends Controller
             $this->notifications->notify(
                 $mr->assignee,
                 NotificationType::Maintenance,
-                'Devis approuvé pour: ' . $mr->title,
+                'Devis approuvé pour: '.$mr->title,
                 "Votre devis pour l'intervention: {$mr->title} a été approuvé.",
                 ['maintenance_request_id' => $mr->id],
             );
@@ -102,7 +102,7 @@ class MaintenanceQuoteController extends Controller
             $this->notifications->notify(
                 $mr->assignee,
                 NotificationType::Maintenance,
-                'Devis rejeté pour: ' . $mr->title,
+                'Devis rejeté pour: '.$mr->title,
                 "Votre devis pour l'intervention: {$mr->title} a été rejeté.",
                 ['maintenance_request_id' => $mr->id],
             );
