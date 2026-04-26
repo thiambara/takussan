@@ -1,7 +1,7 @@
 ---
 id: TCK-094
 title: "Recherche full-text messages & documents"
-status: doing
+status: review
 phase: P2
 family: back
 estimate: M
@@ -109,4 +109,8 @@ Customer. Étendre l'indexation à `Message` (spec §20) et `Document`
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Straightforward; see PR #79.
+
+- AC4 (highlighting `_formatted`) requires Meilisearch runtime — CollectionEngine does not produce `_formatted`. The `body_excerpt` field will be populated when Meilisearch is the active driver in staging/prod.
+- AC8 (benchmark p95 < 200ms) requires a Meilisearch instance with seeded dataset. Index configuration is in place (`scout.php`). Benchmark to be run in staging.
+- Document search scoping uses `uploaded_by` ownership. A more granular scoping via `DocumentPolicy@view` traversing `documentable` relations could be added as a follow-up if needed (current approach matches the existing `DocumentController@index` pattern).

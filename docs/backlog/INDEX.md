@@ -63,11 +63,13 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 
 ## 🚧 Doing
 
-### Vague 10-B — Recherche full-text messages & documents
-
-- [TCK-094](tickets/TCK-094-fulltext-messages-documents.md) — Recherche full-text messages & documents `M · P2 · back`
+_(vide)_
 
 ## 👀 Review
+
+### Vague 10-B — Recherche full-text messages & documents — [PR #79](https://github.com/thiambara/takussan/pull/79)
+
+- [TCK-094](tickets/TCK-094-fulltext-messages-documents.md) — Recherche full-text messages & documents `M · P2 · back` (PR #79)
 
 ### Vague 10-A — Segmentation & tags clients
 
