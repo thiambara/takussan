@@ -34,6 +34,18 @@ return [
         'greeting' => 'Bonjour,',
         'intro' => 'Voici un résumé des notifications reçues depuis hier.',
         'footer' => 'Consultez le centre de notifications pour voir toutes vos alertes.',
+        'see_all' => 'Voir toutes les notifications',
+        'unsubscribe' => 'Se désabonner des e-mails récapitulatifs',
+    ],
+
+    'types' => [
+        'booking' => 'Réservations',
+        'payment' => 'Paiements',
+        'lease' => 'Baux',
+        'maintenance' => 'Maintenance',
+        'visit' => 'Visites',
+        'message' => 'Messages',
+        'system' => 'Système',
     ],
 
     'visit_requested' => [

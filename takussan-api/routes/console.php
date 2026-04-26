@@ -6,7 +6,7 @@ use App\Jobs\ExpireBookings;
 use App\Jobs\Invoice\SendOverdueRemindersJob;
 use App\Jobs\Lease\ApplyLateFeesJob;
 use App\Jobs\Lease\ConfirmEarlyTerminationsJob;
-use App\Jobs\SendDailyNotificationDigest;
+use App\Jobs\Notifications\SendNotificationDigestJob;
 use App\Jobs\SendLeasePaymentReminders;
 use App\Jobs\SendPropertyVisitReminders;
 use App\Jobs\SendSavedSearchAlerts;
@@ -38,7 +38,9 @@ Schedule::job(new SendOverdueRemindersJob)->dailyAt('09:00')->withoutOverlapping
 // pre-visit windows. Dedup happens through `PropertyVisit.metadata` markers
 // so re-runs are idempotent even if the job overlaps with a prior tick.
 Schedule::job(new SendPropertyVisitReminders)->everyFiveMinutes()->withoutOverlapping();
-Schedule::job(new SendDailyNotificationDigest)->dailyAt('18:00');
+// TCK-103 — Hourly digest orchestrator: checks users whose local time matches
+// their digest_send_at and dispatches per-user BuildUserDigestJob sub-jobs.
+Schedule::job(new SendNotificationDigestJob)->hourly()->withoutOverlapping();
 Schedule::command('media:cleanup')->dailyAt('03:00');
 Schedule::command('dashboard:check-alerts')->hourly()->withoutOverlapping(); // TCK-032 P3
 // TCK-083 — Hourly reminder for tasks whose `due_at` falls in the

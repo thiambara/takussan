@@ -1,12 +1,12 @@
 ---
 id: TCK-103
 title: "Digest quotidien / hebdomadaire"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: M
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-26
 depends_on: [TCK-022, TCK-070]
 blocks: []
 spec_refs:
@@ -125,4 +125,10 @@ quel que soit le mode (jamais digérées).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**`email_frequency` sur `users`** : TCK-070 avait implémenté `NotificationPreference` comme une matrice (user × event_type × channel). Les champs `email_frequency`, `digest_send_at`, `digest_day_of_week` ont été ajoutés sur la table `users` (pas sur `notification_preferences`) — plus cohérent avec `preferred_language` / `timezone` qui sont des préférences globales user.
+
+**`isCritical()`** : pas de colonne dédiée. La méthode lit `data['is_critical']` (JSON), ce qui permet au code producteur de notifications de marquer une notif critique sans migration supplémentaire.
+
+**Template séparé** : `NotificationDigestMail` utilise `emails/notifications/notification-digest.blade.php` pour éviter de casser l'ancien `DailyNotificationDigest` (legacy) qui partage `emails/notifications/digest.blade.php`.
+
+**1349 tests verts, Pint clean.**
