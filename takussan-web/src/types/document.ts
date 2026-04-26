@@ -58,3 +58,29 @@ export type DocumentShareLink = {
   revoked_at: string | null;
   created_at: string | null;
 };
+
+/**
+ * A single version of a document — a Spatie Media item from the `versions`
+ * collection. Aligned with `DocumentVersionResource` (TCK-097).
+ */
+export type DocumentVersion = {
+  id: number;
+  file_name: string;
+  size: number;
+  mime_type: string;
+  uploaded_by_id: number | null;
+  created_at: string | null;
+  comment: string | null;
+  is_active: boolean;
+  version_number: number;
+  url: string | null;
+};
+
+/**
+ * Document extended with version history (returned when include=versions).
+ */
+export type DocumentWithVersions = Document & {
+  active_version: DocumentVersion | null;
+  versions: DocumentVersion[] | null;
+};
+

@@ -7,6 +7,8 @@ import type {
   DocumentShareLink,
   DocumentType,
   DocumentableType,
+  DocumentVersion,
+  DocumentWithVersions,
 } from '@/types/document';
 
 /**
@@ -188,3 +190,90 @@ export const DOCUMENT_MIME_ACCEPT = [
 ].join(',');
 
 export const DOCUMENT_MAX_SIZE_BYTES = 10 * 1024 * 1024;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Document versions — TCK-097
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const documentVersionsQueryKeys = {
+  list: (documentId: number | null | undefined) =>
+    ['documents', 'versions', documentId] as const,
+  detail: (documentId: number | null | undefined) =>
+    ['documents', 'detail-with-versions', documentId] as const,
+};
+
+/**
+ * Fetch a document with its full version list (include=versions).
+ */
+export function useDocumentWithVersions(id: number | null | undefined) {
+  return useApiQuery<ApiResponse<DocumentWithVersions>>(
+    documentVersionsQueryKeys.detail(id),
+    `/api/documents/${id ?? ''}`,
+    {
+      params: { include: 'versions' },
+      enabled: Boolean(id),
+    },
+  );
+}
+
+/**
+ * List all versions for a document (ordered latest-first by the backend).
+ */
+export function useDocumentVersions(documentId: number | null | undefined) {
+  return useApiQuery<ApiResponse<DocumentVersion[]>>(
+    documentVersionsQueryKeys.list(documentId),
+    `/api/documents/${documentId ?? ''}/versions`,
+    { enabled: Boolean(documentId) },
+  );
+}
+
+export type UploadVersionPayload = {
+  readonly document_id: number;
+  readonly file: File;
+  readonly comment?: string;
+};
+
+export function useUploadDocumentVersion() {
+  return useApiMutation<ApiResponse<DocumentVersion>, UploadVersionPayload>(
+    {
+      path: ({ document_id }) => `/api/documents/${document_id}/versions`,
+      method: 'POST',
+      formData: true,
+      body: (variables) => {
+        const form = new FormData();
+        form.append('file', variables.file);
+        if (variables.comment) form.append('comment', variables.comment);
+        return form;
+      },
+    },
+    {
+      invalidate: [
+        ['documents'],
+        ['documents', 'versions'],
+      ],
+    },
+  );
+}
+
+export type RestoreVersionPayload = {
+  readonly document_id: number;
+  readonly version_id: number;
+};
+
+export function useRestoreDocumentVersion() {
+  return useApiMutation<ApiResponse<DocumentVersion>, RestoreVersionPayload>(
+    {
+      path: ({ document_id, version_id }) =>
+        `/api/documents/${document_id}/versions/${version_id}/restore`,
+      method: 'POST',
+      body: () => ({}),
+    },
+    {
+      invalidate: [
+        ['documents'],
+        ['documents', 'versions'],
+      ],
+    },
+  );
+}
+
