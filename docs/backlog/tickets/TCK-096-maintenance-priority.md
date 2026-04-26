@@ -1,7 +1,7 @@
 ---
 id: TCK-096
 title: "Priorisation demandes maintenance"
-status: doing
+status: done
 phase: P2
 family: applicatif
 estimate: S
