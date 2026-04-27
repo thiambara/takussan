@@ -44,7 +44,7 @@ _(vide — TCK-104 en cours)_
 ### Vague 12 — P2 perf / médias / permissions / compta
 
 - [TCK-105](tickets/TCK-105-cdn-modern-image-formats.md) — CDN + webp/avif `S · P2 · technique` **[review]**
-- [TCK-106](tickets/TCK-106-property-photo-watermark.md) — Watermark auto photos biens `S · P2 · applicatif`
+- [TCK-106](tickets/TCK-106-property-photo-watermark.md) — Watermark auto photos biens `S · P2 · applicatif` **[review]**
 - [TCK-107](tickets/TCK-107-search-autocomplete.md) — Autocomplétion recherche `S · P2 · front`
 - [TCK-108](tickets/TCK-108-permission-temporary-delegation.md) — Délégation temporaire permissions `M · P2 · applicatif`
 - [TCK-109](tickets/TCK-109-bank-reconciliation-assist.md) — Rapprochement bancaire semi-automatique `L · P2 · applicatif`
