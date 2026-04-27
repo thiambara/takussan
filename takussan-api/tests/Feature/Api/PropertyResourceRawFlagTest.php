@@ -41,7 +41,26 @@ class PropertyResourceRawFlagTest extends TestCase
         return [$admin, $agency, $property];
     }
 
-    public function test_default_returns_watermarked_urls(): void
+    public function test_default_hides_original_url_from_unauthorized_callers(): void
+    {
+        [, , $property] = $this->createSetup();
+
+        $agent = User::factory()->create(['agency_id' => $property->agency_id]);
+
+        $response = $this->actingAs($agent)
+            ->getJson("/api/properties/{$property->id}");
+
+        $response->assertStatus(200);
+        $photos = $response->json('data.photos');
+        $this->assertNotEmpty($photos);
+        // The "original" field must fall back to the watermarked preview conversion
+        // for callers who cannot view raw — otherwise the watermark is trivially
+        // bypassed via the `original` URL.
+        $this->assertStringContainsString('/conversions/', $photos[0]['original']);
+        $this->assertStringContainsString('preview', $photos[0]['original']);
+    }
+
+    public function test_admin_agence_receives_original_url(): void
     {
         [$admin, , $property] = $this->createSetup();
 
@@ -49,20 +68,10 @@ class PropertyResourceRawFlagTest extends TestCase
             ->getJson("/api/properties/{$property->id}");
 
         $response->assertStatus(200);
-        $data = $response->json('data');
-        $this->assertArrayHasKey('photos', $data);
-    }
-
-    public function test_raw_flag_returns_original_url_for_admin_agence(): void
-    {
-        [$admin, , $property] = $this->createSetup();
-
-        $response = $this->actingAs($admin)
-            ->getJson("/api/properties/{$property->id}?raw=1");
-
-        $response->assertStatus(200);
-        $data = $response->json('data');
-        $this->assertArrayHasKey('photos', $data);
+        $photos = $response->json('data.photos');
+        $this->assertNotEmpty($photos);
+        // Primary admin passes the viewRaw policy — `original` is the source file.
+        $this->assertStringNotContainsString('/conversions/', $photos[0]['original']);
     }
 
     public function test_raw_flag_returns_403_for_public_visitor(): void

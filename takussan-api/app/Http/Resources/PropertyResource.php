@@ -64,7 +64,7 @@ class PropertyResource extends JsonResource
                     'id' => $media->id,
                     'thumbnail' => $this->urlFor($media, 'thumbnail'),
                     'preview' => $this->urlFor($media, 'preview'),
-                    'original' => $media->getUrl(),
+                    'original' => $this->originalUrlFor($media),
                     'order' => $media->order_column ?? ($index + 1),
                 ])->all()
             ),
@@ -240,6 +240,21 @@ class PropertyResource extends JsonResource
         }
 
         return $media->getUrl($conversion);
+    }
+
+    /**
+     * TCK-106 — `original` exposes the unwatermarked source file.
+     * Only return it when the caller is authorized to view raw media,
+     * otherwise fall back to the largest watermarked conversion (preview)
+     * so public consumers cannot bypass the watermark.
+     */
+    private function originalUrlFor(Media $media): string
+    {
+        if (Gate::allows('viewRaw', $media)) {
+            return $media->getUrl();
+        }
+
+        return $media->getUrl('preview');
     }
 
     /**
