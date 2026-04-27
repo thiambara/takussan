@@ -1,12 +1,12 @@
 ---
 id: TCK-105
 title: "CDN + webp/avif"
-status: todo
+status: review
 phase: P2
 family: technique
 estimate: S
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-27
 depends_on: [TCK-016, TCK-050]
 blocks: []
 spec_refs:

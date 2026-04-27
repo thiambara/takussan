@@ -26,6 +26,7 @@ use App\Models\User;
 use App\Notifications\Channels\SmsChannel;
 use App\Observers\FavoriteObserver;
 use App\Observers\LeaseObserver;
+use App\Observers\MediaCdnObserver;
 use App\Observers\MessageObserver;
 use App\Observers\PropertyObserver;
 use App\Observers\PropertyVisitObserver;
@@ -38,6 +39,11 @@ use App\Policies\MediaPolicy;
 use App\Policies\PropertyModerationPolicy;
 use App\Policies\PropertyPolicy;
 use App\Services\Formatting\CurrencyFormatter;
+use App\Services\Media\Cdn\BunnyCdnDriver;
+use App\Services\Media\Cdn\CdnHealthGuard;
+use App\Services\Media\Cdn\CdnProviderContract;
+use App\Services\Media\Cdn\CloudflareCdnDriver;
+use App\Services\Media\MediaUrlResolver;
 use App\Services\Notifications\Sms\Drivers\LAfricaMobileSmsDriver;
 use App\Services\Notifications\Sms\Drivers\LogSmsDriver;
 use App\Services\Notifications\Sms\Drivers\MtargetSmsDriver;
@@ -72,6 +78,24 @@ class AppServiceProvider extends ServiceProvider
         // TCK-084 — share a single CurrencyFormatter so both the Blade
         // directive and any controller/service can resolve the same instance.
         $this->app->singleton(CurrencyFormatter::class);
+
+        // TCK-105 — CDN layer. The contract is bound to the active provider
+        // from config. MediaUrlResolver and CdnHealthGuard are singletons so
+        // the circuit-breaker counter survives across multiple URL resolutions
+        // within the same request.
+        $this->app->singleton(CdnHealthGuard::class);
+        $this->app->singleton(CdnProviderContract::class, function ($app): CdnProviderContract {
+            return match ((string) $app['config']->get('cdn.provider', 'bunny')) {
+                'cloudflare' => $app->make(CloudflareCdnDriver::class),
+                default => $app->make(BunnyCdnDriver::class),
+            };
+        });
+        $this->app->singleton(MediaUrlResolver::class, function ($app): MediaUrlResolver {
+            return new MediaUrlResolver(
+                cdn: $app->make(CdnProviderContract::class),
+                guard: $app->make(CdnHealthGuard::class),
+            );
+        });
 
         // TCK-102 — register the multi-provider SMS stack. Each leaf
         // driver is a singleton so its in-process state (Mtarget batch
@@ -123,6 +147,9 @@ class AppServiceProvider extends ServiceProvider
         Lease::observe(LeaseObserver::class);
         PropertyVisit::observe(PropertyVisitObserver::class);
         User::observe(UserObserver::class);
+
+        // TCK-105 — purge CDN cache when a media item is deleted or replaced.
+        Media::observe(MediaCdnObserver::class);
 
         Gate::before(fn (?User $user) => $user?->hasRole('super_admin') ? true : null);
 
