@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
@@ -41,6 +42,10 @@ class MediaResource extends BaseResource
     {
         if (! $media->hasGeneratedConversion($name)) {
             return null;
+        }
+
+        if (request()->boolean('raw') && Gate::allows('viewRaw', $media)) {
+            return $media->getUrl();
         }
 
         $url = $media->getUrl($name);

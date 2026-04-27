@@ -11,6 +11,7 @@ use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Lang;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -55,14 +56,14 @@ class PropertyResource extends JsonResource
             'favorites_count' => (int) ($this->favorites_count ?? 0),
             'average_rating' => $this->when($isDetail, fn () => $this->computeAverageRating()),
             'reviews_count' => $this->when($isDetail, fn () => $this->computeReviewsCount()),
-            'main_photo_url' => $this->getFirstMediaUrl('photos', 'preview') ?: null,
+            'main_photo_url' => ($m = $this->getFirstMedia('photos')) ? $this->urlFor($m, 'preview') : null,
             'description' => $this->when($isDetail, $this->description),
             'photos' => $this->when(
                 $isDetail,
                 fn () => $this->getMedia('photos')->values()->map(fn (Media $media, int $index) => [
                     'id' => $media->id,
-                    'thumbnail' => $media->getUrl('thumbnail'),
-                    'preview' => $media->getUrl('preview'),
+                    'thumbnail' => $this->urlFor($media, 'thumbnail'),
+                    'preview' => $this->urlFor($media, 'preview'),
                     'original' => $media->getUrl(),
                     'order' => $media->order_column ?? ($index + 1),
                 ])->all()
@@ -230,6 +231,15 @@ class PropertyResource extends JsonResource
                     'public' => true,
                 ];
             })->all();
+    }
+
+    private function urlFor(Media $media, string $conversion): string
+    {
+        if (request()->boolean('raw') && Gate::allows('viewRaw', $media)) {
+            return $media->getUrl();
+        }
+
+        return $media->getUrl($conversion);
     }
 
     /**

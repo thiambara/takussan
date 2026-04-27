@@ -30,6 +30,41 @@ class MediaPolicy extends BasePolicy
     }
 
     /**
+     * TCK-106 — only the owner agency admin or platform admin may retrieve
+     * the original (unwatermarked) media file via `?raw=1`.
+     */
+    public function viewRaw(User $user, Model $model): bool
+    {
+        if ($user->hasRole(['admin', 'super_admin'])) {
+            return true;
+        }
+
+        if (! $model instanceof Media) {
+            return false;
+        }
+
+        $target = $model->model;
+
+        if ($target === null) {
+            return false;
+        }
+
+        if (isset($target->agency_id) && $user->agency_id !== null
+            && (int) $target->agency_id === (int) $user->agency_id) {
+            $agency = $target->agency ?? null;
+            if ($agency !== null && $agency->primary_admin_id === $user->id) {
+                return true;
+            }
+
+            if ($user->hasRole(['agency_admin']) && $user->can('properties.update')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * TCK-105 — only the owner of the underlying resource may request a
      * signed CDN URL for private media.  Reuses the same ownership rules
      * as delete().
