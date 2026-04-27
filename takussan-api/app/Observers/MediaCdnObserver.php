@@ -13,6 +13,10 @@ class MediaCdnObserver
      */
     public function deleting(Media $media): void
     {
+        if (! config('cdn.enabled')) {
+            return;
+        }
+
         $urls = $this->snapshotUrls($media);
 
         if (! empty($urls)) {
@@ -21,11 +25,24 @@ class MediaCdnObserver
     }
 
     /**
-     * When a media item is updated (e.g. file replaced) purge the old cached
-     * variant.  The new URL will be populated after the conversion pipeline.
+     * When the underlying file changes (replaced upload, disk move) we must
+     * purge the previous CDN-cached variant. Pure metadata mutations
+     * (custom_properties, order_column, etc.) leave the URL intact and
+     * must not trigger a purge — otherwise reordering a gallery would
+     * flood the purge API.
      */
     public function updated(Media $media): void
     {
+        if (! config('cdn.enabled')) {
+            return;
+        }
+
+        $touchesFile = $media->wasChanged(['file_name', 'disk', 'conversions_disk', 'mime_type', 'size']);
+
+        if (! $touchesFile) {
+            return;
+        }
+
         $urls = $this->snapshotUrls($media);
 
         if (! empty($urls)) {

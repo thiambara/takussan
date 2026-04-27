@@ -23,7 +23,7 @@ class BunnyCdnDriver implements CdnProviderContract
 
         $expiry = time() + $ttlSeconds;
 
-        $token = $this->makeHmacToken($key, $path, $expiry);
+        $token = $this->makeBunnyToken($key, $path, $expiry);
         $format = $this->negotiateFormat($hints);
 
         return $base.$path.'?token='.$token.'&expires='.$expiry.'&format='.$format;
@@ -34,12 +34,18 @@ class BunnyCdnDriver implements CdnProviderContract
         $endpoint = (string) config('cdn.drivers.bunny.purge_endpoint', 'https://api.bunny.net/purge');
         $accessKey = (string) config('cdn.drivers.bunny.access_key', '');
 
+        $allOk = true;
+
         foreach ($urls as $url) {
-            Http::withHeaders(['AccessKey' => $accessKey])
+            $response = Http::withHeaders(['AccessKey' => $accessKey])
                 ->get($endpoint, ['url' => $url, 'async' => true]);
+
+            if (! $response->successful()) {
+                $allOk = false;
+            }
         }
 
-        return true;
+        return $allOk;
     }
 
     public function healthCheck(): bool
@@ -51,9 +57,7 @@ class BunnyCdnDriver implements CdnProviderContract
         }
 
         try {
-            $response = Http::timeout(2)->head($base);
-
-            return $response->successful() || $response->status() < 500;
+            return Http::timeout(2)->head($base)->successful();
         } catch (\Throwable) {
             return false;
         }
@@ -86,9 +90,16 @@ class BunnyCdnDriver implements CdnProviderContract
         return 'jpeg';
     }
 
-    private function makeHmacToken(string $key, string $path, int $expiry): string
+    /**
+     * Bunny Token Authentication signature.
+     *
+     * Format mandated by Bunny: base64( md5_raw(securityKey + path + expires) ),
+     * URL-safe (`+` → `-`, `/` → `_`, padding stripped).
+     * Reference: https://docs.bunny.net/docs/cdn-token-authentication
+     */
+    private function makeBunnyToken(string $key, string $path, int $expiry): string
     {
-        $raw = hash_hmac('sha256', $key.$path.$expiry, $key, true);
+        $raw = md5($key.$path.$expiry, true);
 
         return rtrim(strtr(base64_encode($raw), '+/', '-_'), '=');
     }

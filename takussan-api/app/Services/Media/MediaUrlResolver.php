@@ -4,6 +4,7 @@ namespace App\Services\Media;
 
 use App\Services\Media\Cdn\CdnHealthGuard;
 use App\Services\Media\Cdn\CdnProviderContract;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -37,10 +38,14 @@ class MediaUrlResolver
         }
 
         if ($this->guard->isOpen()) {
-            Log::warning('cdn.fallback_open_breaker', [
-                'media_id' => $media->getKey(),
-                'collection' => $media->collection_name,
-            ]);
+            // Log once per breaker-open window to avoid flooding logs when a
+            // single request resolves dozens of media URLs during an outage.
+            if (Cache::add('cdn.fallback_open_breaker_logged', 1, 60)) {
+                Log::warning('cdn.fallback_open_breaker', [
+                    'media_id' => $media->getKey(),
+                    'collection' => $media->collection_name,
+                ]);
+            }
 
             return $storageUrl;
         }
@@ -49,7 +54,9 @@ class MediaUrlResolver
 
         try {
             if ($this->isSecureCollection($media)) {
-                $ttl = (int) config('cdn.signature_ttl', 300);
+                $ttl = isset($hints['ttl']) && (int) $hints['ttl'] > 0
+                    ? (int) $hints['ttl']
+                    : (int) config('cdn.signature_ttl', 300);
 
                 return $this->cdn->signUrl($path, $conversion, $ttl, $hints);
             }

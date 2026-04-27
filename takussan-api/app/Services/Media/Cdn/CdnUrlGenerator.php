@@ -55,11 +55,19 @@ class CdnUrlGenerator extends DefaultUrlGenerator
 
             $accept = request()?->header('Accept', '') ?? '';
 
+            $hints = [];
+            if ($accept !== '') {
+                $hints['accept'] = $accept;
+            }
+            if ($ttl > 0) {
+                $hints['ttl'] = $ttl;
+            }
+
             return $resolver->resolve(
                 media: $this->media,
                 storageUrl: $storageUrl,
                 conversion: $this->conversion?->getName(),
-                hints: $accept !== '' ? ['accept' => $accept] : [],
+                hints: $hints,
             );
         } catch (\Throwable) {
             return $storageUrl;

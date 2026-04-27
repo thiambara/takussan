@@ -16,7 +16,10 @@ class SignMediaController extends Controller
         Gate::authorize('sign', $media);
 
         $ttl = (int) config('cdn.signature_ttl', 300);
-        $path = parse_url($media->getUrl(), PHP_URL_PATH) ?: $media->getUrl();
+        // Sign the canonical storage path (the file the CDN pull-zone proxies),
+        // not the result of $media->getUrl() — which is itself a CDN URL when
+        // CDN is enabled and would lead to double-signing.
+        $path = '/'.ltrim($media->getPathRelativeToRoot(), '/');
         $url = $cdn->signUrl($path, null, $ttl);
 
         return $this->json([

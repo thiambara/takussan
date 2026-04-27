@@ -21,6 +21,12 @@ class PurgeCdnCacheJobTest extends TestCase
         parent::setUp();
         Storage::fake('public');
         Queue::fake();
+
+        config([
+            'cdn.enabled' => true,
+            'cdn.base_url' => 'https://cdn.example.com',
+            'cdn.signing_key' => 'test-secret',
+        ]);
     }
 
     private function createUserWithMedia(): Media
@@ -49,6 +55,29 @@ class PurgeCdnCacheJobTest extends TestCase
         $owner->clearMediaCollection('photos');
 
         Queue::assertPushed(PurgeCdnCacheJob::class);
+    }
+
+    public function test_metadata_only_update_does_not_dispatch_purge(): void
+    {
+        $media = $this->createUserWithMedia();
+        Queue::fake();
+
+        $media->custom_properties = ['caption' => 'updated'];
+        $media->save();
+
+        Queue::assertNothingPushed();
+    }
+
+    public function test_purge_skipped_when_cdn_disabled(): void
+    {
+        config(['cdn.enabled' => false]);
+
+        $media = $this->createUserWithMedia();
+        Queue::fake();
+
+        $media->delete();
+
+        Queue::assertNothingPushed();
     }
 
     public function test_job_calls_provider_purge_with_snapshot_urls(): void
