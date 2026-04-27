@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Agency\RegenerateWatermarksController;
 use App\Http\Controllers\Api\AgencyController;
 use App\Http\Controllers\Api\AgencyMemberRoleController;
 use App\Http\Controllers\Api\AgencyRoleController;
@@ -26,6 +27,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Agency-scoped member role assignment.
     Route::put('agencies/{agency}/members/{user}/role', [AgencyMemberRoleController::class, 'update'])->name('agencies.members.role.update');
+
+    // TCK-106 — bulk regenerate watermarks for all property photos in an agency.
+    Route::post('agencies/{agency}/regenerate-watermarks', RegenerateWatermarksController::class)->name('agencies.regenerate-watermarks');
 
     // Agency stats (P1 — simple aggregates, no cache).
     Route::get('agencies/{agency}/stats', [AgencyStatsController::class, 'show'])->name('agencies.stats.show');

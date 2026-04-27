@@ -115,6 +115,13 @@ class PropertyController extends Controller
     {
         $this->authorizeAccess($request, $property);
 
+        if ($request->boolean('raw')) {
+            $firstMedia = $property->getFirstMedia('photos');
+            if ($firstMedia !== null) {
+                Gate::authorize('viewRaw', $firstMedia);
+            }
+        }
+
         return $this->json([
             'data' => PropertyResource::make($property->load(['address', 'media', 'owner']))->toArray($request),
         ]);

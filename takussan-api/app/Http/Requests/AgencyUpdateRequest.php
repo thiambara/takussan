@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Enums\Currency;
+use App\Models\Enums\WatermarkPosition;
 use Illuminate\Validation\Rule;
 
 /**
@@ -34,6 +35,9 @@ class AgencyUpdateRequest extends BaseFormRequest
             'commission_rate' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
             'currency' => ['sometimes', Rule::enum(Currency::class)],
             'settings' => ['sometimes', 'nullable', 'array'],
+            'settings.watermark_enabled' => ['sometimes', 'boolean'],
+            'settings.watermark_position' => ['sometimes', Rule::enum(WatermarkPosition::class)],
+            'settings.watermark_opacity' => ['sometimes', 'integer', 'between:10,100'],
         ];
     }
 }

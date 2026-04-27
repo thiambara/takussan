@@ -14,6 +14,7 @@ use App\Listeners\Lease\NotifyTenantOfDepositRefund;
 use App\Listeners\Lease\NotifyTenantOfLateFee;
 use App\Listeners\Lease\NotifyTenantOfRenewal;
 use App\Listeners\Lease\NotifyTenantOfRentReview;
+use App\Listeners\Media\ApplyWatermarkOnConversionListener;
 use App\Listeners\Payments\LemonSqueezyEventListener;
 use App\Models\Conversation;
 use App\Models\Favorite;
@@ -69,6 +70,7 @@ use LemonSqueezy\Laravel\Events\OrderRefunded as LemonSqueezyOrderRefunded;
 use LemonSqueezy\Laravel\Events\SubscriptionCreated as LemonSqueezySubscriptionCreated;
 use SocialiteProviders\Manager\SocialiteWasCalled;
 use Spatie\Activitylog\Models\Activity;
+use Spatie\MediaLibrary\Conversions\Events\ConversionHasBeenCompletedEvent;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class AppServiceProvider extends ServiceProvider
@@ -207,6 +209,9 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-091 — notify the tenant when the rent on their lease is reviewed.
         $events->listen(LeaseRentReviewed::class, NotifyTenantOfRentReview::class);
+
+        // TCK-106 — apply watermark after Spatie generates each conversion.
+        Event::listen(ConversionHasBeenCompletedEvent::class, ApplyWatermarkOnConversionListener::class);
 
         // TCK-022: dispatch the email verification notification on user
         // registration (Laravel no longer auto-registers this in the
