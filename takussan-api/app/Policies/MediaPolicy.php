@@ -29,6 +29,16 @@ class MediaPolicy extends BasePolicy
         return true;
     }
 
+    /**
+     * TCK-105 — only the owner of the underlying resource may request a
+     * signed CDN URL for private media.  Reuses the same ownership rules
+     * as delete().
+     */
+    public function sign(User $user, Model $model): bool
+    {
+        return $this->delete($user, $model);
+    }
+
     public function delete(User $user, Model $model): bool
     {
         if (! $model instanceof Media) {
