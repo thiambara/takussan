@@ -1,12 +1,12 @@
 ---
 id: TCK-106
 title: "Watermark auto photos biens"
-status: todo
+status: done
 phase: P2
 family: applicatif
 estimate: S
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-27
 depends_on: [TCK-016, TCK-050, TCK-035]
 blocks: []
 spec_refs:

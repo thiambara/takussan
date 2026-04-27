@@ -1,7 +1,7 @@
 ---
 id: TCK-105
 title: "CDN + webp/avif"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: S
