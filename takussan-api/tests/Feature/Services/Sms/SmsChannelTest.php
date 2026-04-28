@@ -44,6 +44,7 @@ class SmsChannelTest extends TestCase
             'is_active' => true,
         ]);
         config()->set('sms.webhook_url_token', 'tck-102-test-token');
+        config()->set('sms.quiet_hours.enabled', false);
         Http::fake([
             'lampush*' => Http::response(['push_id' => 'lam-x'], 200),
         ]);
