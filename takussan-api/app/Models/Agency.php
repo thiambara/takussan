@@ -26,7 +26,7 @@ class Agency extends AbstractModel implements HasMedia
         'email', 'phone', 'website', 'commission_rate', 'currency',
         'founded_at', 'is_verified', 'verified_at',
         'primary_admin_id', 'status', 'metadata', 'settings',
-        'moderation_required',
+        'moderation_required', 'bank_csv_mapping',
     ];
 
     protected $casts = [
@@ -40,6 +40,7 @@ class Agency extends AbstractModel implements HasMedia
         'metadata' => 'array',
         'settings' => 'array',
         'moderation_required' => 'boolean',
+        'bank_csv_mapping' => 'array',
     ];
 
     protected $attributes = [
@@ -119,5 +120,10 @@ class Agency extends AbstractModel implements HasMedia
     public function leases(): HasMany
     {
         return $this->hasMany(Lease::class);
+    }
+
+    public function bankStatements(): HasMany
+    {
+        return $this->hasMany(BankStatement::class);
     }
 }

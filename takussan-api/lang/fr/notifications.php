@@ -46,6 +46,8 @@ return [
         'visit' => 'Visites',
         'message' => 'Messages',
         'system' => 'Système',
+        'bank_statement_imported' => 'Relevé bancaire importé',
+        'bank_statement_finalized' => 'Relevé bancaire clôturé',
         'role_delegated' => 'Délégation de rôle',
         'role_delegation_expired' => 'Délégation expirée',
         'role_delegation_revoked' => 'Délégation révoquée',

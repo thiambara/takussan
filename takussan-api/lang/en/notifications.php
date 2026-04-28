@@ -46,6 +46,8 @@ return [
         'visit' => 'Visits',
         'message' => 'Messages',
         'system' => 'System',
+        'bank_statement_imported' => 'Bank statement imported',
+        'bank_statement_finalized' => 'Bank statement finalized',
         'role_delegated' => 'Role delegation',
         'role_delegation_expired' => 'Delegation expired',
         'role_delegation_revoked' => 'Delegation revoked',
