@@ -3,7 +3,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, MapPin, Home, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle } from 'lucide-react';
+import { Home, MapPin, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle, Search } from 'lucide-react';
+import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -119,17 +120,11 @@ export function Navbar({ className }: NavbarProps) {
         <div className="hidden md:flex flex-col max-w-xl w-full mx-auto gap-0">
           {/* Search Bar */}
           <div className="flex items-center bg-white border border-gray-300 rounded-full shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-            <div className="flex items-center gap-2 flex-1 px-4 py-2.5">
-              <MapPin className="w-4 h-4 text-primary shrink-0" />
-              <input
-                type="text"
-                placeholder="Où cherchez-vous ?"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="w-full text-sm text-gray-900 placeholder:text-gray-400 font-medium outline-none bg-transparent"
-              />
-            </div>
+            <SearchAutocomplete
+              variant="hero"
+              placeholder="Où cherchez-vous ?"
+              className="flex-1 [&>div]:border-none [&>div]:shadow-none [&>div]:rounded-none [&>div]:bg-transparent"
+            />
             <div className="w-px h-6 bg-gray-200 shrink-0" />
             <div className="flex items-center gap-1.5 px-4 py-2.5 shrink-0">
               <Home className="w-4 h-4 text-primary" />
