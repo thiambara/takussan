@@ -59,11 +59,14 @@ use App\Services\Notifications\Sms\SmsRouterDriver;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Http\Request;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use LemonSqueezy\Laravel\Events\OrderCreated as LemonSqueezyOrderCreated;
 use LemonSqueezy\Laravel\Events\OrderRefunded as LemonSqueezyOrderRefunded;
@@ -142,6 +145,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(Dispatcher $events): void
     {
+        // TCK-107 — named rate limiter so tests can clear it by a predictable key.
+        RateLimiter::for('search-suggest', fn (Request $request) => Limit::perMinute(60)->by($request->ip()));
+
         Property::observe(PropertyObserver::class);
         Message::observe(MessageObserver::class);
         Favorite::observe(FavoriteObserver::class);

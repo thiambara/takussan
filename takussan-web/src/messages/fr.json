@@ -463,5 +463,21 @@
     "confirmBody": "Vos biens consultés seront supprimés de votre navigateur. Cette action est irréversible.",
     "confirmCta": "Effacer",
     "cancel": "Annuler"
+  },
+  "search": {
+    "suggest": {
+      "placeholder": "Rechercher une ville, un quartier, un type de bien…",
+      "groups": {
+        "cities": "Villes",
+        "neighborhoods": "Quartiers",
+        "property_types": "Types"
+      },
+      "empty": "Aucun résultat pour « {query} »",
+      "fallback": {
+        "all_cities": "Voir toutes les villes",
+        "all_types": "Tous les types"
+      },
+      "loading": "Chargement…"
+    }
   }
 }

@@ -412,5 +412,21 @@
     "confirmBody": "Kër yi nga xool dañu leen jëla ci sa navigateur. Mënuñu ko delloo.",
     "confirmCta": "Fommi",
     "cancel": "Bàyyi"
+  },
+  "search": {
+    "suggest": {
+      "placeholder": "Seet dëkk, quartier, wàll kër…",
+      "groups": {
+        "cities": "Dëkk yi",
+        "neighborhoods": "Quartier yi",
+        "property_types": "Wàll yi"
+      },
+      "empty": "Amul dara ci « {query} »",
+      "fallback": {
+        "all_cities": "Xool dëkk yépp",
+        "all_types": "Wàll yépp"
+      },
+      "loading": "Yëgël…"
+    }
   }
 }
