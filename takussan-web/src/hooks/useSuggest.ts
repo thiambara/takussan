@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useLocale } from 'next-intl';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import type { SuggestResponse } from '@/types/search';
 import type { UseQueryResult } from '@tanstack/react-query';
@@ -18,11 +19,12 @@ export function useSuggest(
   q: string,
   options: { enabled?: boolean } = {},
 ): UseQueryResult<SuggestResponse> {
+  const locale = useLocale();
   const debouncedQ = useDebouncedValue(q, 150);
   const enabled = (options.enabled ?? true) && debouncedQ.length >= 1;
 
   return useApiQuery<SuggestResponse>(
-    ['search', 'suggest', debouncedQ],
+    ['search', 'suggest', locale, debouncedQ],
     '/search/suggest',
     {
       params: { extra: { q: debouncedQ, limit: 10 } },

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useId, useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Search } from 'lucide-react';
 import { useSuggest } from '@/hooks/useSuggest';
 import { highlightMatch } from '@/lib/highlightMatch';
@@ -50,6 +51,7 @@ export function SearchAutocomplete({
   className,
 }: SearchAutocompleteProps) {
   const router = useRouter();
+  const t = useTranslations('search.suggest');
   const inputId = useId();
   const listboxId = useId();
   const [query, setQuery] = useState('');
@@ -126,8 +128,7 @@ export function SearchAutocomplete({
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  const defaultPlaceholder =
-    variant === 'navbar' ? 'Rechercher des biens…' : 'Rechercher une ville, un quartier, un type de bien…';
+  const defaultPlaceholder = t('placeholder');
 
   const isNavbar = variant === 'navbar';
 
@@ -176,7 +177,7 @@ export function SearchAutocomplete({
         <div
           id={listboxId}
           role="listbox"
-          aria-label="Suggestions de recherche"
+          aria-label={t('placeholder')}
           className="absolute left-0 top-full z-50 mt-2 w-full min-w-[320px] rounded-xl bg-white shadow-lg ring-1 ring-stone-200 overflow-hidden"
         >
           {showLoading && (
@@ -190,7 +191,7 @@ export function SearchAutocomplete({
           {showEmpty && (
             <div className="px-4 py-5 text-center">
               <p className="text-sm text-stone-500">
-                Aucun résultat pour «&nbsp;<span className="font-medium text-stone-800">{query}</span>&nbsp;»
+                {t('empty', { query })}
               </p>
               <div className="mt-3 flex justify-center gap-3">
                 <button
@@ -198,14 +199,14 @@ export function SearchAutocomplete({
                   onClick={() => router.push('/properties')}
                   className="text-xs text-primary font-semibold hover:underline underline-offset-2"
                 >
-                  Voir toutes les villes
+                  {t('fallback.all_cities')}
                 </button>
                 <button
                   type="button"
                   onClick={() => router.push('/properties?type=apartment')}
                   className="text-xs text-primary font-semibold hover:underline underline-offset-2"
                 >
-                  Tous les types
+                  {t('fallback.all_types')}
                 </button>
               </div>
             </div>
@@ -216,7 +217,7 @@ export function SearchAutocomplete({
               {cities.length > 0 && (
                 <>
                   <li className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-stone-400">
-                    Villes
+                    {t('groups.cities')}
                   </li>
                   {cities.map((city, i) => {
                     const idx = i;
@@ -244,7 +245,7 @@ export function SearchAutocomplete({
               {neighborhoods.length > 0 && (
                 <>
                   <li className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-stone-400">
-                    Quartiers
+                    {t('groups.neighborhoods')}
                   </li>
                   {neighborhoods.map((nb, i) => {
                     const idx = cities.length + i;
@@ -275,7 +276,7 @@ export function SearchAutocomplete({
               {propertyTypes.length > 0 && (
                 <>
                   <li className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-stone-400">
-                    Types
+                    {t('groups.property_types')}
                   </li>
                   {propertyTypes.map((pt, i) => {
                     const idx = cities.length + neighborhoods.length + i;

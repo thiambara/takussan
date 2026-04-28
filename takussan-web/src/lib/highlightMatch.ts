@@ -20,7 +20,7 @@ export function highlightMatch(label: string, query: string): HighlightParts {
   const idx = normalizedLabel.indexOf(normalizedQuery);
   if (idx === -1) return { before: label, match: '', after: '' };
 
-  const end = idx + query.length;
+  const end = idx + normalizedQuery.length;
   return {
     before: label.slice(0, idx),
     match: label.slice(idx, end),

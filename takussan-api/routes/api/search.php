@@ -6,7 +6,7 @@ use App\Http\Controllers\Api\SearchMessageController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('search/suggest', SuggestController::class)
-    ->middleware('throttle:60,1')
+    ->middleware('throttle:search-suggest')
     ->name('search.suggest');
 
 Route::middleware('auth:sanctum')->group(function () {

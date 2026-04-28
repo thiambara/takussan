@@ -142,7 +142,7 @@ class SearchSuggestTest extends TestCase
 
     public function test_rate_limit_returns_429_after_60_requests(): void
     {
-        RateLimiter::clear('search-suggest:'.request()->ip());
+        RateLimiter::clear('search-suggest|'.request()->ip());
 
         for ($i = 0; $i < 60; $i++) {
             $this->getJson($this->url.'?q=da');
