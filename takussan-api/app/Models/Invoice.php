@@ -6,6 +6,7 @@ use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\Currency;
 use App\Models\Enums\InvoiceStatus;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -23,6 +24,7 @@ class Invoice extends AbstractModel
         'subtotal', 'tax_rate', 'tax_amount', 'total_amount', 'currency',
         'notes', 'metadata',
         'last_reminder_sent_at', 'reminders_sent_count',
+        'bank_reconciled_at', 'bank_statement_line_id',
     ];
 
     protected $casts = [
@@ -37,6 +39,7 @@ class Invoice extends AbstractModel
         'metadata' => 'array',
         'last_reminder_sent_at' => 'datetime',
         'reminders_sent_count' => 'integer',
+        'bank_reconciled_at' => 'datetime',
     ];
 
     protected static array $requestFilterable = ['customer_id', 'issued_by_id', 'agency_id', 'status', 'currency', 'invoiceable_type'];
@@ -104,5 +107,15 @@ class Invoice extends AbstractModel
     public function agency(): BelongsTo
     {
         return $this->belongsTo(Agency::class);
+    }
+
+    public function bankStatementLine(): BelongsTo
+    {
+        return $this->belongsTo(BankStatementLine::class, 'bank_statement_line_id');
+    }
+
+    public function scopeWhereNotReconciled(Builder $query): Builder
+    {
+        return $query->whereNull('bank_reconciled_at');
     }
 }

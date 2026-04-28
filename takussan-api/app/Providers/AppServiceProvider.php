@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Events\Accounting\BankStatementFinalized;
+use App\Events\Accounting\BankStatementImported;
 use App\Events\Lease\LeaseDepositRefunded;
 use App\Events\Lease\LeaseEarlyTerminationCancelled;
 use App\Events\Lease\LeaseEarlyTerminationConfirmed;
@@ -9,6 +11,8 @@ use App\Events\Lease\LeaseEarlyTerminationRequested;
 use App\Events\Lease\LeasePaymentLateFeeApplied;
 use App\Events\Lease\LeaseRenewed;
 use App\Events\Lease\LeaseRentReviewed;
+use App\Listeners\Accounting\NotifyStatementFinalized;
+use App\Listeners\Accounting\NotifyStatementImported;
 use App\Listeners\Lease\NotifyOnEarlyTermination;
 use App\Listeners\Lease\NotifyTenantOfDepositRefund;
 use App\Listeners\Lease\NotifyTenantOfLateFee;
@@ -212,6 +216,10 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-106 — apply watermark after Spatie generates each conversion.
         Event::listen(ConversionHasBeenCompletedEvent::class, ApplyWatermarkOnConversionListener::class);
+
+        // TCK-109 — bank reconciliation event listeners.
+        Event::listen(BankStatementImported::class, NotifyStatementImported::class);
+        Event::listen(BankStatementFinalized::class, NotifyStatementFinalized::class);
 
         // TCK-022: dispatch the email verification notification on user
         // registration (Laravel no longer auto-registers this in the

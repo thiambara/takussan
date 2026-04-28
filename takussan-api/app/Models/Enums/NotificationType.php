@@ -11,4 +11,6 @@ enum NotificationType: string
     case Visit = 'visit';
     case Message = 'message';
     case System = 'system';
+    case BankStatementImported = 'bank_statement_imported';
+    case BankStatementFinalized = 'bank_statement_finalized';
 }

@@ -6,6 +6,7 @@ use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Concerns\HasPaymentAttributes;
 use App\Models\Enums\LeasePaymentType;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -42,6 +43,7 @@ class LeasePayment extends AbstractModel
         'payment_method', 'payment_type',
         'period_start', 'period_end', 'due_date', 'paid_at', 'status',
         'late_fee_amount', 'late_fee_applied_at', 'transaction_id', 'notes', 'metadata',
+        'bank_reconciled_at', 'bank_statement_line_id',
     ];
 
     protected $casts = [
@@ -52,6 +54,7 @@ class LeasePayment extends AbstractModel
         'late_fee_amount' => 'decimal:2',
         'late_fee_applied_at' => 'datetime',
         'metadata' => 'array',
+        'bank_reconciled_at' => 'datetime',
     ];
 
     public function lease(): BelongsTo
@@ -72,5 +75,15 @@ class LeasePayment extends AbstractModel
     public function payouts(): BelongsToMany
     {
         return $this->belongsToMany(Payout::class, 'payout_lease_payment');
+    }
+
+    public function bankStatementLine(): BelongsTo
+    {
+        return $this->belongsTo(BankStatementLine::class, 'bank_statement_line_id');
+    }
+
+    public function scopeWhereNotReconciled(Builder $query): Builder
+    {
+        return $query->whereNull('bank_reconciled_at');
     }
 }

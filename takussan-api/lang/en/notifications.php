@@ -46,6 +46,8 @@ return [
         'visit' => 'Visits',
         'message' => 'Messages',
         'system' => 'System',
+        'bank_statement_imported' => 'Bank statement imported',
+        'bank_statement_finalized' => 'Bank statement finalized',
     ],
 
     'visit_requested' => [

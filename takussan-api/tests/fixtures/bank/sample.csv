@@ -1,0 +1,11 @@
+date,amount,label,reference,counterparty
+01/04/2026,15000,Loyer Avril LP-2026-001,LP-2026-001,Mamadou Diop
+02/04/2026,25000,Loyer Avril LP-2026-002,LP-2026-002,Fatou Ndiaye
+03/04/2026,-5000,Frais bancaires,,Banque
+05/04/2026,15000,Loyer Avril LP-2026-003,LP-2026-003,Ousmane Ba
+07/04/2026,35000,Paiement facture INV-2026-001,INV-2026-001,Awa Sall
+10/04/2026,20000,Loyer Mai LP-2026-004,LP-2026-004,Ibrahima Fall
+12/04/2026,15000,Loyer Mai LP-2026-005,LP-2026-005,Aminata Diallo
+15/04/2026,-2500,Commission Wave,,Wave
+18/04/2026,30000,Caution Booking BK-2026-001,BK-2026-001,Cheikh Mbaye
+20/04/2026,12000,Virement entrant,,Unknown

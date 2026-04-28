@@ -46,6 +46,8 @@ return [
         'visit' => 'Visites',
         'message' => 'Messages',
         'system' => 'Système',
+        'bank_statement_imported' => 'Relevé bancaire importé',
+        'bank_statement_finalized' => 'Relevé bancaire clôturé',
     ],
 
     'task_due_reminder' => [
