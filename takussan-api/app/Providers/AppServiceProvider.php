@@ -61,7 +61,6 @@ use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Events\Dispatcher;
-use Illuminate\Http\Request;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
@@ -145,8 +144,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(Dispatcher $events): void
     {
-        // TCK-107 — named rate limiter so tests can clear it by a predictable key.
-        RateLimiter::for('search-suggest', fn (Request $request) => Limit::perMinute(60)->by($request->ip()));
+        // TCK-107 — named rate limiter; key is "search-suggest|{ip}" (Laravel default for named limiters).
+        RateLimiter::for('search-suggest', fn () => Limit::perMinute(60));
 
         Property::observe(PropertyObserver::class);
         Message::observe(MessageObserver::class);
