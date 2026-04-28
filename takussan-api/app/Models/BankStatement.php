@@ -7,6 +7,7 @@ use App\Models\Bases\Auditable;
 use App\Models\Enums\BankStatementSourceFormat;
 use App\Models\Enums\BankStatementStatus;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\MediaLibrary\HasMedia;
@@ -14,7 +15,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 
 class BankStatement extends AbstractModel implements HasMedia
 {
-    use Auditable, InteractsWithMedia;
+    use Auditable, HasFactory, InteractsWithMedia;
 
     protected $fillable = [
         'agency_id', 'uploaded_by', 'source_format', 'file_hash',

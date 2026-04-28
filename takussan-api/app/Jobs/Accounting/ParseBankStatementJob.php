@@ -16,17 +16,24 @@ class ParseBankStatementJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $queue = 'reconciliation';
-
     public int $tries = 1;
 
-    public function __construct(public int $statementId) {}
+    public function __construct(public int $statementId)
+    {
+        $this->onQueue('reconciliation');
+    }
 
     public function handle(StatementParserFactory $factory): void
     {
         $statement = BankStatement::find($this->statementId);
 
         if (! $statement) {
+            return;
+        }
+
+        // Idempotence guard — a re-dispatched job (e.g. queue retry, replay)
+        // must not append a second copy of the lines to the same statement.
+        if ($statement->lines()->exists()) {
             return;
         }
 

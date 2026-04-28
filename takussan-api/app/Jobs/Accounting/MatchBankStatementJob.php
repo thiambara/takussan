@@ -12,11 +12,12 @@ class MatchBankStatementJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $queue = 'reconciliation';
-
     public int $tries = 1;
 
-    public function __construct(public int $statementId) {}
+    public function __construct(public int $statementId)
+    {
+        $this->onQueue('reconciliation');
+    }
 
     public function handle(ReconciliationMatcher $matcher): void
     {

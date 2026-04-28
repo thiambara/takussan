@@ -77,14 +77,16 @@ class ReconciliationMatcher
                 Invoice::class => $query->where('agency_id', $agencyId),
             };
 
-            // Amount filter with small tolerance for rounding
-            $query->whereRaw('ABS(amount - ?) < 0.01', [$amount]);
+            // Amount filter with small tolerance for rounding. Invoices store the
+            // total in `total_amount`; booking/lease payments use `amount`.
+            $amountColumn = $modelClass === Invoice::class ? 'total_amount' : 'amount';
+            $query->whereRaw("ABS({$amountColumn} - ?) < 0.01", [$amount]);
 
             // Date window
             $dateColumn = $modelClass === Invoice::class ? 'issue_date' : 'paid_at';
             $query->whereBetween($dateColumn, [$windowStart, $windowEnd]);
 
-            $results = $query->get(['id', 'amount', 'currency', 'reference_number', $dateColumn]);
+            $results = $query->get(['id', $amountColumn, 'currency', 'reference_number', $dateColumn]);
 
             foreach ($results as $row) {
                 $candidates->push((object) [

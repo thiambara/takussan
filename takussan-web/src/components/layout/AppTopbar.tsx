@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Menu, Search } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import type { User } from '@/types/user';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import { UserMenu } from './UserMenu';
+import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { cn } from '@/lib/utils';
 
 interface AppTopbarProps {
@@ -14,8 +14,6 @@ interface AppTopbarProps {
 }
 
 export function AppTopbar({ user, onMenuToggle }: AppTopbarProps) {
-  const router = useRouter();
-
   return (
     <header className={cn('flex h-14 shrink-0 items-center gap-3 bg-app-topbar px-4')}>
       <button
@@ -31,14 +29,10 @@ export function AppTopbar({ user, onMenuToggle }: AppTopbarProps) {
         Takussan
       </Link>
 
-      <button
-        type="button"
-        onClick={() => router.push('/properties')}
-        className="ml-6 hidden h-9 min-w-80 flex-1 items-center gap-2 rounded-full bg-white/10 px-4 text-left text-sm text-white/70 hover:bg-white/20 md:inline-flex"
-      >
-        <Search className="size-4" />
-        <span>Rechercher des biens...</span>
-      </button>
+      <SearchAutocomplete
+        variant="navbar"
+        className="ml-6 hidden md:block min-w-80 flex-1"
+      />
 
       <div className="ml-auto flex items-center gap-2">
         {/* TCK-017 — language switcher persisted via cookie + (when logged in)

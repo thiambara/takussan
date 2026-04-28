@@ -1,3 +1,30 @@
+export type SuggestCity = {
+  label: string;
+  slug?: string;
+  count: number;
+};
+
+export type SuggestNeighborhood = {
+  label: string;
+  city: string;
+  slug?: string;
+  count: number;
+};
+
+export type SuggestPropertyType = {
+  label: string;
+  value: string;
+  count: number;
+};
+
+export type SuggestResponse = {
+  data: {
+    cities: SuggestCity[];
+    neighborhoods: SuggestNeighborhood[];
+    property_types: SuggestPropertyType[];
+  };
+};
+
 export interface SearchFilters {
   q?: string;
   location?: string;

@@ -11,6 +11,9 @@ use App\Events\Lease\LeaseEarlyTerminationRequested;
 use App\Events\Lease\LeasePaymentLateFeeApplied;
 use App\Events\Lease\LeaseRenewed;
 use App\Events\Lease\LeaseRentReviewed;
+use App\Events\Permissions\RoleDelegationActivated;
+use App\Events\Permissions\RoleDelegationExpired;
+use App\Events\Permissions\RoleDelegationRevoked;
 use App\Listeners\Accounting\NotifyStatementFinalized;
 use App\Listeners\Accounting\NotifyStatementImported;
 use App\Listeners\Lease\NotifyOnEarlyTermination;
@@ -20,6 +23,9 @@ use App\Listeners\Lease\NotifyTenantOfRenewal;
 use App\Listeners\Lease\NotifyTenantOfRentReview;
 use App\Listeners\Media\ApplyWatermarkOnConversionListener;
 use App\Listeners\Payments\LemonSqueezyEventListener;
+use App\Listeners\Permissions\NotifyDelegationActivated;
+use App\Listeners\Permissions\NotifyDelegationExpired;
+use App\Listeners\Permissions\NotifyDelegationRevoked;
 use App\Models\Conversation;
 use App\Models\Favorite;
 use App\Models\Lease;
@@ -27,6 +33,7 @@ use App\Models\Message;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\Review;
+use App\Models\RoleDelegation;
 use App\Models\User;
 use App\Notifications\Channels\SmsChannel;
 use App\Observers\FavoriteObserver;
@@ -43,6 +50,7 @@ use App\Policies\LeasePolicy;
 use App\Policies\MediaPolicy;
 use App\Policies\PropertyModerationPolicy;
 use App\Policies\PropertyPolicy;
+use App\Policies\RoleDelegationPolicy;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Media\Cdn\BunnyCdnDriver;
 use App\Services\Media\Cdn\CdnHealthGuard;
@@ -63,11 +71,13 @@ use App\Services\Notifications\Sms\SmsRouterDriver;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use LemonSqueezy\Laravel\Events\OrderCreated as LemonSqueezyOrderCreated;
 use LemonSqueezy\Laravel\Events\OrderRefunded as LemonSqueezyOrderRefunded;
@@ -146,6 +156,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(Dispatcher $events): void
     {
+        // TCK-107 — named rate limiter; key is "search-suggest|{ip}" (Laravel default for named limiters).
+        RateLimiter::for('search-suggest', fn () => Limit::perMinute(60));
+
         Property::observe(PropertyObserver::class);
         Message::observe(MessageObserver::class);
         Favorite::observe(FavoriteObserver::class);
@@ -173,6 +186,9 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-088 — explicit bind for `$user->can('refundDeposit', $lease)`.
         Gate::policy(Lease::class, LeasePolicy::class);
+
+        // TCK-108 — role delegation policy (agency-scoped admin checks).
+        Gate::policy(RoleDelegation::class, RoleDelegationPolicy::class);
 
         // TCK-098 — property moderation gates (approve, reject, resubmit).
         // Named gates avoid collision with the existing PropertyPolicy.
@@ -213,6 +229,11 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-091 — notify the tenant when the rent on their lease is reviewed.
         $events->listen(LeaseRentReviewed::class, NotifyTenantOfRentReview::class);
+
+        // TCK-108 — notify on role delegation lifecycle events.
+        Event::listen(RoleDelegationActivated::class, NotifyDelegationActivated::class);
+        Event::listen(RoleDelegationExpired::class, NotifyDelegationExpired::class);
+        Event::listen(RoleDelegationRevoked::class, NotifyDelegationRevoked::class);
 
         // TCK-106 — apply watermark after Spatie generates each conversion.
         Event::listen(ConversionHasBeenCompletedEvent::class, ApplyWatermarkOnConversionListener::class);

@@ -463,5 +463,21 @@
     "confirmBody": "Your browsing history will be removed from this browser. This action cannot be undone.",
     "confirmCta": "Clear",
     "cancel": "Cancel"
+  },
+  "search": {
+    "suggest": {
+      "placeholder": "Search a city, neighborhood, property type…",
+      "groups": {
+        "cities": "Cities",
+        "neighborhoods": "Neighborhoods",
+        "property_types": "Types"
+      },
+      "empty": "No results for « {query} »",
+      "fallback": {
+        "all_cities": "See all cities",
+        "all_types": "All types"
+      },
+      "loading": "Loading…"
+    }
   }
 }

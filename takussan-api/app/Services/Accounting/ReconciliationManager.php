@@ -69,11 +69,21 @@ class ReconciliationManager
             abort(422, 'Unsupported payment type.');
         }
 
-        DB::transaction(function () use ($line, $payment, $caller) {
+        $line = DB::transaction(function () use ($line, $payment, $caller) {
             // Lock the line to prevent concurrent updates
-            $line = BankStatementLine::lockForUpdate()->find($line->id);
+            $locked = BankStatementLine::query()->lockForUpdate()->find($line->id);
 
-            // Re-verify after lock
+            // Re-verify after lock — another concurrent caller may have already
+            // confirmed or ignored this line.
+            if (in_array($locked->match_status, [
+                BankStatementLineMatchStatus::Confirmed,
+                BankStatementLineMatchStatus::Ignored,
+            ], true)) {
+                throw ValidationException::withMessages([
+                    'line' => [__('reconciliation.validation.already_reconciled')],
+                ]);
+            }
+
             $payment->refresh();
             if ($payment->bank_statement_line_id !== null) {
                 throw ValidationException::withMessages([
@@ -81,7 +91,7 @@ class ReconciliationManager
                 ]);
             }
 
-            $line->update([
+            $locked->update([
                 'match_status' => BankStatementLineMatchStatus::Confirmed,
                 'matched_payment_type' => get_class($payment),
                 'matched_payment_id' => $payment->id,
@@ -90,9 +100,11 @@ class ReconciliationManager
             ]);
 
             $payment->update([
-                'bank_reconciled_at' => $line->posted_at,
-                'bank_statement_line_id' => $line->id,
+                'bank_reconciled_at' => $locked->posted_at,
+                'bank_statement_line_id' => $locked->id,
             ]);
+
+            return $locked;
         });
 
         activity('BankStatementLine')
@@ -108,7 +120,7 @@ class ReconciliationManager
 
         $this->events->dispatch(new BankStatementLineMatched($line));
 
-        return $line->refresh();
+        return $line;
     }
 
     /**

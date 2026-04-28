@@ -7,12 +7,13 @@ use App\Models\Bases\Auditable;
 use App\Models\Enums\BankStatementLineDirection;
 use App\Models\Enums\BankStatementLineMatchStatus;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class BankStatementLine extends AbstractModel
 {
-    use Auditable;
+    use Auditable, HasFactory;
 
     protected $fillable = [
         'bank_statement_id', 'posted_at', 'amount', 'direction', 'currency',

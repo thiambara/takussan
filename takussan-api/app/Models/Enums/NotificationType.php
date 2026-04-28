@@ -13,4 +13,7 @@ enum NotificationType: string
     case System = 'system';
     case BankStatementImported = 'bank_statement_imported';
     case BankStatementFinalized = 'bank_statement_finalized';
+    case RoleDelegated = 'role_delegated';
+    case RoleDelegationExpired = 'role_delegation_expired';
+    case RoleDelegationRevoked = 'role_delegation_revoked';
 }
