@@ -46,6 +46,9 @@ return [
         'visit' => 'Visites',
         'message' => 'Messages',
         'system' => 'Système',
+        'role_delegated' => 'Délégation de rôle',
+        'role_delegation_expired' => 'Délégation expirée',
+        'role_delegation_revoked' => 'Délégation révoquée',
     ],
 
     'visit_requested' => [
