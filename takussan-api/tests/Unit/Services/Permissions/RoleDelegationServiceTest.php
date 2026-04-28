@@ -236,7 +236,7 @@ class RoleDelegationServiceTest extends TestCase
     public function test_cannot_create_self_delegation(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('You cannot delegate a role to yourself.');
+        $this->expectExceptionMessage(__('role_delegations.validation.self_delegation'));
 
         $data = [
             'user_id' => $this->admin->id, // Self
@@ -251,7 +251,7 @@ class RoleDelegationServiceTest extends TestCase
     public function test_cannot_create_for_user_outside_agency(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('The user does not belong to this agency.');
+        $this->expectExceptionMessage(__('role_delegations.validation.user_not_in_agency'));
 
         $otherAgency = Agency::factory()->create();
         $otherUser = User::factory()->create(['agency_id' => $otherAgency->id]);
@@ -269,7 +269,7 @@ class RoleDelegationServiceTest extends TestCase
     public function test_cannot_delegate_to_primary_admin(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('This user is already the primary administrator of the agency.');
+        $this->expectExceptionMessage(__('role_delegations.validation.already_primary_admin'));
 
         // Create another user as primary admin of a different agency
         $otherAdmin = User::factory()->create();
