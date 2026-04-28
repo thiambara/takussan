@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AgencyController;
 use App\Http\Controllers\Api\AgencyMemberRoleController;
 use App\Http\Controllers\Api\AgencyRoleController;
 use App\Http\Controllers\Api\AgencyStatsController;
+use App\Http\Controllers\Api\Permissions\RoleDelegationController;
 use App\Http\Controllers\Api\ReviewController;
 use Illuminate\Support\Facades\Route;
 
@@ -43,4 +44,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('agency-roles', [AgencyRoleController::class, 'store'])->name('agency-roles.store');
     Route::put('agency-roles/{role}', [AgencyRoleController::class, 'update'])->name('agency-roles.update');
     Route::delete('agency-roles/{role}', [AgencyRoleController::class, 'destroy'])->name('agency-roles.destroy');
+
+    // TCK-108 — Role delegations (temporary permission grants)
+    Route::get('agencies/{agency}/role-delegations', [RoleDelegationController::class, 'index'])->name('agencies.role-delegations.index');
+    Route::post('agencies/{agency}/role-delegations', [RoleDelegationController::class, 'store'])->name('agencies.role-delegations.store');
+    Route::delete('agencies/{agency}/role-delegations/{delegation}', [RoleDelegationController::class, 'destroy'])->name('agencies.role-delegations.destroy');
 });

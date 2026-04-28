@@ -11,4 +11,7 @@ enum NotificationType: string
     case Visit = 'visit';
     case Message = 'message';
     case System = 'system';
+    case RoleDelegated = 'role_delegated';
+    case RoleDelegationExpired = 'role_delegation_expired';
+    case RoleDelegationRevoked = 'role_delegation_revoked';
 }

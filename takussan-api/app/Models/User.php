@@ -235,6 +235,14 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     }
 
     /**
+     * TCK-108 — role delegations where this user is the beneficiary.
+     */
+    public function roleDelegations(): HasMany
+    {
+        return $this->hasMany(RoleDelegation::class);
+    }
+
+    /**
      * TCK-080 — pending RGPD deletion request (at most one per user, enforced
      * by the UNIQUE on `account_deletion_requests.user_id`).
      */

@@ -7,6 +7,7 @@ use App\Jobs\Invoice\SendOverdueRemindersJob;
 use App\Jobs\Lease\ApplyLateFeesJob;
 use App\Jobs\Lease\ConfirmEarlyTerminationsJob;
 use App\Jobs\Notifications\SendNotificationDigestJob;
+use App\Jobs\Permissions\ProcessRoleDelegationsJob;
 use App\Jobs\SendLeasePaymentReminders;
 use App\Jobs\SendPropertyVisitReminders;
 use App\Jobs\SendSavedSearchAlerts;
@@ -51,3 +52,6 @@ Schedule::command('tasks:send-due-reminders')->hourly()->withoutOverlapping();
 Schedule::command('account:execute-deletions')->hourly()->withoutOverlapping();
 // TCK-096 — Escalate urgent maintenance requests to agency managers
 Schedule::job(new EscalateUrgentMaintenanceJob)->hourly()->withoutOverlapping();
+
+// TCK-108 — Process role delegation activation and expiration
+Schedule::job(new ProcessRoleDelegationsJob)->everyFiveMinutes()->withoutOverlapping();
