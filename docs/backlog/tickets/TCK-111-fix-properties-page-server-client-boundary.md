@@ -1,7 +1,7 @@
 ---
 id: TCK-111
 title: Fix runtime error — fetchDashboardProperties appelée côté serveur
-status: todo
+status: review
 phase: P0
 family: bug
 estimate: S
@@ -50,4 +50,4 @@ La page doit se charger pour tous les rôles qui ont accès aux biens (agent, ow
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+`properties.ts` avait `'use client'` pour les hooks React Query, piégeant aussi `fetchDashboardProperties` (pur async, pas de React). Solution : extraction dans `properties-server.ts` (sans directive), re-export depuis `properties.ts` pour le test existant, import direct depuis le Server Component `page.tsx`.

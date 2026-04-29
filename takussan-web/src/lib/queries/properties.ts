@@ -37,26 +37,19 @@ import type { PropertyFormPayload } from '@/lib/schemas/property';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Dashboard (agent CRUD) — TCK-041
+// Re-exported from properties-server.ts (server-safe, no 'use client') so that
+// both Server Components and this client module can share the same symbols.
 // ─────────────────────────────────────────────────────────────────────────────
+export type {
+  DashboardPropertyFilters,
+  FetchDashboardPropertiesParams,
+} from './properties-server';
+export {
+  DASHBOARD_PROPERTY_FIELDS,
+  fetchDashboardProperties,
+} from './properties-server';
 
-/** Columns the agent CRUD list view actually renders — keep this narrow. */
-export const DASHBOARD_PROPERTY_FIELDS = [
-  'id',
-  'reference_number',
-  'title',
-  'slug',
-  'price',
-  'currency',
-  'type',
-  'contract_type',
-  'status',
-  'visibility',
-  'bedrooms',
-  'area',
-  'main_photo_url',
-  'published_at',
-  'created_at',
-] as const;
+import { DASHBOARD_PROPERTY_FIELDS } from './properties-server';
 
 /** Columns needed by the edit form. */
 export const DASHBOARD_PROPERTY_DETAIL_FIELDS = [
@@ -66,52 +59,6 @@ export const DASHBOARD_PROPERTY_DETAIL_FIELDS = [
   'furnished',
   'rent_period',
 ] as const;
-
-export interface DashboardPropertyFilters {
-  readonly status?: string;
-  readonly type?: string;
-  readonly contract_type?: string;
-  readonly search?: string;
-}
-
-export interface FetchDashboardPropertiesParams {
-  readonly page?: number;
-  readonly perPage?: number;
-  readonly sort?: string;
-  readonly filters?: DashboardPropertyFilters;
-}
-
-function buildListParams({
-  page,
-  perPage,
-  sort,
-  filters,
-}: FetchDashboardPropertiesParams): SpatieQueryParams {
-  const filter: Record<string, string> = {};
-  if (filters?.status) filter.status = filters.status;
-  if (filters?.type) filter.type = filters.type;
-  if (filters?.contract_type) filter.contract_type = filters.contract_type;
-  if (filters?.search) filter.search = filters.search;
-
-  return {
-    fields: { properties: DASHBOARD_PROPERTY_FIELDS },
-    filter,
-    sort: sort ?? '-created_at',
-    page: page ?? 1,
-    per_page: perPage ?? 20,
-  };
-}
-
-export async function fetchDashboardProperties(
-  token: string,
-  params: FetchDashboardPropertiesParams = {},
-): Promise<PaginatedResponse<PropertyListItem>> {
-  const qs = buildQueryString(buildListParams(params));
-  return apiRequest<PaginatedResponse<PropertyListItem>>(
-    `/api/properties${qs ? `?${qs}` : ''}`,
-    { token },
-  );
-}
 
 export async function fetchDashboardProperty(
   token: string,

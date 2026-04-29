@@ -51,7 +51,6 @@ _(vide — TCK-104 en cours)_
 
 ### Vague 13 — Bugs QA (rapport-test-qa-1.md)
 
-- [TCK-111](tickets/TCK-111-fix-properties-page-server-client-boundary.md) — Fix runtime `/app/properties` server/client boundary `S · P0 · bug`
 - [TCK-112](tickets/TCK-112-fix-documents-field-root-context.md) — Fix runtime `/app/documents` FieldRootContext manquant `S · P0 · bug`
 - [TCK-114](tickets/TCK-114-fix-leaflet-map-property-detail.md) — Carte Leaflet vide sur fiche bien `S · P0 · bug`
 - [TCK-113](tickets/TCK-113-fix-audit-toast-provider.md) — Fix runtime `/admin/audit` Toast.Provider manquant `S · P1 · bug`
@@ -74,6 +73,10 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 _(vide)_
 
 ## 👀 Review
+
+### Vague 13 — Bugs QA
+
+- [TCK-111](tickets/TCK-111-fix-properties-page-server-client-boundary.md) — Fix runtime `/app/properties` server/client boundary `S · P0 · bug`
 
 ### Vague 11 — Export audit trail
 

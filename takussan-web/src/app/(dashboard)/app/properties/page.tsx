@@ -4,7 +4,7 @@ import { Plus } from 'lucide-react';
 
 import { getMeAction } from '@/app/actions/auth';
 import { getToken } from '@/lib/session';
-import { fetchDashboardProperties } from '@/lib/queries/properties';
+import { fetchDashboardProperties } from '@/lib/queries/properties-server';
 import { isAdmin, isAgent, isOwner } from '@/lib/roles';
 import { PropertyList } from '@/components/property-dashboard/PropertyList';
 import { PropertyListFilters } from '@/components/property-dashboard/PropertyListFilters';
