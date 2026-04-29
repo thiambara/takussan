@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -28,11 +29,13 @@ import {
 import type { PropertyDetail } from '@/types/property';
 
 import {
-  CONTRACT_TYPE_OPTIONS,
   CURRENCY_OPTIONS,
-  PROPERTY_TYPE_OPTIONS,
   RENT_PERIOD_OPTIONS,
 } from './options';
+import {
+  contractTypeValues,
+  propertyTypeValues,
+} from '@/lib/schemas/property';
 
 /**
  * Property create / edit form — TCK-041.
@@ -90,6 +93,15 @@ function toDefaults(property?: PropertyDetail): PropertyFormValues {
 
 export function PropertyForm({ mode, property }: PropertyFormProps) {
   const router = useRouter();
+  const tProp = useTranslations('property');
+  const propertyTypeOptions = propertyTypeValues.map((v) => ({
+    value: v,
+    label: tProp(`types.${v}`),
+  }));
+  const contractTypeOptions = contractTypeValues.map((v) => ({
+    value: v,
+    label: tProp(`contractTypes.${v}`),
+  }));
   const [pendingPhotos, setPendingPhotos] = useState<File[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
@@ -189,14 +201,14 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
             name="type"
             label="Type de bien"
             required
-            options={PROPERTY_TYPE_OPTIONS}
+            options={propertyTypeOptions}
           />
           <FormSelect
             control={control}
             name="contract_type"
             label="Type de contrat"
             required
-            options={CONTRACT_TYPE_OPTIONS}
+            options={contractTypeOptions}
           />
         </div>
       </section>

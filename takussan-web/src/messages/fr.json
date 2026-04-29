@@ -74,6 +74,28 @@
       "rented": "Loué",
       "sold": "Vendu",
       "pending": "En attente"
+    },
+    "types": {
+      "land": "Terrain",
+      "house": "Maison",
+      "apartment": "Appartement",
+      "villa": "Villa",
+      "studio": "Studio",
+      "room": "Chambre",
+      "office": "Bureau",
+      "shop": "Boutique",
+      "warehouse": "Entrepôt",
+      "factory": "Usine",
+      "farm": "Ferme",
+      "hotel": "Hôtel",
+      "resort": "Resort",
+      "garage": "Garage",
+      "parking": "Parking",
+      "other": "Autre"
+    },
+    "contractTypes": {
+      "sale": "Vente",
+      "rent": "Location"
     }
   },
   "dashboard": {

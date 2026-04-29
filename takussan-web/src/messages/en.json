@@ -74,6 +74,28 @@
       "rented": "Rented",
       "sold": "Sold",
       "pending": "Pending"
+    },
+    "types": {
+      "land": "Land",
+      "house": "House",
+      "apartment": "Apartment",
+      "villa": "Villa",
+      "studio": "Studio",
+      "room": "Room",
+      "office": "Office",
+      "shop": "Shop",
+      "warehouse": "Warehouse",
+      "factory": "Factory",
+      "farm": "Farm",
+      "hotel": "Hotel",
+      "resort": "Resort",
+      "garage": "Garage",
+      "parking": "Parking",
+      "other": "Other"
+    },
+    "contractTypes": {
+      "sale": "Sale",
+      "rent": "Rent"
     }
   },
   "dashboard": {

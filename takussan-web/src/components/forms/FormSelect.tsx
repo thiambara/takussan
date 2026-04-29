@@ -75,6 +75,7 @@ export function FormSelect<TFieldValues extends FieldValues>({
               value={field.value ?? ''}
               onValueChange={(v) => field.onChange(v)}
               disabled={disabled}
+              items={options}
             >
               <SelectTrigger
                 id={triggerId}

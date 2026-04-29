@@ -1,7 +1,7 @@
 ---
 id: TCK-117
 title: i18n — traduire les chaînes anglaises restantes du back-office
-status: todo
+status: review
 phase: P1
 family: bug
 estimate: S
@@ -52,4 +52,8 @@ Les clés i18n doivent être ajoutées dans le fichier de traduction FR — ne p
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Cause racine B-11** : `FormSelect.tsx` ne passait pas le prop `items` à `Select.Root` (base-ui). Sans ce prop, `Select.Value` appelle `serializeValue(value)` comme fallback, affichant la valeur brute (`"apartment"`, `"rent"`). Fix : `items={options}` ajouté sur `<Select>` dans `FormSelect.tsx` — corrige tous les selects de l'app, pas seulement le formulaire bien.
+
+**B-12 / B-16** : déjà fonctionnels (`useTranslations` + clés présentes dans `fr.json`). Ces strings s'affichaient en anglais uniquement pour les testeurs avec locale `en`. Aucun changement nécessaire sur ces composants.
+
+**Contrainte i18n** : `property.types.*` et `property.contractTypes.*` ajoutés dans `fr.json` et `en.json`. `PropertyForm.tsx` utilise désormais `useTranslations('property')` pour construire les options dynamiquement — un utilisateur EN verra "Apartment" / "Rent", un utilisateur FR verra "Appartement" / "Location".

@@ -54,7 +54,6 @@ _(vide — TCK-104 en cours)_
 - [TCK-112](tickets/TCK-112-fix-documents-field-root-context.md) — Fix runtime `/app/documents` FieldRootContext manquant `S · P0 · bug` **[review]**
 - [TCK-115](tickets/TCK-115-super-admin-no-agency-empty-states.md) — Super_admin sans agence — états vides sur overview/bookings/leases/visits `M · P1 · bug` **[review]**
 - [TCK-116](tickets/TCK-116-admin-sidebar-routes-404-doublon.md) — Admin sidebar — routes 404 + doublon Équipe `S · P1 · bug`
-- [TCK-117](tickets/TCK-117-i18n-chaines-anglaises-backoffice.md) — i18n — chaînes anglaises restantes back-office `S · P1 · bug`
 - [TCK-118](tickets/TCK-118-search-text-filter-location.md) — Recherche homepage — texte localisation ignoré/non préservé `S · P1 · bug`
 - [TCK-119](tickets/TCK-119-homepage-latest-properties-sort.md) — Homepage "Derniers ajouts" = "En vedette" `S · P2 · bug`
 - [TCK-120](tickets/TCK-120-property-form-missing-sections.md) — Formulaire bien — sections manquantes (adresse, médias, description, caract.) `L · P2 · bug`
@@ -74,6 +73,7 @@ _(vide)_
 
 ### Vague 13 — Bugs QA
 
+- [TCK-117](tickets/TCK-117-i18n-chaines-anglaises-backoffice.md) — i18n — chaînes anglaises restantes back-office `S · P1 · bug`
 - [TCK-116](tickets/TCK-116-admin-sidebar-routes-404-doublon.md) — Admin sidebar — routes 404 + doublon Équipe `S · P1 · bug`
 - [TCK-115](tickets/TCK-115-super-admin-no-agency-empty-states.md) — Super_admin sans agence — états vides sur overview/bookings/leases/visits `M · P1 · bug`
 - [TCK-114](tickets/TCK-114-fix-leaflet-map-property-detail.md) — Carte Leaflet vide sur fiche bien `S · P0 · bug`
