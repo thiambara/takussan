@@ -15,7 +15,10 @@ class AgencySeeder extends Seeder
 
     public function run(): void
     {
-        $agencies = [
+        $targetAgencyCount = $this->ctx->config->agencies;
+
+        // Agences de base (prédéfinies)
+        $baseAgencies = [
             [
                 'name' => 'Dakar Immo',
                 'slug' => 'dakar-immo',
@@ -41,6 +44,31 @@ class AgencySeeder extends Seeder
                 'commission_rate' => 7.00,
             ],
         ];
+
+        // Générer des agences supplémentaires si nécessaire
+        $agencies = array_slice($baseAgencies, 0, min($targetAgencyCount, count($baseAgencies)));
+
+        $existingSlugs = collect($agencies)->pluck('slug')->all();
+
+        for ($i = count($agencies); $i < $targetAgencyCount; $i++) {
+            do {
+                $city = $this->ctx->faker()->senegaleseCity();
+                $suffix = strtolower(Str::random(4));
+                $name = "{$city} Real Estate ".($i - 2);
+                $slug = Str::slug($name).'-'.$suffix;
+            } while (in_array($slug, $existingSlugs, true));
+
+            $existingSlugs[] = $slug;
+
+            $agencies[] = [
+                'name' => $name,
+                'slug' => $slug,
+                'email' => "contact@{$slug}.sn",
+                'phone' => '+22133'.$this->ctx->faker()->numerify('######'),
+                'website' => "https://{$slug}.sn",
+                'commission_rate' => $this->ctx->faker()->randomFloat(2, 5, 12),
+            ];
+        }
 
         $foundedAt = Timeline::seedStart()->subYears(5);
 

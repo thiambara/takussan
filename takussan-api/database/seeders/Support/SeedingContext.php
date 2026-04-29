@@ -23,6 +23,8 @@ class SeedingContext
 {
     private FakerGenerator $faker;
 
+    public SeedingConfig $config;
+
     /** @var Collection<int, Agency> */
     public Collection $agencies;
 
@@ -47,8 +49,9 @@ class SeedingContext
     /** @var Collection<int, User> super admins and system users */
     public Collection $systemUsers;
 
-    public function __construct()
+    public function __construct(?SeedingConfig $config = null)
     {
+        $this->config = $config ?? SeedingConfig::demo();
         $this->agencies = new Collection;
         $this->leases = new Collection;
         $this->activeLeases = new Collection;

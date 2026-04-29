@@ -27,14 +27,14 @@ class MaintenanceRequestSeeder extends Seeder
             }
 
             $providerIds = $providers->isEmpty() ? [null] : $providers->pluck('id')->all();
+            $targetCount = $this->ctx->config->maintenanceRequestsPerAgency;
+            $created = 0;
 
-            foreach ($properties as $property) {
-                if (! $this->ctx->faker()->boolean(50)) {
-                    continue;
-                }
+            while ($created < $targetCount && $properties->isNotEmpty()) {
+                $property = $properties->random();
+                $requestsForProperty = min(random_int(1, 3), $targetCount - $created);
 
-                $count = random_int(1, 3);
-                for ($i = 0; $i < $count; $i++) {
+                for ($i = 0; $i < $requestsForProperty; $i++) {
                     $createdAt = Timeline::randomDateBetween(
                         Timeline::seedStart(),
                         Timeline::seedEnd()->subDays(1),
@@ -82,6 +82,7 @@ class MaintenanceRequestSeeder extends Seeder
                         'created_at' => $createdAt,
                         'updated_at' => $completedAt ?? $createdAt,
                     ]);
+                    $created++;
                 }
             }
         }

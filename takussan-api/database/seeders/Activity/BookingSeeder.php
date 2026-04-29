@@ -14,9 +14,6 @@ use Illuminate\Support\Str;
 
 class BookingSeeder extends Seeder
 {
-    /** Bookings created per agency. */
-    private const PER_AGENCY = 80;
-
     public function __construct(private readonly SeedingContext $ctx) {}
 
     public function run(): void
@@ -34,7 +31,7 @@ class BookingSeeder extends Seeder
             $customerIds = $customers->pluck('id')->values();
             $agentIds = $agents->pluck('id')->values();
 
-            for ($i = 0; $i < self::PER_AGENCY; $i++) {
+            for ($i = 0; $i < $this->ctx->config->bookingsPerAgency; $i++) {
                 $createdAt = Timeline::randomDateBetween(
                     Timeline::seedStart(),
                     Timeline::seedEnd()->subDays(3),

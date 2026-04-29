@@ -36,8 +36,8 @@ class ConversationSeeder extends Seeder
             $userIds = $users->pluck('id')->values();
             $agentIds = $agents->pluck('id')->values();
 
-            // ~20 conversations per agency.
-            for ($i = 0; $i < 20; $i++) {
+            $conversationsCount = $this->ctx->config->conversationsPerAgency;
+            for ($i = 0; $i < $conversationsCount; $i++) {
                 $createdAt = Timeline::randomDateBetween(
                     Timeline::seedStart(),
                     Timeline::seedEnd(),
@@ -78,7 +78,7 @@ class ConversationSeeder extends Seeder
                             'user_id' => $userId,
                         ],
                         [
-                            'role' => $userId === $creator ? 'owner' : 'member',
+                            'role' => $userId === $creator ? 'admin' : 'member',
                             'joined_at' => $createdAt,
                             'created_at' => $createdAt,
                             'updated_at' => $createdAt,

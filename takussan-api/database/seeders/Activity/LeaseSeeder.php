@@ -16,9 +16,6 @@ use Illuminate\Support\Str;
 
 class LeaseSeeder extends Seeder
 {
-    /** Leases per agency. */
-    private const PER_AGENCY = 70;
-
     public function __construct(private readonly SeedingContext $ctx) {}
 
     public function run(): void
@@ -42,7 +39,7 @@ class LeaseSeeder extends Seeder
 
         $customerIds = $customers->pluck('id')->values();
 
-        $statusCounts = StatusDistribution::split(self::PER_AGENCY, [
+        $statusCounts = StatusDistribution::split($this->ctx->config->leasesPerAgency, [
             LeaseStatus::Active->value => 70,
             LeaseStatus::Terminated->value => 15,
             LeaseStatus::Expired->value => 8,

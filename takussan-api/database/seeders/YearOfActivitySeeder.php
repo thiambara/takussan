@@ -33,6 +33,11 @@ use Database\Seeders\Operations\DocumentShareLinkSeeder;
 use Database\Seeders\Operations\MaintenanceRequestSeeder;
 use Database\Seeders\Operations\MessageSeeder;
 use Database\Seeders\Operations\TaskSeeder;
+use Database\Seeders\Support\DemoUsersSeeder;
+use Database\Seeders\Support\EdgeCaseSeeder;
+use Database\Seeders\Support\FilterCoverageSeeder;
+use Database\Seeders\Support\PostProcessingSeeder;
+use Database\Seeders\Support\SeedingConfig;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Database\Seeders\System\SettingsSeeder;
@@ -52,6 +57,7 @@ class YearOfActivitySeeder extends Seeder
         AgencySeeder::class,
         SettingsSeeder::class,
         UserSeeder::class,
+        DemoUsersSeeder::class,
         IntegrationSeeder::class,
         // Catalog
         PropertySeeder::class,
@@ -86,14 +92,23 @@ class YearOfActivitySeeder extends Seeder
         AppNotificationSeeder::class,
         NotificationPreferenceSeeder::class,
         ActivityLogBackfillSeeder::class,
+        // Post-processing (doit être en dernier)
+        FilterCoverageSeeder::class,
+        EdgeCaseSeeder::class,
+        PostProcessingSeeder::class,
     ];
+
+    private SeedingConfig $config;
 
     public function run(): void
     {
+        $this->config = SeedingConfig::fromEnv();
         $this->prepareEnvironment();
 
-        $context = app(SeedingContext::class);
+        $context = new SeedingContext($this->config);
         app()->instance(SeedingContext::class, $context);
+
+        $this->command?->getOutput()?->writeln("Seeding with config: {$this->config->agencies} agencies, {$this->config->propertiesPerAgency} properties/agency");
 
         // Each seeder runs in its own transaction so partial progress is kept
         // on failure (easier to debug) and the undo log / lock footprint per
@@ -116,6 +131,7 @@ class YearOfActivitySeeder extends Seeder
     {
         Config::set('queue.default', 'sync');
         Config::set('scout.driver', null);
+        Config::set('database.seed_download_media', $this->config->downloadMedia);
         DB::disableQueryLog();
     }
 }

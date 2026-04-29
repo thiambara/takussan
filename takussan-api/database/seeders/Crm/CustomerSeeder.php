@@ -19,9 +19,6 @@ use Spatie\Permission\PermissionRegistrar;
 
 class CustomerSeeder extends Seeder
 {
-    /** Customers created per agency. */
-    private const PER_AGENCY = 80;
-
     public function __construct(private readonly SeedingContext $ctx) {}
 
     public function run(): void
@@ -34,7 +31,7 @@ class CustomerSeeder extends Seeder
             $agents = $this->ctx->usersOfType($agency->id, UserType::Agent->value);
             $addedByIds = $agents->isEmpty() ? [null] : $agents->pluck('id')->all();
 
-            for ($i = 0; $i < self::PER_AGENCY; $i++) {
+            for ($i = 0; $i < $this->ctx->config->customersPerAgency; $i++) {
                 $createdAt = Timeline::randomDateBetween(
                     Timeline::seedStart(),
                     Timeline::seedEnd()->subDays(1),

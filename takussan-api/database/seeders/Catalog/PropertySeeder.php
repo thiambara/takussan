@@ -18,9 +18,6 @@ use Illuminate\Support\Str;
 
 class PropertySeeder extends Seeder
 {
-    /** Properties created per agency. */
-    private const PER_AGENCY = 100;
-
     public function __construct(private readonly SeedingContext $ctx) {}
 
     public function run(): void
@@ -37,7 +34,7 @@ class PropertySeeder extends Seeder
             return;
         }
 
-        $statusCounts = StatusDistribution::split(self::PER_AGENCY, [
+        $statusCounts = StatusDistribution::split($this->ctx->config->propertiesPerAgency, [
             PropertyStatus::Available->value => 72,
             PropertyStatus::Rented->value => 15,
             PropertyStatus::Sold->value => 5,
@@ -59,13 +56,46 @@ class PropertySeeder extends Seeder
                     ? ContractType::Rent
                     : ContractType::Sale;
 
-                $price = $contract === ContractType::Rent
-                    ? $this->ctx->faker()->numberBetween(150_000, 2_500_000)
-                    : $this->ctx->faker()->numberBetween(15_000_000, 250_000_000);
+                // ~80% Dakar (avec pricing par quartier), ~20% autres villes du Sénégal.
+                $isDakar = $this->ctx->faker()->boolean(80);
 
-                $title = ucfirst($this->ctx->faker()->words(4, true));
+                if ($isDakar) {
+                    $priceData = $this->ctx->faker()->senegalesePrice($contract);
+                    $price = $priceData['price'];
+                    $neighborhood = $priceData['neighborhood'];
+                    $city = 'Dakar';
+                    $region = 'Dakar';
+                } else {
+                    do {
+                        $city = $this->ctx->faker()->senegaleseCity();
+                    } while ($city === 'Dakar');
+                    $neighborhood = null;
+                    $region = $city;
+                    $price = $contract === ContractType::Rent
+                        ? $this->ctx->faker()->numberBetween(150_000, 1_500_000)
+                        : $this->ctx->faker()->numberBetween(8_000_000, 80_000_000);
+                }
+
+                // Générer des caractéristiques réalistes
+                $type = $this->ctx->faker()->randomElement(PropertyType::cases());
+                $bedrooms = $this->ctx->faker()->numberBetween(1, 5);
+
+                // Titre et description réalistes pour le Sénégal
+                $titleLocation = $neighborhood ?? $city;
+                $title = $this->ctx->faker()->senegalesePropertyTitle($type, $bedrooms, $titleLocation);
+                $description = $this->ctx->faker()->senegalesePropertyDescription($titleLocation);
+
+                // Calculer une surface réaliste basée sur le nombre de chambres
+                $area = match ($type) {
+                    PropertyType::Studio => $this->ctx->faker()->numberBetween(15, 40),
+                    PropertyType::Apartment => $bedrooms * 25 + $this->ctx->faker()->numberBetween(10, 30),
+                    PropertyType::House, PropertyType::Villa => $bedrooms * 35 + $this->ctx->faker()->numberBetween(50, 150),
+                    default => $this->ctx->faker()->numberBetween(50, 500),
+                };
+
                 $property = Property::withoutEvents(function () use (
-                    $agency, $ownerId, $title, $contract, $status, $price, $createdAt
+                    $agency, $ownerId, $title, $description, $type, $contract, $status, $price, $area,
+                    $bedrooms, $createdAt
                 ) {
                     return Property::create([
                         'user_id' => $ownerId,
@@ -73,8 +103,8 @@ class PropertySeeder extends Seeder
                         'reference_number' => 'PR-'.strtoupper(Str::random(8)),
                         'title' => $title,
                         'slug' => Str::slug($title).'-'.Str::random(6),
-                        'description' => $this->ctx->faker()->paragraphs(2, true),
-                        'type' => $this->ctx->faker()->randomElement(PropertyType::cases())->value,
+                        'description' => $description,
+                        'type' => $type->value,
                         'contract_type' => $contract->value,
                         'status' => $status,
                         'visibility' => $status === PropertyStatus::Draft->value
@@ -82,9 +112,9 @@ class PropertySeeder extends Seeder
                             : PropertyVisibility::Public->value,
                         'price' => $price,
                         'currency' => 'XOF',
-                        'area' => $this->ctx->faker()->numberBetween(30, 500),
-                        'bedrooms' => $this->ctx->faker()->numberBetween(1, 5),
-                        'bathrooms' => $this->ctx->faker()->numberBetween(1, 3),
+                        'area' => $area,
+                        'bedrooms' => $bedrooms,
+                        'bathrooms' => min($bedrooms, $this->ctx->faker()->numberBetween(1, 3)),
                         'furnished' => $this->ctx->faker()->boolean(35),
                         'floor_number' => $this->ctx->faker()->optional()->numberBetween(0, 8),
                         'total_floors' => $this->ctx->faker()->optional()->numberBetween(1, 10),
@@ -104,12 +134,16 @@ class PropertySeeder extends Seeder
                     'addressable_id' => $property->id,
                     'addressable_type' => Property::class,
                     'street' => $this->ctx->faker()->streetAddress(),
-                    'neighborhood' => $this->ctx->faker()->dakarNeighborhood(),
-                    'city' => $this->ctx->faker()->senegaleseCity(),
-                    'region' => 'Dakar',
+                    'neighborhood' => $neighborhood,
+                    'city' => $city,
+                    'region' => $region,
                     'country' => 'SN',
-                    'latitude' => $this->ctx->faker()->latitude(14.6, 14.8),
-                    'longitude' => $this->ctx->faker()->longitude(-17.5, -17.3),
+                    'latitude' => $isDakar
+                        ? $this->ctx->faker()->latitude(14.6, 14.8)
+                        : $this->ctx->faker()->latitude(12.5, 16.7),
+                    'longitude' => $isDakar
+                        ? $this->ctx->faker()->longitude(-17.5, -17.3)
+                        : $this->ctx->faker()->longitude(-17.5, -11.5),
                 ]);
 
                 $this->ctx->registerProperty($property);
