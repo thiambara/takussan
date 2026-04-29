@@ -1,7 +1,7 @@
 ---
 id: TCK-118
 title: Recherche homepage — texte de localisation ignoré et non préservé
-status: todo
+status: review
 phase: P1
 family: bug
 estimate: S
@@ -53,4 +53,8 @@ Le paramètre d'URL doit être compatible avec le format attendu par le composan
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Deux bugs distincts résolus :
+1. `SearchAutocomplete` gérait son propre état `query` sans l'exposer au parent. La Navbar n'avait donc jamais de valeur dans `location` pour le chemin desktop → `city=` absent de l'URL. Fix : prop `onQueryChange` optionnel, branché via `setLocation(v)` dans la Navbar.
+2. Le fallback Enter (sans sélection dropdown) poussait `q=<query>` au lieu de `city=<query>`, donc le champ Ville du FilterSidebar restait vide. Fix : remplacement direct dans `handleKeyDown`.
+
+Le chemin mobile (input plain `<input>` → état `location`) fonctionnait déjà correctement et n'a pas été modifié.

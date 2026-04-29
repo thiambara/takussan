@@ -43,12 +43,14 @@ export interface SearchAutocompleteProps {
   placeholder?: string;
   variant?: 'hero' | 'navbar';
   className?: string;
+  onQueryChange?: (query: string) => void;
 }
 
 export function SearchAutocomplete({
   placeholder,
   variant = 'hero',
   className,
+  onQueryChange,
 }: SearchAutocompleteProps) {
   const router = useRouter();
   const t = useTranslations('search.suggest');
@@ -108,7 +110,7 @@ export function SearchAutocomplete({
           selectItem(flatItems[activeIndex]);
         } else {
           setOpen(false);
-          router.push(`/properties?q=${encodeURIComponent(query)}`);
+          router.push(`/properties?city=${encodeURIComponent(query)}`);
         }
       } else if (e.key === 'Escape') {
         setOpen(false);
@@ -159,6 +161,7 @@ export function SearchAutocomplete({
           onChange={(e) => {
             const v = e.target.value;
             setQuery(v);
+            onQueryChange?.(v);
             setOpen(v.length >= 1);
             setActiveIndex(-1);
           }}

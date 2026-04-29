@@ -124,6 +124,7 @@ export function Navbar({ className }: NavbarProps) {
               variant="hero"
               placeholder="Où cherchez-vous ?"
               className="flex-1 [&>div]:border-none [&>div]:shadow-none [&>div]:rounded-none [&>div]:bg-transparent"
+              onQueryChange={(v) => setLocation(v)}
             />
             <div className="w-px h-6 bg-gray-200 shrink-0" />
             <div className="flex items-center gap-1.5 px-4 py-2.5 shrink-0">
