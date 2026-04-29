@@ -1,7 +1,7 @@
 ---
 id: TCK-122
 title: Biens similaires — câblage frontend sur la fiche bien
-status: review
+status: done
 phase: P2
 family: bug
 estimate: S
