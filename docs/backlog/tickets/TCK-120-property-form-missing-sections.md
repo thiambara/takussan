@@ -1,7 +1,7 @@
 ---
 id: TCK-120
 title: Formulaire "Publier un bien" — sections manquantes (adresse, médias, description, caractéristiques)
-status: review
+status: done
 phase: P2
 family: bug
 estimate: L

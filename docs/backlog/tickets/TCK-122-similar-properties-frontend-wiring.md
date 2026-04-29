@@ -1,7 +1,7 @@
 ---
 id: TCK-122
 title: Biens similaires — câblage frontend sur la fiche bien
-status: todo
+status: review
 phase: P2
 family: bug
 estimate: S
@@ -35,16 +35,16 @@ La section ne doit pas bloquer le rendu de la fiche : affichage conditionnel si 
 
 ## Delta à produire
 
-- [ ] Dans la page `src/app/(public)/properties/[slug]/page.tsx` (ou son Client Component), appeler `GET /api/properties/{id}/similar`
-- [ ] Afficher les biens retournés dans une section dédiée sous le contenu principal
-- [ ] Gérer l'état vide (aucun résultat → section absente, pas de message d'erreur)
+- [x] Dans la page `src/app/(public)/properties/[slug]/page.tsx` (ou son Client Component), appeler `GET /api/properties/{id}/similar`
+- [x] Afficher les biens retournés dans une section dédiée sous le contenu principal
+- [x] Gérer l'état vide (aucun résultat → section absente, pas de message d'erreur)
 
 ## Critères d'acceptation
 
-- [ ] La section "Biens similaires" apparaît sur la fiche bien quand l'endpoint retourne des résultats
-- [ ] Les cartes sont cliquables et naviguent vers la fiche du bien correspondant
-- [ ] La section est absente si l'API retourne un tableau vide
-- [ ] Aucune régression sur le reste de la fiche bien
+- [x] La section "Biens similaires" apparaît sur la fiche bien quand l'endpoint retourne des résultats
+- [x] Les cartes sont cliquables et naviguent vers la fiche du bien correspondant
+- [x] La section est absente si l'API retourne un tableau vide
+- [x] Aucune régression sur le reste de la fiche bien
 
 ## Hors périmètre
 
@@ -53,4 +53,9 @@ La section ne doit pas bloquer le rendu de la fiche : affichage conditionnel si 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Implémentation déjà en place avant la création du ticket. Trois fichiers concernés :
+- `src/hooks/useSimilarProperties.ts` — `apiFetch` vers `/api/public/properties/{slug}/similar`
+- `src/app/(public)/properties/[slug]/components/PropertySimilar.tsx` — carrousel Embla avec `PropertyCard`, squelette de chargement, `null` si tableau vide
+- `src/app/(public)/properties/[slug]/page.tsx:150` — `<PropertySimilar slug={property.slug} />`
+
+Build vérifié sans erreur (`npm run build`).
