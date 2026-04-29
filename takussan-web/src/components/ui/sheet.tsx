@@ -37,6 +37,36 @@ function SheetOverlay({
   )
 }
 
+function SheetHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      data-slot="sheet-header"
+      className={cn("flex flex-col gap-1.5", className)}
+      {...props}
+    />
+  )
+}
+
+function SheetTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
+  return (
+    <DialogPrimitive.Title
+      data-slot="sheet-title"
+      className={cn("text-base font-semibold text-stone-900", className)}
+      {...props}
+    />
+  )
+}
+
+function SheetDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
+  return (
+    <DialogPrimitive.Description
+      data-slot="sheet-description"
+      className={cn("text-sm text-stone-500", className)}
+      {...props}
+    />
+  )
+}
+
 function SheetContent({
   className,
   children,
@@ -61,11 +91,10 @@ function SheetContent({
         )}
         {...props}
       >
-        <DialogPrimitive.Title className="sr-only">Menu</DialogPrimitive.Title>
         {children}
       </DialogPrimitive.Popup>
     </SheetPortal>
   )
 }
 
-export { Sheet, SheetTrigger, SheetClose, SheetContent, SheetOverlay, SheetPortal }
+export { Sheet, SheetTrigger, SheetClose, SheetContent, SheetOverlay, SheetPortal, SheetHeader, SheetTitle, SheetDescription }

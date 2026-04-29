@@ -5,6 +5,7 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
   images: {
+    dangerouslyAllowSVG: true,
     dangerouslyAllowLocalIP: true,
     remotePatterns: [
       { protocol: 'https', hostname: 'picsum.photos' },
