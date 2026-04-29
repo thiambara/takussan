@@ -4,7 +4,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback } from 'react';
 
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -56,9 +55,9 @@ export function DocumentsFilters() {
   return (
     <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px_180px]">
       <div>
-        <Label htmlFor="documents-search" className="sr-only">
+        <label htmlFor="documents-search" className="sr-only">
           Recherche
-        </Label>
+        </label>
         <Input
           id="documents-search"
           type="search"
@@ -74,9 +73,9 @@ export function DocumentsFilters() {
         />
       </div>
       <div>
-        <Label htmlFor="documents-type" className="sr-only">
+        <label htmlFor="documents-type" className="sr-only">
           Catégorie
-        </Label>
+        </label>
         <Select
           value={currentType}
           onValueChange={(v) => update('type', v === ANY_VALUE ? null : v)}
@@ -95,9 +94,9 @@ export function DocumentsFilters() {
         </Select>
       </div>
       <div>
-        <Label htmlFor="documents-entity" className="sr-only">
+        <label htmlFor="documents-entity" className="sr-only">
           Type d&apos;entité
-        </Label>
+        </label>
         <Select
           value={currentEntity}
           onValueChange={(v) =>

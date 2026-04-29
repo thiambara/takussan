@@ -1,7 +1,7 @@
 ---
 id: TCK-112
 title: Fix runtime error — FieldRootContext manquant dans DocumentsFilters
-status: todo
+status: review
 phase: P0
 family: bug
 estimate: S
@@ -51,4 +51,4 @@ Le filtre de documents doit fonctionner pour tous les rôles ayant accès à `/a
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+`Field.Label` from `@base-ui/react/field` requires a `Field.Root` context — it cannot be used standalone even with explicit `htmlFor`. All three labels in `DocumentsFilters` are `sr-only` accessibly-linked via `htmlFor`; native `<label>` is the correct primitive here.
