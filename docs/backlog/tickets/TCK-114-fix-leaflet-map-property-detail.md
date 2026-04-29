@@ -1,7 +1,7 @@
 ---
 id: TCK-114
 title: Fix carte Leaflet vide sur la fiche bien
-status: todo
+status: review
 phase: P0
 family: bug
 estimate: S
@@ -54,4 +54,4 @@ Leaflet ne fonctionne pas côté serveur (SSR) — le composant carte doit être
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+L'implémentation précédente utilisait un `<iframe>` OpenStreetMap embed — pas Leaflet. Remplacé par un composant `PropertyLocationMapInner.tsx` dédié (Leaflet pur) chargé via `next/dynamic` + `ssr: false`, même pattern que `PropertyMapLoader.tsx`. Le CSS Leaflet est importé dans le fichier inner pour rester isolé au chunk dynamique. Icône SVG inline réutilisée de `PropertyMap.tsx` (évite les problèmes d'assets Leaflet sous Next).

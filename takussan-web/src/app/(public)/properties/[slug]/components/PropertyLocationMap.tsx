@@ -1,5 +1,13 @@
 'use client';
+
+import dynamic from 'next/dynamic';
 import { MapPin } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+
+const PropertyLocationMapInner = dynamic(
+  () => import('./PropertyLocationMapInner').then((m) => m.PropertyLocationMapInner),
+  { ssr: false, loading: () => <Skeleton className="h-[350px] w-full rounded-xl" /> },
+);
 
 interface PropertyLocationMapProps {
   latitude: number | null;
@@ -20,10 +28,6 @@ export function PropertyLocationMap({ latitude, longitude, address }: PropertyLo
     );
   }
 
-  const iframeSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${
-    longitude - 0.01
-  }%2C${latitude - 0.01}%2C${longitude + 0.01}%2C${latitude + 0.01}&layer=mapnik&marker=${latitude}%2C${longitude}`;
-
   return (
     <section className="space-y-3">
       <h2 className="text-xl font-semibold text-stone-900">Emplacement</h2>
@@ -33,15 +37,7 @@ export function PropertyLocationMap({ latitude, longitude, address }: PropertyLo
           {address}
         </p>
       )}
-      <div className="rounded-xl overflow-hidden border border-stone-200 bg-stone-100 aspect-[16/9]">
-        <iframe
-          title={`Carte localisation ${address}`}
-          src={iframeSrc}
-          className="w-full h-full"
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
-        />
-      </div>
+      <PropertyLocationMapInner latitude={latitude} longitude={longitude} />
       <a
         href={`https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`}
         target="_blank"
