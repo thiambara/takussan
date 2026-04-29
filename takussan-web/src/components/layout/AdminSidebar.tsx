@@ -47,7 +47,7 @@ function buildAdminItems(
     items.push({ href: '/admin/properties', label: 'Biens', icon: Building2 });
   }
   items.push({ href: '/admin/team', label: 'Équipe', icon: Users });
-  items.push({ href: '/admin/users', label: 'Équipe', icon: Users });
+  items.push({ href: '/admin/users', label: 'Utilisateurs', icon: Users });
   items.push({ href: '/admin/agency', label: 'Agence', icon: Briefcase });
   items.push({ href: '/admin/finances', label: 'Finances', icon: CreditCard });
   if (isSuperAdmin(user.roles)) {

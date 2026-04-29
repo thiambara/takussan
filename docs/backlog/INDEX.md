@@ -74,6 +74,7 @@ _(vide)_
 
 ### Vague 13 — Bugs QA
 
+- [TCK-116](tickets/TCK-116-admin-sidebar-routes-404-doublon.md) — Admin sidebar — routes 404 + doublon Équipe `S · P1 · bug`
 - [TCK-115](tickets/TCK-115-super-admin-no-agency-empty-states.md) — Super_admin sans agence — états vides sur overview/bookings/leases/visits `M · P1 · bug`
 - [TCK-114](tickets/TCK-114-fix-leaflet-map-property-detail.md) — Carte Leaflet vide sur fiche bien `S · P0 · bug`
 - [TCK-113](tickets/TCK-113-fix-audit-toast-provider.md) — Fix runtime `/admin/audit` Toast.Provider manquant `S · P1 · bug`

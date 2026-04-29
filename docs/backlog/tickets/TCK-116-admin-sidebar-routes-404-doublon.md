@@ -1,7 +1,7 @@
 ---
 id: TCK-116
 title: Admin sidebar — corriger routes 404 et doublon "Équipe"
-status: todo
+status: review
 phase: P1
 family: bug
 estimate: S
@@ -53,4 +53,6 @@ Ne pas supprimer une route existante sans redirection. Si `/admin/properties` do
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- `/admin/moderation/reviews` : introuvable dans le code au moment de l'implémentation — le sidebar pointait déjà sur `/admin/moderation`. AC passant sans intervention.
+- Doublon "Équipe" : `/admin/users` renommé "Utilisateurs" (cohérent avec §2.9 et le h1 de la page stub).
+- `/admin/properties` : page stub créée avec guard `isSuperAdmin` + redirect `/admin` — identique au pattern `/admin/users/page.tsx`. La vraie page admin des biens reste hors périmètre.
