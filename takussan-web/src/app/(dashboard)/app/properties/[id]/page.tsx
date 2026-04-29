@@ -1,6 +1,7 @@
 import { forbidden, notFound } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
+import { fetchTagsAction } from '@/app/actions/admin-tags';
 import { getToken } from '@/lib/session';
 import { fetchDashboardProperty } from '@/lib/queries/properties';
 import { ApiError } from '@/lib/api';
@@ -39,6 +40,9 @@ export default async function Page({ params }: { params: Params }) {
     throw e;
   }
 
+  const tagsResult = await fetchTagsAction({ filters: { type: 'amenity' }, perPage: 200 });
+  const tags = tagsResult.ok ? (tagsResult.data?.data ?? []) : [];
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -59,7 +63,7 @@ export default async function Page({ params }: { params: Params }) {
       </header>
       {/* TCK-098 — show moderation status to the agent */}
       <PropertyModerationBanner property={property} />
-      <PropertyForm mode="edit" property={property} />
+      <PropertyForm mode="edit" property={property} tags={tags} />
       <PropertyMediaPanel propertyId={property.id} />
     </div>
   );

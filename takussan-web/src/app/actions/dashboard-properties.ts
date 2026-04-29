@@ -9,10 +9,13 @@ import {
   deletePropertyMedia,
   fetchPropertyMedia,
   reorderPropertyMedia,
+  setPropertyAddress,
+  setPropertyTags,
   updateProperty,
   updatePropertyStatus,
   updatePropertyVisibility,
   uploadPropertyPhotos,
+  type PropertyAddressPayload,
   type PropertyMediaItem,
 } from '@/lib/queries/properties';
 import type { PropertyFormPayload } from '@/lib/schemas/property';
@@ -155,6 +158,41 @@ export async function uploadPropertyPhotosAction(
   try {
     await uploadPropertyPhotos(auth.token, propertyId, files);
     revalidatePath(`/app/properties/${propertyId}`);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, ...mapError(e) };
+  }
+}
+
+/**
+ * TCK-120 — upsert the address (street, GPS, etc.) for a property.
+ */
+export async function setPropertyAddressAction(
+  propertyId: number,
+  data: PropertyAddressPayload,
+): Promise<ActionResult> {
+  const auth = await requireToken();
+  if (!auth.ok) return auth.result;
+  try {
+    await setPropertyAddress(auth.token, propertyId, data);
+    revalidatePath(`/app/properties/${propertyId}`);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, ...mapError(e) };
+  }
+}
+
+/**
+ * TCK-120 — sync the amenity tags of a property (full replace).
+ */
+export async function setPropertyTagsAction(
+  propertyId: number,
+  tagIds: number[],
+): Promise<ActionResult> {
+  const auth = await requireToken();
+  if (!auth.ok) return auth.result;
+  try {
+    await setPropertyTags(auth.token, propertyId, tagIds);
     return { ok: true };
   } catch (e) {
     return { ok: false, ...mapError(e) };

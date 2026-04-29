@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { MediaDropzone } from '@/components/media';
+import { LocationPickerMapLoader } from '@/components/map/LocationPickerMapLoader';
 import {
   FormCheckbox,
   FormGlobalError,
@@ -23,10 +24,13 @@ import {
 } from '@/lib/schemas/property';
 import {
   createPropertyAction,
+  setPropertyAddressAction,
+  setPropertyTagsAction,
   updatePropertyAction,
   uploadPropertyPhotosAction,
 } from '@/app/actions/dashboard-properties';
 import type { PropertyDetail } from '@/types/property';
+import type { Tag } from '@/types/tag';
 
 import {
   CURRENCY_OPTIONS,
@@ -37,18 +41,12 @@ import {
   propertyTypeValues,
 } from '@/lib/schemas/property';
 
-/**
- * Property create / edit form — TCK-041.
- *
- * Client-side validation happens via zod/react-hook-form (see
- * `propertyFormSchema`). Server validation errors (422) are mapped onto
- * their matching fields by `useApiForm`. Photos are uploaded in a second
- * step once the property has been persisted (needs an id).
- */
+const MAX_PHOTOS = 10;
 
 interface PropertyFormProps {
   readonly mode: 'create' | 'edit';
   readonly property?: PropertyDetail;
+  readonly tags?: Tag[];
 }
 
 function toDefaults(property?: PropertyDetail): PropertyFormValues {
@@ -63,11 +61,19 @@ function toDefaults(property?: PropertyDetail): PropertyFormValues {
       city: '',
       quarter: '',
       region: '',
+      street: '',
+      postal_code: '',
+      country: '',
+      latitude: undefined,
+      longitude: undefined,
       area: undefined,
       bedrooms: undefined,
       bathrooms: undefined,
       furnished: false,
+      year_built: undefined,
+      parking_spaces: undefined,
       description: '',
+      tag_ids: [],
     };
   }
   return {
@@ -83,15 +89,23 @@ function toDefaults(property?: PropertyDetail): PropertyFormValues {
     city: property.location?.city ?? '',
     quarter: property.location?.quarter ?? '',
     region: property.location?.region ?? '',
+    street: property.location?.street ?? '',
+    postal_code: property.location?.postal_code ?? '',
+    country: property.location?.country ?? '',
+    latitude: property.location?.latitude ?? undefined,
+    longitude: property.location?.longitude ?? undefined,
     area: property.area ?? undefined,
     bedrooms: property.bedrooms ?? undefined,
     bathrooms: property.bathrooms ?? undefined,
     furnished: Boolean(property.furnished),
+    year_built: property.year_built ?? undefined,
+    parking_spaces: property.parking_spaces ?? undefined,
     description: property.description ?? '',
+    tag_ids: Array.isArray(property.tags) ? property.tags.map((t) => t.id) : [],
   };
 }
 
-export function PropertyForm({ mode, property }: PropertyFormProps) {
+export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
   const router = useRouter();
   const tProp = useTranslations('property');
   const propertyTypeOptions = propertyTypeValues.map((v) => ({
@@ -112,6 +126,7 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
   }, []);
 
   const removePhoto = useCallback((index: number) => {
+    setPhotoError(null);
     setPendingPhotos((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
@@ -120,12 +135,21 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
       schema: propertyFormSchema,
       defaultValues: toDefaults(property),
       onSubmit: async (values) => {
-        // zod applies defaults / transforms — cast to the output type.
         const payload = values as unknown as PropertyFormPayload;
+        // Strip address/tag fields before sending to property CRUD endpoint
+        const {
+          street: _street,
+          postal_code: _postalCode,
+          country: _country,
+          latitude: _lat,
+          longitude: _lng,
+          tag_ids: _tagIds,
+          ...basicPayload
+        } = payload;
         const result =
           mode === 'edit' && property
-            ? await updatePropertyAction(property.id, payload)
-            : await createPropertyAction(payload);
+            ? await updatePropertyAction(property.id, basicPayload as PropertyFormPayload)
+            : await createPropertyAction(basicPayload as PropertyFormPayload);
         if (!result.ok) {
           throw new ApiError(result.status ?? 500, {
             message: result.message,
@@ -135,17 +159,43 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
         return result.data as PropertyDetail;
       },
       onSuccess: async (result) => {
-        if (pendingPhotos.length > 0 && result?.id) {
+        if (!result?.id) {
+          router.push('/app/properties');
+          router.refresh();
+          return;
+        }
+        const pid = result.id;
+        const values = form.getValues() as unknown as PropertyFormPayload;
+
+        // Address
+        const hasAddress =
+          values.street || values.postal_code || values.country ||
+          values.latitude != null || values.longitude != null;
+        if (hasAddress) {
+          await setPropertyAddressAction(pid, {
+            street: values.street,
+            neighborhood: values.quarter,
+            city: values.city,
+            region: values.region,
+            country: values.country,
+            postal_code: values.postal_code,
+            latitude: values.latitude ?? null,
+            longitude: values.longitude ?? null,
+          });
+        }
+
+        // Tags
+        if (values.tag_ids && values.tag_ids.length > 0) {
+          await setPropertyTagsAction(pid, values.tag_ids);
+        }
+
+        // Photos
+        if (pendingPhotos.length > 0) {
           setPhotoUploading(true);
           try {
             const formData = new FormData();
-            // Server action re-reads `photos` then builds the backend
-            // payload as `photos[]` on the outbound request itself.
             for (const file of pendingPhotos) formData.append('photos', file);
-            const uploadResult = await uploadPropertyPhotosAction(
-              result.id,
-              formData,
-            );
+            const uploadResult = await uploadPropertyPhotosAction(pid, formData);
             if (!uploadResult.ok) {
               setPhotoError(uploadResult.message);
               setPhotoUploading(false);
@@ -155,13 +205,40 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
             setPhotoUploading(false);
           }
         }
+
         router.push('/app/properties');
         router.refresh();
       },
     });
 
-  const { control, watch } = form;
+  const { control, watch, setValue } = form;
   const contractType = watch('contract_type');
+  const description = watch('description') ?? '';
+  const lat = watch('latitude') as number | null | undefined;
+  const lng = watch('longitude') as number | null | undefined;
+  const tagIds = (watch('tag_ids') ?? []) as number[];
+
+  const handleLocationChange = useCallback(
+    (newLat: number, newLng: number) => {
+      setValue('latitude', newLat, { shouldDirty: true });
+      setValue('longitude', newLng, { shouldDirty: true });
+    },
+    [setValue],
+  );
+
+  const toggleTag = useCallback(
+    (tagId: number) => {
+      const current = (form.getValues('tag_ids') ?? []) as number[];
+      setValue(
+        'tag_ids',
+        current.includes(tagId)
+          ? current.filter((id) => id !== tagId)
+          : [...current, tagId],
+        { shouldDirty: true },
+      );
+    },
+    [form, setValue],
+  );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8" noValidate>
@@ -180,6 +257,7 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
         ) : null}
       </FormGlobalError>
 
+      {/* ── Section 1 : Informations générales ── */}
       <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
         <header>
           <h2 className="text-base font-semibold text-app-ink">Informations générales</h2>
@@ -213,6 +291,7 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
         </div>
       </section>
 
+      {/* ── Section 2 : Prix ── */}
       <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
         <header>
           <h2 className="text-base font-semibold text-app-ink">Prix</h2>
@@ -253,12 +332,12 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
         </div>
       </section>
 
+      {/* ── Section 3 : Localisation / Adresse ── */}
       <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
         <header>
           <h2 className="text-base font-semibold text-app-ink">Localisation</h2>
           <p className="text-xs text-app-ink-muted">
-            La ville est obligatoire. Le quartier et la région améliorent la
-            recherche.
+            La ville est obligatoire. Cliquez sur la carte pour placer le marqueur GPS.
           </p>
         </header>
         <div className="grid gap-4 md:grid-cols-3">
@@ -282,14 +361,49 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
             placeholder="Dakar"
           />
         </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <FormInput
+            control={control}
+            name="street"
+            label="Rue / adresse"
+            placeholder="12 Rue des Jacarandas"
+          />
+          <FormInput
+            control={control}
+            name="postal_code"
+            label="Code postal"
+            placeholder="10700"
+          />
+          <FormInput
+            control={control}
+            name="country"
+            label="Pays (code ISO)"
+            placeholder="SN"
+            maxLength={2}
+          />
+        </div>
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-app-ink-muted">
+            Coordonnées GPS{' '}
+            {lat != null && lng != null && (
+              <span className="text-app-ink">
+                ({lat.toFixed(5)}, {lng.toFixed(5)})
+              </span>
+            )}
+          </p>
+          <LocationPickerMapLoader lat={lat} lng={lng} onChange={handleLocationChange} />
+          <p className="text-xs text-app-ink-muted">
+            Cliquez sur la carte ou faites glisser le marqueur pour ajuster la position.
+          </p>
+        </div>
       </section>
 
+      {/* ── Section 4 : Caractéristiques ── */}
       <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
         <header>
           <h2 className="text-base font-semibold text-app-ink">Caractéristiques</h2>
           <p className="text-xs text-app-ink-muted">
-            Optionnel. Renseigner les informations accessibles aux locataires /
-            acheteurs.
+            Optionnel. Renseigner les informations accessibles aux locataires / acheteurs.
           </p>
         </header>
         <div className="grid gap-4 md:grid-cols-3">
@@ -318,9 +432,31 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
             min={0}
           />
         </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <FormInput
+            control={control}
+            name="year_built"
+            label="Année de construction"
+            type="number"
+            inputMode="numeric"
+            min={1800}
+            max={2100}
+            placeholder="2010"
+          />
+          <FormInput
+            control={control}
+            name="parking_spaces"
+            label="Places de parking"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            placeholder="2"
+          />
+        </div>
         <FormCheckbox control={control} name="furnished" label="Meublé" />
       </section>
 
+      {/* ── Section 5 : Description ── */}
       <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
         <header>
           <h2 className="text-base font-semibold text-app-ink">Description</h2>
@@ -335,21 +471,61 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
           rows={6}
           placeholder="Décrivez le bien, son environnement, ses atouts."
         />
+        <p className="text-right text-xs text-app-ink-muted">
+          {description.length} / 10 000 caractères
+        </p>
       </section>
 
+      {/* ── Section 6 : Équipements / Tags ── */}
+      {tags.length > 0 && (
+        <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
+          <header>
+            <h2 className="text-base font-semibold text-app-ink">Équipements</h2>
+            <p className="text-xs text-app-ink-muted">
+              Sélectionnez les équipements et commodités disponibles.
+            </p>
+          </header>
+          <div className="flex flex-wrap gap-2">
+            {tags.map((tag) => {
+              const checked = tagIds.includes(tag.id);
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => toggleTag(tag.id)}
+                  aria-pressed={checked}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors ${
+                    checked
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-border bg-transparent text-app-ink hover:bg-app-surface-2'
+                  }`}
+                >
+                  {tag.icon && <span aria-hidden="true">{tag.icon}</span>}
+                  {tag.name}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* ── Section 7 : Photos ── */}
       <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
         <header>
           <h2 className="text-base font-semibold text-app-ink">Photos</h2>
           <p className="text-xs text-app-ink-muted">
-            Glissez-déposez ou sélectionnez les photos. Les photos existantes
-            ne sont pas affectées.
+            Glissez-déposez ou sélectionnez les photos (max {MAX_PHOTOS}).
           </p>
         </header>
         <MediaDropzone
           onChange={onPhotosChange}
           files={pendingPhotos}
           onRemove={removePhoto}
+          maxFiles={MAX_PHOTOS}
         />
+        <p className="text-xs text-app-ink-muted">
+          {pendingPhotos.length} / {MAX_PHOTOS} photo{pendingPhotos.length !== 1 ? 's' : ''}
+        </p>
         {photoError ? (
           <p className="text-xs text-destructive" role="alert">
             {photoError}
@@ -383,4 +559,3 @@ export function PropertyForm({ mode, property }: PropertyFormProps) {
     </form>
   );
 }
-

@@ -45,6 +45,8 @@ class UpdatePropertyRequest extends FormRequest
             'bedrooms' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'bathrooms' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'furnished' => ['sometimes', 'boolean'],
+            'year_built' => ['sometimes', 'nullable', 'integer', 'min:1800', 'max:2100'],
+            'parking_spaces' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'featured' => ['sometimes', 'boolean', Rule::prohibitedIf(! $this->user()->hasRole(['admin', 'super_admin']))],
             'available_from' => ['sometimes', 'nullable', 'date'],
             'parent_id' => [

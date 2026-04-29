@@ -49,6 +49,7 @@ export const rentPeriodValues = ['daily', 'weekly', 'monthly', 'yearly'] as cons
 /**
  * Input for the create / edit property form. All fields are required by
  * UX (per TCK-041 AC) except the optional descriptors.
+ * TCK-120 adds: address fields, year_built, parking_spaces, tag_ids.
  */
 export const propertyFormSchema = z.object({
   title: requiredStringSchema('Le titre est requis.').max(
@@ -80,6 +81,37 @@ export const propertyFormSchema = z.object({
     .max(120, 'La région est trop longue.')
     .optional()
     .transform((v) => (v && v.length > 0 ? v : undefined)),
+  street: z
+    .string()
+    .trim()
+    .max(255, 'La rue est trop longue.')
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : undefined)),
+  postal_code: z
+    .string()
+    .trim()
+    .max(20, 'Le code postal est trop long.')
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : undefined)),
+  country: z
+    .string()
+    .trim()
+    .length(2, 'Le code pays doit être sur 2 caractères (ex: SN).')
+    .optional()
+    .or(z.literal(''))
+    .transform((v) => (v && v.length === 2 ? v : undefined)),
+  latitude: z.coerce
+    .number()
+    .min(-90, 'Latitude invalide.')
+    .max(90, 'Latitude invalide.')
+    .nullable()
+    .optional(),
+  longitude: z.coerce
+    .number()
+    .min(-180, 'Longitude invalide.')
+    .max(180, 'Longitude invalide.')
+    .nullable()
+    .optional(),
   area: z.coerce
     .number()
     .int('La superficie doit être un entier.')
@@ -99,12 +131,25 @@ export const propertyFormSchema = z.object({
     .max(100, 'Valeur irréaliste.')
     .optional(),
   furnished: z.boolean().default(false),
+  year_built: z.coerce
+    .number()
+    .int('Nombre entier attendu.')
+    .min(1800, 'Année invalide.')
+    .max(2100, 'Année invalide.')
+    .optional(),
+  parking_spaces: z.coerce
+    .number()
+    .int('Nombre entier attendu.')
+    .min(0, 'Valeur invalide.')
+    .max(500, 'Valeur irréaliste.')
+    .optional(),
   description: z
     .string()
     .trim()
     .max(10_000, 'La description est trop longue.')
     .optional()
     .transform((v) => (v && v.length > 0 ? v : undefined)),
+  tag_ids: z.array(z.number().int().positive()).default([]),
 });
 
 export type PropertyFormValues = z.input<typeof propertyFormSchema>;

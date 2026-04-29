@@ -122,10 +122,12 @@ export interface PropertyDetail extends PropertyListItem {
   price_history: PropertyPriceHistoryItem[];
   location: {
     full: string;
+    street: string | null;
     quarter: string | null;
     city: string | null;
     region: string | null;
     country: string | null;
+    postal_code: string | null;
     latitude: number | null;
     longitude: number | null;
   };

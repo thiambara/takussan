@@ -1,12 +1,12 @@
 ---
 id: TCK-120
 title: Formulaire "Publier un bien" — sections manquantes (adresse, médias, description, caractéristiques)
-status: todo
+status: review
 phase: P2
 family: bug
 estimate: L
 created: 2026-04-29
-updated: 2026-04-29
+updated: 2026-04-30
 depends_on: [TCK-035, TCK-036, TCK-041]
 blocks: []
 spec_refs:
@@ -66,4 +66,10 @@ Formulaire multi-étapes (wizard) : 1. Informations générales → 2. Localisat
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Formulaire conservé **plat** (sections empilées) plutôt que wizard : le ticket est un bugfix, la direction wizard du Delta est aspirationnelle et constituerait une refonte UX hors périmètre.
+- Pour la création, le MediaDropzone existant est conservé avec `maxFiles={10}` — le MediaManager (reorder post-upload) est réservé à la page d'édition via PropertyMediaPanel (déjà en place).
+- Adresse envoyée via `PUT /api/properties/{id}/address` (upsert dédié) **après** la création, pas dans le POST initial. Idem pour les tags (`POST /api/properties/{id}/tags`).
+- `UpdatePropertyRequest` ne validait pas `year_built` et `parking_spaces` (présents dans `store()` inline et `$fillable` mais omis) — corrigé.
+- `PropertyDetail.location` étendu avec `street` et `postal_code` pour l'hydratation du formulaire d'édition.
+- `LocationPickerMap` : composant Leaflet zero-dep (pas de `@react-leaflet` supplémentaire — utilise la lib déjà installée) chargé via `next/dynamic` (ssr: false), pattern identique au `PropertyMapLoader` existant.
+- Tags amenity chargés côté serveur (page.tsx) via `fetchTagsAction` existant, passés en prop — pas de fetch client.

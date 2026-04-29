@@ -1,12 +1,9 @@
 import { forbidden } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
+import { fetchTagsAction } from '@/app/actions/admin-tags';
 import { isAdmin, isAgent, isOwner } from '@/lib/roles';
 import { PropertyForm } from '@/components/property-form';
-
-/**
- * TCK-041 — page de création d'un bien.
- */
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +12,9 @@ export default async function Page() {
   if (!(isAgent(user.roles) || isAdmin(user.roles) || isOwner(user.roles))) {
     forbidden();
   }
+
+  const tagsResult = await fetchTagsAction({ filters: { type: 'amenity' }, perPage: 200 });
+  const tags = tagsResult.ok ? (tagsResult.data?.data ?? []) : [];
 
   return (
     <div className="space-y-6">
@@ -25,7 +25,7 @@ export default async function Page() {
           fiche après publication.
         </p>
       </header>
-      <PropertyForm mode="create" />
+      <PropertyForm mode="create" tags={tags} />
     </div>
   );
 }

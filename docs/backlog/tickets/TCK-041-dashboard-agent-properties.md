@@ -1,12 +1,12 @@
 ---
 id: TCK-041
 title: "Dashboard Agent — Layout & biens"
-status: todo
+status: review
 phase: P0
 family: front
 estimate: M
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-30
 depends_on: [TCK-054, TCK-055, TCK-056, TCK-057, TCK-036]
 blocks: [TCK-042]
 spec_refs:
