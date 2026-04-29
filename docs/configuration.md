@@ -1,0 +1,464 @@
+# Configuration — Takussan (Backend + Frontend)
+
+Document de référence pour configurer le monorepo **Takussan** de A à Z (dépendances, services externes, variables d'environnement, étapes d'installation).
+
+> Monorepo :
+> - `takussan-api/` — Laravel 13, PHP ^8.3
+> - `takussan-web/` — Next.js 16.2.3, React 19, TypeScript 5
+
+---
+
+## 1. Stack technique
+
+### 1.1 Backend — `takussan-api/`
+
+| Couche | Techno | Version |
+|---|---|---|
+| Runtime | PHP | ^8.3 |
+| Framework | Laravel | ^13.0 |
+| Auth API | Laravel Sanctum | ^4.3 (SPA cookie + Personal Access Tokens) |
+| Search | Laravel Scout | ^11.1 (driver `collection` par défaut, Meilisearch / Algolia / Typesense supportés) |
+| OAuth social | Laravel Socialite | ^5.26 + providers `apple`, `facebook` (Google natif) |
+| Admin panel | Filament | ^4.0 (+ plugin `spatie-laravel-media-library-plugin`) |
+| Permissions | spatie/laravel-permission | ^7.3 |
+| Audit log | spatie/laravel-activitylog | ^5.0 |
+| Médias | spatie/laravel-medialibrary | ^11.0 |
+| PDF | spatie/laravel-pdf | ^2.0 (driver `cloudflare` par défaut, `dompdf` / `browsershot` / `gotenberg` possibles) |
+| Query API | spatie/laravel-query-builder | ^7.2 (cf. `docs/spatie-query-builder.md`) |
+| Image processing | intervention/image | ^3.7 |
+| Excel / CSV | maatwebsite/excel | ^3.1 + league/csv ^9.16 |
+| 2FA | pragmarx/google2fa ^9.0 + bacon/bacon-qr-code ^3.1 |
+| Subscriptions | lemonsqueezy/laravel | ^1.9 |
+| Tooling dev | Pint, Pail, PHPUnit ^12.5, Mockery, Faker, Collision |
+
+### 1.2 Frontend — `takussan-web/`
+
+| Couche | Techno | Version |
+|---|---|---|
+| Framework | Next.js | 16.2.3 (App Router, Turbopack par défaut) |
+| UI | React / React DOM | 19.2.4 |
+| Langage | TypeScript | ^5 |
+| Styling | Tailwind CSS | ^4 (via `@tailwindcss/postcss`) + `tw-animate-css`, `tailwind-merge` |
+| Composants | shadcn/ui (style `base-nova`) + `@base-ui/react` ^1.4 + `lucide-react` |
+| Data fetching | @tanstack/react-query ^5.99 (+ devtools) |
+| Formulaires | react-hook-form ^7.73 + @hookform/resolvers ^5.2 + zod ^4.3 |
+| i18n | next-intl ^4.9 (config `src/i18n/request.ts`) |
+| Cartes | leaflet ^1.9 + react-leaflet ^5.0 |
+| Drag & drop | @dnd-kit/core ^6.3 |
+| Carrousels | embla-carousel-react ^8.6 |
+| Tests | Vitest ^4.1 + @testing-library/react ^16.3 + jsdom ^29 |
+| Lint | ESLint ^9 + eslint-config-next |
+
+---
+
+## 2. Dépendances externes (services tiers à provisionner)
+
+| Catégorie | Service | Obligatoire | Variables clés |
+|---|---|---|---|
+| **DB** | PostgreSQL / MySQL / SQLite | ✅ | `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` |
+| **Cache** | Redis (recommandé) | ✅ (prod) | `CACHE_STORE=redis`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` |
+| **Queue** | Database / Redis / SQS / Beanstalkd | ✅ | `QUEUE_CONNECTION` |
+| **Storage** | Local / S3 (AWS) | ✅ | `FILESYSTEM_DISK`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_BUCKET`, `AWS_DEFAULT_REGION` |
+| **Mail** | SMTP / Postmark / Resend / SES | ✅ (prod) | `MAIL_MAILER`, `POSTMARK_API_KEY` ou `RESEND_API_KEY` ou `AWS_*` |
+| **Search** | Meilisearch / Algolia / Typesense | ⚠️ (option) | `SCOUT_DRIVER` + (`MEILISEARCH_HOST` & `MEILISEARCH_KEY`) ou (`ALGOLIA_APP_ID` & `ALGOLIA_SECRET`) ou (`TYPESENSE_*`) |
+| **OAuth Google** | Google Cloud Console | ⚠️ (si SSO Google) | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` |
+| **OAuth Facebook** | Meta for Developers | ⚠️ (si SSO Facebook) | `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`, `FACEBOOK_REDIRECT_URI` |
+| **OAuth Apple** | Apple Developer (Services ID + .p8) | ⚠️ (si SSO Apple) | `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY_PATH`, `APPLE_REDIRECT_URI` |
+| **CDN images** | Bunny.net ou Cloudflare | ⚠️ (prod) | `CDN_ENABLED=true`, `CDN_PROVIDER`, `CDN_BASE_URL`, `CDN_PULL_ZONE`, `CDN_SIGNING_KEY`, `BUNNY_*` ou `CLOUDFLARE_*` |
+| **PDF** | Cloudflare Browser Rendering / Gotenberg / Browsershot / DomPDF | ✅ | `LARAVEL_PDF_DRIVER` |
+| **SMS** | Orange API SN, mTarget, lAfricaMobile (fallback chain) | ✅ (notifs) | `SMS_DEFAULT_DRIVER`, `SMS_*_SEND_URL`, `SMS_WEBHOOK_URL_TOKEN`, `SMS_*_WEBHOOK_IPS` (clefs par-agence stockées en DB sur `Integration`) |
+| **Paiements** | Lemon Squeezy | ⚠️ (option) | `LEMON_SQUEEZY_*` (cf. `config/lemon-squeezy.php`) |
+| **Broadcasting** | Pusher / Ably / Reverb | ⚠️ (option realtime) | `BROADCAST_CONNECTION`, `PUSHER_*` ou `REVERB_*` ou `ABLY_KEY` |
+| **Logs** | Papertrail / Slack / stack | ⚠️ (option) | `LOG_CHANNEL`, `PAPERTRAIL_URL`, `SLACK_BOT_USER_OAUTH_TOKEN` |
+| **Frontend → Backend** | Backend Laravel exposé | ✅ | `NEXT_PUBLIC_API_URL` |
+
+---
+
+## 3. Variables d'environnement — Backend (`takussan-api/.env`)
+
+> Toutes les variables suivantes sont consommées par les fichiers de `config/` du backend. Copier `.env.example` puis adapter.
+
+### 3.1 App
+
+```env
+APP_NAME=Takussan
+APP_ENV=local            # local | testing | staging | production
+APP_KEY=                 # généré par `php artisan key:generate`
+APP_DEBUG=true           # ⚠️ false en prod
+APP_URL=http://localhost:8002
+APP_LOCALE=fr
+APP_FALLBACK_LOCALE=en
+APP_FAKER_LOCALE=fr_FR
+APP_MAINTENANCE_DRIVER=file
+BCRYPT_ROUNDS=12
+```
+
+### 3.2 Frontend & Sanctum (CSRF + cookies SPA)
+
+```env
+FRONTEND_URL=http://localhost:3000
+SANCTUM_STATEFUL_DOMAINS=localhost:3000
+```
+
+### 3.3 Base de données
+
+```env
+# SQLite (défaut local)
+DB_CONNECTION=sqlite
+# PostgreSQL / MySQL
+# DB_CONNECTION=pgsql
+# DB_HOST=127.0.0.1
+# DB_PORT=5432
+# DB_DATABASE=takussan
+# DB_USERNAME=postgres
+# DB_PASSWORD=secret
+```
+
+### 3.4 Session / Cache / Queue / Filesystem
+
+```env
+SESSION_DRIVER=database     # database | redis | cookie | file
+SESSION_LIFETIME=120
+SESSION_ENCRYPT=false
+SESSION_PATH=/
+SESSION_DOMAIN=null
+
+CACHE_STORE=redis           # redis recommandé
+QUEUE_CONNECTION=database   # ou redis / sqs
+BROADCAST_CONNECTION=log    # log | pusher | ably | reverb
+FILESYSTEM_DISK=local       # ou s3 en prod
+
+# Redis
+REDIS_CLIENT=phpredis
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+REDIS_PASSWORD=null
+```
+
+### 3.5 Logs
+
+```env
+LOG_CHANNEL=stack
+LOG_STACK=single
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=debug
+```
+
+### 3.6 Search (Laravel Scout)
+
+```env
+SCOUT_DRIVER=collection     # collection (DB) | meilisearch | algolia | typesense
+# MEILISEARCH_HOST=http://localhost:7700
+# MEILISEARCH_KEY=
+```
+
+### 3.7 Mail
+
+```env
+MAIL_MAILER=log             # log | smtp | postmark | resend | ses
+MAIL_HOST=127.0.0.1
+MAIL_PORT=2525
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_FROM_ADDRESS="hello@takussan.com"
+MAIL_FROM_NAME="${APP_NAME}"
+# POSTMARK_API_KEY=
+# RESEND_API_KEY=
+```
+
+### 3.8 AWS / S3 (filesystem + media-library quand `FILESYSTEM_DISK=s3`)
+
+```env
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=us-east-1
+AWS_BUCKET=
+AWS_USE_PATH_STYLE_ENDPOINT=false
+```
+
+### 3.9 OAuth — Google / Facebook / Apple
+
+```env
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI="${FRONTEND_URL}/auth/oauth/google/callback"
+
+FACEBOOK_CLIENT_ID=
+FACEBOOK_CLIENT_SECRET=
+FACEBOOK_REDIRECT_URI="${FRONTEND_URL}/auth/oauth/facebook/callback"
+
+# Apple (Services ID, ex. com.takussan.web)
+APPLE_CLIENT_ID=
+APPLE_TEAM_ID=                  # 10 caractères, top-right Apple Developer
+APPLE_KEY_ID=                   # 10 caractères, key ID du .p8
+APPLE_PRIVATE_KEY_PATH=         # chemin absolu vers AuthKey_XXXXXXXXXX.p8
+APPLE_REDIRECT_URI="${FRONTEND_URL}/auth/oauth/apple/callback"
+```
+
+### 3.10 CDN (TCK-105)
+
+```env
+CDN_ENABLED=false               # bascule à true une fois le CDN provisionné
+CDN_PROVIDER=bunny              # bunny | cloudflare
+CDN_BASE_URL=                   # ex. https://takussan.b-cdn.net
+CDN_PULL_ZONE=
+CDN_SIGNING_KEY=                # HMAC-SHA256
+CDN_SIGNATURE_TTL=300           # secondes
+
+# Bunny
+BUNNY_ACCESS_KEY=
+BUNNY_STORAGE_ZONE=
+
+# Cloudflare
+CLOUDFLARE_ACCOUNT_ID=
+CLOUDFLARE_API_TOKEN=
+```
+
+### 3.11 PDF (spatie/laravel-pdf)
+
+```env
+LARAVEL_PDF_DRIVER=cloudflare   # cloudflare | browsershot | gotenberg | dompdf
+```
+
+### 3.12 SMS (TCK-102 — multi-provider Sénégal)
+
+```env
+SMS_DEFAULT_DRIVER=router
+SMS_RATE_LIMIT_PER_USER_HOUR=5
+SMS_QUIET_HOURS_ENABLED=true     # 22h-06h Africa/Dakar (sauf 2FA)
+SMS_WEBHOOK_URL_TOKEN=           # `php artisan tinker` → Str::random(40)
+
+# IP whitelists (CSV) pour callbacks DLR
+SMS_ORANGE_WEBHOOK_IPS=
+SMS_MTARGET_WEBHOOK_IPS=
+SMS_LAM_WEBHOOK_IPS=
+
+# URLs (override les défauts du config si besoin)
+# SMS_ORANGE_OAUTH_URL=
+# SMS_ORANGE_SEND_URL=
+# SMS_MTARGET_SEND_URL=
+# SMS_LAM_SEND_URL=
+```
+
+> Les credentials par fournisseur SMS sont **stockés en DB** sur la table `integrations` (par agence), pas dans `.env`.
+
+### 3.13 Visites & comptes
+
+```env
+VISITS_FEEDBACK_WINDOW_HOURS=24
+ACCOUNT_DELETION_GRACE_DAYS=30
+ACCOUNT_DELETION_REMINDER_DAYS=7
+```
+
+### 3.14 Activity Log (spatie)
+
+```env
+ACTIVITYLOG_ENABLED=true
+ACTIVITYLOG_BUFFER_ENABLED=false
+```
+
+### 3.15 Seeding (volumes configurables — voir `database/seeders/Support/SeedingConfig.php`)
+
+```env
+SEED_DOWNLOAD_MEDIA=false
+SEED_AGENCIES=3
+SEED_PROPERTIES_PER_AGENCY=150
+SEED_CUSTOMERS_PER_AGENCY=120
+SEED_BOOKINGS_PER_AGENCY=100
+SEED_LEASES_PER_AGENCY=90
+SEED_MAINTENANCE_PER_AGENCY=50
+SEED_CONVERSATIONS_PER_AGENCY=60
+SEED_DOCUMENTS_PER_AGENCY=40
+SEED_EDGE_CASES=true
+SEED_REFERENTIAL_INTEGRITY=true
+SEED_FILTER_COVERAGE=true
+SEED_DEMO_USERS=true
+```
+
+### 3.16 Vite (assets backend Filament)
+
+```env
+VITE_APP_NAME="${APP_NAME}"
+```
+
+---
+
+## 4. Variables d'environnement — Frontend (`takussan-web/.env.local`)
+
+```env
+# URL du backend Laravel — doit matcher APP_URL côté takussan-api
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8002
+```
+
+> Toute variable exposée au navigateur **doit** être préfixée `NEXT_PUBLIC_`. Les secrets restent côté server actions / route handlers.
+
+---
+
+## 5. Configuration de A à Z — Étapes
+
+### 5.1 Pré-requis système
+
+- **PHP ^8.3** avec extensions : `bcmath`, `ctype`, `curl`, `dom`, `fileinfo`, `gd` (ou `imagick` si Intervention Image), `intl`, `mbstring`, `openssl`, `pdo`, `pdo_sqlite` (ou `pdo_pgsql` / `pdo_mysql`), `redis` (phpredis), `tokenizer`, `xml`, `zip`.
+- **Composer 2.x**
+- **Node.js ≥ 20.x** + **npm** (frontend `engines` non strict, mais types `@types/node ^20`)
+- **Redis** (cache + sessions + queues recommandés)
+- **Database** : SQLite (dev) ou PostgreSQL/MySQL (prod)
+- **Git**
+- *(Optionnel)* Meilisearch / Algolia / Typesense pour Scout
+- *(Optionnel)* Gotenberg ou navigateur headless si `LARAVEL_PDF_DRIVER` ≠ `cloudflare`
+
+### 5.2 Cloner le repo
+
+```bash
+git clone <url> takussan && cd takussan
+```
+
+### 5.3 Backend — installation
+
+```bash
+cd takussan-api
+
+# 1. Dépendances PHP + assets
+composer install
+npm install
+
+# 2. Variables d'environnement
+cp .env.example .env
+php artisan key:generate
+
+# 3. Base de données
+touch database/database.sqlite           # uniquement pour DB_CONNECTION=sqlite
+php artisan migrate
+php artisan db:seed                      # seed démo (volumes via SEED_*)
+
+# 4. Storage
+php artisan storage:link
+
+# 5. (optionnel) Search index
+# php artisan scout:import "App\\Models\\Property"
+
+# 6. Lancer
+php artisan serve --port=8002            # ⚠️ port fixe (frontend hardcodé)
+# ou pile complète :
+# composer dev   # serve + queue:listen + pail + vite (concurrently)
+```
+
+Avant chaque commit backend : `./vendor/bin/pint`
+
+### 5.4 Frontend — installation
+
+```bash
+cd takussan-web
+
+# 1. Dépendances
+npm install
+
+# 2. Variables d'environnement
+cp .env.example .env.local
+# éditer NEXT_PUBLIC_API_URL si le backend ne tourne pas sur :8002
+
+# 3. Lancer
+npm run dev          # http://localhost:3000
+
+# Tests / lint / build
+npm run lint
+npm run test
+npm run build
+```
+
+### 5.5 Configuration des services externes
+
+#### a) Google OAuth
+1. Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client ID (Web application)
+2. Authorized redirect URI : `${FRONTEND_URL}/auth/oauth/google/callback`
+3. Renseigner `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` dans `.env`
+
+#### b) Facebook OAuth
+1. developers.facebook.com → Create App → Facebook Login
+2. Valid OAuth Redirect URI : `${FRONTEND_URL}/auth/oauth/facebook/callback`
+3. Renseigner `FACEBOOK_CLIENT_ID` / `FACEBOOK_CLIENT_SECRET`
+
+#### c) Apple OAuth (TCK-081)
+1. Apple Developer → Identifiers → **Services ID** (ex. `com.takussan.web`) → activer Sign In with Apple
+2. Configurer les domaines + return URL `${FRONTEND_URL}/auth/oauth/apple/callback`
+3. Apple Developer → **Keys** → créer une clé "Sign In with Apple" → télécharger le `.p8`
+4. Stocker le `.p8` hors repo (ex. `storage/app/keys/AuthKey_XXXXXXXXXX.p8`) avec permissions `0600`
+5. Remplir `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY_PATH`
+
+#### d) Sanctum SPA
+- `FRONTEND_URL` et `SANCTUM_STATEFUL_DOMAINS` doivent **matcher exactement** l'origin du frontend (host:port, sans schéma)
+- Le frontend doit appeler `GET /sanctum/csrf-cookie` avant tout POST authentifié
+- CORS : vérifier `config/cors.php` → `supports_credentials = true` et `paths` couvrent `api/*` + `sanctum/csrf-cookie`
+
+#### e) S3 / Media library
+- Provisionner bucket (public ou privé selon les collections — voir `cdn.secure_collections`)
+- IAM user avec `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject` sur le bucket
+- `FILESYSTEM_DISK=s3` + `AWS_*` renseignées
+- `php artisan media-library:regenerate` après bascule
+
+#### f) CDN (Bunny.net ou Cloudflare)
+- Créer pull-zone pointant vers le bucket S3 ou l'origin Laravel
+- Récupérer `BUNNY_ACCESS_KEY`, `BUNNY_STORAGE_ZONE`, ou `CLOUDFLARE_ACCOUNT_ID`/`CLOUDFLARE_API_TOKEN`
+- Définir `CDN_BASE_URL` = URL publique du pull-zone
+- Générer `CDN_SIGNING_KEY` (`openssl rand -hex 32`) pour signer les URLs des `secure_collections`
+- Basculer `CDN_ENABLED=true`
+
+#### g) SMS multi-provider (TCK-102)
+- Comptes : Orange API SN (api.orange.com), mTarget, lAfricaMobile
+- Ajouter chaque provider activé dans la table `integrations` (par agence) — pas dans `.env`
+- Générer le webhook token : `php artisan tinker` → `Str::random(40)` → `SMS_WEBHOOK_URL_TOKEN`
+- Configurer côté provider l'URL de callback `https://api.takussan.com/webhooks/sms/{provider}/{token}`
+- Renseigner les IP whitelists `SMS_*_WEBHOOK_IPS` (CSV)
+
+#### h) Mail (prod)
+- Choisir un transporteur (`postmark`, `resend`, `ses`, `smtp`)
+- Configurer SPF / DKIM / DMARC sur le domaine d'envoi
+- Vérifier `MAIL_FROM_ADDRESS` et tester avec `php artisan tinker` → `Mail::raw(...)`
+
+#### i) PDF (Cloudflare Browser Rendering, défaut)
+- Activer Browser Rendering dans le compte Cloudflare
+- Réutiliser `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN`
+- Sinon basculer `LARAVEL_PDF_DRIVER` sur `gotenberg` (service docker), `browsershot` (Chromium local) ou `dompdf` (PHP pur, qualité moindre)
+
+### 5.6 Vérifications post-installation
+
+```bash
+cd takussan-api
+php artisan about                  # tableau complet de la config
+php artisan config:clear
+php artisan route:list             # vérifier les routes API exposées
+php artisan test                   # smoke
+
+cd ../takussan-web
+npm run lint
+npm run test
+npm run build
+```
+
+### 5.7 Production — checklist additionnelle
+
+- [ ] `APP_ENV=production`, `APP_DEBUG=false`
+- [ ] `APP_KEY` défini et sauvegardé (rotation via `APP_PREVIOUS_KEYS`)
+- [ ] `CACHE_STORE=redis`, `SESSION_DRIVER=redis` (ou `database`), `QUEUE_CONNECTION=redis`
+- [ ] `php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan event:cache`
+- [ ] Worker queue : `php artisan queue:work` via supervisor / systemd
+- [ ] Scheduler cron : `* * * * * php artisan schedule:run >> /dev/null 2>&1`
+- [ ] HTTPS obligatoire (cookie `Secure` + Sanctum domain)
+- [ ] `SESSION_SECURE_COOKIE=true`, `SESSION_SAME_SITE=lax`
+- [ ] CDN actif (`CDN_ENABLED=true`) et `secure_collections` correctement listées
+- [ ] Backups DB + storage automatisés
+- [ ] Frontend déployé avec `NEXT_PUBLIC_API_URL` pointant vers l'API HTTPS
+- [ ] CORS / Sanctum stateful domains alignés sur le domaine prod
+- [ ] Logs centralisés (Papertrail / Slack channel) via `LOG_CHANNEL`
+
+---
+
+## 6. Références internes
+
+- `docs/features.md` — spec fonctionnelle
+- `docs/models-spec.md` — spec data/modèles
+- `docs/spatie-query-builder.md` — conventions API
+- `docs/design-guidelines.md` — UI / UX
+- `docs/seeding-plan.md` — stratégie de seeding démo
+- `docs/backlog/INDEX.md` — kanban des tickets
+- `CLAUDE.md` — règles agent / monorepo
