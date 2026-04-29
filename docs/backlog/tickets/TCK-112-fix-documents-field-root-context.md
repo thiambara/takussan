@@ -1,7 +1,7 @@
 ---
 id: TCK-112
 title: Fix runtime error — FieldRootContext manquant dans DocumentsFilters
-status: review
+status: done
 phase: P0
 family: bug
 estimate: S

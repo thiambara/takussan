@@ -1,7 +1,7 @@
 ---
 id: TCK-118
 title: Recherche homepage — texte de localisation ignoré et non préservé
-status: review
+status: done
 phase: P1
 family: bug
 estimate: S

@@ -1,7 +1,7 @@
 ---
 id: TCK-115
 title: Super_admin sans agence — états vides sur overview, bookings, leases, visits
-status: review
+status: done
 phase: P1
 family: bug
 estimate: M

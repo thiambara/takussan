@@ -1,7 +1,7 @@
 ---
 id: TCK-119
 title: Homepage — "Derniers ajouts" affiche les mêmes biens que "En vedette"
-status: review
+status: done
 phase: P2
 family: bug
 estimate: S

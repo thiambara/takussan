@@ -1,7 +1,7 @@
 ---
 id: TCK-099
 title: "Biens similaires / suggestions personnalisées"
-status: review
+status: done
 phase: P2
 family: back
 estimate: M

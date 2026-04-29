@@ -1,7 +1,7 @@
 ---
 id: TCK-116
 title: Admin sidebar — corriger routes 404 et doublon "Équipe"
-status: review
+status: done
 phase: P1
 family: bug
 estimate: S

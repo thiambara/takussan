@@ -1,7 +1,7 @@
 ---
 id: TCK-114
 title: Fix carte Leaflet vide sur la fiche bien
-status: review
+status: done
 phase: P0
 family: bug
 estimate: S

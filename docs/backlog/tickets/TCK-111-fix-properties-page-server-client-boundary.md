@@ -1,7 +1,7 @@
 ---
 id: TCK-111
 title: Fix runtime error — fetchDashboardProperties appelée côté serveur
-status: review
+status: done
 phase: P0
 family: bug
 estimate: S

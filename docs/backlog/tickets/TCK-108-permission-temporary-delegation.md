@@ -1,7 +1,7 @@
 ---
 id: TCK-108
 title: "Délégation temporaire permissions"
-status: todo
+status: done
 phase: P2
 family: applicatif
 estimate: M

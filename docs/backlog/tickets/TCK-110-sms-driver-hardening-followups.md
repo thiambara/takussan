@@ -1,7 +1,7 @@
 ---
 id: TCK-110
 title: "Durcissement SMS driver — race conditions OAuth, SSRF métadonnées, table delivery_attempts normalisée"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: M

@@ -1,7 +1,7 @@
 ---
 id: TCK-121
 title: UX — footer liens cassés, filtres CRM __all__, LCP eager loading
-status: review
+status: done
 phase: P2
 family: bug
 estimate: S

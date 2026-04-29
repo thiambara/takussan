@@ -1,7 +1,7 @@
 ---
 id: TCK-117
 title: i18n — traduire les chaînes anglaises restantes du back-office
-status: review
+status: done
 phase: P1
 family: bug
 estimate: S

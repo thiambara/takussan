@@ -1,7 +1,7 @@
 ---
 id: TCK-107
 title: "Autocomplétion recherche"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S

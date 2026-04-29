@@ -1,7 +1,7 @@
 ---
 id: TCK-113
 title: Fix runtime error — useToastManager hors Toast.Provider dans AuditTrail
-status: review
+status: done
 phase: P1
 family: bug
 estimate: S

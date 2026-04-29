@@ -1,7 +1,7 @@
 ---
 id: TCK-109
 title: "Rapprochement bancaire semi-automatique"
-status: todo
+status: done
 phase: P2
 family: applicatif
 estimate: L

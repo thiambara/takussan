@@ -1,7 +1,7 @@
 ---
 id: TCK-041
 title: "Dashboard Agent — Layout & biens"
-status: review
+status: done
 phase: P0
 family: front
 estimate: M
