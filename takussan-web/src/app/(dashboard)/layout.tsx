@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
 import { getAccountDeletionRequestAction } from '@/app/actions/account-deletion';
 import { AccountDeletionBanner } from '@/components/profile/security/AccountDeletionBanner';
+import { ToastProvider, Toaster } from '@/components/ui/toast';
 
 /**
  * Dashboard route group layout.
@@ -37,11 +38,14 @@ export default async function DashboardGroupLayout({
   const pending = deletion.ok ? deletion.data : null;
 
   return (
-    <>
-      {pending && !pending.executed_at ? (
-        <AccountDeletionBanner daysRemaining={pending.days_remaining} />
-      ) : null}
-      {children}
-    </>
+    <ToastProvider>
+      <>
+        {pending && !pending.executed_at ? (
+          <AccountDeletionBanner daysRemaining={pending.days_remaining} />
+        ) : null}
+        {children}
+        <Toaster />
+      </>
+    </ToastProvider>
   );
 }

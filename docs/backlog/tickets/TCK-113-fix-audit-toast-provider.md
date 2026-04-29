@@ -1,7 +1,7 @@
 ---
 id: TCK-113
 title: Fix runtime error — useToastManager hors Toast.Provider dans AuditTrail
-status: todo
+status: review
 phase: P1
 family: bug
 estimate: S
@@ -51,4 +51,4 @@ Le journal d'audit est une fonctionnalité P1 réservée aux admins.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+`ToastProvider` + `Toaster` ajoutés dans `src/app/(dashboard)/layout.tsx` (seul fichier modifié). Le layout `(public)` avait déjà le provider ; le layout `(dashboard)` en était dépourvu, ce qui cassait tout callsite `useToast()` sous `/admin/*` et `/app/*`. `EarlyTerminationBanner` (baux) bénéficie du même correctif sans intervention supplémentaire. Build et TypeScript propres ; le seul lint error (`useRecentlyViewed.ts:26` setState-in-effect) est pré-existant.
