@@ -54,7 +54,6 @@ _(vide — TCK-104 en cours)_
 - [TCK-112](tickets/TCK-112-fix-documents-field-root-context.md) — Fix runtime `/app/documents` FieldRootContext manquant `S · P0 · bug` **[review]**
 - [TCK-115](tickets/TCK-115-super-admin-no-agency-empty-states.md) — Super_admin sans agence — états vides sur overview/bookings/leases/visits `M · P1 · bug` **[review]**
 - [TCK-116](tickets/TCK-116-admin-sidebar-routes-404-doublon.md) — Admin sidebar — routes 404 + doublon Équipe `S · P1 · bug`
-- [TCK-123](tickets/TCK-123-seed-data-property-coherence.md) — Seeders — incohérences type/surface propriétés démo `S · P3 · bug`
 
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
@@ -68,6 +67,7 @@ _(vide)_
 
 ### Vague 13 — Bugs QA
 
+- [TCK-123](tickets/TCK-123-seed-data-property-coherence.md) — Seeders — incohérences type/surface propriétés démo `S · P3 · bug`
 - [TCK-122](tickets/TCK-122-similar-properties-frontend-wiring.md) — Biens similaires — câblage frontend fiche bien `S · P2 · bug`
 - [TCK-121](tickets/TCK-121-ux-footer-crm-lcp.md) — UX mineurs — footer liens cassés, filtres CRM __all__, LCP eager `S · P2 · bug`
 - [TCK-120](tickets/TCK-120-property-form-missing-sections.md) — Formulaire bien — sections manquantes (adresse, médias, description, caract.) `L · P2 · bug`

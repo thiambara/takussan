@@ -77,8 +77,22 @@ class PropertySeeder extends Seeder
                 }
 
                 // Générer des caractéristiques réalistes
-                $type = $this->ctx->faker()->randomElement(PropertyType::cases());
-                $bedrooms = $this->ctx->faker()->numberBetween(1, 5);
+                $type = $this->ctx->faker()->randomElement([
+                    PropertyType::Apartment,
+                    PropertyType::House,
+                    PropertyType::Studio,
+                    PropertyType::Villa,
+                    PropertyType::Shop,
+                    PropertyType::Office,
+                    PropertyType::Warehouse,
+                    PropertyType::Land,
+                    PropertyType::Room,
+                    PropertyType::Garage,
+                ]);
+                // Studios have exactly 1 bedroom by definition
+                $bedrooms = $type === PropertyType::Studio
+                    ? 1
+                    : $this->ctx->faker()->numberBetween(1, 5);
 
                 // Titre et description réalistes pour le Sénégal
                 $titleLocation = $neighborhood ?? $city;

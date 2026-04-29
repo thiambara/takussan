@@ -150,6 +150,12 @@ class FilterCoverageSeeder extends Seeder
         $title = 'Property Test Filter - '.Str::random(8);
         $createdAt = Timeline::randomDateBetween(Timeline::seedStart(), Timeline::seedEnd());
 
+        $typeValue = $attributes['type'] ?? null;
+        $resolvedType = $typeValue instanceof PropertyType
+            ? $typeValue
+            : ($typeValue !== null ? PropertyType::from($typeValue) : PropertyType::Apartment);
+        $defaultBedrooms = $resolvedType === PropertyType::Studio ? 1 : 2;
+
         $property = Property::withoutEvents(fn () => Property::create(array_merge([
             'user_id' => $ownerId,
             'agency_id' => $agencyId,
@@ -164,7 +170,7 @@ class FilterCoverageSeeder extends Seeder
             'price' => $price,
             'currency' => 'XOF',
             'area' => $attributes['area'] ?? 100,
-            'bedrooms' => $attributes['bedrooms'] ?? 2,
+            'bedrooms' => $attributes['bedrooms'] ?? $defaultBedrooms,
             'bathrooms' => $attributes['bathrooms'] ?? 1,
             'furnished' => $attributes['furnished'] ?? false,
             'featured' => $attributes['featured'] ?? false,

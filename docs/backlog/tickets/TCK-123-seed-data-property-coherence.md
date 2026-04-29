@@ -1,7 +1,7 @@
 ---
 id: TCK-123
 title: Seeders — corriger incohérences type/surface des propriétés de démo
-status: todo
+status: review
 phase: P3
 family: bug
 estimate: S
@@ -61,4 +61,8 @@ N/A — corrections dans les seeders/factories, pas de changement UI.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Trois fichiers modifiés :
+
+- `PropertySeeder` : `randomElement(PropertyType::cases())` remplacé par la liste explicite des 10 types ayant un template dans `SenegalFakerProvider`. Studios fixés à 1 chambre. La cause racine était le fallback silencieux vers les templates Apartment pour les types sans template (Farm, Factory, Hotel, Resort, Parking).
+- `EdgeCaseSeeder` : `createPropertyWithSpecifics` retourne maintenant `Property` ; adresse Dakar + placeholder photos ajoutés directement après création du bien Premium Featured (PropertyMediaSeeder s'étant déjà exécuté avant l'EdgeCaseSeeder).
+- `FilterCoverageSeeder` : même garde studio→1 chambre ajoutée pour que les propriétés de couverture de filtres respectent aussi la contrainte.

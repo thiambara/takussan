@@ -2,6 +2,7 @@
 
 namespace Database\Seeders\Support;
 
+use App\Models\Address;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
@@ -262,12 +263,32 @@ class EdgeCaseSeeder extends Seeder
         ]);
 
         // 4. Property featured avec prix premium
-        $this->createPropertyWithSpecifics($agencyId, $ownerId, [
+        $premiumProperty = $this->createPropertyWithSpecifics($agencyId, $ownerId, [
             'featured' => true,
             'price' => 999999999,
             'title' => 'Propriété Premium Featured',
             'contract_type' => ContractType::Sale,
         ]);
+
+        Address::create([
+            'addressable_id' => $premiumProperty->id,
+            'addressable_type' => Property::class,
+            'street' => 'VDN - Corniche Ouest',
+            'neighborhood' => 'Almadies',
+            'city' => 'Dakar',
+            'region' => 'Dakar',
+            'country' => 'SN',
+            'latitude' => 14.7167,
+            'longitude' => -17.4677,
+        ]);
+
+        $premiumProperty->forceFill(['metadata' => [
+            'media_placeholders' => [
+                'https://picsum.photos/seed/property-ec-premium-1/800/600',
+                'https://picsum.photos/seed/property-ec-premium-2/800/600',
+                'https://picsum.photos/seed/property-ec-premium-3/800/600',
+            ],
+        ]])->saveQuietly();
 
         // 5. Property en maintenance depuis longtemps
         $this->createPropertyWithSpecifics($agencyId, $ownerId, [
@@ -520,11 +541,11 @@ class EdgeCaseSeeder extends Seeder
      *
      * @param  array<string, mixed>  $attributes
      */
-    private function createPropertyWithSpecifics(int $agencyId, int $ownerId, array $attributes): void
+    private function createPropertyWithSpecifics(int $agencyId, int $ownerId, array $attributes): Property
     {
         $title = $attributes['title'] ?? 'Property Edge Case';
 
-        Property::withoutEvents(fn () => Property::create(array_merge([
+        return Property::withoutEvents(fn () => Property::create(array_merge([
             'user_id' => $ownerId,
             'agency_id' => $agencyId,
             'reference_number' => 'PR-EC-'.strtoupper(Str::random(6)),
