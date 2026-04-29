@@ -1,7 +1,7 @@
 ---
 id: TCK-121
 title: UX — footer liens cassés, filtres CRM __all__, LCP eager loading
-status: todo
+status: review
 phase: P2
 family: bug
 estimate: S
@@ -55,4 +55,6 @@ Les liens footer doivent pointer vers des routes existantes ou du contenu réel 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Footer** : colonnes À propos et Aide supprimées (aucune page existante), icônes sociales supprimées. Grid réduit de 5 à 3 colonnes.
+- **CRM selects** : même cause que TCK-117 — base-ui `Select.Root` requiert `items={options}` pour que `SelectValue` affiche le libellé au lieu de la valeur brute. Labels "Toutes étapes"/"Tous statuts" → "Tous".
+- **LCP** : `useReveal` démarrait à `false` (opacity-0) même pour les cartes avec `priority={true}`. Correction : `visible = useReveal(ref) || priority` — les cartes above-the-fold démarrent visibles immédiatement.

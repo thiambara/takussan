@@ -343,22 +343,8 @@ export const navLinks = [
 ] as const;
 
 export const footerLinks = {
-  about: [
-    { label: 'À propos de nous', href: '#' },
-    { label: 'Notre équipe', href: '#' },
-    { label: 'Carrières', href: '#' },
-    { label: 'Presse', href: '#' },
-  ],
   discover: [
-    { label: 'Biens en vedette', href: '#' },
-    { label: 'Nouveautés', href: '#' },
-    { label: 'Alertes email', href: '#' },
-    { label: 'Carte interactive', href: '#' },
-  ],
-  help: [
-    { label: 'Centre d\'aide', href: '#' },
-    { label: 'Contact', href: '#' },
-    { label: 'Mentions légales', href: '#' },
-    { label: 'Confidentialité', href: '#' },
+    { label: 'Biens en vedette', href: '/properties?featured=true' },
+    { label: 'Nouveautés',       href: '/properties?sort=created_desc' },
   ],
 } as const;

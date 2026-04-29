@@ -116,7 +116,7 @@ export function CustomerListFilters({ crmTags = [] }: Props) {
           onChange={(v) => updateParam('pipeline_stage', v === ALL_VALUE ? null : v)}
           placeholder="Pipeline"
           options={[
-            { value: ALL_VALUE, label: 'Toutes étapes' },
+            { value: ALL_VALUE, label: 'Tous' },
             ...PIPELINE_STAGE_OPTIONS,
           ]}
         />
@@ -125,7 +125,7 @@ export function CustomerListFilters({ crmTags = [] }: Props) {
           onChange={(v) => updateParam('status', v === ALL_VALUE ? null : v)}
           placeholder="Statut"
           options={[
-            { value: ALL_VALUE, label: 'Tous statuts' },
+            { value: ALL_VALUE, label: 'Tous' },
             ...CUSTOMER_STATUS_OPTIONS,
           ]}
         />
@@ -256,6 +256,7 @@ function FilterSelect({
       <Select
         value={value}
         onValueChange={(v) => onChange((v ?? '') as string)}
+        items={options}
       >
         <SelectTrigger className="w-full">
           <SelectValue placeholder={placeholder} />

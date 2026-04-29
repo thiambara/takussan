@@ -95,7 +95,9 @@ export function PropertyCard({
 }: PropertyCardProps) {
   const isSale = property.contract_type === 'sale';
   const ref = useRef<HTMLDivElement>(null);
-  const visible = useReveal(ref);
+  // Priority cards (above-the-fold) skip the initial hidden state so the
+  // browser can count their image as the LCP candidate immediately.
+  const visible = useReveal(ref) || priority;
 
   const image = property.main_photo_url ?? FALLBACK_IMAGE;
   const location = [property.location.quarter, property.location.city]
