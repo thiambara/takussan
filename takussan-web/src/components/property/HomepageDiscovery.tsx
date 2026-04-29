@@ -79,7 +79,7 @@ function DiscoverySection({
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7 gap-x-4 gap-y-15">
           {loading
-            ? Array.from({ length: 7 }).map((_, i) => <CardSkeleton key={i} />)
+            ? Array.from({ length: 8 }).map((_, i) => <CardSkeleton key={i} />)
             : properties.map((property, i) => (
                 <PropertyCard
                   key={property.id}
@@ -95,8 +95,8 @@ function DiscoverySection({
 }
 
 export function HomepageDiscovery() {
-  const featured = useProperties({ featured: true, perPage: 12 });
-  const latest = useProperties({ sort: 'latest', perPage: 12 });
+  const featured = useProperties({ featured: true, perPage: 8 });
+  const latest = useProperties({ sort: 'latest', perPage: 8 });
 
   return (
     <div className="min-h-screen bg-[#f8f9fa]">

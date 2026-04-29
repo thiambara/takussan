@@ -1,7 +1,7 @@
 ---
 id: TCK-119
 title: Homepage — "Derniers ajouts" affiche les mêmes biens que "En vedette"
-status: todo
+status: review
 phase: P2
 family: bug
 estimate: S
@@ -50,4 +50,10 @@ Les deux requêtes doivent être indépendantes — ne pas dédupliquer côté f
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Root cause was in two places, not one:
+
+1. **Backend** — `PublicPropertyController::index()` hard-coded `orderByDesc('featured')->orderByDesc('published_at')` and ignored all query params. Both homepage sections hit this endpoint and received identical results. Added `featured=true` filter and `sort=created_desc` support.
+
+2. **Frontend** — `useProperties` sent `sort=latest` verbatim; the backend never recognised that token. Fixed the hook to map `'latest'` → `'created_desc'` before building the query string.
+
+The ticket was tagged `[front]` only but the backend change was unavoidable to satisfy the ACs. Both changes are minimal (no new routes, no model changes).

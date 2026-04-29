@@ -47,7 +47,7 @@ export function useProperties(params: UsePropertiesParams = {}) {
 
     const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) });
     if (featured !== undefined) qs.set('featured', String(featured));
-    if (sort) qs.set('sort', sort);
+    if (sort) qs.set('sort', sort === 'latest' ? 'created_desc' : sort);
     if (transaction) qs.set('transaction', transaction);
     if (type) qs.set('type', type);
     if (city) qs.set('city', city);

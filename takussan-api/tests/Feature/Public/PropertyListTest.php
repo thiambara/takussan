@@ -51,4 +51,30 @@ class PropertyListTest extends TestCase
         $response = $this->getJson('/api/public/properties');
         $response->assertOk();
     }
+
+    public function test_featured_filter_returns_only_featured_properties(): void
+    {
+        Property::factory()->count(3)->published()->create(['featured' => false]);
+        Property::factory()->count(2)->published()->featured()->create();
+
+        $response = $this->getJson('/api/public/properties?featured=true');
+
+        $response->assertOk()->assertJsonCount(2, 'data');
+        foreach ($response->json('data') as $item) {
+            $this->assertTrue((bool) $item['featured']);
+        }
+    }
+
+    public function test_sort_created_desc_returns_newest_first(): void
+    {
+        $old = Property::factory()->published()->create(['featured' => true, 'created_at' => now()->subDays(10)]);
+        $new = Property::factory()->published()->create(['featured' => false, 'created_at' => now()]);
+
+        $response = $this->getJson('/api/public/properties?sort=created_desc');
+
+        $response->assertOk();
+        $this->assertEquals($new->id, $response->json('data.0.id'),
+            'Newest property should appear first when sort=created_desc');
+        $this->assertEquals($old->id, $response->json('data.1.id'));
+    }
 }

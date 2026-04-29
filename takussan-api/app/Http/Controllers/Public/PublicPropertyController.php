@@ -58,13 +58,22 @@ class PublicPropertyController extends Controller
 
     public function index(Request $request): AnonymousResourceCollection
     {
-        $properties = Property::query()
+        $query = Property::query()
             ->with('address', 'media')
             ->public()
-            ->whereNot('status', PropertyStatus::Draft)
-            ->orderByDesc('featured')
-            ->orderByDesc('published_at')
-            ->paginate((int) $request->input('per_page', 20));
+            ->whereNot('status', PropertyStatus::Draft);
+
+        if ($request->boolean('featured')) {
+            $query->where('featured', true);
+        }
+
+        if ($request->input('sort') === 'created_desc') {
+            $query->orderByDesc('created_at');
+        } else {
+            $query->orderByDesc('featured')->orderByDesc('published_at');
+        }
+
+        $properties = $query->paginate((int) $request->input('per_page', 20));
 
         return PropertyResource::collection($properties);
     }
