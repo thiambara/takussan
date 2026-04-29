@@ -49,6 +49,22 @@ _(vide — TCK-104 en cours)_
 - [TCK-108](tickets/TCK-108-permission-temporary-delegation.md) — Délégation temporaire permissions `M · P2 · applicatif`
 - [TCK-109](tickets/TCK-109-bank-reconciliation-assist.md) — Rapprochement bancaire semi-automatique `L · P2 · applicatif`
 
+### Vague 13 — Bugs QA (rapport-test-qa-1.md)
+
+- [TCK-111](tickets/TCK-111-fix-properties-page-server-client-boundary.md) — Fix runtime `/app/properties` server/client boundary `S · P0 · bug`
+- [TCK-112](tickets/TCK-112-fix-documents-field-root-context.md) — Fix runtime `/app/documents` FieldRootContext manquant `S · P0 · bug`
+- [TCK-114](tickets/TCK-114-fix-leaflet-map-property-detail.md) — Carte Leaflet vide sur fiche bien `S · P0 · bug`
+- [TCK-113](tickets/TCK-113-fix-audit-toast-provider.md) — Fix runtime `/admin/audit` Toast.Provider manquant `S · P1 · bug`
+- [TCK-115](tickets/TCK-115-super-admin-no-agency-empty-states.md) — Super_admin sans agence — états vides sur overview/bookings/leases/visits `M · P1 · bug`
+- [TCK-116](tickets/TCK-116-admin-sidebar-routes-404-doublon.md) — Admin sidebar — routes 404 + doublon Équipe `S · P1 · bug`
+- [TCK-117](tickets/TCK-117-i18n-chaines-anglaises-backoffice.md) — i18n — chaînes anglaises restantes back-office `S · P1 · bug`
+- [TCK-118](tickets/TCK-118-search-text-filter-location.md) — Recherche homepage — texte localisation ignoré/non préservé `S · P1 · bug`
+- [TCK-119](tickets/TCK-119-homepage-latest-properties-sort.md) — Homepage "Derniers ajouts" = "En vedette" `S · P2 · bug`
+- [TCK-120](tickets/TCK-120-property-form-missing-sections.md) — Formulaire bien — sections manquantes (adresse, médias, description, caract.) `L · P2 · bug`
+- [TCK-121](tickets/TCK-121-ux-footer-crm-lcp.md) — UX mineurs — footer liens cassés, filtres CRM __all__, LCP eager `S · P2 · bug`
+- [TCK-122](tickets/TCK-122-similar-properties-frontend-wiring.md) — Biens similaires — câblage frontend fiche bien `S · P2 · bug`
+- [TCK-123](tickets/TCK-123-seed-data-property-coherence.md) — Seeders — incohérences type/surface propriétés démo `S · P3 · bug`
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
@@ -430,6 +446,15 @@ TCK-016 + TCK-050 + TCK-035 ──▶ TCK-106 (property photo watermark)
 TCK-024 + TCK-052 + TCK-039 ──▶ TCK-107 (search autocomplete)
 TCK-014 + TCK-049 ──▶ TCK-108 (permission temporary delegation)
 TCK-028 + TCK-077 + TCK-079 ──▶ TCK-109 (bank reconciliation assist)
+
+── Vague 13 : Bugs QA ──
+TCK-041 ──▶ TCK-111 (fix properties page server/client boundary)
+TCK-062 ──▶ TCK-112 (fix documents FieldRootContext)
+TCK-104 ──▶ TCK-113 (fix audit Toast.Provider)
+TCK-040 ──▶ TCK-114 (fix Leaflet map property detail)
+TCK-032 ──▶ TCK-115 (super_admin no-agency empty states)
+TCK-099 ──▶ TCK-122 (similar properties frontend wiring)
+TCK-035 + TCK-036 + TCK-041 ──▶ TCK-120 (property form missing sections)
 ```
 
 ---
