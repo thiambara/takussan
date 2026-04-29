@@ -1,7 +1,7 @@
 ---
 id: TCK-115
 title: Super_admin sans agence — états vides sur overview, bookings, leases, visits
-status: todo
+status: review
 phase: P1
 family: bug
 estimate: M
@@ -63,4 +63,4 @@ Remplacer les messages d'erreur "Impossible de charger" et les crashs par un ét
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Guard `isSuperAdmin(user.roles) && !user.agency_id` ajouté côté RSC dans les 5 pages (`/app`, `/app/overview/agency`, `/app/bookings`, `/app/leases`, `/app/visits`). La garde empêche le montage des composants client → aucun hook `useQuery` déclenché → aucune 403 réseau. Composant `NoAgencyState` créé dans `src/components/shared/`. CTA lien `/admin` via `buttonVariants` (pas `asChild` — `@base-ui/react/button` ne le supporte pas).

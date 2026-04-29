@@ -1,9 +1,17 @@
 import Link from 'next/link';
 import { getMeAction } from '@/app/actions/auth';
+import { isSuperAdmin } from '@/lib/roles';
 import { LeasesList } from '@/components/leases/LeasesList';
+import { NoAgencyState } from '@/components/shared/NoAgencyState';
 
 export default async function Page() {
-  await getMeAction();
+  const user = await getMeAction();
+
+  // TCK-115: super_admin without agency_id gets 403 from GET /api/leases
+  if (isSuperAdmin(user.roles) && !user.agency_id) {
+    return <NoAgencyState title="Baux" />;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">

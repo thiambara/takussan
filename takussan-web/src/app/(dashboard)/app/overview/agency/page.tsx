@@ -1,10 +1,11 @@
 import { getMeAction } from '@/app/actions/auth';
-import { isAdmin, isAgent } from '@/lib/roles';
+import { isAdmin, isAgent, isSuperAdmin } from '@/lib/roles';
 import { redirect } from 'next/navigation';
 import { fetchAgencyDashboard } from '@/lib/queries/dashboard';
 import { StatCard } from '@/components/charts/StatCard';
 import { LineChart } from '@/components/charts/LineChart';
 import { formatCurrency, formatNumber } from '@/lib/format';
+import { NoAgencyState } from '@/components/shared/NoAgencyState';
 
 /**
  * TCK-032 P1 — agency dashboard.
@@ -14,6 +15,12 @@ export default async function AgencyDashboardPage() {
   const user = await getMeAction();
   if (!isAdmin(user.roles) && !isAgent(user.roles)) {
     redirect('/app/overview');
+  }
+
+  // TCK-115: super_admin without agency_id gets 403 from /api/dashboard/agency
+  // (Spatie team scope). Guard before the API call to avoid the unhandled exception.
+  if (isSuperAdmin(user.roles) && !user.agency_id) {
+    return <NoAgencyState title="Vue agence" />;
   }
 
   const payload = await fetchAgencyDashboard();

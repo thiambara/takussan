@@ -1,9 +1,16 @@
 import { getMeAction } from '@/app/actions/auth';
-import { isAgent, isAdmin } from '@/lib/roles';
+import { isAgent, isAdmin, isSuperAdmin } from '@/lib/roles';
 import { StubPlaceholder } from '@/components/shared/StubPlaceholder';
+import { NoAgencyState } from '@/components/shared/NoAgencyState';
 
 export default async function DashboardPage() {
   const user = await getMeAction();
+
+  // TCK-115: super_admin without agency_id has no data to display
+  if (isSuperAdmin(user.roles) && !user.agency_id) {
+    return <NoAgencyState title="Tableau de bord" />;
+  }
+
   const useAgentStats = isAgent(user.roles) || isAdmin(user.roles);
   const stats = useAgentStats
     ? ['Biens actifs', 'Clients', 'Réservations', 'Commissions']
