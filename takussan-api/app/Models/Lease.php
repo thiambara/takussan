@@ -78,12 +78,17 @@ class Lease extends AbstractModel implements HasMedia
 
     protected static array $queryFields = [
         'id', 'property_id', 'landlord_id', 'tenant_id', 'agency_id',
-        'renewed_from_lease_id',
+        'booking_id', 'guarantor_id', 'renewed_from_lease_id',
         'reference_number', 'type', 'status',
-        'start_date', 'end_date', 'monthly_rent', 'currency',
+        'start_date', 'end_date', 'renewal_date',
+        'monthly_rent', 'sale_price', 'currency',
         'deposit_amount', 'deposit_refunded_amount', 'deposit_refunded_at', 'deposit_refund_reason',
-        'payment_frequency', 'late_fee_percent', 'late_fee_grace_days',
-        'signed_at', 'terminated_at', 'created_at', 'updated_at',
+        'commission_amount', 'commission_rate',
+        'payment_frequency', 'payment_day',
+        'late_fee_percent', 'late_fee_grace_days',
+        'terms', 'special_conditions',
+        'signed_at', 'terminated_at', 'termination_reason',
+        'created_at', 'updated_at',
         // TCK-090 — exposed so the frontend banner can read the workflow
         // state without a second round-trip (effective_date countdown,
         // penalty amount, invoice link).

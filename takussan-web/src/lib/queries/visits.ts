@@ -78,7 +78,10 @@ export function useVisits(params: UseVisitsParams = {}) {
   const spatieParams: SpatieQueryParams = {
     fields: {
       property_visits: VISIT_LIST_FIELDS,
-      properties: ['id', 'title', 'slug', 'main_photo_url'],
+      // `main_photo_url` is a computed attribute (Spatie media library), not a
+      // DB column, so it must NOT appear in `fields[properties]`. The API
+      // resource emits it unconditionally, so it's still present in the response.
+      properties: ['id', 'title', 'slug'],
       users: ['id', 'first_name', 'last_name'],
     },
     filter: {
@@ -105,7 +108,7 @@ export function useVisit(id: number | null | undefined) {
   const spatieParams: SpatieQueryParams = {
     fields: {
       property_visits: VISIT_DETAIL_FIELDS,
-      properties: ['id', 'title', 'slug', 'main_photo_url'],
+      properties: ['id', 'title', 'slug'],
       users: ['id', 'first_name', 'last_name', 'email'],
     },
     include: ['property', 'agent', 'visitor'],

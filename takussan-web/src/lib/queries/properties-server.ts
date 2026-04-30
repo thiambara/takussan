@@ -9,10 +9,17 @@
  */
 
 import { apiRequest, buildQueryString } from '@/lib/api';
-import type { PaginatedResponse, SpatieQueryParams } from '@/types/api';
-import type { PropertyListItem } from '@/types/property';
+import type {
+  ApiResponse,
+  PaginatedResponse,
+  SpatieQueryParams,
+} from '@/types/api';
+import type { PropertyDetail, PropertyListItem } from '@/types/property';
 
 /** Columns the agent CRUD list view actually renders — keep this narrow. */
+// `main_photo_url` is a computed attribute exposed by PropertyResource (via
+// media library), not a real DB column — don't request it via fields[properties]
+// or spatie/laravel-query-builder rejects with InvalidFieldQuery (HTTP 400).
 export const DASHBOARD_PROPERTY_FIELDS = [
   'id',
   'reference_number',
@@ -26,7 +33,6 @@ export const DASHBOARD_PROPERTY_FIELDS = [
   'visibility',
   'bedrooms',
   'area',
-  'main_photo_url',
   'published_at',
   'created_at',
 ] as const;
@@ -75,4 +81,27 @@ export async function fetchDashboardProperties(
     `/api/properties${qs ? `?${qs}` : ''}`,
     { token },
   );
+}
+
+/** Columns needed by the edit form. */
+export const DASHBOARD_PROPERTY_DETAIL_FIELDS = [
+  ...DASHBOARD_PROPERTY_FIELDS,
+  'description',
+  'bathrooms',
+  'furnished',
+  'rent_period',
+] as const;
+
+export async function fetchDashboardProperty(
+  token: string,
+  idOrSlug: string | number,
+): Promise<PropertyDetail> {
+  const qs = buildQueryString({
+    fields: { properties: DASHBOARD_PROPERTY_DETAIL_FIELDS },
+  });
+  const res = await apiRequest<ApiResponse<PropertyDetail>>(
+    `/api/properties/${idOrSlug}${qs ? `?${qs}` : ''}`,
+    { token },
+  );
+  return res.data;
 }

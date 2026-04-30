@@ -1,4 +1,4 @@
-export type UserRole = 'customer' | 'agent' | 'agency_admin' | 'owner' | 'service_provider' | 'super_admin';
+export type UserRole = 'customer' | 'tenant' | 'agent' | 'agency_admin' | 'owner' | 'service_provider' | 'super_admin';
 
 export type UserStatus = 'active' | 'inactive' | 'banned';
 

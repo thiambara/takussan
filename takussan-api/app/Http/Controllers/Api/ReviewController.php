@@ -35,7 +35,7 @@ class ReviewController extends Controller
         // the admin-only lock.
         $isSelfFilter = in_array($authorFilter, ['me', 'auth', (string) $user->id], true);
         abort_unless(
-            $isSelfFilter || $user->hasRole(['admin', 'super_admin']),
+            $isSelfFilter || $user->hasRole(['admin', 'agency_admin', 'super_admin']),
             403,
         );
 
@@ -117,7 +117,7 @@ class ReviewController extends Controller
      */
     public function moderate(Request $request, Review $review): JsonResponse
     {
-        abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
+        abort_unless($request->user()->hasRole(['admin', 'agency_admin', 'super_admin']), 403);
 
         $data = $request->validate([
             'decision' => ['required', Rule::in(['approve', 'hide', 'delete', 'ignore'])],
@@ -193,7 +193,7 @@ class ReviewController extends Controller
      */
     public function reports(Request $request, Review $review): JsonResponse
     {
-        abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
+        abort_unless($request->user()->hasRole(['admin', 'agency_admin', 'super_admin']), 403);
 
         $reports = collect($review->metadata['reports'] ?? [])
             ->map(function (array $r): array {
@@ -330,7 +330,7 @@ class ReviewController extends Controller
 
     public function approve(Request $request, Review $review): JsonResponse
     {
-        abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
+        abort_unless($request->user()->hasRole(['admin', 'agency_admin', 'super_admin']), 403);
 
         $this->assertTransition($review, ReviewStatus::Approved);
 
@@ -346,7 +346,7 @@ class ReviewController extends Controller
 
     public function reject(Request $request, Review $review): JsonResponse
     {
-        abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
+        abort_unless($request->user()->hasRole(['admin', 'agency_admin', 'super_admin']), 403);
 
         $this->assertTransition($review, ReviewStatus::Rejected);
 

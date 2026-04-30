@@ -51,7 +51,9 @@ export function useConversations(
   const spatieParams: SpatieQueryParams = {
     fields: {
       conversations: CONVERSATION_LIST_FIELDS,
-      properties: ['id', 'title', 'slug', 'main_photo_url'],
+      // `main_photo_url` is computed (Spatie media library), not a DB column —
+      // omit from sparse fieldset; PropertyResource emits it anyway.
+      properties: ['id', 'title', 'slug'],
     },
     filter,
     include: ['property', 'participants', 'last_message'],
@@ -81,7 +83,7 @@ export function useConversation(id: number | null | undefined) {
         'created_by',
         'created_at',
       ],
-      properties: ['id', 'title', 'slug', 'main_photo_url'],
+      properties: ['id', 'title', 'slug'],
     },
     include: ['property', 'participants'],
   };

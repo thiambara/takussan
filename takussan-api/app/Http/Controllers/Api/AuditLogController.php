@@ -17,7 +17,7 @@ class AuditLogController extends Controller
 {
     public function indexByEntity(Request $request, string $entity, int $id): JsonResponse
     {
-        abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
+        abort_unless($request->user()->hasRole(['admin', 'agency_admin', 'super_admin']), 403);
 
         // `Str::studly` handles multi-word slugs (`booking_payment` → `BookingPayment`)
         // which plain `ucfirst` cannot — the latter would leave the underscore

@@ -46,33 +46,10 @@ export type {
 } from './properties-server';
 export {
   DASHBOARD_PROPERTY_FIELDS,
+  DASHBOARD_PROPERTY_DETAIL_FIELDS,
   fetchDashboardProperties,
+  fetchDashboardProperty,
 } from './properties-server';
-
-import { DASHBOARD_PROPERTY_FIELDS } from './properties-server';
-
-/** Columns needed by the edit form. */
-export const DASHBOARD_PROPERTY_DETAIL_FIELDS = [
-  ...DASHBOARD_PROPERTY_FIELDS,
-  'description',
-  'bathrooms',
-  'furnished',
-  'rent_period',
-] as const;
-
-export async function fetchDashboardProperty(
-  token: string,
-  idOrSlug: string | number,
-): Promise<PropertyDetail> {
-  const qs = buildQueryString({
-    fields: { properties: DASHBOARD_PROPERTY_DETAIL_FIELDS },
-  });
-  const res = await apiRequest<ApiResponse<PropertyDetail>>(
-    `/api/properties/${idOrSlug}${qs ? `?${qs}` : ''}`,
-    { token },
-  );
-  return res.data;
-}
 
 export async function createProperty(
   token: string,

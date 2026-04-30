@@ -73,7 +73,9 @@ export function useLeases(params: UseLeasesParams = {}) {
   const spatieParams: SpatieQueryParams = {
     fields: {
       leases: LIST_FIELDS,
-      properties: ['id', 'title', 'slug', 'main_photo_url'],
+      // `main_photo_url` is computed (Spatie media library), not a DB column —
+      // omit from sparse fieldset; PropertyResource emits it anyway.
+      properties: ['id', 'title', 'slug'],
     },
     filter,
     include: ['property'],
@@ -106,7 +108,9 @@ export function useLease(id: number | null | undefined) {
   const spatieParams: SpatieQueryParams = {
     fields: {
       leases: DETAIL_FIELDS,
-      properties: ['id', 'title', 'slug', 'main_photo_url'],
+      // `main_photo_url` is computed (Spatie media library), not a DB column —
+      // omit from sparse fieldset; PropertyResource emits it anyway.
+      properties: ['id', 'title', 'slug'],
     },
     include: ['property', 'guarantor', 'payments'],
   };

@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class AgencyController extends Controller
 {
@@ -69,7 +70,13 @@ class AgencyController extends Controller
 
     public function update(AgencyUpdateRequest $request, Agency $agency): JsonResponse
     {
-        abort_unless($agency->primary_admin_id === $request->user()->id || $request->user()->hasRole(['admin', 'super_admin']), 403);
+        $user = $request->user();
+        abort_unless(
+            $user->hasRole(['admin', 'super_admin'])
+            || $agency->primary_admin_id === $user->id
+            || ($user->agency_id === $agency->id && $user->hasRole('agency_admin')),
+            403
+        );
 
         $data = $request->validated();
 
@@ -85,6 +92,7 @@ class AgencyController extends Controller
             $user->hasRole(['admin', 'super_admin']) || $agency->primary_admin_id === $user->id,
             403
         );
+        // destroy is intentionally restricted to super_admin and primary_admin_id — agency_admin can edit but not delete.
 
         $agency->delete();
 
@@ -143,9 +151,22 @@ class AgencyController extends Controller
 
         $role = $data['role'] ?? 'agent';
         Role::findOrCreate($role, 'web');
+
+        // Always scope role assignment to the agency's team, not the requester's
+        // team. When super_admin calls this endpoint their team context is null,
+        // which would assign the role with team_id = null and break hasRole()
+        // checks for the target user on all subsequent requests.
+        $registrar = app(PermissionRegistrar::class);
+        $originalTeamId = $registrar->getPermissionsTeamId();
+        $registrar->setPermissionsTeamId($agency->id);
+        $target->unsetRelation('roles');
+
         if (! $target->hasRole($role)) {
             $target->assignRole($role);
         }
+
+        $registrar->setPermissionsTeamId($originalTeamId);
+        $target->unsetRelation('roles');
 
         return $this->json([
             'data' => [
@@ -167,24 +188,39 @@ class AgencyController extends Controller
         // with a row lock on the target. Without this, two concurrent DELETEs
         // for two distinct agency_admins can both observe "one admin remains"
         // and both succeed, leaving the agency with zero admins.
-        DB::transaction(function () use ($user, $agency) {
+        $registrar = app(PermissionRegistrar::class);
+        $originalTeamId = $registrar->getPermissionsTeamId();
+
+        DB::transaction(function () use ($user, $agency, $registrar) {
+            // Scope all role operations to the agency's team. When super_admin
+            // calls this endpoint their team context is null, which would cause
+            // hasRole() and removeRole() to miss roles assigned with the
+            // agency's team_id.
+            $registrar->setPermissionsTeamId($agency->id);
+
             $locked = User::where('id', $user->id)->lockForUpdate()->first();
-            if ($locked && $locked->hasRole('agency_admin')) {
-                $remainingAdmins = User::where('agency_id', $agency->id)
-                    ->whereHas('roles', fn ($q) => $q->where('name', 'agency_admin'))
-                    ->where('id', '!=', $user->id)
-                    ->lockForUpdate()
-                    ->count();
-                abort_if($remainingAdmins === 0, 422, __('messages.cannot_remove_last_agency_admin'));
+            if ($locked) {
+                $locked->unsetRelation('roles');
+                if ($locked->hasRole('agency_admin')) {
+                    $remainingAdmins = User::where('agency_id', $agency->id)
+                        ->whereHas('roles', fn ($q) => $q->where('name', 'agency_admin'))
+                        ->where('id', '!=', $user->id)
+                        ->lockForUpdate()
+                        ->count();
+                    abort_if($remainingAdmins === 0, 422, __('messages.cannot_remove_last_agency_admin'));
+                }
             }
 
             $user->update(['agency_id' => null]);
             foreach (['agent', 'agency_admin'] as $role) {
+                $user->unsetRelation('roles');
                 if ($user->hasRole($role)) {
                     $user->removeRole($role);
                 }
             }
         });
+
+        $registrar->setPermissionsTeamId($originalTeamId);
 
         return $this->json(['data' => ['user_id' => $user->id, 'removed' => true]]);
     }
@@ -193,7 +229,9 @@ class AgencyController extends Controller
     {
         $user = $request->user();
         abort_unless(
-            $user->hasRole(['admin', 'super_admin']) || $agency->primary_admin_id === $user->id,
+            $user->hasRole(['admin', 'super_admin'])
+            || $agency->primary_admin_id === $user->id
+            || ($user->agency_id === $agency->id && $user->hasRole('agency_admin')),
             403,
         );
     }
