@@ -1,7 +1,7 @@
 ---
 id: TCK-032
 title: Reporting & tableaux de bord
-status: review
+status: todo
 phase: P1
 family: applicatif
 estimate: L
@@ -144,26 +144,4 @@ Chaque utilisateur authentifié accède à un tableau de bord personnalisé pré
 
 ## Notes d'implémentation
 
-### Livré (Vague 3 — PR #38, 2026-04-23)
-
-**Backend complet (P1):**
-- Services dans `app/Services/Dashboard/` : `DashboardAgencyService`, `DashboardOwnerService`, `DashboardAgentService`, `DashboardTenantService` — tous avec méthodes `summary()` et `monthlyTimeseries()`.
-- Contrôleurs : `DashboardController` (adaptive), `DashboardAgencyController`, `DashboardOwnerController`, `DashboardAgentController`, `DashboardTenantController`.
-- Routes dans `routes/api/dashboard.php` : `GET /api/dashboard/stats`, `/dashboard/agency`, `/dashboard/owner`, `/dashboard/agent`, `/dashboard/tenant`.
-- Tests : `DashboardAgencyTest`, `DashboardOwnerTest`, `DashboardAgentTest`, `DashboardTenantTest`, `DashboardStatsTest` — tous verts.
-
-**Divergences par rapport à la spec :**
-- Endpoint adaptive : implémenté comme `GET /api/dashboard/stats` au lieu de `/api/dashboard/me` (structure de réponse légèrement différente — pas de champ `role` explicite, le rôle est déduit côté serveur).
-- Pas d'interface `DashboardMetrics` ni de `DashboardRoleResolver` dédiés — la logique de résolution est dans `DashboardController::stats()`.
-- Pas de `KpiCard` côté front — les composants dashboard utilisent des structures de données brutes.
-
-**Frontend (P1) :**
-- Pages Next.js sous `/app/overview/*` (8 pages) avec charts SVG homegrown.
-- Composants : `AgencyDashboard`, `OwnerDashboard`, `AgentDashboard`, `TenantDashboard` — rendu conditionnel selon le rôle retourné par l'API.
-
-**P2 / P3 :**
-- Export CSV : implémenté dans `ExportController` avec routes dans `routes/api/export.php`.
-- Timeseries : disponible via `?include=timeseries` sur les endpoints dashboard.
-- Alertes et KPI personnalisables : reportés P3 (non implémentés).
-
-**Commits :** Vague 3 PR #38 (G-REPORTING).
+_(à remplir par implementing-specs)_
