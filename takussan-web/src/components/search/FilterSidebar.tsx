@@ -135,6 +135,14 @@ const BATHROOM_OPTIONS = [
   { label: '3+', value: 3 },
 ];
 
+const FLOOR_OPTIONS = [
+  { label: 'RDC', value: 0 },
+  { label: '1er', value: 1 },
+  { label: '2e', value: 2 },
+  { label: '3e', value: 3 },
+  { label: '4e+', value: 4 },
+];
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export interface FilterSidebarProps {
@@ -351,7 +359,30 @@ export function FilterSidebar({
           </div>
         </Section>
 
-        {/* 10. Tags */}
+        {/* 10. Étage */}
+        <Section title="Étage">
+          <ChipGroup
+            options={FLOOR_OPTIONS}
+            value={filters.floor_number}
+            onChange={(v) => set({ floor_number: v as number })}
+          />
+        </Section>
+
+        {/* 11. Disponibilité */}
+        <Section title="Disponibilité">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1.5">Disponible dès le…</label>
+            <input
+              type="date"
+              value={filters.available_from ?? ''}
+              min={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => set({ available_from: e.target.value || undefined })}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+            />
+          </div>
+        </Section>
+
+        {/* 12. Tags */}
         <Section title="Équipements">
           <div className="relative">
             <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
@@ -366,7 +397,7 @@ export function FilterSidebar({
           <p className="text-[11px] text-gray-400 mt-1.5">Séparez par des virgules</p>
         </Section>
 
-        {/* 11. Full-text search */}
+        {/* 13. Full-text search */}
         <Section title="Recherche avancée">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />

@@ -98,6 +98,8 @@ class PublicPropertyController extends Controller
             'lng_min' => 'nullable|numeric',
             'lng_max' => 'nullable|numeric',
             'sort' => 'nullable|in:relevance,price_asc,price_desc,created_desc',
+            'floor_number' => 'nullable|integer|min:0|max:200',
+            'available_from' => 'nullable|date|after_or_equal:today',
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
         ]);
@@ -153,6 +155,15 @@ class PublicPropertyController extends Controller
         if (! empty($validated['tags'])) {
             $tags = is_array($validated['tags']) ? $validated['tags'] : explode(',', $validated['tags']);
             $query->whereHas('tags', fn ($q) => $q->whereIn('tags.name', $tags));
+        }
+        if (isset($validated['floor_number'])) {
+            $query->where('floor_number', $validated['floor_number']);
+        }
+        if (! empty($validated['available_from'])) {
+            $query->where(function ($q) use ($validated) {
+                $q->whereNull('available_from')
+                    ->orWhere('available_from', '<=', $validated['available_from']);
+            });
         }
         if (! empty($validated['lat_min']) && ! empty($validated['lat_max'])
             && ! empty($validated['lng_min']) && ! empty($validated['lng_max'])) {

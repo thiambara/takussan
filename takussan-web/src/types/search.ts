@@ -40,6 +40,8 @@ export interface SearchFilters {
   area_max?: number;
   furnished?: boolean;
   featured?: boolean;
+  floor_number?: number;
+  available_from?: string; // ISO date YYYY-MM-DD
   tags?: string;           // comma-separated tag names, e.g. "piscine,parking"
   sort?: 'relevance' | 'price_asc' | 'price_desc' | 'created_desc';
   page?: number;

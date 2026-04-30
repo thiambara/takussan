@@ -61,8 +61,6 @@ _(vide — TCK-104 en cours)_
 - [TCK-125](tickets/TCK-125-select-affiche-cles-internes.md) — UI Select — dropdowns affichent les clés internes au lieu des labels `S · P2 · bug` **[review]**
 - [TCK-126](tickets/TCK-126-contact-modal-vs-redirect-login.md) — Fiche bien — "Envoyer un message" devrait rediriger vers /auth/login `S · P2 · bug`
 - [TCK-127](tickets/TCK-127-cta-faire-offre-libelle-reserver.md) — Fiche bien — CTA "Faire une offre" devrait être libellé "Réserver" `S · P2 · bug`
-- [TCK-128](tickets/TCK-128-filtres-avances-disponibilite-etage.md) — Filtres avancés — Disponibilité et Étage absents sur /properties `M · P1 · bug`
-
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
@@ -75,6 +73,7 @@ _(vide)_
 
 ### Vague 13 — Bugs QA
 
+- [TCK-128](tickets/TCK-128-filtres-avances-disponibilite-etage.md) — Filtres avancés — Disponibilité et Étage absents sur /properties `M · P1 · bug`
 - [TCK-123](tickets/TCK-123-seed-data-property-coherence.md) — Seeders — incohérences type/surface propriétés démo `S · P3 · bug`
 - [TCK-122](tickets/TCK-122-similar-properties-frontend-wiring.md) — Biens similaires — câblage frontend fiche bien `S · P2 · bug`
 - [TCK-121](tickets/TCK-121-ux-footer-crm-lcp.md) — UX mineurs — footer liens cassés, filtres CRM __all__, LCP eager `S · P2 · bug`
