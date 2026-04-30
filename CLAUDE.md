@@ -1,101 +1,92 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Monorepo **Takussan** — plateforme de gestion immobilière.
 
-## Repository Structure
+- `takussan-api/` — Laravel 13, PHP ^8.3
+- `takussan-web/` — Next.js 16.2.3, React 19, TypeScript 5, Tailwind CSS 4
 
-This is a monorepo for **Takussan**, a real estate property management platform, containing two separate projects:
 
-- `takussan-api/` — Laravel 12 REST API backend (PHP 8.4)
-- `takussan-web/` — Angular 21 frontend
+---
+
+## Specs & Backlog
+
+**Sources de vérité** (ne jamais dupliquer dans un ticket) :
+
+- `docs/features.md` — spec fonctionnelle
+- `docs/models-spec.md` — spec data/modèles
+
+**Backlog** : `docs/backlog/` → `INDEX.md` (kanban) + `tickets/TCK-NNN-<slug>.md`
+
+**Format ticket** : frontmatter YAML (`id`, `title`, `status`, `phase`, `family`, `estimate`, `depends_on`, `blocks`, `spec_refs`) + corps (Contexte / Objectif / Delta / AC / Hors périmètre / Notes).
+
+**Règles** :
+
+1. Un ticket décrit un delta, pas la spec — il pointe vers elle via `spec_refs`.
+2. `depends_on` → autres tickets uniquement. Un ticket ne démarre pas tant que ses dépendances ne sont pas `done`.
+3. Après merge d'un ticket qui modifie une spec : `/sync-specs`.
+
+**Workflows** (deux voies équivalentes — `.windsurf/workflows/` ou `.claude/commands/`) :
+- `/write-spec` — crée un ticket, ne touche jamais au code.
+- `/implement-spec` — implémente un ticket, ne modifie jamais les specs.
+
+Si l'utilisateur demande « crée un ticket » ou « implémente TCK-NNN » sans slash command, lire directement le workflow correspondant dans `.windsurf/workflows/`.
 
 ---
 
 ## Backend (`takussan-api/`)
 
-### Commands
-
 ```bash
-# Start dev server (must run on port 8002 — frontend is hardcoded to this)
-php artisan serve --port=8002
-
-# Run all tests
-php artisan test
-
-# Run a single test class or method
-php artisan test --filter=ClassName
-php artisan test --filter=ClassName::methodName
-
-# Lint (Laravel Pint)
-./vendor/bin/pint
-
-# Migrations
+php artisan serve --port=8002   # dev (port fixe — frontend hardcodé)
+php artisan test                 # tous les tests
+php artisan test --filter=Foo   # filtre classe ou méthode
+./vendor/bin/pint                # lint  ← à exécuter avant chaque commit
 php artisan migrate
 php artisan migrate:fresh --seed
 ```
 
-### Architecture
-
-**Routes** are split into `routes/api/` subdirectory by resource (e.g. `routes/api/properties.php`). `routes/api.php` just requires them all.
-
-**Controllers** extend `App\Http\Controllers\Base\Controller` which adds a `json()` helper. They are thin — all business logic lives in `app/Services/Model/`. Controllers inject service classes via constructor.
-
-**Models** all extend `App\Models\Bases\AbstractModel` which uses `BaseModelTrait`. This trait adds powerful request-driven query scopes:
-- `Model::allThroughRequest()` — applies both filters and ordering from the current request
-- `filterThroughRequest()` — reads `filter_fields` from the request; supports operators: `@like`, `@in`, `@between`, `!` prefix for NOT, `..` for ranges (e.g. `100..500`)
-- `orderThroughRequest()` — reads `order_by` from request
-- Models also auto-configure `with`, `hidden`, `appends`, `with_count` from request params namespaced by table name (e.g. `?properties.with[]=address`)
-
-**Permissions** use `spatie/laravel-permission`. Controllers apply middleware like `$this->middleware('permission:properties.view')`. Ownership checks use `properties.update_all` / `properties.delete_all` to distinguish own vs. all-resource permissions.
-
-**Media** uses `spatie/laravel-medialibrary`. The `Property` model registers a `properties` collection with `thumbnail` (300×300) and `preview` (800×600) conversions.
-
-**Auth** uses Laravel Sanctum (token-based) and Socialite (OAuth2). See `routes/api/auth/`.
-
-**Search** uses Laravel Scout on the `Property` model.
-
-**Global helpers** (autoloaded from `app/Helpers/`):
-- `to_camel_case()` / `to_snake_case()` — handle arrays or strings
-- `utils()` — resolves `App\Services\Utils\Utils`
-
-**Enums** live in `App\Models\Bases\Enums\` (e.g. `ProprietyStatus`, `BookingStatus`).
-
-**Paginates** via `paginatedThroughRequest()` (from `BaseModelTrait`).
+> État actuel : skeleton vierge. Seuls `Controller.php` (abstract) et `User.php` existent.
 
 ---
 
 ## Frontend (`takussan-web/`)
 
-### Commands
-
 ```bash
-# Start dev server (runs on port 4201)
-npm start
-
-# Build
-npm run build
-
-# Run tests
-npm test
+npm run dev    # dev
+npm run build  # build
+npm run lint   # lint
 ```
 
-### Architecture
+> État actuel : scaffold vierge (create-next-app). Features à construire via tickets.
+> ⚠️ Next.js 16 contient des breaking changes — lire `node_modules/next/dist/docs/` avant d'écrire du code.
 
-Standalone Angular components with lazy loading throughout. No NgModules.
+---
 
-**App structure:**
-- `src/app/core/` — guards, interceptors, layouts, models, services (HTTP clients)
-- `src/app/pages/` — feature pages: `auth/`, `dashboard/`, `homepage/`, `search-results/`, `show-property/`
-- `src/app/shared/` — reusable components and pipes
-- `src/app/types/` — shared TypeScript types
-- `src/environments/` — environment config (`apiUrl`, `cryptoKey`)
+## API — Conventions frontend
 
-**API communication:** All HTTP services live in `core/services/http/`. The `takussanApiAuthInterceptor` automatically attaches the Bearer token (from `AuthService.authToken`) and `Accept: Application/json` header to all requests matching `environment.apiUrl`.
+Le backend utilise `spatie/laravel-query-builder`. **Toujours utiliser les query params suivants depuis le frontend** pour optimiser les performances (éviter de retourner des champs inutiles et des enregistrements non pertinents).
 
-**UI stack:** PrimeNG 21 (Aura theme) + Tailwind CSS 4.2. `MessageService` and `DialogService` from PrimeNG are provided globally in `app.config.ts`. Dark mode toggled via `.app-dark` class. Templates use Angular 21 block control flow syntax (`@if`, `@for`, `@switch`).
+**Règles obligatoires :**
+1. **Ne jamais fetcher tous les champs** — toujours passer `fields[table]=col1,col2,...` avec uniquement les colonnes nécessaires à la vue.
+2. **Utiliser les filtres spatie** — ne jamais filtrer côté client sur des listes déjà récupérées.
+3. **Utiliser `include=` pour les relations** — ne jamais faire de requêtes séparées pour charger une relation si elle peut être incluse.
 
-**Locale:** French (`fr-FR`) is the app locale.
+**Query params disponibles :**
+```
+filter[status]=active              # filtre exact
+filter[search]=mot clé             # recherche textuelle multi-champs
+filter[price_min]=50000            # filtre de range
+filter[price_max]=200000
+sort=-created_at                   # tri (- = décroissant)
+include=address,owner              # eager load de relations
+include=bookingsCount              # compter une relation
+fields[properties]=id,title,price  # sparse fieldsets ← TOUJOURS utiliser
+per_page=20
+```
 
-**Auth token storage:** `AuthService.authToken` is a static property — token is read synchronously in the interceptor.
+**Référence complète :** `docs/spatie-query-builder.md`
 
-**API base URL (dev):** `http://127.0.0.1:8002` (defined in `src/environments/environment.ts`)
+---
+
+## Design & UI
+
+Pour tout travail d'interface, lire et appliquer **[`docs/design-guidelines.md`](docs/design-guidelines.md)**.

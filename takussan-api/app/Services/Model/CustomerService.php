@@ -3,92 +3,61 @@
 namespace App\Services\Model;
 
 use App\Models\Customer;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Pagination\LengthAwarePaginator;
+use App\Models\Enums\CustomerPipelineStage;
+use App\Models\User;
 
 class CustomerService
 {
-    /**
-     * Get paginated customers with optional filters
-     */
-    public function getPaginated(array $filters = []): LengthAwarePaginator
+    /** @param array<string,mixed> $data */
+    public function create(array $data, User $actor): Customer
     {
-        $query = Customer::query();
-
-        // Apply filters
-        if (isset($filters['search'])) {
-            $search = $filters['search'];
-            $query->where(function ($q) use ($search) {
-                $q->where('first_name', 'like', "%$search%")
-                    ->orWhere('last_name', 'like', "%$search%")
-                    ->orWhere('email', 'like', "%$search%")
-                    ->orWhere('phone', 'like', "%$search%");
-            });
-        }
-
-        if (isset($filters['status']) && $filters['status']) {
-            $query->where('status', $filters['status']);
-        }
-
-        return $query->with('added_by')->orderBy('created_at', 'desc')->paginate(10);
+        return Customer::create(array_merge($data, [
+            'added_by_id' => $actor->id,
+            'agency_id' => $data['agency_id'] ?? $actor->agency_id,
+        ]));
     }
 
-    /**
-     * Get all customers
-     */
-    public function getAll(): Collection
-    {
-        return Customer::all();
-    }
-
-    /**
-     * Get customer by ID
-     */
-    public function getById(int $id): ?Customer
-    {
-        return Customer::with(['bookings', 'added_by'])->find($id);
-    }
-
-    /**
-     * Create a new customer
-     */
-    public function create(array $data): Customer
-    {
-        return Customer::create([
-            'first_name' => $data['first_name'],
-            'last_name' => $data['last_name'],
-            'email' => $data['email'] ?? null,
-            'phone' => $data['phone'] ?? null,
-            'birth_date' => $data['birth_date'] ?? null,
-            'status' => $data['status'] ?? 'active',
-            'added_by_id' => $data['added_by_id'] ?? auth()->id(),
-            'metadata' => $data['metadata'] ?? null,
-        ]);
-    }
-
-    /**
-     * Update an existing customer
-     */
+    /** @param array<string,mixed> $data */
     public function update(Customer $customer, array $data): Customer
     {
-        $customer->update([
-            'first_name' => $data['first_name'] ?? $customer->first_name,
-            'last_name' => $data['last_name'] ?? $customer->last_name,
-            'email' => $data['email'] ?? $customer->email,
-            'phone' => $data['phone'] ?? $customer->phone,
-            'birth_date' => $data['birth_date'] ?? $customer->birth_date,
-            'status' => $data['status'] ?? $customer->status,
-            'metadata' => $data['metadata'] ?? $customer->metadata,
-        ]);
+        $customer->fill($data)->save();
 
         return $customer->refresh();
     }
 
-    /**
-     * Delete a customer
-     */
-    public function delete(Customer $customer): bool
+    public function linkUser(Customer $customer, User $user): void
     {
-        return $customer->delete();
+        $customer->update(['user_id' => $user->id]);
+    }
+
+    public function findOrCreateFromUser(User $user): Customer
+    {
+        $existing = Customer::where('user_id', $user->id)->first();
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        return Customer::create([
+            'user_id' => $user->id,
+            'added_by_id' => $user->id,
+            'agency_id' => $user->agency_id,
+            'first_name' => $user->first_name ?? 'Client',
+            'last_name' => $user->last_name ?? '#'.$user->id,
+            'email' => $user->email,
+            'phone' => $user->phone,
+        ]);
+    }
+
+    public function updatePipelineStage(Customer $customer, string $stage): Customer
+    {
+        abort_unless(
+            CustomerPipelineStage::tryFrom($stage) !== null,
+            422,
+            'Invalid pipeline stage.'
+        );
+
+        $customer->update(['pipeline_stage' => $stage]);
+
+        return $customer->refresh();
     }
 }

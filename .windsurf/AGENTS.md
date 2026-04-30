@@ -1,0 +1,1 @@
+/Users/aminethiam/Documents/perso/takussan/CLAUDE.md

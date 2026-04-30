@@ -3,24 +3,37 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
+use App\Models\Enums\TagType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
+use Illuminate\Support\Str;
 
 class Tag extends AbstractModel
 {
     use HasFactory;
 
-    protected $table = 'tags';
+    protected $fillable = ['name', 'slug', 'type', 'icon', 'color', 'description'];
 
-    protected $fillable = [
-        'name',
-        'slug',
-        'description',
-        'type',
-        'color'
+    protected $casts = [
+        'type' => TagType::class,
     ];
 
-    // RELATIONSHIPS
+    protected static array $requestFilterable = ['type'];
+
+    protected static array $requestSortable = ['id', 'name', 'type'];
+
+    protected static array $requestSearchFields = ['name'];
+
+    protected static array $queryFields = ['id', 'name', 'slug', 'type', 'icon', 'color', 'description', 'created_at', 'updated_at'];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $m) {
+            if (empty($m->slug)) {
+                $m->slug = Str::slug($m->name);
+            }
+        });
+    }
 
     public function properties(): MorphToMany
     {

@@ -3,74 +3,59 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
-use App\Models\Bases\Enums\BookingStatus;
-use Illuminate\Database\Eloquent\Builder;
+use App\Models\Bases\Auditable;
+use App\Models\Enums\BookingStatus;
+use App\Models\Enums\CancellationBy;
+use App\Models\Enums\Currency;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Booking extends AbstractModel
 {
-    use HasFactory, SoftDeletes;
-
-    protected $table = 'bookings';
+    use Auditable, HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'property_id',
-        'customer_id',
-        'user_id',
-        'reference_number',
-        'status',
-        'booking_date',
-        'start_date',
-        'end_date',
-        'expiration_date',
-        'confirmation_date',
-        'rejection_date',
-        'cancellation_date',
-        'completion_date',
-        'price_at_booking',
-        'total_amount',
-        'deposit_amount',
-        'deposit_paid',
-        'deposit_date',
-        'notes',
-        'reason_for_rejection',
-        'reason_for_cancellation',
-        'cancellation_by',
-        'metadata'
+        'property_id', 'customer_id', 'created_by_id', 'agency_id',
+        'reference_number', 'status',
+        'total_amount', 'deposit_amount', 'currency',
+        'start_date', 'end_date', 'notes',
+        'confirmed_at', 'cancelled_at', 'expires_at', 'expired_at', 'expiry_reason',
+        'cancellation_by', 'cancellation_reason', 'metadata',
     ];
 
     protected $casts = [
         'status' => BookingStatus::class,
-        'booking_date' => 'datetime',
-        'start_date' => 'datetime',
-        'end_date' => 'datetime',
-        'expiration_date' => 'datetime',
-        'confirmation_date' => 'datetime',
-        'rejection_date' => 'datetime',
-        'cancellation_date' => 'datetime',
-        'completion_date' => 'datetime',
-        'deposit_date' => 'datetime',
-        'deposit_paid' => 'boolean',
-        'price_at_booking' => 'decimal:2',
+        'currency' => Currency::class,
+        'cancellation_by' => CancellationBy::class,
         'total_amount' => 'decimal:2',
         'deposit_amount' => 'decimal:2',
+        'start_date' => 'date',
+        'end_date' => 'date',
+        'confirmed_at' => 'datetime',
+        'cancelled_at' => 'datetime',
+        'expires_at' => 'datetime',
+        'expired_at' => 'datetime',
         'metadata' => 'array',
     ];
 
-    // SCOPES
+    protected static array $requestFilterable = ['property_id', 'customer_id', 'created_by_id', 'agency_id', 'status', 'currency'];
 
-    public function scopePending(Builder $query): Builder
-    {
-        return $query->where('status', BookingStatus::Pending);
-    }
+    protected static array $requestSortable = ['id', 'created_at', 'start_date', 'end_date', 'status'];
 
-    public function scopeConfirmed(Builder $query): Builder
-    {
-        return $query->where('status', BookingStatus::Confirmed);
-    }
+    protected static array $requestLoadable = ['property', 'customer', 'agency'];
+
+    protected static array $requestCountable = ['payments'];
+
+    protected static array $requestRangeFilters = ['total_amount'];
+
+    protected static array $queryFields = [
+        'id', 'property_id', 'customer_id', 'created_by_id', 'agency_id',
+        'reference_number', 'status', 'total_amount', 'deposit_amount', 'currency',
+        'start_date', 'end_date', 'confirmed_at', 'cancelled_at', 'created_at', 'updated_at',
+    ];
 
     public function property(): BelongsTo
     {
@@ -82,13 +67,23 @@ class Booking extends AbstractModel
         return $this->belongsTo(Customer::class);
     }
 
-    public function user(): BelongsTo
+    public function createdBy(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'created_by_id');
     }
 
-    public function booking_payments(): HasMany
+    public function agency(): BelongsTo
+    {
+        return $this->belongsTo(Agency::class);
+    }
+
+    public function payments(): HasMany
     {
         return $this->hasMany(BookingPayment::class);
+    }
+
+    public function lease(): HasOne
+    {
+        return $this->hasOne(Lease::class);
     }
 }

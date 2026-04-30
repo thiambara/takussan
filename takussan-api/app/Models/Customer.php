@@ -3,57 +3,118 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
-use App\Models\Bases\Enums\CustomerStatus;
-use Illuminate\Database\Eloquent\Casts\Attribute;
+use App\Models\Bases\Auditable;
+use App\Models\Enums\CustomerPipelineStage;
+use App\Models\Enums\CustomerStatus;
+use App\Models\Enums\IdType;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Spatie\MediaLibrary\HasMedia;
-use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\Activitylog\Support\LogOptions;
+use Spatie\QueryBuilder\AllowedFilter;
 
-class Customer extends AbstractModel implements HasMedia
+class Customer extends AbstractModel
 {
-    use HasFactory, SoftDeletes, InteractsWithMedia;
+    use Auditable, HasFactory, SoftDeletes;
 
-    protected $table = 'customers';
+    /**
+     * Override the default Auditable whitelist to exclude the `id_number`
+     * field (government ID), which is sensitive and should not be surfaced
+     * in the activity log payloads.
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'user_id', 'agency_id', 'added_by_id',
+                'first_name', 'last_name', 'email', 'phone',
+                'id_type', 'occupation',
+                'emergency_contact_name', 'emergency_contact_phone',
+                'status', 'pipeline_stage',
+            ])
+            ->logOnlyDirty()
+            ->dontLogIfAttributesChangedOnly(['id_number', 'notes', 'metadata', 'updated_at'])
+            ->dontLogEmptyChanges()
+            ->useLogName(class_basename(static::class));
+    }
 
     protected $fillable = [
-        'first_name',
-        'last_name',
-        'email',
-        'phone',
-        'birth_date',
-        'status',
-        'added_by_id',
-        'user_id',
-        'metadata',
+        'user_id', 'agency_id', 'added_by_id',
+        'first_name', 'last_name', 'email', 'phone',
+        'id_type', 'id_number', 'occupation',
+        'emergency_contact_name', 'emergency_contact_phone',
+        'status', 'pipeline_stage', 'notes', 'metadata',
     ];
 
     protected $casts = [
+        'id_type' => IdType::class,
         'status' => CustomerStatus::class,
-        'birth_date' => 'date',
+        'pipeline_stage' => CustomerPipelineStage::class,
         'metadata' => 'array',
     ];
 
-    protected $appends = ['full_name'];
+    protected static array $requestFilterable = ['user_id', 'agency_id', 'added_by_id', 'status', 'pipeline_stage'];
 
-    protected function fullName(): Attribute
+    protected static array $requestSortable = ['id', 'created_at', 'first_name', 'last_name', 'status'];
+
+    protected static array $requestLoadable = ['user', 'agency', 'addresses', 'tags', 'addedBy', 'notes', 'tasks'];
+
+    protected static array $requestCountable = ['bookings', 'leases', 'notes', 'tasks'];
+
+    protected static array $requestSearchFields = ['first_name', 'last_name', 'email', 'phone'];
+
+    protected static array $queryFields = [
+        'id', 'user_id', 'agency_id', 'added_by_id',
+        'first_name', 'last_name', 'email', 'phone',
+        'status', 'pipeline_stage', 'occupation',
+        'created_at', 'updated_at',
+    ];
+
+    /** @return array<int, AllowedFilter> */
+    protected static function getAllowedQueryFilters(): array
     {
-        return Attribute::make(
-            get: fn () => trim("{$this->first_name} {$this->last_name}"),
-        );
+        $filters = parent::getAllowedQueryFilters();
+
+        $filters[] = AllowedFilter::callback('tags', function (Builder $q, mixed $value) {
+            $names = is_array($value) ? $value : explode(',', (string) $value);
+            $names = array_filter(array_map('trim', $names));
+            if (empty($names)) {
+                return;
+            }
+            $q->whereHas('tags', fn (Builder $t) => $t->whereIn('name', $names));
+        });
+
+        $filters[] = AllowedFilter::callback('tags_all', function (Builder $q, mixed $value) {
+            $names = is_array($value) ? $value : explode(',', (string) $value);
+            $names = array_filter(array_map('trim', $names));
+            foreach ($names as $name) {
+                $q->whereHas('tags', fn (Builder $t) => $t->where('name', $name));
+            }
+        });
+
+        return $filters;
     }
 
-    public function bookings(): HasMany
+    public function getFullNameAttribute(): string
     {
-        return $this->hasMany(Booking::class);
+        return trim("{$this->first_name} {$this->last_name}");
     }
 
-    public function added_by(): BelongsTo
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function agency(): BelongsTo
+    {
+        return $this->belongsTo(Agency::class);
+    }
+
+    public function addedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'added_by_id');
     }
@@ -63,16 +124,39 @@ class Customer extends AbstractModel implements HasMedia
         return $this->morphMany(Address::class, 'addressable');
     }
 
-    public function user_customer_relationships(): HasMany
+    public function bookings(): HasMany
+    {
+        return $this->hasMany(Booking::class);
+    }
+
+    public function leases(): HasMany
+    {
+        return $this->hasMany(Lease::class, 'tenant_id');
+    }
+
+    public function leasePayments(): HasMany
+    {
+        return $this->hasMany(LeasePayment::class, 'payer_id');
+    }
+
+    public function relationships(): HasMany
     {
         return $this->hasMany(UserCustomerRelationship::class);
     }
 
-    public function related_users(): BelongsToMany
+    public function notes(): HasMany
     {
-        return $this->belongsToMany(User::class, 'user_customer_relationships')
-            ->withPivot(['relationship_type', 'is_primary', 'status', 'start_date', 'end_date', 'notes'])
-            ->withTimestamps();
+        return $this->hasMany(CustomerNote::class);
+    }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    public function documents(): MorphMany
+    {
+        return $this->morphMany(Document::class, 'documentable');
     }
 
     public function tags(): MorphToMany
@@ -80,8 +164,11 @@ class Customer extends AbstractModel implements HasMedia
         return $this->morphToMany(Tag::class, 'taggable');
     }
 
-    public function user(): BelongsTo
+    /**
+     * TCK-083 — CRM tasks attached to this customer (polymorphic).
+     */
+    public function tasks(): MorphMany
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->morphMany(Task::class, 'taskable');
     }
 }

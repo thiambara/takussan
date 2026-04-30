@@ -1,21 +1,22 @@
 <?php
 
-use App\Http\Controllers\BookingController;
+use App\Http\Controllers\Api\BookingController;
+use App\Http\Controllers\Api\BookingPaymentController;
 use Illuminate\Support\Facades\Route;
 
-/**
- * BOOKING ROUTES
- * ==============
- */
-Route::prefix('bookings')->controller(BookingController::class)->group(function () {
-    /**
-     * PRIVATE ROUTES
-     */
-    Route::middleware("auth:sanctum")->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::post('/', 'store')->name('store');
-        Route::get('/{booking}', 'show')->whereNumber('booking')->name('show');
-        Route::put('/{booking}', 'update')->whereNumber('booking')->name('update');
-        Route::delete('/{booking}', 'destroy')->whereNumber('booking')->name('destroy');
-    });
-})->name('bookings.');
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('bookings', [BookingController::class, 'index'])->name('bookings.index');
+    Route::post('bookings', [BookingController::class, 'store'])->name('bookings.store');
+    Route::get('bookings/{booking}', [BookingController::class, 'show'])->name('bookings.show');
+    Route::post('bookings/{booking}/confirm', [BookingController::class, 'confirm'])->name('bookings.confirm');
+    Route::post('bookings/{booking}/cancel', [BookingController::class, 'cancel'])->name('bookings.cancel');
+    Route::post('bookings/{booking}/reject', [BookingController::class, 'reject'])->name('bookings.reject');
+
+    // Nested payments
+    Route::get('bookings/{booking}/payments', [BookingPaymentController::class, 'index'])
+        ->name('bookings.payments.index');
+    Route::post('bookings/{booking}/payments', [BookingPaymentController::class, 'store'])
+        ->name('bookings.payments.store');
+    Route::post('booking-payments/{payment}/refund', [BookingPaymentController::class, 'refund'])
+        ->name('booking-payments.refund');
+});

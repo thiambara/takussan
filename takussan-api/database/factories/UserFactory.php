@@ -2,8 +2,11 @@
 
 namespace Database\Factories;
 
+use App\Models\Enums\UserStatus;
+use App\Models\Enums\UserType;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
@@ -11,37 +14,43 @@ use Illuminate\Support\Str;
  */
 class UserFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
+    protected static ?string $password;
+
     public function definition(): array
     {
         return [
+            'username' => fake()->unique()->userName(),
             'first_name' => fake()->firstName(),
             'last_name' => fake()->lastName(),
+            'type' => UserType::Individual,
+            'status' => UserStatus::Active,
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
-            'phone' => '+22177337' . fake()->randomNumber(4, true),
-            'status' => 'active',
-            'username' => fake()->unique()->userName(),
-            'password' => fake()->passthrough('PPpp11'), // password
-            'agency_id' => null,
+            'phone' => '+221'.fake()->numerify('7########'),
+            'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
-            'metadata' => null
+            'preferred_language' => 'fr',
+            'timezone' => 'Africa/Dakar',
+            'notifications_email_enabled' => true,
+            'notifications_push_enabled' => true,
+            'notifications_sms_enabled' => true,
         ];
     }
 
-    /**
-     * Indicate that the model's email address should be unverified.
-     *
-     * @return static
-     */
     public function unverified(): static
     {
-        return $this->state(fn(array $attributes) => [
+        return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
         ]);
+    }
+
+    public function agent(): static
+    {
+        return $this->state(['type' => UserType::Agent]);
+    }
+
+    public function admin(): static
+    {
+        return $this->state(['type' => UserType::Admin]);
     }
 }

@@ -2,203 +2,102 @@
 
 namespace App\Services\Model;
 
-use App\Models\Notification;
+use App\Events\NewNotification;
+use App\Models\AppNotification;
+use App\Models\Enums\NotificationChannel;
+use App\Models\Enums\NotificationType;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Pagination\LengthAwarePaginator;
+use App\Services\Notifications\PreferenceResolver;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Mail;
 
 class NotificationService
 {
     /**
-     * Get user notifications
+     * Map the app's business NotificationType enum to the canonical
+     * event_type strings consumed by {@see PreferenceResolver}. When a
+     * type isn't mapped, we fall back to the raw enum value which simply
+     * skips per-user preferences (defaults apply).
+     *
+     * @var array<string,string>
      */
-    public function getUserNotifications(int $userId, array $filters = [], int $perPage = 15): LengthAwarePaginator
-    {
-        $query = Notification::where('user_id', $userId);
+    private const TYPE_TO_EVENT = [
+        'booking' => 'booking_request',
+        'payment' => 'lease_payment_due',
+        'lease' => 'lease_payment_due',
+        'maintenance' => 'maintenance_status_changed',
+        'visit' => 'visit_reminder',
+        'message' => 'message_received',
+        'system' => 'threshold_alert',
+    ];
 
-        // Apply filters
-        if (isset($filters['type'])) {
-            $query->where('type', $filters['type']);
-        }
+    public function __construct(private readonly PreferenceResolver $resolver) {}
 
-        if (isset($filters['is_read'])) {
-            $query->where('is_read', $filters['is_read']);
-        }
+    public function notify(
+        User $user,
+        NotificationType $type,
+        string $title,
+        string $body,
+        array $data = [],
+        NotificationChannel $channel = NotificationChannel::App,
+        ?string $referenceableType = null,
+        ?int $referenceableId = null,
+    ): AppNotification {
+        $eventType = self::TYPE_TO_EVENT[$type->value] ?? $type->value;
 
-        if (isset($filters['is_actioned'])) {
-            $query->where('is_actioned', $filters['is_actioned']);
-        }
-
-        if (isset($filters['reference_type'])) {
-            $referenceType = $filters['reference_type'];
-
-            // Handle shorthand model types
-            if (!str_contains($referenceType, '\\')) {
-                $referenceType = 'App\\Models\\' . ucfirst($referenceType);
-            }
-
-            $query->where('reference_type', $referenceType);
-        }
-
-        if (isset($filters['reference_id'])) {
-            $query->where('reference_id', $filters['reference_id']);
-        }
-
-        if (isset($filters['delivered'])) {
-            $query->where('delivered', $filters['delivered']);
-        }
-
-        if (isset($filters['delivery_channel'])) {
-            $query->where('delivery_channel', $filters['delivery_channel']);
-        }
-
-        // Order by creation date, newest first
-        $query->orderBy('created_at', 'desc');
-
-        return $query->paginate($perPage);
-    }
-
-    /**
-     * Mark notification as actioned
-     */
-    public function markAsActioned(Notification $notification): Notification
-    {
-        // Mark as read first if not already read
-        if (!$notification->is_read) {
-            $this->markAsRead($notification);
-        }
-
-        if (!$notification->is_actioned) {
-            $notification->update([
-                'is_actioned' => true,
-                'actioned_at' => now(),
-            ]);
-        }
-
-        return $notification;
-    }
-
-    /**
-     * Mark notification as read
-     */
-    public function markAsRead(Notification $notification): Notification
-    {
-        if (!$notification->is_read) {
-            $notification->update([
-                'is_read' => true,
-                'read_at' => now(),
-            ]);
-        }
-
-        return $notification;
-    }
-
-    /**
-     * Mark all user notifications as read
-     */
-    public function markAllAsRead(int $userId, array $filters = []): int
-    {
-        $query = Notification::where('user_id', $userId)
-            ->where('is_read', false);
-
-        // Apply filters
-        if (isset($filters['type'])) {
-            $query->where('type', $filters['type']);
-        }
-
-        if (isset($filters['reference_type'])) {
-            $referenceType = $filters['reference_type'];
-
-            // Handle shorthand model types
-            if (!str_contains($referenceType, '\\')) {
-                $referenceType = 'App\\Models\\' . ucfirst($referenceType);
-            }
-
-            $query->where('reference_type', $referenceType);
-        }
-
-        if (isset($filters['reference_id'])) {
-            $query->where('reference_id', $filters['reference_id']);
-        }
-
-        return $query->update([
-            'is_read' => true,
-            'read_at' => now(),
-        ]);
-    }
-
-    /**
-     * Delete a notification
-     */
-    public function delete(Notification $notification): bool
-    {
-        return $notification->delete();
-    }
-
-    /**
-     * Create a system notification for a user
-     */
-    public function createSystemNotification(User $user, string $title, string $content, array $options = []): Notification
-    {
-        $data = [
-            'user_id' => $user->id,
-            'type' => 'system',
-            'title' => $title,
-            'content' => $content,
-            'delivered' => $options['delivered'] ?? true,
-            'delivery_channel' => $options['delivery_channel'] ?? 'app',
-        ];
-
-        if (isset($options['reference_id']) && isset($options['reference_type'])) {
-            $data['reference_id'] = $options['reference_id'];
-            $data['reference_type'] = $options['reference_type'];
-        }
-
-        return $this->create($data);
-    }
-
-    /**
-     * Create a new notification
-     */
-    public function create(array $data): Notification
-    {
-        // Set default values if not provided
-        $data['delivered'] = $data['delivered'] ?? true;
-        $data['delivery_channel'] = $data['delivery_channel'] ?? 'app';
-
-        if ($data['delivered']) {
-            $data['delivered_at'] = $data['delivered_at'] ?? now();
-        }
-
-        return Notification::create($data);
-    }
-
-    /**
-     * Create a notification for a reference model
-     */
-    public function createModelNotification(User $user, Model $reference, string $type, string $title, string $content, array $options = []): Notification
-    {
-        $data = [
+        $notification = AppNotification::create([
             'user_id' => $user->id,
             'type' => $type,
+            'delivery_channel' => $channel,
             'title' => $title,
-            'content' => $content,
-            'reference_id' => $reference->id,
-            'reference_type' => get_class($reference),
-            'delivered' => $options['delivered'] ?? true,
-            'delivery_channel' => $options['delivery_channel'] ?? 'app',
-        ];
+            'body' => $body,
+            'data' => $data,
+            'referenceable_type' => $referenceableType,
+            'referenceable_id' => $referenceableId,
+            'sent_at' => now(),
+        ]);
 
-        return $this->create($data);
+        // Email fan-out — gated by the user's per-event preference.
+        if ($user->email && $this->resolver->shouldSend($user, $eventType, PreferenceResolver::CHANNEL_EMAIL)) {
+            $this->sendEmail($user, $title, $body);
+        }
+
+        if (class_exists(NewNotification::class)) {
+            try {
+                event(new NewNotification($notification));
+            } catch (\Throwable) {
+                // Broadcasting not configured — silently skip.
+            }
+        }
+
+        return $notification;
     }
 
-    /**
-     * Get unread notification count for user
-     */
-    public function getUnreadCount(int $userId): int
+    /** @param Collection<int,User> $users */
+    public function notifyMany(
+        Collection $users,
+        NotificationType $type,
+        string $title,
+        string $body,
+        array $data = [],
+        NotificationChannel $channel = NotificationChannel::App,
+        ?string $referenceableType = null,
+        ?int $referenceableId = null,
+    ): void {
+        foreach ($users as $user) {
+            $this->notify($user, $type, $title, $body, $data, $channel, $referenceableType, $referenceableId);
+        }
+    }
+
+    protected function sendEmail(User $user, string $title, string $body): void
     {
-        return Notification::where('user_id', $userId)
-            ->where('is_read', false)
-            ->count();
+        try {
+            Mail::raw($body, function ($message) use ($user, $title) {
+                $message->to($user->email)
+                    ->subject($title);
+            });
+        } catch (\Throwable) {
+            // Mail not configured in this environment — silently skip.
+        }
     }
 }

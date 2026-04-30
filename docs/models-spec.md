@@ -39,6 +39,8 @@ Les tables `roles`, `permissions`, `model_has_roles`, `model_has_permissions` et
 
 **Rôles existants :** customer, agency_admin, super_admin, agent, owner, service_provider
 
+**Scope multi-agences (teams) :** le package est configuré en mode `teams = true` avec `team_foreign_key = agency_id`. Les rôles et permissions personnalisés créés par un `agency_admin` sont automatiquement scopés à son `agency_id`, ce qui permet à chaque agence d'avoir sa propre matrice de rôles sans collision. Les rôles globaux (super_admin) ne sont pas rattachés à une agence.
+
 ### `spatie/laravel-activitylog`
 
 Remplace le modèle custom `ActivityLog`. Gère automatiquement le journal d'audit via le trait `LogsActivity` sur chaque modèle concerné.
@@ -93,6 +95,11 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 26. [PropertyPriceHistory](#26-propertypricehistory-) 🆕
 27. [Guarantor](#27-guarantor-) 🆕
 28. [Payout](#28-payout-) 🆕
+29. [DocumentShareLink](#29-documentsharelink-) 🆕
+30. [Setting](#30-setting-) 🆕
+31. [Integration](#31-integration-) 🆕
+32. [Task](#32-task-) 🆕
+33. [CustomerNote](#33-customernote-) 🆕
 
 ### Enums
 
@@ -137,6 +144,8 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | agency_id | FK agencies | oui | null | Agence de rattachement | |
 | added_by_id | FK users | oui | null | Créateur du compte (si ajouté par un admin/agent) | |
 | google_id | string | oui | null | Identifiant OAuth Google | |
+| facebook_id | string | oui | null | Identifiant OAuth Facebook | ➕ |
+| apple_id | string | oui | null | Identifiant OAuth Apple | ➕ |
 | remember_token | string | oui | null | Token de session persistante | |
 | timezone | string | | 'Africa/Dakar' | Fuseau horaire préféré | ➕ |
 | two_factor_enabled | boolean | | false | Authentification à deux facteurs activée | ➕ |
@@ -454,7 +463,8 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | email | string | oui | null | Email (unique) | |
 | phone | string | oui | null | Téléphone (unique) | |
 | birth_date | date | oui | null | Date de naissance | |
-| status | CustomerStatus | | 'active' | Statut du contact | |
+| status | CustomerStatus | | 'active' | Statut administratif du contact | |
+| pipeline_stage | CustomerPipelineStage | oui | 'lead' | Étape CRM (lead, prospect, qualified, negotiating, converted, lost) — distinct du statut administratif | ➕ |
 | id_type | IdType | oui | null | Type de pièce d'identité (id_card, passport, driving_license) — `id_card` couvre la CNI et toute carte nationale | ✏️ |
 | id_number | string | oui | null | Numéro de pièce d'identité | ➕ |
 | occupation | string | oui | null | Profession / activité | ➕ |
@@ -499,6 +509,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | property_id | FK properties | | | Bien concerné | |
 | user_id | FK users | | | Utilisateur invité | |
 | role | CollaboratorRole | | | Rôle attribué (manager, co_owner, agent, viewer) | ✏️ |
+| commission_share | decimal(5,2) | oui | null | Part de commission allouée à ce collaborateur (%) — la somme par property doit être ≤ 100 | ➕ |
 | permissions | json | | | Permissions spécifiques accordées | |
 | notes | text | oui | null | Notes sur la collaboration | |
 | invited_by | FK users | oui | null | Utilisateur ayant envoyé l'invitation | |
@@ -580,6 +591,9 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | approved_by | FK users | oui | null | Modérateur | |
 | approved_at | datetime | oui | null | Date d'approbation | |
 | reported_count | integer | | 0 | Nombre de signalements | |
+| reply_content | text | oui | null | Réponse publique du propriétaire/agence à l'avis | ➕ |
+| replied_by_id | FK users | oui | null | Auteur de la réponse (`nullOnDelete`) | ➕ |
+| replied_at | datetime | oui | null | Date de publication de la réponse | ➕ |
 | deleted_at | datetime | oui | null | Soft delete | |
 | created_at | datetime | | auto | | |
 | updated_at | datetime | | auto | | |
@@ -591,6 +605,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 - `reviewable()` → morphTo (Property, Agency, User)
 - `user()` → belongsTo User
 - `approver()` → belongsTo User (via approved_by)
+- `repliedBy()` → belongsTo User (via replied_by_id) 🆕
 
 ---
 
@@ -684,6 +699,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | tenant_id | FK customers | | | Locataire / acheteur |
 | agency_id | FK agencies | oui | null | Agence intermédiaire |
 | booking_id | FK bookings | oui | null | Réservation d'origine (si applicable) |
+| renewed_from_lease_id | FK leases | oui | null | Bail parent — rempli si ce bail est un renouvellement ou avenant (`nullOnDelete`) |
 | reference_number | string | | | Numéro de contrat unique |
 | type | LeaseType | | | Type de contrat (residential_rent, commercial_rent, seasonal_rent, sale) |
 | status | LeaseStatus | | 'draft' | Statut du contrat |
@@ -721,6 +737,8 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 - `agency()` → belongsTo Agency
 - `booking()` → belongsTo Booking
 - `terminated_by_user()` → belongsTo User (via terminated_by_id)
+- `renewedFrom()` → belongsTo Lease (via renewed_from_lease_id) 🆕
+- `renewals()` → hasMany Lease (via renewed_from_lease_id) 🆕
 - `payments()` → hasMany LeasePayment
 - `payouts()` → hasMany Payout 🆕
 - `maintenance_requests()` → hasMany MaintenanceRequest
@@ -1231,6 +1249,142 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 
 ---
 
+### 29. DocumentShareLink 🆕
+
+**Table :** `document_share_links`
+**Description :** Lien de partage sécurisé et temporaire pour un `Document`. Permet d'envoyer une URL signée, éventuellement protégée par mot de passe et limitée en nombre de téléchargements, à un destinataire externe sans compte utilisateur.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant unique |
+| document_id | FK documents | | | Document partagé (`cascadeOnDelete`) |
+| token | string | | | Token unique (URL-safe, ~40 caractères) |
+| expires_at | datetime | oui | null | Date d'expiration du lien (null = pas d'expiration) |
+| password_hash | string | oui | null | Hash du mot de passe d'accès (optionnel) |
+| max_downloads | integer | oui | null | Nombre maximum de téléchargements autorisés |
+| downloads_count | integer | | 0 | Nombre de téléchargements effectués |
+| created_by_id | FK users | oui | null | Utilisateur ayant généré le lien (`nullOnDelete`) |
+| revoked_at | datetime | oui | null | Date de révocation manuelle |
+| last_accessed_at | datetime | oui | null | Dernière consultation |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes :**
+- `token` unique.
+
+**Relations :**
+- `document()` → belongsTo Document
+- `createdBy()` → belongsTo User (via created_by_id)
+
+**Inverse :**
+- `Document.shareLinks()` → hasMany DocumentShareLink
+
+---
+
+### 30. Setting 🆕
+
+**Table :** `settings`
+**Description :** Paramètres de configuration clé/valeur, scopés globalement ou par agence. Permet de persister les réglages de la plateforme sans multiplier les colonnes dédiées.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant unique |
+| key | string | | | Clé du paramètre (ex: `booking.auto_expire_hours`) |
+| value | json | | | Valeur (typage libre via JSON) |
+| scope | SettingScope | | 'global' | Portée (`global`, `agency`) |
+| scope_id | bigint | oui | null | FK vers l'entité de scope (ex: `agencies.id` si `scope = agency`) |
+| updated_by_id | FK users | oui | null | Dernier utilisateur ayant modifié (`nullOnDelete`) |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes :**
+- Unique composé `(key, scope, scope_id)`.
+
+**Relations :**
+- `updatedBy()` → belongsTo User (via updated_by_id)
+
+---
+
+### 31. Integration 🆕
+
+**Table :** `integrations`
+**Description :** Intégration tierce configurée sur la plateforme (passerelle de paiement mobile money, service d'envoi SMS, MLS, etc.). Stocke les identifiants d'API de manière chiffrée et les métadonnées associées.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant unique |
+| provider | string | | | Identifiant du fournisseur (`wave`, `orange_money`, `stripe`, `mls`, `twilio`…) |
+| agency_id | FK agencies | oui | null | Agence propriétaire (null = intégration globale) (`cascadeOnDelete`) |
+| credentials | text (encrypted) | | | Credentials chiffrés (API keys, secrets, tokens) |
+| is_active | boolean | | true | Intégration activée |
+| last_used_at | datetime | oui | null | Dernière utilisation |
+| metadata | json | oui | null | Configuration complémentaire (webhooks, scopes…) |
+| deleted_at | datetime | oui | null | Soft delete |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes :**
+- Unique composé `(provider, agency_id)`.
+
+**Relations :**
+- `agency()` → belongsTo Agency
+
+---
+
+### 32. Task 🆕
+
+**Table :** `tasks`
+**Description :** Tâche ou rappel polymorphe attaché à une entité du CRM (Customer, Lease, Property, MaintenanceRequest…). Couvre le besoin minimal de suivi CRM (relance, rappel de paiement, action à faire).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant unique |
+| title | string | | | Titre court de la tâche |
+| description | text | oui | null | Description libre |
+| taskable_id | bigint | oui | null | ID polymorphique de l'entité liée |
+| taskable_type | string | oui | null | Type polymorphique de l'entité liée |
+| assigned_to_id | FK users | oui | null | Utilisateur assigné (`nullOnDelete`) |
+| created_by_id | FK users | oui | null | Créateur de la tâche (`nullOnDelete`) |
+| due_at | datetime | oui | null | Date d'échéance |
+| completed_at | datetime | oui | null | Date de complétion |
+| status | TaskStatus | | 'open' | Statut (`open`, `in_progress`, `done`, `cancelled`) |
+| priority | TaskPriority | | 'medium' | Priorité (`low`, `medium`, `high`) |
+| deleted_at | datetime | oui | null | Soft delete |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Relations :**
+- `taskable()` → morphTo (Customer, Lease, Property, MaintenanceRequest)
+- `assignedTo()` → belongsTo User (via assigned_to_id)
+- `createdBy()` → belongsTo User (via created_by_id)
+
+---
+
+### 33. CustomerNote 🆕
+
+**Table :** `customer_notes`
+**Description :** Note horodatée et signée par un agent sur un contact CRM. Constitue l'historique structuré des échanges (distinct de `Customer.metadata` qui reste une zone libre).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant unique |
+| customer_id | FK customers | | | Client concerné (`cascadeOnDelete`) |
+| author_id | FK users | oui | null | Auteur de la note (`nullOnDelete`) |
+| body | text | | | Contenu de la note |
+| pinned | boolean | | false | Note épinglée en haut de la fiche |
+| deleted_at | datetime | oui | null | Soft delete |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Relations :**
+- `customer()` → belongsTo Customer
+- `author()` → belongsTo User (via author_id)
+
+**Inverse :**
+- `Customer.notes()` → hasMany CustomerNote
+
+---
+
 ## Enums
 
 ### Enums existants (à renommer / ajuster)
@@ -1269,11 +1423,11 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | **RelationshipType** | owner_tenant, agent_client, broker_client | UserCustomerRelationship.relationship_type |
 | **RelationshipStatus** | active, ended, suspended | UserCustomerRelationship.status |
 | **NotificationType** | booking, payment, lease, maintenance, visit, message, system | AppNotification.type |
-| **NotificationChannel** | app, email, sms, push | AppNotification.delivery_channel |
+| **NotificationChannel** | app, email, sms, push, **whatsapp** | AppNotification.delivery_channel |
 | **AgencyStatus** | active, inactive, suspended | Agency.status |
 | **VisitType** | in_person, virtual, **self_guided**, **hybrid** | PropertyVisit.type |
 | **VisitStatus** | scheduled, confirmed, completed, cancelled, no_show | PropertyVisit.status |
-| **ConversationType** | direct, group, support | Conversation.type |
+| **ConversationType** | direct, group, booking, lease, property | Conversation.type |
 | **ConversationStatus** | active, archived, closed | Conversation.status |
 | **MessageType** | text, image, document, system | Message.type |
 | **MaintenanceCategory** | plumbing, electrical, structural, appliance, painting, cleaning, pest_control, locksmith, other | MaintenanceRequest.category |
@@ -1286,6 +1440,10 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | **InvoiceStatus** | draft, sent, paid, overdue, cancelled, void | Invoice.status |
 | **PriceChangeReason** | market_adjustment, negotiation, renovation, urgent_sale, seasonal, correction | PropertyPriceHistory.reason |
 | **PayoutStatus** | pending, scheduled, processing, completed, failed, cancelled | Payout.status |
+| **CustomerPipelineStage** | lead, prospect, qualified, negotiating, converted, lost | Customer.pipeline_stage 🆕 |
+| **TaskStatus** | open, in_progress, done, cancelled | Task.status 🆕 |
+| **TaskPriority** | low, medium, high | Task.priority 🆕 |
+| **SettingScope** | global, agency | Setting.scope 🆕 |
 
 ---
 
@@ -1297,15 +1455,17 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 
 ### Modèles existants enrichis (8)
 
-- **User** : +11 colonnes (bio, phone_verified_at, preferred_language, last_login_at, timezone, two_factor_*, notifications_*_enabled), -3 colonnes (model morphs, avatar_url → medialibrary), `type` → UserType enum, +relations (leases, app_notifications, written_reviews, received_reviews, documents)
+- **User** : +13 colonnes (bio, phone_verified_at, preferred_language, last_login_at, timezone, two_factor_*, notifications_*_enabled, **facebook_id**, **apple_id**), -3 colonnes (model morphs, avatar_url → medialibrary), `type` → UserType enum, +relations (leases, app_notifications, written_reviews, received_reviews, documents)
 - **Agency** : +8 colonnes (commission_rate, founded_at, is_verified, verified_at, primary_admin_id, properties_count, active_leases_count, average_rating), -1 colonne (logo_path → medialibrary), +trait `InteractsWithMedia`, +relations (address, reviews, leases, primaryAdmin, documents)
 - **Property** : +17 colonnes (currency, bedrooms, bathrooms, furnished, floor_number, total_floors, year_built, parking_spaces, featured, views_count, reference_number, favorites_count, visits_count, reviews_count, average_rating, available_from, published_at), 3 colonnes renommées, `type`/`contract_type`/`title_type`/`currency` → enums, +relations (inventories, conversations)
 - **Address** : +1 colonne (neighborhood)
 - **Booking** : `customer_id` → NOT NULL, `user_id` → `created_by_id`, `user()` → `creator()`, `cancellation_by` → CancellationBy enum, ➖ `deposit_paid` (remplacé par Accessor dynamique), +relations (documents, invoices) ; BookingStatus +valeur `rejected` + `expired`
 - **BookingPayment** : +3 colonnes (refund_amount, refund_reason), `currency` → Currency enum, +trait `HasPaymentAttributes`, +relation `invoice()` morphOne
 - **LeasePayment** : `payment_type` → `LeasePaymentType` enum (+valeur `deposit_refund`), `currency` → Currency enum, `due_date` → nullable, +trait `HasPaymentAttributes`, +relation `invoice()` morphOne
-- **Customer** : +5 colonnes (id_type → IdType enum, id_number, occupation, emergency_contact_name, emergency_contact_phone), +relation (visits)
-- **Review** : `model_id`/`model_type` → `reviewable_id`/`reviewable_type`, relation `model()` → `reviewable()`
+- **Customer** : +6 colonnes (id_type → IdType enum, id_number, occupation, emergency_contact_name, emergency_contact_phone, **pipeline_stage**), +relations (visits, notes)
+- **Review** : `model_id`/`model_type` → `reviewable_id`/`reviewable_type`, relation `model()` → `reviewable()`, +3 colonnes **reply_content / replied_by_id / replied_at** + relation `repliedBy()`
+- **Lease** : +colonne **renewed_from_lease_id** + relations `renewedFrom()` / `renewals()`
+- **PropertyCollaborator** : +colonne **commission_share** (decimal 5,2)
 
 ### Modèles enrichis (anciennement "inchangés")
 
@@ -1327,7 +1487,7 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 - **MaintenanceRequest** : +relation `requesterCustomer()`
 - **Document** : morphTo élargi à User, Agency, Booking
 
-### Nouveaux modèles (15)
+### Nouveaux modèles (20)
 
 - **Lease** — Contrats / Baux
 - **LeasePayment** — Paiements récurrents
@@ -1342,15 +1502,20 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 - **Inventory** — États des lieux
 - **Invoice** — Factures
 - **PropertyPriceHistory** — Historique des prix
-- **Guarantor** — Garants de baux 🆕
-- **Payout** — Reversements aux bailleurs 🆕
+- **Guarantor** — Garants de baux
+- **Payout** — Reversements aux bailleurs
+- **DocumentShareLink** — Liens de partage sécurisés 🆕
+- **Setting** — Paramètres clé/valeur scopés 🆕
+- **Integration** — Intégrations tierces (API keys) 🆕
+- **Task** — Tâches/rappels polymorphes (CRM) 🆕
+- **CustomerNote** — Notes CRM horodatées 🆕
 
 ### Enums renommés (2)
 
 - ProprietyStatus → **PropertyStatus**
 - ProprietyVisibility → **PropertyVisibility**
 
-### Nouveaux enums (37)
+### Nouveaux enums (41)
 
 - **Scalaires métier :** UserType, Currency, CancellationBy, IdType, CollaboratorRole, TagType, RelationshipType, RelationshipStatus
 - **Agence / Propriété :** AgencyStatus, PropertyType, ContractType, TitleType
@@ -1361,6 +1526,7 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 - **Notifications :** NotificationType, NotificationChannel
 - **Maintenance :** MaintenanceCategory, MaintenancePriority, MaintenanceStatus
 - **Documents / Inventaires :** DocumentType, InventoryType, InventoryStatus, InventoryCondition
+- **CRM / Plateforme :** CustomerPipelineStage 🆕, TaskStatus 🆕, TaskPriority 🆕, SettingScope 🆕
 
 ---
 
@@ -1393,6 +1559,13 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 | payouts | `landlord_id`, `status` | Suivi des reversements d'un bailleur |
 | payouts | `lease_id`, `period_start` | Historique des reversements d'un bail |
 | payouts | `status`, `scheduled_at` | File des reversements à traiter |
+| document_share_links | `token` | Résolution du lien public (unique) |
+| document_share_links | `document_id`, `expires_at` | Liste des liens actifs d'un document |
+| tasks | `assigned_to_id`, `due_at` | Tâches à échéance d'un utilisateur |
+| tasks | `taskable_type`, `taskable_id` | Tâches liées à une entité |
+| customer_notes | `customer_id`, `created_at DESC` | Historique des notes d'un client |
+| settings | `(key, scope, scope_id)` | Résolution unique d'un paramètre |
+| integrations | `(provider, agency_id)` | Intégration unique par fournisseur / agence |
 
 ---
 
@@ -1443,6 +1616,9 @@ La relation `referenceable()` de `AppNotification` est intentionnellement **non 
 | saved_searches | `(user_id, name)` | unique composé | toujours |
 | favorites | `(user_id, property_id)` | unique composé | toujours |
 | conversation_participants | `(conversation_id, user_id)` | unique composé | toujours |
+| document_share_links | `token` | unique | toujours |
+| settings | `(key, scope, scope_id)` | unique composé | toujours |
+| integrations | `(provider, agency_id)` | unique composé | toujours |
 
 ---
 
@@ -1452,10 +1628,10 @@ La relation `referenceable()` de `AppNotification` est intentionnellement **non 
 
 | Type de relation | Comportement | Exemples |
 |-----------------|-------------|---------|
-| Table enfant "de vie" — ne peut pas exister sans le parent | `cascadeOnDelete()` | messages → conversation, lease_payments → lease, booking_payments → booking, conversation_participants → conversation, inventories → lease, favorites → property/user, property_price_histories → property |
-| FK vers User/Customer "acteur historique" — les logs/actions restent même si l'utilisateur est supprimé | `nullOnDelete()` | activity_log.causer_id, property_visits.visitor_id, leases.terminated_by_id, app_notifications.user_id, guarantors.added_by_id, payouts.issued_by_id, property_price_histories.changed_by_id |
+| Table enfant "de vie" — ne peut pas exister sans le parent | `cascadeOnDelete()` | messages → conversation, lease_payments → lease, booking_payments → booking, conversation_participants → conversation, inventories → lease, favorites → property/user, property_price_histories → property, document_share_links → document, customer_notes → customer, integrations → agency |
+| FK vers User/Customer "acteur historique" — les logs/actions restent même si l'utilisateur est supprimé | `nullOnDelete()` | activity_log.causer_id, property_visits.visitor_id, leases.terminated_by_id, app_notifications.user_id, guarantors.added_by_id, payouts.issued_by_id, property_price_histories.changed_by_id, reviews.replied_by_id, document_share_links.created_by_id, customer_notes.author_id, tasks.assigned_to_id, tasks.created_by_id, settings.updated_by_id |
 | FK métier critique — suppression bloquée si des données dépendent | `restrictOnDelete()` | leases.property_id, leases.tenant_id, lease_payments.lease_id, payouts.landlord_id, invoices.customer_id |
-| FK optionnelle — perd son lien si le parent est supprimé | `nullOnDelete()` | properties.agency_id, leases.agency_id, leases.guarantor_id, properties.parent_id, bookings.customer_id, payouts.agency_id, payouts.lease_id, payouts.booking_id |
+| FK optionnelle — perd son lien si le parent est supprimé | `nullOnDelete()` | properties.agency_id, leases.agency_id, leases.guarantor_id, leases.renewed_from_lease_id, properties.parent_id, bookings.customer_id, payouts.agency_id, payouts.lease_id, payouts.booking_id |
 
 ---
 
@@ -1509,3 +1685,27 @@ Le système actuel (`conversation_participant.last_read_at` comparé à `message
 ### EF6 — spatie/laravel-activitylog : migration des données
 
 Si des données existent dans la table `activity_logs` custom, une migration de données vers la table `activity_log` du package est nécessaire. Le schéma diffère (notamment `causer_id`/`causer_type` vs `user_id`, et `properties` json vs colonnes séparées).
+
+### EF7 — Multi-branches agence (`Agency.parent_agency_id`)
+
+**Statut :** reporté.
+
+Le modèle `Agency` reste à un seul niveau pour le MVP. L'ajout d'une FK réflexive `parent_agency_id` (+ relations `parent()` / `branches()`) permettrait de gérer des sous-agences / franchises.
+
+**Déclencheur :** première demande d'un client franchise ou d'un groupe immobilier avec plusieurs antennes juridiquement distinctes mais partageant un backoffice.
+
+### EF8 — Modèle `AgentAvailability`
+
+**Statut :** reporté.
+
+Le suivi des congés et indisponibilités des agents peut être géré par un calendrier externe ou un champ libre dans le MVP.
+
+**Déclencheur :** gestion d'une équipe > 10 agents nécessitant une planification formalisée (répartition des visites, rotation de garde). Schéma probable : `user_id`, `start_at`, `end_at`, `type` (`leave`, `off`, `busy`), `notes`.
+
+### EF9 — Modèle `ExchangeRate`
+
+**Statut :** reporté.
+
+L'enum `Currency` existe déjà (XOF, XAF, EUR, USD) mais la conversion effective entre devises n'est pas implémentée. Un modèle `ExchangeRate` (base_currency, target_currency, rate, valid_from, valid_to, source) permettrait de stocker les taux historisés.
+
+**Déclencheur :** première transaction devant être réglée dans une devise différente de celle du bail / de l'annonce (ex: bail en XOF payé en EUR).

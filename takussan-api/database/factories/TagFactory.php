@@ -6,46 +6,18 @@ use App\Models\Tag;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
-/**
- * @extends Factory<Tag>
- */
 class TagFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
+    protected $model = Tag::class;
+
     public function definition(): array
     {
         $name = fake()->unique()->word();
-        
+
         return [
-            'name' => $name,
-            'slug' => Str::slug($name),
-            'description' => fake()->optional()->sentence(),
-            'type' => fake()->randomElement(['property', 'customer', 'general']),
-            'color' => fake()->hexColor()
+            'name' => ucfirst($name),
+            'slug' => Str::slug($name).'-'.Str::random(4),
+            'type' => fake()->randomElement(['feature', 'amenity', 'crm']),
         ];
-    }
-
-    /**
-     * Indicate that the tag is specifically for properties.
-     */
-    public function forProperties(): Factory
-    {
-        return $this->state(fn (array $attributes) => [
-            'type' => 'property',
-        ]);
-    }
-
-    /**
-     * Indicate that the tag is specifically for customers.
-     */
-    public function forCustomers(): Factory
-    {
-        return $this->state(fn (array $attributes) => [
-            'type' => 'customer',
-        ]);
     }
 }

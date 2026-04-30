@@ -1,0 +1,505 @@
+{
+  "common": {
+    "appName": "Takussan",
+    "tagline": "Real estate in Senegal",
+    "actions": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "edit": "Edit",
+      "confirm": "Confirm",
+      "close": "Close",
+      "search": "Search",
+      "filter": "Filter",
+      "viewMore": "View more",
+      "loadMore": "Load more",
+      "retry": "Retry"
+    },
+    "status": {
+      "loading": "Loading…",
+      "empty": "No results",
+      "error": "An error occurred"
+    },
+    "navigation": {
+      "home": "Home",
+      "properties": "Properties",
+      "favorites": "Favorites",
+      "messages": "Messages",
+      "dashboard": "Dashboard",
+      "profile": "Profile",
+      "settings": "Settings"
+    },
+    "languageSwitcher": {
+      "label": "Language",
+      "current": "Current language: {locale}"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Log in",
+      "submit": "Log in",
+      "email": "Email address",
+      "password": "Password",
+      "forgotPassword": "Forgot password?",
+      "noAccount": "Don't have an account?",
+      "register": "Create account"
+    },
+    "register": {
+      "title": "Create account",
+      "submit": "Sign up",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "passwordConfirmation": "Confirm password",
+      "hasAccount": "Already have an account?"
+    },
+    "logout": "Log out",
+    "sessionExpired": "Your session has expired. Please log in again."
+  },
+  "property": {
+    "list": {
+      "title": "Available properties",
+      "empty": "No property matches your criteria."
+    },
+    "fields": {
+      "price": "Price",
+      "surface": "Surface",
+      "rooms": "Rooms",
+      "bedrooms": "Bedrooms",
+      "bathrooms": "Bathrooms",
+      "address": "Address",
+      "description": "Description"
+    },
+    "status": {
+      "available": "Available",
+      "rented": "Rented",
+      "sold": "Sold",
+      "pending": "Pending"
+    },
+    "types": {
+      "land": "Land",
+      "house": "House",
+      "apartment": "Apartment",
+      "villa": "Villa",
+      "studio": "Studio",
+      "room": "Room",
+      "office": "Office",
+      "shop": "Shop",
+      "warehouse": "Warehouse",
+      "factory": "Factory",
+      "farm": "Farm",
+      "hotel": "Hotel",
+      "resort": "Resort",
+      "garage": "Garage",
+      "parking": "Parking",
+      "other": "Other"
+    },
+    "contractTypes": {
+      "sale": "Sale",
+      "rent": "Rent"
+    }
+  },
+  "dashboard": {
+    "welcome": "Hello, {name}",
+    "overview": "Overview",
+    "myProperties": "My properties",
+    "myBookings": "My bookings",
+    "myLeases": "My leases"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "network": "Cannot reach the server.",
+    "unauthorized": "You are not allowed to perform this action.",
+    "notFound": "Resource not found.",
+    "validation": "Some fields are invalid."
+  },
+  "agency": {
+    "currency": {
+      "label": "Currency",
+      "placeholder": "Select a currency",
+      "preview": "100,000 will be displayed as: {example}",
+      "warningOnChange": "Changing the currency only applies to new properties, leases and payments. Existing records keep their original currency."
+    }
+  },
+  "compare": {
+    "eyebrow": "Comparator",
+    "title": "Compare properties",
+    "subtitle": "{count} properties selected — compare to decide.",
+    "unavailableNotice": "{missing} property(ies) are no longer available and have been removed.",
+    "actions": {
+      "view": "View property",
+      "remove": "Remove"
+    },
+    "values": {
+      "yes": "Yes",
+      "no": "No"
+    },
+    "rows": {
+      "price": "Price",
+      "contractType": "Transaction",
+      "type": "Property type",
+      "rentPeriod": "Billing period",
+      "city": "City",
+      "quarter": "Neighborhood",
+      "area": "Area",
+      "bedrooms": "Bedrooms",
+      "bathrooms": "Bathrooms",
+      "floor": "Floor",
+      "furnished": "Furnished",
+      "yearBuilt": "Year built",
+      "parking": "Parking spots",
+      "amenities": "Amenities",
+      "tags": "Other tags"
+    },
+    "table": {
+      "ariaLabel": "Property comparison table",
+      "header": "Criterion",
+      "unavailable": "Property unavailable",
+      "divergentTooltip": "This value differs across the selected properties"
+    },
+    "carousel": {
+      "ariaLabel": "Mobile comparison — swipe horizontally across each property"
+    },
+    "empty": {
+      "title": "Select at least 2 properties",
+      "description": "Add properties to the comparator from the listing or a property page to compare them side by side.",
+      "cta": "Search properties"
+    },
+    "floatingBar": {
+      "ariaLabel": "Properties selected for comparison",
+      "title": "Comparator",
+      "count": "{count} / {max} propertie(s)",
+      "cta": "Compare ({count})",
+      "removeAria": "Remove property #{id} from the comparator",
+      "clearAria": "Clear comparator"
+    }
+  },
+  "crm": {
+    "pipeline": {
+      "title": "Prospect pipeline",
+      "subtitle": "Track your CRM contacts by stage, drag cards to move them forward.",
+      "empty": "Nothing to show.",
+      "emptyColumn": "No customers",
+      "stage": {
+        "lead": "Lead",
+        "prospect": "Prospect",
+        "qualified": "Qualified",
+        "negotiating": "Negotiating",
+        "converted": "Converted",
+        "lost": "Lost"
+      },
+      "stats": {
+        "active": "Active prospects",
+        "newWeek": "New this week",
+        "conversionRate": "30-day conversion rate",
+        "avgQualified": "Average — Qualified",
+        "changes30d": "Stage changes 30d"
+      },
+      "fields": {
+        "phone": "Phone",
+        "email": "Email",
+        "occupation": "Occupation",
+        "stage": "Stage",
+        "tasksCount": "Open tasks"
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "confirm": "Confirm",
+        "close": "Close"
+      },
+      "reasonDialog": {
+        "title": "Move to {stage} — give a reason",
+        "placeholder": "e.g. converted after lease signed on May 10…"
+      },
+      "tabs": {
+        "overview": "Overview",
+        "notes": "Notes",
+        "tasks": "Tasks",
+        "activity": "Activity"
+      },
+      "notes": {
+        "add": "Add a note",
+        "placeholder": "Write a note…",
+        "pinned": "Pinned"
+      },
+      "tasks": {
+        "add": "Add a task",
+        "titlePlaceholder": "Task title",
+        "toggle": "Mark complete"
+      },
+      "errors": {
+        "moveFailed": "Could not move the card. Please retry."
+      }
+    }
+  },
+  "account": {
+    "deletion": {
+      "section": {
+        "title": "Delete my account",
+        "description": "Deletion is irreversible after the grace period. Your personal data is anonymized and legal records are retained.",
+        "cta": "Delete my account"
+      },
+      "dialog": {
+        "title": "Delete your account",
+        "step1Title": "Why are you leaving?",
+        "step1Description": "Pick a reason. This helps us improve Takussan.",
+        "step2Title": "Confirm with your password",
+        "step2Description": "For security reasons, please re-enter your password and, if enabled, your 2FA code.",
+        "reasonOptions": {
+          "service_completed": "I'm done using the service",
+          "quality_issue": "Quality issue",
+          "privacy": "Privacy concerns",
+          "other": "Other"
+        },
+        "reasonOtherPlaceholder": "Briefly describe your reason (optional)",
+        "passwordLabel": "Password",
+        "twoFactorLabel": "2FA code (6 digits)",
+        "next": "Continue",
+        "back": "Back",
+        "confirmCta": "Permanently delete",
+        "obligationsTitle": "You have outstanding obligations",
+        "obligationsHint": "Please complete them before deleting your account.",
+        "successTitle": "Request received",
+        "successBody": "Your account will be deleted in {days} days. You can still cancel anytime from this page."
+      },
+      "banner": {
+        "title": "Scheduled deletion",
+        "message": "Your account will be deleted in {days} days.",
+        "messageSingular": "Your account will be deleted tomorrow.",
+        "messageToday": "Your account will be deleted today.",
+        "cancel": "Cancel deletion"
+      },
+      "errors": {
+        "generic": "Something went wrong, please try again.",
+        "passwordInvalid": "Incorrect password.",
+        "twoFactorInvalid": "Invalid 2FA code.",
+        "obligations": "You have outstanding obligations preventing deletion."
+      }
+    }
+  },
+  "messaging": {
+    "listHeading": "Conversations",
+    "newGroup": "New group",
+    "emptyState": "Select a conversation to view messages.",
+    "system": {
+      "participantAdded": "{actor} added {target} to the group.",
+      "participantRemoved": "{actor} removed {target} from the group.",
+      "roleChanged": "{actor} changed {target}'s role to {role}.",
+      "renamed": "{actor} renamed the group to \"{subject}\"."
+    },
+    "group": {
+      "create": {
+        "title": "New group",
+        "step1Description": "Add at least 2 participants (you'll be included automatically).",
+        "step2Description": "Give the group a subject and optionally link it to a property or lease.",
+        "participantsLabel": "Participants",
+        "participantInputPlaceholder": "User ID",
+        "participantsHint": "Enter IDs one at a time. The server enforces permissions.",
+        "add": "Add",
+        "removeParticipant": "Remove #{id}",
+        "minParticipants": "At least {min} participants total (including you).",
+        "maxParticipants": "At most {max} participants total.",
+        "duplicate": "This user is already added.",
+        "invalidId": "Invalid ID.",
+        "subjectLabel": "Subject",
+        "subjectRequired": "Subject is required.",
+        "propertyLabel": "Property (optional)",
+        "leaseLabel": "Lease (optional)",
+        "cancel": "Cancel",
+        "next": "Next",
+        "back": "Back",
+        "create": "Create group",
+        "createFailed": "Failed to create the group."
+      },
+      "info": {
+        "title": "Group info",
+        "subjectLine": "Subject: {subject}",
+        "renameLabel": "Rename group",
+        "renameSave": "Save",
+        "renameFailed": "Failed to rename.",
+        "participantsHeading": "Participants ({count})",
+        "addLabel": "Invite a participant",
+        "addPlaceholder": "User ID",
+        "addFailed": "Failed to add.",
+        "add": "Add",
+        "you": "you",
+        "roleAdmin": "Admin",
+        "roleMember": "Member",
+        "promote": "Promote to admin",
+        "demote": "Demote to member",
+        "remove": "Remove from group",
+        "mute": "Mute notifications",
+        "unmute": "Unmute notifications",
+        "leave": "Leave group",
+        "lastAdminLeaveBlocked": "You're the last admin — promote someone before leaving.",
+        "lastAdminLeaveHint": "Promote another member to admin before leaving.",
+        "invalidId": "Invalid ID."
+      }
+    }
+  },
+  "payments": {
+    "gateway": {
+      "button": {
+        "payOnline": "Pay online"
+      },
+      "picker": {
+        "title": "Select a payment method",
+        "description": "Choose the provider that will process this payment.",
+        "select": "Select",
+        "unavailable": "Unavailable — currency not supported or integration missing. Contact your administrator.",
+        "contactAdmin": "Contact admin",
+        "cancel": "Cancel",
+        "confirm": "Continue",
+        "redirecting": "Redirecting…"
+      },
+      "return": {
+        "success": {
+          "title": "Payment confirmed",
+          "body": "Thank you! Your payment has been recorded."
+        },
+        "failed": {
+          "title": "Payment failed",
+          "body": "The payment did not go through. You can try again."
+        },
+        "pending": {
+          "title": "Payment pending",
+          "body": "We are confirming the status with the provider — this may take a few seconds."
+        },
+        "unknown": {
+          "title": "Status unavailable",
+          "body": "We could not verify the status. Try again later."
+        },
+        "invalid": {
+          "title": "Invalid parameters",
+          "body": "Return link is malformed."
+        },
+        "actions": {
+          "backToPayments": "Back to payments",
+          "refresh": "Refresh"
+        }
+      },
+      "error": {
+        "generic": "Something went wrong, please try again."
+      }
+    }
+  },
+  "lease": {
+    "deposit": {
+      "banner": {
+        "none_title": "Deposit pending refund",
+        "partial_title": "Deposit partially refunded",
+        "full_title": "Deposit fully refunded",
+        "refunded_summary": "{refunded} refunded out of {total} — {date}",
+        "reason_prefix": "Retention reason",
+        "cta": "Refund deposit",
+        "continue_cta": "Settle remaining refund"
+      },
+      "modal": {
+        "title": "Refund the deposit",
+        "subtitle": "Confirm the amount and attach supporting documents if you retain all or part of it.",
+        "amount_label": "Refund amount",
+        "remaining": "Remaining deposit: {amount} {currency}",
+        "breakdown_refund": "You refund {amount} {currency}",
+        "breakdown_retained": "You retain {amount} {currency}",
+        "reason_label": "Retention reason",
+        "reason_placeholder": "E.g. repairs, unpaid rent…",
+        "attachments_label": "Supporting documents (photos, invoices)",
+        "cancel": "Cancel",
+        "submit": "Confirm refund",
+        "submitting": "Submitting…"
+      },
+      "error_generic": "Refund failed, please retry."
+    },
+    "renewal": {
+      "cta": "Renew lease",
+      "wizard_title": "Lease renewal",
+      "wizard_subtitle": "Amendment chained to the current lease",
+      "step_period": "Period",
+      "step_terms": "Financial terms",
+      "step_summary": "Summary",
+      "field_start_date": "Start date",
+      "field_end_date": "End date",
+      "field_monthly_rent": "Monthly rent",
+      "field_deposit_amount": "Deposit",
+      "field_late_fee_percent": "Late-fee rate (%)",
+      "field_late_fee_grace_days": "Grace days",
+      "field_terms": "Terms",
+      "rent_evolution": "Rent evolution: {sign}{percent}% (from {from} to {to})",
+      "next": "Next",
+      "back": "Back",
+      "cancel": "Cancel",
+      "submit": "Confirm renewal",
+      "submitting": "Creating amendment…",
+      "error_generic": "Renewal failed, please retry.",
+      "diff_modified": "Changed",
+      "diff_unchanged": "Unchanged",
+      "tenant_immutable": "Tenant and property cannot be changed in an amendment.",
+      "timeline_title": "Lease chain",
+      "timeline_root": "Root lease",
+      "timeline_amendment": "Amendment {n}",
+      "timeline_current": "current"
+    },
+    "early_termination": {
+      "cta": "Terminate lease",
+      "dialog_title": "Early termination",
+      "dialog_subtitle": "Pick the effective date and reason. The estimated penalty will update live.",
+      "field_effective_date": "Effective end date",
+      "field_reason": "Reason",
+      "field_reason_placeholder": "e.g. relocation, sale, default…",
+      "notice_hint": "Minimum notice {days} days. Earliest date: {min}.",
+      "notice_too_short": "Notice period too short — pick a later date.",
+      "estimate_title": "Estimated penalty",
+      "estimate_breakdown": "{months} months × rent = {amount} {currency}",
+      "estimate_zero": "No penalty — the date is past the contractual end.",
+      "submit": "Confirm termination",
+      "submitting": "Submitting…",
+      "cancel": "Cancel",
+      "back": "Back",
+      "confirm_cancel": "Yes, cancel",
+      "error_generic": "Action failed.",
+      "banner_eyebrow": "Lease being terminated",
+      "banner_countdown": "Ends in {days} days",
+      "banner_due_today": "Ends today",
+      "banner_effective": "Effective date: {date}",
+      "banner_penalty_label": "Penalty",
+      "banner_invoice_label": "Penalty invoice",
+      "banner_reason_label": "Reason",
+      "banner_cancel_request": "Cancel termination",
+      "cancelled_toast_title": "Termination cancelled",
+      "cancelled_toast_body": "The lease has been reactivated.",
+      "cancel_failed_title": "Failed to cancel"
+    },
+    "error_generic": "Action failed."
+  },
+  "maintenance": {
+    "priority": {
+      "urgent": "Urgent",
+      "high": "High",
+      "normal": "Normal",
+      "low": "Low"
+    }
+  },
+  "recentlyViewed": {
+    "title": "Recently viewed",
+    "clearHistory": "Clear history",
+    "confirmTitle": "Clear history?",
+    "confirmBody": "Your browsing history will be removed from this browser. This action cannot be undone.",
+    "confirmCta": "Clear",
+    "cancel": "Cancel"
+  },
+  "search": {
+    "suggest": {
+      "placeholder": "Search a city, neighborhood, property type…",
+      "groups": {
+        "cities": "Cities",
+        "neighborhoods": "Neighborhoods",
+        "property_types": "Types"
+      },
+      "empty": "No results for « {query} »",
+      "fallback": {
+        "all_cities": "See all cities",
+        "all_types": "All types"
+      },
+      "loading": "Loading…"
+    }
+  }
+}

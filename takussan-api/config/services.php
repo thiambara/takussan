@@ -15,7 +15,11 @@ return [
     */
 
     'postmark' => [
-        'token' => env('POSTMARK_TOKEN'),
+        'key' => env('POSTMARK_API_KEY'),
+    ],
+
+    'resend' => [
+        'key' => env('RESEND_API_KEY'),
     ],
 
     'ses' => [
@@ -24,15 +28,35 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
-    'resend' => [
-        'key' => env('RESEND_KEY'),
-    ],
-
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
+    ],
+
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
+    ],
+
+    'facebook' => [
+        'client_id' => env('FACEBOOK_CLIENT_ID'),
+        'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
+        'redirect' => env('FACEBOOK_REDIRECT_URI'),
+    ],
+
+    'apple' => [
+        'client_id' => env('APPLE_CLIENT_ID'),
+        // Generated dynamically at runtime by AppleClientSecretGenerator from
+        // the .p8 private key. Left null so that the service never reads a
+        // stale value from env.
+        'client_secret' => null,
+        'team_id' => env('APPLE_TEAM_ID'),
+        'key_id' => env('APPLE_KEY_ID'),
+        'private_key_path' => env('APPLE_PRIVATE_KEY_PATH'),
+        'redirect' => env('APPLE_REDIRECT_URI'),
     ],
 
 ];

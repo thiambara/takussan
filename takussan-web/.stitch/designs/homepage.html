@@ -1,0 +1,573 @@
+<html class="light" lang="fr"><head></head><body class="bg-surface font-body text-on-surface">```html
+
+
+
+    <meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-tint": "#0054d6",
+                    "on-background": "#191c1d",
+                    "on-tertiary": "#ffffff",
+                    "primary-fixed-dim": "#b3c5ff",
+                    "surface-dim": "#d9dadb",
+                    "on-error": "#ffffff",
+                    "surface-variant": "#e1e3e4",
+                    "on-primary": "#ffffff",
+                    "tertiary": "#a33200",
+                    "surface-bright": "#f8f9fa",
+                    "error-container": "#ffdad6",
+                    "on-secondary-fixed": "#001849",
+                    "tertiary-fixed-dim": "#ffb59d",
+                    "outline-variant": "#c2c6d8",
+                    "on-primary-container": "#f8f7ff",
+                    "secondary-fixed-dim": "#b3c5ff",
+                    "primary-fixed": "#dae1ff",
+                    "on-secondary": "#ffffff",
+                    "tertiary-fixed": "#ffdbd0",
+                    "surface-container-lowest": "#ffffff",
+                    "on-surface": "#191c1d",
+                    "surface-container-highest": "#e1e3e4",
+                    "primary": "#0050cb",
+                    "inverse-on-surface": "#f0f1f2",
+                    "background": "#f8f9fa",
+                    "surface-container": "#edeeef",
+                    "on-secondary-container": "#294487",
+                    "surface": "#f8f9fa",
+                    "secondary-fixed": "#dae1ff",
+                    "on-tertiary-fixed": "#390c00",
+                    "outline": "#727687",
+                    "on-secondary-fixed-variant": "#284386",
+                    "secondary-container": "#9bb4fe",
+                    "secondary": "#425ca0",
+                    "on-error-container": "#93000a",
+                    "inverse-surface": "#2e3132",
+                    "primary-container": "#0066ff",
+                    "surface-container-high": "#e7e8e9",
+                    "inverse-primary": "#b3c5ff",
+                    "error": "#ba1a1a",
+                    "on-tertiary-fixed-variant": "#832600",
+                    "surface-container-low": "#f3f4f5",
+                    "on-tertiary-container": "#fff6f4",
+                    "on-surface-variant": "#424656",
+                    "on-primary-fixed": "#001849",
+                    "tertiary-container": "#cc4204",
+                    "on-primary-fixed-variant": "#003fa4"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "1rem",
+                    "xl": "1.5rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Manrope"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-[0_4px_6px_-1px_rgba(0,80,203,0.04)]">
+<div class="flex justify-between items-center px-8 py-4 max-w-full mx-auto">
+<div class="text-2xl font-bold tracking-tighter text-blue-800 dark:text-blue-200">Takussan</div>
+<div class="hidden md:flex items-center gap-8">
+<a class="font-manrope tracking-tight font-bold text-sm text-blue-700 dark:text-blue-400 border-b-2 border-blue-600 transition-colors" href="#">Acheter</a>
+<a class="font-manrope tracking-tight font-medium text-sm text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-300 transition-colors" href="#">Louer</a>
+<a class="font-manrope tracking-tight font-medium text-sm text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-300 transition-colors" href="#">Vendre</a>
+<a class="font-manrope tracking-tight font-medium text-sm text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-300 transition-colors" href="#">Nos Services</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="font-manrope tracking-tight font-medium text-sm text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors">Connexion</button>
+<button class="bg-primary-container text-on-primary-container px-6 py-2.5 rounded-full font-manrope tracking-tight font-bold text-sm hover:opacity-90 active:scale-95 duration-200 shadow-sm">Publier une annonce</button>
+</div>
+</div>
+</nav>
+<!-- HERO SECTION -->
+<section class="relative h-screen min-h-[700px] flex items-center justify-center px-8 md:px-16 overflow-hidden">
+<div class="absolute inset-0 z-0">
+<img alt="Luxury villa architecture" class="w-full h-full object-cover" data-alt="Modern luxury villa with infinity pool overlooking the Atlantic ocean at sunset, soft warm light, minimalist architecture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDgyakmTTxz0Dfis1munDs1dif19rvkdJxZp2svSXUW1Mt2xGNUJsb0zs9-B_19dxPsweTZ0_vX7uFk95Tu-yONaqW1ur-ph61b-4tuVAue4kseBRZ19qKhzTDmU11x58MPsNkivmVoB1Ep8mOt7B-6w_v7c84QPrIq2sqPSPwZ4w1pBeH_mg_ra8d5EodVEay7teVzLoewu87Ty249grSTawT6tQm_FEjJ9F1vGDr_4XNSg9JdWJl04IlXH1u3sNIBY3OHDCGmZxY"/>
+<div class="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-surface"></div>
+</div>
+<div class="relative z-10 w-full max-w-5xl text-center flex flex-col items-center justify-center">
+<h1 class="font-display text-5xl md:text-7xl font-bold text-white text-center mb-6">
+                Louez, achetez, vendez en toute confiance
+            </h1>
+<p class="text-white/90 text-lg md:text-xl font-medium text-center mb-6 max-w-2xl mx-auto">
+                Des milliers de biens au Sénégal vous attendent
+            </p>
+<!-- Floating Search Bar -->
+<div class="bg-surface-container-lowest p-2 md:p-3 rounded-full shadow-2xl flex flex-col md:flex-row items-center gap-2 max-w-4xl mx-auto">
+<div class="flex-1 flex items-center px-6 py-2 border-r-0 md:border-r border-outline-variant/30 w-full">
+<span class="material-symbols-outlined text-primary mr-3" data-icon="location_on">location_on</span>
+<input class="w-full border-none focus:ring-0 bg-transparent text-on-surface placeholder:text-outline font-medium" placeholder="Où cherchez-vous ?" type="text"/>
+</div>
+<div class="flex-1 flex items-center px-6 py-2 border-r-0 md:border-r border-outline-variant/30 w-full">
+<span class="material-symbols-outlined text-primary mr-3" data-icon="home">home</span>
+<select class="w-full border-none focus:ring-0 bg-transparent text-on-surface font-medium appearance-none">
+<option>Acheter</option>
+<option>Louer</option>
+<option>Programmes Neufs</option>
+</select>
+</div>
+<button class="bg-primary hover:bg-surface-tint text-white h-14 w-full md:w-14 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-95 shrink-0">
+<span class="material-symbols-outlined text-2xl" data-icon="search">search</span>
+</button>
+</div>
+</div>
+</section>
+<main class="max-w-[1440px] mx-auto px-12 md:px-16 py-24 space-y-32">
+<!-- 2. BIENS EN VEDETTE -->
+<section>
+<div class="flex justify-between items-end mb-12">
+<div>
+<h2 class="font-headline text-4xl font-bold tracking-tight">Biens en vedette</h2>
+</div>
+<div class="flex gap-3">
+<button class="w-12 h-12 rounded-full border border-outline-variant flex items-center justify-center hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="w-12 h-12 rounded-full border border-outline-variant flex items-center justify-center hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+<!-- Modified Grid: 2 rows of 4 columns -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+<!-- Row 1 -->
+<!-- Item 1 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-5">
+<img alt="Luxury apartment Dakar" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnkJuulq1VeawOjP6FOtSW-V1ZLZGVAjAjWYqzUsC_mJPbYwhQg3DXyXeilEYnM0sNX-BixU3d5wu5Hyz0lvvLxZH5nlN1wRlGyi4xGn2jcV_q2APMeCUALQmVziqgEfUxw7nfgCPHMXAZ5zUnWSiRy_e7R6o7_37JZXkStHobFBfXFBYVDFX2CjxaVpQdtvxqj6meofQ_HMkfYC5YlGZHTsbHl5vrTXlLCNgLjYzsYBdrPXslZADvlBcFmbxp9g2R19byOL9Vusg"/>
+<div class="absolute top-4 left-4 bg-primary text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">En Vente</div>
+<button class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="space-y-2">
+<h3 class="font-headline text-lg font-bold">Penthouse Almadies</h3>
+<p class="text-primary font-bold">450.000.000 FCFA</p>
+<p class="text-on-surface-variant text-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" data-icon="location_on">location_on</span> Dakar, Almadies
+                        </p>
+<div class="flex items-center gap-4 pt-2 text-xs font-semibold text-outline">
+<span>4 Ch.</span><span class="w-1 h-1 bg-outline/30 rounded-full"></span><span>320 m²</span><span class="w-1 h-1 bg-outline/30 rounded-full"></span><span>Balcon</span>
+</div>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-5">
+<img alt="Oceanfront Villa Saly" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAolA5ynS6GOmsO0N9G5dXo59fxd0DwJwsgOrZtnP8MSxTKxZHNi**-**Dvuh8bhJS3X3WlI_vialF9XstfkoLNaRUGhV5DDO5661clKTO3U7yI29FMr1j48kyLMLO5kYgI1xcmI6QMljB7DpN_DYjCvxr-hPj2AebxpkDCLsziiTBcdjteN7wsdFpWAIHrjSAjLozBqD3eT5dwMN226kUFUjw15-aeM10n4i9OmBTZ2iUxVZBHObdlcHVM38G3RD-85pWRs5DrK3Le6yk"/>
+<div class="absolute top-4 left-4 bg-primary text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">En Vente</div>
+<button class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="space-y-2">
+<h3 class="font-headline text-lg font-bold">Villa Azur</h3>
+<p class="text-primary font-bold">275.000.000 FCFA</p>
+<p class="text-on-surface-variant text-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" data-icon="location_on">location_on</span> Mbour, Saly
+                        </p>
+<div class="flex items-center gap-4 pt-2 text-xs font-semibold text-outline">
+<span>5 Ch.</span><span class="w-1 h-1 bg-outline/30 rounded-full"></span><span>450 m²</span><span class="w-1 h-1 bg-outline/30 rounded-full"></span><span>Piscine</span>
+</div>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-5">
+<img alt="Modern Office Plateau" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCSLrB6u5XQ04R4SZTYxrfUxq9JWB0UP2ou_WTAFUHX8OY4-PUpuAgrb_k6Sgj7LOO60SrcWsRXxKqZ8UO9nr3l2OLof4c6vtOEu5GowjaGnzuk2uPawo_9E4ZkHF9C9U9Pw0m1i3HbtSHwypWK7n3JvqNZR4bcrjOFTgx6s07TUXBGYSEEG8FWWN5HVxQAcEyWct-roYGHQtWCycIpFj9gd5Ast8i2zVTah0NNRFj2AIzXQhGunPL_gW0b0a1Ds-FmPC1CfGw9iyQ"/>
+<div class="absolute top-4 left-4 bg-[#2e7d32] text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">En Location</div>
+<button class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="space-y-2">
+<h3 class="font-headline text-lg font-bold">Bureaux Horizon</h3>
+<p class="text-primary font-bold">1.200.000 FCFA/mois</p>
+<p class="text-on-surface-variant text-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" data-icon="location_on">location_on</span> Dakar, Plateau
+                        </p>
+<div class="flex items-center gap-4 pt-2 text-xs font-semibold text-outline">
+<span>6 Bur.</span><span class="w-1 h-1 bg-outline/30 rounded-full"></span><span>120 m²</span><span class="w-1 h-1 bg-outline/30 rounded-full"></span><span>Ascenseur</span>
+</div>
+</div>
+</div>
+<!-- Item 4 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-5">
+<img alt="Luxury Residence Ngor" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA0-tfxE5YvVVl5Bedec-4cHGfe5u4wkn0RKiAy14h_gtrzL1d0BRKrsgS_FMmSr_n0kTovpo9RSYr9mUQfF-KpeokllRoP8yIwV_48o1Eto4aTpljax5cscWt2aBxBn8MALVMxKnG-puLNPX47CHaZBD1DWMd2-_b3OgQ8pwcCyiGXOqGKY0R6gOdCXDVzkG_BHei2jL3M9RKe7XMBs5iP1jsw2lwuFDpKnhWuv0NJx-NT_0NI06JUJUGx6uquax35g9R0D5fLpCk"/>
+<div class="absolute top-4 left-4 bg-primary text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">En Vente</div>
+<button class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="space-y-2">
+<h3 class="font-headline text-lg font-bold">Résidence Ngor</h3>
+<p class="text-primary font-bold">350.000.000 FCFA</p>
+<p class="text-on-surface-variant text-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" data-icon="location_on">location_on</span> Dakar, Ngor
+                        </p>
+<div class="flex items-center gap-4 pt-2 text-xs font-semibold text-outline">
+<span>4 Ch.</span><span class="w-1 h-1 bg-outline/30 rounded-full"></span><span>280 m²</span><span class="w-1 h-1 bg-outline/30 rounded-full"></span><span>Jardin</span>
+</div>
+</div>
+</div>
+<!-- Row 2 -->
+<!-- Item 5 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-5">
+<img alt="Garden Villa Somone" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAW3Ccz7wx0FAO9ViCmf-uvSeZDjrpQH970G-zmtP4BQxyPNrN8w4an9GXkQrP1PNkQXQSana-lse5PClu9ApWe8h6GchcRieXvYVmmf1cOSPwRheSaOO-xlvFD4gzAKsGJnclrFoHnPwNzV0zGlehHp35lTjqQwa0FFxrSOIjpvW7eoK5iQ_0E25eAPz-ulsM0Bd5RNK5gjfLWGZ8nHdFOVxU31Av3lSegOyJll4S0HHIFWBnve-L2BL5991Cjmc9z0WRAxQxTDhQ"/>
+<div class="absolute top-4 left-4 bg-primary text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">En Vente</div>
+<button class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="space-y-2">
+<h3 class="font-headline text-lg font-bold">Villa Coloniale</h3>
+<p class="text-primary font-bold">185.000.000 FCFA</p>
+<p class="text-on-surface-variant text-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" data-icon="location_on">location_on</span> Mbour, Somone
+                        </p>
+<div class="flex items-center gap-4 pt-2 text-xs font-semibold text-outline">
+<span>3 Ch.</span><span class="w-1 h-1 bg-outline/30 rounded-full"></span><span>200 m²</span><span class="w-1 h-1 bg-outline/30 rounded-full"></span><span>Patio</span>
+</div>
+</div>
+</div>
+<!-- Item 6 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-5">
+<img alt="Modern loft Plateau" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBfBAJHUiUOUHNulEyPxIVXXIWgToYDGygB7s30y3syywFS5RHKgTnuJZzoD8derMVrKZY6CDL0jTqJIS-DwOzqLFz7kj_0jsexmrFXr5GPaPtt6GfM62X9_ZxEgPytPxb5Byf02pJGs66SCg4mwGQDQpSK21XHUcij3MBCgdUYs3yFdAptQweJvW7ZT5wRqDuGH_cIoGO8zq9Gn4y0Roo7obkGRD66zznh3SAawHDkykyaN7dbciJpgMvbB7bco0SUvqC0NB4jqj0"/>
+<div class="absolute top-4 left-4 bg-[#2e7d32] text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">En Location</div>
+<button class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="space-y-2">
+<h3 class="font-headline text-lg font-bold">Loft Plateau</h3>
+<p class="text-primary font-bold">850.000 FCFA/mois</p>
+<p class="text-on-surface-variant text-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" data-icon="location_on">location_on</span> Dakar, Plateau
+                        </p>
+<div class="flex items-center gap-4 pt-2 text-xs font-semibold text-outline">
+<span>2 Ch.</span><span class="w-1 h-1 bg-outline/30 rounded-full"></span><span>150 m²</span><span class="w-1 h-1 bg-outline/30 rounded-full"></span><span>Design</span>
+</div>
+</div>
+</div>
+<!-- Item 7 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-5">
+<img alt="Residential land Diamniadio" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBcMV3jXY-7MJm4FU22Q7YHJnB8twgOqf1pt9KEIrmjNe6izxKpJZSYi8oX67Lgk9F5CSZUzZWf8pVZyMxd-nj3cAvlVElVOD_SLjDIvmxw_E3ZSsVaL3ycT2d3Mw5qFRbqOMzuhQEBT6W2y5FPA2VK0_wug-yxn6MXGcbnX2CWRT8hmsTxQGeRnxKRbSyuN-2-s_WSN7iL4j9uDv2bFxGYtdMIhRa6eryoIAlQ15Md7wzRc9w7Tx2-tjYRCct1THarXMdFqp4hyx4"/>
+<div class="absolute top-4 left-4 bg-primary text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">En Vente</div>
+<button class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="space-y-2">
+<h3 class="font-headline text-lg font-bold">Terrain Phase 2</h3>
+<p class="text-primary font-bold">45.000.000 FCFA</p>
+<p class="text-on-surface-variant text-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" data-icon="location_on">location_on</span> Diamniadio
+                        </p>
+<div class="flex items-center gap-4 pt-2 text-xs font-semibold text-outline">
+<span>400 m²</span><span class="w-1 h-1 bg-outline/30 rounded-full"></span><span>Bail</span><span class="w-1 h-1 bg-outline/30 rounded-full"></span><span>Viabilisé</span>
+</div>
+</div>
+</div>
+<!-- Item 8 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-5">
+<img alt="Executive suite Point E" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC1o96aRzgCqNKGWZCOdhlEXWN0qHSHn6pqf3zz2Mmi9DLQvOvZ-fW0rWeioyeoG2FAbR8fmpWT2OSJoqVtUtQicLMRmO5jEctUaz-7glFtcWnn-JS5hi5GJ9-9u7CpbxdvDv6caLjYuCRlZNN7TeYv8TJ_rUWGkw-xQfcpoyTX6CQk674cZ42pT1FFGk1sXbktdG-Hes7Uctxnyl-cddUXgiPm2vo5AzSt4V6c152yiwLEOBHWSlnvfGz6uWWhTsupivPnli4TVnY"/>
+<div class="absolute top-4 left-4 bg-[#2e7d32] text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">En Location</div>
+<button class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="space-y-2">
+<h3 class="font-headline text-lg font-bold">Suite Point E</h3>
+<p class="text-primary font-bold">1.500.000 FCFA/mois</p>
+<p class="text-on-surface-variant text-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" data-icon="location_on">location_on</span> Dakar, Point E
+                        </p>
+<div class="flex items-center gap-4 pt-2 text-xs font-semibold text-outline">
+<span>3 Ch.</span><span class="w-1 h-1 bg-outline/30 rounded-full"></span><span>180 m²</span><span class="w-1 h-1 bg-outline/30 rounded-full"></span><span>Garage</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 3. CATÉGORIES -->
+<section>
+<h2 class="font-headline text-3xl font-bold mb-12 text-center">Explorer par catégorie</h2>
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+<div class="aspect-square bg-surface-container-low rounded-2xl flex flex-col items-center justify-center gap-4 hover:bg-primary/5 hover:text-primary transition-all cursor-pointer border border-transparent hover:border-primary/20 group">
+<span class="material-symbols-outlined text-4xl text-outline group-hover:text-primary transition-colors" data-icon="apartment">apartment</span>
+<span class="font-bold">Appartement</span>
+</div>
+<div class="aspect-square bg-surface-container-low rounded-2xl flex flex-col items-center justify-center gap-4 hover:bg-primary/5 hover:text-primary transition-all cursor-pointer border border-transparent hover:border-primary/20 group">
+<span class="material-symbols-outlined text-4xl text-outline group-hover:text-primary transition-colors" data-icon="villa">villa</span>
+<span class="font-bold">Villa</span>
+</div>
+<div class="aspect-square bg-surface-container-low rounded-2xl flex flex-col items-center justify-center gap-4 hover:bg-primary/5 hover:text-primary transition-all cursor-pointer border border-transparent hover:border-primary/20 group">
+<span class="material-symbols-outlined text-4xl text-outline group-hover:text-primary transition-colors" data-icon="landscape">landscape</span>
+<span class="font-bold">Terrain</span>
+</div>
+<div class="aspect-square bg-surface-container-low rounded-2xl flex flex-col items-center justify-center gap-4 hover:bg-primary/5 hover:text-primary transition-all cursor-pointer border border-transparent hover:border-primary/20 group">
+<span class="material-symbols-outlined text-4xl text-outline group-hover:text-primary transition-colors" data-icon="storefront">storefront</span>
+<span class="font-bold">Commerce</span>
+</div>
+<div class="aspect-square bg-surface-container-low rounded-2xl flex flex-col items-center justify-center gap-4 hover:bg-primary/5 hover:text-primary transition-all cursor-pointer border border-transparent hover:border-primary/20 group">
+<span class="material-symbols-outlined text-4xl text-outline group-hover:text-primary transition-colors" data-icon="home">home</span>
+<span class="font-bold">Maison</span>
+</div>
+<div class="aspect-square bg-surface-container-low rounded-2xl flex flex-col items-center justify-center gap-4 hover:bg-primary/5 hover:text-primary transition-all cursor-pointer border border-transparent hover:border-primary/20 group">
+<span class="material-symbols-outlined text-4xl text-outline group-hover:text-primary transition-colors" data-icon="business_center">business_center</span>
+<span class="font-bold">Bureau</span>
+</div>
+</div>
+</section>
+<!-- 4. DERNIÈRES PUBLICATIONS -->
+<section>
+<div class="flex justify-between items-center mb-12">
+<h2 class="font-headline text-4xl font-bold tracking-tight">Derniers ajouts</h2>
+<button class="text-primary font-bold hover:underline flex items-center gap-2">
+                    Voir toutes les annonces
+                    <span class="material-symbols-outlined text-lg" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+<!-- Modified Grid: 2 rows of 5 columns -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+<!-- 10 cards total -->
+<!-- Card 1 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-5">
+<img alt="Modern Villa" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA0-tfxE5YvVVl5Bedec-4cHGfe5u4wkn0RKiAy14h_gtrzL1d0BRKrsgS_FMmSr_n0kTovpo9RSYr9mUQfF-KpeokllRoP8yIwV_48o1Eto4aTpljax5cscWt2aBxBn8MALVMxKnG-puLNPX47CHaZBD1DWMd2-_b3OgQ8pwcCyiGXOqGKY0R6gOdCXDVzkG_BHei2jL3M9RKe7XMBs5iP1jsw2lwuFDpKnhWuv0NJx-NT_0NI06JUJUGx6uquax35g9R0D5fLpCk"/>
+<div class="absolute top-4 left-4 bg-primary text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">En Vente</div>
+<button class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="space-y-2">
+<h3 class="font-headline text-base font-bold truncate">Villa Les Jardins</h3>
+<p class="text-primary font-bold text-sm">350M FCFA</p>
+<p class="text-on-surface-variant text-xs flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="location_on">location_on</span> Ngor
+                        </p>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-5">
+<img alt="Villa Somone" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAW3Ccz7wx0FAO9ViCmf-uvSeZDjrpQH970G-zmtP4BQxyPNrN8w4an9GXkQrP1PNkQXQSana-lse5PClu9ApWe8h6GchcRieXvYVmmf1cOSPwRheSaOO-xlvFD4gzAKsGJnclrFoHnPwNzV0zGlehHp35lTjqQwa0FFxrSOIjpvW7eoK5iQ_0E25eAPz-ulsM0Bd5RNK5gjfLWGZ8nHdFOVxU31Av3lSegOyJll4S0HHIFWBnve-L2BL5991Cjmc9z0WRAxQxTDhQ"/>
+<div class="absolute top-4 left-4 bg-primary text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">En Vente</div>
+<button class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="space-y-2">
+<h3 class="font-headline text-base font-bold truncate">Villa Somone</h3>
+<p class="text-primary font-bold text-sm">185M FCFA</p>
+<p class="text-on-surface-variant text-xs flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="location_on">location_on</span> Somone
+                        </p>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-5">
+<img alt="Loft Plateau" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBfBAJHUiUOUHNulEyPxIVXXIWgToYDGygB7s30y3syywFS5RHKgTnuJZzoD8derMVrKZY6CDL0jTqJIS-DwOzqLFz7kj_0jsexmrFXr5GPaPtt6GfM62X9_ZxEgPytPxb5Byf02pJGs66SCg4mwGQDQpSK21XHUcij3MBCgdUYs3yFdAptQweJvW7ZT5wRqDuGH_cIoGO8zq9Gn4y0Roo7obkGRD66zznh3SAawHDkykyaN7dbciJpgMvbB7bco0SUvqC0NB4jqj0"/>
+<div class="absolute top-4 left-4 bg-[#2e7d32] text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">En Location</div>
+<button class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="space-y-2">
+<h3 class="font-headline text-base font-bold truncate">Loft Plateau</h3>
+<p class="text-primary font-bold text-sm">850k FCFA</p>
+<p class="text-on-surface-variant text-xs flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="location_on">location_on</span> Plateau
+                        </p>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-5">
+<img alt="Terrain" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBcMV3jXY-7MJm4FU22Q7YHJnB8twgOqf1pt9KEIrmjNe6izxKpJZSYi8oX67Lgk9F5CSZUzZWf8pVZyMxd-nj3cAvlVElVOD_SLjDIvmxw_E3ZSsVaL3ycT2d3Mw5qFRbqOMzuhQEBT6W2y5FPA2VK0_wug-yxn6MXGcbnX2CWRT8hmsTxQGeRnxKRbSyuN-2-s_WSN7iL4j9uDv2bFxGYtdMIhRa6eryoIAlQ15Md7wzRc9w7Tx2-tjYRCct1THarXMdFqp4hyx4"/>
+<div class="absolute top-4 left-4 bg-primary text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">En Vente</div>
+<button class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="space-y-2">
+<h3 class="font-headline text-base font-bold truncate">Terrain Diamniadio</h3>
+<p class="text-primary font-bold text-sm">45M FCFA</p>
+<p class="text-on-surface-variant text-xs flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="location_on">location_on</span> Diamniadio
+                        </p>
+</div>
+</div>
+<!-- Card 5 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-5">
+<img alt="Suite Point E" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC1o96aRzgCqNKGWZCOdhlEXWN0qHSHn6pqf3zz2Mmi9DLQvOvZ-fW0rWeioyeoG2FAbR8fmpWT2OSJoqVtUtQicLMRmO5jEctUaz-7glFtcWnn-JS5hi5GJ9-9u7CpbxdvDv6caLjYuCRlZNN7TeYv8TJ_rUWGkw-xQfcpoyTX6CQk674cZ42pT1FFGk1sXbktdG-Hes7Uctxnyl-cddUXgiPm2vo5AzSt4V6c152yiwLEOBHWSlnvfGz6uWWhTsupivPnli4TVnY"/>
+<div class="absolute top-4 left-4 bg-[#2e7d32] text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">En Location</div>
+<button class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="space-y-2">
+<h3 class="font-headline text-base font-bold truncate">Suite Executive</h3>
+<p class="text-primary font-bold text-sm">1.5M FCFA</p>
+<p class="text-on-surface-variant text-xs flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="location_on">location_on</span> Point E
+                        </p>
+</div>
+</div>
+<!-- Row 2 -->
+<!-- Card 6 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-5">
+<img alt="Villa Hann" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCXdj3LyriyQZyy0edsQgpsxPkSVffr7v2dKXjSRlnKgk_m2dYPrzvtdI11h_zW3PBRmq1hhMroVkC8CMyQx0_Ly3wNMuAqGbq9gZpSgRsPMwUKaBWoSPa-40M52mcbahwZts9REu385Es4vQ5wAi-If6OdrUFI7DfW-ijB2VcwMX3wKbPiDG4slK-XgvQOy4hxAIKLlrE5lLTfG15-Qq-O6HAkeKj-l-kN37Qe0aIOCCDOSSWeIZ8BD0G5taLhga_celzpPdlV950"/>
+<div class="absolute top-4 left-4 bg-primary text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">En Vente</div>
+<button class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="space-y-2">
+<h3 class="font-headline text-base font-bold truncate">Villa Mariste</h3>
+<p class="text-primary font-bold text-sm">420M FCFA</p>
+<p class="text-on-surface-variant text-xs flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="location_on">location_on</span> Hann
+                        </p>
+</div>
+</div>
+<!-- Card 7 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-5">
+<img alt="Appartement Fann" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnkJuulq1VeawOjP6FOtSW-V1ZLZGVAjAjWYqzUsC_mJPbYwhQg3DXyXeilEYnM0sNX-BixU3d5wu5Hyz0lvvLxZH5nlN1wRlGyi4xGn2jcV_q2APMeCUALQmVziqgEfUxw7nfgCPHMXAZ5zUnWSiRy_e7R6o7_37JZXkStHobFBfXFBYVDFX2CjxaVpQdtvxqj6meofQ_HMkfYC5YlGZHTsbHl5vrTXlLCNgLjYzsYBdrPXslZADvlBcFmbxp9g2R19byOL9Vusg"/>
+<div class="absolute top-4 left-4 bg-[#2e7d32] text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">En Location</div>
+<button class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="space-y-2">
+<h3 class="font-headline text-base font-bold truncate">Appart. Fann</h3>
+<p class="text-primary font-bold text-sm">900k FCFA</p>
+<p class="text-on-surface-variant text-xs flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="location_on">location_on</span> Fann
+                        </p>
+</div>
+</div>
+<!-- Card 8 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-5">
+<img alt="Studio Dakar" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnkJuulq1VeawOjP6FOtSW-V1ZLZGVAjAjWYqzUsC_mJPbYwhQg3DXyXeilEYnM0sNX-BixU3d5wu5Hyz0lvvLxZH5nlN1wRlGyi4xGn2jcV_q2APMeCUALQmVziqgEfUxw7nfgCPHMXAZ5zUnWSiRy_e7R6o7_37JZXkStHobFBfXFBYVDFX2CjxaVpQdtvxqj6meofQ_HMkfYC5YlGZHTsbHl5vrTXlLCNgLjYzsYBdrPXslZADvlBcFmbxp9g2R19byOL9Vusg"/>
+<div class="absolute top-4 left-4 bg-primary text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">En Vente</div>
+<button class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="space-y-2">
+<h3 class="font-headline text-base font-bold truncate">Studio Moderne</h3>
+<p class="text-primary font-bold text-sm">85M FCFA</p>
+<p class="text-on-surface-variant text-xs flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="location_on">location_on</span> Mermoz
+                        </p>
+</div>
+</div>
+<!-- Card 9 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-5">
+<img alt="Bureau Almadies" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCSLrB6u5XQ04R4SZTYxrfUxq9JWB0UP2ou_WTAFUHX8OY4-PUpuAgrb_k6Sgj7LOO60SrcWsRXxKqZ8UO9nr3l2OLof4c6vtOEu5GowjaGnzuk2uPawo_9E4ZkHF9C9U9Pw0m1i3HbtSHwypWK7n3JvqNZR4bcrjOFTgx6s07TUXBGYSEEG8FWWN5HVxQAcEyWct-roYGHQtWCycIpFj9gd5Ast8i2zVTah0NNRFj2AIzXQhGunPL_gW0b0a1Ds-FmPC1CfGw9iyQ"/>
+<div class="absolute top-4 left-4 bg-[#2e7d32] text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">En Location</div>
+<button class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="space-y-2">
+<h3 class="font-headline text-base font-bold truncate">Espace Coworking</h3>
+<p class="text-primary font-bold text-sm">150k FCFA</p>
+<p class="text-on-surface-variant text-xs flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="location_on">location_on</span> Almadies
+                        </p>
+</div>
+</div>
+<!-- Card 10 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-5">
+<img alt="Villa Rufisque" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAolA5ynS6GOmsO0N9G5dXo59fxd0DwJwsgOrZtnP8MSxTKxZHNi-Dvuh8bhJS3X3WlI_vialF9XstfkoLNaRUGhV5DDO5661clKTO3U7yI29FMr1j48kyLMLO5kYgI1xcmI6QMljB7DpN_DYjCvxr-hPj2AebxpkDCLsziiTBcdjteN7wsdFpWAIHrjSAjLozBqD3eT5dwMN226kUFUjw15-aeM10n4i9OmBTZ2iUxVZBHObdlcHVM38G3RD-85pWRs5DrK3Le6yk"/>
+<div class="absolute top-4 left-4 bg-primary text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">En Vente</div>
+<button class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="space-y-2">
+<h3 class="font-headline text-base font-bold truncate">Villa Lac Rose</h3>
+<p class="text-primary font-bold text-sm">65M FCFA</p>
+<p class="text-on-surface-variant text-xs flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="location_on">location_on</span> Rufisque
+                        </p>
+</div>
+</div>
+</div>
+<div class="mt-16 text-center">
+<button class="px-10 py-4 bg-primary text-white rounded-full font-bold hover:bg-surface-tint shadow-lg transition-all active:scale-95">
+                    Voir toutes les annonces
+                </button>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full bg-slate-900 text-slate-300">
+<div class="max-w-7xl mx-auto px-8 md:px-12 py-20">
+<!-- Top Footer Section -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 mb-16">
+<!-- Brand and Newsletter -->
+<div class="lg:col-span-2 space-y-8">
+<div>
+<div class="text-3xl font-bold tracking-tighter text-white mb-4">Takussan</div>
+<p class="text-slate-400 max-w-sm">
+                        Votre partenaire immobilier de confiance au Sénégal. Nous vous accompagnons dans tous vos projets d'achat, de vente et de location.
+                    </p>
+</div>
+<div class="space-y-4">
+<h4 class="font-bold text-white">Restez informé</h4>
+<div class="flex gap-2 max-w-md">
+<input class="bg-slate-800 border-none focus:ring-2 focus:ring-primary rounded-lg px-4 py-3 flex-1 text-sm placeholder:text-slate-500" placeholder="Votre email" type="email"/>
+<button class="bg-primary hover:bg-surface-tint text-white px-6 py-3 rounded-lg font-bold text-sm transition-colors whitespace-nowrap">S'inscrire</button>
+</div>
+</div>
+</div>
+<!-- Links Column 1: À propos -->
+<div class="space-y-6">
+<h4 class="font-bold text-white text-lg">À propos</h4>
+<ul class="space-y-4 text-sm">
+<li><a class="hover:text-primary transition-colors" href="#">Qui sommes-nous ?</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Nos agents</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Carrières</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Presse</a></li>
+</ul>
+</div>
+<!-- Links Column 2: Découvrir -->
+<div class="space-y-6">
+<h4 class="font-bold text-white text-lg">Découvrir</h4>
+<ul class="space-y-4 text-sm">
+</ul></div></div></div></footer></body></html>

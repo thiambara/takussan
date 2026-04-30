@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\User;
+
 return [
 
     /*
@@ -62,7 +64,7 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', App\Models\User::class),
+            'model' => env('AUTH_MODEL', User::class),
         ],
 
         // 'users' => [
@@ -104,12 +106,28 @@ return [
     | Password Confirmation Timeout
     |--------------------------------------------------------------------------
     |
-    | Here you may define the amount of seconds before a password confirmation
+    | Here you may define the number of seconds before a password confirmation
     | window expires and users are asked to re-enter their password via the
     | confirmation screen. By default, the timeout lasts for three hours.
     |
     */
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Account Deletion (TCK-080)
+    |--------------------------------------------------------------------------
+    |
+    | RGPD self-service deletion: window between the user's request and the
+    | irreversible anonymization. Set in `.env` (`ACCOUNT_DELETION_GRACE_DAYS`)
+    | — never exposed to agencies/users. The reminder window controls when
+    | the J-N reminder email goes out (default J-7).
+    */
+
+    'account_deletion' => [
+        'grace_days' => (int) env('ACCOUNT_DELETION_GRACE_DAYS', 30),
+        'reminder_days_before' => (int) env('ACCOUNT_DELETION_REMINDER_DAYS', 7),
+    ],
 
 ];

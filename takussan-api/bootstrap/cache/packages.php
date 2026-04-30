@@ -1,9 +1,100 @@
 <?php return array (
-  'laravel/sail' => 
+  'blade-ui-kit/blade-heroicons' => 
   array (
     'providers' => 
     array (
-      0 => 'Laravel\\Sail\\SailServiceProvider',
+      0 => 'BladeUI\\Heroicons\\BladeHeroiconsServiceProvider',
+    ),
+  ),
+  'blade-ui-kit/blade-icons' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'BladeUI\\Icons\\BladeIconsServiceProvider',
+    ),
+  ),
+  'filament/actions' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Filament\\Actions\\ActionsServiceProvider',
+    ),
+  ),
+  'filament/filament' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Filament\\FilamentServiceProvider',
+    ),
+  ),
+  'filament/forms' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Filament\\Forms\\FormsServiceProvider',
+    ),
+  ),
+  'filament/infolists' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Filament\\Infolists\\InfolistsServiceProvider',
+    ),
+  ),
+  'filament/notifications' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Filament\\Notifications\\NotificationsServiceProvider',
+    ),
+  ),
+  'filament/query-builder' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Filament\\QueryBuilder\\QueryBuilderServiceProvider',
+    ),
+  ),
+  'filament/schemas' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Filament\\Schemas\\SchemasServiceProvider',
+    ),
+  ),
+  'filament/support' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Filament\\Support\\SupportServiceProvider',
+    ),
+  ),
+  'filament/tables' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Filament\\Tables\\TablesServiceProvider',
+    ),
+  ),
+  'filament/widgets' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Filament\\Widgets\\WidgetsServiceProvider',
+    ),
+  ),
+  'kirschbaum-development/eloquent-power-joins' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Kirschbaum\\PowerJoins\\PowerJoinsServiceProvider',
+    ),
+  ),
+  'laravel/pail' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Laravel\\Pail\\PailServiceProvider',
     ),
   ),
   'laravel/sanctum' => 
@@ -20,13 +111,6 @@
       0 => 'Laravel\\Scout\\ScoutServiceProvider',
     ),
   ),
-  'laravel/sentinel' => 
-  array (
-    'providers' => 
-    array (
-      0 => 'Laravel\\Sentinel\\SentinelServiceProvider',
-    ),
-  ),
   'laravel/socialite' => 
   array (
     'aliases' => 
@@ -38,18 +122,40 @@
       0 => 'Laravel\\Socialite\\SocialiteServiceProvider',
     ),
   ),
-  'laravel/telescope' => 
-  array (
-    'providers' => 
-    array (
-      0 => 'Laravel\\Telescope\\TelescopeServiceProvider',
-    ),
-  ),
   'laravel/tinker' => 
   array (
     'providers' => 
     array (
       0 => 'Laravel\\Tinker\\TinkerServiceProvider',
+    ),
+  ),
+  'lemonsqueezy/laravel' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'LemonSqueezy\\Laravel\\LemonSqueezyServiceProvider',
+    ),
+  ),
+  'livewire/livewire' => 
+  array (
+    'aliases' => 
+    array (
+      'Livewire' => 'Livewire\\Livewire',
+    ),
+    'providers' => 
+    array (
+      0 => 'Livewire\\LivewireServiceProvider',
+    ),
+  ),
+  'maatwebsite/excel' => 
+  array (
+    'aliases' => 
+    array (
+      'Excel' => 'Maatwebsite\\Excel\\Facades\\Excel',
+    ),
+    'providers' => 
+    array (
+      0 => 'Maatwebsite\\Excel\\ExcelServiceProvider',
     ),
   ),
   'nesbot/carbon' => 
@@ -73,6 +179,31 @@
       0 => 'Termwind\\Laravel\\TermwindServiceProvider',
     ),
   ),
+  'ryangjchandler/blade-capture-directive' => 
+  array (
+    'aliases' => 
+    array (
+      'BladeCaptureDirective' => 'RyanChandler\\BladeCaptureDirective\\Facades\\BladeCaptureDirective',
+    ),
+    'providers' => 
+    array (
+      0 => 'RyanChandler\\BladeCaptureDirective\\BladeCaptureDirectiveServiceProvider',
+    ),
+  ),
+  'socialiteproviders/manager' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'SocialiteProviders\\Manager\\ServiceProvider',
+    ),
+  ),
+  'spatie/laravel-activitylog' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Spatie\\Activitylog\\ActivitylogServiceProvider',
+    ),
+  ),
   'spatie/laravel-medialibrary' => 
   array (
     'providers' => 
@@ -80,11 +211,29 @@
       0 => 'Spatie\\MediaLibrary\\MediaLibraryServiceProvider',
     ),
   ),
+  'spatie/laravel-pdf' => 
+  array (
+    'aliases' => 
+    array (
+      'LaravelPdf' => 'Pdf',
+    ),
+    'providers' => 
+    array (
+      0 => 'Spatie\\LaravelPdf\\PdfServiceProvider',
+    ),
+  ),
   'spatie/laravel-permission' => 
   array (
     'providers' => 
     array (
       0 => 'Spatie\\Permission\\PermissionServiceProvider',
+    ),
+  ),
+  'spatie/laravel-query-builder' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Spatie\\QueryBuilder\\QueryBuilderServiceProvider',
     ),
   ),
 );

@@ -1,31 +1,73 @@
 <?php
 
-use App\Http\Controllers\PropertyController;
+use App\Http\Controllers\Api\FavoriteController;
+use App\Http\Controllers\Api\PropertyAddressController;
+use App\Http\Controllers\Api\PropertyAncestorsController;
+use App\Http\Controllers\Api\PropertyChildrenController;
+use App\Http\Controllers\Api\PropertyCollaboratorController;
+use App\Http\Controllers\Api\PropertyController;
+use App\Http\Controllers\Api\PropertyMediaController;
+use App\Http\Controllers\Api\PropertyPriceHistoryController;
+use App\Http\Controllers\Api\PropertyTagController;
+use App\Http\Controllers\Api\ReviewController;
 use Illuminate\Support\Facades\Route;
 
-/**
- * PROPERTY ROUTES
- * ==============
- */
-Route::prefix('properties')->controller(PropertyController::class)->group(function () {
-    Route::middleware("optional_auth:sanctum")->group(function () {
-        Route::get('/public/hero-search', 'heroSearch')->name('hero-search');
-        Route::get('/public/{property}', 'publicShow')->whereNumber('property')->name('public-show');
-        Route::get('/public/{property}/media', 'getMedia')->whereNumber('property')->name('get-media');
-    });
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('properties', [PropertyController::class, 'index'])->name('properties.index');
+    Route::post('properties', [PropertyController::class, 'store'])->name('properties.store');
+    // TCK-074 — bulk actions (must be declared before the `{property}` route).
+    Route::post('properties/bulk-archive', [PropertyController::class, 'bulkArchive'])->name('properties.bulk-archive');
+    Route::post('properties/{property}/duplicate', [PropertyController::class, 'duplicate'])->name('properties.duplicate');
+    Route::get('properties/{property}', [PropertyController::class, 'show'])->name('properties.show');
+    Route::put('properties/{property}', [PropertyController::class, 'update'])->name('properties.update');
+    Route::patch('properties/{property}', [PropertyController::class, 'update']);
+    Route::delete('properties/{property}', [PropertyController::class, 'destroy'])->name('properties.destroy');
+    Route::post('properties/{property}/publish', [PropertyController::class, 'publish'])->name('properties.publish');
+    Route::post('properties/{property}/unpublish', [PropertyController::class, 'unpublish'])->name('properties.unpublish');
+    Route::post('properties/{property}/view', [PropertyController::class, 'recordView'])->name('properties.view');
+    Route::get('properties/{property}/children', [PropertyChildrenController::class, 'index'])->name('properties.children');
+    Route::get('properties/{property}/ancestors', [PropertyAncestorsController::class, 'index'])->name('properties.ancestors');
 
-    /**
-     * PRIVATE ROUTES
-     */
-    Route::middleware("auth:sanctum")->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::post('/', 'store')->name('store');
-        Route::get('/{property}', 'show')->whereNumber('property')->name('show');
-        Route::put('/{property}', 'update')->whereNumber('property')->name('update');
-        Route::delete('/{property}', 'destroy')->whereNumber('property')->name('destroy');
-        // Media
-        Route::post('/{property}/media', 'storeMedia')->whereNumber('property')->name('store-media');
-        Route::delete('/{property}/media/{media}', 'destroyMedia')->whereNumber('property')->whereNumber('media')->name('destroy-media');
-        Route::put('/{property}/media/{media}', 'setFeatured')->whereNumber('property')->whereNumber('media')->name('set-featured');
-    });
-})->name('proprieties.');
+    // Address (upsert + clear)
+    Route::put('properties/{property}/address', [PropertyAddressController::class, 'upsert'])->name('properties.address.upsert');
+    Route::delete('properties/{property}/address', [PropertyAddressController::class, 'destroy'])->name('properties.address.destroy');
+
+    // Media
+    Route::get('properties/{property}/media', [PropertyMediaController::class, 'index'])->name('properties.media.index');
+    Route::post('properties/{property}/media', [PropertyMediaController::class, 'store'])->name('properties.media.store');
+    Route::delete('properties/{property}/media/{mediaId}', [PropertyMediaController::class, 'destroy'])->name('properties.media.destroy');
+    Route::put('properties/{property}/media/reorder', [PropertyMediaController::class, 'reorder'])->name('properties.media.reorder');
+
+    // Collaborators
+    Route::get('properties/{property}/collaborators', [PropertyCollaboratorController::class, 'index'])->name('properties.collaborators.index');
+    Route::post('properties/{property}/collaborators', [PropertyCollaboratorController::class, 'store'])->name('properties.collaborators.store');
+    Route::put('properties/{property}/collaborators/{collaborator}', [PropertyCollaboratorController::class, 'update'])->name('properties.collaborators.update');
+    Route::delete('properties/{property}/collaborators/{collaborator}', [PropertyCollaboratorController::class, 'destroy'])->name('properties.collaborators.destroy');
+
+    // Tags (polymorphic attach/detach)
+    Route::post('properties/{property}/tags', [PropertyTagController::class, 'sync'])->name('properties.tags.sync');
+    Route::delete('properties/{property}/tags/{tag}', [PropertyTagController::class, 'destroy'])->name('properties.tags.destroy');
+
+    // Price history
+    Route::get('properties/{property}/price-history', [PropertyPriceHistoryController::class, 'index'])->name('properties.price-history.index');
+
+    // Favorites
+    Route::get('favorites', [FavoriteController::class, 'index'])->name('favorites.index');
+    Route::post('favorites', [FavoriteController::class, 'store'])->name('favorites.store');
+    Route::delete('favorites/{property}', [FavoriteController::class, 'destroy'])->name('favorites.destroy');
+
+    // Reviews (nested under property)
+    Route::get('properties/{property}/reviews', [ReviewController::class, 'indexForProperty'])->name('properties.reviews.index');
+    Route::post('properties/{property}/reviews', [ReviewController::class, 'storeForProperty'])->name('properties.reviews.store');
+    Route::post('reviews/{review}/reply', [ReviewController::class, 'reply'])->name('reviews.reply');
+    // TCK-078 — owner/agency can retract their reply (or admin can moderate it away)
+    Route::delete('reviews/{review}/reply', [ReviewController::class, 'deleteReply'])->name('reviews.reply.destroy');
+    Route::post('reviews/{review}/approve', [ReviewController::class, 'approve'])->name('reviews.approve');
+    Route::post('reviews/{review}/reject', [ReviewController::class, 'reject'])->name('reviews.reject');
+    Route::post('reviews/{review}/report', [ReviewController::class, 'report'])->name('reviews.report');
+
+    // Global reviews (admin moderation queue)
+    Route::get('reviews', [ReviewController::class, 'index'])->name('reviews.index');
+    Route::patch('reviews/{review}/moderate', [ReviewController::class, 'moderate'])->name('reviews.moderate');
+    Route::get('reviews/{review}/reports', [ReviewController::class, 'reports'])->name('reviews.reports');
+});

@@ -2,33 +2,34 @@
 
 namespace Database\Factories;
 
+use App\Models\Agency;
+use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\Currency;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
-/**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Agency>
- */
 class AgencyFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
+    protected $model = Agency::class;
+
     public function definition(): array
     {
         $name = fake()->company();
+
         return [
             'name' => $name,
-            'slug' => Str::slug($name),
-            'license_number' => 'LIC-' . fake()->bothify('####-????'),
-            'email' => fake()->companyEmail(),
-            'phone' => fake()->phoneNumber(),
+            'slug' => Str::slug($name).'-'.Str::random(5),
+            'license_number' => strtoupper(Str::random(8)),
+            'description' => fake()->sentence(),
+            'email' => fake()->unique()->companyEmail(),
+            'phone' => '+221'.fake()->numerify('33#######'),
             'website' => fake()->url(),
-            'description' => fake()->catchPhrase(),
-            'status' => 'active',
-            'settings' => [],
-            'metadata' => [],
+            'commission_rate' => fake()->randomFloat(2, 1, 15),
+            'founded_at' => fake()->dateTimeBetween('-20 years', '-1 year')->format('Y-m-d'),
+            'is_verified' => fake()->boolean(70),
+            'verified_at' => fake()->optional()->dateTimeBetween('-2 years'),
+            'status' => AgencyStatus::Active,
+            'currency' => Currency::XOF,
         ];
     }
 }

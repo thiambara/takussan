@@ -2,32 +2,28 @@
 
 namespace Database\Factories;
 
+use App\Models\Address;
+use App\Models\Property;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
-/**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Address>
- */
 class AddressFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
-    public function definition()
+    protected $model = Address::class;
+
+    public function definition(): array
     {
+        $quarters = ['Almadies', 'Mermoz', 'Sacré-Cœur', 'Plateau', 'Fann', 'Ouakam', 'Yoff', 'Ngor', 'Point E'];
+
         return [
-            'address' => fake()->address(),
-            'country' => fake()->country(),
-            'state' => fake()->state(),
-            'city' => fake()->city(),
-            'district' => fake()->streetName(),
+            'addressable_type' => Property::class,
+            'addressable_id' => Property::factory(),
             'street' => fake()->streetAddress(),
-            'postal_code' => fake()->postcode(),
-            'building' => fake()->buildingNumber(),
-            'latitude' => fake()->latitude(),
-            'longitude' => fake()->longitude(),
-            'metadata' => [],
+            'neighborhood' => fake()->randomElement($quarters),
+            'city' => 'Dakar',
+            'region' => 'Dakar',
+            'country' => 'SN',
+            'latitude' => fake()->latitude(14.6, 14.8),
+            'longitude' => fake()->longitude(-17.5, -17.3),
         ];
     }
 }

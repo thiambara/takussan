@@ -1,41 +1,48 @@
 {
+    "$schema": "https://getcomposer.org/schema.json",
     "name": "laravel/laravel",
     "type": "project",
     "description": "The skeleton application for the Laravel framework.",
-    "keywords": [
-        "laravel",
-        "framework"
-    ],
+    "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {
-        "php": "^8.4",
-        "laravel/framework": "^12.0",
-        "laravel/sanctum": "^4.0",
-        "laravel/scout": "^11.0",
-        "laravel/socialite": "^5.15",
-        "laravel/telescope": "^5.1",
-        "spatie/laravel-medialibrary": "^11.7",
-        "spatie/laravel-permission": "^7.0"
+        "php": "^8.3",
+        "bacon/bacon-qr-code": "^3.1",
+        "filament/filament": "^4.0",
+        "filament/spatie-laravel-media-library-plugin": "^4.0",
+        "intervention/image": "^3.7",
+        "laravel/framework": "^13.0",
+        "laravel/sanctum": "^4.3",
+        "laravel/scout": "^11.1",
+        "laravel/socialite": "^5.26",
+        "laravel/tinker": "^3.0",
+        "league/csv": "^9.16",
+        "lemonsqueezy/laravel": "^1.9",
+        "maatwebsite/excel": "^3.1",
+        "pragmarx/google2fa": "^9.0",
+        "socialiteproviders/apple": "^5.10",
+        "socialiteproviders/facebook": "^4.1",
+        "spatie/laravel-activitylog": "^5.0",
+        "spatie/laravel-medialibrary": "^11.0",
+        "spatie/laravel-pdf": "^2.0",
+        "spatie/laravel-permission": "^7.3",
+        "spatie/laravel-query-builder": "^7.2"
     },
     "require-dev": {
+        "dompdf/dompdf": "^3.0",
         "fakerphp/faker": "^1.23",
-        "laravel/pint": "^1.13",
-        "laravel/sail": "^1.26",
-        "laravel/tinker": "^3.0",
+        "laravel/pail": "^1.2.5",
+        "laravel/pint": "^1.27",
         "mockery/mockery": "^1.6",
-        "nunomaduro/collision": "^8.9",
-        "phpunit/phpunit": "^13.0"
+        "nunomaduro/collision": "^8.6",
+        "phpunit/phpunit": "^12.5.12"
     },
     "autoload": {
         "psr-4": {
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
-        },
-        "files": [
-            "app/Helpers/general.php",
-            "app/Helpers/services.php"
-        ]
+        }
     },
     "autoload-dev": {
         "psr-4": {
@@ -43,9 +50,26 @@
         }
     },
     "scripts": {
+        "setup": [
+            "composer install",
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
+            "@php artisan key:generate",
+            "@php artisan migrate --force",
+            "npm install --ignore-scripts",
+            "npm run build"
+        ],
+        "dev": [
+            "Composer\\Config::disableProcessTimeout",
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1 --timeout=0\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,logs,vite --kill-others"
+        ],
+        "test": [
+            "@php artisan config:clear --ansi",
+            "@php artisan test"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@php artisan package:discover --ansi"
+            "@php artisan package:discover --ansi",
+            "@php artisan filament:upgrade"
         ],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
@@ -57,6 +81,9 @@
             "@php artisan key:generate --ansi",
             "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
             "@php artisan migrate --graceful --ansi"
+        ],
+        "pre-package-uninstall": [
+            "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
         ]
     },
     "extra": {

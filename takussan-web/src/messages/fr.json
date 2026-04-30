@@ -1,0 +1,505 @@
+{
+  "common": {
+    "appName": "Takussan",
+    "tagline": "Immobilier au Sénégal",
+    "actions": {
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "delete": "Supprimer",
+      "edit": "Modifier",
+      "confirm": "Confirmer",
+      "close": "Fermer",
+      "search": "Rechercher",
+      "filter": "Filtrer",
+      "viewMore": "Voir plus",
+      "loadMore": "Charger plus",
+      "retry": "Réessayer"
+    },
+    "status": {
+      "loading": "Chargement…",
+      "empty": "Aucun résultat",
+      "error": "Une erreur est survenue"
+    },
+    "navigation": {
+      "home": "Accueil",
+      "properties": "Biens",
+      "favorites": "Favoris",
+      "messages": "Messages",
+      "dashboard": "Tableau de bord",
+      "profile": "Profil",
+      "settings": "Paramètres"
+    },
+    "languageSwitcher": {
+      "label": "Langue",
+      "current": "Langue actuelle : {locale}"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Connexion",
+      "submit": "Se connecter",
+      "email": "Adresse e-mail",
+      "password": "Mot de passe",
+      "forgotPassword": "Mot de passe oublié ?",
+      "noAccount": "Pas encore de compte ?",
+      "register": "Créer un compte"
+    },
+    "register": {
+      "title": "Créer un compte",
+      "submit": "S'inscrire",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "passwordConfirmation": "Confirmer le mot de passe",
+      "hasAccount": "Déjà un compte ?"
+    },
+    "logout": "Se déconnecter",
+    "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter."
+  },
+  "property": {
+    "list": {
+      "title": "Biens disponibles",
+      "empty": "Aucun bien ne correspond à vos critères."
+    },
+    "fields": {
+      "price": "Prix",
+      "surface": "Surface",
+      "rooms": "Pièces",
+      "bedrooms": "Chambres",
+      "bathrooms": "Salles de bain",
+      "address": "Adresse",
+      "description": "Description"
+    },
+    "status": {
+      "available": "Disponible",
+      "rented": "Loué",
+      "sold": "Vendu",
+      "pending": "En attente"
+    },
+    "types": {
+      "land": "Terrain",
+      "house": "Maison",
+      "apartment": "Appartement",
+      "villa": "Villa",
+      "studio": "Studio",
+      "room": "Chambre",
+      "office": "Bureau",
+      "shop": "Boutique",
+      "warehouse": "Entrepôt",
+      "factory": "Usine",
+      "farm": "Ferme",
+      "hotel": "Hôtel",
+      "resort": "Resort",
+      "garage": "Garage",
+      "parking": "Parking",
+      "other": "Autre"
+    },
+    "contractTypes": {
+      "sale": "Vente",
+      "rent": "Location"
+    }
+  },
+  "dashboard": {
+    "welcome": "Bonjour, {name}",
+    "overview": "Vue d'ensemble",
+    "myProperties": "Mes biens",
+    "myBookings": "Mes réservations",
+    "myLeases": "Mes baux"
+  },
+  "errors": {
+    "generic": "Une erreur est survenue. Veuillez réessayer.",
+    "network": "Impossible de joindre le serveur.",
+    "unauthorized": "Vous n'êtes pas autorisé à effectuer cette action.",
+    "notFound": "Ressource introuvable.",
+    "validation": "Certains champs sont invalides."
+  },
+  "agency": {
+    "currency": {
+      "label": "Devise",
+      "placeholder": "Sélectionner une devise",
+      "preview": "100 000 sera affiché : {example}",
+      "warningOnChange": "Le changement de devise ne s’applique qu’aux nouveaux biens, baux et paiements. Les enregistrements existants conservent leur devise d’origine."
+    }
+  },
+  "compare": {
+    "eyebrow": "Comparateur",
+    "title": "Comparer des biens",
+    "subtitle": "{count} biens sélectionnés — comparez pour décider.",
+    "unavailableNotice": "{missing} bien(s) ne sont plus disponibles et ont été retirés du comparatif.",
+    "actions": {
+      "view": "Voir le bien",
+      "remove": "Retirer"
+    },
+    "values": {
+      "yes": "Oui",
+      "no": "Non"
+    },
+    "rows": {
+      "price": "Prix",
+      "contractType": "Type de transaction",
+      "type": "Type de bien",
+      "rentPeriod": "Périodicité",
+      "city": "Ville",
+      "quarter": "Quartier",
+      "area": "Surface",
+      "bedrooms": "Chambres",
+      "bathrooms": "Salles de bain",
+      "floor": "Étage",
+      "furnished": "Meublé",
+      "yearBuilt": "Année de construction",
+      "parking": "Places de parking",
+      "amenities": "Équipements",
+      "tags": "Autres"
+    },
+    "table": {
+      "ariaLabel": "Tableau comparatif des biens",
+      "header": "Critère",
+      "unavailable": "Bien indisponible",
+      "divergentTooltip": "Cette valeur diverge entre les biens"
+    },
+    "carousel": {
+      "ariaLabel": "Comparaison mobile — balayez pour voir chaque bien"
+    },
+    "empty": {
+      "title": "Sélectionnez au moins 2 biens",
+      "description": "Ajoutez des biens au comparateur depuis la liste ou la fiche d'un bien pour les comparer côte à côte.",
+      "cta": "Rechercher des biens"
+    },
+    "floatingBar": {
+      "ariaLabel": "Biens sélectionnés pour la comparaison",
+      "title": "Comparateur",
+      "count": "{count} / {max} bien(s)",
+      "cta": "Comparer ({count})",
+      "removeAria": "Retirer le bien #{id} du comparateur",
+      "clearAria": "Vider le comparateur"
+    }
+  },
+  "crm": {
+    "pipeline": {
+      "title": "Pipeline de prospects",
+      "subtitle": "Suivez vos contacts CRM par étape, déplacez les cartes pour les faire avancer.",
+      "empty": "Aucun élément à afficher.",
+      "emptyColumn": "Aucun client",
+      "stage": {
+        "lead": "Lead",
+        "prospect": "Prospect",
+        "qualified": "Qualifié",
+        "negotiating": "Négociation",
+        "converted": "Converti",
+        "lost": "Perdu"
+      },
+      "stats": {
+        "active": "Prospects actifs",
+        "newWeek": "Nouveaux cette semaine",
+        "conversionRate": "Taux de conversion 30j",
+        "avgQualified": "Temps moyen — Qualifié",
+        "changes30d": "Changements 30j"
+      },
+      "fields": {
+        "phone": "Téléphone",
+        "email": "Email",
+        "occupation": "Profession",
+        "stage": "Étape",
+        "tasksCount": "Tâches actives"
+      },
+      "actions": {
+        "cancel": "Annuler",
+        "confirm": "Confirmer",
+        "close": "Fermer"
+      },
+      "reasonDialog": {
+        "title": "Passer en {stage} — préciser la raison",
+        "placeholder": "Ex. : converti suite à signature du bail le 10 mai…"
+      },
+      "tabs": {
+        "overview": "Aperçu",
+        "notes": "Notes",
+        "tasks": "Tâches",
+        "activity": "Activité"
+      },
+      "notes": {
+        "add": "Ajouter une note",
+        "placeholder": "Écrivez une note…",
+        "pinned": "Épinglée"
+      },
+      "tasks": {
+        "add": "Ajouter une tâche",
+        "titlePlaceholder": "Titre de la tâche",
+        "toggle": "Marquer terminée"
+      },
+      "errors": {
+        "moveFailed": "Impossible de déplacer la carte. Réessayez."
+      }
+    }
+  },
+  "account": {
+    "deletion": {
+      "section": {
+        "title": "Supprimer mon compte",
+        "description": "La suppression est irréversible après le délai de grâce. Vos données personnelles sont anonymisées et les enregistrements légaux conservés.",
+        "cta": "Supprimer mon compte"
+      },
+      "dialog": {
+        "title": "Supprimer votre compte",
+        "step1Title": "Pourquoi souhaitez-vous partir ?",
+        "step1Description": "Choisissez un motif. Cela nous aide à améliorer Takussan.",
+        "step2Title": "Confirmer avec votre mot de passe",
+        "step2Description": "Pour des raisons de sécurité, ressaisissez votre mot de passe et, si activée, votre 2FA.",
+        "reasonOptions": {
+          "service_completed": "J'ai terminé d'utiliser le service",
+          "quality_issue": "Problème de qualité",
+          "privacy": "Préoccupations de vie privée",
+          "other": "Autre"
+        },
+        "reasonOtherPlaceholder": "Décrivez brièvement votre motif (optionnel)",
+        "passwordLabel": "Mot de passe",
+        "twoFactorLabel": "Code 2FA (6 chiffres)",
+        "next": "Continuer",
+        "back": "Retour",
+        "confirmCta": "Supprimer définitivement",
+        "obligationsTitle": "Vous avez des obligations en cours",
+        "obligationsHint": "Vous devez d'abord les terminer pour pouvoir supprimer votre compte.",
+        "successTitle": "Demande enregistrée",
+        "successBody": "Votre compte sera supprimé dans {days} jours. Vous pouvez encore annuler à tout moment depuis cette page."
+      },
+      "banner": {
+        "title": "Suppression programmée",
+        "message": "Votre compte sera supprimé dans {days} jours.",
+        "messageSingular": "Votre compte sera supprimé demain.",
+        "messageToday": "Votre compte sera supprimé aujourd'hui.",
+        "cancel": "Annuler la suppression"
+      },
+      "errors": {
+        "generic": "Une erreur est survenue, veuillez réessayer.",
+        "passwordInvalid": "Mot de passe incorrect.",
+        "twoFactorInvalid": "Code 2FA invalide.",
+        "obligations": "Vous avez des obligations en cours qui empêchent la suppression."
+      }
+    }
+  },
+  "messaging": {
+    "listHeading": "Conversations",
+    "newGroup": "Nouveau groupe",
+    "emptyState": "Sélectionnez une conversation pour afficher les messages.",
+    "system": {
+      "participantAdded": "{actor} a ajouté {target} au groupe.",
+      "participantRemoved": "{actor} a retiré {target} du groupe.",
+      "roleChanged": "{actor} a changé le rôle de {target} en {role}.",
+      "renamed": "{actor} a renommé le groupe en « {subject} »."
+    },
+    "group": {
+      "create": {
+        "title": "Nouveau groupe",
+        "step1Description": "Ajoutez 2 participants minimum (vous serez automatiquement inclus).",
+        "step2Description": "Donnez un sujet au groupe et associez-le optionnellement à un bien ou un bail.",
+        "participantsLabel": "Participants",
+        "participantInputPlaceholder": "ID utilisateur",
+        "participantsHint": "Saisissez les IDs un par un. Le serveur vérifie les permissions.",
+        "add": "Ajouter",
+        "removeParticipant": "Retirer #{id}",
+        "minParticipants": "Minimum {min} participants au total (vous compris).",
+        "maxParticipants": "Maximum {max} participants au total.",
+        "duplicate": "Cet utilisateur est déjà ajouté.",
+        "invalidId": "ID invalide.",
+        "subjectLabel": "Sujet",
+        "subjectRequired": "Le sujet est obligatoire.",
+        "propertyLabel": "Bien (optionnel)",
+        "leaseLabel": "Bail (optionnel)",
+        "cancel": "Annuler",
+        "next": "Suivant",
+        "back": "Retour",
+        "create": "Créer le groupe",
+        "createFailed": "Impossible de créer le groupe."
+      },
+      "info": {
+        "title": "Infos du groupe",
+        "subjectLine": "Sujet : {subject}",
+        "renameLabel": "Renommer le groupe",
+        "renameSave": "Enregistrer",
+        "renameFailed": "Impossible de renommer.",
+        "participantsHeading": "Participants ({count})",
+        "addLabel": "Inviter un participant",
+        "addPlaceholder": "ID utilisateur",
+        "addFailed": "Impossible d'ajouter.",
+        "add": "Ajouter",
+        "you": "vous",
+        "roleAdmin": "Admin",
+        "roleMember": "Membre",
+        "promote": "Promouvoir admin",
+        "demote": "Rétrograder en membre",
+        "remove": "Retirer du groupe",
+        "mute": "Couper les notifications",
+        "unmute": "Réactiver les notifications",
+        "leave": "Quitter le groupe",
+        "lastAdminLeaveBlocked": "Vous êtes le dernier admin — promouvez quelqu'un avant de partir.",
+        "lastAdminLeaveHint": "Promouvez un autre membre admin avant de partir.",
+        "invalidId": "ID invalide."
+      }
+    }
+  },
+  "payments": {
+    "gateway": {
+      "button": {
+        "payOnline": "Payer en ligne"
+      },
+      "picker": {
+        "title": "Choisir un mode de paiement",
+        "description": "Sélectionnez le fournisseur via lequel le paiement sera traité.",
+        "select": "Sélectionner",
+        "unavailable": "Non disponible — devise non supportée ou intégration absente. Contactez votre administrateur.",
+        "contactAdmin": "Contacter l’admin",
+        "cancel": "Annuler",
+        "confirm": "Continuer",
+        "redirecting": "Redirection…"
+      },
+      "return": {
+        "success": {
+          "title": "Paiement confirmé",
+          "body": "Merci ! Votre paiement a été enregistré."
+        },
+        "failed": {
+          "title": "Paiement échoué",
+          "body": "Le paiement n’a pas pu aboutir. Vous pouvez réessayer."
+        },
+        "pending": {
+          "title": "Paiement en cours",
+          "body": "Nous vérifions le statut du paiement avec le fournisseur — cela peut prendre quelques secondes."
+        },
+        "unknown": {
+          "title": "Statut indisponible",
+          "body": "Nous n’avons pas pu vérifier le statut. Réessayez plus tard."
+        },
+        "invalid": {
+          "title": "Paramètres invalides",
+          "body": "Lien de retour incorrect."
+        },
+        "actions": {
+          "backToPayments": "Retour aux paiements",
+          "refresh": "Actualiser"
+        }
+      },
+      "error": {
+        "generic": "Une erreur est survenue, réessayez."
+      }
+    }
+  },
+  "lease": {
+    "deposit": {
+      "banner": {
+        "none_title": "Caution à rembourser",
+        "partial_title": "Caution partiellement remboursée",
+        "full_title": "Caution intégralement remboursée",
+        "refunded_summary": "{refunded} remboursés sur {total} — {date}",
+        "reason_prefix": "Motif retenue",
+        "cta": "Rembourser la caution",
+        "continue_cta": "Solder le remboursement"
+      },
+      "modal": {
+        "title": "Rembourser la caution",
+        "subtitle": "Confirmez le montant et joignez les justificatifs si vous retenez tout ou partie.",
+        "amount_label": "Montant remboursé",
+        "remaining": "Caution restante : {amount} {currency}",
+        "breakdown_refund": "Vous remboursez {amount} {currency}",
+        "breakdown_retained": "Vous retenez {amount} {currency}",
+        "reason_label": "Motif de retenue",
+        "reason_placeholder": "Ex. réparations, impayés…",
+        "attachments_label": "Justificatifs (photos, factures)",
+        "cancel": "Annuler",
+        "submit": "Confirmer le remboursement",
+        "submitting": "Envoi en cours…"
+      },
+      "error_generic": "Le remboursement a échoué, réessayez."
+    },
+    "renewal": {
+      "cta": "Renouveler le bail",
+      "wizard_title": "Renouvellement du bail",
+      "wizard_subtitle": "Avenant chaîné au bail courant",
+      "step_period": "Période",
+      "step_terms": "Conditions financières",
+      "step_summary": "Récapitulatif",
+      "field_start_date": "Date de début",
+      "field_end_date": "Date de fin",
+      "field_monthly_rent": "Loyer mensuel",
+      "field_deposit_amount": "Caution",
+      "field_late_fee_percent": "Pénalité de retard (%)",
+      "field_late_fee_grace_days": "Délai de grâce (jours)",
+      "field_terms": "Conditions générales",
+      "rent_evolution": "Évolution loyer : {sign}{percent}% (de {from} à {to})",
+      "next": "Suivant",
+      "back": "Précédent",
+      "cancel": "Annuler",
+      "submit": "Confirmer le renouvellement",
+      "submitting": "Création de l'avenant…",
+      "error_generic": "Le renouvellement a échoué, réessayez.",
+      "diff_modified": "Modifié",
+      "diff_unchanged": "Inchangé",
+      "tenant_immutable": "Le locataire et le bien ne peuvent pas être modifiés dans un avenant.",
+      "timeline_title": "Chaîne de baux",
+      "timeline_root": "Bail racine",
+      "timeline_amendment": "Avenant {n}",
+      "timeline_current": "courant"
+    },
+    "early_termination": {
+      "cta": "Résilier le bail",
+      "dialog_title": "Résiliation anticipée",
+      "dialog_subtitle": "Choisissez la date effective et le motif. La pénalité estimée s'affichera en temps réel.",
+      "field_effective_date": "Date effective de fin",
+      "field_reason": "Motif",
+      "field_reason_placeholder": "Ex. déménagement, vente du bien, défaut…",
+      "notice_hint": "Préavis minimum {days} jours. Date la plus proche : {min}.",
+      "notice_too_short": "Préavis insuffisant — choisissez une date plus tardive.",
+      "estimate_title": "Pénalité estimée",
+      "estimate_breakdown": "{months} mois × loyer = {amount} {currency}",
+      "estimate_zero": "Aucune pénalité — la date dépasse la fin contractuelle.",
+      "submit": "Confirmer la résiliation",
+      "submitting": "Envoi en cours…",
+      "cancel": "Annuler",
+      "back": "Précédent",
+      "confirm_cancel": "Oui, annuler",
+      "error_generic": "Action impossible.",
+      "banner_eyebrow": "Bail en résiliation",
+      "banner_countdown": "Fin dans {days} jours",
+      "banner_due_today": "Fin aujourd'hui",
+      "banner_effective": "Date effective : {date}",
+      "banner_penalty_label": "Pénalité",
+      "banner_invoice_label": "Facture pénalité",
+      "banner_reason_label": "Motif",
+      "banner_cancel_request": "Annuler la résiliation",
+      "cancelled_toast_title": "Résiliation annulée",
+      "cancelled_toast_body": "Le bail revient à l'état actif.",
+      "cancel_failed_title": "L'annulation a échoué"
+    },
+    "error_generic": "Action impossible."
+  },
+  "maintenance": {
+    "priority": {
+      "urgent": "Urgent",
+      "high": "Haute",
+      "normal": "Normale",
+      "low": "Basse"
+    }
+  },
+  "recentlyViewed": {
+    "title": "Vus récemment",
+    "clearHistory": "Effacer l'historique",
+    "confirmTitle": "Effacer l'historique ?",
+    "confirmBody": "Vos biens consultés seront supprimés de votre navigateur. Cette action est irréversible.",
+    "confirmCta": "Effacer",
+    "cancel": "Annuler"
+  },
+  "search": {
+    "suggest": {
+      "placeholder": "Rechercher une ville, un quartier, un type de bien…",
+      "groups": {
+        "cities": "Villes",
+        "neighborhoods": "Quartiers",
+        "property_types": "Types"
+      },
+      "empty": "Aucun résultat pour « {query} »",
+      "fallback": {
+        "all_cities": "Voir toutes les villes",
+        "all_types": "Tous les types"
+      },
+      "loading": "Chargement…"
+    }
+  }
+}

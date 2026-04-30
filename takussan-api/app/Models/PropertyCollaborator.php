@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
+use App\Models\Enums\CollaboratorRole;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -10,25 +11,17 @@ class PropertyCollaborator extends AbstractModel
 {
     use HasFactory;
 
-    protected $table = 'property_collaborators';
-
     protected $fillable = [
-        'property_id',
-        'user_id',
-        'role',
-        'permissions',
-        'notes',
-        'invited_by',
-        'invitation_accepted',
-        'invitation_date',
-        'accepted_date'
+        'property_id', 'user_id', 'role',
+        'commission_share', 'invited_at', 'accepted_at', 'metadata',
     ];
 
     protected $casts = [
-        'permissions' => 'array',
-        'invitation_accepted' => 'boolean',
-        'invitation_date' => 'datetime',
-        'accepted_date' => 'datetime',
+        'role' => CollaboratorRole::class,
+        'commission_share' => 'decimal:2',
+        'invited_at' => 'datetime',
+        'accepted_at' => 'datetime',
+        'metadata' => 'array',
     ];
 
     public function property(): BelongsTo
@@ -39,10 +32,5 @@ class PropertyCollaborator extends AbstractModel
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function inviter(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'invited_by');
     }
 }

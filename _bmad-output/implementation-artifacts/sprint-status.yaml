@@ -1,0 +1,131 @@
+# generated: 2026-04-15
+# last_updated: 2026-04-16
+# project: takussan
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# NOTE: This project uses a custom ticket-based backlog (docs/backlog/tickets/TCK-NNN-*.md)
+# instead of standard BMad epics. The mapping used here:
+#   - Epics  → Phases from docs/backlog/INDEX.md
+#   - Stories → Individual TCK-NNN tickets
+#   - Source of truth for ticket details: docs/backlog/tickets/
+#   - Source of truth for specs: docs/features.md + docs/models-spec.md
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Ticket exists in backlog, not yet started
+#   - ready-for-dev: Story file created in implementation-artifacts folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+
+# WORKFLOW NOTES:
+# ===============
+# - Start with Phase 0 (foundation infrastructure), then Phase 1
+# - Respect the dependency graph in docs/backlog/INDEX.md
+# - P2/P3/EF features removed from backlog (were TCK-001→012)
+# - Backend prescriptif, Front intentionnel (see INDEX.md rule 6)
+# - Re-run sprint-planning to refresh auto-detected statuses
+
+generated: 2026-04-15
+last_updated: 2026-04-16
+project: takussan
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+
+  # ─────────────────────────────────────────────────────────
+  # EPIC 0 — Phase 0 : Fondation Infrastructure (P0)
+  # Must be done before any Phase 1 ticket
+  # ─────────────────────────────────────────────────────────
+  epic-0: backlog
+  0-1-tck-048-base-model-api-response: backlog    # M · P0 · back — BaseModelTrait + API Response (depends: TCK-013)
+  0-2-tck-049-spatie-permission-activitylog: backlog # M · P0 · back — Spatie Permission + ActivityLog (depends: TCK-013)
+  0-3-tck-050-spatie-medialibrary-upload: backlog  # S · P0 · back — Spatie MediaLibrary + Upload (depends: TCK-048)
+  0-4-tck-051-formrequest-validation: backlog      # S · P0 · back — FormRequest Base + Validation (depends: TCK-048)
+  0-5-tck-052-scout-search-infrastructure: backlog # S · P0 · back — Laravel Scout + Search (depends: TCK-048)
+  0-6-tck-053-test-infrastructure: backlog         # M · P0 · back — Test Infrastructure + Base Classes (depends: TCK-048/049)
+  0-7-tck-054-design-system-components: backlog     # M · P0 · front — Design System + Component Library (depends: TCK-013)
+  0-8-tck-055-layout-navigation: backlog           # M · P0 · front — Layout System + Navigation (depends: TCK-054/056)
+  0-9-tck-056-auth-middleware-protection: backlog   # S · P0 · front — Auth Middleware + Route Protection (depends: TCK-054)
+  0-10-tck-057-api-client-react-query: backlog     # S · P0 · front — API Client + React Query (depends: TCK-054/056)
+  0-11-tck-058-i18n-setup: backlog                 # S · P0 · front — i18n Setup FR/EN/WO (depends: TCK-054)
+  0-12-tck-059-form-patterns-validation: backlog   # S · P0 · front — Form Patterns + Zod + RHF (depends: TCK-054/057)
+  epic-0-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────
+  # EPIC 1 — Phase 1 : Socle Backend (P0)
+  # ─────────────────────────────────────────────────────────
+  epic-1: in-progress
+  1-1-tck-013-auth-accounts: review           # L · P0 · applicatif — Authentification & gestion de comptes
+  1-2-tck-014-roles-permissions: backlog      # M · P0 · applicatif — Rôles & permissions (depends: TCK-013/049)
+  1-3-tck-015-agency-team: backlog            # M · P0 · applicatif — Agence & équipe (depends: TCK-013/014/049)
+  1-4-tck-016-media-files: backlog            # M · P0 · applicatif — Médias & fichiers (depends: TCK-013/050)
+  1-5-tck-017-i18n-preferences: backlog       # S · P0 · applicatif — Internationalisation & préférences (depends: TCK-058)
+  1-6-tck-018-audit-trail: backlog            # S · P0 · applicatif — Audit & traçabilité (depends: TCK-013/049)
+  epic-1-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────
+  # EPIC 2 — Phase 1 (suite) : Domaines métier backend (P0)
+  # Requires: epic-1 (TCK-013, 014, 015, 016 done)
+  # ─────────────────────────────────────────────────────────
+  epic-2: backlog
+  2-1-tck-034-property-crud-base: backlog     # M · P0 · back — Property — Modèle & CRUD base (depends: TCK-013/014/015/016/048/051)
+  2-2-tck-035-property-address-media: backlog # S · P0 · back — Property — Adresse & médias (depends: TCK-034/050)
+  2-3-tck-036-property-tags-collabs-price: backlog # M · P0 · back — Property — Tags, collabs & prix (depends: TCK-034)
+  2-4-tck-020-crm-customers: backlog          # L · P0 · applicatif — CRM & relation client (depends: TCK-013/014/048/051)
+  2-5-tck-021-documents-contracts: backlog    # M · P0 · applicatif — Documents & contrats (depends: TCK-013/016)
+  2-6-tck-022-notifications: backlog          # M · P0 · applicatif — Notifications (depends: TCK-013)
+  2-7-tck-023-admin-configuration: backlog    # M · P0 · applicatif — Administration & configuration (depends: TCK-013/014/049)
+  2-8-tck-024-search-filters: backlog         # M · P0 · applicatif — Recherche & filtres backend (depends: TCK-034/052)
+  epic-2-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────
+  # EPIC 3 — Phase 2 : Front Public & Dashboard (P0)
+  # Requires: Phase 0 front foundation (TCK-054→059) + back endpoints
+  # ─────────────────────────────────────────────────────────
+  epic-3: backlog
+  3-1-tck-038-homepage-discovery: backlog     # S · P0 · front — Page d'accueil & découverte (depends: TCK-054/055/058, TCK-024)
+  3-2-tck-039-search-results: backlog         # M · P0 · front — Liste résultats de recherche (depends: TCK-054/055/057, TCK-024)
+  3-3-tck-040-property-detail: backlog        # M · P0 · front — Fiche bien immersive (depends: TCK-054/055/057, TCK-035)
+  3-4-tck-041-dashboard-agent-properties: backlog # M · P0 · front — Dashboard Agent — biens (depends: TCK-054/055/056/057, TCK-036)
+  3-5-tck-042-dashboard-agent-crm: backlog    # M · P0 · front — Dashboard Agent — CRM (depends: TCK-054/055/056/057, TCK-020)
+  epic-3-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────
+  # EPIC 4 — Phase 3 : Opérations métier (P1, back + front alternés)
+  # Requires: epic-2 + epic-3 (backend endpoints + design system done)
+  # ─────────────────────────────────────────────────────────
+  epic-4: backlog
+  4-1-tck-026-short-term-bookings: backlog    # M · P1 · back — Réservations backend (depends: TCK-034/020/048/051)
+  4-2-tck-043-bookings-frontend: backlog      # M · P1 · front — Réservations frontend (depends: TCK-054/056/057/059, TCK-026)
+  4-3-tck-027-long-term-leases: backlog       # L · P1 · back — Baux backend (depends: TCK-034/020/048/051)
+  4-4-tck-044-leases-frontend: backlog        # M · P1 · front — Baux frontend (depends: TCK-054/056/057/059, TCK-027)
+  4-5-tck-028-transactions-payments: backlog  # L · P1 · applicatif — Transactions & paiements (depends: TCK-026/027)
+  4-6-tck-029-messaging: backlog              # M · P1 · back — Messagerie backend (depends: TCK-013/034)
+  4-7-tck-045-messaging-frontend: backlog     # M · P1 · front — Messagerie frontend (depends: TCK-054/056/057/059, TCK-029)
+  4-8-tck-030-maintenance-requests: backlog   # M · P1 · applicatif — Maintenance & interventions (depends: TCK-034/027)
+  4-9-tck-031-inventory-inspections: backlog  # M · P1 · applicatif — État des lieux & inventaires (depends: TCK-034/027)
+  4-10-tck-032-reporting-dashboards: backlog  # L · P1 · applicatif — Reporting & tableaux de bord (depends: TCK-034/027/028)
+  4-11-tck-033-reviews-reputation: backlog    # M · P2 · applicatif — Avis & réputation (depends: TCK-013/034)
+  4-12-tck-046-favorites-map: backlog         # M · P1 · back — Favoris & carte interactive backend (depends: TCK-034/024)
+  4-13-tck-047-share-saved-searches-front: backlog # M · P1 · front — Favoris, carte & partage frontend (depends: TCK-054/056/057, TCK-046)
+  epic-4-retrospective: optional
+

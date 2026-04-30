@@ -2,92 +2,111 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Enums\ContractType;
+use App\Models\Enums\Currency;
+use App\Models\Enums\PropertyStatus;
+use App\Models\Enums\PropertyType;
+use App\Models\Enums\PropertyVisibility;
+use App\Models\Enums\RentPeriod;
+use App\Models\Property;
+use App\Services\Property\HierarchyService;
+use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
+/**
+ * TCK-086 — body schema for `PATCH /api/properties/{property}`.
+ *
+ * Carries the same fields as the inline validate() that this request
+ * replaces, plus the `parent_id` rules required to enforce
+ * anti-cycle / max-depth / same-agency invariants.
+ */
 class UpdatePropertyRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
-        $property = $this->route('property');
-        return $this->user()->hasPermissionTo('properties.update') ||
-            $this->user()->id === $property->user_id;
+        return $this->user() !== null;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
-            'parent_id' => 'nullable|exists:properties,id',
-            'user_id' => 'nullable|exists:users,id',
-            'title' => 'sometimes|string|max:255',
-            'description' => 'sometimes|string',
-            'type' => 'sometimes|string|in:apartment,house,villa,land,office,store',
-            'status' => 'sometimes|string|in:available,sold,rented,under_maintenance,unavailable',
-            'visibility' => 'sometimes|string|in:public,private,unlisted',
-            'price' => 'sometimes|numeric|min:0',
-            'area' => 'sometimes|numeric|min:0',
-            'position' => 'nullable|string',
-            'level' => 'nullable|integer|min:0',
-            'title_type' => 'nullable|string|in:freehold,leasehold,other',
-            'with_administrative_monitoring' => 'nullable|boolean',
-            'contract_type' => 'sometimes|string|in:sale,rent,lease',
-            'servicing' => 'nullable|array',
-            'servicing.*' => 'string',
-            'metadata' => 'nullable|array',
-            // 'metadata.construction_year' => 'nullable|string',
-            // 'metadata.has_balcony' => 'nullable|boolean',
-            // 'metadata.has_garden' => 'nullable|boolean',
-            // 'metadata.has_pool' => 'nullable|boolean',
-            // 'metadata.has_elevator' => 'nullable|boolean',
-            // 'metadata.air_conditioning' => 'nullable|boolean',
-            // 'metadata.parking_spaces' => 'nullable|integer|min:0',
-            // 'metadata.heating_type' => 'nullable|string',
-            // 'metadata.furnished_status' => 'nullable|string',
-            // 'metadata.bedrooms' => 'nullable|integer|min:0',
-            // 'metadata.bathrooms' => 'nullable|integer|min:0',
-            // 'metadata.is_developed' => 'nullable|boolean',
-            // 'metadata.has_water_connection' => 'nullable|boolean',
-            // 'metadata.has_electricity_connection' => 'nullable|boolean',
-            // 'metadata.has_sewage_connection' => 'nullable|boolean',
-            // 'metadata.has_reception' => 'nullable|boolean',
-            // 'metadata.has_kitchen' => 'nullable|boolean',
-            // 'metadata.has_meeting_rooms' => 'nullable|boolean',
-            // 'metadata.has_parking' => 'nullable|boolean',
-            // 'metadata.has_security' => 'nullable|boolean',
-            // 'metadata.has_storage' => 'nullable|boolean',
-            // 'metadata.has_loading_dock' => 'nullable|boolean',
-
-            // Address fields
-            'address' => 'sometimes|array',
-            'address.id' => 'nullable|exists:addresses,id',
-            'address.address' => 'required_with:address|string',
-            'address.street' => 'required_with:address|string',
-            'address.city' => 'required_with:address|string',
-            'address.state' => 'required_with:address|string',
-            'address.postal_code' => 'nullable|string',
-            'address.country' => 'required_with:address|string',
-            'address.district' => 'nullable|string',
-            'address.building' => 'nullable|string',
-            'address.latitude' => 'nullable|string',
-            'address.longitude' => 'nullable|string',
-
-            // Tags
-            'tags' => 'nullable|array',
-            'tags.*' => 'exists:tags,id',
-
-            // Media files
-            'images' => 'nullable|array',
-            'images.*' => 'file|image|max:10240',
-            'documents' => 'nullable|array',
-            'documents.*' => 'file|mimes:pdf,doc,docx,xls,xlsx|max:20480',
+            'title' => ['sometimes', 'string', 'max:255'],
+            'description' => ['sometimes', 'nullable', 'string'],
+            'type' => ['sometimes', Rule::enum(PropertyType::class)],
+            'contract_type' => ['sometimes', Rule::enum(ContractType::class)],
+            'rent_period' => ['sometimes', 'nullable', Rule::enum(RentPeriod::class)],
+            'status' => ['sometimes', Rule::enum(PropertyStatus::class)],
+            'visibility' => ['sometimes', Rule::enum(PropertyVisibility::class)],
+            'price' => ['sometimes', 'numeric', 'min:0'],
+            'currency' => ['sometimes', Rule::enum(Currency::class)],
+            'area' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'bedrooms' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'bathrooms' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'furnished' => ['sometimes', 'boolean'],
+            'year_built' => ['sometimes', 'nullable', 'integer', 'min:1800', 'max:2100'],
+            'parking_spaces' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'featured' => ['sometimes', 'boolean', Rule::prohibitedIf(! $this->user()->hasRole(['admin', 'super_admin']))],
+            'available_from' => ['sometimes', 'nullable', 'date'],
+            'parent_id' => [
+                'sometimes',
+                'nullable',
+                'integer',
+                Rule::exists('properties', 'id')->whereNull('deleted_at'),
+                $this->parentIdRule(),
+            ],
+            'address' => ['sometimes', 'nullable', 'array'],
+            'address.street' => ['sometimes', 'nullable', 'string'],
+            'address.neighborhood' => ['sometimes', 'nullable', 'string'],
+            'address.city' => ['sometimes', 'nullable', 'string'],
+            'address.region' => ['sometimes', 'nullable', 'string'],
+            'address.country' => ['sometimes', 'nullable', 'string', 'size:2'],
+            'address.latitude' => ['sometimes', 'nullable', 'numeric'],
+            'address.longitude' => ['sometimes', 'nullable', 'numeric'],
         ];
+    }
+
+    /**
+     * Composite rule covering same-agency, anti-cycle and max-depth on the
+     * `parent_id` payload key. Runs only when `parent_id` is non-null
+     * (detaching to root is always allowed).
+     */
+    protected function parentIdRule(): ValidationRule
+    {
+        return new class($this->route('property')) implements ValidationRule
+        {
+            public function __construct(private readonly ?Property $node) {}
+
+            public function validate(string $attribute, mixed $value, Closure $fail): void
+            {
+                if ($value === null || $value === '' || $this->node === null) {
+                    return;
+                }
+
+                $candidate = Property::find($value);
+                if ($candidate === null) {
+                    return; // exists rule handles this case.
+                }
+
+                if ($candidate->agency_id !== $this->node->agency_id) {
+                    $fail(__('messages.property_parent_same_agency_required'));
+
+                    return;
+                }
+
+                $svc = app(HierarchyService::class);
+
+                if ($svc->wouldCreateCycle($this->node, $candidate)) {
+                    $fail(__('messages.property_parent_cycle_detected'));
+
+                    return;
+                }
+
+                if ($svc->wouldExceedMaxDepth($this->node, $candidate)) {
+                    $fail(__('messages.property_parent_max_depth_exceeded'));
+                }
+            }
+        };
     }
 }

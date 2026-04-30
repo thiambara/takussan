@@ -2,20 +2,13 @@
 
 namespace App\Http\Controllers\Base;
 
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Foundation\Bus\DispatchesJobs;
-use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller as BaseController;
 
-class
-Controller extends BaseController
+abstract class Controller extends BaseController
 {
-    use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
-
-    public function json($data = [], $status = 200, array|null $headers = null, $options = 0): JsonResponse
+    protected function json(mixed $data, int $status = 200, array $headers = []): JsonResponse
     {
-        $headers ??= [];
-        return response()->json($data, $status, $headers, $options);
+        return response()->json($data, $status, $headers);
     }
 }

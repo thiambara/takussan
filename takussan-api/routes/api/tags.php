@@ -1,22 +1,13 @@
 <?php
 
-use App\Http\Controllers\TagController;
+use App\Http\Controllers\Api\TagController;
 use Illuminate\Support\Facades\Route;
 
-/**
- * TAG ROUTES
- * ===========
- */
-Route::prefix('tags')->controller(TagController::class)->group(function () {
-    /**
-     * PRIVATE ROUTES
-     */
-    Route::middleware("auth:sanctum")->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::post('/', 'store')->name('store');
-        Route::get('/{tag}', 'show')->whereNumber('tag')->name('show');
-        Route::put('/{tag}', 'update')->whereNumber('tag')->name('update');
-        Route::delete('/{tag}', 'destroy')->whereNumber('tag')->name('destroy');
-        Route::get('/by-type', 'getByType')->name('by-type');
-    });
-})->name('tags.');
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('tags', [TagController::class, 'index'])->name('tags.index');
+    Route::post('tags', [TagController::class, 'store'])->name('tags.store');
+    Route::get('tags/{tag}', [TagController::class, 'show'])->name('tags.show');
+    Route::put('tags/{tag}', [TagController::class, 'update'])->name('tags.update');
+    Route::patch('tags/{tag}', [TagController::class, 'update']);
+    Route::delete('tags/{tag}', [TagController::class, 'destroy'])->name('tags.destroy');
+});
