@@ -55,6 +55,14 @@ _(vide — TCK-104 en cours)_
 - [TCK-115](tickets/TCK-115-super-admin-no-agency-empty-states.md) — Super_admin sans agence — états vides sur overview/bookings/leases/visits `M · P1 · bug` **[review]**
 - [TCK-116](tickets/TCK-116-admin-sidebar-routes-404-doublon.md) — Admin sidebar — routes 404 + doublon Équipe `S · P1 · bug`
 
+### Vague 13 — Bugs QA visiteur anonyme (visiteur-anonyme-qa.md)
+
+- [TCK-124](tickets/TCK-124-auth-bypass-visite-signalement.md) — Auth bypass — "Demander une visite" et "Signaler" accessibles sans connexion `S · P1 · bug`
+- [TCK-125](tickets/TCK-125-select-affiche-cles-internes.md) — UI Select — dropdowns affichent les clés internes au lieu des labels `S · P2 · bug` **[review]**
+- [TCK-126](tickets/TCK-126-contact-modal-vs-redirect-login.md) — Fiche bien — "Envoyer un message" devrait rediriger vers /auth/login `S · P2 · bug`
+- [TCK-127](tickets/TCK-127-cta-faire-offre-libelle-reserver.md) — Fiche bien — CTA "Faire une offre" devrait être libellé "Réserver" `S · P2 · bug`
+- [TCK-128](tickets/TCK-128-filtres-avances-disponibilite-etage.md) — Filtres avancés — Disponibilité et Étage absents sur /properties `M · P1 · bug`
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_

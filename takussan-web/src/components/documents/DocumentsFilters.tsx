@@ -29,6 +29,16 @@ const DOCUMENTABLE_FILTER_OPTIONS: readonly { value: DocumentableType; label: st
 
 const ANY_VALUE = '__any__';
 
+const DOC_TYPE_ITEMS = [
+  { value: ANY_VALUE, label: 'Toutes catégories' },
+  ...DOCUMENT_TYPE_OPTIONS,
+] as const;
+
+const DOC_ENTITY_ITEMS = [
+  { value: ANY_VALUE, label: 'Toutes entités' },
+  ...DOCUMENTABLE_FILTER_OPTIONS,
+] as const;
+
 export function DocumentsFilters() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -79,6 +89,7 @@ export function DocumentsFilters() {
         <Select
           value={currentType}
           onValueChange={(v) => update('type', v === ANY_VALUE ? null : v)}
+          items={DOC_TYPE_ITEMS}
         >
           <SelectTrigger id="documents-type" className="w-full">
             <SelectValue placeholder="Toutes catégories" />
@@ -102,6 +113,7 @@ export function DocumentsFilters() {
           onValueChange={(v) =>
             update('documentable_type', v === ANY_VALUE ? null : v)
           }
+          items={DOC_ENTITY_ITEMS}
         >
           <SelectTrigger id="documents-entity" className="w-full">
             <SelectValue placeholder="Toutes entités" />

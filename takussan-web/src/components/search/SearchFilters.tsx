@@ -8,6 +8,11 @@ const QUARTERS = [
   'Grand Yoff', 'Biscuiterie', 'HLM', 'Sicap', 'Diamniadio',
 ];
 
+const QUARTER_ITEMS = [
+  { value: 'all', label: 'Tous les quartiers' },
+  ...QUARTERS.map(q => ({ value: q, label: q })),
+];
+
 const PRICE_RANGES = [
   { label: '< 200 000 FCFA',       min: undefined,  max: 200_000 },
   { label: '200 000 – 500 000',    min: 200_000,    max: 500_000 },
@@ -51,6 +56,7 @@ export function SearchFilters({ filters, onSearch }: Props) {
         <Select
           value={filters.location ?? 'all'}
           onValueChange={(v) => update({ location: !v || v === 'all' ? undefined : v })}
+          items={QUARTER_ITEMS}
         >
           <SelectTrigger className="w-full rounded-lg text-sm h-9">
             <SelectValue />

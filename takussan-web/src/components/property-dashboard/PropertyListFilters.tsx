@@ -134,6 +134,7 @@ function FilterSelect({
       <Select
         value={value}
         onValueChange={(v) => onChange((v ?? '') as string)}
+        items={options}
       >
         <SelectTrigger className="w-full">
           <SelectValue placeholder={placeholder} />

@@ -12,6 +12,12 @@ import { navLinks, categories, moreCategories } from '@/data/mockData';
 import { useAuth } from '@/context/AuthContext';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 
+const TRANSACTION_OPTIONS = [
+  { value: 'Acheter', label: 'Acheter' },
+  { value: 'Louer', label: 'Louer' },
+  { value: 'Neuf', label: 'Neuf' },
+] as const;
+
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   apartment: Building2,
   villa: Home,
@@ -129,7 +135,7 @@ export function Navbar({ className }: NavbarProps) {
             <div className="w-px h-6 bg-gray-200 shrink-0" />
             <div className="flex items-center gap-1.5 px-4 py-2.5 shrink-0">
               <Home className="w-4 h-4 text-primary" />
-              <Select value={transaction} onValueChange={(v) => setTransaction(v ?? 'Acheter')}>
+              <Select value={transaction} onValueChange={(v) => setTransaction(v ?? 'Acheter')} items={TRANSACTION_OPTIONS}>
                 <SelectTrigger className="border-none shadow-none bg-transparent p-0 h-auto text-sm text-gray-900 font-medium focus-visible:ring-0 focus-visible:border-transparent gap-1">
                   <SelectValue />
                 </SelectTrigger>

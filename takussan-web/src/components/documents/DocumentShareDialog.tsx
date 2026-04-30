@@ -172,7 +172,7 @@ export function DocumentShareDialog({
               <Label htmlFor="share-ttl" className="mb-1.5 block text-sm font-medium">
                 Durée
               </Label>
-              <Select value={ttl} onValueChange={(v) => setTtl(v as TTLOption)}>
+              <Select value={ttl} onValueChange={(v) => setTtl(v as TTLOption)} items={TTL_OPTIONS}>
                 <SelectTrigger id="share-ttl" className="w-full">
                   <SelectValue />
                 </SelectTrigger>

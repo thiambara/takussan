@@ -84,6 +84,7 @@ export function PropertyReportButton({ slug }: PropertyReportButtonProps) {
                 <Select
                   value={reason}
                   onValueChange={(v) => setReason((v as ReportPayload['reason']) ?? 'spam')}
+                  items={REASONS}
                 >
                   <SelectTrigger>
                     <SelectValue />

@@ -57,6 +57,7 @@ export function PaymentsHistoryFilters() {
         <Select
           value={searchParams.get('status') ?? ANY}
           onValueChange={(v) => update('status', v === ANY ? null : v)}
+          items={[{ value: ANY, label: 'Tous' }, ...STATUS_OPTIONS]}
         >
           <SelectTrigger id="payments-status" className="w-full">
             <SelectValue placeholder="Tous" />
@@ -79,6 +80,7 @@ export function PaymentsHistoryFilters() {
         <Select
           value={searchParams.get('entity_type') ?? ANY}
           onValueChange={(v) => update('entity_type', v === ANY ? null : v)}
+          items={[{ value: ANY, label: 'Toutes' }, ...ENTITY_OPTIONS]}
         >
           <SelectTrigger id="payments-entity" className="w-full">
             <SelectValue placeholder="Toutes" />

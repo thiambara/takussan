@@ -18,6 +18,8 @@ const SORT_OPTIONS = [
   { value: 'created_desc', label: 'Plus récent' },
 ] as const;
 
+const PER_PAGE_OPTIONS = [30, 40, 60, 70].map(n => ({ value: String(n), label: `${n} / page` }));
+
 const FILTER_LABELS: Partial<Record<keyof SearchFilters, (v: unknown) => string>> = {
   contract_type: (v) => v === 'sale' ? 'Vente' : 'Location',
   type: (v) => ({
@@ -99,6 +101,7 @@ export function SearchToolbar({
           <Select
             value={String(filters.per_page ?? 30)}
             onValueChange={(v) => onPerPageChange(Number(v))}
+            items={PER_PAGE_OPTIONS}
           >
             <SelectTrigger
               className="h-auto rounded-full py-1.5 px-3 border-gray-200 bg-white text-gray-700 cursor-pointer"
@@ -117,6 +120,7 @@ export function SearchToolbar({
           <Select
             value={filters.sort ?? 'relevance'}
             onValueChange={(v) => onSortChange(v as SearchFilters['sort'])}
+            items={SORT_OPTIONS}
           >
             <SelectTrigger className="h-auto rounded-full py-1.5 px-3 border-gray-200 bg-white text-gray-700 cursor-pointer">
               <SelectValue />
