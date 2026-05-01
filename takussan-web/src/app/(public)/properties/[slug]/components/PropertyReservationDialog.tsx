@@ -83,7 +83,7 @@ export function PropertyReservationDialog({
               Annuler
             </Button>
             <Link
-              href={`/login?redirect=/properties/${property.slug}`}
+              href={`/auth/login?redirect=/properties/${property.slug}`}
               className="inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground px-3 h-8 text-sm font-medium hover:bg-primary/80 transition-colors"
             >
               Se connecter

@@ -1,7 +1,7 @@
 ---
 id: TCK-126
 title: Fiche bien — "Envoyer un message" devrait rediriger vers /auth/login
-status: todo
+status: review
 phase: P2
 family: bug
 estimate: S
@@ -56,4 +56,5 @@ Comportement attendu : redirection directe vers `/auth/login?redirect=/propertie
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **PropertyContactMessageDialog.tsx** : le guard auth `!user` était déjà en place (gate dialog "Connexion requise" avec lien "Se connecter"). Seul le chemin de redirection était cassé (`/login` → `/auth/login`). Corrigé dans le cadre de TCK-124.
+- Aucun autre changement nécessaire — le composant bloquait déjà les utilisateurs non connectés et proposait un lien de connexion avec paramètre `redirect`.

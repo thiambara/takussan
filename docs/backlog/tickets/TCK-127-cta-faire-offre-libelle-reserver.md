@@ -1,7 +1,7 @@
 ---
 id: TCK-127
 title: Fiche bien — CTA "Faire une offre" devrait être libellé "Réserver"
-status: todo
+status: review
 phase: P2
 family: bug
 estimate: S
@@ -54,4 +54,5 @@ Le libellé "Réserver" est cohérent avec la terminologie de la spec §1.3 "Dem
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **PropertyBookingCard.tsx** : le libellé est déjà conditionnel — `isRent ? 'Réserver' : 'Faire une offre'` (ligne 46). Aucun changement nécessaire.
+- Le comportement demandé est déjà en place dans le code.

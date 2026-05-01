@@ -56,7 +56,7 @@ export function PropertyContactMessageDialog({
               Annuler
             </Button>
             <Link
-              href={`/login?redirect=/properties/${slug}`}
+              href={`/auth/login?redirect=/properties/${slug}`}
               className="inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground px-3 h-8 text-sm font-medium hover:bg-primary/80 transition-colors"
             >
               Se connecter

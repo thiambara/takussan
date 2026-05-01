@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import {
   Dialog,
   DialogContent,
@@ -41,9 +42,6 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
   const [date, setDate] = useState('');
   const [time, setTime] = useState('10:00');
   const [type, setType] = useState<VisitType>('in_person');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
 
   async function handleSubmit(e: React.FormEvent): Promise<void> {
@@ -55,19 +53,38 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
         scheduled_at: scheduledAt,
         type,
         notes: notes || undefined,
-        ...(user
-          ? {}
-          : {
-              visitor_name: name,
-              visitor_email: email,
-              visitor_phone: phone,
-            }),
       });
       onOpenChange(false);
       onSuccess?.();
     } catch {
       // error already tracked by hook
     }
+  }
+
+  if (!user) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Connectez-vous pour visiter</DialogTitle>
+            <DialogDescription>
+              Vous devez être connecté pour demander une visite.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+              Annuler
+            </Button>
+            <Link
+              href={`/auth/login?redirect=/properties/${slug}`}
+              className="inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground px-3 h-8 text-sm font-medium hover:bg-primary/80 transition-colors"
+            >
+              Se connecter
+            </Link>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
   }
 
   return (
@@ -111,31 +128,6 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
               </SelectContent>
             </Select>
           </label>
-          {!user && (
-            <div className="space-y-3">
-              <Input
-                type="text"
-                required
-                placeholder="Votre nom"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-              <Input
-                type="email"
-                required
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <Input
-                type="tel"
-                required
-                placeholder="Téléphone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
-            </div>
-          )}
           <label className="block space-y-1 text-sm">
             <span className="text-stone-700">Message (optionnel)</span>
             <Textarea

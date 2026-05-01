@@ -1,7 +1,7 @@
 ---
 id: TCK-124
 title: Fiche bien — auth bypass sur "Demander une visite" et "Signaler"
-status: todo
+status: review
 phase: P1
 family: bug
 estimate: S
@@ -62,4 +62,7 @@ Cohérence avec le comportement déjà en place pour "Faire une offre" : une mod
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **PropertyVisitDialog.tsx** : ajout d'un guard `!user` early return avec une gate dialog "Connectez-vous pour visiter" + lien `/auth/login?redirect=/properties/${slug}`. Suppression des champs invités (name/email/phone) et de la logique conditionnelle dans le submit handler.
+- **PropertyReportButton.tsx** : ajout de `useAuth()`, check `user` dans `handleClick()` → si null, affiche une gate dialog "Connexion requise" au lieu du formulaire de signalement.
+- Les deux composants suivent le même pattern que `PropertyContactMessageDialog.tsx`.
+- Correction du chemin `/login` → `/auth/login` dans les 4 composants concernés (PropertyVisitDialog, PropertyReportButton, PropertyContactMessageDialog, PropertyReservationDialog) — le chemin `/login` n'existe pas, la page de login est à `/auth/login`.
