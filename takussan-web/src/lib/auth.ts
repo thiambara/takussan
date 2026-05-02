@@ -63,8 +63,8 @@ export async function logout(token: string): Promise<void> {
   return apiRequest('/api/auth/logout', { method: 'POST', token });
 }
 
-export async function getMe(token: string): Promise<User> {
-  return apiRequest('/api/auth/me', { token });
+export async function getMe(token: string, activeProfileId?: string): Promise<User> {
+  return apiRequest('/api/auth/me', { token, activeProfileId });
 }
 
 export async function updateProfile(token: string, payload: UpdateProfilePayload): Promise<User> {

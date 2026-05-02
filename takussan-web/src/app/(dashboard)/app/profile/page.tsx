@@ -9,6 +9,7 @@ import { ProfileAgentSection } from '@/components/profile/ProfileAgentSection';
 import { ProfileOwnerSection } from '@/components/profile/ProfileOwnerSection';
 import { ProfileAdminSection } from '@/components/profile/ProfileAdminSection';
 import { ProfileSecuritySection } from '@/components/profile/ProfileSecuritySection';
+import { MyProfilesSection } from '@/components/profile/MyProfilesSection';
 
 export default async function ProfilePage() {
   const user = await getMeAction();
@@ -16,6 +17,7 @@ export default async function ProfilePage() {
     <ProfileLayout>
       <ProfileHeader user={user} />
       <ProfileContactSection user={user} />
+      <MyProfilesSection />
       {isCustomer(user.roles) && <ProfileCustomerSection user={user} />}
       {isAgent(user.roles) && <ProfileAgentSection user={user} />}
       {isOwner(user.roles) && <ProfileOwnerSection user={user} />}

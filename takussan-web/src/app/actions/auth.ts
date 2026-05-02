@@ -3,7 +3,7 @@
 import { cache } from 'react';
 import { ApiError } from '@/lib/api';
 import { getMe, logout, resendVerification, updateProfile, UpdateProfilePayload } from '@/lib/auth';
-import { clearToken, getToken } from '@/lib/session';
+import { clearToken, getActiveProfileId, getToken } from '@/lib/session';
 import { redirect } from 'next/navigation';
 
 export async function resendVerificationEmailAction(): Promise<{ ok: boolean; message?: string }> {
@@ -62,8 +62,10 @@ const cachedGetMe = cache(async () => {
   const token = await getToken();
   if (!token) redirect('/auth/login');
 
+  const activeProfileId = await getActiveProfileId();
+
   try {
-    return await getMe(token);
+    return await getMe(token, activeProfileId);
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) {
       // getMeAction is called during RSC render from layouts/pages, where

@@ -1,7 +1,7 @@
 ---
 id: TCK-143
 title: "Frontend — Sélecteur de profil actif & contexte multi-profil"
-status: todo
+status: review
 phase: P0
 family: front
 estimate: M
@@ -78,4 +78,10 @@ Endpoints exposés par TCK-141 :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Proxy route handlers** `src/app/api/me/profiles/route.ts` et `src/app/api/me/active-profile/route.ts` : les hooks client (`useMyProfiles`, `useSwitchActiveProfile`) tapent ces endpoints same-origin pour que le cookie httpOnly `active_profile_id` posé par le backend Laravel transite naturellement (pas de cross-origin). Le proxy lit aussi le cookie et le réinjecte côté Next pour la cohérence entre la session SSR et la session client.
+- **Cookie SSR forwarding** : `apiRequest` accepte désormais `activeProfileId?: string` qui pose `X-Profile-Id`. `getMe(token, activeProfileId?)` est appelé avec la valeur de `getActiveProfileId()` (cookie côté Next). Sans ça, le SSR `/auth/me` lisait toujours le profil auto-basculé et écrasait visuellement le profil choisi.
+- **Active profile state** : volontairement non stocké dans `AuthContext` — la source de vérité est le cookie httpOnly + le re-fetch React Query de `['me','profiles']` et `['auth','me']`. `useSwitchActiveProfile.onSuccess` invalide les deux et appelle `refreshUser` pour synchroniser l'in-memory user avec les rôles dérivés du nouveau profil.
+- **fields[]/include= obligatoires** : `fetchMyProfiles` construit toujours `fields[profiles]=…&fields[agencies]=…&include=agency` — pas de fan-out, pas de fetch all-fields (cf. CLAUDE.md).
+- **Pas de switcher ≠ pas de label** : mono-profil rend un libellé statique pour signaler le contexte (cohérence visuelle), super_admin sans profil rend "Admin Takussan", autres sans profil rendent rien (l'app actuelle n'a pas encore de slot pour un onboarding "ajouter un profil" — TCK out-of-scope, créer un ticket si besoin).
+- **Cookie stale** : si le cookie référence un profil supprimé, le backend l'ignore (TCK-141) et auto-bascule. Pas de logique côté client à ajouter — le `meta.active_profile_id` reflète l'état réel à chaque mount.
+- **Tests UI** (`ProfileSwitcher.test.tsx`, 4 cas) : empty + no-roles → null, empty + super_admin → libellé, mono-profile → libellé statique, multi-profile → trigger + click + appel PATCH + refreshUser.
