@@ -63,6 +63,17 @@ _(vide — TCK-104 en cours)_
 
 _(TCK-129 passé en review)_
 
+### Vague 15 — Câblage des zones UI stub (StubPlaceholder / "Bientôt disponible")
+
+- [TCK-130](tickets/TCK-130-dashboard-app-wiring.md) — Dashboard `/app` — câblage tuiles & contenu personnalisé `M · P1 · front`
+- [TCK-131](tickets/TCK-131-dashboard-admin-agency.md) — Dashboard `/admin` agence — câblage indicateurs & vue d'ensemble `M · P1 · front`
+- [TCK-132](tickets/TCK-132-admin-properties-global.md) — `/admin/properties` — Gestion globale des biens (super_admin) `M · P1 · front`
+- [TCK-133](tickets/TCK-133-admin-users-management.md) — `/admin/users` — Gestion des utilisateurs (activation, blocage, rôles) `M · P1 · front`
+- [TCK-134](tickets/TCK-134-admin-finances-overview.md) — `/admin/finances` — Vue comptable de l'agence `L · P1 · front`
+- [TCK-135](tickets/TCK-135-admin-roles-editor.md) — `/admin/roles` — Éditeur de rôles & permissions personnalisés `M · P1 · front`
+- [TCK-136](tickets/TCK-136-profile-customer-search-preferences.md) — Profil locataire — Préférences de recherche & alertes `M · P1 · front`
+- [TCK-137](tickets/TCK-137-profile-contact-phone-edit.md) — Profil contact — Édition téléphone `S · P1 · front`
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
