@@ -27,15 +27,19 @@ class DashboardAgencyController extends Controller
     {
         $user = $request->user();
 
-        $agencyId = $request->integer('agency_id') ?: $user->agency_id;
+        $activeAgencyId = $request->activeProfile()?->agency_id ?? $user->agency_id;
+        $agencyId = $request->integer('agency_id') ?: $activeAgencyId;
         abort_unless($agencyId, 403, 'No agency context.');
 
         $agency = Agency::findOrFail($agencyId);
 
         abort_unless(
-            $user->hasRole('super_admin')
+            $user->isSuperAdmin()
                 || $agency->primary_admin_id === $user->id
-                || ($user->agency_id === $agency->id && $user->hasRole(['admin', 'agency_admin', 'agent'])),
+                || (
+                    ($user->isAgentAt($agency->id) || $user->isOwnerAt($agency->id))
+                    && $user->hasRole(['admin', 'agency_admin', 'agent'])
+                ),
             403,
         );
 

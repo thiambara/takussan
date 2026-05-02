@@ -39,7 +39,7 @@ class AgencyController extends Controller
 
         $alreadyOwns = Agency::where('primary_admin_id', $user->id)->exists();
         abort_if(
-            $alreadyOwns && ! $user->hasRole(['admin', 'super_admin']),
+            $alreadyOwns && ! ($user->isSuperAdmin() || $user->hasRole('admin')),
             422,
             'You already administer an agency.'
         );
@@ -74,9 +74,13 @@ class AgencyController extends Controller
     {
         $user = $request->user();
         abort_unless(
-            $user->hasRole(['admin', 'super_admin'])
+            $user->isSuperAdmin()
+            || $user->hasRole('admin')
             || $agency->primary_admin_id === $user->id
-            || ($user->agency_id === $agency->id && $user->hasRole('agency_admin')),
+            || (
+                ($user->isAgentAt($agency->id) || $user->isOwnerAt($agency->id))
+                && $user->hasRole('agency_admin')
+            ),
             403
         );
 
@@ -91,7 +95,7 @@ class AgencyController extends Controller
     {
         $user = $request->user();
         abort_unless(
-            $user->hasRole(['admin', 'super_admin']) || $agency->primary_admin_id === $user->id,
+            $user->isSuperAdmin() || $user->hasRole('admin') || $agency->primary_admin_id === $user->id,
             403
         );
         // destroy is intentionally restricted to super_admin and primary_admin_id — agency_admin can edit but not delete.
@@ -252,9 +256,13 @@ class AgencyController extends Controller
     {
         $user = $request->user();
         abort_unless(
-            $user->hasRole(['admin', 'super_admin'])
+            $user->isSuperAdmin()
+            || $user->hasRole('admin')
             || $agency->primary_admin_id === $user->id
-            || ($user->agency_id === $agency->id && $user->hasRole('agency_admin')),
+            || (
+                ($user->isAgentAt($agency->id) || $user->isOwnerAt($agency->id))
+                && $user->hasRole('agency_admin')
+            ),
             403,
         );
     }

@@ -29,9 +29,12 @@ class AgencyStatsController extends Controller
         $actor = $request->user();
 
         abort_unless(
-            $actor->hasRole('super_admin')
+            $actor->isSuperAdmin()
                 || $agency->primary_admin_id === $actor->id
-                || ($actor->agency_id === $agency->id && $actor->hasRole(['admin', 'agency_admin'])),
+                || (
+                    ($actor->isAgentAt($agency->id) || $actor->isOwnerAt($agency->id))
+                    && $actor->hasRole(['admin', 'agency_admin'])
+                ),
             403,
         );
 

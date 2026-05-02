@@ -45,11 +45,13 @@ class DashboardStatsTest extends TestCase
 
     public function test_super_admin_stats(): void
     {
-        $dummyAgency = Agency::factory()->create();
-        Role::create(['name' => 'super_admin', 'team_id' => $dummyAgency->id]);
-        setPermissionsTeamId($dummyAgency->id);
+        // TCK-144 — super_admin is a *global* role, always assigned under
+        // team_id=null. Probing it under any other team is non-canonical
+        // and the new `User::isSuperAdmin()` helper enforces team-null.
+        Role::create(['name' => 'super_admin', 'team_id' => null]);
+        setPermissionsTeamId(null);
 
-        $admin = User::factory()->create(['agency_id' => $dummyAgency->id]);
+        $admin = User::factory()->create();
         $admin->assignRole('super_admin');
         Sanctum::actingAs($admin);
 

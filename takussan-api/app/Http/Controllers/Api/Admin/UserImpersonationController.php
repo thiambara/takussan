@@ -37,6 +37,15 @@ class UserImpersonationController extends Controller
             return $this->json(['message' => 'You cannot impersonate yourself.'], 422);
         }
 
+        // Revoke any prior impersonation tokens for this target so repeated
+        // start() calls don't pile up long-lived tokens — every fresh start
+        // supersedes the previous session for that user.
+        PersonalAccessToken::query()
+            ->where('tokenable_type', $user->getMorphClass())
+            ->where('tokenable_id', $user->id)
+            ->where('name', self::IMPERSONATION_TOKEN_NAME)
+            ->delete();
+
         $expiresAt = now()->addMinutes(self::IMPERSONATION_TTL_MINUTES);
         $token = $user->createToken(self::IMPERSONATION_TOKEN_NAME, ['*'], $expiresAt);
 

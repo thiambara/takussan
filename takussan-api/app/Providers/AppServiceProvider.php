@@ -179,7 +179,11 @@ class AppServiceProvider extends ServiceProvider
         // TCK-105 — purge CDN cache when a media item is deleted or replaced.
         Media::observe(MediaCdnObserver::class);
 
-        Gate::before(fn (?User $user) => $user?->hasRole('super_admin') ? true : null);
+        // TCK-144 — Probe under team_id=null. Without `isSuperAdmin()` here a
+        // super-admin acting under an agency context (e.g. via `X-Profile-Id`)
+        // would silently lose the gate-bypass — `Gate::before` runs at whatever
+        // team the registrar happens to be on at policy-check time.
+        Gate::before(fn (?User $user) => $user?->isSuperAdmin() ? true : null);
 
         // Spatie Media lives outside App\Models so auto-discovery misses it.
         Gate::policy(Media::class, MediaPolicy::class);

@@ -29,15 +29,18 @@ class PropertyModerationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user->hasRole(['agency_admin', 'super_admin']), 403);
+        abort_unless($user->isSuperAdmin() || $user->hasRole('agency_admin'), 403);
 
         $query = Property::query()
             ->with(['owner', 'agency', 'address'])
             ->where('status', PropertyStatus::PendingReview);
 
-        // An agency_admin only sees their own agency's queue.
-        if ($user->hasRole('agency_admin') && ! $user->hasRole('super_admin')) {
-            $query->where('agency_id', $user->agency_id);
+        // An agency_admin only sees their own agency's queue. We read the
+        // agency from the active profile (set by ResolveActiveProfile) so a
+        // multi-agency admin who switched profiles gets the correct slice.
+        if (! $user->isSuperAdmin()) {
+            $activeAgencyId = $request->activeProfile()?->agency_id ?? $user->agency_id;
+            $query->where('agency_id', $activeAgencyId);
         }
 
         if ($search = $request->string('filter.search')->trim()->value()) {

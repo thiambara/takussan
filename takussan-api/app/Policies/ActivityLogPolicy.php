@@ -8,6 +8,6 @@ class ActivityLogPolicy
 {
     public function export(User $user): bool
     {
-        return $user->hasRole(['agency_admin', 'super_admin']);
+        return $user->isSuperAdmin() || $user->hasRole('agency_admin');
     }
 }

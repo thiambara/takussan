@@ -66,12 +66,14 @@ class ActivityLogExporter
 
     private function scopeForUser(Builder $query, User $user): void
     {
-        if ($user->hasRole('super_admin')) {
+        if ($user->isSuperAdmin()) {
             return;
         }
 
         // agency_admin sees only logs whose causer belongs to their agency.
-        $agencyId = $user->agency_id;
+        // Active-profile context drives the agency scope when in HTTP — out
+        // of HTTP we fall back to the legacy single-agency accessor.
+        $agencyId = request()?->activeProfile()?->agency_id ?? $user->agency_id;
         if (! $agencyId) {
             $query->whereRaw('0 = 1');
 

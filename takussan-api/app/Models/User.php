@@ -29,6 +29,7 @@ use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\Permission\PermissionRegistrar;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements HasLocalePreference, HasMedia, MustVerifyEmail
@@ -128,10 +129,12 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
      * issue `$user->update(['agency_id' => X])` to attach a user to an
      * agency. Without a column to write to, that becomes a silent no-op
      * and downstream policies break. We shim the assignment by ensuring
-     * an OwnerProfile exists for the (user, agency) pair, and a `null`
-     * value detaches every agency-scoped profile (mirrors the legacy
-     * "remove from agency" semantics). This is transitional — new code
-     * should manipulate profiles directly.
+     * an OwnerProfile exists for the (user, agency) pair.
+     *
+     * `null` is a no-op — the previous behavior (deleting *every* owner
+     * and agent profile) was destructive once a single user could hold
+     * profiles at multiple agencies. Removing a user from a specific
+     * agency now requires the explicit profile API (e.g. `removeAgent`).
      */
     public function setAgencyIdAttribute(?int $value): void
     {
@@ -146,15 +149,34 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         }
 
         if ($value === null) {
-            $this->ownerProfiles()->delete();
-            $this->agentProfiles()->delete();
-
             return;
         }
 
         OwnerProfile::query()->firstOrCreate(
             ['user_id' => $this->id, 'agency_id' => $value],
         );
+    }
+
+    /**
+     * TCK-144 — `super_admin` is always assigned under `team_id = null`
+     * (it's a global role). Probing it under whatever team the registrar
+     * happens to be on right now would silently miss the role for any
+     * super-admin who is also acting inside an agency context (e.g. via
+     * `X-Profile-Id`). This helper pins the team probe to null and
+     * restores the previous context, so callers don't have to.
+     */
+    public function isSuperAdmin(): bool
+    {
+        $registrar = app(PermissionRegistrar::class);
+        $previous = $registrar->getPermissionsTeamId();
+        $registrar->setPermissionsTeamId(null);
+        $this->unsetRelation('roles');
+        try {
+            return $this->hasRole('super_admin');
+        } finally {
+            $registrar->setPermissionsTeamId($previous);
+            $this->unsetRelation('roles');
+        }
     }
 
     protected static function booted(): void

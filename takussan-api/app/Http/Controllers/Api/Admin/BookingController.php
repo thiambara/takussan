@@ -29,11 +29,16 @@ class BookingController extends Controller
         $user = $request->user();
 
         // Check minimum role requirement: agency_admin or super_admin
-        abort_unless($user->hasRole(['agency_admin', 'super_admin']), 403, 'Insufficient privileges.');
+        abort_unless($user->isSuperAdmin() || $user->hasRole('agency_admin'), 403, 'Insufficient privileges.');
 
-        // Agency admins can only expire bookings from their own agency
-        if ($user->hasRole('agency_admin') && ! $user->hasRole('super_admin')) {
-            abort_unless($booking->agency_id === $user->agency_id, 403, 'Booking does not belong to your agency.');
+        // Agency admins can only expire bookings from their own agency.
+        // The agency-admin probe is scoped to the active profile's team via
+        // ResolveActiveProfile; combined with `isAgentAt`/`isOwnerAt` we
+        // verify the user is actually a member of the booking's agency.
+        if (! $user->isSuperAdmin()) {
+            $belongs = $booking->agency_id !== null
+                && ($user->isAgentAt($booking->agency_id) || $user->isOwnerAt($booking->agency_id));
+            abort_unless($belongs, 403, 'Booking does not belong to your agency.');
         }
 
         // Check if booking can be expired
