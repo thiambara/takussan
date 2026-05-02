@@ -76,7 +76,7 @@ _(TCK-129 passé en review)_
 
 > Évolution architecturale : passage du couple `UserType` (enum) + rôles spatie au modèle de profils polymorphes (`OwnerProfile`, `AgentProfile`, `BrokerProfile`, `ServiceProviderProfile`). Préalable : valider la spec (TCK-138) avant tout code.
 
-- [TCK-145](tickets/TCK-145-frontend-super-admin-area.md) — Frontend — Espace super-admin dédié hors layout agence `M · P1 · front`
+_(vide — TCK-145 en cours)_
 
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
@@ -97,6 +97,7 @@ _(vide)_
 - [TCK-142](tickets/TCK-142-profiles-refactor-drop-legacy.md) — Profils polymorphes — Refactor consumers & drop legacy UserType `L · EF · back`
 - [TCK-143](tickets/TCK-143-frontend-multi-profile-switcher.md) — Frontend — Sélecteur de profil actif & contexte multi-profil `M · P0 · front`
 - [TCK-144](tickets/TCK-144-backend-super-admin-namespace.md) — Backend — Namespace super_admin dédié `/api/admin/...` `L · P1 · technique`
+- [TCK-145](tickets/TCK-145-frontend-super-admin-area.md) — Frontend — Espace super-admin dédié hors layout agence `M · P1 · front`
 
 ### Vague 15 — Câblage des zones UI stub (StubPlaceholder / "Bientôt disponible")
 

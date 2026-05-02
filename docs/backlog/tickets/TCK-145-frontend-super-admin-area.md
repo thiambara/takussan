@@ -1,7 +1,7 @@
 ---
 id: TCK-145
 title: "Frontend — Espace super-admin dédié hors layout agence"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -86,4 +86,12 @@ Toujours utiliser `fields[...]`, `filter[...]`, `include=` côté client (cf. CL
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Déviation URL `/admin/*` → `/super-admin/*`** : le ticket décrit `/admin/*`, mais TCK-131 l'occupe pour le dashboard agency_admin (et la section "Hors périmètre" interdit d'y toucher). Le nouvel espace vit sous `/super-admin/*` — l'intention (namespace dédié, layout séparé, garde server-side) est respectée. Le backend conserve `/api/admin/*` (TCK-144) ; le frontend proxy via `/api/super-admin/[...path]/route.ts` qui forward vers `/api/admin/...`.
+- **Layout dédié** (`(super-admin)/super-admin/layout.tsx`) : redirect server-side vers `/app` si `roles` ne contient pas `super_admin` — pas de flash de contenu côté client. Palette stone-900 + amber, libellé "Console Takussan" pour différencier visuellement de l'espace agence.
+- **`ImpersonationBanner` global** monté dans `SuperAdminShell` : affiche un bandeau non dismissible tant qu'une session d'impersonation est active. État porté en `localStorage` (`takussan.impersonation`), TTL respecté via `expires_at` ; `useImpersonationSession` consomme via `useSyncExternalStore` (snapshot caché pour stabilité référentielle — sinon boucle infinie sur React 19). Note : le bandeau n'apparaît que dans le shell super-admin pour la première itération ; pour l'afficher aussi dans `/app` (navigation post-impersonation), il faudra le monter dans `(dashboard)/layout.tsx` — ticket follow-up à filer si l'UX l'exige.
+- **Stop impersonation** (`/api/super-admin/impersonate/stop`) : appelé avec le token super_admin (le frontend conserve les deux tokens). Backend (TCK-144) révoque tous les `PersonalAccessToken` `name='impersonation'` du target. Voir TCK-144 notes pour la rationale dual-token.
+- **Double-confirmation** (`ConfirmActionDialog`) : utilisée par `AgencyModerationCard` (verify/suspend/unverify) et la page utilisateurs (impersonate). Phrase à retaper textuellement (VERIFIER / SUSPENDRE / DEVERIFIER / IMPERSONIFIER) avant que le bouton primaire ne s'active.
+- **Page utilisateurs** : la liste s'appuie sur `GET /api/users` (TCK existant, super_admin/admin gated) via le proxy `/api/super-admin-users/route.ts` (pas sous `/api/super-admin/[...path]` car l'upstream backend n'est pas dans `/api/admin/*`).
+- **Système / Feature flags / Maintenance** : la page `/super-admin/system` affiche les KPIs et un bloc neutre pour les paramètres globaux. Pas de stub interactif (P3 — ticket dédié quand le backend livre).
+- **`fields[...]` partout** : sur la recherche utilisateurs (`fields[users]=id,first_name,last_name,full_name,email,roles,status`). Les autres endpoints super-admin retournent déjà des resources `Api\Admin\*` minimales (TCK-144).
+- **Tests UI** : 4 cas (`ImpersonationBanner.test.tsx` × 3 + `ConfirmActionDialog.test.tsx` × 1). Couvrent : pas de session → null ; session active → banner ; click stop → POST + clear ; session expirée → masquée ; phrase de confirmation requise pour activer le submit. Tests Playwright/E2E pour la garde server-side et le flow complet → out-of-scope (pas d'infra E2E configurée pour l'instant).
