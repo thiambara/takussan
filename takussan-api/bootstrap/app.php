@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\ForceJsonResponseMiddleware;
 use App\Http\Middleware\ResolveActiveProfile;
 use App\Http\Middleware\RestrictIpMiddleware;
@@ -33,8 +34,10 @@ return Application::configure(basePath: dirname(__DIR__))
             ResolveActiveProfile::class,
         ]);
         // TCK-102 — alias the SMS webhook IP allowlist middleware.
+        // TCK-144 — alias the super-admin gate for the /api/admin/* namespace.
         $middleware->alias([
             'restrict.ip' => RestrictIpMiddleware::class,
+            'super-admin' => EnsureSuperAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

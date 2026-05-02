@@ -1,7 +1,7 @@
 ---
 id: TCK-144
 title: "Backend — Namespace super_admin dédié `/api/admin/...`"
-status: todo
+status: review
 phase: P1
 family: technique
 estimate: L
@@ -73,4 +73,15 @@ Centraliser dans un namespace API dédié toutes les capacités strictement supe
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Migration des routes TCK-098/101** (collateral imposé par l'AC littérale "Toute route sous `/api/admin/*` retourne 403 pour un user qui n'a pas `super_admin`") : `PropertyModerationController` (TCK-098) et `BookingController.expireNow` (TCK-101) servaient `agency_admin` sous `/api/admin/properties/...` et `/api/admin/bookings/...`. Routes déplacées :
+    - `/api/admin/properties/moderation` → `/api/properties/moderation`
+    - `/api/admin/properties/{id}/{approve|reject|resubmit}` → `/api/properties/{id}/...`
+    - `/api/admin/bookings/{id}/expire-now` → `/api/bookings/{id}/expire-now`
+    Le frontend (`takussan-web/src/lib/queries/property-moderation.ts`, 4 chemins) suit. Le contrôleur garde sa logique de gating (agency_admin OR super_admin) puisqu'elle n'est plus portée par le middleware.
+- **Mapping `verify/suspend/unverify`** : appliqué sur `AgencyStatus` (pas de migration de schéma comme demandé). `verify` → `Active` + `is_verified=true` + `verified_at=now()`. `suspend` → `Suspended` (verification flag inchangée). `unverify` → `Inactive` + `is_verified=false` + `verified_at=null`. La colonne `is_verified` existait déjà sur `agencies` — utilisée pour préserver la sémantique de vérification.
+- **Impersonation token TTL** : 60 min via `User::createToken('impersonation', ['*'], $expiresAt)`. Stop endpoint **gardé super-admin-only** : la frontend doit conserver les **deux** tokens (super_admin + impersonation) en parallèle, et utiliser le super_admin pour appeler `/api/admin/impersonate/stop` avec `{ user_id }`. Sans ça, un actor déjà sous le token target ne pourrait pas franchir le middleware. Le stop révoque tous les `PersonalAccessToken` `name='impersonation'` du target — ce qui couvre les sessions concurrentes.
+- **`EnsureSuperAdmin` probe sous `team_id = null`** : un super_admin peut détenir un profil agence (et donc avoir `team_id` pinné par `ResolveActiveProfile`). Le middleware sauvegarde / restore le `team_id` autour de la probe pour ne pas perturber les permissions agence-scoped des handlers.
+- **`NamespaceAccessGuardTest`** : la dataProvider statique de PHPUnit ne peut pas voir `Route::getRoutes()` (app pas bootstrapée). Implémenté en boucle inline pour itérer chaque route registered sous `api/admin/*` au moment du test — auto-extensible quand on ajoute une route au prefix.
+- **Pas de FormRequest dédié** : les actions ont des inputs minimes (`/impersonate/stop` valide `user_id` inline ; les autres n'ont pas de body). Ajouter des `Api\Admin\*Request` sera utile quand on enrichira (raison de suspension, période d'impersonation paramétrable…).
+- **Activity log `super_admin_*`** : événements emitted via `activity()` helper (pattern existant dans `PropertyModerationService`). Récupérables tels-quels par `CrossTenantAuditController` via `filter[event]=super_admin_agency_verified|...`.
+- **Tests** : 23 nouveaux cas (5 fichiers + middleware + namespace guard), 1554/1554 verts. Pint clean.
