@@ -127,8 +127,10 @@ trait HasProfiles
     /**
      * Active profile for the current request — set by `ResolveActiveProfile`
      * middleware. Reads through `request()->activeProfile()` so the truth
-     * lives in one place. Returns null outside the request scope or when
-     * no profile was resolved.
+     * lives in one place. Returns null outside the request scope, when no
+     * profile was resolved, or when the current request actor is a *different*
+     * user than `$this` (the active profile is per-request, not a property
+     * of arbitrary User instances).
      */
     public function activeProfile()
     {
@@ -136,6 +138,11 @@ trait HasProfiles
             return null;
         }
 
-        return request()->activeProfile();
+        $profile = request()->activeProfile();
+        if ($profile === null) {
+            return null;
+        }
+
+        return ((int) $profile->user_id === (int) $this->id) ? $profile : null;
     }
 }

@@ -25,11 +25,8 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
  * Stored on the request so downstream code can call `$request->activeProfile()`
  * and `$request->user()->activeProfile()` without re-resolving.
  *
- * **Coexistence with `SetPermissionsTeamIdMiddleware`** during TCK-141 → -142:
- * the legacy middleware runs earlier in the api group and sets a fallback
- * `team_id` from `users.agency_id`. This middleware overrides that team_id
- * only when a profile is actually resolved. Once `users.agency_id` is dropped
- * (TCK-142), the legacy middleware can be removed.
+ * Sole owner of the spatie team context for api requests since TCK-142
+ * dropped the legacy column the previous middleware read from.
  */
 class ResolveActiveProfile
 {
@@ -47,6 +44,34 @@ class ResolveActiveProfile
         }
 
         if (! $user) {
+            return $next($request);
+        }
+
+        // Probe global roles under a null team first so super_admin / admin
+        // are detected even when the user also happens to hold an agency-
+        // scoped profile. Without this guard the auto-bascule below would
+        // pin team_id to that profile's agency and `hasRole('super_admin')`
+        // (assigned with team_id = null) would silently start returning
+        // false on every subsequent request.
+        $registrar = app(PermissionRegistrar::class);
+        $registrar->setPermissionsTeamId(null);
+        $user->unsetRelation('roles');
+        $isGlobalAdmin = $user->hasRole(['super_admin', 'admin']);
+        $user->unsetRelation('roles');
+
+        if ($isGlobalAdmin) {
+            // Stay at team_id = null. Explicit profile signals still apply
+            // for super_admins acting on behalf of a specific agency, but
+            // the auto-bascule and cookie paths below are skipped.
+            $explicit = $request->header('X-Profile-Id') ?? $request->query('profile_id');
+            if ($explicit !== null && $explicit !== '') {
+                $profile = $this->resolver->resolve((string) $explicit, $user);
+                if ($profile === null) {
+                    throw new AccessDeniedHttpException('Profile not accessible.');
+                }
+                $this->bind($request, $user, $profile);
+            }
+
             return $next($request);
         }
 

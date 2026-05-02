@@ -57,7 +57,11 @@ class AgencyMemberRoleController extends Controller
         DB::transaction(function () use ($user, $agency, $data) {
             $locked = User::where('id', $user->id)->lockForUpdate()->first();
             if ($data['role'] !== 'agency_admin' && $locked && $locked->hasRole('agency_admin')) {
-                $remainingAdmins = User::where('agency_id', $agency->id)
+                $remainingAdmins = User::query()
+                    ->where(function ($q) use ($agency) {
+                        $q->whereHas('agentProfiles', fn ($qq) => $qq->where('agency_id', $agency->id))
+                            ->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agency->id));
+                    })
                     ->whereHas('roles', fn ($q) => $q->where('name', 'agency_admin'))
                     ->where('id', '!=', $user->id)
                     ->lockForUpdate()

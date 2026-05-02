@@ -48,7 +48,9 @@ class DashboardAgencyService
             ->count();
 
         $customersCount = Customer::where('agency_id', $agency->id)->count();
-        $membersCount = User::where('agency_id', $agency->id)->count();
+        $membersCount = User::query()->where(function ($q) use ($agency) {
+            $q->whereHas('agentProfiles', fn ($qq) => $qq->where('agency_id', $agency->id))->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agency->id));
+        })->count();
 
         $pendingBookings = Booking::whereIn('property_id', $propertyIds)
             ->where('status', BookingStatus::Pending)

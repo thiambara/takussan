@@ -6,7 +6,7 @@ use App\Models\Customer;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\UserStatus;
-use App\Models\Enums\UserType;
+use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\StatusDistribution;
@@ -28,7 +28,7 @@ class CustomerSeeder extends Seeder
         foreach ($this->ctx->agencies as $agency) {
             $registrar->setPermissionsTeamId($agency->id);
 
-            $agents = $this->ctx->usersOfType($agency->id, UserType::Agent->value);
+            $agents = $this->ctx->usersWithProfile(AgentProfile::class, $agency->id);
             $addedByIds = $agents->isEmpty() ? [null] : $agents->pluck('id')->all();
 
             for ($i = 0; $i < $this->ctx->config->customersPerAgency; $i++) {
@@ -48,14 +48,12 @@ class CustomerSeeder extends Seeder
                         'username' => $slug.'-'.Str::random(4),
                         'first_name' => $firstName,
                         'last_name' => $lastName,
-                        'type' => UserType::Individual,
                         'status' => UserStatus::Active,
                         'email' => $email,
                         'phone' => $this->ctx->faker()->senegalesePhoneNumber(),
                         'password' => Hash::make('password'),
                         'preferred_language' => 'fr',
                         'timezone' => 'Africa/Dakar',
-                        'agency_id' => $agency->id,
                         'created_at' => $createdAt,
                         'updated_at' => $createdAt,
                     ]);

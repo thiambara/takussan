@@ -5,7 +5,7 @@ namespace Database\Seeders\Activity;
 use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
-use App\Models\Enums\UserType;
+use App\Models\Profiles\AgentProfile;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\StatusDistribution;
 use Database\Seeders\Support\Timeline;
@@ -21,7 +21,7 @@ class BookingSeeder extends Seeder
         foreach ($this->ctx->agencies as $agency) {
             $properties = $this->ctx->propertiesByAgency[$agency->id] ?? collect();
             $customers = $this->ctx->customersByAgency[$agency->id] ?? collect();
-            $agents = $this->ctx->usersOfType($agency->id, UserType::Agent->value);
+            $agents = $this->ctx->usersWithProfile(AgentProfile::class, $agency->id);
 
             if ($properties->isEmpty() || $customers->isEmpty() || $agents->isEmpty()) {
                 continue;

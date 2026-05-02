@@ -5,6 +5,10 @@ namespace Database\Seeders\Support;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Lease;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\BrokerProfile;
+use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\User;
 use Faker\Factory as FakerFactory;
@@ -31,8 +35,15 @@ class SeedingContext
     /** @var array<int, Collection<int, User>> keyed by agency_id, value = users of that agency */
     public array $usersByAgency = [];
 
-    /** @var array<int, array<string, Collection<int, User>>> keyed by agency_id then by UserType value */
-    public array $usersByAgencyAndType = [];
+    /**
+     * Users bucketed by agency, then by **persona** — matches the spatie role
+     * name so callers can bridge between identity and authorization without
+     * an extra mapping table. Allowed personas: admin, agent, owner, broker,
+     * service_provider.
+     *
+     * @var array<int, array<string, Collection<int, User>>>
+     */
+    public array $usersByAgencyAndPersona = [];
 
     /** @var array<int, Collection<int, Customer>> keyed by agency_id */
     public array $customersByAgency = [];
@@ -82,20 +93,23 @@ class SeedingContext
     {
         $this->agencies->put($agency->id, $agency);
         $this->usersByAgency[$agency->id] = new Collection;
-        $this->usersByAgencyAndType[$agency->id] = [];
+        $this->usersByAgencyAndPersona[$agency->id] = [];
         $this->customersByAgency[$agency->id] = new Collection;
         $this->propertiesByAgency[$agency->id] = new Collection;
     }
 
-    public function registerUser(User $user): void
+    /**
+     * Bucket the user under its agency and persona (admin/agent/owner/broker/
+     * service_provider). When `$persona` is null, the user is treated as a
+     * cross-tenant system user (super admins, …) and stored apart.
+     */
+    public function registerUser(User $user, ?string $persona = null, ?int $agencyId = null): void
     {
-        if ($user->agency_id !== null && $this->agencies->has($user->agency_id)) {
-            $this->usersByAgency[$user->agency_id]->put($user->id, $user);
-
-            $type = $user->type?->value ?? 'unknown';
-            $bucket = $this->usersByAgencyAndType[$user->agency_id][$type] ?? new Collection;
+        if ($persona !== null && $agencyId !== null && $this->agencies->has($agencyId)) {
+            $this->usersByAgency[$agencyId]->put($user->id, $user);
+            $bucket = $this->usersByAgencyAndPersona[$agencyId][$persona] ?? new Collection;
             $bucket->put($user->id, $user);
-            $this->usersByAgencyAndType[$user->agency_id][$type] = $bucket;
+            $this->usersByAgencyAndPersona[$agencyId][$persona] = $bucket;
         } else {
             $this->systemUsers->put($user->id, $user);
         }
@@ -115,10 +129,29 @@ class SeedingContext
         }
     }
 
-    /** @return Collection<int, User> */
-    public function usersOfType(int $agencyId, string $type): Collection
+    /**
+     * Look up users bucketed under a given profile class for an agency. The
+     * profile class is mapped to the matching persona internally so callers
+     * use type-safe references (`OwnerProfile::class`) rather than free-form
+     * strings.
+     *
+     * @return Collection<int, User>
+     */
+    public function usersWithProfile(string $profileClass, int $agencyId): Collection
     {
-        return $this->usersByAgencyAndType[$agencyId][$type] ?? new Collection;
+        $persona = match ($profileClass) {
+            OwnerProfile::class => 'owner',
+            AgentProfile::class => 'agent',
+            BrokerProfile::class => 'broker',
+            ServiceProviderProfile::class => 'service_provider',
+            default => null,
+        };
+
+        if ($persona === null) {
+            return new Collection;
+        }
+
+        return $this->usersByAgencyAndPersona[$agencyId][$persona] ?? new Collection;
     }
 
     /**

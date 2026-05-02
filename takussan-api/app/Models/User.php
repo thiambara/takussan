@@ -7,7 +7,8 @@ use App\Models\Concerns\HasProfiles;
 use App\Models\Concerns\HasQueryBuilder;
 use App\Models\Enums\EmailFrequency;
 use App\Models\Enums\UserStatus;
-use App\Models\Enums\UserType;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Notifications\RegistrationConfirmationNotification;
 use App\Notifications\ResetPasswordNotification;
 use Database\Factories\UserFactory;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -39,10 +41,10 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     }
 
     protected $fillable = [
-        'username', 'first_name', 'last_name', 'type', 'status',
+        'username', 'first_name', 'last_name', 'status',
         'email', 'password', 'phone',
         'bio', 'preferred_language', 'timezone',
-        'last_login_at', 'agency_id', 'added_by_id',
+        'last_login_at', 'added_by_id',
         'google_id', 'facebook_id', 'apple_id',
         'two_factor_enabled', 'two_factor_secret', 'two_factor_recovery_codes',
         'phone_verified_at',
@@ -50,6 +52,11 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         'email_frequency', 'digest_send_at', 'digest_day_of_week',
         'metadata',
         'deletion_requested_at',
+        // TCK-142 — kept fillable so the legacy `agency_id` mutator gets a
+        // chance to run during `update()` / `fill()`. The mutator itself
+        // never writes to the (now-dropped) column; it just maps the value
+        // onto an OwnerProfile row.
+        'agency_id',
     ];
 
     protected $hidden = [
@@ -64,7 +71,6 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             'last_login_at' => 'datetime',
             'deletion_requested_at' => 'datetime',
             'password' => 'hashed',
-            'type' => UserType::class,
             'status' => UserStatus::class,
             'two_factor_enabled' => 'boolean',
             'two_factor_secret' => 'encrypted',
@@ -77,23 +83,94 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         ];
     }
 
-    protected static array $requestFilterable = ['agency_id', 'type', 'status', 'added_by_id'];
+    protected static array $requestFilterable = ['status', 'added_by_id'];
 
     protected static array $requestSortable = ['id', 'created_at', 'first_name', 'last_name', 'email', 'status'];
 
-    protected static array $requestLoadable = ['agency'];
+    protected static array $requestLoadable = [];
 
     protected static array $requestSearchFields = ['first_name', 'last_name', 'email', 'username', 'phone'];
 
     protected static array $queryFields = [
         'id', 'username', 'first_name', 'last_name', 'email', 'phone',
-        'type', 'status', 'agency_id', 'bio', 'preferred_language',
+        'status', 'bio', 'preferred_language',
         'timezone', 'last_login_at', 'created_at', 'updated_at',
     ];
 
     public function getFullNameAttribute(): string
     {
         return trim("{$this->first_name} {$this->last_name}");
+    }
+
+    /**
+     * TCK-142 — agency attachment is now carried by polymorphic profiles. The
+     * accessor preserves the legacy `$user->agency_id` property surface used
+     * by policies, controllers and resources during the transition window: it
+     * returns the active profile's agency when the request scope is bound
+     * (HTTP), falling back to the user's first agency-scoped profile so jobs,
+     * console and listeners keep behaving like the legacy code.
+     *
+     * Returns null for users with no agency-scoped profile (admins).
+     */
+    public function getAgencyIdAttribute(): ?int
+    {
+        $active = $this->activeProfile();
+        if ($active !== null && isset($active->agency_id)) {
+            return $active->agency_id;
+        }
+
+        return $this->agentProfiles()->value('agency_id')
+            ?? $this->ownerProfiles()->value('agency_id');
+    }
+
+    /**
+     * TCK-142 — Backward-compat write side: legacy callers and tests still
+     * issue `$user->update(['agency_id' => X])` to attach a user to an
+     * agency. Without a column to write to, that becomes a silent no-op
+     * and downstream policies break. We shim the assignment by ensuring
+     * an OwnerProfile exists for the (user, agency) pair, and a `null`
+     * value detaches every agency-scoped profile (mirrors the legacy
+     * "remove from agency" semantics). This is transitional — new code
+     * should manipulate profiles directly.
+     */
+    public function setAgencyIdAttribute(?int $value): void
+    {
+        if (! $this->exists) {
+            // Pre-save assignments (factory state merges, `new User([...])`,
+            // `User::create([...])`) can't create a profile yet — there's
+            // no FK target. Stash the value; the `created` model observer
+            // below picks it up once the row is persisted.
+            UserFactory::stashLegacyAgency($this, $value);
+
+            return;
+        }
+
+        if ($value === null) {
+            $this->ownerProfiles()->delete();
+            $this->agentProfiles()->delete();
+
+            return;
+        }
+
+        OwnerProfile::query()->firstOrCreate(
+            ['user_id' => $this->id, 'agency_id' => $value],
+        );
+    }
+
+    protected static function booted(): void
+    {
+        // TCK-142 — flush any legacy `agency_id` value stashed before save
+        // into a real OwnerProfile row. Covers `User::create(['agency_id' =>
+        // X])`, `new User(['agency_id' => X]) + ->save()`, and any other
+        // path that bypasses the factory's afterCreating hook.
+        static::created(function (self $user): void {
+            $agencyId = UserFactory::popLegacyAgency($user);
+            if ($agencyId !== null) {
+                OwnerProfile::query()->firstOrCreate(
+                    ['user_id' => $user->id, 'agency_id' => $agencyId],
+                );
+            }
+        });
     }
 
     /**
@@ -107,7 +184,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         return LogOptions::defaults()
             ->logOnly([
                 'username', 'email', 'first_name', 'last_name', 'phone',
-                'type', 'status', 'agency_id', 'preferred_language', 'timezone',
+                'status', 'preferred_language', 'timezone',
                 'email_verified_at', 'phone_verified_at',
                 'two_factor_enabled',
                 'notifications_email_enabled',
@@ -132,14 +209,28 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         $this->addMediaCollection('documents');
     }
 
-    public function agency(): BelongsTo
-    {
-        return $this->belongsTo(Agency::class);
-    }
-
     public function addedBy(): BelongsTo
     {
         return $this->belongsTo(self::class, 'added_by_id');
+    }
+
+    /**
+     * TCK-142 — direct agency FK is gone. The relation is now expressed
+     * through the user's agent profile, which carries the agency FK. Returns
+     * the first agency the user is an agent of; legacy callers using
+     * `$user->agency` or `$user->agency()->...` keep behaving like a single-
+     * agency relation.
+     */
+    public function agency(): HasOneThrough
+    {
+        return $this->hasOneThrough(
+            Agency::class,
+            AgentProfile::class,
+            'user_id',
+            'id',
+            'id',
+            'agency_id',
+        );
     }
 
     public function properties(): HasMany

@@ -4,7 +4,7 @@ namespace Database\Seeders\Crm;
 
 use App\Models\Enums\RelationshipStatus;
 use App\Models\Enums\RelationshipType;
-use App\Models\Enums\UserType;
+use App\Models\Profiles\AgentProfile;
 use App\Models\UserCustomerRelationship;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\Timeline;
@@ -18,7 +18,7 @@ class UserCustomerRelationshipSeeder extends Seeder
     {
         foreach ($this->ctx->agencies as $agency) {
             $customers = $this->ctx->customersByAgency[$agency->id] ?? collect();
-            $agents = $this->ctx->usersOfType($agency->id, UserType::Agent->value);
+            $agents = $this->ctx->usersWithProfile(AgentProfile::class, $agency->id);
             if ($agents->isEmpty()) {
                 continue;
             }

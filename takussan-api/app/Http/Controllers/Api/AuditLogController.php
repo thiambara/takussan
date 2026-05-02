@@ -91,7 +91,9 @@ class AuditLogController extends Controller
                 $baseQuery->where('causer_type', User::class)
                     ->whereIn(
                         'causer_id',
-                        User::query()->where('agency_id', $agencyId)->select('id')
+                        User::query()->where(function ($q) use ($agencyId) {
+                            $q->whereHas('agentProfiles', fn ($qq) => $qq->where('agency_id', $agencyId))->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agencyId));
+                        })->select('id')
                     );
             }
         }

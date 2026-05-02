@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Testing;
 
+use App\Models\Agency;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Testing\TestResponse;
@@ -35,7 +36,7 @@ class BaseTestCaseTest extends BaseTestCase
     public function test_acting_as_role_accepts_custom_agency(): void
     {
         $user = $this->actingAsRole('customer');
-        $agency = $user->agency()->firstOrFail();
+        $agency = Agency::findOrFail($user->agency_id);
 
         $second = $this->actingAsRole('agent', ['agency' => $agency]);
 
@@ -54,7 +55,7 @@ class BaseTestCaseTest extends BaseTestCase
     public function test_acting_as_role_prefers_agency_model_over_agency_id_on_conflict(): void
     {
         $user = $this->actingAsRole('customer');
-        $agency = $user->agency()->firstOrFail();
+        $agency = Agency::findOrFail($user->agency_id);
 
         $second = $this->actingAsRole('agent', [
             'agency' => $agency,

@@ -3,7 +3,6 @@
 namespace Tests\Feature\Database\Seeders;
 
 use App\Models\Agency;
-use App\Models\Enums\UserType;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderProfile;
@@ -34,29 +33,30 @@ class UserSeederProfilesTest extends TestCase
         $seeder = app(UserSeeder::class);
         $seeder->run();
 
-        $createdUsers = User::query()
-            ->where('agency_id', $agency->id)
+        // After TCK-142, "users at this agency" is exactly the union of users
+        // holding any profile (owner/agent/service_provider) at that agency.
+        $ownerUsers = User::query()
+            ->whereHas('ownerProfiles', fn ($q) => $q->where('agency_id', $agency->id))
+            ->get();
+        $agentUsers = User::query()
+            ->whereHas('agentProfiles', fn ($q) => $q->where('agency_id', $agency->id))
             ->get();
 
-        $byType = $createdUsers->groupBy(fn (User $u) => $u->type?->value ?? 'null');
+        $this->assertSame(4, $agentUsers->count());
+        $this->assertSame(10, $ownerUsers->count());
 
-        $admins = $byType->get(UserType::Admin->value, new Collection)->count();
-        $agents = $byType->get(UserType::Agent->value, new Collection)->count();
-        $individuals = $byType->get(UserType::Individual->value, new Collection)->count();
-        $providers = $byType->get(UserType::ServiceProvider->value, new Collection)->count();
+        // Profile counts mirror the seeded populations exactly.
+        $this->assertSame(10, OwnerProfile::query()->count());
+        $this->assertSame(4, AgentProfile::query()->count());
+        $this->assertSame(5, ServiceProviderProfile::query()->count());
 
-        $this->assertSame(1, $admins, 'one agency_admin per agency');
-        $this->assertSame(4, $agents);
-        $this->assertSame(10, $individuals);
-        $this->assertSame(5, $providers);
-
-        // Profile counts mirror the non-admin populations exactly.
-        $this->assertSame($individuals, OwnerProfile::query()->count());
-        $this->assertSame($agents, AgentProfile::query()->count());
-        $this->assertSame($providers, ServiceProviderProfile::query()->count());
-
-        // Admins have no profile of any kind.
-        $admin = $byType->get(UserType::Admin->value)->first();
+        // Agency admin has no agency-scoped profile (their authority is
+        // entirely role-based) — only one such admin user is created per
+        // agency by the seeder.
+        $admin = User::query()
+            ->whereHas('roles', fn ($q) => $q->where('name', 'agency_admin'))
+            ->first();
+        $this->assertNotNull($admin);
         $this->assertSame(0, OwnerProfile::query()->where('user_id', $admin->id)->count());
         $this->assertSame(0, AgentProfile::query()->where('user_id', $admin->id)->count());
     }

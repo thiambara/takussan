@@ -5,8 +5,8 @@ namespace Database\Seeders\Operations;
 use App\Models\Enums\MaintenanceCategory;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
-use App\Models\Enums\UserType;
 use App\Models\MaintenanceRequest;
+use App\Models\Profiles\ServiceProviderProfile;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\StatusDistribution;
 use Database\Seeders\Support\Timeline;
@@ -20,7 +20,7 @@ class MaintenanceRequestSeeder extends Seeder
     {
         foreach ($this->ctx->agencies as $agency) {
             $properties = $this->ctx->propertiesByAgency[$agency->id] ?? collect();
-            $providers = $this->ctx->usersOfType($agency->id, UserType::ServiceProvider->value);
+            $providers = $this->ctx->usersWithProfile(ServiceProviderProfile::class, $agency->id);
 
             if ($properties->isEmpty()) {
                 continue;

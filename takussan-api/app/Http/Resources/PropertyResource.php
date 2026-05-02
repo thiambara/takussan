@@ -4,7 +4,7 @@ namespace App\Http\Resources;
 
 use App\Models\Agency;
 use App\Models\Document;
-use App\Models\Enums\UserType;
+use App\Models\Profiles\BrokerProfile;
 use App\Models\PropertyPriceHistory;
 use App\Models\Review;
 use App\Models\Tag;
@@ -161,6 +161,22 @@ class PropertyResource extends JsonResource
     }
 
     /**
+     * TCK-142 — `is_agent` used to derive from a now-dropped column. "Agent"
+     * here means the owner holds a professional profile that can list
+     * properties on behalf of the property's agency: an active AgentProfile
+     * in that agency, or a BrokerProfile collaborating with it.
+     */
+    private function ownerActsAsAgent(User $owner): bool
+    {
+        $agency = $this->resource->agency;
+        if ($agency !== null && $owner->isAgentAt($agency->id)) {
+            return true;
+        }
+
+        return $owner->hasProfile(BrokerProfile::class);
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     private function buildOwner(): ?array
@@ -175,7 +191,7 @@ class PropertyResource extends JsonResource
             'id' => $owner->id,
             'name' => trim($owner->first_name.' '.$owner->last_name) ?: $owner->username,
             'avatar_url' => $owner->getFirstMediaUrl('avatar') ?: null,
-            'is_agent' => $owner->type === UserType::Agent || $owner->type === UserType::Broker,
+            'is_agent' => $this->ownerActsAsAgent($owner),
             'member_since' => $owner->created_at?->toISOString(),
         ];
     }

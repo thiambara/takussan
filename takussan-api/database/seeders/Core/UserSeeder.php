@@ -7,7 +7,6 @@ use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\UserStatus;
-use App\Models\Enums\UserType;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\BrokerAgencyCollaboration;
 use App\Models\Profiles\BrokerProfile;
@@ -44,7 +43,6 @@ class UserSeeder extends Seeder
                 'username' => 'super_admin',
                 'first_name' => 'Takussan',
                 'last_name' => 'SuperAdmin',
-                'type' => UserType::Admin,
                 'status' => UserStatus::Active,
                 'phone' => '+221770000000',
                 'password' => Hash::make('password'),
@@ -81,7 +79,7 @@ class UserSeeder extends Seeder
             'username' => "{$slug}-admin",
             'first_name' => 'Admin',
             'last_name' => $agency->name,
-            'type' => UserType::Admin,
+            'persona' => 'admin',
             'role' => 'agency_admin',
         ]);
 
@@ -93,7 +91,7 @@ class UserSeeder extends Seeder
                 'username' => "{$slug}-agent-{$i}",
                 'first_name' => $this->ctx->faker()->senegaleseFirstName(),
                 'last_name' => $this->ctx->faker()->senegaleseLastName(),
-                'type' => UserType::Agent,
+                'persona' => 'agent',
                 'role' => 'agent',
             ]);
         }
@@ -104,7 +102,7 @@ class UserSeeder extends Seeder
                 'username' => "{$slug}-owner-{$i}",
                 'first_name' => $this->ctx->faker()->senegaleseFirstName(),
                 'last_name' => $this->ctx->faker()->senegaleseLastName(),
-                'type' => UserType::Individual,
+                'persona' => 'owner',
                 'role' => 'owner',
             ]);
         }
@@ -115,7 +113,7 @@ class UserSeeder extends Seeder
                 'username' => "{$slug}-provider-{$i}",
                 'first_name' => $this->ctx->faker()->senegaleseFirstName(),
                 'last_name' => $this->ctx->faker()->senegaleseLastName(),
-                'type' => UserType::ServiceProvider,
+                'persona' => 'service_provider',
                 'role' => 'service_provider',
             ]);
         }
@@ -127,7 +125,8 @@ class UserSeeder extends Seeder
     private function createUser(Agency $agency, array $data): User
     {
         $role = $data['role'] ?? null;
-        unset($data['role']);
+        $persona = $data['persona'] ?? null;
+        unset($data['role'], $data['persona']);
 
         $createdAt = Timeline::randomDateBetween(
             Timeline::seedStart(),
@@ -142,7 +141,6 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('password'),
                 'preferred_language' => 'fr',
                 'timezone' => 'Africa/Dakar',
-                'agency_id' => $agency->id,
                 'remember_token' => Str::random(10),
                 'created_at' => $createdAt,
                 'updated_at' => $createdAt,
@@ -158,9 +156,8 @@ class UserSeeder extends Seeder
             }
         }
 
-        $this->ctx->registerUser($user);
-
-        $this->seedProfileFor($user, $agency);
+        $this->seedProfileFor($user, $agency, $persona);
+        $this->ctx->registerUser($user, $persona, $agency->id);
 
         $avatarUrl = 'https://api.dicebear.com/7.x/avataaars/png?seed='.urlencode($user->username);
         $this->ctx->downloadMedia($user, $avatarUrl, 'avatar');
@@ -169,24 +166,26 @@ class UserSeeder extends Seeder
     }
 
     /**
-     * TCK-140 — projects the legacy `type` + `agency_id` onto the new
-     * polymorphic profiles in addition to the legacy columns. Admins get
-     * no profile; their authority is fully represented by spatie roles.
+     * Polymorphic profile creation driven by the persona string carried in the
+     * seed payload. Admins get no profile; their authority is fully expressed
+     * via spatie roles. Brokers and service providers are user-scoped, so the
+     * agency only enters via the collaboration pivot.
      */
-    private function seedProfileFor(User $user, Agency $agency): void
+    private function seedProfileFor(User $user, Agency $agency, ?string $persona): void
     {
-        match ($user->type) {
-            UserType::Individual => OwnerProfile::query()->firstOrCreate(
+        match ($persona) {
+            'owner' => OwnerProfile::query()->firstOrCreate(
                 ['user_id' => $user->id, 'agency_id' => $agency->id],
                 ['status' => OwnerProfileStatus::Active->value],
             ),
-            UserType::Agent => AgentProfile::query()->firstOrCreate(
+            'agent' => AgentProfile::query()->firstOrCreate(
                 ['user_id' => $user->id, 'agency_id' => $agency->id],
                 ['status' => AgentProfileStatus::Active->value],
             ),
-            UserType::Broker => $this->seedBrokerProfile($user, $agency),
-            UserType::ServiceProvider => $this->seedServiceProviderProfile($user, $agency),
-            UserType::Admin, null => null,
+            'broker' => $this->seedBrokerProfile($user, $agency),
+            'service_provider' => $this->seedServiceProviderProfile($user, $agency),
+            'admin', null => null,
+            default => null,
         };
     }
 
