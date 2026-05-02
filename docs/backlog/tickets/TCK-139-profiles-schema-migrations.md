@@ -1,7 +1,7 @@
 ---
 id: TCK-139
 title: Profils polymorphes — Schéma & migrations
-status: todo
+status: review
 phase: EF
 family: back
 estimate: M
@@ -57,4 +57,9 @@ Livrer un jeu de migrations Laravel idempotentes qui crée le schéma de profils
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **6 migrations livrées** sous timestamps `2026_05_02_000001..000006` — strictement schéma, aucun modèle Eloquent (réservé TCK-140).
+- **Test schémas via `DB::table` (pas Eloquent)**: `Tests\Feature\Database\ProfileSchemaTest` (12 cas) utilise `DB::table()->insert` directement pour valider unicités/FK/cascade sans modèles, conforme au périmètre.
+- **Index secondaires**: `(agency_id, status)` sur tables avec `agency_id` direct (Owner/Agent + 2 pivots) ; `deleted_at` partout pour préserver la perf des scopes `withTrashed`.
+- **Index FK custom**: `unique` composé sur pivots renommé (`broker_agency_collab_unique`, `sp_agency_collab_unique`) pour rester sous la limite identifiant SQL.
+- **`commission_rate`**: decimal(5,2), aligné avec la convention déjà utilisée sur `agencies.commission_rate`.
+- **Sanity migrate:fresh+seed**: vert (1m32s) ; full test suite : 1508/1508 verts ; pint propre.
