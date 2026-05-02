@@ -1,7 +1,7 @@
 ---
 id: TCK-131
 title: "Dashboard /admin agence — câblage indicateurs & vue d'ensemble"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -73,4 +73,14 @@ Conventions Spatie obligatoires : `fields[...]`, `include=`, jamais de filtrage 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Endpoint consommé** : `GET /api/dashboard/agency?include=timeseries` exclusivement (TCK-032 controller `DashboardAgencyController`). Le scope agence est résolu côté serveur (`user->agency_id`) ; le frontend ne passe **jamais** `agency_id` — c'est ce qui garantit l'AC « aucune donnée d'autre agence ».
+- **Mapping AC ↔ état UI** :
+  - `super_admin` sans agence → `NoAgencyState` (TCK-115) avant tout fetch.
+  - 403 / 404 du backend → `AgencyDegradedState` (KPIs masqués + message, pas de zéros trompeurs). Pas de permission Spatie côté frontend pour l'instant ; on s'aligne sur le verdict du contrôleur, qui restera la source de vérité quand `view_agency_reports` sera ajouté.
+- **Choix des 6 KPIs** : `properties.total`, `leases.active`, `occupancy.rate_percent`, `finance.revenue_month`, `finance.overdue_amount`, `finance.unpaid_rate_percent`. Les pourcentages renvoyés par l'API sont en points (0..100) ; on les divise par 100 avant `formatPercent` pour rester dans la convention « fraction → %  ».
+- **Activité récente** : pas d'endpoint dédié → on agrège les compteurs déjà exposés (`bookings.pending`, `maintenance.open`, `customers_count`, `members_count`) avec un lien direct vers la page détaillée. Une vraie liste chronologique est repoussée à un ticket dédié.
+- **Revenu 12 mois** : utilisé `BarChart` existant (`@/components/charts/BarChart`) avec les valeurs de `timeseries.revenue` ; libellés mois courts en FR. Pas de seconde série (occupation) — vue P2 en ticket dédié.
+- **Fichiers créés** : `src/lib/queries/dashboard-agency.ts`, `src/components/dashboard/admin/{AgencyKpiTile,AgencyKpis,AgencyActivityFeed,AgencyRevenueSnapshot,AgencyDegradedState}.tsx`, plus 3 fichiers de tests Vitest dans `__tests__/`.
+- **Fichier réécrit** : `src/app/(dashboard)/admin/page.tsx` — `StubPlaceholder` retiré, branche `NoAgencyState` (TCK-115) conservée intacte.
+- **Tests** : 6 cas Vitest (3 sur `AgencyKpis`, 1 sur `AgencyActivityFeed`, 2 sur `AgencyRevenueSnapshot`). La page serveur n'est pas unit-testée (cohérent avec `/app/page.tsx` et `/app/overview/agent/page.tsx`).
+- **Hors périmètre confirmé** : pas de skeletons `loading.tsx` (page Server Component synchrone, pattern aligné sur les autres dashboards) ; pas d'endpoint backend (`/api/dashboard/agency` était déjà fourni par TCK-032).
