@@ -1,7 +1,7 @@
 ---
 id: TCK-140
 title: Profils polymorphes — Modèles, relations, backfill
-status: todo
+status: review
 phase: EF
 family: back
 estimate: L
@@ -66,4 +66,9 @@ Mettre à disposition des profils Eloquent typés, navigables depuis `User`, ave
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Bug latent évité**: `Eloquent\Collection::merge()` clé par PK et écrase silencieusement les profils de classes différentes partageant un id (ex. OwnerProfile #1 + AgentProfile #1). `HasProfiles::profiles()` utilise `concat()` pour préserver les 4 entrées. Test ad-hoc `test_profiles_returns_unified_collection_with_mixed_classes` couvre.
+- **Pattern `BRK-LEGACY-{userId}-{rand}`** dans BackfillProfilesCommand: `broker_profiles.license_number` est unique. Pour les users `Broker` legacy sans licence en base, on génère une valeur déterministe par user pour garantir l'idempotence (`firstOrCreate` sur `user_id`) sans collision entre runs.
+- **UserSeeder.seedProfileFor**: chaque user créé reçoit son profil via `firstOrCreate` sur `(user_id, agency_id)` → idempotent, autorise un re-seed sans doublon. Admins ne reçoivent rien (rôles spatie suffisent).
+- **`hasProfile`/`isAgentAt` ignorent les soft-deletes** explicitement via `whereNull('deleted_at')` — le `SoftDeletes` du modèle filtre déjà mais le whereExists() a besoin d'être explicite côté requête.
+- **3 enums livrés ici** au lieu de TCK-139 (timing): `OwnerProfileStatus`, `AgentProfileStatus`, `CollaborationStatus`. Les modèles les castent ; le schéma ne les contraint pas (string par défaut).
+- **Tests**: 18 tests verts (8 HasProfilesTraitTest + 9 BackfillProfilesCommandTest + 1 UserSeederProfilesTest). Suite complète : 1526/1526.

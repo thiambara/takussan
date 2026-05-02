@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasMediaConversions;
+use App\Models\Concerns\HasProfiles;
 use App\Models\Concerns\HasQueryBuilder;
 use App\Models\Enums\EmailFrequency;
 use App\Models\Enums\UserStatus;
@@ -31,7 +32,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements HasLocalePreference, HasMedia, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasQueryBuilder, HasRoles, InteractsWithMedia, LogsActivity, Notifiable, SoftDeletes;
+    use HasApiTokens, HasFactory, HasProfiles, HasQueryBuilder, HasRoles, InteractsWithMedia, LogsActivity, Notifiable, SoftDeletes;
 
     use HasMediaConversions {
         HasMediaConversions::registerMediaConversions insteadof InteractsWithMedia;

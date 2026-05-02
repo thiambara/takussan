@@ -3,8 +3,17 @@
 namespace Database\Seeders\Core;
 
 use App\Models\Agency;
+use App\Models\Enums\AgentProfileStatus;
+use App\Models\Enums\CollaborationStatus;
+use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\UserStatus;
 use App\Models\Enums\UserType;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\BrokerAgencyCollaboration;
+use App\Models\Profiles\BrokerProfile;
+use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\ServiceProviderAgencyCollaboration;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\Timeline;
@@ -151,9 +160,63 @@ class UserSeeder extends Seeder
 
         $this->ctx->registerUser($user);
 
+        $this->seedProfileFor($user, $agency);
+
         $avatarUrl = 'https://api.dicebear.com/7.x/avataaars/png?seed='.urlencode($user->username);
         $this->ctx->downloadMedia($user, $avatarUrl, 'avatar');
 
         return $user;
+    }
+
+    /**
+     * TCK-140 — projects the legacy `type` + `agency_id` onto the new
+     * polymorphic profiles in addition to the legacy columns. Admins get
+     * no profile; their authority is fully represented by spatie roles.
+     */
+    private function seedProfileFor(User $user, Agency $agency): void
+    {
+        match ($user->type) {
+            UserType::Individual => OwnerProfile::query()->firstOrCreate(
+                ['user_id' => $user->id, 'agency_id' => $agency->id],
+                ['status' => OwnerProfileStatus::Active->value],
+            ),
+            UserType::Agent => AgentProfile::query()->firstOrCreate(
+                ['user_id' => $user->id, 'agency_id' => $agency->id],
+                ['status' => AgentProfileStatus::Active->value],
+            ),
+            UserType::Broker => $this->seedBrokerProfile($user, $agency),
+            UserType::ServiceProvider => $this->seedServiceProviderProfile($user, $agency),
+            UserType::Admin, null => null,
+        };
+    }
+
+    private function seedBrokerProfile(User $user, Agency $agency): void
+    {
+        $broker = BrokerProfile::query()->firstOrCreate(
+            ['user_id' => $user->id],
+            ['license_number' => 'BRK-'.strtoupper(Str::random(8)).'-'.$user->id],
+        );
+        BrokerAgencyCollaboration::query()->firstOrCreate(
+            ['broker_profile_id' => $broker->id, 'agency_id' => $agency->id],
+            [
+                'status' => CollaborationStatus::Active->value,
+                'started_at' => $user->created_at?->toDateString() ?? now()->toDateString(),
+            ],
+        );
+    }
+
+    private function seedServiceProviderProfile(User $user, Agency $agency): void
+    {
+        $sp = ServiceProviderProfile::query()->firstOrCreate(
+            ['user_id' => $user->id],
+            [],
+        );
+        ServiceProviderAgencyCollaboration::query()->firstOrCreate(
+            ['service_provider_profile_id' => $sp->id, 'agency_id' => $agency->id],
+            [
+                'status' => CollaborationStatus::Active->value,
+                'started_at' => $user->created_at?->toDateString() ?? now()->toDateString(),
+            ],
+        );
     }
 }
