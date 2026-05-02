@@ -1,7 +1,7 @@
 ---
 id: TCK-032
 title: Reporting & tableaux de bord
-status: review
+status: done
 phase: P1
 family: applicatif
 estimate: L

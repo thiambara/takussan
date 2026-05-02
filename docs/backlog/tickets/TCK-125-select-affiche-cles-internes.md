@@ -1,7 +1,7 @@
 ---
 id: TCK-125
 title: UI Select — dropdowns affichent les clés internes au lieu des labels
-status: review
+status: done
 phase: P2
 family: bug
 estimate: S

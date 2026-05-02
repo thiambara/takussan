@@ -1,7 +1,7 @@
 ---
 id: TCK-129
 title: "Refonte design system — fondation site + homepage publique (Ancrage Local)"
-status: review
+status: done
 phase: P1
 family: front
 estimate: L

@@ -1,7 +1,7 @@
 ---
 id: TCK-124
 title: Fiche bien — auth bypass sur "Demander une visite" et "Signaler"
-status: review
+status: done
 phase: P1
 family: bug
 estimate: S

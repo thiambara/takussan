@@ -1,7 +1,7 @@
 ---
 id: TCK-126
 title: Fiche bien — "Envoyer un message" devrait rediriger vers /auth/login
-status: review
+status: done
 phase: P2
 family: bug
 estimate: S

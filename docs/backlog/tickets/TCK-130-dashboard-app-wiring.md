@@ -1,7 +1,7 @@
 ---
 id: TCK-130
 title: "Dashboard /app — câblage tuiles & contenu personnalisé"
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

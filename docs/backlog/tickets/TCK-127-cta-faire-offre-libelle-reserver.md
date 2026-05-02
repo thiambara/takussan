@@ -1,7 +1,7 @@
 ---
 id: TCK-127
 title: Fiche bien — CTA "Faire une offre" devrait être libellé "Réserver"
-status: review
+status: done
 phase: P2
 family: bug
 estimate: S

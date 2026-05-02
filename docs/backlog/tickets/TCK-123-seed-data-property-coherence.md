@@ -1,7 +1,7 @@
 ---
 id: TCK-123
 title: Seeders — corriger incohérences type/surface des propriétés de démo
-status: review
+status: done
 phase: P3
 family: bug
 estimate: S
