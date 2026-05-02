@@ -4,6 +4,8 @@ import { useParams, notFound } from 'next/navigation';
 import { useProperty } from '@/hooks/useProperty';
 import { useFavorite } from '@/hooks/useFavorite';
 import { recentlyViewedStorage } from '@/lib/recently-viewed';
+import { Navbar } from '@/components/home/Navbar';
+import { Footer } from '@/components/home/Footer';
 
 import { PropertyBreadcrumb } from './components/PropertyBreadcrumb';
 import { PropertyHeader } from './components/PropertyHeader';
@@ -195,9 +197,13 @@ export default function PropertyDetailPage() {
     notFound();
   }
 
-  if (loading || !property) {
-    return <PageSkeleton />;
-  }
-
-  return <PropertyDetailContent property={property} />;
+  return (
+    <>
+      <Navbar />
+      {/* Spacer : navbar fixed (~65px) + ligne catégories (~68px) */}
+      <div className="h-[133px]" />
+      {loading || !property ? <PageSkeleton /> : <PropertyDetailContent property={property} />}
+      <Footer />
+    </>
+  );
 }

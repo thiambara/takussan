@@ -69,12 +69,12 @@ class PublicPropertySearchFiltersTest extends ApiTestCase
         Property::factory()->create([
             'status' => PropertyStatus::Available,
             'visibility' => PropertyVisibility::Public,
-            'available_from' => '2026-04-01',
+            'available_from' => now()->subMonth()->toDateString(),
             'title' => 'Already available',
             'published_at' => now(),
         ]);
 
-        $response = $this->getJson('/api/public/properties/search?available_from=2026-04-30');
+        $response = $this->getJson('/api/public/properties/search?available_from='.now()->addDays(30)->toDateString());
 
         $response->assertOk();
         $this->assertCount(1, $response->json('data'));
@@ -90,7 +90,7 @@ class PublicPropertySearchFiltersTest extends ApiTestCase
             'published_at' => now(),
         ]);
 
-        $response = $this->getJson('/api/public/properties/search?available_from=2026-04-30');
+        $response = $this->getJson('/api/public/properties/search?available_from='.now()->addDays(30)->toDateString());
 
         $response->assertOk();
         $this->assertCount(1, $response->json('data'));
@@ -101,12 +101,12 @@ class PublicPropertySearchFiltersTest extends ApiTestCase
         Property::factory()->create([
             'status' => PropertyStatus::Available,
             'visibility' => PropertyVisibility::Public,
-            'available_from' => '2027-01-01',
+            'available_from' => now()->addYear()->toDateString(),
             'title' => 'Not yet available',
             'published_at' => now(),
         ]);
 
-        $response = $this->getJson('/api/public/properties/search?available_from=2026-04-30');
+        $response = $this->getJson('/api/public/properties/search?available_from='.now()->addDays(30)->toDateString());
 
         $response->assertOk();
         $this->assertCount(0, $response->json('data'));

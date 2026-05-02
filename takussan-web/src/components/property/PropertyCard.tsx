@@ -12,6 +12,7 @@ import type {
 } from '@/types/property';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
 import { CompareToggleButton } from '@/components/compare/CompareToggleButton';
+import { ContractTypeChip } from '@/components/property/cards/ContractTypeChip';
 
 /**
  * Canonical PropertyCard used by the homepage, search results and any
@@ -93,7 +94,6 @@ export function PropertyCard({
   hideFavorite = false,
   hideCompare = false,
 }: PropertyCardProps) {
-  const isSale = property.contract_type === 'sale';
   const ref = useRef<HTMLDivElement>(null);
   // Priority cards (above-the-fold) skip the initial hidden state so the
   // browser can count their image as the LCP candidate immediately.
@@ -128,20 +128,12 @@ export function PropertyCard({
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
           />
 
-          {/* Transaction badge */}
+          {/* Transaction badge — TCK-129 : aligné sur ContractTypeChip pour cohérence site-wide. */}
           {property.contract_type && (
-            <div
-              className={`absolute top-4 left-4 flex items-center gap-1.5 backdrop-blur-md text-white text-[10px] font-semibold tracking-wide px-2.5 py-1 rounded-full ${
-                isSale ? 'bg-primary/80' : 'bg-emerald-800/80'
-              }`}
-            >
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  isSale ? 'bg-sky-300' : 'bg-emerald-300'
-                }`}
-              />
-              {isSale ? 'En vente' : 'En location'}
-            </div>
+            <ContractTypeChip
+              type={property.contract_type}
+              className="absolute top-4 left-4"
+            />
           )}
 
           {/* Time */}

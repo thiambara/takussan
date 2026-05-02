@@ -16,9 +16,24 @@ class SimilarPropertiesService
     {
         $cacheKey = "property:{$source->id}:similar:limit:{$limit}";
 
-        return Cache::tags([self::CACHE_TAG])->remember($cacheKey, self::CACHE_TTL, function () use ($source, $limit) {
-            return $this->compute($source, $limit);
-        });
+        $ids = Cache::tags([self::CACHE_TAG])->remember(
+            $cacheKey,
+            self::CACHE_TTL,
+            fn (): array => $this->compute($source, $limit)->pluck('id')->all(),
+        );
+
+        if ($ids === []) {
+            return new Collection;
+        }
+
+        $orderIndex = array_flip($ids);
+
+        return Property::query()
+            ->with(['address', 'tags'])
+            ->whereIn('id', $ids)
+            ->get()
+            ->sortBy(fn (Property $p) => $orderIndex[$p->id] ?? PHP_INT_MAX)
+            ->values();
     }
 
     private function compute(Property $source, int $limit): Collection

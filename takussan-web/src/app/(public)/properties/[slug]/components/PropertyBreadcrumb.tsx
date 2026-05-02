@@ -4,7 +4,7 @@ import type { PropertyDetail } from '@/types/property';
 
 export function PropertyBreadcrumb({ property }: { property: PropertyDetail }) {
   const contractLabel = property.contract_type === 'rent' ? 'Louer' : 'Acheter';
-  const contractHref = property.contract_type === 'rent' ? '/properties?contract=rent' : '/properties?contract=sale';
+  const contractHref = property.contract_type === 'rent' ? '/properties?contract_type=rent' : '/properties?contract_type=sale';
 
   const crumbs: Array<{ label: string; href?: string }> = [
     { label: 'Accueil', href: '/' },
@@ -17,7 +17,10 @@ export function PropertyBreadcrumb({ property }: { property: PropertyDetail }) {
     });
   }
   if (property.location.quarter) {
-    crumbs.push({ label: property.location.quarter });
+    crumbs.push({ 
+      label: property.location.quarter,
+      href: `/properties?location=${encodeURIComponent(property.location.quarter)}`,
+    });
   }
 
   return (

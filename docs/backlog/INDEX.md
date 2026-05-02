@@ -58,6 +58,11 @@ _(vide — TCK-104 en cours)_
 ### Vague 13 — Bugs QA visiteur anonyme (visiteur-anonyme-qa.md)
 
 - [TCK-125](tickets/TCK-125-select-affiche-cles-internes.md) — UI Select — dropdowns affichent les clés internes au lieu des labels `S · P2 · bug` **[review]**
+
+### Vague 14 — Refonte design system
+
+_(TCK-129 passé en review)_
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
@@ -67,6 +72,10 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 _(vide)_
 
 ## 👀 Review
+
+### Vague 14 — Refonte design system
+
+- [TCK-129](tickets/TCK-129-design-system-public-refresh.md) — Refonte design system — fondation site + homepage publique (Ancrage Local) `L · P1 · front`
 
 ### Vague 13 — Bugs QA
 

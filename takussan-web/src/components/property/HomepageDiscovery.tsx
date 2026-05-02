@@ -1,130 +1,121 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { Navbar } from '@/components/home/Navbar';
 import { Footer } from '@/components/home/Footer';
-import { PropertyCard } from '@/components/property/PropertyCard';
+import { PropertyRow } from '@/components/property/cards/PropertyRow';
+import { BogolanPattern } from '@/components/property/cards/BogolanPattern';
 import { RecentlyViewedCarousel } from '@/components/property/RecentlyViewedCarousel';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useProperties } from '@/hooks/useProperties';
-import type { PropertyListItem } from '@/types/property';
 
 /**
- * Homepage hero + two discovery sections (featured, latest).
- * Wave 3 — TCK-038.
+ * Homepage publique — TCK-129.
+ * Quatre rangées scrollables, une variante de carte par section :
+ *  - Standard 4:3   → « Près de toi · À découvrir à Dakar »
+ *  - Listing wide   → « À louer · Pour ton prochain logement »
+ *  - Cover 3:4      → « Coup de cœur · Sélection de la semaine » (signature)
+ *  - Compact 1:1    → « Nouveau · Tout juste publié »
  *
- * Reuses the existing `Navbar` / `Footer` / `useProperties` infra from
- * Wave 2 but renders the canonical {@link PropertyCard} from
- * `components/property/`, which is the long-term owner of the card
- * surface (supports the real favorites button).
- *
- * Search redirection is handled by the Navbar (which already wires
- * input → `/properties?...`), so the hero on this page keeps an
- * inspirational visual and delegates the form flow to the nav.
+ * Pas de hero marketing — l'intention de l'utilisateur est pré-formée. La
+ * navbar porte search + catégories ; cette page démarre directement par la
+ * découverte.
  */
-
-function CardSkeleton() {
-  return (
-    <div className="space-y-3">
-      <Skeleton className="aspect-4/3 w-full rounded-xl" />
-      <Skeleton className="h-5 w-3/4" />
-      <Skeleton className="h-4 w-1/2" />
-      <Skeleton className="h-4 w-2/3" />
-      <Skeleton className="h-4 w-2/3" />
-    </div>
-  );
-}
-
-interface DiscoverySectionProps {
-  title: string;
-  subtitle?: string;
-  viewAllHref?: string;
-  properties: readonly PropertyListItem[];
-  loading: boolean;
-  error: string | null;
-}
-
-function DiscoverySection({
-  title,
-  subtitle,
-  viewAllHref,
-  properties,
-  loading,
-  error,
-}: DiscoverySectionProps) {
-  return (
-    <section>
-      <div className="mb-5 flex items-end justify-between">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight text-gray-900">
-            {title}
-          </h2>
-          {subtitle && (
-            <p className="text-sm text-stone-500 mt-0.5">{subtitle}</p>
-          )}
-        </div>
-        {viewAllHref && (
-          <Link
-            href={viewAllHref}
-            className="text-sm font-semibold text-primary hover:underline underline-offset-4 transition-colors"
-          >
-            Voir plus →
-          </Link>
-        )}
-      </div>
-
-      {error ? (
-        <div className="py-12 text-center text-stone-400 text-sm">{error}</div>
-      ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7 gap-x-4 gap-y-15">
-          {loading
-            ? Array.from({ length: 8 }).map((_, i) => <CardSkeleton key={i} />)
-            : properties.map((property, i) => (
-                <PropertyCard
-                  key={property.id}
-                  property={property}
-                  index={i}
-                  priority={i < 2}
-                />
-              ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
 export function HomepageDiscovery() {
-  const featured = useProperties({ featured: true, perPage: 8 });
-  const latest = useProperties({ sort: 'latest', perPage: 8 });
+  const t = useTranslations('homepage.row');
+
+  const dakar = useProperties({ city: 'Dakar', perPage: 10 });
+  const rent = useProperties({ transaction: 'rent', perPage: 10 });
+  const featured = useProperties({ featured: true, perPage: 10 });
+  const latest = useProperties({ sort: 'latest', perPage: 10 });
+
+  const viewAll = t('viewAll');
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa]">
+    <div className="min-h-screen bg-background">
       <Navbar />
 
-      {/* Navbar row 1 (~65px) + category row 2 (~68px) spacer. */}
+      {/* Spacer : 1ère ligne navbar (~65px) + ligne catégories (~68px). */}
       <div className="h-[133px]" />
 
-      <main className="max-w-[1440px] mx-auto px-6 md:px-16 py-10 space-y-20 mb-10">
-        <DiscoverySection
-          title="Biens en vedette"
-          subtitle="Une sélection mise en avant par nos équipes."
-          viewAllHref="/properties?featured=true"
-          properties={featured.properties}
-          loading={featured.loading}
-          error={featured.error}
-        />
+      <main className="max-w-[1440px] mx-auto px-6 md:px-12 pt-12 pb-24 space-y-20">
+        <div
+          className="animate-section-enter"
+          style={{ animationDelay: '40ms' }}
+        >
+          <PropertyRow
+            variant="standard"
+            eyebrow={t('near.eyebrow')}
+            title={t('near.title')}
+            viewAllHref="/properties?city=Dakar"
+            viewAllLabel={viewAll}
+            properties={dakar.properties}
+            loading={dakar.loading}
+            error={dakar.error}
+          />
+        </div>
 
-        <DiscoverySection
-          title="Derniers ajouts"
-          subtitle="Les biens publiés le plus récemment."
-          viewAllHref="/properties?sort=created_desc"
-          properties={latest.properties}
-          loading={latest.loading}
-          error={latest.error}
-        />
+        <div
+          className="animate-section-enter"
+          style={{ animationDelay: '120ms' }}
+        >
+          <PropertyRow
+            variant="listing"
+            eyebrow={t('rent.eyebrow')}
+            title={t('rent.title')}
+            viewAllHref="/properties?contract_type=rent"
+            viewAllLabel={viewAll}
+            properties={rent.properties}
+            loading={rent.loading}
+            error={rent.error}
+          />
+        </div>
 
-        <RecentlyViewedCarousel />
+        {/* Rangée signature — fond cream + pattern bogolan stylisé (≤5%). */}
+        <section
+          className="animate-section-enter relative"
+          style={{ animationDelay: '200ms' }}
+        >
+          <div className="absolute inset-x-[-12px] inset-y-[-32px] md:inset-x-[-24px] md:inset-y-[-48px] -z-10 rounded-[28px] overflow-hidden bg-card">
+            <div className="absolute inset-0 opacity-[0.045] text-foreground">
+              <BogolanPattern className="w-full h-full" color="currentColor" />
+            </div>
+          </div>
+
+          <PropertyRow
+            variant="cover"
+            eyebrow={t('featured.eyebrow')}
+            title={t('featured.title')}
+            viewAllHref="/properties?featured=true"
+            viewAllLabel={viewAll}
+            properties={featured.properties}
+            loading={featured.loading}
+            error={featured.error}
+          />
+        </section>
+
+        <div
+          className="animate-section-enter"
+          style={{ animationDelay: '280ms' }}
+        >
+          <PropertyRow
+            variant="compact"
+            eyebrow={t('latest.eyebrow')}
+            title={t('latest.title')}
+            viewAllHref="/properties?sort=created_desc"
+            viewAllLabel={viewAll}
+            properties={latest.properties}
+            loading={latest.loading}
+            error={latest.error}
+          />
+        </div>
+
+        <div
+          className="animate-section-enter"
+          style={{ animationDelay: '360ms' }}
+        >
+          <RecentlyViewedCarousel />
+        </div>
       </main>
 
       <Footer />
