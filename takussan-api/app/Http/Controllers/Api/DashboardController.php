@@ -13,11 +13,38 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
+use App\Services\Dashboard\DashboardRoleResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
+    public function __construct(private readonly DashboardRoleResolver $resolver) {}
+
+    /**
+     * GET /api/dashboard/me — adaptive entry returning role + flat metrics + sections.
+     * Returns 404 when no profile resolves so the frontend can render an explicit empty state.
+     */
+    public function me(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $metrics = $this->resolver->resolve($user);
+
+        if ($metrics === null) {
+            return $this->json([
+                'message' => 'Aucun profil tableau de bord résolu pour cet utilisateur.',
+            ], 404);
+        }
+
+        return $this->json([
+            'data' => [
+                'role' => $metrics->role(),
+                'metrics' => $metrics->metrics($user),
+                'sections' => $metrics->sections($user),
+            ],
+        ]);
+    }
+
     public function stats(Request $request): JsonResponse
     {
         $user = $request->user();
