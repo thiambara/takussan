@@ -1,7 +1,7 @@
 ---
 id: TCK-140
 title: Profils polymorphes — Modèles, relations, backfill
-status: review
+status: done
 phase: EF
 family: back
 estimate: L

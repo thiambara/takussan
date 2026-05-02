@@ -1,7 +1,7 @@
 ---
 id: TCK-142
 title: Profils polymorphes — Refactor consumers & drop legacy UserType
-status: review
+status: done
 phase: EF
 family: back
 estimate: L

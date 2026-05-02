@@ -1,7 +1,7 @@
 ---
 id: TCK-139
 title: Profils polymorphes — Schéma & migrations
-status: review
+status: done
 phase: EF
 family: back
 estimate: M

@@ -1,7 +1,7 @@
 ---
 id: TCK-138
 title: Spec — Modèle de profils polymorphes (User → Profiles)
-status: review
+status: done
 phase: EF
 family: evolution
 estimate: M

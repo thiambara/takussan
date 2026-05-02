@@ -1,7 +1,7 @@
 ---
 id: TCK-141
 title: Profils polymorphes — Contexte de profil actif & API
-status: review
+status: done
 phase: EF
 family: back
 estimate: M

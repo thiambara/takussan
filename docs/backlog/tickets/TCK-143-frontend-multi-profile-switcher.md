@@ -1,7 +1,7 @@
 ---
 id: TCK-143
 title: "Frontend — Sélecteur de profil actif & contexte multi-profil"
-status: review
+status: done
 phase: P0
 family: front
 estimate: M
