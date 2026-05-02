@@ -72,6 +72,16 @@ _(TCK-129 passé en review)_
 - [TCK-136](tickets/TCK-136-profile-customer-search-preferences.md) — Profil locataire — Préférences de recherche & alertes `M · P1 · front`
 - [TCK-137](tickets/TCK-137-profile-contact-phone-edit.md) — Profil contact — Édition téléphone `S · P1 · front`
 
+### Vague 16 — Profils polymorphes (User → Profiles)
+
+> Évolution architecturale : passage du couple `UserType` (enum) + rôles spatie au modèle de profils polymorphes (`OwnerProfile`, `AgentProfile`, `BrokerProfile`, `ServiceProviderProfile`). Préalable : valider la spec (TCK-138) avant tout code.
+
+- [TCK-138](tickets/TCK-138-spec-polymorphic-profiles.md) — Spec — Modèle de profils polymorphes (User → Profiles) `M · EF · evolution`
+- [TCK-139](tickets/TCK-139-profiles-schema-migrations.md) — Profils polymorphes — Schéma & migrations `M · EF · back`
+- [TCK-140](tickets/TCK-140-profiles-models-backfill.md) — Profils polymorphes — Modèles, relations, backfill `L · EF · back`
+- [TCK-141](tickets/TCK-141-profiles-active-context-api.md) — Profils polymorphes — Contexte de profil actif & API `M · EF · back`
+- [TCK-142](tickets/TCK-142-profiles-refactor-drop-legacy.md) — Profils polymorphes — Refactor consumers & drop legacy UserType `L · EF · back`
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
@@ -490,6 +500,12 @@ TCK-040 ──▶ TCK-114 (fix Leaflet map property detail)
 TCK-032 ──▶ TCK-115 (super_admin no-agency empty states)
 TCK-099 ──▶ TCK-122 (similar properties frontend wiring)
 TCK-035 + TCK-036 + TCK-041 ──▶ TCK-120 (property form missing sections)
+
+── Vague 16 : Profils polymorphes (User → Profiles) ──
+TCK-138 (spec polymorphic profiles) ──▶ TCK-139 (schema & migrations)
+TCK-139 ──▶ TCK-140 (models, relations, backfill)
+TCK-140 ──▶ TCK-141 (active profile context & API)
+TCK-141 ──▶ TCK-142 (refactor consumers + drop legacy UserType)
 ```
 
 ---
