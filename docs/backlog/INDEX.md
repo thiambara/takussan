@@ -76,6 +76,10 @@ _(TCK-129 passé en review)_
 
 > Évolution architecturale : passage du couple `UserType` (enum) + rôles spatie au modèle de profils polymorphes (`OwnerProfile`, `AgentProfile`, `BrokerProfile`, `ServiceProviderProfile`). Préalable : valider la spec (TCK-138) avant tout code.
 
+- [TCK-143](tickets/TCK-143-frontend-multi-profile-switcher.md) — Frontend — Sélecteur de profil actif & contexte multi-profil `M · P0 · front`
+- [TCK-144](tickets/TCK-144-backend-super-admin-namespace.md) — Backend — Namespace super_admin dédié `/api/admin/...` `L · P1 · technique`
+- [TCK-145](tickets/TCK-145-frontend-super-admin-area.md) — Frontend — Espace super-admin dédié hors layout agence `M · P1 · front`
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
@@ -508,6 +512,9 @@ TCK-138 (spec polymorphic profiles) ──▶ TCK-139 (schema & migrations)
 TCK-139 ──▶ TCK-140 (models, relations, backfill)
 TCK-140 ──▶ TCK-141 (active profile context & API)
 TCK-141 ──▶ TCK-142 (refactor consumers + drop legacy UserType)
+TCK-141 ──▶ TCK-143 (frontend multi-profile switcher)
+TCK-142 ──▶ TCK-144 (backend super_admin namespace)
+TCK-144 ──▶ TCK-145 (frontend super-admin area)
 ```
 
 ---
