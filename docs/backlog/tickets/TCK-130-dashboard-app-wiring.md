@@ -1,7 +1,7 @@
 ---
 id: TCK-130
 title: "Dashboard /app — câblage tuiles & contenu personnalisé"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -73,4 +73,11 @@ Le frontend doit utiliser `fields[...]` et `include=` selon les conventions Spat
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Source de données** : un seul appel à `GET /api/dashboard/me` (TCK-032) — la cascade de priorité (super_admin → agency_admin → agent → owner → tenant) résout *un* rôle qui pilote la grille KPI. Pas de fan-out multi-endpoints.
+- **Composition multi-rôle** : la grille KPI suit le rôle résolu, mais la rangée "Raccourcis" (`DashboardShortcuts`) est construite à partir de `user.roles` directement et déduplique par `href`. Un compte `agent` + `owner` voit donc les raccourcis CRM ET propriétés sans doublon de "Messagerie".
+- **Fichiers créés** : `src/lib/queries/dashboard-me.ts` (fetcher serveur + types), `src/components/dashboard/DashboardMeKpis.tsx` (4 tuiles `StatCard` par rôle), `src/components/dashboard/DashboardShortcuts.tsx` (raccourcis dédupliqués), `src/components/dashboard/DashboardEmpty.tsx` (CTA quand `/me` renvoie 404).
+- **Fichier réécrit** : `src/app/(dashboard)/app/page.tsx` — `StubPlaceholder` retiré. Branche `NoAgencyState` (TCK-115) conservée intacte. Affiche `DashboardEmpty` quand `/me` renvoie 404 (utilisateur sans profil résolvable côté backend).
+- **Clés métriques** lues telles quelles depuis les adapters PHP (`AgencyMeMetrics`, `OwnerMeMetrics`, `AgentMeMetrics`, `TenantMeMetrics`) : `properties_total`, `leases_active`, `revenue_month`, `overdue_count` (agency) ; `portfolio_total`, `cashflow_month`, `overdue_amount` (owner) ; `properties_managed`, `pipeline_total`, `tasks_open`, `tasks_overdue`, `commissions_month` (agent) ; `leases_active`, `next_payment`, `overdue_amount`, `recent_documents` (tenant). Valeurs absentes → `—`.
+- **Format** : `formatCurrency` / `formatNumber` de `@/lib/format` (locale `fr` → `fr-SN`, devise XOF par défaut).
+- **Tests** : 9 cas Vitest dans `src/components/dashboard/__tests__/` (4 sur `DashboardMeKpis`, 5 sur `DashboardShortcuts`). Pattern aligné sur `PipelineStatsBar.test.tsx`. La page serveur n'est pas unit-testée (cohérent avec `/app/overview/agent/page.tsx`).
+- **Hors périmètre confirmé** : `StubPlaceholder` reste en place sur `/admin`, `/admin/properties`, `/admin/users`, `/admin/finances`, `/admin/roles` (couverts par TCK-131 → TCK-135). Pas de skeletons `loading.tsx` ajoutés (page Server Component synchrone, comme les autres `/app/overview/*`).

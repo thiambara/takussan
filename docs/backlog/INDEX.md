@@ -65,7 +65,6 @@ _(TCK-129 passé en review)_
 
 ### Vague 15 — Câblage des zones UI stub (StubPlaceholder / "Bientôt disponible")
 
-- [TCK-130](tickets/TCK-130-dashboard-app-wiring.md) — Dashboard `/app` — câblage tuiles & contenu personnalisé `M · P1 · front`
 - [TCK-131](tickets/TCK-131-dashboard-admin-agency.md) — Dashboard `/admin` agence — câblage indicateurs & vue d'ensemble `M · P1 · front`
 - [TCK-132](tickets/TCK-132-admin-properties-global.md) — `/admin/properties` — Gestion globale des biens (super_admin) `M · P1 · front`
 - [TCK-133](tickets/TCK-133-admin-users-management.md) — `/admin/users` — Gestion des utilisateurs (activation, blocage, rôles) `M · P1 · front`
@@ -83,6 +82,10 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 _(vide)_
 
 ## 👀 Review
+
+### Vague 15 — Câblage des zones UI stub (StubPlaceholder / "Bientôt disponible")
+
+- [TCK-130](tickets/TCK-130-dashboard-app-wiring.md) — Dashboard `/app` — câblage tuiles & contenu personnalisé `M · P1 · front`
 
 ### Vague 14 — Refonte design system
 
