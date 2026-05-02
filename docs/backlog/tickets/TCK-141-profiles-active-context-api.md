@@ -1,7 +1,7 @@
 ---
 id: TCK-141
 title: Profils polymorphes — Contexte de profil actif & API
-status: todo
+status: review
 phase: EF
 family: back
 estimate: M
@@ -65,4 +65,11 @@ Exposer le contexte de profil actif au runtime (middleware + helper sur `Request
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Composite profile id `<type>:<id>`** : les 4 tables de profils ont des PK indépendantes ; un simple `profile_id` numérique est ambigu. Le format wire choisi (`owner:5`, `agent:3`, `broker:1`, `service_provider:2`) discrimine en clair, est facile à logger, et reste un seul champ pour le client. Implémenté dans `App\Services\Profiles\ActiveProfileResolver` et exposé par `ProfileResource`.
+- **Coexistence avec `SetPermissionsTeamIdMiddleware`** : le legacy middleware tourne toujours en `prepend` sur le groupe api et fixe `team_id` à partir de `users.agency_id`. `ResolveActiveProfile` est `append:` au groupe api → tourne après — il **override** le team_id quand un profil est résolu, et n'agit pas sinon. Les deux cohabitent jusqu'au cutover TCK-142 qui supprimera la colonne et le legacy middleware avec.
+- **Pas d'`EncryptCookies` sur le groupe api** : le cookie `active_profile_id` est posé en clair (httpOnly, sameSite=lax, 30 jours). En tests, il faut combiner `withCredentials()` + `withUnencryptedCookie()` — `getJson`/`postJson` excluent les cookies par défaut sauf si `withCredentials` est explicite (`prepareCookiesForJsonRequest` retourne `[]` autrement).
+- **Hard 403 vs ignorer silencieusement** : un signal *explicite* (header / query) qui pointe vers un profil non possédé → 403 (anti-spoofing). Un cookie *stale* est ignoré silencieusement (UX : un user ayant perdu un profil ne doit pas se retrouver verrouillé en 403).
+- **`User::activeProfile()` lit `request()->activeProfile()`** : le modèle reste sans état ; la vérité vit dans le scope request défini par la macro enregistrée dans `AppServiceProvider::boot`. Hors scope HTTP (jobs, console) → retourne null.
+- **Multi-profils sans signal explicite** : le résolveur **refuse de deviner** (#multiple_profiles_without_signal_does_not_pick_arbitrarily). Le team_id legacy posé par `SetPermissionsTeamIdMiddleware` reste en place — ça matérialise le contrat documenté Règle 4 §models-spec.md.
+- **20 tests verts** (5 ProfilesEndpoint + 5 SelectActiveProfile + 8 ResolveActiveProfile + 2 PermissionResolution). Suite complète : 1546/1546. Pint clean.
+- **Hors livraison** : la documentation Postman/OpenAPI ne suit pas un format auto-généré dans ce repo (pas de collection versionnée trouvée) — la mention dans le delta a été interprétée comme « si une collection existe ». L'AC associée est tenue par les tests Feature qui spécifient le contrat.

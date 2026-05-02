@@ -123,4 +123,19 @@ trait HasProfiles
             || $this->brokerProfile()->exists()
             || $this->serviceProviderProfile()->exists();
     }
+
+    /**
+     * Active profile for the current request — set by `ResolveActiveProfile`
+     * middleware. Reads through `request()->activeProfile()` so the truth
+     * lives in one place. Returns null outside the request scope or when
+     * no profile was resolved.
+     */
+    public function activeProfile()
+    {
+        if (! app()->bound('request')) {
+            return null;
+        }
+
+        return request()->activeProfile();
+    }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\ForceJsonResponseMiddleware;
+use App\Http\Middleware\ResolveActiveProfile;
 use App\Http\Middleware\RestrictIpMiddleware;
 use App\Http\Middleware\SetLocaleMiddleware;
 use App\Http\Middleware\SetPermissionsTeamIdMiddleware;
@@ -24,6 +25,13 @@ return Application::configure(basePath: dirname(__DIR__))
             ForceJsonResponseMiddleware::class,
             SetLocaleMiddleware::class,
             SetPermissionsTeamIdMiddleware::class,
+        ]);
+        // TCK-141 — runs after `auth:sanctum` finishes (so `$request->user()`
+        // is populated). Overrides the team_id set by SetPermissionsTeamId
+        // when an active profile can be resolved. Both middlewares coexist
+        // until TCK-142 drops `users.agency_id`.
+        $middleware->api(append: [
+            ResolveActiveProfile::class,
         ]);
         // TCK-102 — alias the SMS webhook IP allowlist middleware.
         $middleware->alias([
