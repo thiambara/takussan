@@ -319,7 +319,7 @@ _(vide)_
 
 ### Reporting transverse — Vague 3 [PR #38](https://github.com/thiambara/takussan/pull/38)
 
-- [TCK-032](tickets/TCK-032-reporting-dashboards.md) — Reporting & tableaux de bord `L · P1 · applicatif` (PR #38 — P1+P2+P3 full)
+- [TCK-032](tickets/TCK-032-reporting-dashboards.md) — Reporting & tableaux de bord `L · P1 · applicatif` (PR #38 — P1+P2+P3 full ; gap `/api/dashboard/me` adaptive entry fermé pour débloquer TCK-130)
 
 ## ✅ Done
 
