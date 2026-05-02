@@ -1,7 +1,7 @@
 ---
 id: TCK-138
 title: Spec — Modèle de profils polymorphes (User → Profiles)
-status: todo
+status: review
 phase: EF
 family: evolution
 estimate: M
@@ -57,4 +57,9 @@ Faire évoluer `docs/models-spec.md` et `docs/features.md` pour adopter un modè
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Carve-out skill**: `family: evolution` traité comme exception sanctionnée à la règle « specs read-only » de `implementing-specs` — ce ticket existe précisément pour livrer la spec.
+- **AC #2 reformulé**: l'AC dit « sauf BrokerProfile qui collabore via pivot » mais l'architecture cible (alignée TCK-139) place aussi `ServiceProviderProfile` sur un pivot `service_provider_agency_collaborations`. Owner/Agent = personas employées (FK directe `agency_id`), Broker/ServiceProvider = professionnels indépendants (pivot N:M). C'est la sémantique correcte.
+- **Enums ajoutés**: `OwnerProfileStatus`, `AgentProfileStatus`, `CollaborationStatus` (anticipés ici, à matérialiser en TCK-139/TCK-140).
+- **Aucun ER diagram** dans `models-spec.md` à ce jour → AC "diagramme ER" no-op.
+- **`/sync-specs` à lancer** côté reviewer pour confirmer absence de nouvelle ⚠️/❌ après merge.
+- **Cohérence TCK-139..142**: les noms de tables, colonnes et contraintes d'unicité dans la spec matchent exactement ceux des tickets enfants — pas de drift à corriger en aval.
