@@ -25,21 +25,21 @@ type Item = {
 export function AgencyActivityFeed({ summary }: Props) {
   const items: Item[] = [
     {
-      href: '/admin/bookings',
+      href: '/app/bookings',
       label: 'Réservations en attente',
       count: summary.bookings.pending,
       icon: CalendarClock,
       cta: 'Traiter les demandes',
     },
     {
-      href: '/admin/maintenance',
+      href: '/app/maintenance',
       label: 'Interventions ouvertes',
       count: summary.maintenance.open,
       icon: Wrench,
       cta: 'Voir les tickets',
     },
     {
-      href: '/admin/users',
+      href: '/app/customers',
       label: 'Clients (CRM)',
       count: summary.customers_count,
       icon: Users,

@@ -42,7 +42,7 @@ describe('<AgencyActivityFeed>', () => {
 
     const hrefs = Array.from(container.querySelectorAll('a')).map((a) => a.getAttribute('href'));
     expect(hrefs).toEqual(
-      expect.arrayContaining(['/admin/bookings', '/admin/maintenance', '/admin/users', '/admin/team']),
+      expect.arrayContaining(['/app/bookings', '/app/maintenance', '/app/customers', '/admin/team']),
     );
   });
 });
