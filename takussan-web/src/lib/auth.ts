@@ -49,6 +49,13 @@ export type UpdateProfilePayload = {
   last_name: string;
   bio?: string;
   avatar?: File | null;
+  /**
+   * E.164-formatted phone (e.g. `+221770000000`). Pass `null` or empty
+   * string to clear it. Omit the key entirely to leave the current value
+   * untouched. TCK-137: changing the value resets `phone_verified_at`
+   * server-side.
+   */
+  phone?: string | null;
 };
 
 export async function register(payload: RegisterPayload): Promise<AuthResponse & { message: string }> {
@@ -74,6 +81,7 @@ export async function updateProfile(token: string, payload: UpdateProfilePayload
   formData.append('last_name', payload.last_name);
   if (payload.bio !== undefined) formData.append('bio', payload.bio);
   if (payload.avatar) formData.append('avatar', payload.avatar);
+  if (payload.phone !== undefined) formData.append('phone', payload.phone ?? '');
 
   return apiRequest('/api/auth/profile', {
     method: 'POST',

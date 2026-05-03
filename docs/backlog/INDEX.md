@@ -65,7 +65,7 @@ _(TCK-129 passé en review)_
 
 ### Vague 15 — Câblage des zones UI stub (StubPlaceholder / "Bientôt disponible")
 
-- [TCK-137](tickets/TCK-137-profile-contact-phone-edit.md) — Profil contact — Édition téléphone `S · P1 · front`
+_(vide — TCK-137 en doing)_
 
 ### Vague 16 — Profils polymorphes (User → Profiles)
 
@@ -87,6 +87,7 @@ _(vide)_
 
 - [TCK-135](tickets/TCK-135-admin-roles-editor.md) — `/admin/roles` — Éditeur de rôles & permissions personnalisés `M · P1 · full`
 - [TCK-136](tickets/TCK-136-profile-customer-search-preferences.md) — Profil locataire — Préférences de recherche & alertes `M · P1 · front`
+- [TCK-137](tickets/TCK-137-profile-contact-phone-edit.md) — Profil contact — Édition téléphone `S · P1 · front`
 
 ### Vague 16 — Profils polymorphes (User → Profiles)
 

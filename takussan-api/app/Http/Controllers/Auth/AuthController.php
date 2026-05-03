@@ -110,6 +110,17 @@ class AuthController extends Controller
 
         $data = $request->only(['first_name', 'last_name', 'bio']);
 
+        if ($request->has('phone')) {
+            $newPhone = $request->input('phone');
+            $newPhone = $newPhone === '' ? null : $newPhone;
+            // TCK-137 — changer le numéro réinitialise le statut de vérification.
+            // Le contrôleur fait foi (pas de cast model) pour rester explicite.
+            if ($user->phone !== $newPhone) {
+                $data['phone'] = $newPhone;
+                $data['phone_verified_at'] = null;
+            }
+        }
+
         if ($request->hasFile('avatar')) {
             $path = $request->file('avatar')->store('avatars', 'public');
             $data['metadata'] = array_merge($user->metadata ?? [], ['avatar' => $path]);
