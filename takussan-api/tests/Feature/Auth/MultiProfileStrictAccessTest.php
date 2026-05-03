@@ -92,10 +92,11 @@ class MultiProfileStrictAccessTest extends TestCase
         $response->assertStatus(403);
     }
 
-    public function test_admin_with_matching_active_profile_can_admin_their_agency(): void
+    public function test_active_profile_match_is_necessary_but_not_sufficient_without_role(): void
     {
-        // Same Bob as above, but acting under X this time (where he has only
-        // an `agent` profile, no agency_admin role) — still rejected.
+        // Bob acting under X (only `agent` there, no agency_admin role).
+        // Active-profile match is necessary but not sufficient — without an
+        // agency_admin role at the same team the request is still 403.
         $bob = User::factory()->create();
         $agencyX = Agency::factory()->create();
         $agencyY = Agency::factory()->create();
@@ -114,6 +115,30 @@ class MultiProfileStrictAccessTest extends TestCase
         $this->withHeaders(['X-Profile-Id' => "agent:{$agentX->id}"])
             ->putJson("/api/agencies/{$agencyX->id}", ['name' => 'Hijacked'])
             ->assertStatus(403);
+    }
+
+    public function test_admin_with_matching_active_profile_and_role_can_admin_their_agency(): void
+    {
+        // Positive case — Carol holds agency_admin at X *and* her active
+        // profile is at X. Both halves of the strict check line up so the
+        // request succeeds.
+        $carol = User::factory()->create();
+        $agencyX = Agency::factory()->create();
+        $agentX = AgentProfile::factory()->create([
+            'user_id' => $carol->id,
+            'agency_id' => $agencyX->id,
+        ]);
+
+        $registrar = app(PermissionRegistrar::class);
+        $registrar->setPermissionsTeamId($agencyX->id);
+        $carol->assignRole('agency_admin');
+        $registrar->setPermissionsTeamId(null);
+
+        Sanctum::actingAs($carol);
+
+        $this->withHeaders(['X-Profile-Id' => "agent:{$agentX->id}"])
+            ->putJson("/api/agencies/{$agencyX->id}", ['name' => 'Carol Realty'])
+            ->assertOk();
     }
 
     public function test_property_policy_denies_cross_agency_access_under_wrong_active_profile(): void

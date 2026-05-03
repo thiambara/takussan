@@ -129,14 +129,20 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             return $active->agency_id;
         }
 
-        $agentCount = $this->agentProfiles()->count();
-        $ownerCount = $this->ownerProfiles()->count();
-        if ($agentCount + $ownerCount !== 1) {
+        // Auto-bascule mirrors `ResolveActiveProfile` — exactly one profile
+        // (any of the four types). `profiles()` reuses eager-loaded
+        // relations when available so a per-row authz check inside an
+        // index loop doesn't fan out into N×3 queries; the trait method
+        // also keeps this accessor in lockstep with the middleware's
+        // single-profile rule for users holding e.g. one broker profile.
+        $profiles = $this->profiles();
+        if ($profiles->count() !== 1) {
             return null;
         }
 
-        return $this->agentProfiles()->value('agency_id')
-            ?? $this->ownerProfiles()->value('agency_id');
+        $only = $profiles->first();
+
+        return isset($only->agency_id) ? (int) $only->agency_id : null;
     }
 
     /**
