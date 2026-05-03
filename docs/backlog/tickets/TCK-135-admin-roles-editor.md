@@ -1,9 +1,9 @@
 ---
 id: TCK-135
 title: "/admin/roles — Éditeur de rôles & permissions personnalisés (agency_admin)"
-status: todo
+status: review
 phase: P1
-family: front
+family: full
 estimate: M
 created: 2026-05-02
 updated: 2026-05-03
@@ -89,4 +89,76 @@ Conventions Spatie côté frontend : `fields[roles]=`, `include=permissions`, `f
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Famille élargie `front` → `full`** : la « Contrat de données » du ticket
+  référence `GET /api/roles`, `GET /api/permissions` et des endpoints
+  granulaires de permissions qui n'avaient pas été livrés par TCK-014. Le
+  shipping de TCK-014 expose `/api/agency-roles` (custom uniquement, sync
+  full des permissions via `PUT`). Décision (avec l'utilisateur) : bundle
+  backend + frontend dans le même PR pour rester aligné sur la spec, plutôt
+  que d'adapter le frontend aux endpoints existants ou de créer un ticket
+  backend prérequis.
+- **Backend nouveau** :
+  - `App\Http\Controllers\Api\RoleController` (index/store/update/destroy +
+    `attachPermission`/`detachPermission`). Resolu via
+    `app(PermissionRegistrar::class)->teamsKey` (la colonne réelle est
+    `agency_id`, pas `team_id` — config spatie `team_foreign_key`).
+  - `App\Http\Controllers\Api\PermissionController` (index → catalogue groupé
+    par préfixe `<resource>`).
+  - `routes/api/roles.php` (auto-loadé par `routes/api.php`). Les anciennes
+    routes `/api/agency-roles` et `AgencyRoleController` ont été supprimées —
+    seul `tests/Feature/Api/AgencyAgentTest.php` les utilisait, les tests
+    role-management ont été déplacés dans le nouveau `RoleControllerTest`.
+- **Permission `roles.manage_in_agency`** : ajoutée au seeder
+  `RolesAndPermissionsSeeder` et accordée au rôle `agency_admin`. Le
+  `RoleController::authorizeAgencyManager` court-circuite via `isSuperAdmin()`
+  / `hasRole('admin')` pour rester cohérent avec `Gate::before`.
+- **Refus de mutation des rôles prédéfinis** : `ensureCustomRoleInAgency`
+  rejette `team_id IS NULL` avant le check inter-agence. Couvert par les
+  tests `cannot_update_predefined_role`,
+  `cannot_destroy_predefined_role`, `cannot_attach_permission_to_predefined_role`.
+- **Suppression bloquée si rôle attribué** : `destroy` 422 si `users()->count() > 0`,
+  message FR explicite (`Impossible de supprimer ce rôle : il est attribué à N utilisateur(s).`).
+  Le frontend l'affiche via le bloc `role-editor-delete-error`.
+- **Active profile `team_id` resolution** : `resolveAgencyId()` privilégie
+  `$request->activeProfile()?->agency_id` puis tombe sur la colonne legacy
+  jusqu'au cutover TCK-142 — pattern identique à
+  `UserAdminController` / `DashboardController`.
+- **Frontend invalidation sur switch de profil** : `useSwitchActiveProfile`
+  invalide désormais `['roles']` et `['permissions']` en plus des clés
+  existantes, pour respecter l'AC « Une bascule de profil provoque un refetch
+  automatique ».
+- **Reset d'éditeur via `key`** : le composant `RoleEditor` est remonté par
+  `AdminRolesClient` avec `key={role.id}` plutôt que `useEffect(setState)`
+  pour respecter la règle ESLint `react-hooks/no-setstate-in-effect`.
+- **Sparse fieldsets** : `ADMIN_ROLES_FIELDS` épingle
+  `id,name,guard_name,team_id`. `permissions` est chargé via `include=permissions`
+  (relation, donc hors `fields[roles]`).
+- **Tests** :
+  - Backend : `tests/Feature/Api/RoleControllerTest` (23 cas — index scopes,
+    create/update/destroy custom + predefined guards, granular
+    attach/detach, super_admin bypass, catalogue grouping/forbidden).
+    Suite complète : 1590/1590 passing.
+  - Frontend : `RolesList.test.tsx` (4), `RoleEditor.test.tsx` (4),
+    `AdminRolesClient.test.tsx` (3) — 11 cas. Lint : 0 erreurs sur les
+    fichiers TCK-135.
+- **Smoke test browser** (Chrome devtools, dev server :3000 + API :8002,
+  acteur `admin@dakarimmo.sn` agency_admin scopé sur agency 1) :
+  - `/admin/roles` charge la liste : 8 rôles prédéfinis (`Admin plateforme`,
+    `Admin d'agence`, `Agent`, `Client`, `Propriétaire`, `Prestataire`,
+    `Super admin`, `Locataire`) + section custom vide.
+  - `POST /api/roles` (`comptable_test` + 3 perms) → 201, le rôle apparaît
+    dans la section RÔLES PERSONNALISÉS et est auto-sélectionné.
+  - Toggle d'une permission (`invoices.update`) : « Enregistrer » s'active,
+    `PATCH /api/roles/{id}` persiste, le serveur renvoie le diff attendu.
+  - `DELETE /api/roles/{id}` avec rôle assigné → 422 message FR
+    « Impossible de supprimer ce rôle : il est attribué à 1 utilisateur(s). »
+    affiché dans le bandeau d'erreur de l'éditeur.
+  - Cross-agency : depuis agency 1, un rôle créé en agency 2 est invisible
+    et toute mutation directe par id renvoie 403.
+  - Catalogue `/api/permissions` chargé, `roles.manage_in_agency` apparaît
+    dans la section Rôles.
+- **Bugfix découvert pendant le smoke** : le proxy `/api/roles/[[...path]]`
+  retournait 500 sur les réponses 204 (`new NextResponse('null', { status: 204 })`
+  est interdit par le standard fetch). Corrigé : pour 204/205/304, on
+  renvoie un body `null` explicite. Vérifié end-to-end (`createStatus: 201`,
+  `deleteStatus: 204`).
