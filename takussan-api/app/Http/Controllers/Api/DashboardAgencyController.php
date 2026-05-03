@@ -37,7 +37,7 @@ class DashboardAgencyController extends Controller
             $user->isSuperAdmin()
                 || $agency->primary_admin_id === $user->id
                 || (
-                    ($user->isAgentAt($agency->id) || $user->isOwnerAt($agency->id))
+                    $request->activeProfile()?->agency_id === $agency->id
                     && $user->hasRole(['admin', 'agency_admin', 'agent'])
                 ),
             403,

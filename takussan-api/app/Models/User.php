@@ -106,10 +106,19 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     /**
      * TCK-142 — agency attachment is now carried by polymorphic profiles. The
      * accessor preserves the legacy `$user->agency_id` property surface used
-     * by policies, controllers and resources during the transition window: it
-     * returns the active profile's agency when the request scope is bound
-     * (HTTP), falling back to the user's first agency-scoped profile so jobs,
-     * console and listeners keep behaving like the legacy code.
+     * by policies, controllers and resources during the transition window.
+     *
+     * Resolution order (TCK-146):
+     *   1. Active profile (set by `ResolveActiveProfile` middleware) — the
+     *      authoritative HTTP-time answer.
+     *   2. **Auto-bascule**: when the user holds *exactly one* agency-scoped
+     *      profile, return that one. Mirrors the middleware's auto-pick for
+     *      single-profile users and keeps jobs / console / listeners working.
+     *   3. `null` — multi-profile users without an explicit context, and
+     *      admins with no profile. Earlier the accessor fell back to the
+     *      *first* of N profiles which silently leaked access across
+     *      tenants; security-sensitive call-sites should now read
+     *      `$user->activeProfile()?->agency_id` directly to be explicit.
      *
      * Returns null for users with no agency-scoped profile (admins).
      */
@@ -118,6 +127,12 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         $active = $this->activeProfile();
         if ($active !== null && isset($active->agency_id)) {
             return $active->agency_id;
+        }
+
+        $agentCount = $this->agentProfiles()->count();
+        $ownerCount = $this->ownerProfiles()->count();
+        if ($agentCount + $ownerCount !== 1) {
+            return null;
         }
 
         return $this->agentProfiles()->value('agency_id')

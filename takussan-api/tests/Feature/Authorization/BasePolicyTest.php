@@ -95,7 +95,12 @@ class BasePolicyTest extends TestCase
     protected function userWithRole(string $role): User
     {
         $user = User::factory()->create(['agency_id' => $this->agency->id]);
-        app(PermissionRegistrar::class)->setPermissionsTeamId($this->agency->id);
+        // TCK-146 — `super_admin` is a global role and must be assigned
+        // under team_id=null. `User::isSuperAdmin()` (and `Gate::before`)
+        // probe under that team specifically. Other roles stay agency-
+        // scoped.
+        $teamId = $role === 'super_admin' ? null : $this->agency->id;
+        app(PermissionRegistrar::class)->setPermissionsTeamId($teamId);
         $user->assignRole($role);
 
         return $user;

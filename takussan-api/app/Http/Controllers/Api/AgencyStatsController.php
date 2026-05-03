@@ -32,7 +32,7 @@ class AgencyStatsController extends Controller
             $actor->isSuperAdmin()
                 || $agency->primary_admin_id === $actor->id
                 || (
-                    ($actor->isAgentAt($agency->id) || $actor->isOwnerAt($agency->id))
+                    $request->activeProfile()?->agency_id === $agency->id
                     && $actor->hasRole(['admin', 'agency_admin'])
                 ),
             403,

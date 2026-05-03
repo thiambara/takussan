@@ -78,7 +78,7 @@ class AgencyController extends Controller
             || $user->hasRole('admin')
             || $agency->primary_admin_id === $user->id
             || (
-                ($user->isAgentAt($agency->id) || $user->isOwnerAt($agency->id))
+                $request->activeProfile()?->agency_id === $agency->id
                 && $user->hasRole('agency_admin')
             ),
             403
@@ -255,12 +255,15 @@ class AgencyController extends Controller
     protected function authorizeAdmin(Request $request, Agency $agency): void
     {
         $user = $request->user();
+        // Strict active-profile match prevents an actor who is agency_admin
+        // at agency Y (active) from administering agency X just because they
+        // hold a member profile there — they must switch profile first.
         abort_unless(
             $user->isSuperAdmin()
             || $user->hasRole('admin')
             || $agency->primary_admin_id === $user->id
             || (
-                ($user->isAgentAt($agency->id) || $user->isOwnerAt($agency->id))
+                $request->activeProfile()?->agency_id === $agency->id
                 && $user->hasRole('agency_admin')
             ),
             403,
