@@ -84,3 +84,40 @@ export type AuditLogResponse = {
     per_page: number;
   };
 };
+
+/**
+ * TCK-132 — row shape for the cross-tenant properties table. Only fields the
+ * UI actually renders, fed by `fields[properties]=...&include=address,agency`
+ * (see `ADMIN_PROPERTY_FIELDS`).
+ */
+export type AdminPropertyRow = {
+  id: number;
+  reference_number: string;
+  title: string;
+  slug: string;
+  type: string | null;
+  status: string | null;
+  status_label: string | null;
+  visibility: string | null;
+  contract_type: string | null;
+  price: number;
+  currency: string | null;
+  published_at: string | null;
+  created_at: string;
+  location: {
+    city: string | null;
+    region: string | null;
+    country: string | null;
+  };
+  agency: { id: number; name: string; slug: string } | null;
+};
+
+export type AdminPropertiesResponse = {
+  data: AdminPropertyRow[];
+  meta: {
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+  };
+};

@@ -1,6 +1,7 @@
 import { ApiError } from '@/lib/api';
 import type {
   AdminAgenciesResponse,
+  AdminPropertiesResponse,
   AuditLogResponse,
   ImpersonationStartResponse,
   ImpersonationStopResponse,
@@ -65,6 +66,93 @@ export async function postStopImpersonation(targetUserId: number): Promise<Imper
     body: JSON.stringify({ user_id: targetUserId }),
   });
   return jsonOrThrow<ImpersonationStopResponse>(res);
+}
+
+/**
+ * TCK-132 — sparse fields for the super-admin property table. Driven by
+ * `fields[properties]=...` so the API only ships columns the UI renders.
+ * Computed attributes (e.g. `main_photo_url`, `location`, `*_label`) are not
+ * real DB columns and must NOT appear here — spatie rejects them with HTTP
+ * 400 (`InvalidFieldQuery`).
+ */
+export const ADMIN_PROPERTY_FIELDS = [
+  'id',
+  'reference_number',
+  'title',
+  'slug',
+  'type',
+  'contract_type',
+  'status',
+  'visibility',
+  'price',
+  'currency',
+  'published_at',
+  'created_at',
+] as const;
+
+export interface FetchAdminPropertiesParams {
+  readonly search?: string;
+  readonly status?: string;
+  readonly type?: string;
+  readonly visibility?: string;
+  readonly agencyId?: number;
+  readonly sort?: string;
+  readonly page?: number;
+  readonly perPage?: number;
+}
+
+export async function fetchAdminProperties(
+  params: FetchAdminPropertiesParams = {},
+): Promise<AdminPropertiesResponse> {
+  const qs = new URLSearchParams();
+  qs.set('fields[properties]', ADMIN_PROPERTY_FIELDS.join(','));
+  qs.set('include', 'address,agency');
+  if (params.search) qs.set('filter[search]', params.search);
+  if (params.status) qs.set('filter[status]', params.status);
+  if (params.type) qs.set('filter[type]', params.type);
+  if (params.visibility) qs.set('filter[visibility]', params.visibility);
+  if (typeof params.agencyId === 'number') qs.set('filter[agency_id]', String(params.agencyId));
+  qs.set('sort', params.sort ?? '-created_at');
+  qs.set('page', String(params.page ?? 1));
+  qs.set('per_page', String(params.perPage ?? 20));
+
+  const res = await fetch(`/api/super-admin-properties?${qs.toString()}`, {
+    credentials: 'include',
+  });
+  return jsonOrThrow<AdminPropertiesResponse>(res);
+}
+
+export async function postPropertyAction(
+  propertyId: number,
+  action: 'publish' | 'unpublish',
+): Promise<unknown> {
+  const res = await fetch(`/api/super-admin-properties/${propertyId}/${action}`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  return jsonOrThrow<unknown>(res);
+}
+
+export async function archiveProperties(
+  propertyIds: number[],
+  reason?: string,
+): Promise<{ archived: number; failed: number; archived_ids: number[] }> {
+  const res = await fetch('/api/super-admin-properties/bulk-archive', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ property_ids: propertyIds, reason }),
+  });
+  return jsonOrThrow<{ archived: number; failed: number; archived_ids: number[] }>(res);
+}
+
+export async function deleteProperty(propertyId: number): Promise<unknown> {
+  const res = await fetch(`/api/super-admin-properties/${propertyId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (res.status === 204) return null;
+  return jsonOrThrow<unknown>(res);
 }
 
 export async function fetchAuditLog(params: {
