@@ -65,7 +65,8 @@ _(TCK-129 passé en review)_
 
 ### Vague 15 — Câblage des zones UI stub (StubPlaceholder / "Bientôt disponible")
 
-- [TCK-133](tickets/TCK-133-admin-users-management.md) — `/admin/users` — Gestion des utilisateurs de l'agence (agency_admin) `M · P1 · front`
+- [TCK-147](tickets/TCK-147-users-index-agency-scope-status-actions.md) — Backend — `/api/users` agency-scoped + block/activate ouverts à `agency_admin` `S · P1 · back` — prérequis de **TCK-133**
+- [TCK-133](tickets/TCK-133-admin-users-management.md) — `/admin/users` — Gestion des utilisateurs de l'agence (agency_admin) `M · P1 · front` — bloqué par **TCK-147**
 - [TCK-134](tickets/TCK-134-admin-finances-overview.md) — `/admin/finances` — Vue comptable de l'agence `L · P1 · front`
 - [TCK-135](tickets/TCK-135-admin-roles-editor.md) — `/admin/roles` — Éditeur de rôles & permissions personnalisés `M · P1 · front`
 - [TCK-136](tickets/TCK-136-profile-customer-search-preferences.md) — Profil locataire — Préférences de recherche & alertes `M · P1 · front`
