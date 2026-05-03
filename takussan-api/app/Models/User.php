@@ -106,10 +106,19 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     /**
      * TCK-142 — agency attachment is now carried by polymorphic profiles. The
      * accessor preserves the legacy `$user->agency_id` property surface used
-     * by policies, controllers and resources during the transition window: it
-     * returns the active profile's agency when the request scope is bound
-     * (HTTP), falling back to the user's first agency-scoped profile so jobs,
-     * console and listeners keep behaving like the legacy code.
+     * by policies, controllers and resources during the transition window.
+     *
+     * Resolution order (TCK-146):
+     *   1. Active profile (set by `ResolveActiveProfile` middleware) — the
+     *      authoritative HTTP-time answer.
+     *   2. **Auto-bascule**: when the user holds *exactly one* agency-scoped
+     *      profile, return that one. Mirrors the middleware's auto-pick for
+     *      single-profile users and keeps jobs / console / listeners working.
+     *   3. `null` — multi-profile users without an explicit context, and
+     *      admins with no profile. Earlier the accessor fell back to the
+     *      *first* of N profiles which silently leaked access across
+     *      tenants; security-sensitive call-sites should now read
+     *      `$user->activeProfile()?->agency_id` directly to be explicit.
      *
      * Returns null for users with no agency-scoped profile (admins).
      */
@@ -120,8 +129,20 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             return $active->agency_id;
         }
 
-        return $this->agentProfiles()->value('agency_id')
-            ?? $this->ownerProfiles()->value('agency_id');
+        // Auto-bascule mirrors `ResolveActiveProfile` — exactly one profile
+        // (any of the four types). `profiles()` reuses eager-loaded
+        // relations when available so a per-row authz check inside an
+        // index loop doesn't fan out into N×3 queries; the trait method
+        // also keeps this accessor in lockstep with the middleware's
+        // single-profile rule for users holding e.g. one broker profile.
+        $profiles = $this->profiles();
+        if ($profiles->count() !== 1) {
+            return null;
+        }
+
+        $only = $profiles->first();
+
+        return isset($only->agency_id) ? (int) $only->agency_id : null;
     }
 
     /**

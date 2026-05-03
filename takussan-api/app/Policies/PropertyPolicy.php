@@ -30,11 +30,16 @@ class PropertyPolicy extends BasePolicy
             return true;
         }
 
+        // `$user->agency_id` is the active-profile-aware accessor (TCK-146):
+        // returns the active profile's agency in HTTP, auto-bascules for
+        // single-profile users in jobs / console, and is null for
+        // multi-profile users without an explicit context. The strict
+        // equality below is therefore safe across all contexts.
         if ($user->agency_id !== null && $user->agency_id === $model->agency_id) {
             return true;
         }
 
-        if ($user->hasRole(['admin', 'super_admin'])) {
+        if ($user->isSuperAdmin() || $user->hasRole('admin')) {
             return true;
         }
 

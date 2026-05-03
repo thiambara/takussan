@@ -36,7 +36,10 @@ class RoleDelegationService
             ]);
         }
 
-        if ($user->agency_id !== $agency->id) {
+        // TCK-146 — membership is profile-driven; the legacy single-agency
+        // accessor is null for multi-profile users without an active context
+        // and would falsely reject an otherwise-valid delegation target.
+        if (! $user->isAgentAt($agency->id) && ! $user->isOwnerAt($agency->id)) {
             throw ValidationException::withMessages([
                 'user_id' => __('role_delegations.validation.user_not_in_agency'),
             ]);
