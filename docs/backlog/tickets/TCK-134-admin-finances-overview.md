@@ -1,7 +1,7 @@
 ---
 id: TCK-134
 title: "/admin/finances — Vue comptable de l'agence (revenus, payouts, factures)"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: L
@@ -89,4 +89,63 @@ Le scope est imposé par le `team_id` du profil actif (TCK-141). Frontend obliga
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Pas de nouveau proxy** : `/admin/finances` réutilise les hooks
+  `useInvoices`, `usePayouts`, `usePaymentsHistory` (`src/lib/queries/payments.ts`,
+  TCK-063). Ces hooks passent par `apiRequest` qui appelle directement le
+  backend avec le bearer token de l'`AuthContext` — l'agence visible est
+  scoppée côté API par `$user->agency_id` (devenu accessor TCK-141/142
+  qui lit le profil actif).
+- **KPIs sans somme client** : 4 tuiles, 2 sources :
+  1. `revenue_month`, `overdue_amount`, `overdue_count` viennent de
+     `/api/dashboard/agency` (déjà existant, voir
+     `src/lib/queries/dashboard-agency.ts`).
+  2. `pending_payouts_count` et `draft_invoices_count` sont obtenus en
+     interrogeant `/api/payouts?filter[status]=pending&per_page=1` et
+     `/api/invoices?filter[status]=draft&per_page=1` puis en lisant
+     `meta.total` (la page de données est ignorée — `per_page=1` la
+     borne au minimum). Aucune somme JS n'est faite côté frontend
+     (cf. AC "Aucun montant n'est calculé côté frontend").
+- **4 onglets, pas 3** : on étend la composition de TCK-063
+  (`PaymentsTabs` → 3 onglets) en ajoutant un 4ᵉ onglet "Impayés"
+  alimenté par `OverduePaymentsTable` qui hard-pin
+  `filter[status]=late` sur `/api/payments/history`. La table est
+  read-only — l'action "marquer payé" reste sur les pages de détail
+  bail/réservation (cf. "Hors périmètre"). Le `PaymentsTabs` du
+  user-facing `/app/payments` (TCK-063) n'est **pas** modifié — les
+  deux pages cohabitent avec leur propre composition d'onglets.
+- **Bascule de profil → invalidation locale** : `useSwitchActiveProfile`
+  (TCK-143) n'invalide aujourd'hui que `['auth', 'me']` et
+  `['me', 'profiles']`. Pour AC8, `AdminFinancesClient` watch
+  `active_profile_id` et invalide localement les caches
+  `['payments']`, `['invoices']`, `['payouts']`,
+  `['admin-finances']`, `['dashboard-agency']` à chaque changement.
+  Choix scopé volontairement à la page : élargir l'invalidation au
+  niveau de `useSwitchActiveProfile` aurait été cross-cutting et
+  hors périmètre TCK-134 — à filer comme amélioration séparée si
+  d'autres pages agence-scopées (CRM, baux, propriétés) en ont besoin.
+- **Permission gate sur le client** : aujourd'hui, la matrice
+  `agency_admin/admin/super_admin → permissions finance` est dérivée
+  via `isAdmin(roles)` côté `page.tsx`. Le composant client porte un
+  flag `canViewFinances` pour préserver la possibilité de durcir le
+  contrôle (lecture des permissions spatie côté `/auth/me`) sans
+  refondre le composant. État dégradé visible si flag faux.
+- **Super_admin sans agence → `/super-admin`** : redirect côté serveur
+  via `redirect()` dans `page.tsx`. Cohérent avec `/admin/properties`
+  qui fait pareil (TCK-145).
+- **Tests (8 verts)** :
+  - `src/lib/queries/__tests__/admin-finances.test.tsx` — pin sparse
+    fields + filter status + per_page=1 + absence agency_id.
+  - `src/components/admin/finances/__tests__/OverduePaymentsTable.test.tsx`
+    — hardcoded `filter[status]=late`, empty state, ligne late
+    rendering.
+  - `src/app/(dashboard)/admin/finances/__tests__/AdminFinancesClient.test.tsx`
+    — degraded state, mount KPIs+tabs, hide actions sans `canEmit`.
+- **Échecs vitesse pré-existants** : 9 tests
+  (`RecentlyViewedCarousel.test.tsx` + `PropertyVisitDialog.test.tsx`)
+  liés à `@testing-library/user-event` `namespaceURI` issue, présents
+  sur `dev` tip — non régressés.
+- **Vérification UI navigateur non effectuée** : type-check passe
+  (baseline 18 erreurs pré-existantes, identique à `dev`),
+  lint clean, tests verts. Walk-through manuel à faire en review
+  avec un agency_admin (4 tuiles + 4 onglets + drawer factures + drawer
+  payouts + bascule de profil sans rechargement).
