@@ -14,6 +14,7 @@ use App\Notifications\ResetPasswordNotification;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Translation\HasLocalePreference;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -31,6 +32,7 @@ use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\Permission\PermissionRegistrar;
 use Spatie\Permission\Traits\HasRoles;
+use Spatie\QueryBuilder\AllowedFilter;
 
 class User extends Authenticatable implements HasLocalePreference, HasMedia, MustVerifyEmail
 {
@@ -88,7 +90,32 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
 
     protected static array $requestSortable = ['id', 'created_at', 'first_name', 'last_name', 'email', 'status'];
 
-    protected static array $requestLoadable = [];
+    /**
+     * TCK-147 — expose the agency-scoped profile relations and the spatie
+     * `roles` relation so admin UIs can request `include=agentProfiles,
+     * ownerProfiles,roles` and render the membership/role columns without a
+     * second round-trip.
+     */
+    protected static array $requestLoadable = ['agentProfiles', 'ownerProfiles', 'roles'];
+
+    /**
+     * TCK-147 — register a `role` callback filter so `?filter[role]=agent`
+     * isn't rejected with HTTP 400 before reaching the query. Spatie roles
+     * live on a relation, not a column, so the trait's exact/partial/range
+     * mechanisms don't apply.
+     */
+    protected static function customQueryFilters(): array
+    {
+        return [
+            AllowedFilter::callback(
+                'role',
+                fn (Builder $q, string $value) => $q->whereHas(
+                    'roles',
+                    fn (Builder $rq) => $rq->where('name', $value),
+                ),
+            ),
+        ];
+    }
 
     protected static array $requestSearchFields = ['first_name', 'last_name', 'email', 'username', 'phone'];
 

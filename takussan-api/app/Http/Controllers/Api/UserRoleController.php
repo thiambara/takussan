@@ -57,7 +57,9 @@ class UserRoleController extends Controller
             if ($actorAgencyId === null
                 || (! $user->isAgentAt($actorAgencyId) && ! $user->isOwnerAt($actorAgencyId))
             ) {
-                abort(403);
+                // TCK-147 — surface a translatable message instead of a bare
+                // 403 so the frontend can render the precise reason.
+                abort(403, __('messages.target_user_not_in_active_agency'));
             }
         }
 

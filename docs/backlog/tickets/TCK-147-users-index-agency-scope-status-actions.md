@@ -1,7 +1,7 @@
 ---
 id: TCK-147
 title: "Backend — `/api/users` agency-scoped + block/activate ouverts à `agency_admin`"
-status: todo
+status: review
 phase: P1
 family: back
 estimate: S
@@ -170,4 +170,40 @@ Modèle `User` :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Filtre `role` via le hook `customQueryFilters()`** : Spatie rejette tout
+  `?filter[role]=…` non whitelisté avec **HTTP 400 / `InvalidFilterQuery`** —
+  un post-filtre dans le contrôleur ne suffit pas. Première approche tentée :
+  `protected static function getAllowedQueryFilters()` qui appelait
+  `parent::getAllowedQueryFilters()`. Échec : la méthode est déclarée sur le
+  trait `HasQueryBuilder` (pas sur la classe parente Eloquent\Model), donc
+  `parent::` ne la résout pas, retombe sur `__callStatic`, et boucle
+  infiniment (xdebug coupe à 512 frames). Solution livrée : ajout d'un point
+  d'extension `customQueryFilters()` dans le trait, que `User` surcharge pour
+  exposer un `AllowedFilter::callback('role', whereHas('roles', name=…))`.
+  Réutilisable pour d'autres modèles ayant des filtres non-colonne.
+- **`team_id = null` pour les admins globaux** : `ResolveActiveProfile` pin
+  `team_id = null` quand l'acteur tient `super_admin` ou `admin` (probe sous
+  team_id=null d'abord). Donc dans `UserAdminController::index`, le test
+  `! $actor->hasRole(['admin', 'super_admin'])` distingue correctement les
+  agency_admin (team_id = leur agence active) des admins globaux. Aucune
+  régression sur `/super-admin/users` (qui passe par le proxy
+  `/api/super-admin-users` → `/api/users`, en super_admin).
+- **Distinction `target_user_has_no_active_agency` vs `target_user_not_in_active_agency`** :
+  la première (préexistante) couvre « la cible n'a aucun contexte d'agence
+  résolvable » (super_admin tente d'attribuer un rôle agence à un user sans
+  profil). La seconde, ajoutée ici, couvre « l'acteur agency_admin a une
+  agence active mais la cible n'y est pas ». Les deux clés sont distinctes
+  pour permettre au front de proposer des CTA différents (« créer un profil
+  pour cet utilisateur » vs « inviter cet utilisateur dans votre agence »).
+- **Pas de support `Customer`** : la liste retourne uniquement les users
+  ayant un `AgentProfile` ou un `OwnerProfile` dans l'agence active.
+  Les locataires *via la relation `Customer`* (mentionnés dans TCK-133) ne
+  sont pas inclus — un ticket dédié pourra étendre le scope si l'usage
+  /admin/users le justifie.
+- **Pas de migration, pas de modification du payload** des actions
+  block/activate. Les `ActivityLog` continuent d'être écrits par le trait
+  `LogsActivity` du modèle User.
+- **Tests** : 10 nouveaux scénarios dans
+  `tests/Feature/Api/UserAdminAgencyScopeTest.php`. Les tests existants de
+  `UserAdminTest` et `UserRoleControllerTest` restent verts (39 / 39).
+  Suite complète : 1574 passed.
