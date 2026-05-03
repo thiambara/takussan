@@ -6,8 +6,8 @@ phase: P1
 family: front
 estimate: L
 created: 2026-05-02
-updated: 2026-05-02
-depends_on: []
+updated: 2026-05-03
+depends_on: [TCK-141]
 blocks: []
 spec_refs:
   features:
@@ -23,17 +23,24 @@ tags: [front, admin, finances, payments, p1]
 
 ## Objectif utilisateur
 
-Un agency_admin (ou super_admin) accède à `/admin/finances` pour visualiser la situation comptable de l'agence : encaissements, factures émises, reversements aux bailleurs, impayés en cours, sans page « En cours de développement ».
+Un agency_admin accède à `/admin/finances` pour visualiser la situation comptable de **son agence courante (profil actif)** : encaissements, factures émises, reversements aux bailleurs, impayés en cours, sans page « En cours de développement ».
+
+## Impact TCK-138 → TCK-146
+
+- **Profil actif comme contexte** : l'agence visualisée n'est plus dérivée de `users.agency_id` (colonne supprimée TCK-142) mais du **profil actif** résolu par `ResolveActiveProfile` (TCK-141). Le `team_id` spatie est posé automatiquement — aucun `agency_id` n'a besoin d'être passé en filtre côté client (l'API scope déjà). Si un filtre `agency_id` reste utile pour cohérence avec d'autres pages, il peut être passé mais doit matcher le profil actif.
+- **Super_admin** : un super_admin sans profil actif (cas par défaut des admins purs) **ne doit pas atterrir ici**. La vue plateforme cross-tenant existe sous `/super-admin/system` (KPIs) et `/super-admin/audit` (TCK-145, endpoints `/api/admin/system/metrics` et `/api/admin/audit` livrés par TCK-144). Si un super_admin a basculé sur un profil agence (Owner/Agent), il voit les finances de cette agence comme un agency_admin — pas de mode "dual".
+- **Détection super_admin** : via `roles` array (probe `team_id=null` côté backend = `User::isSuperAdmin()`). Ne **jamais** dériver depuis le profil actif.
+- **`NoAgencyState`** : déclenché si `request().activeProfile()` est `null` ET le user n'a pas de rôle global → afficher l'état dégradé. Pour un super_admin sans profil, rediriger vers `/super-admin` plutôt qu'afficher `NoAgencyState` (cohérence TCK-145).
 
 ## Contrat de données
 
 Endpoints existants côté backend (livrés en Vagues 4-9 : LeasePayments, BookingPayments, Invoices, Payouts) :
-- `GET /api/lease-payments?filter[agency_id]=...&include=lease,tenant`
-- `GET /api/booking-payments?filter[agency_id]=...`
-- `GET /api/invoices?filter[agency_id]=...`
-- `GET /api/payouts?filter[agency_id]=...&include=landlord`
+- `GET /api/lease-payments?include=lease,tenant`
+- `GET /api/booking-payments`
+- `GET /api/invoices`
+- `GET /api/payouts?include=landlord`
 
-Le frontend doit utiliser `filter[]`, `include=`, `fields[]`, `sort=` (conventions Spatie). Agréger via plusieurs requêtes parallèles ; ne **pas** créer un nouvel endpoint d'agrégat sans ticket backend dédié.
+Le scope est imposé par le `team_id` du profil actif (TCK-141). Frontend obligatoire : `filter[]`, `include=`, `fields[]`, `sort=` (conventions Spatie). Agréger via plusieurs requêtes parallèles ; ne **pas** créer un nouvel endpoint d'agrégat sans ticket backend dédié.
 
 ## Direction UX / Artistique
 
@@ -47,9 +54,9 @@ Le frontend doit utiliser `filter[]`, `include=`, `fields[]`, `sort=` (conventio
 ## Contraintes strictes (métier)
 
 - Permissions strictes : `payments.view_in_agency`, `invoices.view_in_agency`, `payouts.view_in_agency`. Sans permission → état dégradé.
-- Toujours scopé à l'agence courante ; super_admin sans agence → `NoAgencyState`.
+- Toujours scopé via le **profil actif** ; un user sans profil agence-scoped (et sans rôle global) → `NoAgencyState`. Un super_admin sans profil → redirect vers `/super-admin` (pas de leak des finances cross-tenant ici).
 - Aucun montant n'est calculé côté frontend à partir de listes paginées : les KPIs viennent soit d'un endpoint dédié, soit d'agrégats déjà retournés par l'API (pas de somme JS sur une page de résultats).
-- Devises : afficher la devise de l'agence (`Agency.currency`), pas de conversion silencieuse.
+- Devises : afficher la devise de l'agence (`Agency.currency`) résolue depuis le profil actif, pas de conversion silencieuse.
 
 ## Delta à produire
 
@@ -64,10 +71,12 @@ Le frontend doit utiliser `filter[]`, `include=`, `fields[]`, `sort=` (conventio
 
 - [ ] La page n'affiche plus `<StubPlaceholder>`
 - [ ] Les 4 KPIs affichent des chiffres réels (ou `—` pendant le chargement)
-- [ ] Les 4 sections (encaissements/factures/reversements/impayés) listent les enregistrements de l'agence courante
-- [ ] Un super_admin sans `agency_id` voit `NoAgencyState`
+- [ ] Les 4 sections (encaissements/factures/reversements/impayés) listent les enregistrements de l'**agence du profil actif**
+- [ ] Un user sans profil agence-scoped et sans rôle global voit `NoAgencyState`
+- [ ] Un super_admin sans profil actif est redirigé vers `/super-admin` (pas de `NoAgencyState`)
 - [ ] Un user sans permission finance voit un état dégradé clair
-- [ ] Aucune donnée d'autre agence n'est visible dans les listes
+- [ ] Aucune donnée d'autre agence n'est visible dans les listes (scope imposé par `team_id` du profil actif)
+- [ ] Bascule de profil (TCK-143) : la page se reactualise et reflète l'agence du nouveau profil sans rechargement
 - [ ] Toutes les requêtes utilisent sparse fieldsets et pagination
 
 ## Hors périmètre

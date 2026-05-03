@@ -6,7 +6,7 @@ phase: P1
 family: front
 estimate: M
 created: 2026-05-02
-updated: 2026-05-02
+updated: 2026-05-03
 depends_on: [TCK-024, TCK-070]
 blocks: []
 spec_refs:
@@ -34,6 +34,12 @@ Endpoints existants livrés par TCK-024 (Recherche & filtres) et TCK-070 (Notifi
 Conventions Spatie : `fields[saved_searches]=id,name,criteria,notification_frequency,is_active`, pas de fetch global.
 
 ⚠ **Ce ticket n'introduit pas de nouveau modèle.** La section "Préférences de recherche" du profil = une `SavedSearch` "par défaut" (par convention, la première active de l'utilisateur, ou marquée via un flag sur `metadata`) que l'utilisateur peut éditer depuis son profil.
+
+## Impact TCK-138 → TCK-146
+
+- **`SavedSearch` rattachée au User (identité), pas à un profil métier** : depuis TCK-138 → TCK-142, les *profils* (Owner/Agent/Broker/ServiceProvider) portent la persona métier scopée à une agence. Les recherches sauvegardées et préférences de notification restent **partagées entre tous les profils** d'un même user (même email/mdp/2FA). Aucun changement du modèle `SavedSearch.user_id` à prévoir.
+- **Pas de scope `team_id`** : les endpoints `saved-searches` opèrent au niveau identité (cross-agence). Le `ResolveActiveProfile` (TCK-141) n'impacte pas ce flux ; un user multi-profils voit toujours **toutes** ses SavedSearches indépendamment du profil actif.
+- **Page accessible à tout utilisateur authentifié** disposant du rôle `customer` ou `tenant` (rôles spatie globaux, pas un profil métier). Aucune dépendance sur le `ProfileSwitcher` (TCK-143).
 
 ## Direction UX / Artistique
 

@@ -6,7 +6,7 @@ phase: P1
 family: front
 estimate: S
 created: 2026-05-02
-updated: 2026-05-02
+updated: 2026-05-03
 depends_on: [TCK-069]
 blocks: []
 spec_refs:
@@ -20,6 +20,12 @@ tags: [front, profile, phone, p1]
 ## Objectif utilisateur
 
 L'utilisateur peut modifier son numéro de téléphone depuis l'onglet Contact de son profil, avec déclenchement de la vérification SMS/OTP existante (TCK-069), au lieu du champ actuellement désactivé avec libellé "Bientôt disponible".
+
+## Impact TCK-138 → TCK-146
+
+- **`phone` est sur User (identité), pas sur un profil métier** : depuis TCK-138 → TCK-142, `User` est l'identité authentifiée pure. Le téléphone (et `phone_verified_at`) reste sur la table `users` — partagé entre tous les profils. Aucun champ téléphone par profil n'est prévu.
+- **Pas de scope `team_id`** : la mutation `PATCH /api/me` opère au niveau identité, indépendamment du profil actif. Aucune dépendance sur TCK-141 / TCK-143.
+- **`users.type` et `users.agency_id` supprimés** : si la page lit le user via `fields[users]=...`, ne pas inclure ces colonnes (elles n'existent plus).
 
 ## Contrat de données
 

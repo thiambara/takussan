@@ -1,13 +1,13 @@
 ---
 id: TCK-133
-title: "/admin/users — Gestion des utilisateurs (activation, blocage, rôles)"
+title: "/admin/users — Gestion des utilisateurs de l'agence (agency_admin)"
 status: todo
 phase: P1
 family: front
 estimate: M
 created: 2026-05-02
-updated: 2026-05-02
-depends_on: [TCK-014, TCK-023]
+updated: 2026-05-03
+depends_on: [TCK-014, TCK-023, TCK-141, TCK-145]
 blocks: []
 spec_refs:
   features:
@@ -21,58 +21,68 @@ tags: [front, admin, users, p1]
 
 ## Objectif utilisateur
 
-Un agency_admin / super_admin accède à `/admin/users` pour consulter, activer, bloquer ou modifier les rôles des comptes utilisateurs de son périmètre, sans page « En cours de développement ».
+Un agency_admin accède à `/admin/users` pour consulter, activer, bloquer ou modifier les rôles des comptes utilisateurs de **son agence courante (profil actif)**, sans page « En cours de développement ».
+
+## Impact TCK-138 → TCK-146
+
+- **Scope re-cadré agency_admin uniquement** : la vue super_admin globale des comptes est **déjà livrée** sous `/super-admin/users` par TCK-145 (proxy `/api/super-admin-users` → `/api/users`). Ce ticket se concentre exclusivement sur l'espace agence (`/admin/*`, layout `(dashboard)`).
+- **Profil actif** : le scope de l'agence n'est plus dérivé de `users.agency_id` (colonne supprimée TCK-142) mais du **profil actif** résolu par `ResolveActiveProfile` (TCK-141). Pour un agency_admin avec plusieurs profils, le `ProfileSwitcher` (TCK-143) détermine implicitement quelle agence est listée. Aucun filtre `agency_id` à passer côté client : le backend résout via `team_id`.
+- **Endpoint d'attribution de rôle** : utiliser `PUT /api/users/{user}/role` (singulier — replace via `syncRoles`, livré TCK-014). Les anciens endpoints `POST /users/{id}/roles` / `DELETE /users/{id}/roles/{role}` mentionnés dans la version initiale n'existent pas — ils relèvent d'une attribution additive non livrée. Le backend force désormais 422 si le user cible n'a pas d'agence résolvable (TCK-PR-104 hardening).
+- **Helpers d'autorisation côté backend** : `User::isSuperAdmin()` (probe team_id=null), `isAgentAt($agencyId)`, `isOwnerAt($agencyId)`. Côté frontend, ne dériver aucune permission depuis le profil — toujours lire `roles` de `/auth/me`.
+- **Champ `users.type` supprimé** (TCK-142) : retirer toute mention de `filter[type]` ou `fields[users]=...,type,...` — le backend ne l'expose plus. Le persona effectif d'un user dans une agence se lit via ses profils (`OwnerProfile` / `AgentProfile` / `BrokerProfile` / `ServiceProviderProfile`) ou ses rôles spatie courants.
 
 ## Contrat de données
 
-Endpoints existants côté backend (TCK-014, TCK-023) :
-- `GET /api/users` — scope automatique selon le rôle (agency_admin → users de son agence, super_admin → tous)
-- `PATCH /api/users/{id}` — édition statut / rôle / champs admin
-- `POST /api/users/{id}/roles` / `DELETE /api/users/{id}/roles/{role}` — attribution / retrait de rôle
+Endpoints existants (TCK-014, TCK-023) :
+- `GET /api/users` — scope automatique selon le rôle et le **profil actif** (agency_admin → users avec un profil dans l'agence courante)
+- `PATCH /api/users/{id}` — édition statut / champs admin (jamais le rôle)
+- `PUT /api/users/{user}/role` — remplacement du rôle (TCK-014, hardening TCK-PR-104). Body : `{ "role": "agent" }`
 
-Conventions Spatie : `filter[search]`, `filter[status]`, `filter[role]`, `filter[type]`, `include=agency,roles`, `fields[users]=id,first_name,last_name,email,status,type,...`.
+Conventions Spatie : `filter[search]`, `filter[status]`, `filter[role]`, `include=agency,roles`, `fields[users]=id,first_name,last_name,email,status,...`.
 
-⚠ **Distinction explicite avec `/admin/team` (TCK-065)** : `/admin/team` gère la composition de l'équipe agence (ajout/retrait d'un agent à une agence). `/admin/users` est une vue **liste exhaustive** des comptes (avec recherche, blocage, statut), incluant les locataires/bailleurs/clients hors équipe.
+⚠ **Distinction explicite avec `/admin/team` (TCK-065)** : `/admin/team` gère la composition de l'équipe agence (ajout/retrait d'un agent à une agence) — c.-à-d. la création/retrait d'`AgentProfile`. `/admin/users` est une vue **liste exhaustive** des comptes ayant un lien quelconque avec l'agence courante (locataires/bailleurs via `OwnerProfile`, agents via `AgentProfile`, clients via la relation `Customer`).
 
 ## Direction UX / Artistique
 
 - Vue **table dense** : colonnes (avatar, nom, email, rôle(s), statut, agence, dernière connexion).
-- Filtres : recherche libre (nom/email), statut (active/blocked/pending), rôle, agence (super_admin only).
+- Filtres : recherche libre (nom/email), statut (active/blocked/pending), rôle. Pas de filtre agence (le scope est imposé par le profil actif).
 - Action par ligne : voir détail, activer/bloquer, gérer rôles, envoyer reset mdp.
 - Drawer latéral pour le détail / édition d'un user (ne pas naviguer hors page).
-- Cohérent avec `/admin/team` mais **clairement différent** (libellé h1 "Gestion des utilisateurs", sous-titre "Comptes de la plateforme").
+- Cohérent avec `/admin/team` mais **clairement différent** (libellé h1 "Gestion des utilisateurs", sous-titre "Comptes de votre agence").
 
 ## Contraintes strictes (métier)
 
-- Un agency_admin ne voit et ne modifie **que** les users de son agence ; le scope est imposé par le backend, le frontend ne doit pas court-circuiter.
+- Un agency_admin ne voit et ne modifie **que** les users avec un profil actif dans son agence courante ; le scope est imposé par le backend (`team_id` posé par `ResolveActiveProfile`), le frontend ne doit pas court-circuiter.
 - Bloquer un user déclenche une révocation immédiate des tokens Sanctum (côté backend) et un `ActivityLog`.
-- Le super_admin ne peut pas se bloquer lui-même.
-- Modifier les rôles passe obligatoirement par les endpoints `roles` (jamais `PATCH /users` direct sur un champ rôle).
-- Permission requise : `users.update_all` (super_admin) ou `users.update_in_agency` (agency_admin) — voir TCK-014.
+- Un agency_admin ne peut pas se bloquer lui-même.
+- Modifier les rôles passe obligatoirement par `PUT /api/users/{user}/role` (jamais `PATCH /users` direct sur un champ rôle).
+- Permission requise : `users.update_in_agency` (agency_admin) — voir TCK-014. Pour la portée super_admin globale, voir `/super-admin/users` (TCK-145).
+- Si le user cible n'a pas de profil dans l'agence courante, l'attribution de rôle retournera **422** (`messages.target_user_has_no_active_agency`) — afficher le message backend tel quel.
 
 ## Delta à produire
 
 - [ ] Page UI: `src/app/(dashboard)/admin/users/page.tsx` — retirer `<StubPlaceholder>`
 - [ ] Composants `AdminUsersTable`, `AdminUsersFilters`, `UserDetailDrawer`, `UserRolesEditor`
-- [ ] Hooks React Query : liste, mutation statut, mutation rôles
+- [ ] Hooks React Query : liste, mutation statut, mutation rôle (vers `PUT /api/users/{user}/role`)
 - [ ] Garde permission côté frontend (afficher état dégradé si non autorisé)
 - [ ] Skeletons et états vides
-- [ ] Tests UI : guard rôle, scope agence, mutations
+- [ ] Tests UI : guard rôle, scope agence (via profil actif), mutation de rôle, gestion du 422 cible sans agence
 
 ## Critères d'acceptation
 
 - [ ] La page n'affiche plus `<StubPlaceholder>`
-- [ ] Un agency_admin ne voit que les users de son agence
-- [ ] Un super_admin voit tous les users avec filtre agence
+- [ ] Un agency_admin ne voit que les users rattachés à son agence courante (profil actif)
 - [ ] Activer/bloquer un user met à jour la liste sans rechargement complet
-- [ ] Modifier les rôles d'un user ouvre un éditeur dédié et persiste via les endpoints `roles`
-- [ ] Le super_admin connecté ne peut pas se bloquer lui-même (action désactivée)
+- [ ] Modifier le rôle d'un user passe par `PUT /api/users/{user}/role` et persiste
+- [ ] L'agency_admin connecté ne peut pas se bloquer lui-même (action désactivée)
+- [ ] Aucun champ `type` n'est demandé / affiché (la colonne n'existe plus)
 - [ ] Aucun fetch ne retourne tous les champs (sparse fieldsets)
 
 ## Hors périmètre
 
+- Vue super_admin globale des comptes (livrée par TCK-145 sous `/super-admin/users`)
 - Création de user (couverte par invitation TCK-065 et par l'inscription publique)
-- Vue/édition du profil détaillé (TCK-069 et tickets profil dédiés)
+- Création/retrait d'un profil pour rattacher un user à l'agence (`AgentProfile`/`OwnerProfile` — couvert par TCK-065 / ticket dédié à filer)
 - Suppression de compte (RGPD, P2 dédié)
 - Modification des rôles personnalisés agence (TCK-135)
 
