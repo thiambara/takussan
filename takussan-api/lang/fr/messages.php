@@ -23,6 +23,7 @@ return [
     'cannot_delete_self' => 'Vous ne pouvez pas supprimer votre propre compte via cette route.',
     'collaborator_already_exists' => 'Ce collaborateur est déjà ajouté à ce bien.',
     'only_super_admin_can_grant_super_admin' => 'Seul un super administrateur peut attribuer le rôle super_admin.',
+    'target_user_has_no_active_agency' => 'L’utilisateur cible n’a pas de contexte d’agence résolu. Activez un profil pour lui ou précisez l’agence cible avant d’attribuer un rôle scoping-agence.',
 
     // Integrations
     'integration_inactive' => 'L\'intégration est désactivée. Activez-la avant de la tester.',

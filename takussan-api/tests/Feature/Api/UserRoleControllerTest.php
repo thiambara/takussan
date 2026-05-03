@@ -3,9 +3,11 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Agency;
+use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\ApiTestCase;
 
 /**
@@ -166,6 +168,56 @@ class UserRoleControllerTest extends ApiTestCase
         foreach ($rows as $row) {
             $this->assertSame('web', $row->guard_name, 'role guard_name must stay aligned with the seeder (web).');
         }
+    }
+
+    public function test_super_admin_assigns_agency_scoped_role_under_target_agency_team_id(): void
+    {
+        // PR #104 review regression — when a super_admin assigns an
+        // agency-scoped role (e.g. `agent`), the role must be bound to the
+        // *target* user's agency, not the actor's. Without the fix the
+        // post-TCK-142 hardening resolved $teamId from the actor's active
+        // profile (null for a pure super_admin), promoting an agency-
+        // scoped role to a global one.
+        $this->apiActingAsRole('super_admin');
+
+        $targetAgency = Agency::factory()->create();
+        $target = User::factory()->create(['agency_id' => $targetAgency->id]);
+
+        $this->apiPut("/api/users/{$target->id}/role", ['role' => 'agent'])
+            ->assertOk();
+
+        $registrar = app(PermissionRegistrar::class);
+
+        $registrar->setPermissionsTeamId($targetAgency->id);
+        $registrar->forgetCachedPermissions();
+        $this->assertTrue(
+            $target->fresh()->hasRole('agent'),
+            'Agent role must be assigned under the target agency team_id.',
+        );
+
+        $registrar->setPermissionsTeamId(null);
+        $registrar->forgetCachedPermissions();
+        $this->assertFalse(
+            $target->fresh()->hasRole('agent'),
+            'Agent role must NOT be assigned under team_id=null (would promote it to a global role).',
+        );
+    }
+
+    public function test_super_admin_cannot_assign_agency_role_to_user_without_resolvable_agency(): void
+    {
+        // Multi-profile target without active context — `agency_id` accessor
+        // returns null. Refusing to bind an agency-scoped role to team_id=null
+        // is the correct behavior; previously it silently promoted the role.
+        $this->apiActingAsRole('super_admin');
+
+        $target = User::factory()->create();
+        $a = Agency::factory()->create();
+        $b = Agency::factory()->create();
+        AgentProfile::factory()->create(['user_id' => $target->id, 'agency_id' => $a->id]);
+        AgentProfile::factory()->create(['user_id' => $target->id, 'agency_id' => $b->id]);
+
+        $this->apiPut("/api/users/{$target->id}/role", ['role' => 'agent'])
+            ->assertStatus(422);
     }
 
     public function test_super_admin_assignment_does_not_create_duplicate_team_scoped_role(): void

@@ -5,11 +5,9 @@ namespace App\Models;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\Currency;
-use App\Models\Profiles\AgentProfile;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -55,7 +53,7 @@ class Agency extends AbstractModel implements HasMedia
 
     protected static array $requestLoadable = ['primaryAdmin', 'addresses'];
 
-    protected static array $requestCountable = ['members', 'properties'];
+    protected static array $requestCountable = ['properties'];
 
     protected static array $requestSearchFields = ['name', 'email', 'license_number'];
 
@@ -82,23 +80,6 @@ class Agency extends AbstractModel implements HasMedia
     public function primaryAdmin(): BelongsTo
     {
         return $this->belongsTo(User::class, 'primary_admin_id');
-    }
-
-    /**
-     * TCK-142 — agency membership is now expressed via AgentProfile rows.
-     * The relation is `hasManyThrough` to keep the natural `$agency->members`
-     * accessor working without exposing the intermediate table.
-     */
-    public function members(): HasManyThrough
-    {
-        return $this->hasManyThrough(
-            User::class,
-            AgentProfile::class,
-            'agency_id',
-            'id',
-            'id',
-            'user_id',
-        );
     }
 
     public function properties(): HasMany
