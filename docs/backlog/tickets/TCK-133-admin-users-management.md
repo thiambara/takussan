@@ -7,7 +7,7 @@ family: front
 estimate: M
 created: 2026-05-02
 updated: 2026-05-03
-depends_on: [TCK-014, TCK-023, TCK-141, TCK-145]
+depends_on: [TCK-014, TCK-023, TCK-141, TCK-145, TCK-147]
 blocks: []
 spec_refs:
   features:
