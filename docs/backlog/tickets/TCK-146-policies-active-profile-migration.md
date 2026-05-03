@@ -1,7 +1,7 @@
 ---
 id: TCK-146
 title: Policies & domaines résiduels — migration vers profils actifs (post-TCK-142)
-status: review
+status: done
 phase: P2
 family: back
 estimate: M

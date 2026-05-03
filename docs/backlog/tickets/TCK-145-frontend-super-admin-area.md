@@ -1,7 +1,7 @@
 ---
 id: TCK-145
 title: "Frontend — Espace super-admin dédié hors layout agence"
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

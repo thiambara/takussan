@@ -1,7 +1,7 @@
 ---
 id: TCK-144
 title: "Backend — Namespace super_admin dédié `/api/admin/...`"
-status: review
+status: done
 phase: P1
 family: technique
 estimate: L
