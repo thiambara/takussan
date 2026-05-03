@@ -52,6 +52,10 @@ export function useSwitchActiveProfile() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['auth', 'me'] }),
         queryClient.invalidateQueries({ queryKey: profilesKeys.all }),
+        // TCK-135 — custom roles and permission catalogue are scoped by
+        // active profile's agency, so swapping profiles must drop both.
+        queryClient.invalidateQueries({ queryKey: ['roles'] }),
+        queryClient.invalidateQueries({ queryKey: ['permissions'] }),
         refreshUser(),
       ]);
     },
