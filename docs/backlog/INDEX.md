@@ -76,7 +76,7 @@ _(TCK-129 passé en review)_
 
 > Évolution architecturale : passage du couple `UserType` (enum) + rôles spatie au modèle de profils polymorphes (`OwnerProfile`, `AgentProfile`, `BrokerProfile`, `ServiceProviderProfile`). Préalable : valider la spec (TCK-138) avant tout code.
 
-_(vide — TCK-145 en cours)_
+- [TCK-146](tickets/TCK-146-policies-active-profile-migration.md) — Policies & domaines résiduels — migration vers profils actifs (post-TCK-142) `M · P2 · back`
 
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
