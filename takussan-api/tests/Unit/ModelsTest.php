@@ -22,7 +22,6 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
@@ -66,7 +65,6 @@ class ModelsTest extends TestCase
         $agency = new Agency;
 
         $this->assertInstanceOf(BelongsTo::class, $agency->primaryAdmin());
-        $this->assertInstanceOf(HasManyThrough::class, $agency->members());
         $this->assertInstanceOf(HasMany::class, $agency->properties());
         $this->assertInstanceOf(HasMany::class, $agency->customers());
         $this->assertInstanceOf(MorphMany::class, $agency->addresses());

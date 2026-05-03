@@ -61,12 +61,29 @@ class UserRoleController extends Controller
             }
         }
 
-        // Resolve the team context for the assignment. `super_admin` is a
-        // cross-tenant role and must stay bound to team_id = null (matches
-        // how the seeder + BaseTestCase register it). Scoping it to an
-        // agency would create a duplicate role row in the registry.
+        // Resolve the team context for the assignment. The role lives on
+        // the *target* user's agency, not the actor's — a super_admin
+        // assigning `agent` to a user at agency Y must bind that role to
+        // team Y, regardless of where (or whether) the super_admin is
+        // currently acting. For agency_admin actors the two agree by
+        // construction (membership check above) and either resolution is
+        // equivalent. `super_admin` is a cross-tenant role and stays bound
+        // to team_id = null (matches the seeder + BaseTestCase contract).
         $registrar = app(PermissionRegistrar::class);
-        $teamId = $data['role'] === 'super_admin' ? null : $actorAgencyId;
+        $teamId = match (true) {
+            $data['role'] === 'super_admin' => null,
+            $actor->isSuperAdmin() => $user->agency_id,
+            default => $actorAgencyId,
+        };
+
+        // For super_admin actors, the target's agency is required to bind
+        // the role to a concrete team — refuse rather than silently fall
+        // back to team_id = null (which would promote an agency-scoped
+        // role to a global one).
+        if ($teamId === null && $data['role'] !== 'super_admin') {
+            abort(422, __('messages.target_user_has_no_active_agency'));
+        }
+
         $registrar->setPermissionsTeamId($teamId);
 
         // Ensure the role exists in the target team context under the `web`
