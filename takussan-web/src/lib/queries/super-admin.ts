@@ -74,9 +74,15 @@ export async function postStopImpersonation(targetUserId: number): Promise<Imper
  * Computed attributes (e.g. `main_photo_url`, `location`, `*_label`) are not
  * real DB columns and must NOT appear here — spatie rejects them with HTTP
  * 400 (`InvalidFieldQuery`).
+ *
+ * `agency_id` is included even though the table renders `agency.name` from the
+ * `include=agency` relation: Eloquent needs the foreign key on each parent row
+ * to eager-load the `belongsTo(Agency::class)` relation, otherwise `row.agency`
+ * comes back null for every property.
  */
 export const ADMIN_PROPERTY_FIELDS = [
   'id',
+  'agency_id',
   'reference_number',
   'title',
   'slug',
