@@ -51,12 +51,18 @@ export function UserDetailDrawer({ user, currentUserId, onOpenChange }: UserDeta
 
   const blockMutation = useMutation({
     mutationFn: () => postUserAction(user!.id, 'block'),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-users', 'list'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users', 'list'] });
+      onOpenChange(false);
+    },
   });
 
   const activateMutation = useMutation({
     mutationFn: () => postUserAction(user!.id, 'activate'),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-users', 'list'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users', 'list'] });
+      onOpenChange(false);
+    },
   });
 
   const isPending = blockMutation.isPending || activateMutation.isPending;
@@ -71,7 +77,7 @@ export function UserDetailDrawer({ user, currentUserId, onOpenChange }: UserDeta
         className="w-full max-w-md p-0 sm:max-w-md"
       >
         {user ? (
-          <div className="flex h-full flex-col">
+          <div key={user.id} className="flex h-full flex-col">
             <SheetHeader className="space-y-2 border-b border-app-surface-2 p-6">
               <div className="flex items-center gap-3">
                 <Avatar className="size-12">

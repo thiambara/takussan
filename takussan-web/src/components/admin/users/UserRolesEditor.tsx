@@ -30,23 +30,25 @@ interface UserRolesEditorProps {
  */
 export function UserRolesEditor({ user }: UserRolesEditorProps) {
   const queryClient = useQueryClient();
-  const currentRole = user.roles?.[0]?.name ?? '';
-  const [selected, setSelected] = useState<UserRole | ''>(currentRole);
+  const initialRole = user.roles?.[0]?.name ?? '';
+  const [baselineRole, setBaselineRole] = useState<UserRole | ''>(initialRole);
+  const [selected, setSelected] = useState<UserRole | ''>(initialRole);
   const [error, setError] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: (role: UserRole) => putUserRole(user.id, role),
-    onSuccess: () => {
+    onSuccess: (_data, role) => {
       setError(null);
+      setBaselineRole(role);
       queryClient.invalidateQueries({ queryKey: ['admin-users', 'list'] });
     },
     onError: (err: ApiError) => {
       setError(err.displayMessage);
-      setSelected(currentRole);
+      setSelected(baselineRole);
     },
   });
 
-  const dirty = selected !== currentRole && selected !== '';
+  const dirty = selected !== baselineRole && selected !== '';
 
   return (
     <div className="space-y-3">
@@ -87,7 +89,7 @@ export function UserRolesEditor({ user }: UserRolesEditorProps) {
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => setSelected(currentRole)}
+            onClick={() => setSelected(baselineRole)}
             disabled={mutation.isPending}
           >
             Annuler
