@@ -1,7 +1,7 @@
 ---
 id: TCK-134
 title: "/admin/finances — Vue comptable de l'agence (revenus, payouts, factures)"
-status: review
+status: done
 phase: P1
 family: front
 estimate: L

@@ -1,7 +1,7 @@
 ---
 id: TCK-147
 title: "Backend — `/api/users` agency-scoped + block/activate ouverts à `agency_admin`"
-status: review
+status: done
 phase: P1
 family: back
 estimate: S

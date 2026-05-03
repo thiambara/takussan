@@ -1,7 +1,7 @@
 ---
 id: TCK-132
 title: "/super-admin/properties — Gestion globale des biens (super_admin)"
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

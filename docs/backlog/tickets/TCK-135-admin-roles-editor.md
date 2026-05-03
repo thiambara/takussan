@@ -1,7 +1,7 @@
 ---
 id: TCK-135
 title: "/admin/roles — Éditeur de rôles & permissions personnalisés (agency_admin)"
-status: review
+status: done
 phase: P1
 family: full
 estimate: M
