@@ -117,7 +117,23 @@ trait HasQueryBuilder
             });
         }
 
-        return array_merge($exact, $partial, $range, $search);
+        // TCK-147 — extension point for callback filters that aren't tied to a
+        // column (e.g. spatie role membership). Models override
+        // `customQueryFilters()` to return additional `AllowedFilter` instances.
+        $custom = static::customQueryFilters();
+
+        return array_merge($exact, $partial, $range, $search, $custom);
+    }
+
+    /**
+     * Override on a model to add filters that don't fit the exact/partial/range
+     * shape (e.g. `AllowedFilter::callback('role', ...)`). Default: none.
+     *
+     * @return array<int, AllowedFilter>
+     */
+    protected static function customQueryFilters(): array
+    {
+        return [];
     }
 
     /** @return array<int, AllowedInclude> */

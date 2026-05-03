@@ -24,6 +24,7 @@ return [
     'collaborator_already_exists' => 'This collaborator is already added to this property.',
     'only_super_admin_can_grant_super_admin' => 'Only a super admin can grant the super_admin role.',
     'target_user_has_no_active_agency' => 'The target user has no resolvable agency context. Activate a profile for them or specify the target agency before assigning an agency-scoped role.',
+    'target_user_not_in_active_agency' => 'The target user does not belong to your active agency.',
 
     // Integrations
     'integration_inactive' => 'The integration is disabled. Enable it before testing.',
