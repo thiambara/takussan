@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, Building2, LayoutDashboard, Settings2, Users } from 'lucide-react';
+import { Activity, Building2, Home, LayoutDashboard, Settings2, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -15,6 +15,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { href: '/super-admin', label: 'Console', icon: LayoutDashboard },
   { href: '/super-admin/agencies', label: 'Agences', icon: Building2 },
+  { href: '/super-admin/properties', label: 'Biens', icon: Home },
   { href: '/super-admin/users', label: 'Utilisateurs', icon: Users },
   { href: '/super-admin/audit', label: 'Audit', icon: Activity },
   { href: '/super-admin/system', label: 'Système', icon: Settings2 },

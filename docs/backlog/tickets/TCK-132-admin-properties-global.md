@@ -1,7 +1,7 @@
 ---
 id: TCK-132
 title: "/super-admin/properties — Gestion globale des biens (super_admin)"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -83,4 +83,11 @@ Mutations existantes : statuts (publier / dépublier / archiver), suppression. L
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Proxy `/api/super-admin-properties/[[...path]]`** : nouveau handler same-origin qui forward vers `/api/properties[/...]` avec le bearer pris du cookie httpOnly. Lives outside `/api/super-admin/*` car l'upstream reste le CRUD partagé (TCK-144 a délibérément gardé le scope public + Gate::before). Pattern symétrique à `/api/super-admin-users` (TCK-145).
+- **Filtres backend disponibles** : `agency_id`, `status`, `type`, `visibility`, `search` — tous déjà whitelistés dans `Property::$requestFilterable`. **Pas de `is_published` ni `city`** côté backend — l'UI utilise `filter[visibility]=public` comme proxy de "publié" et n'expose pas le filtre ville (filtrer sur `addresses.city` exige une `AllowedFilter::callback` non livrée — ouvrir un ticket backend si l'usage le justifie).
+- **Sparse fields** : `fields[properties]=id,agency_id,reference_number,title,slug,type,contract_type,status,visibility,price,currency,published_at,created_at`. **Ne pas** y inclure `main_photo_url`, `location` ou `*_label` — ce sont des attributs calculés du `PropertyResource` et spatie rejette avec HTTP 400 (`InvalidFieldQuery`) si on les liste. **Inclure `agency_id`** est obligatoire : sans la clé étrangère sur la ligne parente, Eloquent ne peut pas eager-load `belongsTo(Agency::class)` et `row.agency` revient `null` pour chaque bien (la colonne "Agence" affiche alors "—" partout).
+- **Action "Archiver"** : utilise `POST /api/properties/bulk-archive` (TCK-074) même pour un seul bien — il n'existe pas d'endpoint single-archive (le `DELETE` fait du soft-delete via `deleted_at`, pas de l'archivage `archived_at`).
+- **Mutations + cache** : chaque action invalide `['super-admin', 'properties']` via React Query, pas de full reload (AC).
+- **Ancienne route `/admin/properties`** : convertie en `redirect('/super-admin/properties')` dans `(dashboard)/admin/properties/page.tsx` (l'espace `/admin/*` reste dédié à l'agency_admin, TCK-131).
+- **Sidebar** : entrée "Biens" ajoutée à `SuperAdminSidebar` entre "Agences" et "Utilisateurs".
+- **Vérification UI navigateur non effectuée** : les tests unitaires et le lint passent, mais le dev server n'a pas été démarré pour un walk-through manuel — confirmer en review avec un super_admin.
