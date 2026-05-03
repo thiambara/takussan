@@ -11,12 +11,18 @@ import {
 } from '../settings';
 
 function mockFetch(response: unknown, ok = true, status = 200) {
-  const spy = vi.fn(async () => ({
+  const fakeResponse = {
     ok,
     status,
     json: async () => response,
     text: async () => JSON.stringify(response),
-  }));
+  };
+  // Typing the mock as `typeof fetch` keeps `spy.mock.calls[0]` as the real
+  // `[input, init?]` tuple instead of `never[]`, so destructuring + property
+  // access in assertions type-checks under `tsc --noEmit`.
+  const spy = vi.fn(
+    async (..._args: Parameters<typeof fetch>): Promise<unknown> => fakeResponse,
+  );
   vi.stubGlobal('fetch', spy);
   return spy;
 }
