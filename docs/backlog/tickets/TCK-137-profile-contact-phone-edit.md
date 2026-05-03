@@ -1,7 +1,7 @@
 ---
 id: TCK-137
 title: "Profil contact — Édition téléphone (champ aujourd'hui désactivé)"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: S
@@ -77,4 +77,61 @@ Le frontend doit utiliser `fields[users]=id,phone,phone_verified_at` lors du `GE
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Backend reset de `phone_verified_at`** : le ticket annonçait le reset
+  comme "déjà géré" par TCK-069 — il ne l'était pas. Ajouté dans
+  `AuthController::updateProfile` : si `phone` est dans la requête et
+  diffère de la valeur courante, `phone_verified_at` est posé à `null`
+  dans la même mise à jour. Validation E.164 stricte
+  (`^\+[1-9]\d{6,14}$` accepte aussi la chaîne vide pour effacer le
+  numéro) ajoutée dans `UpdateProfileRequest`.
+- **Pas d'endpoint dédié `PATCH /api/me`** : le ticket mentionnait
+  `PATCH /api/me` ou `/api/users/{id}`, mais le frontend utilise déjà
+  `POST /api/auth/profile` (avec `_method=PUT`) hérité de TCK-013. Pour
+  rester cohérent avec les autres champs profil (first_name, bio,
+  avatar), on étend ce même endpoint plutôt que d'introduire une route
+  parallèle. À harmoniser dans `models-spec` / `features.md` lors d'un
+  futur `/sync-specs`.
+- **Flow OTP inline plutôt que lien** : le ticket dit "réutiliser le
+  composant déjà livré par TCK-069". On réutilise les *server actions*
+  (`phoneSendOtpAction`, `phoneVerifyOtpAction`) sans redupliquer
+  `PhoneVerificationSection`. Le flow OTP est inline dans la section
+  Coordonnées (bouton "Vérifier" → input 6 chiffres + "Confirmer"). La
+  section Sécurité conserve son propre `PhoneVerificationSection`
+  inchangé pour les utilisateurs qui passent par cet onglet.
+- **Pas de `<form>` imbriqué** : le bouton de confirmation OTP est un
+  `type="button"` (avec gestion `Enter` via `onKeyDown`) pour éviter une
+  soumission parasite du formulaire parent (HTML interdit l'imbrication
+  de `<form>`).
+- **Sparse fieldsets (AC6)** : la section ne déclenche aucun GET — le
+  user est passé en prop par la page server (`getMeAction`) puis mis à
+  jour localement à partir de la réponse de la mutation. La mutation
+  renvoie déjà le `UserResource` à jour, donc pas besoin de refetch.
+  L'AC est respecté à l'échelle de la section ; le `getMeAction` global
+  reste hors périmètre (existant et hors-scope).
+- **Helper `isE164` autonome** : pas de `libphonenumber-js` ajouté pour
+  garder le bundle léger. Le regex E.164 strict suffit côté UX (la vraie
+  source de vérité reste le backend). Le `phoneSchema` permissif déjà
+  présent dans `lib/schemas/common.ts` est conservé tel quel pour les
+  formulaires d'inscription qui acceptent encore les formats locaux.
+- **Tests** :
+  - Backend : 5 nouveaux cas dans `AuthProfileTest`
+    (E.164 valide, regex 422, reset sur change, no-reset si valeur
+    inchangée, clear via chaîne vide) — total 11/11 passants.
+  - Frontend : `ProfileContactSection.test.tsx` — 8 cas (no
+    placeholder, live error E.164, save POST avec champ phone, badge
+    "Non vérifié" après reset, OTP inline confirmation, sync
+    `useAuth().setUser` après save, sync `useAuth().setUser` après
+    OTP verify, masquage du bloc "Vérifier" tant que l'édition n'est
+    pas sauvée). 34/34 passants sur le périmètre profile.
+- **Cross-section sync via `useAuth().setUser`** : après une sauvegarde
+  réussie ou une vérification OTP, on appelle `setUser(...)` sur le
+  contexte d'auth pour propager le nouveau `phone` /
+  `phone_verified_at` à `ProfileSecuritySection` (qui lit via
+  `useAuth()`) sans recharger la page. Constaté en smoke test : avant
+  ce fix, la carte « Vérification du téléphone » affichait l'ancien
+  numéro jusqu'au prochain reload.
+- **Vérification UI navigateur** : effectuée — édition + sauvegarde,
+  format invalide (alert live + bouton désactivé), envoi OTP (debug
+  code visible), saisie + confirmation OTP → badge « Vérifié »
+  immédiat, persistance après reload, propagation cross-section vers
+  la Sécurité. Aucune erreur console.
