@@ -1,7 +1,7 @@
 ---
 id: TCK-133
 title: "/admin/users — Gestion des utilisateurs de l'agence (agency_admin)"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -88,4 +88,53 @@ Conventions Spatie : `filter[search]`, `filter[status]`, `filter[role]`, `includ
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Proxy `/api/admin-users/[[...path]]/route.ts`** : nouveau handler
+  same-origin same que TCK-132 / TCK-145, qui forward vers
+  `/api/users[/...]` avec le bearer pris du cookie httpOnly. Optional
+  catch-all : couvre l'index (`GET /api/admin-users`), les actions
+  (`POST /api/admin-users/{id}/block`, `…/activate`) et le role
+  endpoint (`PUT /api/admin-users/{id}/role`).
+- **Pas de proxy SSR** : le scope agence est résolu côté backend par
+  `ResolveActiveProfile` (TCK-141). On reste donc en CSR + React Query
+  comme `/super-admin/properties` ; la cache key `['admin-users',
+  'list', params]` est invalidée à chaque mutation.
+- **Sparse fields** : `fields[users]=id,first_name,last_name,email,
+  phone,status,last_login_at,created_at`. **Ne pas** y inclure
+  `full_name` (accessor Eloquent, pas une colonne — Spatie répond
+  `InvalidFieldQuery` 400) ; on dérive l'affichage côté UI.
+- **`include=roles`** : la relation Spatie `roles` est exposée par
+  TCK-147 via `User::$requestLoadable`. La table affiche le premier
+  rôle de la collection ; le drawer édite le rôle effectif via
+  `PUT /api/users/{user}/role`.
+- **Pas de filtre `agency_id`** côté front : envoyer `filter[agency_id]`
+  serait redondant (le scope est imposé par le backend) **et**
+  inattaquable depuis l'UI (l'agence est implicite). Le test query
+  vérifie qu'aucune URL n'inclut `agency_id`.
+- **Pas de filtre `type`** : la colonne a été supprimée TCK-142. Le
+  test pin l'absence (`expect(url).not.toContain('filter%5Btype%5D')`).
+- **Auto-block guard** : `isSelf = row.id === currentUserId` désactive
+  les actions block dans la dropdown ET dans le drawer (le backend
+  redouble la garde via `cannot_block_self`).
+- **Drawer** : `Sheet` (base-ui dialog) côté droit, contient la fiche
+  + l'éditeur de rôle + le toggle bloquer/activer. Pas de navigation
+  hors page (per spec).
+- **`/admin/team` reste distinct** (TCK-065) : `/admin/team` gère la
+  composition (ajout/retrait d'`AgentProfile`), `/admin/users`
+  expose la **vue lecture-action** sur les comptes liés à l'agence.
+  Aucun ajout/retrait ici — surface couverte par TCK-065.
+- **`Customer` users non listés** : TCK-147 scope la liste aux users
+  avec un `AgentProfile` ou `OwnerProfile`. Les locataires liés
+  uniquement via la relation `Customer` (CRM) ne remontent pas. À
+  filer si l'usage le justifie.
+- **Sidebar** : entrée "Utilisateurs" déjà câblée par TCK-131 dans
+  `AdminSidebar.tsx` (rien à ajouter).
+- **Tests** : 6 tests sur `admin-users.test.ts` (sparse fields, pas de
+  agency_id, pas de type, defaults, block/activate URLs, role PUT body
+  + 403/422 paths) et 4 tests sur `AdminUsersFilters.test.tsx` (selects
+  rendus, pas de filtre agence, role/status updates, page reset,
+  search-on-submit). 10 / 10 verts. 9 échecs vitesse `RecentlyViewed
+  Carousel` + `PropertyVisitDialog` confirmés présents sur `dev` tip
+  (issue `@testing-library/user-event` namespaceURI), non régressés.
+- **Vérification UI navigateur non effectuée** : type-check + tests
+  + lint passent ; un walk-through manuel reste à faire en review
+  avec un agency_admin et un user de test bloqué/réactivé.
