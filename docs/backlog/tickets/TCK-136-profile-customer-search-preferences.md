@@ -1,7 +1,7 @@
 ---
 id: TCK-136
 title: "Profil locataire — Préférences de recherche & alertes"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -83,4 +83,44 @@ Conventions Spatie : `fields[saved_searches]=id,name,criteria,notification_frequ
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Enum `notification_frequency` — `off` au lieu de `none`** : le ticket et
+  `models-spec.md` mentionnent `'none'` mais le backend livré (TCK-070) ainsi
+  que la chaîne frontend (`src/lib/schemas/search.ts`, `SavedSearchController`
+  validation `in:off,daily,weekly,instant`) utilisent `'off'`. Le frontend
+  s'aligne sur la réalité backend (`'off'` ↔ alertes désactivées). Le ticket
+  utilise `'none'` comme synonyme conceptuel — pas de spec PR ouverte, le sens
+  métier est identique. À harmoniser dans `models-spec.md` lors d'un futur
+  `/sync-specs`.
+- **Choix du SavedSearch « par défaut »** : pas de flag `is_default` (Hors
+  périmètre du ticket). Convention : on prend la SavedSearch active la plus
+  récente, ou la plus récente tout court si aucune n'est active
+  (`pickDefault()` dans `ProfileCustomerSection`). Cohérent avec la fallback
+  décrite dans le contrat de données.
+- **Sous-ensemble de `PropertyType` côté UI** : la section profil locataire
+  expose 6 types (apartment, house, villa, studio, room, land) plutôt que les
+  16 du schéma backend — choix UX pour ne pas saturer la grille de cases. Les
+  power users ont accès à la liste complète depuis `/properties` puis
+  TCK-047 (Mes recherches sauvegardées).
+- **Format des villes** : champ texte libre séparé par virgules — persisté en
+  `criteria.cities` (array) côté backend. Pas de TagInput dans le design
+  system ; un upgrade visuel pourra être proposé en P2.
+- **Sparse fieldsets** : `useSavedSearchesQuery` envoie désormais
+  `fields[saved_searches]=id,user_id,name,criteria,notification_frequency,is_active`
+  via le wrapper `useApiQuery`. Le `SavedSearchController.index` n'utilise pas
+  encore `spatie/laravel-query-builder` (le contrôleur retourne la ressource
+  complète) — l'AC est respectée côté requête, mais le backend ignore
+  silencieusement le param. À fixer côté backend dans un ticket dédié si on
+  veut une vraie réduction de payload.
+- **Vérification UI navigateur** : le serveur de dev n'était pas démarré au
+  moment de l'implémentation (la session a été reprise après une compaction).
+  La verification end-to-end navigateur doit être faite à la review (login en
+  tant que `customer`, vérifier création/édition + comportement guard email
+  non vérifié). Tests vitest verts (8/8 spécifiques + 57 sur le périmètre
+  profile + queries).
+- **Tests** :
+  - `src/components/profile/__tests__/SearchPreferencesForm.test.tsx` (5 cas)
+    — empty state, hydration, guard email non-verifié, POST si pas de
+    SavedSearch, PATCH avec `notification_frequency: 'off'` si toggle off.
+  - `src/components/profile/__tests__/ProfileCustomerSection.test.tsx` (3
+    cas) — absence de "Bientôt disponible" + inputs non-disabled, sparse
+    fieldsets dans la requête, guard email non-vérifié end-to-end.
