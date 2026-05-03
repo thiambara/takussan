@@ -4,11 +4,11 @@ namespace Tests\Feature\Api;
 
 use App\Models\Agency;
 use App\Models\Enums\UserStatus;
-use App\Models\Enums\UserType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Spatie\QueryBuilder\Exceptions\InvalidFilterQuery;
+use Spatie\QueryBuilder\Exceptions\InvalidIncludeQuery;
 use Spatie\QueryBuilder\Exceptions\InvalidSortQuery;
 use Tests\TestCase;
 
@@ -18,12 +18,12 @@ class HasQueryBuilderTest extends TestCase
 
     public function test_whitelisted_exact_filter_applies(): void
     {
-        $agencyA = Agency::factory()->create();
-        $agencyB = Agency::factory()->create();
-        User::factory()->count(2)->create(['agency_id' => $agencyA->id]);
-        User::factory()->count(3)->create(['agency_id' => $agencyB->id]);
+        // TCK-142 — `users.agency_id` was dropped; we exercise the same
+        // mechanism on a different whitelisted column (`status`).
+        User::factory()->count(2)->create(['status' => UserStatus::Active]);
+        User::factory()->count(3)->create(['status' => UserStatus::Inactive]);
 
-        $request = Request::create('/', 'GET', ['filter' => ['agency_id' => $agencyA->id]]);
+        $request = Request::create('/', 'GET', ['filter' => ['status' => UserStatus::Active->value]]);
 
         $this->assertSame(2, User::buildQuery(request: $request)->count());
     }
@@ -43,7 +43,6 @@ class HasQueryBuilderTest extends TestCase
         $agency = Agency::factory()->create();
         User::factory()->create([
             'agency_id' => $agency->id,
-            'type' => UserType::Agent,
             'status' => UserStatus::Active,
         ]);
 
@@ -78,15 +77,16 @@ class HasQueryBuilderTest extends TestCase
 
     public function test_whitelisted_include_loads_relation(): void
     {
-        $agency = Agency::factory()->create();
-        User::factory()->create(['agency_id' => $agency->id]);
+        // TCK-142 — User no longer carries an `agency` relation directly;
+        // the User model declares no whitelisted includes. Asking for any
+        // include must now raise InvalidIncludeQuery instead of silently
+        // loading something.
+        User::factory()->create();
 
         $request = Request::create('/', 'GET', ['include' => 'agency']);
 
-        $user = User::buildQuery(request: $request)->first();
-
-        $this->assertTrue($user->relationLoaded('agency'));
-        $this->assertSame($agency->id, $user->agency->id);
+        $this->expectException(InvalidIncludeQuery::class);
+        User::buildQuery(request: $request)->get();
     }
 
     public function test_sparse_fields_limit_returned_columns(): void

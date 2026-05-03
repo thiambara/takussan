@@ -19,9 +19,10 @@ use App\Models\Enums\PaymentFrequency;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
-use App\Models\Enums\UserType;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
@@ -131,7 +132,7 @@ class EdgeCaseSeeder extends Seeder
     {
         $properties = $this->ctx->propertiesByAgency[$agencyId] ?? collect();
         $customers = $this->ctx->customersByAgency[$agencyId] ?? collect();
-        $agents = $this->ctx->usersOfType($agencyId, UserType::Agent->value);
+        $agents = $this->ctx->usersWithProfile(AgentProfile::class, $agencyId);
 
         if ($properties->isEmpty() || $customers->isEmpty()) {
             return;
@@ -214,7 +215,7 @@ class EdgeCaseSeeder extends Seeder
      */
     private function createPropertyEdgeCases(int $agencyId): void
     {
-        $owners = $this->ctx->usersOfType($agencyId, UserType::Individual->value);
+        $owners = $this->ctx->usersWithProfile(OwnerProfile::class, $agencyId);
         if ($owners->isEmpty()) {
             return;
         }
@@ -303,7 +304,7 @@ class EdgeCaseSeeder extends Seeder
      */
     private function createCustomerEdgeCases(int $agencyId): void
     {
-        $agents = $this->ctx->usersOfType($agencyId, UserType::Agent->value);
+        $agents = $this->ctx->usersWithProfile(AgentProfile::class, $agencyId);
         $addedById = $agents->isNotEmpty() ? $agents->first()->id : null;
 
         // 1. Customer sans aucune activité (nouveau)

@@ -33,7 +33,7 @@ class UserRoleController extends Controller
         $actor = $request->user();
 
         abort_unless(
-            $actor->hasRole('super_admin') || $actor->hasRole(['admin', 'agency_admin']),
+            $actor->isSuperAdmin() || $actor->hasRole(['admin', 'agency_admin']),
             403,
         );
 
@@ -42,14 +42,21 @@ class UserRoleController extends Controller
         ]);
 
         // Only a super_admin may grant the super_admin role.
-        if ($data['role'] === 'super_admin' && ! $actor->hasRole('super_admin')) {
+        if ($data['role'] === 'super_admin' && ! $actor->isSuperAdmin()) {
             abort(403, __('messages.only_super_admin_can_grant_super_admin'));
         }
 
-        // Agency admins can only manage users within their own agency —
-        // both sides must match (a null agency on either is not a match).
-        if (! $actor->hasRole('super_admin')) {
-            if ($actor->agency_id === null || $user->agency_id !== $actor->agency_id) {
+        // Agency admins can only manage users within their own agency. The
+        // actor's scope is driven by the active profile; the target must
+        // hold a profile in that same agency (multi-agency targets resolve
+        // to their first profile via the legacy accessor, which would mask
+        // legitimate cross-agency role grants — `isAgentAt`/`isOwnerAt` is
+        // the authoritative membership test post-TCK-142).
+        $actorAgencyId = request()?->activeProfile()?->agency_id ?? $actor->agency_id;
+        if (! $actor->isSuperAdmin()) {
+            if ($actorAgencyId === null
+                || (! $user->isAgentAt($actorAgencyId) && ! $user->isOwnerAt($actorAgencyId))
+            ) {
                 abort(403);
             }
         }
@@ -59,7 +66,7 @@ class UserRoleController extends Controller
         // how the seeder + BaseTestCase register it). Scoping it to an
         // agency would create a duplicate role row in the registry.
         $registrar = app(PermissionRegistrar::class);
-        $teamId = $data['role'] === 'super_admin' ? null : $user->agency_id;
+        $teamId = $data['role'] === 'super_admin' ? null : $actorAgencyId;
         $registrar->setPermissionsTeamId($teamId);
 
         // Ensure the role exists in the target team context under the `web`

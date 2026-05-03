@@ -29,9 +29,12 @@ class AgencyStatsController extends Controller
         $actor = $request->user();
 
         abort_unless(
-            $actor->hasRole('super_admin')
+            $actor->isSuperAdmin()
                 || $agency->primary_admin_id === $actor->id
-                || ($actor->agency_id === $agency->id && $actor->hasRole(['admin', 'agency_admin'])),
+                || (
+                    $request->activeProfile()?->agency_id === $agency->id
+                    && $actor->hasRole(['admin', 'agency_admin'])
+                ),
             403,
         );
 
@@ -39,7 +42,9 @@ class AgencyStatsController extends Controller
         $monthEnd = now()->endOfMonth();
 
         $propertiesCount = Property::where('agency_id', $agency->id)->count();
-        $membersCount = User::where('agency_id', $agency->id)->count();
+        $membersCount = User::query()->where(function ($q) use ($agency) {
+            $q->whereHas('agentProfiles', fn ($qq) => $qq->where('agency_id', $agency->id))->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agency->id));
+        })->count();
         $customersCount = Customer::where('agency_id', $agency->id)->count();
 
         $activeLeasesCount = Lease::where('agency_id', $agency->id)

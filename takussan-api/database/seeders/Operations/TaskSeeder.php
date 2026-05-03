@@ -4,7 +4,7 @@ namespace Database\Seeders\Operations;
 
 use App\Models\Enums\TaskPriority;
 use App\Models\Enums\TaskStatus;
-use App\Models\Enums\UserType;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\Task;
 use Database\Seeders\Support\SeedingContext;
@@ -19,7 +19,7 @@ class TaskSeeder extends Seeder
     public function run(): void
     {
         foreach ($this->ctx->agencies as $agency) {
-            $agents = $this->ctx->usersOfType($agency->id, UserType::Agent->value);
+            $agents = $this->ctx->usersWithProfile(AgentProfile::class, $agency->id);
             $properties = $this->ctx->propertiesByAgency[$agency->id] ?? collect();
             if ($agents->isEmpty() || $properties->isEmpty()) {
                 continue;

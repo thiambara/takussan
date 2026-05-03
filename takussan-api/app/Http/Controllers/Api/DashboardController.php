@@ -49,16 +49,17 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
-        if ($user->hasRole('super_admin') || $user->hasRole('admin')) {
+        if ($user->isSuperAdmin() || $user->hasRole('admin')) {
             return $this->json(['data' => $this->globalStats()]);
         }
 
-        if ($user->hasRole('agency_admin') && $user->agency_id) {
-            return $this->json(['data' => $this->agencyStats($user->agency_id)]);
+        $activeAgencyId = $request->activeProfile()?->agency_id ?? $user->agency_id;
+        if ($user->hasRole('agency_admin') && $activeAgencyId) {
+            return $this->json(['data' => $this->agencyStats($activeAgencyId)]);
         }
 
-        if ($user->hasRole('agent') && $user->agency_id) {
-            return $this->json(['data' => $this->agentStats($user->id, $user->agency_id)]);
+        if ($user->hasRole('agent') && $activeAgencyId) {
+            return $this->json(['data' => $this->agentStats($user->id, $activeAgencyId)]);
         }
 
         if ($user->hasRole('owner')) {

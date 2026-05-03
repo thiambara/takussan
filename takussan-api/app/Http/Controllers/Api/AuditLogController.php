@@ -17,7 +17,11 @@ class AuditLogController extends Controller
 {
     public function indexByEntity(Request $request, string $entity, int $id): JsonResponse
     {
-        abort_unless($request->user()->hasRole(['admin', 'agency_admin', 'super_admin']), 403);
+        $user = $request->user();
+        abort_unless(
+            $user->isSuperAdmin() || $user->hasRole(['admin', 'agency_admin']),
+            403
+        );
 
         // `Str::studly` handles multi-word slugs (`booking_payment` → `BookingPayment`)
         // which plain `ucfirst` cannot — the latter would leave the underscore
@@ -57,7 +61,7 @@ class AuditLogController extends Controller
         // TCK-104 — `agency_admin` can browse the audit dashboard scoped
         // to their own agency. `admin` is preserved for legacy clients.
         abort_unless(
-            $authedUser->hasRole(['admin', 'agency_admin', 'super_admin']),
+            $authedUser->isSuperAdmin() || $authedUser->hasRole(['admin', 'agency_admin']),
             403
         );
 
@@ -83,15 +87,17 @@ class AuditLogController extends Controller
 
         // TCK-104 — agency_admin sees only logs caused by users from their
         // agency. super_admin / legacy `admin` retain global visibility.
-        if ($authedUser->hasRole('agency_admin') && ! $authedUser->hasRole('super_admin')) {
-            $agencyId = $authedUser->agency_id;
+        if (! $authedUser->isSuperAdmin() && $authedUser->hasRole('agency_admin')) {
+            $agencyId = $request->activeProfile()?->agency_id ?? $authedUser->agency_id;
             if (! $agencyId) {
                 $baseQuery->whereRaw('0 = 1');
             } else {
                 $baseQuery->where('causer_type', User::class)
                     ->whereIn(
                         'causer_id',
-                        User::query()->where('agency_id', $agencyId)->select('id')
+                        User::query()->where(function ($q) use ($agencyId) {
+                            $q->whereHas('agentProfiles', fn ($qq) => $qq->where('agency_id', $agencyId))->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agencyId));
+                        })->select('id')
                     );
             }
         }

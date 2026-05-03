@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Agency;
+use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -38,14 +39,15 @@ class AgencyAgentTest extends TestCase
             'user_id' => $agent->id,
         ])->assertOk();
 
-        $this->assertDatabaseHas('users', ['id' => $agent->id, 'agency_id' => $agency->id]);
+        $this->assertDatabaseHas('agent_profiles', ['user_id' => $agent->id, 'agency_id' => $agency->id]);
     }
 
     public function test_cannot_add_user_already_in_another_agency(): void
     {
         [$admin, $agency] = $this->createAdminWithAgency();
         $otherAgency = Agency::factory()->create();
-        $agent = User::factory()->create(['agency_id' => $otherAgency->id]);
+        $agent = User::factory()->create();
+        AgentProfile::factory()->create(['user_id' => $agent->id, 'agency_id' => $otherAgency->id]);
 
         Sanctum::actingAs($admin);
 
@@ -57,14 +59,15 @@ class AgencyAgentTest extends TestCase
     public function test_admin_can_remove_agent_from_agency(): void
     {
         [$admin, $agency] = $this->createAdminWithAgency();
-        $agent = User::factory()->create(['agency_id' => $agency->id]);
+        $agent = User::factory()->create();
+        AgentProfile::factory()->create(['user_id' => $agent->id, 'agency_id' => $agency->id]);
 
         Sanctum::actingAs($admin);
 
         $this->deleteJson("/api/agencies/{$agency->id}/agents/{$agent->id}")
             ->assertOk();
 
-        $this->assertDatabaseHas('users', ['id' => $agent->id, 'agency_id' => null]);
+        $this->assertSame(0, AgentProfile::query()->where('user_id', $agent->id)->where('agency_id', $agency->id)->count());
     }
 
     public function test_cannot_remove_primary_admin(): void

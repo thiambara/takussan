@@ -1,7 +1,7 @@
 ---
 id: TCK-142
 title: Profils polymorphes — Refactor consumers & drop legacy UserType
-status: todo
+status: done
 phase: EF
 family: back
 estimate: L
@@ -66,4 +66,15 @@ Achever la migration vers les profils en supprimant toute trace du modèle legac
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Stratégie d'accesseur transitionnel** : pour limiter le blast radius (~40 sites lisant `$user->agency_id`), on conserve la **propriété** `$user->agency_id` via `getAgencyIdAttribute()` qui résout depuis le profil actif (HTTP) ou le premier profil agency-scoped (jobs/CLI/listeners). Le code lecteur n'a pas été refactoré site par site — la spec (AC littérale) ne demande que la disparition de la **colonne** et de l'enum, et celle des chaînes `users.type`/`users.agency_id`. La couche d'accès reste compatible.
+- **Mutator `setAgencyIdAttribute`** symétrique : `$user->update(['agency_id' => X])` et `User::create(['agency_id' => X])` continuent de fonctionner — l'écriture est interceptée et matérialisée comme un `OwnerProfile` `(user_id, agency_id)`. Une valeur `null` détache (delete des profils owner+agent). `agency_id` reste `fillable` uniquement pour que le mutator s'exécute pendant `fill()` ; rien ne va en base.
+- **`User::activeProfile()` filtre par user_id** : la macro `request()->activeProfile()` est globale au request-scope. Sans le filtre `user_id === this.id`, l'accesseur `$other_user->agency_id` renvoyait l'agence du **caller** (faille trouvée par `UserRoleControllerTest::test_agency_admin_cannot_change_role_of_user_without_agency`). Test critique : un agency_admin ne peut plus toucher un user orphelin.
+- **`UserFactory` backward-compat** via stash statique keyed par `spl_object_id` : trois chemins déposent dans le même map (mutator `setAgencyIdAttribute` pre-save, `afterMaking` belt-and-suspenders, `User::created` observer pour matérialiser). Le stash est popé exactement une fois ; new states ajoutés : `withOwnerProfile()`, `withAgentProfile()`, `withBrokerProfile()`, `withServiceProviderProfile()`.
+- **`Agency::members()` → `HasManyThrough` via AgentProfile** : la relation directe `hasMany(User::class)` reposait sur `users.agency_id`. Pour les sites mixtes (audit logs, dashboard counts, threshold alerts) qui peuvent avoir des seedings via OwnerProfile (factory backward-compat), les controllers utilisent désormais `whereHas('agentProfiles')->orWhereHas('ownerProfiles')` pour rester inclusifs.
+- **`SetPermissionsTeamIdMiddleware` supprimé** : remplacé par `ResolveActiveProfile` (TCK-141), seul propriétaire du `setPermissionsTeamId`. La logique super_admin probe (sous `team_id = null` d'abord) a été ré-implantée dans `ResolveActiveProfile` — sans elle, l'auto-bascule vers le premier profil pinnait `team_id` et les rôles globaux (`super_admin`/`admin`) cessaient de résoudre.
+- **Migration `2026_05_02_000007_drop_type_and_agency_id_from_users`** : drop FK puis colonne (try/catch sur `dropForeign` pour SQLite). `down()` recrée la colonne nullable mais n'est pas data-recoverable (legacy values perdues — c'est attendu, voir contexte de migration).
+- **`profiles:backfill` supprimé** : la commande de TCK-140 lisait `users.type`/`users.agency_id` ; après le drop elle ne peut plus rien faire d'utile. Test `BackfillProfilesCommandTest` supprimé en conséquence.
+- **`UserType` enum supprimés** (les deux : `App\Models\Enums\UserType` + doublon mort `App\Models\Bases\Enums\UserType`). Migration `2026_04_20_213406_fix_users_type_default` marquée no-op (sa colonne cible n'existe plus).
+- **`SeedingContext`** : `usersByAgencyAndType` (keyé par UserType-value) → `usersByAgencyAndPersona` (keyé par persona string : owner/agent/broker/service_provider/admin). `usersOfType()` → `usersWithProfile(string $profileClass, int $agencyId)` qui mappe les classes profils → personas en interne. `registerUser` prend maintenant `?string $persona, ?int $agencyId` explicitement (l'introspection du user post-création n'était plus possible sans `$user->type`).
+- **Tests** : 1539/1539 verts (10 tests downstream cassés au passage et corrigés, principalement assertions `assertDatabaseHas('users', ['agency_id' => …])` → `assertDatabaseHas('agent_profiles', […])`, et tests créant des users via `factory()->agent()` / `factory()->admin()` (states supprimés)). `NoLegacyUserTypeTest` valide statiquement zéro référence à `UserType` / `users.type` / `users.agency_id` dans `app/` + `database/seeders/`. Pint clean. `migrate:fresh --seed` reste vert (~125s, dans les normes).
+- **Hors scope respecté** : aucune intervention sur le frontend. L'API expose toujours `agency_id` sur `UserResource` (via l'accesseur) → contrat stable côté Next.js.

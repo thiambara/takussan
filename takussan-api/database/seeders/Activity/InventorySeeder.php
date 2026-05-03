@@ -6,8 +6,8 @@ use App\Models\Enums\InventoryCondition;
 use App\Models\Enums\InventoryStatus;
 use App\Models\Enums\InventoryType;
 use App\Models\Enums\LeaseStatus;
-use App\Models\Enums\UserType;
 use App\Models\Inventory;
+use App\Models\Profiles\AgentProfile;
 use Database\Seeders\Support\SeedingContext;
 use Illuminate\Database\Seeder;
 
@@ -22,7 +22,7 @@ class InventorySeeder extends Seeder
                 continue;
             }
 
-            $agents = $this->ctx->usersOfType($lease->agency_id, UserType::Agent->value);
+            $agents = $this->ctx->usersWithProfile(AgentProfile::class, $lease->agency_id);
             $conductedBy = $agents->isNotEmpty()
                 ? $agents->pluck('id')->values()->random()
                 : $lease->landlord_id;

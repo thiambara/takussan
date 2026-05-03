@@ -3,8 +3,12 @@
 namespace Database\Seeders\Support;
 
 use App\Models\Agency;
+use App\Models\Enums\AgentProfileStatus;
+use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\UserStatus;
-use App\Models\Enums\UserType;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -28,8 +32,7 @@ class DemoUsersSeeder extends Seeder
             'first_name' => 'Super',
             'last_name' => 'Admin',
             'role' => 'super_admin',
-            'type' => UserType::Admin,
-            'agency_id' => null,
+            'persona' => 'admin',
         ],
         [
             'email' => 'admin@demo.takussan.sn',
@@ -37,7 +40,7 @@ class DemoUsersSeeder extends Seeder
             'first_name' => 'Agency',
             'last_name' => 'Admin',
             'role' => 'agency_admin',
-            'type' => UserType::Admin,
+            'persona' => 'admin',
         ],
         [
             'email' => 'agent@demo.takussan.sn',
@@ -45,7 +48,7 @@ class DemoUsersSeeder extends Seeder
             'first_name' => 'Demo',
             'last_name' => 'Agent',
             'role' => 'agent',
-            'type' => UserType::Agent,
+            'persona' => 'agent',
         ],
         [
             'email' => 'owner@demo.takussan.sn',
@@ -53,7 +56,7 @@ class DemoUsersSeeder extends Seeder
             'first_name' => 'Property',
             'last_name' => 'Owner',
             'role' => 'owner',
-            'type' => UserType::Individual,
+            'persona' => 'owner',
         ],
         [
             'email' => 'provider@demo.takussan.sn',
@@ -61,7 +64,7 @@ class DemoUsersSeeder extends Seeder
             'first_name' => 'Service',
             'last_name' => 'Provider',
             'role' => 'service_provider',
-            'type' => UserType::ServiceProvider,
+            'persona' => 'service_provider',
         ],
         [
             'email' => 'customer@demo.takussan.sn',
@@ -69,7 +72,8 @@ class DemoUsersSeeder extends Seeder
             'first_name' => 'Demo',
             'last_name' => 'Customer',
             'role' => 'customer',
-            'type' => UserType::Individual,
+            // Customers don't have a profile — their access is purely role-based.
+            'persona' => null,
         ],
     ];
 
@@ -123,20 +127,20 @@ class DemoUsersSeeder extends Seeder
                 'username' => $userData['username'].'.agency'.$agency->id,
                 'first_name' => $userData['first_name'],
                 'last_name' => $userData['last_name'],
-                'type' => $userData['type'],
                 'status' => UserStatus::Active,
                 'email_verified_at' => now(),
                 'password' => Hash::make(self::DEFAULT_PASSWORD),
                 'preferred_language' => 'fr',
                 'timezone' => 'Africa/Dakar',
-                'agency_id' => $agency->id,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]
         );
 
         $user->assignRole($userData['role']);
-        $this->ctx->registerUser($user);
+
+        $this->ensureProfileFor($user, $agency, $userData['persona']);
+        $this->ctx->registerUser($user, $userData['persona'], $agency->id);
     }
 
     /**
@@ -158,13 +162,11 @@ class DemoUsersSeeder extends Seeder
                 'username' => $superAdminData['username'],
                 'first_name' => $superAdminData['first_name'],
                 'last_name' => $superAdminData['last_name'],
-                'type' => $superAdminData['type'],
                 'status' => UserStatus::Active,
                 'email_verified_at' => now(),
                 'password' => Hash::make(self::DEFAULT_PASSWORD),
                 'preferred_language' => 'fr',
                 'timezone' => 'Africa/Dakar',
-                'agency_id' => null,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]
@@ -172,5 +174,23 @@ class DemoUsersSeeder extends Seeder
 
         $user->assignRole('super_admin');
         $this->ctx->systemUsers->push($user);
+    }
+
+    private function ensureProfileFor(User $user, Agency $agency, ?string $persona): void
+    {
+        match ($persona) {
+            'owner' => OwnerProfile::query()->firstOrCreate(
+                ['user_id' => $user->id, 'agency_id' => $agency->id],
+                ['status' => OwnerProfileStatus::Active->value],
+            ),
+            'agent' => AgentProfile::query()->firstOrCreate(
+                ['user_id' => $user->id, 'agency_id' => $agency->id],
+                ['status' => AgentProfileStatus::Active->value],
+            ),
+            'service_provider' => ServiceProviderProfile::query()->firstOrCreate(
+                ['user_id' => $user->id],
+            ),
+            default => null,
+        };
     }
 }

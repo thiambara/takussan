@@ -3,7 +3,7 @@
 namespace Database\Seeders\Catalog;
 
 use App\Models\Enums\CollaboratorRole;
-use App\Models\Enums\UserType;
+use App\Models\Profiles\AgentProfile;
 use App\Models\PropertyCollaborator;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\Timeline;
@@ -16,7 +16,7 @@ class PropertyCollaboratorSeeder extends Seeder
     public function run(): void
     {
         foreach ($this->ctx->agencies as $agency) {
-            $agents = $this->ctx->usersOfType($agency->id, UserType::Agent->value);
+            $agents = $this->ctx->usersWithProfile(AgentProfile::class, $agency->id);
             if ($agents->isEmpty()) {
                 continue;
             }

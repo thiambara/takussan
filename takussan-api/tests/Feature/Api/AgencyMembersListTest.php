@@ -67,7 +67,7 @@ class AgencyMembersListTest extends TestCase
             ->assertJsonPath('data.user_id', $target->id)
             ->assertJsonPath('data.role', 'agent');
 
-        $this->assertDatabaseHas('users', ['id' => $target->id, 'agency_id' => $agency->id]);
+        $this->assertDatabaseHas('agent_profiles', ['user_id' => $target->id, 'agency_id' => $agency->id]);
     }
 
     public function test_adding_member_with_unknown_email_returns_422(): void

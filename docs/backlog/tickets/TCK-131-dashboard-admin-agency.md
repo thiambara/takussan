@@ -1,7 +1,7 @@
 ---
 id: TCK-131
 title: "Dashboard /admin agence — câblage indicateurs & vue d'ensemble"
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

@@ -14,11 +14,11 @@ use App\Models\Enums\PaymentFrequency;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PropertyStatus;
-use App\Models\Enums\UserType;
 use App\Models\Enums\VisitStatus;
 use App\Models\Favorite;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use Illuminate\Support\Str;
@@ -213,7 +213,7 @@ class ReferentialIntegrityChecker
         // 70% de chances de créer un booking, 30% un favori seulement
         if (random_int(1, 100) <= 70) {
             $property = $properties->random();
-            $agents = $this->ctx->usersOfType($agencyId, UserType::Agent->value);
+            $agents = $this->ctx->usersWithProfile(AgentProfile::class, $agencyId);
 
             Booking::withoutEvents(fn () => Booking::create([
                 'property_id' => $property->id,
@@ -299,7 +299,7 @@ class ReferentialIntegrityChecker
     private function createVisitForProperty(Property $property): void
     {
         $customers = $this->ctx->customersByAgency[$property->agency_id] ?? collect();
-        $agents = $this->ctx->usersOfType($property->agency_id, UserType::Agent->value);
+        $agents = $this->ctx->usersWithProfile(AgentProfile::class, $property->agency_id);
 
         if ($customers->isEmpty() || $agents->isEmpty()) {
             return;

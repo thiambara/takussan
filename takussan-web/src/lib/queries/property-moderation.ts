@@ -66,7 +66,7 @@ export async function fetchPropertyModerationQueue(
   if (params.perPage) qs.set('per_page', String(params.perPage));
   const query = qs.toString();
   return apiRequest<ModerationPropertyQueueResponse>(
-    `/api/admin/properties/moderation${query ? `?${query}` : ''}`,
+    `/api/properties/moderation${query ? `?${query}` : ''}`,
     { token },
   );
 }
@@ -80,7 +80,7 @@ export async function approveProperty(
   token: string,
 ): Promise<PropertyModerationResponse> {
   return apiRequest<PropertyModerationResponse>(
-    `/api/admin/properties/${propertyId}/approve`,
+    `/api/properties/${propertyId}/approve`,
     { method: 'POST', token },
   );
 }
@@ -91,7 +91,7 @@ export async function rejectProperty(
   token: string,
 ): Promise<PropertyModerationResponse> {
   return apiRequest<PropertyModerationResponse>(
-    `/api/admin/properties/${propertyId}/reject`,
+    `/api/properties/${propertyId}/reject`,
     { method: 'POST', body: { rejection_reason: rejectionReason }, token },
   );
 }
@@ -101,7 +101,7 @@ export async function resubmitProperty(
   token: string,
 ): Promise<ApiResponse<unknown>> {
   return apiRequest<ApiResponse<unknown>>(
-    `/api/admin/properties/${propertyId}/resubmit`,
+    `/api/properties/${propertyId}/resubmit`,
     { method: 'POST', token },
   );
 }

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\PropertyModerationController;
 use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\PropertyAddressController;
 use App\Http\Controllers\Api\PropertyAncestorsController;
@@ -17,6 +18,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('properties', [PropertyController::class, 'store'])->name('properties.store');
     // TCK-074 — bulk actions (must be declared before the `{property}` route).
     Route::post('properties/bulk-archive', [PropertyController::class, 'bulkArchive'])->name('properties.bulk-archive');
+
+    // TCK-098 — moderation queue (admin-scoped: agency_admin sees own queue,
+    // super_admin sees all). Lives outside /api/admin/* (which is super-admin
+    // only since TCK-144) — gating stays in the controller.
+    Route::get('properties/moderation', [PropertyModerationController::class, 'index'])
+        ->name('properties.moderation.index');
+    Route::post('properties/{property}/approve', [PropertyModerationController::class, 'approve'])
+        ->name('properties.moderation.approve');
+    Route::post('properties/{property}/reject', [PropertyModerationController::class, 'reject'])
+        ->name('properties.moderation.reject');
+    Route::post('properties/{property}/resubmit', [PropertyModerationController::class, 'resubmit'])
+        ->name('properties.moderation.resubmit');
     Route::post('properties/{property}/duplicate', [PropertyController::class, 'duplicate'])->name('properties.duplicate');
     Route::get('properties/{property}', [PropertyController::class, 'show'])->name('properties.show');
     Route::put('properties/{property}', [PropertyController::class, 'update'])->name('properties.update');

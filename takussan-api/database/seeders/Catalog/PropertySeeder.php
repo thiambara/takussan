@@ -8,7 +8,7 @@ use App\Models\Enums\ContractType;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
-use App\Models\Enums\UserType;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\StatusDistribution;
@@ -29,7 +29,7 @@ class PropertySeeder extends Seeder
 
     private function seedAgencyProperties(Agency $agency): void
     {
-        $owners = $this->ctx->usersOfType($agency->id, UserType::Individual->value);
+        $owners = $this->ctx->usersWithProfile(OwnerProfile::class, $agency->id);
         if ($owners->isEmpty()) {
             return;
         }

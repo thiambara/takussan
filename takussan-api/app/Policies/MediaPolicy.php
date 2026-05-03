@@ -35,7 +35,7 @@ class MediaPolicy extends BasePolicy
      */
     public function viewRaw(User $user, Model $model): bool
     {
-        if ($user->hasRole(['admin', 'super_admin'])) {
+        if ($user->isSuperAdmin() || $user->hasRole('admin')) {
             return true;
         }
 
@@ -49,6 +49,7 @@ class MediaPolicy extends BasePolicy
             return false;
         }
 
+        // `$user->agency_id` is the TCK-146 active-profile-aware accessor.
         if (isset($target->agency_id) && $user->agency_id !== null
             && (int) $target->agency_id === (int) $user->agency_id) {
             $agency = $target->agency ?? null;
@@ -96,8 +97,9 @@ class MediaPolicy extends BasePolicy
             return true;
         }
 
-        // Agency scoping: if the target has an agency_id matching the user's
-        // and the user is an agency_admin, allow.
+        // Agency scoping: target's agency must match the actor's active-
+        // profile agency (via the `$user->agency_id` accessor) and the actor
+        // must hold an admin/agency_admin role at that team.
         if (isset($target->agency_id) && $user->agency_id !== null
             && (int) $target->agency_id === (int) $user->agency_id
             && $user->hasRole(['admin', 'agency_admin'])) {
