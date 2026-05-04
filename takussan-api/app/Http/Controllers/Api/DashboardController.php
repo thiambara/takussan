@@ -13,25 +13,53 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
+use App\Services\Dashboard\DashboardRoleResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
+    public function __construct(private readonly DashboardRoleResolver $resolver) {}
+
+    /**
+     * GET /api/dashboard/me — adaptive entry returning role + flat metrics + sections.
+     * Returns 404 when no profile resolves so the frontend can render an explicit empty state.
+     */
+    public function me(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $metrics = $this->resolver->resolve($user);
+
+        if ($metrics === null) {
+            return $this->json([
+                'message' => 'Aucun profil tableau de bord résolu pour cet utilisateur.',
+            ], 404);
+        }
+
+        return $this->json([
+            'data' => [
+                'role' => $metrics->role(),
+                'metrics' => $metrics->metrics($user),
+                'sections' => $metrics->sections($user),
+            ],
+        ]);
+    }
+
     public function stats(Request $request): JsonResponse
     {
         $user = $request->user();
 
-        if ($user->hasRole('super_admin') || $user->hasRole('admin')) {
+        if ($user->isSuperAdmin() || $user->hasRole('admin')) {
             return $this->json(['data' => $this->globalStats()]);
         }
 
-        if ($user->hasRole('agency_admin') && $user->agency_id) {
-            return $this->json(['data' => $this->agencyStats($user->agency_id)]);
+        $activeAgencyId = $request->activeProfile()?->agency_id ?? $user->agency_id;
+        if ($user->hasRole('agency_admin') && $activeAgencyId) {
+            return $this->json(['data' => $this->agencyStats($activeAgencyId)]);
         }
 
-        if ($user->hasRole('agent') && $user->agency_id) {
-            return $this->json(['data' => $this->agentStats($user->id, $user->agency_id)]);
+        if ($user->hasRole('agent') && $activeAgencyId) {
+            return $this->json(['data' => $this->agentStats($user->id, $activeAgencyId)]);
         }
 
         if ($user->hasRole('owner')) {

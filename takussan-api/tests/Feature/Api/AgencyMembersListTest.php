@@ -3,6 +3,8 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Agency;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -42,6 +44,32 @@ class AgencyMembersListTest extends TestCase
             ->assertJsonPath('meta.total', 4); // 3 members + admin
     }
 
+    public function test_member_listing_includes_users_with_only_agent_profile_and_only_owner_profile(): void
+    {
+        // PR #104 review regression — when `Agency::members` was a
+        // `hasManyThrough(AgentProfile)` relation, any caller relying on it
+        // silently lost OwnerProfile-only members. The endpoint authority
+        // is the controller query (whereHas agentProfiles OR ownerProfiles)
+        // — pin both halves.
+        [$admin, $agency] = $this->createAdminWithAgency();
+
+        $agentOnly = User::factory()->create();
+        AgentProfile::factory()->create(['user_id' => $agentOnly->id, 'agency_id' => $agency->id]);
+
+        $ownerOnly = User::factory()->create();
+        OwnerProfile::factory()->create(['user_id' => $ownerOnly->id, 'agency_id' => $agency->id]);
+
+        Sanctum::actingAs($admin);
+
+        $ids = collect($this->getJson("/api/agencies/{$agency->id}/members")
+            ->assertOk()
+            ->json('data'))
+            ->pluck('id');
+
+        $this->assertTrue($ids->contains($agentOnly->id), 'AgentProfile-only user must appear in members.');
+        $this->assertTrue($ids->contains($ownerOnly->id), 'OwnerProfile-only user must appear in members.');
+    }
+
     public function test_non_admin_cannot_list_members(): void
     {
         [$admin, $agency] = $this->createAdminWithAgency();
@@ -67,7 +95,7 @@ class AgencyMembersListTest extends TestCase
             ->assertJsonPath('data.user_id', $target->id)
             ->assertJsonPath('data.role', 'agent');
 
-        $this->assertDatabaseHas('users', ['id' => $target->id, 'agency_id' => $agency->id]);
+        $this->assertDatabaseHas('agent_profiles', ['user_id' => $target->id, 'agency_id' => $agency->id]);
     }
 
     public function test_adding_member_with_unknown_email_returns_422(): void

@@ -3,7 +3,7 @@ import { forbidden, notFound } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
 import { fetchTagsAction } from '@/app/actions/admin-tags';
 import { getToken } from '@/lib/session';
-import { fetchDashboardProperty } from '@/lib/queries/properties';
+import { fetchDashboardProperty } from '@/lib/queries/properties-server';
 import { ApiError } from '@/lib/api';
 import { isAdmin, isAgent, isOwner } from '@/lib/roles';
 import { PropertyForm } from '@/components/property-form';

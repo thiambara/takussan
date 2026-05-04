@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Agency;
+use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -38,14 +39,15 @@ class AgencyAgentTest extends TestCase
             'user_id' => $agent->id,
         ])->assertOk();
 
-        $this->assertDatabaseHas('users', ['id' => $agent->id, 'agency_id' => $agency->id]);
+        $this->assertDatabaseHas('agent_profiles', ['user_id' => $agent->id, 'agency_id' => $agency->id]);
     }
 
     public function test_cannot_add_user_already_in_another_agency(): void
     {
         [$admin, $agency] = $this->createAdminWithAgency();
         $otherAgency = Agency::factory()->create();
-        $agent = User::factory()->create(['agency_id' => $otherAgency->id]);
+        $agent = User::factory()->create();
+        AgentProfile::factory()->create(['user_id' => $agent->id, 'agency_id' => $otherAgency->id]);
 
         Sanctum::actingAs($admin);
 
@@ -57,14 +59,15 @@ class AgencyAgentTest extends TestCase
     public function test_admin_can_remove_agent_from_agency(): void
     {
         [$admin, $agency] = $this->createAdminWithAgency();
-        $agent = User::factory()->create(['agency_id' => $agency->id]);
+        $agent = User::factory()->create();
+        AgentProfile::factory()->create(['user_id' => $agent->id, 'agency_id' => $agency->id]);
 
         Sanctum::actingAs($admin);
 
         $this->deleteJson("/api/agencies/{$agency->id}/agents/{$agent->id}")
             ->assertOk();
 
-        $this->assertDatabaseHas('users', ['id' => $agent->id, 'agency_id' => null]);
+        $this->assertSame(0, AgentProfile::query()->where('user_id', $agent->id)->where('agency_id', $agency->id)->count());
     }
 
     public function test_cannot_remove_primary_admin(): void
@@ -88,99 +91,5 @@ class AgencyAgentTest extends TestCase
         $this->postJson("/api/agencies/{$agency->id}/agents", [
             'user_id' => $newAgent->id,
         ])->assertForbidden();
-    }
-
-    // --- Agency Role management ---
-
-    public function test_admin_can_list_agency_roles(): void
-    {
-        [$admin, $agency] = $this->createAdminWithAgency();
-
-        Sanctum::actingAs($admin);
-
-        $this->getJson('/api/agency-roles')
-            ->assertOk()
-            ->assertJsonStructure(['data']);
-    }
-
-    public function test_admin_can_create_custom_role(): void
-    {
-        [$admin, $agency] = $this->createAdminWithAgency();
-
-        Sanctum::actingAs($admin);
-
-        $this->postJson('/api/agency-roles', [
-            'name' => 'comptable',
-        ])->assertCreated()
-            ->assertJsonPath('data.name', 'comptable');
-    }
-
-    public function test_admin_can_delete_custom_role(): void
-    {
-        [$admin, $agency] = $this->createAdminWithAgency();
-
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        $role = Role::create(['name' => 'temp_role', 'guard_name' => 'web', 'agency_id' => $agency->id]);
-
-        Sanctum::actingAs($admin);
-
-        $this->deleteJson("/api/agency-roles/{$role->id}")
-            ->assertNoContent();
-
-        $this->assertDatabaseMissing('roles', ['id' => $role->id]);
-    }
-
-    public function test_non_admin_cannot_create_role(): void
-    {
-        $user = User::factory()->create();
-
-        Sanctum::actingAs($user);
-
-        $this->postJson('/api/agency-roles', [
-            'name' => 'hacked',
-        ])->assertForbidden();
-    }
-
-    public function test_admin_can_update_custom_role(): void
-    {
-        [$admin, $agency] = $this->createAdminWithAgency();
-
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        $role = Role::create(['name' => 'updatable_role', 'guard_name' => 'web', 'agency_id' => $agency->id]);
-
-        Sanctum::actingAs($admin);
-
-        $this->putJson("/api/agency-roles/{$role->id}", [
-            'name' => 'updated_role',
-        ])->assertOk()
-            ->assertJsonPath('data.name', 'updated_role');
-    }
-
-    public function test_non_admin_cannot_update_role(): void
-    {
-        [$admin, $agency] = $this->createAdminWithAgency();
-
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        $role = Role::create(['name' => 'some_role', 'guard_name' => 'web', 'agency_id' => $agency->id]);
-
-        $regularUser = User::factory()->create();
-        Sanctum::actingAs($regularUser);
-
-        $this->putJson("/api/agency-roles/{$role->id}", ['name' => 'hacked_role'])
-            ->assertForbidden();
-    }
-
-    public function test_admin_cannot_update_role_from_another_agency(): void
-    {
-        [$admin, $agency] = $this->createAdminWithAgency();
-
-        $otherAgency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($otherAgency->id);
-        $foreignRole = Role::create(['name' => 'foreign_role', 'guard_name' => 'web', 'agency_id' => $otherAgency->id]);
-
-        Sanctum::actingAs($admin);
-
-        $this->putJson("/api/agency-roles/{$foreignRole->id}", ['name' => 'hijacked'])
-            ->assertForbidden();
     }
 }

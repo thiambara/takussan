@@ -478,7 +478,29 @@
       "low": "Basse"
     }
   },
+  "homepage": {
+    "row": {
+      "viewAll": "Tout voir",
+      "near": {
+        "eyebrow": "Près de toi",
+        "title": "À découvrir à Dakar"
+      },
+      "rent": {
+        "eyebrow": "À louer",
+        "title": "Pour ton prochain logement"
+      },
+      "featured": {
+        "eyebrow": "Coup de cœur",
+        "title": "Sélection de la semaine"
+      },
+      "latest": {
+        "eyebrow": "Nouveau",
+        "title": "Tout juste publié"
+      }
+    }
+  },
   "recentlyViewed": {
+    "eyebrow": "Pour toi",
     "title": "Vus récemment",
     "clearHistory": "Effacer l'historique",
     "confirmTitle": "Effacer l'historique ?",

@@ -57,10 +57,22 @@ _(vide — TCK-104 en cours)_
 
 ### Vague 13 — Bugs QA visiteur anonyme (visiteur-anonyme-qa.md)
 
-- [TCK-124](tickets/TCK-124-auth-bypass-visite-signalement.md) — Auth bypass — "Demander une visite" et "Signaler" accessibles sans connexion `S · P1 · bug`
 - [TCK-125](tickets/TCK-125-select-affiche-cles-internes.md) — UI Select — dropdowns affichent les clés internes au lieu des labels `S · P2 · bug` **[review]**
-- [TCK-126](tickets/TCK-126-contact-modal-vs-redirect-login.md) — Fiche bien — "Envoyer un message" devrait rediriger vers /auth/login `S · P2 · bug`
-- [TCK-127](tickets/TCK-127-cta-faire-offre-libelle-reserver.md) — Fiche bien — CTA "Faire une offre" devrait être libellé "Réserver" `S · P2 · bug`
+
+### Vague 14 — Refonte design system
+
+_(TCK-129 passé en review)_
+
+### Vague 15 — Câblage des zones UI stub (StubPlaceholder / "Bientôt disponible")
+
+_(vide — TCK-137 en doing)_
+
+### Vague 16 — Profils polymorphes (User → Profiles)
+
+> Évolution architecturale : passage du couple `UserType` (enum) + rôles spatie au modèle de profils polymorphes (`OwnerProfile`, `AgentProfile`, `BrokerProfile`, `ServiceProviderProfile`). Préalable : valider la spec (TCK-138) avant tout code.
+
+_(vide — TCK-146 en review)_
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
@@ -71,8 +83,42 @@ _(vide)_
 
 ## 👀 Review
 
+### Vague 15 — Câblage des zones UI stub
+
+- [TCK-135](tickets/TCK-135-admin-roles-editor.md) — `/admin/roles` — Éditeur de rôles & permissions personnalisés `M · P1 · full`
+- [TCK-136](tickets/TCK-136-profile-customer-search-preferences.md) — Profil locataire — Préférences de recherche & alertes `M · P1 · front`
+- [TCK-137](tickets/TCK-137-profile-contact-phone-edit.md) — Profil contact — Édition téléphone `S · P1 · front`
+
+### Vague 16 — Profils polymorphes (User → Profiles)
+
+- [TCK-138](tickets/TCK-138-spec-polymorphic-profiles.md) — Spec — Modèle de profils polymorphes (User → Profiles) `M · EF · evolution`
+- [TCK-139](tickets/TCK-139-profiles-schema-migrations.md) — Profils polymorphes — Schéma & migrations `M · EF · back`
+- [TCK-140](tickets/TCK-140-profiles-models-backfill.md) — Profils polymorphes — Modèles, relations, backfill `L · EF · back`
+- [TCK-141](tickets/TCK-141-profiles-active-context-api.md) — Profils polymorphes — Contexte de profil actif & API `M · EF · back`
+- [TCK-142](tickets/TCK-142-profiles-refactor-drop-legacy.md) — Profils polymorphes — Refactor consumers & drop legacy UserType `L · EF · back`
+- [TCK-143](tickets/TCK-143-frontend-multi-profile-switcher.md) — Frontend — Sélecteur de profil actif & contexte multi-profil `M · P0 · front`
+- [TCK-144](tickets/TCK-144-backend-super-admin-namespace.md) — Backend — Namespace super_admin dédié `/api/admin/...` `L · P1 · technique`
+- [TCK-145](tickets/TCK-145-frontend-super-admin-area.md) — Frontend — Espace super-admin dédié hors layout agence `M · P1 · front`
+- [TCK-146](tickets/TCK-146-policies-active-profile-migration.md) — Policies & domaines résiduels — migration vers profils actifs (post-TCK-142) `M · P2 · back`
+
+### Vague 15 — Câblage des zones UI stub (StubPlaceholder / "Bientôt disponible")
+
+- [TCK-130](tickets/TCK-130-dashboard-app-wiring.md) — Dashboard `/app` — câblage tuiles & contenu personnalisé `M · P1 · front`
+- [TCK-132](tickets/TCK-132-admin-properties-global.md) — `/super-admin/properties` — Gestion globale des biens (super_admin) `M · P1 · front`
+- [TCK-131](tickets/TCK-131-dashboard-admin-agency.md) — Dashboard `/admin` agence — câblage indicateurs & vue d'ensemble `M · P1 · front`
+- [TCK-133](tickets/TCK-133-admin-users-management.md) — `/admin/users` — Gestion des utilisateurs de l'agence (agency_admin) `M · P1 · front`
+- [TCK-134](tickets/TCK-134-admin-finances-overview.md) — `/admin/finances` — Vue comptable de l'agence `L · P1 · front`
+- [TCK-147](tickets/TCK-147-users-index-agency-scope-status-actions.md) — Backend — `/api/users` agency-scoped + block/activate ouverts à `agency_admin` `S · P1 · back`
+
+### Vague 14 — Refonte design system
+
+- [TCK-129](tickets/TCK-129-design-system-public-refresh.md) — Refonte design system — fondation site + homepage publique (Ancrage Local) `L · P1 · front`
+
 ### Vague 13 — Bugs QA
 
+- [TCK-124](tickets/TCK-124-auth-bypass-visite-signalement.md) — Auth bypass — "Demander une visite" et "Signaler" accessibles sans connexion `S · P1 · bug`
+- [TCK-126](tickets/TCK-126-contact-modal-vs-redirect-login.md) — Fiche bien — "Envoyer un message" devrait rediriger vers /auth/login `S · P2 · bug`
+- [TCK-127](tickets/TCK-127-cta-faire-offre-libelle-reserver.md) — Fiche bien — CTA "Faire une offre" déjà libellé "Réserver" `S · P2 · bug`
 - [TCK-128](tickets/TCK-128-filtres-avances-disponibilite-etage.md) — Filtres avancés — Disponibilité et Étage absents sur /properties `M · P1 · bug`
 - [TCK-123](tickets/TCK-123-seed-data-property-coherence.md) — Seeders — incohérences type/surface propriétés démo `S · P3 · bug`
 - [TCK-122](tickets/TCK-122-similar-properties-frontend-wiring.md) — Biens similaires — câblage frontend fiche bien `S · P2 · bug`
@@ -299,7 +345,7 @@ _(vide)_
 
 ### Reporting transverse — Vague 3 [PR #38](https://github.com/thiambara/takussan/pull/38)
 
-- [TCK-032](tickets/TCK-032-reporting-dashboards.md) — Reporting & tableaux de bord `L · P1 · applicatif` (PR #38 — P1+P2+P3 full)
+- [TCK-032](tickets/TCK-032-reporting-dashboards.md) — Reporting & tableaux de bord `L · P1 · applicatif` (PR #38 — P1+P2+P3 full ; gap `/api/dashboard/me` adaptive entry fermé pour débloquer TCK-130)
 
 ## ✅ Done
 
@@ -467,6 +513,15 @@ TCK-040 ──▶ TCK-114 (fix Leaflet map property detail)
 TCK-032 ──▶ TCK-115 (super_admin no-agency empty states)
 TCK-099 ──▶ TCK-122 (similar properties frontend wiring)
 TCK-035 + TCK-036 + TCK-041 ──▶ TCK-120 (property form missing sections)
+
+── Vague 16 : Profils polymorphes (User → Profiles) ──
+TCK-138 (spec polymorphic profiles) ──▶ TCK-139 (schema & migrations)
+TCK-139 ──▶ TCK-140 (models, relations, backfill)
+TCK-140 ──▶ TCK-141 (active profile context & API)
+TCK-141 ──▶ TCK-142 (refactor consumers + drop legacy UserType)
+TCK-141 ──▶ TCK-143 (frontend multi-profile switcher)
+TCK-142 ──▶ TCK-144 (backend super_admin namespace)
+TCK-144 ──▶ TCK-145 (frontend super-admin area)
 ```
 
 ---

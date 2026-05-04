@@ -1,0 +1,301 @@
+/*
+ * Tokens du design system "Ancrage Local Contemporain" — POC.
+ * Scopés à `.playground-root`. 7 palettes via `data-palette`,
+ * 3 typographies via `data-typo`, et animations d'entrée.
+ */
+
+/* ─── Palette 1 — Sahel (terracotta + indigo) — défaut ─────────────── */
+.playground-root,
+.playground-root[data-palette="sahel"] {
+  --pg-sand: #f5efe6;
+  --pg-cream: #fbf8f2;
+  --pg-cream-soft: #f1e9d8;
+  --pg-ink: #1b2845;
+  --pg-ink-muted: #6b6356;
+  --pg-accent: #c2562c;
+  --pg-accent-deep: #9e4221;
+  --pg-accent-2: #3d5a47;
+  --pg-decorative: #d4a943;
+  --pg-hairline: #e3dccf;
+}
+
+/* ─── Palette 2 — Lin (très clair, sage discret) ────────────────────── */
+.playground-root[data-palette="lin"] {
+  --pg-sand: #fcf9f3;
+  --pg-cream: #ffffff;
+  --pg-cream-soft: #f1ece0;
+  --pg-ink: #1f1812;
+  --pg-ink-muted: #6e655a;
+  --pg-accent: #a85332;
+  --pg-accent-deep: #823c20;
+  --pg-accent-2: #5d6e4f;
+  --pg-decorative: #c89a4a;
+  --pg-hairline: #ebe5d5;
+}
+
+/* ─── Palette 3 — Coton (ivoire chaud, accent franc) ────────────────── */
+.playground-root[data-palette="coton"] {
+  --pg-sand: #fdf8ee;
+  --pg-cream: #ffffff;
+  --pg-cream-soft: #f3ead4;
+  --pg-ink: #2b1f17;
+  --pg-ink-muted: #6c5b48;
+  --pg-accent: #c2562c;
+  --pg-accent-deep: #993e1d;
+  --pg-accent-2: #1f5d6e;
+  --pg-decorative: #d6a35a;
+  --pg-hairline: #ece2c8;
+}
+
+/* ─── Palette 4 — Calcaire (pierre claire, sage neutre) ─────────────── */
+.playground-root[data-palette="calcaire"] {
+  --pg-sand: #f7f4ec;
+  --pg-cream: #fdfbf5;
+  --pg-cream-soft: #ebe5d4;
+  --pg-ink: #232b29;
+  --pg-ink-muted: #6a6d63;
+  --pg-accent: #8a4a2b;
+  --pg-accent-deep: #6c361d;
+  --pg-accent-2: #5a6b62;
+  --pg-decorative: #b4884a;
+  --pg-hairline: #e2dccb;
+}
+
+/* ─── Palette 5 — Côtier Atlantique (corail + marin) ────────────────── */
+.playground-root[data-palette="cotier"] {
+  --pg-sand: #ebe3d1;
+  --pg-cream: #f6efe0;
+  --pg-cream-soft: #ddd1b6;
+  --pg-ink: #112d44;
+  --pg-ink-muted: #5b6b76;
+  --pg-accent: #c64f3c;
+  --pg-accent-deep: #99372a;
+  --pg-accent-2: #1d6273;
+  --pg-decorative: #d6a557;
+  --pg-hairline: #d4cab4;
+}
+
+/* ─── Palette 6 — Forêt Casamance (terre + vert mousse) ────────────── */
+.playground-root[data-palette="casamance"] {
+  --pg-sand: #f0ebe0;
+  --pg-cream: #f9f4ea;
+  --pg-cream-soft: #e6dcc8;
+  --pg-ink: #1f2e25;
+  --pg-ink-muted: #5e6b62;
+  --pg-accent: #a04a32;
+  --pg-accent-deep: #7d3624;
+  --pg-accent-2: #4a6448;
+  --pg-decorative: #b88546;
+  --pg-hairline: #ddd5c5;
+}
+
+/* ─── Palette 7 — Saly Sunset (orange + rose terre + violet nuit) ───── */
+.playground-root[data-palette="saly"] {
+  --pg-sand: #f5e9d6;
+  --pg-cream: #fdf3df;
+  --pg-cream-soft: #ecd9b4;
+  --pg-ink: #2d1f3d;
+  --pg-ink-muted: #6b5d70;
+  --pg-accent: #e36b40;
+  --pg-accent-deep: #b94d28;
+  --pg-accent-2: #c43e6b;
+  --pg-decorative: #f0a93a;
+  --pg-hairline: #ebd9bb;
+}
+
+/* ─── Typo 1 — Contemporain (Bricolage + DM Sans) — défaut ─────────── */
+.playground-root,
+.playground-root[data-typo="contemporain"] {
+  --pg-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --pg-body: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --pg-display-tracking: -0.01em;
+  --pg-display-feat: "ss01" on, "ss02" on;
+}
+
+/* ─── Typo 2 — Éditorial (Fraunces + Inter) ─────────────────────────── */
+.playground-root[data-typo="editorial"] {
+  --pg-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --pg-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --pg-display-tracking: -0.015em;
+  --pg-display-feat: "ss01" on, "ss02" on;
+}
+
+/* ─── Typo 3 — Humaniste (Manrope + Inter) ─────────────────────────── */
+.playground-root[data-typo="humaniste"] {
+  --pg-display: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --pg-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --pg-display-tracking: -0.005em;
+  --pg-display-feat: "ss01" on;
+}
+
+/* ─── Tokens communs (rythme + transitions) ───────────────────────── */
+.playground-root {
+  --pg-radius-card: 14px;
+
+  background: var(--pg-sand);
+  color: var(--pg-ink);
+  font-family: var(--pg-body);
+  transition:
+    background-color 360ms ease,
+    color 360ms ease;
+}
+
+.playground-root .pg-display {
+  font-family: var(--pg-display);
+  letter-spacing: var(--pg-display-tracking);
+  font-feature-settings: var(--pg-display-feat);
+}
+
+.playground-root .pg-body { font-family: var(--pg-body); }
+
+.playground-root .pg-eyebrow {
+  font-family: var(--pg-body);
+  font-weight: 600;
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.playground-root .pg-tabular { font-variant-numeric: tabular-nums; }
+
+/* ─── Dimensions de carte. ─────────────────────────────────────────── */
+.playground-root .pg-card-image { border-radius: var(--pg-radius-card); }
+.playground-root .pg-aspect-4-3 { aspect-ratio: 4 / 3; }
+.playground-root .pg-aspect-3-4 { aspect-ratio: 3 / 4; }
+.playground-root .pg-aspect-1-1 { aspect-ratio: 1 / 1; }
+
+/* ─── Scroll horizontal des rangées. ───────────────────────────────── */
+.playground-root .pg-row-scroll {
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.playground-root .pg-row-scroll::-webkit-scrollbar { display: none; }
+.playground-root .pg-row-scroll > * { scroll-snap-align: start; }
+
+/* ─── Hover : zoom photo + soulèvement contenu. ────────────────────── */
+.playground-root .pg-card-image-wrap {
+  overflow: hidden;
+  background: var(--pg-cream-soft);
+  transition: background-color 360ms ease;
+}
+.playground-root .pg-card-image-wrap img {
+  transition: transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.playground-root .pg-card:hover .pg-card-image-wrap img { transform: scale(1.06); }
+
+.playground-root .pg-card-meta {
+  transition: transform 500ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.playground-root .pg-card:hover .pg-card-meta { transform: translateY(-3px); }
+
+/* ─── Cœur — micro-pulse au clic. ─────────────────────────────────── */
+@keyframes pgHeartPulse {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+.playground-root .pg-heart-pulse {
+  animation: pgHeartPulse 320ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+/* ─── Entrée d'une carte — fade + monte légèrement. ───────────────── */
+@keyframes pgCardEnter {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.playground-root .pg-card-enter {
+  animation: pgCardEnter 540ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ─── Entrée d'une section. ───────────────────────────────────────── */
+@keyframes pgSectionEnter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.playground-root .pg-section-enter {
+  animation: pgSectionEnter 640ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ─── Eyebrow signature — un trait qui se dessine au mount. ───────── */
+@keyframes pgEyebrowDraw {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.playground-root .pg-eyebrow-mark {
+  display: inline-block;
+  height: 1px;
+  width: 22px;
+  background: var(--pg-accent);
+  vertical-align: middle;
+  margin-right: 8px;
+  transform-origin: left center;
+  animation: pgEyebrowDraw 640ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ─── Badge transaction. ─────────────────────────────────────────── */
+.playground-root .pg-badge-tx-sale {
+  background: color-mix(in oklab, var(--pg-ink) 80%, transparent);
+  color: var(--pg-cream);
+}
+.playground-root .pg-badge-tx-rent {
+  background: color-mix(in oklab, var(--pg-accent-2) 88%, transparent);
+  color: var(--pg-cream);
+}
+
+/* ─── Variante OVERLAY : gradient bas. ───────────────────────────── */
+.playground-root .pg-overlay-gradient {
+  background: linear-gradient(
+    180deg,
+    rgba(0,0,0,0) 0%,
+    rgba(0,0,0,0) 45%,
+    rgba(0,0,0,0.50) 75%,
+    rgba(0,0,0,0.78) 100%
+  );
+}
+
+/* ─── Switcher — anneau actif + ripple au clic. ─────────────────── */
+.playground-root .pg-swatch-active {
+  box-shadow:
+    0 0 0 2px var(--pg-sand),
+    0 0 0 4px var(--pg-ink);
+}
+
+@keyframes pgRipple {
+  0%   { transform: scale(1); box-shadow: 0 0 0 0 var(--pg-accent); }
+  100% { transform: scale(1); box-shadow: 0 0 0 14px transparent; }
+}
+.playground-root .pg-swatch-ripple {
+  animation: pgRipple 520ms ease-out both;
+}
+
+.playground-root .pg-typo-active {
+  background: var(--pg-ink);
+  color: var(--pg-cream);
+}
+
+/* ─── Pattern bogolan host. ──────────────────────────────────────── */
+.playground-root .pg-pattern-host {
+  background: var(--pg-cream);
+  transition: background-color 360ms ease;
+}
+
+/* ─── Lien underline animé sous le titre carte (signature subtile). */
+.playground-root .pg-card-title-line {
+  position: relative;
+}
+.playground-root .pg-card-title-line::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  height: 1px;
+  width: 0;
+  background: var(--pg-accent);
+  transition: width 360ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.playground-root .pg-card:hover .pg-card-title-line::after {
+  width: 28px;
+}

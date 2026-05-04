@@ -101,6 +101,14 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 32. [Task](#32-task-) 🆕
 33. [CustomerNote](#33-customernote-) 🆕
 
+### Profils polymorphes 🆕 (TCK-138 → TCK-142)
+34. [OwnerProfile](#34-ownerprofile-) 🆕
+35. [AgentProfile](#35-agentprofile-) 🆕
+36. [BrokerProfile](#36-brokerprofile-) 🆕
+37. [ServiceProviderProfile](#37-serviceproviderprofile-) 🆕
+38. [BrokerAgencyCollaboration](#38-brokeragencycollaboration-) 🆕
+39. [ServiceProviderAgencyCollaboration](#39-serviceprovideragencycollaboration-) 🆕
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -122,7 +130,9 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 ### 1. User
 
 **Table :** `users`
-**Description :** Compte utilisateur de la plateforme. Représente tout acteur authentifié : propriétaire, agent immobilier, locataire, courtier ou administrateur.
+**Description :** **Identité authentifiée pure.** Le User porte uniquement ce qui caractérise un humain (email, mot de passe, contacts, 2FA, OAuth, préférences). Sa **nature métier** (propriétaire, agent, courtier, prestataire) est portée par des **profils polymorphes** dédiés liés au user et scopés par agence (voir [Profils](#34-ownerprofile-)). Un même humain peut cumuler plusieurs profils chez plusieurs agences via une seule identité.
+
+> **Évolution TCK-138 → TCK-142.** Les colonnes `type` (enum `UserType`) et `agency_id` sont **dépréciées** ; elles disparaissent de `users` au cutover (TCK-142). Toute logique d'autorisation/scoping est rebasée sur le **profil actif** de la requête (voir [Active profile context](#active-profile-context)).
 
 | Colonne | Type | Nullable | Défaut | Description | Changement |
 |---------|------|----------|--------|-------------|------------|
@@ -130,7 +140,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | username | string | oui | null | Nom d'utilisateur unique | |
 | email | string | oui | null | Adresse email unique | |
 | password | string | | | Mot de passe hashé | |
-| type | UserType | oui | null | Type de compte (voir enum UserType) — distinct des rôles spatie (UserRole) : le type décrit la nature de l'acteur, le rôle ses permissions | |
+| ~~type~~ | — | — | — | ~~Supprimée — la nature métier est portée par les profils polymorphes (cutover TCK-142)~~ | ➖ |
 | status | UserStatus | oui | 'active' | Statut du compte | |
 | first_name | string | oui | null | Prénom | |
 | last_name | string | oui | null | Nom de famille | |
@@ -141,7 +151,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | bio | text | oui | null | Biographie / présentation | ➕ |
 | preferred_language | string(5) | oui | 'fr' | Langue préférée (fr, en, wo) | ➕ |
 | last_login_at | datetime | oui | null | Dernière connexion | ➕ |
-| agency_id | FK agencies | oui | null | Agence de rattachement | |
+| ~~agency_id~~ | — | — | — | ~~Supprimée — l'attache à une agence est portée par le profil actif (cutover TCK-142)~~ | ➖ |
 | added_by_id | FK users | oui | null | Créateur du compte (si ajouté par un admin/agent) | |
 | google_id | string | oui | null | Identifiant OAuth Google | |
 | facebook_id | string | oui | null | Identifiant OAuth Facebook | ➕ |
@@ -160,20 +170,27 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | updated_at | datetime | | auto | Date de modification | |
 
 **Colonnes supprimées :**
-- ➖ `model_id` + `model_type` (nullableMorphs 'model') — non utilisés, redondants avec `agency_id` et la relation `customer()`
+- ➖ `model_id` + `model_type` (nullableMorphs 'model') — non utilisés, redondants avec les profils et la relation `customer()`
 - ➖ `avatar_url` — remplacé par media collection `avatar` via spatie/medialibrary
+- ➖ `type` (enum `UserType`) — la nature métier est portée par les profils polymorphes ; cutover effectif en TCK-142
+- ➖ `agency_id` — l'attache à une agence est portée par chaque profil ; cutover effectif en TCK-142
 
 **Traits :**
 - `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `avatar`
-- `HasRoles` (spatie/laravel-permission) — gestion des rôles et permissions
+- `HasRoles` (spatie/laravel-permission) — gestion des rôles et permissions, scopés par profil actif (`teams = true`, `team_id = profile.agency_id`)
 - `HasApiTokens` (laravel/sanctum) — authentification API
+- `HasProfiles` (custom, TCK-140) — expose `ownerProfiles()`, `agentProfiles()`, `brokerProfile()`, `serviceProviderProfile()`, `profiles()`, `activeProfile()`, `hasProfile()`, `isAgentAt()`, etc.
 
 **Accesseurs :**
 - `full_name` : concaténation de `first_name` + `last_name`
 
 **Relations :**
-- `agency()` → belongsTo Agency
 - `added_by()` → belongsTo User
+- `owner_profiles()` → hasMany OwnerProfile 🆕
+- `agent_profiles()` → hasMany AgentProfile 🆕
+- `broker_profile()` → hasOne BrokerProfile 🆕
+- `service_provider_profile()` → hasOne ServiceProviderProfile 🆕
+- `profiles()` → collection unifiée des 4 types de profils (Eloquent `Collection` retournée par accesseur, pas une relation Eloquent native) 🆕
 - `properties()` → hasMany Property
 - `bookings()` → hasMany Booking
 - `booking_payments()` → hasMany BookingPayment
@@ -1385,6 +1402,195 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 
 ---
 
+### 34. OwnerProfile 🆕
+
+**Table :** `owner_profiles`
+**Description :** Profil **propriétaire** d'un user chez une agence donnée. Porte les informations administratives nécessaires à un bailleur (RIB, pièce d'identité, revenus, garant). Un même user peut être owner chez plusieurs agences (un profil par agence).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant unique |
+| user_id | FK users | | | Identité du propriétaire (`restrictOnDelete`) |
+| agency_id | FK agencies | | | Agence chez laquelle ce profil existe (`restrictOnDelete`) |
+| status | OwnerProfileStatus | | 'active' | Statut du profil (active, inactive, blocked) |
+| rib | string | oui | null | Relevé d'identité bancaire (chiffré recommandé) |
+| tax_id | string | oui | null | Numéro fiscal / NINEA |
+| id_document_type | IdType | oui | null | Type de pièce d'identité |
+| id_document_number | string | oui | null | Numéro de pièce |
+| monthly_income | decimal(12,2) | oui | null | Revenus mensuels déclarés (XOF) |
+| employer | string | oui | null | Employeur |
+| guarantor_user_id | FK users | oui | null | Garant (autre user — `nullOnDelete`) |
+| metadata | json | oui | null | Données flexibles |
+| deleted_at | datetime | oui | null | Soft delete |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes d'unicité :**
+- `(user_id, agency_id)` unique — un user a au plus un profil propriétaire par agence
+
+**Relations :**
+- `user()` → belongsTo User
+- `agency()` → belongsTo Agency
+- `guarantor()` → belongsTo User (via guarantor_user_id)
+
+**Inverse :**
+- `User.owner_profiles()` → hasMany OwnerProfile
+
+---
+
+### 35. AgentProfile 🆕
+
+**Table :** `agent_profiles`
+**Description :** Profil **agent immobilier** d'un user chez une agence. Encapsule les informations de carrière (numéro de licence, taux de commission, spécialité). Un user peut être agent chez plusieurs agences (un profil par agence).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant unique |
+| user_id | FK users | | | Identité de l'agent (`restrictOnDelete`) |
+| agency_id | FK agencies | | | Agence employeuse (`restrictOnDelete`) |
+| status | AgentProfileStatus | | 'active' | Statut du profil (active, inactive, suspended) |
+| license_number | string | oui | null | Numéro de licence professionnelle |
+| commission_rate | decimal(5,2) | oui | null | Taux de commission (%) |
+| specialty | string | oui | null | Spécialité (résidentiel, commercial, luxe, etc.) |
+| hire_date | date | oui | null | Date d'embauche |
+| active_until | date | oui | null | Date de fin de contrat (si applicable) |
+| metadata | json | oui | null | Données flexibles |
+| deleted_at | datetime | oui | null | Soft delete |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes d'unicité :**
+- `(user_id, agency_id)` unique — un user a au plus un profil agent par agence
+
+**Relations :**
+- `user()` → belongsTo User
+- `agency()` → belongsTo Agency
+
+**Inverse :**
+- `User.agent_profiles()` → hasMany AgentProfile
+
+---
+
+### 36. BrokerProfile 🆕
+
+**Table :** `broker_profiles`
+**Description :** Profil **courtier indépendant**. Contrairement aux profils owner/agent, un courtier n'est **pas attaché à une seule agence** : il opère pour son propre compte et collabore ponctuellement avec plusieurs agences via la table pivot [BrokerAgencyCollaboration](#38-brokeragencycollaboration-). Au plus un BrokerProfile par user.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant unique |
+| user_id | FK users | | | Identité du courtier (`restrictOnDelete`) |
+| license_number | string | | | Numéro de licence courtier (unique) |
+| insurance_policy_id | string | oui | null | Référence police d'assurance RC pro |
+| regulator_registration | string | oui | null | Numéro d'enregistrement régulateur |
+| active_until | date | oui | null | Validité de la licence |
+| metadata | json | oui | null | Données flexibles |
+| deleted_at | datetime | oui | null | Soft delete |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes d'unicité :**
+- `user_id` unique — un user a au plus un profil courtier
+- `license_number` unique — pas de doublon entre courtiers
+
+**Relations :**
+- `user()` → belongsTo User
+- `agency_collaborations()` → hasMany BrokerAgencyCollaboration
+- `agencies()` → belongsToMany Agency (via BrokerAgencyCollaboration)
+
+**Inverse :**
+- `User.broker_profile()` → hasOne BrokerProfile
+
+---
+
+### 37. ServiceProviderProfile 🆕
+
+**Table :** `service_provider_profiles`
+**Description :** Profil **prestataire de services** (plombier, électricien, peintre, etc.). Comme le courtier, un prestataire opère pour son propre compte et collabore avec plusieurs agences via la table pivot [ServiceProviderAgencyCollaboration](#39-serviceprovideragencycollaboration-). Au plus un ServiceProviderProfile par user.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant unique |
+| user_id | FK users | | | Identité du prestataire (`restrictOnDelete`) |
+| specialties | json | oui | null | Liste de `MaintenanceCategory` (plumbing, electrical, etc.) |
+| service_areas | json | oui | null | Zones desservies (codes postaux, communes) |
+| insurance_policy_id | string | oui | null | Référence police d'assurance |
+| certifications | json | oui | null | Liste de certifications (label + URL preuve) |
+| hourly_rate_min | decimal(10,2) | oui | null | Tarif horaire minimum (XOF) |
+| hourly_rate_max | decimal(10,2) | oui | null | Tarif horaire maximum (XOF) |
+| active_until | date | oui | null | Validité administrative |
+| metadata | json | oui | null | Données flexibles |
+| deleted_at | datetime | oui | null | Soft delete |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes d'unicité :**
+- `user_id` unique — un user a au plus un profil prestataire
+
+**Relations :**
+- `user()` → belongsTo User
+- `agency_collaborations()` → hasMany ServiceProviderAgencyCollaboration
+- `agencies()` → belongsToMany Agency (via ServiceProviderAgencyCollaboration)
+
+**Inverse :**
+- `User.service_provider_profile()` → hasOne ServiceProviderProfile
+
+---
+
+### 38. BrokerAgencyCollaboration 🆕
+
+**Table :** `broker_agency_collaborations`
+**Description :** Pivot **courtier ↔ agence** matérialisant les agences avec lesquelles un courtier collabore. Chaque ligne représente une période de collaboration historisée (started_at / ended_at).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant unique |
+| broker_profile_id | FK broker_profiles | | | Courtier concerné (`cascadeOnDelete`) |
+| agency_id | FK agencies | | | Agence partenaire (`cascadeOnDelete`) |
+| status | CollaborationStatus | | 'active' | Statut (active, paused, ended) |
+| started_at | date | | | Début de la collaboration |
+| ended_at | date | oui | null | Fin de la collaboration |
+| metadata | json | oui | null | Données flexibles (taux, conditions) |
+| deleted_at | datetime | oui | null | Soft delete |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes d'unicité :**
+- `(broker_profile_id, agency_id)` unique — une seule ligne active par couple (les anciennes collaborations sont soft-deleted)
+
+**Relations :**
+- `broker_profile()` → belongsTo BrokerProfile
+- `agency()` → belongsTo Agency
+
+---
+
+### 39. ServiceProviderAgencyCollaboration 🆕
+
+**Table :** `service_provider_agency_collaborations`
+**Description :** Pivot **prestataire ↔ agence** sur le même modèle que `BrokerAgencyCollaboration`.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant unique |
+| service_provider_profile_id | FK service_provider_profiles | | | Prestataire (`cascadeOnDelete`) |
+| agency_id | FK agencies | | | Agence partenaire (`cascadeOnDelete`) |
+| status | CollaborationStatus | | 'active' | Statut (active, paused, ended) |
+| started_at | date | | | Début de la collaboration |
+| ended_at | date | oui | null | Fin de la collaboration |
+| metadata | json | oui | null | Données flexibles |
+| deleted_at | datetime | oui | null | Soft delete |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes d'unicité :**
+- `(service_provider_profile_id, agency_id)` unique
+
+**Relations :**
+- `service_provider_profile()` → belongsTo ServiceProviderProfile
+- `agency()` → belongsTo Agency
+
+---
+
 ## Enums
 
 ### Enums existants (à renommer / ajuster)
@@ -1398,13 +1604,16 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | UserRole | UserRole | customer, agency_admin, super_admin, **agent**, **owner**, **service_provider** (✏️ `vendor` → `service_provider`) |
 | CustomerStatus | CustomerStatus | active, inactive, blocked, deleted |
 
-> **Note `UserType` vs `UserRole` :** `UserType` décrit la **nature de l'acteur** (qui il est — owner, agent, broker, admin, service_provider), `UserRole` (spatie) décrit ses **permissions** (ce qu'il peut faire). Un même agent peut avoir le type `agent` et le rôle `agency_admin`. Les deux coexistent sans redondance. Un `service_provider` (prestataire de maintenance) a le type `service_provider` et le rôle spatie `service_provider`.
+> **`UserType` — déprécié (TCK-138 → TCK-142).** L'enum `UserType` est conservé en lecture pendant la phase de migration mais **disparaît** au cutover (TCK-142, suppression de `users.type` + des deux fichiers `app/Models/Enums/UserType.php` et `app/Models/Bases/Enums/UserType.php`). La nature métier d'un user est désormais portée par ses **profils polymorphes** (OwnerProfile / AgentProfile / BrokerProfile / ServiceProviderProfile) ; les permissions par les rôles spatie scopés via le profil actif. Aucun nouveau code ne doit lire `users.type`.
 
 ### Nouveaux enums
 
 | Nom | Valeurs | Utilisé par |
 |-----|---------|-------------|
-| **UserType** | owner, agent, broker, **admin**, **service_provider** (✏️ `tenant` retiré) | User.type |
+| ~~**UserType**~~ | ~~owner, agent, broker, admin, service_provider~~ | ~~User.type~~ — **@deprecated TCK-138, supprimé en TCK-142** (remplacé par les profils polymorphes) |
+| **OwnerProfileStatus** 🆕 | active, inactive, blocked | OwnerProfile.status |
+| **AgentProfileStatus** 🆕 | active, inactive, suspended | AgentProfile.status |
+| **CollaborationStatus** 🆕 | active, paused, ended | BrokerAgencyCollaboration.status, ServiceProviderAgencyCollaboration.status |
 | **Currency** | XOF, XAF, EUR, USD | Property, Booking, BookingPayment, Lease, LeasePayment |
 | **PropertyType** | land, house, apartment, villa, studio, room, office, shop, warehouse, factory, farm, hotel, resort, garage, parking, other | Property.type |
 | **ContractType** | sale, rent | Property.contract_type |
@@ -1593,6 +1802,23 @@ Les colonnes `*_count` et `average_rating` ne doivent **jamais** être mises à 
 
 La relation `referenceable()` de `AppNotification` est intentionnellement **non standard** (morph manuel via `referenceable_id`/`referenceable_type` sans utiliser Eloquent `morphTo` standard). Cela évite la création des tables `model_has_...` de spatie et permet un contrôle fin des types autorisés : Booking, Lease, LeasePayment, MaintenanceRequest.
 
+### Règle 4 — Active profile context
+
+> 🆕 TCK-138 → TCK-141. Préalable à la suppression de `users.agency_id` (TCK-142).
+
+Toute requête authentifiée résout un **profil actif** parmi les profils du user, et c'est ce profil — pas le user — qui détermine le scope d'autorisation.
+
+- **Résolution** par le middleware `ResolveActiveProfile` (registered after `auth`), dans cet ordre :
+  1. Header `X-Profile-Id` ou query `?profile_id=…` si fourni → vérifier `user_id` matche, sinon **403**
+  2. Cookie httpOnly `active_profile_id` posé par `PATCH /api/me/active-profile`
+  3. Auto-bascule si l'utilisateur n'a qu'un seul profil
+  4. **Aucun profil** : autorisé pour les admins purs (rôles globaux non scopés) — `team_id = null`
+- **Effet sur spatie** : `app(PermissionRegistrar::class)->setPermissionsTeamId($profile?->agency_id)`. Les rôles `owner` / `agent` / `agency_admin` / `customer` / `tenant` / `service_provider` portent leur scope via le `team_id` ; les rôles `admin` / `super_admin` restent globaux (`team_id = null`).
+- **Exposition runtime** : `request()->activeProfile()` et `auth()->user()->activeProfile()` (helpers fournis en TCK-141). Tout site applicatif consultant l'agence du user **doit** lire `request()->activeProfile()->agency_id` plutôt que `users.agency_id` (qui disparaît en TCK-142).
+- **Endpoints** :
+  - `GET /api/me/profiles` — liste des profils du user authentifié (avec agence et statut)
+  - `PATCH /api/me/active-profile` — sélectionne le profil actif et persiste le cookie
+
 ---
 
 ## Contraintes d'unicité
@@ -1619,6 +1845,13 @@ La relation `referenceable()` de `AppNotification` est intentionnellement **non 
 | document_share_links | `token` | unique | toujours |
 | settings | `(key, scope, scope_id)` | unique composé | toujours |
 | integrations | `(provider, agency_id)` | unique composé | toujours |
+| owner_profiles | `(user_id, agency_id)` | unique composé | toujours 🆕 |
+| agent_profiles | `(user_id, agency_id)` | unique composé | toujours 🆕 |
+| broker_profiles | `user_id` | unique | toujours 🆕 |
+| broker_profiles | `license_number` | unique | toujours 🆕 |
+| service_provider_profiles | `user_id` | unique | toujours 🆕 |
+| broker_agency_collaborations | `(broker_profile_id, agency_id)` | unique composé | toujours 🆕 |
+| service_provider_agency_collaborations | `(service_provider_profile_id, agency_id)` | unique composé | toujours 🆕 |
 
 ---
 

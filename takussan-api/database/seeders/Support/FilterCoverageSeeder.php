@@ -13,8 +13,9 @@ use App\Models\Enums\PaymentFrequency;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
-use App\Models\Enums\UserType;
 use App\Models\Lease;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
@@ -82,7 +83,7 @@ class FilterCoverageSeeder extends Seeder
      */
     private function createFilterCoverageProperties(int $agencyId): void
     {
-        $owners = $this->ctx->usersOfType($agencyId, UserType::Individual->value);
+        $owners = $this->ctx->usersWithProfile(OwnerProfile::class, $agencyId);
         if ($owners->isEmpty()) {
             return;
         }
@@ -306,7 +307,7 @@ class FilterCoverageSeeder extends Seeder
      */
     private function createFilterCoverageCustomers(int $agencyId): void
     {
-        $agents = $this->ctx->usersOfType($agencyId, UserType::Agent->value);
+        $agents = $this->ctx->usersWithProfile(AgentProfile::class, $agencyId);
         $addedById = $agents->isNotEmpty() ? $agents->first()->id : null;
 
         // Tous les pipeline stages

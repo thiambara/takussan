@@ -1,29 +1,22 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 
+/**
+ * TCK-142 — Marked as no-op. The `users.type` column it used to fix is dropped
+ * by the cutover migration (`drop_type_and_agency_id_from_users`). Kept as an
+ * empty migration so prior environments still see a recorded run history and
+ * Laravel doesn't try to re-apply the original DDL on an absent column.
+ */
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        // Ensure default matches UserType::Individual enum value
-        Schema::table('users', function (Blueprint $table) {
-            $table->string('type')->default('individual')->change();
-        });
+        // Intentionally empty — see class docblock.
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->string('type')->default('individual')->change();
-        });
+        // Intentionally empty — see class docblock.
     }
 };

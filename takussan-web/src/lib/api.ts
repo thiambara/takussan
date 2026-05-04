@@ -30,6 +30,12 @@ export type RequestOptions = {
    */
   locale?: string;
   signal?: AbortSignal;
+  /**
+   * Active profile composite id (e.g. `agent:5`) forwarded as `X-Profile-Id`
+   * so the backend resolves the spatie team scope without relying on a
+   * browser-bound cookie. Set by SSR fetchers — see TCK-141 / TCK-143.
+   */
+  activeProfileId?: string;
 };
 
 export class ApiError extends Error {
@@ -71,7 +77,7 @@ export class ApiError extends Error {
 
 export async function apiRequest<T>(
   path: string,
-  { method = 'GET', body, token, headers = {}, formData = false, locale, signal }: RequestOptions = {},
+  { method = 'GET', body, token, headers = {}, formData = false, locale, signal, activeProfileId }: RequestOptions = {},
 ): Promise<T> {
   const requestHeaders: Record<string, string> = {
     Accept: 'application/json',
@@ -88,6 +94,10 @@ export async function apiRequest<T>(
 
   if (locale && !requestHeaders['Accept-Language']) {
     requestHeaders['Accept-Language'] = locale;
+  }
+
+  if (activeProfileId && !requestHeaders['X-Profile-Id']) {
+    requestHeaders['X-Profile-Id'] = activeProfileId;
   }
 
   const response = await fetch(`${API_URL}${path}`, {

@@ -3,8 +3,9 @@
 import { cache } from 'react';
 import { ApiError } from '@/lib/api';
 import { getMe, logout, resendVerification, updateProfile, UpdateProfilePayload } from '@/lib/auth';
-import { clearToken, getToken } from '@/lib/session';
+import { clearToken, getActiveProfileId, getToken } from '@/lib/session';
 import { redirect } from 'next/navigation';
+import type { User } from '@/types/user';
 
 export async function resendVerificationEmailAction(): Promise<{ ok: boolean; message?: string }> {
   const token = await getToken();
@@ -31,9 +32,13 @@ export async function logoutAction(): Promise<void> {
   redirect('/auth/login');
 }
 
+export type UpdateProfileResult =
+  | { ok: true; user: User }
+  | { ok: false; message: string };
+
 export async function updateProfileAction(
   formData: FormData,
-): Promise<{ ok: boolean; message?: string }> {
+): Promise<UpdateProfileResult> {
   const token = await getToken();
   if (!token) return { ok: false, message: 'Not authenticated.' };
 
@@ -43,15 +48,25 @@ export async function updateProfileAction(
     bio: (formData.get('bio') as string) || undefined,
   };
 
+  // Only forward `phone` if the form explicitly carried the field — keeps
+  // legacy callers (no phone input) from clearing existing values.
+  if (formData.has('phone')) {
+    const raw = formData.get('phone');
+    payload.phone = typeof raw === 'string' ? raw : null;
+  }
+
   const avatarFile = formData.get('avatar') as File | null;
   if (avatarFile && avatarFile.size > 0) {
     payload.avatar = avatarFile;
   }
 
   try {
-    await updateProfile(token, payload);
-    return { ok: true };
-  } catch {
+    const user = await updateProfile(token, payload);
+    return { ok: true, user };
+  } catch (err) {
+    if (err instanceof ApiError) {
+      return { ok: false, message: err.displayMessage || 'Failed to update profile.' };
+    }
     return { ok: false, message: 'Failed to update profile.' };
   }
 }
@@ -62,8 +77,10 @@ const cachedGetMe = cache(async () => {
   const token = await getToken();
   if (!token) redirect('/auth/login');
 
+  const activeProfileId = await getActiveProfileId();
+
   try {
-    return await getMe(token);
+    return await getMe(token, activeProfileId);
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) {
       // getMeAction is called during RSC render from layouts/pages, where

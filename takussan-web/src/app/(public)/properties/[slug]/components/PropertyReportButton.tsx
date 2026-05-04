@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { Flag } from 'lucide-react';
 import {
   Dialog,
@@ -17,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useAuth } from '@/context/AuthContext';
 import { useReportProperty } from '@/hooks/useReportProperty';
 import type { ReportPayload } from '@/types/visit';
 
@@ -33,11 +35,21 @@ const REASONS: Array<{ value: ReportPayload['reason']; label: string }> = [
 ];
 
 export function PropertyReportButton({ slug }: PropertyReportButtonProps) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  const [showAuthGate, setShowAuthGate] = useState(false);
   const [reason, setReason] = useState<ReportPayload['reason']>('spam');
   const [details, setDetails] = useState('');
   const [sent, setSent] = useState(false);
   const { submit, submitting, error } = useReportProperty(slug);
+
+  function handleClick(): void {
+    if (!user) {
+      setShowAuthGate(true);
+      return;
+    }
+    setOpen(true);
+  }
 
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
@@ -59,12 +71,37 @@ export function PropertyReportButton({ slug }: PropertyReportButtonProps) {
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={handleClick}
         className="inline-flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-700 transition-colors"
       >
         <Flag className="size-3.5" aria-hidden />
         Signaler cette annonce
       </button>
+
+      {/* Auth gate dialog */}
+      <Dialog open={showAuthGate} onOpenChange={setShowAuthGate}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Connexion requise</DialogTitle>
+            <DialogDescription>
+              Connectez-vous pour signaler cette annonce.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setShowAuthGate(false)}>
+              Annuler
+            </Button>
+            <Link
+              href={`/auth/login?redirect=/properties/${slug}`}
+              className="inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground px-3 h-8 text-sm font-medium hover:bg-primary/80 transition-colors"
+            >
+              Se connecter
+            </Link>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Report form dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

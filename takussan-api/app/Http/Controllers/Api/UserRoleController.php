@@ -33,7 +33,7 @@ class UserRoleController extends Controller
         $actor = $request->user();
 
         abort_unless(
-            $actor->hasRole('super_admin') || $actor->hasRole(['admin', 'agency_admin']),
+            $actor->isSuperAdmin() || $actor->hasRole(['admin', 'agency_admin']),
             403,
         );
 
@@ -42,24 +42,50 @@ class UserRoleController extends Controller
         ]);
 
         // Only a super_admin may grant the super_admin role.
-        if ($data['role'] === 'super_admin' && ! $actor->hasRole('super_admin')) {
+        if ($data['role'] === 'super_admin' && ! $actor->isSuperAdmin()) {
             abort(403, __('messages.only_super_admin_can_grant_super_admin'));
         }
 
-        // Agency admins can only manage users within their own agency —
-        // both sides must match (a null agency on either is not a match).
-        if (! $actor->hasRole('super_admin')) {
-            if ($actor->agency_id === null || $user->agency_id !== $actor->agency_id) {
-                abort(403);
+        // Agency admins can only manage users within their own agency. The
+        // actor's scope is driven by the active profile; the target must
+        // hold a profile in that same agency (multi-agency targets resolve
+        // to their first profile via the legacy accessor, which would mask
+        // legitimate cross-agency role grants — `isAgentAt`/`isOwnerAt` is
+        // the authoritative membership test post-TCK-142).
+        $actorAgencyId = request()?->activeProfile()?->agency_id ?? $actor->agency_id;
+        if (! $actor->isSuperAdmin()) {
+            if ($actorAgencyId === null
+                || (! $user->isAgentAt($actorAgencyId) && ! $user->isOwnerAt($actorAgencyId))
+            ) {
+                // TCK-147 — surface a translatable message instead of a bare
+                // 403 so the frontend can render the precise reason.
+                abort(403, __('messages.target_user_not_in_active_agency'));
             }
         }
 
-        // Resolve the team context for the assignment. `super_admin` is a
-        // cross-tenant role and must stay bound to team_id = null (matches
-        // how the seeder + BaseTestCase register it). Scoping it to an
-        // agency would create a duplicate role row in the registry.
+        // Resolve the team context for the assignment. The role lives on
+        // the *target* user's agency, not the actor's — a super_admin
+        // assigning `agent` to a user at agency Y must bind that role to
+        // team Y, regardless of where (or whether) the super_admin is
+        // currently acting. For agency_admin actors the two agree by
+        // construction (membership check above) and either resolution is
+        // equivalent. `super_admin` is a cross-tenant role and stays bound
+        // to team_id = null (matches the seeder + BaseTestCase contract).
         $registrar = app(PermissionRegistrar::class);
-        $teamId = $data['role'] === 'super_admin' ? null : $user->agency_id;
+        $teamId = match (true) {
+            $data['role'] === 'super_admin' => null,
+            $actor->isSuperAdmin() => $user->agency_id,
+            default => $actorAgencyId,
+        };
+
+        // For super_admin actors, the target's agency is required to bind
+        // the role to a concrete team — refuse rather than silently fall
+        // back to team_id = null (which would promote an agency-scoped
+        // role to a global one).
+        if ($teamId === null && $data['role'] !== 'super_admin') {
+            abort(422, __('messages.target_user_has_no_active_agency'));
+        }
+
         $registrar->setPermissionsTeamId($teamId);
 
         // Ensure the role exists in the target team context under the `web`

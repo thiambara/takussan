@@ -4,8 +4,8 @@ namespace Database\Seeders\Operations;
 
 use App\Models\Document;
 use App\Models\Enums\DocumentType;
-use App\Models\Enums\UserType;
 use App\Models\Lease;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\Timeline;
@@ -19,7 +19,7 @@ class DocumentSeeder extends Seeder
     {
         foreach ($this->ctx->agencies as $agency) {
             $properties = $this->ctx->propertiesByAgency[$agency->id] ?? collect();
-            $agents = $this->ctx->usersOfType($agency->id, UserType::Agent->value);
+            $agents = $this->ctx->usersWithProfile(AgentProfile::class, $agency->id);
             $uploaderIds = $agents->isEmpty()
                 ? collect([$agency->primary_admin_id])->filter()->values()
                 : $agents->pluck('id')->values();
@@ -50,7 +50,7 @@ class DocumentSeeder extends Seeder
         }
 
         foreach ($this->ctx->leases as $lease) {
-            $agents = $this->ctx->usersOfType($lease->agency_id, UserType::Agent->value);
+            $agents = $this->ctx->usersWithProfile(AgentProfile::class, $lease->agency_id);
             $uploader = $agents->isNotEmpty() ? $agents->pluck('id')->values()->random() : $lease->landlord_id;
 
             Document::create([

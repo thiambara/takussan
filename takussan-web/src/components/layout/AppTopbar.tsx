@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Menu } from 'lucide-react';
 import type { User } from '@/types/user';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
+import { ProfileSwitcher } from '@/components/profile/ProfileSwitcher';
 import { UserMenu } from './UserMenu';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { cn } from '@/lib/utils';
@@ -35,6 +36,7 @@ export function AppTopbar({ user, onMenuToggle }: AppTopbarProps) {
       />
 
       <div className="ml-auto flex items-center gap-2">
+        <ProfileSwitcher user={user} />
         {/* TCK-017 — language switcher persisted via cookie + (when logged in)
             PATCH /api/users/me by the client inside the switcher. */}
         <LanguageSwitcher

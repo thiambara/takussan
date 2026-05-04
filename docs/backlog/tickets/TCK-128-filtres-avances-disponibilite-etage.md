@@ -1,7 +1,7 @@
 ---
 id: TCK-128
 title: Filtres avancés — Disponibilité et Étage absents sur /properties
-status: review
+status: done
 phase: P1
 family: bug
 estimate: M

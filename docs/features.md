@@ -295,15 +295,34 @@ Gestion de la structure organisationnelle.
 | P2 | Tous | OAuth Facebook / Apple |
 | P3 | Tous | Magic link de connexion |
 
-### 2.2 Rôles & permissions
+#### Profils & contexte actif (TCK-138 → TCK-142)
+
+Une **identité = un User**, qui peut porter plusieurs **profils métier** chez plusieurs agences (ex. un même humain peut être propriétaire chez l'agence A, locataire chez l'agence B et courtier indépendant collaborant avec C et D). Email, mot de passe, 2FA et OAuth sont **uniques au user** (pas dupliqués par profil) ; le KYC et les informations administratives sont portés **par chaque profil** (RIB et tax_id par OwnerProfile, license_number par AgentProfile/BrokerProfile, certifications par ServiceProviderProfile).
 
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
-| P0 | 🛡️ | Rôles prédéfinis (customer, agent, agency_admin, owner, service_provider, super_admin) |
+| P0 | Tous | Liste des profils du compte (`GET /api/me/profiles`) |
+| P0 | Tous | Sélection du **profil actif** pour la session (`PATCH /api/me/active-profile`) |
+| P0 | Tous | Bascule automatique du profil actif si l'utilisateur n'a qu'un seul profil |
+| P0 | Tous | Switch de profil exposé en UI (header / menu compte) — change l'agence et les permissions sans nouvelle authentification |
+| P0 | 🛡️ | Toute permission spatie est résolue dans le scope du profil actif (`team_id = profile.agency_id`) |
+| P1 | Tous | KYC distinct par profil (pièces d'identité, RIB, license, assurance — un dossier par profil) |
+| P1 | 🛡️ | Création/désactivation d'un profil par un agency_admin (ex. nouvel agent recruté) |
+| P2 | Tous | Indication visuelle de "profil actif" sur toutes les vues authentifiées |
+| P2 | 🛡️ | Audit log dédié : changements de profil actif, créations/suspensions de profils |
+
+### 2.2 Rôles & permissions
+
+> **TCK-138 → TCK-142.** Les rôles spatie sont **scopés par profil** : `team_id = profile.agency_id`. La nature métier (owner / agent / broker / service_provider) est portée par le profil actif ; les permissions par les rôles spatie attachés à ce profil. Plus aucun scoping direct par `users.agency_id`.
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P0 | 🛡️ | Rôles prédéfinis : `super_admin`, `admin` (globaux, sans `team_id`) ; `agency_admin`, `agent`, `owner`, `tenant`, `customer`, `service_provider` (scopés via le profil actif → `team_id = profile.agency_id`) |
 | P0 | 🛡️ | Permissions granulaires par ressource (view, create, update, delete, update_all…) |
 | P0 | 🛡️ | Distinction « mes ressources » vs « toutes les ressources » |
-| P1 | 🛡️ | Attribution et retrait de rôles à un utilisateur |
-| P1 | 🛡️ | Éditeur de rôles personnalisés scopé par agence (via teams spatie/permission ou policy applicative) |
+| P0 | 🛡️ | Résolution des permissions au runtime selon le **profil actif** de la requête (header `X-Profile-Id`, cookie ou auto-bascule) |
+| P1 | 🛡️ | Attribution et retrait de rôles à un profil (et non à un user global) |
+| P1 | 🛡️ | Éditeur de rôles personnalisés scopé par agence (via teams spatie/permission) |
 | P2 | 🛡️ | Délégation temporaire de permissions |
 | P3 | 🛡️ | Règles conditionnelles (policies dynamiques) |
 

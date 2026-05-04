@@ -41,7 +41,7 @@ class LeasePolicy extends BasePolicy
             return true;
         }
 
-        return $user->hasRole(['admin', 'super_admin']);
+        return $user->isSuperAdmin() || $user->hasRole('admin');
     }
 
     /**
@@ -65,7 +65,7 @@ class LeasePolicy extends BasePolicy
             return true;
         }
 
-        return $user->hasRole(['admin', 'super_admin']);
+        return $user->isSuperAdmin() || $user->hasRole('admin');
     }
 
     /**
@@ -97,7 +97,7 @@ class LeasePolicy extends BasePolicy
             return true;
         }
 
-        return $user->hasRole(['admin', 'super_admin']);
+        return $user->isSuperAdmin() || $user->hasRole('admin');
     }
 
     /**
@@ -130,7 +130,7 @@ class LeasePolicy extends BasePolicy
             return true;
         }
 
-        return $user->hasRole(['admin', 'super_admin']);
+        return $user->isSuperAdmin() || $user->hasRole('admin');
     }
 
     /**
@@ -153,6 +153,6 @@ class LeasePolicy extends BasePolicy
             return true;
         }
 
-        return $user->hasRole(['admin', 'super_admin']);
+        return $user->isSuperAdmin() || $user->hasRole('admin');
     }
 }

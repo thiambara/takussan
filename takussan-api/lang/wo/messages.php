@@ -30,6 +30,8 @@ return [
     'cannot_delete_self' => 'Mën nga far sa bopp ci yoon wii.',
     'collaborator_already_exists' => 'Jàngalekat bi ci mbaar mi nekk na.',
     'only_super_admin_can_grant_super_admin' => 'Super admin rekk mën na jox super_admin.',
+    'target_user_has_no_active_agency' => 'Jàngalekat bi tànn nga ñoom amul agence. Tàllal ko walla wax agence bi laaj nga jox-ko ndimo.',
+    'target_user_not_in_active_agency' => 'Jàngalekat bi tànn nga ñoom du ci sa agence bi nga di liggéeyal.',
 
     // Lease
     'lease_cannot_terminate' => 'Luwé yi jàpp walla yi ñu baaxal rekk la ñu mën tas.',

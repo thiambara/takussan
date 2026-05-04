@@ -46,8 +46,15 @@ class RolesAndPermissionsSeeder extends Seeder
         Permission::firstOrCreate(['name' => 'leases.rent_review', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'leases.rent_review_force', 'guard_name' => 'web']);
 
+        // TCK-135 — gates the /admin/roles editor. Granted to agency_admin
+        // (and the global admin / super_admin via Gate::before). Not part
+        // of the generic CRUD grid because it scopes role/permission
+        // mutations within the active profile's team_id, not a single
+        // resource verb.
+        Permission::firstOrCreate(['name' => 'roles.manage_in_agency', 'guard_name' => 'web']);
+
         $depositRefundExtras = [
-            'agency_admin' => ['leases.refund_deposit', 'leases.renew', 'leases.terminate', 'leases.rent_review', 'leases.rent_review_force'],
+            'agency_admin' => ['leases.refund_deposit', 'leases.renew', 'leases.terminate', 'leases.rent_review', 'leases.rent_review_force', 'roles.manage_in_agency'],
             'agent' => ['leases.refund_deposit', 'leases.renew', 'leases.terminate', 'leases.rent_review'],
             'owner' => ['leases.refund_deposit', 'leases.renew', 'leases.terminate', 'leases.rent_review', 'leases.rent_review_force'],
         ];

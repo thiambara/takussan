@@ -142,7 +142,7 @@ export function AdminSidebar({ user, className, onNavigate }: AdminSidebarProps)
         </Link>
         <p className="mt-1 text-xs uppercase tracking-wider text-white/60">Administration</p>
       </div>
-      <nav className="flex-1 space-y-1 px-3">
+      <nav className="flex-1 overflow-y-auto space-y-1 px-3">
         {items.map((item) => {
           // Exact match for the dashboard root, prefix match for nested routes
           // so "Paramètres" stays highlighted on /admin/settings/tags etc.

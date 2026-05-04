@@ -53,7 +53,7 @@ class Agency extends AbstractModel implements HasMedia
 
     protected static array $requestLoadable = ['primaryAdmin', 'addresses'];
 
-    protected static array $requestCountable = ['members', 'properties'];
+    protected static array $requestCountable = ['properties'];
 
     protected static array $requestSearchFields = ['name', 'email', 'license_number'];
 
@@ -80,11 +80,6 @@ class Agency extends AbstractModel implements HasMedia
     public function primaryAdmin(): BelongsTo
     {
         return $this->belongsTo(User::class, 'primary_admin_id');
-    }
-
-    public function members(): HasMany
-    {
-        return $this->hasMany(User::class);
     }
 
     public function properties(): HasMany

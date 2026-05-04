@@ -61,7 +61,6 @@ class YearOfActivitySeeder extends Seeder
         IntegrationSeeder::class,
         // Catalog
         PropertySeeder::class,
-        PropertyMediaSeeder::class,
         PropertyCollaboratorSeeder::class,
         PropertyPriceHistorySeeder::class,
         // CRM
@@ -95,6 +94,11 @@ class YearOfActivitySeeder extends Seeder
         // Post-processing (doit être en dernier)
         FilterCoverageSeeder::class,
         EdgeCaseSeeder::class,
+        // PropertyMediaSeeder runs last so properties created by FilterCoverage
+        // / EdgeCase get media too. The seeder iterates Property::all() and
+        // skips any that already have files in the `photos` collection, so
+        // it stays idempotent.
+        PropertyMediaSeeder::class,
         PostProcessingSeeder::class,
     ];
 

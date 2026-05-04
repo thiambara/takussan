@@ -6,7 +6,7 @@ use App\Models\Conversation;
 use App\Models\ConversationParticipant;
 use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
-use App\Models\Enums\UserType;
+use App\Models\Profiles\AgentProfile;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\Timeline;
 use Illuminate\Database\Seeder;
@@ -26,7 +26,7 @@ class ConversationSeeder extends Seeder
     {
         foreach ($this->ctx->agencies as $agency) {
             $users = $this->ctx->usersByAgency[$agency->id] ?? collect();
-            $agents = $this->ctx->usersOfType($agency->id, UserType::Agent->value);
+            $agents = $this->ctx->usersWithProfile(AgentProfile::class, $agency->id);
             $properties = $this->ctx->propertiesByAgency[$agency->id] ?? collect();
 
             if ($users->count() < 2 || $agents->isEmpty()) {

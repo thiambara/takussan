@@ -114,7 +114,7 @@ export function Navbar({ className }: NavbarProps) {
 
   return (
     <nav
-      className={`fixed top-0 w-full z-50 bg-white border-b border-gray-200 ${className || ''}`}
+      className={`fixed top-0 w-full z-50 bg-background border-b border-border ${className || ''}`}
     >
       <div className="flex items-start gap-4 px-6 py-3 max-w-[1440px] mx-auto">
         {/* Logo */}
@@ -228,7 +228,10 @@ export function Navbar({ className }: NavbarProps) {
             <div className="size-8 rounded-full bg-gray-100 animate-pulse" />
           ) : user ? (
             <>
-              <Link href="/app/properties/new" className={buttonVariants({ className: 'rounded-full px-5 py-2 h-auto font-semibold text-sm shadow-sm whitespace-nowrap' })}>
+              <Link
+                href="/app/properties/new"
+                className="inline-flex items-center px-5 py-2 rounded-full bg-foreground text-background text-sm font-semibold hover:bg-primary transition-colors whitespace-nowrap"
+              >
                 Publier
               </Link>
               <div ref={userMenuRef} className="relative">
@@ -273,10 +276,16 @@ export function Navbar({ className }: NavbarProps) {
             </>
           ) : (
             <>
-              <Link href="/auth/login" className={buttonVariants({ variant: 'ghost', className: 'text-slate-600 font-medium text-sm whitespace-nowrap h-auto py-2' })}>
+              <Link
+                href="/auth/login"
+                className="inline-flex items-center text-sm font-medium text-foreground hover:text-primary transition-colors whitespace-nowrap"
+              >
                 Connexion
               </Link>
-              <Link href="/auth/login?redirect=/app" className={buttonVariants({ className: 'rounded-full px-5 py-2 h-auto font-semibold text-sm shadow-sm whitespace-nowrap' })}>
+              <Link
+                href="/auth/login?redirect=/app"
+                className="inline-flex items-center px-5 py-2 rounded-full bg-foreground text-background text-sm font-semibold hover:bg-primary transition-colors whitespace-nowrap"
+              >
                 Publier
               </Link>
             </>

@@ -71,7 +71,7 @@ class PropertyModerationTest extends BaseTestCase
 
         $this->actingAsRole('agency_admin', ['agency_id' => $agency->id]);
 
-        $response = $this->postJson("/api/admin/properties/{$property->id}/approve");
+        $response = $this->postJson("/api/properties/{$property->id}/approve");
 
         $response->assertOk();
         $this->assertSame('available', $response->json('data.status'));
@@ -98,7 +98,7 @@ class PropertyModerationTest extends BaseTestCase
 
         $this->actingAsRole('agency_admin', ['agency_id' => $agency->id]);
 
-        $this->postJson("/api/admin/properties/{$property->id}/reject", [
+        $this->postJson("/api/properties/{$property->id}/reject", [
             'rejection_reason' => 'trop court',
         ])->assertUnprocessable();
     }
@@ -119,7 +119,7 @@ class PropertyModerationTest extends BaseTestCase
         $this->actingAsRole('agency_admin', ['agency_id' => $agency->id]);
 
         $reason = 'Les photos de ce bien ne respectent pas nos standards de qualité.';
-        $response = $this->postJson("/api/admin/properties/{$property->id}/reject", [
+        $response = $this->postJson("/api/properties/{$property->id}/reject", [
             'rejection_reason' => $reason,
         ]);
 
@@ -152,7 +152,7 @@ class PropertyModerationTest extends BaseTestCase
 
         $this->actingAs($agent);
 
-        $response = $this->postJson("/api/admin/properties/{$property->id}/resubmit");
+        $response = $this->postJson("/api/properties/{$property->id}/resubmit");
 
         $response->assertOk();
         $this->assertSame('pending_review', $response->json('data.status'));
@@ -204,7 +204,7 @@ class PropertyModerationTest extends BaseTestCase
 
         $this->actingAsRole('agency_admin', ['agency_id' => $agency->id]);
 
-        $response = $this->getJson('/api/admin/properties/moderation');
+        $response = $this->getJson('/api/properties/moderation');
 
         $response->assertOk();
         $first = $response->json('data.0');
@@ -230,7 +230,7 @@ class PropertyModerationTest extends BaseTestCase
         // Admin from agency2 tries to approve a property belonging to agency1.
         $this->actingAsRole('agency_admin', ['agency_id' => $agency2->id]);
 
-        $this->postJson("/api/admin/properties/{$property->id}/approve")
+        $this->postJson("/api/properties/{$property->id}/approve")
             ->assertForbidden();
     }
 }

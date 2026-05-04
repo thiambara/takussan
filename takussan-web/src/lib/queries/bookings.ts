@@ -20,7 +20,6 @@ const LIST_FIELDS: string[] = [
   'end_date',
   'total_amount',
   'deposit_amount',
-  'deposit_paid',
   'created_at',
   'property_id',
 ];
@@ -49,7 +48,9 @@ export function useBookings(params: UseBookingsParams = {}) {
   const spatieParams: SpatieQueryParams = {
     fields: {
       bookings: LIST_FIELDS,
-      properties: ['id', 'title', 'slug', 'price', 'currency', 'main_photo_url'],
+      // `main_photo_url` is computed (Spatie media library), not a DB column —
+      // omit from sparse fieldset; PropertyResource emits it anyway.
+      properties: ['id', 'title', 'slug', 'price', 'currency'],
     },
     filter: {
       ...(params.status ? { status: params.status } : {}),
@@ -72,7 +73,7 @@ export function useBooking(id: number | null | undefined) {
   const spatieParams: SpatieQueryParams = {
     fields: {
       bookings: DETAIL_FIELDS,
-      properties: ['id', 'title', 'slug', 'price', 'currency', 'main_photo_url', 'contract_type'],
+      properties: ['id', 'title', 'slug', 'price', 'currency', 'contract_type'],
     },
     include: ['property', 'booking_payments'],
   };

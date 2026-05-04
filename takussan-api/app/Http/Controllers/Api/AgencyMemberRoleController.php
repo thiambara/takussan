@@ -33,19 +33,30 @@ class AgencyMemberRoleController extends Controller
         //     top-level admin/agency_admin role)
         //   - target user must belong to that agency
         abort_unless(
-            $actor->hasRole('super_admin')
+            $actor->isSuperAdmin()
                 || $agency->primary_admin_id === $actor->id
-                || ($actor->agency_id === $agency->id && $actor->hasRole(['admin', 'agency_admin'])),
+                || (
+                    $request->activeProfile()?->agency_id === $agency->id
+                    && $actor->hasRole(['admin', 'agency_admin'])
+                ),
             403,
         );
 
-        abort_unless($user->agency_id === $agency->id, 422, __('messages.user_not_in_agency'));
+        // TCK-142 — membership is profile-driven; the legacy `agency_id`
+        // accessor on the target only returns the *first* agency the user
+        // is attached to, so a multi-agency member would falsely fail this
+        // check when the request targets any non-first agency.
+        abort_unless(
+            $user->isAgentAt($agency->id) || $user->isOwnerAt($agency->id),
+            422,
+            __('messages.user_not_in_agency'),
+        );
 
         $data = $request->validate([
             'role' => ['required', 'string', Rule::in($this->allowedRoles())],
         ]);
 
-        if ($data['role'] === 'super_admin' && ! $actor->hasRole('super_admin')) {
+        if ($data['role'] === 'super_admin' && ! $actor->isSuperAdmin()) {
             abort(403, __('messages.only_super_admin_can_grant_super_admin'));
         }
 
@@ -57,7 +68,11 @@ class AgencyMemberRoleController extends Controller
         DB::transaction(function () use ($user, $agency, $data) {
             $locked = User::where('id', $user->id)->lockForUpdate()->first();
             if ($data['role'] !== 'agency_admin' && $locked && $locked->hasRole('agency_admin')) {
-                $remainingAdmins = User::where('agency_id', $agency->id)
+                $remainingAdmins = User::query()
+                    ->where(function ($q) use ($agency) {
+                        $q->whereHas('agentProfiles', fn ($qq) => $qq->where('agency_id', $agency->id))
+                            ->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agency->id));
+                    })
                     ->whereHas('roles', fn ($q) => $q->where('name', 'agency_admin'))
                     ->where('id', '!=', $user->id)
                     ->lockForUpdate()

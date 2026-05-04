@@ -46,14 +46,24 @@ export function useProperties(params: UsePropertiesParams = {}) {
     dispatch({ type: 'FETCH_START' });
 
     const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) });
-    if (featured !== undefined) qs.set('featured', String(featured));
-    if (sort) qs.set('sort', sort === 'latest' ? 'created_desc' : sort);
-    if (transaction) qs.set('transaction', transaction);
-    if (type) qs.set('type', type);
-    if (city) qs.set('city', city);
-    if (query) qs.set('q', query);
+    // L'endpoint /public/properties (index) n'accepte que `featured` + `sort` + `per_page`.
+    // Les filtres `city`/`contract_type`/`type`/`q` sont ignorés silencieusement.
+    // → quand un de ces filtres est fourni, on tape /public/properties/search à la place.
+    const useSearchEndpoint = Boolean(transaction || city || type || query);
 
-    apiFetch<PaginatedProperties>(`/public/properties?${qs.toString()}`)
+    if (sort) qs.set('sort', sort === 'latest' ? 'created_desc' : sort);
+    if (useSearchEndpoint) {
+      if (transaction) qs.set('contract_type', transaction);
+      if (type) qs.set('type', type);
+      if (city) qs.set('city', city);
+      if (query) qs.set('q', query);
+    } else if (featured !== undefined) {
+      qs.set('featured', String(featured));
+    }
+
+    const path = useSearchEndpoint ? '/public/properties/search' : '/public/properties';
+
+    apiFetch<PaginatedProperties>(`${path}?${qs.toString()}`)
       .then(data => { if (!cancelled) dispatch({ type: 'FETCH_SUCCESS', payload: data }); })
       .catch(() => { if (!cancelled) dispatch({ type: 'FETCH_ERROR', message: 'Impossible de charger les annonces.' }); });
 

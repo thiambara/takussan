@@ -202,7 +202,7 @@ export function AppSidebar({ user, className, onNavigate }: AppSidebarProps) {
           Takussan
         </Link>
       </div>
-      <nav className="flex-1 space-y-1 px-3">
+      <nav className="flex-1 overflow-y-auto space-y-1 px-3">
         {navItems.map((item) => (
           <SidebarItem
             key={item.href}

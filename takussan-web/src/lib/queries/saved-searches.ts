@@ -35,6 +35,15 @@ export interface SavedSearch {
   created_at: string | null;
 }
 
+export const SAVED_SEARCH_FIELDS = [
+  'id',
+  'user_id',
+  'name',
+  'criteria',
+  'notification_frequency',
+  'is_active',
+] as const;
+
 export const savedSearchesQueryKeys = {
   all: ['saved-searches'] as const,
   list: () => ['saved-searches', 'list'] as const,
@@ -44,13 +53,35 @@ export function useSavedSearchesQuery(options: { enabled?: boolean } = {}) {
   return useApiQuery<{ data: SavedSearch[] }>(
     savedSearchesQueryKeys.list(),
     '/api/saved-searches',
-    { enabled: options.enabled },
+    {
+      enabled: options.enabled,
+      params: { fields: { saved_searches: SAVED_SEARCH_FIELDS } },
+    },
   );
 }
 
 export function useCreateSavedSearchMutation() {
   return useApiMutation<{ data: SavedSearch }, SavedSearchPayload>(
     { path: '/api/saved-searches', method: 'POST' },
+    { invalidate: [savedSearchesQueryKeys.all] },
+  );
+}
+
+export type UpdateSavedSearchPayload = {
+  id: number;
+  name?: string;
+  criteria?: Record<string, unknown>;
+  notification_frequency?: SavedSearchNotificationFrequency;
+  is_active?: boolean;
+};
+
+export function useUpdateSavedSearchMutation() {
+  return useApiMutation<{ data: SavedSearch }, UpdateSavedSearchPayload>(
+    {
+      path: ({ id }) => `/api/saved-searches/${id}`,
+      method: 'PATCH',
+      body: ({ id: _id, ...rest }) => rest,
+    },
     { invalidate: [savedSearchesQueryKeys.all] },
   );
 }

@@ -73,6 +73,7 @@ use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Http\Request;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
@@ -156,6 +157,14 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(Dispatcher $events): void
     {
+        // TCK-141 — `$request->activeProfile()` reads the profile resolved by
+        // `ResolveActiveProfile`. Returns null on routes the middleware did
+        // not run on (public/auth-less endpoints).
+        Request::macro('activeProfile', function () {
+            /** @var Request $this */
+            return $this->attributes->get('active_profile');
+        });
+
         // TCK-107 — named rate limiter; key is "search-suggest|{ip}" (Laravel default for named limiters).
         RateLimiter::for('search-suggest', fn () => Limit::perMinute(60));
 
@@ -170,7 +179,11 @@ class AppServiceProvider extends ServiceProvider
         // TCK-105 — purge CDN cache when a media item is deleted or replaced.
         Media::observe(MediaCdnObserver::class);
 
-        Gate::before(fn (?User $user) => $user?->hasRole('super_admin') ? true : null);
+        // TCK-144 — Probe under team_id=null. Without `isSuperAdmin()` here a
+        // super-admin acting under an agency context (e.g. via `X-Profile-Id`)
+        // would silently lose the gate-bypass — `Gate::before` runs at whatever
+        // team the registrar happens to be on at policy-check time.
+        Gate::before(fn (?User $user) => $user?->isSuperAdmin() ? true : null);
 
         // Spatie Media lives outside App\Models so auto-discovery misses it.
         Gate::policy(Media::class, MediaPolicy::class);

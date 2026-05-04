@@ -1,12 +1,12 @@
 ---
 id: TCK-032
 title: Reporting & tableaux de bord
-status: todo
+status: done
 phase: P1
 family: applicatif
 estimate: L
 created: 2026-04-15
-updated: 2026-04-29
+updated: 2026-05-02
 depends_on: [TCK-034, TCK-027, TCK-028]
 blocks: []
 spec_refs:
@@ -144,4 +144,7 @@ Chaque utilisateur authentifié accède à un tableau de bord personnalisé pré
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **PR #38** (Vague 3) avait livré ~80 % du P1 backend : 4 services par rôle (`DashboardAgencyService`, `OwnerService`, `AgentService`, `TenantService`) avec `summary()` + `monthlyTimeseries()`, 4 controllers `dashboard/{agency,owner,agent,tenant}` avec sparse `fields[summary]=…` / `?include=timeseries`, `KpiResolver`, observers de compteurs cachés et tests par rôle. Le legacy `dashboard/stats` est conservé tel quel.
+- **Gap fermé ici** : l'entrée adaptive `GET /api/dashboard/me` manquait. Ajouts : interface `App\Contracts\DashboardMetrics`, 4 adapters `App\Services\Dashboard\Adapters\*MeMetrics` qui aplatissent les `summary()` existants en `metrics` + `sections`, `App\Services\Dashboard\DashboardRoleResolver` (priorité super_admin → agency_admin → agent → owner → tenant, 404 sinon), méthode `DashboardController::me()`, route `dashboard.me`, tests `DashboardMeTest` (12 cases). Aucun nouveau modèle, aucune nouvelle agrégation SQL : les adapters dérivent des `summary()` existants.
+- Pour un **super_admin sans `agency_id`** : la cascade ne résout pas (404), conformément à l'AC. Le frontend (TCK-115 / TCK-130) gère le `NoAgencyState` avant ou après cet appel.
+- P2/P3 (timeseries dédiés `/agency/timeseries?metric=...`, exports CSV/PDF, alerts seuils, dashboard global super_admin) restent partiellement couverts par le code de PR #38 (`?include=timeseries`, `ExportController`, `ThresholdAlert`) — pas de nouvelle implémentation dans cette passe.

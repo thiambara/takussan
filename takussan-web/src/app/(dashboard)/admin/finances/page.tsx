@@ -1,15 +1,53 @@
+import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
-import { StubPlaceholder } from '@/components/shared/StubPlaceholder';
+import { NoAgencyState } from '@/components/shared/NoAgencyState';
+import { isAdmin, isSuperAdmin } from '@/lib/roles';
+import { AdminFinancesClient } from './AdminFinancesClient';
+
+/**
+ * TCK-134 — `/admin/finances` agency-scoped finance overview. The
+ * `(dashboard)/admin` shell already enforces the admin role gate but we
+ * re-check here so a stale `/app/...` link can't leak the page shell to
+ * a non-admin user.
+ *
+ * Routing logic (cf. ticket "Impact TCK-138 → TCK-146"):
+ *   1. super_admin without an active agency context → redirect to
+ *      `/super-admin` (no NoAgencyState — the platform view lives there).
+ *   2. agency_admin (or super_admin browsing as a profile) without any
+ *      resolvable agency → render `NoAgencyState`.
+ *   3. otherwise mount the client which fetches KPIs + tables.
+ *
+ * Permissions: `agency_admin` and the super_admin pseudo-role both have
+ * the finance permissions in our simplified RBAC. The client component
+ * receives a `canViewFinances` flag derived from the role array — keeps
+ * the gate purely declarative without prop-drilling the permissions list.
+ */
+export const dynamic = 'force-dynamic';
 
 export default async function Page() {
-  await getMeAction();
+  const user = await getMeAction();
+  if (!isAdmin(user.roles)) redirect('/app/profile');
+
+  const superAdmin = isSuperAdmin(user.roles);
+  const hasAgencyContext = Boolean(user.agency_id);
+
+  if (superAdmin && !hasAgencyContext) {
+    redirect('/super-admin');
+  }
+
+  if (!hasAgencyContext) {
+    return <NoAgencyState title="Finances" />;
+  }
+
   return (
     <div className="space-y-6">
-      <div>
+      <header>
         <h1 className="text-2xl font-bold text-app-ink">Finances</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">Vue comptable de l&apos;agence</p>
-      </div>
-      <StubPlaceholder label="Finances" />
+        <p className="mt-1 text-sm text-app-ink-muted">
+          Encaissements, factures et reversements — vue comptable de votre agence.
+        </p>
+      </header>
+      <AdminFinancesClient canViewFinances canEmitFinances />
     </div>
   );
 }

@@ -24,6 +24,10 @@ export function isServiceProvider(roles: UserRole[]): boolean {
   return roles.includes('service_provider');
 }
 
+export function isTenant(roles: UserRole[]): boolean {
+  return roles.includes('tenant');
+}
+
 export function getPrimaryRole(roles: UserRole[]): UserRole | null {
   const priority: UserRole[] = [
     'super_admin',
@@ -31,6 +35,7 @@ export function getPrimaryRole(roles: UserRole[]): UserRole | null {
     'agent',
     'owner',
     'service_provider',
+    'tenant',
     'customer',
   ];
   return priority.find((r) => roles.includes(r)) ?? null;

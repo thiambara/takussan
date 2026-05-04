@@ -1,35 +1,46 @@
 <?php
 
-use App\Http\Controllers\Api\Admin\BookingController;
-use App\Http\Controllers\Api\Admin\PropertyModerationController;
+use App\Http\Controllers\Api\Admin\AgencyModerationController;
+use App\Http\Controllers\Api\Admin\CrossTenantAuditController;
+use App\Http\Controllers\Api\Admin\SystemMetricsController;
+use App\Http\Controllers\Api\Admin\UserImpersonationController;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Admin-only routes — TCK-098 and beyond
+| Super-admin routes — TCK-144
 |--------------------------------------------------------------------------
-| All routes here require authentication. Per-route role checks live
-| in the controllers to keep the gate logic co-located with the action.
+| Strictly super_admin-only namespace. The `super-admin` middleware probes
+| `hasRole('super_admin')` under `team_id = null`. Any agency-scoped admin
+| capability that should remain accessible to `agency_admin` (property
+| moderation queue, booking force-expire, etc.) lives outside this prefix.
 */
 
-Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
-
-    // TCK-098 — Property moderation queue
-    Route::prefix('properties')->group(function () {
-        Route::get('moderation', [PropertyModerationController::class, 'index'])
-            ->name('admin.properties.moderation.index');
-        Route::post('{property}/approve', [PropertyModerationController::class, 'approve'])
-            ->name('admin.properties.moderation.approve');
-        Route::post('{property}/reject', [PropertyModerationController::class, 'reject'])
-            ->name('admin.properties.moderation.reject');
-        Route::post('{property}/resubmit', [PropertyModerationController::class, 'resubmit'])
-            ->name('admin.properties.moderation.resubmit');
+Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(function () {
+    // Agency moderation — list / verify / suspend / unverify (mapped onto
+    // AgencyStatus active/suspended/inactive — no `verified_at` column).
+    Route::prefix('agencies')->group(function () {
+        Route::get('/', [AgencyModerationController::class, 'index'])
+            ->name('admin.agencies.index');
+        Route::post('{agency}/verify', [AgencyModerationController::class, 'verify'])
+            ->name('admin.agencies.verify');
+        Route::post('{agency}/suspend', [AgencyModerationController::class, 'suspend'])
+            ->name('admin.agencies.suspend');
+        Route::post('{agency}/unverify', [AgencyModerationController::class, 'unverify'])
+            ->name('admin.agencies.unverify');
     });
 
-    // TCK-101 — Booking manual expiration
-    Route::prefix('bookings')->group(function () {
-        Route::post('{booking}/expire-now', [BookingController::class, 'expireNow'])
-            ->name('admin.bookings.expire-now');
-    });
+    // User impersonation — short-lived Sanctum token (≤ 1h, name=impersonation).
+    Route::post('users/{user}/impersonate', [UserImpersonationController::class, 'start'])
+        ->name('admin.users.impersonate');
+    Route::post('impersonate/stop', [UserImpersonationController::class, 'stop'])
+        ->name('admin.impersonate.stop');
 
+    // Cross-tenant KPIs — single endpoint to avoid fan-out.
+    Route::get('system/metrics', [SystemMetricsController::class, 'index'])
+        ->name('admin.system.metrics');
+
+    // Cross-tenant audit log — no agency restriction (unlike AuditLogController).
+    Route::get('audit', [CrossTenantAuditController::class, 'index'])
+        ->name('admin.audit.index');
 });

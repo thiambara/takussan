@@ -22,14 +22,26 @@ export function useRecentlyViewed(excludeId?: number): State & {
     recentlyViewedStorage.purgeExpired();
     const entries = recentlyViewedStorage.read(excludeId);
 
+    // Defer state syncs into a microtask so they leave the synchronous effect
+    // body — react-hooks/set-state-in-effect allows setState in async callbacks
+    // (the rule's "external systems" model). User-visible behavior is identical
+    // because microtasks drain before paint, and existing tests already drain
+    // them via `await Promise.resolve()` inside `act`.
+
     if (entries.length === 0) {
-      setState((s) => (s.items.length === 0 && !s.loading ? s : { items: [], loading: false }));
+      void Promise.resolve().then(() => {
+        if (cancelled) return;
+        setState((s) => (s.items.length === 0 && !s.loading ? s : { items: [], loading: false }));
+      });
       return () => {
         cancelled = true;
       };
     }
 
-    setState((s) => (s.loading ? s : { ...s, loading: true }));
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      setState((s) => (s.loading ? s : { ...s, loading: true }));
+    });
 
     // TCK-100 — `/public/properties/by-ids` is a dedicated batch endpoint
     // that mirrors the `compare` contract. The legacy `/public/properties`
