@@ -17,6 +17,7 @@
 | 006 | 2026-04-14 | [`pass-006-2026-04-14-2047`](./pass-006-2026-04-14-2047/00-summary.md) | **Convergence atteinte** — 42 recommandations appliquées, 0 ❌ |
 | 007 | 2026-04-14 | [`pass-007-2026-04-14-2052`](./pass-007-2026-04-14-2052/00-summary.md) | **Convergence confirmée** — 2e passe sans recommandation actionnable |
 | 008 | 2026-04-14 | [`pass-008-2026-04-14-2102`](./pass-008-2026-04-14-2102/00-summary.md) | Stabilité post-convergence — 3e passe consécutive sans changement |
+| 009 | 2026-05-04 | [`pass-009-2026-05-04-0153`](./pass-009-2026-05-04-0153/00-summary.md) | Convergence rompue — profils polymorphes + BankStatement/BankStatementLine absents de la spec |
 
 ## Tableau d'évolution
 
@@ -30,11 +31,12 @@
 | 006 | 2026-04-14 | ~170 | **33** | **191** | **12** | **0** | **+35** | **−10** | **−9** |
 | 007 | 2026-04-14 | ~170 | 33 | 191 | 12 | 0 | 0 | 0 | 0 |
 | 008 | 2026-04-14 | ~170 | 33 | 191 | 12 | 0 | 0 | 0 | 0 |
+| 009 | 2026-05-04 | **~208** | **39** | **232** | **15** | **2** | **+41** | **+3** | **+2** |
 
 ## Statut de convergence
 
-**🎯 Convergence formellement confirmée à la passe 007** (deuxième passe consécutive sans recommandation actionnable).
+**Convergence rompue à la passe 009** suite aux ajouts post-profils polymorphes (TCK-138→142).
 
-Les 42 recommandations de la passe 001 (A1–A9, B1–B8, C1–C2, R1–R23) ont été appliquées en une exécution coordonnée sur `features.md`, `models-spec.md` et `features-by-actor.md` (plan `piped-skipping-flute`). Les 12 ⚠️ subsistants sont tous justifiés — applicatifs purs (comparateur, passerelles paiement, rapprochement, campagnes, traduction auto) ou évolutions futures documentées (EF2 commissions, EF5 message_reads, EF9 ExchangeRate).
+Les 2 ❌ concernent **BankStatement** et **BankStatementLine** — ces modèles existent dans le code (`app/Models/`) avec controllers et migrations, mais sont absents de `models-spec.md`. Les 15 ⚠️ sont tous justifiés (P3/futur, applicatif pur, hors périmètre MVP).
 
-Aucun ❌, aucun modèle orphelin. Les passes suivantes sont **facultatives** et ne devraient être relancées qu'en cas de modification ultérieure des fichiers source.
+7 recommandations (R1–R7) dans la passe 009 permettront de rétablir la convergence. Une fois appliquées : 0 ❌, 0 ⚠️ non justifiés.
