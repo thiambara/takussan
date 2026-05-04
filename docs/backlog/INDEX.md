@@ -73,6 +73,22 @@ _(vide — TCK-137 en doing)_
 
 _(vide — TCK-146 en review)_
 
+### Vague 17 — Bugs smoke test agent (2026-05-04)
+
+> Smoke test browser exhaustif sur le compte `agent1@dakarimmo.sn` (rôle Agent · Dakar Immo). 21 anomalies recensées dans `docs/smoke-tests/agent-smoke-test-2026-05-04.md` (2 P0 bloquants, 4 P1 dégradés, 12 P2 i18n/format, 3 P3 polish). 11 tickets de fix groupés par scope.
+
+- [TCK-148](tickets/TCK-148-publish-bien-enum-localisation-et-erreur-500.md) — Publication de bien : enums envoyés en EN, 500 sur création, alerte parasite à l'édition `M · P1 · applicatif`
+- [TCK-149](tickets/TCK-149-customer-detail-include-fields-spatie-400.md) — Fiche client dashboard — 400 sur include/fields Spatie `S · P1 · back`
+- [TCK-150](tickets/TCK-150-favorites-401-race-after-login.md) — Favoris — 401 immédiat après login (race condition token) `S · P1 · front`
+- [TCK-151](tickets/TCK-151-pagination-controls-listings-totaux.md) — Pagination listings — total tronqué (clients) et boutons absents (états des lieux) `S · P1 · front`
+- [TCK-152](tickets/TCK-152-dashboard-page-titles-localisation-dedup.md) — Dashboard — titres de page non localisés et suffixe Takussan dupliqué `S · P1 · front`
+- [TCK-153](tickets/TCK-153-formats-devise-date-harmonises.md) — Formats devise & date — harmonisation FR site-wide `M · P1 · front`
+- [TCK-154](tickets/TCK-154-i18n-dashboard-labels-anglais-restants.md) — Dashboard — chaînes anglaises résiduelles & libellés bruts `M · P1 · front`
+- [TCK-155](tickets/TCK-155-documents-base-ui-button-warning.md) — Documents — warning a11y Base UI Button (`nativeButton`) `S · P2 · front`
+- [TCK-156](tickets/TCK-156-bookings-detail-rbac-display-cree-le.md) — Fiche réservation — masquer le CTA review pour l'agent et afficher la date de création `S · P1 · front`
+- [TCK-157](tickets/TCK-157-property-edit-photos-section-doublon.md) — Fiche bien (édition) — section Photos dupliquée `S · P2 · front`
+- [TCK-158](tickets/TCK-158-dashboard-detail-headings-semantiques.md) — Pages détail dashboard — hiérarchie de headings (h1/h2 dupliqués ou manquants) `S · P2 · front`
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
