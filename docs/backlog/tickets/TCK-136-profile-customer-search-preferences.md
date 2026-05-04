@@ -1,7 +1,7 @@
 ---
 id: TCK-136
 title: "Profil locataire — Préférences de recherche & alertes"
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

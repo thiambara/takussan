@@ -1,7 +1,7 @@
 ---
 id: TCK-137
 title: "Profil contact — Édition téléphone (champ aujourd'hui désactivé)"
-status: review
+status: done
 phase: P1
 family: front
 estimate: S
