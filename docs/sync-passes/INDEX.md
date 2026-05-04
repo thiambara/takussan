@@ -18,6 +18,7 @@
 | 007 | 2026-04-14 | [`pass-007-2026-04-14-2052`](./pass-007-2026-04-14-2052/00-summary.md) | **Convergence confirmée** — 2e passe sans recommandation actionnable |
 | 008 | 2026-04-14 | [`pass-008-2026-04-14-2102`](./pass-008-2026-04-14-2102/00-summary.md) | Stabilité post-convergence — 3e passe consécutive sans changement |
 | 009 | 2026-05-04 | [`pass-009-2026-05-04-0153`](./pass-009-2026-05-04-0153/00-summary.md) | Convergence rompue — profils polymorphes + BankStatement/BankStatementLine absents de la spec |
+| 010 | 2026-05-04 | [`pass-010-2026-05-04-0918`](./pass-010-2026-05-04-0918/00-summary.md) | Stabilité post-009 — sources inchangées, R1–R7 toujours non appliquées |
 
 ## Tableau d'évolution
 
@@ -32,11 +33,12 @@
 | 007 | 2026-04-14 | ~170 | 33 | 191 | 12 | 0 | 0 | 0 | 0 |
 | 008 | 2026-04-14 | ~170 | 33 | 191 | 12 | 0 | 0 | 0 | 0 |
 | 009 | 2026-05-04 | **~208** | **39** | **232** | **15** | **2** | **+41** | **+3** | **+2** |
+| 010 | 2026-05-04 | ~208 | 39 | 232 | 15 | 2 | 0 | 0 | 0 |
 
 ## Statut de convergence
 
-**Convergence rompue à la passe 009** suite aux ajouts post-profils polymorphes (TCK-138→142).
+**Convergence rompue depuis la passe 009.** La passe 010 confirme l'absence d'évolution : `docs/features.md` (sha1 `b6902e37`) et `docs/models-spec.md` (sha1 `7a7cdd31`) sont strictement identiques à pass-009.
 
 Les 2 ❌ concernent **BankStatement** et **BankStatementLine** — ces modèles existent dans le code (`app/Models/`) avec controllers et migrations, mais sont absents de `models-spec.md`. Les 15 ⚠️ sont tous justifiés (P3/futur, applicatif pur, hors périmètre MVP).
 
-7 recommandations (R1–R7) dans la passe 009 permettront de rétablir la convergence. Une fois appliquées : 0 ❌, 0 ⚠️ non justifiés.
+Les 7 recommandations (R1–R7) de la passe 009 sont reconduites à l'identique en passe 010. Une fois appliquées : 0 ❌, 0 ⚠️ non justifiés.
