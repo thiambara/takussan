@@ -109,6 +109,10 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 38. [BrokerAgencyCollaboration](#38-brokeragencycollaboration-) 🆕
 39. [ServiceProviderAgencyCollaboration](#39-serviceprovideragencycollaboration-) 🆕
 
+### Comptabilité bancaire 🆕
+40. [BankStatement](#40-bankstatement-) 🆕
+41. [BankStatementLine](#41-bankstatementline-) 🆕
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -1591,6 +1595,100 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 
 ---
 
+### 40. BankStatement 🆕
+
+**Table :** `bank_statements`
+**Description :** Relevé bancaire importé par une agence pour rapprocher ses paiements (§1.5 P2 « Rapprochement bancaire semi-automatique »). Un relevé est un fichier (CSV/OFX) téléversé une fois, parsé en lignes (`BankStatementLine`), puis progressivement réconcilié avec les paiements existants (`BookingPayment`, `LeasePayment`).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant unique |
+| agency_id | FK agencies | | | Agence propriétaire (`cascadeOnDelete`) |
+| uploaded_by | FK users | | | Utilisateur ayant téléversé le fichier (`restrictOnDelete`) |
+| source_format | BankStatementSourceFormat enum | | | Format du fichier source (csv, ofx) |
+| file_hash | string(64) | | | Hash SHA-256 du fichier — empêche les imports en doublon |
+| bank_name | string | oui | null | Nom de la banque (libre, parsé si possible) |
+| account_iban_masked | string | oui | null | IBAN masqué (4 derniers caractères visibles) |
+| period_start | date | oui | null | Début de la période couverte par le relevé |
+| period_end | date | oui | null | Fin de la période couverte |
+| lines_count | unsignedInteger | | 0 | Compteur cache des lignes parsées (cf. Règle 2) |
+| status | BankStatementStatus enum | | 'processing' | Cycle de vie (processing → ready_for_review → partially_reconciled → reconciled → archived) |
+| finalized_at | datetime | oui | null | Date à laquelle le relevé a été clôturé |
+| finalized_by | FK users | oui | null | Utilisateur ayant clôturé le rapprochement (`nullOnDelete`) |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes d'unicité :**
+- `(agency_id, file_hash)` unique — un même fichier ne peut être importé qu'une fois par agence
+
+**Index :**
+- `(agency_id, status)` — relevés ouverts par agence
+- `(agency_id, created_at)` — tri chronologique par agence
+
+**Traits :**
+- `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `statement` (single file, disk `local`) qui stocke le fichier source
+- `Auditable` — journalisation des changements
+
+**Relations :**
+- `agency()` → belongsTo Agency
+- `uploaded_by()` → belongsTo User (via `uploaded_by`)
+- `finalized_by()` → belongsTo User (via `finalized_by`)
+- `lines()` → hasMany BankStatementLine
+
+**Accesseurs :**
+- `reconciled_ratio` : tableau `{ confirmed, ignored, remaining, total }` calculé à partir des lignes (groupBy `match_status`)
+
+**Scopes :**
+- `forAgency($id)` — filtre par agence
+- `open()` — relevés non clôturés (status ∉ {reconciled, archived})
+
+---
+
+### 41. BankStatementLine 🆕
+
+**Table :** `bank_statement_lines`
+**Description :** Ligne d'un relevé bancaire — une transaction unitaire à apparier (suggéré ou confirmé) avec un paiement existant (`BookingPayment` ou `LeasePayment`).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant unique |
+| bank_statement_id | FK bank_statements | | | Relevé parent (`cascadeOnDelete`) |
+| posted_at | date | | | Date d'écriture bancaire |
+| amount | decimal(12,2) | | | Montant (toujours positif — le sens est porté par `direction`) |
+| direction | BankStatementLineDirection enum | | | Sens du flux (credit, debit) |
+| currency | char(3) | | | Code ISO devise (XOF, XAF, EUR, USD) |
+| label | text | | | Libellé bancaire complet |
+| reference | string | oui | null | Référence bancaire (transaction id) |
+| counterparty | string | oui | null | Contrepartie identifiée (libre) |
+| raw_payload | json | | | Payload brut de la ligne tel qu'importée (CSV/OFX) — traçabilité totale |
+| match_status | BankStatementLineMatchStatus enum | | 'unmatched' | État d'appariement (unmatched, suggested, confirmed, ignored) |
+| matched_payment_type | string | oui | null | Type morph du paiement apparié (`BookingPayment` ou `LeasePayment`) |
+| matched_payment_id | bigint | oui | null | ID du paiement apparié |
+| match_confidence | unsignedTinyInteger | oui | null | Score de confiance 0–100 produit par l'algorithme de suggestion |
+| confirmed_at | datetime | oui | null | Date de confirmation manuelle de l'appariement |
+| confirmed_by | FK users | oui | null | Utilisateur ayant confirmé (`nullOnDelete`) |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- `(bank_statement_id, match_status)` — file de réconciliation par relevé
+- `(matched_payment_type, matched_payment_id)` — recherche inverse depuis un paiement
+- `(posted_at, amount)` — recherche d'appariement par date/montant
+
+**Traits :**
+- `Auditable`
+
+**Relations :**
+- `statement()` → belongsTo BankStatement (via `bank_statement_id`)
+- `matched_payment()` → morphTo standard (`matched_payment_type` / `matched_payment_id`) → BookingPayment | LeasePayment
+- `confirmed_by()` → belongsTo User (via `confirmed_by`)
+
+**Scopes :**
+- `unmatched()`, `suggested()`, `confirmed()`, `ignored()` — filtre par état
+- `readyToConfirm($minConfidence = 60)` — suggérées avec confiance suffisante
+
+---
+
 ## Enums
 
 ### Enums existants (à renommer / ajuster)
@@ -1653,6 +1751,10 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | **TaskStatus** | open, in_progress, done, cancelled | Task.status 🆕 |
 | **TaskPriority** | low, medium, high | Task.priority 🆕 |
 | **SettingScope** | global, agency | Setting.scope 🆕 |
+| **BankStatementSourceFormat** 🆕 | csv, ofx | BankStatement.source_format |
+| **BankStatementStatus** 🆕 | processing, ready_for_review, partially_reconciled, reconciled, archived | BankStatement.status |
+| **BankStatementLineDirection** 🆕 | credit, debit | BankStatementLine.direction |
+| **BankStatementLineMatchStatus** 🆕 | unmatched, suggested, confirmed, ignored | BankStatementLine.match_status |
 
 ---
 
@@ -1696,7 +1798,7 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 - **MaintenanceRequest** : +relation `requesterCustomer()`
 - **Document** : morphTo élargi à User, Agency, Booking
 
-### Nouveaux modèles (20)
+### Nouveaux modèles (22)
 
 - **Lease** — Contrats / Baux
 - **LeasePayment** — Paiements récurrents
@@ -1718,13 +1820,15 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 - **Integration** — Intégrations tierces (API keys) 🆕
 - **Task** — Tâches/rappels polymorphes (CRM) 🆕
 - **CustomerNote** — Notes CRM horodatées 🆕
+- **BankStatement** — Relevés bancaires (rapprochement) 🆕
+- **BankStatementLine** — Lignes d'un relevé bancaire 🆕
 
 ### Enums renommés (2)
 
 - ProprietyStatus → **PropertyStatus**
 - ProprietyVisibility → **PropertyVisibility**
 
-### Nouveaux enums (41)
+### Nouveaux enums (45)
 
 - **Scalaires métier :** UserType, Currency, CancellationBy, IdType, CollaboratorRole, TagType, RelationshipType, RelationshipStatus
 - **Agence / Propriété :** AgencyStatus, PropertyType, ContractType, TitleType
@@ -1736,6 +1840,7 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 - **Maintenance :** MaintenanceCategory, MaintenancePriority, MaintenanceStatus
 - **Documents / Inventaires :** DocumentType, InventoryType, InventoryStatus, InventoryCondition
 - **CRM / Plateforme :** CustomerPipelineStage 🆕, TaskStatus 🆕, TaskPriority 🆕, SettingScope 🆕
+- **Comptabilité bancaire 🆕 :** BankStatementSourceFormat, BankStatementStatus, BankStatementLineDirection, BankStatementLineMatchStatus
 
 ---
 
@@ -1775,6 +1880,11 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 | customer_notes | `customer_id`, `created_at DESC` | Historique des notes d'un client |
 | settings | `(key, scope, scope_id)` | Résolution unique d'un paramètre |
 | integrations | `(provider, agency_id)` | Intégration unique par fournisseur / agence |
+| bank_statements | `(agency_id, status)` | Relevés ouverts par agence 🆕 |
+| bank_statements | `(agency_id, created_at)` | Tri chronologique par agence 🆕 |
+| bank_statement_lines | `(bank_statement_id, match_status)` | File de réconciliation par relevé 🆕 |
+| bank_statement_lines | `(matched_payment_type, matched_payment_id)` | Recherche inverse depuis un paiement 🆕 |
+| bank_statement_lines | `(posted_at, amount)` | Recherche d'appariement par date / montant 🆕 |
 
 ---
 
@@ -1852,6 +1962,7 @@ Toute requête authentifiée résout un **profil actif** parmi les profils du us
 | service_provider_profiles | `user_id` | unique | toujours 🆕 |
 | broker_agency_collaborations | `(broker_profile_id, agency_id)` | unique composé | toujours 🆕 |
 | service_provider_agency_collaborations | `(service_provider_profile_id, agency_id)` | unique composé | toujours 🆕 |
+| bank_statements | `(agency_id, file_hash)` | unique composé | toujours 🆕 |
 
 ---
 
