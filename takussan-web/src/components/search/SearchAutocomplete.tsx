@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useId, useCallback, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Search } from 'lucide-react';
 import { useSuggest } from '@/hooks/useSuggest';
@@ -14,16 +14,19 @@ type SuggestItem =
   | { kind: 'neighborhood'; data: SuggestNeighborhood }
   | { kind: 'property_type'; data: SuggestPropertyType };
 
-function buildUrl(item: SuggestItem): string {
-  const params = new URLSearchParams();
+function buildUrl(item: SuggestItem, base: URLSearchParams): string {
+  const params = new URLSearchParams(base.toString());
   if (item.kind === 'city') {
     params.set('city', item.data.label);
+    // switching city invalidates any previous neighborhood
+    params.delete('location');
   } else if (item.kind === 'neighborhood') {
     params.set('city', item.data.city);
-    params.set('neighborhood', item.data.label);
+    params.set('location', item.data.label);
   } else {
     params.set('type', item.data.value);
   }
+  params.delete('page');
   return `/properties?${params.toString()}`;
 }
 
@@ -53,6 +56,7 @@ export function SearchAutocomplete({
   onQueryChange,
 }: SearchAutocompleteProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const t = useTranslations('search.suggest');
   const inputId = useId();
   const listboxId = useId();
@@ -87,9 +91,9 @@ export function SearchAutocomplete({
     (item: SuggestItem) => {
       setOpen(false);
       setQuery('');
-      router.push(buildUrl(item));
+      router.push(buildUrl(item, searchParams));
     },
-    [router],
+    [router, searchParams],
   );
 
   const handleKeyDown = useCallback(
@@ -110,14 +114,17 @@ export function SearchAutocomplete({
           selectItem(flatItems[activeIndex]);
         } else {
           setOpen(false);
-          router.push(`/properties?city=${encodeURIComponent(query)}`);
+          const params = new URLSearchParams(searchParams.toString());
+          params.set('city', query);
+          params.delete('page');
+          router.push(`/properties?${params.toString()}`);
         }
       } else if (e.key === 'Escape') {
         setOpen(false);
         setActiveIndex(-1);
       }
     },
-    [open, query, flatItems, activeIndex, selectItem, router],
+    [open, query, flatItems, activeIndex, selectItem, router, searchParams],
   );
 
   useEffect(() => {

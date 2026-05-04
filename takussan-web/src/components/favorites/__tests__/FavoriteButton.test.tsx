@@ -46,16 +46,16 @@ describe('<FavoriteButton>', () => {
 
   it('redirects to login when the user is anonymous and requireAuth=true', async () => {
     const user = userEvent.setup();
-    render(wrap(<FavoriteButton propertyId={42} />));
+    render(wrap(<FavoriteButton propertyId={42} requireAuth />));
     await user.click(screen.getByRole('button'));
     expect(push).toHaveBeenCalledWith(
       expect.stringMatching(/^\/auth\/login\?redirect=/),
     );
   });
 
-  it('persists to localStorage when requireAuth=false and user is anonymous', async () => {
+  it('persists to localStorage when user is anonymous (default)', async () => {
     const user = userEvent.setup();
-    render(wrap(<FavoriteButton propertyId={99} requireAuth={false} />));
+    render(wrap(<FavoriteButton propertyId={99} />));
     await user.click(screen.getByRole('button'));
     expect(push).not.toHaveBeenCalled();
     expect(JSON.parse(localStorage.getItem('takussan.favorites') ?? '[]')).toContain(99);

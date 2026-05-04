@@ -508,6 +508,29 @@
     "confirmCta": "Effacer",
     "cancel": "Annuler"
   },
+  "favorites": {
+    "button": {
+      "aria": "Mes favoris"
+    },
+    "popover": {
+      "title": "Mes favoris",
+      "count": "{count, plural, =0 {aucun favori} =1 {1 favori} other {# favoris}}",
+      "empty": "Aucun favori pour le moment",
+      "emptyHint": "Cliquez sur le cœur d'une annonce pour la sauvegarder ici.",
+      "discoverCta": "Découvrir des biens",
+      "removeAria": "Retirer ce bien des favoris",
+      "viewAll": "Voir tous mes favoris"
+    },
+    "page": {
+      "title": "Mes favoris",
+      "subtitle": "{count, plural, =0 {Aucun bien sauvegardé pour le moment.} =1 {1 bien sauvegardé.} other {# biens sauvegardés.}}",
+      "subtitleLoading": "Chargement de vos favoris…",
+      "empty": "Aucun favori pour le moment",
+      "emptyHint": "Parcourez les biens et cliquez sur le cœur pour les retrouver ici.",
+      "discoverCta": "Découvrir des biens",
+      "error": "Impossible de charger vos favoris pour le moment."
+    }
+  },
   "search": {
     "suggest": {
       "placeholder": "Rechercher une ville, un quartier, un type de bien…",

@@ -414,6 +414,29 @@
     "confirmCta": "Fommi",
     "cancel": "Bàyyi"
   },
+  "favorites": {
+    "button": {
+      "aria": "Sama bëgg-bëgg"
+    },
+    "popover": {
+      "title": "Sama bëgg-bëgg",
+      "count": "{count, plural, =0 {amul bëgg-bëgg} =1 {1 bëgg-bëgg} other {# bëgg-bëgg}}",
+      "empty": "Amul bëgg-bëgg léegi",
+      "emptyHint": "Bësal xolu kër ngir denc ko fii.",
+      "discoverCta": "Gis kër yi",
+      "removeAria": "Dindi kër bii ci bëgg-bëgg yi",
+      "viewAll": "Gis sama bëgg-bëgg yépp"
+    },
+    "page": {
+      "title": "Sama bëgg-bëgg yi",
+      "subtitle": "{count, plural, =0 {Amul kër bu nga denc ba leegi.} =1 {1 kër la nga denc.} other {# kër yi nga denc.}}",
+      "subtitleLoading": "Mu ngi yebal sa bëgg-bëgg yi…",
+      "empty": "Amul bëgg-bëgg ba leegi",
+      "emptyHint": "Yëngal kër yi te bësal xolu ngir denc leen fii.",
+      "discoverCta": "Gis kër yi",
+      "error": "Mënul yebal sa bëgg-bëgg yi leegi."
+    }
+  },
   "search": {
     "suggest": {
       "placeholder": "Seet dëkk, quartier, wàll kër…",

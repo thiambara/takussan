@@ -68,7 +68,7 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
               className={`size-4 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`}
               aria-hidden
             />
-            <span className="hidden sm:inline">{isFavorite ? 'Favori' : 'Favori'}</span>
+            <span className="hidden sm:inline">{isFavorite ? 'Favori' : 'Ajouter'}</span>
           </Button>
         </div>
       </div>

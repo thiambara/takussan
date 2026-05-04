@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Home, MapPin, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle, Search } from 'lucide-react';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -11,11 +11,11 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { navLinks, categories, moreCategories } from '@/data/mockData';
 import { useAuth } from '@/context/AuthContext';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
+import { FavoritesPopover } from '@/components/favorites/FavoritesPopover';
 
 const TRANSACTION_OPTIONS = [
   { value: 'Acheter', label: 'Acheter' },
   { value: 'Louer', label: 'Louer' },
-  { value: 'Neuf', label: 'Neuf' },
 ] as const;
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -43,11 +43,12 @@ export interface NavbarProps {
 
 export function Navbar({ className }: NavbarProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isLoading, setUser } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [location, setLocation] = useState('');
-  const [transaction, setTransaction] = useState('Acheter');
+  const [transaction, setTransaction] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
@@ -80,21 +81,24 @@ export function Navbar({ className }: NavbarProps) {
   // ─── Navigation helpers ─────────────────────────────────────────────────────
 
   const buildSearchUrl = useCallback((overrides: Record<string, string> = {}) => {
-    const params = new URLSearchParams();
-    // contract_type from transaction selector
+    // Preserve any sidebar filter already in the URL
+    const params = new URLSearchParams(searchParams.toString());
+    // contract_type from transaction selector (only override if explicitly set)
     if (transaction === 'Acheter') params.set('contract_type', 'sale');
     if (transaction === 'Louer')   params.set('contract_type', 'rent');
-    // location text → city filter
+    // location text → city filter (only override if non-empty)
     if (location.trim()) params.set('city', location.trim());
-    // active category → type filter
+    // active category → type filter (only override if set)
     if (activeCategory) params.set('type', activeCategory);
-    // apply overrides (e.g. from a category click)
+    // reset pagination on new search
+    params.delete('page');
+    // apply explicit overrides last
     Object.entries(overrides).forEach(([k, v]) => {
       if (v === '') params.delete(k); else params.set(k, v);
     });
     const qs = params.toString();
     return `/properties${qs ? '?' + qs : ''}`;
-  }, [transaction, location, activeCategory]);
+  }, [searchParams, transaction, location, activeCategory]);
 
   const handleSearch = useCallback(() => {
     router.push(buildSearchUrl());
@@ -104,13 +108,14 @@ export function Navbar({ className }: NavbarProps) {
     // toggle off if same, else navigate with new type
     const newType = currentActive === type ? null : type;
     setActiveCategory(newType);
-    const params = new URLSearchParams();
+    const params = new URLSearchParams(searchParams.toString());
     if (transaction === 'Acheter') params.set('contract_type', 'sale');
     if (transaction === 'Louer')   params.set('contract_type', 'rent');
     if (location.trim()) params.set('city', location.trim());
-    if (newType) params.set('type', newType);
+    if (newType) params.set('type', newType); else params.delete('type');
+    params.delete('page');
     router.push(`/properties${params.size ? '?' + params.toString() : ''}`);
-  }, [router, transaction, location]);
+  }, [router, searchParams, transaction, location]);
 
   return (
     <nav
@@ -135,14 +140,13 @@ export function Navbar({ className }: NavbarProps) {
             <div className="w-px h-6 bg-gray-200 shrink-0" />
             <div className="flex items-center gap-1.5 px-4 py-2.5 shrink-0">
               <Home className="w-4 h-4 text-primary" />
-              <Select value={transaction} onValueChange={(v) => setTransaction(v ?? 'Acheter')} items={TRANSACTION_OPTIONS}>
+              <Select value={transaction} onValueChange={(v) => setTransaction(v ?? '')} items={TRANSACTION_OPTIONS}>
                 <SelectTrigger className="border-none shadow-none bg-transparent p-0 h-auto text-sm text-gray-900 font-medium focus-visible:ring-0 focus-visible:border-transparent gap-1">
-                  <SelectValue />
+                  <SelectValue placeholder="Acheter / Louer" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Acheter">Acheter</SelectItem>
                   <SelectItem value="Louer">Louer</SelectItem>
-                  <SelectItem value="Neuf">Neuf</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -223,6 +227,7 @@ export function Navbar({ className }: NavbarProps) {
 
         {/* Actions — desktop, aligned to top */}
         <div className="hidden md:flex items-center gap-3 shrink-0 ml-auto mt-2">
+          <FavoritesPopover />
           <LanguageSwitcher variant="compact" />
           {isLoading ? (
             <div className="size-8 rounded-full bg-gray-100 animate-pulse" />
@@ -293,7 +298,7 @@ export function Navbar({ className }: NavbarProps) {
         </div>
 
           {/* Mobile: search pill → opens search page */}
-          <div className="flex md:hidden flex-1 items-center gap-3">
+          <div className="flex md:hidden flex-1 items-center gap-2">
             <button
               onClick={handleSearch}
               className="flex-1 flex items-center gap-2 bg-white border border-gray-300 rounded-full px-4 py-2.5 shadow-sm text-left"
@@ -301,6 +306,7 @@ export function Navbar({ className }: NavbarProps) {
               <Search className="w-4 h-4 text-gray-400 shrink-0" />
               <span className="text-sm text-gray-400 truncate">Où cherchez-vous ?</span>
             </button>
+          <FavoritesPopover variant="compact" />
           <button
             className="p-2 rounded-lg text-slate-600 hover:text-primary hover:bg-gray-100 transition-colors"
             onClick={() => setMenuOpen((o) => !o)}
@@ -328,7 +334,7 @@ export function Navbar({ className }: NavbarProps) {
                 />
               </div>
               <div className="flex gap-2">
-                {['Acheter', 'Louer', 'Neuf'].map((t) => (
+                {['Acheter', 'Louer'].map((t) => (
                   <button
                     key={t}
                     onClick={() => setTransaction(t)}

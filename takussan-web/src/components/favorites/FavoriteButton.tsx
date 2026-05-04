@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Heart } from 'lucide-react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -8,43 +8,28 @@ import {
   useAddFavoriteMutation,
   useRemoveFavoriteMutation,
 } from '@/lib/queries/favorites';
+import { useFavorites } from '@/lib/favoritesStore';
 
 /**
  * Heart button — toggles a property's favorite state.
  *
- * Wave 3 — TCK-047.
+ * The favorites store is the single source of truth for both anonymous and
+ * authenticated users — that's how every heart on the page (cards, detail
+ * page, navbar popover) stays in sync after a single click.
  *
- * - Connected user → `POST /api/favorites` / `DELETE /api/favorites/{property}`.
- *   (Uses the property id on delete as documented in
- *   `src/lib/queries/favorites.ts`.)
- * - Anonymous user → redirected to `/auth/login?redirect=<current path>`
- *   or a local-storage fallback if `requireAuth=false`.
+ * - Authenticated → optimistic store update + `POST/DELETE /api/favorites`,
+ *   rollback the store on API error.
+ * - Anonymous → store update only.
  *
+ * Set `requireAuth={true}` to redirect to login when logged out.
  * Absorbs the parent `<Link>` click so the user stays on the card.
  */
-const LS_KEY = 'takussan.favorites';
-
-function readLocal(): number[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    return JSON.parse(localStorage.getItem(LS_KEY) ?? '[]') as number[];
-  } catch {
-    return [];
-  }
-}
-
-function writeLocal(ids: number[]): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(LS_KEY, JSON.stringify(ids));
-}
 
 export interface FavoriteButtonProps {
   readonly propertyId: number;
-  /** If the caller already knows whether this property is favorited, pass it in to avoid flicker. */
-  readonly initialIsFavorite?: boolean;
   readonly className?: string;
   readonly size?: 'sm' | 'md' | 'lg';
-  /** Route to `/auth/login` when logged out; default true. */
+  /** Route to `/auth/login` when logged out; default false (anonymous likes). */
   readonly requireAuth?: boolean;
 }
 
@@ -62,10 +47,9 @@ const ICON_CLASSES = {
 
 export function FavoriteButton({
   propertyId,
-  initialIsFavorite = false,
   className = '',
   size = 'md',
-  requireAuth = true,
+  requireAuth = false,
 }: FavoriteButtonProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -75,19 +59,8 @@ export function FavoriteButton({
   const addMutation = useAddFavoriteMutation();
   const removeMutation = useRemoveFavoriteMutation();
 
-  // Optimistic toggle state — primed from the prop and from localStorage
-  // (for the signed-out case).
-  const [isFavorite, setIsFavorite] = useState(initialIsFavorite);
-
-  useEffect(() => {
-    setIsFavorite(initialIsFavorite);
-  }, [initialIsFavorite]);
-
-  useEffect(() => {
-    if (!user) {
-      setIsFavorite(readLocal().includes(propertyId));
-    }
-  }, [user, propertyId]);
+  const { has, add, remove } = useFavorites();
+  const isFavorite = has(propertyId);
 
   const redirectHref = useMemo(() => {
     const qs = searchParams.toString();
@@ -102,35 +75,32 @@ export function FavoriteButton({
       event.preventDefault();
       event.stopPropagation();
 
-      if (!user) {
-        if (requireAuth) {
-          router.push(redirectHref);
-          return;
-        }
-        // Local fallback for unauthenticated users.
-        const current = readLocal();
-        const next = current.includes(propertyId)
-          ? current.filter((id) => id !== propertyId)
-          : [...current, propertyId];
-        writeLocal(next);
-        setIsFavorite(next.includes(propertyId));
+      if (!user && requireAuth) {
+        router.push(redirectHref);
         return;
       }
 
-      // Optimistic flip; roll back on error.
-      const previous = isFavorite;
-      setIsFavorite(!previous);
+      const wasFavorite = has(propertyId);
+      // Optimistic store flip — every <FavoriteButton> + popover badge
+      // re-renders immediately.
+      if (wasFavorite) remove(propertyId);
+      else add(propertyId);
+
+      if (!user) return;
+
       try {
-        if (previous) {
+        if (wasFavorite) {
           await removeMutation.mutateAsync({ property_id: propertyId });
         } else {
           await addMutation.mutateAsync({ property_id: propertyId });
         }
       } catch {
-        setIsFavorite(previous);
+        // Rollback on API failure.
+        if (wasFavorite) add(propertyId);
+        else remove(propertyId);
       }
     },
-    [user, requireAuth, router, redirectHref, propertyId, isFavorite, addMutation, removeMutation],
+    [user, requireAuth, router, redirectHref, propertyId, has, add, remove, addMutation, removeMutation],
   );
 
   return (

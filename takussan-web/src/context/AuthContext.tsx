@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   login as apiLogin,
   register as apiRegister,
@@ -10,6 +11,14 @@ import {
   type RegisterPayload,
   type User,
 } from '@/lib/auth';
+import { apiRequest } from '@/lib/api';
+import {
+  getIds as getLocalFavoriteIds,
+  clear as clearLocalFavorites,
+  replace as replaceLocalFavorites,
+} from '@/lib/favoritesStore';
+import { favoritesQueryKeys, type FavoriteItem } from '@/lib/queries/favorites';
+import type { PaginatedResponse } from '@/types/api';
 
 type AuthContextValue = {
   user: User | null;
@@ -59,6 +68,60 @@ export function AuthProvider({
   const [token, setToken] = useState<string | null>(initialToken ?? null);
   const [isLoading, setIsLoading] = useState(initialUser === undefined);
   const hasRetriedRef = useRef(false);
+  const wasAuthedRef = useRef(false);
+  const queryClient = useQueryClient();
+
+  // Sync local (anonymous) favorites into the DB after login. Returns nothing
+  // — the seed effect picks up the canonical IDs immediately after.
+  const syncLocalFavorites = useCallback(async (authToken: string) => {
+    const ids = getLocalFavoriteIds();
+    if (ids.length === 0) return;
+    await Promise.all(
+      ids.map((property_id) =>
+        apiRequest('/api/favorites', {
+          method: 'POST',
+          body: { property_id },
+          token: authToken,
+        }).catch(() => {
+          // Already favorited or transient error — ignore.
+        }),
+      ),
+    );
+  }, []);
+
+  // Single source of truth for the favorites store: when the user changes,
+  // (a) on auth → fetch /api/favorites and replace the store, (b) on logout
+  // → clear the store. The store stays the canonical reactive cache that
+  // the navbar popover, every <FavoriteButton>, and the detail page heart
+  // all subscribe to.
+  useEffect(() => {
+    if (!user || !token) {
+      if (wasAuthedRef.current) {
+        clearLocalFavorites();
+        wasAuthedRef.current = false;
+      }
+      return;
+    }
+    wasAuthedRef.current = true;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiRequest<PaginatedResponse<FavoriteItem>>(
+          '/api/favorites?per_page=100',
+          { token },
+        );
+        if (cancelled) return;
+        replaceLocalFavorites(res.data.map((f) => f.property_id));
+        void queryClient.invalidateQueries({ queryKey: favoritesQueryKeys.all });
+      } catch {
+        // Best-effort — leave the store as-is on failure.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, token, queryClient]);
 
   useEffect(() => {
     if (initialUser !== undefined) return;
@@ -151,22 +214,25 @@ export function AuthProvider({
         return res;
       }
       await persistToken(res.token);
+      // Push anon favourites BEFORE seeding so the seed effect sees them.
+      await syncLocalFavorites(res.token);
       setToken(res.token);
       setUser(res.user);
       return res;
     },
-    [persistToken],
+    [persistToken, syncLocalFavorites],
   );
 
   const register = useCallback(
     async (payload: RegisterPayload) => {
       const { token: next, user: u } = await apiRegister(payload);
       await persistToken(next);
+      await syncLocalFavorites(next);
       setToken(next);
       setUser(u);
       return u;
     },
-    [persistToken],
+    [persistToken, syncLocalFavorites],
   );
 
   const logout = useCallback(async () => {

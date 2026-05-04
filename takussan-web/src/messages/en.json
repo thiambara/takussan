@@ -487,6 +487,29 @@
     "confirmCta": "Clear",
     "cancel": "Cancel"
   },
+  "favorites": {
+    "button": {
+      "aria": "My favorites"
+    },
+    "popover": {
+      "title": "My favorites",
+      "count": "{count, plural, =0 {no favorites} =1 {1 favorite} other {# favorites}}",
+      "empty": "No favorites yet",
+      "emptyHint": "Tap the heart on a listing to save it here.",
+      "discoverCta": "Discover listings",
+      "removeAria": "Remove this property from favorites",
+      "viewAll": "View all my favorites"
+    },
+    "page": {
+      "title": "My favorites",
+      "subtitle": "{count, plural, =0 {No properties saved yet.} =1 {1 saved property.} other {# saved properties.}}",
+      "subtitleLoading": "Loading your favorites…",
+      "empty": "No favorites yet",
+      "emptyHint": "Browse listings and tap the heart to save them here.",
+      "discoverCta": "Discover listings",
+      "error": "Couldn't load your favorites right now."
+    }
+  },
   "search": {
     "suggest": {
       "placeholder": "Search a city, neighborhood, property type…",
