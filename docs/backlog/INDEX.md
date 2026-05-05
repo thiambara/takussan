@@ -73,6 +73,19 @@ _(vide — TCK-137 en doing)_
 
 _(vide — TCK-146 en review)_
 
+### Vague 18 — Bugs smoke test visiteur anonyme (2026-05-05)
+
+> Smoke test browser exhaustif du parcours public (incognito, aucune session) suivant `docs/qa/visiteur-anonyme-qa.md`. 22 anomalies recensées dans `docs/smoke-tests/visiteur-anonyme-2026-05-05.md` (0 P0, 6 P1, 12 P2, 4 P3). 8 tickets de fix groupés par scope. **Note** : les bugs P1-1 et P2-10 (pages légales / footer enrichi) ne sont pas ticketés ici — la fonctionnalité n'existe pas dans `docs/features.md` et nécessite un ajout de spec préalable.
+
+- [TCK-159](tickets/TCK-159-i18n-public-language-switcher-wired.md) — Sélecteur de langue public — câblage i18n FR/EN/WO `M · P1 · front`
+- [TCK-160](tickets/TCK-160-i18n-public-residual-english-strings.md) — i18n public — chaînes anglaises résiduelles côté visiteur anonyme `M · P1 · front`
+- [TCK-161](tickets/TCK-161-fiche-bien-formulaire-contact-public-anonyme.md) — Fiche bien — formulaire de contact public anonyme `M · P1 · front`
+- [TCK-162](tickets/TCK-162-vue-carte-marqueurs-prix.md) — Vue carte — marqueurs avec prix `S · P2 · front`
+- [TCK-163](tickets/TCK-163-seed-test-data-exclude-from-public.md) — Données seed — exclure les biens de test du flux public `S · P2 · technique`
+- [TCK-164](tickets/TCK-164-home-coherence-sections-cards-adresse.md) — Home publique — cohérence sections, cards et format adresse `M · P2 · front`
+- [TCK-165](tickets/TCK-165-fiche-bien-cta-adapte-type-contrat.md) — Fiche bien — CTA adapté au type de contrat `S · P2 · front`
+- [TCK-166](tickets/TCK-166-public-polish-title-redirect-preload-tri.md) — Polish public — title dupliqué, redirect /super-admin, preload, libellés tri `S · P3 · front`
+
 ### Vague 17 — Bugs smoke test agent (2026-05-04)
 
 > Smoke test browser exhaustif sur le compte `agent1@dakarimmo.sn` (rôle Agent · Dakar Immo). 21 anomalies recensées dans `docs/smoke-tests/agent-smoke-test-2026-05-04.md` (2 P0 bloquants, 4 P1 dégradés, 12 P2 i18n/format, 3 P3 polish). 11 tickets de fix groupés par scope.
@@ -538,6 +551,9 @@ TCK-141 ──▶ TCK-142 (refactor consumers + drop legacy UserType)
 TCK-141 ──▶ TCK-143 (frontend multi-profile switcher)
 TCK-142 ──▶ TCK-144 (backend super_admin namespace)
 TCK-144 ──▶ TCK-145 (frontend super-admin area)
+
+── Vague 18 : Bugs smoke test visiteur anonyme ──
+TCK-159 (i18n public switcher) ──▶ TCK-160 (i18n public residual EN strings)
 ```
 
 ---
