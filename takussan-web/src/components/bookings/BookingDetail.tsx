@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useLocale } from 'next-intl';
-import { useBooking, useCancelBooking } from '@/lib/queries/bookings';
+import { useBooking, useCancelBooking, useCreateBookingPayment } from '@/lib/queries/bookings';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { PayOnlineButton } from '@/components/payments/PayOnlineButton';
 import { usePaymentProviders } from '@/hooks/usePaymentProviders';
 import { LeaveReviewCta } from '@/components/reviews/LeaveReviewCta';
 import { canBookingLeaveReview } from '@/components/reviews/reviewEligibility';
+import type { GatewayProvider } from '@/hooks/useInitiatePayment';
 
 const STATUS_LABEL: Record<BookingStatus, string> = {
   pending: 'En attente',
@@ -177,6 +178,14 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         />
       )}
 
+      {isCustomer && (
+        <CustomerPayCta
+          bookingId={bookingId}
+          booking={booking}
+          providers={providers}
+        />
+      )}
+
       <section className="rounded-xl border border-stone-200 bg-white p-5">
         <h2 className="text-sm font-semibold text-stone-900">Paiements</h2>
         {booking.booking_payments && booking.booking_payments.length > 0 ? (
@@ -200,6 +209,14 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
                       availableProviders={providers}
                     />
                   )}
+                  {p.status === 'paid' && (
+                    <a
+                      href={`/api/booking-payments/${p.id}/receipt`}
+                      className="text-xs text-app-accent hover:underline"
+                    >
+                      Quittance PDF
+                    </a>
+                  )}
                 </span>
               </li>
             ))}
@@ -219,6 +236,64 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         onOpenChange={setPaymentOpen}
       />
     </div>
+  );
+}
+
+function CustomerPayCta({
+  bookingId,
+  booking,
+  providers,
+}: {
+  bookingId: number;
+  booking: Booking;
+  providers: readonly GatewayProvider[] | undefined;
+}) {
+  const createPayment = useCreateBookingPayment(bookingId);
+  const payments = booking.booking_payments ?? [];
+  const hasPending = payments.some((p) => p.status === 'pending');
+
+  // Don't show the CTA if there's already a pending payment row — the user
+  // can pay it via the existing PayOnlineButton just below.
+  if (hasPending) return null;
+
+  if (booking.status !== 'pending' && booking.status !== 'confirmed') return null;
+  if (providers !== undefined && providers.length === 0) return null;
+
+  const succeededTotal = payments
+    .filter((p) => p.status === 'paid')
+    .reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+  const total = Number(booking.total_amount ?? 0);
+  const remaining = Math.max(total - succeededTotal, 0);
+  if (remaining <= 0) return null;
+
+  const depositAmount = Number(booking.deposit_amount ?? 0);
+  const isDepositStep = succeededTotal === 0 && depositAmount > 0;
+  const amount = isDepositStep ? depositAmount : remaining;
+  const paymentType: 'deposit' | 'advance' = isDepositStep ? 'deposit' : 'advance';
+  const label = isDepositStep ? 'Payer l’acompte' : 'Payer le solde';
+
+  async function handleClick() {
+    await createPayment.mutateAsync({
+      amount,
+      payment_type: paymentType,
+      status: 'pending',
+    });
+  }
+
+  return (
+    <section className="rounded-xl border border-app-border bg-app-surface-1 p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-stone-900">{label}</h2>
+          <p className="mt-1 text-xs text-stone-500">
+            Vous serez redirigé vers la passerelle de paiement (Wave, Orange Money, carte).
+          </p>
+        </div>
+        <Button onClick={handleClick} disabled={createPayment.isPending}>
+          {label}
+        </Button>
+      </div>
+    </section>
   );
 }
 

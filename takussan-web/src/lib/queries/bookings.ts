@@ -105,8 +105,10 @@ export function useCreateBooking() {
 
 export type CreateBookingPaymentPayload = {
   amount: number;
-  payment_method: 'cash' | 'bank_transfer' | 'mobile_money' | 'card';
+  payment_method?: 'cash' | 'bank_transfer' | 'mobile_money' | 'card';
   payment_type: 'deposit' | 'advance' | 'fee';
+  /** TCK-172 — set to `pending` for the customer self-service gateway flow. */
+  status?: 'pending' | 'paid' | 'partially_paid' | 'refunded' | 'cancelled';
   transaction_id?: string;
   notes?: string;
 };

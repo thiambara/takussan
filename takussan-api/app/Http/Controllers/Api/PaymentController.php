@@ -350,18 +350,25 @@ class PaymentController extends Controller
     protected function authorizeBookingManage($user, Booking $booking): void
     {
         $property = $booking->property;
+        $customer = $booking->customer;
         $ok = $user->hasRole(['admin', 'super_admin'])
             || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $user->agency_id === $booking->agency_id);
+            || ($user->agency_id && $user->agency_id === $booking->agency_id)
+            // TCK-172 — the customer themselves can create their own pending payment
+            // (deposit / balance) so the gateway checkout flow can be initiated.
+            || ($customer && $customer->user_id === $user->id);
 
         abort_unless($ok, 403);
     }
 
     protected function authorizeLeaseManage($user, Lease $lease): void
     {
+        $tenant = $lease->tenant;
         $ok = $user->hasRole(['admin', 'super_admin'])
             || $lease->landlord_id === $user->id
-            || ($user->agency_id && $user->agency_id === $lease->agency_id);
+            || ($user->agency_id && $user->agency_id === $lease->agency_id)
+            // TCK-172 — tenant can create their own pending lease payment.
+            || ($tenant && $tenant->user_id === $user->id);
 
         abort_unless($ok, 403);
     }

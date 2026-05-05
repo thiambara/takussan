@@ -82,7 +82,7 @@ _(vide — TCK-146 en review)_
 - [TCK-169](tickets/TCK-169-login-email-case-insensitive.md) — Login — match email insensible à la casse `S · P1 · bug`
 - [TCK-170](tickets/TCK-170-visit-request-hydrate-authenticated-user.md) — Demande de visite — hydrater `visitor_*` depuis l'utilisateur connecté `S · P1 · bug`
 - [TCK-171](tickets/TCK-171-visits-bookings-customer-scope-and-tabs.md) — Visites & réservations customer — filtre `customer_id`, onglets, annulation, timeline `M · P1 · applicatif` **[done]**
-- [TCK-172](tickets/TCK-172-payment-gateway-customer-side.md) — Paiement passerelle (Wave / OM / Stripe) — flow customer acompte/solde/loyer `L · P2 · applicatif`
+- [TCK-172](tickets/TCK-172-payment-gateway-customer-side.md) — Paiement passerelle (Wave / OM / Stripe) — flow customer acompte/solde/loyer `L · P2 · applicatif` **[review]**
 - [TCK-173](tickets/TCK-173-customer-rbac-ui-leak-and-sidebar.md) — RBAC UI customer — masquer surfaces agent + compléter sidebar `M · P1 · front`
 - [TCK-174](tickets/TCK-174-maintenance-new-property-selector.md) — Maintenance — sélecteur de bien sur `/app/maintenance/new` `S · P1 · front`
 - [TCK-175](tickets/TCK-175-i18n-authenticated-shell-and-shared-components.md) — i18n — layout authentifié et composants partagés `M · P1 · front`

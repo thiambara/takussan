@@ -1,7 +1,7 @@
 ---
 id: TCK-172
 title: Paiement passerelle (Wave / Orange Money / Stripe) — flow customer côté acompte, solde, loyer
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: L
@@ -76,4 +76,17 @@ Endpoints à créer / étendre :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+L'infrastructure passerelle (drivers Wave / Orange Money / Lemon Squeezy, `PaymentGatewayService`, `PaymentWebhookController`, `PayOnlineButton`, `PaymentProviderPicker`) existait déjà avant ce ticket (TCK-079 et suivants).
+
+### Ce qui a été livré
+- **Backend** : `PaymentController::authorizeBookingManage` / `authorizeLeaseManage` et `BookingPaymentController::authorizeBookingManage` étendus pour autoriser le customer (`booking.customer.user_id === user.id` / `lease.tenant.user_id === user.id`) à créer une ligne de paiement `pending` sur sa propre booking/bail.
+- **Backend** : `BookingPaymentController::store` accepte `status` ; force `pending` + nettoie `payment_method`/`paid_at` quand l'appelant est le customer (et pas un staff). Empêche un client de marquer un paiement directement comme `paid`.
+- **Backend** : nouveau service `App\Services\Payments\PaymentReceiptPdf` (Dompdf direct) + view Blade `payments/receipt.blade.php` + endpoint `GET /api/booking-payments/{payment}/receipt` qui rend la quittance PDF d'un paiement `paid`. Quittance lease déjà existante (`leases/{lease}/receipts/{payment}/pdf`).
+- **Frontend** : `BookingDetail` ajoute le composant `CustomerPayCta` qui calcule le pas suivant (acompte vs solde), crée la ligne de paiement `pending` puis laisse `PayOnlineButton` enchaîner avec la passerelle. Affiche un lien `Quittance PDF` sur chaque paiement `paid`.
+- **Frontend** : la modale agent « Enregistrer un paiement » est désormais cachée pour les customers (cf. TCK-171).
+
+### Hors scope (à reporter)
+- **CSV export** côté `/app/payments` — l'endpoint `payments/history` n'a pas encore de `format=csv` ; à filer dans un nouveau ticket P2.
+- **Pénalité de retard** proposée comme ligne additionnelle au moment du paiement loyer — la spec le prévoit mais nécessite un endpoint `GET /api/leases/{lease}/payments/{payment}/quote` qui n'existe pas.
+- **Lease customer CTA** : `LeasePaymentController::store` n'a pas été élargi (équivalent backend du flow booking) ; à porter au moment où la fiche bail accueille un CTA `Payer le loyer` côté tenant.
+- **Test feature** sur le scénario customer (`POST /api/bookings/{id}/payments` + assertion status=`pending`) — à ajouter quand on stabilisera le périmètre lease.

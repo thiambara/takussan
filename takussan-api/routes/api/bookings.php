@@ -26,4 +26,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->name('bookings.payments.store');
     Route::post('booking-payments/{payment}/refund', [BookingPaymentController::class, 'refund'])
         ->name('booking-payments.refund');
+
+    // TCK-172 — quittance PDF d'un BookingPayment acquitté.
+    Route::get('booking-payments/{payment}/receipt', [BookingPaymentController::class, 'receipt'])
+        ->name('booking-payments.receipt');
 });
