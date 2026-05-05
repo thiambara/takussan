@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { forbidden } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import { Plus } from 'lucide-react';
 
 export const metadata: Metadata = { title: 'Mes biens' };
@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: 'Mes biens' };
 import { getMeAction } from '@/app/actions/auth';
 import { getToken } from '@/lib/session';
 import { fetchDashboardProperties } from '@/lib/queries/properties-server';
-import { isAdmin, isAgent, isOwner } from '@/lib/roles';
+import { assertCanReachAgentArea } from '@/lib/auth/guards';
 import { PropertyList } from '@/components/property-dashboard/PropertyList';
 import { PropertyListFilters } from '@/components/property-dashboard/PropertyListFilters';
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
@@ -37,14 +37,12 @@ export default async function Page({
   searchParams: SearchParams;
 }) {
   const user = await getMeAction();
-  if (!(isAgent(user.roles) || isAdmin(user.roles) || isOwner(user.roles))) {
-    forbidden();
-  }
+  assertCanReachAgentArea(user.roles);
 
   const params = await searchParams;
   const token = await getToken();
   // `getMeAction` already redirects on missing token, so this is defensive.
-  if (!token) forbidden();
+  if (!token) redirect('/app');
 
   const page = Number.parseInt(asString(params.page) ?? '1', 10) || 1;
   const filters = {

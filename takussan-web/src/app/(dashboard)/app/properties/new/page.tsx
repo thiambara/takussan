@@ -1,20 +1,17 @@
 import type { Metadata } from 'next';
-import { forbidden } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
 
 export const metadata: Metadata = { title: 'Publier un bien' };
 import { fetchTagsAction } from '@/app/actions/admin-tags';
-import { isAdmin, isAgent, isOwner } from '@/lib/roles';
+import { assertCanReachAgentArea } from '@/lib/auth/guards';
 import { PropertyForm } from '@/components/property-form';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
   const user = await getMeAction();
-  if (!(isAgent(user.roles) || isAdmin(user.roles) || isOwner(user.roles))) {
-    forbidden();
-  }
+  assertCanReachAgentArea(user.roles);
 
   const tagsResult = await fetchTagsAction({ filters: { type: 'amenity' }, perPage: 200 });
   const tags = tagsResult.ok ? (tagsResult.data?.data ?? []) : [];

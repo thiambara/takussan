@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { forbidden, notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
 
@@ -12,7 +12,7 @@ import {
   fetchCustomerRelationships,
   fetchDashboardCustomer,
 } from '@/lib/queries/customers';
-import { isAdmin, isAgent, isOwner } from '@/lib/roles';
+import { assertCanReachAgentArea } from '@/lib/auth/guards';
 import { Badge } from '@/components/ui/badge';
 import { CustomerDetailTabs } from '@/components/customer-dashboard/CustomerDetailTabs';
 import { CustomerTagPickerSection } from '@/components/customer-dashboard/CustomerTagPickerSection';
@@ -38,13 +38,11 @@ interface CustomerWithIncludes {
 
 export default async function Page({ params }: { params: Params }) {
   const user = await getMeAction();
-  if (!(isAgent(user.roles) || isAdmin(user.roles) || isOwner(user.roles))) {
-    forbidden();
-  }
+  assertCanReachAgentArea(user.roles);
 
   const { id } = await params;
   const token = await getToken();
-  if (!token) forbidden();
+  if (!token) redirect('/app');
 
   const customerId = Number.parseInt(id, 10);
   if (!Number.isFinite(customerId)) notFound();
@@ -63,7 +61,7 @@ export default async function Page({ params }: { params: Params }) {
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) notFound();
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
-      forbidden();
+      redirect('/app');
     }
     throw e;
   }

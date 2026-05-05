@@ -1,7 +1,7 @@
 ---
 id: TCK-167
 title: Fix forbidden() — 6 pages dashboard plantent en 500 pour les rôles non autorisés
-status: todo
+status: done
 phase: P0
 family: bug
 estimate: S
@@ -63,4 +63,6 @@ Toutes appellent `forbidden()` (Next.js 16) sans que `experimental.authInterrupt
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- `src/lib/auth/guards.ts` — helper `assertCanReachAgentArea(roles)` créé, utilisable par toute page agent.
+- E2e test non ajouté : pas de setup Playwright dans le repo. Un ticket technique dédié serait nécessaire.
+- `/app/overview/super-admin` n'existe pas dans le codebase — rien à harmoniser.

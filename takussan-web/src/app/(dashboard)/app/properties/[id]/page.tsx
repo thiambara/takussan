@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { forbidden, notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
 
@@ -8,7 +8,7 @@ import { fetchTagsAction } from '@/app/actions/admin-tags';
 import { getToken } from '@/lib/session';
 import { fetchDashboardProperty } from '@/lib/queries/properties-server';
 import { ApiError } from '@/lib/api';
-import { isAdmin, isAgent, isOwner } from '@/lib/roles';
+import { assertCanReachAgentArea } from '@/lib/auth/guards';
 import { PropertyForm } from '@/components/property-form';
 import { PropertyMediaPanel } from '@/components/property-dashboard/PropertyMediaPanel';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
@@ -24,13 +24,11 @@ type Params = Promise<{ id: string }>;
 
 export default async function Page({ params }: { params: Params }) {
   const user = await getMeAction();
-  if (!(isAgent(user.roles) || isAdmin(user.roles) || isOwner(user.roles))) {
-    forbidden();
-  }
+  assertCanReachAgentArea(user.roles);
 
   const { id } = await params;
   const token = await getToken();
-  if (!token) forbidden();
+  if (!token) redirect('/app');
 
   let property;
   try {
@@ -38,7 +36,7 @@ export default async function Page({ params }: { params: Params }) {
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) notFound();
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
-      forbidden();
+      redirect('/app');
     }
     throw e;
   }

@@ -77,7 +77,7 @@ _(vide — TCK-146 en review)_
 
 > Smoke test browser exhaustif du parcours customer connecté (compte tenant, 2 baux + 4 réservations + 7 visites) suivant `docs/qa/locataire-acheteur-qa.md`. 48 anomalies recensées dans `docs/smoke-tests/locataire-acheteur-2026-05-05.md` (6 P0, 17 P1, 19 P2, 6 P3). 12 tickets de fix groupés par scope.
 
-- [TCK-167](tickets/TCK-167-fix-forbidden-server-pages-customer.md) — Fix `forbidden()` 6 pages dashboard plantent en 500 `S · P0 · bug`
+- [TCK-167](tickets/TCK-167-fix-forbidden-server-pages-customer.md) — Fix `forbidden()` 6 pages dashboard plantent en 500 `S · P0 · bug` **[done]**
 - [TCK-168](tickets/TCK-168-fix-base-ui-label-field-root-context.md) — Fix Base UI `<Label>` hors `<Field.Root>` (/app/payments + SaveSearchButton) `S · P0 · bug`
 - [TCK-169](tickets/TCK-169-login-email-case-insensitive.md) — Login — match email insensible à la casse `S · P1 · bug`
 - [TCK-170](tickets/TCK-170-visit-request-hydrate-authenticated-user.md) — Demande de visite — hydrater `visitor_*` depuis l'utilisateur connecté `S · P1 · bug`
