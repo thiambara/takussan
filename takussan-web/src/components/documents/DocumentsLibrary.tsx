@@ -286,6 +286,7 @@ function DocumentRow({ doc, locale, onShare, onDelete, deleting }: DocumentRowPr
           type="button"
           size="sm"
           variant="outline"
+          nativeButton={false}
           render={
             <Link href={`/app/documents/${doc.id}`}>
               <History className="mr-1 size-4" aria-hidden="true" />
@@ -298,6 +299,7 @@ function DocumentRow({ doc, locale, onShare, onDelete, deleting }: DocumentRowPr
             type="button"
             size="sm"
             variant="outline"
+            nativeButton={false}
             render={
               <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
                 <Download className="mr-1 size-4" aria-hidden="true" />

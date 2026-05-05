@@ -48,9 +48,9 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
       <header className="rounded-2xl bg-app-surface-1 p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-app-ink">
+            <p className="text-lg font-semibold text-app-ink">
               État des lieux #{inventory.id}
-            </h2>
+            </p>
             <p className="mt-1 text-xs text-app-ink-muted">
               Bail #{inventory.lease_id} · Bien #{inventory.property_id}
             </p>

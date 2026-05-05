@@ -1,7 +1,7 @@
 ---
 id: TCK-156
 title: "Fiche réservation — masquer le CTA review pour l'agent et afficher la date de création"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: S

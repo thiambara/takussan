@@ -1,12 +1,12 @@
 ---
 id: TCK-154
 title: "Dashboard — chaînes anglaises résiduelles & libellés bruts"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
 created: 2026-05-04
-updated: 2026-05-04
+updated: 2026-05-05
 depends_on: [TCK-117]
 blocks: []
 spec_refs:
@@ -39,17 +39,17 @@ Les libellés sont gérés via les fichiers de traduction `takussan-web/src/mess
 
 Pour chaque zone, ajouter / corriger les clés dans `messages/fr.json` (et `en.json`, `wo.json` si activé) et brancher les composants concernés :
 
-- [ ] **Maintenance** — `/app/maintenance` cards : niveaux de priorité affichés `Low` / `Normal` / `High` → `Faible` / `Normale` / `Élevée` (dropdown filtre déjà OK, mais cards rendent la valeur brute)
-- [ ] **Messagerie** — `/app/messages` :
+- [x] **Maintenance** — `/app/maintenance` cards : niveaux de priorité affichés `Low` / `Normal` / `High` → `Faible` / `Normale` / `Élevée` (dropdown filtre déjà OK, mais cards rendent la valeur brute)
+- [x] **Messagerie** — `/app/messages` :
   - bouton `New group` → `Nouveau groupe`
   - empty state `Select a conversation to view messages.` → `Sélectionnez une conversation pour voir les messages.`
-- [ ] **Profil** — `/app/profile` → bloc Sécurité :
+- [x] **Profil** — `/app/profile` → bloc Sécurité :
   - heading `Delete my account` → `Supprimer mon compte`
   - description `Deletion is irreversible after the grace period. Your personal data is anonymized and legal records are retained.` → équivalent FR
   - bouton `Delete my account` → `Supprimer mon compte`
-- [ ] **Profil** — `/app/profile` → carte profil agence : supprimer le rendu raw `active` à côté de `Profil actif` (probable double affichage de `profile.status` + `Profil actif`)
-- [ ] **Profil** — `/app/profile` → Sessions actives : remplacer le label brut `auth_token` par un libellé humain (parser User-Agent ou afficher `Session navigateur`)
-- [ ] **Recherches sauvegardées** — `/app/saved-searches` : formater le prix raw `1142038` via le helper de TCK-153 (lien transverse) et afficher `prix maximum` au lieu de `prix … – 1142038` (la borne basse vide doit être omise ou renommée `Pas de minimum`)
+- [x] **Profil** — `/app/profile` → carte profil agence : supprimer le rendu raw `active` à côté de `Profil actif` (probable double affichage de `profile.status` + `Profil actif`)
+- [x] **Profil** — `/app/profile` → Sessions actives : remplacer le label brut `auth_token` par un libellé humain (parser User-Agent ou afficher `Session navigateur`)
+- [x] **Recherches sauvegardées** — `/app/saved-searches` : formater le prix raw `1142038` via le helper de TCK-153 (lien transverse) et afficher `prix maximum` au lieu de `prix … – 1142038` (la borne basse vide doit être omise ou renommée `Pas de minimum`)
 - [ ] **Tests frontend** — Snapshot ou test ciblé sur chaque zone vérifiant l'absence des chaînes EN listées
 
 ## Critères d'acceptation

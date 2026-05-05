@@ -10,6 +10,7 @@ import {
 } from '@/lib/queries/saved-searches';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { formatCurrency } from '@/lib/format/currency';
 
 /**
  * Dashboard "Mes recherches sauvegardées" listing — Wave 3 / TCK-047.
@@ -52,9 +53,15 @@ function humaniseCriteria(criteria: Record<string, unknown>): string {
     parts.push(`${String(criteria.bedrooms)} ch.`);
   }
   if (criteria.price_min != null || criteria.price_max != null) {
-    parts.push(
-      `prix ${criteria.price_min ?? '…'} – ${criteria.price_max ?? '…'}`,
-    );
+    const min = criteria.price_min != null ? formatCurrency(Number(criteria.price_min)) : null;
+    const max = criteria.price_max != null ? formatCurrency(Number(criteria.price_max)) : null;
+    if (min && max) {
+      parts.push(`${min} – ${max}`);
+    } else if (max) {
+      parts.push(`Maximum ${max}`);
+    } else if (min) {
+      parts.push(`Minimum ${min}`);
+    }
   }
   if (criteria.area_min != null || criteria.area_max != null) {
     parts.push(

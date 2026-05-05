@@ -509,29 +509,31 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
         </section>
       )}
 
-      {/* ── Section 7 : Photos ── */}
-      <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
-        <header>
-          <h2 className="text-base font-semibold text-app-ink">Photos</h2>
+      {/* ── Section 7 : Photos (creation only — edit uses PropertyMediaPanel) ── */}
+      {mode === 'create' && (
+        <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
+          <header>
+            <h2 className="text-base font-semibold text-app-ink">Photos</h2>
+            <p className="text-xs text-app-ink-muted">
+              Glissez-déposez ou sélectionnez les photos (max {MAX_PHOTOS}).
+            </p>
+          </header>
+          <MediaDropzone
+            onChange={onPhotosChange}
+            files={pendingPhotos}
+            onRemove={removePhoto}
+            maxFiles={MAX_PHOTOS}
+          />
           <p className="text-xs text-app-ink-muted">
-            Glissez-déposez ou sélectionnez les photos (max {MAX_PHOTOS}).
+            {pendingPhotos.length} / {MAX_PHOTOS} photo{pendingPhotos.length !== 1 ? 's' : ''}
           </p>
-        </header>
-        <MediaDropzone
-          onChange={onPhotosChange}
-          files={pendingPhotos}
-          onRemove={removePhoto}
-          maxFiles={MAX_PHOTOS}
-        />
-        <p className="text-xs text-app-ink-muted">
-          {pendingPhotos.length} / {MAX_PHOTOS} photo{pendingPhotos.length !== 1 ? 's' : ''}
-        </p>
-        {photoError ? (
-          <p className="text-xs text-destructive" role="alert">
-            {photoError}
-          </p>
-        ) : null}
-      </section>
+          {photoError ? (
+            <p className="text-xs text-destructive" role="alert">
+              {photoError}
+            </p>
+          ) : null}
+        </section>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={isSubmitting || photoUploading} size="lg">

@@ -7,6 +7,8 @@ import { useBooking } from '@/lib/queries/bookings';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/context/AuthContext';
+import { isAgent, isAdmin, isOwner } from '@/lib/roles';
 import type { Locale } from '@/i18n/config';
 import type { BookingStatus } from '@/types/booking';
 import { BookingPaymentDialog } from './BookingPaymentDialog';
@@ -41,8 +43,10 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const locale = useLocale() as Locale;
   const [paymentOpen, setPaymentOpen] = useState(false);
   const { data, isLoading, isError } = useBooking(bookingId);
+  const { user } = useAuth();
   const agencyId = data?.data?.agency_id ?? null;
   const { providers } = usePaymentProviders(agencyId);
+  const isDashboardAgent = user ? isAgent(user.roles) || isAdmin(user.roles) || isOwner(user.roles) : false;
 
   if (isLoading) {
     return <div className="h-48 animate-pulse rounded-xl bg-app-surface-1" />;
@@ -99,7 +103,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           </dd>
 
           <dt className="mt-4 text-xs uppercase tracking-wide text-stone-500">Créée le</dt>
-          <dd className="mt-1 text-stone-900">{formatDateTime(booking.booking_date, locale)}</dd>
+          <dd className="mt-1 text-stone-900">{formatDateTime(booking.created_at ?? booking.booking_date, locale) || '—'}</dd>
 
           {booking.expiration_date && (
             <>
@@ -142,7 +146,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         </div>
       )}
 
-      {canBookingLeaveReview(booking) && booking.property?.slug && (
+      {!isDashboardAgent && canBookingLeaveReview(booking) && booking.property?.slug && (
         <LeaveReviewCta
           slug={booking.property.slug}
           context="Votre séjour est terminé."

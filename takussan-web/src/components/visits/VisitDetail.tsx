@@ -88,9 +88,9 @@ export function VisitDetail({ id }: { id: number }) {
 
       <div className="rounded-xl border border-stone-200 bg-white p-6 space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-lg font-semibold text-stone-900">
+          <h1 className="text-lg font-semibold text-stone-900">
             {visit.property?.title ?? `Visite #${visit.id}`}
-          </h2>
+          </h1>
           <Badge variant="outline">{STATUS_LABEL[status]}</Badge>
           <Badge variant="outline">{TYPE_LABEL[type]}</Badge>
         </div>
