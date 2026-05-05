@@ -1,12 +1,12 @@
 ---
 id: TCK-149
 title: "Fiche client dashboard — 400 sur include/fields Spatie"
-status: todo
+status: review
 phase: P1
 family: back
 estimate: S
 created: 2026-05-04
-updated: 2026-05-04
+updated: 2026-05-05
 depends_on: []
 blocks: []
 spec_refs:
@@ -41,12 +41,12 @@ Le frontend `fetchDashboardCustomer` (`takussan-web/src/lib/queries/customers.ts
 
 ## Delta à produire
 
-- [ ] **Backend** — Identifier le controller `show` qui sert `/api/customers/{id}` (probablement `App\Http\Controllers\Dashboard\CustomerController` ou similaire)
-- [ ] **Backend** — Whitelister sur la query builder : `AllowedInclude` pour `notes`, `documents`, `tags` ; `AllowedFields` cohérents avec les colonnes de `DASHBOARD_CUSTOMER_DETAIL_FIELDS` côté frontend
-- [ ] **Backend** — Vérifier que les relations `notes()`, `documents()`, `tags()` existent sur `App\Models\Customer` ; sinon créer les relations Eloquent manquantes (sans changement de schéma — les tables existent déjà via `customer_notes`, `customer_documents`, `customer_tags`)
-- [ ] **Tests backend** — Feature test `GET /api/customers/{id}?fields[customers]=...&include=notes,documents,tags` retourne 200 avec body cohérent pour un agent autorisé
-- [ ] **Tests backend** — Feature test 403 quand l'agent appartient à une autre agence
-- [ ] Linter Pint exécuté avant commit
+- [x] **Backend** — Identifier le controller `show` qui sert `/api/customers/{id}` (probablement `App\Http\Controllers\Dashboard\CustomerController` ou similaire)
+- [x] **Backend** — Whitelister sur la query builder : `AllowedInclude` pour `notes`, `documents`, `tags` ; `AllowedFields` cohérents avec les colonnes de `DASHBOARD_CUSTOMER_DETAIL_FIELDS` côté frontend
+- [x] **Backend** — Vérifier que les relations `notes()`, `documents()`, `tags()` existent sur `App\Models\Customer` ; sinon créer les relations Eloquent manquantes (sans changement de schéma — les tables existent déjà via `customer_notes`, `customer_documents`, `customer_tags`)
+- [x] **Tests backend** — Feature test `GET /api/customers/{id}?fields[customers]=...&include=notes,documents,tags` retourne 200 avec body cohérent pour un agent autorisé
+- [x] **Tests backend** — Feature test 403 quand l'agent appartient à une autre agence
+- [x] Linter Pint exécuté avant commit
 
 ## Critères d'acceptation
 
@@ -67,3 +67,10 @@ Le frontend `fetchDashboardCustomer` (`takussan-web/src/lib/queries/customers.ts
 - Stack trace UI : `Runtime Error — API error 400` à `src/lib/api.ts (115:11)` via `fetchDashboardCustomer` (`src/lib/queries/customers.ts:107`) → `(dashboard)/app/customers/[id]/page.tsx:54`.
 - Création de client (`POST /api/customers`) fonctionne et redirige vers `/app/customers/{newId}` — le crash survient uniquement sur le fetch détail.
 - Vérifier que la page `(dashboard)/app/customers/[id]/page.tsx` ne hardcode pas un `include` qui n'existe pas en backend (ex. include `notes` orthographié `customer_notes`).
+
+**Implémentation 2026-05-05 :**
+- **Root cause A** : `App\Models\Customer::$requestLoadable` ne contenait pas `'documents'` → spatie rejetait `include=documents` avec `InvalidIncludeQuery` (HTTP 400).
+- **Root cause B** : `$queryFields` n'incluait pas `id_type`, `id_number`, `emergency_contact_name`, `emergency_contact_phone`, `metadata` → spatie rejetait ces champs du `fields[customers]=...` avec `InvalidFieldQuery` (HTTP 400).
+- **Root cause C** : `DASHBOARD_CUSTOMER_DETAIL_FIELDS` (frontend) contenait `'birth_date'` — colonne inexistante en base → 400.
+- **Fixes** : (a) `$requestLoadable` += `'documents'` ; (b) `$queryFields` += champs manquants ; (c) retrait de `'birth_date'` du frontend ; (d) `CustomerResource` mis à jour avec les nouveaux champs (`emergency_contact_name`, `emergency_contact_phone`, `added_by_id`, `metadata`, `updated_at`) + relation `documents` via `whenLoaded`.
+- **Tests** : +2 tests (`test_agent_can_show_customer_with_sparse_fields_and_includes`, `test_agent_from_other_agency_gets_403_with_sparse_fields`). 9/9 CustomerTest ✅, Pint clean.

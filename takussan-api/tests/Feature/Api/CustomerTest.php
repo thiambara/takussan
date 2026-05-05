@@ -103,4 +103,31 @@ class CustomerTest extends TestCase
 
         $this->deleteJson("/api/customers/{$customer->id}")->assertForbidden();
     }
+
+    /** TCK-149 — sparse fieldsets + include relations should return 200. */
+    public function test_agent_can_show_customer_with_sparse_fields_and_includes(): void
+    {
+        $user = User::factory()->create();
+        $customer = Customer::factory()->create(['added_by_id' => $user->id]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/customers/'.$customer->id.'?fields[customers]=id,first_name,last_name,email,phone,status,pipeline_stage,occupation,created_at&include=notes,documents,tags')
+            ->assertOk()
+            ->assertJsonPath('data.id', $customer->id)
+            ->assertJsonPath('data.first_name', $customer->first_name);
+    }
+
+    /** TCK-149 — agent from different agency receives 403. */
+    public function test_agent_from_other_agency_gets_403_with_sparse_fields(): void
+    {
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+        $customer = Customer::factory()->create(['added_by_id' => $owner->id]);
+
+        Sanctum::actingAs($other);
+
+        $this->getJson('/api/customers/'.$customer->id.'?fields[customers]=id,first_name&include=notes,documents,tags')
+            ->assertForbidden();
+    }
 }
