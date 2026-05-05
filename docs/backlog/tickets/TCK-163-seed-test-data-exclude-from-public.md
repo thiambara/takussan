@@ -1,7 +1,7 @@
 ---
 id: TCK-163
 title: "Données seed — exclure les biens de test du flux public"
-status: todo
+status: review
 phase: P2
 family: technique
 estimate: S
@@ -62,4 +62,20 @@ _(N/A — ticket back/données)_
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Nouvelle colonne `properties.is_test` (boolean, default false), index
+  composite `(is_test, visibility)`. Migration backfille les fixtures
+  existantes par pattern de titre dans le `up()` — pas besoin de
+  resetter la base en dev.
+- `Property::scopePublic` filtre `is_test = false`. Ce scope est utilisé
+  par tous les controllers `Public/PublicPropertyController` (`index`,
+  `search`, `show`, `compare`, `byIds`, `map`, `similar`, `reviews`,
+  `report`, `visitRequest`, `bookingRequest`, `contactMessage`,
+  `contact`, `contactLead`). Le dashboard authentifié interroge
+  directement `/api/properties` sans ce scope → comportement opt-in.
+- `FilterCoverageSeeder` flagge ses fixtures `is_test = true` à la
+  création ; le bien `Propriété Premium Featured` à 999 999 999 dans
+  `EdgeCaseSeeder` est également flaggé.
+- Commande artisan `php artisan properties:flag-test [--pattern=…] [--dry]`
+  pour rejouer le backfill ou flagger des patterns custom.
+- Tests `PropertyIsTestExclusionTest` couvrent index/search/show + la
+  commande artisan. La suite Public complète passe (105/105).

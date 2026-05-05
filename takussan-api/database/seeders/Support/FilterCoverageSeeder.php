@@ -168,6 +168,7 @@ class FilterCoverageSeeder extends Seeder
             'contract_type' => $contractType->value,
             'status' => PropertyStatus::Available->value,
             'visibility' => PropertyVisibility::Public->value,
+            'is_test' => true,
             'price' => $price,
             'currency' => 'XOF',
             'area' => $attributes['area'] ?? 100,

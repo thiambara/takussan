@@ -37,7 +37,7 @@ class Property extends AbstractModel implements HasMedia
         'price', 'currency',
         'area', 'bedrooms', 'bathrooms', 'furnished',
         'floor_number', 'total_floors', 'year_built', 'parking_spaces',
-        'featured', 'lot_position', 'level', 'admin_monitored',
+        'featured', 'lot_position', 'level', 'admin_monitored', 'is_test',
         'available_from', 'published_at', 'archived_at', 'metadata',
         'rejection_reason', 'submitted_at', 'approved_at', 'rejected_at',
         'approved_by_user_id', 'rejected_by_user_id',
@@ -57,6 +57,7 @@ class Property extends AbstractModel implements HasMedia
         'featured' => 'boolean',
         'level' => 'integer',
         'admin_monitored' => 'boolean',
+        'is_test' => 'boolean',
         'available_from' => 'date',
         'published_at' => 'datetime',
         'archived_at' => 'datetime',
@@ -148,6 +149,7 @@ class Property extends AbstractModel implements HasMedia
     public function scopePublic(Builder $query): Builder
     {
         return $query->where('visibility', PropertyVisibility::Public)
+            ->where('is_test', false)
             ->whereNotNull('published_at')
             ->whereNotIn('status', [
                 PropertyStatus::Draft,
