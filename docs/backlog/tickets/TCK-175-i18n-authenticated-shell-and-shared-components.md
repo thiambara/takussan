@@ -1,7 +1,7 @@
 ---
 id: TCK-175
 title: i18n — layout authentifié et composants partagés (footer, recently viewed, modaux, profil)
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -71,4 +71,19 @@ Pas de re-design ; passage stricte des chaînes hardcoded à la couche i18n (sui
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Constat post-audit
+
+La majeure partie des chaînes listées dans le smoke test (`Where are you looking?`, `Recently viewed`, `Run search`, `Your trusted partner`, `New group`, `Select a conversation`, …) **ne sont pas hardcodées** : elles sont résolues via `next-intl` et n'apparaissent en anglais que parce que le navigateur de test envoyait `Accept-Language: en-…`. Les fichiers `messages/fr.json` contiennent déjà toutes les clés équivalentes. Le toggle `LanguageSwitcher` persiste correctement via cookie `NEXT_LOCALE` (et PATCH `/api/users/me` côté authentifié) — il bascule effectivement les libellés au prochain rendu.
+
+### Ce qui était réellement cassé
+
+`Too Many Attempts.` côté API : Laravel n'avait aucun fichier `lang/fr/auth.php`, le moteur retombait donc sur la chaîne par défaut FR-aware mais en EN. Trois fichiers ajoutés :
+- `takussan-api/lang/fr/auth.php` (failed / password / throttle)
+- `takussan-api/lang/en/auth.php` (parité, évite la dépendance au fallback Laravel core)
+- `takussan-api/lang/wo/auth.php` (stub Wolof)
+
+Le middleware `SetLocaleMiddleware` consomme déjà `Accept-Language` envoyé par `useApiQuery` / `apiRequest` ; il prend automatiquement la nouvelle locale.
+
+### Scope reporté
+
+Un audit i18n exhaustif des composants partagés (`<Footer>`, `<Navbar>` public, `<RecentlyViewedCarousel>`, `<DialogClose aria-label>`, `<DeleteAccountSection>`, `<MessagesPage emptyState>`) a été fait — toutes les chaînes auditées passent déjà par `useTranslations`. Si une régression réapparaît après une nouvelle feature, elle sera traitée à la pièce. **Pas de gros chantier i18n résiduel à porter dans ce ticket.**

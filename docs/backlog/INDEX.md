@@ -85,7 +85,7 @@ _(vide — TCK-146 en review)_
 - [TCK-172](tickets/TCK-172-payment-gateway-customer-side.md) — Paiement passerelle (Wave / OM / Stripe) — flow customer acompte/solde/loyer `L · P2 · applicatif` **[review]**
 - [TCK-173](tickets/TCK-173-customer-rbac-ui-leak-and-sidebar.md) — RBAC UI customer — masquer surfaces agent + compléter sidebar `M · P1 · front` **[done]**
 - [TCK-174](tickets/TCK-174-maintenance-new-property-selector.md) — Maintenance — sélecteur de bien sur `/app/maintenance/new` `S · P1 · front` **[done]**
-- [TCK-175](tickets/TCK-175-i18n-authenticated-shell-and-shared-components.md) — i18n — layout authentifié et composants partagés `M · P1 · front`
+- [TCK-175](tickets/TCK-175-i18n-authenticated-shell-and-shared-components.md) — i18n — layout authentifié et composants partagés `M · P1 · front` **[review]**
 - [TCK-176](tickets/TCK-176-offer-vs-booking-modal-by-contract-type.md) — Fiche bien — modale `Réserver` (location) vs `Faire une offre` (vente) `M · P1 · front`
 - [TCK-177](tickets/TCK-177-public-agent-and-agency-pages.md) — Pages publiques agents & agences + lien depuis fiche bien `L · P2 · front`
 - [TCK-178](tickets/TCK-178-dashboard-page-titles-metadata.md) — Dashboard — `<title>` figé sur "Tableau de bord" sur 7 pages `S · P2 · front`
