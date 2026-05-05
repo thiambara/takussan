@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -33,7 +32,9 @@ import type { PropertyDetail } from '@/types/property';
 import type { Tag } from '@/types/tag';
 
 import {
+  CONTRACT_TYPE_LABELS,
   CURRENCY_OPTIONS,
+  PROPERTY_TYPE_LABELS,
   RENT_PERIOD_OPTIONS,
 } from './options';
 import {
@@ -107,14 +108,13 @@ function toDefaults(property?: PropertyDetail): PropertyFormValues {
 
 export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
   const router = useRouter();
-  const tProp = useTranslations('property');
   const propertyTypeOptions = propertyTypeValues.map((v) => ({
     value: v,
-    label: tProp(`types.${v}`),
+    label: PROPERTY_TYPE_LABELS[v],
   }));
   const contractTypeOptions = contractTypeValues.map((v) => ({
     value: v,
-    label: tProp(`contractTypes.${v}`),
+    label: CONTRACT_TYPE_LABELS[v],
   }));
   const [pendingPhotos, setPendingPhotos] = useState<File[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);

@@ -77,7 +77,7 @@ _(vide — TCK-146 en review)_
 
 > Smoke test browser exhaustif sur le compte `agent1@dakarimmo.sn` (rôle Agent · Dakar Immo). 21 anomalies recensées dans `docs/smoke-tests/agent-smoke-test-2026-05-04.md` (2 P0 bloquants, 4 P1 dégradés, 12 P2 i18n/format, 3 P3 polish). 11 tickets de fix groupés par scope.
 
-- [TCK-148](tickets/TCK-148-publish-bien-enum-localisation-et-erreur-500.md) — Publication de bien : enums envoyés en EN, 500 sur création, alerte parasite à l'édition `M · P1 · applicatif`
+- [TCK-148](tickets/TCK-148-publish-bien-enum-localisation-et-erreur-500.md) — Publication de bien : enums envoyés en EN, 500 sur création, alerte parasite à l'édition `M · P1 · applicatif` **[review]**
 - [TCK-149](tickets/TCK-149-customer-detail-include-fields-spatie-400.md) — Fiche client dashboard — 400 sur include/fields Spatie `S · P1 · back`
 - [TCK-150](tickets/TCK-150-favorites-401-race-after-login.md) — Favoris — 401 immédiat après login (race condition token) `S · P1 · front`
 - [TCK-151](tickets/TCK-151-pagination-controls-listings-totaux.md) — Pagination listings — total tronqué (clients) et boutons absents (états des lieux) `S · P1 · front`

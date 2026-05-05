@@ -20,6 +20,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
 
@@ -91,24 +92,34 @@ class PropertyController extends Controller
             $data['agency_id'] = $request->user()->agency_id;
         }
 
-        $property = DB::transaction(function () use ($data, $request) {
-            $property = Property::create(array_merge($data, [
-                'user_id' => $request->user()->id,
-                'status' => $data['status'] ?? PropertyStatus::Draft->value,
-                'visibility' => $data['visibility'] ?? PropertyVisibility::Private->value,
-            ]));
+        try {
+            $property = DB::transaction(function () use ($data, $request) {
+                $property = Property::create(array_merge($data, [
+                    'user_id' => $request->user()->id,
+                    'status' => $data['status'] ?? PropertyStatus::Draft->value,
+                    'visibility' => $data['visibility'] ?? PropertyVisibility::Private->value,
+                ]));
 
-            if (! empty($data['address'])) {
-                $property->address()->create($data['address']);
-            }
+                if (! empty($data['address'])) {
+                    $property->address()->create($data['address']);
+                }
 
-            return $property;
-        });
+                return $property;
+            });
 
-        return $this->json(
-            ['data' => PropertyResource::make($property->load('address'))->toArray($request)],
-            201
-        );
+            return $this->json(
+                ['data' => PropertyResource::make($property->load('address'))->toArray($request)],
+                201
+            );
+        } catch (\Throwable $e) {
+            Log::error('[PropertyController::store] Failed to create property', [
+                'user_id' => $request->user()?->id,
+                'payload' => $request->all(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e;
+        }
     }
 
     public function show(Request $request, Property $property): JsonResponse
