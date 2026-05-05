@@ -3,14 +3,14 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useLocale } from 'next-intl';
-import { useBooking } from '@/lib/queries/bookings';
+import { useBooking, useCancelBooking } from '@/lib/queries/bookings';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { isAgent, isAdmin, isOwner } from '@/lib/roles';
 import type { Locale } from '@/i18n/config';
-import type { BookingStatus } from '@/types/booking';
+import type { Booking, BookingStatus } from '@/types/booking';
 import { BookingPaymentDialog } from './BookingPaymentDialog';
 import { PayOnlineButton } from '@/components/payments/PayOnlineButton';
 import { usePaymentProviders } from '@/hooks/usePaymentProviders';
@@ -46,7 +46,13 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const { user } = useAuth();
   const agencyId = data?.data?.agency_id ?? null;
   const { providers } = usePaymentProviders(agencyId);
+  const cancelBooking = useCancelBooking(bookingId);
   const isDashboardAgent = user ? isAgent(user.roles) || isAdmin(user.roles) || isOwner(user.roles) : false;
+
+  async function handleCancel() {
+    const reason = window.prompt('Motif d’annulation (facultatif)') ?? undefined;
+    await cancelBooking.mutateAsync({ reason });
+  }
 
   if (isLoading) {
     return <div className="h-48 animate-pulse rounded-xl bg-app-surface-1" />;
@@ -61,6 +67,11 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   }
 
   const booking = data.data;
+  const isCustomer =
+    !!user?.id && !!booking.customer && user.id === booking.customer.user_id;
+  const canCancel =
+    (isCustomer || isDashboardAgent) &&
+    (booking.status === 'pending' || booking.status === 'confirmed');
 
   return (
     <div className="space-y-6">
@@ -83,9 +94,21 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setPaymentOpen(true)}>
-            Enregistrer un paiement
-          </Button>
+          {isDashboardAgent && (
+            <Button variant="outline" onClick={() => setPaymentOpen(true)}>
+              Enregistrer un paiement
+            </Button>
+          )}
+          {canCancel && (
+            <Button
+              variant="ghost"
+              onClick={handleCancel}
+              disabled={cancelBooking.isPending}
+              className="text-red-600 hover:text-red-700"
+            >
+              Annuler la réservation
+            </Button>
+          )}
         </div>
       </div>
 
@@ -188,11 +211,54 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         )}
       </section>
 
+      <BookingTimeline booking={booking} locale={locale} />
+
       <BookingPaymentDialog
         bookingId={bookingId}
         open={paymentOpen}
         onOpenChange={setPaymentOpen}
       />
     </div>
+  );
+}
+
+type TimelineEvent = { label: string; at: string };
+
+function BookingTimeline({ booking, locale }: { booking: Booking; locale: Locale }) {
+  const events: TimelineEvent[] = [];
+  if (booking.created_at) events.push({ label: 'Créée', at: booking.created_at });
+  const confirmedAt = booking.confirmed_at ?? booking.confirmation_date;
+  if (confirmedAt) events.push({ label: 'Confirmée', at: confirmedAt });
+  if (booking.deposit_paid && booking.deposit_date) {
+    events.push({ label: 'Acompte payé', at: booking.deposit_date });
+  }
+  if (booking.completion_date) events.push({ label: 'Soldée', at: booking.completion_date });
+  const cancelledAt = booking.cancelled_at ?? booking.cancellation_date;
+  if (cancelledAt) events.push({ label: 'Annulée', at: cancelledAt });
+  if (booking.rejection_date) events.push({ label: 'Refusée', at: booking.rejection_date });
+  const expiredAt = booking.expired_at ?? booking.expires_at ?? booking.expiration_date;
+  if (expiredAt && booking.status === 'expired') {
+    events.push({ label: 'Expirée', at: expiredAt });
+  }
+
+  events.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+
+  if (events.length === 0) return null;
+
+  return (
+    <section className="rounded-xl border border-stone-200 bg-white p-5">
+      <h2 className="text-sm font-semibold text-stone-900">Historique</h2>
+      <ol className="mt-3 space-y-2 text-sm">
+        {events.map((e) => (
+          <li key={`${e.label}-${e.at}`} className="flex items-baseline gap-3">
+            <span className="size-1.5 shrink-0 rounded-full bg-stone-400" aria-hidden="true" />
+            <span className="text-stone-900 font-medium">{e.label}</span>
+            <span className="text-xs text-stone-500">
+              {formatDateTime(e.at, locale)}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }

@@ -22,19 +22,18 @@ const LIST_FIELDS: string[] = [
   'deposit_amount',
   'created_at',
   'property_id',
+  'customer_id',
+  'agency_id',
 ];
 
 const DETAIL_FIELDS: string[] = [
   ...LIST_FIELDS,
-  'booking_date',
-  'expiration_date',
-  'confirmation_date',
-  'rejection_date',
-  'cancellation_date',
-  'price_at_booking',
+  'confirmed_at',
+  'cancelled_at',
+  'expires_at',
+  'expired_at',
+  'cancellation_reason',
   'notes',
-  'reason_for_rejection',
-  'reason_for_cancellation',
 ];
 
 export type UseBookingsParams = {
@@ -74,8 +73,9 @@ export function useBooking(id: number | null | undefined) {
     fields: {
       bookings: DETAIL_FIELDS,
       properties: ['id', 'title', 'slug', 'price', 'currency', 'contract_type'],
+      customers: ['id', 'user_id'],
     },
-    include: ['property', 'booking_payments'],
+    include: ['property', 'booking_payments', 'customer'],
   };
 
   return useApiQuery<ApiResponse<Booking>>(
@@ -110,6 +110,18 @@ export type CreateBookingPaymentPayload = {
   transaction_id?: string;
   notes?: string;
 };
+
+export function useCancelBooking(bookingId: number) {
+  return useApiMutation<ApiResponse<Booking>, { reason?: string }>(
+    { path: `/api/bookings/${bookingId}/cancel`, method: 'POST' },
+    {
+      invalidate: [
+        ['bookings', 'detail', bookingId],
+        ['bookings', 'list'],
+      ],
+    },
+  );
+}
 
 export function useCreateBookingPayment(bookingId: number) {
   return useApiMutation<ApiResponse<BookingPayment>, CreateBookingPaymentPayload>(

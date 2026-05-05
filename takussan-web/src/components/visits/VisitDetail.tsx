@@ -61,7 +61,9 @@ export function VisitDetail({ id }: { id: number }) {
 
   const status = visit.status ?? 'scheduled';
   const type = visit.type ?? 'in_person';
-  const isVisitor = user?.id === visit.visitor_id;
+  const isVisitor =
+    (!!user?.id && user.id === visit.visitor_id) ||
+    (!!user?.id && !!visit.customer && user.id === visit.customer.user_id);
   const isAgent = user?.id === visit.agent_id;
   const feedbackLocked = !isFeedbackOpen(visit);
 

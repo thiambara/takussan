@@ -1,7 +1,7 @@
 ---
 id: TCK-171
 title: Visites & réservations customer — filtre par customer_id, onglets, annulation, timeline
-status: todo
+status: done
 phase: P1
 family: applicatif
 estimate: M
@@ -74,4 +74,8 @@ Endpoints / écrans impactés :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Backend index/show pour `PropertyVisit` et `Booking` ont été étendus avec `orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id))` côté scope/authorize. `customer.user_id` est maintenant exposé via `whenLoaded('customer')` sur `PropertyVisitResource`.
+- Frontend `/app/visits` : 4 onglets server-driven (`status=scheduled` + `scheduled_at_min` pour Demandées/Confirmées, `scheduled_at_max` pour Passées, `status=cancelled` pour Annulées). Compteurs récupérés via `meta.total` de chaque requête.
+- Frontend `/app/bookings` : 5 onglets server-driven via `filter[status]`.
+- `BookingDetail` ajoute une timeline lisant les colonnes canoniques (`confirmed_at`, `cancelled_at`, `expired_at`) et un CTA `Annuler la réservation` qui pointe vers `useCancelBooking` (POST `/api/bookings/{id}/cancel`). Le bouton est visible pour le customer (`customer.user_id === user.id`) ou un staff dashboard.
+- `VisitDetail.isVisitor` accepte désormais le match `visit.customer.user_id === user.id` pour que les visites historiques (où `visitor_id` est NULL mais `customer_id` est rempli) puissent être annulées par leur propriétaire.

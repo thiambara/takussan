@@ -45,6 +45,10 @@ class PropertyVisitResource extends JsonResource
                 'first_name' => $this->agent->first_name,
                 'last_name' => $this->agent->last_name,
             ] : null),
+            'customer' => $this->whenLoaded('customer', fn () => $this->customer ? [
+                'id' => $this->customer->id,
+                'user_id' => $this->customer->user_id,
+            ] : null),
             'created_at' => $this->created_at?->toISOString(),
         ];
     }

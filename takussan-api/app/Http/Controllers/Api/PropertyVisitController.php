@@ -32,7 +32,8 @@ class PropertyVisitController extends Controller
             $base->where(function ($q) use ($user) {
                 $q->where('visitor_id', $user->id)
                     ->orWhere('agent_id', $user->id)
-                    ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id));
+                    ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id))
+                    ->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
             });
         }
 
@@ -352,7 +353,8 @@ class PropertyVisitController extends Controller
             || $visit->visitor_id === $user->id
             || $visit->agent_id === $user->id
             || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
+            || ($user->agency_id && $property && $property->agency_id === $user->agency_id)
+            || ($visit->customer && $visit->customer->user_id === $user->id);
 
         abort_unless($ok, 403);
     }

@@ -110,8 +110,9 @@ export function useVisit(id: number | null | undefined) {
       property_visits: VISIT_DETAIL_FIELDS,
       properties: ['id', 'title', 'slug'],
       users: ['id', 'first_name', 'last_name', 'email'],
+      customers: ['id', 'user_id'],
     },
-    include: ['property', 'agent', 'visitor'],
+    include: ['property', 'agent', 'visitor', 'customer'],
   };
 
   return useApiQuery<ApiResponse<PropertyVisit>>(

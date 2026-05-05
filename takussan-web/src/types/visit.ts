@@ -45,6 +45,7 @@ export interface PropertyVisit {
   property?: { id: number; title?: string | null; slug?: string | null } | null;
   visitor?: { id: number; first_name?: string; last_name?: string; email?: string | null } | null;
   agent?: { id: number; first_name?: string; last_name?: string } | null;
+  customer?: { id: number; user_id?: number | null } | null;
   created_at?: string | null;
 }
 
