@@ -57,6 +57,12 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
     );
   }, [user]);
 
+  // TCK-173 — agent-only management CTAs (add document, generate schedule,
+  // record a manual payment, add a guarantor) must not surface to a tenant.
+  // The same role gate as refund_deposit is reused: anyone with a managing
+  // role can act, the tenant cannot.
+  const isAgentSurface = canRefundDeposit;
+
   // TCK-089 — same role gate as refund_deposit (server checks `leases.renew`).
   const canRenew = canRefundDeposit;
 
@@ -111,22 +117,34 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <AddDocumentButton
-            documentableType="lease"
-            documentableId={leaseId}
-            displayLabel={lease.reference_number || `Bail #${lease.id}`}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => generateSchedule.mutate({})}
-            disabled={generateSchedule.isPending}
-          >
-            {generateSchedule.isPending ? 'Génération…' : 'Générer l’échéancier'}
-          </Button>
-          <Button type="button" onClick={() => setPaymentOpen(true)}>
-            Enregistrer un paiement
-          </Button>
+          {isAgentSurface && (
+            <>
+              <AddDocumentButton
+                documentableType="lease"
+                documentableId={leaseId}
+                displayLabel={lease.reference_number || `Bail #${lease.id}`}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => generateSchedule.mutate({})}
+                disabled={generateSchedule.isPending}
+              >
+                {generateSchedule.isPending ? 'Génération…' : 'Générer l’échéancier'}
+              </Button>
+              <Button type="button" onClick={() => setPaymentOpen(true)}>
+                Enregistrer un paiement
+              </Button>
+            </>
+          )}
+          {!isAgentSurface && (
+            <Link
+              href={`/api/leases/${leaseId}/contract/pdf`}
+              className="inline-flex h-9 items-center justify-center rounded-md border border-stone-200 bg-white px-4 text-sm font-medium text-stone-900 hover:bg-stone-50"
+            >
+              Télécharger le contrat PDF
+            </Link>
+          )}
           {canRenew && (lease.status === 'active' || lease.status === 'expired') && (
             <Button
               type="button"
@@ -196,6 +214,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
         leaseId={leaseId}
         guarantor={lease.guarantor ?? null}
         guarantorsCount={lease.guarantor ? 1 : 0}
+        canManage={isAgentSurface}
       />
 
       {(lease.terms || lease.special_conditions) && (

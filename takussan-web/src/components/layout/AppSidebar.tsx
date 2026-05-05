@@ -70,9 +70,17 @@ function buildNavItems(user: User): NavItem[] {
   });
 
   if (isCustomer(roles)) {
+    // TCK-173 — full customer flow ordered by user journey:
+    // discovery (favorites/saved searches above) →
+    // requests (visits, bookings, maintenance) →
+    // engagements (leases, payments, inventories).
+    items.push({ href: '/app/visits', label: 'Mes visites', icon: CalendarClock });
     items.push({ href: '/app/bookings', label: 'Mes réservations', icon: CalendarCheck });
+    items.push({ href: '/app/maintenance', label: 'Maintenance', icon: Wrench });
     items.push({ href: '/app/leases', label: 'Mes baux', icon: FileText });
     items.push({ href: '/app/payments', label: 'Paiements', icon: CreditCard });
+    items.push({ href: '/app/inventories', label: 'États des lieux', icon: ClipboardList });
+    items.push({ href: '/app/profile/reviews', label: 'Mes avis', icon: BookmarkCheck });
   } else if (isOwner(roles)) {
     items.push({ href: '/app/bookings', label: 'Réservations', icon: CalendarCheck });
     items.push({ href: '/app/leases', label: 'Baux', icon: FileText });

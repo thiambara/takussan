@@ -1,7 +1,7 @@
 ---
 id: TCK-173
 title: RBAC UI customer — masquer surfaces agent + compléter la sidebar customer
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
@@ -73,4 +73,8 @@ Pas de re-design, pure mise à jour conditionnelle des composants existants. Les
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- `Navbar.tsx` (public top nav) : le bouton `Publier un bien` est désormais conditionné à `canPublishProperty = isAgent || isOwner || isAdmin`. Pour un visiteur anonyme on garde le CTA (qui redirige vers `/auth/login?redirect=/app`) — c'est cohérent avec le `t('publish')` déjà rendu.
+- `AppSidebar.tsx` : la branche `customer` liste désormais l'ordre métier complet (visites → réservations → maintenance → baux → paiements → EDL → avis). Les autres branches (owner / agent) restent inchangées.
+- `(dashboard)/app/leases/page.tsx` : bouton `Nouveau bail` masqué pour le rôle customer.
+- `LeaseDetail` : un nouveau gate `isAgentSurface` (équivalent au gate `canRefundDeposit`) cache `Ajouter un document`, `Générer l'échéancier`, `Enregistrer un paiement` côté tenant et les remplace par un lien `Télécharger le contrat PDF` (route existante `GET /api/leases/{lease}/contract/pdf`). Le bouton `Renouveler le bail` / `Résilier le bail` restait déjà gaté.
+- `GuarantorSection` reçoit un prop `canManage` (par défaut `true` pour la non-régression) qui cache le CTA `Ajouter un garant` — et toute la section si aucun garant n'est attaché — quand on est sur la surface tenant.
