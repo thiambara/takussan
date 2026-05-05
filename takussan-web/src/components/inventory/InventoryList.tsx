@@ -103,7 +103,8 @@ export function InventoryList() {
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-app-ink">
-                        État des lieux #{inv.id} · Bail #{inv.lease_id}
+                        {inv.property?.title ?? `État des lieux #${inv.id}`}
+                        {inv.lease?.reference_number ? ` · ${inv.lease.reference_number}` : ''}
                       </p>
                       <p className="mt-1 text-xs text-app-ink-muted">
                         {inv.conducted_at

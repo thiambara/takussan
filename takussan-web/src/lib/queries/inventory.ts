@@ -79,8 +79,15 @@ function toSpatieParams(
   if (params?.property_id) filter.property_id = params.property_id;
 
   return {
-    fields: { inventories: [...fields] },
+    fields: {
+      inventories: [...fields],
+      // TCK-182 — surface human-readable labels (property title, lease ref)
+      // so the customer UI doesn't render raw ids.
+      properties: ['id', 'title', 'slug'],
+      leases: ['id', 'reference_number'],
+    },
     filter: Object.keys(filter).length ? filter : undefined,
+    include: ['property', 'lease'],
     sort: params?.sort ?? defaultSort,
     page: params?.page,
     per_page: params?.per_page ?? 20,

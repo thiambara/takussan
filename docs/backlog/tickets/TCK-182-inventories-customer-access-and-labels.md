@@ -1,7 +1,7 @@
 ---
 id: TCK-182
 title: États des lieux — accès customer, libellés humains et téléchargement PDF
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
@@ -65,4 +65,17 @@ API à étendre / créer :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Constat
+- Le scope customer côté `InventoryController` était déjà câblé (`authorizeAccess` accepte `tenant.user_id === auth.id`). Pareil pour le listing : la query side filtre déjà sur `lease.tenant.user_id`.
+- L'endpoint `GET /api/inventories/{id}/pdf` existe (TCK-076 PDF) et reste autorisé par le même gate ; il refuse 403 si l'EDL n'est pas signé.
+- Lien sidebar « États des lieux » pour customer : couvert par TCK-173 dans la même vague.
+
+### Changements livrés
+- `InventoryResource` : exposition de `property` (`id`, `title`, `slug`) et `lease` (`id`, `reference_number`) via `whenLoaded`.
+- `useInventories()` / `useInventory()` : `include=property,lease` + `fields[properties]` / `fields[leases]` ajoutés au spatie query (cf. CLAUDE.md « Conventions frontend »).
+- `InventoryList` : libellé de la card devient `<titre du bien> · <reference_number>` au lieu de `État des lieux #112 · Bail #103`.
+- `InventoryDetail` : entête affiche le titre du bien, lien vers la fiche bien (`/properties/{slug}`) et la référence de bail (lien vers `/app/leases/{id}`). Le bouton `InventoryPdfButton` était déjà présent — reste tel quel pour les EDL signés.
+
+### Reporté
+- Format de date i18n complet sur la liste — couvert par TCK-153/TCK-175.
+- Tests Playwright e2e : à ajouter au moment de la stabilisation Playwright pour le parcours customer (pas en place pour le moment).

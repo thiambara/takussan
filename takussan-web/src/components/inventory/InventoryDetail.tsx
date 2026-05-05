@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useLocale } from 'next-intl';
 
 import { MediaDropzone } from '@/components/media';
@@ -49,10 +50,26 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-lg font-semibold text-app-ink">
-              État des lieux #{inventory.id}
+              {inventory.property?.title ?? `État des lieux #${inventory.id}`}
             </p>
             <p className="mt-1 text-xs text-app-ink-muted">
-              Bail #{inventory.lease_id} · Bien #{inventory.property_id}
+              {inventory.property?.slug ? (
+                <Link
+                  href={`/properties/${inventory.property.slug}`}
+                  className="hover:underline"
+                >
+                  Voir le bien
+                </Link>
+              ) : (
+                <>Bien #{inventory.property_id}</>
+              )}
+              {' · '}
+              <Link
+                href={`/app/leases/${inventory.lease_id}`}
+                className="hover:underline"
+              >
+                {inventory.lease?.reference_number ?? `Bail #${inventory.lease_id}`}
+              </Link>
             </p>
           </div>
           <div className="flex items-center gap-2">

@@ -28,6 +28,18 @@ class InventoryResource extends JsonResource
             'owner_signed_at' => $this->owner_signed_at?->toISOString(),
             'owner_signature_hash' => $this->owner_signature_hash,
             'signed_at' => $this->signed_at?->toISOString(),
+            // TCK-182 — surface human-readable labels when the related models
+            // are eager-loaded so the customer UI can render `<bien>` /
+            // `<bail.reference>` instead of raw ids.
+            'property' => $this->whenLoaded('property', fn () => $this->property ? [
+                'id' => $this->property->id,
+                'title' => $this->property->title,
+                'slug' => $this->property->slug,
+            ] : null),
+            'lease' => $this->whenLoaded('lease', fn () => $this->lease ? [
+                'id' => $this->lease->id,
+                'reference_number' => $this->lease->reference_number,
+            ] : null),
             'created_at' => $this->created_at?->toISOString(),
         ];
     }
