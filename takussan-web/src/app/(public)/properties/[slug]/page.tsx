@@ -4,6 +4,7 @@ import { useParams, notFound } from 'next/navigation';
 import { useProperty } from '@/hooks/useProperty';
 import { useFavorite } from '@/hooks/useFavorite';
 import { recentlyViewedStorage } from '@/lib/recently-viewed';
+import { formatAddressShort } from '@/lib/format/address';
 import { Navbar } from '@/components/home/Navbar';
 import { Footer } from '@/components/home/Footer';
 
@@ -114,7 +115,7 @@ function PropertyDetailContent({ property }: { property: NonNullable<ReturnType<
           <PropertyLocationMap
             latitude={property.location.latitude}
             longitude={property.location.longitude}
-            address={property.location.full}
+            address={formatAddressShort(property.location, { fallback: property.location.full })}
           />
           <PropertyPriceHistory history={property.price_history} />
           <PropertyDocuments documents={property.documents} />

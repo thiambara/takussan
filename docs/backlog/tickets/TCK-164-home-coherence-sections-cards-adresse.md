@@ -1,7 +1,7 @@
 ---
 id: TCK-164
 title: "Home publique — cohérence sections, cards et format adresse"
-status: todo
+status: review
 phase: P2
 family: front
 estimate: M
@@ -64,4 +64,20 @@ Aucune nouvelle API. Les sections appellent déjà :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Variantes par section : déjà conformes au design system TCK-129
+  (Standard / Listing / Cover / Compact). Aucune modif visuelle requise.
+- Déduplication inter-sections : nouveau helper `lib/dedupeBy.ts`
+  (`dedupeAcross`, `excludeSeen`) — pure function, dédup sur `id`,
+  ordre = ordre d'évaluation des rangées. Branché dans
+  `HomepageDiscovery` avec un sur-échantillonnage modéré (rent +20 %,
+  featured +20 %, latest +40 %) pour éviter qu'un retrait ne laisse une
+  rangée vide.
+- Adresse courte : nouveau `lib/format/address.ts#formatAddressShort`
+  qui produit `Quartier, Ville` et n'ajoute la région/le pays qu'en
+  opt-in (option `withRegion` filtre déjà la région == ville). Tests
+  dans `lib/__tests__/address.test.ts`.
+- `PropertyHeader` (banner fiche bien) et `PropertyLocationMap`
+  (section Emplacement) consomment maintenant le helper avec fallback
+  sur l'ancien `location.full` côté backend si tout part en vrille.
+- Cards listing/popover utilisaient déjà `[quarter, city]` — pas de
+  changement nécessaire (vérifié grep).

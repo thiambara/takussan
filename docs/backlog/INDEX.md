@@ -77,7 +77,6 @@ _(vide — TCK-146 en review)_
 
 > Smoke test browser exhaustif du parcours public (incognito, aucune session) suivant `docs/qa/visiteur-anonyme-qa.md`. 22 anomalies recensées dans `docs/smoke-tests/visiteur-anonyme-2026-05-05.md` (0 P0, 6 P1, 12 P2, 4 P3). 8 tickets de fix groupés par scope. **Note** : les bugs P1-1 et P2-10 (pages légales / footer enrichi) ne sont pas ticketés ici — la fonctionnalité n'existe pas dans `docs/features.md` et nécessite un ajout de spec préalable.
 
-- [TCK-164](tickets/TCK-164-home-coherence-sections-cards-adresse.md) — Home publique — cohérence sections, cards et format adresse `M · P2 · front`
 - [TCK-165](tickets/TCK-165-fiche-bien-cta-adapte-type-contrat.md) — Fiche bien — CTA adapté au type de contrat `S · P2 · front`
 - [TCK-166](tickets/TCK-166-public-polish-title-redirect-preload-tri.md) — Polish public — title dupliqué, redirect /super-admin, preload, libellés tri `S · P3 · front`
 
@@ -114,6 +113,7 @@ _(vide)_
 - [TCK-161](tickets/TCK-161-fiche-bien-formulaire-contact-public-anonyme.md) — Fiche bien — formulaire de contact public anonyme `M · P1 · front`
 - [TCK-162](tickets/TCK-162-vue-carte-marqueurs-prix.md) — Vue carte — marqueurs avec prix `S · P2 · front`
 - [TCK-163](tickets/TCK-163-seed-test-data-exclude-from-public.md) — Données seed — exclure les biens de test du flux public `S · P2 · technique`
+- [TCK-164](tickets/TCK-164-home-coherence-sections-cards-adresse.md) — Home publique — cohérence sections, cards et format adresse `M · P2 · front`
 
 ### Vague 15 — Câblage des zones UI stub
 
