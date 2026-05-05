@@ -2,7 +2,14 @@
 import { KeyRound, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/format/currency';
+import { getPrimaryCtaForProperty } from '@/lib/property-cta';
 import type { PropertyDetail } from '@/types/property';
+
+const SHORT_LABEL: Record<'offer' | 'reserve' | 'apply', string> = {
+  offer: 'Offre',
+  reserve: 'Réserver',
+  apply: 'Postuler',
+};
 
 interface PropertyMobileBottomBarProps {
   property: PropertyDetail;
@@ -22,6 +29,7 @@ export function PropertyMobileBottomBar({
 }: PropertyMobileBottomBarProps) {
   const isRent = property.contract_type === 'rent';
   const periodLabel = property.rent_period_label ?? (isRent ? 'mois' : null);
+  const primaryCta = getPrimaryCtaForProperty(property);
 
   return (
     <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-stone-200 bg-white/95 backdrop-blur px-4 py-3 flex items-center gap-3 safe-area-bottom">
@@ -38,7 +46,7 @@ export function PropertyMobileBottomBar({
         </Button>
         <Button type="button" size="sm" className="gap-1.5" onClick={onRequestBooking}>
           <KeyRound className="size-4" aria-hidden />
-          {isRent ? 'Réserver' : 'Offre'}
+          {SHORT_LABEL[primaryCta.action]}
         </Button>
       </div>
     </div>

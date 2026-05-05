@@ -1,7 +1,7 @@
 ---
 id: TCK-165
 title: "Fiche bien — CTA adapté au type de contrat (location longue / courte / vente)"
-status: todo
+status: review
 phase: P2
 family: front
 estimate: S
@@ -61,4 +61,17 @@ Le modèle `Property` expose déjà `contract_type` (sale / rent_short / rent_lo
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Helper `lib/property-cta.ts#getPrimaryCtaForProperty(property)` retourne
+  `{ label, action }` avec :
+  - `sale` → `Faire une offre` (`offer`)
+  - `rent` + `daily`/`weekly` → `Réserver` (`reserve`)
+  - `rent` + `monthly`/`yearly` (ou `null`) → `Postuler` (`apply`)
+  - default → `Réserver` (filet anti-régression).
+- Branché dans `PropertyBookingCard` (panneau latéral),
+  `PropertyMobileBottomBar` (bottom bar mobile) et
+  `PropertyReservationDialog` (titre + sous-titre + libellé bouton +
+  copy de la modale `Connexion requise`).
+- Tests unitaires `lib/__tests__/property-cta.test.ts` couvrent les 5
+  cas du tableau de décision.
+- Pas de modification de la modale "Connexion requise" autre que sa
+  copy (titre/description/CTA login restent dans `Dialog` standard).

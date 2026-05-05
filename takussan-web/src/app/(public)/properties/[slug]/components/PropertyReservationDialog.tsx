@@ -14,7 +14,32 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
 import { useBookingRequest } from '@/hooks/useBookingRequest';
 import { formatCurrency } from '@/lib/format/currency';
+import { getPrimaryCtaForProperty } from '@/lib/property-cta';
 import type { PropertyDetail } from '@/types/property';
+
+const COPY: Record<
+  'offer' | 'reserve' | 'apply',
+  { dialogTitle: string; loginTitle: string; loginBody: string; submit: string }
+> = {
+  offer: {
+    dialogTitle: 'Faire une offre',
+    loginTitle: 'Connectez-vous pour faire une offre',
+    loginBody: 'Vous devez être connecté pour soumettre une offre.',
+    submit: 'Envoyer l’offre',
+  },
+  reserve: {
+    dialogTitle: 'Réserver ce bien',
+    loginTitle: 'Connectez-vous pour réserver',
+    loginBody: 'Vous devez être connecté pour faire une demande de réservation.',
+    submit: 'Envoyer la demande',
+  },
+  apply: {
+    dialogTitle: 'Postuler à ce bien',
+    loginTitle: 'Connectez-vous pour postuler',
+    loginBody: 'Vous devez être connecté pour soumettre votre dossier de location.',
+    submit: 'Envoyer ma candidature',
+  },
+};
 
 interface PropertyReservationDialogProps {
   property: PropertyDetail;
@@ -51,6 +76,7 @@ export function PropertyReservationDialog({
 
   const isRent = property.contract_type === 'rent';
   const total = isRent && nights > 0 ? property.price * nights : property.price;
+  const copy = COPY[getPrimaryCtaForProperty(property).action];
 
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
@@ -73,10 +99,8 @@ export function PropertyReservationDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Connectez-vous pour réserver</DialogTitle>
-            <DialogDescription>
-              Vous devez être connecté pour faire une demande de réservation.
-            </DialogDescription>
+            <DialogTitle>{copy.loginTitle}</DialogTitle>
+            <DialogDescription>{copy.loginBody}</DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
@@ -98,7 +122,7 @@ export function PropertyReservationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isRent ? 'Réserver ce bien' : 'Faire une offre'}</DialogTitle>
+          <DialogTitle>{copy.dialogTitle}</DialogTitle>
           <DialogDescription>
             Précisez vos dates et le nombre d&apos;invités. Le propriétaire confirmera votre demande.
           </DialogDescription>
@@ -166,7 +190,7 @@ export function PropertyReservationDialog({
               Annuler
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting ? 'Envoi…' : 'Envoyer la demande'}
+              {submitting ? 'Envoi…' : copy.submit}
             </Button>
           </div>
         </form>
