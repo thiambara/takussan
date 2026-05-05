@@ -571,17 +571,58 @@ class PublicPropertyController extends Controller
             ->where('slug', $slug)
             ->firstOrFail();
 
-        $data = $request->validate([
-            'start_date' => ['required', 'date', 'after_or_equal:today'],
-            'end_date' => ['required', 'date', 'after:start_date'],
-            'guests' => ['required', 'integer', 'min:1', 'max:50'],
-            'message' => ['nullable', 'string', 'max:1000'],
-        ]);
+        // TCK-176 — for a sale property the booking is actually a *purchase
+        // offer*: collect `offer_amount` + `offer_expires_at` + `terms_accepted`
+        // instead of dates/guests; for a rent property keep the original
+        // booking-request payload.
+        $isSale = $property->contract_type?->value === 'sale';
+
+        $rules = $isSale
+            ? [
+                'offer_amount' => ['required', 'numeric', 'min:1'],
+                'offer_expires_at' => ['required', 'date', 'after:today'],
+                'terms_accepted' => ['required', 'accepted'],
+                'message' => ['nullable', 'string', 'max:1000'],
+            ]
+            : [
+                'start_date' => ['required', 'date', 'after_or_equal:today'],
+                'end_date' => ['required', 'date', 'after:start_date'],
+                'guests' => ['required', 'integer', 'min:1', 'max:50'],
+                'message' => ['nullable', 'string', 'max:1000'],
+            ];
+
+        $data = $request->validate($rules);
 
         $user = $request->user();
         abort_if($user === null, 401);
 
         $customer = $customers->findOrCreateFromUser($user);
+
+        if ($isSale) {
+            $booking = Booking::create([
+                'property_id' => $property->id,
+                'customer_id' => $customer->id,
+                'created_by_id' => $user->id,
+                'agency_id' => $property->agency_id,
+                'start_date' => null,
+                'end_date' => null,
+                'total_amount' => (float) $data['offer_amount'],
+                'currency' => $property->currency,
+                'status' => BookingStatus::Pending->value,
+                'expires_at' => $data['offer_expires_at'],
+                'notes' => $data['message'] ?? null,
+                'metadata' => [
+                    'kind' => 'offer',
+                    'offer_amount' => (float) $data['offer_amount'],
+                    'offer_expires_at' => $data['offer_expires_at'],
+                    'list_price_at_offer' => (float) $property->price,
+                ],
+            ]);
+
+            return $this->json([
+                'data' => BookingResource::make($booking)->toArray($request),
+            ], 201);
+        }
 
         $start = Carbon::parse($data['start_date']);
         $end = Carbon::parse($data['end_date']);

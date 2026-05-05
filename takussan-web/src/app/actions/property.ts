@@ -4,6 +4,7 @@ import { ApiError, apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import type {
   BookingRequestPayload,
+  OfferRequestPayload,
   ReportPayload,
   VisitRequestPayload,
 } from '@/types/visit';
@@ -59,6 +60,29 @@ export async function submitVisitRequest(
 export async function submitBookingRequest(
   slug: string,
   payload: BookingRequestPayload,
+): Promise<ActionResult> {
+  const token = await getToken();
+  if (!token) return { ok: false, status: 401, message: 'Authentification requise.' };
+  try {
+    await apiRequest(`/api/public/properties/${slug}/booking-request`, {
+      method: 'POST',
+      body: payload,
+      token,
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, ...errorFromApi(e) };
+  }
+}
+
+/**
+ * TCK-176 — purchase-offer submission. Same endpoint as
+ * `submitBookingRequest`, but with the offer payload (no dates / guests).
+ * Backend branches on `Property.contract_type === 'sale'`.
+ */
+export async function submitPurchaseOffer(
+  slug: string,
+  payload: OfferRequestPayload,
 ): Promise<ActionResult> {
   const token = await getToken();
   if (!token) return { ok: false, status: 401, message: 'Authentification requise.' };

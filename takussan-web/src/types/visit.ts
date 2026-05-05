@@ -62,6 +62,18 @@ export interface BookingRequestPayload {
   message?: string;
 }
 
+/**
+ * TCK-176 — purchase-offer payload for a `sale` property. Posts to the
+ * same endpoint (`/api/public/properties/{slug}/booking-request`) but
+ * never sends `start_date` / `end_date` / `guests`.
+ */
+export interface OfferRequestPayload {
+  offer_amount: number;
+  offer_expires_at: string;
+  terms_accepted: true;
+  message?: string;
+}
+
 export interface ReportPayload {
   reason: 'spam' | 'misleading' | 'fraud' | 'inappropriate_content' | 'other';
   details?: string;

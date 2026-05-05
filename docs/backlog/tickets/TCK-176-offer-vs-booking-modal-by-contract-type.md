@@ -1,7 +1,7 @@
 ---
 id: TCK-176
 title: Fiche bien — modale différenciée Réserver (location) vs Faire une offre (vente)
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
@@ -69,4 +69,9 @@ Spec attendue (TC-LOC-11) : pour une **vente**, le formulaire doit collecter `mo
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Endpoint `POST /api/public/properties/{slug}/booking-request` branche maintenant sur `Property.contract_type === 'sale'` :
+  - **Sale** : exige `offer_amount`, `offer_expires_at` (date future), `terms_accepted` ; rejette `start_date`/`end_date`/`guests`. Persiste `total_amount = offer_amount`, `start_date/end_date = NULL`, `expires_at = offer_expires_at`, `metadata.kind = 'offer'`, `metadata.list_price_at_offer` (audit).
+  - **Rent** : payload existant inchangé (start/end/guests).
+- `PropertyReservationDialog` rendu en deux sous-formulaires (`OfferForm` / `ReservationForm`) selon `getPrimaryCtaForProperty(property).action`. La modale offer affiche un seul champ « Montant proposé », un sub-text rappelant le prix d'affichage, un champ « Validité de l'offre » (min: J+1) et une checkbox CGU obligatoire pointant vers `/legal/cgu` (placeholder).
+- Action serveur `submitPurchaseOffer(slug, payload)` ajoutée à `app/actions/property.ts` ; partage la même endpoint que `submitBookingRequest` mais avec le type `OfferRequestPayload`.
+- Tests feature ajoutés : `test_sale_property_creates_offer_booking` (201 + assertion DB sur `total_amount = offer_amount`, dates NULL) et `test_sale_property_rejects_legacy_booking_payload` (422). Les tests existants ont été mis à jour pour fixer explicitement `contract_type` (la factory faisait un random qui rendait l'ancien test contract-agnostic).
