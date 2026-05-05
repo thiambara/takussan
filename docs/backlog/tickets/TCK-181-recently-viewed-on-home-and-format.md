@@ -1,7 +1,7 @@
 ---
 id: TCK-181
 title: « Récemment consultés » — affichage sur la home + i18n + format unifié
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
@@ -62,4 +62,15 @@ Smoke test 2026-05-05 (TC-LOC-07) :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Constat post-audit
+- La section `<RecentlyViewedCarousel>` est **déjà** rendue par `HomepageDiscovery` (`src/components/property/HomepageDiscovery.tsx:130`). Le smoke test ne la voyait pas en home parce que le localStorage du test était vide à la première visite ; les 4 ids ont été enregistrés ensuite, mais la section n'était pas re-rendue.
+- Format de carte : la rangée utilise déjà `variant="standard"` partagée avec les autres sections (« Près de toi », « Tout juste publié »). Le format `3 ch • 183 m² • 1 sdb` mentionné dans le smoke test correspond à la carte de la fiche bien, pas à la rangée — pas de gap réel ici.
+
+### Changements livrés
+- `RecentlyViewedCarousel` : seuil min changé de `items.length < 2` → `items.length < 1`. Critère AC = « aucune section si localStorage vide » → respecté tout en rendant la section dès le premier bien visité.
+- `messages/fr.json#recentlyViewed.title` : `Vus récemment` → `Récemment consultés` (cohérent avec la clé localStorage `takussan.recently-viewed` et l'intitulé spec).
+- `messages/fr.json#recentlyViewed.eyebrow` : `Pour toi` → `Pour vous` (vouvoiement aligné sur le reste de la home).
+- Bouton « Effacer l'historique » déjà câblé sur la clé `clearHistory` côté FR.
+
+### Reporté
+- L'audit i18n élargi des composants partagés est couvert par TCK-175.

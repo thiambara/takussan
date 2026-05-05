@@ -577,8 +577,8 @@
     }
   },
   "recentlyViewed": {
-    "eyebrow": "Pour toi",
-    "title": "Vus récemment",
+    "eyebrow": "Pour vous",
+    "title": "Récemment consultés",
     "clearHistory": "Effacer l'historique",
     "confirmTitle": "Effacer l'historique ?",
     "confirmBody": "Vos biens consultés seront supprimés de votre navigateur. Cette action est irréversible.",
