@@ -7,3 +7,8 @@ Thumbs.db
 .vscode/
 *.code-workspace
 .worktrees/
+
+# Stray dependency / tool caches that some commands accidentally create
+# at the repo root instead of inside their workspace
+node_modules/
+.vite/
