@@ -1,7 +1,7 @@
 ---
 id: TCK-162
 title: "Vue carte — marqueurs avec prix"
-status: todo
+status: review
 phase: P2
 family: front
 estimate: S
@@ -57,4 +57,16 @@ L'API `/api/public/properties/search` renvoie déjà `price` et `coordinates` po
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Nouveau helper `formatPriceShort(value, locale)` dans
+  `lib/format/currency.ts` — abrège en `K`/`M`/`Md` (FR) ou `B` (EN).
+  Tests dans `format-currency.test.ts`.
+- `PropertyMap.tsx` utilise un `L.divIcon` (`takussan-price-marker`)
+  avec un `<button>` HTML accessible (aria-label = prix complet,
+  title = prix complet). HTML échappé pour éviter toute injection si
+  une devise inhabituelle est ajoutée plus tard.
+- Styles dans `app/globals.css` (palette terre cuite Ancrage Local) :
+  pastille blanche-bordée + ombre, hover = scale + ombre renforcée.
+- **Pas de clustering** : le ticket le marque optionnel, et
+  `leaflet.markercluster` n'est pas dans le bundle ; à ouvrir dans un
+  ticket dédié si l'usage révèle une dégradation au-delà de ~150
+  marqueurs visibles simultanément.

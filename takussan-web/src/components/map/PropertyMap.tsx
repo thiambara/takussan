@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/utils';
+import { formatPriceShort } from '@/lib/format/currency';
 import {
   usePropertyMapQuery,
   type MapBounds,
@@ -32,25 +33,47 @@ import {
  * only loaded when the user toggles the map view on the `/properties` page.
  */
 
-// Icon fallback: Leaflet's default icon can't locate its assets under Next's
-// bundler, so we define lightweight pin icons inline using the bundled
-// `leaflet/dist/images/*` via the Next.js public loader. To keep things
-// portable and SSR-safe, we rely on inline SVG Data URIs instead.
-const PIN_SVG = encodeURIComponent(
-  `<?xml version="1.0" encoding="UTF-8"?>
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 48" width="32" height="48">
-    <path d="M16 0C7.2 0 0 7.2 0 16c0 12 16 32 16 32s16-20 16-32C32 7.2 24.8 0 16 0z" fill="#0c4a6e"/>
-    <circle cx="16" cy="16" r="6" fill="#ffffff"/>
-  </svg>`,
-);
-
-const createPin = () =>
-  L.icon({
-    iconUrl: `data:image/svg+xml;charset=UTF-8,${PIN_SVG}`,
-    iconSize: [28, 42],
-    iconAnchor: [14, 42],
-    popupAnchor: [0, -40],
+/**
+ * TCK-162 — price-pill marker. We escape the formatted text once at icon
+ * build time so the resulting `divIcon` HTML is safe even if a future
+ * locale ever returns characters with semantic meaning in HTML.
+ */
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (ch) => {
+    switch (ch) {
+      case '&':
+        return '&amp;';
+      case '<':
+        return '&lt;';
+      case '>':
+        return '&gt;';
+      case '"':
+        return '&quot;';
+      default:
+        return '&#39;';
+    }
   });
+}
+
+function createPriceIcon(price: number, currency: string, fullLabel: string): L.DivIcon {
+  const short = formatPriceShort(price);
+  const safeShort = escapeHtml(short);
+  const safeFull = escapeHtml(fullLabel);
+  const safeCurrency = escapeHtml(currency);
+  return L.divIcon({
+    className: 'takussan-price-marker',
+    html: `<button
+      type="button"
+      class="takussan-price-marker__pill"
+      aria-label="${safeFull}"
+      title="${safeFull}"
+      data-currency="${safeCurrency}"
+    ><span aria-hidden="true">${safeShort}</span></button>`,
+    iconSize: [60, 28],
+    iconAnchor: [30, 28],
+    popupAnchor: [0, -26],
+  });
+}
 
 // Default viewport — Dakar, Senegal.
 const DEFAULT_CENTER: [number, number] = [14.6928, -17.4467];
@@ -122,7 +145,6 @@ export function PropertyMap({
   const t = useTranslations('map');
   const [bounds, setBounds] = useState<MapBounds | null>(null);
   const query = usePropertyMapQuery(bounds, filters);
-  const pinIcon = useMemo(() => createPin(), []);
   const markerAlt = t('markerAlt');
 
   const features = query.data?.features ?? [];
@@ -144,25 +166,30 @@ export function PropertyMap({
           <ZoomControl zoomInTitle={t('zoomIn')} zoomOutTitle={t('zoomOut')} />
           <BoundsWatcher onChange={setBounds} />
           <FitToFeatures features={features} />
-          {features.map((feature) => (
-            <Marker
-              key={feature.properties.id}
-              position={[
-                feature.geometry.coordinates[1],
-                feature.geometry.coordinates[0],
-              ]}
-              icon={pinIcon}
-              alt={markerAlt}
-              title={markerAlt}
-              eventHandlers={{
-                click: () => onMarkerClick?.(feature),
-              }}
-            >
-              <Popup>
-                <MapPopupCard feature={feature} />
-              </Popup>
-            </Marker>
-          ))}
+          {features.map((feature) => {
+            const p = feature.properties;
+            const currency = p.currency ?? 'XOF';
+            const fullPrice = formatPrice(p.price, currency);
+            return (
+              <Marker
+                key={p.id}
+                position={[
+                  feature.geometry.coordinates[1],
+                  feature.geometry.coordinates[0],
+                ]}
+                icon={createPriceIcon(p.price, currency, fullPrice)}
+                alt={`${markerAlt} — ${fullPrice}`}
+                title={fullPrice}
+                eventHandlers={{
+                  click: () => onMarkerClick?.(feature),
+                }}
+              >
+                <Popup>
+                  <MapPopupCard feature={feature} />
+                </Popup>
+              </Marker>
+            );
+          })}
         </MapContainer>
       </div>
 

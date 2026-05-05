@@ -219,3 +219,39 @@
     @apply font-sans;
   }
 }
+
+/* TCK-162 — Leaflet price-pill markers. Strip the default white square
+   chrome from `.leaflet-div-icon` so only the pill renders. */
+.leaflet-div-icon.takussan-price-marker {
+  background: transparent;
+  border: 0;
+}
+
+.takussan-price-marker__pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #c87a52;
+  color: #fcf9f3;
+  font: 600 12px/1.1 var(--font-sans, system-ui, sans-serif);
+  letter-spacing: 0.01em;
+  border: 1.5px solid #fcf9f3;
+  box-shadow: 0 2px 6px rgba(31, 24, 18, 0.18);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease;
+}
+
+.takussan-price-marker__pill:hover,
+.takussan-price-marker__pill:focus-visible {
+  transform: translateY(-1px) scale(1.06);
+  background: #b66c43;
+  box-shadow: 0 4px 12px rgba(31, 24, 18, 0.28);
+  outline: none;
+}

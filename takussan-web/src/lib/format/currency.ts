@@ -106,6 +106,48 @@ export function currencySymbol(currency: CurrencyCode | string): string {
 }
 
 /**
+ * Compact price formatter for tight surfaces (map markers, badges).
+ * Drops the currency symbol and abbreviates large amounts so they
+ * stay readable at marker scale.
+ *
+ *   850       → "850"
+ *   12_000    → "12 K"
+ *   850_000   → "850 K"
+ *   1_200_000 → "1,2 M"
+ *   1_200_000_000 → "1,2 Md"
+ *
+ * Locale rules: French uses a comma as decimal mark, space as thousands
+ * separator. The symbol/suffix is rendered in the active locale (FR by
+ * default; EN/WO callers can pass `en-US`).
+ */
+export function formatPriceShort(
+  amount: number | null | undefined,
+  locale = 'fr-SN',
+): string {
+  if (amount === null || amount === undefined || Number.isNaN(amount)) return '';
+  const abs = Math.abs(amount);
+  const isFr = locale.startsWith('fr');
+  const suffixes = isFr
+    ? { B: 'Md', M: 'M', K: 'K' }
+    : { B: 'B', M: 'M', K: 'K' };
+
+  if (abs >= 1_000_000_000) return `${formatShort(amount / 1_000_000_000, locale)} ${suffixes.B}`;
+  if (abs >= 1_000_000) return `${formatShort(amount / 1_000_000, locale)} ${suffixes.M}`;
+  if (abs >= 1_000) return `${formatShort(amount / 1_000, locale)} ${suffixes.K}`;
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(amount);
+}
+
+function formatShort(value: number, locale: string): string {
+  // Show one decimal only when the rounded integer would lose info — keeps
+  // "120 K" (not "120,0 K") while still rendering "1,2 M".
+  const fractionDigits = Math.abs(value) >= 100 || Number.isInteger(value) ? 0 : 1;
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(value);
+}
+
+/**
  * Locale used to format a given currency, exposed so callers (e.g. a `<Money>`
  * preview) can build their own `Intl.NumberFormat` if needed.
  */
