@@ -34,6 +34,54 @@
       "current": "Langue actuelle : {locale}"
     }
   },
+  "nav": {
+    "publish": "Publier",
+    "publishListing": "Publier une annonce",
+    "login": "Connexion",
+    "logout": "Déconnexion",
+    "myProfile": "Mon profil",
+    "userMenu": "Menu utilisateur",
+    "openMenu": "Ouvrir le menu",
+    "closeMenu": "Fermer le menu",
+    "searchPlaceholder": "Où cherchez-vous ?",
+    "transactionPlaceholder": "Acheter / Louer",
+    "buy": "Acheter",
+    "rent": "Louer",
+    "search": "Rechercher",
+    "searchAria": "Lancer la recherche",
+    "moreTypes": "Plus de types",
+    "more": "Plus",
+    "propertiesCount": "{count} biens"
+  },
+  "footer": {
+    "tagline": "Votre partenaire de confiance pour trouver le bien immobilier idéal au Sénégal.",
+    "newsletterPlaceholder": "Votre email",
+    "newsletterSubmit": "S'inscrire",
+    "discoverHeading": "Découvrir",
+    "copyright": "© {year} Takussan. Tous droits réservés."
+  },
+  "meta": {
+    "home": {
+      "title": "Takussan — Immobilier au Sénégal",
+      "description": "Louez, achetez, vendez en toute confiance. Des milliers de biens au Sénégal vous attendent."
+    },
+    "properties": {
+      "title": "Rechercher des biens — Takussan",
+      "description": "Trouvez des appartements, villas, terrains, bureaux et bien plus au Sénégal. Filtrez par prix, type, localisation et surface, visualisez les biens sur une carte interactive."
+    },
+    "compare": {
+      "title": "Comparer des biens — Takussan",
+      "description": "Comparez jusqu'à 4 biens côte à côte : prix, surface, pièces, amenités et localisation."
+    },
+    "favorites": {
+      "title": "Mes favoris — Takussan",
+      "description": "Retrouvez tous les biens que vous avez sauvegardés. Synchronisés sur cet appareil même sans compte."
+    },
+    "propertyMissing": {
+      "title": "Bien introuvable · Takussan",
+      "description": "Ce bien n'est plus disponible sur Takussan."
+    }
+  },
   "auth": {
     "login": {
       "title": "Connexion",

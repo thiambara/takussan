@@ -1,7 +1,7 @@
 ---
 id: TCK-159
 title: "Sélecteur de langue public — câblage i18n FR/EN/WO"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -64,4 +64,18 @@ Aucune nouvelle API. Middleware Next.js doit propager la locale courante via coo
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+L'infra `next-intl` était déjà posée (cookie `NEXT_LOCALE`, `setLocaleAction`,
+`request.ts` avec parse Accept-Language + fallback FR via `mergeMessages`,
+`LanguageSwitcher` avec `aria-current`). Le travail s'est limité à amorcer
+les namespaces publics manquants et à brancher les composants encore en dur.
+
+- Ajout des namespaces `nav`, `footer`, `meta` dans les 3 catalogues + ajout
+  de `homepage` dans `en.json` / `wo.json` (existait seulement en FR).
+- `Navbar.tsx` et `Footer.tsx` consomment `useTranslations('nav' | 'footer')`.
+  Catégories restent en FR (`mockData`) — exhaustive copy déléguée à TCK-160.
+- `(public)/layout.tsx`, `properties/page.tsx`, `compare/page.tsx`,
+  `favorites/page.tsx`, `properties/[slug]/layout.tsx` migrés à
+  `generateMetadata` + `getTranslations` (titre + description par locale).
+- Smoke spec : `src/i18n/__tests__/messages.test.ts` vérifie que les clés
+  publiques existent dans FR/EN et que `nav` + `footer` divergent (preuve
+  d'effet de la bascule). WO peut omettre des clés (fallback FR au runtime).

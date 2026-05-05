@@ -1,11 +1,15 @@
+import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import { getTranslations } from 'next-intl/server';
 import { PropertiesDiscoveryPage } from '@/components/property/PropertiesDiscoveryPage';
 
-export const metadata = {
-  title: 'Rechercher des biens – Takussan',
-  description:
-    'Trouvez des appartements, villas, terrains, bureaux et bien plus au Sénégal. Filtrez par prix, type, localisation et surface, visualisez les biens sur une carte interactive.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta.properties');
+  return {
+    title: t('title'),
+    description: t('description'),
+  };
+}
 
 /**
  * Wave 3 — `/properties` discovery surface. Embeds the shared filter rail,

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 
 import { CompareProvider } from '@/context/CompareContext';
 import { CompareFloatingBar } from '@/components/compare/CompareFloatingBar';
@@ -21,13 +22,17 @@ import { ToastProvider, Toaster } from '@/components/ui/toast';
  *
  * SEO: indexable by default; individual pages override `metadata` as needed.
  */
-export const metadata: Metadata = {
-  title: {
-    template: '%s — Takussan',
-    default: 'Takussan — Immobilier au Sénégal',
-  },
-  robots: { index: true, follow: true },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta.home');
+  return {
+    title: {
+      template: '%s — Takussan',
+      default: t('title'),
+    },
+    description: t('description'),
+    robots: { index: true, follow: true },
+  };
+}
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (

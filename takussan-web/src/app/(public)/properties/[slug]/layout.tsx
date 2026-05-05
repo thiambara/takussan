@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { apiFetch } from '@/lib/api';
 import type { PropertyDetail } from '@/types/property';
 
@@ -35,9 +36,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const property = await getProperty(slug);
 
   if (!property) {
+    const t = await getTranslations('meta.propertyMissing');
     return {
-      title: 'Bien introuvable · Takussan',
-      description: "Ce bien n'est plus disponible sur Takussan.",
+      title: t('title'),
+      description: t('description'),
     };
   }
 

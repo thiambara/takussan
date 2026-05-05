@@ -1,13 +1,16 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import { getTranslations } from 'next-intl/server';
 import { CompareClient } from '@/components/compare/CompareClient';
 
-export const metadata: Metadata = {
-  title: 'Comparer des biens — Takussan',
-  description:
-    'Comparez jusqu’à 4 biens côte à côte : prix, surface, pièces, amenités et localisation.',
-  robots: { index: false, follow: true },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta.compare');
+  return {
+    title: t('title'),
+    description: t('description'),
+    robots: { index: false, follow: true },
+  };
+}
 
 /**
  * TCK-082 — `/compare` page. Server component entry; the actual comparison

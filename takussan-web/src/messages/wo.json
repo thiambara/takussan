@@ -26,6 +26,40 @@
       "label": "Làkk"
     }
   },
+  "nav": {
+    "publish": "Yebbi",
+    "publishListing": "Yebbi kër",
+    "login": "Dugg",
+    "logout": "Génn",
+    "myProfile": "Sama profil",
+    "search": "Seet",
+    "buy": "Jënd",
+    "rent": "Luwaa"
+  },
+  "footer": {
+    "tagline": "Sa nawle bu wér ngir gis kër bi nga bëgg ci Senegaal."
+  },
+  "homepage": {
+    "row": {
+      "viewAll": "Gis lépp",
+      "near": {
+        "eyebrow": "Ci sa wet",
+        "title": "Gis Dakar"
+      },
+      "rent": {
+        "eyebrow": "Luwaa",
+        "title": "Sa kër bu yees"
+      },
+      "featured": {
+        "eyebrow": "Tànneef",
+        "title": "Tànneef bu ayu-bés"
+      },
+      "latest": {
+        "eyebrow": "Bees",
+        "title": "Yees yebbi"
+      }
+    }
+  },
   "auth": {
     "login": {
       "title": "Dugg",

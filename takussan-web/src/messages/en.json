@@ -34,6 +34,75 @@
       "current": "Current language: {locale}"
     }
   },
+  "nav": {
+    "publish": "List a property",
+    "publishListing": "List a property",
+    "login": "Sign in",
+    "logout": "Sign out",
+    "myProfile": "My profile",
+    "userMenu": "User menu",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "searchPlaceholder": "Where are you looking?",
+    "transactionPlaceholder": "Buy / Rent",
+    "buy": "Buy",
+    "rent": "Rent",
+    "search": "Search",
+    "searchAria": "Run search",
+    "moreTypes": "More types",
+    "more": "More",
+    "propertiesCount": "{count} listings"
+  },
+  "footer": {
+    "tagline": "Your trusted partner to find the perfect property in Senegal.",
+    "newsletterPlaceholder": "Your email",
+    "newsletterSubmit": "Subscribe",
+    "discoverHeading": "Discover",
+    "copyright": "© {year} Takussan. All rights reserved."
+  },
+  "meta": {
+    "home": {
+      "title": "Takussan — Real estate in Senegal",
+      "description": "Rent, buy or sell with confidence. Thousands of properties across Senegal are waiting for you."
+    },
+    "properties": {
+      "title": "Search properties — Takussan",
+      "description": "Find apartments, villas, land, offices and more in Senegal. Filter by price, type, location and surface, visualize listings on an interactive map."
+    },
+    "compare": {
+      "title": "Compare properties — Takussan",
+      "description": "Compare up to 4 properties side by side: price, surface, rooms, amenities and location."
+    },
+    "favorites": {
+      "title": "My favorites — Takussan",
+      "description": "Find all the properties you've saved. Synced on this device, even without an account."
+    },
+    "propertyMissing": {
+      "title": "Property not found · Takussan",
+      "description": "This property is no longer available on Takussan."
+    }
+  },
+  "homepage": {
+    "row": {
+      "viewAll": "View all",
+      "near": {
+        "eyebrow": "Near you",
+        "title": "Discover Dakar"
+      },
+      "rent": {
+        "eyebrow": "For rent",
+        "title": "For your next home"
+      },
+      "featured": {
+        "eyebrow": "Editor's pick",
+        "title": "This week's selection"
+      },
+      "latest": {
+        "eyebrow": "New",
+        "title": "Just listed"
+      }
+    }
+  },
   "auth": {
     "login": {
       "title": "Log in",
