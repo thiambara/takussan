@@ -42,6 +42,8 @@ export interface PropertyListItem {
 export interface PropertyOwnerLite {
   id: number;
   name: string;
+  /** TCK-177 — links the contact card to /agents/[slug] when populated. */
+  slug?: string | null;
   avatar_url: string | null;
   is_agent: boolean;
   member_since: string | null;

@@ -1,7 +1,7 @@
 ---
 id: TCK-177
 title: Pages publiques agents & agences + lien depuis la fiche bien
-status: todo
+status: review
 phase: P2
 family: front
 estimate: L
@@ -73,4 +73,17 @@ Pages à créer :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Livré
+- Backend : nouveaux endpoints publics `GET /api/public/agents/{slug}` et `GET /api/public/agencies/{slug}` (slug = `users.username` / `agencies.slug`). Retournent fiche + portefeuille public limité à 24/48 biens. Scope `status=active` pour éviter d'exposer un compte désactivé.
+- Backend : `PropertyResource::buildOwner` expose désormais `owner.slug` (= `username`) pour permettre au front de lier le nom de l'agent à `/agents/[slug]`.
+- Frontend : pages `/agents/[slug]` et `/agencies/[slug]` (Server Components dans `app/(public)/`) avec `generateMetadata` dynamique, layout carte de visite + grille `PropertyCard`, lien croisé agent ↔ agence.
+- Frontend : `PropertyAgentCard` enrobe le nom de l'agent et le nom de l'agence dans des `<Link>` (l'agent n'apparaît que si `owner.slug` est rempli, ce qui se fait via la modif `PropertyResource`).
+
+### Reporté à un ticket dédié
+- **Reviews polymorphes** sur `Agent` / `Agency` (TC-LOC-37) : nécessite une migration `morphs('reviewable')` sur la table `reviews` + extension du resource controller. Complète l'effort de TCK-180 (gating).
+- **`generateStaticParams`** sur les routes agent / agency (perf) — non urgent tant que le portefeuille reste petit.
+- **Avatars dimensionnés** via `next/image` au lieu d'`<img>` brut sur les fiches — à faire quand le composant `PropertyAgentCard` partagera son avatar avec `/agents/[slug]`.
+
+### Vérifications à faire à la main
+- `php artisan route:list --path=api/public` → confirmer présence de `public.agents.show` et `public.agencies.show`.
+- Charger `/agencies/<un slug existant>` et `/agents/<un username existant>` → status 200 et fiche rendue.

@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Public\PublicAgencyController;
+use App\Http\Controllers\Public\PublicAgentController;
 use App\Http\Controllers\Public\PublicPropertyController;
 use Illuminate\Support\Facades\Route;
 
@@ -53,4 +55,11 @@ Route::prefix('public')->name('public.')->group(function () {
         Route::post('properties/{slug}/contact-message', [PublicPropertyController::class, 'contactMessage'])
             ->name('properties.contact-message');
     });
+
+    // TCK-177 — public agent / agency profile pages.
+    Route::get('agents/{slug}', [PublicAgentController::class, 'show'])
+        ->name('agents.show');
+
+    Route::get('agencies/{slug}', [PublicAgencyController::class, 'show'])
+        ->name('agencies.show');
 });

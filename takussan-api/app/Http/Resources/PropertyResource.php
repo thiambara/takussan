@@ -190,6 +190,8 @@ class PropertyResource extends JsonResource
         return [
             'id' => $owner->id,
             'name' => trim($owner->first_name.' '.$owner->last_name) ?: $owner->username,
+            // TCK-177 — used to link the contact card to /agents/[slug].
+            'slug' => $owner->username,
             'avatar_url' => $owner->getFirstMediaUrl('avatar') ?: null,
             'is_agent' => $this->ownerActsAsAgent($owner),
             'member_since' => $owner->created_at?->toISOString(),
