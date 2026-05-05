@@ -1,4 +1,5 @@
 import { TIMEZONE, type Locale } from '@/i18n/config';
+import { formatCurrency as formatCurrencyCustom, type CurrencyCode } from './format/currency';
 
 /**
  * Locale-aware formatters wrapping {@link Intl.DateTimeFormat} and
@@ -6,8 +7,8 @@ import { TIMEZONE, type Locale } from '@/i18n/config';
  * to XOF (CFA franc) for currency — the Senegal defaults — while letting
  * callers override when needed.
  *
- * Keep this file dependency-free: it's imported both in Server and Client
- * Components and is used by the components migrated as part of TCK-017.
+ * Kept dependency-light: the currency helper lives in ./format/currency.
+ * Both Server and Client Components import this module safely.
  */
 
 /**
@@ -24,9 +25,23 @@ function toIntlLocale(locale: Locale): string | readonly string[] {
     case 'en':
       return 'en-GB';
     case 'wo':
-      // Intl falls back left-to-right. If `wo` has CLDR data the runtime
-      // uses it; otherwise it uses `fr-SN`, never the root/English default.
       return ['wo', 'fr-SN'] as const;
+    default:
+      return 'fr-SN';
+  }
+}
+
+/**
+ * Resolve an app locale to the BCP-47 string used by {@link formatCurrencyCustom}.
+ */
+function toCurrencyLocale(locale: Locale): string {
+  switch (locale) {
+    case 'fr':
+      return 'fr-SN';
+    case 'en':
+      return 'en-GB';
+    case 'wo':
+      return 'fr-SN';
     default:
       return 'fr-SN';
   }
@@ -88,19 +103,22 @@ export function formatNumber(
 }
 
 /**
- * Format a monetary amount. Defaults to XOF (CFA franc) with no fraction
- * digits — the ISO 4217 entry for XOF specifies 0 decimals anyway.
+ * Format a monetary amount in F CFA (XOF) by default, using the Senegalese
+ * French number conventions. Delegates to the multi-currency helper so the
+ * output matches the UX spec contract (e.g. "150 000 F CFA").
+ *
+ * For non-XOF currencies, import {@link formatCurrencyCustom} directly.
  */
 export function formatCurrency(
   value: number | null | undefined,
   locale: Locale,
   options: Intl.NumberFormatOptions = {},
 ): string {
-  return formatNumber(value, locale, {
-    style: 'currency',
-    currency: 'XOF',
-    maximumFractionDigits: 0,
-    ...options,
+  const currency: CurrencyCode = 'XOF';
+  return formatCurrencyCustom(value, currency, {
+    locale: toCurrencyLocale(locale),
+    minimumFractionDigits: options.minimumFractionDigits as number | undefined,
+    maximumFractionDigits: options.maximumFractionDigits as number | undefined,
   });
 }
 

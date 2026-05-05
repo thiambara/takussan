@@ -290,7 +290,7 @@ function NotesTab({ notes, isLoading, onAdd, isAdding }: NotesTabProps) {
               ) : null}
               <p className="whitespace-pre-wrap text-app-ink">{n.body}</p>
               <time className="mt-1 block text-xs text-app-ink-muted">
-                {new Date(n.created_at).toLocaleString()}
+                {new Date(n.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </time>
             </li>
           ))}
@@ -373,7 +373,7 @@ function TasksTab({ tasks, isLoading, onAdd, isAdding, onToggleStatus }: TasksTa
                 </p>
                 {task.due_at ? (
                   <time className="block text-xs text-app-ink-muted">
-                    {new Date(task.due_at).toLocaleString()}
+                    {new Date(task.due_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </time>
                 ) : null}
               </div>
@@ -397,7 +397,7 @@ function ActivityTab({ rows, isLoading }: { rows: ActivityRow[]; isLoading: bool
         >
           <p className="text-app-ink">{r.description}</p>
           <time className="block text-xs text-app-ink-muted">
-            {new Date(r.created_at).toLocaleString()}
+            {new Date(r.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </time>
         </li>
       ))}

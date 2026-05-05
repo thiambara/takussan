@@ -1,12 +1,12 @@
 ---
 id: TCK-153
 title: "Formats devise & date — harmonisation FR site-wide"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
 created: 2026-05-04
-updated: 2026-05-04
+updated: 2026-05-05
 depends_on: []
 blocks: []
 spec_refs:
@@ -39,14 +39,14 @@ Pas de contrat backend modifié. Les formats sont gérés côté frontend via `I
 
 ## Delta à produire
 
-- [ ] **Frontend** — Vérifier l'existence et l'API de `@/lib/format` (`formatCurrency`, `formatNumber`) et étendre si besoin pour `formatDateFR` / `formatDateTimeFR`
-- [ ] **Frontend** — Remplacer toutes les occurrences listées dans le rapport :
+- [x] **Frontend** — Vérifier l'existence et l'API de `@/lib/format` (`formatCurrency`, `formatNumber`) et étendre si besoin pour `formatDateFR` / `formatDateTimeFR`
+- [x] **Frontend** — Remplacer toutes les occurrences listées dans le rapport :
   - `/app/bookings` + `[id]` — actuellement `F CFA 966,689` (US, préfixe, virgule) → `966 689 F CFA`
   - `/app/leases` — actuellement `F CFA 500,000 / mois` → `500 000 F CFA / mois`
   - `/app/saved-searches` — actuellement `1142038` raw → `1 142 038 F CFA` (à conjuguer avec TCK-154)
   - Toutes pages avec dates `13 May 2026` / `27 Apr 2026` / `2 Jun 2026` → format FR
   - `/app/maintenance` (cards) — supprimer le mix `27 Apr 2026 · Prévu 27/04/2026` ; choisir un seul format (recommandé : `27/04/2026 · Prévu 27/04/2026` ou `27 avr. 2026 · Prévu 27 avr. 2026`)
-- [ ] **Tests frontend** — Tests unitaires sur les helpers (`formatXOF` avec `1142038 → "1 142 038 F CFA"`, `formatDateFR` avec un Date → format FR connu)
+- [x] **Tests frontend** — Tests unitaires sur les helpers (`formatXOF` avec `1142038 → "1 142 038 F CFA"`, `formatDateFR` avec un Date → format FR connu)
 
 ## Critères d'acceptation
 
@@ -68,3 +68,8 @@ Pas de contrat backend modifié. Les formats sont gérés côté frontend via `I
 - Helper existant `@/lib/format.formatCurrency` (vu dans TCK-130 Notes) — ne pas en créer un autre.
 - Astuce Intl : pour XOF, `Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', currencyDisplay: 'code' })` rend `1 970 000 XOF` (et non `F CFA`). Si on veut le suffixe `F CFA`, post-processer ou hard-coder via `formatNumber` + suffixe (alignement avec `/app/properties` actuel).
 - Lien fort avec TCK-154 (le prix raw sur `saved-searches` est à la fois un bug i18n et un bug formatage).
+
+**Implémentation 2026-05-05 :**
+- **Root cause devise** : `format.ts::formatCurrency` utilisait `Intl.NumberFormat('fr-SN', {style:'currency', currency:'XOF'})` qui rend "XOF" au lieu de "F CFA". Fix : délégation à `currency.ts::formatCurrency` qui construit le format manuellement ("150 000 F CFA") via métadata par devise.
+- **Impact** : tous les appelants de `formatCurrency` depuis `@/lib/format` bénéficient automatiquement du fix — bookings, leases, maintenance, overview, etc.
+- **Root cause date** : `CustomerDetailSheet.tsx` utilisait `new Date().toLocaleString()` sans locale explicite → dates en anglais selon la locale système. Fix : remplacement par `toLocaleDateString('fr-FR', {...})` avec mois en français (3 occurrences).

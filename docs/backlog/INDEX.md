@@ -82,7 +82,7 @@ _(vide — TCK-146 en review)_
 - [TCK-150](tickets/TCK-150-favorites-401-race-after-login.md) — Favoris — 401 immédiat après login (race condition token) `S · P1 · front` **[review]**
 - [TCK-151](tickets/TCK-151-pagination-controls-listings-totaux.md) — Pagination listings — total tronqué (clients) et boutons absents (états des lieux) `S · P1 · front` **[review]**
 - [TCK-152](tickets/TCK-152-dashboard-page-titles-localisation-dedup.md) — Dashboard — titres de page non localisés et suffixe Takussan dupliqué `S · P1 · front` **[review]**
-- [TCK-153](tickets/TCK-153-formats-devise-date-harmonises.md) — Formats devise & date — harmonisation FR site-wide `M · P1 · front`
+- [TCK-153](tickets/TCK-153-formats-devise-date-harmonises.md) — Formats devise & date — harmonisation FR site-wide `M · P1 · front` **[review]**
 - [TCK-154](tickets/TCK-154-i18n-dashboard-labels-anglais-restants.md) — Dashboard — chaînes anglaises résiduelles & libellés bruts `M · P1 · front`
 - [TCK-155](tickets/TCK-155-documents-base-ui-button-warning.md) — Documents — warning a11y Base UI Button (`nativeButton`) `S · P2 · front`
 - [TCK-156](tickets/TCK-156-bookings-detail-rbac-display-cree-le.md) — Fiche réservation — masquer le CTA review pour l'agent et afficher la date de création `S · P1 · front`
