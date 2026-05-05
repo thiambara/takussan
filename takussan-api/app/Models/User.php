@@ -66,6 +66,17 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         'password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes',
     ];
 
+    /**
+     * Normalize email to lowercase on every write so the unique index and
+     * all lookups are case-insensitive by construction.
+     */
+    public function setEmailAttribute(?string $value): void
+    {
+        $this->attributes['email'] = $value !== null
+            ? strtolower(trim($value))
+            : null;
+    }
+
     protected function casts(): array
     {
         return [

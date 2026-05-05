@@ -14,6 +14,7 @@ class PasswordResetController extends Controller
     public function forgotPassword(Request $request): JsonResponse
     {
         $request->validate(['email' => ['required', 'email']]);
+        $request->merge(['email' => strtolower(trim($request->input('email')))]);
 
         Password::sendResetLink($request->only('email'));
 
@@ -28,8 +29,11 @@ class PasswordResetController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
+        $data = $request->only('email', 'password', 'password_confirmation', 'token');
+        $data['email'] = strtolower(trim($data['email']));
+
         $status = Password::reset(
-            $request->only('email', 'password', 'password_confirmation', 'token'),
+            $data,
             function ($user, string $password) {
                 $user->forceFill(['password' => Hash::make($password)])->save();
                 // Revoke all tokens on password reset
