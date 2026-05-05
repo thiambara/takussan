@@ -76,6 +76,31 @@ export async function submitBookingRequest(
 }
 
 /**
+ * TCK-180 — review eligibility for the connected user on a given property.
+ * Anonymous → returns `{ eligible: false, alreadyReviewed: false }` without
+ * calling the backend (the route is gated by sanctum).
+ */
+export async function getReviewEligibility(
+  slug: string,
+): Promise<{ eligible: boolean; alreadyReviewed: boolean }> {
+  const token = await getToken();
+  if (!token) return { eligible: false, alreadyReviewed: false };
+  try {
+    const res = await apiRequest<{
+      data: { eligible: boolean; reason: string; already_reviewed: boolean };
+    }>(`/api/public/properties/${encodeURIComponent(slug)}/review-eligibility`, {
+      token,
+    });
+    return {
+      eligible: !!res.data.eligible,
+      alreadyReviewed: !!res.data.already_reviewed,
+    };
+  } catch {
+    return { eligible: false, alreadyReviewed: false };
+  }
+}
+
+/**
  * TCK-176 — purchase-offer submission. Same endpoint as
  * `submitBookingRequest`, but with the offer payload (no dates / guests).
  * Backend branches on `Property.contract_type === 'sale'`.

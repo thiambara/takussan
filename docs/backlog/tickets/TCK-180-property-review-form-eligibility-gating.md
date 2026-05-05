@@ -1,7 +1,7 @@
 ---
 id: TCK-180
 title: Avis fiche bien — gating du formulaire selon l'historique de l'utilisateur
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
@@ -60,4 +60,13 @@ Données disponibles côté backend :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Backend : `GET /api/public/properties/{slug}/review-eligibility` (auth:sanctum) — répond `{ eligible, reason: 'visit'|'lease'|'none', already_reviewed }`. Gate basé sur :
+  - `lease` : `Lease.tenant.user_id === auth.id` sur la property.
+  - `visit` : `PropertyVisit.status = completed` AND (`visitor_id === auth.id` OR `customer.user_id === auth.id`).
+  - `already_reviewed` : table polymorphe `Review` avec `reviewable_type = Property::class`, `reviewable_id = property.id`, `author_id = auth.id`.
+- Frontend : `getReviewEligibility(slug)` server action ; ne rend `<PropertyReviewForm>` que si `eligible && !already_reviewed`. Affiche un message explicite quand le user est connecté mais inéligible (« après une visite finalisée ou la signature d'un bail ») ou quand il a déjà déposé un avis.
+- L'utilisateur anonyme n'appelle pas l'endpoint (le server action court-circuite si pas de token), il ne voit donc jamais le formulaire — comportement cohérent avec le « non connecté = rien » de la spec.
+
+### Reporté
+- **Modifier mon avis** : la spec demande de remplacer le formulaire par une vue de l'avis personnel + bouton « Modifier mon avis ». Pour ce ticket on s'est limité à cacher le formulaire ; le mode édition nécessite une route `PUT /api/reviews/{id}` côté author + un état UI dédié — à filer comme ticket dérivé.
+- **Application aux pages agent / agence (TCK-177)** : explicitement hors scope ici.

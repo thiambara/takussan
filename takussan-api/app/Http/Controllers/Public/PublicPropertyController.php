@@ -21,10 +21,12 @@ use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
+use App\Models\Lease;
 use App\Models\Property;
 use App\Models\PropertyContactLead;
 use App\Models\PropertyReport;
 use App\Models\PropertyVisit;
+use App\Models\Review;
 use App\Services\Model\CustomerService;
 use App\Services\Model\NotificationService;
 use App\Services\Property\SimilarPropertiesService;
@@ -561,6 +563,65 @@ class PublicPropertyController extends Controller
         return $this->json([
             'data' => PropertyVisitResource::make($visit)->toArray($request),
         ], 201);
+    }
+
+    /**
+     * TCK-180 — gate the "Laisser un avis" form on the property page.
+     *
+     * GET /api/public/properties/{slug}/review-eligibility →
+     *   { eligible: bool, reason: 'visit'|'lease'|'none', already_reviewed: bool }
+     *
+     * Anonymous callers always get `eligible:false, reason:'none'`.
+     */
+    public function reviewEligibility(Request $request, string $slug): JsonResponse
+    {
+        $property = Property::query()
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        $user = $request->user();
+        if ($user === null) {
+            return $this->json([
+                'data' => ['eligible' => false, 'reason' => 'none', 'already_reviewed' => false],
+            ]);
+        }
+
+        $hasCompletedVisit = PropertyVisit::query()
+            ->where('property_id', $property->id)
+            ->where('status', VisitStatus::Completed)
+            ->where(function ($q) use ($user): void {
+                $q->where('visitor_id', $user->id)
+                    ->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
+            })
+            ->exists();
+
+        $hasLease = Lease::query()
+            ->where('property_id', $property->id)
+            ->whereHas('tenant', fn ($c) => $c->where('user_id', $user->id))
+            ->exists();
+
+        $alreadyReviewed = Review::query()
+            ->where('reviewable_type', Property::class)
+            ->where('reviewable_id', $property->id)
+            ->where('author_id', $user->id)
+            ->exists();
+
+        $reason = 'none';
+        if ($hasLease) {
+            $reason = 'lease';
+        } elseif ($hasCompletedVisit) {
+            $reason = 'visit';
+        }
+
+        return $this->json([
+            'data' => [
+                'eligible' => $reason !== 'none',
+                'reason' => $reason,
+                'already_reviewed' => $alreadyReviewed,
+            ],
+        ]);
     }
 
     public function bookingRequest(Request $request, CustomerService $customers, string $slug): JsonResponse
