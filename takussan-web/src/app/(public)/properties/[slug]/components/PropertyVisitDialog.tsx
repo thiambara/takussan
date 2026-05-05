@@ -52,7 +52,7 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
       await submit({
         scheduled_at: scheduledAt,
         type,
-        notes: notes || undefined,
+        notes: notes || null,
       });
       onOpenChange(false);
       onSuccess?.();

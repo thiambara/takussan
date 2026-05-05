@@ -547,6 +547,7 @@ class PublicPropertyController extends Controller
         $visit = PropertyVisit::create([
             'property_id' => $property->id,
             'visitor_id' => $user?->id,
+            'customer_id' => $user?->customer?->id,
             'scheduled_at' => $data['scheduled_at'],
             'type' => $data['type'] ?? VisitType::InPerson->value,
             'duration_minutes' => $data['duration_minutes'] ?? 30,

@@ -1,7 +1,7 @@
 ---
 id: TCK-170
 title: Demande de visite — hydrater visitor_name/email/phone depuis l'utilisateur connecté
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
