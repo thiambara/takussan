@@ -1,7 +1,7 @@
 # QA — Locataire / Acheteur 🏠
 
 **Acteur :** Utilisateur authentifié côté demande (rôle `customer` ou `tenant`)
-**Précondition :** Être connecté avec un compte de rôle `customer` (ex: `client1@example.com` / `password`).
+**Précondition :** Être connecté avec un compte de rôle `customer` (ex: `customer@agency3.demo.takussan.sn` / `password`).
 **Environnement :** `http://localhost:3000` · `http://localhost:8002`
 **Testeur :**
 **Date :**

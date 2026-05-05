@@ -73,6 +73,27 @@ _(vide — TCK-137 en doing)_
 
 _(vide — TCK-146 en review)_
 
+### Vague 19 — Bugs smoke test locataire / acheteur (2026-05-05)
+
+> Smoke test browser exhaustif du parcours customer connecté (compte tenant, 2 baux + 4 réservations + 7 visites) suivant `docs/qa/locataire-acheteur-qa.md`. 48 anomalies recensées dans `docs/smoke-tests/locataire-acheteur-2026-05-05.md` (6 P0, 17 P1, 19 P2, 6 P3). 12 tickets de fix groupés par scope.
+
+- [TCK-167](tickets/TCK-167-fix-forbidden-server-pages-customer.md) — Fix `forbidden()` 6 pages dashboard plantent en 500 `S · P0 · bug`
+- [TCK-168](tickets/TCK-168-fix-base-ui-label-field-root-context.md) — Fix Base UI `<Label>` hors `<Field.Root>` (/app/payments + SaveSearchButton) `S · P0 · bug`
+- [TCK-169](tickets/TCK-169-login-email-case-insensitive.md) — Login — match email insensible à la casse `S · P1 · bug`
+- [TCK-170](tickets/TCK-170-visit-request-hydrate-authenticated-user.md) — Demande de visite — hydrater `visitor_*` depuis l'utilisateur connecté `S · P1 · bug`
+- [TCK-171](tickets/TCK-171-visits-bookings-customer-scope-and-tabs.md) — Visites & réservations customer — filtre `customer_id`, onglets, annulation, timeline `M · P1 · applicatif`
+- [TCK-172](tickets/TCK-172-payment-gateway-customer-side.md) — Paiement passerelle (Wave / OM / Stripe) — flow customer acompte/solde/loyer `L · P2 · applicatif`
+- [TCK-173](tickets/TCK-173-customer-rbac-ui-leak-and-sidebar.md) — RBAC UI customer — masquer surfaces agent + compléter sidebar `M · P1 · front`
+- [TCK-174](tickets/TCK-174-maintenance-new-property-selector.md) — Maintenance — sélecteur de bien sur `/app/maintenance/new` `S · P1 · front`
+- [TCK-175](tickets/TCK-175-i18n-authenticated-shell-and-shared-components.md) — i18n — layout authentifié et composants partagés `M · P1 · front`
+- [TCK-176](tickets/TCK-176-offer-vs-booking-modal-by-contract-type.md) — Fiche bien — modale `Réserver` (location) vs `Faire une offre` (vente) `M · P1 · front`
+- [TCK-177](tickets/TCK-177-public-agent-and-agency-pages.md) — Pages publiques agents & agences + lien depuis fiche bien `L · P2 · front`
+- [TCK-178](tickets/TCK-178-dashboard-page-titles-metadata.md) — Dashboard — `<title>` figé sur "Tableau de bord" sur 7 pages `S · P2 · front`
+- [TCK-179](tickets/TCK-179-customer-status-and-enum-localization.md) — Statuts & enums côté customer — localiser les valeurs brutes `S · P2 · front`
+- [TCK-180](tickets/TCK-180-property-review-form-eligibility-gating.md) — Avis fiche bien — gating du formulaire selon historique `S · P2 · front`
+- [TCK-181](tickets/TCK-181-recently-viewed-on-home-and-format.md) — « Récemment consultés » — affichage home + i18n + format unifié `S · P2 · front`
+- [TCK-182](tickets/TCK-182-inventories-customer-access-and-labels.md) — États des lieux customer — libellés humains + PDF `S · P2 · front`
+
 ### Vague 18 — Bugs smoke test visiteur anonyme (2026-05-05)
 
 > Smoke test browser exhaustif du parcours public (incognito, aucune session) suivant `docs/qa/visiteur-anonyme-qa.md`. 22 anomalies recensées dans `docs/smoke-tests/visiteur-anonyme-2026-05-05.md` (0 P0, 6 P1, 12 P2, 4 P3). 8 tickets de fix groupés par scope. **Note** : les bugs P1-1 et P2-10 (pages légales / footer enrichi) ne sont pas ticketés ici — la fonctionnalité n'existe pas dans `docs/features.md` et nécessite un ajout de spec préalable.
