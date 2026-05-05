@@ -79,7 +79,7 @@ _(vide — TCK-146 en review)_
 
 - [TCK-148](tickets/TCK-148-publish-bien-enum-localisation-et-erreur-500.md) — Publication de bien : enums envoyés en EN, 500 sur création, alerte parasite à l'édition `M · P1 · applicatif` **[review]**
 - [TCK-149](tickets/TCK-149-customer-detail-include-fields-spatie-400.md) — Fiche client dashboard — 400 sur include/fields Spatie `S · P1 · back` **[review]**
-- [TCK-150](tickets/TCK-150-favorites-401-race-after-login.md) — Favoris — 401 immédiat après login (race condition token) `S · P1 · front`
+- [TCK-150](tickets/TCK-150-favorites-401-race-after-login.md) — Favoris — 401 immédiat après login (race condition token) `S · P1 · front` **[review]**
 - [TCK-151](tickets/TCK-151-pagination-controls-listings-totaux.md) — Pagination listings — total tronqué (clients) et boutons absents (états des lieux) `S · P1 · front`
 - [TCK-152](tickets/TCK-152-dashboard-page-titles-localisation-dedup.md) — Dashboard — titres de page non localisés et suffixe Takussan dupliqué `S · P1 · front`
 - [TCK-153](tickets/TCK-153-formats-devise-date-harmonises.md) — Formats devise & date — harmonisation FR site-wide `M · P1 · front`

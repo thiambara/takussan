@@ -48,10 +48,11 @@ export const favoritesQueryKeys = {
 export function useFavoritesQuery(params: { page?: number; per_page?: number } = {}) {
   const page = params.page ?? 1;
   const perPage = params.per_page ?? 20;
+  const { token } = useAuth();
   return useApiQuery<PaginatedResponse<FavoriteItem>>(
     favoritesQueryKeys.list(page, perPage),
     '/api/favorites',
-    { params: { page, per_page: perPage } },
+    { params: { page, per_page: perPage }, enabled: !!token },
   );
 }
 
