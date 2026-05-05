@@ -1,6 +1,10 @@
 import { getMeAction } from '@/app/actions/auth';
 import { CreateLeaseForm } from '@/components/leases/CreateLeaseForm';
 
+export const metadata = {
+  title: 'Nouveau bail',
+};
+
 export default async function Page() {
   await getMeAction();
   return (

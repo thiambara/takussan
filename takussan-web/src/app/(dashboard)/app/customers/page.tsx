@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { UserPlus } from 'lucide-react';
 
-export const metadata: Metadata = { title: 'Clients' };
+export const metadata: Metadata = { title: 'Clients (CRM)' };
 
 import { getMeAction } from '@/app/actions/auth';
 import { getToken } from '@/lib/session';

@@ -88,7 +88,7 @@ _(vide — TCK-146 en review)_
 - [TCK-175](tickets/TCK-175-i18n-authenticated-shell-and-shared-components.md) — i18n — layout authentifié et composants partagés `M · P1 · front` **[review]**
 - [TCK-176](tickets/TCK-176-offer-vs-booking-modal-by-contract-type.md) — Fiche bien — modale `Réserver` (location) vs `Faire une offre` (vente) `M · P1 · front` **[done]**
 - [TCK-177](tickets/TCK-177-public-agent-and-agency-pages.md) — Pages publiques agents & agences + lien depuis fiche bien `L · P2 · front` **[review]**
-- [TCK-178](tickets/TCK-178-dashboard-page-titles-metadata.md) — Dashboard — `<title>` figé sur "Tableau de bord" sur 7 pages `S · P2 · front`
+- [TCK-178](tickets/TCK-178-dashboard-page-titles-metadata.md) — Dashboard — `<title>` figé sur "Tableau de bord" sur 7 pages `S · P2 · front` **[done]**
 - [TCK-179](tickets/TCK-179-customer-status-and-enum-localization.md) — Statuts & enums côté customer — localiser les valeurs brutes `S · P2 · front`
 - [TCK-180](tickets/TCK-180-property-review-form-eligibility-gating.md) — Avis fiche bien — gating du formulaire selon historique `S · P2 · front`
 - [TCK-181](tickets/TCK-181-recently-viewed-on-home-and-format.md) — « Récemment consultés » — affichage home + i18n + format unifié `S · P2 · front`

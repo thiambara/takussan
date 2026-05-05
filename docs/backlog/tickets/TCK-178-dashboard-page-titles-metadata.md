@@ -1,7 +1,7 @@
 ---
 id: TCK-178
 title: Dashboard — `<title>` figé sur "Tableau de bord" sur ~6 pages /app/*
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
@@ -61,4 +61,8 @@ Pages à corriger :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- `profile/notifications/page.tsx` : ajout de `export const metadata = { title: 'Préférences de notifications' }`.
+- `leases/new/page.tsx` : idem avec `Nouveau bail`.
+- `leases/[id]/page.tsx` : `generateMetadata()` qui best-effort fetch `GET /api/leases/{id}?fields[leases]=id,reference_number` et renvoie `Bail {reference}` (fallback `Bail #{id}` si 401/404). Le `title.template` du root layout suffixe `— Takussan`.
+- `customers/page.tsx` : title corrigé de `Clients` → `Clients (CRM)` pour cohérence avec la sidebar.
+- `calendar/page.tsx` et `maintenance/new/page.tsx` étaient déjà câblés (cf. TCK-152 / TCK-174). `properties/new` aussi.
