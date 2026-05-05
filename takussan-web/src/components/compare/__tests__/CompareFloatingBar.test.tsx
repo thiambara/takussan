@@ -62,7 +62,7 @@ describe('<CompareFloatingBar>', () => {
     // Wait for hydration + seed
     await screen.findByRole('complementary');
     expect(screen.getByText(/Comparer \(2\)/)).toBeInTheDocument();
-    expect(screen.getByText(/2 \/ 4/)).toBeInTheDocument();
+    expect(screen.getByText(/2 biens sélectionnés sur 4/)).toBeInTheDocument();
   });
 
   it('disables the CTA when only 1 id is selected', async () => {

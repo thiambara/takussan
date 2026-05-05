@@ -39,6 +39,11 @@
   "footer": {
     "tagline": "Sa nawle bu wér ngir gis kër bi nga bëgg ci Senegaal."
   },
+  "map": {
+    "zoomIn": "Yokk",
+    "zoomOut": "Wàññi",
+    "markerAlt": "Màndarga kër"
+  },
   "homepage": {
     "row": {
       "viewAll": "Gis lépp",
@@ -84,8 +89,8 @@
   "compare": {
     "eyebrow": "Méengal",
     "title": "Méengal kër yi",
-    "subtitle": "{count} kër yu tànn — méengal ngir tànn.",
-    "unavailableNotice": "{missing} kër yoo amul, dañ leen jëla.",
+    "subtitle": "{count, plural, =0 {Amul kër yu tànn.} =1 {1 kër bu tànn — yokk beneen ngir méengal.} other {# kër yu tànn — méengal ngir tànn.}}",
+    "unavailableNotice": "{missing, plural, =1 {1 kër du am, dañ ko jëla.} other {# kër yu amul, dañ leen jëla.}}",
     "actions": {
       "view": "Xool kër bi",
       "remove": "Jëla"
@@ -128,7 +133,7 @@
     "floatingBar": {
       "ariaLabel": "Kër yu tànn ngir méengal",
       "title": "Méengal",
-      "count": "{count} / {max} kër",
+      "count": "{count, plural, =1 {1 kër bu tànn} other {# kër yu tànn}} ci {max}",
       "cta": "Méengal ({count})",
       "removeAria": "Jëla kër #{id} ci méengal bi",
       "clearAria": "Fommi méengal bi"

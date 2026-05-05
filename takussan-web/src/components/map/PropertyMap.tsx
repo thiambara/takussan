@@ -7,12 +7,14 @@ import {
   Marker,
   Popup,
   TileLayer,
+  ZoomControl,
   useMap,
   useMapEvents,
 } from 'react-leaflet';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/utils';
 import {
   usePropertyMapQuery,
@@ -117,9 +119,11 @@ export function PropertyMap({
   filters = {},
   onMarkerClick,
 }: PropertyMapProps) {
+  const t = useTranslations('map');
   const [bounds, setBounds] = useState<MapBounds | null>(null);
   const query = usePropertyMapQuery(bounds, filters);
   const pinIcon = useMemo(() => createPin(), []);
+  const markerAlt = t('markerAlt');
 
   const features = query.data?.features ?? [];
 
@@ -130,12 +134,14 @@ export function PropertyMap({
           center={DEFAULT_CENTER}
           zoom={DEFAULT_ZOOM}
           scrollWheelZoom
+          zoomControl={false}
           className="h-full w-full"
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
+          <ZoomControl zoomInTitle={t('zoomIn')} zoomOutTitle={t('zoomOut')} />
           <BoundsWatcher onChange={setBounds} />
           <FitToFeatures features={features} />
           {features.map((feature) => (
@@ -146,6 +152,8 @@ export function PropertyMap({
                 feature.geometry.coordinates[0],
               ]}
               icon={pinIcon}
+              alt={markerAlt}
+              title={markerAlt}
               eventHandlers={{
                 click: () => onMarkerClick?.(feature),
               }}
@@ -160,12 +168,12 @@ export function PropertyMap({
 
       {query.isFetching && (
         <div className="pointer-events-none absolute top-3 right-3 z-[400] rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-stone-600 shadow">
-          Chargement…
+          {t('loading')}
         </div>
       )}
       {query.data?.meta.truncated && (
         <div className="pointer-events-none absolute bottom-3 left-3 z-[400] rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 shadow">
-          {query.data.meta.returned}+ biens — zoomez pour affiner
+          {t('truncated', { count: query.data.meta.returned })}
         </div>
       )}
     </div>

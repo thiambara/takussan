@@ -1,7 +1,7 @@
 ---
 id: TCK-160
 title: "i18n public — chaînes anglaises résiduelles côté visiteur anonyme"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -62,4 +62,20 @@ Pour chaque zone, ajouter / corriger les clés dans les catalogues et brancher l
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+La majorité des chaînes EN listées étaient en réalité présentes en FR dans
+le catalogue mais n'apparaissaient en mode FR que parce que TCK-159 a câblé
+le résolveur de locale. Le travail s'est focalisé sur les vrais résidus :
+
+- **Pluralisation ICU** sur `compare.subtitle`, `compare.unavailableNotice`
+  et `compare.floatingBar.count` (FR/EN/WO) — supprime la typo `bien(s)` /
+  `propertie(s)` et donne « 1 bien sélectionné » vs « 2 biens sélectionnés ».
+- **Dialog Close** (`components/ui/dialog.tsx`) tire désormais
+  `common.actions.close` via `useTranslations` au lieu du littéral `Close`.
+- **Cartes Leaflet** (`PropertyMap`, `PropertyLocationMapInner`) : zoom
+  control monté manuellement avec `zoomInTitle`/`zoomOutTitle` localisés ;
+  marqueurs reçoivent `alt` + `title` traduits depuis le namespace `map`.
+- Toast bleu de chargement et bandeau « X+ biens » de `PropertyMap` migrés
+  vers `t('loading')` / `t('truncated', { count })`.
+- Garde-fou : extension de `messages.test.ts` qui échoue si l'une des
+  chaînes EN listées dans l'AC réapparaît dans `fr.json`.
+- Test `CompareFloatingBar` mis à jour pour le nouveau format pluralisé.

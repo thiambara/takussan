@@ -78,4 +78,28 @@ describe('i18n public namespaces (TCK-159)', () => {
     expect(wo).toBeTypeOf('object');
     expect(get(wo as MessageTree, 'nav.login')).toEqual(expect.any(String));
   });
+
+  /**
+   * TCK-160 — guard against the residual EN strings reported in the smoke
+   * test from showing up in the FR catalog. If any of these substrings ever
+   * land in `fr.json`, this test fails before review.
+   */
+  it.each([
+    'Comparator',
+    'Compare properties',
+    'Clear comparator',
+    'View property',
+    'My favorites',
+    'saved property',
+    'Search a city',
+    'See all cities',
+    'All types',
+    'Zoom in',
+    'Zoom out',
+    'Marker',
+    'propertie(s)',
+  ])('fr.json does not contain residual EN string %s', (forbidden) => {
+    const haystack = JSON.stringify(fr);
+    expect(haystack).not.toContain(forbidden);
+  });
 });

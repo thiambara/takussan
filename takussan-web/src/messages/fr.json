@@ -60,6 +60,13 @@
     "discoverHeading": "Découvrir",
     "copyright": "© {year} Takussan. Tous droits réservés."
   },
+  "map": {
+    "zoomIn": "Zoomer",
+    "zoomOut": "Dézoomer",
+    "markerAlt": "Marqueur de bien",
+    "loading": "Chargement…",
+    "truncated": "{count}+ biens — zoomez pour affiner"
+  },
   "meta": {
     "home": {
       "title": "Takussan — Immobilier au Sénégal",
@@ -171,8 +178,8 @@
   "compare": {
     "eyebrow": "Comparateur",
     "title": "Comparer des biens",
-    "subtitle": "{count} biens sélectionnés — comparez pour décider.",
-    "unavailableNotice": "{missing} bien(s) ne sont plus disponibles et ont été retirés du comparatif.",
+    "subtitle": "{count, plural, =0 {Aucun bien sélectionné.} =1 {1 bien sélectionné — ajoutez-en un autre pour comparer.} other {# biens sélectionnés — comparez pour décider.}}",
+    "unavailableNotice": "{missing, plural, =1 {1 bien n'est plus disponible et a été retiré du comparatif.} other {# biens ne sont plus disponibles et ont été retirés du comparatif.}}",
     "actions": {
       "view": "Voir le bien",
       "remove": "Retirer"
@@ -215,7 +222,7 @@
     "floatingBar": {
       "ariaLabel": "Biens sélectionnés pour la comparaison",
       "title": "Comparateur",
-      "count": "{count} / {max} bien(s)",
+      "count": "{count, plural, =1 {1 bien sélectionné} other {# biens sélectionnés}} sur {max}",
       "cta": "Comparer ({count})",
       "removeAria": "Retirer le bien #{id} du comparateur",
       "clearAria": "Vider le comparateur"

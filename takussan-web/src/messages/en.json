@@ -60,6 +60,13 @@
     "discoverHeading": "Discover",
     "copyright": "© {year} Takussan. All rights reserved."
   },
+  "map": {
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "markerAlt": "Property marker",
+    "loading": "Loading…",
+    "truncated": "{count}+ properties — zoom in to refine"
+  },
   "meta": {
     "home": {
       "title": "Takussan — Real estate in Senegal",
@@ -192,8 +199,8 @@
   "compare": {
     "eyebrow": "Comparator",
     "title": "Compare properties",
-    "subtitle": "{count} properties selected — compare to decide.",
-    "unavailableNotice": "{missing} property(ies) are no longer available and have been removed.",
+    "subtitle": "{count, plural, =0 {No properties selected.} =1 {1 property selected — add another to compare.} other {# properties selected — compare to decide.}}",
+    "unavailableNotice": "{missing, plural, =1 {1 property is no longer available and has been removed.} other {# properties are no longer available and have been removed.}}",
     "actions": {
       "view": "View property",
       "remove": "Remove"
@@ -236,7 +243,7 @@
     "floatingBar": {
       "ariaLabel": "Properties selected for comparison",
       "title": "Comparator",
-      "count": "{count} / {max} propertie(s)",
+      "count": "{count, plural, =1 {1 property selected} other {# properties selected}} of {max}",
       "cta": "Compare ({count})",
       "removeAria": "Remove property #{id} from the comparator",
       "clearAria": "Clear comparator"

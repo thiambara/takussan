@@ -2,8 +2,9 @@
 
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { MapContainer, Marker, TileLayer } from 'react-leaflet';
+import { MapContainer, Marker, TileLayer, ZoomControl } from 'react-leaflet';
 import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 
 // Inline SVG pin — avoids Next.js bundler issues with Leaflet's default asset paths.
 const PIN_SVG = encodeURIComponent(
@@ -20,7 +21,9 @@ export interface PropertyLocationMapInnerProps {
 }
 
 export function PropertyLocationMapInner({ latitude, longitude }: PropertyLocationMapInnerProps) {
+  const t = useTranslations('map');
   const position: [number, number] = [latitude, longitude];
+  const markerAlt = t('markerAlt');
   const icon = useMemo(
     () =>
       L.icon({
@@ -37,13 +40,15 @@ export function PropertyLocationMapInner({ latitude, longitude }: PropertyLocati
         center={position}
         zoom={15}
         scrollWheelZoom={false}
+        zoomControl={false}
         className="h-full w-full"
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <Marker position={position} icon={icon} />
+        <ZoomControl position="topright" zoomInTitle={t('zoomIn')} zoomOutTitle={t('zoomOut')} />
+        <Marker position={position} icon={icon} alt={markerAlt} title={markerAlt} />
       </MapContainer>
     </div>
   );
