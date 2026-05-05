@@ -1,7 +1,7 @@
 ---
 id: TCK-174
 title: Maintenance — sélecteur de bien sur /app/maintenance/new
-status: todo
+status: done
 phase: P1
 family: front
 estimate: S
@@ -65,4 +65,6 @@ API à consommer (déjà dispo via `/api/leases?customer_id=…`) : la liste des
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Nouveau composant client `MaintenanceNewLauncher` (`src/components/maintenance/MaintenanceNewLauncher.tsx`) qui charge les baux actifs (`useLeases({ status: 'active', per_page: 50 })`), expose un selector `Bien concerné`, applique les règles d'auto-sélection (1 bail → silencieux ; `?property=` → si valide), et rejette silencieusement un id étranger en re-rendant le selector vide.
+- `(dashboard)/app/maintenance/new/page.tsx` simplifiée : ne fait plus de gating sur `?property=` côté serveur, délègue tout au launcher (incluant l'état vide « pas de bail »).
+- Le filtrage par customer est déjà appliqué par l'API (`/api/leases` retourne automatiquement les baux du user connecté), pas besoin d'un `tenant_id` côté front.
