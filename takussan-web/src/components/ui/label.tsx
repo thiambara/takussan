@@ -1,21 +1,18 @@
 "use client"
 
 import * as React from "react"
-import { Field as FieldPrimitive } from "@base-ui/react/field"
-
 import { cn } from "@/lib/utils"
 
 /**
- * Label — form label built on @base-ui/react Field.Label.
- * When used inside a <Field.Root> it auto-associates with the control.
- * Can also be used standalone with htmlFor for arbitrary inputs.
+ * Label — native <label> with shared form-field styling.
+ * Works standalone (with htmlFor) or inside a custom field wrapper.
  */
 function Label({
   className,
   ...props
-}: FieldPrimitive.Label.Props) {
+}: React.LabelHTMLAttributes<HTMLLabelElement>) {
   return (
-    <FieldPrimitive.Label
+    <label
       data-slot="label"
       className={cn(
         "text-sm font-medium leading-none text-foreground select-none data-[disabled]:cursor-not-allowed data-[disabled]:opacity-60",

@@ -1,7 +1,7 @@
 ---
 id: TCK-168
 title: Fix Base UI Label hors `<Field.Root>` — crash sur /app/payments et SaveSearchButton
-status: todo
+status: done
 phase: P0
 family: bug
 estimate: S
