@@ -44,6 +44,12 @@
     "zoomOut": "Wàññi",
     "markerAlt": "Màndarga kër"
   },
+  "publicContact": {
+    "title": "Yónnee bataaxal",
+    "description": "Sa ay xibaar ñoo leen jox boroom kër bi.",
+    "submit": "Yónnee",
+    "cancel": "Bàyyi"
+  },
   "homepage": {
     "row": {
       "viewAll": "Gis lépp",

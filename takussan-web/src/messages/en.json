@@ -67,6 +67,28 @@
     "loading": "Loading…",
     "truncated": "{count}+ properties — zoom in to refine"
   },
+  "publicContact": {
+    "title": "Send a message",
+    "description": "Your details are forwarded to the property agent. No account required.",
+    "name": "Full name",
+    "email": "Email",
+    "phone": "Phone (optional)",
+    "message": "Your message",
+    "messagePlaceholder": "Hello, I'm interested in your property…",
+    "submit": "Send message",
+    "submitting": "Sending…",
+    "cancel": "Cancel",
+    "successTitle": "Message sent.",
+    "successBody": "The agent will get back to you shortly.",
+    "errorTitle": "Could not send",
+    "errorBody": "Please try again in a moment.",
+    "validation": {
+      "nameRequired": "Your name is required.",
+      "emailRequired": "A valid email address is required.",
+      "messageMin": "Your message must be at least 5 characters.",
+      "messageMax": "Your message cannot exceed 2000 characters."
+    }
+  },
   "meta": {
     "home": {
       "title": "Takussan — Real estate in Senegal",

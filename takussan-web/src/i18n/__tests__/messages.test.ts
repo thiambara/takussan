@@ -39,6 +39,8 @@ describe('i18n public namespaces (TCK-159)', () => {
     'meta.properties.title',
     'meta.compare.title',
     'meta.favorites.title',
+    'publicContact.title',
+    'publicContact.submit',
   ] as const;
 
   it.each(REQUIRED_KEYS)('fr has %s', (key) => {

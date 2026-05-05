@@ -91,6 +91,26 @@ export async function submitContactMessage(
   }
 }
 
+/**
+ * TCK-161 — anonymous lead capture. Public endpoint, no auth required.
+ * The `company` field is a honeypot; bots fill all visible inputs and
+ * the backend silently accepts but skips persistence when it's not empty.
+ */
+export async function submitContactLead(
+  slug: string,
+  payload: { name: string; email: string; phone?: string; message: string; company?: string },
+): Promise<ActionResult> {
+  try {
+    await apiRequest(`/api/public/properties/${slug}/contact-lead`, {
+      method: 'POST',
+      body: payload,
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, ...errorFromApi(e) };
+  }
+}
+
 export async function submitReview(
   propertyId: number,
   payload: { rating: number; title?: string; content?: string },

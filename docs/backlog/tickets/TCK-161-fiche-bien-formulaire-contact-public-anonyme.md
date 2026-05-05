@@ -1,7 +1,7 @@
 ---
 id: TCK-161
 title: "Fiche bien — formulaire de contact public anonyme"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -67,4 +67,36 @@ Un visiteur anonyme peut envoyer un message à l'agent ou au propriétaire d'un 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Backend
+
+- Nouveau endpoint **public** `POST /api/public/properties/{slug}/contact-lead`
+  hors du groupe `auth:sanctum`, throttlé `5,10` par IP. L'endpoint
+  authentifié `contact-message` reste intact pour le flow connecté.
+- Lead persisté dans une nouvelle table `property_contact_leads`
+  (`recipient_user_id`, `name`, `email`, `phone?`, `message`, `ip`,
+  `user_agent`, `handled_at?`) — base de modération anti-spam.
+- Notification au destinataire via `NotificationService::notify` avec
+  `NotificationType::Message`. Pas d'envoi email dédié : le canal email
+  est déjà fan-outé par `NotificationService` selon les préférences user.
+- Honeypot : champ `company` accepté côté validation ; quand non vide,
+  on retourne 201 silencieux **sans persister** ni notifier (pas de
+  signal d'échec aux bots).
+
+### Frontend
+
+- `PropertyContactMessageDialog` séparé en deux sous-composants :
+  `AuthenticatedDialog` (flow messagerie inchangé) et `AnonymousDialog`
+  (formulaire Nom/Email/Téléphone/Message + honeypot offscreen).
+- Validation client : nom requis, email regex, message 5–2000 chars.
+  Téléphone optionnel sans normalisation côté front (le back accepte
+  une string libre `max:32`).
+- Toast localisé via le namespace `publicContact` (FR/EN ; WO partiel
+  avec fallback FR).
+
+### Conflit TCK-126
+
+Le ticket inverse explicitement TCK-126 pour les visiteurs anonymes :
+le bouton « Envoyer un message » n'ouvre plus une modale « Connexion
+requise » mais le formulaire public — la spec QA `TC-VA-16` et
+`features.md#1.2` l'exigent. Les actions « Réserver » et « Demander
+une visite » restent gated (cf. `Hors périmètre`).

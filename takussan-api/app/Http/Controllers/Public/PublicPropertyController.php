@@ -22,6 +22,7 @@ use App\Models\Enums\RentPeriod;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
 use App\Models\Property;
+use App\Models\PropertyContactLead;
 use App\Models\PropertyReport;
 use App\Models\PropertyVisit;
 use App\Services\Model\CustomerService;
@@ -683,6 +684,63 @@ class PublicPropertyController extends Controller
                 'redirect_to' => "/messages/{$conversation->id}",
             ],
         ], 201);
+    }
+
+    /**
+     * Anonymous lead capture endpoint (TCK-161). Lets a non-authenticated
+     * visitor send a one-shot contact message to the property's primary
+     * agent (or owner) without creating an account. Persists the lead for
+     * moderation/anti-spam follow-up and pings the recipient via the
+     * existing notification channel. A filled honeypot returns 201 silently
+     * — bots get a normal-looking success without polluting the database.
+     */
+    public function contactLead(Request $request, NotificationService $notifications, string $slug): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'email' => ['required', 'email:rfc', 'max:180'],
+            'phone' => ['nullable', 'string', 'max:32'],
+            'message' => ['required', 'string', 'min:5', 'max:2000'],
+            'company' => ['nullable', 'string', 'max:120'], // honeypot
+        ]);
+
+        if (! empty($data['company'])) {
+            return $this->json(['data' => ['accepted' => true]], 201);
+        }
+
+        $property = Property::query()
+            ->with('owner', 'collaborators.user')
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        $primaryAgent = $property->collaborators
+            ->firstWhere('role', CollaboratorRole::Agent)?->user
+            ?? $property->owner;
+
+        $lead = PropertyContactLead::create([
+            'property_id' => $property->id,
+            'recipient_user_id' => $primaryAgent?->id,
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
+            'message' => $data['message'],
+            'ip' => $request->ip(),
+            'user_agent' => substr((string) $request->userAgent(), 0, 255),
+        ]);
+
+        if ($primaryAgent !== null) {
+            $notifications->notify(
+                $primaryAgent,
+                NotificationType::Message,
+                'Nouveau lead anonyme',
+                $data['name'].' ('.$data['email'].') : '.mb_strimwidth($data['message'], 0, 80, '…'),
+                ['property_id' => $property->id, 'lead_id' => $lead->id],
+            );
+        }
+
+        return $this->json(['data' => ['accepted' => true]], 201);
     }
 
     public function contact(string $slug): JsonResponse

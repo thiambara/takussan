@@ -67,6 +67,28 @@
     "loading": "Chargement…",
     "truncated": "{count}+ biens — zoomez pour affiner"
   },
+  "publicContact": {
+    "title": "Envoyer un message",
+    "description": "Vos coordonnées sont transmises à l'agent du bien. Aucun compte n'est requis.",
+    "name": "Nom complet",
+    "email": "Email",
+    "phone": "Téléphone (optionnel)",
+    "message": "Votre message",
+    "messagePlaceholder": "Bonjour, je suis intéressé(e) par votre bien…",
+    "submit": "Envoyer le message",
+    "submitting": "Envoi en cours…",
+    "cancel": "Annuler",
+    "successTitle": "Message envoyé.",
+    "successBody": "L'agent vous recontactera sous peu.",
+    "errorTitle": "Échec de l'envoi",
+    "errorBody": "Réessayez dans un instant.",
+    "validation": {
+      "nameRequired": "Votre nom est requis.",
+      "emailRequired": "Une adresse email valide est requise.",
+      "messageMin": "Votre message doit contenir au moins 5 caractères.",
+      "messageMax": "Votre message ne peut pas dépasser 2000 caractères."
+    }
+  },
   "meta": {
     "home": {
       "title": "Takussan — Immobilier au Sénégal",
