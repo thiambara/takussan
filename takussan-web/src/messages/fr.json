@@ -95,19 +95,19 @@
       "description": "Louez, achetez, vendez en toute confiance. Des milliers de biens au Sénégal vous attendent."
     },
     "properties": {
-      "title": "Rechercher des biens — Takussan",
+      "title": "Rechercher des biens",
       "description": "Trouvez des appartements, villas, terrains, bureaux et bien plus au Sénégal. Filtrez par prix, type, localisation et surface, visualisez les biens sur une carte interactive."
     },
     "compare": {
-      "title": "Comparer des biens — Takussan",
+      "title": "Comparer des biens",
       "description": "Comparez jusqu'à 4 biens côte à côte : prix, surface, pièces, amenités et localisation."
     },
     "favorites": {
-      "title": "Mes favoris — Takussan",
+      "title": "Mes favoris",
       "description": "Retrouvez tous les biens que vous avez sauvegardés. Synchronisés sur cet appareil même sans compte."
     },
     "propertyMissing": {
-      "title": "Bien introuvable · Takussan",
+      "title": "Bien introuvable",
       "description": "Ce bien n'est plus disponible sur Takussan."
     }
   },

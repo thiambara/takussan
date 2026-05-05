@@ -64,6 +64,7 @@ export function HomepageDiscovery() {
             properties={dakarUnique}
             loading={dakar.loading}
             error={dakar.error}
+            priorityCount={2}
           />
         </div>
 

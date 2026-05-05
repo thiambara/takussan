@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
+import { getToken } from '@/lib/session';
 import { isSuperAdmin } from '@/lib/roles';
 import { SuperAdminShell } from '@/components/layout/SuperAdminShell';
 import { ToastProvider, Toaster } from '@/components/ui/toast';
@@ -20,6 +21,15 @@ export default async function SuperAdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // TCK-166 — preserve the originally-requested URL when an anonymous
+  // visitor lands on /super-admin so they bounce back here after sign-in.
+  // `getMeAction` would also redirect when the token is missing, but it
+  // strips the path; intercept here while we still have the context.
+  const token = await getToken();
+  if (!token) {
+    redirect('/auth/login?redirect=%2Fsuper-admin');
+  }
+
   const user = await getMeAction();
   if (!isSuperAdmin(user.roles)) {
     redirect('/app');

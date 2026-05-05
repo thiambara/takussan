@@ -43,7 +43,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
-  const title = `${property.title} · Takussan`;
+  // Bare title — the (public) layout's title.template adds the
+  // "— Takussan" suffix exactly once (TCK-166). Social cards keep the
+  // full app name explicitly since they don't go through the template.
+  const title = property.title;
+  const socialTitle = `${property.title} — Takussan`;
   const description =
     property.description?.slice(0, 160) ??
     `${property.type_label} à ${property.location.quarter}, ${property.location.city}.`;
@@ -53,14 +57,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title,
     description,
     openGraph: {
-      title,
+      title: socialTitle,
       description,
       type: 'website',
       images: image ? [{ url: image, alt: property.title }] : undefined,
     },
     twitter: {
       card: 'summary_large_image',
-      title,
+      title: socialTitle,
       description,
       images: image ? [image] : undefined,
     },

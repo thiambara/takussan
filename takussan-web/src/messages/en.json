@@ -95,19 +95,19 @@
       "description": "Rent, buy or sell with confidence. Thousands of properties across Senegal are waiting for you."
     },
     "properties": {
-      "title": "Search properties — Takussan",
+      "title": "Search properties",
       "description": "Find apartments, villas, land, offices and more in Senegal. Filter by price, type, location and surface, visualize listings on an interactive map."
     },
     "compare": {
-      "title": "Compare properties — Takussan",
+      "title": "Compare properties",
       "description": "Compare up to 4 properties side by side: price, surface, rooms, amenities and location."
     },
     "favorites": {
-      "title": "My favorites — Takussan",
+      "title": "My favorites",
       "description": "Find all the properties you've saved. Synced on this device, even without an account."
     },
     "propertyMissing": {
-      "title": "Property not found · Takussan",
+      "title": "Property not found",
       "description": "This property is no longer available on Takussan."
     }
   },

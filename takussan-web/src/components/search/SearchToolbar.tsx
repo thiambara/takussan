@@ -13,8 +13,8 @@ import type { SearchFilters } from '@/types/search';
 
 const SORT_OPTIONS = [
   { value: 'relevance',    label: 'Pertinence' },
-  { value: 'price_asc',   label: 'Prix ↑' },
-  { value: 'price_desc',  label: 'Prix ↓' },
+  { value: 'price_asc',   label: 'Prix croissant' },
+  { value: 'price_desc',  label: 'Prix décroissant' },
   { value: 'created_desc', label: 'Plus récent' },
 ] as const;
 

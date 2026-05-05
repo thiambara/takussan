@@ -1,7 +1,7 @@
 ---
 id: TCK-166
 title: "Polish public — title dupliqué, redirect /super-admin, preload, libellés tri"
-status: todo
+status: review
 phase: P3
 family: front
 estimate: S
@@ -57,4 +57,25 @@ Aucun changement d'API. Tous les correctifs sont côté front (metadata Next, mi
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Title dupliqué** : `(public)/layout.tsx` applique déjà
+  `title.template = "%s — Takussan"`. Les `meta.{properties,compare,
+  favorites,propertyMissing}.title` dans fr/en.json contenaient en plus
+  le suffixe → `« Comparer des biens — Takussan — Takussan »`. Suffixe
+  retiré des catalogues : le template le pose une fois. La fiche bien
+  (`properties/[slug]/layout.tsx`) suit la même règle ; les
+  `openGraph.title` / `twitter.title` gardent un suffixe explicite parce
+  qu'ils ne passent pas par le template.
+- **`/super-admin`** : pas de middleware Next dans le projet — le garde
+  vit dans `(super-admin)/super-admin/layout.tsx` via `getMeAction()`,
+  qui redirige nu (`/auth/login`). Ajout d'un check `getToken()` en
+  amont qui redirige explicitement vers
+  `/auth/login?redirect=%2Fsuper-admin` quand le visiteur est anonyme.
+  Le cas token expiré/stale reste sur le flow `/api/auth/session-expired`
+  existant (hors périmètre AC).
+- **Preload images** : `PropertyRow` exposait `priority={i < 2}` en dur
+  → 4 rangées × 2 images = 8 préchargements, dont 6 hors viewport.
+  Nouvelle prop `priorityCount` (default 0) ; `HomepageDiscovery` ne
+  passe `priorityCount={2}` que sur la première rangée. Les autres
+  cards laissent `next/image` lazy-load via l'observer existant.
+- **Libellés tri** : `SearchToolbar` remplace `Prix ↑ / ↓` par
+  `Prix croissant / décroissant`.
