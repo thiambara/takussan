@@ -3,6 +3,23 @@ import { fetchTenantDashboard } from '@/lib/queries/dashboard';
 import { StatCard } from '@/components/charts/StatCard';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
 
+// TCK-179 — display the FR label for raw payment statuses surfaced on
+// the tenant dashboard. Centralised here while a project-wide enum
+// helper is still pending.
+const PAYMENT_STATUS_LABEL: Record<string, string> = {
+  pending: 'À venir',
+  paid: 'Payé',
+  partially_paid: 'Partiellement payé',
+  late: 'En retard',
+  refunded: 'Remboursé',
+  cancelled: 'Annulée',
+};
+
+function paymentStatusLabel(status: string | null | undefined): string {
+  if (!status) return '—';
+  return PAYMENT_STATUS_LABEL[status] ?? status;
+}
+
 /** TCK-032 P1 — tenant dashboard. Any authenticated user can view. */
 export default async function TenantDashboardPage() {
   await getMeAction();
@@ -74,7 +91,7 @@ export default async function TenantDashboardPage() {
                 <span className="font-semibold text-app-ink">
                   {formatCurrency(p.amount, 'fr')}
                 </span>
-                <span className="text-xs text-app-ink-muted">{p.status}</span>
+                <span className="text-xs text-app-ink-muted">{paymentStatusLabel(p.status)}</span>
               </li>
             ))}
           </ul>

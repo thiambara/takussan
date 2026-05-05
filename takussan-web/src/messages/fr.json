@@ -549,10 +549,10 @@
   },
   "maintenance": {
     "priority": {
-      "urgent": "Urgent",
-      "high": "Haute",
+      "urgent": "Urgente",
+      "high": "Élevée",
       "normal": "Normale",
-      "low": "Basse"
+      "low": "Faible"
     }
   },
   "homepage": {

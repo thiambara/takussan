@@ -33,6 +33,16 @@ const STATUS_LABEL: Record<LeaseStatus, string> = {
   renewed: 'Renouvelé',
 };
 
+// TCK-179 — display the FR label instead of the raw `Residential Rent`
+// snake_case enum value. Aligns with the type definition in
+// `models-spec.md#13-lease`.
+const LEASE_TYPE_LABEL: Record<string, string> = {
+  residential_rent: 'Bail d’habitation',
+  commercial_rent: 'Bail commercial',
+  seasonal_rent: 'Location saisonnière',
+  sale: 'Vente',
+};
+
 interface LeaseDetailProps {
   readonly leaseId: number;
 }
@@ -110,7 +120,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
           </h1>
           <div className="mt-2 flex items-center gap-2 text-xs text-stone-500">
             <Badge>{STATUS_LABEL[lease.status]}</Badge>
-            {lease.type && <span className="capitalize">{lease.type.replace(/_/g, ' ')}</span>}
+            {lease.type && <span>{LEASE_TYPE_LABEL[lease.type] ?? lease.type}</span>}
             {latePaymentsCount > 0 && (
               <Badge variant="destructive">{latePaymentsCount} en retard</Badge>
             )}

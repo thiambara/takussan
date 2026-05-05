@@ -115,7 +115,11 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
           </div>
           <label className="block space-y-1 text-sm">
             <span className="text-stone-700">Type de visite</span>
-            <Select value={type} onValueChange={(v) => setType((v as VisitType) ?? 'in_person')}>
+            <Select
+              value={type}
+              onValueChange={(v) => setType((v as VisitType) ?? 'in_person')}
+              items={VISIT_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>

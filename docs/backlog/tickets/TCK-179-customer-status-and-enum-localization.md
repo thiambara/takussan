@@ -1,7 +1,7 @@
 ---
 id: TCK-179
 title: Statuts & enums côté customer — localiser les valeurs brutes (pending, in_person, residential_rent, Urgent/High/Normal/Low)
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
@@ -58,4 +58,11 @@ Tous ces écarts proviennent de composants qui rendent directement la valeur d'e
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- `messages/fr.json#maintenance.priority` : libellés corrigés `Urgent`/`Haute`/`Basse` → `Urgente`/`Élevée`/`Faible` (cohérent avec `MAINTENANCE_PRIORITY_LABEL` déjà en français).
+- `app/overview/tenant/page.tsx` : `paymentStatusLabel()` local (pending → « À venir », late → « En retard »…) plutôt qu'un rendu brut. Centralisation dans `src/lib/enums/` reportée à la prochaine vague (cf. `models-spec.md`).
+- `LeaseDetail` : table `LEASE_TYPE_LABEL` ajoutée pour mapper `residential_rent` → « Bail d’habitation », `commercial_rent` → « Bail commercial », etc. Remplace l'ancien `lease.type.replace(/_/g, ' ')` capitalisé qui produisait « Residential Rent ».
+- `PropertyVisitDialog` : `Select` reçoit maintenant un `items={VISIT_TYPES}` qui permet à Base UI de résoudre la valeur (`in_person`) en libellé visible (« En personne ») dans le trigger ; sans ce prop le primitive affichait la valeur brute.
+
+### Reporté
+- Helper centralisé dans `src/lib/enums/` (bookingStatusLabel, paymentStatusLabel, …) — à porter au moment où l'i18n EN/WO sera étendue (TCK-175).
+- Audit grep automatisé `pending` / `in_person` / `residential_rent` / `Urgent` JSX — pour confirmer qu'il n'y a pas d'autres call-sites résiduels (les visibles ont été traités).
