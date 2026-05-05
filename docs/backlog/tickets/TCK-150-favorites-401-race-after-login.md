@@ -1,7 +1,7 @@
 ---
 id: TCK-150
 title: "Favoris — 401 immédiat après login (race condition token)"
-status: review
+status: done
 phase: P1
 family: front
 estimate: S

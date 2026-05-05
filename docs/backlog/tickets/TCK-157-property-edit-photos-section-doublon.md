@@ -1,7 +1,7 @@
 ---
 id: TCK-157
 title: "Fiche bien (édition) — section Photos dupliquée"
-status: review
+status: done
 phase: P2
 family: front
 estimate: S

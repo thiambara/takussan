@@ -1,7 +1,7 @@
 ---
 id: TCK-155
 title: "Documents — warning a11y Base UI Button (nativeButton)"
-status: review
+status: done
 phase: P2
 family: front
 estimate: S

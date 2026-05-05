@@ -1,7 +1,7 @@
 ---
 id: TCK-154
 title: "Dashboard — chaînes anglaises résiduelles & libellés bruts"
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

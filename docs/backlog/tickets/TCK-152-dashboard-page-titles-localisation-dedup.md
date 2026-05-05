@@ -1,7 +1,7 @@
 ---
 id: TCK-152
 title: "Dashboard — titres de page non localisés et suffixe Takussan dupliqué"
-status: review
+status: done
 phase: P1
 family: front
 estimate: S

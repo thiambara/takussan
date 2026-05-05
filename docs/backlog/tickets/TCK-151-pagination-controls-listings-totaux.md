@@ -1,7 +1,7 @@
 ---
 id: TCK-151
 title: "Pagination listings — total tronqué (clients) et boutons absents (états des lieux)"
-status: review
+status: done
 phase: P1
 family: front
 estimate: S

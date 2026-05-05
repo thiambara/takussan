@@ -1,7 +1,7 @@
 ---
 id: TCK-149
 title: "Fiche client dashboard — 400 sur include/fields Spatie"
-status: review
+status: done
 phase: P1
 family: back
 estimate: S

@@ -1,7 +1,7 @@
 ---
 id: TCK-148
 title: "Publication de bien — enums envoyés en EN, 500 sur création, alerte parasite à l'édition"
-status: review
+status: done
 phase: P1
 family: applicatif
 estimate: M

@@ -1,7 +1,7 @@
 ---
 id: TCK-153
 title: "Formats devise & date — harmonisation FR site-wide"
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

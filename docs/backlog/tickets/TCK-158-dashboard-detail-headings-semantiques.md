@@ -1,7 +1,7 @@
 ---
 id: TCK-158
 title: "Pages détail dashboard — hiérarchie de headings (h1/h2 dupliqués ou manquants)"
-status: review
+status: done
 phase: P2
 family: front
 estimate: S
