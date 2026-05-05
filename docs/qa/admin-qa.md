@@ -1,13 +1,14 @@
 # QA — Admin d'agence / Super-admin 🛡️
 
 **Acteur :** Superviseur de la plateforme et de l'agence (rôle `agency_admin` ou `super_admin`)
-**Précondition :** Être connecté avec un compte admin, accéder à la zone `/admin`
+**Précondition :** Compte connecté en `agency_admin` (ou `super_admin` pour les TC marqués `[SUPER]`).
 **Environnement :** `http://localhost:3000` · `http://localhost:8002`
 **Testeur :**
 **Date :**
-**Version :**
+**Version :** dev branch
 
-> Les fonctionnalités transverses (authentification, notifications, i18n, médias, recherche de base) sont couvertes dans [`utilisateurs-authentifies-qa.md`](./utilisateurs-authentifies-qa.md).
+> Les fonctionnalités transverses (auth, profil, notifications, i18n, médias, recherche) sont couvertes dans [`utilisateurs-authentifies-qa.md`](./utilisateurs-authentifies-qa.md).
+> Les actions métier (biens, baux, réservations, CRM…) suivent les flux décrits dans [`agent-qa.md`](./agent-qa.md) — le rôle admin a tous les pouvoirs d'un agent + administration.
 
 ---
 
@@ -20,425 +21,814 @@
 | ⚠️ Partiel | Fonctionne avec réserves |
 | 🔲 Non testé | Pas encore vérifié |
 
----
-
-## 1. Dashboard agence (`/admin` et `/app/overview/agency`)
-
-### TC-ADM-01 — Vue d'ensemble
-
-**Q1 :** Le dashboard agence affiche le nombre total de biens (actifs, archivés) ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q2 :** Les revenus et les impayés du mois sont affichés ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q3 :** Le nombre total de vues sur les biens est visible ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q4 :** Le nombre de baux actifs et le taux d'occupation sont affichés ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
+`[SUPER]` = test à exécuter avec un compte `super_admin` uniquement.
 
 ---
 
-## 2. Gestion de l'agence & de l'équipe (`/admin/agency`, `/admin/team`)
+## Ordre de test optimisé
 
-### TC-ADM-02 — Configuration de l'agence (P0)
+> Suivre l'ordre pour parcourir l'ensemble du back-office en limitant les retours.
 
-**URL :** `/admin/agency`
+### Partie A — Agency admin (`/admin/*`)
 
-**Q1 :** Il est possible de modifier le nom, la licence, les coordonnées et le logo de l'agence ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
+1. **Connexion** + **Dashboard agence** (`/admin`)
+2. **Sidebar** + vérification rôle
+3. **Mon agence** (`/admin/agency`) — config, logo, commission par défaut
+4. **Équipe** (`/admin/team`) — invitations, rôles, retraits
+5. **Utilisateurs** (`/admin/users`) — recherche, blocage, activation, attribution de rôle
+6. **Rôles & permissions** (`/admin/roles`) — rôles prédéfinis, custom, attribution
+7. **Modération biens** (`/admin/moderation/properties`)
+8. **Modération avis** (`/admin/moderation`) `[SUPER]`
+9. **Finances** (`/admin/finances`) — paiements, factures, payouts, rapprochement
+10. **Biens** (`/admin/properties`) — liste plateforme, dépublication forcée
+11. **Audit** (`/admin/audit`) — journal, filtres, export
+12. **Settings** (`/admin/settings`, `/admin/settings/tags`, `/admin/settings/integrations`)
+13. **Stats avancées** (`/app/overview/agency`, `/app/overview/kpis`, `/app/overview/alerts`)
 
-**Q2 :** L'upload du logo de l'agence fonctionne et s'affiche correctement ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
+### Partie B — Super admin (`/super-admin/*`) `[SUPER]`
 
-**Q3 :** Les paramètres de commission par défaut (%) peuvent être configurés ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-### TC-ADM-03 — Gestion des membres d'équipe (P0)
-
-**URL :** `/admin/team`
-
-**Q1 :** La liste des membres de l'agence est affichée avec leur nom, email et rôle ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q2 :** Un bouton "Ajouter un agent" permet d'inviter un nouvel agent (par email ou recherche utilisateur) ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q3 :** Le retrait d'un agent de l'agence fonctionne et révoque ses accès ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q4 :** Les statistiques globales de l'agence (biens, ventes, revenus) sont visibles sur cette page ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
+14. **Console super-admin** (`/super-admin`)
+15. **Agences** (`/super-admin/agencies`)
+16. **Biens cross-tenant** (`/super-admin/properties`)
+17. **Utilisateurs cross-tenant** (`/super-admin/users`) — impersonation
+18. **Audit cross-tenant** (`/super-admin/audit`)
+19. **Système** (`/super-admin/system`) — métriques, intégrations globales
 
 ---
 
-## 3. Rôles & permissions (`/admin/roles`)
+## 1. Connexion & Dashboard agence
 
-### TC-ADM-04 — Rôles prédéfinis (P0)
+### TC-ADM-01 — Connexion admin
 
-**Q1 :** Les rôles prédéfinis sont bien présents : `customer`, `agent`, `agency_admin`, `owner`, `service_provider`, `super_admin` ?
+**Étape 1 :** `/auth/login` → compte admin (ex: `admin1@dakarimmo.sn` / `password`).
+
+**Q1 :** Après connexion, l'utilisateur peut accéder à `/app` (espace agent) **et** à `/admin` (espace admin) via la sidebar (lien "Administration") ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q2 :** Les permissions granulaires par ressource (bien, bail, paiement…) sont listées pour chaque rôle ?
+**Étape 2 :** Cliquer sur "Administration" dans la sidebar.
+
+**Q2 :** Redirection vers `/admin` ; l'AdminShell (sidebar fond sombre + header dédié) est affiché ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q3 :** La distinction "mes ressources" vs "toutes les ressources" est implémentée pour les permissions ?
+**Q3 :** La sidebar admin affiche : Tableau de bord, Équipe, Utilisateurs, Agence, Finances, Modération biens, Rôles & Permissions, Journal d'audit, Paramètres ; pour `super_admin` aussi : Biens, Modération avis ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-### TC-ADM-05 — Attribution des rôles (P1)
+### TC-ADM-02 — Dashboard agence (`/admin`)
 
-**Q1 :** Il est possible d'attribuer un rôle à un utilisateur depuis `/admin/users` ?
+**Étape 1 :** Naviguer vers `/admin`.
+
+**Q1 :** Widget "Vue d'ensemble" : nombre total de biens (actifs / archivés), revenus du mois, impayés du mois, total de vues sur les biens ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q2 :** Il est possible de retirer un rôle à un utilisateur ?
+**Q2 :** Widget "Baux & occupation" : nombre de baux actifs, taux d'occupation (%), prochaines fins de bail ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q3 :** Un changement de rôle prend effet immédiatement (sans déconnexion/reconnexion) ?
+**Q3 :** Widget "Équipe" : nombre d'agents, top 3 agents par revenu généré ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-### TC-ADM-06 — Éditeur de rôles personnalisés (P1)
-
-**Q1 :** Il est possible de créer un rôle personnalisé scopé par agence ?
+**Q4 :** Widget "À traiter" : modérations en attente (biens / avis), réservations en attente, devis à valider ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q2 :** Les permissions du rôle personnalisé peuvent être configurées individuellement ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q3 :** Un utilisateur avec le rôle personnalisé ne peut accéder qu'aux ressources autorisées par ce rôle ?
+**Q5 :** Les chiffres correspondent à la BDD (vérifier rapidement avec quelques requêtes API) ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
 ---
 
-## 4. Gestion des utilisateurs (`/admin/users`)
+## 2. Mon agence (`/admin/agency`)
 
-### TC-ADM-07
+### TC-ADM-03 — Configuration agence (P0)
 
-**Q1 :** La liste de tous les utilisateurs de la plateforme est accessible ?
+**Étape 1 :** Naviguer vers `/admin/agency`.
+
+**Q1 :** La page affiche les champs : nom, raison sociale, numéro de licence, email pro, téléphone, adresse, site web, description, devise par défaut, logo ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q2 :** La recherche d'un utilisateur par nom ou email fonctionne ?
+**Étape 2 :** Modifier le nom (suffixer ` — QA`), sauvegarder.
+
+**Q2 :** Modification persistée ; la nouvelle valeur s'affiche partout (sidebar admin, factures, etc.) ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q3 :** Il est possible de bloquer un utilisateur (suspension du compte) ?
+**Étape 3 :** Restaurer le nom initial.
+
+**Q3 :** Restauration persistée ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q4 :** Un utilisateur bloqué ne peut plus se connecter et reçoit un message approprié ?
+### TC-ADM-04 — Logo de l'agence (P0)
+
+**Étape 1 :** Cliquer "Modifier le logo". Uploader un PNG (200×200, < 1 Mo).
+
+**Q1 :** Le logo est uploadé ; l'aperçu est immédiat ; le logo apparaît sur la sidebar admin et sur les fiches biens publiques ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q5 :** Il est possible de réactiver un utilisateur bloqué ?
+**Q2 :** Tenter un fichier > 5 Mo : erreur claire ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
----
+### TC-ADM-05 — Commission par défaut (P1)
 
-## 5. Finances (`/admin/finances`)
+**Étape 1 :** Sur `/admin/agency`, repérer "Commission par défaut".
 
-### TC-ADM-08 — Enregistrer un paiement (P0)
-
-**Q1 :** Il est possible d'enregistrer manuellement un paiement (réservation ou bail) depuis l'interface admin ?
+**Q1 :** Le champ accepte un pourcentage (ex: 5%) avec validation 0-100 ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q2 :** Le statut du paiement (en attente, payé, remboursé, annulé) est bien géré ?
+**Q2 :** La nouvelle valeur s'applique aux futurs baux/payouts (pas rétroactivement) ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-### TC-ADM-09 — Factures et historique (P1)
+### TC-ADM-06 — Watermark des photos (P2)
 
-**Q1 :** Une facture peut être générée pour un Customer depuis l'interface admin ?
+**Étape 1 :** Cliquer "Régénérer les watermarks" via `POST /api/agencies/{id}/regenerate-watermarks`.
+
+**Q1 :** Une tâche asynchrone est démarrée (notif "Génération en cours") ; les photos publiées sont régénérées avec le logo de l'agence en filigrane ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q2 :** L'historique des paiements filtrable par entité (bail, réservation, client) est accessible ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
+### TC-ADM-07 — Statistiques globales agence
 
-**Q3 :** Le suivi des statuts de paiement (en attente, payé, remboursé, annulé) est visible ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
+**Étape 1 :** Sur `/admin/agency`, repérer "Statistiques".
 
-**Q4 :** La relance automatique des factures en retard est configurée et fonctionne (P2) ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
----
-
-## 6. Reporting & exports (`/app/overview/exports`)
-
-### TC-ADM-10 — Exports CSV/Excel (P2)
-
-**URL :** `/app/overview/exports`
-
-**Q1 :** L'export CSV des paiements fonctionne et télécharge un fichier valide ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q2 :** L'export CSV des baux fonctionne ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q3 :** L'export CSV des clients fonctionne ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q4 :** L'export PDF (quittances, factures, rapports) génère un fichier lisible ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-### TC-ADM-11 — Graphiques temporels (P2)
-
-**URL :** `/app/overview/kpis`
-
-**Q1 :** Des graphiques de revenus dans le temps (semaine, mois, année) sont disponibles ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q2 :** Un graphique du taux d'occupation des biens dans le temps est disponible ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q3 :** Les données des graphiques correspondent aux données réelles de la base ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-### TC-ADM-12 — Alertes sur seuils (P3)
-
-**URL :** `/app/overview/alerts`
-
-**Q1 :** Il est possible de configurer une alerte quand le taux d'impayés dépasse un seuil ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q2 :** Il est possible de configurer une alerte sur le taux de vacance ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q3 :** Les alertes déclenchées sont visibles dans le centre de notifications ?
+**Q1 :** Affiche : biens publiés, biens vendus / loués (cumul), revenus cumulés, taux de conversion ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
 ---
 
-## 7. Modération (`/admin/moderation`)
+## 3. Équipe (`/admin/team`)
 
-### TC-ADM-13 — Modération des biens (P2)
+### TC-ADM-08 — Liste des membres (P0)
 
-**URL :** `/admin/moderation/properties`
+**Étape 1 :** Naviguer vers `/admin/team`.
 
-**Q1 :** La file de biens en attente de validation (avant publication) est accessible ?
+**Q1 :** La liste des membres affiche : nom, email, rôle (badge coloré), date d'arrivée, statut (actif / suspendu) ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q2 :** L'admin peut approuver un bien, ce qui le rend visible sur le site public ?
+**Q2 :** Recherche par nom et filtre par rôle disponibles ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q3 :** L'admin peut rejeter un bien avec un motif communiqué à l'agent ?
+### TC-ADM-09 — Inviter un agent (P0)
+
+**Étape 1 :** Cliquer "Inviter un agent". Saisir email + rôle (`agent`).
+
+**Q1 :** Soit (a) si l'email correspond à un User existant : ajout direct au membership de l'agence ; soit (b) si nouvel email : un email d'invitation est envoyé avec lien de création de compte ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-### TC-ADM-14 — Modération des avis (P2)
+**Étape 2 :** Vérifier en BDD ou via `GET /api/agencies/{id}/members`.
 
-**URL :** `/admin/moderation`
-
-**Q1 :** La liste des avis signalés est accessible dans l'interface de modération ?
+**Q2 :** Le nouveau membre apparaît dans la liste ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q2 :** L'admin peut masquer un avis inapproprié ?
+### TC-ADM-10 — Modifier le rôle d'un membre (P1)
+
+**Étape 1 :** Sur un agent, ouvrir le menu actions, choisir "Changer le rôle" → `agency_admin`.
+
+**Q1 :** Une confirmation est demandée ; le rôle est mis à jour (`PUT /api/agencies/{id}/members/{user}/role`) ; le membre voit immédiatement les liens admin sans re-login ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q3 :** L'admin peut supprimer définitivement un avis ?
+### TC-ADM-11 — Retirer un agent (P0)
+
+**Étape 1 :** Sur un agent, choisir "Retirer de l'agence". Confirmer.
+
+**Q1 :** Le membre disparaît de la liste ; ses accès aux ressources de l'agence sont révoqués (vérifier via API que ses biens sont réassignés ou archivés selon politique) ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q4 :** L'avis masqué/supprimé disparaît de la fiche bien publique immédiatement ?
+**Q2 :** Une notification est envoyée à l'agent retiré ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
----
+### TC-ADM-12 — Délégations temporaires (P2)
 
-## 8. Journal d'audit (`/admin/audit`)
+**Étape 1 :** Sur un membre, cliquer "Déléguer un rôle temporairement". Choisir rôle + dates.
 
-### TC-ADM-15 — Journal d'activité (P0)
-
-**Q1 :** Le journal d'activité est accessible depuis `/admin/audit` ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q2 :** Les actions critiques (création/modification de bail, paiement, changement de statut) sont bien enregistrées ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q3 :** Chaque entrée du journal contient : utilisateur, action, entité, horodatage ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q4 :** Il est possible de consulter le journal d'activité d'une entité spécifique (ex: bail #42) ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-### TC-ADM-16 — Filtrage du journal (P1)
-
-**Q1 :** Le journal peut être filtré par utilisateur ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q2 :** Le journal peut être filtré par plage de dates ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q3 :** Le journal peut être filtré par type d'action (créé, modifié, supprimé) ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q4 :** L'export du journal d'audit est disponible (P2) ?
+**Q1 :** Une délégation est créée (`POST /api/agencies/{id}/role-delegations`) ; le membre obtient le rôle entre les dates indiquées ; la révocation manuelle est possible (`DELETE`) ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
 ---
 
-## 9. Administration & configuration (`/admin/settings`)
+## 4. Utilisateurs (`/admin/users`)
 
-### TC-ADM-17 — Tags et amenités (P0)
+### TC-ADM-13 — Liste
 
-**URL :** `/admin/settings/tags`
+**Étape 1 :** Naviguer vers `/admin/users`.
 
-**Q1 :** La liste des tags/amenités disponibles est affichée ?
+**Q1 :** La liste affiche : nom, email, rôles, agence(s), date d'inscription, statut (actif / bloqué), email vérifié, 2FA activée ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q2 :** Un nouveau tag peut être créé (nom + icône/couleur optionnel) ?
+**Q2 :** Recherche par nom/email + filtres (rôle, statut, agence, vérification email) ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q3 :** Un tag existant peut être modifié ou supprimé ?
+### TC-ADM-14 — Bloquer / activer un utilisateur (P0)
+
+**Étape 1 :** Sur un utilisateur, cliquer "Bloquer". Confirmer + saisir motif optionnel.
+
+**Q1 :** Statut → "Bloqué" ; toutes ses sessions sont révoquées ; il ne peut plus se connecter (message "Compte suspendu") ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q4 :** La suppression d'un tag le retire de tous les biens qui y étaient associés ?
+**Étape 2 :** Cliquer "Réactiver".
+
+**Q2 :** Statut → "Actif" ; l'utilisateur peut à nouveau se connecter ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-### TC-ADM-18 — Configuration email (P1)
+### TC-ADM-15 — Attribuer / retirer un rôle (P1)
 
-**URL :** `/admin/settings`
+**Étape 1 :** Sur un utilisateur, ouvrir "Rôles". Ajouter `owner` à un agent existant.
 
-**Q1 :** Il est possible de configurer l'adresse expéditrice des emails transactionnels ?
+**Q1 :** Le rôle est ajouté (`POST /api/users/{user}/roles`) ; l'utilisateur a les deux rôles ; la sidebar reflète les nouveaux liens dès le prochain refresh ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q2 :** Les templates d'emails (invitation, confirmation de réservation, etc.) sont personnalisables ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
+**Étape 2 :** Retirer un rôle.
 
-### TC-ADM-19 — Intégrations tierces (P2)
-
-**URL :** `/admin/settings/integrations`
-
-**Q1 :** La page des intégrations liste les passerelles disponibles (Wave, Orange Money, Stripe) ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q2 :** Une clé API peut être configurée pour une intégration sans exposer la clé en clair après sauvegarde ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q3 :** Les intégrations activées peuvent être désactivées sans perte de données ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-### TC-ADM-20 — Paramètres globaux (P2)
-
-**Q1 :** Il est possible de configurer des paramètres globaux de la plateforme (délai de grâce, devise par défaut) ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Q2 :** La devise configurable par agence (XOF par défaut, EUR, USD) fonctionne ?
+**Q2 :** Suppression effective (`DELETE /api/users/{user}/roles/{role}`) ; les permissions sont retirées immédiatement ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
 ---
 
-## 10. Isolation des données (sécurité)
+## 5. Rôles & permissions (`/admin/roles`)
 
-### TC-ADM-21
+### TC-ADM-16 — Rôles prédéfinis (P0)
 
-**Q1 :** Un `agency_admin` ne voit que les données de son agence (pas celles d'autres agences) ?
+**Étape 1 :** Naviguer vers `/admin/roles`.
+
+**Q1 :** Les 6 rôles prédéfinis sont présents : `customer`, `agent`, `agency_admin`, `owner`, `service_provider`, `super_admin` ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q2 :** Seul le `super_admin` peut accéder aux données de toutes les agences ?
+**Q2 :** Pour chaque rôle, cliquer pour ouvrir le détail : la liste des permissions accordées est visible ; les permissions sont groupées par ressource (Property, Lease, Booking, etc.) ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q3 :** Tenter d'accéder à une ressource d'une autre agence retourne bien une erreur 403 ?
+**Q3 :** La distinction "mes ressources" vs "toutes les ressources" est visible (ex: `lease.view-own` vs `lease.view-any`) ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q4 :** Un `agency_admin` ne peut pas élever ses propres permissions au niveau `super_admin` ?
+### TC-ADM-17 — Rôle personnalisé scopé agence (P1)
+
+**Étape 1 :** Cliquer "Créer un rôle". Nommer `Comptable`. Sélectionner uniquement les permissions liées aux paiements/factures.
+
+**Q1 :** Le rôle est créé (`POST /api/roles`) ; il apparaît dans la liste avec scope = nom de l'agence ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Attribuer ce rôle à un user puis vérifier qu'il accède uniquement aux paiements/factures.
+
+**Q2 :** Les autres pages (biens, customers) lui retournent 403 ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 3 :** Modifier les permissions du rôle Comptable.
+
+**Q3 :** Les permissions des users portant ce rôle sont mises à jour immédiatement ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 4 :** Supprimer le rôle Comptable.
+
+**Q4 :** Une confirmation est demandée ; après suppression les users perdent l'accès. Si des users portent encore ce rôle, soit blocage soit avertissement explicite ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-18 — Permissions granulaires
+
+**Étape 1 :** Sur le détail d'un rôle, ajouter/retirer une permission individuelle.
+
+**Q1 :** Ajout (`POST /api/roles/{role}/permissions`) et retrait (`DELETE /api/roles/{role}/permissions/{permission}`) fonctionnent et sont tracés dans l'audit log ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
 ---
 
-## 11. Biens — Liste admin (`/admin/properties`)
+## 6. Modération des biens (`/admin/moderation/properties`)
 
-### TC-ADM-22
+### TC-ADM-19 — File de modération (P2)
 
-**Q1 :** La liste de tous les biens de l'agence est accessible avec filtres (statut, type, agent) ?
+**Précondition :** Un bien soumis à modération via `POST /api/properties/{id}/submit-moderation`.
+
+**Étape 1 :** Naviguer vers `/admin/moderation/properties`.
+
+**Q1 :** La file affiche les biens "En attente" avec : photo de couverture, titre, agent soumetteur, date de soumission, badge urgence ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q2 :** L'admin peut forcer la dépublication d'un bien problématique ?
+**Q2 :** Un compteur dans la sidebar admin badge "X biens à modérer" est mis à jour ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q3 :** L'admin peut supprimer un bien définitivement si nécessaire ?
+### TC-ADM-20 — Approuver un bien
+
+**Étape 1 :** Cliquer sur un bien dans la file. Examiner les détails (photos, description, prix, conformité).
+
+**Q1 :** Cliquer "Approuver" ; un commentaire interne optionnel ; le bien passe à "Publié" et devient visible publiquement ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** Une notification est envoyée à l'agent soumetteur ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-21 — Rejeter un bien
+
+**Étape 1 :** Sur un bien en attente, cliquer "Rejeter". Sélectionner un motif (Photos manquantes / Description insuffisante / Prix incohérent / Doublon / Autre) + commentaire.
+
+**Q1 :** Le bien retourne au statut "Rejeté" / "À corriger" ; l'agent reçoit une notification + le motif ; il peut corriger et resoumettre ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
 ---
 
-## 12. Récapitulatif des bugs trouvés
+## 7. Modération des avis (`/admin/moderation`) `[SUPER]`
 
-| # | Sévérité | Fonctionnalité | Description | Statut |
-|---|----------|---------------|-------------|--------|
-| | P0 | | | |
-| | P1 | | | |
-| | P2 | | | |
-| | P3 | | | |
+### TC-ADM-22 — File des avis signalés (P2)
+
+**Précondition :** Au moins un avis signalé.
+
+**Étape 1 :** Naviguer vers `/admin/moderation` (super_admin).
+
+**Q1 :** La file affiche les avis signalés avec : auteur, cible, contenu, motif(s) du signalement, signaleur(s) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Sur un avis, cliquer "Approuver" (l'avis reste publié), "Masquer" (l'avis n'est plus visible publiquement), ou "Supprimer" (suppression définitive).
+
+**Q2 :** Chaque action met à jour le statut et trace l'événement dans l'audit log ; l'auteur est notifié ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q3 :** Un avis "Masqué" disparaît de la fiche bien publique immédiatement ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
 ---
 
-## 13. Notes du testeur
+## 8. Finances (`/admin/finances`)
 
-> _______________________________________________
-> _______________________________________________
-> _______________________________________________
+### TC-ADM-23 — Vue d'ensemble finances
+
+**Étape 1 :** Naviguer vers `/admin/finances`.
+
+**Q1 :** Onglets : Paiements / Factures / Payouts / Commissions / Rapprochement bancaire ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** Les KPIs en haut : revenus du mois, factures impayées, payouts en attente, commissions non versées ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-24 — Enregistrer un paiement manuel (P0)
+
+**Étape 1 :** Cliquer "Nouveau paiement". Choisir entité (réservation / bail / facture). Saisir montant, méthode (virement / espèces / chèque / mobile money), date, référence.
+
+**Q1 :** Le paiement est enregistré ; le statut de l'entité associée est mis à jour ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** Une quittance / reçu PDF est généré et téléchargeable ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-25 — Statuts des paiements
+
+**Q1 :** Les statuts (En attente / Payé / Remboursé / Échec / Annulé) sont visibles dans la liste avec des badges colorés cohérents ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-26 — Factures (P1)
+
+**Étape 1 :** Onglet "Factures", cliquer "Nouvelle facture".
+
+**Q1 :** Formulaire : Customer destinataire, lignes (description / quantité / PU), TVA, conditions, échéance ; PDF prévisualisable avant envoi ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Émettre, envoyer, marquer payée, annuler successivement.
+
+**Q2 :** Toutes les transitions de statut fonctionnent ; le destinataire reçoit les notifications appropriées ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-27 — Payouts (reversement bailleur) (P1)
+
+**Étape 1 :** Onglet "Payouts", cliquer "Nouveau payout". Sélectionner bailleur, période, paiements à inclure.
+
+**Q1 :** Calcul automatique : montant brut, commission agence, montant net ; possibilité d'éditer la commission ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Marquer le payout comme "Traité" (versement effectué).
+
+**Q2 :** Statut → "Traité" ; le bailleur reçoit une notification + reçu PDF ; tracé dans l'audit ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 3 :** Sur un payout en cours, cliquer "Marquer en échec" puis "Annuler".
+
+**Q3 :** Les transitions sont possibles avec motif obligatoire ; un payout annulé peut être recréé ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-28 — Rapprochement bancaire (P2)
+
+**Étape 1 :** Onglet "Rapprochement bancaire". Cliquer "Importer un relevé". Uploader un CSV / PDF de relevé bancaire.
+
+**Q1 :** Les lignes du relevé sont parsées (date, libellé, montant, solde) et affichées dans `/api/agencies/{id}/bank-statements/{statement}/lines` ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Sur une ligne, le système suggère un paiement potentiel (matching auto). Valider via `POST /api/bank-statement-lines/{line}/match`.
+
+**Q2 :** Le paiement est rapproché ; sur les lignes non rapprochées, on peut ignorer (`POST /.../ignore`) ou rapprocher manuellement ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 3 :** Cliquer "Finaliser le relevé" via `POST /api/bank-statements/{statement}/finalize`.
+
+**Q3 :** Le relevé est verrouillé ; les lignes ne sont plus modifiables ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-29 — Relances de factures (P2)
+
+**Précondition :** Une facture en retard.
+
+**Q1 :** À J+3 / J+7 / J+15, des relances automatiques sont envoyées au destinataire ; le statut "En relance" apparaît ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-30 — Commissions par agent (P3)
+
+**Étape 1 :** Onglet "Commissions". Filtrer par agent.
+
+**Q1 :** Le récap mensuel par agent est affiché : commissions générées, versées, en attente ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+---
+
+## 9. Biens — Liste plateforme (`/admin/properties`)
+
+### TC-ADM-31 — Liste admin biens
+
+**Étape 1 :** Naviguer vers `/admin/properties`.
+
+**Q1 :** Liste enrichie : référence, titre, agence, agent, statut, prix, vues, favoris, signalements, dernière modification ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** Filtres : statut (incluant "modération en attente"), agence, agent, date, signalements ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-32 — Actions modération forcée
+
+**Étape 1 :** Sur un bien, cliquer "Forcer la dépublication".
+
+**Q1 :** Le bien est dépublié immédiatement ; un motif est obligatoire ; l'agent et le bailleur sont notifiés ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Cliquer "Supprimer définitivement" sur un bien problématique (super_admin uniquement).
+
+**Q2 :** Une double confirmation est demandée ; le bien est supprimé (force-delete au-delà du soft-delete) ; l'audit log conserve la trace ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+---
+
+## 10. Audit (`/admin/audit`)
+
+### TC-ADM-33 — Journal d'activité (P0)
+
+**Étape 1 :** Naviguer vers `/admin/audit`.
+
+**Q1 :** Le journal liste les événements en ordre chronologique inverse avec : utilisateur, action (créé / modifié / supprimé / approuvé / etc.), entité (Property #42, Lease #17), horodatage, IP ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** Le diff "avant / après" est affiché pour les modifications ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-34 — Filtres du journal (P1)
+
+**Étape 1 :** Appliquer filtres : utilisateur = un agent précis, plage de dates = derniers 7 jours, action = `updated`, entité = `Property`.
+
+**Q1 :** Les résultats sont correctement filtrés ; l'URL contient les paramètres ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Cliquer sur un événement.
+
+**Q2 :** Le détail montre les valeurs avant/après ; lien vers l'entité concernée si elle existe encore ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-35 — Audit par entité
+
+**Étape 1 :** Sur la fiche d'un bail, cliquer "Voir l'historique".
+
+**Q1 :** L'API `/api/audit-log/{entity}/{id}` renvoie tous les événements pour cette entité ; même résultat via UI ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-36 — Export du journal (P2)
+
+**Étape 1 :** Cliquer "Exporter" → CSV.
+
+**Q1 :** Une tâche est lancée (`GET /api/activity-logs/export`) ; un téléchargement est proposé une fois prêt (`/download`) ; le CSV contient toutes les colonnes attendues ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-37 — Alertes sur actions sensibles (P3)
+
+**Q1 :** Une notif admin est envoyée pour : suppression de bien, suppression de bail, modification de rôle super_admin, échec de paiement répété ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+---
+
+## 11. Settings (`/admin/settings`)
+
+### TC-ADM-38 — Vue d'ensemble settings
+
+**Étape 1 :** Naviguer vers `/admin/settings`.
+
+**Q1 :** Sections visibles : Tags & Amenités, Configuration email, Intégrations, Paramètres globaux ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-39 — Tags & amenités (`/admin/settings/tags`) (P0)
+
+**Étape 1 :** Liste des tags. Cliquer "Nouveau tag". Nommer "Domotique", choisir une icône.
+
+**Q1 :** Le tag est créé et apparaît dans le sélecteur d'amenités sur les fiches biens ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Modifier un tag, puis tenter de le supprimer.
+
+**Q2 :** Si le tag est utilisé par des biens, soit blocage avec message explicite, soit confirmation "Le tag sera retiré de N biens" ; après suppression, il disparaît partout ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-40 — Configuration email (P1)
+
+**Étape 1 :** Section "Email". Modifier l'adresse expéditrice, le nom expéditeur, l'adresse de support.
+
+**Q1 :** Les valeurs sont sauvegardées ; un email test peut être envoyé pour vérifier ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** Les templates (vérification email, reset password, invitation, confirmation booking) sont éditables ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-41 — Intégrations (`/admin/settings/integrations`) (P2)
+
+**Étape 1 :** Liste des intégrations disponibles : Wave, Orange Money, Stripe, Twilio (SMS), Mapbox.
+
+**Q1 :** Pour chaque intégration : statut (active / inactive), bouton "Configurer", bouton "Tester" ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Configurer Stripe (saisir clés API). Sauvegarder.
+
+**Q2 :** Les clés API sont stockées chiffrées ; après sauvegarde, seules les 4 derniers caractères sont visibles ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 3 :** Cliquer "Tester l'intégration" via `POST /api/integrations/{integration}/test`.
+
+**Q3 :** Le test renvoie OK ou un message d'erreur explicite ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 4 :** Désactiver l'intégration.
+
+**Q4 :** L'intégration est désactivée sans perte de configuration ; les paiements en cours via cette passerelle ne sont pas affectés ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-42 — Paramètres globaux (P2)
+
+**Q1 :** Champs : devise par défaut (XOF / EUR / USD), délai d'expiration des réservations en attente, délai de relance d'impayés (J+3, J+7), pourcentage de pénalité de retard ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** Les modifications prennent effet pour les futurs événements ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+---
+
+## 12. Statistiques avancées admin
+
+### TC-ADM-43 — Dashboard agency (`/app/overview/agency`)
+
+**Étape 1 :** Naviguer.
+
+**Q1 :** Vue avancée : revenus / occupations / impayés / nouveaux clients par mois, comparatifs avec mois précédent ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-44 — KPIs personnalisables (`/app/overview/kpis`) (P3)
+
+**Étape 1 :** Cliquer "Nouveau KPI". Nommer, choisir métrique parmi `/api/kpi-configs/metrics`, choisir la période et la cible.
+
+**Q1 :** Le KPI est créé (`POST /api/kpi-configs`) ; il apparaît sur le dashboard avec un graphique d'évolution ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Modifier le KPI, puis le supprimer.
+
+**Q2 :** Modification + suppression fonctionnent ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-45 — Alertes sur seuils (`/app/overview/alerts`) (P3)
+
+**Étape 1 :** Cliquer "Nouvelle alerte". Définir : métrique = "Taux d'impayés", seuil = 10%, canal de notification (email / in-app).
+
+**Q1 :** L'alerte est créée (`POST /api/threshold-alerts`) ; quand le seuil est dépassé, une notification est envoyée ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+---
+
+## 13. Exports (`/app/overview/exports`)
+
+### TC-ADM-46 — Exports CSV / Excel / PDF (P2)
+
+**Étape 1 :** Pour chaque entité (paiements / baux / clients / biens), tester un export.
+
+| Entité | Format | Téléchargé | Contenu cohérent | Statut |
+|--------|--------|------------|------------------|--------|
+| Paiements | CSV | _______ | _______ | ✅ ❌ ⚠️ 🔲 |
+| Baux | CSV | _______ | _______ | ✅ ❌ ⚠️ 🔲 |
+| Clients | CSV | _______ | _______ | ✅ ❌ ⚠️ 🔲 |
+| Biens | CSV | _______ | _______ | ✅ ❌ ⚠️ 🔲 |
+| Quittances | PDF | _______ | _______ | ✅ ❌ ⚠️ 🔲 |
+| Factures | PDF | _______ | _______ | ✅ ❌ ⚠️ 🔲 |
+
+**Q1 :** Toutes les exports fonctionnent et les fichiers sont structurés/lisibles ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+---
+
+## 14. Isolation des données
+
+### TC-ADM-47 — Cloisonnement par agence
+
+**Précondition :** Connecté en `agency_admin` (pas super_admin).
+
+**Q1 :** L'admin ne voit QUE les données de son agence dans : `/admin/users`, `/admin/properties`, `/admin/finances`, `/admin/audit` ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** Tentative API de lire une ressource d'une autre agence → 403 ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q3 :** Aucun lien `/super-admin` n'est visible dans la sidebar ; tentative directe → redirection ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q4 :** L'agency_admin ne peut pas s'attribuer le rôle `super_admin` (rôle protégé) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+---
+
+## 15. Console super-admin (`/super-admin/*`) `[SUPER]`
+
+### TC-ADM-48 — Accès console
+
+**Précondition :** Compte `super_admin` (ex: `superadmin@takussan.com` / `password`).
+
+**Étape 1 :** Naviguer vers `/super-admin`.
+
+**Q1 :** Le SuperAdminShell s'affiche (palette stone-900 + accent ambre) ; sidebar : Console, Agences, Biens, Utilisateurs, Audit, Système ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** Un user non super_admin tentant d'accéder à `/super-admin` est redirigé ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-49 — Liste des agences (`/super-admin/agencies`)
+
+**Étape 1 :** Liste de toutes les agences de la plateforme.
+
+**Q1 :** Colonnes : nom, slug, statut (active / suspendue), nombre de membres, nombre de biens, date de création, statut de vérification (vérifiée / non vérifiée) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Sur une agence, cliquer "Vérifier".
+
+**Q2 :** L'agence passe en statut "Vérifiée" (`POST /api/admin/agencies/{id}/verify`) ; un badge apparaît sur les fiches biens ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 3 :** Cliquer "Suspendre" (`POST /api/admin/agencies/{id}/suspend`).
+
+**Q3 :** L'agence est suspendue ; ses biens sont retirés du public ; ses membres sont notifiés ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-50 — Biens cross-tenant (`/super-admin/properties`)
+
+**Étape 1 :** Liste de tous les biens de la plateforme.
+
+**Q1 :** Filtres par agence + actions de modération forcée ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-51 — Utilisateurs cross-tenant (`/super-admin/users`)
+
+**Étape 1 :** Liste de tous les users de la plateforme.
+
+**Q1 :** Bouton "Impersonate" sur chaque user (POST `/api/admin/users/{user}/impersonate`) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Cliquer "Impersonate" sur un user.
+
+**Q2 :** Une session impersonation est ouverte ; un bandeau persistant en haut "Vous voyez la plateforme en tant que [User]. [Quitter l'impersonation]" est visible ; le SuperAdmin peut naviguer comme cet user ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 3 :** Cliquer "Quitter l'impersonation" (`POST /api/admin/impersonate/stop`).
+
+**Q3 :** Retour à la session super_admin sans relogin ; l'événement est tracé dans l'audit log ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-52 — Audit cross-tenant (`/super-admin/audit`)
+
+**Étape 1 :** Naviguer vers `/super-admin/audit`.
+
+**Q1 :** Le journal d'audit affiche les événements de **toutes** les agences avec un filtre "Agence" supplémentaire ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-ADM-53 — Système (`/super-admin/system`)
+
+**Étape 1 :** Naviguer vers `/super-admin/system`.
+
+**Q1 :** Métriques techniques : taille BDD, nombre d'utilisateurs actifs (DAU/MAU), file de jobs (queue size), erreurs 500 sur 24h, taux d'occupation Redis/cache ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** Statut des intégrations globales (Mailer, SMS providers, Storage, Search) avec ping en direct ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q3 :** L'API `/api/admin/system/metrics` est accessible et renvoie les métriques en JSON ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+---
+
+## 16. Récapitulatif — Bugs trouvés
+
+| # | Sévérité | TC | Page | Description | Statut |
+|---|----------|----|------|-------------|--------|
+| 1 |   |   |   |   |  |
+| 2 |   |   |   |   |  |
+| 3 |   |   |   |   |  |
+
+---
+
+## 17. Notes du testeur
+
+```
+_______________________________________________________________
+
+_______________________________________________________________
+
+_______________________________________________________________
+```

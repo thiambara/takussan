@@ -1145,6 +1145,78 @@ Suivre l'ordre ci-dessous pour éviter les allers-retours :
 
 ---
 
+## 14bis. Avis laissés par l'utilisateur (`/app/profile/reviews`)
+
+### TC-AUTH-46 — Liste de mes avis
+
+**Précondition :** Être connecté. Naviguer vers `/app/profile/reviews`.
+
+**Q1 :** La page liste tous les avis postés par l'utilisateur (sur biens, agents, agences) avec : entité ciblée, note (étoiles), texte, date, statut (publié / en attente / rejeté) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** Si l'utilisateur n'a aucun avis, un état vide cohérent est affiché ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 1 :** Cliquer sur un avis pour voir le détail / éditer.
+
+**Q3 :** Possibilité d'éditer ou supprimer son propre avis (si statut le permet) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+---
+
+## 14ter. Mes profils — édition par type (`/app/profile`)
+
+> Cette section couvre la mise à jour des champs spécifiques à chaque profil (`ProfileAgentSection`, `ProfileOwnerSection`, `ProfileCustomerSection`, `ProfileAdminSection`). Tester uniquement les profils correspondant aux rôles de votre compte.
+
+### TC-AUTH-47 — Profil Customer (locataire/acheteur)
+
+**Précondition :** Compte avec rôle `customer` ou `tenant`. Sur `/app/profile`.
+
+**Q1 :** La section "Profil locataire/acheteur" affiche : préférences de recherche (transaction préférée, ville, budget), niveau de revenu (optionnel), type de garant ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 1 :** Modifier la préférence "Type de transaction préférée" et la ville. Sauvegarder.
+
+**Q2 :** La modification est persistée et les recherches sauvegardées peuvent ré-utiliser ces préférences ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-AUTH-48 — Profil Owner
+
+**Précondition :** Compte avec rôle `owner`. Sur `/app/profile`.
+
+**Q1 :** La section "Profil propriétaire" affiche : RIB / IBAN, identifiant fiscal, type de gestion (directe / via agence), nombre de biens ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 1 :** Modifier le RIB. Sauvegarder.
+
+**Q2 :** Le RIB est masqué (•••• •••• •••• 1234) mais peut être révélé temporairement ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-AUTH-49 — Profil Agent
+
+**Précondition :** Compte avec rôle `agent`. Sur `/app/profile`.
+
+**Q1 :** La section "Profil agent" affiche : numéro de licence, agence de rattachement (lecture seule), spécialisations (résidentiel/commercial), commission par défaut, langues parlées ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-AUTH-50 — Profil Admin
+
+**Précondition :** Compte avec rôle `agency_admin` ou `super_admin`.
+
+**Q1 :** La section "Profil admin" affiche : périmètre (agence(s) gérée(s)), rôle effectif, dernière action sensible ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+---
+
 ## 15. Protection des routes authentifiées
 
 ### TC-AUTH-44 — Redirection après login
