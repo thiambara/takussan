@@ -1,6 +1,9 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { getMeAction } from '@/app/actions/auth';
+
+export const metadata: Metadata = { title: 'État des lieux' };
 import { InventoryDetail } from '@/components/inventory';
 import { buttonVariants } from '@/components/ui/button';
 

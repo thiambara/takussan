@@ -1,4 +1,7 @@
+import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
+
+export const metadata: Metadata = { title: 'États des lieux' };
 import { InventoryList } from '@/components/inventory';
 
 export default async function Page() {

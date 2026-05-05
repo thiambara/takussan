@@ -1,6 +1,9 @@
+import type { Metadata } from 'next';
 import { forbidden, notFound } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
+
+export const metadata: Metadata = { title: 'Fiche bien' };
 import { fetchTagsAction } from '@/app/actions/admin-tags';
 import { getToken } from '@/lib/session';
 import { fetchDashboardProperty } from '@/lib/queries/properties-server';

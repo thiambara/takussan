@@ -1,12 +1,12 @@
 ---
 id: TCK-152
 title: "Dashboard — titres de page non localisés et suffixe Takussan dupliqué"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: S
 created: 2026-05-04
-updated: 2026-05-04
+updated: 2026-05-05
 depends_on: []
 blocks: []
 spec_refs:
@@ -37,8 +37,8 @@ Pas de contrat backend. Les titres sont gérés via `metadata` Next.js (`export 
 
 ## Delta à produire
 
-- [ ] **Frontend** — Auditer la définition de `metadata` dans `(dashboard)/app/layout.tsx` (template `%s — Takussan` ?) et corriger si la composition est doublée
-- [ ] **Frontend** — Définir/corriger `metadata` dans chaque `page.tsx` listée ci-dessous (titre actuellement `Tableau de bord — Takussan` au lieu du contexte) :
+- [x] **Frontend** — Auditer la définition de `metadata` dans `(dashboard)/app/layout.tsx` (template `%s — Takussan` ?) et corriger si la composition est doublée
+- [x] **Frontend** — Définir/corriger `metadata` dans chaque `page.tsx` listée ci-dessous (titre actuellement `Tableau de bord — Takussan` au lieu du contexte) :
   - `(dashboard)/app/properties/page.tsx` → `Mes biens`
   - `(dashboard)/app/customers/page.tsx` → `Clients`
   - `(dashboard)/app/bookings/page.tsx` → `Réservations`
@@ -52,7 +52,7 @@ Pas de contrat backend. Les titres sont gérés via `metadata` Next.js (`export 
   - `(dashboard)/app/properties/new/page.tsx` + `[id]/page.tsx`
   - `(dashboard)/app/customers/new/page.tsx`
   - `(dashboard)/app/profile/page.tsx`
-- [ ] **Frontend** — Sur `/app/favorites` et `/app/saved-searches` : supprimer le suffixe `— Takussan` dupliqué (titre actuel : `Mes favoris — Takussan — Takussan`)
+- [x] **Frontend** — Sur `/app/favorites` et `/app/saved-searches` : supprimer le suffixe `— Takussan` dupliqué (titre actuel : `Mes favoris — Takussan — Takussan`)
 - [ ] **Tests frontend** — Test ciblé sur 3-5 routes : assertion que `metadata.title` rend la chaîne attendue
 
 ## Critères d'acceptation
@@ -73,3 +73,7 @@ Pas de contrat backend. Les titres sont gérés via `metadata` Next.js (`export 
 - Source de reproduction : `docs/smoke-tests/agent-smoke-test-2026-05-04.md`, bug **P2-1** + détail des 13 routes incorrectes et 2 routes dupliquées.
 - Cause probable : `metadata.title` du layout `(dashboard)/app/layout.tsx` est figé à `"Tableau de bord — Takussan"` et les pages descendantes ne le surchargent pas.
 - Pour le doublon `— Takussan — Takussan` : probablement `title: "Mes favoris — Takussan"` côté page **et** `title.template: "%s — Takussan"` côté layout → composition `Mes favoris — Takussan — Takussan`.
+
+**Implémentation 2026-05-05 :**
+- **Root cause A (doublon)** : `(dashboard)/app/favorites/page.tsx` et `saved-searches/page.tsx` hardcodaient `— Takussan` dans leur `title`, mais le layout parent `(dashboard)/layout.tsx` a déjà `template: '%s — Takussan'` → double suffixe. Fix : retrait du suffixe manuel, le template gère.
+- **Root cause B (titre par défaut)** : 14 pages dashboard n'exportaient pas leur propre `metadata.title` → elles héritaient du `default: 'Tableau de bord — Takussan'`. Fix : ajout d'un `metadata.title` contextuel en français sur chaque page (Mes biens, Clients, Réservations, Baux, Messagerie, Maintenance, Documents, Statistiques, Exports, États des lieux, Mon profil, Publier un bien, Ajouter un client, Fiche bien, Fiche client, Réservation, etc.).

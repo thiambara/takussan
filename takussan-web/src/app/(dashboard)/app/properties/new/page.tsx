@@ -1,6 +1,9 @@
+import type { Metadata } from 'next';
 import { forbidden } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
+
+export const metadata: Metadata = { title: 'Publier un bien' };
 import { fetchTagsAction } from '@/app/actions/admin-tags';
 import { isAdmin, isAgent, isOwner } from '@/lib/roles';
 import { PropertyForm } from '@/components/property-form';

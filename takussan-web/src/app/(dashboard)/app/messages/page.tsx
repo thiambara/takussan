@@ -1,4 +1,7 @@
+import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
+
+export const metadata: Metadata = { title: 'Messagerie' };
 import { MessagesPage } from '@/components/messages/MessagesPage';
 
 export default async function Page() {

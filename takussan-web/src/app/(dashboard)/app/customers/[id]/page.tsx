@@ -1,6 +1,9 @@
+import type { Metadata } from 'next';
 import { forbidden, notFound } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
+
+export const metadata: Metadata = { title: 'Fiche client' };
 import { getToken } from '@/lib/session';
 import { ApiError } from '@/lib/api';
 import {

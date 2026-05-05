@@ -2,7 +2,7 @@ import { getMeAction } from '@/app/actions/auth';
 import { SavedSearchesList } from '@/components/favorites/SavedSearchesList';
 
 export const metadata = {
-  title: 'Mes recherches sauvegardées — Takussan',
+  title: 'Mes recherches sauvegardées',
 };
 
 /**

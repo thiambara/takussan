@@ -1,4 +1,7 @@
+import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
+
+export const metadata: Metadata = { title: 'Documents' };
 import { DocumentsLibrary } from '@/components/documents/DocumentsLibrary';
 
 /**

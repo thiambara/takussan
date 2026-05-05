@@ -2,7 +2,7 @@ import { getMeAction } from '@/app/actions/auth';
 import { FavoritesList } from '@/components/favorites/FavoritesList';
 
 export const metadata = {
-  title: 'Mes favoris — Takussan',
+  title: 'Mes favoris',
 };
 
 /**

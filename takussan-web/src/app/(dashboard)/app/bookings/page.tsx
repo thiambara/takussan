@@ -1,4 +1,7 @@
+import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
+
+export const metadata: Metadata = { title: 'Réservations' };
 import { isSuperAdmin } from '@/lib/roles';
 import { BookingsList } from '@/components/bookings/BookingsList';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';

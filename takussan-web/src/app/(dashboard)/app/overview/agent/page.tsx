@@ -1,4 +1,7 @@
+import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
+
+export const metadata: Metadata = { title: 'Statistiques' };
 import { isAdmin, isAgent } from '@/lib/roles';
 import { redirect } from 'next/navigation';
 import { fetchAgentDashboard } from '@/lib/queries/dashboard';

@@ -1,4 +1,7 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
+
+export const metadata: Metadata = { title: 'Baux' };
 import { getMeAction } from '@/app/actions/auth';
 import { isSuperAdmin } from '@/lib/roles';
 import { LeasesList } from '@/components/leases/LeasesList';

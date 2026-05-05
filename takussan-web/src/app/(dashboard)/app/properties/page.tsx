@@ -1,6 +1,9 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { forbidden } from 'next/navigation';
 import { Plus } from 'lucide-react';
+
+export const metadata: Metadata = { title: 'Mes biens' };
 
 import { getMeAction } from '@/app/actions/auth';
 import { getToken } from '@/lib/session';

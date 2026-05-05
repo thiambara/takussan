@@ -1,4 +1,7 @@
+import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
+
+export const metadata: Metadata = { title: 'Maintenance' };
 import { MaintenanceList } from '@/components/maintenance';
 
 export default async function Page() {

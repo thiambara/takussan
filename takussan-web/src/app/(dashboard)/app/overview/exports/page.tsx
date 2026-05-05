@@ -1,4 +1,7 @@
+import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
+
+export const metadata: Metadata = { title: 'Exports' };
 import { isAdmin, isAgent, isOwner } from '@/lib/roles';
 import { redirect } from 'next/navigation';
 import { ExportForm } from './ExportForm';

@@ -1,5 +1,8 @@
+import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
 import { BookingDetail } from '@/components/bookings/BookingDetail';
+
+export const metadata: Metadata = { title: 'Réservation' };
 
 export default async function Page({
   params,
