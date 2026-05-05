@@ -39,6 +39,8 @@ class CustomerController extends Controller
             'meta' => [
                 'total' => $paginator->total(),
                 'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
             ],
         ]);
     }

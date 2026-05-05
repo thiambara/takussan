@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useLocale } from 'next-intl';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { formatDate } from '@/lib/format';
@@ -28,13 +29,18 @@ export function InventoryList() {
   const locale = useLocale() as Locale;
   const [type, setType] = useState<'' | InventoryType>('');
   const [status, setStatus] = useState<'' | InventoryStatus>('');
+  const [page, setPage] = useState(1);
 
   const params = useMemo<InventoryListParams>(() => ({
     ...(type ? { type } : {}),
     ...(status ? { status } : {}),
-  }), [type, status]);
+    page,
+  }), [type, status, page]);
 
   const query = useInventories(params);
+
+  const prevPage = useCallback(() => setPage((p) => Math.max(1, p - 1)), []);
+  const nextPage = useCallback(() => setPage((p) => p + 1), []);
 
   return (
     <div className="space-y-4">
@@ -113,8 +119,28 @@ export function InventoryList() {
                 </li>
               ))}
               {data.meta.last_page > 1 ? (
-                <li className="pt-3 text-center text-xs text-app-ink-muted">
-                  Page {data.meta.current_page} / {data.meta.last_page} — {data.meta.total} entrées
+                <li className="flex items-center justify-between pt-3">
+                  <button
+                    type="button"
+                    disabled={data.meta.current_page <= 1}
+                    onClick={prevPage}
+                    className="inline-flex items-center gap-1 rounded-lg border border-input bg-transparent px-3 py-1.5 text-xs font-medium text-app-ink hover:bg-app-surface-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft className="size-3.5" />
+                    Précédent
+                  </button>
+                  <span className="text-xs text-app-ink-muted">
+                    Page {data.meta.current_page} / {data.meta.last_page} — {data.meta.total} entrées
+                  </span>
+                  <button
+                    type="button"
+                    disabled={data.meta.current_page >= data.meta.last_page}
+                    onClick={nextPage}
+                    className="inline-flex items-center gap-1 rounded-lg border border-input bg-transparent px-3 py-1.5 text-xs font-medium text-app-ink hover:bg-app-surface-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    Suivant
+                    <ChevronRight className="size-3.5" />
+                  </button>
                 </li>
               ) : null}
             </ul>
