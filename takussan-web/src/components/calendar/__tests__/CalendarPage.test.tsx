@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NextIntlClientProvider } from 'next-intl';
@@ -13,7 +13,7 @@ import type { CalendarEvent } from '@/types/calendar';
  * - rendu mois par défaut + pills événements
  * - bascule mois/semaine/jour/liste conserve le filtre type
  * - click événement ouvre le panneau de détail avec le bon deeplink
- * - densité max : au-delà de 3 events par jour, affiche "+N autres"
+ * - densité max : au-delà de 2 events par jour, affiche "+N autres"
  */
 
 type QueryResult = {
@@ -28,8 +28,12 @@ const calendarResult: QueryResult = {
   isError: false,
 };
 
+const { useCalendarMock } = vi.hoisted(() => ({
+  useCalendarMock: vi.fn(),
+}));
+
 vi.mock('@/lib/queries/calendar', () => ({
-  useCalendar: () => calendarResult,
+  useCalendar: useCalendarMock,
   calendarQueryKeys: { range: (p: unknown) => ['calendar', 'range', p] as const },
 }));
 
@@ -75,6 +79,22 @@ function mkVisit(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
   };
 }
 
+function mkLease(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
+  return {
+    id: 3,
+    type: 'lease',
+    title: 'Bail Plateau',
+    start: '2026-04-01 00:00:00',
+    end: '2026-04-30 00:00:00',
+    status: 'active',
+    all_day: true,
+    property_id: 12,
+    property_slug: 'bail-plateau',
+    resource_url: '/app/leases/3',
+    ...overrides,
+  };
+}
+
 const INITIAL_FOCUS = new Date(2026, 3, 24); // 2026-04-24 (Friday)
 
 describe('<CalendarPage>', () => {
@@ -82,6 +102,18 @@ describe('<CalendarPage>', () => {
     calendarResult.isLoading = false;
     calendarResult.isError = false;
     calendarResult.data = { data: [mkBooking(), mkVisit()] };
+    useCalendarMock.mockClear();
+    useCalendarMock.mockImplementation(() => calendarResult);
+  });
+
+  it('renders a permanent legend for bookings, visits and leases', () => {
+    render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
+
+    const legend = screen.getByTestId('calendar-legend');
+    expect(within(legend).getByText('Réservations')).toBeInTheDocument();
+    expect(within(legend).getByText('Visites')).toBeInTheDocument();
+    expect(within(legend).getByText('Baux')).toBeInTheDocument();
+    expect(within(legend).getByText(/signature encore en attente/i)).toBeInTheDocument();
   });
 
   it('renders month view by default with both event pills', () => {
@@ -139,7 +171,7 @@ describe('<CalendarPage>', () => {
   });
 
   it('deduplicates events per day beyond the max density threshold', () => {
-    // 5 bookings that cover 2026-04-20 → default maxPerDay=3 ⇒ "+2 autres".
+    // 5 bookings that cover 2026-04-20 → default maxPerDay=2 ⇒ "+3 autres".
     // The booking spans 6 days, so the overflow label appears on every day.
     calendarResult.data = {
       data: Array.from({ length: 5 }, (_, i) =>
@@ -148,7 +180,26 @@ describe('<CalendarPage>', () => {
     };
     render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
 
-    expect(screen.getAllByText(/\+2 autres/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/\+3 autres/i).length).toBeGreaterThan(0);
+    expect(screen.getByTestId('calendar-selected-day')).toHaveTextContent('5 événements');
+  });
+
+  it('opens the full selected day list from an overflow control', async () => {
+    const user = userEvent.setup();
+    calendarResult.data = {
+      data: Array.from({ length: 5 }, (_, i) =>
+        mkBooking({ id: 20 + i, title: `Booking #${20 + i}` }),
+      ),
+    };
+    render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
+
+    await user.click(screen.getByTestId('calendar-day-overflow-2026-04-20'));
+
+    const panel = screen.getByTestId('calendar-selected-day');
+    expect(panel).toHaveTextContent('lundi 20 avril');
+    expect(panel).toHaveTextContent('5 événements');
+    expect(within(panel).getByTestId('calendar-selected-day-row-booking-20')).toBeInTheDocument();
+    expect(within(panel).getByTestId('calendar-selected-day-row-booking-24')).toBeInTheDocument();
   });
 
   it('disables one type via the segmented control without emptying both', async () => {
@@ -182,6 +233,40 @@ describe('<CalendarPage>', () => {
     expect(options[0]).toBe('Tous les biens');
     expect(options).toContain('Villa Almadies');
     expect(options).toContain('Appart Point E');
+  });
+
+  it('updates the query and shows active state when the property filter changes', async () => {
+    const user = userEvent.setup();
+    render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
+
+    await user.selectOptions(screen.getByTestId('calendar-property-filter'), '10');
+
+    await waitFor(() => {
+      expect(useCalendarMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ property_id: 10 }),
+      );
+    });
+    expect(screen.getByTestId('calendar-active-filters')).toHaveTextContent(
+      'Bien : Villa Almadies',
+    );
+  });
+
+  it('can render lease events with a distinct detail link when returned by the API', async () => {
+    const user = userEvent.setup();
+    calendarResult.data = { data: [mkLease()] };
+    render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
+
+    await user.click(screen.getAllByTestId('calendar-event-pill-lease-3')[0]);
+
+    const panel = await screen.findByTestId('calendar-event-detail');
+    expect(within(panel).getAllByText('Bail').length).toBeGreaterThan(0);
+    expect(within(panel).getByTestId('calendar-event-open-resource')).toHaveAttribute(
+      'href',
+      '/app/leases/3',
+    );
+    expect(within(panel).getByTestId('calendar-event-open-resource')).toHaveTextContent(
+      'Ouvrir le bail',
+    );
   });
 
   it('shows a skeleton while loading', () => {

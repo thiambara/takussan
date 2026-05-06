@@ -16,9 +16,11 @@ export interface MonthViewProps {
   focus: Date;
   events: readonly CalendarEvent[];
   onSelect: (event: CalendarEvent) => void;
+  selectedDay?: Date;
+  onDaySelect?: (day: Date) => void;
   /**
    * Densité maximale d'events affichés par jour avant de regrouper en
-   * "+N autres". AC4 du ticket : max 3 + compteur.
+   * "+N autres". TCK-190 réduit le bruit visuel en vue portefeuille.
    */
   maxPerDay?: number;
 }
@@ -28,7 +30,14 @@ type ParsedEvent = CalendarEvent & {
   _end: Date | null;
 };
 
-export function MonthView({ focus, events, onSelect, maxPerDay = 3 }: MonthViewProps) {
+export function MonthView({
+  focus,
+  events,
+  onSelect,
+  selectedDay,
+  onDaySelect,
+  maxPerDay = 2,
+}: MonthViewProps) {
   const days = monthGrid(focus);
   const monthStart = startOfMonth(focus);
   const today = new Date();
@@ -62,6 +71,7 @@ export function MonthView({ focus, events, onSelect, maxPerDay = 3 }: MonthViewP
         const visible = dayEvents.slice(0, maxPerDay);
         const overflow = dayEvents.length - visible.length;
         const todayBadge = isSameDay(day, today);
+        const selected = selectedDay ? isSameDay(day, selectedDay) : false;
 
         return (
           <div
@@ -72,21 +82,26 @@ export function MonthView({ focus, events, onSelect, maxPerDay = 3 }: MonthViewP
             className={cn(
               'min-h-24 border-t border-l border-stone-100 p-1.5 text-left align-top',
               !inMonth && 'bg-stone-50/60 text-stone-400',
+              selected && 'bg-amber-50/70 ring-1 ring-inset ring-amber-300',
             )}
           >
             <div className="mb-1 flex items-center justify-between">
-              <span
+              <button
+                type="button"
+                onClick={() => onDaySelect?.(day)}
                 className={cn(
-                  'inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-medium',
+                  'inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-medium transition-colors hover:bg-stone-100',
                   todayBadge
                     ? 'bg-app-topbar text-white'
                     : inMonth
                       ? 'text-stone-700'
                       : 'text-stone-400',
+                  selected && !todayBadge && 'bg-amber-200 text-amber-950 hover:bg-amber-200',
                 )}
+                aria-label={`Voir le détail du ${day.toLocaleDateString('fr-FR')}`}
               >
                 {day.getDate()}
-              </span>
+              </button>
             </div>
 
             <ul className="space-y-1">
@@ -110,7 +125,16 @@ export function MonthView({ focus, events, onSelect, maxPerDay = 3 }: MonthViewP
                 );
               })}
               {overflow > 0 && (
-                <li className="text-xs text-stone-500">+{overflow} autre{overflow > 1 ? 's' : ''}</li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => onDaySelect?.(day)}
+                    className="text-xs font-medium text-stone-600 underline-offset-2 hover:underline"
+                    data-testid={`calendar-day-overflow-${day.toISOString().slice(0, 10)}`}
+                  >
+                    +{overflow} autre{overflow > 1 ? 's' : ''}
+                  </button>
+                </li>
               )}
             </ul>
           </div>

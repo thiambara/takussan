@@ -1,7 +1,7 @@
 ---
 id: TCK-190
 title: Calendrier owner — lisibilité gros portefeuille
-status: todo
+status: review
 phase: P2
 family: front
 estimate: S
@@ -60,4 +60,4 @@ Calendrier de gestion dense mais lisible : légende permanente, regroupement vis
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+Vue mois limitée à 2 événements visibles par jour avec accès au détail complet dans un panneau journée. La légende explicite aussi le type `lease`, mais le filtre API reste limité aux types déjà acceptés par l'agrégateur (`booking`, `visit`) pour ne pas changer le contrat backend.
