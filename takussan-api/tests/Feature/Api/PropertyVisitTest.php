@@ -50,7 +50,45 @@ class PropertyVisitTest extends TestCase
 
         $this->postJson("/api/property-visits/{$visit->id}/cancel", ['reason' => 'conflit agenda'])
             ->assertOk()
-            ->assertJsonPath('data.status', 'cancelled');
+            ->assertJsonPath('data.status', 'cancelled')
+            ->assertJsonPath('data.cancellation_reason', 'conflit agenda')
+            ->assertJsonPath('data.cancelled_at', fn ($value) => is_string($value));
+    }
+
+    public function test_visit_list_exposes_visitor_contact_fields(): void
+    {
+        $visitor = User::factory()->create();
+        $visit = PropertyVisit::factory()->create([
+            'visitor_id' => $visitor->id,
+            'visitor_name' => 'Awa Diop',
+            'visitor_phone' => '+221771112233',
+            'visitor_email' => 'awa.visit@example.test',
+        ]);
+
+        Sanctum::actingAs($visitor);
+
+        $this->getJson('/api/property-visits?fields[property_visits]=id,visitor_id,visitor_name,visitor_phone,visitor_email')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $visit->id)
+            ->assertJsonPath('data.0.visitor_name', 'Awa Diop')
+            ->assertJsonPath('data.0.visitor_phone', '+221771112233')
+            ->assertJsonPath('data.0.visitor_email', 'awa.visit@example.test');
+    }
+
+    public function test_visit_detail_exposes_loaded_visitor_phone(): void
+    {
+        $visitor = User::factory()->create([
+            'phone' => '+221700001111',
+        ]);
+        $visit = PropertyVisit::factory()->create(['visitor_id' => $visitor->id]);
+
+        Sanctum::actingAs($visitor);
+
+        $this->getJson("/api/property-visits/{$visit->id}")
+            ->assertOk()
+            ->assertJsonPath('data.visitor.id', $visitor->id)
+            ->assertJsonPath('data.visitor.phone', '+221700001111');
     }
 
     public function test_owner_can_confirm_scheduled_visit(): void

@@ -71,6 +71,79 @@ class PropertyCrudTest extends TestCase
             ->assertJsonPath('data.0.id', $match->id);
     }
 
+    public function test_property_portfolio_excludes_archived_by_default_and_can_include_them(): void
+    {
+        $user = User::factory()->create();
+        $active = Property::factory()->create([
+            'user_id' => $user->id,
+            'status' => PropertyStatus::Available,
+            'created_at' => '2026-05-06 12:00:00',
+        ]);
+        Property::factory()->create([
+            'user_id' => $user->id,
+            'status' => PropertyStatus::Archived,
+            'created_at' => '2026-05-06 13:00:00',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/properties')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $active->id);
+
+        $this->getJson('/api/properties?include_archived=true')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2);
+    }
+
+    public function test_property_portfolio_explicit_status_filter_can_return_archived_properties(): void
+    {
+        $user = User::factory()->create();
+        Property::factory()->create([
+            'user_id' => $user->id,
+            'status' => PropertyStatus::Available,
+        ]);
+        $archived = Property::factory()->create([
+            'user_id' => $user->id,
+            'status' => PropertyStatus::Archived,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/properties?filter[status]='.PropertyStatus::Archived->value)
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $archived->id)
+            ->assertJsonPath('data.0.status', PropertyStatus::Archived->value);
+    }
+
+    public function test_property_portfolio_sorts_by_views_count_and_exposes_counter_fields(): void
+    {
+        $user = User::factory()->create();
+        Property::factory()->create([
+            'user_id' => $user->id,
+            'title' => 'Low Views',
+            'views_count' => 3,
+            'favorites_count' => 1,
+        ]);
+        $popular = Property::factory()->create([
+            'user_id' => $user->id,
+            'title' => 'High Views',
+            'views_count' => 42,
+            'favorites_count' => 7,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/properties?sort=-views_count&fields[properties]=id,title,views_count,favorites_count')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2)
+            ->assertJsonPath('data.0.id', $popular->id)
+            ->assertJsonPath('data.0.views_count', 42)
+            ->assertJsonPath('data.0.favorites_count', 7);
+    }
+
     public function test_assigns_property_agent_inside_active_agency(): void
     {
         $agency = Agency::factory()->create();
