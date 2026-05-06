@@ -1,7 +1,7 @@
 ---
 id: TCK-200
 title: "Dashboard agent — widgets opérationnels manquants"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -63,4 +63,4 @@ Dashboard de travail : tâches et visites imminentes en haut, indicateurs courts
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Les nouveaux widgets utilisent uniquement les agrégats et listes issus de `/api/dashboard/agent`; les états vides restent côté frontend sans valeurs fictives.

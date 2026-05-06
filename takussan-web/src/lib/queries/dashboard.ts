@@ -53,9 +53,41 @@ export type AgentDashboard = {
   properties_managed?: number;
   pipeline?: Record<string, number>;
   bookings?: { pending: number };
-  visits?: { upcoming_7d: number };
-  finance?: { commissions_month: number };
-  tasks?: { open: number; overdue: number };
+  visits?: {
+    upcoming_7d: number;
+    today?: number;
+    today_items?: Array<{
+      id: number;
+      scheduled_at: string | null;
+      status: string | null;
+      property: { id: number; title: string } | null;
+      requester: { id?: number; name: string | null } | null;
+    }>;
+  };
+  finance?: { commissions_month: number; commissions_year?: number };
+  tasks?: {
+    open: number;
+    overdue: number;
+    today?: number;
+    items?: Array<{
+      id: number;
+      title: string;
+      priority: string | null;
+      due_at: string | null;
+      customer: { id: number; name: string } | null;
+    }>;
+  };
+  pipeline_ops?: {
+    pending_bookings: number;
+    leases_to_sign: number;
+    tasks_today: number;
+  };
+  recent_activity?: Array<{
+    id: number;
+    label: string;
+    type: string;
+    at: string | null;
+  }>;
   maintenance?: { open: number };
 };
 
