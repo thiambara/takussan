@@ -1,7 +1,7 @@
 ---
 id: TCK-186
 title: Baux owner — actions cycle de vie
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -66,4 +66,4 @@ Fiche orientée exploitation : bandeau statut, actions principales par statut, �
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+Straightforward; see commit.

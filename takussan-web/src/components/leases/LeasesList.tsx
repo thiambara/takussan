@@ -1,10 +1,18 @@
 'use client';
 
 import Link from 'next/link';
+import { useMemo, useState } from 'react';
 import { useLocale } from 'next-intl';
-import { useLeases } from '@/lib/queries/leases';
+import { useLeasePropertyOptions, useLeases } from '@/lib/queries/leases';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { Lease, LeaseStatus } from '@/types/lease';
 import type { Locale } from '@/i18n/config';
 
@@ -34,7 +42,15 @@ const STATUS_VARIANT: Record<
 
 export function LeasesList() {
   const locale = useLocale() as Locale;
-  const { data, isLoading, isError } = useLeases({ per_page: 30 });
+  const [status, setStatus] = useState<string>('all');
+  const [propertyId, setPropertyId] = useState<string>('all');
+  const propertiesQuery = useLeasePropertyOptions();
+  const { data, isLoading, isError } = useLeases({
+    status: status === 'all' ? undefined : status,
+    property_id: propertyId === 'all' ? undefined : Number(propertyId),
+    per_page: 30,
+  });
+  const propertyOptions = useMemo(() => propertiesQuery.data?.data ?? [], [propertiesQuery.data]);
 
   if (isLoading) {
     return (
@@ -56,20 +72,50 @@ export function LeasesList() {
 
   const leases = data?.data ?? [];
 
-  if (leases.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-stone-200 bg-white p-8 text-center text-sm text-stone-500">
-        Aucun bail pour l&apos;instant.
-      </div>
-    );
-  }
-
   return (
-    <ul className="space-y-3">
-      {leases.map((lease) => (
-        <LeaseRow key={lease.id} lease={lease} locale={locale} />
-      ))}
-    </ul>
+    <div className="space-y-4">
+      <div className="grid gap-3 rounded-xl border border-stone-200 bg-white p-4 sm:grid-cols-2">
+        <Select value={status} onValueChange={(value) => setStatus(value ?? 'all')}>
+          <SelectTrigger aria-label="Filtrer par statut">
+            <SelectValue placeholder="Tous les statuts" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les statuts</SelectItem>
+            {Object.entries(STATUS_LABEL).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={propertyId} onValueChange={(value) => setPropertyId(value ?? 'all')}>
+          <SelectTrigger aria-label="Filtrer par bien">
+            <SelectValue placeholder="Tous les biens" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les biens</SelectItem>
+            {propertyOptions.map((property) => (
+              <SelectItem key={property.id} value={String(property.id)}>
+                {property.reference_number ? `${property.reference_number} · ` : ''}
+                {property.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {leases.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-stone-200 bg-white p-8 text-center text-sm text-stone-500">
+          Aucun bail ne correspond à ces filtres.
+        </div>
+      ) : (
+        <ul className="space-y-3">
+          {leases.map((lease) => (
+            <LeaseRow key={lease.id} lease={lease} locale={locale} />
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

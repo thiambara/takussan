@@ -254,6 +254,38 @@ export function useUpdateLease(id: number) {
   );
 }
 
+export function useActivateLease(id: number) {
+  return useApiMutation<ApiResponse<Lease>, void>(
+    { path: `/api/leases/${id}/activate`, method: 'POST' },
+    {
+      invalidate: [
+        ['leases', 'list'],
+        ['leases', 'detail', id],
+        ['leases', 'payments', id],
+      ],
+    },
+  );
+}
+
+export type ReviewRentPayload = {
+  new_rent: number;
+  reason: string;
+  effective_date?: string;
+  force?: boolean;
+};
+
+export function useReviewLeaseRent(id: number) {
+  return useApiMutation<ApiResponse<Lease>, ReviewRentPayload>(
+    { path: `/api/leases/${id}/rent`, method: 'PATCH' },
+    {
+      invalidate: [
+        ['leases', 'list'],
+        ['leases', 'detail', id],
+      ],
+    },
+  );
+}
+
 export type CreateLeasePaymentPayload = {
   amount: number;
   payment_method: 'cash' | 'bank_transfer' | 'mobile_money' | 'check' | 'card';

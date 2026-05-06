@@ -3,10 +3,17 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useLocale } from 'next-intl';
-import { useLease, useGenerateSchedule, useLeasePayments } from '@/lib/queries/leases';
+import {
+  useActivateLease,
+  useGenerateSchedule,
+  useLease,
+  useLeasePayments,
+  useReviewLeaseRent,
+} from '@/lib/queries/leases';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
 import type { Locale } from '@/i18n/config';
 import type { LeaseStatus } from '@/types/lease';
 import { LeaseSchedule } from './LeaseSchedule';
@@ -56,6 +63,9 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   const { data, isLoading, isError } = useLease(leaseId);
   const { data: paymentsData } = useLeasePayments(leaseId);
   const generateSchedule = useGenerateSchedule(leaseId);
+  const activateLease = useActivateLease(leaseId);
+  const reviewRent = useReviewLeaseRent(leaseId);
+  const toast = useToast();
 
   // TCK-088 — display the refund action only to roles that hold
   // `leases.refund_deposit` server-side. Backend re-checks scope
@@ -108,6 +118,30 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   const lease = data.data;
   const rentOrPrice = lease.type === 'sale' ? lease.sale_price : lease.monthly_rent;
 
+  async function handleActivate() {
+    await activateLease.mutateAsync();
+    toast.add({
+      title: 'Bail activé',
+      description: 'L’échéancier peut maintenant être généré ou consulté.',
+      type: 'success',
+    });
+  }
+
+  async function handleRentReview() {
+    const rawRent = window.prompt('Nouveau loyer mensuel', String(lease.monthly_rent ?? ''))?.trim();
+    if (!rawRent) return;
+    const newRent = Number(rawRent);
+    if (!Number.isFinite(newRent) || newRent <= 0) return;
+    const reason = window.prompt('Motif de révision du loyer')?.trim();
+    if (!reason) return;
+    await reviewRent.mutateAsync({ new_rent: newRent, reason });
+    toast.add({
+      title: 'Loyer révisé',
+      description: 'La révision est journalisée dans l’historique du bail.',
+      type: 'success',
+    });
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -138,12 +172,31 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
                 type="button"
                 variant="outline"
                 onClick={() => generateSchedule.mutate({})}
-                disabled={generateSchedule.isPending}
+                disabled={generateSchedule.isPending || lease.status === 'draft'}
               >
                 {generateSchedule.isPending ? 'Génération…' : 'Générer l’échéancier'}
               </Button>
+              {lease.status === 'draft' && (
+                <Button
+                  type="button"
+                  onClick={handleActivate}
+                  disabled={activateLease.isPending}
+                >
+                  {activateLease.isPending ? 'Activation…' : 'Activer le bail'}
+                </Button>
+              )}
+              {lease.status === 'active' && lease.type !== 'sale' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleRentReview}
+                  disabled={reviewRent.isPending}
+                >
+                  Réviser le loyer
+                </Button>
+              )}
               <Button type="button" onClick={() => setPaymentOpen(true)}>
-                Enregistrer un paiement
+                Enregistrer un paiement reçu
               </Button>
             </>
           )}
@@ -217,7 +270,29 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
 
       <section>
         <h2 className="mb-3 text-sm font-semibold text-app-ink">Échéancier</h2>
+        {lease.status === 'draft' ? (
+          <p className="mb-3 rounded-lg border border-dashed border-stone-200 bg-white p-3 text-sm text-stone-500">
+            Activez le bail avant de générer l’échéancier.
+          </p>
+        ) : null}
         <LeaseSchedule leaseId={leaseId} agencyId={lease.agency_id ?? null} />
+      </section>
+
+      <section className="rounded-xl border border-stone-200 bg-white p-5">
+        <h2 className="text-sm font-semibold text-stone-900">Caution</h2>
+        <p className="mt-2 text-sm text-stone-600">
+          Montant initial :{' '}
+          <span className="font-medium text-stone-900">
+            {typeof lease.deposit_amount === 'number'
+              ? formatCurrency(lease.deposit_amount, locale)
+              : '—'}
+          </span>
+          {lease.deposit_refunded_at ? (
+            <> · Remboursée le {formatDate(lease.deposit_refunded_at, locale)}</>
+          ) : (
+            <> · Aucun remboursement enregistré</>
+          )}
+        </p>
       </section>
 
       <GuarantorSection
