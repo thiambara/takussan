@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
-import { notFound, redirect } from 'next/navigation';
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { AlertTriangle } from 'lucide-react';
 
 import { getMeAction } from '@/app/actions/auth';
 
@@ -45,7 +47,14 @@ export default async function Page({ params }: { params: Params }) {
   if (!token) redirect('/app');
 
   const customerId = Number.parseInt(id, 10);
-  if (!Number.isFinite(customerId)) notFound();
+  if (!Number.isFinite(customerId)) {
+    return (
+      <CustomerDetailError
+        title="Fiche client introuvable"
+        message="L'identifiant demandé ne correspond à aucun client exploitable."
+      />
+    );
+  }
 
   let customer;
   let notes;
@@ -59,9 +68,21 @@ export default async function Page({ params }: { params: Params }) {
       fetchCrmTags(token).catch(() => []),
     ]);
   } catch (e) {
-    if (e instanceof ApiError && e.status === 404) notFound();
+    if (e instanceof ApiError && e.status === 404) {
+      return (
+        <CustomerDetailError
+          title="Fiche client introuvable"
+          message="Ce client n'existe plus ou n'appartient pas à votre périmètre CRM."
+        />
+      );
+    }
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
-      redirect('/app');
+      return (
+        <CustomerDetailError
+          title="Accès client refusé"
+          message="Votre profil actif ne permet pas d'ouvrir cette fiche client."
+        />
+      );
     }
     throw e;
   }
@@ -110,6 +131,30 @@ export default async function Page({ params }: { params: Params }) {
         documents={documents}
         relationships={relationships}
       />
+    </div>
+  );
+}
+
+function CustomerDetailError({
+  title,
+  message,
+}: {
+  readonly title: string;
+  readonly message: string;
+}) {
+  return (
+    <div className="rounded-xl bg-app-surface-1 p-8 text-center">
+      <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-app-surface-2 text-primary">
+        <AlertTriangle className="size-6" aria-hidden="true" />
+      </div>
+      <h1 className="mt-4 text-2xl font-bold text-app-ink">{title}</h1>
+      <p className="mx-auto mt-2 max-w-lg text-sm text-app-ink-muted">{message}</p>
+      <Link
+        href="/app/customers"
+        className="mt-5 inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+      >
+        Revenir au CRM
+      </Link>
     </div>
   );
 }

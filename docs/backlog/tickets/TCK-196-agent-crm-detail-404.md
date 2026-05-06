@@ -1,7 +1,7 @@
 ---
 id: TCK-196
 title: "CRM agent — restaurer les fiches client détail"
-status: todo
+status: review
 phase: P0
 family: bug
 estimate: S
@@ -59,4 +59,4 @@ Page détail dense et opérationnelle : identité du contact, coordonnées, pipe
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+La 404 générique venait de l'appel frontend vers `/api/customers/{id}/relationships`, route API absente malgré la page détail qui en dépendait.

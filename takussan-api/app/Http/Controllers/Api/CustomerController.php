@@ -166,6 +166,37 @@ class CustomerController extends Controller
         return $this->json(['data' => $relationship]);
     }
 
+    public function relationships(Request $request, Customer $customer): JsonResponse
+    {
+        $this->authorizeAccess($request, $customer);
+
+        $relationships = $customer->relationships()
+            ->with('user:id,first_name,last_name,email')
+            ->latest('started_at')
+            ->get()
+            ->map(fn (UserCustomerRelationship $relationship) => [
+                'id' => $relationship->id,
+                'user_id' => $relationship->user_id,
+                'customer_id' => $relationship->customer_id,
+                'relationship_type' => $relationship->relationship_type?->value,
+                'is_primary' => $relationship->is_primary,
+                'status' => $relationship->status?->value,
+                'start_date' => $relationship->started_at?->toDateString(),
+                'end_date' => $relationship->ended_at?->toDateString(),
+                'notes' => $relationship->notes,
+                'user' => $relationship->relationLoaded('user') && $relationship->user
+                    ? [
+                        'id' => $relationship->user->id,
+                        'name' => $relationship->user->getFullNameAttribute(),
+                        'email' => $relationship->user->email,
+                    ]
+                    : null,
+            ])
+            ->values();
+
+        return $this->json(['data' => $relationships]);
+    }
+
     public function updatePipelineStage(Request $request, Customer $customer): JsonResponse
     {
         $this->authorizeAccess($request, $customer);
