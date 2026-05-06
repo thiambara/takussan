@@ -1,0 +1,6 @@
+[shell_environment_policy]
+inherit = "core"
+
+[shell_environment_policy.set]
+CLAUDE_CODE_EFFORT_LEVEL = "high"
+CLAUDE_CODE_MAX_TOKENS = "1000000"
