@@ -125,6 +125,30 @@ export function useCancelBooking(bookingId: number) {
   );
 }
 
+export function useConfirmBooking(bookingId: number) {
+  return useApiMutation<ApiResponse<Booking>, void>(
+    { path: `/api/bookings/${bookingId}/confirm`, method: 'POST' },
+    {
+      invalidate: [
+        ['bookings', 'detail', bookingId],
+        ['bookings', 'list'],
+      ],
+    },
+  );
+}
+
+export function useRejectBooking(bookingId: number) {
+  return useApiMutation<ApiResponse<Booking>, { reason?: string }>(
+    { path: `/api/bookings/${bookingId}/reject`, method: 'POST' },
+    {
+      invalidate: [
+        ['bookings', 'detail', bookingId],
+        ['bookings', 'list'],
+      ],
+    },
+  );
+}
+
 export function useCreateBookingPayment(bookingId: number) {
   return useApiMutation<ApiResponse<BookingPayment>, CreateBookingPaymentPayload>(
     { path: `/api/bookings/${bookingId}/payments`, method: 'POST' },

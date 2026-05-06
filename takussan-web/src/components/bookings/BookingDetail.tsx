@@ -3,10 +3,26 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useLocale } from 'next-intl';
-import { useBooking, useCancelBooking, useCreateBookingPayment } from '@/lib/queries/bookings';
+import {
+  useBooking,
+  useCancelBooking,
+  useConfirmBooking,
+  useCreateBookingPayment,
+  useRejectBooking,
+} from '@/lib/queries/bookings';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { isAgent, isAdmin, isOwner } from '@/lib/roles';
 import type { Locale } from '@/i18n/config';
@@ -36,6 +52,27 @@ const STATUS_VARIANT: Record<BookingStatus, 'default' | 'secondary' | 'outline' 
   completed: 'default',
 };
 
+const PAYMENT_TYPE_LABEL: Record<string, string> = {
+  deposit: 'Acompte',
+  advance: 'Solde',
+  fee: 'Frais',
+};
+
+const PAYMENT_STATUS_LABEL: Record<string, string> = {
+  pending: 'En attente',
+  paid: 'Payé',
+  partially_paid: 'Partiel',
+  refunded: 'Remboursé',
+  cancelled: 'Annulé',
+};
+
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+  cash: 'Espèces',
+  bank_transfer: 'Virement',
+  mobile_money: 'Mobile money',
+  card: 'Carte',
+};
+
 interface BookingDetailProps {
   readonly bookingId: number;
 }
@@ -43,17 +80,16 @@ interface BookingDetailProps {
 export function BookingDetail({ bookingId }: BookingDetailProps) {
   const locale = useLocale() as Locale;
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [action, setAction] = useState<'confirm' | 'reject' | 'cancel' | null>(null);
   const { data, isLoading, isError } = useBooking(bookingId);
   const { user } = useAuth();
   const agencyId = data?.data?.agency_id ?? null;
   const { providers } = usePaymentProviders(agencyId);
   const cancelBooking = useCancelBooking(bookingId);
+  const confirmBooking = useConfirmBooking(bookingId);
+  const rejectBooking = useRejectBooking(bookingId);
   const isDashboardAgent = user ? isAgent(user.roles) || isAdmin(user.roles) || isOwner(user.roles) : false;
-
-  async function handleCancel() {
-    const reason = window.prompt('Motif d’annulation (facultatif)') ?? undefined;
-    await cancelBooking.mutateAsync({ reason });
-  }
+  const toast = useToast();
 
   if (isLoading) {
     return <div className="h-48 animate-pulse rounded-xl bg-app-surface-1" />;
@@ -73,6 +109,9 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const canCancel =
     (isCustomer || isDashboardAgent) &&
     (booking.status === 'pending' || booking.status === 'confirmed');
+  const canConfirm = isDashboardAgent && booking.status === 'pending';
+  const canReject = isDashboardAgent && booking.status === 'pending';
+  const canRegisterPayment = isDashboardAgent;
 
   return (
     <div className="space-y-6">
@@ -95,7 +134,17 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           </div>
         </div>
         <div className="flex gap-2">
-          {isDashboardAgent && (
+          {canConfirm && (
+            <Button type="button" onClick={() => setAction('confirm')}>
+              Accepter
+            </Button>
+          )}
+          {canReject && (
+            <Button type="button" variant="outline" onClick={() => setAction('reject')}>
+              Refuser
+            </Button>
+          )}
+          {canRegisterPayment && (
             <Button variant="outline" onClick={() => setPaymentOpen(true)}>
               Enregistrer un paiement
             </Button>
@@ -103,7 +152,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           {canCancel && (
             <Button
               variant="ghost"
-              onClick={handleCancel}
+              onClick={() => setAction('cancel')}
               disabled={cancelBooking.isPending}
               className="text-red-600 hover:text-red-700"
             >
@@ -194,13 +243,19 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
               <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <span className="text-stone-600">
                   {formatDateTime(p.payment_date ?? p.created_at, locale)} ·{' '}
-                  <span className="capitalize">{p.payment_type}</span>
+                  {PAYMENT_TYPE_LABEL[p.payment_type] ?? p.payment_type}
+                  {p.payment_method ? (
+                    <> · {PAYMENT_METHOD_LABEL[p.payment_method] ?? p.payment_method}</>
+                  ) : null}
+                  {p.transaction_id ? <> · Réf. {p.transaction_id}</> : null}
                 </span>
                 <span className="flex items-center gap-2 text-stone-900">
                   <span className="font-medium">
                     {formatCurrency(p.amount, locale)}
                   </span>
-                  <span className="text-xs text-stone-500">{p.status}</span>
+                  <Badge variant={p.status === 'paid' ? 'default' : 'outline'}>
+                    {PAYMENT_STATUS_LABEL[p.status] ?? p.status}
+                  </Badge>
                   {p.status === 'pending' && (
                     <PayOnlineButton
                       paymentType="booking-payments"
@@ -235,9 +290,133 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         open={paymentOpen}
         onOpenChange={setPaymentOpen}
       />
+      <BookingDecisionDialog
+        action={action}
+        onOpenChange={(open) => {
+          if (!open) setAction(null);
+        }}
+        pending={
+          confirmBooking.isPending ||
+          rejectBooking.isPending ||
+          cancelBooking.isPending
+        }
+        onSubmit={async (reason) => {
+          if (action === 'confirm') {
+            await confirmBooking.mutateAsync();
+            toast.add({
+              title: 'Réservation acceptée',
+              description: 'Le statut est maintenant confirmé.',
+              type: 'success',
+            });
+          }
+          if (action === 'reject') {
+            await rejectBooking.mutateAsync({ reason });
+            toast.add({
+              title: 'Réservation refusée',
+              description: 'Le motif est enregistré pour le client.',
+              type: 'success',
+            });
+          }
+          if (action === 'cancel') {
+            await cancelBooking.mutateAsync({ reason });
+            toast.add({
+              title: 'Réservation annulée',
+              description: 'Le motif est enregistré dans l’historique.',
+              type: 'success',
+            });
+          }
+          setAction(null);
+        }}
+      />
     </div>
   );
 }
+
+function BookingDecisionDialog({
+  action,
+  pending,
+  onOpenChange,
+  onSubmit,
+}: {
+  action: 'confirm' | 'reject' | 'cancel' | null;
+  pending: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (reason?: string) => Promise<void>;
+}) {
+  const [reason, setReason] = useState('');
+  const open = action !== null;
+  const isReasonRequired = action === 'reject' || action === 'cancel';
+  const copy = action ? ACTION_COPY[action] : null;
+
+  async function handleSubmit() {
+    if (isReasonRequired && reason.trim().length === 0) return;
+    await onSubmit(reason.trim() || undefined);
+    setReason('');
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{copy?.title}</DialogTitle>
+          <DialogDescription>{copy?.description}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <label htmlFor="booking-action-reason" className="text-xs font-medium text-stone-600">
+            {copy?.label}
+          </label>
+          <Textarea
+            id="booking-action-reason"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            rows={4}
+            placeholder={copy?.placeholder}
+            required={isReasonRequired}
+          />
+          {isReasonRequired && reason.trim().length === 0 ? (
+            <p className="text-xs text-stone-500">Un motif est requis pour cette action.</p>
+          ) : null}
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+            Annuler
+          </Button>
+          <Button
+            type="button"
+            onClick={() => void handleSubmit()}
+            disabled={pending || (isReasonRequired && reason.trim().length === 0)}
+          >
+            {pending ? 'Traitement…' : copy?.submit}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const ACTION_COPY = {
+  confirm: {
+    title: 'Accepter la réservation',
+    description: 'Le client recevra la confirmation via le workflow de réservation.',
+    label: 'Message au client (optionnel)',
+    placeholder: 'Ex. Votre réservation est confirmée, nous vous attendons.',
+    submit: 'Accepter',
+  },
+  reject: {
+    title: 'Refuser la réservation',
+    description: 'Expliquez clairement pourquoi la demande ne peut pas être acceptée.',
+    label: 'Motif du refus',
+    placeholder: 'Ex. Le logement n’est plus disponible sur ces dates.',
+    submit: 'Refuser',
+  },
+  cancel: {
+    title: 'Annuler la réservation',
+    description: 'Cette action annule une demande ouverte ou confirmée.',
+    label: 'Motif d’annulation',
+    placeholder: 'Ex. Indisponibilité exceptionnelle du logement.',
+    submit: 'Annuler la réservation',
+  },
+} as const;
 
 function CustomerPayCta({
   bookingId,

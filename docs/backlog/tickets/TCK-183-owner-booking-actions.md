@@ -1,7 +1,7 @@
 ---
 id: TCK-183
 title: Réservations owner — actions accepter/refuser/annuler
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -64,4 +64,4 @@ Interface de traitement opérationnelle et dense : liste filtrable par statut, f
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+Le message optionnel d'acceptation est saisi côté UI, mais l'endpoint backend `confirm` ne persiste pas encore ce champ.
