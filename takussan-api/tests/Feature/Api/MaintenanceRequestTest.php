@@ -78,17 +78,23 @@ class MaintenanceRequestTest extends TestCase
     public function test_owner_can_show_maintenance_request(): void
     {
         $owner = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $requester = User::factory()->create(['first_name' => 'Mamadou', 'last_name' => 'Fall']);
+        $assignee = User::factory()->create(['first_name' => 'Awa', 'last_name' => 'Diop']);
+        $property = Property::factory()->create(['user_id' => $owner->id, 'title' => 'Villa Ngor']);
         $mr = MaintenanceRequest::factory()->create([
             'property_id' => $property->id,
-            'requester_id' => User::factory()->create()->id,
+            'requester_id' => $requester->id,
+            'assigned_to' => $assignee->id,
         ]);
 
         Sanctum::actingAs($owner);
 
-        $this->getJson("/api/maintenance-requests/{$mr->id}")
+        $this->getJson("/api/maintenance-requests/{$mr->id}?include=property,requester,assignee")
             ->assertOk()
-            ->assertJsonPath('data.id', $mr->id);
+            ->assertJsonPath('data.id', $mr->id)
+            ->assertJsonPath('data.property.title', 'Villa Ngor')
+            ->assertJsonPath('data.requester.name', 'Mamadou Fall')
+            ->assertJsonPath('data.assignee.name', 'Awa Diop');
     }
 
     public function test_owner_can_resolve_maintenance_request(): void

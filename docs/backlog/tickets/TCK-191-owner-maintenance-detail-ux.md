@@ -1,7 +1,7 @@
 ---
 id: TCK-191
 title: Maintenance owner — détail lisible
-status: todo
+status: review
 phase: P2
 family: front
 estimate: S
@@ -60,4 +60,4 @@ Détail d'intervention lisible : titre du bien, intervenant ou personne assigné
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+Le détail charge `property`, `requester`, `assignee` et `quoteDecisionBy` via `include=`. La resource expose des résumés lisibles pour éviter les libellés `BIEN #...` / `Utilisateur #...`; les IDs restent seulement dans les liens techniques.

@@ -143,6 +143,22 @@ class MaintenanceRequestController extends Controller
     {
         $this->authorizeAccess($request, $maintenanceRequest);
 
+        $includes = collect(explode(',', (string) $request->query('include')))
+            ->map(fn (string $include) => trim($include))
+            ->filter()
+            ->intersect(['property', 'requester', 'assignee', 'quoteDecisionBy'])
+            ->values();
+
+        if ($includes->contains('property')) {
+            $maintenanceRequest->loadMissing('property.address');
+        }
+
+        $maintenanceRequest->loadMissing(
+            $includes
+                ->reject(fn (string $include) => $include === 'property')
+                ->all()
+        );
+
         return $this->json([
             'data' => MaintenanceRequestResource::make($maintenanceRequest)->toArray($request),
         ]);

@@ -98,7 +98,6 @@ _(vide — TCK-146 en review)_
 
 > Smoke test browser exhaustif du parcours owner connecté suivant `docs/qa/bailleur-proprietaire-qa.md`. 28 anomalies recensées dans `docs/smoke-tests/bailleur-proprietaire-2026-05-06.md` (4 P0, 9 P1, 10 P2, 5 P3). 10 tickets de fix groupés par scope. **Note** : plusieurs défauts i18n, formats et titres sont déjà couverts par TCK-153, TCK-154, TCK-178 et ne sont pas dupliqués ici.
 
-- [TCK-191](tickets/TCK-191-owner-maintenance-detail-ux.md) — Maintenance owner — détail lisible `S · P2 · front`
 - [TCK-192](tickets/TCK-192-owner-documents-empty-state.md) — Documents owner — état vide actionnable `S · P2 · front`
 
 ### Vague 18 — Bugs smoke test visiteur anonyme (2026-05-05)
@@ -142,6 +141,7 @@ _(vide)_
 - [TCK-188](tickets/TCK-188-owner-dashboard-shell.md) — Dashboard owner — widgets et navigation `M · P1 · front`
 - [TCK-189](tickets/TCK-189-owner-property-portfolio-ui.md) — Biens owner — gestion portefeuille complète `L · P1 · front`
 - [TCK-190](tickets/TCK-190-owner-calendar-usability.md) — Calendrier owner — lisibilité gros portefeuille `S · P2 · front`
+- [TCK-191](tickets/TCK-191-owner-maintenance-detail-ux.md) — Maintenance owner — détail lisible `S · P2 · front`
 
 ### Vague 18 — Bugs smoke test visiteur anonyme
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -32,7 +33,56 @@ class MaintenanceRequestResource extends JsonResource
             'started_at' => $this->started_at?->toISOString(),
             'completed_at' => $this->completed_at?->toISOString(),
             'resolution_notes' => $this->resolution_notes,
+            'property' => $this->whenLoaded('property', fn () => $this->propertySummary()),
+            'requester' => $this->whenLoaded('requester', fn () => $this->userSummary($this->requester)),
+            'assignee' => $this->whenLoaded('assignee', fn () => $this->userSummary($this->assignee)),
+            'quote_decision_by' => $this->whenLoaded('quoteDecisionBy', fn () => $this->userSummary($this->quoteDecisionBy)),
             'created_at' => $this->created_at?->toISOString(),
+        ];
+    }
+
+    private function propertySummary(): ?array
+    {
+        $property = $this->property;
+        if ($property === null) {
+            return null;
+        }
+
+        $address = $property->relationLoaded('address') ? $property->address : null;
+        $parts = array_filter([
+            $address?->neighborhood,
+            $address?->city,
+            $address?->region,
+            $address?->country,
+        ], fn ($value) => $value !== null && $value !== '');
+
+        return [
+            'id' => $property->id,
+            'title' => $property->title,
+            'slug' => $property->slug,
+            'location' => [
+                'full' => $parts === [] ? null : implode(', ', $parts),
+                'quarter' => $address?->neighborhood,
+                'city' => $address?->city,
+                'region' => $address?->region,
+                'country' => $address?->country,
+            ],
+        ];
+    }
+
+    private function userSummary(?User $user): ?array
+    {
+        if ($user === null) {
+            return null;
+        }
+
+        $name = trim($user->first_name.' '.$user->last_name) ?: $user->username;
+
+        return [
+            'id' => $user->id,
+            'name' => $name,
+            'email' => $user->email,
+            'username' => $user->username,
         ];
     }
 }

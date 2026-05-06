@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useLocale } from 'next-intl';
 
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
@@ -74,12 +75,20 @@ function MaintenanceDetailBody({ request }: { readonly request: MaintenanceReque
         <dl className="mt-5 grid grid-cols-2 gap-3 text-xs text-app-ink-muted md:grid-cols-4">
           <div>
             <dt className="font-semibold uppercase tracking-wide">Bien</dt>
-            <dd className="mt-0.5 text-app-ink">#{request.property_id}</dd>
+            <dd className="mt-0.5 text-app-ink">
+              <PropertyValue request={request} />
+            </dd>
+          </div>
+          <div>
+            <dt className="font-semibold uppercase tracking-wide">Demandeur</dt>
+            <dd className="mt-0.5 text-app-ink">
+              {personLabel(request.requester) ?? 'Demandeur non chargé'}
+            </dd>
           </div>
           <div>
             <dt className="font-semibold uppercase tracking-wide">Assigné à</dt>
             <dd className="mt-0.5 text-app-ink">
-              {request.assigned_to ? `Utilisateur #${request.assigned_to}` : '—'}
+              {personLabel(request.assignee) ?? 'Non assignée'}
             </dd>
           </div>
           <div>
@@ -137,6 +146,37 @@ function MaintenanceDetailBody({ request }: { readonly request: MaintenanceReque
       ) : null}
     </div>
   );
+}
+
+function PropertyValue({ request }: { readonly request: MaintenanceRequest }) {
+  const property = request.property;
+  if (!property) {
+    return <span>Bien non chargé</span>;
+  }
+
+  const content = (
+    <>
+      <span className="font-medium">{property.title}</span>
+      {property.location?.full ? (
+        <span className="mt-0.5 block text-app-ink-muted">{property.location.full}</span>
+      ) : null}
+    </>
+  );
+
+  if (property.slug) {
+    return (
+      <Link href={`/app/properties/${property.id}`} className="hover:underline">
+        {content}
+      </Link>
+    );
+  }
+
+  return content;
+}
+
+function personLabel(person: MaintenanceRequest['assignee']): string | null {
+  if (!person) return null;
+  return person.name || person.email || person.username || null;
 }
 
 function StatusActions({

@@ -88,6 +88,26 @@ export const MAINTENANCE_TRANSITIONS: Readonly<
   cancelled: [],
 } as const;
 
+export interface MaintenancePropertySummary {
+  readonly id: number;
+  readonly title: string;
+  readonly slug: string | null;
+  readonly location?: {
+    readonly full?: string | null;
+    readonly quarter?: string | null;
+    readonly city?: string | null;
+    readonly region?: string | null;
+    readonly country?: string | null;
+  } | null;
+}
+
+export interface MaintenanceUserSummary {
+  readonly id: number;
+  readonly name: string | null;
+  readonly email?: string | null;
+  readonly username?: string | null;
+}
+
 export interface MaintenanceRequest {
   readonly id: number;
   readonly property_id: number;
@@ -111,5 +131,9 @@ export interface MaintenanceRequest {
   readonly started_at: string | null;
   readonly completed_at: string | null;
   readonly resolution_notes: string | null;
+  readonly property?: MaintenancePropertySummary | null;
+  readonly requester?: MaintenanceUserSummary | null;
+  readonly assignee?: MaintenanceUserSummary | null;
+  readonly quote_decision_by?: MaintenanceUserSummary | null;
   readonly created_at: string;
 }
