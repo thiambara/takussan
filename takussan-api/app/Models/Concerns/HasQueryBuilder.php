@@ -145,7 +145,7 @@ trait HasQueryBuilder
         );
 
         $counts = array_map(
-            fn (string $rel) => AllowedInclude::count($rel),
+            fn (string $rel) => AllowedInclude::count("{$rel}Count", $rel),
             static::$requestCountable ?? []
         );
 

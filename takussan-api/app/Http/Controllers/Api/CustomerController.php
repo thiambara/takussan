@@ -24,7 +24,11 @@ class CustomerController extends Controller
 
         if (! $user->hasRole(['admin', 'super_admin'])) {
             if ($user->agency_id) {
-                $base->where('agency_id', $user->agency_id);
+                $base->where(function ($query) use ($user) {
+                    $query
+                        ->where('agency_id', $user->agency_id)
+                        ->orWhere('added_by_id', $user->id);
+                });
             } else {
                 $base->where('added_by_id', $user->id);
             }

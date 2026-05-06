@@ -1,7 +1,7 @@
 ---
 id: TCK-201
 title: "Pipeline CRM agent — données vides et libellés anglais"
-status: todo
+status: review
 phase: P1
 family: bug
 estimate: M
@@ -60,4 +60,4 @@ Kanban métier lisible, libellés français, colonnes équilibrées, états vide
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Count includes are registered with the documented `*Count` suffix in the shared Spatie query-builder helper; this fixes `include=tasksCount` for the pipeline and keeps the API convention aligned with `docs/spatie-query-builder.md`.

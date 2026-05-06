@@ -6,6 +6,8 @@ use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\CustomerNote;
 use App\Models\Enums\CustomerPipelineStage;
+use App\Models\Enums\CustomerStatus;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -93,6 +95,89 @@ class CustomerPipelineTest extends TestCase
 
         $response = $this->getJson('/api/customers/pipeline-stats')->assertOk();
         $this->assertSame(2, array_sum($response->json('data.stage_counts')));
+    }
+
+    public function test_pipeline_index_and_stats_share_active_agency_scope(): void
+    {
+        $agency = Agency::factory()->create();
+        $user = User::factory()->create(['agency_id' => $agency->id]);
+        $colleague = User::factory()->create(['agency_id' => $agency->id]);
+        $outsider = User::factory()->create();
+
+        $ownLegacy = Customer::factory()->create([
+            'added_by_id' => $user->id,
+            'agency_id' => null,
+            'status' => CustomerStatus::Active,
+            'pipeline_stage' => CustomerPipelineStage::Qualified,
+        ]);
+        $agencyCustomer = Customer::factory()->create([
+            'added_by_id' => $colleague->id,
+            'agency_id' => $agency->id,
+            'status' => CustomerStatus::Active,
+            'pipeline_stage' => CustomerPipelineStage::Qualified,
+        ]);
+        Customer::factory()->create([
+            'added_by_id' => $user->id,
+            'agency_id' => null,
+            'status' => CustomerStatus::Inactive,
+            'pipeline_stage' => CustomerPipelineStage::Qualified,
+        ]);
+        Customer::factory()->create([
+            'added_by_id' => $outsider->id,
+            'status' => CustomerStatus::Active,
+            'pipeline_stage' => CustomerPipelineStage::Qualified,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $index = $this->getJson('/api/customers?'.http_build_query([
+            'filter' => ['pipeline_stage' => 'qualified', 'status' => 'active'],
+            'fields' => ['customers' => 'id,first_name,last_name,pipeline_stage,status'],
+        ]))->assertOk();
+
+        $this->assertEqualsCanonicalizing(
+            [$ownLegacy->id, $agencyCustomer->id],
+            collect($index->json('data'))->pluck('id')->all(),
+        );
+
+        $stats = $this->getJson('/api/customers/pipeline-stats')->assertOk();
+        $this->assertSame(2, $stats->json('data.stage_counts.qualified'));
+    }
+
+    public function test_pipeline_column_payload_exposes_added_by_and_tasks_count(): void
+    {
+        $agency = Agency::factory()->create();
+        $agent = User::factory()->create([
+            'agency_id' => $agency->id,
+            'first_name' => 'Aminata',
+            'last_name' => 'Fall',
+        ]);
+        $customer = Customer::factory()->create([
+            'added_by_id' => $agent->id,
+            'agency_id' => $agency->id,
+            'pipeline_stage' => CustomerPipelineStage::Lead,
+            'status' => CustomerStatus::Active,
+        ]);
+        Task::factory()->forCustomer($customer)->create(['assigned_to_id' => $agent->id]);
+
+        Sanctum::actingAs($agent);
+
+        $response = $this->getJson('/api/customers?'.http_build_query([
+            'filter' => ['pipeline_stage' => 'lead', 'status' => 'active'],
+            'include' => 'addedBy,tasksCount',
+            'fields' => [
+                'customers' => 'id,first_name,last_name,pipeline_stage,updated_at,created_at,added_by_id',
+                'users' => 'id,first_name,last_name',
+            ],
+        ]));
+
+        $response->assertOk();
+
+        $response
+            ->assertJsonPath('data.0.id', $customer->id)
+            ->assertJsonPath('data.0.added_by.id', $agent->id)
+            ->assertJsonPath('data.0.added_by.full_name', 'Aminata Fall')
+            ->assertJsonPath('data.0.tasks_count', 1);
     }
 
     public function test_update_to_converted_with_reason_creates_customer_note(): void

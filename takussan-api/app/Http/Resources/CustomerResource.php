@@ -29,6 +29,16 @@ class CustomerResource extends JsonResource
             'notes' => $this->notes,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
+            'tasks_count' => $this->whenCounted('tasks'),
+            'added_by' => $this->when(
+                $this->relationLoaded('addedBy'),
+                fn () => $this->addedBy ? [
+                    'id' => $this->addedBy->id,
+                    'first_name' => $this->addedBy->first_name,
+                    'last_name' => $this->addedBy->last_name,
+                    'full_name' => $this->addedBy->getFullNameAttribute(),
+                ] : null,
+            ),
             'tags' => $this->when(
                 $this->relationLoaded('tags'),
                 fn () => $this->tags->map(fn ($t) => [
