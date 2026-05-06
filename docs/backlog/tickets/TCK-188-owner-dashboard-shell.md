@@ -1,7 +1,7 @@
 ---
 id: TCK-188
 title: Dashboard owner — widgets et navigation
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -69,4 +69,4 @@ Dashboard opérationnel compact : KPI haut de page, listes courtes actionnables,
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+Les prochains payouts sont chargés séparément car `/api/dashboard/owner` ne les agrège pas encore.

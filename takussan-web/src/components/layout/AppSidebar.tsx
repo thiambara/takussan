@@ -83,6 +83,7 @@ function buildNavItems(user: User): NavItem[] {
     items.push({ href: '/app/profile/reviews', label: 'Mes avis', icon: BookmarkCheck });
   } else if (isOwner(roles)) {
     items.push({ href: '/app/bookings', label: 'Réservations', icon: CalendarCheck });
+    items.push({ href: '/app/maintenance', label: 'Maintenance', icon: Wrench });
     items.push({ href: '/app/leases', label: 'Baux', icon: FileText });
     items.push({ href: '/app/payments', label: 'Finances', icon: CreditCard });
   } else if (isAgent(roles) || isAdmin(roles)) {
