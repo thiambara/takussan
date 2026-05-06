@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useLeases, type LeaseWithRelations } from '@/lib/queries/leases';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MaintenanceForm } from './MaintenanceForm';
@@ -26,7 +26,6 @@ interface MaintenanceNewLauncherProps {
  */
 export function MaintenanceNewLauncher({
   initialPropertyId = null,
-  initialLeaseId = null,
 }: MaintenanceNewLauncherProps) {
   const { data, isLoading, isError } = useLeases({ status: 'active', per_page: 50 });
 
@@ -43,32 +42,18 @@ export function MaintenanceNewLauncher({
       }));
   }, [data]);
 
-  const [selected, setSelected] = useState<{ propertyId: number; leaseId: number | null } | null>(
-    initialPropertyId
-      ? { propertyId: initialPropertyId, leaseId: initialLeaseId }
-      : null,
-  );
+  const [manualPropertyId, setManualPropertyId] = useState<number | null>(null);
 
-  // Auto-select once the leases land — covers both "single lease" and
-  // "param matches one of mine" cases. `initialPropertyId` from a URL is
-  // verified against the loaded list to refuse cross-tenant ids.
-  useEffect(() => {
-    if (options.length === 0) return;
+  const selected = useMemo(() => {
+    if (options.length === 0) return null;
 
-    if (initialPropertyId) {
-      const match = options.find((o) => o.propertyId === initialPropertyId);
-      if (match) {
-        setSelected({ propertyId: match.propertyId, leaseId: match.leaseId });
-      } else {
-        setSelected(null);
-      }
-      return;
+    const propertyId = manualPropertyId ?? initialPropertyId;
+    if (propertyId) {
+      return options.find((o) => o.propertyId === propertyId) ?? null;
     }
 
-    if (options.length === 1) {
-      setSelected({ propertyId: options[0].propertyId, leaseId: options[0].leaseId });
-    }
-  }, [options, initialPropertyId]);
+    return options.length === 1 ? options[0] : null;
+  }, [options, manualPropertyId, initialPropertyId]);
 
   if (isLoading) {
     return <div className="h-32 animate-pulse rounded-xl bg-app-surface-1" />;
@@ -101,7 +86,7 @@ export function MaintenanceNewLauncher({
             value={selected ? String(selected.propertyId) : ''}
             onValueChange={(v) => {
               const pick = options.find((o) => String(o.propertyId) === v);
-              setSelected(pick ? { propertyId: pick.propertyId, leaseId: pick.leaseId } : null);
+              setManualPropertyId(pick?.propertyId ?? null);
             }}
             items={options.map((o) => ({ value: String(o.propertyId), label: o.label }))}
           >

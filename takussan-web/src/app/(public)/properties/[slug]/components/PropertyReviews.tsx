@@ -207,19 +207,18 @@ export function PropertyReviews({
 
   // TCK-180 — gate the review form on history. The endpoint requires
   // auth, so anonymous users skip the call and simply never see the form.
-  const [eligibility, setEligibility] = useState<
-    { eligible: boolean; alreadyReviewed: boolean } | null
-  >(null);
+  const [eligibility, setEligibility] = useState<{
+    slug: string;
+    userId: number;
+    result: { eligible: boolean; alreadyReviewed: boolean };
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    if (!user) {
-      setEligibility(null);
-      return;
-    }
+    if (!user) return;
     (async () => {
       const result = await getReviewEligibility(slug);
-      if (!cancelled) setEligibility(result);
+      if (!cancelled) setEligibility({ slug, userId: user.id, result });
     })();
     return () => {
       cancelled = true;
@@ -234,8 +233,16 @@ export function PropertyReviews({
     propertyAgencyId: agencyId,
   });
 
+  const activeEligibility =
+    user && eligibility?.slug === slug && eligibility.userId === user.id
+      ? eligibility.result
+      : null;
+
   const showReviewForm =
-    !!user && !!eligibility && eligibility.eligible && !eligibility.alreadyReviewed;
+    !!user &&
+    !!activeEligibility &&
+    activeEligibility.eligible &&
+    !activeEligibility.alreadyReviewed;
 
   return (
     <section id="avis" className="space-y-4 scroll-mt-24">
@@ -277,13 +284,13 @@ export function PropertyReviews({
       )}
 
       {showReviewForm && <PropertyReviewForm onSubmit={submit} />}
-      {user && eligibility && !eligibility.eligible && !eligibility.alreadyReviewed && (
+      {user && activeEligibility && !activeEligibility.eligible && !activeEligibility.alreadyReviewed && (
         <p className="rounded-xl bg-app-surface-1 p-4 text-sm text-app-ink-muted">
           Vous pourrez laisser un avis après une visite finalisée ou la signature d&apos;un bail
           sur ce bien.
         </p>
       )}
-      {user && eligibility?.alreadyReviewed && (
+      {user && activeEligibility?.alreadyReviewed && (
         <p className="rounded-xl bg-app-surface-1 p-4 text-sm text-app-ink-muted">
           Merci, vous avez déjà laissé un avis sur ce bien.
         </p>
