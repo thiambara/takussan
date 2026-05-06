@@ -102,6 +102,20 @@ _(vide — TCK-146 en review)_
 
 > Erreurs globales préexistantes relevées après l'implémentation TCK-183 → TCK-192 : `npm run lint` bloqué par 2 erreurs ESLint et `npx tsc --noEmit` bloqué par plusieurs erreurs TypeScript hors scope.
 
+### Vague 22 — Bugs smoke test agent immobilier (2026-05-06)
+
+> Smoke test browser du parcours agent immobilier suivant `docs/qa/agent-qa.md`. 19 anomalies recensées dans `docs/smoke-tests/agent-immobilier-2026-05-06.md` (1 P0, 7 P1, 8 P2, 3 P3). 9 tickets de fix groupés par scope.
+
+- [TCK-196](tickets/TCK-196-agent-crm-detail-404.md) — CRM agent — restaurer les fiches client détail `S · P0 · bug`
+- [TCK-197](tickets/TCK-197-agent-property-lifecycle-actions.md) — Biens agent — fiabiliser publication, statuts et actions `M · P0 · bug`
+- [TCK-198](tickets/TCK-198-agent-property-portfolio-controls.md) — Mes biens agent — compléter filtres, colonnes et actions en lot `M · P1 · front`
+- [TCK-199](tickets/TCK-199-property-media-validation-advanced.md) — Médias biens — validation robuste et supports avancés `M · P1 · applicatif`
+- [TCK-200](tickets/TCK-200-agent-dashboard-operational-widgets.md) — Dashboard agent — widgets opérationnels manquants `M · P1 · front`
+- [TCK-201](tickets/TCK-201-crm-pipeline-agent-data-i18n.md) — Pipeline CRM agent — données vides et libellés anglais `M · P1 · bug`
+- [TCK-202](tickets/TCK-202-property-create-redirect-detail.md) — Création bien — rediriger vers la fiche créée `S · P1 · front`
+- [TCK-203](tickets/TCK-203-agent-visit-requester-context.md) — Visites agent — afficher le demandeur exploitable `S · P1 · front`
+- [TCK-204](tickets/TCK-204-agent-dashboard-i18n-format-regressions.md) — Dashboard agent — corriger régressions i18n et formats `M · P1 · bug`
+
 ### Vague 18 — Bugs smoke test visiteur anonyme (2026-05-05)
 
 > Smoke test browser exhaustif du parcours public (incognito, aucune session) suivant `docs/qa/visiteur-anonyme-qa.md`. 22 anomalies recensées dans `docs/smoke-tests/visiteur-anonyme-2026-05-05.md` (0 P0, 6 P1, 12 P2, 4 P3). 8 tickets de fix groupés par scope. **Note** : les bugs P1-1 et P2-10 (pages légales / footer enrichi) ne sont pas ticketés ici — la fonctionnalité n'existe pas dans `docs/features.md` et nécessite un ajout de spec préalable.
