@@ -238,7 +238,7 @@ export function PropertyHeaderActions({ property }: Props) {
             <DialogTitle>Supprimer ce bien ?</DialogTitle>
             <DialogDescription>
               Le bien <strong>{property.title}</strong> sera supprimé de votre
-              portefeuille agent. L'enregistrement reste restaurable côté
+              portefeuille agent. L’enregistrement reste restaurable côté
               administration.
             </DialogDescription>
           </DialogHeader>

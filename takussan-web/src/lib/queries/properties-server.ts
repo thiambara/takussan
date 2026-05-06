@@ -49,6 +49,7 @@ export interface DashboardPropertyFilters {
   readonly status?: string;
   readonly type?: string;
   readonly contract_type?: string;
+  readonly visibility?: string;
   readonly search?: string;
   readonly city?: string;
   readonly user_id?: string;
@@ -76,6 +77,7 @@ function buildListParams({
   if (filters?.status) filter.status = filters.status;
   if (filters?.type) filter.type = filters.type;
   if (filters?.contract_type) filter.contract_type = filters.contract_type;
+  if (filters?.visibility) filter.visibility = filters.visibility;
   if (filters?.search) filter.search = filters.search;
   if (filters?.city) filter.city = filters.city;
   if (filters?.user_id) filter.user_id = filters.user_id;

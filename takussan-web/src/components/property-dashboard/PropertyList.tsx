@@ -2,9 +2,17 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useMemo, useState, useTransition } from 'react';
-import { Archive, Loader2 } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useState, useTransition } from 'react';
+import {
+  Archive,
+  EyeOff,
+  Heart,
+  Home,
+  Loader2,
+  Eye as EyeIcon,
+  X,
+} from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -34,8 +42,10 @@ import {
 import { PropertyRowActions } from './PropertyRowActions';
 
 /**
- * Table-style list of properties for the dashboard. Server-rendered so the
- * first paint is instant; row actions live in a client island.
+ * Dashboard property list — 6-column desktop table + compact mobile cards.
+ * Server-rendered for instant first paint; row actions and bulk operations
+ * live in client islands. Bulk actions surface in a sticky bottom toolbar
+ * once at least one row is selected.
  */
 
 interface PropertyListProps {
@@ -50,16 +60,29 @@ export function PropertyList({
   agentOptions = [],
 }: PropertyListProps) {
   const router = useRouter();
-  const { data: properties, meta } = page;
+  const searchParams = useSearchParams();
+  const { data: properties } = page;
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [bulkAgentId, setBulkAgentId] = useState<string>('');
   const [pending, startTransition] = useTransition();
   const [bulkMessage, setBulkMessage] = useState<string | null>(null);
   const [bulkError, setBulkError] = useState<string | null>(null);
-  const visibleIds = useMemo(() => properties?.map((property) => property.id) ?? [], [properties]);
+  const visibleIds = useMemo(
+    () => properties?.map((property) => property.id) ?? [],
+    [properties],
+  );
+
+  const hasActiveFilters = useMemo(
+    () => Array.from(searchParams.keys()).some((k) => k !== 'page' && k !== 'sort' && k !== 'per_page'),
+    [searchParams],
+  );
 
   if (!properties || properties.length === 0) {
-    return <EmptyState />;
+    return hasActiveFilters ? (
+      <FilteredEmptyState onReset={() => router.replace('?')} />
+    ) : (
+      <EmptyState />
+    );
   }
 
   const allVisibleSelected =
@@ -92,6 +115,7 @@ export function PropertyList({
         return;
       }
       setSelectedIds([]);
+      setBulkAgentId('');
       setBulkMessage(successMessage);
       router.refresh();
     });
@@ -101,86 +125,11 @@ export function PropertyList({
 
   return (
     <div className="space-y-4">
-      {selectedCount > 0 ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm text-app-ink">
-          <span className="font-semibold">
-            {selectedCount} bien{selectedCount > 1 ? 's' : ''} sélectionné
-            {selectedCount > 1 ? 's' : ''}
-          </span>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={pending}
-            onClick={() =>
-              runBulk(
-                (id) => updatePropertyStatusAction(id, 'archived'),
-                'Biens archivés.',
-              )
-            }
-          >
-            {pending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Archive aria-hidden="true" />}
-            Archiver
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={pending}
-            onClick={() =>
-              runBulk(
-                (id) => updatePropertyVisibilityAction(id, 'private'),
-                'Biens dépubliés.',
-              )
-            }
-          >
-            Dépublier
-          </Button>
-          {agentOptions.length > 0 ? (
-            <div className="flex min-w-[260px] items-center gap-2">
-              <Select
-                value={bulkAgentId}
-                onValueChange={(value) => setBulkAgentId((value ?? '') as string)}
-                items={agentOptions.map((agent) => ({
-                  value: String(agent.id),
-                  label: agent.id === currentUserId ? `${agent.name} (moi)` : agent.name,
-                }))}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Réassigner à..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {agentOptions.map((agent) => (
-                    <SelectItem key={agent.id} value={String(agent.id)}>
-                      {agent.id === currentUserId ? `${agent.name} (moi)` : agent.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={pending || !bulkAgentId}
-                onClick={() =>
-                  runBulk(
-                    (id) => assignPropertyAgentAction(id, Number(bulkAgentId)),
-                    'Agent assigné mis à jour.',
-                  )
-                }
-              >
-                Assigner
-              </Button>
-            </div>
-          ) : null}
-          {bulkError ? <span role="alert" className="text-destructive">{bulkError}</span> : null}
-          {bulkMessage ? <span role="status" className="text-emerald-700">{bulkMessage}</span> : null}
-        </div>
-      ) : null}
+      {/* Desktop table — 6 columns */}
       <div className="hidden overflow-hidden rounded-xl bg-app-surface-1 md:block">
         <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-app-surface-2/50 text-left text-xs uppercase tracking-wide text-app-ink-muted">
+          <thead className="sticky top-0 z-10 bg-app-surface-2/70 backdrop-blur">
+            <tr className="text-left text-xs uppercase tracking-wide text-app-ink-muted">
               <th className="w-10 px-4 py-3 font-semibold">
                 <input
                   type="checkbox"
@@ -191,20 +140,22 @@ export function PropertyList({
                 />
               </th>
               <th className="px-4 py-3 font-semibold">Bien</th>
-              <th className="px-4 py-3 font-semibold">Agent</th>
-              <th className="px-4 py-3 font-semibold">Contrat</th>
               <th className="px-4 py-3 font-semibold">Prix</th>
-              <th className="px-4 py-3 font-semibold">Stats</th>
-              <th className="px-4 py-3 font-semibold">Date</th>
+              <th className="px-4 py-3 font-semibold">Activité</th>
               <th className="px-4 py-3 font-semibold">Statut</th>
-              <th className="px-4 py-3 font-semibold">Visibilité</th>
               <th className="px-4 py-3 font-semibold text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-app-surface-2">
+          <tbody className="divide-y divide-app-surface-2/60">
             {properties.map((property) => (
-              <tr key={property.id} className="align-middle">
-                <td className="px-4 py-3">
+              <tr
+                key={property.id}
+                className={cn(
+                  'align-middle transition-colors hover:bg-app-surface-2/30',
+                  selectedIds.includes(property.id) && 'bg-app-accent/5',
+                )}
+              >
+                <td className="px-4 py-4">
                   <input
                     type="checkbox"
                     aria-label={`Sélectionner ${property.title}`}
@@ -213,50 +164,22 @@ export function PropertyList({
                     className="size-4 rounded border-stone-300"
                   />
                 </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <PropertyThumbnail property={property} />
-                    <div className="min-w-0">
-                      <Link
-                        href={`/app/properties/${property.id}`}
-                        className="block truncate text-sm font-semibold text-app-ink hover:text-app-topbar"
-                      >
-                        {property.title}
-                      </Link>
-                      <p className="text-xs text-app-ink-muted">
-                        {PROPERTY_TYPE_LABELS[property.type] ?? property.type}
-                        {property.location?.city ? ` · ${property.location.city}` : ''}
-                        {property.reference_number ? ` · ${property.reference_number}` : ''}
-                      </p>
-                    </div>
-                  </div>
+                <td className="px-4 py-4">
+                  <BienCell property={property} currentUserId={currentUserId} />
                 </td>
-                <td className="px-4 py-3 text-xs text-app-ink-muted">
-                  <AgentCell property={property} currentUserId={currentUserId} />
+                <td className="px-4 py-4">
+                  <PriceCell property={property} />
                 </td>
-                <td className="px-4 py-3 text-app-ink-muted">
-                  {property.contract_type
-                    ? CONTRACT_TYPE_LABELS[property.contract_type]
-                    : '—'}
+                <td className="px-4 py-4">
+                  <ActivityCell property={property} />
                 </td>
-                <td className="px-4 py-3 font-semibold text-app-ink">
-                  {typeof property.price === 'number'
-                    ? formatCurrency(property.price, 'fr', { currency: property.currency ?? 'XOF' })
-                    : '—'}
+                <td className="px-4 py-4">
+                  <StatusStack
+                    status={property.status}
+                    visibility={property.visibility}
+                  />
                 </td>
-                <td className="px-4 py-3 text-xs text-app-ink-muted">
-                  {property.views_count ?? 0} vues · {property.favorites_count ?? 0} favoris
-                </td>
-                <td className="px-4 py-3 text-xs text-app-ink-muted">
-                  {formatDate(property.created_at)}
-                </td>
-                <td className="px-4 py-3">
-                  <StatusBadge status={property.status} />
-                </td>
-                <td className="px-4 py-3">
-                  <VisibilityBadge visibility={property.visibility} />
-                </td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-4 py-4 text-right">
                   <div className="flex items-center justify-end">
                     <PropertyRowActions property={property} />
                   </div>
@@ -267,71 +190,235 @@ export function PropertyList({
         </table>
       </div>
 
-      {/* Mobile cards */}
+      {/* Mobile cards — compact horizontal layout */}
       <ul className="space-y-3 md:hidden">
-        {properties.map((property) => (
-          <li key={property.id} className="rounded-xl bg-app-surface-1 p-4">
-            <div className="flex items-start gap-3">
-              <input
-                type="checkbox"
-                aria-label={`Sélectionner ${property.title}`}
-                checked={selectedIds.includes(property.id)}
-                onChange={() => toggleOne(property.id)}
-                className="mt-4 size-4 rounded border-stone-300"
-              />
-              <PropertyThumbnail property={property} />
-              <div className="min-w-0 flex-1">
+        {properties.map((property) => {
+          const isSelected = selectedIds.includes(property.id);
+          return (
+            <li
+              key={property.id}
+              className={cn(
+                'relative flex gap-3 rounded-xl bg-app-surface-1 p-3 transition-colors',
+                isSelected && 'ring-1 ring-inset ring-app-accent/30',
+              )}
+            >
+              <div className="relative shrink-0">
+                <PropertyThumbnail property={property} size={96} />
+                <input
+                  type="checkbox"
+                  aria-label={`Sélectionner ${property.title}`}
+                  checked={isSelected}
+                  onChange={() => toggleOne(property.id)}
+                  className="absolute left-1 top-1 size-4 rounded border-white/80 bg-white/80"
+                />
+              </div>
+              <div className="min-w-0 flex-1 pr-8">
                 <Link
                   href={`/app/properties/${property.id}`}
                   className="block truncate text-sm font-semibold text-app-ink"
                 >
                   {property.title}
                 </Link>
-                <p className="text-xs text-app-ink-muted">
+                <p className="truncate text-xs text-app-ink-muted">
                   {PROPERTY_TYPE_LABELS[property.type] ?? property.type}
                   {property.location?.city ? ` · ${property.location.city}` : ''}
+                  {property.reference_number ? ` · ${property.reference_number}` : ''}
                 </p>
-                <p className="mt-1 text-sm font-semibold text-app-ink">
-                  {typeof property.price === 'number'
-                    ? formatCurrency(property.price, 'fr', { currency: property.currency ?? 'XOF' })
-                    : '—'}
+                <div className="mt-1.5 flex items-baseline gap-2">
+                  <span className="text-base font-semibold text-app-ink">
+                    {typeof property.price === 'number'
+                      ? formatCurrency(property.price, 'fr', {
+                          currency: property.currency ?? 'XOF',
+                        })
+                      : '—'}
+                  </span>
+                  {property.contract_type ? (
+                    <span className="text-xs text-app-ink-muted">
+                      {CONTRACT_TYPE_LABELS[property.contract_type]}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <StatusBadge status={property.status} />
+                  <VisibilityBadge visibility={property.visibility} />
+                </div>
+                <p className="mt-2 text-xs text-app-ink-muted">
+                  <RelativeDate value={property.created_at} /> ·{' '}
+                  <span className="inline-flex items-center gap-1">
+                    <EyeIcon className="size-3" aria-hidden="true" />
+                    {property.views_count ?? 0}
+                  </span>{' '}
+                  ·{' '}
+                  <span className="inline-flex items-center gap-1">
+                    <Heart className="size-3" aria-hidden="true" />
+                    {property.favorites_count ?? 0}
+                  </span>
+                  {currentUserId !== undefined &&
+                  property.owner &&
+                  property.owner.id !== currentUserId
+                    ? ` · ${property.owner.name}`
+                    : ''}
                 </p>
               </div>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <StatusBadge status={property.status} />
-              <VisibilityBadge visibility={property.visibility} />
-              <span className="text-xs text-app-ink-muted">
-                {formatDate(property.created_at)}
-              </span>
-            </div>
-            <div className="mt-2 text-xs text-app-ink-muted">
-              <AgentCell property={property} currentUserId={currentUserId} />
-            </div>
-            <div className="mt-3 flex justify-end">
-              <PropertyRowActions property={property} />
-            </div>
-          </li>
-        ))}
+              <div className="absolute right-2 top-2">
+                <PropertyRowActions property={property} />
+              </div>
+            </li>
+          );
+        })}
       </ul>
 
-      <p className="text-xs text-app-ink-muted">
-        {meta.total} bien{meta.total > 1 ? 's' : ''} — page {meta.current_page} sur{' '}
-        {meta.last_page}
-      </p>
+      {/* Sticky bulk actions toolbar */}
+      {selectedCount > 0 ? (
+        <BulkActionBar
+          selectedCount={selectedCount}
+          pending={pending}
+          bulkError={bulkError}
+          bulkMessage={bulkMessage}
+          bulkAgentId={bulkAgentId}
+          setBulkAgentId={setBulkAgentId}
+          agentOptions={agentOptions}
+          currentUserId={currentUserId}
+          onArchive={() =>
+            runBulk(
+              (id) => updatePropertyStatusAction(id, 'archived'),
+              'Biens archivés.',
+            )
+          }
+          onUnpublish={() =>
+            runBulk(
+              (id) => updatePropertyVisibilityAction(id, 'private'),
+              'Biens dépubliés.',
+            )
+          }
+          onAssign={() =>
+            runBulk(
+              (id) => assignPropertyAgentAction(id, Number(bulkAgentId)),
+              'Agent assigné mis à jour.',
+            )
+          }
+          onClear={() => {
+            setSelectedIds([]);
+            setBulkAgentId('');
+            setBulkError(null);
+            setBulkMessage(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
 
-function PropertyThumbnail({ property }: { property: PropertyListItem }) {
+function BienCell({
+  property,
+  currentUserId,
+}: {
+  readonly property: PropertyListItem;
+  readonly currentUserId?: number;
+}) {
+  const showAgent =
+    currentUserId !== undefined &&
+    property.owner &&
+    property.owner.id !== currentUserId;
+  return (
+    <div className="flex items-center gap-3">
+      <PropertyThumbnail property={property} />
+      <div className="min-w-0">
+        <Link
+          href={`/app/properties/${property.id}`}
+          className="block truncate text-sm font-semibold text-app-ink hover:text-app-accent"
+        >
+          {property.title}
+        </Link>
+        <p className="truncate text-xs text-app-ink-muted">
+          {PROPERTY_TYPE_LABELS[property.type] ?? property.type}
+          {property.location?.city ? ` · ${property.location.city}` : ''}
+          {property.reference_number ? ` · ${property.reference_number}` : ''}
+        </p>
+        {showAgent ? (
+          <p className="mt-1 truncate text-xs text-app-ink-muted">
+            <span className="text-app-ink-muted/70">Agent :</span>{' '}
+            <span className="font-medium text-app-ink">{property.owner?.name}</span>
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function PriceCell({ property }: { readonly property: PropertyListItem }) {
+  return (
+    <div className="space-y-0.5">
+      <div className="text-base font-semibold text-app-ink">
+        {typeof property.price === 'number'
+          ? formatCurrency(property.price, 'fr', {
+              currency: property.currency ?? 'XOF',
+            })
+          : '—'}
+      </div>
+      {property.contract_type ? (
+        <div className="text-xs text-app-ink-muted">
+          {CONTRACT_TYPE_LABELS[property.contract_type]}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ActivityCell({ property }: { readonly property: PropertyListItem }) {
+  return (
+    <div className="space-y-0.5 text-xs text-app-ink-muted">
+      <div className="text-app-ink">
+        <RelativeDate value={property.created_at} />
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="inline-flex items-center gap-1" title="Vues">
+          <EyeIcon className="size-3" aria-hidden="true" />
+          {property.views_count ?? 0}
+        </span>
+        <span className="inline-flex items-center gap-1" title="Favoris">
+          <Heart className="size-3" aria-hidden="true" />
+          {property.favorites_count ?? 0}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function StatusStack({
+  status,
+  visibility,
+}: {
+  readonly status: string | null;
+  readonly visibility: string | null;
+}) {
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <StatusBadge status={status} />
+      <VisibilityBadge visibility={visibility} />
+    </div>
+  );
+}
+
+function PropertyThumbnail({
+  property,
+  size = 56,
+}: {
+  readonly property: PropertyListItem;
+  readonly size?: number;
+}) {
+  const dim = `${size}px`;
   if (property.main_photo_url) {
     return (
-      <span className="relative block aspect-square size-14 shrink-0 overflow-hidden rounded-lg bg-app-surface-2">
+      <span
+        className="relative block shrink-0 overflow-hidden rounded-lg bg-app-surface-2"
+        style={{ width: dim, height: dim }}
+      >
         <Image
           src={property.main_photo_url}
           alt=""
           fill
-          sizes="56px"
+          sizes={dim}
           className="object-cover"
         />
       </span>
@@ -340,46 +427,48 @@ function PropertyThumbnail({ property }: { property: PropertyListItem }) {
   return (
     <span
       aria-hidden="true"
-      className="block size-14 shrink-0 rounded-lg bg-app-surface-2"
+      className="block shrink-0 rounded-lg bg-app-surface-2"
+      style={{ width: dim, height: dim }}
     />
   );
 }
 
-function AgentCell({
-  property,
-  currentUserId,
-}: {
-  readonly property: PropertyListItem;
-  readonly currentUserId?: number;
-}) {
-  const ownerName = property.owner?.name ?? 'Non assigné';
-  const collaborators = property.collaborators ?? [];
-  const isMine = currentUserId !== undefined && property.owner?.id === currentUserId;
+function RelativeDate({ value }: { readonly value: string }) {
+  // Two-stage render avoids hydration mismatch: SSR + first client render show
+  // the absolute date, then the relative form is computed after mount where
+  // reading the current clock is safe.
+  const date = useMemo(() => new Date(value), [value]);
+  const absolute = useMemo(
+    () =>
+      new Intl.DateTimeFormat('fr-SN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }).format(date),
+    [date],
+  );
+  const [relative, setRelative] = useState<string | null>(null);
+  useEffect(() => {
+    setRelative(formatRelative(date));
+  }, [date]);
 
   return (
-    <div className="space-y-1">
-      <p className="font-medium text-app-ink">
-        {ownerName}
-        {isMine ? ' · moi' : ''}
-      </p>
-      {collaborators.length > 0 ? (
-        <p>
-          {collaborators.length} collaborateur
-          {collaborators.length > 1 ? 's' : ''}
-        </p>
-      ) : (
-        <p>Aucun collaborateur</p>
-      )}
-    </div>
+    <time dateTime={date.toISOString()} title={absolute}>
+      {relative ?? absolute}
+    </time>
   );
 }
 
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat('fr-SN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(value));
+function formatRelative(date: Date): string {
+  const diffSec = Math.round((date.getTime() - Date.now()) / 1000);
+  const absSec = Math.abs(diffSec);
+  const rtf = new Intl.RelativeTimeFormat('fr', { numeric: 'auto' });
+  if (absSec < 60) return rtf.format(diffSec, 'second');
+  if (absSec < 3600) return rtf.format(Math.round(diffSec / 60), 'minute');
+  if (absSec < 86400) return rtf.format(Math.round(diffSec / 3600), 'hour');
+  if (absSec < 86400 * 30) return rtf.format(Math.round(diffSec / 86400), 'day');
+  if (absSec < 86400 * 365) return rtf.format(Math.round(diffSec / (86400 * 30)), 'month');
+  return rtf.format(Math.round(diffSec / (86400 * 365)), 'year');
 }
 
 function StatusBadge({ status }: { status: string | null }) {
@@ -387,12 +476,15 @@ function StatusBadge({ status }: { status: string | null }) {
   const label = PROPERTY_STATUS_LABELS[key] ?? status ?? '—';
   return (
     <Badge
-      variant="outline"
       className={cn(
-        'border-app-surface-3 bg-app-surface-2 text-app-ink',
-        status === 'sold' && 'border-emerald-200 bg-emerald-50 text-emerald-700',
-        status === 'rented' && 'border-blue-200 bg-blue-50 text-blue-700',
-        status === 'unavailable' && 'border-red-200 bg-red-50 text-red-700',
+        'border-transparent bg-app-surface-2 text-app-ink',
+        status === 'available' && 'bg-emerald-50 text-emerald-700',
+        status === 'sold' && 'bg-emerald-100 text-emerald-800',
+        status === 'rented' && 'bg-blue-50 text-blue-700',
+        status === 'unavailable' && 'bg-red-50 text-red-700',
+        status === 'pending' && 'bg-amber-50 text-amber-700',
+        status === 'under_maintenance' && 'bg-orange-50 text-orange-700',
+        status === 'archived' && 'bg-stone-100 text-stone-600',
       )}
     >
       {label}
@@ -403,14 +495,21 @@ function StatusBadge({ status }: { status: string | null }) {
 function VisibilityBadge({ visibility }: { visibility: string | null }) {
   const key = (visibility ?? 'private') as keyof typeof PROPERTY_VISIBILITY_LABELS;
   const label = PROPERTY_VISIBILITY_LABELS[key] ?? visibility ?? '—';
+  const isPublic = visibility === 'public';
   return (
     <Badge
-      variant="outline"
       className={cn(
-        'border-app-surface-3 bg-app-surface-2 text-app-ink',
-        visibility === 'public' && 'border-primary/30 bg-primary/5 text-primary',
+        'gap-1 border-transparent text-xs',
+        isPublic
+          ? 'bg-app-accent/10 text-app-accent'
+          : 'bg-app-surface-2 text-app-ink-muted',
       )}
     >
+      {isPublic ? (
+        <EyeIcon aria-hidden="true" className="size-3" />
+      ) : (
+        <EyeOff aria-hidden="true" className="size-3" />
+      )}
       {label}
     </Badge>
   );
@@ -420,28 +519,158 @@ function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center gap-4 rounded-xl bg-app-surface-1 px-6 py-16 text-center">
       <div className="rounded-full bg-app-surface-2 p-4 text-app-accent">
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-          className="size-8"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.5}
-        >
-          <path d="M3 12l9-8 9 8v8a2 2 0 01-2 2h-4v-6H10v6H5a2 2 0 01-2-2v-8z" />
-        </svg>
+        <Home className="size-8" aria-hidden="true" />
       </div>
-      <p className="text-lg font-semibold text-app-ink">Aucun bien dans votre portefeuille</p>
+      <p className="text-lg font-semibold text-app-ink">
+        Aucun bien dans votre portefeuille
+      </p>
       <p className="max-w-md text-sm text-app-ink-muted">
         Créez votre première annonce pour la diffuser auprès des locataires et
         acheteurs Takussan.
       </p>
       <Link
         href="/app/properties/new"
-        className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+        className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
       >
-        Publier un bien
+        Publier mon premier bien
       </Link>
+    </div>
+  );
+}
+
+function FilteredEmptyState({ onReset }: { readonly onReset: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 rounded-xl bg-app-surface-1 px-6 py-12 text-center">
+      <p className="text-base font-semibold text-app-ink">
+        Aucun bien ne correspond à vos filtres
+      </p>
+      <p className="max-w-sm text-sm text-app-ink-muted">
+        Essayez d’ajuster ou de retirer certains filtres pour élargir votre recherche.
+      </p>
+      <Button type="button" variant="outline" size="sm" onClick={onReset}>
+        Réinitialiser les filtres
+      </Button>
+    </div>
+  );
+}
+
+function BulkActionBar({
+  selectedCount,
+  pending,
+  bulkError,
+  bulkMessage,
+  bulkAgentId,
+  setBulkAgentId,
+  agentOptions,
+  currentUserId,
+  onArchive,
+  onUnpublish,
+  onAssign,
+  onClear,
+}: {
+  readonly selectedCount: number;
+  readonly pending: boolean;
+  readonly bulkError: string | null;
+  readonly bulkMessage: string | null;
+  readonly bulkAgentId: string;
+  readonly setBulkAgentId: (v: string) => void;
+  readonly agentOptions: readonly { id: number; name: string }[];
+  readonly currentUserId?: number;
+  readonly onArchive: () => void;
+  readonly onUnpublish: () => void;
+  readonly onAssign: () => void;
+  readonly onClear: () => void;
+}) {
+  const items = agentOptions.map((agent) => ({
+    value: String(agent.id),
+    label: agent.id === currentUserId ? `${agent.name} (moi)` : agent.name,
+  }));
+  return (
+    <div
+      role="region"
+      aria-label="Actions groupées"
+      className="fixed inset-x-2 bottom-3 z-40 mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-2xl bg-app-topbar/95 px-3 py-2.5 text-sm text-white shadow-lg backdrop-blur md:inset-x-auto md:right-6"
+    >
+      <span className="font-semibold">
+        {selectedCount} bien{selectedCount > 1 ? 's' : ''} sélectionné
+        {selectedCount > 1 ? 's' : ''}
+      </span>
+      <span className="hidden h-4 w-px bg-white/20 md:inline-block" aria-hidden="true" />
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+        disabled={pending}
+        onClick={onArchive}
+      >
+        {pending ? (
+          <Loader2 className="animate-spin" aria-hidden="true" />
+        ) : (
+          <Archive aria-hidden="true" />
+        )}
+        Archiver
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+        disabled={pending}
+        onClick={onUnpublish}
+      >
+        Dépublier
+      </Button>
+      {agentOptions.length > 0 ? (
+        <div className="flex items-center gap-2">
+          <div className="min-w-[180px]">
+            <Select
+              value={bulkAgentId}
+              onValueChange={(v) => setBulkAgentId((v ?? '') as string)}
+              items={items}
+            >
+              <SelectTrigger className="h-9 border-white/30 bg-white/10 text-white">
+                <SelectValue placeholder="Réassigner à…" />
+              </SelectTrigger>
+              <SelectContent>
+                {items.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+            disabled={pending || !bulkAgentId}
+            onClick={onAssign}
+          >
+            Assigner
+          </Button>
+        </div>
+      ) : null}
+      {bulkError ? (
+        <span role="alert" className="text-red-200">
+          {bulkError}
+        </span>
+      ) : null}
+      {bulkMessage ? (
+        <span role="status" className="text-emerald-200">
+          {bulkMessage}
+        </span>
+      ) : null}
+      <button
+        type="button"
+        onClick={onClear}
+        aria-label="Tout désélectionner"
+        className="ml-auto inline-flex size-8 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white"
+      >
+        <X aria-hidden="true" className="size-4" />
+      </button>
     </div>
   );
 }

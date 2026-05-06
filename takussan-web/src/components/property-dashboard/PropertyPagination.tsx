@@ -5,6 +5,13 @@ import { useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { PaginationMeta } from '@/types/api';
 
 /**
@@ -12,9 +19,12 @@ import type { PaginationMeta } from '@/types/api';
  * query string so filter + pagination state stays sharable.
  */
 
+const PER_PAGE_OPTIONS = ['10', '20', '50'] as const;
+
 export function PropertyPagination({ meta }: { meta: PaginationMeta }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const currentPerPage = String(meta.per_page ?? 20);
 
   const goTo = useCallback(
     (page: number) => {
@@ -29,36 +39,75 @@ export function PropertyPagination({ meta }: { meta: PaginationMeta }) {
     [router, searchParams],
   );
 
-  if (meta.last_page <= 1) return null;
+  const setPerPage = useCallback(
+    (value: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (value === '20') {
+        params.delete('per_page');
+      } else {
+        params.set('per_page', value);
+      }
+      params.delete('page');
+      router.replace(`?${params.toString()}`);
+    },
+    [router, searchParams],
+  );
+
+  const items = PER_PAGE_OPTIONS.map((v) => ({ value: v, label: `${v} / page` }));
 
   return (
     <nav
-      className="flex items-center justify-between gap-3"
+      className="flex flex-wrap items-center justify-between gap-3"
       aria-label="Pagination"
     >
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={meta.current_page <= 1}
-        onClick={() => goTo(meta.current_page - 1)}
-      >
-        <ChevronLeft aria-hidden="true" />
-        Précédent
-      </Button>
-      <span className="text-xs text-app-ink-muted">
-        Page {meta.current_page} / {meta.last_page}
-      </span>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={meta.current_page >= meta.last_page}
-        onClick={() => goTo(meta.current_page + 1)}
-      >
-        Suivant
-        <ChevronRight aria-hidden="true" />
-      </Button>
+      <div className="flex items-center gap-3 text-xs text-app-ink-muted">
+        <span>
+          Page <span className="font-semibold text-app-ink">{meta.current_page}</span> sur{' '}
+          {Math.max(meta.last_page, 1)} ·{' '}
+          <span className="font-semibold text-app-ink">{meta.total}</span> résultat
+          {meta.total > 1 ? 's' : ''}
+        </span>
+        <div className="hidden sm:block">
+          <Select
+            value={currentPerPage}
+            onValueChange={(v) => setPerPage((v ?? '20') as string)}
+            items={items}
+          >
+            <SelectTrigger className="h-8 w-[120px]">
+              <SelectValue placeholder="20 / page" />
+            </SelectTrigger>
+            <SelectContent>
+              {items.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={meta.current_page <= 1}
+          onClick={() => goTo(meta.current_page - 1)}
+        >
+          <ChevronLeft aria-hidden="true" />
+          Précédent
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={meta.current_page >= meta.last_page}
+          onClick={() => goTo(meta.current_page + 1)}
+        >
+          Suivant
+          <ChevronRight aria-hidden="true" />
+        </Button>
+      </div>
     </nav>
   );
 }

@@ -12,6 +12,7 @@ import { assertCanReachAgentArea } from '@/lib/auth/guards';
 import { PropertyList } from '@/components/property-dashboard/PropertyList';
 import { PropertyListFilters } from '@/components/property-dashboard/PropertyListFilters';
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
+import { PropertyKpiStrip } from '@/components/property-dashboard/PropertyKpiStrip';
 
 /**
  * TCK-041 — dashboard agent, liste des biens.
@@ -31,6 +32,16 @@ function asString(value: string | string[] | undefined): string | undefined {
   return value;
 }
 
+const ALLOWED_PER_PAGE = [10, 20, 50] as const;
+type AllowedPerPage = (typeof ALLOWED_PER_PAGE)[number];
+
+function parsePerPage(value: string | undefined): AllowedPerPage {
+  const parsed = Number.parseInt(value ?? '20', 10);
+  return (ALLOWED_PER_PAGE as readonly number[]).includes(parsed)
+    ? (parsed as AllowedPerPage)
+    : 20;
+}
+
 export default async function Page({
   searchParams,
 }: {
@@ -45,10 +56,12 @@ export default async function Page({
   if (!token) redirect('/app');
 
   const page = Number.parseInt(asString(params.page) ?? '1', 10) || 1;
+  const perPage = parsePerPage(asString(params.per_page));
   const filters = {
     status: asString(params.status),
     type: asString(params.type),
     contract_type: asString(params.contract_type),
+    visibility: asString(params.visibility),
     search: asString(params.search),
     city: asString(params.city),
     user_id: asString(params.only_mine) === '1' ? String(user.id) : asString(params.user_id),
@@ -60,16 +73,82 @@ export default async function Page({
   };
   const sort = asString(params.sort);
 
-  const response = await fetchDashboardProperties(token, {
-    page,
-    perPage: 20,
-    filters,
-    sort: sort && ['-created_at', 'created_at', 'price', '-price', 'views_count', '-views_count'].includes(sort)
+  const safeSort =
+    sort && ['-created_at', 'created_at', 'price', '-price', 'views_count', '-views_count'].includes(sort)
       ? sort
-      : '-created_at',
-  });
+      : '-created_at';
+
+  // Main list + KPI counts run in parallel. KPI requests use per_page=1 to
+  // only pull `meta.total` — keeps the dashboard snappy.
+  const [response, totalCount, publishedCount, soldRentedCount, archivedCount] =
+    await Promise.all([
+      fetchDashboardProperties(token, {
+        page,
+        perPage,
+        filters,
+        sort: safeSort,
+      }),
+      countProperties(token, { user_id: filters.user_id }),
+      countProperties(token, {
+        user_id: filters.user_id,
+        filter: { visibility: 'public' },
+      }),
+      countProperties(token, {
+        user_id: filters.user_id,
+        filter: { status: 'sold' },
+      }).then(async (sold) => {
+        const rented = await countProperties(token, {
+          user_id: filters.user_id,
+          filter: { status: 'rented' },
+        });
+        return sold + rented;
+      }),
+      countProperties(token, {
+        user_id: filters.user_id,
+        filter: { status: 'archived' },
+        include_archived: true,
+      }),
+    ]);
 
   const agentOptions = buildAgentOptions(response.data, user);
+  const currentVisibility = asString(params.visibility);
+  const currentStatus = filters.status;
+  const includeArchived = filters.include_archived === '1';
+
+  const kpiTiles = [
+    {
+      label: 'Total',
+      value: totalCount,
+      href: '/app/properties',
+      tone: 'neutral' as const,
+      active:
+        !currentStatus &&
+        !currentVisibility &&
+        !includeArchived &&
+        Object.values(filters).filter(Boolean).length === 0,
+    },
+    {
+      label: 'Publiés',
+      value: publishedCount,
+      href: '/app/properties?visibility=public',
+      tone: 'accent' as const,
+      active: currentVisibility === 'public',
+    },
+    {
+      label: 'Vendus / Loués',
+      value: soldRentedCount,
+      href: '/app/properties?status=sold',
+      tone: 'success' as const,
+      active: currentStatus === 'sold' || currentStatus === 'rented',
+    },
+    {
+      label: 'Archivés',
+      value: archivedCount,
+      href: '/app/properties?include_archived=1&status=archived',
+      tone: 'muted' as const,
+      active: currentStatus === 'archived',
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -89,6 +168,8 @@ export default async function Page({
         </Link>
       </header>
 
+      <PropertyKpiStrip tiles={kpiTiles} />
+
       <PropertyListFilters currentUserId={user.id} agentOptions={agentOptions} />
 
       <PropertyList
@@ -100,6 +181,27 @@ export default async function Page({
       <PropertyPagination meta={response.meta} />
     </div>
   );
+}
+
+async function countProperties(
+  token: string,
+  opts: {
+    readonly user_id?: string;
+    readonly filter?: Record<string, string>;
+    readonly include_archived?: boolean;
+  } = {},
+): Promise<number> {
+  const filter: Record<string, string> = { ...(opts.filter ?? {}) };
+  if (opts.user_id) filter.user_id = opts.user_id;
+  const response = await fetchDashboardProperties(token, {
+    page: 1,
+    perPage: 1,
+    filters: {
+      ...filter,
+      include_archived: opts.include_archived ? '1' : undefined,
+    },
+  });
+  return response.meta.total;
 }
 
 function buildAgentOptions(

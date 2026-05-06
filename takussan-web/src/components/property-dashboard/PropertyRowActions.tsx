@@ -177,15 +177,15 @@ export function PropertyRowActions({ property }: { property: PropertyListItem })
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Actions rapides</DropdownMenuLabel>
           {isPublic ? (
-            <DropdownMenuItem onSelect={unpublish} disabled={pending}>
+            <DropdownMenuItem onClick={unpublish} disabled={pending}>
               Dépublier
             </DropdownMenuItem>
           ) : (
-            <DropdownMenuItem onSelect={publish} disabled={pending}>
+            <DropdownMenuItem onClick={publish} disabled={pending}>
               Publier
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem onSelect={duplicate} disabled={pending}>
+          <DropdownMenuItem onClick={duplicate} disabled={pending}>
             <Copy className="size-4" aria-hidden="true" />
             Dupliquer
           </DropdownMenuItem>
@@ -195,20 +195,20 @@ export function PropertyRowActions({ property }: { property: PropertyListItem })
             <DropdownMenuItem
               key={status}
               disabled={pending}
-              onSelect={() => changeStatus(status)}
+              onClick={() => changeStatus(status)}
             >
               {PROPERTY_STATUS_LABELS[status]}
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
           {property.status !== 'archived' ? (
-            <DropdownMenuItem onSelect={archive} disabled={pending}>
+            <DropdownMenuItem onClick={archive} disabled={pending}>
               <Archive className="size-4" aria-hidden="true" />
               Archiver
             </DropdownMenuItem>
           ) : null}
           <DropdownMenuItem
-            onSelect={() => setConfirmDelete(true)}
+            onClick={() => setConfirmDelete(true)}
             disabled={pending}
             className="text-destructive focus:text-destructive"
           >
