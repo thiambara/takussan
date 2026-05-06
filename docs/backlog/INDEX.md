@@ -106,7 +106,6 @@ _(vide — TCK-146 en review)_
 
 > Smoke test browser du parcours agent immobilier suivant `docs/qa/agent-qa.md`. 19 anomalies recensées dans `docs/smoke-tests/agent-immobilier-2026-05-06.md` (1 P0, 7 P1, 8 P2, 3 P3). 9 tickets de fix groupés par scope.
 
-- [TCK-204](tickets/TCK-204-agent-dashboard-i18n-format-regressions.md) — Dashboard agent — corriger régressions i18n et formats `M · P1 · bug`
 
 ### Vague 18 — Bugs smoke test visiteur anonyme (2026-05-05)
 
@@ -149,6 +148,7 @@ _(vide)_
 - [TCK-201](tickets/TCK-201-crm-pipeline-agent-data-i18n.md) — Pipeline CRM agent — données vides et libellés anglais `M · P1 · bug`
 - [TCK-202](tickets/TCK-202-property-create-redirect-detail.md) — Création bien — rediriger vers la fiche créée `S · P1 · front`
 - [TCK-203](tickets/TCK-203-agent-visit-requester-context.md) — Visites agent — afficher le demandeur exploitable `S · P1 · front`
+- [TCK-204](tickets/TCK-204-agent-dashboard-i18n-format-regressions.md) — Dashboard agent — corriger régressions i18n et formats `M · P1 · bug`
 
 ### Vague 20 — Bugs smoke test bailleur / propriétaire
 

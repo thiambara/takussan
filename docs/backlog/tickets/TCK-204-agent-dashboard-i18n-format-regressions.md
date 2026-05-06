@@ -1,7 +1,7 @@
 ---
 id: TCK-204
 title: "Dashboard agent — corriger régressions i18n et formats"
-status: todo
+status: review
 phase: P1
 family: bug
 estimate: M
@@ -67,4 +67,4 @@ Cohérence FR stricte sur toutes les pages `/app/*` agent : mêmes formats, mêm
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Added a focused FR regression audit for date/month names, XOF grouping, shell language labels, messaging labels, maintenance priorities and lease filter labels.

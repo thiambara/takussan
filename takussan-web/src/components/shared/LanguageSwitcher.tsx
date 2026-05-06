@@ -6,8 +6,8 @@ import { Globe } from 'lucide-react';
 import { setLocaleAction } from '@/app/actions/locale';
 import {
   LOCALES,
-  LOCALE_LABELS,
   LOCALE_SHORT,
+  localeDisplayLabel,
   type Locale,
 } from '@/i18n/config';
 import {
@@ -53,7 +53,7 @@ export function LanguageSwitcher({ className, variant = 'compact' }: LanguageSwi
       >
         <Globe className="size-4" aria-hidden="true" />
         {variant === 'labelled' ? (
-          <span>{LOCALE_LABELS[locale]}</span>
+          <span>{localeDisplayLabel(locale, locale)}</span>
         ) : (
           <span>{LOCALE_SHORT[locale]}</span>
         )}
@@ -69,7 +69,7 @@ export function LanguageSwitcher({ className, variant = 'compact' }: LanguageSwi
             )}
             aria-current={code === locale ? 'true' : undefined}
           >
-            <span>{LOCALE_LABELS[code]}</span>
+            <span>{localeDisplayLabel(code, locale)}</span>
             <span className="text-xs text-app-ink-muted">{LOCALE_SHORT[code]}</span>
           </DropdownMenuItem>
         ))}

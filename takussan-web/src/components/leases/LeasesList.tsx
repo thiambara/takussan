@@ -40,6 +40,10 @@ const STATUS_VARIANT: Record<
   renewed: 'secondary',
 };
 
+export function statusFilterLabel(value: string): string {
+  return value === 'all' ? 'Tous les statuts' : STATUS_LABEL[value as LeaseStatus] ?? 'Tous les statuts';
+}
+
 export function LeasesList() {
   const locale = useLocale() as Locale;
   const [status, setStatus] = useState<string>('all');
@@ -77,7 +81,7 @@ export function LeasesList() {
       <div className="grid gap-3 rounded-xl border border-stone-200 bg-white p-4 sm:grid-cols-2">
         <Select value={status} onValueChange={(value) => setStatus(value ?? 'all')}>
           <SelectTrigger aria-label="Filtrer par statut">
-            <SelectValue placeholder="Tous les statuts" />
+            <SelectValue>{statusFilterLabel(status)}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les statuts</SelectItem>
@@ -90,7 +94,11 @@ export function LeasesList() {
         </Select>
         <Select value={propertyId} onValueChange={(value) => setPropertyId(value ?? 'all')}>
           <SelectTrigger aria-label="Filtrer par bien">
-            <SelectValue placeholder="Tous les biens" />
+            <SelectValue>
+              {propertyId === 'all'
+                ? 'Tous les biens'
+                : propertyOptions.find((property) => String(property.id) === propertyId)?.title ?? 'Tous les biens'}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les biens</SelectItem>

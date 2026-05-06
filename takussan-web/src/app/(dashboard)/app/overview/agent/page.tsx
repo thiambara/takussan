@@ -9,7 +9,8 @@ import { fetchAgentDashboard } from '@/lib/queries/dashboard';
 import { StatCard } from '@/components/charts/StatCard';
 import { BarChart } from '@/components/charts/BarChart';
 import { LineChart } from '@/components/charts/LineChart';
-import { formatCurrency, formatNumber } from '@/lib/format';
+import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
 
 export const metadata: Metadata = { title: 'Statistiques' };
 
@@ -20,6 +21,16 @@ const PIPELINE_LABELS: Record<string, string> = {
   negotiating: 'Négociation',
   converted: 'Convertis',
   lost: 'Perdus',
+};
+
+const LOCALE: Locale = 'fr';
+
+const TASK_PRIORITY_LABELS: Record<string, string> = {
+  low: 'Faible',
+  normal: 'Normale',
+  medium: 'Normale',
+  high: 'Élevée',
+  urgent: 'Urgente',
 };
 
 /** TCK-032 P1 — agent dashboard. */
@@ -48,30 +59,30 @@ export default async function AgentDashboardPage() {
       <div>
         <h1 className="text-2xl font-bold text-app-ink">Vue agent</h1>
         <p className="mt-1 text-sm text-app-ink-muted">
-          Pipeline CRM et activité — {data.period.start.slice(0, 10)} au{' '}
-          {data.period.end.slice(0, 10)}
+          Pipeline CRM et activité — {formatDate(data.period.start, LOCALE)} au{' '}
+          {formatDate(data.period.end, LOCALE)}
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard
           label="Biens gérés"
-          value={formatNumber(data.properties_managed ?? 0, 'fr')}
+          value={formatNumber(data.properties_managed ?? 0, LOCALE)}
         />
         <StatCard
           label="Commissions mois"
-          value={formatCurrency(data.finance?.commissions_month ?? 0, 'fr')}
+          value={formatCurrency(data.finance?.commissions_month ?? 0, LOCALE)}
           accent="success"
         />
         <StatCard
           label="Tâches ouvertes"
-          value={formatNumber(data.tasks?.open ?? 0, 'fr')}
+          value={formatNumber(data.tasks?.open ?? 0, LOCALE)}
           hint={`${data.tasks?.overdue ?? 0} en retard`}
           accent={(data.tasks?.overdue ?? 0) > 0 ? 'warning' : 'default'}
         />
         <StatCard
           label="Visites 7j"
-          value={formatNumber(data.visits?.upcoming_7d ?? 0, 'fr')}
+          value={formatNumber(data.visits?.upcoming_7d ?? 0, LOCALE)}
         />
       </div>
 
@@ -96,13 +107,13 @@ export default async function AgentDashboardPage() {
 
         <OperationalWidget title="Commissions">
           <p className="text-2xl font-semibold text-app-ink">
-            {formatCurrency(data.finance?.commissions_month ?? 0, 'fr')}
+            {formatCurrency(data.finance?.commissions_month ?? 0, LOCALE)}
           </p>
           <p className="text-sm text-app-ink-muted">Ce mois</p>
           <p className="mt-4 text-sm text-app-ink">
             Cumul annuel :{' '}
             <span className="font-semibold">
-              {formatCurrency(data.finance?.commissions_year ?? 0, 'fr')}
+              {formatCurrency(data.finance?.commissions_year ?? 0, LOCALE)}
             </span>
           </p>
         </OperationalWidget>
@@ -143,7 +154,7 @@ export default async function AgentDashboardPage() {
                       </p>
                     </div>
                     <span className="rounded-full bg-white px-2 py-1 text-xs text-app-ink-muted">
-                      {task.priority ?? 'normal'}
+                      {TASK_PRIORITY_LABELS[task.priority ?? 'normal'] ?? 'Normale'}
                     </span>
                   </div>
                   {task.customer ? (
@@ -244,7 +255,7 @@ function MetricLink({
   return (
     <Link href={href} className="mb-3 flex items-center justify-between rounded-lg bg-app-surface-2 px-3 py-2 text-sm hover:bg-app-surface-3/40">
       <span className="text-app-ink-muted">{label}</span>
-      <span className="font-semibold text-app-ink">{formatNumber(value, 'fr')}</span>
+      <span className="font-semibold text-app-ink">{formatNumber(value, LOCALE)}</span>
     </Link>
   );
 }
