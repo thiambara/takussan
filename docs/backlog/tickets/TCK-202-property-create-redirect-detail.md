@@ -1,7 +1,7 @@
 ---
 id: TCK-202
 title: "Création bien — rediriger vers la fiche créée"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: S
@@ -56,4 +56,4 @@ Flux continu : création réussie, confirmation courte, puis fiche détail prêt
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+The create form now reads the clicked submit intent from a ref so draft and publication submissions cannot race React state before submit.

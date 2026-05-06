@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -106,6 +106,17 @@ function toDefaults(property?: PropertyDetail): PropertyFormValues {
   };
 }
 
+function toPropertyCrudPayload(payload: PropertyFormPayload): PropertyFormPayload {
+  const basicPayload = { ...payload };
+  delete basicPayload.street;
+  delete basicPayload.postal_code;
+  delete basicPayload.country;
+  delete basicPayload.latitude;
+  delete basicPayload.longitude;
+  delete basicPayload.tag_ids;
+  return basicPayload;
+}
+
 export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
   const router = useRouter();
   const propertyTypeOptions = propertyTypeValues.map((v) => ({
@@ -119,7 +130,12 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
   const [pendingPhotos, setPendingPhotos] = useState<File[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
-  const [submitIntent, setSubmitIntent] = useState<'draft' | 'submit'>('submit');
+  const submitIntentRef = useRef<'draft' | 'submit'>('submit');
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const selectSubmitIntent = useCallback((intent: 'draft' | 'submit') => {
+    submitIntentRef.current = intent;
+  }, []);
 
   const onPhotosChange = useCallback((files: File[]) => {
     setPhotoError(null);
@@ -136,22 +152,14 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
       schema: propertyFormSchema,
       defaultValues: toDefaults(property),
       onSubmit: async (values) => {
+        setSuccessMessage(null);
         const payload = values as unknown as PropertyFormPayload;
-        // Strip address/tag fields before sending to property CRUD endpoint
-        const {
-          street: _street,
-          postal_code: _postalCode,
-          country: _country,
-          latitude: _lat,
-          longitude: _lng,
-          tag_ids: _tagIds,
-          ...basicPayload
-        } = payload;
+        const basicPayload = toPropertyCrudPayload(payload);
         const createPayload =
           mode === 'create'
             ? {
                 ...basicPayload,
-                status: submitIntent === 'draft' ? 'draft' : 'pending_review',
+                status: submitIntentRef.current === 'draft' ? 'draft' : 'pending_review',
                 visibility: 'private',
               }
             : basicPayload;
@@ -169,6 +177,11 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
       },
       onSuccess: async (result) => {
         if (!result?.id) {
+          if (mode === 'create') {
+            throw new ApiError(500, {
+              message: "Le bien a été créé, mais l'identifiant serveur est absent.",
+            });
+          }
           router.push('/app/properties');
           router.refresh();
           return;
@@ -215,7 +228,13 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
           }
         }
 
-        router.push('/app/properties');
+        if (mode === 'create') {
+          setSuccessMessage('Bien créé. Ouverture de la fiche…');
+          router.push(`/app/properties/${pid}`);
+        } else {
+          setSuccessMessage('Modifications enregistrées.');
+          router.push('/app/properties');
+        }
         router.refresh();
       },
     });
@@ -266,6 +285,14 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
           </span>
         ) : null}
       </FormGlobalError>
+      {successMessage ? (
+        <p
+          role="status"
+          className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
+        >
+          {successMessage}
+        </p>
+      ) : null}
 
       {/* ── Section 1 : Informations générales ── */}
       <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
@@ -569,7 +596,7 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
               disabled={isSubmitting || photoUploading}
               size="lg"
               variant="outline"
-              onClick={() => setSubmitIntent('draft')}
+              onClick={() => selectSubmitIntent('draft')}
             >
               Enregistrer en brouillon
             </Button>
@@ -578,7 +605,7 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
             type="submit"
             disabled={isSubmitting || photoUploading}
             size="lg"
-            onClick={() => setSubmitIntent('submit')}
+            onClick={() => selectSubmitIntent('submit')}
           >
             {isSubmitting || photoUploading ? (
               <>
