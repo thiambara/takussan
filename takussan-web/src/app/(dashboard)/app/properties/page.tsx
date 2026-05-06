@@ -50,6 +50,12 @@ export default async function Page({
     type: asString(params.type),
     contract_type: asString(params.contract_type),
     search: asString(params.search),
+    city: asString(params.city),
+    user_id: asString(params.only_mine) === '1' ? String(user.id) : asString(params.user_id),
+    price_min: asString(params.price_min),
+    price_max: asString(params.price_max),
+    created_from: asString(params.created_from),
+    created_to: asString(params.created_to),
     include_archived: asString(params.include_archived),
   };
   const sort = asString(params.sort);
@@ -62,6 +68,8 @@ export default async function Page({
       ? sort
       : '-created_at',
   });
+
+  const agentOptions = buildAgentOptions(response.data, user);
 
   return (
     <div className="space-y-6">
@@ -81,11 +89,35 @@ export default async function Page({
         </Link>
       </header>
 
-      <PropertyListFilters />
+      <PropertyListFilters currentUserId={user.id} agentOptions={agentOptions} />
 
-      <PropertyList page={response} />
+      <PropertyList
+        page={response}
+        currentUserId={user.id}
+        agentOptions={agentOptions}
+      />
 
       <PropertyPagination meta={response.meta} />
     </div>
   );
+}
+
+function buildAgentOptions(
+  properties: Awaited<ReturnType<typeof fetchDashboardProperties>>['data'],
+  user: Awaited<ReturnType<typeof getMeAction>>,
+) {
+  const map = new Map<number, string>();
+  map.set(user.id, user.full_name || `${user.first_name} ${user.last_name}`.trim());
+  for (const property of properties) {
+    if (property.owner) {
+      map.set(property.owner.id, property.owner.name);
+    }
+    for (const collaborator of property.collaborators ?? []) {
+      if (collaborator.user) {
+        map.set(collaborator.user.id, collaborator.user.name);
+      }
+    }
+  }
+
+  return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
 }

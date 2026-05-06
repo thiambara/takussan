@@ -14,6 +14,7 @@ use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RentPeriod;
 use App\Models\Property;
+use App\Models\User;
 use App\Services\Property\PropertyBulkArchiveService;
 use App\Services\Property\PropertyDuplicationService;
 use Illuminate\Http\JsonResponse;
@@ -30,7 +31,7 @@ class PropertyController extends Controller
     {
         $user = $request->user();
 
-        $base = Property::query()->with(['address']);
+        $base = Property::query()->with(['address', 'owner', 'collaborators.user']);
 
         if (! $user->hasRole(['admin', 'super_admin'])) {
             $base->where(function ($q) use ($user) {
@@ -269,6 +270,32 @@ class PropertyController extends Controller
         }
 
         return $this->unpublish($request, $property);
+    }
+
+    public function assignAgent(Request $request, Property $property): JsonResponse
+    {
+        $this->authorizeManage($request, $property);
+
+        $data = $request->validate([
+            'user_id' => ['required', 'integer', 'exists:users,id'],
+        ]);
+
+        $target = User::findOrFail($data['user_id']);
+        $actor = $request->user();
+        $agencyId = $property->agency_id ?? $actor->agency_id;
+        if ($agencyId !== null) {
+            abort_unless(
+                $target->agency_id === $agencyId || $target->isAgentAt($agencyId),
+                422,
+                __('messages.target_user_not_in_active_agency')
+            );
+        }
+
+        $property->update(['user_id' => $target->id]);
+
+        return $this->json([
+            'data' => PropertyResource::make($property->refresh()->load(['address', 'owner', 'collaborators.user']))->toArray($request),
+        ]);
     }
 
     public function recordView(Request $request, Property $property): JsonResponse

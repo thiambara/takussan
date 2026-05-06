@@ -37,6 +37,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('properties/{property}', [PropertyController::class, 'destroy'])->name('properties.destroy');
     Route::put('properties/{property}/status', [PropertyController::class, 'updateStatus'])->name('properties.status.update');
     Route::put('properties/{property}/visibility', [PropertyController::class, 'updateVisibility'])->name('properties.visibility.update');
+    Route::put('properties/{property}/assigned-agent', [PropertyController::class, 'assignAgent'])->name('properties.assigned-agent.update');
     Route::post('properties/{property}/publish', [PropertyController::class, 'publish'])->name('properties.publish');
     Route::post('properties/{property}/unpublish', [PropertyController::class, 'unpublish'])->name('properties.unpublish');
     Route::post('properties/{property}/view', [PropertyController::class, 'recordView'])->name('properties.view');

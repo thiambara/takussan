@@ -85,6 +85,25 @@ class PropertyResource extends JsonResource
                 $isDetail || $this->resource->relationLoaded('owner'),
                 fn () => $this->buildOwner()
             ),
+            'collaborators' => $this->when(
+                $this->resource->relationLoaded('collaborators'),
+                fn () => $this->resource->collaborators->map(fn ($collaborator) => [
+                    'id' => $collaborator->id,
+                    'user_id' => $collaborator->user_id,
+                    'role' => $collaborator->role?->value,
+                    'commission_share' => $collaborator->commission_share !== null
+                        ? (float) $collaborator->commission_share
+                        : null,
+                    'user' => $collaborator->relationLoaded('user') && $collaborator->user
+                        ? [
+                            'id' => $collaborator->user->id,
+                            'name' => trim($collaborator->user->first_name.' '.$collaborator->user->last_name)
+                                ?: $collaborator->user->username,
+                            'email' => $collaborator->user->email,
+                        ]
+                        : null,
+                ])->values()->all()
+            ),
             'agency' => $this->when(
                 $isDetail || $this->resource->relationLoaded('agency'),
                 fn () => $this->buildAgency()

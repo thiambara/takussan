@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Agency;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Models\User;
@@ -31,6 +32,66 @@ class PropertyCrudTest extends TestCase
         $this->getJson('/api/properties')
             ->assertOk()
             ->assertJsonPath('meta.total', 3);
+    }
+
+    public function test_filters_property_portfolio_by_city_price_date_and_assigned_agent(): void
+    {
+        $agency = Agency::factory()->create();
+        $agent = User::factory()->withAgentProfile($agency)->create();
+        $otherAgent = User::factory()->withAgentProfile($agency)->create();
+
+        $match = Property::factory()->create([
+            'user_id' => $agent->id,
+            'agency_id' => $agency->id,
+            'price' => 450000,
+            'created_at' => '2026-05-06 10:00:00',
+        ]);
+        $match->address()->create(['city' => 'Dakar', 'country' => 'SN']);
+
+        $outsideCity = Property::factory()->create([
+            'user_id' => $agent->id,
+            'agency_id' => $agency->id,
+            'price' => 450000,
+            'created_at' => '2026-05-06 10:00:00',
+        ]);
+        $outsideCity->address()->create(['city' => 'Thiès', 'country' => 'SN']);
+
+        Property::factory()->create([
+            'user_id' => $otherAgent->id,
+            'agency_id' => $agency->id,
+            'price' => 450000,
+            'created_at' => '2026-05-06 10:00:00',
+        ])->address()->create(['city' => 'Dakar', 'country' => 'SN']);
+
+        Sanctum::actingAs($agent);
+
+        $this->getJson('/api/properties?filter[city]=Dak&filter[price_min]=400000&filter[price_max]=500000&filter[created_from]=2026-05-01&filter[created_to]=2026-05-31&filter[user_id]='.$agent->id)
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $match->id);
+    }
+
+    public function test_assigns_property_agent_inside_active_agency(): void
+    {
+        $agency = Agency::factory()->create();
+        $owner = User::factory()->withAgentProfile($agency)->create();
+        $target = User::factory()->withAgentProfile($agency)->create();
+        $property = Property::factory()->create([
+            'user_id' => $owner->id,
+            'agency_id' => $agency->id,
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->putJson("/api/properties/{$property->id}/assigned-agent", [
+            'user_id' => $target->id,
+        ])->assertOk()
+            ->assertJsonPath('data.owner.id', $target->id);
+
+        $this->assertDatabaseHas('properties', [
+            'id' => $property->id,
+            'user_id' => $target->id,
+        ]);
     }
 
     public function test_creates_property_with_address(): void

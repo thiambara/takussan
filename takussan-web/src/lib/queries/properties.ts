@@ -54,6 +54,7 @@ export {
   deleteProperty,
   updatePropertyStatus,
   updatePropertyVisibility,
+  assignPropertyAgent,
   uploadPropertyPhotos,
   fetchPropertyMedia,
   deletePropertyMedia,

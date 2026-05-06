@@ -11,6 +11,7 @@ export type PropertyTitleType = 'bail' | 'titre_foncier' | 'deliberation' | 'oth
 
 export interface PropertyListItem {
   id: number;
+  user_id?: number;
   reference_number: string;
   title: string;
   slug: string;
@@ -37,6 +38,18 @@ export interface PropertyListItem {
   furnished: boolean;
   featured: boolean;
   main_photo_url: string | null;
+  owner?: PropertyOwnerLite | null;
+  collaborators?: {
+    id: number;
+    user_id: number;
+    role: string | null;
+    commission_share: number | null;
+    user: {
+      id: number;
+      name: string;
+      email: string | null;
+    } | null;
+  }[];
   published_at: string | null;
   created_at: string;
 }

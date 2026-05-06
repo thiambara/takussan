@@ -81,7 +81,7 @@ class Property extends AbstractModel implements HasMedia
 
     /** @var array<int,string> */
     protected static array $requestLoadable = [
-        'address', 'agency', 'owner', 'tags', 'children', 'parent',
+        'address', 'agency', 'owner', 'tags', 'children', 'parent', 'collaborators',
     ];
 
     /** @var array<int,string> */
@@ -198,6 +198,27 @@ class Property extends AbstractModel implements HasMedia
             }
 
             $q->where('parent_id', $value);
+        });
+
+        $filters[] = AllowedFilter::callback('city', function (Builder $q, mixed $value): void {
+            $city = trim((string) $value);
+            if ($city === '') {
+                return;
+            }
+
+            $q->whereHas('address', fn (Builder $address) => $address->where('city', 'like', '%'.$city.'%'));
+        });
+
+        $filters[] = AllowedFilter::callback('created_from', function (Builder $q, mixed $value): void {
+            if ($value !== null && $value !== '') {
+                $q->whereDate('created_at', '>=', (string) $value);
+            }
+        });
+
+        $filters[] = AllowedFilter::callback('created_to', function (Builder $q, mixed $value): void {
+            if ($value !== null && $value !== '') {
+                $q->whereDate('created_at', '<=', (string) $value);
+            }
         });
 
         return $filters;

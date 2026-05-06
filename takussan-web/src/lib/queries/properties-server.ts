@@ -27,6 +27,7 @@ import type { PropertyFormPayload } from '@/lib/schemas/property';
 // or spatie/laravel-query-builder rejects with InvalidFieldQuery (HTTP 400).
 export const DASHBOARD_PROPERTY_FIELDS = [
   'id',
+  'user_id',
   'reference_number',
   'title',
   'slug',
@@ -49,6 +50,12 @@ export interface DashboardPropertyFilters {
   readonly type?: string;
   readonly contract_type?: string;
   readonly search?: string;
+  readonly city?: string;
+  readonly user_id?: string;
+  readonly price_min?: string;
+  readonly price_max?: string;
+  readonly created_from?: string;
+  readonly created_to?: string;
   readonly include_archived?: string;
 }
 
@@ -70,10 +77,17 @@ function buildListParams({
   if (filters?.type) filter.type = filters.type;
   if (filters?.contract_type) filter.contract_type = filters.contract_type;
   if (filters?.search) filter.search = filters.search;
+  if (filters?.city) filter.city = filters.city;
+  if (filters?.user_id) filter.user_id = filters.user_id;
+  if (filters?.price_min) filter.price_min = filters.price_min;
+  if (filters?.price_max) filter.price_max = filters.price_max;
+  if (filters?.created_from) filter.created_from = filters.created_from;
+  if (filters?.created_to) filter.created_to = filters.created_to;
 
   return {
     fields: { properties: DASHBOARD_PROPERTY_FIELDS },
     filter,
+    include: ['address', 'owner', 'collaborators'],
     sort: sort ?? '-created_at',
     page: page ?? 1,
     per_page: perPage ?? 20,
@@ -201,6 +215,22 @@ export async function updatePropertyVisibility(
     {
       method: 'PUT',
       body: { visibility },
+      token,
+    },
+  );
+  return res.data;
+}
+
+export async function assignPropertyAgent(
+  token: string,
+  propertyId: number,
+  userId: number,
+): Promise<PropertyDetail> {
+  const res = await apiRequest<ApiResponse<PropertyDetail>>(
+    `/api/properties/${propertyId}/assigned-agent`,
+    {
+      method: 'PUT',
+      body: { user_id: userId },
       token,
     },
   );

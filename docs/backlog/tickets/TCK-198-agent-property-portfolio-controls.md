@@ -1,7 +1,7 @@
 ---
 id: TCK-198
 title: "Mes biens agent — compléter filtres, colonnes et actions en lot"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -60,4 +60,4 @@ Interface de portefeuille dense et scannable : filtres en tête, colonnes métie
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Les filtres ajoutés restent côté API via Spatie; la barre d'actions en lot boucle sur les transitions autorisées par bien pour conserver les contrôles existants.

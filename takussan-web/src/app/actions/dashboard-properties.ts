@@ -18,6 +18,7 @@ import {
   uploadPropertyPhotos,
   type PropertyAddressPayload,
   type PropertyMediaItem,
+  assignPropertyAgent,
 } from '@/lib/queries/properties-server';
 import type { PropertyFormPayload } from '@/lib/schemas/property';
 import type { PropertyDetail } from '@/types/property';
@@ -159,6 +160,22 @@ export async function updatePropertyVisibilityAction(
       propertyId,
       visibility,
     );
+    revalidatePath('/app/properties');
+    revalidatePath(`/app/properties/${propertyId}`);
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, ...mapError(e) };
+  }
+}
+
+export async function assignPropertyAgentAction(
+  propertyId: number,
+  userId: number,
+): Promise<ActionResult<PropertyDetail>> {
+  const auth = await requireToken();
+  if (!auth.ok) return auth.result;
+  try {
+    const data = await assignPropertyAgent(auth.token, propertyId, userId);
     revalidatePath('/app/properties');
     revalidatePath(`/app/properties/${propertyId}`);
     return { ok: true, data };
