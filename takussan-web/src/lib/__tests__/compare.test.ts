@@ -149,7 +149,7 @@ describe('lib/compare — highlightDivergent', () => {
   });
 
   it('handles multiple rows independently', () => {
-    const result = highlightDivergent([
+    const result = highlightDivergent<unknown>([
       row('price', [100, 100]),
       row('area', [50, 70]),
       row('city', ['Dakar', 'Dakar']),

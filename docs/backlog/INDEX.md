@@ -149,6 +149,7 @@ _(vide)_
 ### Vague 21 — Dette technique checks frontend
 
 - [TCK-193](tickets/TCK-193-frontend-eslint-blockers.md) — Frontend — corriger les erreurs ESLint bloquantes `S · P1 · technique`
+- [TCK-194](tickets/TCK-194-frontend-test-type-errors.md) — Frontend — fiabiliser les types des tests `M · P1 · technique`
 
 ### Vague 18 — Bugs smoke test visiteur anonyme
 

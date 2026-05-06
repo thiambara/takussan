@@ -1,13 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ComponentProps } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PropertyReviewReplyForm, REPLY_MIN } from '../PropertyReviewReplyForm';
 
+type ReplySubmit = ComponentProps<typeof PropertyReviewReplyForm>['onSubmit'];
+
 describe('<PropertyReviewReplyForm>', () => {
-  let submit: ReturnType<typeof vi.fn>;
+  let submit: ReturnType<typeof vi.fn<ReplySubmit>>;
 
   beforeEach(() => {
-    submit = vi.fn().mockResolvedValue(undefined);
+    submit = vi.fn<ReplySubmit>().mockResolvedValue(undefined);
   });
 
   it('disables the primary action when the content is too short', async () => {
