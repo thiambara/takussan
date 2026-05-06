@@ -6,6 +6,7 @@ use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Customer;
 use App\Models\Enums\BookingPaymentType;
+use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Property;
 use App\Models\User;
@@ -96,6 +97,74 @@ class BookingPaymentTest extends TestCase
         $this->getJson("/api/bookings/{$booking->id}/payments")
             ->assertOk()
             ->assertJsonPath('meta.total', 2);
+    }
+
+    public function test_customer_created_payment_is_forced_pending(): void
+    {
+        $customerUser = User::factory()->create();
+        $customer = Customer::factory()->create(['user_id' => $customerUser->id]);
+        $booking = Booking::factory()->create(['customer_id' => $customer->id]);
+
+        Sanctum::actingAs($customerUser);
+
+        $response = $this->postJson("/api/bookings/{$booking->id}/payments", [
+            'amount' => 100000,
+            'payment_type' => BookingPaymentType::Deposit->value,
+            'status' => PaymentStatus::Paid->value,
+            'payment_method' => PaymentMethod::Cash->value,
+            'transaction_id' => 'manual-shortcut',
+            'paid_at' => now()->toISOString(),
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.status', PaymentStatus::Pending->value)
+            ->assertJsonPath('data.payment_method', null)
+            ->assertJsonPath('data.transaction_id', null)
+            ->assertJsonPath('data.paid_at', null);
+
+        $this->assertDatabaseHas('booking_payments', [
+            'booking_id' => $booking->id,
+            'payer_id' => $customer->id,
+            'collector_id' => $customerUser->id,
+            'status' => PaymentStatus::Pending->value,
+            'payment_method' => null,
+            'transaction_id' => null,
+        ]);
+    }
+
+    public function test_customer_can_download_paid_booking_payment_receipt_pdf(): void
+    {
+        $customerUser = User::factory()->create();
+        $customer = Customer::factory()->create(['user_id' => $customerUser->id]);
+        $booking = Booking::factory()->create(['customer_id' => $customer->id]);
+        $payment = BookingPayment::factory()->paid()->create([
+            'booking_id' => $booking->id,
+            'amount' => 125000,
+        ]);
+
+        Sanctum::actingAs($customerUser);
+
+        $response = $this->get("/api/booking-payments/{$payment->id}/receipt");
+
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'application/pdf');
+        $this->assertTrue(str_starts_with($response->getContent(), '%PDF-'));
+    }
+
+    public function test_booking_payment_receipt_requires_paid_payment(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $booking = Booking::factory()->create(['property_id' => $property->id]);
+        $payment = BookingPayment::factory()->create([
+            'booking_id' => $booking->id,
+            'status' => PaymentStatus::Pending,
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->getJson("/api/booking-payments/{$payment->id}/receipt")
+            ->assertStatus(422);
     }
 
     public function test_owner_can_refund_paid_payment(): void

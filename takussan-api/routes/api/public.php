@@ -38,7 +38,6 @@ Route::prefix('public')->name('public.')->group(function () {
 
     // TCK-180 — gate the property review form. Anonymous = always false.
     Route::get('properties/{slug}/review-eligibility', [PublicPropertyController::class, 'reviewEligibility'])
-        ->middleware('auth:sanctum')
         ->name('properties.review-eligibility');
 
     Route::post('properties/{slug}/report', [PublicPropertyController::class, 'report'])

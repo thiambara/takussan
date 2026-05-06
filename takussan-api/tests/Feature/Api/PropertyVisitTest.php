@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Customer;
 use App\Models\Enums\VisitStatus;
 use App\Models\Property;
 use App\Models\PropertyVisit;
@@ -96,5 +97,29 @@ class PropertyVisitTest extends TestCase
         Sanctum::actingAs($owner);
 
         $this->postJson("/api/property-visits/{$visit->id}/confirm")->assertStatus(422);
+    }
+
+    public function test_customer_linked_user_can_list_and_view_visit_with_customer_payload(): void
+    {
+        $customerUser = User::factory()->create();
+        $customer = Customer::factory()->create(['user_id' => $customerUser->id]);
+        $visit = PropertyVisit::factory()->create([
+            'visitor_id' => User::factory()->create()->id,
+            'customer_id' => $customer->id,
+        ]);
+
+        Sanctum::actingAs($customerUser);
+
+        $this->getJson('/api/property-visits?include=customer')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $visit->id)
+            ->assertJsonPath('data.0.customer.id', $customer->id)
+            ->assertJsonPath('data.0.customer.user_id', $customerUser->id);
+
+        $this->getJson("/api/property-visits/{$visit->id}")
+            ->assertOk()
+            ->assertJsonPath('data.customer.id', $customer->id)
+            ->assertJsonPath('data.customer.user_id', $customerUser->id);
     }
 }
