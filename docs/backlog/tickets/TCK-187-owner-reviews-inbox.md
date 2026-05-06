@@ -1,7 +1,7 @@
 ---
 id: TCK-187
 title: Avis owner — boîte des avis reçus
-status: todo
+status: review
 phase: P2
 family: front
 estimate: M
@@ -64,4 +64,4 @@ Boîte de réception sobre : filtres par bien/statut/répondu/non répondu, cart
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+La boîte owner agrège les avis approuvés via les endpoints par bien, car l'index global reste réservé à la modération/admin.
