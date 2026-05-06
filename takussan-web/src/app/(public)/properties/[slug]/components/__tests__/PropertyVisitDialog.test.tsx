@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ReactElement } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { NextIntlClientProvider } from 'next-intl';
 import { PropertyVisitDialog } from '../PropertyVisitDialog';
+import messages from '@/messages/fr.json';
 
 const submit = vi.fn();
 
@@ -18,6 +21,14 @@ vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: authUser, token: null, isLoading: false }),
 }));
 
+function renderDialog(ui: ReactElement) {
+  return render(
+    <NextIntlClientProvider locale="fr" messages={messages} timeZone="UTC">
+      {ui}
+    </NextIntlClientProvider>,
+  );
+}
+
 describe('<PropertyVisitDialog>', () => {
   beforeEach(() => {
     submit.mockReset();
@@ -25,28 +36,32 @@ describe('<PropertyVisitDialog>', () => {
     authUser = null;
   });
 
-  it('renders the form with type selector and visitor fields for anonymous users', () => {
-    render(<PropertyVisitDialog slug="villa-almadies" open={true} onOpenChange={() => {}} />);
+  it('prompts anonymous users to log in before requesting a visit', () => {
+    renderDialog(<PropertyVisitDialog slug="villa-almadies" open={true} onOpenChange={() => {}} />);
+
+    expect(screen.getByText(/connectez-vous pour visiter/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /se connecter/i })).toHaveAttribute(
+      'href',
+      '/auth/login?redirect=/properties/villa-almadies',
+    );
+    expect(screen.queryByText(/type de visite/i)).not.toBeInTheDocument();
+  });
+
+  it('renders the visit form when the user is authenticated', () => {
+    authUser = { id: 5 };
+    renderDialog(<PropertyVisitDialog slug="villa-almadies" open={true} onOpenChange={() => {}} />);
 
     expect(screen.getByText(/demander une visite/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/votre nom/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/email/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/téléphone/i)).toBeInTheDocument();
+    expect(screen.getByText(/type de visite/i)).toBeInTheDocument();
   });
 
-  it('hides visitor fields when the user is authenticated', () => {
-    authUser = { id: 5 };
-    render(<PropertyVisitDialog slug="villa-almadies" open={true} onOpenChange={() => {}} />);
-
-    expect(screen.queryByPlaceholderText(/votre nom/i)).not.toBeInTheDocument();
-  });
-
-  it('submits the chosen type + date/time + anonymous identity', async () => {
+  it('submits the chosen type + date/time without nullable empty notes', async () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn();
     const onSuccess = vi.fn();
+    authUser = { id: 5 };
 
-    render(
+    renderDialog(
       <PropertyVisitDialog
         slug="villa-almadies"
         open={true}
@@ -59,10 +74,6 @@ describe('<PropertyVisitDialog>', () => {
     await user.clear(dateInput);
     await user.type(dateInput, '2027-05-10');
 
-    await user.type(screen.getByPlaceholderText(/votre nom/i), 'Awa');
-    await user.type(screen.getByPlaceholderText(/email/i), 'awa@example.com');
-    await user.type(screen.getByPlaceholderText(/téléphone/i), '+221770000000');
-
     await user.click(screen.getByRole('button', { name: /demander la visite/i }));
 
     await waitFor(() => {
@@ -71,9 +82,7 @@ describe('<PropertyVisitDialog>', () => {
 
     const payload = submit.mock.calls[0][0];
     expect(payload.type).toBe('in_person');
-    expect(payload.visitor_name).toBe('Awa');
-    expect(payload.visitor_email).toBe('awa@example.com');
-    expect(payload.visitor_phone).toBe('+221770000000');
+    expect(payload.notes).toBeUndefined();
     expect(payload.scheduled_at).toMatch(/^2027-05-10T/);
 
     expect(onOpenChange).toHaveBeenCalledWith(false);

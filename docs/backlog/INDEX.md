@@ -150,6 +150,7 @@ _(vide)_
 
 - [TCK-193](tickets/TCK-193-frontend-eslint-blockers.md) — Frontend — corriger les erreurs ESLint bloquantes `S · P1 · technique`
 - [TCK-194](tickets/TCK-194-frontend-test-type-errors.md) — Frontend — fiabiliser les types des tests `M · P1 · technique`
+- [TCK-195](tickets/TCK-195-frontend-runtime-type-errors.md) — Frontend — corriger les erreurs TypeScript runtime `S · P1 · technique`
 
 ### Vague 18 — Bugs smoke test visiteur anonyme
 
