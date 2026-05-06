@@ -1,7 +1,7 @@
 ---
 id: TCK-185
 title: Baux owner — création avec sélecteurs métier
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -66,4 +66,4 @@ Formulaire de création calme et guidé : sélection du bien par titre/référen
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+Le bailleur est prérempli avec l'utilisateur actif, conformément au scope owner actuel.
