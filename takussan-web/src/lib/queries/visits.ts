@@ -109,8 +109,8 @@ export function useVisit(id: number | null | undefined) {
     fields: {
       property_visits: VISIT_DETAIL_FIELDS,
       properties: ['id', 'title', 'slug'],
-      users: ['id', 'first_name', 'last_name', 'email'],
-      customers: ['id', 'user_id'],
+      users: ['id', 'first_name', 'last_name', 'email', 'phone'],
+      customers: ['id', 'user_id', 'first_name', 'last_name', 'email', 'phone'],
     },
     include: ['property', 'agent', 'visitor', 'customer'],
   };

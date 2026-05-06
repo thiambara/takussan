@@ -43,9 +43,22 @@ export interface PropertyVisit {
   notes?: string | null;
   metadata?: Record<string, unknown> | null;
   property?: { id: number; title?: string | null; slug?: string | null } | null;
-  visitor?: { id: number; first_name?: string; last_name?: string; email?: string | null } | null;
+  visitor?: {
+    id: number;
+    first_name?: string | null;
+    last_name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  } | null;
   agent?: { id: number; first_name?: string; last_name?: string } | null;
-  customer?: { id: number; user_id?: number | null } | null;
+  customer?: {
+    id: number;
+    user_id?: number | null;
+    first_name?: string | null;
+    last_name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  } | null;
   created_at?: string | null;
 }
 

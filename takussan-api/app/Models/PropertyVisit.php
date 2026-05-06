@@ -46,8 +46,9 @@ class PropertyVisit extends AbstractModel
 
     protected static array $queryFields = [
         'id', 'property_id', 'visitor_id', 'customer_id', 'agent_id',
+        'visitor_name', 'visitor_phone', 'visitor_email',
         'type', 'status', 'scheduled_at', 'completed_at', 'duration_minutes',
-        'feedback', 'rating', 'notes', 'metadata',
+        'cancelled_at', 'cancellation_reason', 'feedback', 'rating', 'notes', 'metadata',
         'created_at', 'updated_at',
     ];
 

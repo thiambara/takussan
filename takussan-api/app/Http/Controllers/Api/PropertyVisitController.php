@@ -52,7 +52,7 @@ class PropertyVisitController extends Controller
         $this->authorizeAccess($request, $visit);
 
         return $this->json([
-            'data' => PropertyVisitResource::make($visit->load(['property', 'agent', 'visitor']))->toArray($request),
+            'data' => PropertyVisitResource::make($visit->load(['property', 'agent', 'visitor', 'customer']))->toArray($request),
         ]);
     }
 

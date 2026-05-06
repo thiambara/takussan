@@ -1,7 +1,7 @@
 ---
 id: TCK-203
 title: "Visites agent — afficher le demandeur exploitable"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: S
@@ -59,4 +59,4 @@ Détail de visite orienté rendez-vous : demandeur, moyen de contact, bien, cré
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+The visit detail endpoint now loads and serializes the `customer` relation for show responses, because the frontend cannot render a human requester from `customer_id` alone.

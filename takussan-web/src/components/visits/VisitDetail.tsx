@@ -168,8 +168,8 @@ export function VisitDetail({ id }: { id: number }) {
           )}
           <div>
             <dt className="text-stone-500">Demandeur</dt>
-            <dd className="font-medium text-stone-900">
-              {formatVisitorName(visit)}
+            <dd className="text-stone-900">
+              <RequesterSummary visit={visit} />
             </dd>
           </div>
           {visit.agent ? (
@@ -231,21 +231,86 @@ export function VisitDetail({ id }: { id: number }) {
   );
 }
 
-function formatVisitorName(visit: PropertyVisit): string {
-  if (visit.visitor_name) return visit.visitor_name;
-  const userName = visit.visitor ? formatUserName(visit.visitor) : '';
-  if (userName) return userName;
-  if (visit.visitor_email) return visit.visitor_email;
-  if (visit.customer_id) return `Customer #${visit.customer_id}`;
-  return 'Demandeur non renseigné';
-}
-
 function formatUserName(user: {
   first_name?: string | null;
   last_name?: string | null;
   email?: string | null;
 }): string {
   return [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || user.email || '';
+}
+
+function RequesterSummary({ visit }: { visit: PropertyVisit }) {
+  const requester = resolveRequester(visit);
+
+  return (
+    <div className="space-y-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-medium">{requester.name}</span>
+        {requester.customerId ? (
+          <Link
+            href={`/app/customers/${requester.customerId}`}
+            className="text-xs font-semibold text-primary hover:underline"
+          >
+            Fiche CRM
+          </Link>
+        ) : null}
+      </div>
+      {requester.email || requester.phone ? (
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-stone-500">
+          {requester.phone ? (
+            <a href={`tel:${requester.phone}`} className="hover:text-stone-900">
+              {requester.phone}
+            </a>
+          ) : null}
+          {requester.email ? (
+            <a href={`mailto:${requester.email}`} className="hover:text-stone-900">
+              {requester.email}
+            </a>
+          ) : null}
+        </div>
+      ) : (
+        <p className="text-xs text-stone-500">{requester.fallback}</p>
+      )}
+    </div>
+  );
+}
+
+function resolveRequester(visit: PropertyVisit): {
+  name: string;
+  email: string | null;
+  phone: string | null;
+  customerId: number | null;
+  fallback: string;
+} {
+  if (visit.customer) {
+    return {
+      name: formatUserName(visit.customer) || `Client CRM #${visit.customer.id}`,
+      email: visit.customer.email ?? null,
+      phone: visit.customer.phone ?? null,
+      customerId: visit.customer.id,
+      fallback: 'Aucun contact renseigné sur la fiche CRM.',
+    };
+  }
+
+  if (visit.visitor) {
+    return {
+      name: formatUserName(visit.visitor) || 'Utilisateur inscrit',
+      email: visit.visitor.email ?? null,
+      phone: visit.visitor.phone ?? null,
+      customerId: null,
+      fallback: 'Aucun contact renseigné sur le compte utilisateur.',
+    };
+  }
+
+  const anonymousName = visit.visitor_name?.trim() || 'Visiteur anonyme';
+
+  return {
+    name: anonymousName,
+    email: visit.visitor_email ?? null,
+    phone: visit.visitor_phone ?? null,
+    customerId: null,
+    fallback: 'Coordonnées anonymes incomplètes.',
+  };
 }
 
 function FeedbackSection({
