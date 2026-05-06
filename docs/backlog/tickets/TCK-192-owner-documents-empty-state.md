@@ -1,7 +1,7 @@
 ---
 id: TCK-192
 title: Documents owner — état vide actionnable
-status: todo
+status: review
 phase: P2
 family: front
 estimate: S
@@ -59,4 +59,4 @@ La bibliothèque documents gère les documents polymorphes liés aux biens, baux
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+État vide owner sans données fictives, avec exemples mappés sur les types existants (`other`, `lease_contract`, `receipt`, `invoice`, `id_card`) et CTA réutilisant `DocumentUploadDialog`.

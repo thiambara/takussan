@@ -98,8 +98,6 @@ _(vide — TCK-146 en review)_
 
 > Smoke test browser exhaustif du parcours owner connecté suivant `docs/qa/bailleur-proprietaire-qa.md`. 28 anomalies recensées dans `docs/smoke-tests/bailleur-proprietaire-2026-05-06.md` (4 P0, 9 P1, 10 P2, 5 P3). 10 tickets de fix groupés par scope. **Note** : plusieurs défauts i18n, formats et titres sont déjà couverts par TCK-153, TCK-154, TCK-178 et ne sont pas dupliqués ici.
 
-- [TCK-192](tickets/TCK-192-owner-documents-empty-state.md) — Documents owner — état vide actionnable `S · P2 · front`
-
 ### Vague 18 — Bugs smoke test visiteur anonyme (2026-05-05)
 
 > Smoke test browser exhaustif du parcours public (incognito, aucune session) suivant `docs/qa/visiteur-anonyme-qa.md`. 22 anomalies recensées dans `docs/smoke-tests/visiteur-anonyme-2026-05-05.md` (0 P0, 6 P1, 12 P2, 4 P3). 8 tickets de fix groupés par scope. **Note** : les bugs P1-1 et P2-10 (pages légales / footer enrichi) ne sont pas ticketés ici — la fonctionnalité n'existe pas dans `docs/features.md` et nécessite un ajout de spec préalable.
@@ -142,6 +140,7 @@ _(vide)_
 - [TCK-189](tickets/TCK-189-owner-property-portfolio-ui.md) — Biens owner — gestion portefeuille complète `L · P1 · front`
 - [TCK-190](tickets/TCK-190-owner-calendar-usability.md) — Calendrier owner — lisibilité gros portefeuille `S · P2 · front`
 - [TCK-191](tickets/TCK-191-owner-maintenance-detail-ux.md) — Maintenance owner — détail lisible `S · P2 · front`
+- [TCK-192](tickets/TCK-192-owner-documents-empty-state.md) — Documents owner — état vide actionnable `S · P2 · front`
 
 ### Vague 18 — Bugs smoke test visiteur anonyme
 

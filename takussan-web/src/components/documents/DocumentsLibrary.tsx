@@ -13,11 +13,15 @@ import {
   AlertCircle,
   History,
   Plus,
+  Home,
+  FileCheck2,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ApiError } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
+import { isOwner } from '@/lib/roles';
 import { formatDateTime } from '@/lib/format';
 import {
   useDeleteDocument,
@@ -59,6 +63,7 @@ function formatFileSize(bytes: number | null): string {
 
 export function DocumentsLibrary() {
   const locale = useLocale() as Locale;
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [shareDoc, setShareDoc] = useState<Document | null>(null);
@@ -123,6 +128,7 @@ export function DocumentsLibrary() {
   );
 
   const totalFromMeta = data?.meta?.total ?? 0;
+  const ownerEmptyState = user ? isOwner(user.roles) : false;
 
   return (
     <div className="space-y-5">
@@ -134,7 +140,7 @@ export function DocumentsLibrary() {
         </div>
         <Button type="button" onClick={() => setUploadOpen(true)}>
           <Plus className="mr-1 size-4" aria-hidden="true" />
-          Ajouter un document
+          Téléverser un document
         </Button>
       </div>
 
@@ -167,7 +173,11 @@ export function DocumentsLibrary() {
             {error instanceof ApiError ? error.displayMessage : 'Impossible de charger les documents.'}
           </p>
         ) : grouped.length === 0 ? (
-          <EmptyState onUpload={() => setUploadOpen(true)} dragOver={dragOver} />
+          <EmptyState
+            onUpload={() => setUploadOpen(true)}
+            dragOver={dragOver}
+            owner={ownerEmptyState}
+          />
         ) : (
           <div className="space-y-5">
             {deleteError ? (
@@ -220,10 +230,16 @@ export function DocumentsLibrary() {
 function EmptyState({
   onUpload,
   dragOver,
+  owner,
 }: {
   readonly onUpload: () => void;
   readonly dragOver: boolean;
+  readonly owner: boolean;
 }) {
+  if (owner && !dragOver) {
+    return <OwnerEmptyState onUpload={onUpload} />;
+  }
+
   return (
     <div className="flex flex-col items-center justify-center gap-3 rounded-xl bg-app-surface-1 px-6 py-12 text-center text-sm text-app-ink-muted">
       <UploadCloud className="size-8 text-app-accent" aria-hidden="true" />
@@ -236,6 +252,80 @@ function EmptyState({
         <Plus className="mr-1 size-4" aria-hidden="true" />
         Téléverser un document
       </Button>
+    </div>
+  );
+}
+
+function OwnerEmptyState({ onUpload }: { readonly onUpload: () => void }) {
+  const examples = [
+    { label: 'Titre foncier', type: DOCUMENT_TYPE_LABEL.other },
+    { label: 'Bail signé', type: DOCUMENT_TYPE_LABEL.lease_contract },
+    { label: 'Quittance', type: DOCUMENT_TYPE_LABEL.receipt },
+    { label: 'Devis ou facture', type: DOCUMENT_TYPE_LABEL.invoice },
+    { label: 'Pièce propriétaire', type: DOCUMENT_TYPE_LABEL.id_card },
+  ] as const;
+
+  const targets = [
+    { icon: Home, title: 'Bien', helper: 'titre foncier, photos, assurance' },
+    { icon: FileText, title: 'Bail', helper: 'contrat signé, quittances, état des lieux' },
+    { icon: FileCheck2, title: 'Utilisateur', helper: 'pièce propriétaire ou passeport' },
+  ] as const;
+
+  return (
+    <div className="rounded-xl bg-app-surface-1 px-5 py-6 text-sm text-app-ink">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="max-w-2xl">
+          <div className="flex items-center gap-2">
+            <UploadCloud className="size-6 text-app-accent" aria-hidden="true" />
+            <h2 className="text-base font-semibold">Aucun document propriétaire</h2>
+          </div>
+          <p className="mt-2 text-app-ink-muted">
+            Ajoutez les fichiers utiles à votre portefeuille et rattachez-les au bien, au bail ou à votre profil propriétaire concerné.
+          </p>
+        </div>
+        <Button type="button" onClick={onUpload} className="shrink-0">
+          <Plus className="mr-1 size-4" aria-hidden="true" />
+          Téléverser un document
+        </Button>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
+        <section>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-app-ink-muted">
+            Exemples de catégories
+          </h3>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {examples.map((example) => (
+              <span
+                key={example.label}
+                className="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs text-app-ink"
+              >
+                {example.label} · {example.type}
+              </span>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-app-ink-muted">
+            Rattachement conseillé
+          </h3>
+          <div className="mt-2 grid gap-2">
+            {targets.map((target) => {
+              const Icon = target.icon;
+              return (
+                <div key={target.title} className="flex items-start gap-2 rounded-lg border border-stone-200 bg-white p-2">
+                  <Icon className="mt-0.5 size-4 shrink-0 text-app-accent" aria-hidden="true" />
+                  <div>
+                    <p className="font-medium">{target.title}</p>
+                    <p className="text-xs text-app-ink-muted">{target.helper}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
