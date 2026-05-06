@@ -1,7 +1,7 @@
 ---
 id: TCK-165
 title: "Fiche bien — CTA adapté au type de contrat (location longue / courte / vente)"
-status: review
+status: done
 phase: P2
 family: front
 estimate: S

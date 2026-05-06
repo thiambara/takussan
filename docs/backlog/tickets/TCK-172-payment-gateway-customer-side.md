@@ -1,7 +1,7 @@
 ---
 id: TCK-172
 title: Paiement passerelle (Wave / Orange Money / Stripe) — flow customer côté acompte, solde, loyer
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: L

@@ -1,7 +1,7 @@
 ---
 id: TCK-177
 title: Pages publiques agents & agences + lien depuis la fiche bien
-status: review
+status: done
 phase: P2
 family: front
 estimate: L

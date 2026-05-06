@@ -1,7 +1,7 @@
 ---
 id: TCK-163
 title: "Données seed — exclure les biens de test du flux public"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: S

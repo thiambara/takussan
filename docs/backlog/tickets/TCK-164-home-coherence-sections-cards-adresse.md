@@ -1,7 +1,7 @@
 ---
 id: TCK-164
 title: "Home publique — cohérence sections, cards et format adresse"
-status: review
+status: done
 phase: P2
 family: front
 estimate: M

@@ -1,7 +1,7 @@
 ---
 id: TCK-166
 title: "Polish public — title dupliqué, redirect /super-admin, preload, libellés tri"
-status: review
+status: done
 phase: P3
 family: front
 estimate: S

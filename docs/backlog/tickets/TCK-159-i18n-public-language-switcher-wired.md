@@ -1,7 +1,7 @@
 ---
 id: TCK-159
 title: "Sélecteur de langue public — câblage i18n FR/EN/WO"
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

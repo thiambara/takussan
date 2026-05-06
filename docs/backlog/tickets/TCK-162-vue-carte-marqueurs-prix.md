@@ -1,7 +1,7 @@
 ---
 id: TCK-162
 title: "Vue carte — marqueurs avec prix"
-status: review
+status: done
 phase: P2
 family: front
 estimate: S

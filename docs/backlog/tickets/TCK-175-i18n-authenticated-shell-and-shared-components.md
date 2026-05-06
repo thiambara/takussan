@@ -1,7 +1,7 @@
 ---
 id: TCK-175
 title: i18n — layout authentifié et composants partagés (footer, recently viewed, modaux, profil)
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

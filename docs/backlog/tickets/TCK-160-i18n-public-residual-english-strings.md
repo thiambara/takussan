@@ -1,7 +1,7 @@
 ---
 id: TCK-160
 title: "i18n public — chaînes anglaises résiduelles côté visiteur anonyme"
-status: review
+status: done
 phase: P1
 family: front
 estimate: M
