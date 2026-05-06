@@ -94,6 +94,21 @@ _(vide — TCK-146 en review)_
 - [TCK-181](tickets/TCK-181-recently-viewed-on-home-and-format.md) — « Récemment consultés » — affichage home + i18n + format unifié `S · P2 · front` **[done]**
 - [TCK-182](tickets/TCK-182-inventories-customer-access-and-labels.md) — États des lieux customer — libellés humains + PDF `S · P2 · front` **[done]**
 
+### Vague 20 — Bugs smoke test bailleur / propriétaire (2026-05-06)
+
+> Smoke test browser exhaustif du parcours owner connecté suivant `docs/qa/bailleur-proprietaire-qa.md`. 28 anomalies recensées dans `docs/smoke-tests/bailleur-proprietaire-2026-05-06.md` (4 P0, 9 P1, 10 P2, 5 P3). 10 tickets de fix groupés par scope. **Note** : plusieurs défauts i18n, formats et titres sont déjà couverts par TCK-153, TCK-154, TCK-178 et ne sont pas dupliqués ici.
+
+- [TCK-183](tickets/TCK-183-owner-booking-actions.md) — Réservations owner — actions accepter/refuser/annuler `M · P1 · front`
+- [TCK-184](tickets/TCK-184-owner-visit-actions.md) — Visites owner — confirmation et suivi `M · P2 · front`
+- [TCK-185](tickets/TCK-185-owner-lease-create-ux.md) — Baux owner — création avec sélecteurs métier `M · P1 · front`
+- [TCK-186](tickets/TCK-186-owner-lease-lifecycle-ui.md) — Baux owner — actions cycle de vie `M · P1 · front`
+- [TCK-187](tickets/TCK-187-owner-reviews-inbox.md) — Avis owner — boîte des avis reçus `M · P2 · front`
+- [TCK-188](tickets/TCK-188-owner-dashboard-shell.md) — Dashboard owner — widgets et navigation `M · P1 · front`
+- [TCK-189](tickets/TCK-189-owner-property-portfolio-ui.md) — Biens owner — gestion portefeuille complète `L · P1 · front`
+- [TCK-190](tickets/TCK-190-owner-calendar-usability.md) — Calendrier owner — lisibilité gros portefeuille `S · P2 · front`
+- [TCK-191](tickets/TCK-191-owner-maintenance-detail-ux.md) — Maintenance owner — détail lisible `S · P2 · front`
+- [TCK-192](tickets/TCK-192-owner-documents-empty-state.md) — Documents owner — état vide actionnable `S · P2 · front`
+
 ### Vague 18 — Bugs smoke test visiteur anonyme (2026-05-05)
 
 > Smoke test browser exhaustif du parcours public (incognito, aucune session) suivant `docs/qa/visiteur-anonyme-qa.md`. 22 anomalies recensées dans `docs/smoke-tests/visiteur-anonyme-2026-05-05.md` (0 P0, 6 P1, 12 P2, 4 P3). 8 tickets de fix groupés par scope. **Note** : les bugs P1-1 et P2-10 (pages légales / footer enrichi) ne sont pas ticketés ici — la fonctionnalité n'existe pas dans `docs/features.md` et nécessite un ajout de spec préalable.
