@@ -1,7 +1,7 @@
 ---
 id: TCK-184
 title: Visites owner — confirmation et suivi
-status: todo
+status: review
 phase: P2
 family: front
 estimate: M
@@ -62,4 +62,4 @@ Vue de gestion de rendez-vous : onglets par statut, détail du créneau, action 
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+Straightforward; see commit.

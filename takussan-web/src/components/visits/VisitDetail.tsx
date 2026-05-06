@@ -8,12 +8,15 @@ import {
   useCancelVisit,
   useCompleteVisit,
   useConfirmVisit,
+  useUpdateVisit,
   useVisit,
 } from '@/lib/queries/visits';
 import { useAuth } from '@/context/AuthContext';
 import { formatDateTime } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
+import { isAdmin, isAgent as hasAgentRole, isOwner } from '@/lib/roles';
 import { VisitFeedbackForm } from './VisitFeedbackForm';
 import type { PropertyVisit, VisitStatus, VisitType } from '@/types/visit';
 import type { Locale } from '@/i18n/config';
@@ -40,18 +43,19 @@ export function VisitDetail({ id }: { id: number }) {
   const locale = useLocale() as Locale;
   const { user } = useAuth();
   const router = useRouter();
+  const [renderedAt] = useState(() => Date.now());
 
   const confirm = useConfirmVisit(id);
   const complete = useCompleteVisit(id);
   const cancel = useCancelVisit(id);
-
-  const visit = data?.data;
+  const updateVisit = useUpdateVisit(id);
+  const toast = useToast();
 
   if (isLoading) {
     return <div className="h-48 animate-pulse rounded-xl bg-app-surface-1" />;
   }
 
-  if (isError || !visit) {
+  if (isError || !data) {
     return (
       <div className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
         Impossible de charger cette visite.
@@ -59,25 +63,68 @@ export function VisitDetail({ id }: { id: number }) {
     );
   }
 
+  const visit = data.data;
   const status = visit.status ?? 'scheduled';
   const type = visit.type ?? 'in_person';
   const isVisitor =
     (!!user?.id && user.id === visit.visitor_id) ||
     (!!user?.id && !!visit.customer && user.id === visit.customer.user_id);
-  const isAgent = user?.id === visit.agent_id;
+  const isAssignedAgent = user?.id === visit.agent_id;
+  const isManager = user ? isOwner(user.roles) || hasAgentRole(user.roles) || isAdmin(user.roles) : false;
   const feedbackLocked = !isFeedbackOpen(visit);
+  const scheduledAtMs = visit.scheduled_at ? new Date(visit.scheduled_at).getTime() : Number.NaN;
+  const isPastSlot = Number.isFinite(scheduledAtMs) && scheduledAtMs <= renderedAt;
+  const canConfirm = isManager && status === 'scheduled';
+  const canCancel = (isVisitor || isManager) && (status === 'scheduled' || status === 'confirmed');
+  const canComplete =
+    isManager &&
+    (status === 'confirmed' || status === 'scheduled') &&
+    (isPastSlot || status === 'confirmed');
+  const canReschedule = isManager && (status === 'scheduled' || status === 'confirmed');
 
   async function handleConfirm() {
     await confirm.mutateAsync();
+    toast.add({
+      title: 'Visite confirmée',
+      description: 'Le créneau est confirmé et les rappels restent gérés par le workflow existant.',
+      type: 'success',
+    });
   }
 
   async function handleComplete() {
     await complete.mutateAsync({});
+    toast.add({
+      title: 'Visite marquée effectuée',
+      description: 'Le suivi post-visite est maintenant disponible.',
+      type: 'success',
+    });
   }
 
   async function handleCancel() {
-    await cancel.mutateAsync({ reason: 'Annulée par l’utilisateur' });
+    const reason = window.prompt('Motif d’annulation')?.trim();
+    if (!reason) return;
+    await cancel.mutateAsync({ reason });
+    toast.add({
+      title: 'Visite annulée',
+      description: 'Le motif est enregistré sur la demande.',
+      type: 'success',
+    });
     router.push('/app/visits');
+  }
+
+  async function handleReschedule() {
+    const nextSlot = window.prompt(
+      'Nouveau créneau (format YYYY-MM-DD HH:mm)',
+      visit.scheduled_at?.slice(0, 16).replace('T', ' ') ?? '',
+    )?.trim();
+    if (!nextSlot) return;
+    const iso = new Date(nextSlot.replace(' ', 'T')).toISOString();
+    await updateVisit.mutateAsync({ scheduled_at: iso });
+    toast.add({
+      title: 'Visite replanifiée',
+      description: 'Le nouveau créneau est enregistré.',
+      type: 'success',
+    });
   }
 
   return (
@@ -119,20 +166,39 @@ export function VisitDetail({ id }: { id: number }) {
               <dd className="text-stone-900">{visit.cancellation_reason}</dd>
             </div>
           )}
+          <div>
+            <dt className="text-stone-500">Demandeur</dt>
+            <dd className="font-medium text-stone-900">
+              {formatVisitorName(visit)}
+            </dd>
+          </div>
+          {visit.agent ? (
+            <div>
+              <dt className="text-stone-500">Accompagnement</dt>
+              <dd className="font-medium text-stone-900">
+                {formatUserName(visit.agent) || 'Agent assigné'}
+              </dd>
+            </div>
+          ) : null}
         </dl>
 
         <div className="flex flex-wrap gap-2 pt-2">
-          {status === 'scheduled' && isAgent && (
+          {canConfirm && (
             <Button onClick={handleConfirm} disabled={confirm.isPending}>
               Confirmer la visite
             </Button>
           )}
-          {status === 'confirmed' && isAgent && (
+          {canComplete && (
             <Button onClick={handleComplete} disabled={complete.isPending} variant="outline">
-              Marquer terminée
+              Marquer effectuée
             </Button>
           )}
-          {(status === 'scheduled' || status === 'confirmed') && (isVisitor || isAgent) && (
+          {canReschedule && (
+            <Button onClick={handleReschedule} disabled={updateVisit.isPending} variant="outline">
+              Replanifier
+            </Button>
+          )}
+          {canCancel && (
             <Button
               onClick={handleCancel}
               disabled={cancel.isPending}
@@ -158,11 +224,28 @@ export function VisitDetail({ id }: { id: number }) {
           visit={visit}
           locked={feedbackLocked}
           canCustomer={isVisitor}
-          canAgent={isAgent}
+          canAgent={isAssignedAgent || isManager}
         />
       )}
     </div>
   );
+}
+
+function formatVisitorName(visit: PropertyVisit): string {
+  if (visit.visitor_name) return visit.visitor_name;
+  const userName = visit.visitor ? formatUserName(visit.visitor) : '';
+  if (userName) return userName;
+  if (visit.visitor_email) return visit.visitor_email;
+  if (visit.customer_id) return `Customer #${visit.customer_id}`;
+  return 'Demandeur non renseigné';
+}
+
+function formatUserName(user: {
+  first_name?: string | null;
+  last_name?: string | null;
+  email?: string | null;
+}): string {
+  return [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || user.email || '';
 }
 
 function FeedbackSection({

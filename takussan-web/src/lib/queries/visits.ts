@@ -164,6 +164,21 @@ export function useCancelVisit(id: number) {
   );
 }
 
+export function useUpdateVisit(id: number) {
+  return useApiMutation<
+    ApiResponse<PropertyVisit>,
+    { scheduled_at?: string; duration_minutes?: number; notes?: string }
+  >(
+    { path: `/api/property-visits/${id}`, method: 'PATCH' },
+    {
+      invalidate: [
+        ['visits', 'list'],
+        ['visits', 'detail', id],
+      ],
+    },
+  );
+}
+
 export function useSubmitVisitFeedback(id: number) {
   return useApiMutation<ApiResponse<PropertyVisit>, VisitFeedbackPayload>(
     { path: `/api/property-visits/${id}/feedback`, method: 'POST' },
