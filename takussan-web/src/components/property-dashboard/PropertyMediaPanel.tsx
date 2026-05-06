@@ -22,18 +22,6 @@ interface PropertyMediaPanelProps {
   readonly propertyId: number;
 }
 
-/**
- * Maps a server-action error message to a more specific user-facing label.
- * The `mapError` helper in dashboard-properties returns "Erreur réseau. Réessayez."
- * for any non-ApiError, which is confusing when it appears on initial page load.
- */
-function friendlyMediaError(raw: string): string {
-  if (raw === 'Erreur réseau. Réessayez.') {
-    return 'Impossible de charger les photos. Vérifiez que le serveur est accessible.';
-  }
-  return raw;
-}
-
 export function PropertyMediaPanel({ propertyId }: PropertyMediaPanelProps) {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,7 +40,7 @@ export function PropertyMediaPanel({ propertyId }: PropertyMediaPanelProps) {
       const res = await fetchPropertyMediaAction(propertyId);
       if (cancelled) return;
       if (!res.ok) {
-        setError(friendlyMediaError(res.message));
+        setError(res.message);
       } else {
         const data = res.data ?? [];
         knownIdsRef.current = new Set(data.map((m) => m.id));

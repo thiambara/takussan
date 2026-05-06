@@ -17,7 +17,7 @@ import {
   uploadPropertyPhotos,
   type PropertyAddressPayload,
   type PropertyMediaItem,
-} from '@/lib/queries/properties';
+} from '@/lib/queries/properties-server';
 import type { PropertyFormPayload } from '@/lib/schemas/property';
 import type { PropertyDetail } from '@/types/property';
 
@@ -48,6 +48,13 @@ function mapError(e: unknown): {
       message: e.displayMessage,
       errors: e.validationErrors,
     };
+  }
+  if (e instanceof Error) {
+    console.error(
+      `[dashboard-properties.action] ${e.name}: ${e.message}\ncause=${String(e.cause ?? 'none')}\n${e.stack ?? ''}`,
+    );
+  } else {
+    console.error('[dashboard-properties.action] non-Error:', String(e));
   }
   return { message: 'Erreur réseau. Réessayez.' };
 }
