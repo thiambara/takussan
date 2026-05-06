@@ -34,6 +34,8 @@ export function PropertyListFilters() {
   const currentStatus = searchParams.get('status') ?? '';
   const currentType = searchParams.get('type') ?? '';
   const currentContract = searchParams.get('contract_type') ?? '';
+  const currentSort = searchParams.get('sort') ?? '-created_at';
+  const includeArchived = searchParams.get('include_archived') === '1';
 
   const [searchInput, setSearchInput] = useState(currentSearch);
 
@@ -110,6 +112,29 @@ export function PropertyListFilters() {
             ...CONTRACT_TYPE_OPTIONS,
           ]}
         />
+        <FilterSelect
+          label="Tri"
+          value={currentSort}
+          onChange={(v) => updateParam('sort', v)}
+          placeholder="Tri"
+          options={[
+            { value: '-created_at', label: 'Plus récents' },
+            { value: 'created_at', label: 'Plus anciens' },
+            { value: 'price', label: 'Prix croissant' },
+            { value: '-price', label: 'Prix décroissant' },
+            { value: '-views_count', label: 'Vues décroissantes' },
+            { value: 'views_count', label: 'Vues croissantes' },
+          ]}
+        />
+        <label className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 text-sm text-app-ink">
+          <input
+            type="checkbox"
+            checked={includeArchived}
+            onChange={(event) => updateParam('include_archived', event.target.checked ? '1' : null)}
+            className="size-4 rounded border-stone-300"
+          />
+          Inclure les archivés
+        </label>
       </div>
     </div>
   );

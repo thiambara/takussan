@@ -41,6 +41,16 @@ class PropertyController extends Controller
             });
         }
 
+        $statusFilter = $request->query('filter.status')
+            ?? data_get($request->query('filter', []), 'status');
+        $includeArchived = filter_var(
+            $request->query('include_archived', false),
+            FILTER_VALIDATE_BOOL,
+        );
+        if (! $includeArchived && ! $statusFilter) {
+            $base->where('status', '!=', PropertyStatus::Archived);
+        }
+
         $paginator = Property::buildQuery($base, $request)
             ->defaultSort('-created_at')
             ->paginate();

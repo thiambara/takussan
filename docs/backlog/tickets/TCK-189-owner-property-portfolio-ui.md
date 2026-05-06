@@ -1,7 +1,7 @@
 ---
 id: TCK-189
 title: Biens owner — gestion portefeuille complète
-status: todo
+status: review
 phase: P1
 family: front
 estimate: L
@@ -66,4 +66,4 @@ Interface de portefeuille dense : tableau filtrable/sortable, fiche bien structu
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+Le filtre "Inclure les archivés" ajoute `include_archived=1`; sans ce paramètre l'API exclut `status=archived` par défaut.

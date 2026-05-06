@@ -119,6 +119,7 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
   const [pendingPhotos, setPendingPhotos] = useState<File[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [submitIntent, setSubmitIntent] = useState<'draft' | 'submit'>('submit');
 
   const onPhotosChange = useCallback((files: File[]) => {
     setPhotoError(null);
@@ -146,10 +147,18 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
           tag_ids: _tagIds,
           ...basicPayload
         } = payload;
+        const createPayload =
+          mode === 'create'
+            ? {
+                ...basicPayload,
+                status: submitIntent === 'draft' ? 'draft' : 'pending_review',
+                visibility: 'private',
+              }
+            : basicPayload;
         const result =
           mode === 'edit' && property
             ? await updatePropertyAction(property.id, basicPayload as PropertyFormPayload)
-            : await createPropertyAction(basicPayload as PropertyFormPayload);
+            : await createPropertyAction(createPayload as PropertyFormPayload);
         if (!result.ok) {
           throw new ApiError(result.status ?? 500, {
             message: result.message,
@@ -536,7 +545,23 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" disabled={isSubmitting || photoUploading} size="lg">
+        {mode === 'create' && (
+          <Button
+            type="submit"
+            disabled={isSubmitting || photoUploading}
+            size="lg"
+            variant="outline"
+            onClick={() => setSubmitIntent('draft')}
+          >
+            Enregistrer en brouillon
+          </Button>
+        )}
+        <Button
+          type="submit"
+          disabled={isSubmitting || photoUploading}
+          size="lg"
+          onClick={() => setSubmitIntent('submit')}
+        >
           {isSubmitting || photoUploading ? (
             <>
               <Loader2 className="animate-spin" aria-hidden="true" />
@@ -544,7 +569,7 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
             </>
           ) : (
             <span>
-              {mode === 'create' ? 'Publier le bien' : 'Enregistrer les modifications'}
+              {mode === 'create' ? 'Soumettre à publication' : 'Enregistrer les modifications'}
             </span>
           )}
         </Button>

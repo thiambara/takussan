@@ -76,7 +76,7 @@ class Property extends AbstractModel implements HasMedia
 
     /** @var array<int,string> */
     protected static array $requestSortable = [
-        'id', 'created_at', 'published_at', 'price', 'area', 'bedrooms', 'bathrooms', 'featured',
+        'id', 'created_at', 'published_at', 'price', 'views_count', 'area', 'bedrooms', 'bathrooms', 'featured',
     ];
 
     /** @var array<int,string> */
@@ -101,7 +101,7 @@ class Property extends AbstractModel implements HasMedia
         'title', 'slug', 'type', 'contract_type', 'title_type', 'status', 'visibility',
         'price', 'currency', 'area', 'bedrooms', 'bathrooms', 'furnished',
         'floor_number', 'total_floors', 'year_built', 'parking_spaces', 'featured',
-        'available_from', 'published_at', 'created_at', 'updated_at',
+        'views_count', 'favorites_count', 'available_from', 'published_at', 'created_at', 'updated_at',
     ];
 
     protected static function booted(): void

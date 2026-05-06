@@ -40,6 +40,7 @@ export function PropertyList({ page }: PropertyListProps) {
               <th className="px-4 py-3 font-semibold">Bien</th>
               <th className="px-4 py-3 font-semibold">Contrat</th>
               <th className="px-4 py-3 font-semibold">Prix</th>
+              <th className="px-4 py-3 font-semibold">Stats</th>
               <th className="px-4 py-3 font-semibold">Statut</th>
               <th className="px-4 py-3 font-semibold">Visibilité</th>
               <th className="px-4 py-3 font-semibold text-right">Actions</th>
@@ -75,6 +76,9 @@ export function PropertyList({ page }: PropertyListProps) {
                   {typeof property.price === 'number'
                     ? formatCurrency(property.price, 'fr', { currency: property.currency ?? 'XOF' })
                     : '—'}
+                </td>
+                <td className="px-4 py-3 text-xs text-app-ink-muted">
+                  {property.views_count ?? 0} vues · {property.favorites_count ?? 0} favoris
                 </td>
                 <td className="px-4 py-3">
                   <StatusBadge status={property.status} />

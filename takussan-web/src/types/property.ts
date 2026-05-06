@@ -21,6 +21,8 @@ export interface PropertyListItem {
   rent_period: RentPeriod | null;
   status: string | null;
   visibility: string | null;
+  views_count?: number;
+  favorites_count?: number;
   location: {
     quarter: string | null;
     city: string | null;

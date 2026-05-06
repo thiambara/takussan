@@ -31,6 +31,8 @@ export const DASHBOARD_PROPERTY_FIELDS = [
   'contract_type',
   'status',
   'visibility',
+  'views_count',
+  'favorites_count',
   'bedrooms',
   'area',
   'published_at',
@@ -42,6 +44,7 @@ export interface DashboardPropertyFilters {
   readonly type?: string;
   readonly contract_type?: string;
   readonly search?: string;
+  readonly include_archived?: string;
 }
 
 export interface FetchDashboardPropertiesParams {
@@ -69,6 +72,7 @@ function buildListParams({
     sort: sort ?? '-created_at',
     page: page ?? 1,
     per_page: perPage ?? 20,
+    extra: filters?.include_archived === '1' ? { include_archived: '1' } : undefined,
   };
 }
 
@@ -90,6 +94,13 @@ export const DASHBOARD_PROPERTY_DETAIL_FIELDS = [
   'bathrooms',
   'furnished',
   'rent_period',
+  'title_type',
+  'floor_number',
+  'total_floors',
+  'year_built',
+  'parking_spaces',
+  'views_count',
+  'favorites_count',
 ] as const;
 
 export async function fetchDashboardProperty(

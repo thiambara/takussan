@@ -50,12 +50,17 @@ export default async function Page({
     type: asString(params.type),
     contract_type: asString(params.contract_type),
     search: asString(params.search),
+    include_archived: asString(params.include_archived),
   };
+  const sort = asString(params.sort);
 
   const response = await fetchDashboardProperties(token, {
     page,
     perPage: 20,
     filters,
+    sort: sort && ['-created_at', 'created_at', 'price', '-price', 'views_count', '-views_count'].includes(sort)
+      ? sort
+      : '-created_at',
   });
 
   return (
