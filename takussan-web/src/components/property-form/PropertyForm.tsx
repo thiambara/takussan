@@ -220,7 +220,8 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
       },
     });
 
-  const { control, watch, setValue } = form;
+  const { control, watch, setValue, formState } = form;
+  const dirtyCount = Object.keys(formState.dirtyFields).length;
   const contractType = watch('contract_type');
   const description = watch('description') ?? '';
   const lat = watch('latitude') as number | null | undefined;
@@ -544,44 +545,53 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
         </section>
       )}
 
-      <div className="flex flex-wrap items-center gap-3">
-        {mode === 'create' && (
+      <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-background/95 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <p className="text-xs text-app-ink-muted" aria-live="polite">
+          {mode === 'edit' && dirtyCount > 0
+            ? `${dirtyCount} champ${dirtyCount > 1 ? 's' : ''} modifié${dirtyCount > 1 ? 's' : ''} · non enregistré${dirtyCount > 1 ? 's' : ''}`
+            : mode === 'edit'
+              ? 'Aucune modification.'
+              : 'Tous les champs requis sont marqués d’un *.'}
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="lg"
+            onClick={() => router.back()}
+            disabled={isSubmitting || photoUploading}
+          >
+            Annuler
+          </Button>
+          {mode === 'create' && (
+            <Button
+              type="submit"
+              disabled={isSubmitting || photoUploading}
+              size="lg"
+              variant="outline"
+              onClick={() => setSubmitIntent('draft')}
+            >
+              Enregistrer en brouillon
+            </Button>
+          )}
           <Button
             type="submit"
             disabled={isSubmitting || photoUploading}
             size="lg"
-            variant="outline"
-            onClick={() => setSubmitIntent('draft')}
+            onClick={() => setSubmitIntent('submit')}
           >
-            Enregistrer en brouillon
+            {isSubmitting || photoUploading ? (
+              <>
+                <Loader2 className="animate-spin" aria-hidden="true" />
+                <span>Enregistrement…</span>
+              </>
+            ) : (
+              <span>
+                {mode === 'create' ? 'Soumettre à publication' : 'Enregistrer les modifications'}
+              </span>
+            )}
           </Button>
-        )}
-        <Button
-          type="submit"
-          disabled={isSubmitting || photoUploading}
-          size="lg"
-          onClick={() => setSubmitIntent('submit')}
-        >
-          {isSubmitting || photoUploading ? (
-            <>
-              <Loader2 className="animate-spin" aria-hidden="true" />
-              <span>Enregistrement…</span>
-            </>
-          ) : (
-            <span>
-              {mode === 'create' ? 'Soumettre à publication' : 'Enregistrer les modifications'}
-            </span>
-          )}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="lg"
-          onClick={() => router.back()}
-          disabled={isSubmitting || photoUploading}
-        >
-          Annuler
-        </Button>
+        </div>
       </div>
     </form>
   );
