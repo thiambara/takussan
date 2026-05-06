@@ -1,7 +1,7 @@
 ---
 id: TCK-197
 title: "Biens agent — fiabiliser publication, statuts et actions"
-status: todo
+status: review
 phase: P0
 family: bug
 estimate: M
@@ -61,4 +61,4 @@ Menu d'actions sobre, explicite et contextuel : une action principale visible se
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Les actions frontend appelaient des endpoints `/status` et `/visibility` inexistants; ils sont maintenant explicites et `visibility=public` passe par la transition de publication complète.

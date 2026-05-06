@@ -32,12 +32,14 @@ export const propertyTypeValues = [
 export const contractTypeValues = ['sale', 'rent'] as const;
 
 export const propertyStatusValues = [
+  'draft',
   'available',
   'sold',
   'rented',
   'under_maintenance',
   'unavailable',
   'pending',
+  'archived',
 ] as const;
 
 export const propertyVisibilityValues = ['public', 'private'] as const;

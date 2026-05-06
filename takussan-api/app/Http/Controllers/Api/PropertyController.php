@@ -212,7 +212,7 @@ class PropertyController extends Controller
     {
         $this->authorizeManage($request, $property);
         abort_unless(
-            $property->status === PropertyStatus::Available,
+            in_array($property->status, [PropertyStatus::Available, PropertyStatus::Published], true),
             422,
             __('messages.property_cannot_unpublish')
         );
@@ -225,6 +225,50 @@ class PropertyController extends Controller
         return $this->json([
             'data' => PropertyResource::make($property->refresh()->load('address'))->toArray($request),
         ]);
+    }
+
+    public function updateStatus(Request $request, Property $property): JsonResponse
+    {
+        $this->authorizeManage($request, $property);
+
+        $data = $request->validate([
+            'status' => ['required', Rule::enum(PropertyStatus::class)],
+        ]);
+
+        $status = PropertyStatus::from($data['status']);
+        $updates = ['status' => $status];
+
+        if ($status === PropertyStatus::Archived) {
+            $updates['visibility'] = PropertyVisibility::Private;
+            $updates['published_at'] = null;
+            $updates['archived_at'] = now();
+        }
+
+        if ($property->status === PropertyStatus::Archived && $status !== PropertyStatus::Archived) {
+            $updates['archived_at'] = null;
+        }
+
+        $property->update($updates);
+
+        return $this->json([
+            'data' => PropertyResource::make($property->refresh()->load('address'))->toArray($request),
+        ]);
+    }
+
+    public function updateVisibility(Request $request, Property $property): JsonResponse
+    {
+        $this->authorizeManage($request, $property);
+
+        $data = $request->validate([
+            'visibility' => ['required', Rule::enum(PropertyVisibility::class)],
+        ]);
+
+        $visibility = PropertyVisibility::from($data['visibility']);
+        if ($visibility === PropertyVisibility::Public) {
+            return $this->publish($request, $property);
+        }
+
+        return $this->unpublish($request, $property);
     }
 
     public function recordView(Request $request, Property $property): JsonResponse

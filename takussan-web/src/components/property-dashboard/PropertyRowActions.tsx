@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
-import { Loader2, MoreHorizontal } from 'lucide-react';
+import { Archive, Copy, Loader2, MoreHorizontal } from 'lucide-react';
 
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -25,12 +25,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   deletePropertyAction,
+  duplicatePropertyAction,
   updatePropertyStatusAction,
   updatePropertyVisibilityAction,
 } from '@/app/actions/dashboard-properties';
 import {
   PROPERTY_STATUS_LABELS,
-  PROPERTY_VISIBILITY_LABELS,
 } from '@/components/property-form/options';
 import { propertyStatusValues } from '@/lib/schemas/property';
 import type { PropertyListItem } from '@/types/property';
@@ -48,31 +48,71 @@ export function PropertyRowActions({ property }: { property: PropertyListItem })
   const [pending, startTransition] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
-  const runAction = (fn: () => Promise<{ ok: boolean; message?: string }>) => {
+  const runAction = (
+    fn: () => Promise<{ ok: boolean; message?: string }>,
+    successMessage: string,
+  ) => {
     setError(null);
+    setSuccess(null);
     startTransition(async () => {
       const result = await fn();
       if (!result.ok) {
         setError(result.message ?? 'Action impossible. Réessayez.');
         return;
       }
+      setSuccess(successMessage);
       router.refresh();
     });
   };
 
-  const toggleVisibility = () => {
-    const next = property.visibility === 'public' ? 'private' : 'public';
-    runAction(() => updatePropertyVisibilityAction(property.id, next));
+  const publish = () => {
+    runAction(
+      () => updatePropertyVisibilityAction(property.id, 'public'),
+      'Bien publié.',
+    );
+  };
+
+  const unpublish = () => {
+    runAction(
+      () => updatePropertyVisibilityAction(property.id, 'private'),
+      'Bien dépublié.',
+    );
   };
 
   const changeStatus = (status: string) => {
     if (status === property.status) return;
-    runAction(() => updatePropertyStatusAction(property.id, status));
+    runAction(
+      () => updatePropertyStatusAction(property.id, status),
+      'Statut mis à jour.',
+    );
+  };
+
+  const archive = () => {
+    runAction(
+      () => updatePropertyStatusAction(property.id, 'archived'),
+      'Bien archivé.',
+    );
+  };
+
+  const duplicate = () => {
+    setError(null);
+    setSuccess(null);
+    startTransition(async () => {
+      const result = await duplicatePropertyAction(property.id);
+      if (!result.ok || !result.data) {
+        setError(result.message ?? 'Duplication impossible.');
+        return;
+      }
+      router.push(`/app/properties/${result.data.id}`);
+      router.refresh();
+    });
   };
 
   const confirmAndDelete = () => {
     setError(null);
+    setSuccess(null);
     startTransition(async () => {
       const result = await deletePropertyAction(property.id);
       if (!result.ok) {
@@ -84,6 +124,14 @@ export function PropertyRowActions({ property }: { property: PropertyListItem })
     });
   };
 
+  const isPublic = property.visibility === 'public';
+  const statusActions = propertyStatusValues.filter(
+    (status) =>
+      status !== property.status &&
+      status !== 'draft' &&
+      status !== 'archived',
+  );
+
   return (
     <div className="flex items-center gap-1">
       {error ? (
@@ -92,6 +140,14 @@ export function PropertyRowActions({ property }: { property: PropertyListItem })
           className="mr-2 hidden truncate text-xs text-destructive md:inline"
         >
           {error}
+        </span>
+      ) : null}
+      {success ? (
+        <span
+          role="status"
+          className="mr-2 hidden truncate text-xs text-emerald-700 md:inline"
+        >
+          {success}
         </span>
       ) : null}
       <Link
@@ -120,24 +176,37 @@ export function PropertyRowActions({ property }: { property: PropertyListItem })
         />
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Actions rapides</DropdownMenuLabel>
-          <DropdownMenuItem onSelect={toggleVisibility} disabled={pending}>
-            {property.visibility === 'public'
-              ? `Dépublier (${PROPERTY_VISIBILITY_LABELS.private})`
-              : `Publier (${PROPERTY_VISIBILITY_LABELS.public})`}
+          {isPublic ? (
+            <DropdownMenuItem onSelect={unpublish} disabled={pending}>
+              Dépublier
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem onSelect={publish} disabled={pending}>
+              Publier
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem onSelect={duplicate} disabled={pending}>
+            <Copy className="size-4" aria-hidden="true" />
+            Dupliquer
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuLabel>Statut</DropdownMenuLabel>
-          {propertyStatusValues.map((status) => (
+          {statusActions.map((status) => (
             <DropdownMenuItem
               key={status}
-              disabled={pending || status === property.status}
+              disabled={pending}
               onSelect={() => changeStatus(status)}
             >
               {PROPERTY_STATUS_LABELS[status]}
-              {status === property.status ? ' · actuel' : ''}
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
+          {property.status !== 'archived' ? (
+            <DropdownMenuItem onSelect={archive} disabled={pending}>
+              <Archive className="size-4" aria-hidden="true" />
+              Archiver
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem
             onSelect={() => setConfirmDelete(true)}
             disabled={pending}

@@ -7,6 +7,7 @@ import {
   createProperty,
   deleteProperty,
   deletePropertyMedia,
+  duplicateProperty,
   fetchPropertyMedia,
   reorderPropertyMedia,
   setPropertyAddress,
@@ -111,6 +112,20 @@ export async function deletePropertyAction(
     await deleteProperty(auth.token, propertyId);
     revalidatePath('/app/properties');
     return { ok: true };
+  } catch (e) {
+    return { ok: false, ...mapError(e) };
+  }
+}
+
+export async function duplicatePropertyAction(
+  propertyId: number,
+): Promise<ActionResult<PropertyDetail>> {
+  const auth = await requireToken();
+  if (!auth.ok) return auth.result;
+  try {
+    const data = await duplicateProperty(auth.token, propertyId);
+    revalidatePath('/app/properties');
+    return { ok: true, data };
   } catch (e) {
     return { ok: false, ...mapError(e) };
   }

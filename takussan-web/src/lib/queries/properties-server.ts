@@ -160,6 +160,21 @@ export async function deleteProperty(
   });
 }
 
+export async function duplicateProperty(
+  token: string,
+  propertyId: number,
+): Promise<PropertyDetail> {
+  const res = await apiRequest<ApiResponse<PropertyDetail>>(
+    `/api/properties/${propertyId}/duplicate`,
+    {
+      method: 'POST',
+      body: {},
+      token,
+    },
+  );
+  return res.data;
+}
+
 export async function updatePropertyStatus(
   token: string,
   propertyId: number,

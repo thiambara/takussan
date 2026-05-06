@@ -106,7 +106,6 @@ _(vide — TCK-146 en review)_
 
 > Smoke test browser du parcours agent immobilier suivant `docs/qa/agent-qa.md`. 19 anomalies recensées dans `docs/smoke-tests/agent-immobilier-2026-05-06.md` (1 P0, 7 P1, 8 P2, 3 P3). 9 tickets de fix groupés par scope.
 
-- [TCK-197](tickets/TCK-197-agent-property-lifecycle-actions.md) — Biens agent — fiabiliser publication, statuts et actions `M · P0 · bug`
 - [TCK-198](tickets/TCK-198-agent-property-portfolio-controls.md) — Mes biens agent — compléter filtres, colonnes et actions en lot `M · P1 · front`
 - [TCK-199](tickets/TCK-199-property-media-validation-advanced.md) — Médias biens — validation robuste et supports avancés `M · P1 · applicatif`
 - [TCK-200](tickets/TCK-200-agent-dashboard-operational-widgets.md) — Dashboard agent — widgets opérationnels manquants `M · P1 · front`
@@ -149,6 +148,7 @@ _(vide)_
 ### Vague 22 — Bugs smoke test agent immobilier
 
 - [TCK-196](tickets/TCK-196-agent-crm-detail-404.md) — CRM agent — restaurer les fiches client détail `S · P0 · bug`
+- [TCK-197](tickets/TCK-197-agent-property-lifecycle-actions.md) — Biens agent — fiabiliser publication, statuts et actions `M · P0 · bug`
 
 ### Vague 20 — Bugs smoke test bailleur / propriétaire
 

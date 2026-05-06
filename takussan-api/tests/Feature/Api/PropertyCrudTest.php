@@ -79,6 +79,64 @@ class PropertyCrudTest extends TestCase
             ->assertJsonPath('data.visibility', 'public');
     }
 
+    public function test_visibility_endpoint_publishes_draft_property(): void
+    {
+        $user = User::factory()->create();
+        $property = Property::factory()->draft()->create(['user_id' => $user->id]);
+
+        Sanctum::actingAs($user);
+
+        $this->putJson("/api/properties/{$property->id}/visibility", ['visibility' => 'public'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'available')
+            ->assertJsonPath('data.visibility', 'public');
+
+        $property->refresh();
+        $this->assertNotNull($property->published_at);
+    }
+
+    public function test_visibility_endpoint_unpublishes_public_property(): void
+    {
+        $user = User::factory()->create();
+        $property = Property::factory()->create([
+            'user_id' => $user->id,
+            'status' => 'available',
+            'visibility' => 'public',
+            'published_at' => now(),
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->putJson("/api/properties/{$property->id}/visibility", ['visibility' => 'private'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'draft')
+            ->assertJsonPath('data.visibility', 'private');
+
+        $this->assertNull($property->refresh()->published_at);
+    }
+
+    public function test_status_endpoint_archives_property_and_removes_public_visibility(): void
+    {
+        $user = User::factory()->create();
+        $property = Property::factory()->create([
+            'user_id' => $user->id,
+            'status' => 'available',
+            'visibility' => 'public',
+            'published_at' => now(),
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->putJson("/api/properties/{$property->id}/status", ['status' => 'archived'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'archived')
+            ->assertJsonPath('data.visibility', 'private');
+
+        $property->refresh();
+        $this->assertNull($property->published_at);
+        $this->assertNotNull($property->archived_at);
+    }
+
     public function test_cannot_access_other_user_property(): void
     {
         $me = User::factory()->create();

@@ -4,6 +4,8 @@ import {
   DASHBOARD_PROPERTY_DETAIL_FIELDS,
   fetchDashboardProperties,
   fetchDashboardProperty,
+  updatePropertyStatus,
+  updatePropertyVisibility,
 } from '../properties';
 import {
   DASHBOARD_CUSTOMER_FIELDS,
@@ -65,6 +67,32 @@ describe('fetchDashboardProperty', () => {
     const url = String(fetchSpy.mock.calls[0][0]);
     expect(url).toContain(
       `fields%5Bproperties%5D=${DASHBOARD_PROPERTY_DETAIL_FIELDS.join('%2C')}`,
+    );
+  });
+});
+
+describe('property lifecycle mutations', () => {
+  it('calls the status transition endpoint', async () => {
+    const fetchSpy = mockFetch({ data: { id: 5, status: 'archived' } });
+    await updatePropertyStatus('tok', 5, 'archived');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/api/properties/5/status'),
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ status: 'archived' }),
+      }),
+    );
+  });
+
+  it('calls the visibility transition endpoint', async () => {
+    const fetchSpy = mockFetch({ data: { id: 5, visibility: 'public' } });
+    await updatePropertyVisibility('tok', 5, 'public');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/api/properties/5/visibility'),
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ visibility: 'public' }),
+      }),
     );
   });
 });
