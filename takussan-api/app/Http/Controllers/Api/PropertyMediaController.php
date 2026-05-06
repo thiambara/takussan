@@ -7,6 +7,7 @@ use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class PropertyMediaController extends Controller
@@ -33,11 +34,26 @@ class PropertyMediaController extends Controller
         $request->validate([
             'photos' => ['required', 'array'],
             'photos.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+        ], [
+            'photos.required' => 'Sélectionnez au moins une photo.',
+            'photos.*.image' => 'Le fichier doit être une image lisible.',
+            'photos.*.mimes' => 'Formats acceptés : JPG, PNG ou WebP.',
+            'photos.*.max' => 'Chaque photo doit peser 10 Mo maximum.',
         ]);
 
         $added = [];
         foreach ($request->file('photos', []) as $photo) {
-            $media = $property->addMedia($photo)->toMediaCollection('photos');
+            $media = null;
+            try {
+                $media = $property->addMedia($photo)->toMediaCollection('photos');
+            } catch (\Throwable $e) {
+                $media?->delete();
+
+                throw ValidationException::withMessages([
+                    'photos' => ['Cette image ne peut pas être traitée. Vérifiez le fichier puis réessayez.'],
+                ]);
+            }
+
             $added[] = [
                 'id' => $media->id,
                 'thumbnail' => $media->getUrl('thumbnail'),

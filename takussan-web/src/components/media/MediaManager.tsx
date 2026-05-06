@@ -53,7 +53,7 @@ export interface MediaManagerProps {
   readonly onDelete: (mediaId: number) => Promise<void>;
   /** Accepted MIME list — defaults to images only. */
   readonly accept?: readonly string[];
-  /** Max size per file in bytes — defaults to 5 Mo for images. */
+  /** Max size per file in bytes — defaults to 10 Mo for property images. */
   readonly maxSize?: number;
   /** Max number of files in a single drop — defaults to 20. */
   readonly maxFiles?: number;
@@ -72,7 +72,7 @@ export interface UploadProgress {
 }
 
 const DEFAULT_ACCEPT: readonly string[] = ['image/jpeg', 'image/png', 'image/webp'];
-const DEFAULT_MAX_SIZE = 5 * 1024 * 1024;
+const DEFAULT_MAX_SIZE = 10 * 1024 * 1024;
 const DEFAULT_MAX_FILES = 20;
 
 function formatMo(bytes: number): string {
@@ -85,10 +85,10 @@ function validateFile(
   maxSize: number,
 ): string | null {
   if (!accept.includes(file.type)) {
-    return `Type non supporté (${file.type || 'inconnu'}).`;
+    return `Type non supporté (${file.type || 'inconnu'}). Formats acceptés : JPG, PNG ou WebP.`;
   }
   if (file.size > maxSize) {
-    return `Taille > ${formatMo(maxSize)}.`;
+    return `Le fichier dépasse ${formatMo(maxSize)}.`;
   }
   return null;
 }

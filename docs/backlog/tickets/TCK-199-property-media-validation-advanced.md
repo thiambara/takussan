@@ -1,7 +1,7 @@
 ---
 id: TCK-199
 title: "Médias biens — validation robuste et supports avancés"
-status: todo
+status: review
 phase: P1
 family: applicatif
 estimate: M
@@ -61,4 +61,4 @@ Uploader clair avec état de progression, erreurs compréhensibles, onglets par 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Le scope livré durcit le flux photos existant : rollback sur échec de conversion, messages de validation lisibles et limites client/serveur alignées à 10 Mo. Les collections avancées restent exposées par le modèle/ressource mais sans refonte de l'uploader.
