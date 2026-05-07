@@ -132,6 +132,18 @@ _(vide — TCK-146 en review)_
 
 > Extension de la console super-admin livrée par TCK-144/145/132/115/116. Couvre les capacités plateforme attendues d'un super-admin SaaS multi-tenant : gouvernance des agences (détail, onboarding), support utilisateur cross-tenant, modération unifiée, référentiels globaux (tags, enums), templates de notification, paramètres plateforme, intégrations tierces, mode maintenance, feature flags, alertes sur actions sensibles. Les sujets nécessitant une extension de spec préalable (KYC documentaire, plans / quotas, payouts plateforme, broadcast in-app, RGPD export user, healthcheck UI) ne sont **pas** ticketés ici — un PR sur `features.md` doit les introduire d'abord.
 
+### Vague 24 — Console super-admin · gouvernance SaaS (2026-05-07)
+
+> Suite logique de la Vague 23 — adresse les sujets qui requéraient une extension de spec préalable. `features.md` §1.5 / §1.12 / §2.1 / §2.3 / §2.5 / §2.9 et `models-spec.md` (#42 → #47 + 4 nouveaux enums) ont été étendus dans le même chantier pour ancrer ces tickets.
+
+- [TCK-221](tickets/TCK-221-super-admin-agency-kyc.md) — Super-admin — KYC documentaire des agences (workflow vérification) `L · P1 · applicatif`
+- [TCK-222](tickets/TCK-222-super-admin-plans-subscriptions.md) — Super-admin — Plans & abonnements plateforme (catalogue + assignation par agence) `L · P2 · applicatif`
+- [TCK-223](tickets/TCK-223-super-admin-platform-payouts.md) — Super-admin — Reversement plateforme → agences (payout périodique) `L · P2 · applicatif`
+- [TCK-224](tickets/TCK-224-super-admin-broadcast-announcements.md) — Super-admin — Annonces in-app cross-tenant (broadcast par segment) `M · P2 · applicatif`
+- [TCK-225](tickets/TCK-225-super-admin-rgpd-user-data-export.md) — Super-admin — Export RGPD des données utilisateur (portabilité) `M · P2 · applicatif`
+- [TCK-226](tickets/TCK-226-super-admin-healthcheck-jobs.md) — Super-admin — Healthcheck plateforme & supervision des jobs `M · P2 · applicatif`
+- [TCK-227](tickets/TCK-227-super-admin-platform-reporting.md) — Super-admin — Reporting plateforme cross-tenant (croissance, MRR, cohortes) `L · P2 · applicatif`
+
 
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
@@ -661,6 +673,15 @@ TCK-216 ──▶ TCK-218 (super-admin maintenance mode)
 TCK-145 ──▶ TCK-217 (super-admin third-party integrations)
 TCK-145 ──▶ TCK-219 (super-admin feature flags)
 TCK-145 ──▶ TCK-220 (super-admin sensitive action alerts)
+
+── Vague 24 : Console super-admin · gouvernance SaaS ──
+TCK-208 ──▶ TCK-221 (super-admin agency KYC dossier)
+TCK-208 ──▶ TCK-222 (super-admin plans & subscriptions)
+TCK-222 ──▶ TCK-223 (super-admin platform payouts)
+TCK-145 ──▶ TCK-224 (super-admin broadcast announcements)
+TCK-210 ──▶ TCK-225 (super-admin RGPD user data export)
+TCK-145 ──▶ TCK-226 (super-admin healthcheck & jobs)
+TCK-222 ──▶ TCK-227 (super-admin platform reporting)
 ```
 
 ---

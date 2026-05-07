@@ -160,6 +160,7 @@ Encaissements, factures et reversements.
 | P2 | 🛡️ | Intégration d'une passerelle de paiement (Wave, Orange Money, Stripe) |
 | P2 | 🛡️ | Rapprochement bancaire semi-automatique |
 | P2 | 🛡️ | Relance automatique des factures en retard |
+| P2 | 🛡️ | Reversement plateforme → agence (commission plateforme retenue à la source, payout périodique agrégé) |
 | P3 | 🛡️ | Commissions automatiques par agent / collaborateur |
 | P3 | 🛡️ | Comptabilité exportable (FEC, journaux) |
 
@@ -268,9 +269,10 @@ Gestion de la structure organisationnelle.
 | P0 | 🛡️ | Attribution de rôles aux membres |
 | P1 | 🛡️ | Statistiques globales d'agence (portefeuille, revenus) |
 | P1 | 🛡️ | Paramètres de commission par défaut |
+| P1 | 🛡️ | Dossier KYC documentaire de l'agence (RCCM, NINEA, pièce dirigeant) avec workflow vérification (pending → submitted → verified / rejected) |
+| P2 | 🛡️ | Plans d'abonnement et quotas par agence (catalogue, période d'essai, limites) |
 | P3 | 🛡️ | Gestion multi-branches / sous-agences |
 | P3 | 🛡️ | Gestion des congés / disponibilité des agents |
-| P3 | 🛡️ | Plan d'abonnement et facturation SaaS |
 | P3 | 🛡️ | Marketplace inter-agences |
 
 ---
@@ -292,6 +294,8 @@ Gestion de la structure organisationnelle.
 | P1 | Tous | Authentification à deux facteurs (TOTP + codes de récupération) |
 | P1 | Tous | Gestion des sessions actives |
 | P2 | Tous | Suppression de compte avec anonymisation (RGPD) |
+| P2 | Tous | Export des données personnelles (portabilité RGPD — déclenché par l'utilisateur) |
+| P2 | 🛡️ | Déclenchement de l'export RGPD par un super-admin pour le compte d'un utilisateur (support / réquisition) |
 | P2 | Tous | OAuth Facebook / Apple |
 | P3 | Tous | Magic link de connexion |
 
@@ -337,6 +341,7 @@ Une **identité = un User**, qui peut porter plusieurs **profils métier** chez 
 | P1 | Tous | Préférences par canal (email, push, SMS) |
 | P1 | Tous | Templates localisés via fichiers lang/ Laravel |
 | P2 | Tous | Notifications SMS (événements critiques) |
+| P2 | 🛡️ | Annonces in-app cross-tenant (broadcast) ciblées par rôle / agence / segment, avec dismissal côté utilisateur |
 | P2 | Tous | Digest quotidien / hebdomadaire |
 | P3 | Tous | Notifications WhatsApp |
 
@@ -364,6 +369,7 @@ Une **identité = un User**, qui peut porter plusieurs **profils métier** chez 
 | P2 | 🛡️ | Export CSV / Excel (paiements, baux, clients) |
 | P2 | 🛡️ | Export PDF (quittances, factures, rapports) |
 | P2 | 🛡️ | Graphiques temporels (revenus, occupation) |
+| P2 | 🛡️ | Reporting plateforme cross-tenant (croissance agences/users/listings, MRR/ARR, cohortes de rétention, funnel) — strictement super_admin |
 | P3 | 🛡️ | KPI personnalisables par agence |
 | P3 | 🛡️ | Alertes sur seuils (taux d'impayés, vacance) |
 
@@ -408,10 +414,12 @@ Une **identité = un User**, qui peut porter plusieurs **profils métier** chez 
 |------|---------|----------------|
 | P0 | 🛡️ | Gestion des tags et amenités |
 | P0 | 🛡️ | Gestion des utilisateurs (activation, blocage) |
+| P0 | 🛡️ | Onboarding d'une agence par un super-admin (création + admin initial invité, hors auto-inscription) |
 | P1 | 🛡️ | Gestion des enums métier (types de biens, statuts) |
 | P1 | 🛡️ | Configuration email (templates, expéditeur) |
 | P2 | 🛡️ | Paramètres globaux de plateforme |
 | P2 | 🛡️ | Gestion des intégrations tierces (API keys) |
+| P2 | 🛡️ | Healthcheck plateforme et supervision des jobs en arrière-plan (file de queue, échecs, rejouer) |
 | P3 | 🛡️ | Mode maintenance programmé |
 | P3 | 🛡️ | Feature flags |
 

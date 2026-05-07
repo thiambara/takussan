@@ -113,6 +113,14 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 40. [BankStatement](#40-bankstatement-) 🆕
 41. [BankStatementLine](#41-bankstatementline-) 🆕
 
+### Gouvernance plateforme 🆕
+42. [KycDossier](#42-kycdossier-) 🆕
+43. [Plan](#43-plan-) 🆕
+44. [AgencySubscription](#44-agencysubscription-) 🆕
+45. [PlatformPayout](#45-platformpayout-) 🆕
+46. [Announcement](#46-announcement-) 🆕
+47. [AnnouncementDismissal](#47-announcementdismissal-) 🆕
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -1689,6 +1697,192 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 
 ---
 
+### 42. KycDossier 🆕
+
+**Table :** `kyc_dossiers`
+**Description :** Dossier de vérification documentaire (KYC) attaché de manière polymorphe à une entité vérifiable — `Agency` (RCCM, NINEA, pièce du dirigeant), ou un profil métier (OwnerProfile, AgentProfile, BrokerProfile, ServiceProviderProfile). Workflow standardisé : pending → submitted → verified / rejected, avec motif et acteur de la décision.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| subject_type | string | | | Type morph de l'entité vérifiée (Agency, OwnerProfile, AgentProfile, ...) |
+| subject_id | bigint | | | ID morph |
+| status | KycDossierStatus enum | | 'pending' | pending, submitted, verified, rejected |
+| submitted_at | datetime | oui | null | Soumission par l'entité |
+| reviewed_at | datetime | oui | null | Décision rendue |
+| reviewed_by | FK users | oui | null | Super-admin (ou agency_admin pour les profils internes) ayant statué (`nullOnDelete`) |
+| rejection_reason | text | oui | null | Motif si `status=rejected` |
+| metadata | json | oui | null | Champs libres dépendants du type (numéro RCCM, pays d'émission, etc.) |
+| created_at / updated_at | datetime | | auto | |
+
+**Index :**
+- `(subject_type, subject_id)` — unique : un seul dossier actif par sujet
+- `(status)` — file de modération
+
+**Traits :**
+- `LogsActivity` (spatie) — chaque transition de statut est journalisée
+- `InteractsWithMedia` (spatie/medialibrary) — collection `documents` (RCCM, NINEA, pièce d'identité scannée…)
+
+**Relations :**
+- `subject()` → morphTo
+- `reviewer()` → belongsTo User (via `reviewed_by`)
+
+**Scopes :**
+- `pending()`, `submitted()`, `verified()`, `rejected()`
+
+---
+
+### 43. Plan 🆕
+
+**Table :** `plans`
+**Description :** Catalogue des plans d'abonnement plateforme proposés aux agences (free trial, starter, pro, enterprise…). Référentiel maintenu par le super-admin.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| code | string | | | Slug unique (`free`, `starter`, `pro`, `enterprise`) |
+| label | string | | | Libellé affiché |
+| description | text | oui | null | |
+| monthly_price_xof | decimal(12,2) | | 0 | Prix mensuel hors taxes en XOF |
+| platform_fee_pct | decimal(5,2) | | 0 | Commission plateforme par défaut sur transactions (%) |
+| trial_days | unsignedSmallInteger | | 0 | Période d'essai gratuite |
+| limits | json | oui | null | Quotas (`max_active_listings`, `max_agents`, `max_branches`…) |
+| is_active | boolean | | true | Affichable dans le catalogue |
+| sort_order | unsignedSmallInteger | | 0 | Ordre d'affichage |
+| created_at / updated_at | datetime | | auto | |
+
+**Index :**
+- `code` unique
+- `(is_active, sort_order)` — listing public catalogue
+
+**Traits :**
+- `LogsActivity`
+
+**Relations :**
+- `subscriptions()` → hasMany AgencySubscription
+
+---
+
+### 44. AgencySubscription 🆕
+
+**Table :** `agency_subscriptions`
+**Description :** Abonnement courant d'une agence à un Plan plateforme. Une agence a au plus une souscription active à un instant T ; l'historique est conservé via `ended_at`. Les overrides éventuels (commission négociée, quotas custom) écrasent les valeurs du plan.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `cascadeOnDelete` |
+| plan_id | FK plans | | | `restrictOnDelete` (un plan référencé ne peut pas être supprimé) |
+| status | AgencySubscriptionStatus enum | | 'trialing' | trialing, active, past_due, suspended, ended |
+| trial_ends_at | datetime | oui | null | |
+| current_period_start | datetime | | | |
+| current_period_end | datetime | | | |
+| ended_at | datetime | oui | null | Si non null, souscription archivée — une nouvelle peut être active |
+| platform_fee_pct_override | decimal(5,2) | oui | null | Si non null, écrase `Plan.platform_fee_pct` |
+| limits_override | json | oui | null | Quotas négociés ; merge sur `Plan.limits` |
+| created_at / updated_at | datetime | | auto | |
+
+**Index :**
+- `(agency_id, ended_at)` — recherche de la souscription active
+- `(status)` — files de relance
+
+**Traits :**
+- `LogsActivity`
+
+**Relations :**
+- `agency()` → belongsTo Agency
+- `plan()` → belongsTo Plan
+
+**Scopes :**
+- `active()` — `ended_at IS NULL AND status IN (trialing, active)`
+
+---
+
+### 45. PlatformPayout 🆕
+
+**Table :** `platform_payouts`
+**Description :** Reversement périodique de la plateforme vers une agence — le **net** dû à l'agence après commission plateforme retenue. Distinct du `Payout` métier (#28) qui matérialise le reversement agence → bailleur.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `cascadeOnDelete` |
+| period_start | date | | | |
+| period_end | date | | | |
+| gross_amount | decimal(14,2) | | | Total encaissé sur la période (pour info) |
+| platform_fee_amount | decimal(14,2) | | | Commission plateforme retenue |
+| net_amount | decimal(14,2) | | | Montant à verser à l'agence (`gross - fees`) |
+| currency | char(3) | | | XOF, EUR, USD |
+| status | PlatformPayoutStatus enum | | 'pending' | pending, approved, processing, paid, failed, cancelled |
+| approved_by | FK users | oui | null | Super-admin ayant approuvé |
+| processed_at | datetime | oui | null | Date d'exécution du virement |
+| failure_reason | text | oui | null | |
+| metadata | json | oui | null | Référence virement bancaire, lot, breakdown |
+| created_at / updated_at | datetime | | auto | |
+
+**Index :**
+- `(agency_id, period_end)` — un payout par agence/période
+- `(status)` — file d'approbation
+
+**Traits :**
+- `LogsActivity`
+
+**Relations :**
+- `agency()` → belongsTo Agency
+- `approver()` → belongsTo User (via `approved_by`)
+
+**Scopes :**
+- `pending()`, `approved()`, `paid()`
+
+---
+
+### 46. Announcement 🆕
+
+**Table :** `announcements`
+**Description :** Annonce in-app diffusée par le super-admin à un segment d'utilisateurs (rôle, agence, custom). Affichée comme bandeau ou centre de notifications jusqu'à dismissal individuel ou expiration.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| title | json | | | Titre par locale (`{fr, en, wo}`) |
+| body | json | | | Corps multilingue |
+| severity | AnnouncementSeverity enum | | 'info' | info, success, warning, critical |
+| segment | json | | | `{roles?: [...], agency_ids?: [...], rollout_percentage?: int}` — l'absence de segment = tout le monde |
+| starts_at | datetime | | | |
+| ends_at | datetime | oui | null | Si null, jusqu'à désactivation explicite |
+| is_active | boolean | | true | |
+| created_by | FK users | oui | null | Super-admin auteur |
+| created_at / updated_at | datetime | | auto | |
+
+**Index :**
+- `(is_active, starts_at, ends_at)` — fenêtre de diffusion
+
+**Traits :**
+- `LogsActivity`
+
+**Relations :**
+- `creator()` → belongsTo User (via `created_by`)
+- `dismissals()` → hasMany AnnouncementDismissal
+
+---
+
+### 47. AnnouncementDismissal 🆕
+
+**Table :** `announcement_dismissals`
+**Description :** Marque qu'un utilisateur a dismissé une annonce — empêche sa réapparition.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| announcement_id | FK announcements | | | `cascadeOnDelete` |
+| user_id | FK users | | | `cascadeOnDelete` |
+| dismissed_at | datetime | | auto | |
+
+**Index :**
+- `(announcement_id, user_id)` unique
+
+---
+
 ## Enums
 
 ### Enums existants (à renommer / ajuster)
@@ -1712,6 +1906,10 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | **OwnerProfileStatus** 🆕 | active, inactive, blocked | OwnerProfile.status |
 | **AgentProfileStatus** 🆕 | active, inactive, suspended | AgentProfile.status |
 | **CollaborationStatus** 🆕 | active, paused, ended | BrokerAgencyCollaboration.status, ServiceProviderAgencyCollaboration.status |
+| **KycDossierStatus** 🆕 | pending, submitted, verified, rejected | KycDossier.status |
+| **AgencySubscriptionStatus** 🆕 | trialing, active, past_due, suspended, ended | AgencySubscription.status |
+| **PlatformPayoutStatus** 🆕 | pending, approved, processing, paid, failed, cancelled | PlatformPayout.status |
+| **AnnouncementSeverity** 🆕 | info, success, warning, critical | Announcement.severity |
 | **Currency** | XOF, XAF, EUR, USD | Property, Booking, BookingPayment, Lease, LeasePayment |
 | **PropertyType** | land, house, apartment, villa, studio, room, office, shop, warehouse, factory, farm, hotel, resort, garage, parking, other | Property.type |
 | **ContractType** | sale, rent | Property.contract_type |
