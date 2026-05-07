@@ -23,6 +23,8 @@ import type {
   MaintenanceMode,
   MaintenanceSeverity,
   AdminFeatureFlagsResponse,
+  AlertRulesResponse,
+  AlertRuleResponse,
   ModerationDecision,
   ModerationItemStatus,
   ModerationItemType,
@@ -568,4 +570,48 @@ export async function overrideAdminFeatureFlag(key: string, enabled: boolean): P
     body: JSON.stringify({ enabled }),
   });
   return jsonOrThrow<{ data: { key: string; enabled: boolean } }>(res);
+}
+
+export async function fetchAlertRules(): Promise<AlertRulesResponse> {
+  const res = await fetch('/api/super-admin/alert-rules', { credentials: 'include' });
+  return jsonOrThrow<AlertRulesResponse>(res);
+}
+
+export async function createAlertRule(payload: {
+  event: string;
+  channels: string[];
+  recipients: { emails?: string[]; webhooks?: string[] };
+  is_active: boolean;
+}): Promise<AlertRuleResponse> {
+  const res = await fetch('/api/super-admin/alert-rules', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<AlertRuleResponse>(res);
+}
+
+export async function patchAlertRule(
+  id: number,
+  payload: Partial<{ event: string; channels: string[]; recipients: { emails?: string[]; webhooks?: string[] }; is_active: boolean }>,
+): Promise<AlertRuleResponse> {
+  const res = await fetch(`/api/super-admin/alert-rules/${id}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<AlertRuleResponse>(res);
+}
+
+export async function deleteAlertRule(id: number): Promise<unknown> {
+  const res = await fetch(`/api/super-admin/alert-rules/${id}`, { method: 'DELETE', credentials: 'include' });
+  if (res.status === 204) return null;
+  return jsonOrThrow<unknown>(res);
+}
+
+export async function testAlertRule(id: number): Promise<{ data: { queued: boolean } }> {
+  const res = await fetch(`/api/super-admin/alert-rules/${id}/test`, { method: 'POST', credentials: 'include' });
+  return jsonOrThrow<{ data: { queued: boolean } }>(res);
 }

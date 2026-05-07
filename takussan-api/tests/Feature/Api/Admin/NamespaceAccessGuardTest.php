@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\Admin;
 
 use App\Models\Agency;
+use App\Models\AlertRule;
 use App\Models\Integration;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -25,6 +26,12 @@ class NamespaceAccessGuardTest extends BaseTestCase
         $this->actingAsRole('agency_admin');
 
         $agency = Agency::factory()->create();
+        $alertRule = AlertRule::create([
+            'event' => 'super_admin_setting_updated',
+            'channels_json' => ['email'],
+            'recipients_json' => ['emails' => ['ops@example.test']],
+            'is_active' => true,
+        ]);
         $user = User::factory()->create();
         $integration = Integration::factory()->create();
 
@@ -41,6 +48,7 @@ class NamespaceAccessGuardTest extends BaseTestCase
 
                 $resolved = '/'.strtr($route->uri(), [
                     '{agency}' => (string) $agency->id,
+                    '{alertRule}' => (string) $alertRule->id,
                     '{integration}' => (string) $integration->id,
                     '{user}' => (string) $user->id,
                 ]);

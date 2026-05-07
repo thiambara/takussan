@@ -1,7 +1,7 @@
 ---
 id: TCK-220
 title: "Super-admin — Alertes sur actions sensibles"
-status: todo
+status: review
 phase: P3
 family: applicatif
 estimate: S
@@ -54,27 +54,27 @@ Page liste des règles + bouton "Nouvelle règle". Modale de configuration : sé
 
 ## Delta à produire
 
-- [ ] Migration : table `alert_rules` (`event`, `channels_json`, `recipients_json`, `is_active`, `last_triggered_at`, `failure_count`)
-- [ ] Listener générique `App\Listeners\Admin\DispatchAlerts` abonné au système d'événements applicatifs
-- [ ] Notifiers : `App\Notifications\Admin\{EmailAlert, SlackWebhookAlert, DiscordWebhookAlert}`
-- [ ] Service `App\Services\Admin\AlertRuleService`
-- [ ] Controller `Admin\AlertRuleController`
-- [ ] Catalogue `App\Domain\Alerts\AlertableEvents` (whitelist)
-- [ ] Routes `routes/api/admin.php`
-- [ ] Frontend page `/super-admin/alerts`
-- [ ] Composants : `AlertRuleTable`, `AlertRuleDialog`, `AlertTestButton`
-- [ ] Tests backend : 403 hors super-admin, dispatch async, retry, payload sans PII détaillée, `[TEST]` préfixé
-- [ ] Tests UI : création, édition, test
+- [x] Migration : table `alert_rules` (`event`, `channels_json`, `recipients_json`, `is_active`, `last_triggered_at`, `failure_count`)
+- [x] Listener générique `App\Listeners\Admin\DispatchAlerts` abonné au système d'événements applicatifs
+- [x] Notifiers : `App\Notifications\Admin\{EmailAlert, SlackWebhookAlert, DiscordWebhookAlert}`
+- [x] Service `App\Services\Admin\AlertRuleService`
+- [x] Controller `Admin\AlertRuleController`
+- [x] Catalogue `App\Domain\Alerts\AlertableEvents` (whitelist)
+- [x] Routes `routes/api/admin.php`
+- [x] Frontend page `/super-admin/alerts`
+- [x] Composants : `AlertRuleTable`, `AlertRuleDialog`, `AlertTestButton`
+- [x] Tests backend : 403 hors super-admin, dispatch async, retry, payload sans PII détaillée, `[TEST]` préfixé
+- [x] Tests UI : création, édition, test
 
 ## Critères d'acceptation
 
-- [ ] Une impersonation démarrée envoie une alerte sur tous les canaux configurés en < 30 secondes
-- [ ] Le payload Slack ne contient pas l'email cible en clair (juste un id + lien vers l'audit)
-- [ ] Une règle sur un événement hors catalogue est rejetée 422
-- [ ] L'échec persistant d'un canal incrémente `failure_count` visible côté UI
-- [ ] Un agency_admin reçoit 403
-- [ ] Le test synthétique préfixe `[TEST]` dans le message envoyé
-- [ ] Chaque mutation de règle produit une entrée d'audit
+- [x] Une impersonation démarrée envoie une alerte sur tous les canaux configurés en < 30 secondes
+- [x] Le payload Slack ne contient pas l'email cible en clair (juste un id + lien vers l'audit)
+- [x] Une règle sur un événement hors catalogue est rejetée 422
+- [x] L'échec persistant d'un canal incrémente `failure_count` visible côté UI
+- [x] Un agency_admin reçoit 403
+- [x] Le test synthétique préfixe `[TEST]` dans le message envoyé
+- [x] Chaque mutation de règle produit une entrée d'audit
 
 ## Hors périmètre
 
@@ -84,4 +84,6 @@ Page liste des règles + bouton "Nouvelle règle". Modale de configuration : sé
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Le dispatcher est branché sur la création des entrées `spatie/activitylog`; seuls les événements whitelistés dans `AlertableEvents` déclenchent un job.
+- Les jobs `SendAdminAlert` sont queueables avec `tries=3` et backoff exponentiel ; l'échec final incrémente `failure_count`.
+- Les payloads Slack/Discord/Email sont volontairement minimaux : événement, ids acteur/sujet et lien audit, sans recopier les propriétés d'audit pouvant contenir de la PII.

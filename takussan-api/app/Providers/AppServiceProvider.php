@@ -16,6 +16,7 @@ use App\Events\Permissions\RoleDelegationExpired;
 use App\Events\Permissions\RoleDelegationRevoked;
 use App\Listeners\Accounting\NotifyStatementFinalized;
 use App\Listeners\Accounting\NotifyStatementImported;
+use App\Listeners\Admin\DispatchAlerts;
 use App\Listeners\Lease\NotifyOnEarlyTermination;
 use App\Listeners\Lease\NotifyTenantOfDepositRefund;
 use App\Listeners\Lease\NotifyTenantOfLateFee;
@@ -175,6 +176,7 @@ class AppServiceProvider extends ServiceProvider
         Lease::observe(LeaseObserver::class);
         PropertyVisit::observe(PropertyVisitObserver::class);
         User::observe(UserObserver::class);
+        Activity::created(fn (Activity $activity) => app(DispatchAlerts::class)->handle($activity));
 
         // TCK-105 — purge CDN cache when a media item is deleted or replaced.
         Media::observe(MediaCdnObserver::class);

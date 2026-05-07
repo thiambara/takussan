@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, Bell, Building2, FlaskConical, Home, LayoutDashboard, ListTree, PlugZap, Settings2, ShieldAlert, SlidersHorizontal, Tags, Users } from 'lucide-react';
+import { Activity, Bell, Building2, FlaskConical, Home, LayoutDashboard, ListTree, PlugZap, Settings2, ShieldAlert, Siren, SlidersHorizontal, Tags, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -23,6 +23,7 @@ const NAV: NavItem[] = [
   { href: '/super-admin/settings', label: 'Paramètres', icon: SlidersHorizontal },
   { href: '/super-admin/integrations', label: 'Intégrations', icon: PlugZap },
   { href: '/super-admin/feature-flags', label: 'Feature flags', icon: FlaskConical },
+  { href: '/super-admin/alerts', label: 'Alertes', icon: Siren },
   { href: '/super-admin/users', label: 'Utilisateurs', icon: Users },
   { href: '/super-admin/audit', label: 'Audit', icon: Activity },
   { href: '/super-admin/system', label: 'Système', icon: Settings2 },

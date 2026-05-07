@@ -420,6 +420,23 @@ export type AdminFeatureFlag = {
 export type AdminFeatureFlagsResponse = { data: AdminFeatureFlag[] };
 export type FeatureFlagsMeResponse = { data: Record<string, boolean> };
 
+export type AlertRule = {
+  id: number;
+  event: string;
+  label: string;
+  channels: string[];
+  recipients: { emails?: string[]; webhooks?: string[] };
+  is_active: boolean;
+  last_triggered_at: string | null;
+  failure_count: number;
+};
+
+export type AlertRulesResponse = {
+  data: AlertRule[];
+  catalogue: Record<string, string>;
+};
+export type AlertRuleResponse = { data: AlertRule };
+
 /**
  * TCK-132 — row shape for the cross-tenant properties table. Only fields the
  * UI actually renders, fed by `fields[properties]=...&include=address,agency`
