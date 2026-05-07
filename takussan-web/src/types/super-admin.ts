@@ -22,6 +22,62 @@ export type AdminAgenciesResponse = {
   };
 };
 
+export type AdminAgencyDetail = AdminAgency & {
+  website: string | null;
+  description: string | null;
+  commission_rate: number | null;
+  currency: string | null;
+  founded_at: string | null;
+  logo_url: string | null;
+  public_url: string;
+  primary_admin: {
+    id: number;
+    full_name: string;
+    email: string;
+  } | null;
+  address: {
+    line1: string | null;
+    line2: string | null;
+    city: string | null;
+    region: string | null;
+    country: string | null;
+  } | null;
+};
+
+export type AdminAgencyDetailResponse = { data: AdminAgencyDetail };
+
+export type AdminAgencyHealth = {
+  active_properties: number;
+  properties_in_moderation: number;
+  transactions_30d: number;
+  revenue_30d: number;
+  last_platform_payment_at: string | null;
+  open_complaints: number;
+};
+
+export type AdminAgencyHealthResponse = { data: AdminAgencyHealth };
+
+export type AdminAgencyTeamMember = {
+  id: number;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string;
+  email: string;
+  status: string | null;
+  roles: string[];
+  last_login_at: string | null;
+};
+
+export type AdminAgencyTeamResponse = {
+  data: AdminAgencyTeamMember[];
+  meta: {
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+  };
+};
+
 export type SystemMetrics = {
   agencies: {
     total: number;

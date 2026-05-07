@@ -1,6 +1,9 @@
 import { ApiError } from '@/lib/api';
 import type {
   AdminAgenciesResponse,
+  AdminAgencyDetailResponse,
+  AdminAgencyHealthResponse,
+  AdminAgencyTeamResponse,
   AdminPropertiesResponse,
   AuditLogResponse,
   ImpersonationStartResponse,
@@ -23,6 +26,7 @@ export async function fetchAdminAgencies(params: {
   perPage?: number;
 } = {}): Promise<AdminAgenciesResponse> {
   const qs = new URLSearchParams();
+  qs.set('fields[agencies]', 'id,name,slug,status,is_verified,verified_at,primary_admin_id,license_number,email,phone,created_at');
   if (params.status) qs.set('filter[status]', params.status);
   if (params.search) qs.set('filter[search]', params.search);
   if (params.page) qs.set('page', String(params.page));
@@ -32,6 +36,46 @@ export async function fetchAdminAgencies(params: {
     credentials: 'include',
   });
   return jsonOrThrow<AdminAgenciesResponse>(res);
+}
+
+export async function fetchAdminAgencyDetail(agencyId: number): Promise<AdminAgencyDetailResponse> {
+  const qs = new URLSearchParams();
+  qs.set('fields[agencies]', 'id,name,slug,status,is_verified,verified_at,license_number,email,phone,website,description,commission_rate,currency,founded_at,created_at');
+  qs.set('include', 'primaryAdmin,address');
+  const res = await fetch(`/api/super-admin/agencies/${agencyId}?${qs.toString()}`, {
+    credentials: 'include',
+  });
+  return jsonOrThrow<AdminAgencyDetailResponse>(res);
+}
+
+export async function fetchAdminAgencyHealth(agencyId: number): Promise<AdminAgencyHealthResponse> {
+  const res = await fetch(`/api/super-admin/agencies/${agencyId}/health`, {
+    credentials: 'include',
+  });
+  return jsonOrThrow<AdminAgencyHealthResponse>(res);
+}
+
+export async function fetchAdminAgencyTeam(agencyId: number): Promise<AdminAgencyTeamResponse> {
+  const qs = new URLSearchParams();
+  qs.set('include', 'roles');
+  qs.set('fields[users]', 'id,first_name,last_name,email,status,last_login_at');
+  qs.set('per_page', '10');
+  const res = await fetch(`/api/super-admin/agencies/${agencyId}/team?${qs.toString()}`, {
+    credentials: 'include',
+  });
+  return jsonOrThrow<AdminAgencyTeamResponse>(res);
+}
+
+export async function fetchAdminAgencyProperties(agencyId: number): Promise<AdminPropertiesResponse> {
+  const qs = new URLSearchParams();
+  qs.set('fields[properties]', ADMIN_PROPERTY_FIELDS.join(','));
+  qs.set('include', 'address,agency');
+  qs.set('sort', '-created_at');
+  qs.set('per_page', '8');
+  const res = await fetch(`/api/super-admin/agencies/${agencyId}/properties?${qs.toString()}`, {
+    credentials: 'include',
+  });
+  return jsonOrThrow<AdminPropertiesResponse>(res);
 }
 
 export async function postAgencyAction(

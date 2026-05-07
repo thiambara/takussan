@@ -1,7 +1,7 @@
 ---
 id: TCK-208
 title: "Super-admin — Détail agence cross-tenant `/super-admin/agencies/[id]`"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -76,4 +76,4 @@ En-tête identité agence (logo, nom, statut, date d'inscription, lien vers le p
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Health agrège les compteurs via une seule requête SQL avec sous-requêtes scalaires pour éviter tout fan-out côté client.

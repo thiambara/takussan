@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { postAgencyAction } from '@/lib/queries/super-admin';
 import type { AdminAgency } from '@/types/super-admin';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { ConfirmActionDialog } from './ConfirmActionDialog';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -72,7 +73,11 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
     >
       <header className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="text-base font-semibold text-stone-900">{agency.name}</h3>
+          <h3 className="text-base font-semibold text-stone-900">
+            <Link className="hover:text-amber-700" href={`/super-admin/agencies/${agency.id}`}>
+              {agency.name}
+            </Link>
+          </h3>
           <p className="text-xs text-stone-500">/{agency.slug}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -99,6 +104,9 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
       </dl>
 
       <div className="flex flex-wrap gap-2">
+        <Link className={buttonVariants({ size: 'sm', variant: 'outline' })} href={`/super-admin/agencies/${agency.id}`}>
+          Ouvrir
+        </Link>
         <Button size="sm" variant="default" onClick={() => setPending('verify')} disabled={mutation.isPending}>
           Vérifier
         </Button>

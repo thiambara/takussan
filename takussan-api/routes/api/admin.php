@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\AgencyDetailController;
 use App\Http\Controllers\Api\Admin\AgencyModerationController;
 use App\Http\Controllers\Api\Admin\CrossTenantAuditController;
 use App\Http\Controllers\Api\Admin\SystemMetricsController;
@@ -22,6 +23,14 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     Route::prefix('agencies')->group(function () {
         Route::get('/', [AgencyModerationController::class, 'index'])
             ->name('admin.agencies.index');
+        Route::get('{agency}', [AgencyDetailController::class, 'show'])
+            ->name('admin.agencies.show');
+        Route::get('{agency}/health', [AgencyDetailController::class, 'health'])
+            ->name('admin.agencies.health');
+        Route::get('{agency}/team', [AgencyDetailController::class, 'team'])
+            ->name('admin.agencies.team');
+        Route::get('{agency}/properties', [AgencyDetailController::class, 'properties'])
+            ->name('admin.agencies.properties');
         Route::post('{agency}/verify', [AgencyModerationController::class, 'verify'])
             ->name('admin.agencies.verify');
         Route::post('{agency}/suspend', [AgencyModerationController::class, 'suspend'])
