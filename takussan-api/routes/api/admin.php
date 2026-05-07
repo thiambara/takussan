@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Admin\AgencyDetailController;
 use App\Http\Controllers\Api\Admin\AgencyModerationController;
 use App\Http\Controllers\Api\Admin\AgencyOnboardingController;
 use App\Http\Controllers\Api\Admin\CrossTenantAuditController;
+use App\Http\Controllers\Api\Admin\ModerationQueueController;
 use App\Http\Controllers\Api\Admin\SystemMetricsController;
 use App\Http\Controllers\Api\Admin\UserDetailController;
 use App\Http\Controllers\Api\Admin\UserImpersonationController;
@@ -73,4 +74,10 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     // Cross-tenant audit log — no agency restriction (unlike AuditLogController).
     Route::get('audit', [CrossTenantAuditController::class, 'index'])
         ->name('admin.audit.index');
+
+    Route::get('moderation', [ModerationQueueController::class, 'index'])
+        ->name('admin.moderation.index');
+    Route::post('moderation/{id}/decide', [ModerationQueueController::class, 'decide'])
+        ->where('id', '.+')
+        ->name('admin.moderation.decide');
 });

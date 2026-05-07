@@ -4,6 +4,7 @@ namespace App\Services\Property;
 
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
+use App\Models\PropertyReport;
 use App\Models\User;
 use App\Notifications\PropertyApprovedNotification;
 use App\Notifications\PropertyRejectedNotification;
@@ -121,5 +122,25 @@ class PropertyModerationService
         });
 
         return $property->refresh();
+    }
+
+    public function resolveReport(PropertyReport $report, User $admin, string $decision, string $reason): PropertyReport
+    {
+        DB::transaction(function () use ($report, $admin, $decision, $reason) {
+            $report->update(['resolved_at' => now()]);
+
+            activity('Property')
+                ->performedOn($report->property)
+                ->causedBy($admin)
+                ->withProperties([
+                    'property_report_id' => $report->id,
+                    'decision' => $decision,
+                    'reason' => $reason,
+                ])
+                ->event('property.report_resolved')
+                ->log('Signalement de bien traité');
+        });
+
+        return $report->refresh();
     }
 }

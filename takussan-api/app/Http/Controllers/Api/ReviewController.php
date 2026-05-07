@@ -11,12 +11,15 @@ use App\Models\Enums\ReviewStatus;
 use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\Review\ReviewModerationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class ReviewController extends Controller
 {
+    public function __construct(private readonly ReviewModerationService $moderationService) {}
+
     /**
      * Global reviews listing — used by the admin moderation queue.
      * Supports `filter[moderation_status]=pending|flagged|approved|rejected`,
@@ -132,58 +135,16 @@ class ReviewController extends Controller
             abort(422, __('validation.required', ['attribute' => 'reason']));
         }
 
-        switch ($decision) {
-            case 'approve':
-                $this->assertTransition($review, ReviewStatus::Approved);
-                $review->update([
-                    'status' => ReviewStatus::Approved,
-                    'is_approved' => true,
-                    'approved_at' => now(),
-                    'approved_by_id' => $request->user()->id,
-                ]);
-                break;
+        $result = $this->moderationService->moderate($review, $request->user(), $decision, $reason);
 
-            case 'hide':
-                $this->assertTransition($review, ReviewStatus::Rejected);
-                $metadata = $review->metadata ?? [];
-                $metadata['moderation_reason'] = $reason;
-                $metadata['moderated_by_id'] = $request->user()->id;
-                $metadata['moderated_at'] = now()->toISOString();
-                $review->update([
-                    'status' => ReviewStatus::Rejected,
-                    'is_approved' => false,
-                    'metadata' => $metadata,
-                ]);
-                break;
-
-            case 'delete':
-                $metadata = $review->metadata ?? [];
-                $metadata['moderation_reason'] = $reason;
-                $metadata['moderated_by_id'] = $request->user()->id;
-                $metadata['moderated_at'] = now()->toISOString();
-                $review->update([
-                    'status' => ReviewStatus::Rejected,
-                    'is_approved' => false,
-                    'metadata' => $metadata,
-                ]);
-                $review->delete(); // soft-delete via SoftDeletes trait
-
-                return $this->json([
-                    'data' => ['id' => $review->id, 'deleted' => true],
-                ]);
-
-            case 'ignore':
-                // Mark review as ignored (no status transition, just flag it).
-                $metadata = $review->metadata ?? [];
-                $metadata['ignored_reports_by_id'] = $request->user()->id;
-                $metadata['ignored_reports_at'] = now()->toISOString();
-                $metadata['ignored_reason'] = $reason;
-                $review->update(['metadata' => $metadata]);
-                break;
+        if ($result['deleted']) {
+            return $this->json([
+                'data' => ['id' => $review->id, 'deleted' => true],
+            ]);
         }
 
         return $this->json([
-            'data' => ReviewResource::make($review->refresh())->toArray($request),
+            'data' => ReviewResource::make($result['review'])->toArray($request),
         ]);
     }
 
@@ -332,30 +293,18 @@ class ReviewController extends Controller
     {
         abort_unless($request->user()->hasRole(['admin', 'agency_admin', 'super_admin']), 403);
 
-        $this->assertTransition($review, ReviewStatus::Approved);
+        $review = $this->moderationService->approve($review, $request->user());
 
-        $review->update([
-            'status' => ReviewStatus::Approved,
-            'is_approved' => true,
-            'approved_at' => now(),
-            'approved_by_id' => $request->user()->id,
-        ]);
-
-        return $this->json(['data' => ReviewResource::make($review->refresh())->toArray($request)]);
+        return $this->json(['data' => ReviewResource::make($review)->toArray($request)]);
     }
 
     public function reject(Request $request, Review $review): JsonResponse
     {
         abort_unless($request->user()->hasRole(['admin', 'agency_admin', 'super_admin']), 403);
 
-        $this->assertTransition($review, ReviewStatus::Rejected);
+        $review = $this->moderationService->reject($review, $request->user());
 
-        $review->update([
-            'status' => ReviewStatus::Rejected,
-            'is_approved' => false,
-        ]);
-
-        return $this->json(['data' => ReviewResource::make($review->refresh())->toArray($request)]);
+        return $this->json(['data' => ReviewResource::make($review)->toArray($request)]);
     }
 
     public function indexForAgency(Request $request, Agency $agency): JsonResponse
@@ -451,18 +400,5 @@ class ReviewController extends Controller
         $review->update($attrs);
 
         return $this->json(['message' => __('messages.review_reported')]);
-    }
-
-    /**
-     * Ensure the requested status transition is allowed, else 422.
-     */
-    protected function assertTransition(Review $review, ReviewStatus $target): void
-    {
-        $current = $review->status ?? ReviewStatus::Pending;
-        abort_unless(
-            $current->canTransitionTo($target),
-            422,
-            "Cannot transition review from {$current->value} to {$target->value}."
-        );
     }
 }

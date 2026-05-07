@@ -5,6 +5,10 @@ import type {
   AdminAgencyHealthResponse,
   AdminAgencyTeamResponse,
   AdminPropertiesResponse,
+  AdminModerationResponse,
+  ModerationDecision,
+  ModerationItemStatus,
+  ModerationItemType,
   AgencyProvisioningResponse,
   AdminUserDetailResponse,
   AdminUserSessionsResponse,
@@ -323,4 +327,41 @@ export async function fetchAuditLog(params: {
     credentials: 'include',
   });
   return jsonOrThrow<AuditLogResponse>(res);
+}
+
+export async function fetchModerationQueue(params: {
+  type?: ModerationItemType;
+  status?: ModerationItemStatus;
+  agencyId?: number;
+  sort?: string;
+  page?: number;
+  perPage?: number;
+} = {}): Promise<AdminModerationResponse> {
+  const qs = new URLSearchParams();
+  qs.set('fields[moderation]', 'id,type,status,subject_type,subject_id,agency_id,reported_at,reason');
+  qs.set('include', 'subject,reporter');
+  if (params.type) qs.set('filter[type]', params.type);
+  if (params.status) qs.set('filter[status]', params.status);
+  if (typeof params.agencyId === 'number') qs.set('filter[agency_id]', String(params.agencyId));
+  qs.set('sort', params.sort ?? '-reported_at');
+  qs.set('page', String(params.page ?? 1));
+  qs.set('per_page', String(params.perPage ?? 20));
+
+  const res = await fetch(`/api/super-admin/moderation?${qs.toString()}`, {
+    credentials: 'include',
+  });
+  return jsonOrThrow<AdminModerationResponse>(res);
+}
+
+export async function postModerationDecision(
+  itemId: string,
+  payload: { decision: ModerationDecision; reason: string },
+): Promise<{ data: { id: string; decision: ModerationDecision; subject_type: string; subject_id: number } }> {
+  const res = await fetch(`/api/super-admin/moderation/${encodeURIComponent(itemId)}/decide`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<{ data: { id: string; decision: ModerationDecision; subject_type: string; subject_id: number } }>(res);
 }

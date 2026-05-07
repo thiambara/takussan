@@ -211,6 +211,48 @@ export type AuditLogResponse = {
   };
 };
 
+export type ModerationItemType = 'property' | 'review';
+export type ModerationItemStatus = 'pending' | 'flagged';
+export type ModerationDecision = 'approve' | 'reject' | 'hide' | 'remove';
+
+export type AdminModerationItem = {
+  id: string;
+  type: ModerationItemType;
+  status: ModerationItemStatus;
+  subject_type: 'property' | 'review';
+  subject_id: number;
+  subject: {
+    id: number;
+    title: string;
+    subtitle: string | null;
+    href: string;
+  } | null;
+  reporter: {
+    id: number;
+    name: string;
+    email: string;
+  } | null;
+  agency: {
+    id: number;
+    name: string;
+    slug: string;
+  } | null;
+  reason: string;
+  reported_count: number | null;
+  reported_at: string | null;
+  created_at: string | null;
+};
+
+export type AdminModerationResponse = {
+  data: AdminModerationItem[];
+  meta: {
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+  };
+};
+
 /**
  * TCK-132 — row shape for the cross-tenant properties table. Only fields the
  * UI actually renders, fed by `fields[properties]=...&include=address,agency`
