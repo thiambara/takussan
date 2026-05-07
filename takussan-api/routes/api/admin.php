@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Admin\AlertRuleController;
 use App\Http\Controllers\Api\Admin\AnnouncementController;
 use App\Http\Controllers\Api\Admin\BusinessEnumController;
 use App\Http\Controllers\Api\Admin\CrossTenantAuditController;
+use App\Http\Controllers\Api\Admin\DataExportController;
 use App\Http\Controllers\Api\Admin\FeatureFlagController;
 use App\Http\Controllers\Api\Admin\IntegrationController;
 use App\Http\Controllers\Api\Admin\MaintenanceController;
@@ -72,6 +73,8 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
         ->name('admin.users.sessions.destroy');
     Route::post('users/{user}/impersonate', [UserImpersonationController::class, 'start'])
         ->name('admin.users.impersonate');
+    Route::post('users/{user}/data-exports', [DataExportController::class, 'store'])
+        ->name('admin.users.data-exports.store');
     Route::post('impersonate/stop', [UserImpersonationController::class, 'stop'])
         ->name('admin.impersonate.stop');
 

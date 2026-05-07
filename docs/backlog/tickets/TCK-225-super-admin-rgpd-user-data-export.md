@@ -1,7 +1,7 @@
 ---
 id: TCK-225
 title: "Super-admin — Export RGPD des données utilisateur (portabilité)"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: M
@@ -93,4 +93,4 @@ Page `/app/account/privacy` : section "Mes données" avec bouton "Demander mon e
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+L'archive est produite sur le disque `local` par le job `ProcessDataExport`; `archive_path` est chiffré via cast Eloquent et le téléchargement repasse par une route autorisée qui applique l'expiration métier à 7 jours.

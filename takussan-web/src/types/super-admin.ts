@@ -485,6 +485,32 @@ export type AnnouncementPayload = {
   is_active: boolean;
 };
 
+export type DataExportStatus = 'queued' | 'processing' | 'ready' | 'expired' | 'failed';
+
+export type DataExport = {
+  id: number;
+  user_id: number;
+  requested_by: number | null;
+  reason: string | null;
+  status: DataExportStatus;
+  size_bytes: number | null;
+  requested_at: string;
+  ready_at: string | null;
+  expires_at: string | null;
+  last_downloaded_at: string | null;
+  download_url: string | null;
+};
+
+export type DataExportsResponse = {
+  data: DataExport[];
+  meta?: {
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+  };
+};
+
 /**
  * TCK-132 — row shape for the cross-tenant properties table. Only fields the
  * UI actually renders, fed by `fields[properties]=...&include=address,agency`

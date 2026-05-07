@@ -38,6 +38,7 @@ import type {
   AnnouncementsResponse,
   AnnouncementPayload,
   AnnouncementSegment,
+  DataExport,
 } from '@/types/super-admin';
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
@@ -664,4 +665,17 @@ export async function deactivateAdminAnnouncement(id: number): Promise<{ data: A
     credentials: 'include',
   });
   return jsonOrThrow<{ data: AnnouncementPayload & { id: number } }>(res);
+}
+
+export async function requestAdminUserDataExport(
+  userId: number,
+  reason: 'support' | 'legal_request' | 'user_inquiry' | 'other',
+): Promise<{ data: DataExport }> {
+  const res = await fetch(`/api/super-admin/users/${userId}/data-exports`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  return jsonOrThrow<{ data: DataExport }>(res);
 }

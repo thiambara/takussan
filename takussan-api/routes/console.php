@@ -8,6 +8,7 @@ use App\Jobs\Lease\ApplyLateFeesJob;
 use App\Jobs\Lease\ConfirmEarlyTerminationsJob;
 use App\Jobs\Notifications\SendNotificationDigestJob;
 use App\Jobs\Permissions\ProcessRoleDelegationsJob;
+use App\Jobs\Privacy\PurgeExpiredDataExports;
 use App\Jobs\SendLeasePaymentReminders;
 use App\Jobs\SendPropertyVisitReminders;
 use App\Jobs\SendSavedSearchAlerts;
@@ -50,6 +51,8 @@ Schedule::command('dashboard:check-alerts')->hourly()->withoutOverlapping(); // 
 Schedule::command('tasks:send-due-reminders')->hourly()->withoutOverlapping();
 // TCK-080 — RGPD: send J-N reminders + execute scheduled anonymizations.
 Schedule::command('account:execute-deletions')->hourly()->withoutOverlapping();
+// TCK-225 — RGPD portability archives expire after 7 days.
+Schedule::job(new PurgeExpiredDataExports)->dailyAt('02:30')->withoutOverlapping();
 // TCK-096 — Escalate urgent maintenance requests to agency managers
 Schedule::job(new EscalateUrgentMaintenanceJob)->hourly()->withoutOverlapping();
 

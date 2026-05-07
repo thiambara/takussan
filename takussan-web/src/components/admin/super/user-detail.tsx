@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
-import { Activity, Clock, KeyRound, RotateCcwKey, ShieldCheck, ShieldOff, Unlock, UserRound, XCircle } from 'lucide-react';
+import { Activity, Clock, FileArchive, KeyRound, RotateCcwKey, ShieldCheck, ShieldOff, Unlock, UserRound, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +25,7 @@ import {
   fetchAdminUserDetail,
   fetchAdminUserSessions,
   postUserSupportAction,
+  requestAdminUserDataExport,
   type UserSupportAction,
 } from '@/lib/queries/super-admin';
 import { ApiError } from '@/lib/api';
@@ -167,6 +168,7 @@ const SUPPORT_ACTIONS: Array<{
 
 export function UserSupportActionsMenu({ userId }: { userId: number }) {
   const [pendingAction, setPendingAction] = useState<UserSupportAction | null>(null);
+  const [dataExportOpen, setDataExportOpen] = useState(false);
   const queryClient = useQueryClient();
   const toast = useToast();
   const mutation = useMutation({
@@ -181,6 +183,14 @@ export function UserSupportActionsMenu({ userId }: { userId: number }) {
       ]);
       toast.add({ title: 'Action support exécutée', type: 'success' });
       setPendingAction(null);
+    },
+  });
+  const dataExportMutation = useMutation({
+    mutationFn: (reason: 'support' | 'legal_request' | 'user_inquiry' | 'other') => requestAdminUserDataExport(userId, reason),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['super-admin', 'user', userId, 'activity'] });
+      toast.add({ title: 'Export RGPD demandé', type: 'success' });
+      setDataExportOpen(false);
     },
   });
   const meta = SUPPORT_ACTIONS.find((item) => item.action === pendingAction) ?? null;
@@ -202,6 +212,17 @@ export function UserSupportActionsMenu({ userId }: { userId: number }) {
           </Button>
         );
       })}
+      <Button type="button" variant="outline" size="sm" onClick={() => setDataExportOpen(true)}>
+        <FileArchive className="mr-2 size-4" aria-hidden="true" />
+        Export RGPD
+      </Button>
+      <DataExportReasonDialog
+        open={dataExportOpen}
+        pending={dataExportMutation.isPending}
+        error={dataExportMutation.error}
+        onOpenChange={setDataExportOpen}
+        onConfirm={(reason) => dataExportMutation.mutate(reason)}
+      />
       {meta ? (
         <SupportReasonDialog
           open={pendingAction !== null}
@@ -214,6 +235,61 @@ export function UserSupportActionsMenu({ userId }: { userId: number }) {
         />
       ) : null}
     </div>
+  );
+}
+
+function DataExportReasonDialog({
+  open,
+  pending,
+  error,
+  onOpenChange,
+  onConfirm,
+}: {
+  open: boolean;
+  pending: boolean;
+  error: Error | null;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: (reason: 'support' | 'legal_request' | 'user_inquiry' | 'other') => void;
+}) {
+  const [reason, setReason] = useState<'support' | 'legal_request' | 'user_inquiry' | 'other'>('support');
+  const message = error instanceof ApiError ? error.displayMessage : error?.message;
+  const reasons: Array<{ value: typeof reason; label: string }> = [
+    { value: 'support', label: 'Support' },
+    { value: 'legal_request', label: 'Réquisition' },
+    { value: 'user_inquiry', label: 'Demande utilisateur' },
+    { value: 'other', label: 'Autre' },
+  ];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Demander un export RGPD</DialogTitle>
+          <DialogDescription>La demande est auditée et l&apos;archive sera notifiée à l&apos;utilisateur cible.</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-wrap gap-2">
+          {reasons.map((item) => (
+            <Button
+              key={item.value}
+              type="button"
+              variant={reason === item.value ? 'default' : 'outline'}
+              onClick={() => setReason(item.value)}
+            >
+              {item.label}
+            </Button>
+          ))}
+        </div>
+        {message ? <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{message}</p> : null}
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
+            Annuler
+          </Button>
+          <Button type="button" onClick={() => onConfirm(reason)} disabled={pending}>
+            {pending ? 'Demande…' : 'Demander'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
