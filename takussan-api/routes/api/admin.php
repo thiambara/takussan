@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Admin\AgencyModerationController;
 use App\Http\Controllers\Api\Admin\AgencyOnboardingController;
 use App\Http\Controllers\Api\Admin\BusinessEnumController;
 use App\Http\Controllers\Api\Admin\CrossTenantAuditController;
+use App\Http\Controllers\Api\Admin\IntegrationController;
 use App\Http\Controllers\Api\Admin\ModerationQueueController;
 use App\Http\Controllers\Api\Admin\NotificationTemplateController;
 use App\Http\Controllers\Api\Admin\PlatformSettingController;
@@ -97,4 +98,11 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
 
     Route::get('settings', [PlatformSettingController::class, 'index'])->name('admin.settings.index');
     Route::patch('settings', [PlatformSettingController::class, 'bulkUpdate'])->name('admin.settings.update');
+
+    Route::get('integrations', [IntegrationController::class, 'index'])->name('admin.integrations.index');
+    Route::get('integrations/{integration}/schema', [IntegrationController::class, 'schema'])->name('admin.integrations.schema');
+    Route::get('integrations/{integration}/webhooks', [IntegrationController::class, 'webhooks'])->name('admin.integrations.webhooks');
+    Route::post('integrations/{integration}/test', [IntegrationController::class, 'test'])->name('admin.integrations.test');
+    Route::get('integrations/{integration}', [IntegrationController::class, 'show'])->name('admin.integrations.show');
+    Route::patch('integrations/{integration}', [IntegrationController::class, 'update'])->name('admin.integrations.update');
 });

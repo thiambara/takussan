@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\Admin;
 
 use App\Models\Agency;
+use App\Models\Integration;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
@@ -25,6 +26,7 @@ class NamespaceAccessGuardTest extends BaseTestCase
 
         $agency = Agency::factory()->create();
         $user = User::factory()->create();
+        $integration = Integration::factory()->create();
 
         $routes = collect(Route::getRoutes())
             ->filter(fn ($r) => str_starts_with($r->uri(), 'api/admin'));
@@ -39,6 +41,7 @@ class NamespaceAccessGuardTest extends BaseTestCase
 
                 $resolved = '/'.strtr($route->uri(), [
                     '{agency}' => (string) $agency->id,
+                    '{integration}' => (string) $integration->id,
                     '{user}' => (string) $user->id,
                 ]);
 

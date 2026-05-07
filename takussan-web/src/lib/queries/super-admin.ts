@@ -14,6 +14,11 @@ import type {
   NotificationTemplateResponse,
   NotificationTemplatesResponse,
   PlatformSettingsResponse,
+  AdminIntegrationsResponse,
+  AdminIntegrationResponse,
+  AdminIntegrationSchemaResponse,
+  IntegrationTestResponse,
+  IntegrationWebhooksResponse,
   ModerationDecision,
   ModerationItemStatus,
   ModerationItemType,
@@ -465,4 +470,40 @@ export async function patchPlatformSettings(
     body: JSON.stringify(payload),
   });
   return jsonOrThrow<PlatformSettingsResponse>(res);
+}
+
+export async function fetchAdminIntegrations(): Promise<AdminIntegrationsResponse> {
+  const res = await fetch('/api/super-admin/integrations', { credentials: 'include' });
+  return jsonOrThrow<AdminIntegrationsResponse>(res);
+}
+
+export async function fetchAdminIntegrationSchema(id: number): Promise<AdminIntegrationSchemaResponse> {
+  const res = await fetch(`/api/super-admin/integrations/${id}/schema`, { credentials: 'include' });
+  return jsonOrThrow<AdminIntegrationSchemaResponse>(res);
+}
+
+export async function patchAdminIntegration(
+  id: number,
+  payload: { credentials?: Record<string, string>; is_active?: boolean; metadata?: Record<string, unknown> },
+): Promise<AdminIntegrationResponse> {
+  const res = await fetch(`/api/super-admin/integrations/${id}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<AdminIntegrationResponse>(res);
+}
+
+export async function testAdminIntegration(id: number): Promise<IntegrationTestResponse> {
+  const res = await fetch(`/api/super-admin/integrations/${id}/test`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  return jsonOrThrow<IntegrationTestResponse>(res);
+}
+
+export async function fetchIntegrationWebhooks(id: number): Promise<IntegrationWebhooksResponse> {
+  const res = await fetch(`/api/super-admin/integrations/${id}/webhooks`, { credentials: 'include' });
+  return jsonOrThrow<IntegrationWebhooksResponse>(res);
 }

@@ -326,6 +326,61 @@ export type PlatformSetting = {
 export type PlatformSettingsGrouped = Partial<Record<PlatformSettingCategory, PlatformSetting[]>>;
 export type PlatformSettingsResponse = { data: PlatformSettingsGrouped };
 
+export type AdminIntegration = {
+  id: number;
+  provider: string;
+  label: string;
+  category: 'payments' | 'messaging' | 'email' | 'storage' | 'other';
+  critical: boolean;
+  agency_id: number | null;
+  is_active: boolean;
+  status: 'unknown' | 'healthy' | 'failed' | 'disabled' | string;
+  last_used_at: string | null;
+  last_health_check_at: string | null;
+  metadata: Record<string, unknown>;
+  masked_credentials: Record<string, string>;
+};
+
+export type IntegrationSchemaField = {
+  name: string;
+  label: string;
+  type: string;
+  secret: boolean;
+  required: boolean;
+};
+
+export type IntegrationSchema = {
+  provider: string;
+  label: string;
+  category: string;
+  fields: IntegrationSchemaField[];
+};
+
+export type AdminIntegrationsResponse = { data: AdminIntegration[] };
+export type AdminIntegrationResponse = { data: AdminIntegration };
+export type AdminIntegrationSchemaResponse = { data: IntegrationSchema };
+export type IntegrationTestResponse = { data: { success: boolean; latency_ms: number; error: string | null } };
+
+export type IntegrationWebhookLog = {
+  id: number;
+  status: string;
+  direction: string;
+  event_type: string | null;
+  payload: { truncated: string };
+  processed_at: string | null;
+  created_at: string | null;
+};
+
+export type IntegrationWebhooksResponse = {
+  data: IntegrationWebhookLog[];
+  meta: {
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+  };
+};
+
 /**
  * TCK-132 — row shape for the cross-tenant properties table. Only fields the
  * UI actually renders, fed by `fields[properties]=...&include=address,agency`

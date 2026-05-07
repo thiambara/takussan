@@ -1,7 +1,7 @@
 ---
 id: TCK-217
 title: "Super-admin — Intégrations tierces (API keys, webhooks)"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: M
@@ -50,26 +50,26 @@ Liste par catégorie (Paiements, Messagerie, Email, Stockage). Chaque carte expo
 
 ## Delta à produire
 
-- [ ] Migration / ajustement de la table `integrations` (cf. modèle) : ajouter `last_health_check_at`, `health_status`
-- [ ] Service `App\Services\Admin\IntegrationService` + connecteurs `App\Domain\Integrations\Providers\{Wave, OrangeMoney, Stripe, Sms, Mail}` (avec interface `IntegrationProvider` exposant `schema()`, `test()`, `validate()`)
-- [ ] Controller `Admin\IntegrationController` (`index`, `show`, `update`, `test`, `webhooks`, `schema`)
-- [ ] Routes `routes/api/admin.php`
-- [ ] Webhook ingest existant : ajouter persistance d'un trail (`integration_webhook_logs`) avec rétention 30j
-- [ ] Activity log `super_admin_integration_updated|tested`
-- [ ] Frontend page `/super-admin/integrations`
-- [ ] Composants : `IntegrationCard`, `IntegrationEditDialog` (rendu dynamique du schéma), `IntegrationTestButton`, `WebhookTrailTable`
-- [ ] Tests backend : 403 hors super-admin, clé jamais retournée en clair, schéma exposé, test renvoie statut + latence
-- [ ] Tests UI : édition, test connexion, vue webhooks
+- [x] Migration / ajustement de la table `integrations` (cf. modèle) : ajouter `last_health_check_at`, `health_status`
+- [x] Service `App\Services\Admin\IntegrationService` + connecteurs `App\Domain\Integrations\Providers\{Wave, OrangeMoney, Stripe, Sms, Mail}` (avec interface `IntegrationProvider` exposant `schema()`, `test()`, `validate()`)
+- [x] Controller `Admin\IntegrationController` (`index`, `show`, `update`, `test`, `webhooks`, `schema`)
+- [x] Routes `routes/api/admin.php`
+- [x] Webhook ingest existant : ajouter persistance d'un trail (`integration_webhook_logs`) avec rétention 30j
+- [x] Activity log `super_admin_integration_updated|tested`
+- [x] Frontend page `/super-admin/integrations`
+- [x] Composants : `IntegrationCard`, `IntegrationEditDialog` (rendu dynamique du schéma), `IntegrationTestButton`, `WebhookTrailTable`
+- [x] Tests backend : 403 hors super-admin, clé jamais retournée en clair, schéma exposé, test renvoie statut + latence
+- [x] Tests UI : édition, test connexion, vue webhooks
 
 ## Critères d'acceptation
 
-- [ ] Aucun endpoint ne renvoie une API key en clair (assert dans test)
-- [ ] L'UI affiche les keys masquées (`••••XXXX`)
-- [ ] `POST /test` renvoie un statut sans logger la réponse provider
-- [ ] L'édition d'une intégration paiement émet un événement applicatif vérifiable en test
-- [ ] Un agency_admin reçoit 403
-- [ ] Le trail webhook conserve 30 jours et purge au-delà
-- [ ] Chaque mutation produit une entrée d'audit (sans fuite des secrets)
+- [x] Aucun endpoint ne renvoie une API key en clair (assert dans test)
+- [x] L'UI affiche les keys masquées (`••••XXXX`)
+- [x] `POST /test` renvoie un statut sans logger la réponse provider
+- [x] L'édition d'une intégration paiement émet un événement applicatif vérifiable en test
+- [x] Un agency_admin reçoit 403
+- [x] Le trail webhook conserve 30 jours et purge au-delà
+- [x] Chaque mutation produit une entrée d'audit (sans fuite des secrets)
 
 ## Hors périmètre
 
@@ -79,4 +79,6 @@ Liste par catégorie (Paiements, Messagerie, Email, Stockage). Chaque carte expo
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Les tests de connexion restent synthétiques : ils valident le schéma et l'état actif sans appeler les APIs providers, afin de ne pas risquer de fuite de réponse externe.
+- Le trail webhook est branché sur l'ingest paiement existant ; les webhooks SMS entrants gardent leurs tables de livraison dédiées et ne sont pas dupliqués ici.
+- Les endpoints admin exposent uniquement les credentials masqués (`••••XXXX`) ; l'édition ne renvoie jamais la valeur claire.
