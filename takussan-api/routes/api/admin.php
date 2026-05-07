@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Admin\AgencyModerationController;
 use App\Http\Controllers\Api\Admin\AgencyOnboardingController;
 use App\Http\Controllers\Api\Admin\CrossTenantAuditController;
 use App\Http\Controllers\Api\Admin\SystemMetricsController;
+use App\Http\Controllers\Api\Admin\UserDetailController;
 use App\Http\Controllers\Api\Admin\UserImpersonationController;
 use Illuminate\Support\Facades\Route;
 
@@ -43,6 +44,12 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     });
 
     // User impersonation — short-lived Sanctum token (≤ 1h, name=impersonation).
+    Route::get('users/{user}', [UserDetailController::class, 'show'])
+        ->name('admin.users.show');
+    Route::get('users/{user}/sessions', [UserDetailController::class, 'sessions'])
+        ->name('admin.users.sessions');
+    Route::get('users/{user}/activity', [UserDetailController::class, 'activity'])
+        ->name('admin.users.activity');
     Route::post('users/{user}/impersonate', [UserImpersonationController::class, 'start'])
         ->name('admin.users.impersonate');
     Route::post('impersonate/stop', [UserImpersonationController::class, 'stop'])

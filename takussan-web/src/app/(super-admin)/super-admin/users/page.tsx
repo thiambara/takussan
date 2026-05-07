@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { ConfirmActionDialog } from '@/components/admin/super/ConfirmActionDialog';
 import { useImpersonate } from '@/hooks/useImpersonation';
 import type { ApiError } from '@/lib/api';
@@ -108,9 +109,14 @@ export default function SuperAdminUsersPage() {
                     Rôles : {roles.length ? roles.join(', ') : '—'}
                   </p>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => setTarget(u)} disabled={impersonate.isPending}>
-                  Impersonifier
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Link className={buttonVariants({ size: 'sm', variant: 'outline' })} href={`/super-admin/users/${u.id}`}>
+                    Ouvrir
+                  </Link>
+                  <Button size="sm" variant="outline" onClick={() => setTarget(u)} disabled={impersonate.isPending}>
+                    Impersonifier
+                  </Button>
+                </div>
               </li>
             );
           })}

@@ -6,6 +6,8 @@ import type {
   AdminAgencyTeamResponse,
   AdminPropertiesResponse,
   AgencyProvisioningResponse,
+  AdminUserDetailResponse,
+  AdminUserSessionsResponse,
   AuditLogResponse,
   ImpersonationStartResponse,
   ImpersonationStopResponse,
@@ -130,6 +132,36 @@ export async function postImpersonate(targetUserId: number): Promise<Impersonati
     credentials: 'include',
   });
   return jsonOrThrow<ImpersonationStartResponse>(res);
+}
+
+export async function fetchAdminUserDetail(userId: number): Promise<AdminUserDetailResponse> {
+  const qs = new URLSearchParams();
+  qs.set('fields[users]', 'id,username,first_name,last_name,email,phone,status,preferred_language,timezone,last_login_at,created_at');
+  qs.set('include', 'roles');
+  const res = await fetch(`/api/super-admin/users/${userId}?${qs.toString()}`, {
+    credentials: 'include',
+  });
+  return jsonOrThrow<AdminUserDetailResponse>(res);
+}
+
+export async function fetchAdminUserSessions(userId: number): Promise<AdminUserSessionsResponse> {
+  const qs = new URLSearchParams();
+  qs.set('fields[personal_access_tokens]', 'id,name,last_used_at,created_at,expires_at');
+  qs.set('per_page', '20');
+  const res = await fetch(`/api/super-admin/users/${userId}/sessions?${qs.toString()}`, {
+    credentials: 'include',
+  });
+  return jsonOrThrow<AdminUserSessionsResponse>(res);
+}
+
+export async function fetchAdminUserActivity(userId: number): Promise<AuditLogResponse> {
+  const qs = new URLSearchParams();
+  qs.set('sort', '-created_at');
+  qs.set('per_page', '20');
+  const res = await fetch(`/api/super-admin/users/${userId}/activity?${qs.toString()}`, {
+    credentials: 'include',
+  });
+  return jsonOrThrow<AuditLogResponse>(res);
 }
 
 export async function postStopImpersonation(targetUserId: number): Promise<ImpersonationStopResponse> {

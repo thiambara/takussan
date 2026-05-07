@@ -1,7 +1,7 @@
 ---
 id: TCK-210
 title: "Super-admin — Détail utilisateur cross-tenant `/super-admin/users/[id]`"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
@@ -76,4 +76,4 @@ Header identité (avatar, nom, email, statut, badges rôles). Sections : *Profil
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Les tokens Sanctum ne stockent pas IP / user-agent dans le schéma actuel ; l'endpoint sessions expose ces champs à `null` sans simuler de données.

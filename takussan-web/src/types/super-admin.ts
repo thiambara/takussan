@@ -99,6 +99,55 @@ export type AgencyProvisioningResponse = {
   };
 };
 
+export type AdminUserDetail = {
+  id: number;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  status: string | null;
+  preferred_language: string | null;
+  timezone: string | null;
+  email_verified_at: string | null;
+  phone_verified_at: string | null;
+  last_login_at: string | null;
+  two_factor_enabled: boolean;
+  mfa_enabled: boolean;
+  created_at: string | null;
+  roles: Array<{ name: string; team_id: number | null }>;
+  profiles: {
+    agent: Array<{ id: number; agency_id: number; agency_name: string | null; status: string | null; license_number: string | null }>;
+    owner: Array<{ id: number; agency_id: number; agency_name: string | null; status: string | null }>;
+    broker: { id: number; status: string | null } | null;
+    service_provider: { id: number; status: string | null } | null;
+  };
+  agencies: Array<{ id: number; name: string; slug: string }>;
+};
+
+export type AdminUserDetailResponse = { data: AdminUserDetail };
+
+export type AdminUserSession = {
+  id: number;
+  name: string;
+  last_used_at: string | null;
+  ip: string | null;
+  user_agent: string | null;
+  created_at: string | null;
+  expires_at: string | null;
+};
+
+export type AdminUserSessionsResponse = {
+  data: AdminUserSession[];
+  meta: {
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+  };
+};
+
 export type SystemMetrics = {
   agencies: {
     total: number;

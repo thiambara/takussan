@@ -132,7 +132,6 @@ _(vide — TCK-146 en review)_
 
 > Extension de la console super-admin livrée par TCK-144/145/132/115/116. Couvre les capacités plateforme attendues d'un super-admin SaaS multi-tenant : gouvernance des agences (détail, onboarding), support utilisateur cross-tenant, modération unifiée, référentiels globaux (tags, enums), templates de notification, paramètres plateforme, intégrations tierces, mode maintenance, feature flags, alertes sur actions sensibles. Les sujets nécessitant une extension de spec préalable (KYC documentaire, plans / quotas, payouts plateforme, broadcast in-app, RGPD export user, healthcheck UI) ne sont **pas** ticketés ici — un PR sur `features.md` doit les introduire d'abord.
 
-- [TCK-210](tickets/TCK-210-super-admin-user-detail.md) — Super-admin — Détail utilisateur cross-tenant `/super-admin/users/[id]` `M · P1 · front`
 - [TCK-211](tickets/TCK-211-super-admin-user-support-actions.md) — Super-admin — Actions support utilisateur (reset password, unlock, 2FA, sessions) `M · P1 · applicatif`
 - [TCK-212](tickets/TCK-212-super-admin-moderation-queue.md) — Super-admin — File de modération unifiée (signalements cross-tenant) `L · P2 · applicatif`
 - [TCK-213](tickets/TCK-213-super-admin-tags-amenities-global.md) — Super-admin — Tags & amenités globaux (référentiel plateforme) `S · P1 · front`
@@ -466,6 +465,10 @@ _(vide)_
 - [TCK-032](tickets/TCK-032-reporting-dashboards.md) — Reporting & tableaux de bord `L · P1 · applicatif` (PR #38 — P1+P2+P3 full ; gap `/api/dashboard/me` adaptive entry fermé pour débloquer TCK-130)
 
 ## ✅ Done
+
+### Vague 23 — Console super-admin
+
+- [TCK-210](tickets/TCK-210-super-admin-user-detail.md) — Super-admin — Détail utilisateur cross-tenant `/super-admin/users/[id]` `M · P1 · front`
 
 ### Phase 0 — Fondation Backend
 
