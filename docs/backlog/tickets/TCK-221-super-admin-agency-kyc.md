@@ -1,7 +1,7 @@
 ---
 id: TCK-221
 title: "Super-admin — KYC documentaire des agences (workflow vérification)"
-status: review
+status: done
 phase: P1
 family: applicatif
 estimate: L

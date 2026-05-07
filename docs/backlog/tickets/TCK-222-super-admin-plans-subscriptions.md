@@ -1,7 +1,7 @@
 ---
 id: TCK-222
 title: "Super-admin — Plans & abonnements plateforme (catalogue + assignation par agence)"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: L
