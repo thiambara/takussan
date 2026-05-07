@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Admin\AgencyDetailController;
 use App\Http\Controllers\Api\Admin\AgencyModerationController;
 use App\Http\Controllers\Api\Admin\AgencyOnboardingController;
+use App\Http\Controllers\Api\Admin\BusinessEnumController;
 use App\Http\Controllers\Api\Admin\CrossTenantAuditController;
 use App\Http\Controllers\Api\Admin\ModerationQueueController;
 use App\Http\Controllers\Api\Admin\SystemMetricsController;
@@ -80,4 +81,10 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     Route::post('moderation/{id}/decide', [ModerationQueueController::class, 'decide'])
         ->where('id', '.+')
         ->name('admin.moderation.decide');
+
+    Route::get('enums', [BusinessEnumController::class, 'index'])->name('admin.enums.index');
+    Route::get('enums/{key}', [BusinessEnumController::class, 'show'])->name('admin.enums.show');
+    Route::post('enums/{key}/values', [BusinessEnumController::class, 'storeValue'])->name('admin.enums.values.store');
+    Route::patch('enums/{key}/values/{value}', [BusinessEnumController::class, 'updateValue'])->name('admin.enums.values.update');
+    Route::delete('enums/{key}/values/{value}', [BusinessEnumController::class, 'deactivateValue'])->name('admin.enums.values.destroy');
 });

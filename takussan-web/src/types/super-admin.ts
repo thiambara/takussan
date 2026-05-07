@@ -253,6 +253,28 @@ export type AdminModerationResponse = {
   };
 };
 
+export type BusinessEnumValue = {
+  value: string;
+  labels: {
+    fr: string;
+    en: string;
+    wo: string;
+  };
+  is_active: boolean;
+  is_custom: boolean;
+  usage_count: number;
+};
+
+export type BusinessEnum = {
+  key: string;
+  name: string;
+  description: string;
+  values: BusinessEnumValue[];
+};
+
+export type BusinessEnumsResponse = { data: BusinessEnum[] };
+export type BusinessEnumResponse = { data: BusinessEnum };
+
 /**
  * TCK-132 — row shape for the cross-tenant properties table. Only fields the
  * UI actually renders, fed by `fields[properties]=...&include=address,agency`

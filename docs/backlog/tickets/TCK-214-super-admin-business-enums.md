@@ -1,7 +1,7 @@
 ---
 id: TCK-214
 title: "Super-admin — Enums métier éditables (catégories, libellés, traductions)"
-status: todo
+status: review
 phase: P1
 family: applicatif
 estimate: M
@@ -82,4 +82,6 @@ Page liste à gauche (les enums éditables), panneau détail à droite avec tabl
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Whitelist initiale limitée à `property_type`, `contract_type`, `title_type`, `rent_period`; les statuts techniques restent exclus.
+- Les valeurs dynamiques sont stockées dans `settings.key = enum.<key>.values`; les enums PHP restent la base de fallback quand aucun setting n'existe.
+- La désactivation est un soft-disable dans le payload JSON (`is_active=false`) et retourne 409 si une entité utilise déjà la valeur.

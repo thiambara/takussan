@@ -132,7 +132,6 @@ _(vide — TCK-146 en review)_
 
 > Extension de la console super-admin livrée par TCK-144/145/132/115/116. Couvre les capacités plateforme attendues d'un super-admin SaaS multi-tenant : gouvernance des agences (détail, onboarding), support utilisateur cross-tenant, modération unifiée, référentiels globaux (tags, enums), templates de notification, paramètres plateforme, intégrations tierces, mode maintenance, feature flags, alertes sur actions sensibles. Les sujets nécessitant une extension de spec préalable (KYC documentaire, plans / quotas, payouts plateforme, broadcast in-app, RGPD export user, healthcheck UI) ne sont **pas** ticketés ici — un PR sur `features.md` doit les introduire d'abord.
 
-- [TCK-214](tickets/TCK-214-super-admin-business-enums.md) — Super-admin — Enums métier éditables (catégories, libellés, traductions) `M · P1 · applicatif`
 - [TCK-215](tickets/TCK-215-super-admin-notification-templates.md) — Super-admin — Templates de notification (email / SMS / push) `M · P1 · applicatif`
 - [TCK-216](tickets/TCK-216-super-admin-platform-settings.md) — Super-admin — Paramètres globaux plateforme & devises `M · P2 · applicatif`
 - [TCK-217](tickets/TCK-217-super-admin-third-party-integrations.md) — Super-admin — Intégrations tierces (API keys, webhooks) `M · P2 · applicatif`
@@ -154,6 +153,7 @@ _(vide)_
 
 - [TCK-212](tickets/TCK-212-super-admin-moderation-queue.md) — Super-admin — File de modération unifiée (signalements cross-tenant) `L · P2 · applicatif`
 - [TCK-213](tickets/TCK-213-super-admin-tags-amenities-global.md) — Super-admin — Tags & amenités globaux (référentiel plateforme) `S · P1 · front`
+- [TCK-214](tickets/TCK-214-super-admin-business-enums.md) — Super-admin — Enums métier éditables (catégories, libellés, traductions) `M · P1 · applicatif`
 - [TCK-208](tickets/TCK-208-super-admin-agency-detail.md) — Super-admin — Détail agence cross-tenant `/super-admin/agencies/[id]` `M · P1 · front`
 - [TCK-209](tickets/TCK-209-super-admin-agency-onboarding.md) — Super-admin — Onboarding agence (création + admin initial) `M · P1 · applicatif`
 
