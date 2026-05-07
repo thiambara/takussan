@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\ForceJsonResponseMiddleware;
+use App\Http\Middleware\MaintenanceMode;
 use App\Http\Middleware\ResolveActiveProfile;
 use App\Http\Middleware\RestrictIpMiddleware;
 use App\Http\Middleware\SetLocaleMiddleware;
@@ -24,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api(prepend: [
             ForceJsonResponseMiddleware::class,
             SetLocaleMiddleware::class,
+            MaintenanceMode::class,
         ]);
         // TCK-141/142 — sole owner of the spatie team context for api
         // requests since `users.agency_id` was dropped. Resolves the active

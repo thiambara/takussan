@@ -381,6 +381,28 @@ export type IntegrationWebhooksResponse = {
   };
 };
 
+export type MaintenanceMode = 'banner' | 'read_only' | 'down';
+export type MaintenanceSeverity = 'info' | 'scheduled' | 'interruption';
+
+export type MaintenanceWindow = {
+  id: number;
+  starts_at: string;
+  ends_at: string;
+  mode: MaintenanceMode;
+  severity: MaintenanceSeverity;
+  messages: { fr: string; en?: string | null; wo?: string | null };
+  banner_lead_minutes: number;
+};
+
+export type MaintenanceStatus = {
+  active: boolean;
+  show_banner: boolean;
+  window: MaintenanceWindow | null;
+  generated_at: string;
+};
+
+export type MaintenanceStatusResponse = { data: MaintenanceStatus };
+
 /**
  * TCK-132 — row shape for the cross-tenant properties table. Only fields the
  * UI actually renders, fed by `fields[properties]=...&include=address,agency`

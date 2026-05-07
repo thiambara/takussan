@@ -19,6 +19,9 @@ import type {
   AdminIntegrationSchemaResponse,
   IntegrationTestResponse,
   IntegrationWebhooksResponse,
+  MaintenanceStatusResponse,
+  MaintenanceMode,
+  MaintenanceSeverity,
   ModerationDecision,
   ModerationItemStatus,
   ModerationItemType,
@@ -506,4 +509,34 @@ export async function testAdminIntegration(id: number): Promise<IntegrationTestR
 export async function fetchIntegrationWebhooks(id: number): Promise<IntegrationWebhooksResponse> {
   const res = await fetch(`/api/super-admin/integrations/${id}/webhooks`, { credentials: 'include' });
   return jsonOrThrow<IntegrationWebhooksResponse>(res);
+}
+
+export async function fetchMaintenance(): Promise<MaintenanceStatusResponse> {
+  const res = await fetch('/api/super-admin/maintenance', { credentials: 'include' });
+  return jsonOrThrow<MaintenanceStatusResponse>(res);
+}
+
+export async function scheduleMaintenance(payload: {
+  starts_at: string;
+  ends_at: string;
+  mode: MaintenanceMode;
+  severity: MaintenanceSeverity;
+  messages: { fr: string; en?: string; wo?: string };
+  banner_lead_minutes?: number;
+}): Promise<MaintenanceStatusResponse> {
+  const res = await fetch('/api/super-admin/maintenance', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<MaintenanceStatusResponse>(res);
+}
+
+export async function cancelMaintenance(): Promise<MaintenanceStatusResponse> {
+  const res = await fetch('/api/super-admin/maintenance', {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  return jsonOrThrow<MaintenanceStatusResponse>(res);
 }

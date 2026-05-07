@@ -7,6 +7,7 @@ import { getMe } from '@/lib/auth';
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { AuthProvider } from '@/context/AuthContext';
 import { QueryProvider } from '@/components/providers/QueryProvider';
+import { MaintenanceBanner } from '@/components/maintenance/MaintenanceBanner';
 import { TIMEZONE } from '@/i18n/config';
 import './globals.css';
 
@@ -44,6 +45,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <NextIntlClientProvider locale={locale} messages={messages} timeZone={TIMEZONE}>
           <QueryProvider>
             <AuthProvider initialUser={initialUser} initialToken={token ?? null}>
+              <MaintenanceBanner />
               {children}
             </AuthProvider>
           </QueryProvider>

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Admin\AgencyOnboardingController;
 use App\Http\Controllers\Api\Admin\BusinessEnumController;
 use App\Http\Controllers\Api\Admin\CrossTenantAuditController;
 use App\Http\Controllers\Api\Admin\IntegrationController;
+use App\Http\Controllers\Api\Admin\MaintenanceController;
 use App\Http\Controllers\Api\Admin\ModerationQueueController;
 use App\Http\Controllers\Api\Admin\NotificationTemplateController;
 use App\Http\Controllers\Api\Admin\PlatformSettingController;
@@ -105,4 +106,8 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     Route::post('integrations/{integration}/test', [IntegrationController::class, 'test'])->name('admin.integrations.test');
     Route::get('integrations/{integration}', [IntegrationController::class, 'show'])->name('admin.integrations.show');
     Route::patch('integrations/{integration}', [IntegrationController::class, 'update'])->name('admin.integrations.update');
+
+    Route::get('maintenance', [MaintenanceController::class, 'show'])->name('admin.maintenance.show');
+    Route::post('maintenance', [MaintenanceController::class, 'store'])->name('admin.maintenance.store');
+    Route::delete('maintenance', [MaintenanceController::class, 'destroy'])->name('admin.maintenance.destroy');
 });

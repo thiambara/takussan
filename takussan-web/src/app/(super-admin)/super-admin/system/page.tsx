@@ -28,6 +28,9 @@ export default function SuperAdminSystemPage() {
         <Link href="/super-admin/settings" className={buttonVariants({ className: 'mt-4' })}>
           Ouvrir les paramètres
         </Link>
+        <Link href="/super-admin/system/maintenance" className={buttonVariants({ variant: 'outline', className: 'ml-2 mt-4' })}>
+          Mode maintenance
+        </Link>
       </section>
     </div>
   );

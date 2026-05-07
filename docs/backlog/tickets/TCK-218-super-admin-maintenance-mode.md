@@ -1,7 +1,7 @@
 ---
 id: TCK-218
 title: "Super-admin — Mode maintenance programmé"
-status: todo
+status: review
 phase: P3
 family: applicatif
 estimate: S
@@ -52,27 +52,27 @@ Page simple : section "État courant" + section "Programmer une fenêtre" (date 
 
 ## Delta à produire
 
-- [ ] Migration / store : décision lors de l'implémentation (table dédiée préférable)
-- [ ] Middleware `App\Http\Middleware\MaintenanceMode` (vérifie l'état, retourne 503 si `read_only` mutatif ou `down`)
-- [ ] Service `App\Services\Admin\MaintenanceService`
-- [ ] Controller `Admin\MaintenanceController`
-- [ ] Endpoint public `GET /api/maintenance/status`
-- [ ] Activity log événements
-- [ ] Frontend page `/super-admin/system/maintenance`
-- [ ] Composant global `MaintenanceBanner` monté côté `(public)` et `(dashboard)` (consomme `/api/maintenance/status`)
-- [ ] Page de maintenance multilingue pour le mode `down`
-- [ ] Tests backend : modes `banner`, `read_only`, `down` ; super-admin garde l'accès en `down` ; validation des dates
-- [ ] Tests UI : programmation, annulation, bandeau visible
+- [x] Migration / store : décision lors de l'implémentation (table dédiée préférable)
+- [x] Middleware `App\Http\Middleware\MaintenanceMode` (vérifie l'état, retourne 503 si `read_only` mutatif ou `down`)
+- [x] Service `App\Services\Admin\MaintenanceService`
+- [x] Controller `Admin\MaintenanceController`
+- [x] Endpoint public `GET /api/maintenance/status`
+- [x] Activity log événements
+- [x] Frontend page `/super-admin/system/maintenance`
+- [x] Composant global `MaintenanceBanner` monté côté `(public)` et `(dashboard)` (consomme `/api/maintenance/status`)
+- [x] Page de maintenance multilingue pour le mode `down`
+- [x] Tests backend : modes `banner`, `read_only`, `down` ; super-admin garde l'accès en `down` ; validation des dates
+- [x] Tests UI : programmation, annulation, bandeau visible
 
 ## Critères d'acceptation
 
-- [ ] Mode `down` : un user authentifié non super-admin reçoit 503 sur les routes API et la page de maintenance côté front
-- [ ] Mode `down` : un super-admin continue d'accéder à `/super-admin/*` et `/api/admin/*`
-- [ ] Mode `read_only` : `POST /api/properties` retourne 503 ; `GET /api/properties` retourne 200
-- [ ] Le bandeau apparaît T - 30min avant la fenêtre programmée
-- [ ] Une fenêtre avec `starts_at < now()` est refusée 422
-- [ ] Un agency_admin reçoit 403 sur `POST /api/admin/maintenance`
-- [ ] La fenêtre annulée est enregistrée dans l'audit
+- [x] Mode `down` : un user authentifié non super-admin reçoit 503 sur les routes API et la page de maintenance côté front
+- [x] Mode `down` : un super-admin continue d'accéder à `/super-admin/*` et `/api/admin/*`
+- [x] Mode `read_only` : `POST /api/properties` retourne 503 ; `GET /api/properties` retourne 200
+- [x] Le bandeau apparaît T - 30min avant la fenêtre programmée
+- [x] Une fenêtre avec `starts_at < now()` est refusée 422
+- [x] Un agency_admin reçoit 403 sur `POST /api/admin/maintenance`
+- [x] La fenêtre annulée est enregistrée dans l'audit
 
 ## Hors périmètre
 
@@ -82,4 +82,6 @@ Page simple : section "État courant" + section "Programmer une fenêtre" (date 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Store dédié `maintenance_windows` retenu pour historiser les fenêtres et les annulations plutôt que de surcharger `settings`.
+- Le middleware API exclut toujours `/api/admin/*` et `/api/maintenance/status`, afin que le super-admin garde le contrôle pendant un mode `down`.
+- Côté front, le composant global est monté au root layout ; il redirige les non-super-admin vers `/maintenance` pendant un `down`.
