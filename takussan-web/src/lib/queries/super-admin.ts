@@ -51,6 +51,13 @@ import type {
   PlatformPayoutsResponse,
   PlatformPayoutResponse,
   PlatformPayoutClosePeriodResponse,
+  GrowthResponse,
+  RevenueResponse,
+  CohortsResponse,
+  FunnelResponse,
+  GrowthMetric,
+  ReportGranularity,
+  ReportPeriod,
 } from '@/types/super-admin';
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
@@ -937,4 +944,56 @@ export async function fetchMyPlatformPayouts(): Promise<PlatformPayoutsResponse>
   qs.set('per_page', '20');
   const res = await fetch(`/api/me/payouts?${qs.toString()}`, { credentials: 'include' });
   return jsonOrThrow<PlatformPayoutsResponse>(res);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TCK-227 — Cross-tenant reporting
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function fetchAdminReportGrowth(params: {
+  metric: GrowthMetric;
+  period?: ReportPeriod;
+  granularity?: ReportGranularity;
+}): Promise<GrowthResponse> {
+  const qs = new URLSearchParams();
+  qs.set('metric', params.metric);
+  if (params.period) qs.set('period', params.period);
+  if (params.granularity) qs.set('granularity', params.granularity);
+  const res = await fetch(`/api/super-admin/reports/growth?${qs.toString()}`, { credentials: 'include' });
+  return jsonOrThrow<GrowthResponse>(res);
+}
+
+export async function fetchAdminReportRevenue(params: {
+  period?: ReportPeriod;
+  granularity?: ReportGranularity;
+} = {}): Promise<RevenueResponse> {
+  const qs = new URLSearchParams();
+  if (params.period) qs.set('period', params.period);
+  if (params.granularity) qs.set('granularity', params.granularity);
+  const res = await fetch(`/api/super-admin/reports/revenue?${qs.toString()}`, { credentials: 'include' });
+  return jsonOrThrow<RevenueResponse>(res);
+}
+
+export async function fetchAdminReportCohorts(params: { depth?: number } = {}): Promise<CohortsResponse> {
+  const qs = new URLSearchParams();
+  if (params.depth) qs.set('depth', String(params.depth));
+  const res = await fetch(`/api/super-admin/reports/cohorts?${qs.toString()}`, { credentials: 'include' });
+  return jsonOrThrow<CohortsResponse>(res);
+}
+
+export async function fetchAdminReportFunnel(params: { period?: ReportPeriod } = {}): Promise<FunnelResponse> {
+  const qs = new URLSearchParams();
+  if (params.period) qs.set('period', params.period);
+  const res = await fetch(`/api/super-admin/reports/funnel?${qs.toString()}`, { credentials: 'include' });
+  return jsonOrThrow<FunnelResponse>(res);
+}
+
+export async function exportAdminReport(report: 'growth' | 'revenue' | 'cohorts' | 'funnel', params: Record<string, string | number>): Promise<unknown> {
+  const qs = new URLSearchParams();
+  qs.set('format', 'csv');
+  for (const [key, value] of Object.entries(params)) {
+    qs.set(key, String(value));
+  }
+  const res = await fetch(`/api/super-admin/reports/${report}/export?${qs.toString()}`, { credentials: 'include' });
+  return jsonOrThrow<unknown>(res);
 }

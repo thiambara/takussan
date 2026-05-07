@@ -1,7 +1,7 @@
 ---
 id: TCK-227
 title: "Super-admin — Reporting plateforme cross-tenant (croissance, MRR, cohortes)"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: L
@@ -89,4 +89,8 @@ Page `/super-admin/reports` avec navigation latérale entre les 4 vues. Chaque v
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Cache invalidation : version-based via clé `reporting:cache_version` bumpée à chaque `Agency::created` (cf. `AppServiceProvider::boot`). Toutes les clés reporting embarquent `…:v{N}` dans leur nom — un bump rend les anciennes cold-miss sans avoir à enumérer les clés.
+- Endpoints non audités en lecture (volume) ; seul l'export logge `super_admin_report_exported`.
+- Les exports >10 000 lignes basculent en async via `Reporting\GenerateReportExport`. Sous le seuil, le payload est retourné en ligne (statut `ready`).
+- Cohort sizing utilise `withTrashed()` pour ne pas exclure les agences soft-deletées du dénominateur.
+- Charts sans dépendance externe (HTML/CSS + Tailwind) — assez expressifs pour la décision P2 sans introduire un lib chart (out of scope).

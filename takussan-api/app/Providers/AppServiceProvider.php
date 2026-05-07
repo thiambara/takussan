@@ -28,6 +28,7 @@ use App\Listeners\Payments\LemonSqueezyEventListener;
 use App\Listeners\Permissions\NotifyDelegationActivated;
 use App\Listeners\Permissions\NotifyDelegationExpired;
 use App\Listeners\Permissions\NotifyDelegationRevoked;
+use App\Models\Agency;
 use App\Models\BookingPayment;
 use App\Models\Conversation;
 use App\Models\Favorite;
@@ -73,6 +74,7 @@ use App\Services\Notifications\Sms\OrangeOAuthTokenCache;
 use App\Services\Notifications\Sms\QuietHoursGuard;
 use App\Services\Notifications\Sms\SmsDriverInterface;
 use App\Services\Notifications\Sms\SmsRouterDriver;
+use App\Services\Reporting\PlatformReportingService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -183,6 +185,10 @@ class AppServiceProvider extends ServiceProvider
         User::observe(UserObserver::class);
         BookingPayment::observe(PaymentPlatformFeeObserver::class);
         LeasePayment::observe(PaymentPlatformFeeObserver::class);
+
+        // TCK-227 — bump the reporting cache version on agency creation so
+        // every cached growth/revenue/cohort key cold-misses next call.
+        Agency::created(fn () => PlatformReportingService::bumpCacheVersion());
         Activity::created(fn (Activity $activity) => app(DispatchAlerts::class)->handle($activity));
         Event::listen(ScheduledTaskFinished::class, RecordScheduledTaskRun::class);
 

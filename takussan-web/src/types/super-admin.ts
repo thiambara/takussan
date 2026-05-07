@@ -650,6 +650,41 @@ export type ScheduledTask = {
 
 export type SchedulerResponse = { data: ScheduledTask[] };
 
+// TCK-227 — Cross-tenant reporting.
+export type ReportPeriod = '30d' | '90d' | '3m' | '6m' | '12m';
+export type ReportGranularity = 'day' | 'week' | 'month';
+export type GrowthMetric = 'agencies' | 'users' | 'listings';
+
+export type ReportEnvelope<TRow> = {
+  rows: TRow[];
+  totals: Record<string, number | string | null>;
+  period: { range: string; granularity: string };
+  generated_at: string;
+};
+
+export type GrowthRow = {
+  bucket: string;
+  starts_at: string;
+  ends_at: string;
+  count: number;
+};
+
+export type RevenueRow = GrowthRow & {
+  mrr: number;
+  arr: number;
+  active_subscriptions: number;
+};
+
+export type CohortCell = { month: number; active: number | null; rate: number | null };
+export type CohortRow = { cohort: string; cohort_size: number; cells: CohortCell[] };
+
+export type FunnelRow = { stage: string; count: number };
+
+export type GrowthResponse = { data: ReportEnvelope<GrowthRow> };
+export type RevenueResponse = { data: ReportEnvelope<RevenueRow> };
+export type CohortsResponse = { data: ReportEnvelope<CohortRow> };
+export type FunnelResponse = { data: ReportEnvelope<FunnelRow> };
+
 // TCK-223 — Platform → agency payouts.
 export type PlatformPayoutStatus = 'pending' | 'approved' | 'processing' | 'paid' | 'failed' | 'cancelled';
 

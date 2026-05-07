@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\Admin\NotificationTemplateController;
 use App\Http\Controllers\Api\Admin\PlanController;
 use App\Http\Controllers\Api\Admin\PlatformPayoutController;
 use App\Http\Controllers\Api\Admin\PlatformSettingController;
+use App\Http\Controllers\Api\Admin\ReportingController;
 use App\Http\Controllers\Api\Admin\SchedulerController;
 use App\Http\Controllers\Api\Admin\SystemMetricsController;
 use App\Http\Controllers\Api\Admin\UserDetailController;
@@ -163,6 +164,13 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     Route::post('announcements', [AnnouncementController::class, 'store'])->name('admin.announcements.store');
     Route::patch('announcements/{announcement}', [AnnouncementController::class, 'update'])->name('admin.announcements.update');
     Route::post('announcements/{announcement}/deactivate', [AnnouncementController::class, 'deactivate'])->name('admin.announcements.deactivate');
+
+    // TCK-227 — Cross-tenant reporting (read-only super-admin).
+    Route::get('reports/growth', [ReportingController::class, 'growth'])->name('admin.reports.growth');
+    Route::get('reports/revenue', [ReportingController::class, 'revenue'])->name('admin.reports.revenue');
+    Route::get('reports/cohorts', [ReportingController::class, 'cohorts'])->name('admin.reports.cohorts');
+    Route::get('reports/funnel', [ReportingController::class, 'funnel'])->name('admin.reports.funnel');
+    Route::get('reports/{report}/export', [ReportingController::class, 'export'])->name('admin.reports.export');
 
     // TCK-223 — Platform → agency payouts. close-period must come before
     // {payout} bindings to avoid the slug being interpreted as an id.
