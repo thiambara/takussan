@@ -12,6 +12,7 @@ use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\Currency;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
+use App\Services\Billing\QuotaResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -146,6 +147,7 @@ class AgencyController extends Controller
     public function addAgent(Request $request, Agency $agency): JsonResponse
     {
         $this->authorizeAdmin($request, $agency);
+        app(QuotaResolver::class)->assertCanAddAgent($agency);
 
         $data = $request->validate([
             'user_id' => ['nullable', 'integer', 'exists:users,id', 'required_without:email'],

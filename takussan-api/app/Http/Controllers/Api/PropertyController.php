@@ -15,6 +15,7 @@ use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RentPeriod;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Billing\QuotaResolver;
 use App\Services\Property\PropertyBulkArchiveService;
 use App\Services\Property\PropertyDuplicationService;
 use Illuminate\Http\JsonResponse;
@@ -101,6 +102,10 @@ class PropertyController extends Controller
 
         if (! $request->user()->hasRole(['admin', 'super_admin'])) {
             $data['agency_id'] = $request->user()->agency_id;
+        }
+
+        if (! empty($data['agency_id'])) {
+            app(QuotaResolver::class)->assertCanCreateActiveListing((int) $data['agency_id']);
         }
 
         try {

@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\Billing\ProcessTrialExpirations;
 use App\Jobs\Booking\ExpirePendingBookingsJob;
 use App\Jobs\EscalateUrgentMaintenanceJob;
 use App\Jobs\ExpireBookings;
@@ -26,6 +27,7 @@ Artisan::command('inspire', function () {
 Schedule::job(new ExpirePendingBookingsJob)->everyFifteenMinutes()->withoutOverlapping();
 Schedule::job(new ExpireBookings)->hourly()->withoutOverlapping();
 Schedule::job(new ApplyLateFeesJob)->dailyAt('02:00')->withoutOverlapping();
+Schedule::job(new ProcessTrialExpirations)->dailyAt('02:15')->withoutOverlapping();
 // TCK-090 — Closes leases whose effective_date has passed AND whose
 // penalty invoice is settled. Idempotent: unpaid penalties are skipped
 // silently and reprocessed on the next sweep.

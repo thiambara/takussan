@@ -50,6 +50,7 @@ function buildAdminItems(
   items.push({ href: '/admin/users', label: 'Utilisateurs', icon: Users });
   items.push({ href: '/admin/agency', label: 'Agence', icon: Briefcase });
   items.push({ href: '/admin/agency/kyc', label: 'KYC agence', icon: ShieldCheck });
+  items.push({ href: '/admin/agency/billing', label: 'Abonnement', icon: CreditCard });
   items.push({ href: '/admin/finances', label: 'Finances', icon: CreditCard });
   if (isSuperAdmin(user.roles)) {
     items.push({

@@ -6,6 +6,10 @@ import type {
   AdminAgencyTeamResponse,
   KycDossierResponse,
   KycDossiersResponse,
+  PlanPayload,
+  PlanResponse,
+  PlansResponse,
+  AgencySubscriptionResponse,
   AdminPropertiesResponse,
   AdminModerationResponse,
   BusinessEnumResponse,
@@ -167,6 +171,77 @@ export async function postKycReview(
     body: action === 'reject' ? JSON.stringify({ reason }) : undefined,
   });
   return jsonOrThrow<KycDossierResponse>(res);
+}
+
+export async function fetchAdminPlans(): Promise<PlansResponse> {
+  const qs = new URLSearchParams();
+  qs.set('fields[plans]', 'id,code,label,description,monthly_price_xof,platform_fee_pct,trial_days,limits,is_active,sort_order,created_at,updated_at');
+  qs.set('sort', 'sort_order');
+  const res = await fetch(`/api/super-admin/plans?${qs.toString()}`, { credentials: 'include' });
+  return jsonOrThrow<PlansResponse>(res);
+}
+
+export async function createAdminPlan(payload: Required<Pick<PlanPayload, 'code' | 'label' | 'monthly_price_xof' | 'platform_fee_pct'>> & PlanPayload): Promise<PlanResponse> {
+  const res = await fetch('/api/super-admin/plans', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<PlanResponse>(res);
+}
+
+export async function updateAdminPlan(planId: number, payload: PlanPayload): Promise<PlanResponse> {
+  const res = await fetch(`/api/super-admin/plans/${planId}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<PlanResponse>(res);
+}
+
+export async function deleteAdminPlan(planId: number): Promise<unknown> {
+  const res = await fetch(`/api/super-admin/plans/${planId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  return jsonOrThrow<unknown>(res);
+}
+
+export async function fetchAdminAgencySubscription(agencyId: number): Promise<AgencySubscriptionResponse> {
+  const qs = new URLSearchParams();
+  qs.set('fields[agency_subscriptions]', 'id,agency_id,plan_id,status,trial_ends_at,current_period_start,current_period_end,ended_at,platform_fee_pct_override,limits_override,created_at,updated_at');
+  qs.set('include', 'plan');
+  const res = await fetch(`/api/super-admin/agencies/${agencyId}/subscription?${qs.toString()}`, {
+    credentials: 'include',
+  });
+  return jsonOrThrow<AgencySubscriptionResponse>(res);
+}
+
+export async function assignAdminAgencySubscription(
+  agencyId: number,
+  payload: {
+    plan_id: number;
+    trial_ends_at?: string | null;
+    overrides?: { platform_fee_pct?: number | null; limits?: Record<string, number> };
+  },
+): Promise<AgencySubscriptionResponse> {
+  const res = await fetch(`/api/super-admin/agencies/${agencyId}/subscription`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<AgencySubscriptionResponse>(res);
+}
+
+export async function cancelAdminAgencySubscription(agencyId: number): Promise<AgencySubscriptionResponse> {
+  const res = await fetch(`/api/super-admin/agencies/${agencyId}/subscription/cancel`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  return jsonOrThrow<AgencySubscriptionResponse>(res);
 }
 
 export async function postAgencyAction(

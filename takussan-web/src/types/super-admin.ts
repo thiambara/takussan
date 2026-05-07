@@ -85,6 +85,56 @@ export type KycDossiersResponse = {
   };
 };
 
+export type Plan = {
+  id: number;
+  code: string;
+  label: string;
+  description: string | null;
+  monthly_price_xof: number;
+  platform_fee_pct: number;
+  trial_days: number;
+  limits: Record<string, number>;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type PlansResponse = { data: Plan[] };
+export type PlanResponse = { data: Plan };
+
+export type PlanPayload = {
+  code?: string;
+  label?: string;
+  description?: string | null;
+  monthly_price_xof?: number;
+  platform_fee_pct?: number;
+  trial_days?: number;
+  limits?: Record<string, number>;
+  is_active?: boolean;
+  sort_order?: number;
+};
+
+export type AgencySubscription = {
+  id: number;
+  agency_id: number;
+  plan_id: number;
+  status: 'trialing' | 'active' | 'past_due' | 'suspended' | 'ended';
+  trial_ends_at: string | null;
+  current_period_start: string;
+  current_period_end: string;
+  ended_at: string | null;
+  platform_fee_pct_override: number | null;
+  limits_override: Record<string, number>;
+  effective_platform_fee_pct: number;
+  effective_limits: Record<string, number>;
+  plan?: Plan;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type AgencySubscriptionResponse = { data: AgencySubscription | null };
+
 export type AdminAgencyHealth = {
   active_properties: number;
   properties_in_moderation: number;

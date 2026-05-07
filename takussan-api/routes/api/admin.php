@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Admin\AgencyDetailController;
 use App\Http\Controllers\Api\Admin\AgencyModerationController;
 use App\Http\Controllers\Api\Admin\AgencyOnboardingController;
+use App\Http\Controllers\Api\Admin\AgencySubscriptionController;
 use App\Http\Controllers\Api\Admin\AlertRuleController;
 use App\Http\Controllers\Api\Admin\AnnouncementController;
 use App\Http\Controllers\Api\Admin\BusinessEnumController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\Api\Admin\KycController;
 use App\Http\Controllers\Api\Admin\MaintenanceController;
 use App\Http\Controllers\Api\Admin\ModerationQueueController;
 use App\Http\Controllers\Api\Admin\NotificationTemplateController;
+use App\Http\Controllers\Api\Admin\PlanController;
 use App\Http\Controllers\Api\Admin\PlatformSettingController;
 use App\Http\Controllers\Api\Admin\SchedulerController;
 use App\Http\Controllers\Api\Admin\SystemMetricsController;
@@ -52,6 +54,12 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
             ->name('admin.agencies.properties');
         Route::get('{agency}/kyc', [KycController::class, 'agency'])
             ->name('admin.agencies.kyc.show');
+        Route::get('{agency}/subscription', [AgencySubscriptionController::class, 'show'])
+            ->name('admin.agencies.subscription.show');
+        Route::post('{agency}/subscription', [AgencySubscriptionController::class, 'store'])
+            ->name('admin.agencies.subscription.store');
+        Route::post('{agency}/subscription/cancel', [AgencySubscriptionController::class, 'cancel'])
+            ->name('admin.agencies.subscription.cancel');
         Route::post('{agency}/verify', [AgencyModerationController::class, 'verify'])
             ->name('admin.agencies.verify');
         Route::post('{agency}/suspend', [AgencyModerationController::class, 'suspend'])
@@ -115,6 +123,11 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     Route::post('enums/{key}/values', [BusinessEnumController::class, 'storeValue'])->name('admin.enums.values.store');
     Route::patch('enums/{key}/values/{value}', [BusinessEnumController::class, 'updateValue'])->name('admin.enums.values.update');
     Route::delete('enums/{key}/values/{value}', [BusinessEnumController::class, 'deactivateValue'])->name('admin.enums.values.destroy');
+
+    Route::get('plans', [PlanController::class, 'index'])->name('admin.plans.index');
+    Route::post('plans', [PlanController::class, 'store'])->name('admin.plans.store');
+    Route::patch('plans/{plan}', [PlanController::class, 'update'])->name('admin.plans.update');
+    Route::delete('plans/{plan}', [PlanController::class, 'destroy'])->name('admin.plans.destroy');
 
     Route::get('notification-templates', [NotificationTemplateController::class, 'index'])->name('admin.notification-templates.index');
     Route::get('notification-templates/{event}/{channel}', [NotificationTemplateController::class, 'show'])->name('admin.notification-templates.show');

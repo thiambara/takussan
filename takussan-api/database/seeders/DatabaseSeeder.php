@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use Database\Seeders\System\PlanSeeder;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -11,6 +12,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call(PlanSeeder::class);
         $this->call(YearOfActivitySeeder::class);
     }
 }

@@ -1,7 +1,7 @@
 ---
 id: TCK-222
 title: "Super-admin — Plans & abonnements plateforme (catalogue + assignation par agence)"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: L
@@ -94,4 +94,6 @@ Page catalogue super-admin avec tableau des plans (CRUD inline simple). Sur la f
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+La contrainte "une souscription ouverte par agence" est appliquée par le service sous transaction et par un index partiel sur SQLite/PostgreSQL ; MySQL conserve l'index de recherche `(agency_id, ended_at)` car il ne supporte pas le même SQL partiel.
+
+Sans intégration paiement d'abonnement dans le scope, les trials expirés basculent vers `active` dans le job quotidien.

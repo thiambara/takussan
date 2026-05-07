@@ -30,6 +30,7 @@ import {
   fetchAdminAgencyTeam,
   postAgencyAction,
 } from '@/lib/queries/super-admin';
+import { AdminAgencySubscriptionPanel } from '@/components/billing/AdminAgencySubscriptionPanel';
 import { KycDossierTimeline, KycReviewPanel } from '@/components/kyc/kyc-components';
 import type {
   AdminAgencyDetail,
@@ -41,7 +42,7 @@ import type {
 import { ConfirmActionDialog } from './ConfirmActionDialog';
 
 type Action = 'verify' | 'suspend' | 'unverify';
-type Tab = 'kyc' | 'team' | 'properties' | 'transactions';
+type Tab = 'kyc' | 'subscription' | 'team' | 'properties' | 'transactions';
 
 const ACTION_META: Record<Action, { title: string; description: string; phrase: string; label: string; destructive?: boolean }> = {
   verify: {
@@ -135,6 +136,9 @@ export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
         <TabButton active={activeTab === 'kyc'} onClick={() => setActiveTab('kyc')} icon={ShieldCheck}>
           KYC
         </TabButton>
+        <TabButton active={activeTab === 'subscription'} onClick={() => setActiveTab('subscription')} icon={CreditCard}>
+          Abonnement
+        </TabButton>
         <TabButton active={activeTab === 'team'} onClick={() => setActiveTab('team')} icon={Users}>
           Équipe
         </TabButton>
@@ -148,6 +152,9 @@ export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
 
       {activeTab === 'kyc' ? (
         <AgencyKycTab dossier={kycQuery.data?.data} loading={kycQuery.isLoading} agencyId={agencyId} />
+      ) : null}
+      {activeTab === 'subscription' ? (
+        <AdminAgencySubscriptionPanel agencyId={agencyId} />
       ) : null}
       {activeTab === 'team' ? (
         <AgencyTeamTab members={teamQuery.data?.data ?? []} loading={teamQuery.isLoading} />
