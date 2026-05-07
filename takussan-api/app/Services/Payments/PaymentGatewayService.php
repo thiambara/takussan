@@ -11,6 +11,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Integration;
 use App\Models\Invoice;
 use App\Models\LeasePayment;
+use App\Services\Admin\PlatformSettingService;
 use App\Services\Payments\Drivers\LemonSqueezyDriver;
 use App\Services\Payments\Drivers\OrangeMoneyDriver;
 use App\Services\Payments\Drivers\WaveDriver;
@@ -424,6 +425,6 @@ class PaymentGatewayService
             }
         }
 
-        return 'XOF';
+        return app(PlatformSettingService::class)->getValue('currency.default');
     }
 }

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Admin\BusinessEnumController;
 use App\Http\Controllers\Api\Admin\CrossTenantAuditController;
 use App\Http\Controllers\Api\Admin\ModerationQueueController;
 use App\Http\Controllers\Api\Admin\NotificationTemplateController;
+use App\Http\Controllers\Api\Admin\PlatformSettingController;
 use App\Http\Controllers\Api\Admin\SystemMetricsController;
 use App\Http\Controllers\Api\Admin\UserDetailController;
 use App\Http\Controllers\Api\Admin\UserImpersonationController;
@@ -93,4 +94,7 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     Route::get('notification-templates/{event}/{channel}', [NotificationTemplateController::class, 'show'])->name('admin.notification-templates.show');
     Route::patch('notification-templates/{event}/{channel}', [NotificationTemplateController::class, 'update'])->name('admin.notification-templates.update');
     Route::post('notification-templates/{event}/{channel}/preview', [NotificationTemplateController::class, 'preview'])->name('admin.notification-templates.preview');
+
+    Route::get('settings', [PlatformSettingController::class, 'index'])->name('admin.settings.index');
+    Route::patch('settings', [PlatformSettingController::class, 'bulkUpdate'])->name('admin.settings.update');
 });

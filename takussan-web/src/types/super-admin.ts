@@ -301,6 +301,31 @@ export type NotificationTemplatePreviewResponse = {
   };
 };
 
+export type PlatformSettingCategory = 'currency' | 'format' | 'transaction' | 'limits';
+export type PlatformSettingType = 'select' | 'multi_select' | 'percentage' | 'integer';
+
+export type PlatformSetting = {
+  key: string;
+  category: PlatformSettingCategory;
+  label: string;
+  description: string;
+  type: PlatformSettingType;
+  value: string | number | string[];
+  default_value: string | number | string[];
+  options: string[] | null;
+  public: boolean;
+  requires_restart: boolean;
+  updated_at: string | null;
+  updated_by: {
+    id: number;
+    name: string;
+    email: string;
+  } | null;
+};
+
+export type PlatformSettingsGrouped = Partial<Record<PlatformSettingCategory, PlatformSetting[]>>;
+export type PlatformSettingsResponse = { data: PlatformSettingsGrouped };
+
 /**
  * TCK-132 — row shape for the cross-tenant properties table. Only fields the
  * UI actually renders, fed by `fields[properties]=...&include=address,agency`

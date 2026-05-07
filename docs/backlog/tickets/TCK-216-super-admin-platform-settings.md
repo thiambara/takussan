@@ -1,7 +1,7 @@
 ---
 id: TCK-216
 title: "Super-admin — Paramètres globaux plateforme & devises"
-status: todo
+status: done
 phase: P2
 family: applicatif
 estimate: M
@@ -52,27 +52,27 @@ Page divisée en sections (Devises, Formats & i18n, Frais plateforme, Limites te
 
 ## Delta à produire
 
-- [ ] Migration : ajustement / vérification de la table `settings` (cf. modèle existant)
-- [ ] Constante `App\Domain\Settings\EditablePlatformSettings` listant les clés autorisées + schéma de validation
-- [ ] Service `App\Services\Admin\PlatformSettingService` (read, write, cache invalidation)
-- [ ] Controller `Admin\PlatformSettingController` (`index`, `bulkUpdate`)
-- [ ] Endpoint public `GET /api/settings/public` (lecture cacheable, sous-liste non sensible)
-- [ ] Adaptation des consommateurs internes (devise, format, frais) pour passer par le service plutôt que la config hardcoded
-- [ ] Activity log `super_admin_setting_updated`
-- [ ] Frontend page `/super-admin/settings`
-- [ ] Composants : `SettingsSection`, `SettingField` (inline edit avec validation côté client miroir)
-- [ ] Tests backend : whitelist, validation, cache invalidation, 403 hors super-admin, XOF non désactivable
-- [ ] Tests UI : édition section, persistance, refresh
+- [x] Migration : ajustement / vérification de la table `settings` (cf. modèle existant)
+- [x] Constante `App\Domain\Settings\EditablePlatformSettings` listant les clés autorisées + schéma de validation
+- [x] Service `App\Services\Admin\PlatformSettingService` (read, write, cache invalidation)
+- [x] Controller `Admin\PlatformSettingController` (`index`, `bulkUpdate`)
+- [x] Endpoint public `GET /api/settings/public` (lecture cacheable, sous-liste non sensible)
+- [x] Adaptation des consommateurs internes (devise, format, frais) pour passer par le service plutôt que la config hardcoded
+- [x] Activity log `super_admin_setting_updated`
+- [x] Frontend page `/super-admin/settings`
+- [x] Composants : `SettingsSection`, `SettingField` (inline edit avec validation côté client miroir)
+- [x] Tests backend : whitelist, validation, cache invalidation, 403 hors super-admin, XOF non désactivable
+- [x] Tests UI : édition section, persistance, refresh
 
 ## Critères d'acceptation
 
-- [ ] `PATCH /api/admin/settings` met à jour les clés autorisées et invalide le cache applicatif
-- [ ] Une clé hors whitelist retourne 422 avec un message explicite
-- [ ] Désactiver XOF retourne 422
-- [ ] Le frais plateforme accepte uniquement [0.00 ; 100.00]
-- [ ] `GET /api/settings/public` ne retourne aucune clé sensible (pas de quota d'agence, pas de seuils internes)
-- [ ] Un agency_admin reçoit 403
-- [ ] Chaque mutation produit une entrée d'audit avec diff `old_value` → `new_value`
+- [x] `PATCH /api/admin/settings` met à jour les clés autorisées et invalide le cache applicatif
+- [x] Une clé hors whitelist retourne 422 avec un message explicite
+- [x] Désactiver XOF retourne 422
+- [x] Le frais plateforme accepte uniquement [0.00 ; 100.00]
+- [x] `GET /api/settings/public` ne retourne aucune clé sensible (pas de quota d'agence, pas de seuils internes)
+- [x] Un agency_admin reçoit 403
+- [x] Chaque mutation produit une entrée d'audit avec diff `old_value` → `new_value`
 
 ## Hors périmètre
 
@@ -82,4 +82,6 @@ Page divisée en sections (Devises, Formats & i18n, Frais plateforme, Limites te
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- La migration existante `2026_04_17_160027_create_settings_table.php` est déjà conforme au modèle `Setting` (clé, valeur JSON, scope global/agence, `updated_by_id`, unique composé) ; aucun ajustement de schéma n'était nécessaire.
+- `GET /api/settings/public` renvoie les clés publiques sous forme imbriquée (`currency.default`, `format.date`, etc.) et exclut les frais/limites internes.
+- Le fallback devise de `PaymentGatewayService` passe désormais par `PlatformSettingService::getValue('currency.default')` quand ni le paiement ni l'agence ne portent une devise.

@@ -13,6 +13,7 @@ import type {
   NotificationTemplatePreviewResponse,
   NotificationTemplateResponse,
   NotificationTemplatesResponse,
+  PlatformSettingsResponse,
   ModerationDecision,
   ModerationItemStatus,
   ModerationItemType,
@@ -447,4 +448,21 @@ export async function previewNotificationTemplate(
     body: JSON.stringify({ locale }),
   });
   return jsonOrThrow<NotificationTemplatePreviewResponse>(res);
+}
+
+export async function fetchPlatformSettings(): Promise<PlatformSettingsResponse> {
+  const res = await fetch('/api/super-admin/settings', { credentials: 'include' });
+  return jsonOrThrow<PlatformSettingsResponse>(res);
+}
+
+export async function patchPlatformSettings(
+  payload: Record<string, string | number | string[]>,
+): Promise<PlatformSettingsResponse> {
+  const res = await fetch('/api/super-admin/settings', {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<PlatformSettingsResponse>(res);
 }

@@ -132,7 +132,6 @@ _(vide — TCK-146 en review)_
 
 > Extension de la console super-admin livrée par TCK-144/145/132/115/116. Couvre les capacités plateforme attendues d'un super-admin SaaS multi-tenant : gouvernance des agences (détail, onboarding), support utilisateur cross-tenant, modération unifiée, référentiels globaux (tags, enums), templates de notification, paramètres plateforme, intégrations tierces, mode maintenance, feature flags, alertes sur actions sensibles. Les sujets nécessitant une extension de spec préalable (KYC documentaire, plans / quotas, payouts plateforme, broadcast in-app, RGPD export user, healthcheck UI) ne sont **pas** ticketés ici — un PR sur `features.md` doit les introduire d'abord.
 
-- [TCK-216](tickets/TCK-216-super-admin-platform-settings.md) — Super-admin — Paramètres globaux plateforme & devises `M · P2 · applicatif`
 - [TCK-217](tickets/TCK-217-super-admin-third-party-integrations.md) — Super-admin — Intégrations tierces (API keys, webhooks) `M · P2 · applicatif`
 - [TCK-218](tickets/TCK-218-super-admin-maintenance-mode.md) — Super-admin — Mode maintenance programmé `S · P3 · applicatif`
 - [TCK-219](tickets/TCK-219-super-admin-feature-flags.md) — Super-admin — Feature flags applicatifs `M · P3 · applicatif`
@@ -467,6 +466,7 @@ _(vide)_
 
 ### Vague 23 — Console super-admin
 
+- [TCK-216](tickets/TCK-216-super-admin-platform-settings.md) — Super-admin — Paramètres globaux plateforme & devises `M · P2 · applicatif`
 - [TCK-210](tickets/TCK-210-super-admin-user-detail.md) — Super-admin — Détail utilisateur cross-tenant `/super-admin/users/[id]` `M · P1 · front`
 - [TCK-211](tickets/TCK-211-super-admin-user-support-actions.md) — Super-admin — Actions support utilisateur (reset password, unlock, 2FA, sessions) `M · P1 · applicatif`
 
