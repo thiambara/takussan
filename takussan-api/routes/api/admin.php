@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Admin\AgencyModerationController;
 use App\Http\Controllers\Api\Admin\AgencyOnboardingController;
 use App\Http\Controllers\Api\Admin\BusinessEnumController;
 use App\Http\Controllers\Api\Admin\CrossTenantAuditController;
+use App\Http\Controllers\Api\Admin\FeatureFlagController;
 use App\Http\Controllers\Api\Admin\IntegrationController;
 use App\Http\Controllers\Api\Admin\MaintenanceController;
 use App\Http\Controllers\Api\Admin\ModerationQueueController;
@@ -110,4 +111,8 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     Route::get('maintenance', [MaintenanceController::class, 'show'])->name('admin.maintenance.show');
     Route::post('maintenance', [MaintenanceController::class, 'store'])->name('admin.maintenance.store');
     Route::delete('maintenance', [MaintenanceController::class, 'destroy'])->name('admin.maintenance.destroy');
+
+    Route::get('feature-flags', [FeatureFlagController::class, 'index'])->name('admin.feature-flags.index');
+    Route::patch('feature-flags/{key}', [FeatureFlagController::class, 'update'])->name('admin.feature-flags.update');
+    Route::post('feature-flags/{key}/override', [FeatureFlagController::class, 'override'])->name('admin.feature-flags.override');
 });

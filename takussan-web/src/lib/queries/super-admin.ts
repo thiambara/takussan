@@ -22,6 +22,7 @@ import type {
   MaintenanceStatusResponse,
   MaintenanceMode,
   MaintenanceSeverity,
+  AdminFeatureFlagsResponse,
   ModerationDecision,
   ModerationItemStatus,
   ModerationItemType,
@@ -539,4 +540,32 @@ export async function cancelMaintenance(): Promise<MaintenanceStatusResponse> {
     credentials: 'include',
   });
   return jsonOrThrow<MaintenanceStatusResponse>(res);
+}
+
+export async function fetchAdminFeatureFlags(): Promise<AdminFeatureFlagsResponse> {
+  const res = await fetch('/api/super-admin/feature-flags', { credentials: 'include' });
+  return jsonOrThrow<AdminFeatureFlagsResponse>(res);
+}
+
+export async function patchAdminFeatureFlag(
+  key: string,
+  payload: { enabled: boolean; segments?: { roles?: string[]; agency_ids?: number[]; rollout_percentage?: number } },
+): Promise<AdminFeatureFlagsResponse> {
+  const res = await fetch(`/api/super-admin/feature-flags/${key}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<AdminFeatureFlagsResponse>(res);
+}
+
+export async function overrideAdminFeatureFlag(key: string, enabled: boolean): Promise<{ data: { key: string; enabled: boolean } }> {
+  const res = await fetch(`/api/super-admin/feature-flags/${key}/override`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
+  });
+  return jsonOrThrow<{ data: { key: string; enabled: boolean } }>(res);
 }

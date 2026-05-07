@@ -403,6 +403,23 @@ export type MaintenanceStatus = {
 
 export type MaintenanceStatusResponse = { data: MaintenanceStatus };
 
+export type AdminFeatureFlag = {
+  key: string;
+  label: string;
+  description: string;
+  client_visible: boolean;
+  enabled: boolean;
+  segments: {
+    roles?: string[];
+    agency_ids?: number[];
+    rollout_percentage?: number;
+  };
+  updated_at: string | null;
+};
+
+export type AdminFeatureFlagsResponse = { data: AdminFeatureFlag[] };
+export type FeatureFlagsMeResponse = { data: Record<string, boolean> };
+
 /**
  * TCK-132 — row shape for the cross-tenant properties table. Only fields the
  * UI actually renders, fed by `fields[properties]=...&include=address,agency`

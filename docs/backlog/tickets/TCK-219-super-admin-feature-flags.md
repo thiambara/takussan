@@ -1,7 +1,7 @@
 ---
 id: TCK-219
 title: "Super-admin — Feature flags applicatifs"
-status: todo
+status: review
 phase: P3
 family: applicatif
 estimate: M
@@ -51,27 +51,27 @@ Liste tabulaire avec toggle global et bouton "Configurer" par flag. Modale de co
 
 ## Delta à produire
 
-- [ ] Migration : table `feature_flags`
-- [ ] Catalogue déclaratif `App\Domain\Features\Flag` (énumération + métadonnées)
-- [ ] Service `App\Services\Features\FeatureFlagEvaluator` (évaluation déterministe + cache)
-- [ ] Helper / facade `Feature::for($user)->isEnabled('key')`
-- [ ] Controller `Admin\FeatureFlagController`
-- [ ] Endpoint authentifié `GET /api/feature-flags/me`
-- [ ] Hook frontend `useFeatureFlag('key')` + provider qui charge `/api/feature-flags/me` au boot
-- [ ] Activity log événement
-- [ ] Frontend page `/super-admin/feature-flags`
-- [ ] Composants : `FeatureFlagTable`, `FeatureFlagSegmentDialog`, `SessionOverrideToggle`
-- [ ] Tests backend : évaluation par segment, rollout % stable, fail-closed sur flag inconnu, 403 hors super-admin
-- [ ] Tests UI : édition, override session, lecture côté agent
+- [x] Migration : table `feature_flags`
+- [x] Catalogue déclaratif `App\Domain\Features\Flag` (énumération + métadonnées)
+- [x] Service `App\Services\Features\FeatureFlagEvaluator` (évaluation déterministe + cache)
+- [x] Helper / facade `Feature::for($user)->isEnabled('key')`
+- [x] Controller `Admin\FeatureFlagController`
+- [x] Endpoint authentifié `GET /api/feature-flags/me`
+- [x] Hook frontend `useFeatureFlag('key')` + provider qui charge `/api/feature-flags/me` au boot
+- [x] Activity log événement
+- [x] Frontend page `/super-admin/feature-flags`
+- [x] Composants : `FeatureFlagTable`, `FeatureFlagSegmentDialog`, `SessionOverrideToggle`
+- [x] Tests backend : évaluation par segment, rollout % stable, fail-closed sur flag inconnu, 403 hors super-admin
+- [x] Tests UI : édition, override session, lecture côté agent
 
 ## Critères d'acceptation
 
-- [ ] Un flag inconnu du catalogue retourne `false` partout (fail-closed)
-- [ ] Le rollout % bucket est stable : un user reçoit le même verdict à chaque évaluation
-- [ ] L'override de session n'affecte aucun autre utilisateur (test isolé)
-- [ ] `GET /api/feature-flags/me` n'expose que les flags marqués `client_visible`
-- [ ] Un agency_admin reçoit 403 sur `PATCH /api/admin/feature-flags/{key}`
-- [ ] Chaque mutation produit une entrée d'audit
+- [x] Un flag inconnu du catalogue retourne `false` partout (fail-closed)
+- [x] Le rollout % bucket est stable : un user reçoit le même verdict à chaque évaluation
+- [x] L'override de session n'affecte aucun autre utilisateur (test isolé)
+- [x] `GET /api/feature-flags/me` n'expose que les flags marqués `client_visible`
+- [x] Un agency_admin reçoit 403 sur `PATCH /api/admin/feature-flags/{key}`
+- [x] Chaque mutation produit une entrée d'audit
 
 ## Hors périmètre
 
@@ -81,4 +81,6 @@ Liste tabulaire avec toggle global et bouton "Configurer" par flag. Modale de co
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Catalogue initial limité à `property_compare`, `advanced_search`, `maintenance_banner`; tout autre flag reste fail-closed.
+- Le rollout % utilise un bucket stable `hash(flag:user_id) % 100`.
+- L'override session est stocké en cache par `user_id:key` pendant 1h et n'est jamais persisté dans `feature_flags`.
