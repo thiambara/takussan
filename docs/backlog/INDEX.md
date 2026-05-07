@@ -139,7 +139,6 @@ _(vide — TCK-146 en review)_
 - [TCK-221](tickets/TCK-221-super-admin-agency-kyc.md) — Super-admin — KYC documentaire des agences (workflow vérification) `L · P1 · applicatif`
 - [TCK-222](tickets/TCK-222-super-admin-plans-subscriptions.md) — Super-admin — Plans & abonnements plateforme (catalogue + assignation par agence) `L · P2 · applicatif`
 - [TCK-223](tickets/TCK-223-super-admin-platform-payouts.md) — Super-admin — Reversement plateforme → agences (payout périodique) `L · P2 · applicatif`
-- [TCK-224](tickets/TCK-224-super-admin-broadcast-announcements.md) — Super-admin — Annonces in-app cross-tenant (broadcast par segment) `M · P2 · applicatif`
 - [TCK-225](tickets/TCK-225-super-admin-rgpd-user-data-export.md) — Super-admin — Export RGPD des données utilisateur (portabilité) `M · P2 · applicatif`
 - [TCK-226](tickets/TCK-226-super-admin-healthcheck-jobs.md) — Super-admin — Healthcheck plateforme & supervision des jobs `M · P2 · applicatif`
 - [TCK-227](tickets/TCK-227-super-admin-platform-reporting.md) — Super-admin — Reporting plateforme cross-tenant (croissance, MRR, cohortes) `L · P2 · applicatif`
@@ -154,6 +153,10 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 _(vide)_
 
 ## 👀 Review
+
+### Vague 24 — Console super-admin · gouvernance SaaS
+
+- [TCK-224](tickets/TCK-224-super-admin-broadcast-announcements.md) — Super-admin — Annonces in-app cross-tenant (broadcast par segment) `M · P2 · applicatif`
 
 ### Vague 23 — Console super-admin
 

@@ -9,6 +9,7 @@ import { AuthProvider } from '@/context/AuthContext';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { FeatureFlagProvider } from '@/components/providers/FeatureFlagProvider';
 import { MaintenanceBanner } from '@/components/maintenance/MaintenanceBanner';
+import { GlobalAnnouncementBanner } from '@/components/announcements/GlobalAnnouncementBanner';
 import { TIMEZONE } from '@/i18n/config';
 import './globals.css';
 
@@ -48,6 +49,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <AuthProvider initialUser={initialUser} initialToken={token ?? null}>
               <FeatureFlagProvider>
                 <MaintenanceBanner />
+                <GlobalAnnouncementBanner />
                 {children}
               </FeatureFlagProvider>
             </AuthProvider>

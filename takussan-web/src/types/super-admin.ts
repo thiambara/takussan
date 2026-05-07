@@ -437,6 +437,54 @@ export type AlertRulesResponse = {
 };
 export type AlertRuleResponse = { data: AlertRule };
 
+export type AnnouncementSeverity = 'info' | 'success' | 'warning' | 'critical';
+
+export type AnnouncementSegment = {
+  roles?: string[];
+  agency_ids?: number[];
+  rollout_percentage?: number;
+};
+
+export type AnnouncementLocaleMap = {
+  fr: string;
+  en: string;
+  wo: string;
+};
+
+export type Announcement = {
+  id: number;
+  title: AnnouncementLocaleMap;
+  body: AnnouncementLocaleMap;
+  severity: AnnouncementSeverity;
+  segment: AnnouncementSegment;
+  starts_at: string;
+  ends_at: string | null;
+  is_active: boolean;
+  created_by: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type AnnouncementsResponse = {
+  data: Announcement[];
+  meta?: {
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+  };
+};
+
+export type AnnouncementPayload = {
+  title: AnnouncementLocaleMap;
+  body: AnnouncementLocaleMap;
+  severity: AnnouncementSeverity;
+  segment?: AnnouncementSegment;
+  starts_at: string;
+  ends_at?: string | null;
+  is_active: boolean;
+};
+
 /**
  * TCK-132 — row shape for the cross-tenant properties table. Only fields the
  * UI actually renders, fed by `fields[properties]=...&include=address,agency`

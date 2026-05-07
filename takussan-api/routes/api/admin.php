@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Admin\AgencyDetailController;
 use App\Http\Controllers\Api\Admin\AgencyModerationController;
 use App\Http\Controllers\Api\Admin\AgencyOnboardingController;
 use App\Http\Controllers\Api\Admin\AlertRuleController;
+use App\Http\Controllers\Api\Admin\AnnouncementController;
 use App\Http\Controllers\Api\Admin\BusinessEnumController;
 use App\Http\Controllers\Api\Admin\CrossTenantAuditController;
 use App\Http\Controllers\Api\Admin\FeatureFlagController;
@@ -122,4 +123,9 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     Route::patch('alert-rules/{alertRule}', [AlertRuleController::class, 'update'])->name('admin.alert-rules.update');
     Route::delete('alert-rules/{alertRule}', [AlertRuleController::class, 'destroy'])->name('admin.alert-rules.destroy');
     Route::post('alert-rules/{alertRule}/test', [AlertRuleController::class, 'test'])->name('admin.alert-rules.test');
+
+    Route::get('announcements', [AnnouncementController::class, 'index'])->name('admin.announcements.index');
+    Route::post('announcements', [AnnouncementController::class, 'store'])->name('admin.announcements.store');
+    Route::patch('announcements/{announcement}', [AnnouncementController::class, 'update'])->name('admin.announcements.update');
+    Route::post('announcements/{announcement}/deactivate', [AnnouncementController::class, 'deactivate'])->name('admin.announcements.deactivate');
 });

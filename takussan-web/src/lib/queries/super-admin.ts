@@ -35,6 +35,9 @@ import type {
   ImpersonationStartResponse,
   ImpersonationStopResponse,
   SystemMetricsResponse,
+  AnnouncementsResponse,
+  AnnouncementPayload,
+  AnnouncementSegment,
 } from '@/types/super-admin';
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
@@ -614,4 +617,51 @@ export async function deleteAlertRule(id: number): Promise<unknown> {
 export async function testAlertRule(id: number): Promise<{ data: { queued: boolean } }> {
   const res = await fetch(`/api/super-admin/alert-rules/${id}/test`, { method: 'POST', credentials: 'include' });
   return jsonOrThrow<{ data: { queued: boolean } }>(res);
+}
+
+export async function fetchAdminAnnouncements(params: {
+  isActive?: boolean;
+  page?: number;
+  perPage?: number;
+} = {}): Promise<AnnouncementsResponse> {
+  const qs = new URLSearchParams();
+  qs.set('fields[announcements]', 'id,title,body,severity,segment,starts_at,ends_at,is_active,created_by,created_at,updated_at');
+  qs.set('sort', '-starts_at');
+  if (typeof params.isActive === 'boolean') qs.set('filter[is_active]', String(params.isActive ? 1 : 0));
+  if (params.page) qs.set('page', String(params.page));
+  if (params.perPage) qs.set('per_page', String(params.perPage));
+
+  const res = await fetch(`/api/super-admin/announcements?${qs.toString()}`, { credentials: 'include' });
+  return jsonOrThrow<AnnouncementsResponse>(res);
+}
+
+export async function createAdminAnnouncement(payload: AnnouncementPayload): Promise<{ data: AnnouncementPayload & { id: number } }> {
+  const res = await fetch('/api/super-admin/announcements', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<{ data: AnnouncementPayload & { id: number } }>(res);
+}
+
+export async function patchAdminAnnouncement(
+  id: number,
+  payload: Partial<AnnouncementPayload> & { segment?: AnnouncementSegment },
+): Promise<{ data: AnnouncementPayload & { id: number } }> {
+  const res = await fetch(`/api/super-admin/announcements/${id}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<{ data: AnnouncementPayload & { id: number } }>(res);
+}
+
+export async function deactivateAdminAnnouncement(id: number): Promise<{ data: AnnouncementPayload & { id: number } }> {
+  const res = await fetch(`/api/super-admin/announcements/${id}/deactivate`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  return jsonOrThrow<{ data: AnnouncementPayload & { id: number } }>(res);
 }

@@ -1,7 +1,7 @@
 ---
 id: TCK-224
 title: "Super-admin — Annonces in-app cross-tenant (broadcast par segment)"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: M
@@ -87,4 +87,4 @@ Composer en deux colonnes : édition multilingue à gauche (TitleField FR/EN/WO 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Le matching de segment est centralisé dans `AnnouncementResolver`; l'endpoint actif charge les annonces candidates puis filtre les rôles/agences/rollout côté service pour éviter d'exposer des annonces hors segment dans le payload.
