@@ -132,7 +132,6 @@ _(vide — TCK-146 en review)_
 
 > Extension de la console super-admin livrée par TCK-144/145/132/115/116. Couvre les capacités plateforme attendues d'un super-admin SaaS multi-tenant : gouvernance des agences (détail, onboarding), support utilisateur cross-tenant, modération unifiée, référentiels globaux (tags, enums), templates de notification, paramètres plateforme, intégrations tierces, mode maintenance, feature flags, alertes sur actions sensibles. Les sujets nécessitant une extension de spec préalable (KYC documentaire, plans / quotas, payouts plateforme, broadcast in-app, RGPD export user, healthcheck UI) ne sont **pas** ticketés ici — un PR sur `features.md` doit les introduire d'abord.
 
-- [TCK-209](tickets/TCK-209-super-admin-agency-onboarding.md) — Super-admin — Onboarding agence (création + admin initial) `M · P1 · applicatif`
 - [TCK-210](tickets/TCK-210-super-admin-user-detail.md) — Super-admin — Détail utilisateur cross-tenant `/super-admin/users/[id]` `M · P1 · front`
 - [TCK-211](tickets/TCK-211-super-admin-user-support-actions.md) — Super-admin — Actions support utilisateur (reset password, unlock, 2FA, sessions) `M · P1 · applicatif`
 - [TCK-212](tickets/TCK-212-super-admin-moderation-queue.md) — Super-admin — File de modération unifiée (signalements cross-tenant) `L · P2 · applicatif`
@@ -158,6 +157,7 @@ _(vide)_
 ### Vague 23 — Console super-admin
 
 - [TCK-208](tickets/TCK-208-super-admin-agency-detail.md) — Super-admin — Détail agence cross-tenant `/super-admin/agencies/[id]` `M · P1 · front`
+- [TCK-209](tickets/TCK-209-super-admin-agency-onboarding.md) — Super-admin — Onboarding agence (création + admin initial) `M · P1 · applicatif`
 
 ### Vague 22 — Bugs smoke test agent immobilier
 

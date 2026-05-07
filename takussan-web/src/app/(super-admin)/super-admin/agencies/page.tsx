@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchAdminAgencies } from '@/lib/queries/super-admin';
 import { AgencyModerationCard } from '@/components/admin/super/AgencyModerationCard';
+import { AgencyOnboardingDialog } from '@/components/admin/super/AgencyOnboardingDialog';
 import type { AdminAgenciesResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 
@@ -29,11 +30,14 @@ export default function SuperAdminAgenciesPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold text-stone-900">Agences</h1>
-        <p className="mt-1 text-sm text-stone-600">
-          Modération cross-tenant — vérification, suspension, retrait de vérification.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-stone-900">Agences</h1>
+          <p className="mt-1 text-sm text-stone-600">
+            Modération cross-tenant — vérification, suspension, retrait de vérification.
+          </p>
+        </div>
+        <AgencyOnboardingDialog />
       </header>
 
       <div className="flex flex-wrap items-center gap-2">

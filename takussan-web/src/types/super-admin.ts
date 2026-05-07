@@ -78,6 +78,27 @@ export type AdminAgencyTeamResponse = {
   };
 };
 
+export type AgencyProvisioningResponse = {
+  data: {
+    agency: {
+      id: number;
+      name: string;
+      slug: string;
+      status: string | null;
+      is_verified: boolean;
+      primary_admin_id: number | null;
+    };
+    admin: {
+      id: number;
+      first_name: string | null;
+      last_name: string | null;
+      full_name: string;
+      email: string;
+      preferred_language: string | null;
+    };
+  };
+};
+
 export type SystemMetrics = {
   agencies: {
     total: number;

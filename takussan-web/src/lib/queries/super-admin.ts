@@ -5,6 +5,7 @@ import type {
   AdminAgencyHealthResponse,
   AdminAgencyTeamResponse,
   AdminPropertiesResponse,
+  AgencyProvisioningResponse,
   AuditLogResponse,
   ImpersonationStartResponse,
   ImpersonationStopResponse,
@@ -87,6 +88,35 @@ export async function postAgencyAction(
     credentials: 'include',
   });
   return jsonOrThrow<unknown>(res);
+}
+
+export type AgencyOnboardingPayload = {
+  agency: {
+    name: string;
+    slug?: string;
+    type?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+  };
+  admin: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    language?: 'fr' | 'en' | 'wo';
+  };
+};
+
+export async function postAgencyOnboarding(
+  payload: AgencyOnboardingPayload,
+): Promise<AgencyProvisioningResponse> {
+  const res = await fetch('/api/super-admin/agencies', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<AgencyProvisioningResponse>(res);
 }
 
 export async function fetchSystemMetrics(): Promise<SystemMetricsResponse> {

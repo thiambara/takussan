@@ -1,7 +1,7 @@
 ---
 id: TCK-209
 title: "Super-admin — Onboarding agence (création + admin initial)"
-status: todo
+status: review
 phase: P1
 family: applicatif
 estimate: M
@@ -78,4 +78,4 @@ Wizard en 2 étapes (`Agence` → `Admin initial` → `Récap`). Validation inli
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+L'invitation initiale réutilise le broker de reset password existant : token court (60 min) et notification localisée déjà câblée.

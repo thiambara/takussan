@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\AgencyDetailController;
 use App\Http\Controllers\Api\Admin\AgencyModerationController;
+use App\Http\Controllers\Api\Admin\AgencyOnboardingController;
 use App\Http\Controllers\Api\Admin\CrossTenantAuditController;
 use App\Http\Controllers\Api\Admin\SystemMetricsController;
 use App\Http\Controllers\Api\Admin\UserImpersonationController;
@@ -23,6 +24,8 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     Route::prefix('agencies')->group(function () {
         Route::get('/', [AgencyModerationController::class, 'index'])
             ->name('admin.agencies.index');
+        Route::post('/', [AgencyOnboardingController::class, 'store'])
+            ->name('admin.agencies.store');
         Route::get('{agency}', [AgencyDetailController::class, 'show'])
             ->name('admin.agencies.show');
         Route::get('{agency}/health', [AgencyDetailController::class, 'health'])
