@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, Building2, Home, LayoutDashboard, Settings2, ShieldAlert, Users } from 'lucide-react';
+import { Activity, Building2, Home, LayoutDashboard, Settings2, ShieldAlert, Tags, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -17,6 +17,7 @@ const NAV: NavItem[] = [
   { href: '/super-admin/agencies', label: 'Agences', icon: Building2 },
   { href: '/super-admin/properties', label: 'Biens', icon: Home },
   { href: '/super-admin/moderation', label: 'Modération', icon: ShieldAlert },
+  { href: '/super-admin/tags', label: 'Tags', icon: Tags },
   { href: '/super-admin/users', label: 'Utilisateurs', icon: Users },
   { href: '/super-admin/audit', label: 'Audit', icon: Activity },
   { href: '/super-admin/system', label: 'Système', icon: Settings2 },

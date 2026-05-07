@@ -71,7 +71,7 @@ export async function createTagAction(
   if (!auth.ok) return auth.result;
   try {
     const data = await createTag(auth.token, payload);
-    revalidatePath('/admin/settings/tags');
+    revalidatePath('/super-admin/tags');
     return { ok: true, data };
   } catch (e) {
     return { ok: false, ...mapError(e) };
@@ -86,7 +86,7 @@ export async function updateTagAction(
   if (!auth.ok) return auth.result;
   try {
     const data = await updateTag(auth.token, tagId, payload);
-    revalidatePath('/admin/settings/tags');
+    revalidatePath('/super-admin/tags');
     return { ok: true, data };
   } catch (e) {
     return { ok: false, ...mapError(e) };
@@ -98,7 +98,7 @@ export async function deleteTagAction(tagId: number): Promise<ActionResult<void>
   if (!auth.ok) return auth.result;
   try {
     await deleteTag(auth.token, tagId);
-    revalidatePath('/admin/settings/tags');
+    revalidatePath('/super-admin/tags');
     return { ok: true };
   } catch (e) {
     return { ok: false, ...mapError(e) };

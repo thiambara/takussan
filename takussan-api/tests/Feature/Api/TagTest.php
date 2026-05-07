@@ -19,10 +19,9 @@ class TagTest extends TestCase
 
     private function superAdmin(): User
     {
-        $agency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
+        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
         Role::findOrCreate('super_admin');
-        $user = User::factory()->create(['agency_id' => $agency->id]);
+        $user = User::factory()->create();
         $user->assignRole('super_admin');
 
         return $user;
@@ -40,18 +39,17 @@ class TagTest extends TestCase
     }
 
     /**
-     * TCK-078 regression: before the cleanup, TagController only accepted
-     * the legacy `admin` role, so a correctly-assigned `agency_admin` was
-     * locked out of the tag CRUD endpoints.
+     * TCK-213 — tags are global platform references. Agency admins may read
+     * them for property forms, but cannot mutate the shared reference data.
      */
-    public function test_agency_admin_can_create_tag(): void
+    public function test_agency_admin_cannot_create_tag(): void
     {
         Sanctum::actingAs($this->agencyAdmin());
 
         $this->postJson('/api/tags', [
             'name' => 'Balcon',
             'type' => TagType::Amenity->value,
-        ])->assertStatus(201);
+        ])->assertForbidden();
     }
 
     public function test_anyone_can_list_tags(): void

@@ -1,7 +1,7 @@
 ---
 id: TCK-213
 title: "Super-admin — Tags & amenités globaux (référentiel plateforme)"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: S
@@ -74,4 +74,6 @@ Reprend la table de TCK-066 (filtres par type, inline edit, modale de création)
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Les URL API de lecture/écriture restent `/api/tags`; l'écriture est verrouillée dans `TagController` via `User::isSuperAdmin()` pour préserver les consommateurs existants.
+- L'ancien écran agence `/admin/settings/tags` redirige vers `/admin?notice=tags-platform-managed`; le manager est monté dans `/super-admin/tags`.
+- Le schéma ne possède pas `is_active`; l'action destructive existante reste une suppression protégée par 409 quand le tag est utilisé, avec audit `super_admin_tag_disabled`.

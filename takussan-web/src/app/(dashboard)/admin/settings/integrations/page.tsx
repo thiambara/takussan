@@ -39,12 +39,6 @@ export default async function Page() {
             Général
           </Link>
           <Link
-            href="/admin/settings/tags"
-            className="rounded-full border border-input px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
-          >
-            Tags &amp; amenités
-          </Link>
-          <Link
             href="/admin/settings/integrations"
             className="rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
           >

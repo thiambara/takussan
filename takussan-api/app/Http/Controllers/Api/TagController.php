@@ -13,7 +13,7 @@ class TagController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $base = Tag::query();
+        $base = Tag::query()->withCount(['properties', 'customers']);
 
         // For CRM tags, scope to tags used by the requesting user's agency customers.
         // This lets autocomplete show only tags relevant to the agent's agency.
@@ -40,14 +40,7 @@ class TagController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        // TCK-078: `admin` is a legacy alias predating the Spatie role setup
-        // in TCK-014. Canonical roles for tag management are agency_admin and
-        // super_admin — keep the legacy name in the tuple so environments
-        // that still carry it around in fixtures don't lock themselves out.
-        abort_unless(
-            $request->user()->hasRole(['agency_admin', 'super_admin', 'admin']),
-            403,
-        );
+        $this->authorizeWrite($request);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
@@ -59,6 +52,13 @@ class TagController extends Controller
 
         $tag = Tag::create($data);
 
+        activity('Admin')
+            ->performedOn($tag)
+            ->causedBy($request->user())
+            ->withProperties(['tag_id' => $tag->id, 'name' => $tag->name, 'type' => $tag->type?->value])
+            ->event('super_admin_tag_created')
+            ->log('Tag plateforme créé');
+
         return $this->json(['data' => $this->format($tag)], 201);
     }
 
@@ -69,14 +69,7 @@ class TagController extends Controller
 
     public function update(Request $request, Tag $tag): JsonResponse
     {
-        // TCK-078: `admin` is a legacy alias predating the Spatie role setup
-        // in TCK-014. Canonical roles for tag management are agency_admin and
-        // super_admin — keep the legacy name in the tuple so environments
-        // that still carry it around in fixtures don't lock themselves out.
-        abort_unless(
-            $request->user()->hasRole(['agency_admin', 'super_admin', 'admin']),
-            403,
-        );
+        $this->authorizeWrite($request);
 
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:100'],
@@ -88,19 +81,19 @@ class TagController extends Controller
 
         $tag->fill($data)->save();
 
+        activity('Admin')
+            ->performedOn($tag)
+            ->causedBy($request->user())
+            ->withProperties(['tag_id' => $tag->id, 'changed' => array_keys($data)])
+            ->event('super_admin_tag_updated')
+            ->log('Tag plateforme modifié');
+
         return $this->json(['data' => $this->format($tag->refresh())]);
     }
 
     public function destroy(Request $request, Tag $tag): JsonResponse
     {
-        // TCK-078: `admin` is a legacy alias predating the Spatie role setup
-        // in TCK-014. Canonical roles for tag management are agency_admin and
-        // super_admin — keep the legacy name in the tuple so environments
-        // that still carry it around in fixtures don't lock themselves out.
-        abort_unless(
-            $request->user()->hasRole(['agency_admin', 'super_admin', 'admin']),
-            403,
-        );
+        $this->authorizeWrite($request);
 
         // TCK-066: protect deletion when the tag is still attached to any
         // taggable model (currently properties or customers). The admin UI
@@ -113,9 +106,21 @@ class TagController extends Controller
             ], 409);
         }
 
+        activity('Admin')
+            ->performedOn($tag)
+            ->causedBy($request->user())
+            ->withProperties(['tag_id' => $tag->id, 'name' => $tag->name])
+            ->event('super_admin_tag_disabled')
+            ->log('Tag plateforme désactivé');
+
         $tag->delete();
 
         return $this->json(null, 204);
+    }
+
+    private function authorizeWrite(Request $request): void
+    {
+        abort_unless($request->user()?->isSuperAdmin(), 403);
     }
 
     private function format(Tag $tag, ?int $agencyId = null): array
@@ -134,6 +139,7 @@ class TagController extends Controller
             'icon' => $tag->icon,
             'color' => $tag->color,
             'description' => $tag->description,
+            'properties_count' => (int) ($tag->properties_count ?? $tag->properties()->count()),
             'usage_count' => $usageCount,
             'created_at' => $tag->created_at?->toISOString(),
         ];
