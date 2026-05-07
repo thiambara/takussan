@@ -1,7 +1,7 @@
 ---
 id: TCK-224
 title: "Super-admin — Annonces in-app cross-tenant (broadcast par segment)"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: M

@@ -1,7 +1,7 @@
 ---
 id: TCK-188
 title: Dashboard owner — widgets et navigation
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

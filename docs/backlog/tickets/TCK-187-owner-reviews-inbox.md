@@ -1,7 +1,7 @@
 ---
 id: TCK-187
 title: Avis owner — boîte des avis reçus
-status: review
+status: done
 phase: P2
 family: front
 estimate: M

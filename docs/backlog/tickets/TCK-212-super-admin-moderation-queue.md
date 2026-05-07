@@ -1,7 +1,7 @@
 ---
 id: TCK-212
 title: "Super-admin — File de modération unifiée (signalements cross-tenant)"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: L

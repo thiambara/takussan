@@ -1,7 +1,7 @@
 ---
 id: TCK-208
 title: "Super-admin — Détail agence cross-tenant `/super-admin/agencies/[id]`"
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

@@ -1,7 +1,7 @@
 ---
 id: TCK-201
 title: "Pipeline CRM agent — données vides et libellés anglais"
-status: review
+status: done
 phase: P1
 family: bug
 estimate: M

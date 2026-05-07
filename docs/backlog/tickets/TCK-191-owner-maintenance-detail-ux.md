@@ -1,7 +1,7 @@
 ---
 id: TCK-191
 title: Maintenance owner — détail lisible
-status: review
+status: done
 phase: P2
 family: front
 estimate: S

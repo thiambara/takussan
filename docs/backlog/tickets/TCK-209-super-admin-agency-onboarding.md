@@ -1,7 +1,7 @@
 ---
 id: TCK-209
 title: "Super-admin — Onboarding agence (création + admin initial)"
-status: review
+status: done
 phase: P1
 family: applicatif
 estimate: M

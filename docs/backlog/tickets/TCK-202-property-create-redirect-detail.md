@@ -1,7 +1,7 @@
 ---
 id: TCK-202
 title: "Création bien — rediriger vers la fiche créée"
-status: review
+status: done
 phase: P1
 family: front
 estimate: S

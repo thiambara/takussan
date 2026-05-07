@@ -1,7 +1,7 @@
 ---
 id: TCK-186
 title: Baux owner — actions cycle de vie
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

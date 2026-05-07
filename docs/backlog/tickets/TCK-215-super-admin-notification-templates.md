@@ -1,7 +1,7 @@
 ---
 id: TCK-215
 title: "Super-admin — Templates de notification (email / SMS / push)"
-status: review
+status: done
 phase: P1
 family: applicatif
 estimate: M

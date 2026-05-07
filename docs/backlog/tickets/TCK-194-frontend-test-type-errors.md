@@ -1,7 +1,7 @@
 ---
 id: TCK-194
 title: Frontend — fiabiliser les types des tests
-status: review
+status: done
 phase: P1
 family: technique
 estimate: M

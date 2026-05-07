@@ -1,7 +1,7 @@
 ---
 id: TCK-214
 title: "Super-admin — Enums métier éditables (catégories, libellés, traductions)"
-status: review
+status: done
 phase: P1
 family: applicatif
 estimate: M

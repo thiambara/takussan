@@ -1,7 +1,7 @@
 ---
 id: TCK-183
 title: Réservations owner — actions accepter/refuser/annuler
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

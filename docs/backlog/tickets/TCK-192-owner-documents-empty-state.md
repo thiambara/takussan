@@ -1,7 +1,7 @@
 ---
 id: TCK-192
 title: Documents owner — état vide actionnable
-status: review
+status: done
 phase: P2
 family: front
 estimate: S

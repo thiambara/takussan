@@ -1,7 +1,7 @@
 ---
 id: TCK-220
 title: "Super-admin — Alertes sur actions sensibles"
-status: review
+status: done
 phase: P3
 family: applicatif
 estimate: S

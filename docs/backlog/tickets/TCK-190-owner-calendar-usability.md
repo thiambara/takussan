@@ -1,7 +1,7 @@
 ---
 id: TCK-190
 title: Calendrier owner — lisibilité gros portefeuille
-status: review
+status: done
 phase: P2
 family: front
 estimate: S

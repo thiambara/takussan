@@ -1,7 +1,7 @@
 ---
 id: TCK-225
 title: "Super-admin — Export RGPD des données utilisateur (portabilité)"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: M

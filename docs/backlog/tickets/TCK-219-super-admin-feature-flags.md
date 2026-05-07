@@ -1,7 +1,7 @@
 ---
 id: TCK-219
 title: "Super-admin — Feature flags applicatifs"
-status: review
+status: done
 phase: P3
 family: applicatif
 estimate: M

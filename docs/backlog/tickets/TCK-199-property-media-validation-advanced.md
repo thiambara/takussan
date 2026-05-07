@@ -1,7 +1,7 @@
 ---
 id: TCK-199
 title: "Médias biens — validation robuste et supports avancés"
-status: review
+status: done
 phase: P1
 family: applicatif
 estimate: M

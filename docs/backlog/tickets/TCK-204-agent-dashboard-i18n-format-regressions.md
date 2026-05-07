@@ -1,7 +1,7 @@
 ---
 id: TCK-204
 title: "Dashboard agent — corriger régressions i18n et formats"
-status: review
+status: done
 phase: P1
 family: bug
 estimate: M

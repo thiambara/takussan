@@ -1,7 +1,7 @@
 ---
 id: TCK-184
 title: Visites owner — confirmation et suivi
-status: review
+status: done
 phase: P2
 family: front
 estimate: M

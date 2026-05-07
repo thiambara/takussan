@@ -1,7 +1,7 @@
 ---
 id: TCK-200
 title: "Dashboard agent — widgets opérationnels manquants"
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

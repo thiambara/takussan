@@ -1,7 +1,7 @@
 ---
 id: TCK-196
 title: "CRM agent — restaurer les fiches client détail"
-status: review
+status: done
 phase: P0
 family: bug
 estimate: S

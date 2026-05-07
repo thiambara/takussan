@@ -1,7 +1,7 @@
 ---
 id: TCK-197
 title: "Biens agent — fiabiliser publication, statuts et actions"
-status: review
+status: done
 phase: P0
 family: bug
 estimate: M

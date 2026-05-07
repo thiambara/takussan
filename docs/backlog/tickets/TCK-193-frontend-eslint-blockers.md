@@ -1,7 +1,7 @@
 ---
 id: TCK-193
 title: Frontend — corriger les erreurs ESLint bloquantes
-status: review
+status: done
 phase: P1
 family: technique
 estimate: S

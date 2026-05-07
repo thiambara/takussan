@@ -1,7 +1,7 @@
 ---
 id: TCK-226
 title: "Super-admin — Healthcheck plateforme & supervision des jobs"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: M

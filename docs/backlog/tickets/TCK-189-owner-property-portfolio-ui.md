@@ -1,7 +1,7 @@
 ---
 id: TCK-189
 title: Biens owner — gestion portefeuille complète
-status: review
+status: done
 phase: P1
 family: front
 estimate: L

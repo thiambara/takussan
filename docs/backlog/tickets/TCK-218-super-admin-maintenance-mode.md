@@ -1,7 +1,7 @@
 ---
 id: TCK-218
 title: "Super-admin — Mode maintenance programmé"
-status: review
+status: done
 phase: P3
 family: applicatif
 estimate: S

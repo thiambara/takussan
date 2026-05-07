@@ -1,7 +1,7 @@
 ---
 id: TCK-185
 title: Baux owner — création avec sélecteurs métier
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

@@ -1,7 +1,7 @@
 ---
 id: TCK-217
 title: "Super-admin — Intégrations tierces (API keys, webhooks)"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: M

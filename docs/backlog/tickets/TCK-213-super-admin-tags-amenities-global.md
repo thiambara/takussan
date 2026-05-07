@@ -1,7 +1,7 @@
 ---
 id: TCK-213
 title: "Super-admin — Tags & amenités globaux (référentiel plateforme)"
-status: review
+status: done
 phase: P1
 family: front
 estimate: S

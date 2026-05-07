@@ -1,7 +1,7 @@
 ---
 id: TCK-198
 title: "Mes biens agent — compléter filtres, colonnes et actions en lot"
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

@@ -1,7 +1,7 @@
 ---
 id: TCK-195
 title: Frontend — corriger les erreurs TypeScript runtime
-status: review
+status: done
 phase: P1
 family: technique
 estimate: S
