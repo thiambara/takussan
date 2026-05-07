@@ -14,6 +14,7 @@ import {
   CreditCard,
   ExternalLink,
   Home,
+  ShieldCheck,
   ShieldOff,
   Users,
 } from 'lucide-react';
@@ -24,20 +25,23 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   fetchAdminAgencyDetail,
   fetchAdminAgencyHealth,
+  fetchAdminAgencyKyc,
   fetchAdminAgencyProperties,
   fetchAdminAgencyTeam,
   postAgencyAction,
 } from '@/lib/queries/super-admin';
+import { KycDossierTimeline, KycReviewPanel } from '@/components/kyc/kyc-components';
 import type {
   AdminAgencyDetail,
   AdminAgencyHealth,
   AdminAgencyTeamMember,
   AdminPropertyRow,
+  KycDossier,
 } from '@/types/super-admin';
 import { ConfirmActionDialog } from './ConfirmActionDialog';
 
 type Action = 'verify' | 'suspend' | 'unverify';
-type Tab = 'team' | 'properties' | 'transactions';
+type Tab = 'kyc' | 'team' | 'properties' | 'transactions';
 
 const ACTION_META: Record<Action, { title: string; description: string; phrase: string; label: string; destructive?: boolean }> = {
   verify: {
@@ -69,8 +73,8 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
-  const [activeTab, setActiveTab] = useState<Tab>('team');
-  const [detailQuery, healthQuery, teamQuery, propertiesQuery] = useQueries({
+  const [activeTab, setActiveTab] = useState<Tab>('kyc');
+  const [detailQuery, healthQuery, teamQuery, propertiesQuery, kycQuery] = useQueries({
     queries: [
       {
         queryKey: ['super-admin', 'agency', agencyId],
@@ -87,6 +91,10 @@ export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
       {
         queryKey: ['super-admin', 'agency', agencyId, 'properties'],
         queryFn: () => fetchAdminAgencyProperties(agencyId),
+      },
+      {
+        queryKey: ['super-admin', 'agency', agencyId, 'kyc'],
+        queryFn: () => fetchAdminAgencyKyc(agencyId),
       },
     ],
   });
@@ -124,6 +132,9 @@ export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
       <AgencyHealthStrip health={health} loading={healthQuery.isLoading} />
 
       <div className="flex flex-wrap gap-2">
+        <TabButton active={activeTab === 'kyc'} onClick={() => setActiveTab('kyc')} icon={ShieldCheck}>
+          KYC
+        </TabButton>
         <TabButton active={activeTab === 'team'} onClick={() => setActiveTab('team')} icon={Users}>
           Équipe
         </TabButton>
@@ -135,6 +146,9 @@ export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
         </TabButton>
       </div>
 
+      {activeTab === 'kyc' ? (
+        <AgencyKycTab dossier={kycQuery.data?.data} loading={kycQuery.isLoading} agencyId={agencyId} />
+      ) : null}
       {activeTab === 'team' ? (
         <AgencyTeamTab members={teamQuery.data?.data ?? []} loading={teamQuery.isLoading} />
       ) : null}
@@ -144,6 +158,29 @@ export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
       {activeTab === 'transactions' ? (
         <AgencyTransactionsTab health={health} loading={healthQuery.isLoading} />
       ) : null}
+    </div>
+  );
+}
+
+export function AgencyKycTab({ dossier, loading, agencyId }: { dossier?: KycDossier; loading: boolean; agencyId: number }) {
+  if (loading) {
+    return <Skeleton className="h-72 rounded-xl" />;
+  }
+
+  if (!dossier) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-sm text-destructive">
+          Impossible de charger le dossier KYC.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[1fr_420px]">
+      <KycDossierTimeline dossier={dossier} />
+      <KycReviewPanel dossier={dossier} agencyId={agencyId} />
     </div>
   );
 }

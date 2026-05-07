@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\Admin\FailedJobController;
 use App\Http\Controllers\Api\Admin\FeatureFlagController;
 use App\Http\Controllers\Api\Admin\HealthcheckController;
 use App\Http\Controllers\Api\Admin\IntegrationController;
+use App\Http\Controllers\Api\Admin\KycController;
 use App\Http\Controllers\Api\Admin\MaintenanceController;
 use App\Http\Controllers\Api\Admin\ModerationQueueController;
 use App\Http\Controllers\Api\Admin\NotificationTemplateController;
@@ -49,6 +50,8 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
             ->name('admin.agencies.team');
         Route::get('{agency}/properties', [AgencyDetailController::class, 'properties'])
             ->name('admin.agencies.properties');
+        Route::get('{agency}/kyc', [KycController::class, 'agency'])
+            ->name('admin.agencies.kyc.show');
         Route::post('{agency}/verify', [AgencyModerationController::class, 'verify'])
             ->name('admin.agencies.verify');
         Route::post('{agency}/suspend', [AgencyModerationController::class, 'suspend'])
@@ -101,6 +104,11 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     Route::post('moderation/{id}/decide', [ModerationQueueController::class, 'decide'])
         ->where('id', '.+')
         ->name('admin.moderation.decide');
+
+    Route::get('kyc', [KycController::class, 'index'])->name('admin.kyc.index');
+    Route::get('kyc/{dossier}', [KycController::class, 'show'])->name('admin.kyc.show');
+    Route::post('kyc/{dossier}/verify', [KycController::class, 'verify'])->name('admin.kyc.verify');
+    Route::post('kyc/{dossier}/reject', [KycController::class, 'reject'])->name('admin.kyc.reject');
 
     Route::get('enums', [BusinessEnumController::class, 'index'])->name('admin.enums.index');
     Route::get('enums/{key}', [BusinessEnumController::class, 'show'])->name('admin.enums.show');

@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\Api\Admin\AgencyResource;
 use App\Models\Agency;
 use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\KycDossierStatus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -57,6 +58,12 @@ class AgencyModerationController extends Controller
 
     public function verify(Request $request, Agency $agency): JsonResponse
     {
+        abort_unless(
+            $agency->kycDossier?->status === KycDossierStatus::Verified,
+            422,
+            'Agency KYC must be verified before agency verification.',
+        );
+
         return $this->transition($request, $agency, AgencyStatus::Active, 'super_admin_agency_verified', [
             'is_verified' => true,
             'verified_at' => now(),

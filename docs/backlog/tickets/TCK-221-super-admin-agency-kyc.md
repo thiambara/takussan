@@ -1,7 +1,7 @@
 ---
 id: TCK-221
 title: "Super-admin — KYC documentaire des agences (workflow vérification)"
-status: todo
+status: review
 phase: P1
 family: applicatif
 estimate: L
@@ -86,4 +86,6 @@ Côté agence : page `/admin/agency/kyc` avec uploader multi-fichiers, statut en
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+La vérification directe d'une agence via `POST /api/admin/agencies/{id}/verify` exige désormais un dossier KYC `verified`; la transition KYC `verify` conserve l'élévation agence existante (`status=active`, `is_verified=true`).
+
+Les notifications KYC passent par `NotificationService`/`app_notifications` pour rester alignées avec l'in-app + email déjà en place.

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use LemonSqueezy\Laravel\Billable as LemonSqueezyBillable;
@@ -120,5 +121,10 @@ class Agency extends AbstractModel implements HasMedia
     public function bankStatements(): HasMany
     {
         return $this->hasMany(BankStatement::class);
+    }
+
+    public function kycDossier(): MorphOne
+    {
+        return $this->morphOne(KycDossier::class, 'subject');
     }
 }

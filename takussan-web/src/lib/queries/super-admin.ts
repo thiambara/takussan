@@ -4,6 +4,8 @@ import type {
   AdminAgencyDetailResponse,
   AdminAgencyHealthResponse,
   AdminAgencyTeamResponse,
+  KycDossierResponse,
+  KycDossiersResponse,
   AdminPropertiesResponse,
   AdminModerationResponse,
   BusinessEnumResponse,
@@ -109,6 +111,62 @@ export async function fetchAdminAgencyProperties(agencyId: number): Promise<Admi
     credentials: 'include',
   });
   return jsonOrThrow<AdminPropertiesResponse>(res);
+}
+
+const KYC_DOSSIER_FIELDS = [
+  'id',
+  'subject_type',
+  'subject_id',
+  'status',
+  'submitted_at',
+  'reviewed_at',
+  'reviewed_by',
+  'rejection_reason',
+  'metadata',
+  'created_at',
+  'updated_at',
+].join(',');
+
+export async function fetchAdminAgencyKyc(agencyId: number): Promise<KycDossierResponse> {
+  const qs = new URLSearchParams();
+  qs.set('fields[kyc_dossiers]', KYC_DOSSIER_FIELDS);
+  qs.set('include', 'subject,reviewer');
+  const res = await fetch(`/api/super-admin/agencies/${agencyId}/kyc?${qs.toString()}`, {
+    credentials: 'include',
+  });
+  return jsonOrThrow<KycDossierResponse>(res);
+}
+
+export async function fetchAdminKycQueue(params: {
+  status?: 'pending' | 'submitted' | 'verified' | 'rejected';
+  page?: number;
+  perPage?: number;
+} = {}): Promise<KycDossiersResponse> {
+  const qs = new URLSearchParams();
+  qs.set('fields[kyc_dossiers]', KYC_DOSSIER_FIELDS);
+  qs.set('filter[subject_type]', 'Agency');
+  qs.set('filter[status]', params.status ?? 'submitted');
+  qs.set('sort', 'submitted_at');
+  qs.set('per_page', String(params.perPage ?? 20));
+  if (params.page) qs.set('page', String(params.page));
+  const res = await fetch(`/api/super-admin/kyc?${qs.toString()}`, {
+    credentials: 'include',
+  });
+  return jsonOrThrow<KycDossiersResponse>(res);
+}
+
+export async function postKycReview(
+  dossierId: number,
+  action: 'verify' | 'reject',
+  reason?: string,
+): Promise<KycDossierResponse> {
+  const res = await fetch(`/api/super-admin/kyc/${dossierId}/${action}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: action === 'reject' ? { 'Content-Type': 'application/json' } : undefined,
+    body: action === 'reject' ? JSON.stringify({ reason }) : undefined,
+  });
+  return jsonOrThrow<KycDossierResponse>(res);
 }
 
 export async function postAgencyAction(

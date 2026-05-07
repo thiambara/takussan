@@ -46,6 +46,45 @@ export type AdminAgencyDetail = AdminAgency & {
 
 export type AdminAgencyDetailResponse = { data: AdminAgencyDetail };
 
+export type KycDossierStatus = 'pending' | 'submitted' | 'verified' | 'rejected';
+
+export type KycDocument = {
+  id: number;
+  file_name: string;
+  mime_type: string | null;
+  size: number;
+  document_type: 'rccm' | 'ninea' | 'director_id' | string;
+  signed_url: string;
+  expires_at: string;
+};
+
+export type KycDossier = {
+  id: number;
+  subject_type: string;
+  subject_id: number;
+  status: KycDossierStatus;
+  submitted_at: string | null;
+  reviewed_at: string | null;
+  reviewed_by: number | null;
+  rejection_reason: string | null;
+  metadata: Record<string, unknown>;
+  documents: KycDocument[];
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type KycDossierResponse = { data: KycDossier };
+
+export type KycDossiersResponse = {
+  data: KycDossier[];
+  meta: {
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+  };
+};
+
 export type AdminAgencyHealth = {
   active_properties: number;
   properties_in_moderation: number;

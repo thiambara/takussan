@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Agency\KycController;
 use App\Http\Controllers\Api\Agency\RegenerateWatermarksController;
 use App\Http\Controllers\Api\AgencyController;
 use App\Http\Controllers\Api\AgencyMemberRoleController;
@@ -33,6 +34,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Agency stats (P1 — simple aggregates, no cache).
     Route::get('agencies/{agency}/stats', [AgencyStatsController::class, 'show'])->name('agencies.stats.show');
+
+    // Agency KYC dossier.
+    Route::get('agencies/{agency}/kyc', [KycController::class, 'show'])->name('agencies.kyc.show');
+    Route::post('agencies/{agency}/kyc/documents', [KycController::class, 'upload'])->name('agencies.kyc.documents.store');
+    Route::post('agencies/{agency}/kyc/submit', [KycController::class, 'submit'])->name('agencies.kyc.submit');
 
     // Agency reviews
     Route::get('agencies/{agency}/reviews', [ReviewController::class, 'indexForAgency'])->name('agencies.reviews.index');

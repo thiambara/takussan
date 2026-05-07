@@ -49,6 +49,7 @@ function buildAdminItems(
   items.push({ href: '/admin/team', label: 'Équipe', icon: Users });
   items.push({ href: '/admin/users', label: 'Utilisateurs', icon: Users });
   items.push({ href: '/admin/agency', label: 'Agence', icon: Briefcase });
+  items.push({ href: '/admin/agency/kyc', label: 'KYC agence', icon: ShieldCheck });
   items.push({ href: '/admin/finances', label: 'Finances', icon: CreditCard });
   if (isSuperAdmin(user.roles)) {
     items.push({
@@ -147,8 +148,8 @@ export function AdminSidebar({ user, className, onNavigate }: AdminSidebarProps)
           // Exact match for the dashboard root, prefix match for nested routes
           // so "Paramètres" stays highlighted on /admin/settings/tags etc.
           const active =
-            item.href === '/admin'
-              ? pathname === '/admin'
+            item.href === '/admin' || item.href === '/admin/agency'
+              ? pathname === item.href
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
             <AdminItem

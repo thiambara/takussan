@@ -4,6 +4,8 @@ namespace Tests\Feature\Api\Admin;
 
 use App\Models\Agency;
 use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\KycDossierStatus;
+use App\Models\KycDossier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
 use Tests\BaseTestCase;
@@ -37,6 +39,11 @@ class AgencyModerationTest extends BaseTestCase
             'status' => AgencyStatus::Inactive,
             'is_verified' => false,
             'verified_at' => null,
+        ]);
+        KycDossier::query()->create([
+            'subject_type' => Agency::class,
+            'subject_id' => $agency->id,
+            'status' => KycDossierStatus::Verified,
         ]);
 
         $this->postJson("/api/admin/agencies/{$agency->id}/verify")
