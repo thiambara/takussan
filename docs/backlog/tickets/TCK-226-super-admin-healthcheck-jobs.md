@@ -1,7 +1,7 @@
 ---
 id: TCK-226
 title: "Super-admin — Healthcheck plateforme & supervision des jobs"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: M
@@ -82,4 +82,4 @@ Page `/super-admin/system/health` : strip de KPIs en haut (DB / Cache / Storage 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Le détail complet d'un job échoué reste séparé de la liste : la liste tronque payload/exception à 1KB, et les runs scheduler sont capturés via `ScheduledTaskFinished` dans `scheduled_task_runs`.

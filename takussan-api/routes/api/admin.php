@@ -8,12 +8,15 @@ use App\Http\Controllers\Api\Admin\AnnouncementController;
 use App\Http\Controllers\Api\Admin\BusinessEnumController;
 use App\Http\Controllers\Api\Admin\CrossTenantAuditController;
 use App\Http\Controllers\Api\Admin\DataExportController;
+use App\Http\Controllers\Api\Admin\FailedJobController;
 use App\Http\Controllers\Api\Admin\FeatureFlagController;
+use App\Http\Controllers\Api\Admin\HealthcheckController;
 use App\Http\Controllers\Api\Admin\IntegrationController;
 use App\Http\Controllers\Api\Admin\MaintenanceController;
 use App\Http\Controllers\Api\Admin\ModerationQueueController;
 use App\Http\Controllers\Api\Admin\NotificationTemplateController;
 use App\Http\Controllers\Api\Admin\PlatformSettingController;
+use App\Http\Controllers\Api\Admin\SchedulerController;
 use App\Http\Controllers\Api\Admin\SystemMetricsController;
 use App\Http\Controllers\Api\Admin\UserDetailController;
 use App\Http\Controllers\Api\Admin\UserImpersonationController;
@@ -81,6 +84,13 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     // Cross-tenant KPIs — single endpoint to avoid fan-out.
     Route::get('system/metrics', [SystemMetricsController::class, 'index'])
         ->name('admin.system.metrics');
+    Route::get('health', HealthcheckController::class)->name('admin.health');
+    Route::get('scheduler', SchedulerController::class)->name('admin.scheduler');
+    Route::get('jobs/failed', [FailedJobController::class, 'index'])->name('admin.jobs.failed.index');
+    Route::get('jobs/failed/{id}', [FailedJobController::class, 'show'])->name('admin.jobs.failed.show');
+    Route::post('jobs/failed/{id}/retry', [FailedJobController::class, 'retry'])->name('admin.jobs.failed.retry');
+    Route::post('jobs/failed/retry-all', [FailedJobController::class, 'retryAll'])->name('admin.jobs.failed.retry-all');
+    Route::delete('jobs/failed/{id}', [FailedJobController::class, 'destroy'])->name('admin.jobs.failed.destroy');
 
     // Cross-tenant audit log — no agency restriction (unlike AuditLogController).
     Route::get('audit', [CrossTenantAuditController::class, 'index'])

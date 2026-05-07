@@ -31,6 +31,12 @@ export default function SuperAdminSystemPage() {
         <Link href="/super-admin/system/maintenance" className={buttonVariants({ variant: 'outline', className: 'ml-2 mt-4' })}>
           Mode maintenance
         </Link>
+        <Link href="/super-admin/system/health" className={buttonVariants({ variant: 'outline', className: 'ml-2 mt-4' })}>
+          Healthcheck
+        </Link>
+        <Link href="/super-admin/system/scheduler" className={buttonVariants({ variant: 'outline', className: 'ml-2 mt-4' })}>
+          Scheduler
+        </Link>
       </section>
     </div>
   );

@@ -511,6 +511,56 @@ export type DataExportsResponse = {
   };
 };
 
+export type HealthcheckStatus = {
+  status: 'ok' | 'failed';
+  latency_ms?: number;
+  driver?: string;
+  value?: string;
+  error?: string;
+};
+
+export type PlatformHealth = {
+  db: HealthcheckStatus;
+  cache: HealthcheckStatus;
+  storage: HealthcheckStatus;
+  mail: HealthcheckStatus;
+  sms: HealthcheckStatus;
+  queue: { pending: number; processing: number; failed_24h: number };
+  scheduler: { last_run_at: string | null };
+  generated_at: string;
+};
+
+export type PlatformHealthResponse = { data: PlatformHealth };
+
+export type FailedJob = {
+  id: number;
+  uuid: string;
+  connection: string;
+  queue: string;
+  payload: string;
+  exception: string;
+  failed_at: string;
+};
+
+export type FailedJobsResponse = {
+  data: FailedJob[];
+  meta: {
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+  };
+};
+
+export type ScheduledTask = {
+  task: string;
+  last_run_at: string | null;
+  next_due_at: string | null;
+  average_duration_ms: number | null;
+};
+
+export type SchedulerResponse = { data: ScheduledTask[] };
+
 /**
  * TCK-132 — row shape for the cross-tenant properties table. Only fields the
  * UI actually renders, fed by `fields[properties]=...&include=address,agency`

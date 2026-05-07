@@ -39,6 +39,9 @@ import type {
   AnnouncementPayload,
   AnnouncementSegment,
   DataExport,
+  PlatformHealthResponse,
+  FailedJobsResponse,
+  SchedulerResponse,
 } from '@/types/super-admin';
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
@@ -678,4 +681,37 @@ export async function requestAdminUserDataExport(
     body: JSON.stringify({ reason }),
   });
   return jsonOrThrow<{ data: DataExport }>(res);
+}
+
+export async function fetchPlatformHealth(): Promise<PlatformHealthResponse> {
+  const res = await fetch('/api/super-admin/health', { credentials: 'include' });
+  return jsonOrThrow<PlatformHealthResponse>(res);
+}
+
+export async function fetchFailedJobs(params: { page?: number; perPage?: number } = {}): Promise<FailedJobsResponse> {
+  const qs = new URLSearchParams();
+  qs.set('per_page', String(params.perPage ?? 20));
+  if (params.page) qs.set('page', String(params.page));
+  const res = await fetch(`/api/super-admin/jobs/failed?${qs.toString()}`, { credentials: 'include' });
+  return jsonOrThrow<FailedJobsResponse>(res);
+}
+
+export async function retryFailedJob(id: number): Promise<{ data: { retried: boolean } }> {
+  const res = await fetch(`/api/super-admin/jobs/failed/${id}/retry`, { method: 'POST', credentials: 'include' });
+  return jsonOrThrow<{ data: { retried: boolean } }>(res);
+}
+
+export async function deleteFailedJob(id: number): Promise<{ data: { deleted: boolean } }> {
+  const res = await fetch(`/api/super-admin/jobs/failed/${id}`, { method: 'DELETE', credentials: 'include' });
+  return jsonOrThrow<{ data: { deleted: boolean } }>(res);
+}
+
+export async function retryAllFailedJobs(): Promise<{ data: { queued: number } }> {
+  const res = await fetch('/api/super-admin/jobs/failed/retry-all', { method: 'POST', credentials: 'include' });
+  return jsonOrThrow<{ data: { queued: number } }>(res);
+}
+
+export async function fetchScheduler(): Promise<SchedulerResponse> {
+  const res = await fetch('/api/super-admin/scheduler', { credentials: 'include' });
+  return jsonOrThrow<SchedulerResponse>(res);
 }

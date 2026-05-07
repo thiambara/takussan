@@ -17,6 +17,7 @@ use App\Events\Permissions\RoleDelegationRevoked;
 use App\Listeners\Accounting\NotifyStatementFinalized;
 use App\Listeners\Accounting\NotifyStatementImported;
 use App\Listeners\Admin\DispatchAlerts;
+use App\Listeners\Admin\RecordScheduledTaskRun;
 use App\Listeners\Lease\NotifyOnEarlyTermination;
 use App\Listeners\Lease\NotifyTenantOfDepositRefund;
 use App\Listeners\Lease\NotifyTenantOfLateFee;
@@ -73,6 +74,7 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Console\Events\ScheduledTaskFinished;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\ChannelManager;
@@ -177,6 +179,7 @@ class AppServiceProvider extends ServiceProvider
         PropertyVisit::observe(PropertyVisitObserver::class);
         User::observe(UserObserver::class);
         Activity::created(fn (Activity $activity) => app(DispatchAlerts::class)->handle($activity));
+        Event::listen(ScheduledTaskFinished::class, RecordScheduledTaskRun::class);
 
         // TCK-105 — purge CDN cache when a media item is deleted or replaced.
         Media::observe(MediaCdnObserver::class);
