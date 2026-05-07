@@ -1,7 +1,7 @@
 ---
 id: TCK-211
 title: "Super-admin — Actions support utilisateur (reset password, unlock, 2FA, sessions)"
-status: todo
+status: done
 phase: P1
 family: applicatif
 estimate: M
@@ -81,4 +81,4 @@ Boutons d'action regroupés dans un menu "Actions support" sur la fiche utilisat
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Le modèle `users` n'a pas de colonnes `locked_at` / compteur dédiées ; l'action unlock opère sur `metadata.locked_at` et `metadata.failed_login_attempts`.

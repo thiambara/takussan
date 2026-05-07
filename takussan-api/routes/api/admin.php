@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Admin\CrossTenantAuditController;
 use App\Http\Controllers\Api\Admin\SystemMetricsController;
 use App\Http\Controllers\Api\Admin\UserDetailController;
 use App\Http\Controllers\Api\Admin\UserImpersonationController;
+use App\Http\Controllers\Api\Admin\UserSupportController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -50,6 +51,16 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
         ->name('admin.users.sessions');
     Route::get('users/{user}/activity', [UserDetailController::class, 'activity'])
         ->name('admin.users.activity');
+    Route::post('users/{user}/force-password-reset', [UserSupportController::class, 'forcePasswordReset'])
+        ->name('admin.users.force-password-reset');
+    Route::post('users/{user}/unlock', [UserSupportController::class, 'unlock'])
+        ->name('admin.users.unlock');
+    Route::post('users/{user}/reset-2fa', [UserSupportController::class, 'reset2fa'])
+        ->name('admin.users.reset-2fa');
+    Route::post('users/{user}/revoke-sessions', [UserSupportController::class, 'revokeSessions'])
+        ->name('admin.users.revoke-sessions');
+    Route::delete('users/{user}/sessions/{tokenId}', [UserSupportController::class, 'destroySession'])
+        ->name('admin.users.sessions.destroy');
     Route::post('users/{user}/impersonate', [UserImpersonationController::class, 'start'])
         ->name('admin.users.impersonate');
     Route::post('impersonate/stop', [UserImpersonationController::class, 'stop'])

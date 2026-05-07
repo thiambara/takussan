@@ -1,17 +1,33 @@
 'use client';
 
 import Link from 'next/link';
-import { useQueries } from '@tanstack/react-query';
-import { Activity, Clock, KeyRound, ShieldCheck, UserRound } from 'lucide-react';
+import { useState } from 'react';
+import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
+import { Activity, Clock, KeyRound, RotateCcwKey, ShieldCheck, ShieldOff, Unlock, UserRound, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/components/ui/toast';
+import {
+  deleteAdminUserSession,
   fetchAdminUserActivity,
   fetchAdminUserDetail,
   fetchAdminUserSessions,
+  postUserSupportAction,
+  type UserSupportAction,
 } from '@/lib/queries/super-admin';
+import { ApiError } from '@/lib/api';
 import type { AdminUserDetail, AdminUserSession, AuditLogEntry } from '@/types/super-admin';
 
 export function UserDetailPage({ userId }: { userId: number }) {
@@ -66,6 +82,7 @@ export function UserDetailPage({ userId }: { userId: number }) {
           />
         </div>
         <UserSessionsTable
+          userId={user.id}
           sessions={sessionsQuery.data?.data ?? []}
           loading={sessionsQuery.isLoading}
         />
@@ -106,11 +123,97 @@ export function UserDetailHeader({ user }: { user: AdminUserDetail }) {
             </div>
           </div>
         </div>
-        <Button variant="outline" disabled>
-          Actions support
-        </Button>
+        <UserSupportActionsMenu userId={user.id} />
       </div>
     </header>
+  );
+}
+
+const SUPPORT_ACTIONS: Array<{
+  action: UserSupportAction;
+  label: string;
+  description: string;
+  icon: typeof RotateCcwKey;
+  destructive?: boolean;
+}> = [
+  {
+    action: 'force-password-reset',
+    label: 'Forcer reset password',
+    description: 'Envoie un email de reset et révoque tous les tokens de l’utilisateur.',
+    icon: RotateCcwKey,
+    destructive: true,
+  },
+  {
+    action: 'unlock',
+    label: 'Débloquer le compte',
+    description: 'Efface le verrouillage support stocké sur le compte.',
+    icon: Unlock,
+  },
+  {
+    action: 'reset-2fa',
+    label: 'Réinitialiser 2FA',
+    description: 'Désactive la 2FA et force une reconfiguration au prochain login.',
+    icon: ShieldOff,
+    destructive: true,
+  },
+  {
+    action: 'revoke-sessions',
+    label: 'Révoquer sessions',
+    description: 'Révoque les sessions actives de l’utilisateur cible.',
+    icon: XCircle,
+    destructive: true,
+  },
+];
+
+export function UserSupportActionsMenu({ userId }: { userId: number }) {
+  const [pendingAction, setPendingAction] = useState<UserSupportAction | null>(null);
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const mutation = useMutation({
+    mutationFn: ({ action, reason }: { action: UserSupportAction; reason: string }) => (
+      postUserSupportAction(userId, action, reason)
+    ),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['super-admin', 'user', userId] }),
+        queryClient.invalidateQueries({ queryKey: ['super-admin', 'user', userId, 'sessions'] }),
+        queryClient.invalidateQueries({ queryKey: ['super-admin', 'user', userId, 'activity'] }),
+      ]);
+      toast.add({ title: 'Action support exécutée', type: 'success' });
+      setPendingAction(null);
+    },
+  });
+  const meta = SUPPORT_ACTIONS.find((item) => item.action === pendingAction) ?? null;
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {SUPPORT_ACTIONS.map((item) => {
+        const Icon = item.icon;
+        return (
+          <Button
+            key={item.action}
+            type="button"
+            variant={item.destructive ? 'destructive' : 'outline'}
+            size="sm"
+            onClick={() => setPendingAction(item.action)}
+          >
+            <Icon className="mr-2 size-4" aria-hidden="true" />
+            {item.label}
+          </Button>
+        );
+      })}
+      {meta ? (
+        <SupportReasonDialog
+          open={pendingAction !== null}
+          onOpenChange={(open) => !open && setPendingAction(null)}
+          title={meta.label}
+          description={meta.description}
+          pending={mutation.isPending}
+          error={mutation.error}
+          onConfirm={(reason) => mutation.mutate({ action: meta.action, reason })}
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -148,7 +251,19 @@ export function UserProfilesSection({ user }: { user: AdminUserDetail }) {
   );
 }
 
-export function UserSessionsTable({ sessions, loading }: { sessions: AdminUserSession[]; loading: boolean }) {
+export function UserSessionsTable({
+  userId,
+  sessions,
+  loading,
+}: {
+  userId: number;
+  sessions: AdminUserSession[];
+  loading: boolean;
+}) {
+  const [sessionToRevoke, setSessionToRevoke] = useState<AdminUserSession | null>(null);
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
   return (
     <Card>
       <CardHeader>
@@ -161,13 +276,31 @@ export function UserSessionsTable({ sessions, loading }: { sessions: AdminUserSe
           <div key={session.id} className="rounded-lg border border-stone-200 p-3">
             <div className="flex items-center justify-between gap-2">
               <p className="font-medium text-stone-950">{session.name}</p>
-              <KeyRound className="size-4 text-amber-700" aria-hidden="true" />
+              <div className="flex items-center gap-2">
+                <KeyRound className="size-4 text-amber-700" aria-hidden="true" />
+                <Button type="button" size="sm" variant="outline" onClick={() => setSessionToRevoke(session)}>
+                  Révoquer
+                </Button>
+              </div>
             </div>
             <p className="mt-1 text-sm text-stone-600">Dernière activité : {formatDate(session.last_used_at)}</p>
             <p className="text-xs text-stone-500">Expiration : {formatDate(session.expires_at)}</p>
           </div>
         ))}
       </CardContent>
+      {sessionToRevoke ? (
+        <SessionRevokeDialog
+          session={sessionToRevoke}
+          userId={userId}
+          onOpenChange={(open) => !open && setSessionToRevoke(null)}
+          onSuccess={async () => {
+            await queryClient.invalidateQueries({ queryKey: ['super-admin', 'user', userId, 'sessions'] });
+            await queryClient.invalidateQueries({ queryKey: ['super-admin', 'user', userId, 'activity'] });
+            toast.add({ title: 'Session révoquée', type: 'success' });
+            setSessionToRevoke(null);
+          }}
+        />
+      ) : null}
     </Card>
   );
 }
@@ -215,4 +348,87 @@ export function UserActivityTimeline({
 function formatDate(value: string | null): string {
   if (!value) return '—';
   return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+}
+
+function SupportReasonDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  pending,
+  error,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description: string;
+  pending: boolean;
+  error: Error | null;
+  onConfirm: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState('');
+  const message = error instanceof ApiError ? error.displayMessage : error?.message;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label>Raison support</Label>
+          <Textarea
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="Décrivez la raison auditée"
+          />
+        </div>
+        {message ? <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{message}</p> : null}
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
+            Annuler
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={reason.trim().length < 3 || pending}
+            onClick={() => onConfirm(reason.trim())}
+          >
+            {pending ? 'Exécution…' : 'Confirmer'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SessionRevokeDialog({
+  session,
+  userId,
+  onOpenChange,
+  onSuccess,
+}: {
+  session: AdminUserSession;
+  userId: number;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => Promise<void>;
+}) {
+  const mutation = useMutation({
+    mutationFn: (reason: string) => deleteAdminUserSession(userId, session.id, reason),
+    onSuccess,
+  });
+
+  return (
+    <SupportReasonDialog
+      open
+      onOpenChange={onOpenChange}
+      title={`Révoquer ${session.name}`}
+      description="Révoque uniquement ce token Sanctum."
+      pending={mutation.isPending}
+      error={mutation.error}
+      onConfirm={(reason) => mutation.mutate(reason)}
+    />
+  );
 }

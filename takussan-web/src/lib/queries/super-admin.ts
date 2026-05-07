@@ -164,6 +164,40 @@ export async function fetchAdminUserActivity(userId: number): Promise<AuditLogRe
   return jsonOrThrow<AuditLogResponse>(res);
 }
 
+export type UserSupportAction =
+  | 'force-password-reset'
+  | 'unlock'
+  | 'reset-2fa'
+  | 'revoke-sessions';
+
+export async function postUserSupportAction(
+  userId: number,
+  action: UserSupportAction,
+  reason: string,
+): Promise<{ success: true; action_id: number }> {
+  const res = await fetch(`/api/super-admin/users/${userId}/${action}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  return jsonOrThrow<{ success: true; action_id: number }>(res);
+}
+
+export async function deleteAdminUserSession(
+  userId: number,
+  tokenId: number,
+  reason: string,
+): Promise<{ success: true; action_id: number }> {
+  const res = await fetch(`/api/super-admin/users/${userId}/sessions/${tokenId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  return jsonOrThrow<{ success: true; action_id: number }>(res);
+}
+
 export async function postStopImpersonation(targetUserId: number): Promise<ImpersonationStopResponse> {
   const res = await fetch('/api/super-admin/impersonate/stop', {
     method: 'POST',
