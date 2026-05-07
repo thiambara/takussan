@@ -128,6 +128,24 @@ _(vide — TCK-146 en review)_
 - [TCK-157](tickets/TCK-157-property-edit-photos-section-doublon.md) — Fiche bien (édition) — section Photos dupliquée `S · P2 · front`
 - [TCK-158](tickets/TCK-158-dashboard-detail-headings-semantiques.md) — Pages détail dashboard — hiérarchie de headings (h1/h2 dupliqués ou manquants) `S · P2 · front`
 
+### Vague 23 — Console super-admin (gouvernance plateforme, 2026-05-07)
+
+> Extension de la console super-admin livrée par TCK-144/145/132/115/116. Couvre les capacités plateforme attendues d'un super-admin SaaS multi-tenant : gouvernance des agences (détail, onboarding), support utilisateur cross-tenant, modération unifiée, référentiels globaux (tags, enums), templates de notification, paramètres plateforme, intégrations tierces, mode maintenance, feature flags, alertes sur actions sensibles. Les sujets nécessitant une extension de spec préalable (KYC documentaire, plans / quotas, payouts plateforme, broadcast in-app, RGPD export user, healthcheck UI) ne sont **pas** ticketés ici — un PR sur `features.md` doit les introduire d'abord.
+
+- [TCK-208](tickets/TCK-208-super-admin-agency-detail.md) — Super-admin — Détail agence cross-tenant `/super-admin/agencies/[id]` `M · P1 · front`
+- [TCK-209](tickets/TCK-209-super-admin-agency-onboarding.md) — Super-admin — Onboarding agence (création + admin initial) `M · P1 · applicatif`
+- [TCK-210](tickets/TCK-210-super-admin-user-detail.md) — Super-admin — Détail utilisateur cross-tenant `/super-admin/users/[id]` `M · P1 · front`
+- [TCK-211](tickets/TCK-211-super-admin-user-support-actions.md) — Super-admin — Actions support utilisateur (reset password, unlock, 2FA, sessions) `M · P1 · applicatif`
+- [TCK-212](tickets/TCK-212-super-admin-moderation-queue.md) — Super-admin — File de modération unifiée (signalements cross-tenant) `L · P2 · applicatif`
+- [TCK-213](tickets/TCK-213-super-admin-tags-amenities-global.md) — Super-admin — Tags & amenités globaux (référentiel plateforme) `S · P1 · front`
+- [TCK-214](tickets/TCK-214-super-admin-business-enums.md) — Super-admin — Enums métier éditables (catégories, libellés, traductions) `M · P1 · applicatif`
+- [TCK-215](tickets/TCK-215-super-admin-notification-templates.md) — Super-admin — Templates de notification (email / SMS / push) `M · P1 · applicatif`
+- [TCK-216](tickets/TCK-216-super-admin-platform-settings.md) — Super-admin — Paramètres globaux plateforme & devises `M · P2 · applicatif`
+- [TCK-217](tickets/TCK-217-super-admin-third-party-integrations.md) — Super-admin — Intégrations tierces (API keys, webhooks) `M · P2 · applicatif`
+- [TCK-218](tickets/TCK-218-super-admin-maintenance-mode.md) — Super-admin — Mode maintenance programmé `S · P3 · applicatif`
+- [TCK-219](tickets/TCK-219-super-admin-feature-flags.md) — Super-admin — Feature flags applicatifs `M · P3 · applicatif`
+- [TCK-220](tickets/TCK-220-super-admin-sensitive-action-alerts.md) — Super-admin — Alertes sur actions sensibles `S · P3 · applicatif`
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
@@ -622,6 +640,21 @@ TCK-144 ──▶ TCK-145 (frontend super-admin area)
 
 ── Vague 18 : Bugs smoke test visiteur anonyme ──
 TCK-159 (i18n public switcher) ──▶ TCK-160 (i18n public residual EN strings)
+
+── Vague 23 : Console super-admin (gouvernance plateforme) ──
+TCK-145 ──▶ TCK-208 (super-admin agency detail)
+TCK-145 ──▶ TCK-209 (super-admin agency onboarding)
+TCK-145 ──▶ TCK-210 (super-admin user detail)
+TCK-210 ──▶ TCK-211 (super-admin user support actions)
+TCK-145 ──▶ TCK-212 (super-admin unified moderation queue)
+TCK-145 ──▶ TCK-213 (super-admin global tags & amenities)
+TCK-145 ──▶ TCK-214 (super-admin business enums)
+TCK-145 ──▶ TCK-215 (super-admin notification templates)
+TCK-145 ──▶ TCK-216 (super-admin platform settings)
+TCK-216 ──▶ TCK-218 (super-admin maintenance mode)
+TCK-145 ──▶ TCK-217 (super-admin third-party integrations)
+TCK-145 ──▶ TCK-219 (super-admin feature flags)
+TCK-145 ──▶ TCK-220 (super-admin sensitive action alerts)
 ```
 
 ---
