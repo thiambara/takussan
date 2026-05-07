@@ -48,6 +48,9 @@ import type {
   PlatformHealthResponse,
   FailedJobsResponse,
   SchedulerResponse,
+  PlatformPayoutsResponse,
+  PlatformPayoutResponse,
+  PlatformPayoutClosePeriodResponse,
 } from '@/types/super-admin';
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
@@ -847,4 +850,91 @@ export async function retryAllFailedJobs(): Promise<{ data: { queued: number } }
 export async function fetchScheduler(): Promise<SchedulerResponse> {
   const res = await fetch('/api/super-admin/scheduler', { credentials: 'include' });
   return jsonOrThrow<SchedulerResponse>(res);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TCK-223 — Platform payouts
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PLATFORM_PAYOUT_FIELDS =
+  'id,agency_id,period_start,period_end,gross_amount,platform_fee_amount,net_amount,currency,status,approved_by,processed_at,failure_reason,metadata,created_at,updated_at';
+
+export async function fetchAdminPlatformPayouts(params: {
+  agencyId?: number | null;
+  status?: string;
+  periodEndMin?: string;
+  page?: number;
+  perPage?: number;
+} = {}): Promise<PlatformPayoutsResponse> {
+  const qs = new URLSearchParams();
+  qs.set('fields[platform_payouts]', PLATFORM_PAYOUT_FIELDS);
+  qs.set('sort', '-period_end');
+  if (params.agencyId) qs.set('filter[agency_id]', String(params.agencyId));
+  if (params.status) qs.set('filter[status]', params.status);
+  if (params.periodEndMin) qs.set('filter[period_end_min]', params.periodEndMin);
+  if (params.page) qs.set('page', String(params.page));
+  if (params.perPage) qs.set('per_page', String(params.perPage));
+  const res = await fetch(`/api/super-admin/payouts?${qs.toString()}`, { credentials: 'include' });
+  return jsonOrThrow<PlatformPayoutsResponse>(res);
+}
+
+export async function fetchAdminPlatformPayout(payoutId: number): Promise<PlatformPayoutResponse> {
+  const res = await fetch(`/api/super-admin/payouts/${payoutId}`, { credentials: 'include' });
+  return jsonOrThrow<PlatformPayoutResponse>(res);
+}
+
+export async function closeAdminPlatformPayoutPeriod(payload: {
+  agency_id?: number | null;
+  period_end: string;
+}): Promise<PlatformPayoutClosePeriodResponse> {
+  const res = await fetch('/api/super-admin/payouts/close-period', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<PlatformPayoutClosePeriodResponse>(res);
+}
+
+export async function approveAdminPlatformPayout(payoutId: number): Promise<PlatformPayoutResponse> {
+  const res = await fetch(`/api/super-admin/payouts/${payoutId}/approve`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  return jsonOrThrow<PlatformPayoutResponse>(res);
+}
+
+export async function markAdminPlatformPayoutPaid(
+  payoutId: number,
+  payload: { processed_at: string; metadata?: { bank_ref?: string; batch_id?: string } },
+): Promise<PlatformPayoutResponse> {
+  const res = await fetch(`/api/super-admin/payouts/${payoutId}/mark-paid`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<PlatformPayoutResponse>(res);
+}
+
+export async function cancelAdminPlatformPayout(
+  payoutId: number,
+  reason: string,
+): Promise<PlatformPayoutResponse> {
+  const res = await fetch(`/api/super-admin/payouts/${payoutId}/cancel`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  return jsonOrThrow<PlatformPayoutResponse>(res);
+}
+
+export async function fetchMyPlatformPayouts(): Promise<PlatformPayoutsResponse> {
+  const qs = new URLSearchParams();
+  qs.set('fields[platform_payouts]', PLATFORM_PAYOUT_FIELDS);
+  qs.set('sort', '-period_end');
+  qs.set('per_page', '20');
+  const res = await fetch(`/api/me/payouts?${qs.toString()}`, { credentials: 'include' });
+  return jsonOrThrow<PlatformPayoutsResponse>(res);
 }

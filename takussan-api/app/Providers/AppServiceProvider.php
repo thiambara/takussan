@@ -28,9 +28,11 @@ use App\Listeners\Payments\LemonSqueezyEventListener;
 use App\Listeners\Permissions\NotifyDelegationActivated;
 use App\Listeners\Permissions\NotifyDelegationExpired;
 use App\Listeners\Permissions\NotifyDelegationRevoked;
+use App\Models\BookingPayment;
 use App\Models\Conversation;
 use App\Models\Favorite;
 use App\Models\Lease;
+use App\Models\LeasePayment;
 use App\Models\Message;
 use App\Models\Property;
 use App\Models\PropertyVisit;
@@ -42,6 +44,7 @@ use App\Observers\FavoriteObserver;
 use App\Observers\LeaseObserver;
 use App\Observers\MediaCdnObserver;
 use App\Observers\MessageObserver;
+use App\Observers\PaymentPlatformFeeObserver;
 use App\Observers\PropertyObserver;
 use App\Observers\PropertyVisitObserver;
 use App\Observers\ReviewObserver;
@@ -178,6 +181,8 @@ class AppServiceProvider extends ServiceProvider
         Lease::observe(LeaseObserver::class);
         PropertyVisit::observe(PropertyVisitObserver::class);
         User::observe(UserObserver::class);
+        BookingPayment::observe(PaymentPlatformFeeObserver::class);
+        LeasePayment::observe(PaymentPlatformFeeObserver::class);
         Activity::created(fn (Activity $activity) => app(DispatchAlerts::class)->handle($activity));
         Event::listen(ScheduledTaskFinished::class, RecordScheduledTaskRun::class);
 

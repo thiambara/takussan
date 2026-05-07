@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\Admin\MaintenanceController;
 use App\Http\Controllers\Api\Admin\ModerationQueueController;
 use App\Http\Controllers\Api\Admin\NotificationTemplateController;
 use App\Http\Controllers\Api\Admin\PlanController;
+use App\Http\Controllers\Api\Admin\PlatformPayoutController;
 use App\Http\Controllers\Api\Admin\PlatformSettingController;
 use App\Http\Controllers\Api\Admin\SchedulerController;
 use App\Http\Controllers\Api\Admin\SystemMetricsController;
@@ -162,4 +163,13 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     Route::post('announcements', [AnnouncementController::class, 'store'])->name('admin.announcements.store');
     Route::patch('announcements/{announcement}', [AnnouncementController::class, 'update'])->name('admin.announcements.update');
     Route::post('announcements/{announcement}/deactivate', [AnnouncementController::class, 'deactivate'])->name('admin.announcements.deactivate');
+
+    // TCK-223 — Platform → agency payouts. close-period must come before
+    // {payout} bindings to avoid the slug being interpreted as an id.
+    Route::get('payouts', [PlatformPayoutController::class, 'index'])->name('admin.payouts.index');
+    Route::post('payouts/close-period', [PlatformPayoutController::class, 'closePeriod'])->name('admin.payouts.close-period');
+    Route::get('payouts/{payout}', [PlatformPayoutController::class, 'show'])->name('admin.payouts.show');
+    Route::post('payouts/{payout}/approve', [PlatformPayoutController::class, 'approve'])->name('admin.payouts.approve');
+    Route::post('payouts/{payout}/mark-paid', [PlatformPayoutController::class, 'markPaid'])->name('admin.payouts.mark-paid');
+    Route::post('payouts/{payout}/cancel', [PlatformPayoutController::class, 'cancel'])->name('admin.payouts.cancel');
 });

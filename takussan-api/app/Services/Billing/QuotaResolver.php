@@ -30,6 +30,20 @@ class QuotaResolver
         return (float) ($subscription->platform_fee_pct_override ?? $subscription->plan?->platform_fee_pct ?? 0);
     }
 
+    /**
+     * Returns the effective platform fee % for an agency at "now" — resolves
+     * the active subscription and applies any override. Used by TCK-223 to
+     * freeze the fee at payment time on booking_payments / lease_payments.
+     * Returns 0.0 when the agency has no active subscription (conservative
+     * default — no commission charged for un-subscribed agencies).
+     */
+    public function effectivePlatformFeePctForAgency(Agency|int|null $agency): float
+    {
+        $subscription = $this->currentSubscription($agency);
+
+        return $subscription ? $this->effectivePlatformFeePct($subscription) : 0.0;
+    }
+
     public function effectiveLimits(AgencySubscription $subscription): array
     {
         $planLimits = $subscription->plan?->limits ?? [];

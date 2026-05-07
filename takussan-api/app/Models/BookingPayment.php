@@ -42,6 +42,7 @@ class BookingPayment extends AbstractModel
         'amount', 'currency', 'payment_method', 'payment_type', 'status',
         'refund_amount', 'refund_reason', 'paid_at', 'transaction_id', 'notes', 'metadata',
         'bank_reconciled_at', 'bank_statement_line_id',
+        'platform_fee_pct_at_payment', 'platform_payout_id',
     ];
 
     protected $casts = [
@@ -49,6 +50,7 @@ class BookingPayment extends AbstractModel
         'refund_amount' => 'decimal:2',
         'metadata' => 'array',
         'bank_reconciled_at' => 'datetime',
+        'platform_fee_pct_at_payment' => 'decimal:2',
     ];
 
     public function booking(): BelongsTo

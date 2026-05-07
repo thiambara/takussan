@@ -136,7 +136,6 @@ _(vide — TCK-146 en review)_
 
 > Suite logique de la Vague 23 — adresse les sujets qui requéraient une extension de spec préalable. `features.md` §1.5 / §1.12 / §2.1 / §2.3 / §2.5 / §2.9 et `models-spec.md` (#42 → #47 + 4 nouveaux enums) ont été étendus dans le même chantier pour ancrer ces tickets.
 
-- [TCK-223](tickets/TCK-223-super-admin-platform-payouts.md) — Super-admin — Reversement plateforme → agences (payout périodique) `L · P2 · applicatif`
 - [TCK-227](tickets/TCK-227-super-admin-platform-reporting.md) — Super-admin — Reporting plateforme cross-tenant (croissance, MRR, cohortes) `L · P2 · applicatif`
 
 
@@ -154,6 +153,7 @@ _(vide)_
 
 - [TCK-221](tickets/TCK-221-super-admin-agency-kyc.md) — Super-admin — KYC documentaire des agences (workflow vérification) `L · P1 · applicatif`
 - [TCK-222](tickets/TCK-222-super-admin-plans-subscriptions.md) — Super-admin — Plans & abonnements plateforme (catalogue + assignation par agence) `L · P2 · applicatif`
+- [TCK-223](tickets/TCK-223-super-admin-platform-payouts.md) — Super-admin — Reversement plateforme → agences (payout périodique) `L · P2 · applicatif`
 - [TCK-226](tickets/TCK-226-super-admin-healthcheck-jobs.md) — Super-admin — Healthcheck plateforme & supervision des jobs `M · P2 · applicatif`
 - [TCK-225](tickets/TCK-225-super-admin-rgpd-user-data-export.md) — Super-admin — Export RGPD des données utilisateur (portabilité) `M · P2 · applicatif`
 - [TCK-224](tickets/TCK-224-super-admin-broadcast-announcements.md) — Super-admin — Annonces in-app cross-tenant (broadcast par segment) `M · P2 · applicatif`

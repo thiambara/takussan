@@ -650,6 +650,47 @@ export type ScheduledTask = {
 
 export type SchedulerResponse = { data: ScheduledTask[] };
 
+// TCK-223 — Platform → agency payouts.
+export type PlatformPayoutStatus = 'pending' | 'approved' | 'processing' | 'paid' | 'failed' | 'cancelled';
+
+export type PlatformPayoutBreakdownGroup = {
+  count: number;
+  gross: number;
+  fees: number;
+};
+
+export type PlatformPayout = {
+  id: number;
+  agency_id: number;
+  period_start: string | null;
+  period_end: string | null;
+  gross_amount: number;
+  platform_fee_amount: number;
+  net_amount: number;
+  currency: string;
+  status: PlatformPayoutStatus;
+  approved_by: number | null;
+  processed_at: string | null;
+  failure_reason: string | null;
+  metadata: Record<string, unknown> | null;
+  breakdown?: { booking: PlatformPayoutBreakdownGroup; lease: PlatformPayoutBreakdownGroup } | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type PlatformPayoutsResponse = {
+  data: PlatformPayout[];
+  meta: {
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+  };
+};
+
+export type PlatformPayoutResponse = { data: PlatformPayout };
+export type PlatformPayoutClosePeriodResponse = { data: PlatformPayout[] };
+
 /**
  * TCK-132 — row shape for the cross-tenant properties table. Only fields the
  * UI actually renders, fed by `fields[properties]=...&include=address,agency`

@@ -1,7 +1,7 @@
 ---
 id: TCK-223
 title: "Super-admin — Reversement plateforme → agences (payout périodique)"
-status: todo
+status: review
 phase: P2
 family: applicatif
 estimate: L
@@ -95,4 +95,8 @@ Page `/super-admin/payouts` avec table dense, filtres (agence, statut, période)
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Idempotence cablée à deux niveaux : check applicatif (`SELECT … FOR UPDATE`) + index unique partiel `platform_payouts_unique_open_period (agency_id, period_end) WHERE status <> 'cancelled'` sur PG/SQLite. La race condition retombe sur 409 via le rattrapage `QueryException`.
+- Capture du fee à `paid_at` via `PaymentPlatformFeeObserver` partagé entre `BookingPayment` et `LeasePayment`. Le stamping est idempotent (la colonne ne se réécrit jamais une fois posée).
+- Le `cancel` détache les paiements (`platform_payout_id = NULL`) pour qu'une nouvelle clôture les ré-aggrège — sinon les paiements seraient orphelins et invisibles à un retry.
+- Backfill conservatoire : `php artisan platform:backfill-payment-fees` pose 0% sur les paiements `paid` antérieurs à TCK-223. Pas de commission rétroactive (décision business confirmée par la spec).
+- Breakdown : agrégation SQL pure, vérifiée par test (≤ 2 requêtes `COUNT(*) … platform_fee_pct_at_payment` au total).
