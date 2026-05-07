@@ -8,6 +8,11 @@ import type {
   AdminModerationResponse,
   BusinessEnumResponse,
   BusinessEnumsResponse,
+  NotificationTemplateChannel,
+  NotificationTemplateLocale,
+  NotificationTemplatePreviewResponse,
+  NotificationTemplateResponse,
+  NotificationTemplatesResponse,
   ModerationDecision,
   ModerationItemStatus,
   ModerationItemType,
@@ -406,4 +411,40 @@ export async function deleteBusinessEnumValue(key: string, value: string): Promi
     credentials: 'include',
   });
   return jsonOrThrow<BusinessEnumResponse>(res);
+}
+
+export async function fetchNotificationTemplates(): Promise<NotificationTemplatesResponse> {
+  const res = await fetch('/api/super-admin/notification-templates', { credentials: 'include' });
+  return jsonOrThrow<NotificationTemplatesResponse>(res);
+}
+
+export async function patchNotificationTemplate(
+  event: string,
+  channel: NotificationTemplateChannel,
+  payload: {
+    is_active: boolean;
+    templates: Record<NotificationTemplateLocale, { subject?: string | null; body: string }>;
+  },
+): Promise<NotificationTemplateResponse> {
+  const res = await fetch(`/api/super-admin/notification-templates/${event}/${channel}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<NotificationTemplateResponse>(res);
+}
+
+export async function previewNotificationTemplate(
+  event: string,
+  channel: NotificationTemplateChannel,
+  locale: NotificationTemplateLocale,
+): Promise<NotificationTemplatePreviewResponse> {
+  const res = await fetch(`/api/super-admin/notification-templates/${event}/${channel}/preview`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ locale }),
+  });
+  return jsonOrThrow<NotificationTemplatePreviewResponse>(res);
 }

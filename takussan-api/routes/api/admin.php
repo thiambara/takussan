@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Admin\AgencyOnboardingController;
 use App\Http\Controllers\Api\Admin\BusinessEnumController;
 use App\Http\Controllers\Api\Admin\CrossTenantAuditController;
 use App\Http\Controllers\Api\Admin\ModerationQueueController;
+use App\Http\Controllers\Api\Admin\NotificationTemplateController;
 use App\Http\Controllers\Api\Admin\SystemMetricsController;
 use App\Http\Controllers\Api\Admin\UserDetailController;
 use App\Http\Controllers\Api\Admin\UserImpersonationController;
@@ -87,4 +88,9 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     Route::post('enums/{key}/values', [BusinessEnumController::class, 'storeValue'])->name('admin.enums.values.store');
     Route::patch('enums/{key}/values/{value}', [BusinessEnumController::class, 'updateValue'])->name('admin.enums.values.update');
     Route::delete('enums/{key}/values/{value}', [BusinessEnumController::class, 'deactivateValue'])->name('admin.enums.values.destroy');
+
+    Route::get('notification-templates', [NotificationTemplateController::class, 'index'])->name('admin.notification-templates.index');
+    Route::get('notification-templates/{event}/{channel}', [NotificationTemplateController::class, 'show'])->name('admin.notification-templates.show');
+    Route::patch('notification-templates/{event}/{channel}', [NotificationTemplateController::class, 'update'])->name('admin.notification-templates.update');
+    Route::post('notification-templates/{event}/{channel}/preview', [NotificationTemplateController::class, 'preview'])->name('admin.notification-templates.preview');
 });

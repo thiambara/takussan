@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Booking;
+use App\Services\Admin\NotificationTemplateService;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -48,15 +49,32 @@ class NewBookingNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $reference = $this->booking->reference_number ?? (string) $this->booking->id;
+        $rendered = app(NotificationTemplateService::class)->renderActive(
+            'booking_confirmed',
+            'email',
+            app()->getLocale(),
+            [
+                'booking' => [
+                    'code' => $reference,
+                    'start_date' => optional($this->booking->start_date)->format('Y-m-d') ?? '—',
+                    'end_date' => optional($this->booking->end_date)->format('Y-m-d') ?? '—',
+                ],
+                'user' => ['first_name' => $notifiable->first_name ?? ''],
+                'property' => ['title' => $this->booking->property?->title ?? ''],
+            ],
+            [
+                'subject' => __('notifications.new_booking.subject', ['reference' => $reference]),
+                'body' => __('notifications.new_booking.intro', ['reference' => $reference])."\n".__('notifications.new_booking.details', [
+                    'start' => optional($this->booking->start_date)->format('Y-m-d') ?? '—',
+                    'end' => optional($this->booking->end_date)->format('Y-m-d') ?? '—',
+                ]),
+            ],
+        );
 
         return (new MailMessage)
-            ->subject(__('notifications.new_booking.subject', ['reference' => $reference]))
+            ->subject($rendered['subject'])
             ->greeting(__('notifications.new_booking.greeting'))
-            ->line(__('notifications.new_booking.intro', ['reference' => $reference]))
-            ->line(__('notifications.new_booking.details', [
-                'start' => optional($this->booking->start_date)->format('Y-m-d') ?? '—',
-                'end' => optional($this->booking->end_date)->format('Y-m-d') ?? '—',
-            ]))
+            ->line($rendered['body'])
             ->salutation(__('notifications.salutation'));
     }
 

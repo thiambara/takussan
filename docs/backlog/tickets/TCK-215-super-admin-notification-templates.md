@@ -1,7 +1,7 @@
 ---
 id: TCK-215
 title: "Super-admin — Templates de notification (email / SMS / push)"
-status: todo
+status: review
 phase: P1
 family: applicatif
 estimate: M
@@ -83,4 +83,6 @@ Liste des événements à gauche (groupés par domaine : Réservation, Bail, Pai
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Stockage retenu : table dédiée `notification_templates` par `event/channel/locale`.
+- Whitelist initiale : `booking_confirmed`, `payment_received`, `maintenance_created`; les templates auth/reset restent hors scope.
+- `NewBookingNotification` résout maintenant `booking_confirmed/email` dynamiquement et retombe sur le contenu hardcodé si aucun template actif n'existe.

@@ -275,6 +275,32 @@ export type BusinessEnum = {
 export type BusinessEnumsResponse = { data: BusinessEnum[] };
 export type BusinessEnumResponse = { data: BusinessEnum };
 
+export type NotificationTemplateChannel = 'email' | 'sms' | 'push';
+export type NotificationTemplateLocale = 'fr' | 'en' | 'wo';
+
+export type NotificationTemplateDetail = {
+  event: string;
+  channel: NotificationTemplateChannel;
+  name: string;
+  domain: string;
+  placeholders: string[];
+  sample_data: Record<string, unknown>;
+  is_active: boolean;
+  templates: Record<NotificationTemplateLocale, { subject: string | null; body: string }>;
+};
+
+export type NotificationTemplatesResponse = { data: NotificationTemplateDetail[] };
+export type NotificationTemplateResponse = { data: NotificationTemplateDetail };
+export type NotificationTemplatePreviewResponse = {
+  data: {
+    event: string;
+    channel: NotificationTemplateChannel;
+    locale: NotificationTemplateLocale;
+    subject: string;
+    body: string;
+  };
+};
+
 /**
  * TCK-132 — row shape for the cross-tenant properties table. Only fields the
  * UI actually renders, fed by `fields[properties]=...&include=address,agency`
