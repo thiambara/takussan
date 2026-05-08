@@ -142,7 +142,6 @@ _(Vague 24 finalisée — voir Review)_
 
 > Smoke test browser suivant `docs/qa/utilisateurs-authentifies-qa.md`. Les anomalies sont recensées dans `docs/smoke-tests/utilisateurs-authentifies-2026-05-08.md` et groupées ici par surface de correction.
 
-- [TCK-228](tickets/TCK-228-notification-preferences-crash.md) — Préférences notifications — corriger le crash au toggle `S · P1 · bug`
 - [TCK-229](tickets/TCK-229-notification-bell-feed.md) — Notifications — restaurer la cloche et le feed `M · P0 · bug`
 - [TCK-230](tickets/TCK-230-auth-email-links.md) — Auth — corriger les liens email transactionnels `M · P0 · bug`
 - [TCK-231](tickets/TCK-231-profile-edit-avatar.md) — Profil — synchroniser édition et avatar `M · P0 · bug`
@@ -162,6 +161,10 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 _(vide)_
 
 ## 👀 Review
+
+### Vague 25 — Bugs smoke test utilisateurs authentifiés
+
+- [TCK-228](tickets/TCK-228-notification-preferences-crash.md) — Préférences notifications — corriger le crash au toggle `S · P1 · bug`
 
 ### Vague 24 — Console super-admin · gouvernance SaaS
 

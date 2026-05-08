@@ -63,6 +63,25 @@ function cellKey(event: string, channel: string): string {
   return `${event}|${channel}`;
 }
 
+function normalizePreferencesResponse(
+  next: Partial<NotificationPreferencesResponse>,
+  previous?: NotificationPreferencesResponse,
+): NotificationPreferencesResponse {
+  return {
+    preferences: Array.isArray(next.preferences)
+      ? next.preferences
+      : (previous?.preferences ?? []),
+    events: Array.isArray(next.events) ? next.events : (previous?.events ?? []),
+    channels: Array.isArray(next.channels)
+      ? next.channels
+      : (previous?.channels ?? ['inapp', 'email', 'push', 'sms']),
+    phone_verified:
+      typeof next.phone_verified === 'boolean'
+        ? next.phone_verified
+        : (previous?.phone_verified ?? false),
+  };
+}
+
 export function NotificationPreferencesMatrix() {
   const queryClient = useQueryClient();
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -113,13 +132,18 @@ export function NotificationPreferencesMatrix() {
       }
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(PREFS_KEY, data);
+      queryClient.setQueryData<NotificationPreferencesResponse>(
+        PREFS_KEY,
+        (previous) => normalizePreferencesResponse(data, previous),
+      );
       setSavedAt(Date.now());
       setLocalError(null);
     },
   });
 
-  const data = query.data;
+  const data = query.data
+    ? normalizePreferencesResponse(query.data)
+    : undefined;
 
   const cellMap = useMemo(() => {
     const map = new Map<string, NotificationPreferenceCell>();

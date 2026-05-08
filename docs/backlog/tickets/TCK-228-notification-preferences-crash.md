@@ -1,7 +1,7 @@
 ---
 id: TCK-228
 title: "Préférences notifications — corriger le crash au toggle"
-status: todo
+status: review
 phase: P1
 family: bug
 estimate: S
@@ -58,4 +58,4 @@ Conserver la matrice existante ; le correctif doit rendre l'action fiable avec u
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+La mutation API renvoie désormais la même forme que le chargement initial ; le composant garde aussi une normalisation défensive pour les réponses partielles héritées.

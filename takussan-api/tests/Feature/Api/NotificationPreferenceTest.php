@@ -38,6 +38,28 @@ class NotificationPreferenceTest extends TestCase
             ->assertJsonPath('data.notifications_push_enabled', true);
     }
 
+    public function test_matrix_update_returns_complete_payload(): void
+    {
+        $user = User::factory()->create(['phone_verified_at' => null]);
+        Sanctum::actingAs($user);
+
+        $this->patchJson('/api/me/notification-preferences', [
+            'preferences' => [[
+                'event_type' => 'message_received',
+                'channel' => 'email',
+                'enabled' => false,
+            ]],
+        ])->assertOk()
+            ->assertJsonStructure(['data' => [
+                'preferences',
+                'events',
+                'channels',
+                'phone_verified',
+            ]])
+            ->assertJsonPath('data.phone_verified', false)
+            ->assertJsonPath('data.channels.0', 'inapp');
+    }
+
     public function test_unauthenticated_cannot_access_preferences(): void
     {
         $this->getJson('/api/notifications/preferences')
