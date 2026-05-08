@@ -35,6 +35,14 @@ class NotificationController extends Controller
         return $this->json(['data' => $notification]);
     }
 
+    public function markAsUnread(Request $request, AppNotification $notification): JsonResponse
+    {
+        abort_unless($notification->user_id === $request->user()->id, 403);
+        $notification->update(['read_at' => null, 'is_read' => false]);
+
+        return $this->json(['data' => $notification]);
+    }
+
     public function markAllRead(Request $request): JsonResponse
     {
         AppNotification::where('user_id', $request->user()->id)

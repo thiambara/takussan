@@ -1,7 +1,7 @@
 ---
 id: TCK-229
 title: "Notifications — restaurer la cloche et le feed"
-status: todo
+status: review
 phase: P0
 family: bug
 estimate: M
@@ -57,4 +57,4 @@ Intégrer la cloche dans le header existant avec un badge non-lu lisible, un fee
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Ajout de l'action non-lue côté API pour couvrir le contrat lu/non-lu de la spec ; le feed reste alimenté par les endpoints notifications existants.
