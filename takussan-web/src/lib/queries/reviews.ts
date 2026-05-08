@@ -14,6 +14,13 @@ export type Review = {
   id: number;
   reviewable_type: string;
   reviewable_id: number;
+  target?: {
+    type: 'property' | 'agency' | 'user';
+    id: number;
+    title: string;
+    slug: string | null;
+    subtitle: string | null;
+  } | null;
   author_id: number;
   author: {
     id: number | null;
@@ -56,6 +63,20 @@ export function useOwnerReviewProperties() {
   return useApiQuery<PaginatedResponse<OwnerReviewProperty>>(
     ['owner-reviews', 'properties'],
     '/api/properties',
+    { params: spatieParams },
+  );
+}
+
+export function useAuthoredReviews() {
+  const spatieParams: SpatieQueryParams = {
+    filter: { author_id: 'me' },
+    sort: '-created_at',
+    per_page: 50,
+  };
+
+  return useApiQuery<PaginatedResponse<Review>>(
+    ['profile-reviews', 'authored'],
+    '/api/reviews',
     { params: spatieParams },
   );
 }

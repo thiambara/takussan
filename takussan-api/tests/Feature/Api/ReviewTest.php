@@ -229,15 +229,32 @@ class ReviewTest extends TestCase
     {
         $user = User::factory()->create();
         $other = User::factory()->create();
+        $property = Property::factory()->create([
+            'title' => 'Appartement témoin',
+            'slug' => 'appartement-temoin',
+            'reference_number' => 'TK-TEST-236',
+        ]);
 
-        Review::factory()->count(2)->create(['author_id' => $user->id]);
+        Review::factory()->create([
+            'author_id' => $user->id,
+            'created_at' => now()->subDay(),
+        ]);
+        Review::factory()->create([
+            'author_id' => $user->id,
+            'reviewable_type' => Property::class,
+            'reviewable_id' => $property->id,
+            'created_at' => now(),
+        ]);
         Review::factory()->count(3)->create(['author_id' => $other->id]);
 
         Sanctum::actingAs($user);
 
         $this->getJson('/api/reviews?filter[author_id]=me')
             ->assertOk()
-            ->assertJsonCount(2, 'data');
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.target.title', 'Appartement témoin')
+            ->assertJsonPath('data.0.target.slug', 'appartement-temoin')
+            ->assertJsonPath('data.0.target.subtitle', 'TK-TEST-236');
     }
 
     public function test_non_admin_without_author_filter_is_forbidden_on_reviews_index(): void

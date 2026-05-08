@@ -3,11 +3,13 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { Star } from 'lucide-react';
+import { useLocale } from 'next-intl';
 import { useBookings } from '@/lib/queries/bookings';
 import { useLeases } from '@/lib/queries/leases';
 import {
   type OwnerReviewProperty,
   type Review,
+  useAuthoredReviews,
   useOwnerReviewProperties,
   usePropertyReviewsForOwner,
   useReplyReview,
@@ -22,6 +24,62 @@ import { formatDate } from '@/lib/format';
 import type { Booking } from '@/types/booking';
 import type { Lease } from '@/types/lease';
 import type { UserRole } from '@/types/user';
+
+type ProfileReviewCopy = {
+  postedTitle: string;
+  postedEmpty: string;
+  postedError: string;
+  unknownDate: string;
+  noComment: string;
+  targetFallback: string;
+  opportunitiesTitle: string;
+  opportunitiesEmpty: string;
+  opportunitiesError: string;
+  receivedTitle: string;
+};
+
+const COPY: Record<string, ProfileReviewCopy> = {
+  fr: {
+    postedTitle: 'Avis postés',
+    postedEmpty: "Vous n'avez pas encore publié d'avis.",
+    postedError: 'Impossible de charger vos avis postés.',
+    unknownDate: 'Date inconnue',
+    noComment: 'Sans commentaire.',
+    targetFallback: 'Cible supprimée ou indisponible',
+    opportunitiesTitle: 'Avis à laisser',
+    opportunitiesEmpty: "Aucun séjour ni bail ouvert à évaluer pour l'instant.",
+    opportunitiesError: 'Impossible de charger vos opportunités de dépôt d’avis.',
+    receivedTitle: 'Avis reçus',
+  },
+  en: {
+    postedTitle: 'Posted reviews',
+    postedEmpty: 'You have not posted any reviews yet.',
+    postedError: 'Could not load your posted reviews.',
+    unknownDate: 'Unknown date',
+    noComment: 'No comment.',
+    targetFallback: 'Deleted or unavailable target',
+    opportunitiesTitle: 'Reviews to leave',
+    opportunitiesEmpty: 'No stay or lease is ready to review yet.',
+    opportunitiesError: 'Could not load your review opportunities.',
+    receivedTitle: 'Received reviews',
+  },
+  wo: {
+    postedTitle: 'Xalaat yi nga bind',
+    postedEmpty: 'Bindagoo benn xalaat ba leegi.',
+    postedError: 'Mëneesula yebbi sa xalaat yi nga bind.',
+    unknownDate: 'Bes bi leerul',
+    noComment: 'Amul commentaire.',
+    targetFallback: 'Lu ñu jox xalaat bi amul walla mëneesukoo gis',
+    opportunitiesTitle: 'Xalaat yi nga mën a bind',
+    opportunitiesEmpty: 'Amul séjour walla bail bu mën a jot xalaat léegi.',
+    opportunitiesError: 'Mëneesula yebbi xalaat yi nga mën a bind.',
+    receivedTitle: 'Xalaat yi nga jot',
+  },
+};
+
+function copyFor(locale: string): ProfileReviewCopy {
+  return COPY[locale] ?? COPY.fr;
+}
 
 type ReviewableEntry = {
   key: string;
@@ -59,23 +117,86 @@ function leaseToEntry(l: Lease & { property?: { slug?: string; title?: string } 
   };
 }
 
-/**
- * Profile tab listing properties the customer is eligible to review.
- *
- * Backend currently exposes no `GET /api/reviews?filter[author_id]=me`
- * endpoint (see TCK-073 Notes d'implémentation) — we surface the actionable
- * set instead: completed bookings and active/past leases, each linking to
- * the public property page where the review form lives.
- */
 export function ProfileReviewsList({ roles }: { readonly roles: UserRole[] }) {
-  if (isOwner(roles)) {
-    return <OwnerReviewsInbox />;
-  }
+  const locale = useLocale();
+  const copy = copyFor(locale);
 
-  return <CustomerReviewsList />;
+  return (
+    <div className="space-y-8">
+      <section className="space-y-3" aria-labelledby="posted-reviews-title">
+        <h2 id="posted-reviews-title" className="text-base font-semibold text-app-ink">
+          {copy.postedTitle}
+        </h2>
+        <AuthoredReviewsList copy={copy} locale={locale} />
+      </section>
+
+      <section className="space-y-3" aria-labelledby="review-opportunities-title">
+        <h2 id="review-opportunities-title" className="text-base font-semibold text-app-ink">
+          {copy.opportunitiesTitle}
+        </h2>
+        <ReviewOpportunitiesList copy={copy} />
+      </section>
+
+      {isOwner(roles) ? (
+        <section className="space-y-3" aria-labelledby="received-reviews-title">
+          <h2 id="received-reviews-title" className="text-base font-semibold text-app-ink">
+            {copy.receivedTitle}
+          </h2>
+          <OwnerReviewsInbox />
+        </section>
+      ) : null}
+    </div>
+  );
 }
 
-function CustomerReviewsList() {
+function AuthoredReviewsList({
+  copy,
+  locale,
+}: {
+  readonly copy: ProfileReviewCopy;
+  readonly locale: string;
+}) {
+  const reviewsQuery = useAuthoredReviews();
+  const reviews = reviewsQuery.data?.data ?? [];
+
+  if (reviewsQuery.isLoading) {
+    return (
+      <div className="space-y-3" role="status" aria-label="Chargement">
+        {[0, 1].map((i) => (
+          <div key={i} className="h-24 animate-pulse rounded-xl bg-app-surface-1" />
+        ))}
+      </div>
+    );
+  }
+
+  if (reviewsQuery.isError) {
+    return (
+      <p className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
+        {copy.postedError}
+      </p>
+    );
+  }
+
+  if (reviews.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-stone-200 bg-white p-8 text-center text-sm text-stone-500">
+        {copy.postedEmpty}
+      </div>
+    );
+  }
+
+  return (
+    <ul className="space-y-3">
+      {reviews.map((review) => (
+        <li key={review.id}>
+          <AuthoredReviewCard review={review} copy={copy} locale={locale} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ReviewOpportunitiesList({ copy }: { readonly copy: ProfileReviewCopy }) {
   const bookingsQuery = useBookings({ status: 'completed', per_page: 20 });
   const leasesQuery = useLeases({
     status: 'active,expired,terminated,renewed',
@@ -106,7 +227,7 @@ function CustomerReviewsList() {
   if (errored) {
     return (
       <p className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
-        Impossible de charger vos avis.
+        {copy.opportunitiesError}
       </p>
     );
   }
@@ -114,7 +235,7 @@ function CustomerReviewsList() {
   if (entries.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-stone-200 bg-white p-8 text-center text-sm text-stone-500">
-        Aucun séjour ni bail ouvert à évaluer pour l&apos;instant.
+        {copy.opportunitiesEmpty}
       </div>
     );
   }
@@ -150,6 +271,52 @@ function CustomerReviewsList() {
         </li>
       ))}
     </ul>
+  );
+}
+
+function AuthoredReviewCard({
+  review,
+  copy,
+  locale,
+}: {
+  readonly review: Review;
+  readonly copy: ProfileReviewCopy;
+  readonly locale: string;
+}) {
+  const date = review.created_at ? formatDate(review.created_at, locale as 'fr' | 'en' | 'wo') : '';
+  const targetTitle = review.target?.title ?? copy.targetFallback;
+  const targetHref = review.target?.type === 'property' && review.target.slug
+    ? `/properties/${review.target.slug}#avis`
+    : null;
+
+  return (
+    <article className="rounded-xl border border-stone-200 bg-white p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          {targetHref ? (
+            <Link href={targetHref} className="truncate text-sm font-semibold text-stone-900 hover:underline">
+              {targetTitle}
+            </Link>
+          ) : (
+            <p className="truncate text-sm font-semibold text-stone-900">{targetTitle}</p>
+          )}
+          <p className="mt-0.5 text-xs text-stone-500">
+            {date || copy.unknownDate}
+            {review.target?.subtitle ? <> · {review.target.subtitle}</> : null}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline">{review.rating}/5</Badge>
+          {review.status ? <Badge variant="secondary">{statusLabel(review.status)}</Badge> : null}
+        </div>
+      </div>
+      {review.title ? (
+        <p className="mt-3 text-sm font-medium text-stone-900">{review.title}</p>
+      ) : null}
+      <p className="mt-1 whitespace-pre-line text-sm text-stone-700">
+        {review.content ?? copy.noComment}
+      </p>
+    </article>
   );
 }
 

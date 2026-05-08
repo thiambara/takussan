@@ -7,7 +7,6 @@ export default async function ProfileReviewsPage() {
   // Force a session check — if the user isn't authenticated, getMeAction
   // redirects them to /auth/login.
   const user = await getMeAction();
-  const isOwner = user.roles.includes('owner');
 
   return (
     <ProfileLayout>
@@ -22,12 +21,10 @@ export default async function ProfileReviewsPage() {
           <span>Avis</span>
         </nav>
         <h1 className="text-2xl font-bold text-app-ink">
-          {isOwner ? 'Avis reçus' : 'Vos avis'}
+          Vos avis
         </h1>
         <p className="text-sm text-app-ink-muted">
-          {isOwner
-            ? 'Consultez les avis publiés sur vos biens et répondez quand nécessaire.'
-            : 'Retrouvez ici vos séjours et baux éligibles à un avis public.'}
+          Retrouvez les avis que vous avez publiés, leurs statuts, et les séjours ou baux encore éligibles à un avis public.
         </p>
       </header>
 

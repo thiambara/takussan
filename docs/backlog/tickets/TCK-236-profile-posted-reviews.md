@@ -1,7 +1,7 @@
 ---
 id: TCK-236
 title: "Profil — afficher les avis postés"
-status: todo
+status: review
 phase: P2
 family: bug
 estimate: M
@@ -59,4 +59,4 @@ La page doit distinguer clairement les avis publiés des opportunités de dépos
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- La section principale consomme `GET /api/reviews?filter[author_id]=me`; les opportunités `Laisser un avis` restent séparées pour ne plus remplacer les avis déjà postés.
