@@ -7,6 +7,18 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 // API base with /api suffix — used by apiFetch
 const API_BASE = `${API_URL}/api`;
+const SUPPORTED_LOCALES = new Set(['fr', 'en', 'wo']);
+
+function clientLocaleCookie(): string | undefined {
+  if (typeof document === 'undefined') return undefined;
+
+  const cookie = document.cookie
+    .split('; ')
+    .find((entry) => entry.startsWith('NEXT_LOCALE='));
+  const locale = cookie ? decodeURIComponent(cookie.split('=')[1] ?? '') : '';
+
+  return SUPPORTED_LOCALES.has(locale) ? locale : undefined;
+}
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -92,8 +104,9 @@ export async function apiRequest<T>(
     requestHeaders['Authorization'] = `Bearer ${token}`;
   }
 
-  if (locale && !requestHeaders['Accept-Language']) {
-    requestHeaders['Accept-Language'] = locale;
+  const requestLocale = clientLocaleCookie() ?? locale;
+  if (requestLocale && !requestHeaders['Accept-Language']) {
+    requestHeaders['Accept-Language'] = requestLocale;
   }
 
   if (activeProfileId && !requestHeaders['X-Profile-Id']) {

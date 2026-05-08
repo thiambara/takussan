@@ -1,5 +1,6 @@
 import { apiRequest } from './api';
 import type { User as CanonicalUser } from '@/types/user';
+import type { Locale } from '@/i18n/config';
 
 export type OAuthProvider = 'google' | 'facebook' | 'apple';
 
@@ -69,8 +70,8 @@ export async function register(payload: RegisterPayload): Promise<AuthResponse &
   return apiRequest('/api/auth/register', { method: 'POST', body: payload });
 }
 
-export async function login(payload: LoginPayload): Promise<LoginResponse> {
-  return apiRequest('/api/auth/login', { method: 'POST', body: payload });
+export async function login(payload: LoginPayload, locale?: Locale): Promise<LoginResponse> {
+  return apiRequest('/api/auth/login', { method: 'POST', body: payload, locale });
 }
 
 export async function logout(token: string): Promise<void> {

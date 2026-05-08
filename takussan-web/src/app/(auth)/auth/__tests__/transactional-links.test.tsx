@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { NextIntlClientProvider } from 'next-intl';
 import VerifyEmailHashPage from '../verify-email/[id]/[hash]/page';
 import ResetPasswordPage from '../reset-password/page';
 import LoginPage from '../login/page';
@@ -106,7 +107,11 @@ describe('transactional auth links', () => {
   it('shows the reset success message on the login page', () => {
     searchParams = new URLSearchParams('reset=1');
 
-    render(<LoginPage />);
+    render(
+      <NextIntlClientProvider locale="fr" messages={{}}>
+        <LoginPage />
+      </NextIntlClientProvider>,
+    );
 
     expect(
       screen.getByText(

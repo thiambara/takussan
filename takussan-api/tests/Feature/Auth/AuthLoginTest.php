@@ -46,7 +46,22 @@ class AuthLoginTest extends TestCase
         ]);
 
         $response->assertStatus(401)
-            ->assertJson(['message' => 'Invalid credentials.']);
+            ->assertJson(['message' => 'These credentials do not match our records.']);
+    }
+
+    public function test_login_failure_is_localized_from_accept_language(): void
+    {
+        $user = User::factory()->create(['password' => bcrypt('password123')]);
+
+        $response = $this
+            ->withHeaders(['Accept-Language' => 'fr'])
+            ->postJson('/api/auth/login', [
+                'email' => $user->email,
+                'password' => 'wrongpassword',
+            ]);
+
+        $response->assertStatus(401)
+            ->assertJson(['message' => 'Ces identifiants ne correspondent pas.']);
     }
 
     public function test_login_fails_with_unknown_email(): void

@@ -1,7 +1,7 @@
 ---
 id: TCK-234
 title: "i18n — corriger auth et compte"
-status: todo
+status: review
 phase: P0
 family: bug
 estimate: M
@@ -59,4 +59,4 @@ Remplacer les chaînes résiduelles par la couche i18n existante, sans changer l
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+`apiRequest` relit le cookie `NEXT_LOCALE` côté client avant d'envoyer `Accept-Language`, ce qui couvre les contextes où le provider next-intl n'a pas encore été rerendu après une bascule de langue.

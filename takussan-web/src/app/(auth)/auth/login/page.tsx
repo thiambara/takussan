@@ -13,10 +13,12 @@ import { loginSchema, type LoginFormValues } from '@/lib/schemas';
 import { useApiForm } from '@/hooks/useApiForm';
 import { login, isTwoFactorChallenge, type LoginResponse } from '@/lib/auth';
 import { useAuth } from '@/context/AuthContext';
+import { useCurrentLocale } from '@/i18n/hooks';
 
 function LoginForm() {
   const router = useRouter();
   const { setUser } = useAuth();
+  const locale = useCurrentLocale();
   const searchParams = useSearchParams();
   const raw = searchParams.get('redirect') ?? '/app';
   const redirectTo = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/app';
@@ -44,7 +46,7 @@ function LoginForm() {
     schema: loginSchema,
     defaultValues,
     formOptions: { mode: 'onTouched' },
-    onSubmit: (values) => login(values),
+    onSubmit: (values) => login(values, locale),
     onSuccess: async (result, values) => {
       if (isTwoFactorChallenge(result)) {
         setChallenge({ email: values.email, password: values.password });
@@ -66,13 +68,16 @@ function LoginForm() {
     setChallengePending(true);
     setChallengeError(null);
     try {
-      const result = await login({
-        email: challenge.email,
-        password: challenge.password,
-        ...(useRecovery
-          ? { recovery_code: twoFactorCode }
-          : { two_factor_code: twoFactorCode }),
-      });
+      const result = await login(
+        {
+          email: challenge.email,
+          password: challenge.password,
+          ...(useRecovery
+            ? { recovery_code: twoFactorCode }
+            : { two_factor_code: twoFactorCode }),
+        },
+        locale,
+      );
       if (isTwoFactorChallenge(result)) {
         setChallengeError(result.message ?? 'Code invalide.');
         return;
