@@ -1,7 +1,7 @@
 ---
 id: TCK-231
 title: "Profil — synchroniser édition et avatar"
-status: review
+status: done
 phase: P0
 family: bug
 estimate: M

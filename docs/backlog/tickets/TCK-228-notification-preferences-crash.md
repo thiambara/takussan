@@ -1,7 +1,7 @@
 ---
 id: TCK-228
 title: "Préférences notifications — corriger le crash au toggle"
-status: review
+status: done
 phase: P1
 family: bug
 estimate: S

@@ -1,7 +1,7 @@
 ---
 id: TCK-236
 title: "Profil — afficher les avis postés"
-status: review
+status: done
 phase: P2
 family: bug
 estimate: M

@@ -1,7 +1,7 @@
 ---
 id: TCK-232
 title: "Auth — aligner les formulaires publics"
-status: review
+status: done
 phase: P0
 family: bug
 estimate: S

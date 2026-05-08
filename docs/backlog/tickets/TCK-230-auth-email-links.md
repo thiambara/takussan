@@ -1,7 +1,7 @@
 ---
 id: TCK-230
 title: "Auth — corriger les liens email transactionnels"
-status: review
+status: done
 phase: P0
 family: bug
 estimate: M

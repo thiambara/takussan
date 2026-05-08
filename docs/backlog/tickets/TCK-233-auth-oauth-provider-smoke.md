@@ -1,7 +1,7 @@
 ---
 id: TCK-233
 title: "Auth — fiabiliser OAuth en smoke local"
-status: review
+status: done
 phase: P1
 family: bug
 estimate: M

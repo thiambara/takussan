@@ -1,7 +1,7 @@
 ---
 id: TCK-229
 title: "Notifications — restaurer la cloche et le feed"
-status: review
+status: done
 phase: P0
 family: bug
 estimate: M

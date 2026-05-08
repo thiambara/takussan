@@ -1,7 +1,7 @@
 ---
 id: TCK-234
 title: "i18n — corriger auth et compte"
-status: review
+status: done
 phase: P0
 family: bug
 estimate: M

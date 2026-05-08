@@ -1,7 +1,7 @@
 ---
 id: TCK-235
 title: "Recherche — améliorer la pertinence plein texte"
-status: review
+status: done
 phase: P0
 family: bug
 estimate: M
