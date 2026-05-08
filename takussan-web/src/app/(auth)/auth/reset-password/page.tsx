@@ -18,6 +18,7 @@ function ResetPasswordForm() {
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [globalError, setGlobalError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -124,16 +125,34 @@ function ResetPasswordForm() {
           <label htmlFor="password_confirmation" className="block text-sm font-medium mb-1.5">
             Confirmer le mot de passe
           </label>
-          <Input
-            id="password_confirmation"
-            type={showPassword ? 'text' : 'password'}
-            autoComplete="new-password"
-            required
-            minLength={8}
-            value={passwordConfirmation}
-            onChange={(e) => setPasswordConfirmation(e.target.value)}
-            className="h-11"
-          />
+          <div className="relative">
+            <Input
+              id="password_confirmation"
+              type={showPasswordConfirmation ? 'text' : 'password'}
+              autoComplete="new-password"
+              required
+              minLength={8}
+              value={passwordConfirmation}
+              onChange={(e) => setPasswordConfirmation(e.target.value)}
+              placeholder="Répétez le mot de passe"
+              className="h-11 pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPasswordConfirmation((v) => !v)}
+              className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
+              aria-label={
+                showPasswordConfirmation
+                  ? 'Masquer la confirmation du mot de passe'
+                  : 'Afficher la confirmation du mot de passe'
+              }
+            >
+              {showPasswordConfirmation ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
+          {errors.password_confirmation?.map((msg) => (
+            <p key={msg} className="text-xs text-destructive mt-1">{msg}</p>
+          ))}
         </div>
 
         <Button

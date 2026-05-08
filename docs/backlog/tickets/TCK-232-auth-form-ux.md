@@ -1,7 +1,7 @@
 ---
 id: TCK-232
 title: "Auth — aligner les formulaires publics"
-status: todo
+status: review
 phase: P0
 family: bug
 estimate: S
@@ -58,4 +58,4 @@ Conserver le design actuel ; corriger l'ordre des blocs, les libellés, les plac
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Le séparateur OAuth accepte maintenant un libellé contextualisé pour conserver le wording login tout en plaçant les providers après le formulaire d'inscription.

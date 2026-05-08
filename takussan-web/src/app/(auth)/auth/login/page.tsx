@@ -237,7 +237,7 @@ function LoginForm() {
             id="field-password"
             type={showPassword ? 'text' : 'password'}
             autoComplete="current-password"
-            placeholder="••••••••"
+            placeholder="........"
             className="h-11 pr-10"
             required
             trailing={

@@ -103,7 +103,7 @@ export function OAuthButtons() {
   );
 }
 
-export function OAuthSeparator() {
+export function OAuthSeparator({ label = 'ou continuer avec email' }: { readonly label?: string }) {
   return (
     <div className="relative my-6">
       <div className="absolute inset-0 flex items-center" aria-hidden="true">
@@ -111,7 +111,7 @@ export function OAuthSeparator() {
       </div>
       <div className="relative flex justify-center text-xs">
         <span className="bg-background px-3 text-muted-foreground uppercase tracking-wider">
-          ou continuer avec email
+          {label}
         </span>
       </div>
     </div>
