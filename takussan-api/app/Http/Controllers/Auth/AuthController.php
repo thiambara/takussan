@@ -121,9 +121,14 @@ class AuthController extends Controller
             }
         }
 
+        if ($request->boolean('avatar_remove')) {
+            $user->clearMediaCollection('avatar');
+        }
+
         if ($request->hasFile('avatar')) {
-            $path = $request->file('avatar')->store('avatars', 'public');
-            $data['metadata'] = array_merge($user->metadata ?? [], ['avatar' => $path]);
+            $user
+                ->addMediaFromRequest('avatar')
+                ->toMediaCollection('avatar');
         }
 
         $user->update($data);

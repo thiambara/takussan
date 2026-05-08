@@ -1,7 +1,7 @@
 ---
 id: TCK-231
 title: "Profil — synchroniser édition et avatar"
-status: todo
+status: review
 phase: P0
 family: bug
 estimate: M
@@ -58,4 +58,4 @@ Conserver la structure actuelle du profil ; rendre les changements visibles sans
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Avatar câblé sur la collection medialibrary `avatar` existante ; le brouillon local de la modale est réinitialisé à la fermeture pour éviter une prévisualisation non sauvegardée hors modale.

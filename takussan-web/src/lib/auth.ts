@@ -49,6 +49,7 @@ export type UpdateProfilePayload = {
   last_name: string;
   bio?: string;
   avatar?: File | null;
+  avatar_remove?: boolean;
   /**
    * E.164-formatted phone (e.g. `+221770000000`). Pass `null` or empty
    * string to clear it. Omit the key entirely to leave the current value
@@ -81,6 +82,7 @@ export async function updateProfile(token: string, payload: UpdateProfilePayload
   formData.append('last_name', payload.last_name);
   if (payload.bio !== undefined) formData.append('bio', payload.bio);
   if (payload.avatar) formData.append('avatar', payload.avatar);
+  if (payload.avatar_remove) formData.append('avatar_remove', '1');
   if (payload.phone !== undefined) formData.append('phone', payload.phone ?? '');
 
   return apiRequest('/api/auth/profile', {
