@@ -1,7 +1,7 @@
 ---
 id: TCK-230
 title: "Auth — corriger les liens email transactionnels"
-status: todo
+status: review
 phase: P0
 family: bug
 estimate: M
@@ -60,4 +60,4 @@ Les pages frontend de succès, erreur et relance doivent rester simples, explici
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+La signature de vérification est relative à la route API, puis exposée via une URL frontend ; la route API valide donc le même query string sans dépendre du host.

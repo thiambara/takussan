@@ -20,6 +20,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const raw = searchParams.get('redirect') ?? '/app';
   const redirectTo = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/app';
+  const passwordWasReset = searchParams.get('reset') === '1';
   const [showPassword, setShowPassword] = useState(false);
 
   // TCK-069 — 2FA challenge. When the first POST returns `requires_2fa`,
@@ -190,6 +191,15 @@ function LoginForm() {
       <p className="text-muted-foreground text-sm mb-8">
         Connectez-vous pour accéder à votre espace Takussan.
       </p>
+
+      {passwordWasReset ? (
+        <div
+          role="status"
+          className="mb-6 rounded-lg border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-700"
+        >
+          Votre mot de passe a été réinitialisé. Vous pouvez maintenant vous connecter.
+        </div>
+      ) : null}
 
       <OAuthButtons />
       <OAuthSeparator />

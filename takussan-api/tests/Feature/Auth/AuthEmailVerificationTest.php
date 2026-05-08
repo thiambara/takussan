@@ -21,11 +21,12 @@ class AuthEmailVerificationTest extends TestCase
         $verificationUrl = URL::temporarySignedRoute(
             'verification.verify',
             now()->addMinutes(60),
-            ['id' => $user->id, 'hash' => sha1($user->email)]
+            ['id' => $user->id, 'hash' => sha1($user->email)],
+            false
         );
 
         // Extract path from URL for the request
-        $path = parse_url($verificationUrl, PHP_URL_PATH).'?'.parse_url($verificationUrl, PHP_URL_QUERY);
+        $path = $verificationUrl;
 
         $response = $this->withToken($token)->getJson($path);
 
@@ -54,10 +55,11 @@ class AuthEmailVerificationTest extends TestCase
         $verificationUrl = URL::temporarySignedRoute(
             'verification.verify',
             now()->addMinutes(60),
-            ['id' => $user->id, 'hash' => sha1($user->email)]
+            ['id' => $user->id, 'hash' => sha1($user->email)],
+            false
         );
 
-        $path = parse_url($verificationUrl, PHP_URL_PATH).'?'.parse_url($verificationUrl, PHP_URL_QUERY);
+        $path = $verificationUrl;
 
         $response = $this->withToken($token)->getJson($path);
 
@@ -79,6 +81,33 @@ class AuthEmailVerificationTest extends TestCase
             ->assertJson(['message' => 'Verification email resent.']);
 
         Notification::assertSentTo($user, VerifyEmail::class);
+    }
+
+    public function test_verification_email_points_to_frontend_with_api_signature(): void
+    {
+        config(['app.frontend_url' => 'http://localhost:3000']);
+
+        $user = User::factory()->unverified()->create();
+        $notification = new VerifyEmail;
+        $actionUrl = $notification->toMail($user)->actionUrl;
+
+        $this->assertStringStartsWith(
+            'http://localhost:3000/auth/verify-email/'.$user->id.'/'.sha1($user->email),
+            $actionUrl
+        );
+        $this->assertStringContainsString('signature=', $actionUrl);
+
+        $apiPath = str_replace(
+            'http://localhost:3000/auth/verify-email',
+            '/api/auth/verify-email',
+            $actionUrl
+        );
+
+        $this->withToken($user->createToken('test')->plainTextToken)
+            ->getJson($apiPath)
+            ->assertOk();
+
+        $this->assertNotNull($user->fresh()->email_verified_at);
     }
 
     public function test_resend_fails_if_email_already_verified(): void

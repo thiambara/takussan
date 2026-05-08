@@ -39,7 +39,7 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
 
     // Email verification
     Route::get('/verify-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])
-        ->middleware('signed')
+        ->middleware('signed:relative')
         ->name('verification.verify');
     Route::post('/email/resend', [EmailVerificationController::class, 'resend'])
         ->middleware('throttle:6,1')

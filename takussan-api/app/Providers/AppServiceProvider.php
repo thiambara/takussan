@@ -78,6 +78,7 @@ use App\Services\Reporting\PlatformReportingService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Events\ScheduledTaskFinished;
 use Illuminate\Contracts\Events\Dispatcher;
@@ -87,6 +88,7 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use LemonSqueezy\Laravel\Events\OrderCreated as LemonSqueezyOrderCreated;
 use LemonSqueezy\Laravel\Events\OrderRefunded as LemonSqueezyOrderRefunded;
@@ -276,6 +278,23 @@ class AppServiceProvider extends ServiceProvider
         // "modern" bootstrap structure).
         $events->listen(Registered::class, SendEmailVerificationNotification::class);
 
+        // TCK-230 — the email opens on the frontend, but the signature is
+        // generated for the API route that ultimately validates it.
+        VerifyEmail::createUrlUsing(function (object $notifiable): string {
+            $frontend = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/');
+            $apiPath = URL::temporarySignedRoute(
+                'verification.verify',
+                now()->addMinutes(config('auth.verification.expire', 60)),
+                [
+                    'id' => $notifiable->getKey(),
+                    'hash' => sha1($notifiable->getEmailForVerification()),
+                ],
+                false
+            );
+
+            return $frontend.str_replace('/api/auth/verify-email', '/auth/verify-email', $apiPath);
+        });
+
         // TCK-102 — register the `sms` notification channel so any
         // Notification can list `SmsChannel::class` (or simply `'sms'`
         // via Notifiable::notify) in its via() return.
@@ -287,7 +306,7 @@ class AppServiceProvider extends ServiceProvider
         ResetPassword::createUrlUsing(function (object $notifiable, string $token): string {
             $frontend = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/');
 
-            return $frontend.'/reset-password?token='.$token.'&email='.urlencode($notifiable->getEmailForPasswordReset());
+            return $frontend.'/auth/reset-password?token='.$token.'&email='.urlencode($notifiable->getEmailForPasswordReset());
         });
     }
 }
