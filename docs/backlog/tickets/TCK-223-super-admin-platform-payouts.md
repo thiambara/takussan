@@ -1,7 +1,7 @@
 ---
 id: TCK-223
 title: "Super-admin — Reversement plateforme → agences (payout périodique)"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: L

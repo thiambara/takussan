@@ -1,7 +1,7 @@
 ---
 id: TCK-227
 title: "Super-admin — Reporting plateforme cross-tenant (croissance, MRR, cohortes)"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: L
