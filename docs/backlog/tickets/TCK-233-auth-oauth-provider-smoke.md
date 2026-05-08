@@ -1,7 +1,7 @@
 ---
 id: TCK-233
 title: "Auth — fiabiliser OAuth en smoke local"
-status: todo
+status: review
 phase: P1
 family: bug
 estimate: M
@@ -58,4 +58,4 @@ Si un provider n'est pas configuré dans un environnement donné, le bouton doit
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+La disponibilité OAuth est exposée via `/api/auth/oauth/providers` ; les routes directes refusent aussi les providers non configurés pour éviter les redirections externes invalides.

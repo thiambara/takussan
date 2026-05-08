@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Auth;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\Auth\OAuthProviderConfiguration;
 use App\Services\Auth\OAuthProvisioningService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,7 +21,10 @@ use Laravel\Socialite\Facades\Socialite;
  */
 abstract class AbstractOAuthController extends Controller
 {
-    public function __construct(protected readonly OAuthProvisioningService $provisioning) {}
+    public function __construct(
+        protected readonly OAuthProvisioningService $provisioning,
+        protected readonly OAuthProviderConfiguration $configuration,
+    ) {}
 
     /**
      * Socialite driver name (e.g. "facebook", "apple"). MUST be one of
@@ -53,6 +57,8 @@ abstract class AbstractOAuthController extends Controller
 
     public function redirect(): JsonResponse
     {
+        abort_unless($this->configuration->isConfigured($this->provider()), 422, 'OAuth provider is not configured.');
+
         $this->prepareDriver();
 
         $state = Str::random(40);
@@ -73,6 +79,8 @@ abstract class AbstractOAuthController extends Controller
 
     public function callback(Request $request): JsonResponse
     {
+        abort_unless($this->configuration->isConfigured($this->provider()), 422, 'OAuth provider is not configured.');
+
         $request->validate([
             'code' => ['required', 'string'],
             'state' => ['required', 'string'],

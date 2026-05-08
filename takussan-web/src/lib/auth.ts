@@ -3,6 +3,12 @@ import type { User as CanonicalUser } from '@/types/user';
 
 export type OAuthProvider = 'google' | 'facebook' | 'apple';
 
+export type OAuthProviderAvailability = {
+  provider: OAuthProvider;
+  configured: boolean;
+  missing: string[];
+};
+
 export type User = CanonicalUser;
 
 export type AuthResponse = {
@@ -117,6 +123,13 @@ export async function oauthRedirect(
     `/api/auth/oauth/${provider}/redirect`,
   );
   return res.data;
+}
+
+export async function oauthProviders(): Promise<OAuthProviderAvailability[]> {
+  const res = await apiRequest<{ data: { providers: OAuthProviderAvailability[] } }>(
+    '/api/auth/oauth/providers',
+  );
+  return res.data.providers;
 }
 
 export async function oauthCallback(

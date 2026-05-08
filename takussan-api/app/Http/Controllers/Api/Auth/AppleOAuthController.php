@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Services\Auth\AppleClientSecretGenerator;
+use App\Services\Auth\OAuthProviderConfiguration;
 use App\Services\Auth\OAuthProvisioningService;
 use Illuminate\Http\Request;
 
@@ -22,9 +23,10 @@ class AppleOAuthController extends AbstractOAuthController
 {
     public function __construct(
         OAuthProvisioningService $provisioning,
+        OAuthProviderConfiguration $configuration,
         private readonly AppleClientSecretGenerator $secretGenerator,
     ) {
-        parent::__construct($provisioning);
+        parent::__construct($provisioning, $configuration);
     }
 
     protected function provider(): string

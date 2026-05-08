@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\UserAdminController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\OAuthController;
+use App\Http\Controllers\Auth\OAuthProviderController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\PhoneVerificationController;
 use App\Http\Controllers\Auth\SessionController;
@@ -87,6 +88,8 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
 // IP mirrors Laravel's default API throttle and leaves plenty of room
 // for retries while blocking cheap enumeration.
 Route::prefix('auth/oauth')->middleware('throttle:60,1')->group(function () {
+    Route::get('/providers', OAuthProviderController::class);
+
     // Dedicated Facebook/Apple controllers (TCK-081) — declared before the
     // generic `{provider}` route so Laravel matches them first.
     Route::get('/facebook/redirect', [FacebookOAuthController::class, 'redirect']);

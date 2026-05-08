@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import { oauthRedirect, type OAuthProvider } from '@/lib/auth';
+import { oauthProviders, oauthRedirect, type OAuthProvider } from '@/lib/auth';
 
 type Provider = {
   id: OAuthProvider;
@@ -62,6 +62,33 @@ const PROVIDERS: Provider[] = [
 export function OAuthButtons() {
   const [pending, setPending] = useState<OAuthProvider | null>(null);
   const [error, setError] = useState('');
+  const [availableProviders, setAvailableProviders] = useState<Set<OAuthProvider> | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    oauthProviders()
+      .then((providers) => {
+        if (cancelled) return;
+        setAvailableProviders(
+          new Set(
+            providers
+              .filter((provider) => provider.configured)
+              .map((provider) => provider.provider),
+          ),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAvailableProviders(new Set());
+          setError("Impossible de charger les fournisseurs d'authentification.");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleClick(provider: OAuthProvider) {
     setError('');
@@ -77,7 +104,10 @@ export function OAuthButtons() {
 
   return (
     <div className="space-y-3">
-      {PROVIDERS.map(({ id, label, Icon }) => (
+      {availableProviders === null ? (
+        <p className="text-center text-xs text-muted-foreground">Chargement des fournisseurs…</p>
+      ) : null}
+      {PROVIDERS.filter(({ id }) => availableProviders?.has(id)).map(({ id, label, Icon }) => (
         <Button
           key={id}
           type="button"
@@ -94,6 +124,11 @@ export function OAuthButtons() {
           <span>{label}</span>
         </Button>
       ))}
+      {availableProviders?.size === 0 && !error ? (
+        <p className="text-center text-xs text-muted-foreground">
+          Aucun fournisseur OAuth n&apos;est configuré sur cet environnement.
+        </p>
+      ) : null}
       {error && (
         <p className="text-xs text-destructive text-center" role="alert">
           {error}

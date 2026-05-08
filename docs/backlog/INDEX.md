@@ -142,7 +142,6 @@ _(Vague 24 finalisée — voir Review)_
 
 > Smoke test browser suivant `docs/qa/utilisateurs-authentifies-qa.md`. Les anomalies sont recensées dans `docs/smoke-tests/utilisateurs-authentifies-2026-05-08.md` et groupées ici par surface de correction.
 
-- [TCK-233](tickets/TCK-233-auth-oauth-provider-smoke.md) — Auth — fiabiliser OAuth en smoke local `M · P1 · bug`
 - [TCK-234](tickets/TCK-234-i18n-auth-account-errors.md) — i18n — corriger auth et compte `M · P0 · bug`
 - [TCK-235](tickets/TCK-235-search-relevance-appartement.md) — Recherche — améliorer la pertinence plein texte `M · P0 · bug`
 - [TCK-236](tickets/TCK-236-profile-posted-reviews.md) — Profil — afficher les avis postés `M · P2 · bug`
@@ -165,6 +164,7 @@ _(vide)_
 - [TCK-230](tickets/TCK-230-auth-email-links.md) — Auth — corriger les liens email transactionnels `M · P0 · bug`
 - [TCK-231](tickets/TCK-231-profile-edit-avatar.md) — Profil — synchroniser édition et avatar `M · P0 · bug`
 - [TCK-232](tickets/TCK-232-auth-form-ux.md) — Auth — aligner les formulaires publics `S · P0 · bug`
+- [TCK-233](tickets/TCK-233-auth-oauth-provider-smoke.md) — Auth — fiabiliser OAuth en smoke local `M · P1 · bug`
 
 ### Vague 24 — Console super-admin · gouvernance SaaS
 
