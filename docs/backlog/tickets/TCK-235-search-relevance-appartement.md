@@ -1,7 +1,7 @@
 ---
 id: TCK-235
 title: "Recherche — améliorer la pertinence plein texte"
-status: todo
+status: review
 phase: P0
 family: bug
 estimate: M
@@ -58,4 +58,4 @@ Conserver l'UI de liste actuelle ; rendre l'ordre des résultats crédible et ex
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Pondération SQL volontairement côté `/public/properties/search` pour préserver pagination/filtres serveur ; `search` reste accepté comme alias URL de `q`.

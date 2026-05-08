@@ -94,8 +94,9 @@ export function Navbar({ className }: NavbarProps) {
     // contract_type from transaction selector (only override if explicitly set)
     if (transaction === 'Acheter') params.set('contract_type', 'sale');
     if (transaction === 'Louer')   params.set('contract_type', 'rent');
-    // location text → city filter (only override if non-empty)
-    if (location.trim()) params.set('city', location.trim());
+    // free text from the searchbox maps to full-text search; selecting a
+    // city/neighborhood suggestion still writes the dedicated location params.
+    if (location.trim()) params.set('q', location.trim());
     // active category → type filter (only override if set)
     if (activeCategory) params.set('type', activeCategory);
     // reset pagination on new search

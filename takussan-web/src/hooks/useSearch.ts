@@ -59,7 +59,7 @@ function filtersFromSearchParams(sp: URLSearchParams): SearchFilters {
   const n = (key: string) => { const v = sp.get(key); return v ? Number(v) : undefined; };
   const s = (key: string) => sp.get(key) ?? undefined;
   return {
-    q:             s('q'),
+    q:             s('q') ?? s('search'),
     location:      s('location'),
     city:          s('city'),
     contract_type: s('contract_type') as SearchFilters['contract_type'],
@@ -143,6 +143,9 @@ export function useSearch() {
     dispatch({ type: 'LOADING', prev });
 
     const apiParams = new URLSearchParams(qs);
+    if (!apiParams.has('q') && apiParams.has('search')) {
+      apiParams.set('q', apiParams.get('search') ?? '');
+    }
     if (!apiParams.has('per_page')) apiParams.set('per_page', '30');
 
     let cancelled = false;

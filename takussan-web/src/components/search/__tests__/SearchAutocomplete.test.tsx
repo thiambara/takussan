@@ -10,6 +10,7 @@ const mockPush = vi.fn();
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock('@/hooks/useSuggest', () => ({
@@ -86,6 +87,20 @@ describe('SearchAutocomplete', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
 
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/properties?city=Dakar'));
+  });
+
+  it('submits free text as full-text query when no suggestion is selected', async () => {
+    const { useSuggest } = await import('@/hooks/useSuggest');
+    (useSuggest as ReturnType<typeof vi.fn>).mockReturnValue({ data: mockSuggestData, isLoading: false, isFetching: false });
+
+    render(withProviders(<SearchAutocomplete />));
+
+    const input = screen.getByRole('searchbox');
+    await userEvent.type(input, 'appartement');
+
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(mockPush).toHaveBeenCalledWith('/properties?q=appartement');
   });
 
   it('Escape closes dropdown', async () => {

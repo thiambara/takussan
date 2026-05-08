@@ -115,7 +115,7 @@ export function SearchAutocomplete({
         } else {
           setOpen(false);
           const params = new URLSearchParams(searchParams.toString());
-          params.set('city', query);
+          params.set('q', query);
           params.delete('page');
           router.push(`/properties?${params.toString()}`);
         }

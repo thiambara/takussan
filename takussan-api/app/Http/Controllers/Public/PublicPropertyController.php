@@ -18,6 +18,7 @@ use App\Models\Enums\ConversationType;
 use App\Models\Enums\MessageType;
 use App\Models\Enums\NotificationType;
 use App\Models\Enums\PropertyStatus;
+use App\Models\Enums\PropertyType;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
@@ -30,6 +31,7 @@ use App\Models\Review;
 use App\Services\Model\CustomerService;
 use App\Services\Model\NotificationService;
 use App\Services\Property\SimilarPropertiesService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -85,6 +87,7 @@ class PublicPropertyController extends Controller
     {
         $validated = $request->validate([
             'q' => 'nullable|string|max:200',
+            'search' => 'nullable|string|max:200',
             'location' => 'nullable|string|max:100',
             'city' => 'nullable|string|max:100',
             'price_min' => 'nullable|numeric|min:0',
@@ -112,11 +115,9 @@ class PublicPropertyController extends Controller
             ->public()
             ->whereNot('status', PropertyStatus::Draft);
 
-        if (! empty($validated['q'])) {
-            $query->where(function ($q) use ($validated) {
-                $q->where('title', 'like', '%'.$validated['q'].'%')
-                    ->orWhere('description', 'like', '%'.$validated['q'].'%');
-            });
+        $searchTerm = trim((string) ($validated['q'] ?? $validated['search'] ?? ''));
+        if ($searchTerm !== '') {
+            $this->applySearchFilter($query, $searchTerm);
         }
 
         if (! empty($validated['location']) || ! empty($validated['city'])) {
@@ -208,7 +209,9 @@ class PublicPropertyController extends Controller
             'price_asc' => $query->orderBy('price'),
             'price_desc' => $query->orderByDesc('price'),
             'created_desc' => $query->orderByDesc('created_at'),
-            default => $query->orderByDesc('featured')->orderByDesc('published_at'),
+            default => $searchTerm !== ''
+                ? $this->orderBySearchRelevance($query, $searchTerm)
+                : $query->orderByDesc('featured')->orderByDesc('published_at'),
         };
 
         $paginated = $query->paginate((int) ($validated['per_page'] ?? 20), ['*'], 'page', $validated['page'] ?? 1);
@@ -223,6 +226,122 @@ class PublicPropertyController extends Controller
                 'total' => $paginated->total(),
             ],
         ];
+    }
+
+    /**
+     * @param  Builder<Property>  $query
+     */
+    private function applySearchFilter(Builder $query, string $term): void
+    {
+        $normalizedTypes = $this->matchingPropertyTypes($term);
+        $like = '%'.mb_strtolower($term).'%';
+
+        $query->where(function (Builder $inner) use ($like, $normalizedTypes) {
+            $inner
+                ->whereRaw('LOWER(properties.title) LIKE ?', [$like])
+                ->orWhereRaw('LOWER(properties.description) LIKE ?', [$like])
+                ->orWhereRaw('LOWER(properties.reference_number) LIKE ?', [$like])
+                ->orWhereHas('address', function (Builder $address) use ($like) {
+                    $address
+                        ->whereRaw('LOWER(city) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(neighborhood) LIKE ?', [$like]);
+                });
+
+            if ($normalizedTypes !== []) {
+                $inner->orWhereIn('properties.type', $normalizedTypes);
+            }
+        });
+    }
+
+    /**
+     * @param  Builder<Property>  $query
+     */
+    private function orderBySearchRelevance(Builder $query, string $term): Builder
+    {
+        $normalizedTypes = $this->matchingPropertyTypes($term);
+        $like = '%'.mb_strtolower($term).'%';
+        $prefix = mb_strtolower($term).'%';
+
+        $bindings = [];
+        $typeCase = '0';
+        if ($normalizedTypes !== []) {
+            $placeholders = implode(',', array_fill(0, count($normalizedTypes), '?'));
+            $typeCase = "CASE WHEN properties.type IN ({$placeholders}) THEN 250 ELSE 0 END";
+            $bindings = array_merge($bindings, $normalizedTypes);
+        }
+
+        return $query
+            ->orderByRaw(
+                "(
+                    {$typeCase}
+                    + CASE WHEN LOWER(properties.title) LIKE ? THEN 80 ELSE 0 END
+                    + CASE WHEN LOWER(properties.title) LIKE ? THEN 40 ELSE 0 END
+                    + CASE WHEN LOWER(properties.reference_number) LIKE ? THEN 25 ELSE 0 END
+                    + CASE WHEN EXISTS (
+                        SELECT 1
+                        FROM addresses
+                        WHERE addresses.addressable_type = ?
+                            AND addresses.addressable_id = properties.id
+                            AND (
+                                LOWER(addresses.city) LIKE ?
+                                OR LOWER(addresses.neighborhood) LIKE ?
+                            )
+                    ) THEN 20 ELSE 0 END
+                    + CASE WHEN LOWER(properties.description) LIKE ? THEN 10 ELSE 0 END
+                ) DESC",
+                [
+                    ...$bindings,
+                    $prefix,
+                    $like,
+                    $like,
+                    Property::class,
+                    $like,
+                    $like,
+                    $like,
+                ]
+            )
+            ->orderByDesc('featured')
+            ->orderByDesc('published_at');
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function matchingPropertyTypes(string $term): array
+    {
+        $normalized = $this->normalizeSearchTerm($term);
+        $aliases = [
+            PropertyType::Apartment->value => ['apartment', 'appartement', 'appartements', 'apt'],
+            PropertyType::House->value => ['house', 'maison', 'maisons'],
+            PropertyType::Villa->value => ['villa', 'villas'],
+            PropertyType::Land->value => ['land', 'terrain', 'terrains'],
+            PropertyType::Studio->value => ['studio', 'studios'],
+            PropertyType::Room->value => ['room', 'chambre', 'chambres'],
+            PropertyType::Office->value => ['office', 'bureau', 'bureaux'],
+            PropertyType::Shop->value => ['shop', 'boutique', 'magasin', 'commerce'],
+            PropertyType::Warehouse->value => ['warehouse', 'entrepot', 'entrepots'],
+            PropertyType::Factory->value => ['factory', 'usine', 'usines'],
+            PropertyType::Farm->value => ['farm', 'ferme', 'fermes'],
+            PropertyType::Hotel->value => ['hotel', 'hotels'],
+            PropertyType::Resort->value => ['resort'],
+            PropertyType::Garage->value => ['garage', 'garages'],
+            PropertyType::Parking->value => ['parking', 'parkings'],
+            PropertyType::Other->value => ['other', 'autre', 'autres'],
+        ];
+
+        return collect($aliases)
+            ->filter(fn (array $terms) => in_array($normalized, $terms, true))
+            ->keys()
+            ->values()
+            ->all();
+    }
+
+    private function normalizeSearchTerm(string $term): string
+    {
+        $term = mb_strtolower(trim($term));
+        $term = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $term);
+
+        return is_string($term) ? $term : '';
     }
 
     /**
