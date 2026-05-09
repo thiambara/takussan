@@ -144,6 +144,16 @@ _(Vague 24 finalisée — voir Review)_
 
 
 
+### Vague 26 — Bugs smoke test super-admin (2026-05-08)
+
+> Smoke test browser suivant `docs/qa/super-admin-qa.md`. Les anomalies ouvertes sont recensées dans `docs/smoke-tests/super-admin-2026-05-08.md` et groupées ici par surface de correction.
+
+- [TCK-237](tickets/TCK-237-super-admin-report-export-csv.md) — Super-admin reporting - corriger l'export CSV `S · P2 · bug`
+- [TCK-238](tickets/TCK-238-super-admin-agencies-list-completeness.md) — Super-admin agences - compléter la liste plateforme `M · P1 · bug`
+- [TCK-239](tickets/TCK-239-super-admin-users-roles-filters.md) — Super-admin utilisateurs - afficher rôles et filtres `M · P1 · bug`
+- [TCK-240](tickets/TCK-240-admin-properties-route-scope.md) — Admin biens - restaurer la liste /admin/properties `S · P1 · bug`
+- [TCK-241](tickets/TCK-241-api-agencies-agency-admin-scope.md) — API agences - corriger le scope agency_admin `S · P0 · bug`
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
