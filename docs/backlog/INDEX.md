@@ -154,6 +154,16 @@ _(Vague 24 finalisée — voir Review)_
 - [TCK-240](tickets/TCK-240-admin-properties-route-scope.md) — Admin biens - restaurer la liste /admin/properties `S · P1 · bug`
 - [TCK-241](tickets/TCK-241-api-agencies-agency-admin-scope.md) — API agences - corriger le scope agency_admin `S · P0 · bug`
 
+### Vague 27 — Audit design front (2026-05-09)
+
+> Suite à `docs/design-audit-2026-05-09.md` : 5 pages 🔴 (vraiment moches) + ~70 pages 🟠 (tokens legacy) regroupées en 5 tickets transversaux pour limiter la fragmentation. Toutes dépendent de TCK-129 (fondation DS).
+
+- [TCK-242](tickets/TCK-242-public-agency-agent-pages-design-refresh.md) — Refonte design fiches publiques agence & agent `M · P1 · front`
+- [TCK-243](tickets/TCK-243-super-admin-native-controls-pagination.md) — Super-admin - éliminer contrôles HTML natifs et factoriser pagination `M · P2 · front`
+- [TCK-244](tickets/TCK-244-dashboard-admin-legacy-tokens-migration.md) — Dashboard /app + /admin - migration tokens legacy → tokens DS Lin `L · P2 · front`
+- [TCK-245](tickets/TCK-245-super-admin-stone-palette-to-ds-tokens.md) — Super-admin - palette stone → tokens DS Lin `M · P2 · front`
+- [TCK-246](tickets/TCK-246-empty-error-states-and-cta-buttons-harmonization.md) — Empty / error states + CTA shadcn - harmonisation transverse `M · P2 · front`
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
