@@ -22,12 +22,13 @@ export default function SuperAdminSettingsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-bold text-stone-900">Paramètres plateforme</h1>
-        <p className="mt-1 text-sm text-stone-600">
+        <h1 className="font-display text-2xl font-bold text-foreground">Paramètres plateforme</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Réglez les devises, formats, frais et limites globales sans redéploiement.
         </p>
       </header>
 
+      {/* Warning banner: amber Tailwind kept as documented exception (TCK-245) — no `--warning` DS token available. */}
       <div className="flex gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-amber-200">
         <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
         <p>
@@ -36,9 +37,9 @@ export default function SuperAdminSettingsPage() {
       </div>
 
       {query.isLoading ? (
-        <div className="h-64 animate-pulse rounded-xl bg-stone-200" />
+        <div className="h-64 animate-pulse rounded-xl bg-muted" />
       ) : query.isError ? (
-        <div className="rounded-xl bg-red-50 p-4 text-sm text-red-900 ring-1 ring-red-200">
+        <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive ring-1 ring-destructive/20">
           Erreur de chargement. {query.error.displayMessage}
         </div>
       ) : grouped ? (

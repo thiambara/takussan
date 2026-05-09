@@ -16,16 +16,16 @@ export default function SuperAdminMaintenancePage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-bold text-stone-900">Mode maintenance</h1>
-        <p className="mt-1 text-sm text-stone-600">
+        <h1 className="font-display text-2xl font-bold text-foreground">Mode maintenance</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Programmez une fenêtre, prévenez les utilisateurs et gardez le contrôle depuis la console.
         </p>
       </header>
 
       {query.isLoading ? (
-        <div className="h-64 animate-pulse rounded-xl bg-stone-200" />
+        <div className="h-64 animate-pulse rounded-xl bg-muted" />
       ) : query.isError ? (
-        <div className="rounded-xl bg-red-50 p-4 text-sm text-red-900 ring-1 ring-red-200">
+        <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive ring-1 ring-destructive/20">
           Erreur de chargement. {query.error.displayMessage}
         </div>
       ) : (

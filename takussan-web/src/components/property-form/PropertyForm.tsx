@@ -107,14 +107,14 @@ function toDefaults(property?: PropertyDetail): PropertyFormValues {
 }
 
 function toPropertyCrudPayload(payload: PropertyFormPayload): PropertyFormPayload {
-  const basicPayload = { ...payload };
+  const basicPayload: Partial<PropertyFormPayload> = { ...payload };
   delete basicPayload.street;
   delete basicPayload.postal_code;
   delete basicPayload.country;
   delete basicPayload.latitude;
   delete basicPayload.longitude;
   delete basicPayload.tag_ids;
-  return basicPayload;
+  return basicPayload as PropertyFormPayload;
 }
 
 export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {

@@ -10,8 +10,8 @@ export default async function SuperAdminTagsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-bold text-stone-900">Tags &amp; amenités</h1>
-        <p className="mt-1 text-sm text-stone-600">
+        <h1 className="font-display text-2xl font-bold text-foreground">Tags &amp; amenités</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Référentiel global utilisé par toutes les agences pour qualifier biens et clients.
         </p>
       </header>

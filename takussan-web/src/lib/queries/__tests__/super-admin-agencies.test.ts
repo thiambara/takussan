@@ -7,7 +7,7 @@ function mockFetch(response: unknown) {
     status: 200,
     json: async () => response,
   };
-  const spy = vi.fn(async (): Promise<unknown> => fakeResponse);
+  const spy = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<unknown>>(async () => fakeResponse);
   vi.stubGlobal('fetch', spy);
   return spy;
 }

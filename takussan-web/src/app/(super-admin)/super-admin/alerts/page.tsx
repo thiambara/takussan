@@ -20,8 +20,8 @@ export default function SuperAdminAlertsPage() {
     <div className="space-y-6">
       <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="font-display text-2xl font-bold text-stone-900">Alertes sensibles</h1>
-          <p className="mt-1 text-sm text-stone-600">
+          <h1 className="font-display text-2xl font-bold text-foreground">Alertes sensibles</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Envoyez des alertes asynchrones pour les actions critiques de la plateforme.
           </p>
         </div>
@@ -29,9 +29,9 @@ export default function SuperAdminAlertsPage() {
       </header>
 
       {query.isLoading ? (
-        <div className="h-48 animate-pulse rounded-xl bg-stone-200" />
+        <div className="h-48 animate-pulse rounded-xl bg-muted" />
       ) : query.isError ? (
-        <div className="rounded-xl bg-red-50 p-4 text-sm text-red-900 ring-1 ring-red-200">
+        <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive ring-1 ring-destructive/20">
           Erreur de chargement. {query.error.displayMessage}
         </div>
       ) : (

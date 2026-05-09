@@ -101,8 +101,12 @@ export function PropertyRowActions({ property }: { property: PropertyListItem })
     setSuccess(null);
     startTransition(async () => {
       const result = await duplicatePropertyAction(property.id);
-      if (!result.ok || !result.data) {
+      if (!result.ok) {
         setError(result.message ?? 'Duplication impossible.');
+        return;
+      }
+      if (!result.data) {
+        setError('Duplication impossible.');
         return;
       }
       router.push(`/app/properties/${result.data.id}`);

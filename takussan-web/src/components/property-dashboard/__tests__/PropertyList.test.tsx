@@ -66,6 +66,7 @@ function makePage(property: PropertyListItem): PaginatedResponse<PropertyListIte
       last_page: 1,
       per_page: 20,
     },
+    links: { first: null, last: null, prev: null, next: null },
   };
 }
 

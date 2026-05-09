@@ -14,6 +14,7 @@ function makePage(customer: CustomerListItem): PaginatedResponse<CustomerListIte
       last_page: 1,
       per_page: 20,
     },
+    links: { first: null, last: null, prev: null, next: null },
   };
 }
 

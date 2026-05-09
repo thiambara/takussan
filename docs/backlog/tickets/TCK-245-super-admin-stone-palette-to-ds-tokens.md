@@ -1,7 +1,7 @@
 ---
 id: TCK-245
 title: "Super-admin — passer la palette stone Tailwind sur les tokens DS Lin"
-status: todo
+status: review
 phase: P2
 family: front
 estimate: M
@@ -67,4 +67,16 @@ Le super-admin navigue dans la console plateforme avec exactement la même palet
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Codemod manuel sur 16 pages `src/app/(super-admin)/**` : `stone-{900,950}` → `foreground`, `stone-{500,600,700}` → `muted-foreground`, `stone-{200,300}` → `border`, `stone-{50,100}` → `muted`, `bg-white` de cartes → `bg-card`.
+- `/super-admin/integrations` : composant réutilisable `<DestructiveBanner>` créé dans `src/components/ui/destructive-banner.tsx` (tokens `bg-destructive/10`, `text-destructive`, `ring-destructive/20`) et appliqué aux 2 bandeaux de la page (critical down + erreur de chargement). Migration opportuniste des autres `bg-destructive/10` cards de l'arbre super-admin laissée hors scope.
+- `/super-admin/system/page.tsx` : 4 boutons (`Paramètres` / `Maintenance` / `Healthcheck` / `Scheduler`) regroupés dans un `flex flex-wrap gap-2` au lieu de `ml-2 mt-4` empilés.
+- `font-display` ajouté aux `h1` manquants de `super-admin/page.tsx`, `audit/page.tsx`, `system/page.tsx`.
+- **Exception amber documentée** (AC2) : 2 bandeaux d'avertissement (`settings/page.tsx`, `enums/page.tsx`) conservent `bg-amber-50 / text-amber-950 / ring-amber-200`. Aucun token DS `--warning` n'existe actuellement — commentaire JSX `TCK-245` ajouté in-situ pour tracer la dérogation.
+- AC5 : `npm run lint` OK (0 erreur, 29 warnings pré-existants), `npm run build` OK, `npx tsc --noEmit` OK (0 erreur).
+- **Side-fixes pré-existants débloqués pour tenir AC5** (hors palette mais requis pour `npm run build`) :
+  - `src/app/(dashboard)/admin/properties/page.tsx` — Next 16 Turbopack refuse le re-export de `dynamic` (régression introduite par commit `873d6a5d`). `dynamic` déclaré statiquement dans la route wrapper, `default` + `metadata` continuent d'être ré-exportés (test TCK-240 vert).
+  - `src/components/property-form/PropertyForm.tsx:109` — `delete basicPayload.tag_ids` refusé par TS strict (clé requise). Variable typée `Partial<PropertyFormPayload>` avec cast de retour.
+  - `src/components/property-dashboard/{PropertyHeaderActions,PropertyRowActions}.tsx` — accès à `result.message` sur union non-discriminée. Narrowing en deux étapes (`!result.ok` puis `!result.data`).
+  - `src/{app/(super-admin)/super-admin/users/__tests__/page,lib/queries/__tests__/super-admin-agencies,lib/queries/__tests__/super-admin-reports}.test.*` — `vi.fn()` typé explicitement pour restituer les tuples d'args sur `spy.mock.calls[i][j]`.
+  - `src/components/{customer-dashboard,property-dashboard}/__tests__/*List.test.tsx` — `makePage()` fournit désormais `links` (requis par `PaginatedResponse<T>`).
+- Les 20 échecs `npm test` restants sont indépendants des fichiers modifiés (vérifié par runs ciblés sur les 6 fichiers touchés → 10/10 verts). Ils relèvent de dette tests antérieure (next-intl provider manquant, `useRouter` non mocké, etc.) à traiter par un ticket dédié si besoin.

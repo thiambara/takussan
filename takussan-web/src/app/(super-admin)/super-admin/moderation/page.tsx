@@ -68,8 +68,8 @@ export default function SuperAdminModerationPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-bold text-stone-900">Modération</h1>
-        <p className="mt-1 text-sm text-stone-600">
+        <h1 className="font-display text-2xl font-bold text-foreground">Modération</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           File plateforme cross-tenant pour les biens et avis en attente ou signalés.
         </p>
       </header>
@@ -80,15 +80,15 @@ export default function SuperAdminModerationPage() {
       {queueQuery.isLoading ? (
         <div className="space-y-2" data-testid="moderation-loading">
           {Array.from({ length: 6 }).map((_, index) => (
-            <div key={index} className="h-12 animate-pulse rounded-md bg-stone-200" aria-hidden="true" />
+            <div key={index} className="h-12 animate-pulse rounded-md bg-muted" aria-hidden="true" />
           ))}
         </div>
       ) : queueQuery.isError ? (
-        <div className="rounded-xl bg-red-50 p-4 text-sm text-red-900 ring-1 ring-red-200" role="alert">
+        <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive ring-1 ring-destructive/20" role="alert">
           Erreur de chargement. {queueQuery.error.displayMessage}
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-xl bg-white p-8 text-center text-sm text-stone-600 ring-1 ring-stone-200">
+        <div className="rounded-xl bg-card p-8 text-center text-sm text-muted-foreground ring-1 ring-border">
           Aucun item de modération ne correspond aux filtres courants.
         </div>
       ) : (
@@ -100,7 +100,7 @@ export default function SuperAdminModerationPage() {
               onSelect={setSelected}
             />
             {meta && meta.last_page > 1 ? (
-              <nav className="flex items-center justify-between text-sm text-stone-600" aria-label="Pagination">
+              <nav className="flex items-center justify-between text-sm text-muted-foreground" aria-label="Pagination">
                 <Button
                   type="button"
                   variant="outline"

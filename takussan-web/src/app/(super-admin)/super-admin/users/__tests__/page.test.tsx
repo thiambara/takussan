@@ -21,7 +21,7 @@ function renderPage() {
   );
 }
 
-function mockFetch(data = []) {
+function mockFetch(data: unknown[] = []) {
   const response = {
     ok: true,
     json: async () => ({
@@ -29,7 +29,7 @@ function mockFetch(data = []) {
       meta: { total: 0, current_page: 1, last_page: 1 },
     }),
   };
-  const spy = vi.fn(async () => response);
+  const spy = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<typeof response>>(async () => response);
   vi.stubGlobal('fetch', spy);
   return spy;
 }

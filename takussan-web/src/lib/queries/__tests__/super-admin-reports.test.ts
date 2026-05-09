@@ -3,7 +3,7 @@ import { ApiError } from '@/lib/api';
 import { exportAdminReport } from '../super-admin';
 
 function mockFetch(response: Response) {
-  const spy = vi.fn(async (): Promise<Response> => response);
+  const spy = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(async () => response);
   vi.stubGlobal('fetch', spy);
   return spy;
 }
