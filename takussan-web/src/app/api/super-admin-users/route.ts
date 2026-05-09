@@ -7,7 +7,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 /**
  * Same-origin proxy for the super-admin users search (TCK-145). Forwards to
- * `/api/users` (super_admin / admin gated controller). Lives outside the
+ * `/api/admin/users` (strict super-admin controller). Lives outside the
  * `/api/super-admin/*` prefix because the upstream is not under the strict
  * super-admin namespace — it's the generic admin user controller.
  */
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (!token) return NextResponse.json({ message: 'Unauthenticated.' }, { status: 401 });
 
   const search = request.nextUrl.search;
-  const upstream = await fetch(`${API_URL}/api/users${search}`, {
+  const upstream = await fetch(`${API_URL}/api/admin/users${search}`, {
     headers: {
       Accept: 'application/json',
       Authorization: `Bearer ${token}`,

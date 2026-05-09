@@ -70,7 +70,9 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
             ->name('admin.agencies.unverify');
     });
 
-    // User impersonation — short-lived Sanctum token (≤ 1h, name=impersonation).
+    // User support — cross-tenant list/detail, strictly super_admin.
+    Route::get('users', [UserDetailController::class, 'index'])
+        ->name('admin.users.index');
     Route::get('users/{user}', [UserDetailController::class, 'show'])
         ->name('admin.users.show');
     Route::get('users/{user}/sessions', [UserDetailController::class, 'sessions'])

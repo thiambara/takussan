@@ -1,7 +1,7 @@
 ---
 id: TCK-239
 title: "Super-admin utilisateurs - afficher rôles et filtres"
-status: todo
+status: review
 phase: P1
 family: bug
 estimate: M
@@ -68,4 +68,4 @@ La liste doit rester une table opérationnelle : identité, badges de rôles, ag
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+La liste super-admin utilise maintenant `/api/admin/users`; les rôles sont lus directement depuis `model_has_roles` pour éviter le filtrage implicite du contexte Spatie actif.

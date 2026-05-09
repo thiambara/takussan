@@ -27,10 +27,10 @@ class UserDetailResource extends JsonResource
             'last_login_at' => $this->last_login_at?->toIso8601String(),
             'two_factor_enabled' => (bool) $this->two_factor_enabled,
             'created_at' => $this->created_at?->toIso8601String(),
-            'roles' => $this->roles->map(fn ($role) => [
+            'roles' => collect($this->admin_role_rows ?? $this->roles->map(fn ($role) => [
                 'name' => $role->name,
                 'team_id' => $role->pivot?->team_id,
-            ])->values()->all(),
+            ])->values()->all())->values()->all(),
             'profiles' => [
                 'agent' => $this->agentProfiles->map(fn (AgentProfile $profile) => [
                     'id' => $profile->id,

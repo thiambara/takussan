@@ -12,7 +12,12 @@ import { useRouter } from 'next/navigation';
 
 type SuperAdminUser = Pick<User, 'id' | 'first_name' | 'last_name' | 'email' | 'status'> & {
   full_name?: string | null;
-  roles?: Array<UserRole | { name: UserRole | string }>;
+  phone?: string | null;
+  email_verified_at?: string | null;
+  two_factor_enabled?: boolean;
+  last_login_at?: string | null;
+  roles?: Array<UserRole | { name: UserRole | string; team_id?: number | null }>;
+  agencies?: Array<{ id: number; name: string; slug: string }>;
 };
 
 type UsersResponse = {
@@ -20,13 +25,32 @@ type UsersResponse = {
   meta?: { total?: number; current_page?: number; last_page?: number };
 };
 
-async function fetchUsers(search: string, page: number): Promise<UsersResponse> {
+const ROLE_OPTIONS = ['', 'super_admin', 'agency_admin', 'agent', 'owner', 'customer', 'tenant', 'service_provider'] as const;
+const STATUS_OPTIONS = ['', 'active', 'blocked', 'inactive', 'banned'] as const;
+
+type UsersParams = {
+  search: string;
+  role: string;
+  agencyId: string;
+  status: string;
+  emailVerified: string;
+  twoFactor: string;
+  page: number;
+};
+
+async function fetchUsers(params: UsersParams): Promise<UsersResponse> {
   const qs = new URLSearchParams();
-  if (search) qs.set('filter[search]', search);
-  qs.set('page', String(page));
+  if (params.search) qs.set('filter[search]', params.search);
+  if (params.role) qs.set('filter[role]', params.role);
+  if (params.agencyId) qs.set('filter[agency_id]', params.agencyId);
+  if (params.status) qs.set('filter[status]', params.status);
+  if (params.emailVerified) qs.set('filter[email_verified]', params.emailVerified);
+  if (params.twoFactor) qs.set('filter[two_factor_enabled]', params.twoFactor);
+  qs.set('page', String(params.page));
   qs.set('per_page', '20');
-  qs.set('fields[users]', 'id,first_name,last_name,email,status');
-  qs.set('include', 'roles');
+  qs.set('fields[users]', 'id,first_name,last_name,email,phone,status,email_verified_at,two_factor_enabled,last_login_at,created_at');
+  qs.set('include', 'roles,agentProfiles,ownerProfiles');
+  qs.set('sort', '-created_at');
   const res = await fetch(`/api/super-admin-users?${qs.toString()}`, { credentials: 'include' });
   if (!res.ok) {
     const data = await res.json().catch(() => null);
@@ -46,13 +70,19 @@ function getUserRoleLabels(user: SuperAdminUser): string[] {
 export default function SuperAdminUsersPage() {
   const router = useRouter();
   const [search, setSearch] = useState('');
+  const [role, setRole] = useState('');
+  const [agencyId, setAgencyId] = useState('');
+  const [status, setStatus] = useState('');
+  const [emailVerified, setEmailVerified] = useState('');
+  const [twoFactor, setTwoFactor] = useState('');
   const [page, setPage] = useState(1);
   const [target, setTarget] = useState<SuperAdminUser | null>(null);
   const impersonate = useImpersonate();
+  const params = { search, role, agencyId, status, emailVerified, twoFactor, page };
 
   const { data, isLoading, isError, error } = useQuery<UsersResponse, ApiError>({
-    queryKey: ['super-admin', 'users', search, page],
-    queryFn: () => fetchUsers(search, page),
+    queryKey: ['super-admin', 'users', params],
+    queryFn: () => fetchUsers(params),
     staleTime: 15_000,
   });
 
@@ -65,16 +95,85 @@ export default function SuperAdminUsersPage() {
         </p>
       </header>
 
-      <input
-        type="search"
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          setPage(1);
-        }}
-        placeholder="Rechercher (nom, email)"
-        className="w-full max-w-md rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-      />
+      <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          placeholder="Nom, email, ID, téléphone"
+          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm md:col-span-2"
+        />
+        <select
+          value={role}
+          onChange={(e) => {
+            setRole(e.target.value);
+            setPage(1);
+          }}
+          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+          aria-label="Rôle"
+        >
+          {ROLE_OPTIONS.map((value) => (
+            <option key={value || 'all'} value={value}>
+              {value || 'Tous rôles'}
+            </option>
+          ))}
+        </select>
+        <input
+          type="number"
+          inputMode="numeric"
+          value={agencyId}
+          onChange={(e) => {
+            setAgencyId(e.target.value);
+            setPage(1);
+          }}
+          placeholder="ID agence"
+          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+        />
+        <select
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value);
+            setPage(1);
+          }}
+          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+          aria-label="Statut"
+        >
+          {STATUS_OPTIONS.map((value) => (
+            <option key={value || 'all'} value={value}>
+              {value || 'Tous statuts'}
+            </option>
+          ))}
+        </select>
+        <select
+          value={emailVerified}
+          onChange={(e) => {
+            setEmailVerified(e.target.value);
+            setPage(1);
+          }}
+          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+          aria-label="Email vérifié"
+        >
+          <option value="">Email: tous</option>
+          <option value="1">Email vérifié</option>
+          <option value="0">Email non vérifié</option>
+        </select>
+        <select
+          value={twoFactor}
+          onChange={(e) => {
+            setTwoFactor(e.target.value);
+            setPage(1);
+          }}
+          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+          aria-label="2FA"
+        >
+          <option value="">2FA: tous</option>
+          <option value="1">2FA activée</option>
+          <option value="0">2FA inactive</option>
+        </select>
+      </div>
 
       {isLoading ? (
         <div className="space-y-2" data-testid="users-loading">
@@ -102,11 +201,22 @@ export default function SuperAdminUsersPage() {
                 data-testid={`super-admin-user-${u.id}`}
                 className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
               >
-                <div className="space-y-0.5">
+                <div className="min-w-0 flex-1 space-y-1">
                   <p className="text-sm font-semibold text-stone-900">{label}</p>
-                  <p className="text-xs text-stone-500">{u.email}</p>
+                  <p className="text-xs text-stone-500">{u.email}{u.phone ? ` · ${u.phone}` : ''}</p>
+                  <p className="flex flex-wrap gap-1 text-xs text-stone-500">
+                    <span className="font-medium text-stone-700">Rôles :</span>
+                    {roles.length ? roles.map((roleName) => (
+                      <span key={roleName} className="rounded-full bg-stone-100 px-2 py-0.5 text-stone-700">
+                        {roleName}
+                      </span>
+                    )) : '—'}
+                  </p>
                   <p className="text-xs text-stone-500">
-                    Rôles : {roles.length ? roles.join(', ') : '—'}
+                    Agences : {u.agencies?.length ? u.agencies.map((agency) => agency.name).join(', ') : '—'}
+                  </p>
+                  <p className="text-xs text-stone-500">
+                    Statut : {u.status ?? '—'} · Email {u.email_verified_at ? 'vérifié' : 'non vérifié'} · 2FA {u.two_factor_enabled ? 'activée' : 'inactive'} · Dernière connexion {formatDateTime(u.last_login_at)}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -148,4 +258,14 @@ export default function SuperAdminUsersPage() {
       ) : null}
     </div>
   );
+}
+
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return '—';
+
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(value));
 }
