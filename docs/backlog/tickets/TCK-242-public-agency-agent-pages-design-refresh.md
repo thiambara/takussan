@@ -1,7 +1,7 @@
 ---
 id: TCK-242
 title: "Refonte design fiches publiques agence & agent"
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -70,4 +70,6 @@ Le visiteur public qui consulte la fiche d'une agence ou d'un agent reconnaît i
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Bouton shadcn (`base-ui`) : pas d'`asChild`. Utiliser la prop `render={<a … />}` pour rendre le CTA en lien sans wrapper.
+- Champs DTO optionnels (whatsapp, city, bio, languages, years_of_experience) déclarés en optional côté front : si l'API ne les renvoie pas, le rendu reste propre (les blocs sont conditionnels).
+- AC6 (Lighthouse a11y ≥ 95) à vérifier en navigation manuelle, non automatisé ici.
