@@ -1,7 +1,7 @@
 ---
 id: TCK-238
 title: "Super-admin agences - compléter la liste plateforme"
-status: todo
+status: review
 phase: P1
 family: bug
 estimate: M
@@ -65,4 +65,4 @@ La page doit rester une vue back-office dense et scannable : identité agence à
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Le compteur membres est calculé côté API depuis les profils polymorphes et collaborations agence, sans dépendre de `users.agency_id`.

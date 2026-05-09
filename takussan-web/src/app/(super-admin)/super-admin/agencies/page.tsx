@@ -15,12 +15,32 @@ const STATUS_OPTIONS = [
   { value: 'suspended', label: 'Suspendues' },
 ];
 
+const SORT_OPTIONS = [
+  { value: '-created_at', label: 'Création récente' },
+  { value: 'created_at', label: 'Création ancienne' },
+  { value: 'name', label: 'Nom A-Z' },
+  { value: '-name', label: 'Nom Z-A' },
+  { value: '-members_count', label: 'Équipe élevée' },
+  { value: '-properties_count', label: 'Portefeuille élevé' },
+] as const;
+
 export default function SuperAdminAgenciesPage() {
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
+  const [createdFrom, setCreatedFrom] = useState('');
+  const [createdTo, setCreatedTo] = useState('');
+  const [sort, setSort] = useState<(typeof SORT_OPTIONS)[number]['value']>('-created_at');
   const [page, setPage] = useState(1);
 
-  const params = { status: status || undefined, search: search || undefined, page, perPage: 15 };
+  const params = {
+    status: status || undefined,
+    search: search || undefined,
+    createdFrom: createdFrom || undefined,
+    createdTo: createdTo || undefined,
+    sort,
+    page,
+    perPage: 15,
+  };
 
   const { data, isLoading, isError, error } = useQuery<AdminAgenciesResponse, ApiError>({
     queryKey: ['super-admin', 'agencies', params],
@@ -65,6 +85,41 @@ export default function SuperAdminAgenciesPage() {
           placeholder="Rechercher (nom, slug, email)"
           className="min-w-64 flex-1 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
         />
+        <input
+          type="date"
+          value={createdFrom}
+          onChange={(e) => {
+            setCreatedFrom(e.target.value);
+            setPage(1);
+          }}
+          aria-label="Créée à partir du"
+          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+        />
+        <input
+          type="date"
+          value={createdTo}
+          onChange={(e) => {
+            setCreatedTo(e.target.value);
+            setPage(1);
+          }}
+          aria-label="Créée jusqu’au"
+          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+        />
+        <select
+          value={sort}
+          onChange={(e) => {
+            setSort(e.target.value as (typeof SORT_OPTIONS)[number]['value']);
+            setPage(1);
+          }}
+          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+          aria-label="Tri"
+        >
+          {SORT_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {isLoading ? (

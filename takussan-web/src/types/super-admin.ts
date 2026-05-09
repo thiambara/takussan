@@ -9,6 +9,10 @@ export type AdminAgency = {
   license_number: string | null;
   email: string | null;
   phone: string | null;
+  logo_url: string | null;
+  properties_count: number;
+  members_count: number;
+  last_activity_at: string | null;
   created_at: string | null;
 };
 

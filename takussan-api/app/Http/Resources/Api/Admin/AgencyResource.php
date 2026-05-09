@@ -4,6 +4,7 @@ namespace App\Http\Resources\Api\Admin;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Carbon;
 
 /**
  * Wire-format for agencies inside the super-admin namespace (TCK-144). Kept
@@ -26,6 +27,12 @@ class AgencyResource extends JsonResource
             'license_number' => $this->license_number,
             'email' => $this->email,
             'phone' => $this->phone,
+            'logo_url' => $this->getFirstMediaUrl('logo') ?: null,
+            'properties_count' => (int) ($this->properties_count ?? 0),
+            'members_count' => (int) ($this->members_count ?? 0),
+            'last_activity_at' => $this->last_activity_at
+                ? Carbon::parse($this->last_activity_at)->toIso8601String()
+                : null,
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

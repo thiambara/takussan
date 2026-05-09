@@ -71,13 +71,19 @@ async function jsonOrThrow<T>(res: Response): Promise<T> {
 export async function fetchAdminAgencies(params: {
   status?: string;
   search?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  sort?: 'created_at' | '-created_at' | 'name' | '-name' | 'members_count' | '-members_count' | 'properties_count' | '-properties_count';
   page?: number;
   perPage?: number;
 } = {}): Promise<AdminAgenciesResponse> {
   const qs = new URLSearchParams();
-  qs.set('fields[agencies]', 'id,name,slug,status,is_verified,verified_at,primary_admin_id,license_number,email,phone,created_at');
+  qs.set('fields[agencies]', 'id,name,slug,status,is_verified,verified_at,primary_admin_id,license_number,email,phone,logo_url,properties_count,members_count,last_activity_at,created_at');
   if (params.status) qs.set('filter[status]', params.status);
   if (params.search) qs.set('filter[search]', params.search);
+  if (params.createdFrom) qs.set('filter[created_from]', params.createdFrom);
+  if (params.createdTo) qs.set('filter[created_to]', params.createdTo);
+  qs.set('sort', params.sort ?? '-created_at');
   if (params.page) qs.set('page', String(params.page));
   if (params.perPage) qs.set('per_page', String(params.perPage));
   const query = qs.toString();
