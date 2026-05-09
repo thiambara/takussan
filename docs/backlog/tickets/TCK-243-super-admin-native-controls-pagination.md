@@ -1,7 +1,7 @@
 ---
 id: TCK-243
 title: "Super-admin — éliminer les contrôles HTML natifs et factoriser la pagination"
-status: todo
+status: review
 phase: P2
 family: front
 estimate: M
@@ -64,4 +64,6 @@ Le super-admin manipule les listes (utilisateurs, agences, biens) avec des contr
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Composant partagé : `src/components/super-admin/Pagination.tsx` (Button shadcn variant outline + ChevronLeft/Right). Importé par les 3 pages.
+- `SuperAdminPropertiesFilters` migré aussi (contenait encore `<select>` + `<input>` natifs) — c'était le seul restant après les pages.
+- Test `super-admin users page > sends role and agency filters` adapté au pattern shadcn Select (click trigger + click option) — `userEvent.selectOptions` ne fonctionne plus sur des composants base-ui.

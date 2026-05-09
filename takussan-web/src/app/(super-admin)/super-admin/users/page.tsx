@@ -3,8 +3,20 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
+import { Search } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { ConfirmActionDialog } from '@/components/admin/super/ConfirmActionDialog';
+import { Pagination } from '@/components/super-admin/Pagination';
 import { useImpersonate } from '@/hooks/useImpersonation';
 import type { ApiError } from '@/lib/api';
 import type { User, UserRole } from '@/types/user';
@@ -25,8 +37,38 @@ type UsersResponse = {
   meta?: { total?: number; current_page?: number; last_page?: number };
 };
 
-const ROLE_OPTIONS = ['', 'super_admin', 'agency_admin', 'agent', 'owner', 'customer', 'tenant', 'service_provider'] as const;
-const STATUS_OPTIONS = ['', 'active', 'blocked', 'inactive', 'banned'] as const;
+const ALL = '__all__';
+
+const ROLE_OPTIONS: { value: string; label: string }[] = [
+  { value: ALL, label: 'Tous rôles' },
+  { value: 'super_admin', label: 'Super-admin' },
+  { value: 'agency_admin', label: 'Admin agence' },
+  { value: 'agent', label: 'Agent' },
+  { value: 'owner', label: 'Propriétaire' },
+  { value: 'customer', label: 'Client' },
+  { value: 'tenant', label: 'Locataire' },
+  { value: 'service_provider', label: 'Prestataire' },
+];
+
+const STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: ALL, label: 'Tous statuts' },
+  { value: 'active', label: 'Actif' },
+  { value: 'blocked', label: 'Bloqué' },
+  { value: 'inactive', label: 'Inactif' },
+  { value: 'banned', label: 'Banni' },
+];
+
+const EMAIL_OPTIONS: { value: string; label: string }[] = [
+  { value: ALL, label: 'Email : tous' },
+  { value: '1', label: 'Email vérifié' },
+  { value: '0', label: 'Email non vérifié' },
+];
+
+const TWOFA_OPTIONS: { value: string; label: string }[] = [
+  { value: ALL, label: '2FA : tous' },
+  { value: '1', label: '2FA activée' },
+  { value: '0', label: '2FA inactive' },
+];
 
 type UsersParams = {
   search: string;
@@ -48,7 +90,10 @@ async function fetchUsers(params: UsersParams): Promise<UsersResponse> {
   if (params.twoFactor) qs.set('filter[two_factor_enabled]', params.twoFactor);
   qs.set('page', String(params.page));
   qs.set('per_page', '20');
-  qs.set('fields[users]', 'id,first_name,last_name,email,phone,status,email_verified_at,two_factor_enabled,last_login_at,created_at');
+  qs.set(
+    'fields[users]',
+    'id,first_name,last_name,email,phone,status,email_verified_at,two_factor_enabled,last_login_at,created_at',
+  );
   qs.set('include', 'roles,agentProfiles,ownerProfiles');
   qs.set('sort', '-created_at');
   const res = await fetch(`/api/super-admin-users?${qs.toString()}`, { credentials: 'include' });
@@ -60,25 +105,46 @@ async function fetchUsers(params: UsersParams): Promise<UsersResponse> {
 }
 
 function getUserDisplayName(user: SuperAdminUser): string {
-  return user.full_name || [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || user.email;
+  return (
+    user.full_name ||
+    [user.first_name, user.last_name].filter(Boolean).join(' ').trim() ||
+    user.email
+  );
 }
 
 function getUserRoleLabels(user: SuperAdminUser): string[] {
   return (user.roles ?? []).map((role) => (typeof role === 'string' ? role : role.name));
 }
 
+function getInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('');
+}
+
 export default function SuperAdminUsersPage() {
   const router = useRouter();
   const [search, setSearch] = useState('');
-  const [role, setRole] = useState('');
+  const [role, setRole] = useState(ALL);
   const [agencyId, setAgencyId] = useState('');
-  const [status, setStatus] = useState('');
-  const [emailVerified, setEmailVerified] = useState('');
-  const [twoFactor, setTwoFactor] = useState('');
+  const [status, setStatus] = useState(ALL);
+  const [emailVerified, setEmailVerified] = useState(ALL);
+  const [twoFactor, setTwoFactor] = useState(ALL);
   const [page, setPage] = useState(1);
   const [target, setTarget] = useState<SuperAdminUser | null>(null);
   const impersonate = useImpersonate();
-  const params = { search, role, agencyId, status, emailVerified, twoFactor, page };
+  const params = {
+    search,
+    role: role === ALL ? '' : role,
+    agencyId,
+    status: status === ALL ? '' : status,
+    emailVerified: emailVerified === ALL ? '' : emailVerified,
+    twoFactor: twoFactor === ALL ? '' : twoFactor,
+    page,
+  };
 
   const { data, isLoading, isError, error } = useQuery<UsersResponse, ApiError>({
     queryKey: ['super-admin', 'users', params],
@@ -89,39 +155,49 @@ export default function SuperAdminUsersPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-stone-900">Utilisateurs</h1>
-        <p className="mt-1 text-sm text-stone-600">
+        <h1 className="font-display text-2xl font-bold text-foreground">Utilisateurs</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Recherche cross-tenant et impersonation pour le support.
         </p>
       </header>
 
       <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          placeholder="Nom, email, ID, téléphone"
-          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm md:col-span-2"
-        />
-        <select
+        <div className="relative md:col-span-2">
+          <Search
+            aria-hidden
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            type="search"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Nom, email, ID, téléphone"
+            className="h-10 pl-9"
+          />
+        </div>
+        <Select
           value={role}
-          onChange={(e) => {
-            setRole(e.target.value);
+          onValueChange={(next) => {
+            setRole((next ?? ALL) as string);
             setPage(1);
           }}
-          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-          aria-label="Rôle"
+          items={ROLE_OPTIONS}
         >
-          {ROLE_OPTIONS.map((value) => (
-            <option key={value || 'all'} value={value}>
-              {value || 'Tous rôles'}
-            </option>
-          ))}
-        </select>
-        <input
+          <SelectTrigger aria-label="Rôle" className="h-10 w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ROLE_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
           type="number"
           inputMode="numeric"
           value={agencyId}
@@ -130,108 +206,167 @@ export default function SuperAdminUsersPage() {
             setPage(1);
           }}
           placeholder="ID agence"
-          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+          className="h-10"
         />
-        <select
+        <Select
           value={status}
-          onChange={(e) => {
-            setStatus(e.target.value);
+          onValueChange={(next) => {
+            setStatus((next ?? ALL) as string);
             setPage(1);
           }}
-          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-          aria-label="Statut"
+          items={STATUS_OPTIONS}
         >
-          {STATUS_OPTIONS.map((value) => (
-            <option key={value || 'all'} value={value}>
-              {value || 'Tous statuts'}
-            </option>
-          ))}
-        </select>
-        <select
+          <SelectTrigger aria-label="Statut" className="h-10 w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
           value={emailVerified}
-          onChange={(e) => {
-            setEmailVerified(e.target.value);
+          onValueChange={(next) => {
+            setEmailVerified((next ?? ALL) as string);
             setPage(1);
           }}
-          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-          aria-label="Email vérifié"
+          items={EMAIL_OPTIONS}
         >
-          <option value="">Email: tous</option>
-          <option value="1">Email vérifié</option>
-          <option value="0">Email non vérifié</option>
-        </select>
-        <select
+          <SelectTrigger aria-label="Email vérifié" className="h-10 w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {EMAIL_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
           value={twoFactor}
-          onChange={(e) => {
-            setTwoFactor(e.target.value);
+          onValueChange={(next) => {
+            setTwoFactor((next ?? ALL) as string);
             setPage(1);
           }}
-          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-          aria-label="2FA"
+          items={TWOFA_OPTIONS}
         >
-          <option value="">2FA: tous</option>
-          <option value="1">2FA activée</option>
-          <option value="0">2FA inactive</option>
-        </select>
+          <SelectTrigger aria-label="2FA" className="h-10 w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {TWOFA_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {isLoading ? (
         <div className="space-y-2" data-testid="users-loading">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-12 animate-pulse rounded-md bg-stone-200" aria-hidden="true" />
+            <div
+              key={i}
+              className="h-16 animate-pulse rounded-xl bg-muted"
+              aria-hidden="true"
+            />
           ))}
         </div>
       ) : isError ? (
-        <div className="rounded-xl bg-red-50 p-4 text-sm text-red-900" role="alert">
+        <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive" role="alert">
           Erreur de chargement. {error?.displayMessage}
         </div>
       ) : !data || data.data.length === 0 ? (
-        <p className="rounded-xl bg-white p-6 text-center text-sm text-stone-500 ring-1 ring-stone-200">
-          Aucun utilisateur trouvé.
-        </p>
+        <Card>
+          <CardContent className="p-6 text-center text-sm text-muted-foreground">
+            Aucun utilisateur trouvé.
+          </CardContent>
+        </Card>
       ) : (
-        <ul className="divide-y divide-stone-200 rounded-xl bg-white ring-1 ring-stone-200">
+        <div className="grid gap-3">
           {data.data.map((u) => {
             const label = getUserDisplayName(u);
             const roles = getUserRoleLabels(u);
 
             return (
-              <li
+              <Card
                 key={u.id}
                 data-testid={`super-admin-user-${u.id}`}
-                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                className="transition-colors hover:bg-muted/40"
               >
-                <div className="min-w-0 flex-1 space-y-1">
-                  <p className="text-sm font-semibold text-stone-900">{label}</p>
-                  <p className="text-xs text-stone-500">{u.email}{u.phone ? ` · ${u.phone}` : ''}</p>
-                  <p className="flex flex-wrap gap-1 text-xs text-stone-500">
-                    <span className="font-medium text-stone-700">Rôles :</span>
-                    {roles.length ? roles.map((roleName) => (
-                      <span key={roleName} className="rounded-full bg-stone-100 px-2 py-0.5 text-stone-700">
-                        {roleName}
-                      </span>
-                    )) : '—'}
-                  </p>
-                  <p className="text-xs text-stone-500">
-                    Agences : {u.agencies?.length ? u.agencies.map((agency) => agency.name).join(', ') : '—'}
-                  </p>
-                  <p className="text-xs text-stone-500">
-                    Statut : {u.status ?? '—'} · Email {u.email_verified_at ? 'vérifié' : 'non vérifié'} · 2FA {u.two_factor_enabled ? 'activée' : 'inactive'} · Dernière connexion {formatDateTime(u.last_login_at)}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Link className={buttonVariants({ size: 'sm', variant: 'outline' })} href={`/super-admin/users/${u.id}`}>
-                    Ouvrir
-                  </Link>
-                  <Button size="sm" variant="outline" onClick={() => setTarget(u)} disabled={impersonate.isPending}>
-                    Impersonifier
-                  </Button>
-                </div>
-              </li>
+                <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
+                    <Avatar size="lg" className="shrink-0">
+                      <AvatarFallback>{getInitials(label)}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 space-y-1">
+                      <p className="truncate text-sm font-semibold text-foreground">{label}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {u.email}
+                        {u.phone ? ` · ${u.phone}` : ''}
+                      </p>
+                      <p className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground">Rôles :</span>
+                        {roles.length
+                          ? roles.map((roleName) => (
+                              <span
+                                key={roleName}
+                                className="rounded-full bg-muted px-2 py-0.5 text-foreground"
+                              >
+                                {roleName}
+                              </span>
+                            ))
+                          : '—'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Agences :{' '}
+                        {u.agencies?.length
+                          ? u.agencies.map((agency) => agency.name).join(', ')
+                          : '—'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Statut : {u.status ?? '—'} · Email{' '}
+                        {u.email_verified_at ? 'vérifié' : 'non vérifié'} · 2FA{' '}
+                        {u.two_factor_enabled ? 'activée' : 'inactive'} · Dernière connexion{' '}
+                        {formatDateTime(u.last_login_at)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      className={buttonVariants({ size: 'sm', variant: 'outline' })}
+                      href={`/super-admin/users/${u.id}`}
+                    >
+                      Ouvrir
+                    </Link>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setTarget(u)}
+                      disabled={impersonate.isPending}
+                    >
+                      Impersonifier
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             );
           })}
-        </ul>
+        </div>
       )}
+
+      {data?.meta?.last_page ? (
+        <Pagination
+          page={data.meta.current_page ?? page}
+          lastPage={data.meta.last_page}
+          onChange={setPage}
+        />
+      ) : null}
 
       {target ? (
         <ConfirmActionDialog

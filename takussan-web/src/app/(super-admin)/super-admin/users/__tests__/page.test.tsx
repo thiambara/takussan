@@ -91,7 +91,11 @@ describe('super-admin users page', () => {
     renderPage();
     await waitFor(() => expect(spy).toHaveBeenCalledTimes(1));
 
-    await user.selectOptions(screen.getByLabelText('Rôle'), 'agent');
+    // Pick the role via the shadcn (base-ui) Select trigger.
+    await user.click(screen.getByLabelText('Rôle'));
+    const agentOption = await screen.findByRole('option', { name: 'Agent' });
+    await user.click(agentOption);
+
     await user.type(screen.getByPlaceholderText('ID agence'), '12');
 
     await waitFor(() => expect(spy.mock.calls.length).toBeGreaterThanOrEqual(3));

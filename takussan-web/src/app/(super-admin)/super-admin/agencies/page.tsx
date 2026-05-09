@@ -2,14 +2,27 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Search } from 'lucide-react';
 import { fetchAdminAgencies } from '@/lib/queries/super-admin';
 import { AgencyModerationCard } from '@/components/admin/super/AgencyModerationCard';
 import { AgencyOnboardingDialog } from '@/components/admin/super/AgencyOnboardingDialog';
+import { Pagination } from '@/components/super-admin/Pagination';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { AdminAgenciesResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 
+const ALL = '__all__';
+
 const STATUS_OPTIONS = [
-  { value: '', label: 'Tous statuts' },
+  { value: ALL, label: 'Tous statuts' },
   { value: 'active', label: 'Actives' },
   { value: 'inactive', label: 'Inactives' },
   { value: 'suspended', label: 'Suspendues' },
@@ -24,16 +37,18 @@ const SORT_OPTIONS = [
   { value: '-properties_count', label: 'Portefeuille élevé' },
 ] as const;
 
+type SortValue = (typeof SORT_OPTIONS)[number]['value'];
+
 export default function SuperAdminAgenciesPage() {
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState(ALL);
   const [search, setSearch] = useState('');
   const [createdFrom, setCreatedFrom] = useState('');
   const [createdTo, setCreatedTo] = useState('');
-  const [sort, setSort] = useState<(typeof SORT_OPTIONS)[number]['value']>('-created_at');
+  const [sort, setSort] = useState<SortValue>('-created_at');
   const [page, setPage] = useState(1);
 
   const params = {
-    status: status || undefined,
+    status: status === ALL ? undefined : status,
     search: search || undefined,
     createdFrom: createdFrom || undefined,
     createdTo: createdTo || undefined,
@@ -52,8 +67,8 @@ export default function SuperAdminAgenciesPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">Agences</h1>
-          <p className="mt-1 text-sm text-stone-600">
+          <h1 className="font-display text-2xl font-bold text-foreground">Agences</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Modération cross-tenant — vérification, suspension, retrait de vérification.
           </p>
         </div>
@@ -61,31 +76,44 @@ export default function SuperAdminAgenciesPage() {
       </header>
 
       <div className="flex flex-wrap items-center gap-2">
-        <select
+        <Select
           value={status}
-          onChange={(e) => {
-            setStatus(e.target.value);
+          onValueChange={(next) => {
+            setStatus((next ?? ALL) as string);
             setPage(1);
           }}
-          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+          items={STATUS_OPTIONS}
         >
-          {STATUS_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          placeholder="Rechercher (nom, slug, email)"
-          className="min-w-64 flex-1 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-        />
-        <input
+          <SelectTrigger aria-label="Statut" className="h-10">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <div className="relative min-w-64 flex-1">
+          <Search
+            aria-hidden
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            type="search"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Rechercher (nom, slug, email)"
+            className="h-10 pl-9"
+          />
+        </div>
+
+        <Input
           type="date"
           value={createdFrom}
           onChange={(e) => {
@@ -93,9 +121,9 @@ export default function SuperAdminAgenciesPage() {
             setPage(1);
           }}
           aria-label="Créée à partir du"
-          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+          className="h-10 w-auto"
         />
-        <input
+        <Input
           type="date"
           value={createdTo}
           onChange={(e) => {
@@ -103,39 +131,50 @@ export default function SuperAdminAgenciesPage() {
             setPage(1);
           }}
           aria-label="Créée jusqu’au"
-          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+          className="h-10 w-auto"
         />
-        <select
+
+        <Select
           value={sort}
-          onChange={(e) => {
-            setSort(e.target.value as (typeof SORT_OPTIONS)[number]['value']);
+          onValueChange={(next) => {
+            setSort((next ?? '-created_at') as SortValue);
             setPage(1);
           }}
-          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-          aria-label="Tri"
+          items={SORT_OPTIONS as readonly { value: string; label: string }[]}
         >
-          {SORT_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger aria-label="Tri" className="h-10">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SORT_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {isLoading ? (
         <div className="grid gap-3 sm:grid-cols-2" data-testid="agencies-loading">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-32 animate-pulse rounded-xl bg-stone-200" aria-hidden="true" />
+            <div
+              key={i}
+              className="h-32 animate-pulse rounded-xl bg-muted"
+              aria-hidden="true"
+            />
           ))}
         </div>
       ) : isError ? (
-        <div className="rounded-xl bg-red-50 p-4 text-sm text-red-900" role="alert">
+        <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive" role="alert">
           Erreur de chargement. {error?.displayMessage}
         </div>
       ) : !data || data.data.length === 0 ? (
-        <p className="rounded-xl bg-white p-6 text-center text-sm text-stone-500 ring-1 ring-stone-200">
-          Aucune agence à afficher pour les filtres courants.
-        </p>
+        <Card>
+          <CardContent className="p-6 text-center text-sm text-muted-foreground">
+            Aucune agence à afficher pour les filtres courants.
+          </CardContent>
+        </Card>
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -150,41 +189,6 @@ export default function SuperAdminAgenciesPage() {
           />
         </>
       )}
-    </div>
-  );
-}
-
-function Pagination({
-  page,
-  lastPage,
-  onChange,
-}: {
-  page: number;
-  lastPage: number;
-  onChange: (next: number) => void;
-}) {
-  if (lastPage <= 1) return null;
-  return (
-    <div className="flex items-center justify-between text-sm text-stone-600">
-      <button
-        type="button"
-        onClick={() => onChange(Math.max(1, page - 1))}
-        disabled={page <= 1}
-        className="rounded-md border border-stone-300 bg-white px-3 py-1 disabled:opacity-50"
-      >
-        Précédent
-      </button>
-      <span>
-        Page {page} sur {lastPage}
-      </span>
-      <button
-        type="button"
-        onClick={() => onChange(Math.min(lastPage, page + 1))}
-        disabled={page >= lastPage}
-        className="rounded-md border border-stone-300 bg-white px-3 py-1 disabled:opacity-50"
-      >
-        Suivant
-      </button>
     </div>
   );
 }
