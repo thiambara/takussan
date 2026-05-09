@@ -988,12 +988,55 @@ export async function fetchAdminReportFunnel(params: { period?: ReportPeriod } =
   return jsonOrThrow<FunnelResponse>(res);
 }
 
-export async function exportAdminReport(report: 'growth' | 'revenue' | 'cohorts' | 'funnel', params: Record<string, string | number>): Promise<unknown> {
+type AdminReportExportResult =
+  | { status: 'downloaded'; filename: string }
+  | { status: 'queued'; data: unknown };
+
+export async function exportAdminReport(
+  report: 'growth' | 'revenue' | 'cohorts' | 'funnel',
+  params: Record<string, string | number>,
+): Promise<AdminReportExportResult> {
   const qs = new URLSearchParams();
   qs.set('format', 'csv');
   for (const [key, value] of Object.entries(params)) {
     qs.set(key, String(value));
   }
   const res = await fetch(`/api/super-admin/reports/${report}/export?${qs.toString()}`, { credentials: 'include' });
-  return jsonOrThrow<unknown>(res);
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new ApiError(res.status, data);
+  }
+
+  const contentType = res.headers.get('content-type') ?? '';
+  if (contentType.includes('application/json')) {
+    return { status: 'queued', data: await res.json() };
+  }
+
+  const blob = await res.blob();
+  const disposition = res.headers.get('content-disposition') ?? '';
+  const filename = filenameFromDisposition(disposition) ?? `takussan-${report}.csv`;
+  triggerDownload(blob, filename);
+
+  return { status: 'downloaded', filename };
+}
+
+function filenameFromDisposition(disposition: string): string | null {
+  const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  if (encoded) return decodeURIComponent(encoded.replace(/"/g, ''));
+
+  const plain = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+  return plain ?? null;
+}
+
+function triggerDownload(blob: Blob, filename: string): void {
+  if (typeof document === 'undefined') return;
+
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
 }

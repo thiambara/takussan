@@ -20,8 +20,14 @@ export function ReportExportButton({
   const handleExport = async () => {
     setPending(true);
     try {
-      await exportAdminReport(report, params);
-      toast.add({ title: 'Export demandé', description: 'Les exports volumineux sont notifiés par email.', type: 'success' });
+      const result = await exportAdminReport(report, params);
+      toast.add({
+        title: result.status === 'downloaded' ? 'Export téléchargé' : 'Export demandé',
+        description: result.status === 'downloaded'
+          ? 'Le fichier CSV est prêt.'
+          : 'Les exports volumineux sont notifiés par email.',
+        type: 'success',
+      });
     } catch (error) {
       toast.add({
         title: 'Export impossible',

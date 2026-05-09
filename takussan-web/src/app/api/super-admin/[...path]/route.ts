@@ -21,7 +21,7 @@ async function forward(request: NextRequest, segments: string[]): Promise<NextRe
   const url = `${API_URL}/api/admin/${path}${search}`;
 
   const headers: Record<string, string> = {
-    Accept: 'application/json',
+    Accept: request.headers.get('accept') ?? 'application/json',
     Authorization: `Bearer ${token}`,
   };
   const contentType = request.headers.get('content-type');
@@ -36,10 +36,12 @@ async function forward(request: NextRequest, segments: string[]): Promise<NextRe
   }
 
   const upstream = await fetch(url, init);
-  const data = await upstream.text();
+  const data = await upstream.arrayBuffer();
   const responseHeaders: HeadersInit = {};
-  const upstreamCt = upstream.headers.get('content-type');
-  if (upstreamCt) responseHeaders['Content-Type'] = upstreamCt;
+  for (const name of ['content-type', 'content-disposition', 'cache-control']) {
+    const value = upstream.headers.get(name);
+    if (value) responseHeaders[name] = value;
+  }
 
   return new NextResponse(data, { status: upstream.status, headers: responseHeaders });
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\Admin\ReportExportRequest;
 use App\Jobs\Reporting\GenerateReportExport;
 use App\Models\ReportExport;
+use App\Services\Export\ExportWriter;
 use App\Services\Reporting\PlatformReportingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,7 +22,10 @@ class ReportingController extends Controller
 {
     private const ASYNC_THRESHOLD_ROWS = 10_000;
 
-    public function __construct(private readonly PlatformReportingService $reporting) {}
+    public function __construct(
+        private readonly PlatformReportingService $reporting,
+        private readonly ExportWriter $exportWriter,
+    ) {}
 
     public function growth(Request $request): JsonResponse
     {
@@ -83,7 +87,7 @@ class ReportingController extends Controller
         ]);
     }
 
-    public function export(ReportExportRequest $request, string $report): JsonResponse
+    public function export(ReportExportRequest $request, string $report): mixed
     {
         if (! in_array($report, ['growth', 'revenue', 'cohorts', 'funnel'], true)) {
             throw new HttpException(404, "Unknown report '{$report}'.");
@@ -117,6 +121,9 @@ class ReportingController extends Controller
             'format' => $request->string('format')->toString(),
             'parameters' => $request->only(['metric', 'period', 'granularity', 'cohort_basis', 'depth']),
             'status' => $async ? 'queued' : 'ready',
+            'row_count' => $rowCount,
+            'ready_at' => $async ? null : now(),
+            'expires_at' => $async ? null : now()->addDays(7),
         ]);
 
         activity('Reporting')
@@ -142,6 +149,28 @@ class ReportingController extends Controller
             ], 202);
         }
 
-        return $this->json(['data' => $payload]);
+        return $this->exportWriter->respond(
+            $request->string('format')->toString(),
+            $this->downloadPayload($report, $payload),
+        );
+    }
+
+    private function downloadPayload(string $report, array $payload): array
+    {
+        $rows = collect($payload['rows'] ?? [])
+            ->filter(fn ($row) => is_array($row))
+            ->map(fn (array $row) => collect($row)
+                ->map(fn ($value) => is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : $value)
+                ->all())
+            ->values()
+            ->all();
+
+        $columns = $rows === [] ? [] : array_keys($rows[0]);
+
+        return [
+            'filename' => sprintf('takussan-%s-%s', $report, now()->format('Ymd-His')),
+            'columns' => $columns,
+            'rows' => $rows,
+        ];
     }
 }

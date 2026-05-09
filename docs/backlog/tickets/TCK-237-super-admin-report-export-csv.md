@@ -1,7 +1,7 @@
 ---
 id: TCK-237
 title: "Super-admin reporting - corriger l'export CSV"
-status: todo
+status: review
 phase: P2
 family: bug
 estimate: S
@@ -67,4 +67,4 @@ Le bouton d'export de `/super-admin/reports` doit garder un feedback discret : �
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Exports synchrones branchés sur `ExportWriter`; le proxy Next conserve désormais les réponses binaires et `Content-Disposition`.

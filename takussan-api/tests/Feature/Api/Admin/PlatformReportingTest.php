@@ -151,19 +151,55 @@ class PlatformReportingTest extends BaseTestCase
         $this->assertSame($firstTotal + 1, $secondTotal, 'Reporting cache must reflect the new agency without stale fallback.');
     }
 
-    public function test_export_under_threshold_returns_payload_inline_and_audits(): void
+    public function test_growth_csv_export_returns_download_and_audits(): void
     {
+        Carbon::setTestNow('2026-05-15');
         $actor = $this->actingAsRole('super_admin');
 
-        $response = $this->getJson('/api/admin/reports/funnel/export?format=csv&period=30d')->assertOk();
-        $this->assertNotNull($response->json('data.rows'));
+        Agency::factory()->create(['created_at' => '2026-04-10']);
+
+        $response = $this->get('/api/admin/reports/growth/export?format=csv&metric=agencies&period=3m&granularity=month')
+            ->assertOk();
+
+        $this->assertStringContainsString('text/csv', (string) $response->headers->get('Content-Type'));
+        $this->assertStringContainsString('attachment;', (string) $response->headers->get('Content-Disposition'));
+        $this->assertStringContainsString('takussan-growth-', (string) $response->headers->get('Content-Disposition'));
+
+        $csv = $response->streamedContent();
+        $this->assertStringContainsString('bucket,starts_at,ends_at,count', str_replace('"', '', $csv));
+        $this->assertStringContainsString('2026-04', $csv);
 
         $this->assertTrue(Activity::query()
             ->where('event', 'super_admin_report_exported')
             ->where('causer_id', $actor->id)
+            ->where('properties->report', 'growth')
             ->exists());
 
         $this->assertSame(1, ReportExport::query()->count());
+        $this->assertSame('ready', ReportExport::query()->first()?->status);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_second_report_csv_export_is_also_a_file(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $response = $this->get('/api/admin/reports/funnel/export?format=csv&period=30d')->assertOk();
+
+        $this->assertStringContainsString('text/csv', (string) $response->headers->get('Content-Type'));
+        $this->assertStringContainsString('attachment;', (string) $response->headers->get('Content-Disposition'));
+        $this->assertStringContainsString('stage,count', str_replace('"', '', $response->streamedContent()));
+    }
+
+    public function test_xlsx_export_returns_download_response(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $response = $this->get('/api/admin/reports/funnel/export?format=xlsx&period=30d')->assertOk();
+
+        $this->assertStringContainsString('spreadsheetml.sheet', (string) $response->headers->get('Content-Type'));
+        $this->assertStringContainsString('attachment;', (string) $response->headers->get('Content-Disposition'));
     }
 
     public function test_agency_admin_is_forbidden(): void
@@ -176,6 +212,12 @@ class PlatformReportingTest extends BaseTestCase
         $this->getJson('/api/admin/reports/cohorts')->assertForbidden();
         $this->getJson('/api/admin/reports/funnel')->assertForbidden();
         $this->getJson('/api/admin/reports/funnel/export?format=csv')->assertForbidden();
+    }
+
+    public function test_anonymous_export_is_unauthenticated(): void
+    {
+        $this->getJson('/api/admin/reports/growth/export?format=csv&metric=agencies&period=12m')
+            ->assertUnauthorized();
     }
 
     public function test_export_with_unknown_report_returns_404(): void
