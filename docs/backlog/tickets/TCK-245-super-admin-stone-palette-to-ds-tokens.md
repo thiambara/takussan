@@ -1,7 +1,7 @@
 ---
 id: TCK-245
 title: "Super-admin — passer la palette stone Tailwind sur les tokens DS Lin"
-status: review
+status: done
 phase: P2
 family: front
 estimate: M

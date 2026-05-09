@@ -1,7 +1,7 @@
 ---
 id: TCK-242
 title: "Refonte design fiches publiques agence & agent"
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

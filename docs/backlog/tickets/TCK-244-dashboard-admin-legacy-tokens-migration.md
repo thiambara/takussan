@@ -1,7 +1,7 @@
 ---
 id: TCK-244
 title: "Dashboard /app + /admin — migration tokens legacy → tokens DS Lin"
-status: review
+status: done
 phase: P2
 family: front
 estimate: L
