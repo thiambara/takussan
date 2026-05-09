@@ -1,7 +1,7 @@
 ---
 id: TCK-240
 title: "Admin biens - restaurer la liste /admin/properties"
-status: todo
+status: review
 phase: P1
 family: bug
 estimate: S
@@ -65,4 +65,4 @@ La route `/admin/properties` doit utiliser le shell admin cohérent avec le cont
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+`/admin/properties` réutilise la liste dashboard existante; `/super-admin/properties` reste l'entrée plateforme dédiée.
