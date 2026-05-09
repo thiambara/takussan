@@ -1,7 +1,7 @@
 ---
 id: TCK-241
 title: "API agences - corriger le scope agency_admin"
-status: todo
+status: review
 phase: P0
 family: bug
 estimate: S
@@ -67,4 +67,6 @@ Sans objet : ticket backend/API.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Le scope classique `/api/agencies` est calculé depuis les profils, collaborations et `primary_admin_id` avant `Agency::buildQuery()`.
+- Les accès hors scope à `/api/agencies/{id}` sont masqués en `404`.
+- Les tests couvrent super-admin, admin d'agence mono/multi-agence, utilisateur hors agence, accès détail hors scope, sparse fields et tri après scoping.

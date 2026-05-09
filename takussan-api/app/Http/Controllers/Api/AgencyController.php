@@ -13,6 +13,7 @@ use App\Models\Enums\Currency;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use App\Services\Billing\QuotaResolver;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,7 @@ class AgencyController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $paginator = Agency::buildQuery(null, $request)
+        $paginator = Agency::buildQuery($this->visibleAgencyQuery($request->user()), $request)
             ->defaultSort('-created_at')
             ->paginate();
 
@@ -68,6 +69,8 @@ class AgencyController extends Controller
 
     public function show(Request $request, Agency $agency): JsonResponse
     {
+        abort_unless($this->canViewAgency($request->user(), $agency), 404);
+
         return $this->json(['data' => AgencyResource::make($agency)->toArray($request)]);
     }
 
@@ -270,5 +273,58 @@ class AgencyController extends Controller
             ),
             403,
         );
+    }
+
+    private function visibleAgencyQuery(User $user): Builder
+    {
+        if ($user->isSuperAdmin() || $user->hasRole('admin')) {
+            return Agency::query();
+        }
+
+        $ids = $this->visibleAgencyIds($user);
+
+        return Agency::query()->whereIn('id', $ids);
+    }
+
+    private function canViewAgency(User $user, Agency $agency): bool
+    {
+        if ($user->isSuperAdmin() || $user->hasRole('admin')) {
+            return true;
+        }
+
+        return in_array($agency->id, $this->visibleAgencyIds($user), true);
+    }
+
+    /**
+     * Agency visibility is profile-driven after TCK-142. Primary-admin links
+     * are kept for agencies created before/profile-less onboarding flows.
+     *
+     * @return list<int>
+     */
+    private function visibleAgencyIds(User $user): array
+    {
+        $ids = collect([$user->agency_id])
+            ->merge(Agency::query()->where('primary_admin_id', $user->id)->pluck('id'))
+            ->merge($user->agentProfiles()->pluck('agency_id'))
+            ->merge($user->ownerProfiles()->pluck('agency_id'))
+            ->merge(DB::table('broker_profiles')
+                ->join('broker_agency_collaborations', 'broker_agency_collaborations.broker_profile_id', '=', 'broker_profiles.id')
+                ->where('broker_profiles.user_id', $user->id)
+                ->whereNull('broker_profiles.deleted_at')
+                ->whereNull('broker_agency_collaborations.deleted_at')
+                ->pluck('broker_agency_collaborations.agency_id'))
+            ->merge(DB::table('service_provider_profiles')
+                ->join('service_provider_agency_collaborations', 'service_provider_agency_collaborations.service_provider_profile_id', '=', 'service_provider_profiles.id')
+                ->where('service_provider_profiles.user_id', $user->id)
+                ->whereNull('service_provider_profiles.deleted_at')
+                ->whereNull('service_provider_agency_collaborations.deleted_at')
+                ->pluck('service_provider_agency_collaborations.agency_id'));
+
+        return $ids
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
     }
 }
