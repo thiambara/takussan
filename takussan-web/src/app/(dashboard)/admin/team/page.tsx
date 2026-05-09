@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { TeamManagement } from '@/components/admin/TeamManagement';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 /**
  * TCK-065 — Admin team management page. `agency_admin` and `super_admin`
@@ -16,12 +17,7 @@ export default async function TeamPage() {
     // Super admins currently pick their working agency via /admin/agency.
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">Équipe</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Gestion des membres de l&apos;agence
-          </p>
-        </div>
+        <PageHeader title="Équipe" subtitle="Gestion des membres de l'agence" />
         <div className="rounded-xl bg-card p-8 text-sm text-muted-foreground">
           Vous n&apos;êtes rattaché à aucune agence. Rendez-vous dans la
           section « Configuration de l&apos;agence » pour en créer une ou en
@@ -33,13 +29,10 @@ export default async function TeamPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">Équipe</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Gérez les membres de votre agence : invitez des agents, attribuez
-          des rôles, retirez un accès.
-        </p>
-      </div>
+      <PageHeader
+        title="Équipe"
+        subtitle="Gérez les membres de votre agence : invitez des agents, attribuez des rôles, retirez un accès."
+      />
       <TeamManagement agencyId={user.agency_id} currentUserId={user.id} />
     </div>
   );

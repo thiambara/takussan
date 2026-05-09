@@ -2,6 +2,7 @@ import { getMeAction } from '@/app/actions/auth';
 import { DashboardEmpty } from '@/components/dashboard/DashboardEmpty';
 import { DashboardMeKpis } from '@/components/dashboard/DashboardMeKpis';
 import { DashboardShortcuts } from '@/components/dashboard/DashboardShortcuts';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { isSuperAdmin } from '@/lib/roles';
 import { fetchDashboardMe } from '@/lib/queries/dashboard-me';
@@ -18,10 +19,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">Bonjour {user.first_name}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Vue d&apos;ensemble de votre activité</p>
-      </div>
+      <PageHeader
+        title={`Bonjour ${user.first_name}`}
+        subtitle="Vue d'ensemble de votre activité"
+      />
 
       {payload?.data ? (
         <DashboardMeKpis role={payload.data.role} metrics={payload.data.metrics} />

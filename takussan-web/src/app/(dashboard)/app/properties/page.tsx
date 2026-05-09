@@ -14,6 +14,7 @@ import { PropertyListFilters } from '@/components/property-dashboard/PropertyLis
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
 import { PropertyKpiStrip } from '@/components/property-dashboard/PropertyKpiStrip';
 import { buttonVariants } from '@/components/ui/button';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 /**
  * TCK-041 — dashboard agent, liste des biens.
@@ -153,21 +154,19 @@ export default async function Page({
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">Mes biens</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Gérez votre portefeuille immobilier : publication, statut, visibilité.
-          </p>
-        </div>
-        <Link
-          href="/app/properties/new"
-          className={buttonVariants({ size: 'lg' })}
-        >
-          <Plus className="size-4" aria-hidden="true" />
-          Publier un bien
-        </Link>
-      </header>
+      <PageHeader
+        title="Mes biens"
+        subtitle="Gérez votre portefeuille immobilier : publication, statut, visibilité."
+        actions={
+          <Link
+            href="/app/properties/new"
+            className={buttonVariants({ size: 'lg' })}
+          >
+            <Plus className="size-4" aria-hidden="true" />
+            Publier un bien
+          </Link>
+        }
+      />
 
       <PropertyKpiStrip tiles={kpiTiles} />
 

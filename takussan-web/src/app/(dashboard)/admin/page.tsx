@@ -3,6 +3,7 @@ import { AgencyActivityFeed } from '@/components/dashboard/admin/AgencyActivityF
 import { AgencyDegradedState } from '@/components/dashboard/admin/AgencyDegradedState';
 import { AgencyKpis } from '@/components/dashboard/admin/AgencyKpis';
 import { AgencyRevenueSnapshot } from '@/components/dashboard/admin/AgencyRevenueSnapshot';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { isSuperAdmin } from '@/lib/roles';
 import { fetchDashboardAgency } from '@/lib/queries/dashboard-agency';
@@ -19,10 +20,10 @@ export default async function Page() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">Tableau de bord agence</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Vue d&apos;ensemble de l&apos;agence</p>
-      </div>
+      <PageHeader
+        title="Tableau de bord agence"
+        subtitle="Vue d'ensemble de l'agence"
+      />
 
       {payload ? (
         <>

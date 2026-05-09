@@ -5,8 +5,16 @@ import userEvent from '@testing-library/user-event';
 
 import SuperAdminUsersPage from '../page';
 
+const mockReplace = vi.fn();
+const mockPush = vi.fn();
+const mockSearchParams = {
+  get: vi.fn().mockReturnValue(null),
+  toString: vi.fn().mockReturnValue(''),
+};
+
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace }),
+  useSearchParams: () => mockSearchParams,
 }));
 
 function renderPage() {
@@ -37,6 +45,10 @@ function mockFetch(data: unknown[] = []) {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  mockReplace.mockReset();
+  mockPush.mockReset();
+  mockSearchParams.get.mockReturnValue(null);
+  mockSearchParams.toString.mockReturnValue('');
 });
 
 describe('super-admin users page', () => {
@@ -103,5 +115,47 @@ describe('super-admin users page', () => {
     const url = new URL(String(spy.mock.calls.at(-1)?.[0]), 'http://localhost');
     expect(url.searchParams.get('filter[role]')).toBe('agent');
     expect(url.searchParams.get('filter[agency_id]')).toBe('12');
+  });
+
+  it('mirrors the role filter to the URL (?role=…) — AC3 TCK-243', async () => {
+    const user = userEvent.setup();
+    mockFetch();
+
+    renderPage();
+
+    await user.click(screen.getByLabelText('Rôle'));
+    const agentOption = await screen.findByRole('option', { name: 'Agent' });
+    await user.click(agentOption);
+
+    expect(mockReplace).toHaveBeenCalledWith(expect.stringContaining('role=agent'));
+  });
+
+  it('hydrates the role filter from the URL on mount — AC3 TCK-243', async () => {
+    mockSearchParams.get.mockImplementation((key: string) => (key === 'role' ? 'agent' : null));
+    mockSearchParams.toString.mockReturnValue('role=agent');
+    const spy = mockFetch();
+
+    renderPage();
+
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+    const url = new URL(String(spy.mock.calls[0][0]), 'http://localhost');
+    expect(url.searchParams.get('filter[role]')).toBe('agent');
+  });
+
+  it('drops ?role from the URL when the role filter is cleared', async () => {
+    const user = userEvent.setup();
+    mockSearchParams.get.mockImplementation((key: string) => (key === 'role' ? 'agent' : null));
+    mockSearchParams.toString.mockReturnValue('role=agent');
+    mockFetch();
+
+    renderPage();
+
+    await user.click(screen.getByLabelText('Rôle'));
+    const allRoles = await screen.findByRole('option', { name: 'Tous rôles' });
+    await user.click(allRoles);
+
+    expect(mockReplace).toHaveBeenCalled();
+    const replaced = String(mockReplace.mock.calls.at(-1)?.[0]);
+    expect(replaced).not.toContain('role=agent');
   });
 });

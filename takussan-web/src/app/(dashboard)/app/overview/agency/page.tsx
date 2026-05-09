@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { fetchAgencyDashboard } from '@/lib/queries/dashboard';
 import { StatCard } from '@/components/charts/StatCard';
 import { LineChart } from '@/components/charts/LineChart';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 
@@ -27,8 +28,7 @@ export default async function AgencyDashboardPage() {
   if (!payload) {
     return (
       <div className="space-y-2">
-        <h1 className="font-display text-2xl font-bold text-foreground">Vue agence</h1>
-        <p className="text-sm text-muted-foreground">Impossible de charger les données.</p>
+        <PageHeader title="Vue agence" subtitle="Impossible de charger les données." />
       </div>
     );
   }
@@ -37,13 +37,10 @@ export default async function AgencyDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">Vue agence</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Indicateurs clés sur la période — {data.period.start.slice(0, 10)} au{' '}
-          {data.period.end.slice(0, 10)}
-        </p>
-      </div>
+      <PageHeader
+        title="Vue agence"
+        subtitle={`Indicateurs clés sur la période — ${data.period.start.slice(0, 10)} au ${data.period.end.slice(0, 10)}`}
+      />
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard

@@ -63,13 +63,15 @@ describe('<VisitsList>', () => {
     pastResult.isError = false;
   });
 
-  it('renders upcoming visits by default under the "À venir" tab', () => {
+  it('renders requested visits by default under the "Demandées" tab', () => {
     render(wrap(<VisitsList />));
 
-    expect(screen.getByRole('tab', { name: /à venir/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /demandées/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /confirmées/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /passées/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /annulées/i })).toBeInTheDocument();
     expect(screen.getByText('Villa à Almadies')).toBeInTheDocument();
-    expect(screen.getByText(/confirmée/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/confirmée/i).length).toBeGreaterThan(0);
   });
 
   it('switches to the past tab when clicked', async () => {
@@ -84,7 +86,7 @@ describe('<VisitsList>', () => {
   it('renders an empty state when the tab has no visits', () => {
     upcomingResult.data = { data: [] };
     render(wrap(<VisitsList />));
-    expect(screen.getByText(/aucune visite à venir/i)).toBeInTheDocument();
+    expect(screen.getByText(/aucune visite demandée/i)).toBeInTheDocument();
   });
 
   it('renders a skeleton while loading', () => {

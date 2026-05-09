@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { NextIntlClientProvider } from 'next-intl';
 
 import { AdminRolesClient } from '../AdminRolesClient';
 
@@ -51,9 +52,11 @@ vi.mock('@/lib/queries/admin-roles', () => ({
 function renderWith(canManage: boolean) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <QueryClientProvider client={client}>
-      <AdminRolesClient canManage={canManage} />
-    </QueryClientProvider>,
+    <NextIntlClientProvider locale="fr" messages={{ common: { actions: { close: 'Fermer' } } }}>
+      <QueryClientProvider client={client}>
+        <AdminRolesClient canManage={canManage} />
+      </QueryClientProvider>
+    </NextIntlClientProvider>,
   );
 }
 

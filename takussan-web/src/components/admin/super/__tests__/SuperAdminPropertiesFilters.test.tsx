@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import { SuperAdminPropertiesFilters } from '../SuperAdminPropertiesFilters';
 
@@ -21,7 +22,8 @@ describe('<SuperAdminPropertiesFilters>', () => {
     mockSearchParams.toString.mockReturnValue('');
   });
 
-  it('renders the agency filter populated from props', () => {
+  it('renders the agency filter populated from props', async () => {
+    const user = userEvent.setup();
     render(
       <SuperAdminPropertiesFilters
         agencies={[
@@ -30,25 +32,41 @@ describe('<SuperAdminPropertiesFilters>', () => {
         ]}
       />,
     );
-    expect(screen.getByLabelText('Agence')).toBeTruthy();
-    expect(screen.getByText('Tabaski Immo')).toBeTruthy();
-    expect(screen.getByText('Sahel Properties')).toBeTruthy();
+    // The Agence Select trigger is rendered as a shadcn (base-ui) combobox.
+    const trigger = screen.getByLabelText('Agence');
+    expect(trigger).toBeTruthy();
+
+    // Options live in a portal and only render after the trigger is opened.
+    await user.click(trigger);
+    expect(await screen.findByRole('option', { name: 'Tabaski Immo' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Sahel Properties' })).toBeTruthy();
   });
 
-  it('writes filter[agency_id] to the URL when an agency is picked', () => {
+  it('writes filter[agency_id] to the URL when an agency is picked', async () => {
+    const user = userEvent.setup();
     render(
       <SuperAdminPropertiesFilters agencies={[{ id: 12, name: 'Pikine Real Estate' }]} />,
     );
-    fireEvent.change(screen.getByLabelText('Agence'), { target: { value: '12' } });
+
+    await user.click(screen.getByLabelText('Agence'));
+    const option = await screen.findByRole('option', { name: 'Pikine Real Estate' });
+    await user.click(option);
+
     expect(mockReplace).toHaveBeenCalledWith(
       expect.stringContaining('filter%5Bagency_id%5D=12'),
     );
   });
 
-  it('resets pagination when changing a filter', () => {
+  it('resets pagination when changing a filter', async () => {
+    const user = userEvent.setup();
     mockSearchParams.toString.mockReturnValue('page=4');
     render(<SuperAdminPropertiesFilters agencies={[]} />);
-    fireEvent.change(screen.getByLabelText('Statut'), { target: { value: 'available' } });
+
+    await user.click(screen.getByLabelText('Statut'));
+    const option = await screen.findByRole('option', { name: 'Disponible' });
+    await user.click(option);
+
+    expect(mockReplace).toHaveBeenCalled();
     const replaced = String(mockReplace.mock.calls[0][0]);
     expect(replaced).not.toContain('page=4');
     expect(replaced).toContain('filter%5Bstatus%5D=available');

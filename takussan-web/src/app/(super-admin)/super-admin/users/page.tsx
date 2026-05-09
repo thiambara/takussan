@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
@@ -20,7 +20,7 @@ import { Pagination } from '@/components/super-admin/Pagination';
 import { useImpersonate } from '@/hooks/useImpersonation';
 import type { ApiError } from '@/lib/api';
 import type { User, UserRole } from '@/types/user';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 type SuperAdminUser = Pick<User, 'id' | 'first_name' | 'last_name' | 'email' | 'status'> & {
   full_name?: string | null;
@@ -127,8 +127,11 @@ function getInitials(name: string): string {
 
 export default function SuperAdminUsersPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState('');
-  const [role, setRole] = useState(ALL);
+  // Role filter is mirrored to the URL (`?role=…`) so the view is shareable
+  // and persists across navigation (AC3, TCK-243).
+  const [role, setRole] = useState<string>(() => searchParams?.get('role') ?? ALL);
   const [agencyId, setAgencyId] = useState('');
   const [status, setStatus] = useState(ALL);
   const [emailVerified, setEmailVerified] = useState(ALL);
@@ -151,6 +154,23 @@ export default function SuperAdminUsersPage() {
     queryFn: () => fetchUsers(params),
     staleTime: 15_000,
   });
+
+  const handleRoleChange = useCallback(
+    (next: string) => {
+      setRole(next);
+      setPage(1);
+      const next_params = new URLSearchParams(searchParams?.toString() ?? '');
+      if (next && next !== ALL) {
+        next_params.set('role', next);
+      } else {
+        next_params.delete('role');
+      }
+      next_params.delete('page');
+      const qs = next_params.toString();
+      router.replace(qs ? `?${qs}` : '?');
+    },
+    [router, searchParams],
+  );
 
   return (
     <div className="space-y-6">
@@ -180,10 +200,7 @@ export default function SuperAdminUsersPage() {
         </div>
         <Select
           value={role}
-          onValueChange={(next) => {
-            setRole((next ?? ALL) as string);
-            setPage(1);
-          }}
+          onValueChange={(next) => handleRoleChange((next ?? ALL) as string)}
           items={ROLE_OPTIONS}
         >
           <SelectTrigger aria-label="Rôle" className="h-10 w-full">

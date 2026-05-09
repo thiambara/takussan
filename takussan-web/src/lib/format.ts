@@ -1,5 +1,5 @@
 import { TIMEZONE, type Locale } from '@/i18n/config';
-import { formatCurrency as formatCurrencyCustom, type CurrencyCode } from './format/currency';
+import { formatCurrency as formatCurrencyCustom } from './format/currency';
 
 /**
  * Locale-aware formatters wrapping {@link Intl.DateTimeFormat} and
@@ -114,7 +114,7 @@ export function formatCurrency(
   locale: Locale,
   options: Intl.NumberFormatOptions = {},
 ): string {
-  const currency: CurrencyCode = 'XOF';
+  const currency = typeof options.currency === 'string' ? options.currency : 'XOF';
   return formatCurrencyCustom(value, currency, {
     locale: toCurrencyLocale(locale),
     minimumFractionDigits: options.minimumFractionDigits as number | undefined,
