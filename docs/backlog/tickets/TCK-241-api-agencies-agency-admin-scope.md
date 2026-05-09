@@ -1,7 +1,7 @@
 ---
 id: TCK-241
 title: "API agences - corriger le scope agency_admin"
-status: review
+status: done
 phase: P0
 family: bug
 estimate: S

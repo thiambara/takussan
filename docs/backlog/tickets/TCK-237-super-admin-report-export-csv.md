@@ -1,7 +1,7 @@
 ---
 id: TCK-237
 title: "Super-admin reporting - corriger l'export CSV"
-status: review
+status: done
 phase: P2
 family: bug
 estimate: S

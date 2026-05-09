@@ -1,7 +1,7 @@
 ---
 id: TCK-238
 title: "Super-admin agences - compléter la liste plateforme"
-status: review
+status: done
 phase: P1
 family: bug
 estimate: M

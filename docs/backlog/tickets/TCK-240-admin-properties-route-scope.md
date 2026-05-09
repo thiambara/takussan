@@ -1,7 +1,7 @@
 ---
 id: TCK-240
 title: "Admin biens - restaurer la liste /admin/properties"
-status: review
+status: done
 phase: P1
 family: bug
 estimate: S

@@ -1,7 +1,7 @@
 ---
 id: TCK-239
 title: "Super-admin utilisateurs - afficher rôles et filtres"
-status: review
+status: done
 phase: P1
 family: bug
 estimate: M
