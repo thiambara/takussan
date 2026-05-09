@@ -12,8 +12,8 @@ export default async function Page() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-app-ink">Calendrier</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">
+        <h1 className="font-display text-2xl font-bold text-foreground">Calendrier</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Vos réservations et visites planifiées dans une vue unifiée.
         </p>
       </div>

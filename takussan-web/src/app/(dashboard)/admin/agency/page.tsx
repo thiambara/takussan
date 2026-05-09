@@ -24,12 +24,12 @@ export default async function Page() {
     return (
       <div className="space-y-6">
         <header>
-          <h1 className="text-2xl font-bold text-app-ink">Configuration de l&apos;agence</h1>
-          <p className="mt-1 text-sm text-app-ink-muted">
+          <h1 className="font-display text-2xl font-bold text-foreground">Configuration de l&apos;agence</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Aucune agence n&apos;est rattachée à votre compte.
           </p>
         </header>
-        <div className="rounded-xl border border-dashed border-input bg-app-surface-1 p-8 text-sm text-app-ink-muted">
+        <div className="rounded-xl border border-dashed border-input bg-card p-8 text-sm text-muted-foreground">
           Contactez un super-administrateur pour être rattaché à une agence avant de
           configurer ses paramètres.
         </div>
@@ -42,8 +42,8 @@ export default async function Page() {
     return (
       <div className="space-y-6">
         <header>
-          <h1 className="text-2xl font-bold text-app-ink">Configuration de l&apos;agence</h1>
-          <p className="mt-1 text-sm text-app-ink-muted">
+          <h1 className="font-display text-2xl font-bold text-foreground">Configuration de l&apos;agence</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Impossible de charger les informations de l&apos;agence.
           </p>
         </header>
@@ -57,8 +57,8 @@ export default async function Page() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-app-ink">Configuration de l&apos;agence</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">
+        <h1 className="font-display text-2xl font-bold text-foreground">Configuration de l&apos;agence</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Identité, contact, logo et paramètres métier.
         </p>
       </header>

@@ -57,12 +57,12 @@ export function AdminFinancesClient({
       <div
         data-testid="finances-degraded"
         role="alert"
-        className="rounded-2xl border border-app-surface-2 bg-app-surface-1 p-8 text-center"
+        className="rounded-2xl border border-border bg-card p-8 text-center"
       >
-        <p className="text-sm font-semibold text-app-ink">
+        <p className="text-sm font-semibold text-foreground">
           Accès aux finances non autorisé
         </p>
-        <p className="mt-2 text-xs text-app-ink-muted">
+        <p className="mt-2 text-xs text-muted-foreground">
           Votre rôle ne dispose pas des permissions financières
           (<code>payments.view_in_agency</code>, <code>invoices.view_in_agency</code>,
           <code>payouts.view_in_agency</code>). Demandez à un administrateur de votre

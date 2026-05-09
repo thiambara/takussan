@@ -22,8 +22,8 @@ export default async function OwnerDashboardPage() {
   if (!payload) {
     return (
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold text-app-ink">Vue bailleur</h1>
-        <p className="text-sm text-app-ink-muted">Impossible de charger les données.</p>
+        <h1 className="font-display text-2xl font-bold text-foreground">Vue bailleur</h1>
+        <p className="text-sm text-muted-foreground">Impossible de charger les données.</p>
       </div>
     );
   }
@@ -34,16 +34,16 @@ export default async function OwnerDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-app-ink">Vue bailleur</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">
+        <h1 className="font-display text-2xl font-bold text-foreground">Vue bailleur</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Mon portefeuille — {data.period.start.slice(0, 10)} au {data.period.end.slice(0, 10)}
         </p>
       </div>
 
       {(data.portfolio?.total ?? 0) === 0 && (
         <section className="rounded-2xl border border-dashed border-stone-200 bg-white p-6">
-          <h2 className="text-base font-semibold text-app-ink">Aucun bien dans votre portefeuille</h2>
-          <p className="mt-1 text-sm text-app-ink-muted">
+          <h2 className="text-base font-semibold text-foreground">Aucun bien dans votre portefeuille</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
             Ajoutez votre premier bien pour activer les réservations, baux, documents et demandes de maintenance.
           </p>
           <Link
@@ -91,8 +91,8 @@ export default async function OwnerDashboardPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <section className="rounded-2xl bg-app-surface-1 p-5">
-          <h2 className="text-sm font-semibold text-app-ink">Portefeuille</h2>
+        <section className="rounded-2xl bg-card p-5">
+          <h2 className="text-sm font-semibold text-foreground">Portefeuille</h2>
           <dl className="mt-4 space-y-3 text-sm">
             <DashboardLine label="Disponibles" value={formatNumber(data.portfolio?.available ?? 0, 'fr')} />
             <DashboardLine label="Loués" value={formatNumber(data.portfolio?.rented ?? 0, 'fr')} />
@@ -106,8 +106,8 @@ export default async function OwnerDashboardPage() {
           </dl>
         </section>
 
-        <section className="rounded-2xl bg-app-surface-1 p-5">
-          <h2 className="text-sm font-semibold text-app-ink">Demandes en attente</h2>
+        <section className="rounded-2xl bg-card p-5">
+          <h2 className="text-sm font-semibold text-foreground">Demandes en attente</h2>
           <div className="mt-4 space-y-3 text-sm">
             <DashboardLinkLine
               href="/app/bookings?status=pending"
@@ -122,16 +122,16 @@ export default async function OwnerDashboardPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl bg-app-surface-1 p-5">
-          <h2 className="text-sm font-semibold text-app-ink">Prochains reversements</h2>
+        <section className="rounded-2xl bg-card p-5">
+          <h2 className="text-sm font-semibold text-foreground">Prochains reversements</h2>
           {pendingPayouts.length > 0 ? (
             <ul className="mt-4 space-y-2 text-sm">
               {pendingPayouts.map((payout) => (
                 <li key={payout.id} className="rounded-lg bg-white/70 p-3">
-                  <p className="font-medium text-app-ink">
+                  <p className="font-medium text-foreground">
                     {formatCurrency(payout.net_amount, 'fr', { currency: payout.currency ?? 'XOF' })}
                   </p>
-                  <p className="mt-0.5 text-xs text-app-ink-muted">
+                  <p className="mt-0.5 text-xs text-muted-foreground">
                     {payout.reference_number ?? `Reversement #${payout.id}`}
                     {payout.scheduled_at ? ` · prévu le ${payout.scheduled_at.slice(0, 10)}` : ''}
                   </p>
@@ -139,7 +139,7 @@ export default async function OwnerDashboardPage() {
               ))}
             </ul>
           ) : (
-            <p className="mt-4 text-sm text-app-ink-muted">
+            <p className="mt-4 text-sm text-muted-foreground">
               Aucun reversement à venir retourné par l’API.
             </p>
           )}
@@ -147,7 +147,7 @@ export default async function OwnerDashboardPage() {
       </div>
 
       {ts && (
-        <section className="rounded-2xl bg-app-surface-1 p-6">
+        <section className="rounded-2xl bg-card p-6">
           <LineChart
             title="Cashflow et occupation sur 12 mois"
             data={{
@@ -156,12 +156,12 @@ export default async function OwnerDashboardPage() {
                 {
                   name: 'Cashflow',
                   values: (ts.cashflow as number[]) ?? [],
-                  color: 'stroke-emerald-500',
+                  color: 'stroke-chart-1',
                 },
                 {
                   name: 'Occupation (%)',
                   values: (ts.occupancy as number[]) ?? [],
-                  color: 'stroke-sky-500',
+                  color: 'stroke-chart-2',
                 },
               ],
             }}
@@ -175,8 +175,8 @@ export default async function OwnerDashboardPage() {
 function DashboardLine({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <dt className="text-app-ink-muted">{label}</dt>
-      <dd className="font-semibold text-app-ink">{value}</dd>
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="font-semibold text-foreground">{value}</dd>
     </div>
   );
 }
@@ -195,8 +195,8 @@ function DashboardLinkLine({
       href={href}
       className="flex items-center justify-between gap-3 rounded-lg bg-white/70 p-3 hover:bg-white"
     >
-      <span className="text-app-ink-muted">{label}</span>
-      <span className="font-semibold text-app-ink">{value}</span>
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-semibold text-foreground">{value}</span>
     </Link>
   );
 }

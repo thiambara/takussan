@@ -16,8 +16,8 @@ export default async function KpisPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-app-ink">KPIs personnalisés</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">
+        <h1 className="font-display text-2xl font-bold text-foreground">KPIs personnalisés</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Choisissez les indicateurs à mettre en avant sur le tableau de bord de votre agence.
         </p>
       </div>

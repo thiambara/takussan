@@ -17,12 +17,12 @@ export default async function TeamPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-app-ink">Équipe</h1>
-          <p className="mt-1 text-sm text-app-ink-muted">
+          <h1 className="font-display text-2xl font-bold text-foreground">Équipe</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Gestion des membres de l&apos;agence
           </p>
         </div>
-        <div className="rounded-xl bg-app-surface-1 p-8 text-sm text-app-ink-muted">
+        <div className="rounded-xl bg-card p-8 text-sm text-muted-foreground">
           Vous n&apos;êtes rattaché à aucune agence. Rendez-vous dans la
           section « Configuration de l&apos;agence » pour en créer une ou en
           rejoindre une.
@@ -34,8 +34,8 @@ export default async function TeamPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-app-ink">Équipe</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">
+        <h1 className="font-display text-2xl font-bold text-foreground">Équipe</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Gérez les membres de votre agence : invitez des agents, attribuez
           des rôles, retirez un accès.
         </p>

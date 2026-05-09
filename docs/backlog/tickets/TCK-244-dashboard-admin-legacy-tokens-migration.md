@@ -1,7 +1,7 @@
 ---
 id: TCK-244
 title: "Dashboard /app + /admin — migration tokens legacy → tokens DS Lin"
-status: todo
+status: review
 phase: P2
 family: front
 estimate: L
@@ -72,4 +72,8 @@ L'utilisateur connecté (locataire, agent, bailleur, agence-admin) perçoit la m
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Codemod appliqué via `perl -i -pe` (substitutions ordonnées, longest-first pour `text-app-ink-muted` avant `text-app-ink`). 54 fichiers touchés.
+- Composant `src/components/layout/PageHeader.tsx` créé pour les futures pages — non rétro-appliqué partout pour limiter le diff. À la place, `font-display` ajouté en place sur les `h1` existants (3 patterns Tailwind couverts par codemod).
+- Charts `/app/overview/{agency,agent,owner}` : `stroke-emerald-500` → `stroke-chart-1`, `stroke-sky-500` → `stroke-chart-2`, `fill-sky-500` → `fill-chart-2` (les tokens `--chart-N` sont déclarés dans `globals.css`).
+- CTA `<Link>` styled migrés vers `buttonVariants()` sur les 3 pages signalées (customers, leases, properties).
+- AC5 (vérification visuelle manuelle 5 pages) à valider en navigation locale — non automatisable ici.

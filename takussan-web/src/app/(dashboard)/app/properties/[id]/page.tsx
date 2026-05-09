@@ -49,10 +49,10 @@ export default async function Page({ params }: { params: Params }) {
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-app-ink-muted">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             Bien · {property.reference_number ?? `#${property.id}`}
           </p>
-          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-app-ink">
+          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-foreground">
             {property.title}
           </h1>
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -61,7 +61,7 @@ export default async function Page({ params }: { params: Params }) {
               statusLabel={property.status_label}
             />
             <PropertyVisibilityBadge visibility={property.visibility} />
-            <span className="text-xs text-app-ink-muted">
+            <span className="text-xs text-muted-foreground">
               {property.type_label}
               {property.contract_type_label
                 ? ` · ${property.contract_type_label}`

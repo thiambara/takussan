@@ -13,6 +13,7 @@ import { PropertyList } from '@/components/property-dashboard/PropertyList';
 import { PropertyListFilters } from '@/components/property-dashboard/PropertyListFilters';
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
 import { PropertyKpiStrip } from '@/components/property-dashboard/PropertyKpiStrip';
+import { buttonVariants } from '@/components/ui/button';
 
 /**
  * TCK-041 — dashboard agent, liste des biens.
@@ -154,14 +155,14 @@ export default async function Page({
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-app-ink">Mes biens</h1>
-          <p className="mt-1 text-sm text-app-ink-muted">
+          <h1 className="font-display text-2xl font-bold text-foreground">Mes biens</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Gérez votre portefeuille immobilier : publication, statut, visibilité.
           </p>
         </div>
         <Link
           href="/app/properties/new"
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+          className={buttonVariants({ size: 'lg' })}
         >
           <Plus className="size-4" aria-hidden="true" />
           Publier un bien

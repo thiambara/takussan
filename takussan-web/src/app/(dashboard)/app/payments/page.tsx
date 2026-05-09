@@ -18,8 +18,8 @@ export default async function Page() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-app-ink">Paiements</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">
+        <h1 className="font-display text-2xl font-bold text-foreground">Paiements</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Historique, factures et reversements bailleurs — suivi unifié.
         </p>
       </header>

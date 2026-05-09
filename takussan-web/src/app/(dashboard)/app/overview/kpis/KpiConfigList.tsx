@@ -43,15 +43,15 @@ export function KpiConfigList({ initialConfigs, catalog }: Props) {
 
   return (
     <div className="space-y-6">
-      <section className="max-w-xl space-y-3 rounded-2xl bg-app-surface-1 p-6">
-        <h2 className="text-sm font-semibold text-app-ink">Ajouter un KPI</h2>
+      <section className="max-w-xl space-y-3 rounded-2xl bg-card p-6">
+        <h2 className="text-sm font-semibold text-foreground">Ajouter un KPI</h2>
         <div className="grid gap-3 md:grid-cols-3">
           <label className="text-sm">
-            <span className="mb-1 block font-medium text-app-ink">Métrique</span>
+            <span className="mb-1 block font-medium text-foreground">Métrique</span>
             <select
               value={metric}
               onChange={(e) => setMetric(e.target.value)}
-              className="w-full rounded-md border border-app-surface-3 bg-white px-3 py-2"
+              className="w-full rounded-md border border-border bg-white px-3 py-2"
             >
               {catalog.map((m) => (
                 <option key={m} value={m}>
@@ -61,20 +61,20 @@ export function KpiConfigList({ initialConfigs, catalog }: Props) {
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block font-medium text-app-ink">Libellé</span>
+            <span className="mb-1 block font-medium text-foreground">Libellé</span>
             <input
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              className="w-full rounded-md border border-app-surface-3 bg-white px-3 py-2"
+              className="w-full rounded-md border border-border bg-white px-3 py-2"
               placeholder="Taux d'impayés"
             />
           </label>
           <label className="text-sm">
-            <span className="mb-1 block font-medium text-app-ink">Format</span>
+            <span className="mb-1 block font-medium text-foreground">Format</span>
             <select
               value={format}
               onChange={(e) => setFormat(e.target.value as 'number' | 'percent' | 'currency')}
-              className="w-full rounded-md border border-app-surface-3 bg-white px-3 py-2"
+              className="w-full rounded-md border border-border bg-white px-3 py-2"
             >
               <option value="number">Nombre</option>
               <option value="percent">Pourcentage</option>
@@ -93,17 +93,17 @@ export function KpiConfigList({ initialConfigs, catalog }: Props) {
         {error && <p className="text-xs text-rose-600">{error}</p>}
       </section>
 
-      <section className="rounded-2xl bg-app-surface-1 p-6">
-        <h2 className="mb-3 text-sm font-semibold text-app-ink">KPIs configurés</h2>
+      <section className="rounded-2xl bg-card p-6">
+        <h2 className="mb-3 text-sm font-semibold text-foreground">KPIs configurés</h2>
         {configs.length === 0 ? (
-          <p className="text-sm text-app-ink-muted">Aucun KPI configuré.</p>
+          <p className="text-sm text-muted-foreground">Aucun KPI configuré.</p>
         ) : (
           <ul className="divide-y divide-app-surface-3">
             {configs.map((c) => (
               <li key={c.id} className="flex items-center justify-between py-2 text-sm">
                 <span>
-                  <span className="font-medium text-app-ink">{c.label}</span>{' '}
-                  <span className="text-app-ink-muted">({c.metric})</span>
+                  <span className="font-medium text-foreground">{c.label}</span>{' '}
+                  <span className="text-muted-foreground">({c.metric})</span>
                 </span>
                 <button
                   type="button"

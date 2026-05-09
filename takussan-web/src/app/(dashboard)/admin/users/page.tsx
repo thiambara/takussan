@@ -19,8 +19,8 @@ export default async function Page() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-app-ink">Gestion des utilisateurs</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">Comptes de votre agence</p>
+        <h1 className="font-display text-2xl font-bold text-foreground">Gestion des utilisateurs</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Comptes de votre agence</p>
       </div>
       <AdminUsersClient currentUserId={user.id} />
     </div>

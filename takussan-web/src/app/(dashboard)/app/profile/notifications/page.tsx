@@ -15,7 +15,7 @@ export default async function ProfileNotificationsPage() {
   return (
     <ProfileLayout>
       <header className="space-y-1">
-        <nav className="text-sm text-app-ink-muted">
+        <nav className="text-sm text-muted-foreground">
           <Link href="/app/profile" className="hover:underline">
             Profil
           </Link>
@@ -24,10 +24,10 @@ export default async function ProfileNotificationsPage() {
           </span>
           <span>Notifications</span>
         </nav>
-        <h1 className="text-2xl font-bold text-app-ink">
+        <h1 className="font-display text-2xl font-bold text-foreground">
           Préférences de notifications
         </h1>
-        <p className="text-sm text-app-ink-muted">
+        <p className="text-sm text-muted-foreground">
           Choisissez quels événements vous recevez sur chaque canal.
         </p>
       </header>

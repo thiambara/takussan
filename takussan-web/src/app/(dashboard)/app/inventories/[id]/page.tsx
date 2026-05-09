@@ -19,8 +19,8 @@ export default async function Page({ params }: PageProps) {
   if (!Number.isInteger(numericId) || numericId <= 0) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-app-ink">État des lieux introuvable</h1>
-        <p className="text-sm text-app-ink-muted">
+        <h1 className="font-display text-2xl font-bold text-foreground">État des lieux introuvable</h1>
+        <p className="text-sm text-muted-foreground">
           L&apos;identifiant fourni n&apos;est pas valide.
         </p>
         <Link href="/app/inventories" className={buttonVariants({ variant: 'default' })}>
@@ -34,8 +34,8 @@ export default async function Page({ params }: PageProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-app-ink">État des lieux #{numericId}</h1>
-          <p className="mt-1 text-sm text-app-ink-muted">
+          <h1 className="font-display text-2xl font-bold text-foreground">État des lieux #{numericId}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Détail de l&apos;inventaire
           </p>
         </div>

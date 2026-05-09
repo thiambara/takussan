@@ -72,7 +72,7 @@ export function AdminUsersClient({ currentUserId }: AdminUsersClientProps) {
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="h-12 animate-pulse rounded-md bg-app-surface-2"
+              className="h-12 animate-pulse rounded-md bg-muted"
               aria-hidden="true"
             />
           ))}
@@ -83,7 +83,7 @@ export function AdminUsersClient({ currentUserId }: AdminUsersClientProps) {
         </div>
       ) : !usersQuery.data || usersQuery.data.data.length === 0 ? (
         <p
-          className="rounded-xl bg-app-surface-1 p-6 text-center text-sm text-app-ink-muted"
+          className="rounded-xl bg-card p-6 text-center text-sm text-muted-foreground"
           data-testid="admin-users-empty"
         >
           Aucun utilisateur ne correspond aux filtres courants.
@@ -127,7 +127,7 @@ function Pagination({ page, lastPage }: { page: number; lastPage: number }) {
   return (
     <nav
       aria-label="Pagination"
-      className="flex items-center justify-between text-sm text-app-ink-muted"
+      className="flex items-center justify-between text-sm text-muted-foreground"
     >
       <button
         type="button"

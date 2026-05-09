@@ -14,8 +14,8 @@ export default async function PropertyModerationPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-app-ink">Modération des biens</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">
+        <h1 className="font-display text-2xl font-bold text-foreground">Modération des biens</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           File d&apos;attente des biens soumis par les agents, en attente de validation avant
           publication.
         </p>

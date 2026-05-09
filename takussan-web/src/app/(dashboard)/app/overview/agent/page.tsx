@@ -44,8 +44,8 @@ export default async function AgentDashboardPage() {
   if (!payload) {
     return (
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold text-app-ink">Vue agent</h1>
-        <p className="text-sm text-app-ink-muted">Impossible de charger les données.</p>
+        <h1 className="font-display text-2xl font-bold text-foreground">Vue agent</h1>
+        <p className="text-sm text-muted-foreground">Impossible de charger les données.</p>
       </div>
     );
   }
@@ -57,8 +57,8 @@ export default async function AgentDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-app-ink">Vue agent</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">
+        <h1 className="font-display text-2xl font-bold text-foreground">Vue agent</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Pipeline CRM et activité — {formatDate(data.period.start, LOCALE)} au{' '}
           {formatDate(data.period.end, LOCALE)}
         </p>
@@ -106,11 +106,11 @@ export default async function AgentDashboardPage() {
         </OperationalWidget>
 
         <OperationalWidget title="Commissions">
-          <p className="text-2xl font-semibold text-app-ink">
+          <p className="text-2xl font-semibold text-foreground">
             {formatCurrency(data.finance?.commissions_month ?? 0, LOCALE)}
           </p>
-          <p className="text-sm text-app-ink-muted">Ce mois</p>
-          <p className="mt-4 text-sm text-app-ink">
+          <p className="text-sm text-muted-foreground">Ce mois</p>
+          <p className="mt-4 text-sm text-foreground">
             Cumul annuel :{' '}
             <span className="font-semibold">
               {formatCurrency(data.finance?.commissions_year ?? 0, LOCALE)}
@@ -125,10 +125,10 @@ export default async function AgentDashboardPage() {
             <ul className="space-y-3">
               {(data.visits?.today_items ?? []).map((visit) => (
                 <li key={visit.id} className="text-sm">
-                  <Link href={`/app/visits/${visit.id}`} className="font-semibold text-app-ink hover:text-primary">
+                  <Link href={`/app/visits/${visit.id}`} className="font-semibold text-foreground hover:text-primary">
                     {formatTime(visit.scheduled_at)} · {visit.property?.title ?? 'Bien'}
                   </Link>
-                  <p className="text-xs text-app-ink-muted">
+                  <p className="text-xs text-muted-foreground">
                     {visit.requester?.name ?? 'Demandeur à préciser'}
                   </p>
                 </li>
@@ -145,15 +145,15 @@ export default async function AgentDashboardPage() {
           ) : (
             <ul className="space-y-3">
               {(data.tasks?.items ?? []).map((task) => (
-                <li key={task.id} className="rounded-lg bg-app-surface-2 p-3 text-sm">
+                <li key={task.id} className="rounded-lg bg-muted p-3 text-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-semibold text-app-ink">{task.title}</p>
-                      <p className="text-xs text-app-ink-muted">
+                      <p className="font-semibold text-foreground">{task.title}</p>
+                      <p className="text-xs text-muted-foreground">
                         {task.due_at ? `Échéance ${formatDateTime(task.due_at)}` : 'Sans échéance'}
                       </p>
                     </div>
-                    <span className="rounded-full bg-white px-2 py-1 text-xs text-app-ink-muted">
+                    <span className="rounded-full bg-white px-2 py-1 text-xs text-muted-foreground">
                       {TASK_PRIORITY_LABELS[task.priority ?? 'normal'] ?? 'Normale'}
                     </span>
                   </div>
@@ -175,8 +175,8 @@ export default async function AgentDashboardPage() {
             <ul className="space-y-3">
               {(data.recent_activity ?? []).map((activity) => (
                 <li key={`${activity.type}-${activity.id}`} className="text-sm">
-                  <p className="font-semibold text-app-ink">{activity.label}</p>
-                  <p className="text-xs text-app-ink-muted">{formatDateTime(activity.at)}</p>
+                  <p className="font-semibold text-foreground">{activity.label}</p>
+                  <p className="text-xs text-muted-foreground">{formatDateTime(activity.at)}</p>
                 </li>
               ))}
             </ul>
@@ -185,7 +185,7 @@ export default async function AgentDashboardPage() {
       </section>
 
       {pipelineEntries.length > 0 && (
-        <section className="rounded-2xl bg-app-surface-1 p-6">
+        <section className="rounded-2xl bg-card p-6">
           <BarChart
             title="Pipeline CRM"
             data={{
@@ -194,7 +194,7 @@ export default async function AgentDashboardPage() {
                 {
                   name: 'Clients',
                   values: pipelineEntries.map(([, v]) => v),
-                  color: 'fill-sky-500',
+                  color: 'fill-chart-2',
                 },
               ],
             }}
@@ -203,7 +203,7 @@ export default async function AgentDashboardPage() {
       )}
 
       {ts && (
-        <section className="rounded-2xl bg-app-surface-1 p-6">
+        <section className="rounded-2xl bg-card p-6">
           <LineChart
             title="Commissions et baux signés sur 12 mois"
             data={{
@@ -212,12 +212,12 @@ export default async function AgentDashboardPage() {
                 {
                   name: 'Commissions',
                   values: (ts.commissions as number[]) ?? [],
-                  color: 'stroke-emerald-500',
+                  color: 'stroke-chart-1',
                 },
                 {
                   name: 'Baux signés',
                   values: (ts.signed_leases as number[]) ?? [],
-                  color: 'stroke-sky-500',
+                  color: 'stroke-chart-2',
                 },
               ],
             }}
@@ -236,8 +236,8 @@ function OperationalWidget({
   readonly children: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl bg-app-surface-1 p-5">
-      <h2 className="mb-4 text-base font-semibold text-app-ink">{title}</h2>
+    <section className="rounded-2xl bg-card p-5">
+      <h2 className="mb-4 text-base font-semibold text-foreground">{title}</h2>
       {children}
     </section>
   );
@@ -253,15 +253,15 @@ function MetricLink({
   readonly value: number;
 }) {
   return (
-    <Link href={href} className="mb-3 flex items-center justify-between rounded-lg bg-app-surface-2 px-3 py-2 text-sm hover:bg-app-surface-3/40">
-      <span className="text-app-ink-muted">{label}</span>
-      <span className="font-semibold text-app-ink">{formatNumber(value, LOCALE)}</span>
+    <Link href={href} className="mb-3 flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-sm hover:bg-muted/40">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-semibold text-foreground">{formatNumber(value, LOCALE)}</span>
     </Link>
   );
 }
 
 function EmptyWidgetState({ message }: { readonly message: string }) {
-  return <p className="rounded-lg bg-app-surface-2 p-3 text-sm text-app-ink-muted">{message}</p>;
+  return <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">{message}</p>;
 }
 
 function formatTime(value: string | null): string {

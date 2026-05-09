@@ -28,8 +28,8 @@ export default async function TenantDashboardPage() {
   if (!payload) {
     return (
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold text-app-ink">Ma situation</h1>
-        <p className="text-sm text-app-ink-muted">Impossible de charger les données.</p>
+        <h1 className="font-display text-2xl font-bold text-foreground">Ma situation</h1>
+        <p className="text-sm text-muted-foreground">Impossible de charger les données.</p>
       </div>
     );
   }
@@ -38,8 +38,8 @@ export default async function TenantDashboardPage() {
   if (!data.has_customer_profile) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold text-app-ink">Ma situation</h1>
-        <p className="text-sm text-app-ink-muted">
+        <h1 className="font-display text-2xl font-bold text-foreground">Ma situation</h1>
+        <p className="text-sm text-muted-foreground">
           Aucun profil locataire n&apos;est associé à votre compte. Contactez votre agence pour
           activer votre dossier.
         </p>
@@ -52,8 +52,8 @@ export default async function TenantDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-app-ink">Ma situation</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">
+        <h1 className="font-display text-2xl font-bold text-foreground">Ma situation</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Prochaines échéances, documents et demandes en cours.
         </p>
       </div>
@@ -77,37 +77,37 @@ export default async function TenantDashboardPage() {
         />
       </div>
 
-      <section className="rounded-2xl bg-app-surface-1 p-6">
-        <h2 className="mb-3 text-base font-semibold text-app-ink">Échéances des 30 prochains jours</h2>
+      <section className="rounded-2xl bg-card p-6">
+        <h2 className="mb-3 text-base font-semibold text-foreground">Échéances des 30 prochains jours</h2>
         {data.payments.upcoming_30d.length === 0 ? (
-          <p className="text-sm text-app-ink-muted">Aucune échéance prévue.</p>
+          <p className="text-sm text-muted-foreground">Aucune échéance prévue.</p>
         ) : (
           <ul className="divide-y divide-app-surface-3">
             {data.payments.upcoming_30d.map((p) => (
               <li key={p.id} className="flex items-center justify-between py-2 text-sm">
-                <span className="text-app-ink">
+                <span className="text-foreground">
                   {p.due_date ? formatDate(p.due_date, 'fr') : '—'}
                 </span>
-                <span className="font-semibold text-app-ink">
+                <span className="font-semibold text-foreground">
                   {formatCurrency(p.amount, 'fr')}
                 </span>
-                <span className="text-xs text-app-ink-muted">{paymentStatusLabel(p.status)}</span>
+                <span className="text-xs text-muted-foreground">{paymentStatusLabel(p.status)}</span>
               </li>
             ))}
           </ul>
         )}
       </section>
 
-      <section className="rounded-2xl bg-app-surface-1 p-6">
-        <h2 className="mb-3 text-base font-semibold text-app-ink">Documents récents</h2>
+      <section className="rounded-2xl bg-card p-6">
+        <h2 className="mb-3 text-base font-semibold text-foreground">Documents récents</h2>
         {data.documents.recent.length === 0 ? (
-          <p className="text-sm text-app-ink-muted">Aucun document.</p>
+          <p className="text-sm text-muted-foreground">Aucun document.</p>
         ) : (
           <ul className="divide-y divide-app-surface-3">
             {data.documents.recent.map((d) => (
               <li key={d.id} className="flex items-center justify-between py-2 text-sm">
-                <span className="text-app-ink">{d.name}</span>
-                <span className="text-xs text-app-ink-muted">{d.type ?? '—'}</span>
+                <span className="text-foreground">{d.name}</span>
+                <span className="text-xs text-muted-foreground">{d.type ?? '—'}</span>
               </li>
             ))}
           </ul>

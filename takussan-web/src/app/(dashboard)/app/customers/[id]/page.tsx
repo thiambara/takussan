@@ -99,13 +99,13 @@ export default async function Page({ params }: { params: Params }) {
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-app-ink-muted">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Client · #{customer.id}
           </p>
-          <h1 className="text-2xl font-bold text-app-ink">
+          <h1 className="font-display text-2xl font-bold text-foreground">
             {customer.first_name} {customer.last_name}
           </h1>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-app-ink-muted">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             {customer.email ? <span>{customer.email}</span> : null}
             {customer.phone ? <span>{customer.phone}</span> : null}
             {pipelineLabel ? <Badge variant="outline">{pipelineLabel}</Badge> : null}
@@ -143,12 +143,12 @@ function CustomerDetailError({
   readonly message: string;
 }) {
   return (
-    <div className="rounded-xl bg-app-surface-1 p-8 text-center">
-      <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-app-surface-2 text-primary">
+    <div className="rounded-xl bg-card p-8 text-center">
+      <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted text-primary">
         <AlertTriangle className="size-6" aria-hidden="true" />
       </div>
-      <h1 className="mt-4 text-2xl font-bold text-app-ink">{title}</h1>
-      <p className="mx-auto mt-2 max-w-lg text-sm text-app-ink-muted">{message}</p>
+      <h1 className="mt-4 font-display text-2xl font-bold text-foreground">{title}</h1>
+      <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">{message}</p>
       <Link
         href="/app/customers"
         className="mt-5 inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"

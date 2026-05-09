@@ -29,8 +29,8 @@ export default async function Page() {
     <div className="space-y-6">
       <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-app-ink">Paramètres</h1>
-          <p className="mt-1 text-sm text-app-ink-muted">
+          <h1 className="font-display text-2xl font-bold text-foreground">Paramètres</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Paramètres globaux clé/valeur, feature flags et options de plateforme.
           </p>
         </div>

@@ -42,12 +42,12 @@ export function ExportForm({ canExportCustomers }: Props) {
     : ['payments', 'leases', 'properties'];
 
   return (
-    <section className="max-w-xl space-y-4 rounded-2xl bg-app-surface-1 p-6">
+    <section className="max-w-xl space-y-4 rounded-2xl bg-card p-6">
       <div className="grid gap-4 md:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-app-ink">Type de données</span>
+          <span className="font-medium text-foreground">Type de données</span>
           <select
-            className="rounded-md border border-app-surface-3 bg-white px-3 py-2"
+            className="rounded-md border border-border bg-white px-3 py-2"
             value={entity}
             onChange={(e) => setEntity(e.target.value as ExportEntity)}
           >
@@ -59,9 +59,9 @@ export function ExportForm({ canExportCustomers }: Props) {
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-app-ink">Format</span>
+          <span className="font-medium text-foreground">Format</span>
           <select
-            className="rounded-md border border-app-surface-3 bg-white px-3 py-2"
+            className="rounded-md border border-border bg-white px-3 py-2"
             value={format}
             onChange={(e) => setFormat(e.target.value as ExportFormat)}
           >
@@ -71,21 +71,21 @@ export function ExportForm({ canExportCustomers }: Props) {
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-app-ink">Du</span>
+          <span className="font-medium text-foreground">Du</span>
           <input
             type="date"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
-            className="rounded-md border border-app-surface-3 bg-white px-3 py-2"
+            className="rounded-md border border-border bg-white px-3 py-2"
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-app-ink">Au</span>
+          <span className="font-medium text-foreground">Au</span>
           <input
             type="date"
             value={to}
             onChange={(e) => setTo(e.target.value)}
-            className="rounded-md border border-app-surface-3 bg-white px-3 py-2"
+            className="rounded-md border border-border bg-white px-3 py-2"
           />
         </label>
       </div>
@@ -97,7 +97,7 @@ export function ExportForm({ canExportCustomers }: Props) {
       >
         {isPending ? 'Téléchargement…' : 'Télécharger'}
       </button>
-      <p className="text-xs text-app-ink-muted">
+      <p className="text-xs text-muted-foreground">
         Les exports respectent votre rôle (agence, bailleur, locataire) — aucune donnée hors de
         votre périmètre n&apos;est incluse.
       </p>

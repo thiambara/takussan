@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { buttonVariants } from '@/components/ui/button';
 import { redirect } from 'next/navigation';
 import { UserPlus } from 'lucide-react';
 
@@ -59,15 +60,15 @@ export default async function Page({
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-app-ink">Clients (CRM)</h1>
-          <p className="mt-1 text-sm text-app-ink-muted">
+          <h1 className="font-display text-2xl font-bold text-foreground">Clients (CRM)</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Suivez vos contacts, leurs étapes de pipeline et les interactions
             associées.
           </p>
         </div>
         <Link
           href="/app/customers/new"
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+          className={buttonVariants({ size: 'lg' })}
         >
           <UserPlus className="size-4" aria-hidden="true" />
           Ajouter un client

@@ -27,8 +27,8 @@ export default async function AgencyDashboardPage() {
   if (!payload) {
     return (
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold text-app-ink">Vue agence</h1>
-        <p className="text-sm text-app-ink-muted">Impossible de charger les données.</p>
+        <h1 className="font-display text-2xl font-bold text-foreground">Vue agence</h1>
+        <p className="text-sm text-muted-foreground">Impossible de charger les données.</p>
       </div>
     );
   }
@@ -38,8 +38,8 @@ export default async function AgencyDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-app-ink">Vue agence</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">
+        <h1 className="font-display text-2xl font-bold text-foreground">Vue agence</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Indicateurs clés sur la période — {data.period.start.slice(0, 10)} au{' '}
           {data.period.end.slice(0, 10)}
         </p>
@@ -94,18 +94,18 @@ export default async function AgencyDashboardPage() {
       </div>
 
       {ts && (
-        <section className="rounded-2xl bg-app-surface-1 p-6">
+        <section className="rounded-2xl bg-card p-6">
           <LineChart
             title="Revenus et occupation sur 12 mois"
             unit=""
             data={{
               labels: ts.months,
               series: [
-                { name: 'Revenus', values: (ts.revenue as number[]) ?? [], color: 'stroke-emerald-500' },
+                { name: 'Revenus', values: (ts.revenue as number[]) ?? [], color: 'stroke-chart-1' },
                 {
                   name: 'Taux d’occupation (%)',
                   values: (ts.occupancy as number[]) ?? [],
-                  color: 'stroke-sky-500',
+                  color: 'stroke-chart-2',
                 },
               ],
             }}

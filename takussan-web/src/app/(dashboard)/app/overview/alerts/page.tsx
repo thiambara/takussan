@@ -16,8 +16,8 @@ export default async function AlertsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-app-ink">Alertes de seuil</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">
+        <h1 className="font-display text-2xl font-bold text-foreground">Alertes de seuil</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Configurez les alertes déclenchées lorsque certains KPIs franchissent un seuil.
           Évaluées toutes les heures.
         </p>

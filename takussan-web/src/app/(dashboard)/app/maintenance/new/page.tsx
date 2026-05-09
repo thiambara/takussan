@@ -26,8 +26,8 @@ export default async function Page({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-app-ink">Nouvelle demande</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">
+        <h1 className="font-display text-2xl font-bold text-foreground">Nouvelle demande</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Décrivez le problème et joignez des photos si nécessaire.
         </p>
       </div>
