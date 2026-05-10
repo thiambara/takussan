@@ -20,6 +20,8 @@ export const AGENCY_ADMIN_FIELDS = [
   'website',
   'commission_rate',
   'status',
+  // TCK-248 / TCK-256 — `kind` gates owner-invitation features in /app/owners.
+  'kind',
 ] as const;
 
 function buildShowParams(): SpatieQueryParams {

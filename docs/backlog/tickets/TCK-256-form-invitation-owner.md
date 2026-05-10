@@ -1,7 +1,7 @@
 ---
 id: TCK-256
 title: "Form invitation Owner depuis espace agence"
-status: todo
+status: done
 phase: P0
 family: applicatif
 estimate: S
@@ -84,4 +84,20 @@ Toast de succès + redirection vers la liste des propriétaires (l'owner appara�
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Backend**
+  - `App\Services\Invitation\OwnerInvitationService` wrappe le service unifié TCK-249 et orchestre : gate `agency.kind = standard`, gate permission `invite_owner` scopé sur la team de l'agence, création OwnerProfile en `draft` (`user_id` nullable, métadata = email/first/last/phone/owner_type/company_name), envoi via `InvitationService::send`, log `owner_invited`.
+  - Endpoint dédié `POST /api/agencies/{agency}/owners/invite` (route nommée `agencies.owners.invite`) + `InviteOwnerRequest` (FormRequest).
+  - Policy `App\Policies\OwnerProfilePolicy` (méthode `invite(User, Agency)` + `viewAny`/`view`), bind explicite dans `AppServiceProvider`.
+  - Migration : `user_id` rendu nullable sur `owner_profiles` pour supporter le draft (`unique(user_id, agency_id)` reste valide grâce au comportement standard PostgreSQL/MySQL sur les NULL multi-colonnes).
+  - Permission `invite_owner` ajoutée dans `RolesAndPermissionsSeeder` et seedée par défaut sur `agency_admin`.
+  - Resend / revoke réutilisent les routes génériques `/api/invitations/{id}/{resend|revoke}` (TCK-249).
+  - Endpoint listing read-only : `GET /api/owners` (`OwnerProfileController@index`) scopé sur l'agence active.
+  - Tests : `tests/Feature/Invitation/InviteOwnerTest.php` (12 tests, 32 assertions). 28 tests invitation passent au total.
+- **Frontend**
+  - `src/components/owners/InviteOwnerSheet.tsx` : sheet contrôlé, react-query mutation, gestion ApiError (422/409/403), toasts.
+  - `src/components/owners/OwnersList.tsx` : listing react-query, badge statut (draft → "Invité"), actions resend/revoke par ligne (résolution de l'invitation_id via `/api/invitations`).
+  - Page server-side `src/app/(dashboard)/app/owners/page.tsx` : SSR de l'agence + listing initial, gate visibilité du CTA.
+  - Queries `src/lib/queries/owners.ts` (spatie params : `fields[owner_profiles]`, `include=user`, `filter[agency_id]`).
+  - Type `Agency.kind` ajouté + `AGENCY_ADMIN_FIELDS` étendu pour récupérer `kind`.
+  - i18n : namespace `owners.{page,invite}` ajouté en fr/en/wo.
+  - TODO posé en tête de `PropertyForm.tsx` pour l'intégration future (le form n'a pas encore de select propriétaire — hors périmètre).

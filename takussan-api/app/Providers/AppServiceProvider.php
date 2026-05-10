@@ -36,6 +36,7 @@ use App\Models\Invitation;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Message;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\Review;
@@ -56,6 +57,7 @@ use App\Policies\ConversationPolicy;
 use App\Policies\InvitationPolicy;
 use App\Policies\LeasePolicy;
 use App\Policies\MediaPolicy;
+use App\Policies\OwnerProfilePolicy;
 use App\Policies\PropertyModerationPolicy;
 use App\Policies\PropertyPolicy;
 use App\Policies\RoleDelegationPolicy;
@@ -226,6 +228,11 @@ class AppServiceProvider extends ServiceProvider
         // TCK-249 — invitation policy (revoke/resend custom abilities not
         // covered by BasePolicy's CRUD set).
         Gate::policy(Invitation::class, InvitationPolicy::class);
+
+        // TCK-256 — owner invitation gate (custom `invite` ability that
+        // takes the Agency as second argument). Bound explicitly because
+        // the action is not on the OwnerProfile model itself.
+        Gate::policy(OwnerProfile::class, OwnerProfilePolicy::class);
 
         // TCK-098 — property moderation gates (approve, reject, resubmit).
         // Named gates avoid collision with the existing PropertyPolicy.

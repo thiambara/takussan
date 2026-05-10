@@ -8,6 +8,10 @@
 
 export type AgencyStatus = 'active' | 'inactive' | 'suspended' | 'pending';
 
+/** TCK-248 — agency typology. `individual` is a sole-host (no portfolio of
+ *  external owners), `standard` is the multi-owner agency. */
+export type AgencyKind = 'standard' | 'individual';
+
 export interface AgencySettings {
   /** Stored under `settings.default_commission_rate` (fallback to top-level `commission_rate`). */
   default_commission_rate?: number | null;
@@ -34,6 +38,8 @@ export interface Agency {
   currency?: string;
   is_verified: boolean;
   status: AgencyStatus | null;
+  /** TCK-248 — typology that gates owner-invitation features (TCK-256). */
+  kind?: AgencyKind;
   properties_count?: number;
   active_leases_count?: number;
   average_rating?: number | null;
