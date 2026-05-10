@@ -13,6 +13,7 @@ class AgencyResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
+            'kind' => $this->kind?->value,
             'license_number' => $this->license_number,
             'description' => $this->description,
             'email' => $this->email,

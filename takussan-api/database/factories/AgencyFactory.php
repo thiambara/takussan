@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Agency;
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\Currency;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -29,7 +30,13 @@ class AgencyFactory extends Factory
             'is_verified' => fake()->boolean(70),
             'verified_at' => fake()->optional()->dateTimeBetween('-2 years'),
             'status' => AgencyStatus::Active,
+            'kind' => AgencyKind::Standard,
             'currency' => Currency::XOF,
         ];
+    }
+
+    public function individual(): static
+    {
+        return $this->state(fn () => ['kind' => AgencyKind::Individual]);
     }
 }
