@@ -12,4 +12,11 @@ return [
             'invalid_role' => 'The requested role is not allowed for this invitation.',
         ],
     ],
+    // TCK-259 — agent post-acceptance onboarding wizard
+    'onboarding' => [
+        'errors' => [
+            'invalid_otp' => 'The verification code is invalid or has expired.',
+            'not_owner' => "You don't have access to this agent profile.",
+        ],
+    ],
 ];

@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
+use App\Services\Invitation\AgentInvitationService;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class AgentProfileFactory extends Factory
@@ -35,5 +36,28 @@ class AgentProfileFactory extends Factory
     public function suspended(): self
     {
         return $this->state(['status' => AgentProfileStatus::Suspended->value]);
+    }
+
+    /**
+     * TCK-258 — draft profile (no User attached yet, status = draft).
+     * Mirrors the shape created by {@see AgentInvitationService::invite()}.
+     */
+    public function draft(): self
+    {
+        return $this->state([
+            'user_id' => null,
+            'status' => AgentProfileStatus::Draft->value,
+            'license_number' => null,
+            'commission_rate' => null,
+            'specialty' => null,
+            'hire_date' => null,
+            'metadata' => [
+                'email' => fake()->unique()->safeEmail(),
+                'first_name' => fake()->firstName(),
+                'last_name' => fake()->lastName(),
+                'phone' => fake()->e164PhoneNumber(),
+                'invited_role' => 'agent',
+            ],
+        ]);
     }
 }

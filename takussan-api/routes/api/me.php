@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Me\AgentProfileController as MeAgentProfileController;
 use App\Http\Controllers\Api\Me\DataExportController;
 use App\Http\Controllers\Api\Me\MeController;
 use App\Http\Controllers\Api\Me\MeProfilesController;
@@ -95,6 +96,26 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::get('owner-profiles/{owner_profile}/properties', [MeOwnerProfileController::class, 'properties'])
         ->whereNumber('owner_profile')
         ->name('me.owner-profiles.properties');
+
+    // TCK-259 — wizard-side write endpoints on the freshly-claimed
+    // AgentProfile. Mirror Owner / SP : mounted under
+    // /api/me/agent-profiles/{agent_profile} so the route signature
+    // matches the wizard's mental model and the ownership check stays
+    // simple (auth user must own the row).
+    Route::post('agent-profiles/{agent_profile}/kyc/upload', [MeAgentProfileController::class, 'uploadKyc'])
+        ->whereNumber('agent_profile')
+        ->middleware('throttle:10,1')
+        ->name('me.agent-profiles.kyc.upload');
+    Route::post('agent-profiles/{agent_profile}/kyc/submit', [MeAgentProfileController::class, 'submitKyc'])
+        ->whereNumber('agent_profile')
+        ->middleware('throttle:10,1')
+        ->name('me.agent-profiles.kyc.submit');
+    Route::patch('agent-profiles/{agent_profile}/specialization', [MeAgentProfileController::class, 'updateSpecialization'])
+        ->whereNumber('agent_profile')
+        ->name('me.agent-profiles.specialization');
+    Route::get('agent-profiles/{agent_profile}/first-lead', [MeAgentProfileController::class, 'firstLead'])
+        ->whereNumber('agent_profile')
+        ->name('me.agent-profiles.first-lead');
 
     // TCK-262 — Multi-rattachement Service Provider. Listing cross-agences
     // des collaborations du SP authentifié + projection plate "agences".
