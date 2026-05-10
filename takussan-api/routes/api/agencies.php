@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Agency\AgentInvitationController;
 use App\Http\Controllers\Api\Agency\KycController;
 use App\Http\Controllers\Api\Agency\OwnerInvitationController;
 use App\Http\Controllers\Api\Agency\RegenerateWatermarksController;
+use App\Http\Controllers\Api\Agency\ServiceProviderInvitationController;
 use App\Http\Controllers\Api\Agency\TeamController;
 use App\Http\Controllers\Api\Agency\TenantOnboardingPendingController;
 use App\Http\Controllers\Api\AgencyController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\Api\AgencyMemberRoleController;
 use App\Http\Controllers\Api\AgencyStatsController;
 use App\Http\Controllers\Api\Permissions\RoleDelegationController;
 use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\Api\ServiceProviderProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -73,4 +75,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // (agency_admin / agent) et aux super-admins.
     Route::get('agencies/{agency}/tenant-onboarding-pending', [TenantOnboardingPendingController::class, 'index'])
         ->name('agencies.tenant-onboarding-pending.index');
+
+    // TCK-260 — Carnet de prestataires + invitation Service Provider.
+    // Listing des SP rattachés à l'agence (via collaborations) et envoi
+    // d'invitation. Resend / revoke réutilisent les routes génériques
+    // /api/invitations/{id}/* exposées par TCK-249.
+    Route::get('agencies/{agency}/service-providers', [ServiceProviderProfileController::class, 'index'])
+        ->name('agencies.serviceProviders.index');
+    Route::post('agencies/{agency}/service-providers/invite', ServiceProviderInvitationController::class)
+        ->name('agencies.serviceProviders.invite');
 });

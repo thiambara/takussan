@@ -96,6 +96,23 @@ function buildNavItems(user: User): NavItem[] {
     items.push({ href: '/app/maintenance', label: isServiceProvider(roles) ? 'Interventions' : 'Maintenance', icon: Wrench });
   }
 
+  // TCK-260 — Carnet prestataires. Visible pour agency_admin (et global
+  // admin / super_admin via le gate). Ouvert aux agences `standard` ET
+  // `individual` (un host individual a aussi besoin de ses prestataires).
+  // La page elle-même filtre par rôle ; on ne connaît pas l'agency.kind
+  // ici, le contrôle ultime est côté backend (policy + permission).
+  if (
+    roles.includes('agency_admin') ||
+    isAdmin(roles) ||
+    roles.includes('super_admin')
+  ) {
+    items.push({
+      href: '/app/maintenance/providers',
+      label: 'Carnet prestataires',
+      icon: Wrench,
+    });
+  }
+
   items.push({ href: '/app/messages', label: 'Messagerie', icon: MessageSquare });
   items.push({ href: '/app/documents', label: 'Documents', icon: FolderOpen });
 

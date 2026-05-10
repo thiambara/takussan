@@ -42,6 +42,7 @@ use App\Models\LeasePayment;
 use App\Models\Message;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\Review;
@@ -66,6 +67,7 @@ use App\Policies\InvitationPolicy;
 use App\Policies\LeasePolicy;
 use App\Policies\MediaPolicy;
 use App\Policies\OwnerProfilePolicy;
+use App\Policies\Profiles\ServiceProviderProfilePolicy;
 use App\Policies\PropertyModerationPolicy;
 use App\Policies\PropertyPolicy;
 use App\Policies\RoleDelegationPolicy;
@@ -252,6 +254,13 @@ class AppServiceProvider extends ServiceProvider
         // `delete` abilities). `invite` takes the Agency as second arg
         // (mirrors OwnerProfilePolicy@invite).
         Gate::policy(AgentProfile::class, AgentProfilePolicy::class);
+
+        // TCK-260 — service provider profile gates (custom `invite`
+        // ability that takes the Agency as second arg). Bound explicitly
+        // because the action is not on the SP profile itself and the
+        // policy lives in App\Policies\Profiles (auto-discovery only
+        // probes App\Policies for `App\Models\Profiles\X` → `App\Policies\XPolicy`).
+        Gate::policy(ServiceProviderProfile::class, ServiceProviderProfilePolicy::class);
 
         // TCK-098 — property moderation gates (approve, reject, resubmit).
         // Named gates avoid collision with the existing PropertyPolicy.

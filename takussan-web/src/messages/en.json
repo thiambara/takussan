@@ -917,6 +917,73 @@
       }
     }
   },
+  "serviceProviders": {
+    "page": {
+      "title": "Service providers",
+      "subtitle": "Plumbers, electricians, painters: your maintenance contacts.",
+      "add": "Add a provider"
+    },
+    "list": {
+      "empty_title": "No provider yet",
+      "empty_description": "Invite your first provider to start building your book.",
+      "columns": {
+        "name": "Name",
+        "trades": "Trades",
+        "zones": "Zones",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "status": {
+        "draft": "Invited",
+        "active": "Active",
+        "inactive": "Inactive",
+        "suspended": "Suspended"
+      },
+      "actions": {
+        "resend": "Resend invitation",
+        "revoke": "Revoke"
+      }
+    },
+    "invite": {
+      "title": "Invite a provider",
+      "subtitle": "Send an email invitation. The provider will create their account and complete their profile after acceptance.",
+      "fields": {
+        "email": "Email",
+        "first_name": "First name",
+        "last_name": "Last name",
+        "phone": "Phone (optional)",
+        "trades": "Trades",
+        "intervention_zones": "Service areas"
+      },
+      "trades": {
+        "plumbing": "Plumbing",
+        "electrical": "Electrical",
+        "structural": "Structural",
+        "appliance": "Appliance",
+        "painting": "Painting",
+        "cleaning": "Cleaning",
+        "pest_control": "Pest control",
+        "locksmith": "Locksmith",
+        "other": "Other"
+      },
+      "cta": {
+        "submit": "Send invitation",
+        "submitting": "Sending…",
+        "cancel": "Cancel"
+      },
+      "toasts": {
+        "success_title": "Invitation sent",
+        "error_title": "Could not send invitation",
+        "resend_success": "Invitation resent",
+        "revoke_success": "Invitation revoked",
+        "existing_other_agency": "This provider is already attached to another agency — they can opt-in to multi-attachment when accepting."
+      },
+      "errors": {
+        "already_member": "This provider is already active in your agency.",
+        "forbidden": "You do not have permission to invite a service provider."
+      }
+    }
+  },
   "onboarding": {
     "host": {
       "defaults": {
