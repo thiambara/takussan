@@ -24,6 +24,10 @@ class UserResource extends JsonResource
             'agency_id' => $this->agency_id,
             'roles' => $this->getRoleNames()->values()->all(),
             'status' => $this->status?->value,
+            // TCK-253 — opt-in personalisation hints set via PATCH /api/me.
+            // Always returned as an object (possibly empty) so clients can
+            // assume the shape without null-checks.
+            'preferences' => is_array($this->preferences) ? $this->preferences : (object) [],
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

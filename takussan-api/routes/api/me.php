@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Me\DataExportController;
+use App\Http\Controllers\Api\Me\MeController;
 use App\Http\Controllers\Api\Me\MeProfilesController;
 use App\Http\Controllers\Api\Me\PlatformPayoutController as MePlatformPayoutController;
 use App\Http\Controllers\Api\Me\SubscriptionController;
@@ -16,6 +17,11 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::middleware('auth:sanctum')->prefix('me')->group(function () {
+    // TCK-253 — Partial profile update (phone, city, search_intent).
+    // Differs from PUT /api/auth/profile which requires first/last name on
+    // every call; this endpoint is purely opt-in personalisation.
+    Route::patch('/', [MeController::class, 'update'])->name('me.update');
+
     Route::get('profiles', [MeProfilesController::class, 'index'])->name('me.profiles.index');
     Route::patch('active-profile', [MeProfilesController::class, 'updateActive'])->name('me.active-profile.update');
     Route::get('data-exports', [DataExportController::class, 'index'])->name('me.data-exports.index');

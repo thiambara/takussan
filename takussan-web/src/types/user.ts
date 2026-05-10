@@ -2,6 +2,15 @@ export type UserRole = 'customer' | 'tenant' | 'agent' | 'agency_admin' | 'owner
 
 export type UserStatus = 'active' | 'inactive' | 'banned';
 
+/**
+ * TCK-253 — Opt-in personalisation hints stored in `users.preferences`
+ * (JSON column on the API). All fields are optional and user-tunable.
+ */
+export type UserPreferences = {
+  city?: string;
+  search_intent?: 'rent' | 'buy' | 'both';
+};
+
 export type User = {
   id: number;
   first_name: string;
@@ -17,5 +26,7 @@ export type User = {
   agency_id?: number | null;
   roles: UserRole[];
   status: UserStatus;
+  /** TCK-253 — empty `{}` when the user has set nothing yet. */
+  preferences?: UserPreferences;
   created_at: string;
 };

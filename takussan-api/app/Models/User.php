@@ -55,6 +55,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         'notifications_email_enabled', 'notifications_push_enabled', 'notifications_sms_enabled',
         'email_frequency', 'digest_send_at', 'digest_day_of_week',
         'metadata',
+        'preferences',
         'deletion_requested_at',
         // TCK-142 — kept fillable so the legacy `agency_id` mutator gets a
         // chance to run during `update()` / `fill()`. The mutator itself
@@ -96,6 +97,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             'notifications_sms_enabled' => 'boolean',
             'email_frequency' => EmailFrequency::class,
             'metadata' => 'array',
+            'preferences' => 'array',
         ];
     }
 

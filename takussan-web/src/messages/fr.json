@@ -656,5 +656,40 @@
     "finish": "Terminer",
     "stepAriaLabel": "Étape {current} sur {total}",
     "dialogAriaLabel": "Bienvenue"
+  },
+  "customer": {
+    "welcome": {
+      "slides": [
+        {
+          "title": "Trouvez le bien parfait",
+          "body": "Filtrez plus de mille annonces — vente, location, courte durée — pour repérer le logement qui colle à vos critères."
+        },
+        {
+          "title": "Sauvegardez vos favoris",
+          "body": "Mettez de côté les biens qui vous plaisent et comparez-les à votre rythme depuis n importe quel appareil."
+        },
+        {
+          "title": "Discutez directement avec les agents",
+          "body": "Posez vos questions, planifiez une visite et négociez sans intermédiaire grâce à la messagerie intégrée."
+        }
+      ]
+    },
+    "minimalProfile": {
+      "title": "Aidez-nous à mieux vous accompagner",
+      "description": "Trois infos rapides — toutes optionnelles — pour personnaliser vos résultats. Vous pouvez compléter plus tard depuis votre profil.",
+      "phoneLabel": "Téléphone (optionnel)",
+      "phonePlaceholder": "+221 77 000 00 00",
+      "cityLabel": "Ville recherchée (optionnel)",
+      "cityPlaceholder": "Dakar, Saint-Louis…",
+      "intentLabel": "Type de recherche (optionnel)",
+      "intentPlaceholder": "Choisissez une option",
+      "intentRent": "Louer",
+      "intentBuy": "Acheter",
+      "intentBoth": "Les deux",
+      "skip": "Plus tard",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "saveError": "Impossible d enregistrer pour le moment. Réessayez."
+    }
   }
 }
