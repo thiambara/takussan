@@ -169,10 +169,7 @@ _(Vague 24 finalisée — voir Review)_
 
 **Parcours utilisateur**
 
-- ~~[TCK-255](tickets/TCK-255-wizard-host-individual.md) — Wizard host individual (5 steps + création Agency+profils+1er bien draft)~~ ✅ done
-- ~~[TCK-256](tickets/TCK-256-form-invitation-owner.md) — Form invitation Owner depuis espace agence~~ ✅ done
 - [TCK-257](tickets/TCK-257-wizard-onboarding-owner.md) — Wizard onboarding Owner post-acceptation (KYC + tour) `M · P1 · applicatif`
-- ~~[TCK-258](tickets/TCK-258-form-invitation-agent.md) — Écran "Équipe" + form invitation Agent (avec choix de rôle)~~ ✅ done
 - [TCK-259](tickets/TCK-259-wizard-onboarding-agent.md) — Wizard onboarding Agent post-acceptation (KYC + zones) `M · P1 · applicatif`
 - [TCK-260](tickets/TCK-260-carnet-prestataires-invitation-sp.md) — Carnet de prestataires + invitation Service Provider `S · P1 · applicatif`
 - [TCK-261](tickets/TCK-261-wizard-onboarding-service-provider.md) — Wizard onboarding Service Provider (KYC + dispos) `M · P1 · applicatif`
