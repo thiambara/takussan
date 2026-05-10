@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Me\DataExportController;
 use App\Http\Controllers\Api\Me\MeController;
 use App\Http\Controllers\Api\Me\MeProfilesController;
 use App\Http\Controllers\Api\Me\PlatformPayoutController as MePlatformPayoutController;
+use App\Http\Controllers\Api\Me\ServiceProviderAgenciesController;
 use App\Http\Controllers\Api\Me\ServiceProviderProfileController as MeServiceProviderProfileController;
 use App\Http\Controllers\Api\Me\SubscriptionController;
 use App\Http\Controllers\Api\Me\TenantOnboardingChecklistController;
@@ -76,4 +77,14 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::patch('profiles/{sp_profile}/availability', [MeServiceProviderProfileController::class, 'updateAvailability'])
         ->whereNumber('sp_profile')
         ->name('me.profiles.sp.availability');
+
+    // TCK-262 — Multi-rattachement Service Provider. Listing cross-agences
+    // des collaborations du SP authentifié + projection plate "agences".
+    // Le menu "switch agence" du SP consomme `agencies` parce que le
+    // ProfileSwitcher (qui itère sur /api/me/profiles) ne montre qu'une
+    // ligne SP agrégée — un SP profile n'a pas de FK agency directe.
+    Route::get('service-provider/collaborations', [ServiceProviderAgenciesController::class, 'index'])
+        ->name('me.service-provider.collaborations.index');
+    Route::get('service-provider/agencies', [ServiceProviderAgenciesController::class, 'agencies'])
+        ->name('me.service-provider.agencies.index');
 });

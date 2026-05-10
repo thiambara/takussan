@@ -73,7 +73,14 @@ class ServiceProviderInvitationService
 
         $this->assertNoActiveServiceProviderInAgency($agency, $email);
 
-        $existingOtherAgency = $this->detectServiceProviderInOtherAgency($agency, $email);
+        // TCK-262 — détection en amont : si un User existe déjà avec un
+        // ServiceProviderProfile attaché (≠ draft anonyme), on **réutilise**
+        // ce profil au lieu d'en créer un nouveau. La collab vers la
+        // nouvelle agence sera créée à l'acceptation. Ça évite les
+        // doublons SP profile et préserve KYC/métiers/zones/tarifs déjà
+        // renseignés sur le profil maître.
+        $existingProfile = $this->lookupExistingServiceProviderForEmail($email);
+        $existingOtherAgency = $existingProfile !== null;
 
         $trades = $this->normaliseStringList($data['trades'] ?? []);
         $zones = $this->normaliseStringList($data['intervention_zones'] ?? []);
@@ -83,38 +90,45 @@ class ServiceProviderInvitationService
         );
 
         [$invitation, $profile] = DB::transaction(function () use (
-            $agency, $inviter, $email, $data, $trades, $zones, $existingOtherAgency, $fromMaintenanceRequestId
+            $agency, $inviter, $email, $data, $trades, $zones, $existingProfile, $existingOtherAgency, $fromMaintenanceRequestId
         ): array {
-            $profile = ServiceProviderProfile::query()->create([
-                'user_id' => null,
-                'status' => ServiceProviderProfileStatus::Draft->value,
-                'specialties' => $trades !== [] ? $trades : null,
-                'service_areas' => $zones !== [] ? $zones : null,
-                'metadata' => [
-                    'email' => $email,
-                    'first_name' => trim((string) ($data['first_name'] ?? '')),
-                    'last_name' => trim((string) ($data['last_name'] ?? '')),
-                    'phone' => $this->cleanString($data['phone'] ?? null),
-                    'trades' => $trades,
-                    'intervention_zones' => $zones,
-                    'invited_by' => $inviter->id,
-                ],
-            ]);
+            if ($existingProfile !== null) {
+                // Re-use the existing master profile — no new SP profile,
+                // no draft collaboration row (the dedicated accept flow
+                // creates the collab atomically when the SP confirms).
+                $profile = $existingProfile;
+            } else {
+                $profile = ServiceProviderProfile::query()->create([
+                    'user_id' => null,
+                    'status' => ServiceProviderProfileStatus::Draft->value,
+                    'specialties' => $trades !== [] ? $trades : null,
+                    'service_areas' => $zones !== [] ? $zones : null,
+                    'metadata' => [
+                        'email' => $email,
+                        'first_name' => trim((string) ($data['first_name'] ?? '')),
+                        'last_name' => trim((string) ($data['last_name'] ?? '')),
+                        'phone' => $this->cleanString($data['phone'] ?? null),
+                        'trades' => $trades,
+                        'intervention_zones' => $zones,
+                        'invited_by' => $inviter->id,
+                    ],
+                ]);
 
-            // Pre-create the per-agency link in `paused` so the dedup
-            // check (`existing_sp_same_agency`) works before acceptance,
-            // and so the wizard (TCK-261) only has to flip a status when
-            // the SP signs up. `started_at` is set tentatively to today
-            // — the wizard rewrites it on activation if needed.
-            ServiceProviderAgencyCollaboration::query()->create([
-                'service_provider_profile_id' => $profile->id,
-                'agency_id' => $agency->id,
-                'status' => CollaborationStatus::Paused->value,
-                'started_at' => now()->toDateString(),
-                'metadata' => [
-                    'invited_by' => $inviter->id,
-                ],
-            ]);
+                // Pre-create the per-agency link in `paused` so the dedup
+                // check (`existing_sp_same_agency`) works before acceptance,
+                // and so the wizard (TCK-261) only has to flip a status when
+                // the SP signs up. `started_at` is set tentatively to today
+                // — the wizard rewrites it on activation if needed.
+                ServiceProviderAgencyCollaboration::query()->create([
+                    'service_provider_profile_id' => $profile->id,
+                    'agency_id' => $agency->id,
+                    'status' => CollaborationStatus::Paused->value,
+                    'started_at' => now()->toDateString(),
+                    'metadata' => [
+                        'invited_by' => $inviter->id,
+                    ],
+                ]);
+            }
 
             $invitationMetadata = [
                 'first_name' => trim((string) ($data['first_name'] ?? '')),
@@ -237,22 +251,22 @@ class ServiceProviderInvitationService
     }
 
     /**
-     * TCK-262 prep — returns true if a ServiceProviderProfile already
-     * exists for this email under any *other* agency. Surfaced via the
-     * invitation metadata so the frontend can flag the multi-attachment
-     * scenario for the recipient. We do not block — the acceptance flow
-     * will offer "rejoindre" or "créer un profil dédié à l'agence".
+     * TCK-262 — returns the ServiceProviderProfile already attached to a
+     * User with this email, if any. We re-use this row for multi-agency
+     * onboarding instead of creating a fresh draft (preserves KYC,
+     * trades, zones, rates and avoids duplicate `(user_id)` rows).
+     *
+     * Returns null when the email maps to no User, or when the User has
+     * no SP profile yet — in which case the caller falls back to the
+     * original "draft profile + invitation" flow (TCK-260).
      */
-    protected function detectServiceProviderInOtherAgency(Agency $agency, string $email): bool
+    protected function lookupExistingServiceProviderForEmail(string $email): ?ServiceProviderProfile
     {
         return ServiceProviderProfile::query()
             ->whereHas('user', function ($query) use ($email): void {
                 $query->whereRaw('LOWER(email) = ?', [$email]);
             })
-            ->whereHas('agencyCollaborations', function ($query) use ($agency): void {
-                $query->where('agency_id', '!=', $agency->id);
-            })
-            ->exists();
+            ->first();
     }
 
     /**

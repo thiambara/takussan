@@ -1,7 +1,7 @@
 ---
 id: TCK-262
 title: "Multi-rattachement Service Provider à plusieurs agences"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: S
@@ -67,4 +67,35 @@ Endpoint :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Décisions clés
+
+1. **Détection en amont (invite), pas aval (accept)** : `ServiceProviderInvitationService::invite` détecte si un User existe déjà avec un SP profile via `lookupExistingServiceProviderForEmail($email)`. Si oui, on **ne crée ni nouveau profile draft ni collab paused** — on attache l'invitation au profile maître existant (via `invitable_id`). La collaboration est créée uniquement à l'acceptation, atomiquement, en `active`. Évite les rows fantômes et préserve KYC/métiers/zones/tarifs déjà renseignés.
+
+2. **Pas d'endpoint dédié `POST /api/sp/collaborations/{token}/accept`** : la logique vit dans `InvitationService::finalizeAccept` (méthode helper `ensureServiceProviderCollaboration`). L'endpoint standard `POST /api/invitations/{token}/accept` couvre le cas (l'utilisateur fait juste un login préalable, le service détecte que le User a déjà un SP profile → il crée la collab au lieu d'un nouveau profile). C'est plus simple et symétrique avec les autres rôles.
+
+3. **Conflit doublon** : la garde 409 vit à 2 endroits — (a) `ServiceProviderInvitationService::assertNoActiveServiceProviderInAgency` (au moment de l'invitation, l'inviteur sait tout de suite) et (b) `InvitationService::ensureServiceProviderCollaboration` (au moment de l'acceptation, défense en profondeur si une collab active a été ajoutée entre temps).
+
+4. **Endpoint listing** : 2 endpoints sœurs sous `/api/me/service-provider/` :
+   - `GET /collaborations` : spatie/query-builder full (sparse fields, includes, filters, sort) sur `ServiceProviderAgencyCollaboration`. Listing standard.
+   - `GET /agencies` : projection plate enrichie de l'Agency (id, name, slug, kind, status). Consommé par la page Bienvenue multi-agences et le futur switcher.
+
+5. **Wizard skip** : pas de modification structurelle du wizard. La page `/onboarding/service-provider/page.tsx` détecte l'état (`sp.status === 'active' && collabs.length > 0`) **server-side** et rend `<ServiceProviderMultiAgencyWelcome>` à la place du wizard. Un SP existant ne re-traverse jamais OTP/métiers/dispos.
+
+6. **Switcher agence menu** : non touché (le `ProfileSwitcher` itère sur `/api/me/profiles`, et SP est une seule ligne agrégée). Le multi-rattachement est exposé via le nouvel endpoint `/api/me/service-provider/agencies` qui sera consommé par un widget dédié si besoin futur. Hors scope MVP — la spec dit "déjà couvert par profil actif TCK-138→142" pour la partie switcher.
+
+### Fichiers touchés
+
+**Backend**
+- `app/Services/Invitation/ServiceProviderInvitationService.php` — détection SP existant + bypass création draft profile/collab.
+- `app/Services/Invitation/InvitationService.php` — `ensureServiceProviderCollaboration` helper invoqué dans `finalizeAccept`.
+- `app/Models/Profiles/ServiceProviderAgencyCollaboration.php` — config spatie (filterable, sortable, loadable, queryFields).
+- `app/Http/Controllers/Api/Me/ServiceProviderAgenciesController.php` — `index` (collaborations) + `agencies` (projection plate).
+- `routes/api/me.php` — 2 nouvelles routes `service-provider/{collaborations,agencies}`.
+- `tests/Feature/Invitation/ServiceProviderMultiAgencyTest.php` — 7 tests (AC1-5 + bonus regressions).
+
+**Frontend**
+- `src/lib/service-provider-onboarding.ts` — `ServiceProviderAgencyEntry` type + `fetchSpAgencies`.
+- `src/app/actions/service-provider-onboarding.ts` — `getSpAgenciesAction` server action.
+- `src/app/onboarding/service-provider/page.tsx` — gating wizard vs welcome panel (SSR).
+- `src/components/onboarding/ServiceProviderMultiAgencyWelcome.tsx` — nouveau composant.
+- `src/messages/{fr,en,wo}.json` — clés `serviceProviders.multiAgency.*`.

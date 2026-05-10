@@ -1117,6 +1117,24 @@
           }
         }
       }
+    },
+    "multiAgency": {
+      "welcomeAgency": "Bienvenue chez {agency}",
+      "welcomeGeneric": "Une nouvelle agence vous attend",
+      "subtitle": "Vous collaborez désormais avec {count} agence(s). Votre profil, votre KYC et vos métiers sont mutualisés.",
+      "status": {
+        "active": "Actif",
+        "paused": "En pause",
+        "ended": "Terminé",
+        "unknown": "—"
+      },
+      "cta": {
+        "dashboard": "Aller au tableau de bord"
+      },
+      "switch": {
+        "label": "Changer d'agence partenaire",
+        "empty": "Aucune agence partenaire pour le moment."
+      }
     }
   },
   "onboarding": {
