@@ -159,6 +159,39 @@ _(Vague 24 finalisée — voir Review)_
 
 - [TCK-247](tickets/TCK-247-public-homepage-discovery-endpoint.md) — Endpoint unique homepage discovery (4 rangées dédupliquées côté serveur) `M · P2 · back`
 
+### Vague 29 — Onboarding parcours acteurs (2026-05-10)
+
+> Discovery doc : [`docs/superpowers/specs/2026-05-10-onboarding-discovery-design.md`](../superpowers/specs/2026-05-10-onboarding-discovery-design.md). Spec PRs préalables mergés : `Agency.kind` enum, modèles `Invitation` / `AgencyUpgradeRequest` / `TenantOnboardingChecklist`, sous-section `features.md §2.1 Onboarding parcours`.
+
+**Briques transverses (P0 d'abord)**
+
+- [TCK-248](tickets/TCK-248-agency-kind-individual.md) — `Agency.kind` enum (standard/individual) + migration + seed `S · P0 · back`
+- [TCK-249](tickets/TCK-249-invitation-pattern-unifie.md) — Pattern d'invitation unifié (modèle Invitation + service + emails) `M · P0 · back`
+- [TCK-250](tickets/TCK-250-wizard-reprenable-component.md) — Wizard reprenable — composant frontend + persistance draft `S · P0 · front`
+- [TCK-251](tickets/TCK-251-welcome-modale-generique.md) — Welcome modale générique (3 slides skippable) `S · P1 · front`
+- [TCK-252](tickets/TCK-252-agency-upgrade-request-model.md) — `AgencyUpgradeRequest` modèle + migration + enums `S · P1 · back`
+
+**Parcours utilisateur**
+
+- [TCK-253](tickets/TCK-253-onboarding-wizard-customer.md) — Onboarding wizard Customer (welcome + profil minimal différé) `S · P0 · front`
+- [TCK-254](tickets/TCK-254-cta-publier-universelle.md) — CTA "Publier" universelle (routing selon état du user) `S · P0 · front`
+- [TCK-255](tickets/TCK-255-wizard-host-individual.md) — Wizard host individual (5 steps + création Agency+profils+1er bien draft) `M · P0 · applicatif`
+- [TCK-256](tickets/TCK-256-form-invitation-owner.md) — Form invitation Owner depuis espace agence `S · P0 · applicatif`
+- [TCK-257](tickets/TCK-257-wizard-onboarding-owner.md) — Wizard onboarding Owner post-acceptation (KYC + tour) `M · P1 · applicatif`
+- [TCK-258](tickets/TCK-258-form-invitation-agent.md) — Écran "Équipe" + form invitation Agent (avec choix de rôle) `S · P0 · applicatif`
+- [TCK-259](tickets/TCK-259-wizard-onboarding-agent.md) — Wizard onboarding Agent post-acceptation (KYC + zones) `M · P1 · applicatif`
+- [TCK-260](tickets/TCK-260-carnet-prestataires-invitation-sp.md) — Carnet de prestataires + invitation Service Provider `S · P1 · applicatif`
+- [TCK-261](tickets/TCK-261-wizard-onboarding-service-provider.md) — Wizard onboarding Service Provider (KYC + dispos) `M · P1 · applicatif`
+- [TCK-262](tickets/TCK-262-service-provider-multi-rattachement.md) — Multi-rattachement Service Provider à plusieurs agences `S · P2 · back`
+- [TCK-263](tickets/TCK-263-artisan-create-super-admin.md) — Commande artisan create-super-admin (bootstrap) `S · P0 · back`
+- [TCK-264](tickets/TCK-264-cooptation-super-admin.md) — Cooptation super-admin (peer-to-peer + 2FA forcé) `M · P1 · applicatif`
+- [TCK-265](tickets/TCK-265-welcome-modale-espace-resident.md) — Welcome modale "Espace résident" sur Lease.signed `S · P1 · applicatif`
+- [TCK-266](tickets/TCK-266-tenant-onboarding-checklist.md) — `TenantOnboardingChecklist` + suivi complétion EDL `M · P2 · applicatif`
+- [TCK-267](tickets/TCK-267-form-upgrade-individual-to-standard.md) — Form upgrade individual → standard (soumission user) `M · P1 · applicatif`
+- [TCK-268](tickets/TCK-268-super-admin-upgrade-review-console.md) — Console super-admin — revue des demandes d'upgrade `M · P1 · applicatif`
+- [TCK-269](tickets/TCK-269-flip-agency-kind-and-unlock-features.md) — Flip `Agency.kind` à l'approbation + débloquage features + welcome agence `S · P1 · applicatif`
+- [TCK-270](tickets/TCK-270-tck-209-followup-2fa-currency-branding.md) — TCK-209 follow-up (2FA recommandé + choix devise + branding dès activation) `S · P1 · applicatif`
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
@@ -733,6 +766,44 @@ TCK-145 ──▶ TCK-224 (super-admin broadcast announcements)
 TCK-210 ──▶ TCK-225 (super-admin RGPD user data export)
 TCK-145 ──▶ TCK-226 (super-admin healthcheck & jobs)
 TCK-222 ──▶ TCK-227 (super-admin platform reporting)
+
+── Vague 29 : Onboarding parcours acteurs ──
+# Briques transverses (P0)
+TCK-248 (Agency.kind)
+TCK-249 (Invitation pattern)
+TCK-250 (Wizard reprenable)
+TCK-251 (Welcome modale générique)
+TCK-248 ──▶ TCK-252 (AgencyUpgradeRequest model)
+
+# Parcours customer & host
+TCK-251 ──▶ TCK-253 (onboarding wizard Customer)
+TCK-248 ──▶ TCK-254 (CTA "Publier" universelle)
+TCK-248 + TCK-250 + TCK-254 ──▶ TCK-255 (Wizard host individual)
+
+# Parcours invités (Owner / Agent / Service Provider)
+TCK-249 ──▶ TCK-256 (Form invitation Owner)
+TCK-256 + TCK-250 + TCK-251 ──▶ TCK-257 (Wizard onboarding Owner)
+TCK-249 ──▶ TCK-258 (Form invitation Agent)
+TCK-258 + TCK-250 + TCK-251 ──▶ TCK-259 (Wizard onboarding Agent)
+TCK-249 ──▶ TCK-260 (Carnet prestataires + invitation SP)
+TCK-260 + TCK-250 + TCK-251 ──▶ TCK-261 (Wizard onboarding SP)
+TCK-260 + TCK-261 ──▶ TCK-262 (Multi-rattachement SP)
+
+# Super-admin
+TCK-263 (Artisan create-super-admin)
+TCK-249 + TCK-263 ──▶ TCK-264 (Cooptation super-admin + 2FA forcé)
+
+# Parcours résident (Customer → Tenant)
+TCK-251 ──▶ TCK-265 (Welcome modale Espace résident)
+TCK-265 ──▶ TCK-266 (TenantOnboardingChecklist + EDL)
+
+# Upgrade individual → standard
+TCK-248 + TCK-252 + TCK-250 ──▶ TCK-267 (Form upgrade)
+TCK-252 + TCK-267 ──▶ TCK-268 (Console super-admin revue upgrade)
+TCK-248 + TCK-267 + TCK-268 ──▶ TCK-269 (Flip Agency.kind + débloquage features)
+
+# Follow-up TCK-209 (déjà done)
+TCK-270 (TCK-209 follow-up : 2FA + devise + branding)
 ```
 
 ---
