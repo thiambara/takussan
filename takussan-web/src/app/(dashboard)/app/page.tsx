@@ -7,7 +7,8 @@ import { DashboardShortcuts } from '@/components/dashboard/DashboardShortcuts';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { WizardDraftsBanner } from '@/components/wizard/WizardDraftsBanner';
-import { isAgencyAdmin, isSuperAdmin } from '@/lib/roles';
+import { TenantOnboardingChecklistWidget } from '@/components/tenant/TenantOnboardingChecklistWidget';
+import { isAgencyAdmin, isCustomer, isSuperAdmin } from '@/lib/roles';
 import { fetchDashboardMe } from '@/lib/queries/dashboard-me';
 
 export default async function DashboardPage() {
@@ -43,6 +44,11 @@ export default async function DashboardPage() {
 
       {/* TCK-250 — Resumable wizard drafts banner. Renders nothing when no drafts. */}
       <WizardDraftsBanner />
+
+      {/* TCK-266 — Tenant onboarding checklist widget. Renders nothing
+          for non-customers and for tenants whose active leases are all
+          fully onboarded. */}
+      {isCustomer(user.roles) ? <TenantOnboardingChecklistWidget /> : null}
 
       {payload?.data ? (
         <DashboardMeKpis role={payload.data.role} metrics={payload.data.metrics} />

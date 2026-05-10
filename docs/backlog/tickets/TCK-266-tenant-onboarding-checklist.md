@@ -1,7 +1,7 @@
 ---
 id: TCK-266
 title: "TenantOnboardingChecklist + suivi complétion EDL"
-status: todo
+status: done
 phase: P2
 family: applicatif
 estimate: M
@@ -88,4 +88,76 @@ Côté agence : page `/app/leases/onboarding-pending` listant les baux récents 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Décisions clés**
+
+- **Détection EDL signé via observer plutôt qu'event dédié** : le ticket
+  proposait d'émettre un `Inventory.signed` event depuis le service de
+  signature. À la place, j'ai posé un `InventoryOnboardingObserver` qui
+  observe `wasChanged('status') === Signed` sur le modèle. Avantage : ça
+  absorbe les deux paths de signature existants
+  (`InventoryService::sign` et `InventorySignatureService::sign`) sans
+  toucher au workflow EDL — garde-fou explicitement demandé. Le filtre
+  `type === MoveIn` est appliqué : un EDL de sortie n'a pas à flipper
+  l'onboarding.
+- **Détection 1ᵉʳ paiement via observer LeasePayment** (`created` +
+  `updated`). On filtre les inserts de masse de
+  `LeaseService::generateSchedule` (status pending, sans `paid_at` ni
+  `payment_method`) pour ne déclencher que les paiements *effectifs*
+  (création manuelle ou transition `pending → paid`).
+- **`welcome_seen_at` posé via `WelcomeViewController`** : on bridge
+  côté backend en détectant la regex `tenant-welcome-{lease_id}` au
+  moment du POST `/api/me/welcome-seen` (qui existe déjà depuis TCK-251
+  et est déjà appelé par le `useTenantWelcomeOnce` hook de TCK-265).
+  Aucune modif côté frontend nécessaire — couplage faible, pas de
+  duplication de logique de dismissal.
+- **Pendant agent du rappel J+7** : pas de colonne `assigned_agent_id`
+  sur Lease, on prend le `agency.primaryAdmin` comme proxy raisonnable.
+  Quand un schéma d'assignation explicite arrivera, il suffira de
+  remplacer cette ligne dans `RemindTenantOnboarding`.
+- **Idempotence du cron** : marqueur `{type: 'inventory_d7', sent_at}`
+  poussé dans le JSON `reminders_sent` après chaque envoi. Le second
+  pass du cron passe son tour si l'entrée existe déjà.
+- **Création checklist toujours via service** : `TenantOnboardingService::create`
+  est l'unique point d'entrée (firstOrCreate sur lease_id pour
+  l'idempotence + check du flag `agency.settings.tenant_onboarding_enabled`).
+
+**Fichiers neufs**
+
+Backend :
+- `database/migrations/2026_05_10_200000_create_tenant_onboarding_checklists_table.php`
+- `app/Models/TenantOnboardingChecklist.php`
+- `database/factories/TenantOnboardingChecklistFactory.php`
+- `app/Services/Tenant/TenantOnboardingService.php`
+- `app/Listeners/Lease/CreateTenantOnboardingChecklist.php`
+- `app/Observers/InventoryOnboardingObserver.php`
+- `app/Observers/LeasePaymentOnboardingObserver.php`
+- `app/Console/Commands/RemindTenantOnboarding.php`
+- `app/Http/Controllers/Api/Me/TenantOnboardingChecklistController.php`
+- `app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php`
+- `app/Notifications/TenantInventoryReminderNotification.php`
+- `app/Notifications/AgentTenantInventoryReminderNotification.php`
+- `tests/Feature/Tenant/TenantOnboardingChecklistTest.php` (18 tests, 40 assertions)
+
+Frontend :
+- `src/types/tenant-onboarding.ts`
+- `src/lib/queries/tenant-onboarding.ts`
+- `src/components/tenant/TenantOnboardingChecklistWidget.tsx`
+- `src/components/tenant/__tests__/TenantOnboardingChecklistWidget.test.tsx`
+- `src/components/leases/TenantOnboardingPendingList.tsx`
+- `src/app/(dashboard)/app/leases/onboarding-pending/page.tsx`
+
+**Fichiers modifiés**
+
+- `app/Providers/AppServiceProvider.php` — wire listener + 2 observers.
+- `app/Models/Lease.php` — relation `onboardingChecklist()` (HasOne) +
+  `onboardingChecklist` ajouté à `$requestLoadable`.
+- `app/Http/Controllers/WelcomeViewController.php` — détection regex
+  `tenant-welcome-{lease_id}` → `markItem(welcome_seen)`.
+- `app/Services/Notifications/PreferenceResolver.php` — ajout de
+  `tenant_inventory_reminder` à `EVENTS`.
+- `routes/api/me.php` + `routes/api/agencies.php` — 3 nouvelles routes.
+- `routes/console.php` — schedule horaire du cron.
+- `lang/{fr,en,wo}/notifications.php` — 2 blocs (tenant + agent).
+- `src/messages/{fr,en,wo}.json` — `tenant.onboarding.*` + `agency.tenantOnboardingPending.*`.
+- `src/components/layout/AppSidebar.tsx` — entrée "Onboardings en attente".
+- `src/app/(dashboard)/app/page.tsx` — mount du widget pour customers.

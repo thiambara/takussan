@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Listeners\Lease\CreateTenantOnboardingChecklist;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\Currency;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
@@ -74,7 +76,7 @@ class Lease extends AbstractModel implements HasMedia
 
     protected static array $requestSortable = ['id', 'created_at', 'start_date', 'end_date', 'monthly_rent'];
 
-    protected static array $requestLoadable = ['property', 'landlord', 'tenant', 'agency', 'guarantor', 'renewedFrom', 'renewals'];
+    protected static array $requestLoadable = ['property', 'landlord', 'tenant', 'agency', 'guarantor', 'renewedFrom', 'renewals', 'onboardingChecklist'];
 
     protected static array $requestCountable = ['payments', 'maintenanceRequests', 'documents', 'renewals'];
 
@@ -196,6 +198,16 @@ class Lease extends AbstractModel implements HasMedia
     public function invoices(): MorphMany
     {
         return $this->morphMany(Invoice::class, 'invoiceable');
+    }
+
+    /**
+     * TCK-266 — Checklist d'onboarding tenant (au plus 1 par bail,
+     * unique sur `lease_id`). Créée automatiquement à `Lease.activated`
+     * par {@see CreateTenantOnboardingChecklist}.
+     */
+    public function onboardingChecklist(): HasOne
+    {
+        return $this->hasOne(TenantOnboardingChecklist::class);
     }
 
     public function registerMediaCollections(): void

@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Me\MeController;
 use App\Http\Controllers\Api\Me\MeProfilesController;
 use App\Http\Controllers\Api\Me\PlatformPayoutController as MePlatformPayoutController;
 use App\Http\Controllers\Api\Me\SubscriptionController;
+use App\Http\Controllers\Api\Me\TenantOnboardingChecklistController;
 use App\Http\Controllers\WelcomeViewController;
 use App\Http\Controllers\WizardDraftController;
 use Illuminate\Support\Facades\Route;
@@ -49,4 +50,14 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     // user-scoped via the unique `(user_id, key)` index on `welcome_views`.
     Route::get('welcome-seen', [WelcomeViewController::class, 'index'])->name('me.welcome-seen.index');
     Route::post('welcome-seen', [WelcomeViewController::class, 'store'])->name('me.welcome-seen.store');
+
+    // TCK-266 — Espace résident : checklist d'onboarding par bail.
+    // Lecture par le tenant lié à `Lease.tenant.user_id` ; complétion d'un
+    // item (essentiellement `documents_acknowledged` côté front, les autres
+    // sont posés par les listeners/observers ou WelcomeViewController).
+    Route::get('leases/{lease}/onboarding-checklist', [TenantOnboardingChecklistController::class, 'show'])
+        ->name('me.leases.onboarding-checklist.show');
+    Route::post('leases/{lease}/onboarding-checklist/{item}/complete', [TenantOnboardingChecklistController::class, 'complete'])
+        ->where('item', '[a-z_]+')
+        ->name('me.leases.onboarding-checklist.complete');
 });

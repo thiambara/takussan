@@ -142,6 +142,24 @@ return [
         'action' => 'Ubbi sama espas waa-kër',
     ],
 
+    // TCK-266 — J+7 reminder when the move-in inventory is still unsigned.
+    'tenant_inventory_reminder' => [
+        'subject' => 'Faatu — état des lieux war ngaa ko shign (luwé :reference)',
+        'greeting' => 'Salaam,',
+        'intro' => 'État des lieux bu sa luwé :reference signe nañ ko ba léegi.',
+        'body' => 'Ba kerig dossier bi am, war ngaa shigne ko. Dugu ci sa espas waa-kër ngir mottali shignal bi.',
+        'action' => 'Shigne état des lieux',
+    ],
+
+    'agent_tenant_inventory_reminder' => [
+        'subject' => 'Waa-kër bu yegg ci EDL — luwé :reference',
+        'greeting' => 'Salaam,',
+        'intro' => ':tenant signe wuñu état des lieux entrée bu luwé :reference (lu ëpp 7 fan).',
+        'body' => 'Xoolal ak waa-kër bi su fekk dañu ko war di gungé ngir mottali signe bi.',
+        'action' => 'Xool onboardings yi yagg',
+        'unknown_tenant' => 'Waa-kër bi',
+    ],
+
     'lease_early_termination' => [
         'greeting' => 'Salaam,',
         'penalty_line' => 'Pénalité tas bu jëkk : :amount :currency. War ngaa fey ko bala bisu njëlbeen bi.',

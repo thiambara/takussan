@@ -61,6 +61,9 @@ class PreferenceResolver
         'threshold_alert',
         // TCK-083 — fired by `tasks:send-due-reminders` ~24 h before due_at.
         'task_due_reminder',
+        // TCK-266 — J+7 reminder when the move-in inventory is still unsigned
+        // (sent to both the tenant and the agent / agency primary admin).
+        'tenant_inventory_reminder',
     ];
 
     /**

@@ -166,6 +166,24 @@ return [
         'action' => 'Open my tenant space',
     ],
 
+    // TCK-266 — J+7 reminder when the move-in inventory is still unsigned.
+    'tenant_inventory_reminder' => [
+        'subject' => 'Reminder — move-in inventory still unsigned (lease :reference)',
+        'greeting' => 'Hello,',
+        'intro' => 'Your move-in inventory for lease :reference has not been signed yet.',
+        'body' => 'Without a signed inventory, your file remains incomplete. Sign in to your tenant space to finalize the signature.',
+        'action' => 'Sign the inventory',
+    ],
+
+    'agent_tenant_inventory_reminder' => [
+        'subject' => 'Tenant late on move-in inventory — lease :reference',
+        'greeting' => 'Hello,',
+        'intro' => ':tenant has not signed the move-in inventory for lease :reference yet (more than 7 days).',
+        'body' => 'Check with your tenant whether a follow-up or assistance is needed to complete the signature.',
+        'action' => 'View pending onboardings',
+        'unknown_tenant' => 'The tenant',
+    ],
+
     'lease_early_termination' => [
         'greeting' => 'Hello,',
         'penalty_line' => 'Early termination penalty: :amount :currency. Due before the effective date.',

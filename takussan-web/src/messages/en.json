@@ -265,6 +265,15 @@
         "body": "{agencyName}’s workspace is ready. One quick step before you dive into your dashboard.",
         "cta": "Continue"
       }
+    },
+    "tenantOnboardingPending": {
+      "error": "Couldn't load the list right now.",
+      "emptyTitle": "No overdue onboarding",
+      "emptyDescription": "Onboardings under 7 days are not listed here.",
+      "leaseReference": "Lease {reference}",
+      "signedAt": "Signed on {date}",
+      "missing": "Still missing: {items}",
+      "daysOpen": "{count, plural, =0 {today} one {# day} other {# days}}"
     }
   },
   "compare": {
@@ -757,6 +766,30 @@
           "body": "Lease, inventory and receipts: all in one place, available whenever you need them."
         }
       ]
+    },
+    "onboarding": {
+      "widget": {
+        "title": "Welcome home — lease {reference}",
+        "subtitle": "A few steps to finalise your move-in."
+      },
+      "items": {
+        "welcome_seen": {
+          "title": "Discover your tenant space",
+          "description": "Take the quick tour to see where to find payments, inventory and documents."
+        },
+        "inventory_completed": {
+          "title": "Sign the move-in inventory",
+          "description": "Mandatory step. Protects you in case of disputes about the property's condition."
+        },
+        "first_payment": {
+          "title": "Make your first payment",
+          "description": "Deposit or first rent — depending on your contract."
+        },
+        "documents_acknowledged": {
+          "title": "Acknowledge your documents",
+          "description": "Lease, inventory and receipts: confirm everything is accessible."
+        }
+      }
     }
   },
   "owners": {
