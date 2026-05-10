@@ -155,6 +155,10 @@ _(Vague 24 finalisée — voir Review)_
 
 - [TCK-246](tickets/TCK-246-empty-error-states-and-cta-buttons-harmonization.md) — Empty / error states + CTA shadcn - harmonisation transverse `M · P2 · front`
 
+### Vague 28 — Discovery / homepage (2026-05-10)
+
+- [TCK-247](tickets/TCK-247-public-homepage-discovery-endpoint.md) — Endpoint unique homepage discovery (4 rangées dédupliquées côté serveur) `M · P2 · back`
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_

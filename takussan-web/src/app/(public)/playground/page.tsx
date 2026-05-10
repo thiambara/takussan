@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useProperties } from '@/hooks/useProperties';
+import { useUserLocation } from '@/components/providers/UserLocationProvider';
 import { PropertyRowLocal } from '@/components/playground/PropertyRowLocal';
 import { BogolanPattern } from '@/components/playground/BogolanPattern';
 import { PaletteSwitcher, type PaletteKey, PALETTES } from '@/components/playground/PaletteSwitcher';
@@ -20,7 +21,8 @@ export default function PlaygroundPage() {
   const [palette, setPalette] = useState<PaletteKey>('sahel');
   const [typo, setTypo] = useState<TypoKey>('contemporain');
 
-  const dakar    = useProperties({ city: 'Dakar', perPage: 10 });
+  const { city: nearCity } = useUserLocation();
+  const near     = useProperties({ city: nearCity, perPage: 10 });
   const rent     = useProperties({ transaction: 'rent', perPage: 10 });
   const featured = useProperties({ featured: true, perPage: 10 });
   const latest   = useProperties({ sort: 'latest', perPage: 10 });
@@ -70,11 +72,11 @@ export default function PlaygroundPage() {
           <PropertyRowLocal
             variant="standard"
             eyebrow="Près de toi"
-            title="À découvrir à Dakar"
-            viewAllHref="/properties?city=Dakar"
-            properties={dakar.properties}
-            loading={dakar.loading}
-            error={dakar.error}
+            title={`À découvrir à ${nearCity}`}
+            viewAllHref={`/properties?city=${encodeURIComponent(nearCity)}`}
+            properties={near.properties}
+            loading={near.loading}
+            error={near.error}
           />
         </div>
 

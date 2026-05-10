@@ -8,6 +8,7 @@ import { PropertyRow } from '@/components/property/cards/PropertyRow';
 import { BogolanPattern } from '@/components/property/cards/BogolanPattern';
 import { RecentlyViewedCarousel } from '@/components/property/RecentlyViewedCarousel';
 import { useProperties } from '@/hooks/useProperties';
+import { useUserLocation } from '@/components/providers/UserLocationProvider';
 import { dedupeAcross } from '@/lib/dedupeBy';
 
 /**
@@ -24,24 +25,31 @@ import { dedupeAcross } from '@/lib/dedupeBy';
  */
 export function HomepageDiscovery() {
   const t = useTranslations('homepage.row');
+  const { city: nearCity } = useUserLocation();
 
   // Slight over-fetch so the dedup pass can drop crossover IDs without
   // leaving a section visibly thin (each row still aims for ~6–8 visible).
-  const dakar = useProperties({ city: 'Dakar', perPage: 10 });
+  const near = useProperties({ city: nearCity, perPage: 10 });
   const rent = useProperties({ transaction: 'rent', perPage: 12 });
   const featured = useProperties({ featured: true, perPage: 12 });
   const latest = useProperties({ sort: 'latest', perPage: 14 });
 
   const viewAll = t('viewAll');
 
-  const [dakarUnique, rentUnique, featuredUnique, latestUnique] = useMemo(
+  // Featured est une rangée curée : ses items réapparaissent intentionnellement
+  // dans les autres rangées (un coup de cœur en location à Dakar *est* aussi
+  // un bien Dakar et un bien à louer). On dédupe donc uniquement entre les
+  // trois rangées de découverte par filtre, où voir le même bien deux fois
+  // côte à côte serait gênant.
+  const [nearUnique, rentUnique, latestUnique] = useMemo(
     () =>
       dedupeAcross(
-        [dakar.properties, rent.properties, featured.properties, latest.properties],
+        [near.properties, rent.properties, latest.properties],
         (p) => p.id,
       ),
-    [dakar.properties, rent.properties, featured.properties, latest.properties],
+    [near.properties, rent.properties, latest.properties],
   );
+  const featuredUnique = featured.properties;
 
   return (
     <div className="min-h-screen bg-background">
@@ -58,12 +66,12 @@ export function HomepageDiscovery() {
           <PropertyRow
             variant="standard"
             eyebrow={t('near.eyebrow')}
-            title={t('near.title')}
-            viewAllHref="/properties?city=Dakar"
+            title={t('near.title', { city: nearCity })}
+            viewAllHref={`/properties?city=${encodeURIComponent(nearCity)}`}
             viewAllLabel={viewAll}
-            properties={dakarUnique}
-            loading={dakar.loading}
-            error={dakar.error}
+            properties={nearUnique}
+            loading={near.loading}
+            error={near.error}
             priorityCount={2}
           />
         </div>

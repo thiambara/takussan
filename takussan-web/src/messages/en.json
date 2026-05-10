@@ -116,7 +116,7 @@
       "viewAll": "View all",
       "near": {
         "eyebrow": "Near you",
-        "title": "Discover Dakar"
+        "title": "Discover {city}"
       },
       "rent": {
         "eyebrow": "For rent",

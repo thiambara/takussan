@@ -560,7 +560,7 @@
       "viewAll": "Tout voir",
       "near": {
         "eyebrow": "Près de toi",
-        "title": "À découvrir à Dakar"
+        "title": "À découvrir à {city}"
       },
       "rent": {
         "eyebrow": "À louer",

@@ -8,6 +8,7 @@ import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { AuthProvider } from '@/context/AuthContext';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { FeatureFlagProvider } from '@/components/providers/FeatureFlagProvider';
+import { UserLocationProvider } from '@/components/providers/UserLocationProvider';
 import { MaintenanceBanner } from '@/components/maintenance/MaintenanceBanner';
 import { GlobalAnnouncementBanner } from '@/components/announcements/GlobalAnnouncementBanner';
 import { TIMEZONE } from '@/i18n/config';
@@ -48,9 +49,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <QueryProvider>
             <AuthProvider initialUser={initialUser} initialToken={token ?? null}>
               <FeatureFlagProvider>
-                <MaintenanceBanner />
-                <GlobalAnnouncementBanner />
-                {children}
+                <UserLocationProvider>
+                  <MaintenanceBanner />
+                  <GlobalAnnouncementBanner />
+                  {children}
+                </UserLocationProvider>
               </FeatureFlagProvider>
             </AuthProvider>
           </QueryProvider>
