@@ -199,10 +199,6 @@ _(vide)_
 
 ## 👀 Review
 
-### Vague 29 — Onboarding parcours acteurs
-
-- [TCK-250](tickets/TCK-250-wizard-reprenable-component.md) — Wizard reprenable — composant frontend + persistance draft `S · P0 · front`
-
 ### Vague 27 — Audit design front
 
 - [TCK-242](tickets/TCK-242-public-agency-agent-pages-design-refresh.md) — Refonte design fiches publiques agence & agent `M · P1 · front`
@@ -565,6 +561,7 @@ _(vide)_
 
 - [TCK-248](tickets/TCK-248-agency-kind-individual.md) — `Agency.kind` enum (standard/individual) + migration + seed `S · P0 · back`
 - [TCK-249](tickets/TCK-249-invitation-pattern-unifie.md) — Pattern d'invitation unifié (modèle Invitation + service + emails) `M · P0 · back`
+- [TCK-250](tickets/TCK-250-wizard-reprenable-component.md) — Wizard reprenable — composant frontend + persistance draft `S · P0 · front`
 
 ### Vague 23 — Console super-admin
 

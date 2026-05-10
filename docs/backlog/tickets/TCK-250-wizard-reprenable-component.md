@@ -1,7 +1,7 @@
 ---
 id: TCK-250
 title: "Wizard reprenable — composant frontend + persistance draft"
-status: review
+status: done
 phase: P0
 family: front
 estimate: S
