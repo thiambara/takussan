@@ -847,6 +847,128 @@
         "already_member": "Cette personne est déjà propriétaire dans votre agence.",
         "forbidden": "Vous n'avez pas la permission d'inviter un propriétaire."
       }
+    },
+    "onboarding": {
+      "pageTitle": "Bienvenue dans votre espace propriétaire",
+      "pageSubtitle": "Quatre étapes guidées pour vérifier votre identité, transmettre vos pièces et découvrir vos biens.",
+      "kyc": {
+        "labels": {
+          "cni": "Pièce d'identité (CNI ou passeport)",
+          "rib": "RIB",
+          "ninea": "NINEA"
+        },
+        "hints": {
+          "cni": "JPG, PNG ou PDF — moins de 8 Mo.",
+          "rib": "Pour recevoir vos paiements (loyers, ventes).",
+          "ninea": "Numéro d'identification fiscale (utile pour les biens en société)."
+        },
+        "dropZone": "Glissez un fichier ici ou cliquez pour parcourir.",
+        "uploading": "Envoi en cours…",
+        "uploadedBadge": "Reçu",
+        "removeAria": "Retirer le fichier",
+        "errors": {
+          "title": "Envoi du fichier impossible",
+          "fileTooLarge": "Fichier trop volumineux (8 Mo max).",
+          "uploadFailed": "Une erreur est survenue. Réessayez."
+        },
+        "success": {
+          "title": "Document reçu",
+          "body": "Le fichier {name} a été enregistré."
+        }
+      },
+      "steps": {
+        "phone": {
+          "title": "Vérifiez votre téléphone",
+          "subtitle": "Indispensable pour les notifications de paiement et de location.",
+          "fields": {
+            "phone": "Numéro de téléphone",
+            "code": "Code reçu par SMS"
+          },
+          "sendCta": "Envoyer le code",
+          "sending": "Envoi…",
+          "verifyCta": "Vérifier",
+          "verifying": "Vérification…",
+          "devHint": "Code de développement : {code}",
+          "sent": {
+            "title": "Code envoyé",
+            "body": "Le code peut mettre jusqu'à 60 secondes pour arriver.",
+            "bodyDebug": "Code envoyé (debug : {code})."
+          },
+          "verified": {
+            "title": "Téléphone vérifié",
+            "body": "Vous pouvez passer à l'étape suivante.",
+            "banner": "Numéro vérifié — vous recevrez vos alertes par SMS."
+          },
+          "errors": {
+            "sendTitle": "Envoi du code impossible",
+            "verifyTitle": "Code invalide"
+          }
+        },
+        "kyc": {
+          "title": "Vos pièces justificatives",
+          "subtitle": "Téléchargez votre CNI, votre RIB et votre NINEA. Vous pouvez compléter en plusieurs fois.",
+          "draftBadge": "Brouillon",
+          "submittedBadge": "Soumis (en revue)",
+          "submitCta": "Soumettre mon dossier KYC",
+          "submitting": "Envoi…",
+          "submittedTitle": "Dossier KYC envoyé",
+          "submittedBody": "Votre agence va le vérifier. Vous pouvez continuer."
+        },
+        "tour": {
+          "title": "Découvrez votre espace",
+          "subtitle": "Trois fonctions clés pour suivre votre patrimoine.",
+          "skip": "Passer le tour",
+          "next": "Suivant",
+          "finish": "Terminer le tour",
+          "slides": {
+            "properties": {
+              "title": "Vos biens",
+              "body": "Retrouvez tous vos biens en location ou en vente, avec leur statut en temps réel."
+            },
+            "payments": {
+              "title": "Vos paiements à recevoir",
+              "body": "Loyers, dépôts, ventes : suivez les versements et les retards en un coup d'œil."
+            },
+            "messages": {
+              "title": "Vos messages",
+              "body": "Échangez avec votre agence et vos locataires sans quitter Takussan."
+            }
+          }
+        },
+        "recap": {
+          "title": "Vos biens",
+          "subtitle": "Voici les biens déjà associés à votre profil par votre agence.",
+          "emptyTitle": "Aucun bien rattaché pour le moment",
+          "emptyBody": "Votre agence ajoutera vos biens dès qu'ils seront prêts.",
+          "viewAll": "Voir tous mes biens",
+          "completeCta": "Aller au tableau de bord",
+          "finishing": "Finalisation…"
+        }
+      },
+      "errors": {
+        "kycSubmitTitle": "Soumission du KYC impossible",
+        "completeTitle": "Impossible de finaliser votre onboarding"
+      },
+      "success": {
+        "title": "Bienvenue !",
+        "body": "Votre profil propriétaire est actif."
+      }
+    }
+  },
+  "ownerWelcome": {
+    "slides": {
+      "properties": {
+        "title": "Vos biens, à portée de main",
+        "body": "Retrouvez tous vos biens et leurs locataires depuis votre tableau de bord."
+      },
+      "payments": {
+        "title": "Vos paiements à recevoir",
+        "body": "Loyers, dépôts, ventes : suivez les rentrées et les retards."
+      },
+      "messages": {
+        "title": "Restez connecté",
+        "body": "Échangez avec votre agence et vos locataires sans quitter Takussan."
+      }
     }
   },
   "team": {
