@@ -991,6 +991,24 @@
           }
         }
       }
+    },
+    "multiAgency": {
+      "welcomeAgency": "Dalal jamm ci {agency}",
+      "welcomeGeneric": "Am na agence bu bees bu lay xaar",
+      "subtitle": "Sa liggéey jëfandikoo na ak {count} agence. Sa profil, sa KYC ak sa liggéey yepp ñoo bokk.",
+      "status": {
+        "active": "Mu jëfandikoo",
+        "paused": "Mu taxaw",
+        "ended": "Mu jeex",
+        "unknown": "—"
+      },
+      "cta": {
+        "dashboard": "Dem ci tableau de bord"
+      },
+      "switch": {
+        "label": "Soppi agence",
+        "empty": "Amul agence bu bokkoon ba leegi."
+      }
     }
   },
   "onboarding": {

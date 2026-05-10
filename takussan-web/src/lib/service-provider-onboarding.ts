@@ -124,3 +124,41 @@ export async function completeSpOnboarding(
     { method: 'POST', token, body: payload },
   );
 }
+
+/**
+ * TCK-262 — agences avec lesquelles le SP authentifié collabore
+ * (cross-agences). Consommé par le menu "switch agence" du SP et par le
+ * gating "afficher le wizard ou la page Bienvenue" sur la landing
+ * post-acceptation.
+ */
+export type ServiceProviderAgencyEntry = {
+  collaboration_id: number;
+  agency_id: number;
+  agency: {
+    id: number;
+    name: string;
+    slug: string;
+    kind: string | null;
+    status: string | null;
+  };
+  status: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+};
+
+export type ServiceProviderAgenciesResponse = {
+  data: ServiceProviderAgencyEntry[];
+  meta: {
+    total: number;
+    service_provider_profile_id: number | null;
+  };
+};
+
+export async function fetchSpAgencies(
+  token: string,
+): Promise<ServiceProviderAgenciesResponse> {
+  return apiRequest<ServiceProviderAgenciesResponse>(
+    '/api/me/service-provider/agencies',
+    { token },
+  );
+}

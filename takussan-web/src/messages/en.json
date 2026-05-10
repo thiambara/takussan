@@ -1117,6 +1117,24 @@
           }
         }
       }
+    },
+    "multiAgency": {
+      "welcomeAgency": "Welcome to {agency}",
+      "welcomeGeneric": "A new agency awaits you",
+      "subtitle": "You now collaborate with {count} agency(ies). Your profile, KYC and trades are shared.",
+      "status": {
+        "active": "Active",
+        "paused": "Paused",
+        "ended": "Ended",
+        "unknown": "—"
+      },
+      "cta": {
+        "dashboard": "Go to dashboard"
+      },
+      "switch": {
+        "label": "Switch partner agency",
+        "empty": "No partner agency yet."
+      }
     }
   },
   "onboarding": {

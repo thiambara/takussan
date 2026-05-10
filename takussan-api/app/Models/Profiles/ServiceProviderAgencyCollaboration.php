@@ -25,6 +25,23 @@ class ServiceProviderAgencyCollaboration extends AbstractModel
         'metadata' => 'array',
     ];
 
+    /**
+     * spatie/laravel-query-builder hooks. TCK-262 expose ce modèle via
+     * `GET /api/me/service-provider/agencies` (listing cross-agences pour
+     * un SP donné). Sparse fieldsets / includes / filters côté front.
+     */
+    protected static array $requestFilterable = ['status', 'agency_id', 'service_provider_profile_id'];
+
+    protected static array $requestSortable = ['id', 'created_at', 'started_at', 'status'];
+
+    protected static array $requestLoadable = ['agency', 'serviceProviderProfile'];
+
+    protected static array $queryFields = [
+        'id', 'service_provider_profile_id', 'agency_id', 'status',
+        'started_at', 'ended_at', 'metadata',
+        'created_at', 'updated_at',
+    ];
+
     public function serviceProviderProfile(): BelongsTo
     {
         return $this->belongsTo(ServiceProviderProfile::class);

@@ -7,10 +7,12 @@ import { ACTIVE_PROFILE_COOKIE } from '@/lib/profiles';
 import { getToken } from '@/lib/session';
 import {
   completeSpOnboarding,
+  fetchSpAgencies,
   patchSpAvailability,
   patchSpTrades,
   type AvailabilitySlot,
   type OnboardCompleteResponse,
+  type ServiceProviderAgenciesResponse,
   type TradesPayload,
 } from '@/lib/service-provider-onboarding';
 
@@ -96,5 +98,24 @@ export async function spOnboardCompleteAction(
     return { ok: true, data: res.data };
   } catch (err) {
     return failure(err, 'Impossible de finaliser votre onboarding prestataire.');
+  }
+}
+
+/**
+ * TCK-262 — list the agencies the authenticated SP collaborates with
+ * (cross-agencies). Used by the multi-agency welcome page and the SP
+ * agency switcher menu.
+ */
+export async function getSpAgenciesAction(): Promise<
+  ActionResult<ServiceProviderAgenciesResponse>
+> {
+  const token = await getToken();
+  if (!token) return { ok: false, status: 401, message: 'Vous devez être connecté.' };
+
+  try {
+    const res = await fetchSpAgencies(token);
+    return { ok: true, data: res };
+  } catch (err) {
+    return failure(err, 'Impossible de charger vos agences partenaires.');
   }
 }

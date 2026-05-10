@@ -2,18 +2,26 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 import { getMyProfilesAction } from '@/app/actions/profiles';
+import { getSpAgenciesAction } from '@/app/actions/service-provider-onboarding';
+import { ServiceProviderMultiAgencyWelcome } from '@/components/onboarding/ServiceProviderMultiAgencyWelcome';
 import { ServiceProviderOnboardingWizard } from '@/components/onboarding/ServiceProviderOnboardingWizard';
 import { getToken } from '@/lib/session';
 
 /**
- * TCK-261 — Post-acceptance landing page for an invited Service Provider.
+ * TCK-261 / TCK-262 — Post-acceptance landing page for an invited Service
+ * Provider.
  *
- * The link in the invitation email funnels here after the user accepts
- * via `/auth/login` or the public accept route. We:
- *  1. Gate auth (redirect to login).
- *  2. Look up the user's SP profile (the acceptance flow attaches user_id).
- *  3. Mount the wizard, passing the originating maintenance request id
- *     when the invitation carried one (TCK-260 metadata).
+ * Two flows:
+ *  1. **Nouveau SP** : profile en `draft` → wizard 4 étapes (TCK-261).
+ *  2. **SP existant rattaché à une nouvelle agence** (TCK-262) : profile
+ *     déjà `active` avec ≥1 collab active → on saute le wizard et on
+ *     affiche un panneau "Bienvenue chez {agence}" avec CTA vers la
+ *     maintenance request d'origine si présente.
+ *
+ * Le flag `existing_sp_other_agency` stocké sur l'invitation par
+ * ServiceProviderInvitationService::invite signale ce cas en amont — la
+ * page le double-vérifie ici en lisant le statut du SP profile (le seul
+ * indicateur fiable côté front sans round-trip supplémentaire).
  */
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +45,25 @@ export default async function ServiceProviderOnboardingPage() {
   );
   if (!sp) {
     redirect('/app');
+  }
+
+  // TCK-262 — detect "SP existant qui ajoute une agence" : profile
+  // status active + collabs déjà existantes. Pas de wizard à refaire.
+  const isExistingSp = sp.status === 'active';
+  const agenciesRes = isExistingSp ? await getSpAgenciesAction() : null;
+  const collabs = agenciesRes?.ok ? agenciesRes.data.data : [];
+
+  if (isExistingSp && collabs.length > 0) {
+    return (
+      <main className="min-h-[80vh] bg-background px-4 py-12 sm:px-6">
+        <div className="mx-auto max-w-2xl">
+          <ServiceProviderMultiAgencyWelcome
+            collaborations={collabs}
+            spProfileId={sp.numeric_id}
+          />
+        </div>
+      </main>
+    );
   }
 
   return (

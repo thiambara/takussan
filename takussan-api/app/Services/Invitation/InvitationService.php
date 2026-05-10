@@ -3,8 +3,11 @@
 namespace App\Services\Invitation;
 
 use App\Mail\InvitationMailable;
+use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Invitation;
+use App\Models\Profiles\ServiceProviderAgencyCollaboration;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
 use App\Notifications\InvitationAcceptedNotification;
 use App\Notifications\InvitationExpiredNotification;
@@ -462,6 +465,19 @@ class InvitationService
             }
         }
 
+        // TCK-262 — Multi-agency Service Provider attach. When the SP
+        // already had a profile (re-used by ServiceProviderInvitationService
+        // for an invitation from a *different* agency), no draft
+        // collaboration was created at invite time. We create the active
+        // collaboration here, atomically with the invitation acceptance.
+        // 409 if the SP is already actively attached to this agency.
+        if ($invitation->role === 'service_provider'
+            && $invitable instanceof ServiceProviderProfile
+            && $invitation->agency_id !== null
+            && (int) $invitable->user_id === (int) $user->id) {
+            $this->ensureServiceProviderCollaboration($invitable, $invitation, $user);
+        }
+
         $invitation->forceFill([
             'status' => InvitationStatus::Accepted->value,
             'accepted_at' => now(),
@@ -484,6 +500,67 @@ class InvitationService
         }
 
         return $invitation->fresh();
+    }
+
+    /**
+     * TCK-262 — make sure the SP profile carries an active collaboration
+     * with the invitation's agency. Idempotent on the (sp_profile, agency)
+     * tuple:
+     *   - no row → create active collab + log `sp_collaboration_added`.
+     *   - existing active row → 409 (already attached, don't accept twice).
+     *   - existing paused/ended row → reactivate (used by the standard
+     *     TCK-260 flow: the draft collab is already paused, the wizard
+     *     bumps it to active via ServiceProviderOnboardingService — but
+     *     when the invitation is being accepted by an *existing* SP user
+     *     we run this short-circuit instead).
+     */
+    protected function ensureServiceProviderCollaboration(
+        ServiceProviderProfile $profile,
+        Invitation $invitation,
+        User $user,
+    ): void {
+        $existing = ServiceProviderAgencyCollaboration::query()
+            ->where('service_provider_profile_id', $profile->id)
+            ->where('agency_id', $invitation->agency_id)
+            ->first();
+
+        if ($existing !== null && $existing->status === CollaborationStatus::Active) {
+            throw new HttpException(
+                409,
+                __('service_providers.invite.errors.already_member', ['profile_id' => $profile->id]),
+            );
+        }
+
+        if ($existing !== null) {
+            $existing->forceFill([
+                'status' => CollaborationStatus::Active->value,
+                'started_at' => $existing->started_at ?? now()->toDateString(),
+                'ended_at' => null,
+            ])->save();
+            $collaboration = $existing;
+        } else {
+            $collaboration = ServiceProviderAgencyCollaboration::query()->create([
+                'service_provider_profile_id' => $profile->id,
+                'agency_id' => $invitation->agency_id,
+                'status' => CollaborationStatus::Active->value,
+                'started_at' => now()->toDateString(),
+                'metadata' => [
+                    'invited_by' => $invitation->invited_by,
+                    'invitation_id' => $invitation->id,
+                ],
+            ]);
+        }
+
+        activity('ServiceProviderCollaboration')
+            ->performedOn($collaboration)
+            ->causedBy($user)
+            ->withProperties([
+                'service_provider_profile_id' => $profile->id,
+                'agency_id' => $invitation->agency_id,
+                'invitation_id' => $invitation->id,
+            ])
+            ->event('sp_collaboration_added')
+            ->log('sp_collaboration_added');
     }
 
     /**
