@@ -130,7 +130,38 @@
       "hasAccount": "Déjà un compte ?"
     },
     "logout": "Se déconnecter",
-    "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter."
+    "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
+    "twoFactor": {
+      "intro": {
+        "title": "Renforcez la sécurité de votre compte",
+        "description": "Activez l’authentification à deux facteurs (TOTP) avec une application comme Google Authenticator, 1Password ou Authy.",
+        "cta": "Configurer maintenant",
+        "starting": "Initialisation…",
+        "skip": "Plus tard"
+      },
+      "scan": {
+        "title": "Scannez le QR code",
+        "description": "Ajoutez Takussan dans votre application d’authentification, puis saisissez le code à 6 chiffres affiché.",
+        "manualHint": "Vous ne pouvez pas scanner ? Saisissez cette clé manuellement :",
+        "codeLabel": "Code à 6 chiffres",
+        "cta": "Vérifier et activer",
+        "verifying": "Vérification…",
+        "qrAlt": "QR code à scanner avec votre application 2FA"
+      },
+      "success": {
+        "title": "2FA activée",
+        "description": "Votre compte est désormais protégé par un second facteur.",
+        "cta": "Continuer"
+      },
+      "recovery": {
+        "title": "Codes de récupération",
+        "warning": "Notez ces codes maintenant — ils ne seront plus jamais affichés. Chaque code permet une connexion d’urgence si vous perdez l’accès à votre application.",
+        "download": "Télécharger en .txt",
+        "ack": "J’ai sauvegardé mes codes de récupération",
+        "fileHeader": "Codes de récupération Takussan — conservez-les en lieu sûr.",
+        "fileFooter": "Chaque code n’est utilisable qu’une seule fois."
+      }
+    }
   },
   "property": {
     "list": {
@@ -195,6 +226,24 @@
       "placeholder": "Sélectionner une devise",
       "preview": "100 000 sera affiché : {example}",
       "warningOnChange": "Le changement de devise ne s’applique qu’aux nouveaux biens, baux et paiements. Les enregistrements existants conservent leur devise d’origine."
+    },
+    "branding": {
+      "banner": {
+        "title": "Personnalisez votre agence",
+        "description": "Ajoutez votre logo et choisissez vos couleurs pour une identité forte sur Takussan.",
+        "cta": "Configurer"
+      }
+    },
+    "onboarding": {
+      "steps": {
+        "welcome": "Bienvenue",
+        "twoFactor": "Sécurité"
+      },
+      "welcome": {
+        "title": "Bienvenue sur Takussan, {firstName}",
+        "body": "L’espace de {agencyName} est prêt. Encore une étape rapide avant de plonger dans votre dashboard.",
+        "cta": "Continuer"
+      }
     }
   },
   "compare": {
