@@ -54,11 +54,16 @@ class HostOnboardingController extends Controller
                 ],
                 'profiles' => [
                     'agency_admin' => [
-                        // The dedicated AgencyAdminProfile model isn't
-                        // shipped yet (TCK-271). The role attachment is
-                        // the truth: scoped to agency.id.
+                        // TCK-271 — concrete `AgencyAdminProfile` is now
+                        // materialized in the same transaction as the agency
+                        // and pinned as the active context cookie below.
+                        // The `role` key is preserved for back-compat with
+                        // earlier wizard payloads — the spatie role attachment
+                        // is still the source of truth for permission checks.
+                        'id' => $result['agency_admin_profile']->id,
                         'role' => 'agency_admin',
-                        'agency_id' => $result['agency']->id,
+                        'agency_id' => $result['agency_admin_profile']->agency_id,
+                        'status' => $result['agency_admin_profile']->status->value,
                     ],
                     'owner' => [
                         'id' => $result['owner_profile']->id,

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Api\Me;
 
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\BrokerProfile;
 use App\Models\Profiles\OwnerProfile;
@@ -42,7 +43,8 @@ class ProfileResource extends JsonResource
     {
         return match (true) {
             $this->resource instanceof OwnerProfile,
-            $this->resource instanceof AgentProfile => $this->resource->status?->value,
+            $this->resource instanceof AgentProfile,
+            $this->resource instanceof AgencyAdminProfile => $this->resource->status?->value,
             $this->resource instanceof BrokerProfile,
             $this->resource instanceof ServiceProviderProfile => null,
             default => null,

@@ -2,6 +2,7 @@
 
 namespace App\Services\Profiles;
 
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\BrokerProfile;
 use App\Models\Profiles\OwnerProfile;
@@ -21,6 +22,7 @@ class ActiveProfileResolver
      * are stable wire identifiers — used in headers, cookies and resources.
      */
     public const TYPE_MAP = [
+        'agency_admin' => AgencyAdminProfile::class,
         'owner' => OwnerProfile::class,
         'agent' => AgentProfile::class,
         'broker' => BrokerProfile::class,

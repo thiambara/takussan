@@ -1,7 +1,7 @@
 ---
 id: TCK-271
 title: "Matérialiser le modèle AgencyAdminProfile (résolution divergence TCK-255 / TCK-258)"
-status: todo
+status: done
 phase: P1
 family: applicatif
 estimate: S
@@ -94,3 +94,65 @@ Option B — formaliser l'absence :
 Ticket créé pendant l'implémentation de TCK-255 par décision
 d'isolation : les modifications du modèle profils sortaient du scope
 applicatif `wizard host individual`.
+
+## Notes d'implémentation (2026-05-10)
+
+Option **A** retenue. Le modèle `AgencyAdminProfile` est désormais
+matérialisé et pinné comme `active_profile` à la sortie du wizard
+host individual.
+
+Décisions prises :
+
+- **Schéma volontairement lean** — la table ne porte que `user_id`,
+  `agency_id`, `status` (enum `AgencyAdminProfileStatus :
+  active|suspended|archived`), `metadata` (JSON), timestamps + softDeletes.
+  Aucune donnée KYC ou financière ; ces colonnes restent sur `OwnerProfile`
+  (cas wizard) ou `AgentProfile` (autres rattachements).
+- **`user_id` nullable** — parité avec `OwnerProfile` / `AgentProfile`
+  post-TCK-256/258 pour éviter une migration de suivi le jour où l'on
+  ouvrira un flow "inviter un co-admin d'agence" en `draft`. La contrainte
+  `unique(user_id, agency_id)` reste valide (PostgreSQL/MySQL acceptent
+  plusieurs NULL dans un index unique multi-colonnes).
+- **Cookie `active_profile_id`** — pointe désormais sur
+  `agency_admin:<id>` (ex-cible `OwnerProfile`). Le format composite
+  `<type>:<id>` géré par `ActiveProfileResolver` reste inchangé : pas de
+  cookie `active_profile_type` séparé à introduire, le type est encodé
+  dans la valeur du cookie unique.
+- **Owner profile conservé** — l'`OwnerProfile` est toujours créé dans
+  la transaction du wizard, parce qu'il porte les champs KYC propriétaire
+  (rib, tax_id, monthly_income…) et que le rôle spatie `owner` du user
+  reste attaché. Les deux profils coexistent ; seul le profil actif a
+  changé.
+- **`HasProfiles` étendu** — ajout de la relation `agencyAdminProfiles()`,
+  inclusion dans la collection unifiée `profiles()`, et dans le `match`
+  de `hasProfile()`. Sans cela, `getAgencyIdAttribute` aurait silently
+  ignoré les users dont l'unique profil est un `AgencyAdminProfile`.
+- **`MeProfilesController` + `ProfileResource`** — alignés pour
+  loader/serializer le nouveau type (eager-load `agencyAdminProfiles.agency`,
+  exposer le `status` dans le resource match, faire `loadMissing('agency')`
+  dans `updateActive`).
+- **TCK-263 (super-admin bootstrap)** — vérifié : `SuperAdminBootstrapService`
+  ne crée toujours aucun profile (super_admin = rôle global, pas de
+  team_id). Aucune régression : `CreateSuperAdminTest` passe (9/9).
+
+Pas de spec drift constaté ; `docs/models-spec.md §3` accepte déjà la
+notion de profil par rôle, le nouveau modèle s'inscrit dans cette grille.
+
+Fichiers touchés :
+
+- `takussan-api/database/migrations/2026_05_10_170000_create_agency_admin_profiles_table.php` (new)
+- `takussan-api/app/Models/Enums/AgencyAdminProfileStatus.php` (new)
+- `takussan-api/app/Models/Profiles/AgencyAdminProfile.php` (new)
+- `takussan-api/database/factories/Profiles/AgencyAdminProfileFactory.php` (new)
+- `takussan-api/app/Services/Profiles/ActiveProfileResolver.php` (TYPE_MAP)
+- `takussan-api/app/Models/Concerns/HasProfiles.php` (relation + collection + hasProfile)
+- `takussan-api/app/Http/Resources/Api/Me/ProfileResource.php` (status match)
+- `takussan-api/app/Http/Controllers/Api/Me/MeProfilesController.php` (loads + updateActive)
+- `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php` (createAgencyAdminProfile + active_profile)
+- `takussan-api/app/Http/Controllers/HostOnboardingController.php` (response shape)
+- `takussan-api/tests/Feature/Onboarding/HostIndividualOnboardingTest.php` (assertions étendues)
+
+Tests : `php artisan test --filter='Onboarding|Profile|ResolveActiveProfile|MeProfiles|Console'`
+→ 85+ assertions vertes, dont 11/11 sur le wizard host individual et
+9/9 sur la commande `takussan:create-super-admin`. Pint passe (3
+fichiers reformatés automatiquement).
