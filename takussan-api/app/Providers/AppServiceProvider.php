@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Events\Accounting\BankStatementFinalized;
 use App\Events\Accounting\BankStatementImported;
+use App\Events\Lease\LeaseActivated;
 use App\Events\Lease\LeaseDepositRefunded;
 use App\Events\Lease\LeaseEarlyTerminationCancelled;
 use App\Events\Lease\LeaseEarlyTerminationConfirmed;
@@ -23,6 +24,7 @@ use App\Listeners\Lease\NotifyTenantOfDepositRefund;
 use App\Listeners\Lease\NotifyTenantOfLateFee;
 use App\Listeners\Lease\NotifyTenantOfRenewal;
 use App\Listeners\Lease\NotifyTenantOfRentReview;
+use App\Listeners\Lease\SendTenantWelcomeNotification;
 use App\Listeners\Media\ApplyWatermarkOnConversionListener;
 use App\Listeners\Payments\LemonSqueezyEventListener;
 use App\Listeners\Permissions\NotifyDelegationActivated;
@@ -280,6 +282,9 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-091 — notify the tenant when the rent on their lease is reviewed.
         $events->listen(LeaseRentReviewed::class, NotifyTenantOfRentReview::class);
+
+        // TCK-265 — welcome the tenant the first time their lease is activated.
+        $events->listen(LeaseActivated::class, SendTenantWelcomeNotification::class);
 
         // TCK-108 — notify on role delegation lifecycle events.
         Event::listen(RoleDelegationActivated::class, NotifyDelegationActivated::class);

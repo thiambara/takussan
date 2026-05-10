@@ -157,6 +157,15 @@ return [
         'period' => 'Period: from :start to :end.',
     ],
 
+    // TCK-265 — one-shot welcome notification fired on Lease.activated.
+    'tenant_welcome' => [
+        'subject' => 'Welcome home — lease :reference',
+        'greeting' => 'Hello,',
+        'intro' => 'Your lease :reference is now active.',
+        'body' => 'Track your upcoming payments, request maintenance and access your documents from your tenant space.',
+        'action' => 'Open my tenant space',
+    ],
+
     'lease_early_termination' => [
         'greeting' => 'Hello,',
         'penalty_line' => 'Early termination penalty: :amount :currency. Due before the effective date.',

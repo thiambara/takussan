@@ -33,6 +33,9 @@ class Lease extends AbstractModel implements HasMedia
         'late_fee_percent', 'late_fee_grace_days',
         'terms', 'special_conditions',
         'signed_at', 'terminated_at', 'termination_reason', 'terminated_by_id', 'metadata',
+        // TCK-265 — set by SendTenantWelcomeNotification once the welcome
+        // email + in-app notification have been sent for this lease.
+        'tenant_welcomed_at',
         // TCK-090 — early-termination workflow.
         'early_termination_requested_at', 'early_termination_requested_by',
         'early_termination_effective_date', 'early_termination_penalty_amount',
@@ -57,6 +60,7 @@ class Lease extends AbstractModel implements HasMedia
         'end_date' => 'date',
         'renewal_date' => 'date',
         'signed_at' => 'datetime',
+        'tenant_welcomed_at' => 'datetime',
         'terminated_at' => 'datetime',
         // TCK-090
         'early_termination_requested_at' => 'datetime',
