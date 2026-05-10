@@ -2,6 +2,7 @@
 
 namespace App\Models\Concerns;
 
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\BrokerProfile;
 use App\Models\Profiles\OwnerProfile;
@@ -25,6 +26,17 @@ trait HasProfiles
     public function agentProfiles(): HasMany
     {
         return $this->hasMany(AgentProfile::class);
+    }
+
+    /**
+     * TCK-271 — agency-admin profiles held by this user. Multi-row because
+     * a future flow could attach the same user as admin to several
+     * agencies (cooptation, multi-tenant operator). The wizard creates
+     * exactly one row today.
+     */
+    public function agencyAdminProfiles(): HasMany
+    {
+        return $this->hasMany(AgencyAdminProfile::class);
     }
 
     public function brokerProfile(): HasOne
@@ -51,6 +63,9 @@ trait HasProfiles
         $agents = $this->relationLoaded('agentProfiles')
             ? $this->agentProfiles
             : $this->agentProfiles()->get();
+        $admins = $this->relationLoaded('agencyAdminProfiles')
+            ? $this->agencyAdminProfiles
+            : $this->agencyAdminProfiles()->get();
         $broker = $this->relationLoaded('brokerProfile')
             ? $this->brokerProfile
             : $this->brokerProfile()->first();
@@ -62,7 +77,7 @@ trait HasProfiles
         // keyed by primary key would otherwise drop sibling profiles that
         // share an id across different concrete classes.
         $collection = new Collection;
-        $collection = $collection->concat($owners)->concat($agents);
+        $collection = $collection->concat($owners)->concat($agents)->concat($admins);
         if ($broker) {
             $collection->push($broker);
         }
@@ -88,6 +103,9 @@ trait HasProfiles
             AgentProfile::class => $agencyId === null
                 ? $this->agentProfiles()->exists()
                 : $this->agentProfiles()->where('agency_id', $agencyId)->exists(),
+            AgencyAdminProfile::class => $agencyId === null
+                ? $this->agencyAdminProfiles()->exists()
+                : $this->agencyAdminProfiles()->where('agency_id', $agencyId)->exists(),
             BrokerProfile::class => $this->brokerProfile()->exists(),
             ServiceProviderProfile::class => $this->serviceProviderProfile()->exists(),
             default => false,

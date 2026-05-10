@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Me;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\Me\SelectActiveProfileRequest;
 use App\Http\Resources\Api\Me\ProfileResource;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Services\Profiles\ActiveProfileResolver;
@@ -24,7 +25,13 @@ class MeProfilesController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $user->load(['ownerProfiles.agency', 'agentProfiles.agency', 'brokerProfile', 'serviceProviderProfile']);
+        $user->load([
+            'ownerProfiles.agency',
+            'agentProfiles.agency',
+            'agencyAdminProfiles.agency',
+            'brokerProfile',
+            'serviceProviderProfile',
+        ]);
         $profiles = $user->profiles();
 
         $active = $request->activeProfile();
@@ -67,7 +74,9 @@ class MeProfilesController extends Controller
             sameSite: Cookie::SAMESITE_LAX,
         );
 
-        if ($profile instanceof OwnerProfile || $profile instanceof AgentProfile) {
+        if ($profile instanceof OwnerProfile
+            || $profile instanceof AgentProfile
+            || $profile instanceof AgencyAdminProfile) {
             $profile->loadMissing('agency');
         }
 
