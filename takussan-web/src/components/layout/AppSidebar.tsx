@@ -115,6 +115,14 @@ function buildNavItems(user: User): NavItem[] {
     items.push({ href: '/admin', label: 'Administration', icon: ShieldCheck, emphasized: true });
   }
 
+  // TCK-258 — team management. Visible to agency_admin (and global admins).
+  // The /app/team page itself redirects out for individual agencies, so we
+  // don't need to know agency.kind here — the role gate is enough for the
+  // sidebar entry to disappear for non-agency-admin actors.
+  if (roles.includes('agency_admin') || roles.includes('super_admin')) {
+    items.push({ href: '/app/team', label: 'Équipe', icon: Users });
+  }
+
   // TCK-041 dashboard agent — biens: the `/app/properties` and
   // `/app/properties/new` entries above are now owned by TCK-041 (dashboard
   // agent CRUD). The dedup filter at the bottom keeps first occurrences.

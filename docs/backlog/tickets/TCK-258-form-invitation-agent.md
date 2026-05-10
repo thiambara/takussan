@@ -1,7 +1,7 @@
 ---
 id: TCK-258
 title: "Écran \"Équipe\" + form invitation Agent (avec choix de rôle)"
-status: todo
+status: done
 phase: P0
 family: applicatif
 estimate: S
@@ -93,4 +93,26 @@ Pas accessible aux agences `individual` (gate UI + backend).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Backend : `AgentInvitationService` (mirror de `OwnerInvitationService` TCK-256) + `AgentProfilePolicy` (gate `kind === standard` + permission `manage_team`).
+  Permission `manage_team` ajoutée au seeder, default-granted à `agency_admin`.
+- Endpoints :
+  - `GET /api/agencies/{agency}/team` (TeamController, paginé via spatie HasQueryBuilder)
+  - `POST /api/agencies/{agency}/agents/invite` (AgentInvitationController)
+  - `PATCH /api/profiles/{agent_profile}/suspend` (toggle ; body `{active: true}` réactive)
+  - `DELETE /api/profiles/{agent_profile}` (soft delete via SoftDeletes — la migration créait déjà `deleted_at`)
+- Migration ajoutée pour rendre `agent_profiles.user_id` nullable (besoin du flow draft → accept, comme owner_profiles).
+- AgentProfile : ajout HasQueryBuilder hooks (`$queryFields`, `$requestFilterable`, `$requestLoadable`),
+  relation polymorphique `invitations()`, accessor `display_name` (mirror OwnerProfile).
+- Activity log : `agent_invited`, `agent_suspended`, `agent_reactivated`, `agent_removed`.
+- AgencyAdminProfile : modèle inexistant (les agency_admin sont des `User` avec rôle spatie, pas un profil dédié) ;
+  le listing /team retourne donc uniquement les `AgentProfile`. Si un agency_admin doit apparaître dans /team
+  côté UI, ce sera via une iteration ultérieure (nouveau ticket).
+- Sidebar : entrée "Équipe" visible pour `agency_admin` / `super_admin` ; le gate `kind === 'standard'` est
+  appliqué côté page (`redirect('/app')` pour les agences `individual`) — l'info `agency.kind` n'étant pas
+  exposée dans le contexte sidebar côté client.
+- Frontend : page `/app/team`, `<TeamMembersList>`, `<InviteAgentModal>` (mirror de `<InviteOwnerSheet>`),
+  query layer `lib/queries/team.ts` (spatie compliant). i18n FR/EN/WO `team.*`.
+- Tests :
+  - `tests/Feature/Invitation/InviteAgentTest.php` (11 tests)
+  - `tests/Feature/Team/TeamManagementTest.php` (7 tests)
+  Total : 18 nouveaux tests, 53 assertions, tous verts.

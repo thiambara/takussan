@@ -621,5 +621,74 @@
         "forbidden": "Amul nga sañ-sañ inviter borom kër."
       }
     }
+  },
+  "team": {
+    "page": {
+      "title": "Kuréel",
+      "subtitle": "Toppatoo agents yi nekk ci sa ajance.",
+      "empty_title": "Amul ndaw ci kuréel gi",
+      "empty_description": "Inviter sa agent bu njëkk ngir tambali liggéey ndawal.",
+      "add": "Inviter agent",
+      "status": {
+        "draft": "Inviter nañu ko",
+        "active": "Mu ngi liggéey",
+        "inactive": "Du liggéey",
+        "suspended": "Bañ nañu ko"
+      },
+      "roles": {
+        "agent": "Agent",
+        "agent_senior": "Agent senior",
+        "agent_manager": "Agent manager"
+      },
+      "columns": {
+        "name": "Tur",
+        "email": "Email",
+        "role": "Rol",
+        "status": "Anam",
+        "actions": "Jëf"
+      },
+      "actions": {
+        "resend": "Yónni invitation gu bees",
+        "suspend": "Bañ ko ba ëllëg",
+        "reactivate": "Defaraat",
+        "remove": "Génne ko"
+      }
+    },
+    "invite": {
+      "title": "Inviter agent",
+      "subtitle": "Yónni invitation ci email. Agent bi mën na sos sa kontu te bind sa profil bu nopp.",
+      "fields": {
+        "email": "Email",
+        "first_name": "Tur bu njëkk",
+        "last_name": "Sant",
+        "phone": "Telefon (mënul am)",
+        "role": "Rol"
+      },
+      "roles": {
+        "agent": "Agent",
+        "agent_senior": "Agent senior",
+        "agent_manager": "Agent manager"
+      },
+      "cta": {
+        "submit": "Yónni invitation",
+        "submitting": "Mu ngi yónni…",
+        "cancel": "Bayyi"
+      },
+      "confirm": {
+        "remove": "Génne ndaw mii ci kuréel gi ? Taariix bi des na ci yoon."
+      },
+      "toasts": {
+        "success_title": "Invitation yónni nañu",
+        "error_title": "Mënul def jëf bi",
+        "resend_success": "Invitation yónni nañu ko",
+        "suspend_success": "Ndaw bañ nañu ko",
+        "reactivate_success": "Ndaw defar nañu ko",
+        "remove_success": "Ndaw génne nañu ko"
+      },
+      "errors": {
+        "already_member": "Nit kii am na ci sa kuréel.",
+        "forbidden": "Amul nga sañ-sañu toppatoo kuréel gi."
+      }
+    }
   }
 }
