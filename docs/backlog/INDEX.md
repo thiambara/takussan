@@ -181,7 +181,6 @@ _(Vague 24 finalisée — voir Review)_
 - [TCK-268](tickets/TCK-268-super-admin-upgrade-review-console.md) — Console super-admin — revue des demandes d'upgrade `M · P1 · applicatif`
 - [TCK-269](tickets/TCK-269-flip-agency-kind-and-unlock-features.md) — Flip `Agency.kind` à l'approbation + débloquage features + welcome agence `S · P1 · applicatif`
 - [TCK-270](tickets/TCK-270-tck-209-followup-2fa-currency-branding.md) — TCK-209 follow-up (2FA recommandé + choix devise + branding dès activation) `S · P1 · applicatif`
-- [TCK-271](tickets/TCK-271-materialize-agency-admin-profile.md) — Matérialiser le modèle AgencyAdminProfile (résolution divergence TCK-255 / TCK-258) `S · P1 · back`
 
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
@@ -563,6 +562,7 @@ _(vide)_
 - [TCK-256](tickets/TCK-256-form-invitation-owner.md) — Form invitation Owner depuis espace agence `S · P0 · applicatif`
 - [TCK-258](tickets/TCK-258-form-invitation-agent.md) — Écran "Équipe" + form invitation Agent (avec choix de rôle) `S · P0 · applicatif`
 - [TCK-263](tickets/TCK-263-artisan-create-super-admin.md) — Commande artisan create-super-admin (bootstrap) `S · P0 · back`
+- [TCK-271](tickets/TCK-271-materialize-agency-admin-profile.md) — Matérialiser le modèle AgencyAdminProfile (résolution divergence TCK-255 / TCK-258) `S · P1 · back`
 
 ### Vague 23 — Console super-admin
 

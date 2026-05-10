@@ -4,6 +4,7 @@ namespace App\Services\Onboarding;
 
 use App\Http\Requests\Onboarding\HostIndividualOnboardRequest;
 use App\Models\Agency;
+use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\ContractType;
@@ -12,6 +13,7 @@ use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
@@ -31,8 +33,9 @@ use Spatie\Permission\PermissionRegistrar;
  *      `status = active`, `is_verified = false`.
  *   3. Pins the user as `primary_admin_id` and attaches the spatie
  *      `agency_admin` + `owner` roles scoped to the agency team_id.
- *   4. Creates the {@see OwnerProfile} (the agency-side profile model
- *      `AgencyAdminProfile` doesn't exist yet — see TCK-271).
+ *   4. Creates the {@see AgencyAdminProfile} (TCK-271 — agency-side
+ *      profile, pinned as the active context cookie) and the
+ *      {@see OwnerProfile} (KYC-bearing profile for the owner role).
  *   5. Creates the first {@see Property} as `status = draft`,
  *      `visibility = private`.
  *   6. Stores `payment_setting.preferred_provider` on the agency's
@@ -51,7 +54,7 @@ class HostIndividualOnboardingService
 
     /**
      * @param  array<string, mixed>  $payload  Validated body from {@see HostIndividualOnboardRequest}.
-     * @return array{agency: Agency, owner_profile: OwnerProfile, property_draft: Property, active_profile: OwnerProfile}
+     * @return array{agency: Agency, agency_admin_profile: AgencyAdminProfile, owner_profile: OwnerProfile, property_draft: Property, active_profile: AgencyAdminProfile}
      *
      * @throws ValidationException When the OTP is rejected.
      */
@@ -70,6 +73,7 @@ class HostIndividualOnboardingService
         return DB::transaction(function () use ($user, $payload): array {
             $agency = $this->createAgency($user, $payload);
             $this->attachRoles($user, $agency);
+            $agencyAdminProfile = $this->createAgencyAdminProfile($user, $agency);
             $ownerProfile = $this->createOwnerProfile($user, $agency);
             $propertyDraft = $this->createPropertyDraft($user, $agency, $payload);
             $this->markPhoneVerified($user);
@@ -88,14 +92,16 @@ class HostIndividualOnboardingService
 
             return [
                 'agency' => $agency->refresh(),
+                'agency_admin_profile' => $agencyAdminProfile->refresh(),
                 'owner_profile' => $ownerProfile->refresh(),
                 'property_draft' => $propertyDraft->refresh(),
-                // The agency-side profile (`AgencyAdminProfile`) is not
-                // materialized yet — TCK-271. The owner profile is the
-                // only concrete profile we can pin as the active context.
-                // ResolveActiveProfile + auto-bascule still gives the user
-                // the right team_id via the spatie role attachment.
-                'active_profile' => $ownerProfile,
+                // TCK-271 — the agency-admin profile is now the concrete
+                // active profile. Pinning it (rather than the OwnerProfile)
+                // makes the cookie semantics match the user's primary
+                // intent in the wizard ("I'm setting up my agency"), and
+                // ResolveActiveProfile resolves it back to the correct
+                // team_id via the spatie role attachment.
+                'active_profile' => $agencyAdminProfile,
             ];
         });
     }
@@ -180,6 +186,26 @@ class HostIndividualOnboardingService
             $registrar->setPermissionsTeamId($previous);
             $user->unsetRelation('roles');
         }
+    }
+
+    /**
+     * TCK-271 — agency-admin profile is materialized in the same
+     * transaction as the agency, so the wizard can pin it as the active
+     * profile cookie. `firstOrCreate` for parity with the owner profile
+     * helper (defensive against rare replays).
+     */
+    private function createAgencyAdminProfile(User $user, Agency $agency): AgencyAdminProfile
+    {
+        $profile = AgencyAdminProfile::query()->firstOrCreate(
+            ['user_id' => $user->id, 'agency_id' => $agency->id],
+            ['status' => AgencyAdminProfileStatus::Active->value],
+        );
+
+        if ($profile->status !== AgencyAdminProfileStatus::Active) {
+            $profile->forceFill(['status' => AgencyAdminProfileStatus::Active->value])->save();
+        }
+
+        return $profile;
     }
 
     private function createOwnerProfile(User $user, Agency $agency): OwnerProfile

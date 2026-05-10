@@ -3,11 +3,13 @@
 namespace Tests\Feature\Onboarding;
 
 use App\Models\Agency;
+use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
@@ -66,7 +68,7 @@ class HostIndividualOnboardingTest extends TestCase
         ];
     }
 
-    public function test_nominal_flow_creates_agency_owner_profile_property_draft_and_attaches_roles(): void
+    public function test_nominal_flow_creates_agency_admin_and_owner_profiles_property_draft_and_attaches_roles(): void
     {
         $user = User::factory()->create([
             'phone' => '+221770000000',
@@ -87,6 +89,7 @@ class HostIndividualOnboardingTest extends TestCase
         $response->assertStatus(201)
             ->assertJsonPath('data.agency.kind', AgencyKind::Individual->value)
             ->assertJsonPath('data.profiles.agency_admin.role', 'agency_admin')
+            ->assertJsonPath('data.profiles.agency_admin.status', AgencyAdminProfileStatus::Active->value)
             ->assertJsonPath('data.property_draft.status', PropertyStatus::Draft->value)
             ->assertJsonPath('data.property_draft.visibility', PropertyVisibility::Private->value);
 
@@ -99,12 +102,21 @@ class HostIndividualOnboardingTest extends TestCase
         $this->assertSame($user->id, $agency->primary_admin_id);
         $this->assertSame('wave', data_get($agency->settings, 'payment.preferred_provider'));
 
-        // OwnerProfile active and linked.
+        // OwnerProfile active and linked (TCK-255 baseline).
         $owner = OwnerProfile::query()
             ->where('user_id', $user->id)
             ->where('agency_id', $agency->id)
             ->firstOrFail();
         $this->assertSame(OwnerProfileStatus::Active, $owner->status);
+
+        // TCK-271 — AgencyAdminProfile created in the same transaction
+        // and exposed in the response payload.
+        $admin = AgencyAdminProfile::query()
+            ->where('user_id', $user->id)
+            ->where('agency_id', $agency->id)
+            ->firstOrFail();
+        $this->assertSame(AgencyAdminProfileStatus::Active, $admin->status);
+        $this->assertSame($admin->id, (int) $response->json('data.profiles.agency_admin.id'));
 
         // Property draft persisted.
         $propertyId = $response->json('data.property_draft.id');
@@ -122,10 +134,21 @@ class HostIndividualOnboardingTest extends TestCase
         $registrar->setPermissionsTeamId(null);
 
         // Active profile cookie set on the response so the next request
-        // resolves the agency context automatically.
+        // resolves the agency context automatically. TCK-271 — the cookie
+        // must point to the AgencyAdminProfile (not the OwnerProfile).
         $cookies = $response->headers->getCookies();
         $names = array_map(fn ($c) => $c->getName(), $cookies);
         $this->assertContains('active_profile_id', $names);
+
+        $cookieValue = null;
+        foreach ($cookies as $cookie) {
+            if ($cookie->getName() === 'active_profile_id') {
+                $cookieValue = $cookie->getValue();
+                break;
+            }
+        }
+        $this->assertSame("agency_admin:{$admin->id}", $cookieValue);
+        $this->assertSame("agency_admin:{$admin->id}", $response->json('data.active_profile_id'));
 
         // Phone marked as verified by side-effect.
         $this->assertNotNull($user->fresh()->phone_verified_at);
@@ -142,6 +165,7 @@ class HostIndividualOnboardingTest extends TestCase
         $agencyCountBefore = Agency::query()->count();
         $propertyCountBefore = Property::query()->count();
         $ownerCountBefore = OwnerProfile::query()->count();
+        $adminCountBefore = AgencyAdminProfile::query()->count();
 
         $payload = $this->defaultPayload();
         $payload['phone_otp']['code'] = '999999'; // not a cached code, not the dev bypass
@@ -154,6 +178,7 @@ class HostIndividualOnboardingTest extends TestCase
         $this->assertSame($agencyCountBefore, Agency::query()->count());
         $this->assertSame($propertyCountBefore, Property::query()->count());
         $this->assertSame($ownerCountBefore, OwnerProfile::query()->count());
+        $this->assertSame($adminCountBefore, AgencyAdminProfile::query()->count());
     }
 
     public function test_invalid_first_property_draft_is_rejected_and_rolls_back(): void
