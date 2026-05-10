@@ -648,5 +648,13 @@
         "agent-kyc": "Agent KYC"
       }
     }
+  },
+  "welcome": {
+    "welcome": "Welcome",
+    "next": "Next",
+    "skip": "Skip",
+    "finish": "Finish",
+    "stepAriaLabel": "Step {current} of {total}",
+    "dialogAriaLabel": "Welcome"
   }
 }

@@ -1,7 +1,7 @@
 ---
 id: TCK-251
 title: "Welcome modale générique — composant 3 slides skippable"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: S
@@ -41,20 +41,20 @@ Modale plein écran (mobile) ou centrée (desktop) avec : illustration au-dessus
 
 ## Delta à produire
 
-- [ ] Migration : `create_welcome_views_table` (id, user_id, key, seen_at, unique sur `(user_id, key)`)
-- [ ] Modèle : `App\Models\WelcomeView`
-- [ ] Controller : `App\Http\Controllers\WelcomeViewController` (POST/GET)
-- [ ] Tests backend : `tests/Feature/WelcomeView/` (idempotence, scoping)
-- [ ] Composant frontend `<WelcomeModal>` réutilisable : props `key`, `slides[]` (illustration, titre, body), `onComplete`
-- [ ] Hook `useWelcomeOnce(key)` : déclenche la modale si non vue, marque comme vue à completion ou skip
-- [ ] i18n : strings communes ("Suivant", "Passer", "Bienvenue") dans lang/
+- [x] Migration : `create_welcome_views_table` (id, user_id, key, seen_at, unique sur `(user_id, key)`)
+- [x] Modèle : `App\Models\WelcomeView`
+- [x] Controller : `App\Http\Controllers\WelcomeViewController` (POST/GET)
+- [x] Tests backend : `tests/Feature/WelcomeView/` (idempotence, scoping)
+- [x] Composant frontend `<WelcomeModal>` réutilisable : props `key`, `slides[]` (illustration, titre, body), `onComplete`
+- [x] Hook `useWelcomeOnce(key)` : déclenche la modale si non vue, marque comme vue à completion ou skip
+- [x] i18n : strings communes ("Suivant", "Passer", "Bienvenue") dans lang/
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Au premier déclenchement, la modale s'affiche ; après skip ou completion, elle ne réapparaît plus.
-- [ ] AC2 — `Esc` ferme la modale et marque comme vue.
-- [ ] AC3 — Une key vue par un user n'apparaît pas dans la table d'un autre user (scoped).
-- [ ] AC4 — Strings localisées en FR, EN, WO.
+- [x] AC1 — Au premier déclenchement, la modale s'affiche ; après skip ou completion, elle ne réapparaît plus.
+- [x] AC2 — `Esc` ferme la modale et marque comme vue.
+- [x] AC3 — Une key vue par un user n'apparaît pas dans la table d'un autre user (scoped).
+- [x] AC4 — Strings localisées en FR, EN, WO.
 
 ## Hors périmètre
 
@@ -63,4 +63,18 @@ Modale plein écran (mobile) ou centrée (desktop) avec : illustration au-dessus
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Backend** :
+- Migration `2026_05_10_140000_create_welcome_views_table` (id, user_id FK cascade, key string(64), seen_at timestamp, unique sur `(user_id, key)`, pas de timestamps).
+- `App\Models\WelcomeView` étend `AbstractModel`, `$timestamps = false`, cast `seen_at` → datetime, BelongsTo `user`.
+- `WelcomeViewController` (POST/GET) sous `routes/api/me.php` group `auth:sanctum`.
+- `StoreWelcomeViewRequest` valide `key` requis, max 64, regex `/^[A-Za-z0-9._:-]+$/` (même charset que les keys de `wizard-drafts`).
+- Idempotence via `firstOrCreate(['user_id','key'])` → 201 si nouveau, 200 si replay.
+
+**Frontend** :
+- `<WelcomeModal>` (`src/components/welcome/WelcomeModal.tsx`) : props `open`, `slides[]`, `onComplete`, `onSkip`. Mobile fullscreen / desktop centered, 3 dots de progression, Esc + click outside + bouton close → tous traités comme skip via `Dialog.onOpenChange`.
+- `useWelcomeOnce(key, slides)` (`src/hooks/useWelcomeOnce.ts`) : skippé si user anonyme, GET `/api/me/welcome-seen` au mount, ouvre la modale si `key` absente, POST le `key` à completion ou skip (idempotent via ref local + serveur), retourne `{ open, slides, onComplete, onSkip }` à spread dans `<WelcomeModal>`.
+- Proxy Next : `src/app/api/me/welcome-seen/route.ts` (GET + POST), même pattern que le proxy `wizard-drafts`.
+- i18n : namespace `welcome` (welcome / next / skip / finish / stepAriaLabel / dialogAriaLabel) ajouté dans `messages/{fr,en,wo}.json`.
+- Tests Vitest : `useWelcomeOnce.test.tsx` (anonyme = no-op, ouverture conditionnelle, POST à completion, dédup skip+complete) — 5 cas verts.
+
+**Tests backend** : `tests/Feature/WelcomeView/WelcomeViewTest.php` (auth, empty pour user neuf, store + index round-trip, idempotence, scoping cross-user, validation 422 sur key vide / espaces / >64 / charset interdit, charset accepté incluant `._:-`) — 7 cas verts.
