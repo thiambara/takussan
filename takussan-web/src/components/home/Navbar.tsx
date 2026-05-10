@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { navLinks, categories, moreCategories } from '@/data/mockData';
 import { useAuth } from '@/context/AuthContext';
-import { isAgent, isOwner, isAdmin } from '@/lib/roles';
+import { setPublishIntent } from '@/lib/publish-intent';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import { FavoritesPopover } from '@/components/favorites/FavoritesPopover';
 
@@ -80,11 +80,14 @@ export function Navbar({ className }: NavbarProps) {
     ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
     : '';
 
-  // TCK-173 — `Publier un bien` should only surface for users who actually
-  // manage listings. Customers (the default authenticated role) must not see
-  // it; the linked page is gated server-side anyway, but the link itself
-  // would route them to a 404/403 surface.
-  const canPublishProperty = !!user && (isAgent(user.roles) || isOwner(user.roles) || isAdmin(user.roles));
+  // TCK-254 — `Publier` is universal: everyone sees the CTA. The
+  // `/publish` page resolves where to send the user (login, host wizard,
+  // /app/properties/new). Persist intent on click so OAuth round-trips can
+  // resume the flow even when `?redirect=/publish` is dropped by the
+  // provider.
+  const armPublishIntent = useCallback(() => {
+    setPublishIntent();
+  }, []);
 
   // ─── Navigation helpers ─────────────────────────────────────────────────────
 
@@ -242,14 +245,13 @@ export function Navbar({ className }: NavbarProps) {
             <div className="size-8 rounded-full bg-gray-100 animate-pulse" />
           ) : user ? (
             <>
-              {canPublishProperty && (
-                <Link
-                  href="/app/properties/new"
-                  className="inline-flex items-center px-5 py-2 rounded-full bg-foreground text-background text-sm font-semibold hover:bg-primary transition-colors whitespace-nowrap"
-                >
-                  {t('publish')}
-                </Link>
-              )}
+              <Link
+                href="/publish"
+                onClick={armPublishIntent}
+                className="inline-flex items-center px-5 py-2 rounded-full bg-foreground text-background text-sm font-semibold hover:bg-primary transition-colors whitespace-nowrap"
+              >
+                {t('publish')}
+              </Link>
               <div ref={userMenuRef} className="relative">
                 <button
                   onClick={() => setUserMenuOpen((v) => !v)}
@@ -299,7 +301,8 @@ export function Navbar({ className }: NavbarProps) {
                 {t('login')}
               </Link>
               <Link
-                href="/auth/login?redirect=/app"
+                href="/publish"
+                onClick={armPublishIntent}
                 className="inline-flex items-center px-5 py-2 rounded-full bg-foreground text-background text-sm font-semibold hover:bg-primary transition-colors whitespace-nowrap"
               >
                 {t('publish')}
@@ -432,15 +435,13 @@ export function Navbar({ className }: NavbarProps) {
                   <UserCircle className="size-4 text-slate-400" />
                   {t('myProfile')}
                 </Link>
-                {canPublishProperty && (
-                  <Link
-                    href="/app/properties/new"
-                    onClick={() => setMenuOpen(false)}
-                    className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
-                  >
-                    {t('publishListing')}
-                  </Link>
-                )}
+                <Link
+                  href="/publish"
+                  onClick={() => { armPublishIntent(); setMenuOpen(false); }}
+                  className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
+                >
+                  {t('publishListing')}
+                </Link>
                 <button
                   onClick={() => { setMenuOpen(false); void handleLogout(); }}
                   className="flex items-center gap-2.5 text-sm text-slate-700 py-1"
@@ -454,7 +455,11 @@ export function Navbar({ className }: NavbarProps) {
                 <Link href="/auth/login" onClick={() => setMenuOpen(false)} className={buttonVariants({ variant: 'ghost', className: 'text-slate-600 font-medium text-sm h-auto py-1 justify-start' })}>
                   {t('login')}
                 </Link>
-                <Link href="/auth/login?redirect=/app" onClick={() => setMenuOpen(false)} className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}>
+                <Link
+                  href="/publish"
+                  onClick={() => { armPublishIntent(); setMenuOpen(false); }}
+                  className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
+                >
                   {t('publishListing')}
                 </Link>
               </>

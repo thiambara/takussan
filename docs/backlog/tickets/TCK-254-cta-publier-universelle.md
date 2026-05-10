@@ -1,7 +1,7 @@
 ---
 id: TCK-254
 title: "CTA \"Publier\" universelle — routing selon état du user"
-status: todo
+status: done
 phase: P0
 family: front
 estimate: S
@@ -68,4 +68,9 @@ L'intent est unique (pas de page "à quoi sert le bouton" intermédiaire si le u
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Hook `usePublishIntent()` (`takussan-web/src/hooks/usePublishIntent.ts`) résout l'état du user via `useAuth()` + `useMyProfiles()` et renvoie une décision typée (`anonymous` / `host-needed` / `single-agency` / `multi-agency`) + une URL cible.
+- Page `/publish` (`takussan-web/src/app/publish/page.tsx`) consomme le hook et exécute `router.replace()` vers la cible. Affiche un état de chargement (loader + texte rassurant) en attendant la résolution.
+- Persistance d'intent : `localStorage` via helper `publish-intent.ts` (clé `publishIntent`, TTL 30 min). Sur la page `/publish`, la résolution successful nettoie l'entrée. Sert de fallback OAuth quand le querystring `?redirect=/publish` peut être perdu.
+- Bouton header (`Navbar.tsx`) : la version visiteur ET la version authentifiée pointent désormais vers `/publish` ; la persistance d'intent est posée via `onClick`.
+- Stub `/onboarding/host` créé pour absorber la décision `host-needed` jusqu'à TCK-255.
+- Tests : 5 cas unitaires sur le hook (anonymous, customer sans agence, single agency, multi agency, profil agent avec agency).
