@@ -133,6 +133,15 @@ return [
         'period' => 'Période : :start ba :end.',
     ],
 
+    // TCK-265 — one-shot welcome notification fired on Lease.activated.
+    'tenant_welcome' => [
+        'subject' => 'Dalal jàmm ci sa kër — luwé :reference',
+        'greeting' => 'Salaam,',
+        'intro' => 'Sa luwé :reference jàppal na léegi.',
+        'body' => 'Xool sa fey yi di ñëw, laaj nañu maintenance ak feeg sa documents ci sa espas waa-kër.',
+        'action' => 'Ubbi sama espas waa-kër',
+    ],
+
     'lease_early_termination' => [
         'greeting' => 'Salaam,',
         'penalty_line' => 'Pénalité tas bu jëkk : :amount :currency. War ngaa fey ko bala bisu njëlbeen bi.',

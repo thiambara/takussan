@@ -158,6 +158,15 @@ return [
         'period' => 'Période : du :start au :end.',
     ],
 
+    // TCK-265 — one-shot welcome notification fired on Lease.activated.
+    'tenant_welcome' => [
+        'subject' => 'Bienvenue chez vous — bail :reference',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Votre bail :reference est désormais actif.',
+        'body' => 'Retrouvez vos prochaines échéances, demandez une intervention et accédez à vos documents depuis votre espace résident.',
+        'action' => 'Ouvrir mon espace résident',
+    ],
+
     'lease_early_termination' => [
         'greeting' => 'Bonjour,',
         'penalty_line' => 'Pénalité de résiliation anticipée : :amount :currency. À régler avant la date effective.',

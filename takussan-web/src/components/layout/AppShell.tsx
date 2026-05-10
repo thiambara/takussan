@@ -7,6 +7,7 @@ import { AppSidebar } from './AppSidebar';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { CustomerWelcomeWizard } from '@/components/customer/CustomerWelcomeWizard';
 import { MinimalProfileTriggerProvider } from '@/components/customer/MinimalProfileTriggerProvider';
+import { TenantWelcomeWizard } from '@/components/tenant/TenantWelcomeWizard';
 import { isCustomer } from '@/lib/roles';
 
 interface AppShellProps {
@@ -39,6 +40,10 @@ export function AppShell({ user, children }: AppShellProps) {
           </main>
         </div>
         {customerOnboardingActive ? <CustomerWelcomeWizard /> : null}
+        {/* TCK-265 — per-lease welcome modale for tenants. Renders on top
+            of (or after) the generic customer wizard since each modale
+            uses its own welcome key. */}
+        {customerOnboardingActive ? <TenantWelcomeWizard /> : null}
       </div>
     </MinimalProfileTriggerProvider>
   );

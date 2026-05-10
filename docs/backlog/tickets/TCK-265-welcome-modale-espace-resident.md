@@ -1,7 +1,7 @@
 ---
 id: TCK-265
 title: "Welcome modale \"Espace résident\" sur transition Lease.signed"
-status: todo
+status: done
 phase: P1
 family: applicatif
 estimate: S
@@ -72,4 +72,26 @@ Skippable. Vu une fois.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Backend**
+
+- `App\Events\Lease\LeaseActivated` (`ShouldDispatchAfterCommit`) — dispatché depuis `LeaseService::activate()` après le `refresh()`. Pas de redéfinition de l'API ; `LeaseController::activate` continue d'appeler `$leases->activate($lease)`.
+- `App\Listeners\Lease\SendTenantWelcomeNotification` (`ShouldQueue`) — wired via `Event::listen` dans `AppServiceProvider`. Idempotence portée par la colonne `tenant_welcomed_at` (timestamp nullable, ajoutée par migration `2026_05_10_190000_add_tenant_welcomed_at_to_leases_table.php`). Choix de la colonne plutôt que d'un lookup `AppNotification` typed `tenant_welcome` : 1 PK lookup vs requête sur une table beaucoup plus large, et lecture déjà prévue par le listener.
+- Si le `Customer` n'a pas de `user_id` (locataire pas encore inscrit), le listener stamp quand même `tenant_welcomed_at` pour ne pas retenter à chaque `LeaseActivated`. Le welcome reste best-effort.
+- `App\Notifications\TenantWelcomeNotification` — channels `mail`+`database` via `PreferenceResolver` (defaults : on/on). Pas d'ajout à `PreferenceResolver::EVENTS` (welcome one-shot, pas de toggle utile dans la matrice de préférences). Localisations FR/EN/WO sous `notifications.tenant_welcome.*`.
+- Activity log : `activity()->causedBy($tenantUser)->performedOn($lease)->withProperties(['lease_id' => $lease->id])->log('tenant_welcomed')`.
+
+**Frontend**
+
+- Hook `useTenantWelcomeOnce` — fan-out `Promise.all` sur `/api/leases?filter[status]=active&fields[leases]=id&per_page=50` + `/api/me/welcome-seen`, queue de baux non vus, modale jouée séquentiellement. La clé welcome est `tenant-welcome-{lease_id}` (une par bail).
+- Composant `<TenantWelcomeWizard>` monté dans `AppShell` à côté du `<CustomerWelcomeWizard>` (TCK-253), gated `isCustomer(user.roles)` (les "customers" de la plateforme couvrent les tenants — voir `lib/roles`). Les deux wizards utilisent des clés disjointes, pas de conflit.
+- Slides FR/EN/WO sous `tenant.welcome.slides[0..2].(title|body)` dans `messages/{fr,en,wo}.json`.
+
+**Tests**
+
+- Backend : `tests/Feature/Tenant/TenantWelcomeNotificationTest.php` (5 cas — event dispatch, listener envoi, idempotence, activity log, sans user lié).
+- Frontend : `src/hooks/__tests__/useTenantWelcomeOnce.test.tsx` (5 cas — anonyme, ouverte si non vu, pas ouverte si vu, queue multi-bail séquentielle, POST une seule fois sur dismissals répétés).
+
+**Fichiers touchés**
+
+- Backend : `app/Events/Lease/LeaseActivated.php` (new), `app/Listeners/Lease/SendTenantWelcomeNotification.php` (new), `app/Notifications/TenantWelcomeNotification.php` (new), `app/Models/Lease.php` (fillable + casts), `app/Services/Model/LeaseService.php` (dispatch event), `app/Providers/AppServiceProvider.php` (wiring), `database/migrations/2026_05_10_190000_add_tenant_welcomed_at_to_leases_table.php` (new), `lang/{fr,en,wo}/notifications.php` (new `tenant_welcome` block), `tests/Feature/Tenant/TenantWelcomeNotificationTest.php` (new).
+- Frontend : `src/hooks/useTenantWelcomeOnce.ts` (new), `src/components/tenant/TenantWelcomeWizard.tsx` (new), `src/components/layout/AppShell.tsx` (mount), `src/messages/{fr,en,wo}.json` (new `tenant.welcome` namespace), `src/hooks/__tests__/useTenantWelcomeOnce.test.tsx` (new).
