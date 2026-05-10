@@ -690,5 +690,162 @@
         "forbidden": "Amul nga sañ-sañu toppatoo kuréel gi."
       }
     }
+  },
+  "onboarding": {
+    "host": {
+      "defaults": {
+        "spaceNameOf": "Espas {name}"
+      },
+      "errors": {
+        "cguTitle": "Kondisioŋ yi",
+        "cguBody": "Dangaa wara nangu kondisioŋ yi ngir publikoŋ sa biir.",
+        "otpTitle": "Telefoŋ bi véerifikoŋ",
+        "otpBody": "Véerifikaal sa nimero ak kódu SMS bi laata mu publi.",
+        "submitTitle": "Du man a publikoŋ"
+      },
+      "success": {
+        "title": "Espas yi tax",
+        "body": "Sa biir bu njëkk dafa nekk brouillon. Yokk fototu yi te publi bu nga jëfandikoo."
+      },
+      "steps": {
+        "intent": {
+          "title": "Yaa ngi publi ni…",
+          "subtitle": "Tànneel mood mi mengoo ak sa liggéey.",
+          "legend": "Xeetu profil",
+          "options": {
+            "individual": {
+              "title": "Particulier (sama espas)",
+              "body": "Bu bees ngir publikoŋ sa bopp biir yi. Yaa moom kontrol bi."
+            },
+            "professional": {
+              "title": "Professionnel (sos ajaans bi)",
+              "body": "Soo amaan ay biir, ay ekip walla ay borom : danuy sos ajaans."
+            }
+          },
+          "professionalNotice": {
+            "title": "Sos ajaans professionnelle",
+            "body": "Ngir sos ajaans ak ay collaborateurs, takkalal ak sunu ekip — danuy défar la espas bi diirub 24h.",
+            "mailSubject": "Demande sos ajaans professionnelle",
+            "contactCta": "Takkal ak support",
+            "continueIndividual": "Walla continuer ni particulier te upgrader sutura"
+          }
+        },
+        "identity": {
+          "title": "Sa espas",
+          "subtitle": "Ay info ngir personalisé sa tableau.",
+          "fields": {
+            "spaceName": "Turu espas bi",
+            "primaryCity": "Dëkk bu njëkk",
+            "currency": "Xaalis",
+            "primaryPropertyType": "Xeetu biir bu njëkk",
+            "phone": "Nimerou telefoŋ",
+            "otpCode": "Kódu SMS bi"
+          },
+          "propertyTypes": {
+            "apartment": "Appartement",
+            "house": "Néeg",
+            "villa": "Villa",
+            "studio": "Studio",
+            "room": "Néeg bu rëy",
+            "land": "Suuf",
+            "office": "Bureau",
+            "shop": "Boutik",
+            "warehouse": "Magasin",
+            "other": "Yu sax"
+          },
+          "otp": {
+            "heading": "Véerifikaasioŋ telefoŋ",
+            "body": "Ngir sécurité, danuy yónni la kódu SMS 6 chifr.",
+            "statusPending": "Mu ngi yagg",
+            "statusVerified": "Véerifié",
+            "sendCta": "Yónnee kódu",
+            "sending": "Yónni…",
+            "verifyCta": "Véerifier",
+            "verifying": "Véerifikoŋ…",
+            "sentTitle": "Kódu yónni",
+            "sentBody": "Kódu bi mën na jaar ba 60 segond.",
+            "sentDebug": "Kódu yónni (debug : {code}).",
+            "verifiedTitle": "Telefoŋ véerifié",
+            "verifiedBody": "Mën nga publi sa biir.",
+            "devHint": "Kódu développement : {code}",
+            "errors": {
+              "sendFailed": "Kódu bi mënul yónni",
+              "verifyFailed": "Kódu baaxul"
+            }
+          }
+        },
+        "firstProperty": {
+          "title": "Sa biir bu njëkk",
+          "subtitle": "Esquise rekk — mën nga compléter fiche bi sutura.",
+          "fields": {
+            "title": "Tur",
+            "type": "Xeetu biir",
+            "city": "Dëkk",
+            "contractType": "Tijaari",
+            "price": "Njëg"
+          },
+          "types": {
+            "apartment": "Appartement",
+            "house": "Néeg",
+            "villa": "Villa",
+            "studio": "Studio",
+            "room": "Néeg bu rëy",
+            "land": "Suuf",
+            "office": "Bureau",
+            "shop": "Boutik",
+            "warehouse": "Magasin",
+            "other": "Yu sax"
+          },
+          "contracts": {
+            "rent": "Loyer",
+            "sale": "Jaay"
+          }
+        },
+        "payment": {
+          "title": "Mood paiement",
+          "subtitle": "Tànneel sa fournisseur préféré — configuration bi mu mat la nekk ci njëkk réservation.",
+          "legend": "Fournisseur paiement",
+          "providers": {
+            "wave": {
+              "title": "Wave",
+              "body": "Mobile money — recommandé Senegal."
+            },
+            "orange_money": {
+              "title": "Orange Money",
+              "body": "Mobile money — Afrique de l'Ouest."
+            },
+            "lemon_squeezy": {
+              "title": "Carte (Lemon Squeezy)",
+              "body": "Paiements internationaux."
+            }
+          },
+          "disclaimer": "Mën nga configurer ay fournisseur te soppi défaut bi ci sa tableau."
+        },
+        "recap": {
+          "title": "Résumé",
+          "subtitle": "Verifié laata nga publi — mën nga soppi lépp sutura.",
+          "rows": {
+            "spaceName": "Turu espas",
+            "primaryCity": "Dëkk bu njëkk",
+            "currency": "Xaalis",
+            "phone": "Telefoŋ",
+            "phoneVerified": "Telefoŋ véerifié",
+            "firstPropertyTitle": "Tur biir",
+            "firstPropertyType": "Xeetu biir",
+            "firstPropertyContract": "Tijaari",
+            "firstPropertyPrice": "Njëg",
+            "paymentProvider": "Fournisseur paiement",
+            "yes": "Waaw",
+            "no": "Déedéet"
+          },
+          "warnings": {
+            "otpRequired": "Véerifikaal sa nimero ci étape 2 laata nga publi."
+          },
+          "cgu": {
+            "label": "Mu ma nangu <link>kondisioŋ yi</link>."
+          }
+        }
+      }
+    }
   }
 }

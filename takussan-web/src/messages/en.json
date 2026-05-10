@@ -816,5 +816,162 @@
         "forbidden": "You do not have permission to manage the team."
       }
     }
+  },
+  "onboarding": {
+    "host": {
+      "defaults": {
+        "spaceNameOf": "{name}'s space"
+      },
+      "errors": {
+        "cguTitle": "Terms not accepted",
+        "cguBody": "You must accept the terms of service to publish your property.",
+        "otpTitle": "Phone not verified",
+        "otpBody": "Verify your phone with the SMS code before publishing.",
+        "submitTitle": "Publication failed"
+      },
+      "success": {
+        "title": "Space created",
+        "body": "Your first property is in draft. Add photos and publish whenever you're ready."
+      },
+      "steps": {
+        "intent": {
+          "title": "You're publishing as…",
+          "subtitle": "Pick the mode that matches your activity.",
+          "legend": "Profile type",
+          "options": {
+            "individual": {
+              "title": "Individual (my space)",
+              "body": "Best for publishing your own properties. Full control, no collaborators."
+            },
+            "professional": {
+              "title": "Professional (create a real agency)",
+              "body": "You manage several properties, teams or third-party owners: we set up a dedicated agency."
+            }
+          },
+          "professionalNotice": {
+            "title": "Professional agency creation",
+            "body": "To create an agency with multiple collaborators, contact our team — we set up your space within 24h.",
+            "mailSubject": "Professional agency creation request",
+            "contactCta": "Contact support",
+            "continueIndividual": "Or continue as individual and upgrade later"
+          }
+        },
+        "identity": {
+          "title": "Your space",
+          "subtitle": "A few details to personalize your dashboard.",
+          "fields": {
+            "spaceName": "Space name",
+            "primaryCity": "Primary city",
+            "currency": "Currency",
+            "primaryPropertyType": "Primary property type",
+            "phone": "Phone number",
+            "otpCode": "SMS code"
+          },
+          "propertyTypes": {
+            "apartment": "Apartment",
+            "house": "House",
+            "villa": "Villa",
+            "studio": "Studio",
+            "room": "Room",
+            "land": "Land",
+            "office": "Office",
+            "shop": "Shop",
+            "warehouse": "Warehouse",
+            "other": "Other"
+          },
+          "otp": {
+            "heading": "Phone verification",
+            "body": "For security, we send you a 6-digit SMS code.",
+            "statusPending": "Pending",
+            "statusVerified": "Verified",
+            "sendCta": "Send code",
+            "sending": "Sending…",
+            "verifyCta": "Verify",
+            "verifying": "Verifying…",
+            "sentTitle": "Code sent",
+            "sentBody": "The code can take up to 60 seconds to arrive.",
+            "sentDebug": "Code sent (debug: {code}).",
+            "verifiedTitle": "Phone verified",
+            "verifiedBody": "You can now publish your property.",
+            "devHint": "Development code: {code}",
+            "errors": {
+              "sendFailed": "Could not send the code",
+              "verifyFailed": "Invalid code"
+            }
+          }
+        },
+        "firstProperty": {
+          "title": "Your first property",
+          "subtitle": "Just a sketch — you can complete the listing after publishing.",
+          "fields": {
+            "title": "Listing title",
+            "type": "Property type",
+            "city": "City",
+            "contractType": "Transaction",
+            "price": "Indicative price"
+          },
+          "types": {
+            "apartment": "Apartment",
+            "house": "House",
+            "villa": "Villa",
+            "studio": "Studio",
+            "room": "Room",
+            "land": "Land",
+            "office": "Office",
+            "shop": "Shop",
+            "warehouse": "Warehouse",
+            "other": "Other"
+          },
+          "contracts": {
+            "rent": "Rent",
+            "sale": "Sale"
+          }
+        },
+        "payment": {
+          "title": "Payment method",
+          "subtitle": "Pick your preferred provider — full configuration will be requested at the first booking.",
+          "legend": "Payment provider",
+          "providers": {
+            "wave": {
+              "title": "Wave",
+              "body": "Mobile money — recommended in Senegal."
+            },
+            "orange_money": {
+              "title": "Orange Money",
+              "body": "Mobile money — West Africa."
+            },
+            "lemon_squeezy": {
+              "title": "Card (Lemon Squeezy)",
+              "body": "International card payments."
+            }
+          },
+          "disclaimer": "You'll be able to configure several providers and change the default from your dashboard."
+        },
+        "recap": {
+          "title": "Summary",
+          "subtitle": "Check before publishing — you can edit everything later.",
+          "rows": {
+            "spaceName": "Space name",
+            "primaryCity": "Primary city",
+            "currency": "Currency",
+            "phone": "Phone",
+            "phoneVerified": "Phone verified",
+            "firstPropertyTitle": "Property title",
+            "firstPropertyType": "Property type",
+            "firstPropertyContract": "Transaction",
+            "firstPropertyPrice": "Price",
+            "paymentProvider": "Payment provider",
+            "yes": "Yes",
+            "no": "No"
+          },
+          "warnings": {
+            "otpRequired": "Verify your phone at step 2 before publishing."
+          },
+          "cgu": {
+            "label": "I accept the <link>terms of service</link>."
+          }
+        }
+      }
+    }
   }
 }

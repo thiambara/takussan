@@ -169,7 +169,7 @@ _(Vague 24 finalisée — voir Review)_
 
 **Parcours utilisateur**
 
-- [TCK-255](tickets/TCK-255-wizard-host-individual.md) — Wizard host individual (5 steps + création Agency+profils+1er bien draft) `M · P0 · applicatif`
+- ~~[TCK-255](tickets/TCK-255-wizard-host-individual.md) — Wizard host individual (5 steps + création Agency+profils+1er bien draft)~~ ✅ done
 - ~~[TCK-256](tickets/TCK-256-form-invitation-owner.md) — Form invitation Owner depuis espace agence~~ ✅ done
 - [TCK-257](tickets/TCK-257-wizard-onboarding-owner.md) — Wizard onboarding Owner post-acceptation (KYC + tour) `M · P1 · applicatif`
 - ~~[TCK-258](tickets/TCK-258-form-invitation-agent.md) — Écran "Équipe" + form invitation Agent (avec choix de rôle)~~ ✅ done
@@ -184,6 +184,7 @@ _(Vague 24 finalisée — voir Review)_
 - [TCK-268](tickets/TCK-268-super-admin-upgrade-review-console.md) — Console super-admin — revue des demandes d'upgrade `M · P1 · applicatif`
 - [TCK-269](tickets/TCK-269-flip-agency-kind-and-unlock-features.md) — Flip `Agency.kind` à l'approbation + débloquage features + welcome agence `S · P1 · applicatif`
 - [TCK-270](tickets/TCK-270-tck-209-followup-2fa-currency-branding.md) — TCK-209 follow-up (2FA recommandé + choix devise + branding dès activation) `S · P1 · applicatif`
+- [TCK-271](tickets/TCK-271-materialize-agency-admin-profile.md) — Matérialiser le modèle AgencyAdminProfile (résolution divergence TCK-255 / TCK-258) `S · P1 · back`
 
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
@@ -561,6 +562,7 @@ _(vide)_
 - [TCK-251](tickets/TCK-251-welcome-modale-generique.md) — Welcome modale générique (3 slides skippable) `S · P1 · front`
 - [TCK-253](tickets/TCK-253-onboarding-wizard-customer.md) — Onboarding wizard Customer (welcome + profil minimal différé) `S · P0 · front`
 - [TCK-254](tickets/TCK-254-cta-publier-universelle.md) — CTA "Publier" universelle (routing selon état du user) `S · P0 · front`
+- [TCK-255](tickets/TCK-255-wizard-host-individual.md) — Wizard host individual (5 steps + création Agency+profils+1er bien draft) `M · P0 · applicatif`
 - [TCK-256](tickets/TCK-256-form-invitation-owner.md) — Form invitation Owner depuis espace agence `S · P0 · applicatif`
 - [TCK-258](tickets/TCK-258-form-invitation-agent.md) — Écran "Équipe" + form invitation Agent (avec choix de rôle) `S · P0 · applicatif`
 - [TCK-263](tickets/TCK-263-artisan-create-super-admin.md) — Commande artisan create-super-admin (bootstrap) `S · P0 · back`

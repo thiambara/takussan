@@ -9,7 +9,7 @@ import type { WizardDraft } from '@/types/wizard-draft';
 describe('resolveWizardResume', () => {
   it('matches exact rules', () => {
     expect(resolveWizardResume('host-individual-wizard')).toEqual({
-      href: '/app/properties/new',
+      href: '/onboarding/host',
       i18nKey: 'host-individual-wizard',
     });
     expect(resolveWizardResume('customer-onboarding')).toEqual({
@@ -43,7 +43,7 @@ describe('projectDraftForBanner', () => {
       key: 'host-individual-wizard',
       step: 2,
       updatedAt: '2026-05-10T03:00:00Z',
-      resumeHref: '/app/properties/new',
+      resumeHref: '/onboarding/host',
       i18nKey: 'host-individual-wizard',
     });
   });

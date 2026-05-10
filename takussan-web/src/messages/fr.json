@@ -816,5 +816,162 @@
         "forbidden": "Vous n'avez pas la permission de gérer l'équipe."
       }
     }
+  },
+  "onboarding": {
+    "host": {
+      "defaults": {
+        "spaceNameOf": "Espace de {name}"
+      },
+      "errors": {
+        "cguTitle": "Conditions à accepter",
+        "cguBody": "Vous devez accepter les conditions d'utilisation pour publier votre bien.",
+        "otpTitle": "Téléphone non vérifié",
+        "otpBody": "Vérifiez votre numéro avec le code reçu par SMS avant de publier.",
+        "submitTitle": "Publication impossible"
+      },
+      "success": {
+        "title": "Espace créé",
+        "body": "Votre premier bien est en brouillon. Ajoutez les photos et publiez quand vous êtes prêt."
+      },
+      "steps": {
+        "intent": {
+          "title": "Vous publiez en tant que…",
+          "subtitle": "Choisissez le mode qui correspond à votre activité.",
+          "legend": "Type de profil",
+          "options": {
+            "individual": {
+              "title": "Particulier (mon espace)",
+              "body": "Idéal pour publier vos propres biens. Vous gardez le contrôle total, sans collaborateur."
+            },
+            "professional": {
+              "title": "Professionnel (créer une vraie agence)",
+              "body": "Vous gérez plusieurs biens, des équipes ou des propriétaires tiers : nous créons une agence dédiée."
+            }
+          },
+          "professionalNotice": {
+            "title": "Création d'agence professionnelle",
+            "body": "Pour créer une agence avec plusieurs collaborateurs, contactez notre équipe — nous configurons votre espace en moins de 24h.",
+            "mailSubject": "Demande de création d'agence professionnelle",
+            "contactCta": "Contacter le support",
+            "continueIndividual": "Ou continuer en individuel et basculer plus tard"
+          }
+        },
+        "identity": {
+          "title": "Votre espace",
+          "subtitle": "Quelques informations pour personnaliser votre tableau de bord.",
+          "fields": {
+            "spaceName": "Nom de votre espace",
+            "primaryCity": "Ville principale",
+            "currency": "Devise",
+            "primaryPropertyType": "Type de bien principal",
+            "phone": "Numéro de téléphone",
+            "otpCode": "Code reçu par SMS"
+          },
+          "propertyTypes": {
+            "apartment": "Appartement",
+            "house": "Maison",
+            "villa": "Villa",
+            "studio": "Studio",
+            "room": "Chambre",
+            "land": "Terrain",
+            "office": "Bureau",
+            "shop": "Local commercial",
+            "warehouse": "Entrepôt",
+            "other": "Autre"
+          },
+          "otp": {
+            "heading": "Vérification du téléphone",
+            "body": "Pour la sécurité, nous vous envoyons un code SMS à 6 chiffres.",
+            "statusPending": "À vérifier",
+            "statusVerified": "Vérifié",
+            "sendCta": "Envoyer le code",
+            "sending": "Envoi…",
+            "verifyCta": "Vérifier",
+            "verifying": "Vérification…",
+            "sentTitle": "Code envoyé",
+            "sentBody": "Le code peut mettre jusqu'à 60 secondes pour arriver.",
+            "sentDebug": "Code envoyé (debug : {code}).",
+            "verifiedTitle": "Téléphone vérifié",
+            "verifiedBody": "Vous pouvez maintenant publier votre bien.",
+            "devHint": "Code de développement : {code}",
+            "errors": {
+              "sendFailed": "Envoi du code impossible",
+              "verifyFailed": "Code invalide"
+            }
+          }
+        },
+        "firstProperty": {
+          "title": "Votre premier bien",
+          "subtitle": "Une esquisse — vous pourrez compléter la fiche après publication.",
+          "fields": {
+            "title": "Titre de l'annonce",
+            "type": "Type de bien",
+            "city": "Ville",
+            "contractType": "Transaction",
+            "price": "Prix indicatif"
+          },
+          "types": {
+            "apartment": "Appartement",
+            "house": "Maison",
+            "villa": "Villa",
+            "studio": "Studio",
+            "room": "Chambre",
+            "land": "Terrain",
+            "office": "Bureau",
+            "shop": "Local commercial",
+            "warehouse": "Entrepôt",
+            "other": "Autre"
+          },
+          "contracts": {
+            "rent": "Location",
+            "sale": "Vente"
+          }
+        },
+        "payment": {
+          "title": "Mode de paiement",
+          "subtitle": "Choisissez votre fournisseur préféré — la configuration complète sera demandée à la première réservation.",
+          "legend": "Fournisseur de paiement",
+          "providers": {
+            "wave": {
+              "title": "Wave",
+              "body": "Mobile money — recommandé au Sénégal."
+            },
+            "orange_money": {
+              "title": "Orange Money",
+              "body": "Mobile money — Afrique de l'Ouest."
+            },
+            "lemon_squeezy": {
+              "title": "Carte bancaire (Lemon Squeezy)",
+              "body": "Paiements internationaux par carte."
+            }
+          },
+          "disclaimer": "Vous pourrez configurer plusieurs fournisseurs et changer de défaut depuis votre tableau de bord."
+        },
+        "recap": {
+          "title": "Récapitulatif",
+          "subtitle": "Vérifiez avant de publier — vous pourrez tout modifier ensuite.",
+          "rows": {
+            "spaceName": "Nom de l'espace",
+            "primaryCity": "Ville principale",
+            "currency": "Devise",
+            "phone": "Téléphone",
+            "phoneVerified": "Téléphone vérifié",
+            "firstPropertyTitle": "Titre du bien",
+            "firstPropertyType": "Type de bien",
+            "firstPropertyContract": "Transaction",
+            "firstPropertyPrice": "Prix",
+            "paymentProvider": "Fournisseur de paiement",
+            "yes": "Oui",
+            "no": "Non"
+          },
+          "warnings": {
+            "otpRequired": "Vérifiez votre numéro de téléphone à l'étape 2 avant de publier."
+          },
+          "cgu": {
+            "label": "J'accepte les <link>conditions générales d'utilisation</link>."
+          }
+        }
+      }
+    }
   }
 }
