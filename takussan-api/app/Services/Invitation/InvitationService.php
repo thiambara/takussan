@@ -436,16 +436,30 @@ class InvitationService
         }
 
         // Flip the polymorphic profile to `active` if it exists and
-        // exposes a `status` attribute. Defensive: ServiceProviderProfile
-        // currently has no status column, so we silently skip the flip
-        // there — TCK-260 will introduce the lifecycle when it lands.
+        // exposes a `status` attribute.
+        //
+        // TCK-261 — for a draft ServiceProviderProfile (created sans User
+        // by ServiceProviderInvitationService), we additionally attach
+        // the freshly-known User so the post-acceptance wizard can write
+        // to /api/me/profiles/{sp_profile}/* with a clean ownership check.
         $invitable = $invitation->invitable;
-        if ($invitable !== null && array_key_exists('status', $invitable->getAttributes())) {
-            // Use a string literal rather than ProfileStatus::Active->value
-            // so this stays decoupled from any specific profile enum —
-            // every profile-status enum we ship uses the same `active`
-            // string for the active state.
-            $invitable->forceFill(['status' => 'active'])->save();
+        if ($invitable !== null) {
+            $patch = [];
+            if (array_key_exists('status', $invitable->getAttributes())) {
+                // Use a string literal rather than ProfileStatus::Active->value
+                // so this stays decoupled from any specific profile enum —
+                // every profile-status enum we ship uses the same `active`
+                // string for the active state.
+                $patch['status'] = 'active';
+            }
+            if ($invitation->role === 'service_provider'
+                && array_key_exists('user_id', $invitable->getAttributes())
+                && $invitable->user_id === null) {
+                $patch['user_id'] = $user->id;
+            }
+            if ($patch !== []) {
+                $invitable->forceFill($patch)->save();
+            }
         }
 
         $invitation->forceFill([

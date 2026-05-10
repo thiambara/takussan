@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Me\DataExportController;
 use App\Http\Controllers\Api\Me\MeController;
 use App\Http\Controllers\Api\Me\MeProfilesController;
 use App\Http\Controllers\Api\Me\PlatformPayoutController as MePlatformPayoutController;
+use App\Http\Controllers\Api\Me\ServiceProviderProfileController as MeServiceProviderProfileController;
 use App\Http\Controllers\Api\Me\SubscriptionController;
 use App\Http\Controllers\Api\Me\TenantOnboardingChecklistController;
 use App\Http\Controllers\WelcomeViewController;
@@ -60,4 +61,19 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::post('leases/{lease}/onboarding-checklist/{item}/complete', [TenantOnboardingChecklistController::class, 'complete'])
         ->where('item', '[a-z_]+')
         ->name('me.leases.onboarding-checklist.complete');
+
+    // TCK-261 — wizard-side write endpoints on the freshly-claimed
+    // ServiceProviderProfile. Mounted under /api/me/profiles/{sp_profile}
+    // so the route signature mirrors the wizard's mental model and
+    // ownership checks stay simple (auth user must own the row).
+    Route::post('profiles/{sp_profile}/kyc/upload', [MeServiceProviderProfileController::class, 'uploadKyc'])
+        ->whereNumber('sp_profile')
+        ->middleware('throttle:10,1')
+        ->name('me.profiles.sp.kyc.upload');
+    Route::patch('profiles/{sp_profile}/trades', [MeServiceProviderProfileController::class, 'updateTrades'])
+        ->whereNumber('sp_profile')
+        ->name('me.profiles.sp.trades');
+    Route::patch('profiles/{sp_profile}/availability', [MeServiceProviderProfileController::class, 'updateAvailability'])
+        ->whereNumber('sp_profile')
+        ->name('me.profiles.sp.availability');
 });

@@ -1,11 +1,12 @@
 <?php
 
 use App\Http\Controllers\HostOnboardingController;
+use App\Http\Controllers\ServiceProviderOnboardingController;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Onboarding Routes (TCK-255 — host individual wizard)
+| Onboarding Routes (TCK-255 — host individual wizard, TCK-261 — SP wizard)
 |--------------------------------------------------------------------------
 */
 
@@ -18,5 +19,14 @@ Route::middleware('auth:sanctum')->group(function () {
     // by step and POSTs to this endpoint on completion.
     Route::post('host/individual/onboard', [HostOnboardingController::class, 'individual'])
         ->name('host.individual.onboard')
+        ->middleware('throttle:5,1');
+
+    // TCK-261 — finalize the post-acceptance Service Provider wizard.
+    // Trades, zones, KYC and availability are persisted upstream by the
+    // dedicated /api/me/profiles/{sp_profile}/* endpoints; this one
+    // gates the OTP, flips status + collaborations and pins the active
+    // profile cookie.
+    Route::post('service-provider/onboard/complete', [ServiceProviderOnboardingController::class, 'complete'])
+        ->name('service-provider.onboard.complete')
         ->middleware('throttle:5,1');
 });

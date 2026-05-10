@@ -120,6 +120,14 @@ const WIZARD_RESUME_RULES: WizardResumeRule[] = [
     build: (suffix) => `/app/profile/agent/onboarding?invitation=${encodeURIComponent(suffix)}`,
     i18nKey: 'agent-onboarding',
   },
+  {
+    // TCK-261 — `sp-onboarding-{sp_profile_id}`. Resuming brings the SP
+    // back to the dedicated wizard page.
+    kind: 'prefix',
+    prefix: 'sp-onboarding-',
+    build: (suffix) => `/onboarding/service-provider?sp=${encodeURIComponent(suffix)}`,
+    i18nKey: 'sp-onboarding',
+  },
 ];
 
 export function resolveWizardResume(key: string): { href: string | null; i18nKey: string | null } {
