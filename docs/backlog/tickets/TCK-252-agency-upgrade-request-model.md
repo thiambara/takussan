@@ -1,7 +1,7 @@
 ---
 id: TCK-252
 title: "AgencyUpgradeRequest — modèle + migration + enums"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
@@ -63,4 +63,22 @@ Relations à exposer sur `Agency` :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Décisions clés :**
+
+- **Contrainte « une seule pending par agence » multi-driver** : sur Postgres, l'invariant est garanti au niveau DB par un index unique partiel `CREATE UNIQUE INDEX … ON agency_upgrade_requests (agency_id) WHERE status = 'pending'`, créé par un `DB::statement` conditionnel à `pgsql` dans la migration. Sur SQLite (utilisé en tests locaux et CI), il n'existe pas d'équivalent natif fiable — on retombe sur un check applicatif déclenché en `creating()` dans le modèle, qui re-lève une `QueryException` mimant la collision Postgres pour garder un comportement de test homogène entre les deux drivers (le test `test_only_one_pending_request_per_agency_is_allowed` passe partout sans `markTestSkipped`).
+- **`documents()` morphMany Document** : le modèle `Document` existe déjà avec le morph `documentable_*` (cf. `app/Models/Document.php`). La relation est exposée directement, sans création de modèle dédié.
+- **Factory par défaut sur agence `individual`** : seul l'`individual` peut légitimement soumettre un upgrade ; le state par défaut crée donc une `Agency::factory()->state(['kind' => Individual])` pour éviter les fixtures incohérentes dans les tests amont (TCK-267 / TCK-268).
+- **`pendingUpgradeRequest()`** scopée explicitement sur `status = 'pending'` (string, pas l'enum) pour rester compatible avec les drivers qui sérialisent l'enum naïvement dans les WHERE.
+
+**Fichiers touchés :**
+
+- `takussan-api/app/Models/Enums/AgencyUpgradeRequestStatus.php` (nouveau)
+- `takussan-api/app/Models/AgencyUpgradeRequest.php` (nouveau)
+- `takussan-api/app/Models/Agency.php` (ajout `upgradeRequests()` + `pendingUpgradeRequest()`)
+- `takussan-api/database/migrations/2026_05_10_180000_create_agency_upgrade_requests_table.php` (nouveau)
+- `takussan-api/database/factories/AgencyUpgradeRequestFactory.php` (nouveau)
+- `takussan-api/tests/Feature/Agency/AgencyUpgradeRequestTest.php` (nouveau, 9 tests)
+
+**Drivers SQL gérés :** Postgres (index unique partiel natif) + SQLite (check applicatif dans `booted()`).
+
+**Hors scope confirmé :** aucun FormRequest, controller, endpoint, policy ou service. La logique de transition (approbation, rejet, révocation, flip `Agency.kind`) est portée par TCK-267 / TCK-268 / TCK-269.
