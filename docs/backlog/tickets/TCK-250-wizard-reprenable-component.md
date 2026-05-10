@@ -1,7 +1,7 @@
 ---
 id: TCK-250
 title: "Wizard reprenable — composant frontend + persistance draft"
-status: todo
+status: done
 phase: P0
 family: front
 estimate: S
@@ -69,4 +69,7 @@ Composant générique présentant : barre de progression en haut, bouton "Préc�
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Backend : `wizard_drafts` (id, user_id, key, step, data json, timestamps) avec contrainte unique `(user_id, key)`. Routes sous `/api/me/wizard-drafts/{key}` (GET/PUT/DELETE) + `GET /api/me/wizard-drafts` pour le bandeau dashboard. `WizardDraftPolicy` enforce le scoping user_id. Cron `wizard-drafts:purge` à 03:30 (rétention 90j, override `--days`, support `--dry-run`).
+- Frontend : `<WizardReprenable>` (générique, form-library agnostic), hook `useWizardDraft(key)` (autosave debounced 800ms, `flush()`, `clear()`), bandeau `<WizardDraftsBanner>` câblé sur `/app`. Les routes `key → href` de reprise sont centralisées dans `lib/wizard-drafts.ts` (`resolveWizardResume`) — chaque ticket consommateur (TCK-253/255/257/259/261/267) viendra y déclarer la sienne au besoin.
+- Cross-user mutations : un PUT par un autre user crée silencieusement une nouvelle ligne pour ce dernier (la contrainte unique sur `(user_id, key)` protège l'original). Vérifié par `WizardDraftCrossUserAccessTest`.
+- 16 tests backend (52 assertions) + 14 tests frontend (3 fichiers) verts. Build Next.js OK.

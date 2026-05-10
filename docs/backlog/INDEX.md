@@ -165,7 +165,6 @@ _(Vague 24 finalisée — voir Review)_
 
 **Briques transverses (P0 d'abord)**
 
-- [TCK-250](tickets/TCK-250-wizard-reprenable-component.md) — Wizard reprenable — composant frontend + persistance draft `S · P0 · front`
 - [TCK-251](tickets/TCK-251-welcome-modale-generique.md) — Welcome modale générique (3 slides skippable) `S · P1 · front`
 - [TCK-252](tickets/TCK-252-agency-upgrade-request-model.md) — `AgencyUpgradeRequest` modèle + migration + enums `S · P1 · back`
 
@@ -562,6 +561,7 @@ _(vide)_
 
 - [TCK-248](tickets/TCK-248-agency-kind-individual.md) — `Agency.kind` enum (standard/individual) + migration + seed `S · P0 · back`
 - [TCK-249](tickets/TCK-249-invitation-pattern-unifie.md) — Pattern d'invitation unifié (modèle Invitation + service + emails) `M · P0 · back`
+- [TCK-250](tickets/TCK-250-wizard-reprenable-component.md) — Wizard reprenable — composant frontend + persistance draft `S · P0 · front`
 
 ### Vague 23 — Console super-admin
 

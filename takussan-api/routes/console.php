@@ -68,3 +68,6 @@ Schedule::job(new ProcessRoleDelegationsJob)->everyFiveMinutes()->withoutOverlap
 //    accepted yet, using `last_reminded_at` for dedup.
 Schedule::command('invitations:expire')->hourly()->withoutOverlapping();
 Schedule::command('invitations:remind')->hourly()->withoutOverlapping();
+
+// TCK-250 — Garbage-collect resumable wizard drafts older than 90 days.
+Schedule::command('wizard-drafts:purge')->dailyAt('03:30')->withoutOverlapping();

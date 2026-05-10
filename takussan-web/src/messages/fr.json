@@ -623,5 +623,30 @@
       },
       "loading": "Chargement…"
     }
+  },
+  "wizardDrafts": {
+    "component": {
+      "ariaLabel": "Assistant",
+      "progressAriaLabel": "Étape {current} sur {total}",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "complete": "Terminer",
+      "loading": "Chargement…",
+      "savedToastTitle": "Progression sauvegardée",
+      "savedToastBody": "Vous pourrez reprendre exactement où vous en êtes."
+    },
+    "banner": {
+      "ariaLabel": "Reprendre une démarche en cours",
+      "title": "Reprenez là où vous vous étiez arrêté",
+      "description": "{count, plural, =1 {Vous avez 1 démarche en cours.} other {Vous avez # démarches en cours.}}",
+      "labels": {
+        "host-individual-wizard": "Publication d'un bien",
+        "owner-onboarding": "Onboarding propriétaire",
+        "agent-onboarding": "Onboarding agent",
+        "customer-onboarding": "Onboarding locataire",
+        "owner-kyc": "KYC propriétaire",
+        "agent-kyc": "KYC agent"
+      }
+    }
   }
 }

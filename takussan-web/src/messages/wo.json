@@ -497,5 +497,30 @@
       },
       "loading": "Yëgël…"
     }
+  },
+  "wizardDrafts": {
+    "component": {
+      "ariaLabel": "Jëf-jëf",
+      "progressAriaLabel": "Etape {current} ci {total}",
+      "previous": "Dellu ginnaaw",
+      "next": "Kaw",
+      "complete": "Mottali",
+      "loading": "Yëgël…",
+      "savedToastTitle": "Sa liggéey denc nañu ko",
+      "savedToastBody": "Dinga waax dellusi fa nga taxoon."
+    },
+    "banner": {
+      "ariaLabel": "Dellusi liggéey bi nga taxoon",
+      "title": "Dellusi fa nga taxoon",
+      "description": "{count, plural, =1 {Am nga 1 jëf-jëf bu pare.} other {Am nga # jëf-jëf yu pare.}}",
+      "labels": {
+        "host-individual-wizard": "Bind ab kër",
+        "owner-onboarding": "Tàmbalee borom",
+        "agent-onboarding": "Tàmbalee agent",
+        "customer-onboarding": "Tàmbalee dëkkkat",
+        "owner-kyc": "KYC borom",
+        "agent-kyc": "KYC agent"
+      }
+    }
   }
 }
