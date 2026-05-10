@@ -741,6 +741,24 @@
       "saveError": "Impossible d enregistrer pour le moment. Réessayez."
     }
   },
+  "tenant": {
+    "welcome": {
+      "slides": [
+        {
+          "title": "Vos paiements",
+          "body": "Retrouvez le calendrier de vos prochaines échéances et votre méthode de paiement préférée, sans quitter votre espace."
+        },
+        {
+          "title": "Demander une intervention",
+          "body": "Signalez une panne ou demandez une intervention en quelques clics, avec photos à l’appui."
+        },
+        {
+          "title": "Vos documents",
+          "body": "Bail, état des lieux et quittances : tout est centralisé et accessible quand vous en avez besoin."
+        }
+      ]
+    }
+  },
   "owners": {
     "page": {
       "title": "Propriétaires",

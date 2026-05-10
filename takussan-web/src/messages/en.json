@@ -741,6 +741,24 @@
       "saveError": "Could not save right now. Please try again."
     }
   },
+  "tenant": {
+    "welcome": {
+      "slides": [
+        {
+          "title": "Your payments",
+          "body": "See your upcoming due dates and your preferred payment method without leaving your space."
+        },
+        {
+          "title": "Request maintenance",
+          "body": "Report an issue or request maintenance in a few clicks, with photos to back it up."
+        },
+        {
+          "title": "Your documents",
+          "body": "Lease, inventory and receipts: all in one place, available whenever you need them."
+        }
+      ]
+    }
+  },
   "owners": {
     "page": {
       "title": "Owners",

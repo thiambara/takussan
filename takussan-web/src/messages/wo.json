@@ -615,6 +615,24 @@
       "saveError": "Mënul denc léegi. Jéem ci kanam."
     }
   },
+  "tenant": {
+    "welcome": {
+      "slides": [
+        {
+          "title": "Sa fey yi",
+          "body": "Xool sa fey yi di ñëw ak sa moy bu nga gën a bëgg, te bëggu fa génn ci sa espas."
+        },
+        {
+          "title": "Laaj benn intervention",
+          "body": "Bind benn problème wala laaj benn intervention ci ay click, ak ay photo."
+        },
+        {
+          "title": "Sa documents",
+          "body": "Luwé, EDL ak quittances : ñépp ci benn bopp, jot leen saa su nga bëgg."
+        }
+      ]
+    }
+  },
   "owners": {
     "page": {
       "title": "Borom kër yi",
