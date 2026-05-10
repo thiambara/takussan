@@ -811,6 +811,136 @@
       "messages": { "title": "Wax ak ñépp", "body": "Wax ak sa ajance ak sa lokataire." }
     }
   },
+  "agents": {
+    "onboarding": {
+      "pageTitle": "Dalal jamm ci sa espace agent",
+      "pageSubtitle": "Ñeenti étape ngir vérifier sa identité, yónn sa pieces, te taxoo sa zones.",
+      "kyc": {
+        "labels": {
+          "license": "Karte professionnelle",
+          "cni": "CNI walla passeport",
+          "photo": "Foto"
+        },
+        "hints": {
+          "license": "Scan walla foto sa karte d'agent — su tudd 8 Mo.",
+          "cni": "JPG, PNG walla PDF — su tudd 8 Mo.",
+          "photo": "Foto bu xeebal — kanam bi gën a leer. JPG walla PNG."
+        },
+        "dropZone": "Sàcc fichier walla cliquer ngir parcourir.",
+        "uploading": "Yónn naa…",
+        "uploadedBadge": "Jot na",
+        "removeAria": "Rëdd fichier bi",
+        "errors": {
+          "title": "Yónn fichier bi du mën",
+          "fileTooLarge": "Fichier bi rëy lool (8 Mo lañu mën).",
+          "uploadFailed": "Am na njumte. Jëfandikoo waxtu bi."
+        },
+        "success": {
+          "title": "Document jot na",
+          "body": "{name} dañu ko denc."
+        }
+      },
+      "steps": {
+        "phone": {
+          "title": "Vérifie sa téléphone",
+          "subtitle": "Soxla na ngir notifications sa client ak sa ajance.",
+          "fields": { "phone": "Numero téléphone", "code": "Code SMS" },
+          "sendCta": "Yónn code bi",
+          "sending": "Yónn naa…",
+          "verifyCta": "Vérifie",
+          "verifying": "Vérifie naa…",
+          "devHint": "Code dev: {code}",
+          "sent": {
+            "title": "Code yónn na",
+            "body": "Code bi mën na jaar 60 segondas balaa mu jot.",
+            "bodyDebug": "Code yónn na (debug: {code})."
+          },
+          "verified": {
+            "title": "Téléphone vérifie na",
+            "body": "Mën nga jëm étape bi ci kanam.",
+            "banner": "Numero vérifie na — dinga am sa SMS yi."
+          },
+          "errors": { "sendTitle": "Yónn code du mën", "verifyTitle": "Code dafa baaxul" }
+        },
+        "kyc": {
+          "title": "Sa pieces justificatives",
+          "subtitle": "Karte professionnelle, pièce d'identité ak foto. Mën nga ko mottali ñu bari.",
+          "draftBadge": "Brouillon",
+          "submittedBadge": "Soumis (ñu di seet)",
+          "submitCta": "Yónn sa dossier KYC",
+          "submitting": "Yónn naa…",
+          "submittedTitle": "Dossier KYC yónn na",
+          "submittedBody": "Sa ajance dina ko vérifier. Mën nga continuer.",
+          "licenseNumberLabel": "Numero karte professionnelle",
+          "licenseNumberHint": "Bind fi numero bi nekk ci sa karte d'agent."
+        },
+        "specialization": {
+          "title": "Sa spécialisation ak sa zones",
+          "subtitle": "Aide na sa ajance jox la mandats yu jaadu ak client yu jaadu.",
+          "specializationLabel": "Spécialisation",
+          "specializationPlaceholder": "Tànn spécialisation…",
+          "specializationValues": {
+            "residential": "Résidentiel",
+            "commercial": "Commercial",
+            "luxury": "Lukse",
+            "mixed": "Mixte"
+          },
+          "zonesLabel": "Zones intervention",
+          "zonesPlaceholder": "Yokk dëkk walla quartier…",
+          "zonesAdd": "Yokk",
+          "zonesSelectedAria": "Zones tànn",
+          "zonesRemoveAria": "Rëdd {zone}",
+          "zonesSuggestions": "Suggestions",
+          "saveCta": "Denc",
+          "saving": "Denc naa…",
+          "savedBadge": "Denc na",
+          "saved": {
+            "title": "Spécialisation denc na",
+            "body": "Sa zones ak sa spécialisation à jour lañu."
+          },
+          "errors": {
+            "saveTitle": "Denc du mën"
+          }
+        },
+        "welcome": {
+          "title": "Dalal jamm ci kuréel gi",
+          "subtitle": "Sa périmètre ak sa lead yu njëkk wujj nañu.",
+          "roleLabel": "Rôle bi nga jot",
+          "roles": {
+            "agent": "Agent",
+            "agent_senior": "Agent senior",
+            "agent_manager": "Agent manager"
+          },
+          "permissions": {
+            "list_properties": "Gis biens",
+            "list_customers": "Gis client",
+            "create_visits": "Programmer visites",
+            "message_customers": "Wax ak client",
+            "edit_properties": "Soppi biens",
+            "invite_owner": "Inviter propriétaire",
+            "invite_agent": "Inviter agent",
+            "reassign_leads": "Réattribuer leads"
+          },
+          "firstLeadLabel": "Sa lead bu njëkk",
+          "noLead": "Amul lead bu nga jot ba leegi.",
+          "stageLabel": "Étape: {stage}",
+          "viewLead": "Gis fiche bi →"
+        }
+      },
+      "errors": {
+        "kycSubmitTitle": "Yónn KYC du mën",
+        "completeTitle": "Mottali sa onboarding du mën"
+      },
+      "success": { "title": "Dalal jamm!", "body": "Sa profil agent active na." }
+    }
+  },
+  "agentWelcome": {
+    "slides": {
+      "leads": { "title": "Sa lead yi", "body": "Gisal sa client yi ak étape pipeline bi ci waxtu wi." },
+      "properties": { "title": "Sa biens", "body": "Portfolio sa ajance ak sa mandats nekk ci sa tableau de bord." },
+      "messages": { "title": "Wax ak ñépp", "body": "Wax ak sa client ak sa ajance ci Takussan." }
+    }
+  },
   "team": {
     "page": {
       "title": "Kuréel",

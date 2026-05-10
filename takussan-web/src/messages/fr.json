@@ -971,6 +971,154 @@
       }
     }
   },
+  "agents": {
+    "onboarding": {
+      "pageTitle": "Bienvenue dans votre espace agent",
+      "pageSubtitle": "Quatre étapes guidées pour vérifier votre identité, transmettre vos pièces et configurer votre périmètre d'activité.",
+      "kyc": {
+        "labels": {
+          "license": "Carte professionnelle",
+          "cni": "Pièce d'identité (CNI ou passeport)",
+          "photo": "Photo de profil"
+        },
+        "hints": {
+          "license": "Scan ou photo de votre carte d'agent immobilier — moins de 8 Mo.",
+          "cni": "JPG, PNG ou PDF — moins de 8 Mo.",
+          "photo": "Une photo récente, visage visible. JPG ou PNG."
+        },
+        "dropZone": "Glissez un fichier ici ou cliquez pour parcourir.",
+        "uploading": "Envoi en cours…",
+        "uploadedBadge": "Reçu",
+        "removeAria": "Retirer le fichier",
+        "errors": {
+          "title": "Envoi du fichier impossible",
+          "fileTooLarge": "Fichier trop volumineux (8 Mo max).",
+          "uploadFailed": "Une erreur est survenue. Réessayez."
+        },
+        "success": {
+          "title": "Document reçu",
+          "body": "Le fichier {name} a été enregistré."
+        }
+      },
+      "steps": {
+        "phone": {
+          "title": "Vérifiez votre téléphone",
+          "subtitle": "Indispensable pour les notifications de vos clients et de votre agence.",
+          "fields": {
+            "phone": "Numéro de téléphone",
+            "code": "Code reçu par SMS"
+          },
+          "sendCta": "Envoyer le code",
+          "sending": "Envoi…",
+          "verifyCta": "Vérifier",
+          "verifying": "Vérification…",
+          "devHint": "Code de développement : {code}",
+          "sent": {
+            "title": "Code envoyé",
+            "body": "Le code peut mettre jusqu'à 60 secondes pour arriver.",
+            "bodyDebug": "Code envoyé (debug : {code})."
+          },
+          "verified": {
+            "title": "Téléphone vérifié",
+            "body": "Vous pouvez passer à l'étape suivante.",
+            "banner": "Numéro vérifié — vous recevrez vos alertes par SMS."
+          },
+          "errors": {
+            "sendTitle": "Envoi du code impossible",
+            "verifyTitle": "Code invalide"
+          }
+        },
+        "kyc": {
+          "title": "Vos pièces justificatives",
+          "subtitle": "Carte professionnelle, pièce d'identité et photo de profil. Vous pouvez compléter en plusieurs fois.",
+          "draftBadge": "Brouillon",
+          "submittedBadge": "Soumis (en revue)",
+          "submitCta": "Soumettre mon dossier KYC",
+          "submitting": "Envoi…",
+          "submittedTitle": "Dossier KYC envoyé",
+          "submittedBody": "Votre agence va le vérifier. Vous pouvez continuer.",
+          "licenseNumberLabel": "Numéro de carte professionnelle",
+          "licenseNumberHint": "Reportez ici le numéro inscrit sur votre carte d'agent."
+        },
+        "specialization": {
+          "title": "Votre spécialisation et vos zones",
+          "subtitle": "Aide votre agence à vous attribuer les bons mandats et clients.",
+          "specializationLabel": "Spécialisation",
+          "specializationPlaceholder": "Choisir une spécialisation…",
+          "specializationValues": {
+            "residential": "Résidentiel",
+            "commercial": "Commercial",
+            "luxury": "Luxe",
+            "mixed": "Mixte"
+          },
+          "zonesLabel": "Zones d'intervention",
+          "zonesPlaceholder": "Ajouter une ville ou un quartier…",
+          "zonesAdd": "Ajouter",
+          "zonesSelectedAria": "Zones sélectionnées",
+          "zonesRemoveAria": "Retirer {zone}",
+          "zonesSuggestions": "Suggestions",
+          "saveCta": "Enregistrer",
+          "saving": "Enregistrement…",
+          "savedBadge": "Enregistré",
+          "saved": {
+            "title": "Spécialisation enregistrée",
+            "body": "Vos zones et votre spécialisation sont à jour."
+          },
+          "errors": {
+            "saveTitle": "Enregistrement impossible"
+          }
+        },
+        "welcome": {
+          "title": "Bienvenue dans l'équipe",
+          "subtitle": "Votre périmètre et vos premiers leads sont prêts.",
+          "roleLabel": "Rôle assigné",
+          "roles": {
+            "agent": "Agent",
+            "agent_senior": "Agent senior",
+            "agent_manager": "Agent manager"
+          },
+          "permissions": {
+            "list_properties": "Voir les biens",
+            "list_customers": "Voir les clients",
+            "create_visits": "Programmer des visites",
+            "message_customers": "Messager les clients",
+            "edit_properties": "Éditer les biens",
+            "invite_owner": "Inviter un propriétaire",
+            "invite_agent": "Inviter un agent",
+            "reassign_leads": "Réattribuer des leads"
+          },
+          "firstLeadLabel": "Votre premier lead",
+          "noLead": "Aucun lead pré-assigné pour le moment.",
+          "stageLabel": "Étape : {stage}",
+          "viewLead": "Voir la fiche →"
+        }
+      },
+      "errors": {
+        "kycSubmitTitle": "Soumission du KYC impossible",
+        "completeTitle": "Impossible de finaliser votre onboarding"
+      },
+      "success": {
+        "title": "Bienvenue !",
+        "body": "Votre profil agent est actif."
+      }
+    }
+  },
+  "agentWelcome": {
+    "slides": {
+      "leads": {
+        "title": "Vos leads",
+        "body": "Retrouvez vos prospects et clients avec leur étape de pipeline en temps réel."
+      },
+      "properties": {
+        "title": "Vos biens",
+        "body": "Le portefeuille de l'agence et vos mandats, accessibles depuis le tableau de bord."
+      },
+      "messages": {
+        "title": "Restez connecté",
+        "body": "Échangez avec vos clients et votre agence sans quitter Takussan."
+      }
+    }
+  },
   "team": {
     "page": {
       "title": "Équipe",
