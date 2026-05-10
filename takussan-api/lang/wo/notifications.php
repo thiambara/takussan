@@ -4,6 +4,31 @@ return [
 
     'salutation' => 'Ekip Takussan',
 
+    // TCK-249 — Invitation lifecycle emails (Wolof).
+    'invitation' => [
+        'subject' => 'Am nga invitation Takussan',
+        'reminder_subject' => 'Tee — invitation Takussan',
+        'greeting' => 'Asalaa Maalekum,',
+        'intro' => 'Wax nañu la nga bokk Takussan ni :role.',
+        'reminder_intro' => 'Buñ la fàttali: invitation Takussan bi nga jot ni :role mu ngi xaar.',
+        'action' => 'Nangu invitation bi',
+        'expires_at' => 'Lëkkalekaay bii dafay jeex ci :date.',
+        'ignore' => 'Soo xamul invitation bi, mën nga ko bañ.',
+    ],
+
+    'invitation_accepted' => [
+        'subject' => ':email nangu na sa invitation',
+        'greeting' => 'Asalaa Maalekum,',
+        'intro' => ':email nangu na sa invitation mu bokk Takussan ni :role.',
+    ],
+
+    'invitation_expired' => [
+        'subject' => 'Invitation bi nga yónni :email jeex na',
+        'greeting' => 'Asalaa Maalekum,',
+        'intro' => 'Invitation bi nga yónni :email jeex na sa nguñu ko nangu.',
+        'advice' => 'Mën nga ko yónniwaat ci sa table de bord.',
+    ],
+
     'registration' => [
         'subject' => 'Dëggël sa adrees e-mail',
         'greeting' => 'Dalal ak jàmm ci Takussan !',

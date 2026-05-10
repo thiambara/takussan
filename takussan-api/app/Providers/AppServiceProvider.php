@@ -32,6 +32,7 @@ use App\Models\Agency;
 use App\Models\BookingPayment;
 use App\Models\Conversation;
 use App\Models\Favorite;
+use App\Models\Invitation;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Message;
@@ -52,6 +53,7 @@ use App\Observers\ReviewObserver;
 use App\Observers\UserObserver;
 use App\Policies\ActivityLogPolicy;
 use App\Policies\ConversationPolicy;
+use App\Policies\InvitationPolicy;
 use App\Policies\LeasePolicy;
 use App\Policies\MediaPolicy;
 use App\Policies\PropertyModerationPolicy;
@@ -220,6 +222,10 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-108 — role delegation policy (agency-scoped admin checks).
         Gate::policy(RoleDelegation::class, RoleDelegationPolicy::class);
+
+        // TCK-249 — invitation policy (revoke/resend custom abilities not
+        // covered by BasePolicy's CRUD set).
+        Gate::policy(Invitation::class, InvitationPolicy::class);
 
         // TCK-098 — property moderation gates (approve, reject, resubmit).
         // Named gates avoid collision with the existing PropertyPolicy.
