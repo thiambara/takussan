@@ -648,5 +648,13 @@
         "agent-kyc": "KYC agent"
       }
     }
+  },
+  "welcome": {
+    "welcome": "Bienvenue",
+    "next": "Suivant",
+    "skip": "Passer",
+    "finish": "Terminer",
+    "stepAriaLabel": "Étape {current} sur {total}",
+    "dialogAriaLabel": "Bienvenue"
   }
 }

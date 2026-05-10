@@ -522,5 +522,13 @@
         "agent-kyc": "KYC agent"
       }
     }
+  },
+  "welcome": {
+    "welcome": "Dalal ak diam",
+    "next": "Topp",
+    "skip": "Tëju",
+    "finish": "Sukkandiku",
+    "stepAriaLabel": "Etaap {current} ci {total}",
+    "dialogAriaLabel": "Dalal ak diam"
   }
 }
