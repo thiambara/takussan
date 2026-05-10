@@ -23,6 +23,7 @@ import {
   Heart,
   BookmarkCheck,
   ClipboardList,
+  ClipboardCheck,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
@@ -146,6 +147,16 @@ function buildNavItems(user: User): NavItem[] {
   }
   // TCK-044 leases
   items.push({ href: '/app/leases', label: isCustomer(roles) ? 'Mes baux' : 'Baux', icon: FileText });
+  // TCK-266 — sub-entry for the agency console: tenants whose move-in
+  // inventory has been pending for more than 7 days. Visible to
+  // agency_admin and agent (admin gate covers super_admin too).
+  if (isAgent(roles) || isAdmin(roles)) {
+    items.push({
+      href: '/app/leases/onboarding-pending',
+      label: 'Onboardings en attente',
+      icon: ClipboardCheck,
+    });
+  }
   // TCK-045 messages
   items.push({ href: '/app/messages', label: 'Messagerie', icon: MessageSquare });
 

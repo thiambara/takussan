@@ -19,6 +19,7 @@ use App\Listeners\Accounting\NotifyStatementFinalized;
 use App\Listeners\Accounting\NotifyStatementImported;
 use App\Listeners\Admin\DispatchAlerts;
 use App\Listeners\Admin\RecordScheduledTaskRun;
+use App\Listeners\Lease\CreateTenantOnboardingChecklist;
 use App\Listeners\Lease\NotifyOnEarlyTermination;
 use App\Listeners\Lease\NotifyTenantOfDepositRefund;
 use App\Listeners\Lease\NotifyTenantOfLateFee;
@@ -34,6 +35,7 @@ use App\Models\Agency;
 use App\Models\BookingPayment;
 use App\Models\Conversation;
 use App\Models\Favorite;
+use App\Models\Inventory;
 use App\Models\Invitation;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -47,7 +49,9 @@ use App\Models\RoleDelegation;
 use App\Models\User;
 use App\Notifications\Channels\SmsChannel;
 use App\Observers\FavoriteObserver;
+use App\Observers\InventoryOnboardingObserver;
 use App\Observers\LeaseObserver;
+use App\Observers\LeasePaymentOnboardingObserver;
 use App\Observers\MediaCdnObserver;
 use App\Observers\MessageObserver;
 use App\Observers\PaymentPlatformFeeObserver;
@@ -196,6 +200,12 @@ class AppServiceProvider extends ServiceProvider
         BookingPayment::observe(PaymentPlatformFeeObserver::class);
         LeasePayment::observe(PaymentPlatformFeeObserver::class);
 
+        // TCK-266 — onboarding checklist auto-completion observers.
+        // Inventory.signed (move-in) → inventory_completed item ;
+        // LeasePayment first effective payment → first_payment item.
+        Inventory::observe(InventoryOnboardingObserver::class);
+        LeasePayment::observe(LeasePaymentOnboardingObserver::class);
+
         // TCK-227 — bump the reporting cache version on agency creation so
         // every cached growth/revenue/cohort key cold-misses next call.
         Agency::created(fn () => PlatformReportingService::bumpCacheVersion());
@@ -285,6 +295,11 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-265 — welcome the tenant the first time their lease is activated.
         $events->listen(LeaseActivated::class, SendTenantWelcomeNotification::class);
+
+        // TCK-266 — also kick off the onboarding checklist on activation
+        // (independent listener: welcome notification can be skipped per
+        // user preference, the checklist must always be created).
+        $events->listen(LeaseActivated::class, CreateTenantOnboardingChecklist::class);
 
         // TCK-108 — notify on role delegation lifecycle events.
         Event::listen(RoleDelegationActivated::class, NotifyDelegationActivated::class);

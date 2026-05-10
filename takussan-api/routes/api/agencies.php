@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Agency\KycController;
 use App\Http\Controllers\Api\Agency\OwnerInvitationController;
 use App\Http\Controllers\Api\Agency\RegenerateWatermarksController;
 use App\Http\Controllers\Api\Agency\TeamController;
+use App\Http\Controllers\Api\Agency\TenantOnboardingPendingController;
 use App\Http\Controllers\Api\AgencyController;
 use App\Http\Controllers\Api\AgencyMemberRoleController;
 use App\Http\Controllers\Api\AgencyStatsController;
@@ -66,4 +67,10 @@ Route::middleware('auth:sanctum')->group(function () {
         ->name('agencies.team.index');
     Route::post('agencies/{agency}/agents/invite', AgentInvitationController::class)
         ->name('agencies.agents.invite');
+
+    // TCK-266 — Console agence : queue locataires avec onboarding bloqué
+    // (EDL d'entrée non signé > 7 j). Réservée aux membres de l'agence
+    // (agency_admin / agent) et aux super-admins.
+    Route::get('agencies/{agency}/tenant-onboarding-pending', [TenantOnboardingPendingController::class, 'index'])
+        ->name('agencies.tenant-onboarding-pending.index');
 });

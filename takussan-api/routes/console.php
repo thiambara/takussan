@@ -71,3 +71,7 @@ Schedule::command('invitations:remind')->hourly()->withoutOverlapping();
 
 // TCK-250 — Garbage-collect resumable wizard drafts older than 90 days.
 Schedule::command('wizard-drafts:purge')->dailyAt('03:30')->withoutOverlapping();
+
+// TCK-266 — Hourly J+7 reminder for tenants whose move-in inventory is
+// still unsigned. Idempotent via `tenant_onboarding_checklists.reminders_sent`.
+Schedule::command('tenant-onboarding:remind')->hourly()->withoutOverlapping();

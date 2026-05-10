@@ -244,6 +244,15 @@
         "body": "L’espace de {agencyName} est prêt. Encore une étape rapide avant de plonger dans votre dashboard.",
         "cta": "Continuer"
       }
+    },
+    "tenantOnboardingPending": {
+      "error": "Impossible de charger la liste pour le moment.",
+      "emptyTitle": "Aucun onboarding en retard",
+      "emptyDescription": "Tous les onboardings de moins de 7 jours ne sont pas listés ici.",
+      "leaseReference": "Bail {reference}",
+      "signedAt": "Signé le {date}",
+      "missing": "Il reste : {items}",
+      "daysOpen": "{count, plural, =0 {aujourd'hui} one {# jour} other {# jours}}"
     }
   },
   "compare": {
@@ -757,6 +766,30 @@
           "body": "Bail, état des lieux et quittances : tout est centralisé et accessible quand vous en avez besoin."
         }
       ]
+    },
+    "onboarding": {
+      "widget": {
+        "title": "Bienvenue chez vous — bail {reference}",
+        "subtitle": "Quelques étapes pour finaliser votre installation."
+      },
+      "items": {
+        "welcome_seen": {
+          "title": "Découvrir votre espace résident",
+          "description": "Faites le tour rapide pour comprendre où trouver paiements, EDL et documents."
+        },
+        "inventory_completed": {
+          "title": "Signer l'état des lieux d'entrée",
+          "description": "Étape obligatoire. Vous protège en cas de litige sur l'état du logement."
+        },
+        "first_payment": {
+          "title": "Effectuer votre premier paiement",
+          "description": "Acompte ou premier loyer — au choix selon votre contrat."
+        },
+        "documents_acknowledged": {
+          "title": "Accuser réception de vos documents",
+          "description": "Bail signé, état des lieux et quittances : confirmer que tout est accessible."
+        }
+      }
     }
   },
   "owners": {

@@ -167,6 +167,24 @@ return [
         'action' => 'Ouvrir mon espace résident',
     ],
 
+    // TCK-266 — J+7 reminder when the move-in inventory is still unsigned.
+    'tenant_inventory_reminder' => [
+        'subject' => 'Rappel — état des lieux à signer (bail :reference)',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Votre état des lieux d\'entrée pour le bail :reference n\'a pas encore été signé.',
+        'body' => 'Sans état des lieux signé, votre dossier reste incomplet. Connectez-vous à votre espace résident pour finaliser la signature.',
+        'action' => 'Signer l\'état des lieux',
+    ],
+
+    'agent_tenant_inventory_reminder' => [
+        'subject' => 'Locataire en retard sur son EDL — bail :reference',
+        'greeting' => 'Bonjour,',
+        'intro' => ':tenant n\'a pas encore signé l\'état des lieux d\'entrée du bail :reference (plus de 7 jours).',
+        'body' => 'Vérifiez avec votre locataire si une relance ou une assistance est nécessaire pour finaliser la signature.',
+        'action' => 'Voir les onboardings en retard',
+        'unknown_tenant' => 'Le locataire',
+    ],
+
     'lease_early_termination' => [
         'greeting' => 'Bonjour,',
         'penalty_line' => 'Pénalité de résiliation anticipée : :amount :currency. À régler avant la date effective.',

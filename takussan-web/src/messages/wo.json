@@ -139,6 +139,15 @@
         "body": "Espace bu {agencyName} pare na. Etape gu gaaw rekk ci kanam dashboard bi.",
         "cta": "Toxal"
       }
+    },
+    "tenantOnboardingPending": {
+      "error": "Mënul a yengal liste bi léegi.",
+      "emptyTitle": "Amul onboarding bu yagg",
+      "emptyDescription": "Onboardings yi gën a néew 7 fan jiitu nañ list bi.",
+      "leaseReference": "Luwé {reference}",
+      "signedAt": "Signe nañ ko ci {date}",
+      "missing": "Yi des: {items}",
+      "daysOpen": "{count, plural, =0 {tey} one {# fan} other {# fan}}"
     }
   },
   "compare": {
@@ -631,6 +640,30 @@
           "body": "Luwé, EDL ak quittances : ñépp ci benn bopp, jot leen saa su nga bëgg."
         }
       ]
+    },
+    "onboarding": {
+      "widget": {
+        "title": "Dalal ak jam ci sa kër — luwé {reference}",
+        "subtitle": "Ay etap yu gaaw ngir mottali sa installation."
+      },
+      "items": {
+        "welcome_seen": {
+          "title": "Xam sa espas waa-kër",
+          "description": "Topp ci tour gi ngir xam fu nga jëndee fey yi, EDL ak documents."
+        },
+        "inventory_completed": {
+          "title": "Signe état des lieux entrée",
+          "description": "Etap bu war. Mu ngi lay aar su am ay litige ci anam kër bi."
+        },
+        "first_payment": {
+          "title": "Defar sa fey bu jëkk",
+          "description": "Acompte mbaa loyer bu jëkk — bayyi ko ci sa kontraa."
+        },
+        "documents_acknowledged": {
+          "title": "Nangu sa documents",
+          "description": "Luwé bi signe, EDL ak quittances : nangul ne ñépp jot nañu leen."
+        }
+      }
     }
   },
   "owners": {
