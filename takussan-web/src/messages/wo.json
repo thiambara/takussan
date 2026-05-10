@@ -78,7 +78,38 @@
       "email": "Email",
       "password": "Baatu-jub"
     },
-    "logout": "Génn"
+    "logout": "Génn",
+    "twoFactor": {
+      "intro": {
+        "title": "Suuf sa kont",
+        "description": "Jëfandikoo authentification ñaari yoon (TOTP) ak applications ni Google Authenticator, 1Password mbaa Authy.",
+        "cta": "Defar léegi",
+        "starting": "Tambalee…",
+        "skip": "Ginnaaw"
+      },
+      "scan": {
+        "title": "Scan QR code bi",
+        "description": "Yokk Takussan ci sa application 2FA, bind koddu 6 chiffres bi mu wone.",
+        "manualHint": "Mën nga koy bind ci sa loxo ak xelu bii :",
+        "codeLabel": "Koddu 6 chiffres",
+        "cta": "Verifié te ubbi",
+        "verifying": "Veriifie…",
+        "qrAlt": "QR code ngir scan ak sa application 2FA"
+      },
+      "success": {
+        "title": "2FA ubbi na",
+        "description": "Sa kont aaru na léegi ak ñaareelu sumb.",
+        "cta": "Toxal"
+      },
+      "recovery": {
+        "title": "Kodd yu reccu",
+        "warning": "Bind kodd yii léegi — duñu leen wone benen yoon. Kodd ku nekk dafa la jox dugg-am-bu-jamono bu sa application réer.",
+        "download": "Téel ci .txt",
+        "ack": "Den naa sama kodd yu reccu",
+        "fileHeader": "Kodd yu reccu Takussan — denc leen ci bérébu wér.",
+        "fileFooter": "Kodd ku nekk benn yoon rekk lay jëf."
+      }
+    }
   },
   "errors": {
     "generic": "Am na jafe-jafe. Jéemat.",
@@ -90,6 +121,24 @@
       "placeholder": "Tànn xaalis",
       "preview": "100 000 dañ koy wone ni: {example}",
       "warningOnChange": "Soppi xaalis di jëf rekk ci yu bees yi (kër, baat, ak fay). Yi am ba tey, ci xaalis bu ñu jëkk a séddale lañu nekk."
+    },
+    "branding": {
+      "banner": {
+        "title": "Defar sa Agence",
+        "description": "Yokk sa logo ak melo yi ngir am identité bu rafet ci Takussan.",
+        "cta": "Defar"
+      }
+    },
+    "onboarding": {
+      "steps": {
+        "welcome": "Dalal ak jam",
+        "twoFactor": "Kaaraange"
+      },
+      "welcome": {
+        "title": "Dalal ak jam ci Takussan, {firstName}",
+        "body": "Espace bu {agencyName} pare na. Etape gu gaaw rekk ci kanam dashboard bi.",
+        "cta": "Toxal"
+      }
     }
   },
   "compare": {

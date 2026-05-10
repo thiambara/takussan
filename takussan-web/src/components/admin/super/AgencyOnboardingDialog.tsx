@@ -28,6 +28,17 @@ const LANGUAGE_OPTIONS: Array<{ value: 'fr' | 'en' | 'wo'; label: string }> = [
   { value: 'wo', label: 'WO' },
 ];
 
+// TCK-270 — Currency picker added to step 1 of the provisioning wizard so
+// the new agency lands with the right display currency from day 1 (no
+// detour through /admin/agency settings post-activation). Mirrors the
+// codes accepted by the backend Currency enum (Senegal-first, then EU/US).
+const CURRENCY_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'XOF', label: 'XOF — F CFA (UEMOA)' },
+  { value: 'XAF', label: 'XAF — F CFA (CEMAC)' },
+  { value: 'EUR', label: 'EUR — Euro' },
+  { value: 'USD', label: 'USD — US Dollar' },
+];
+
 export function AgencyOnboardingDialog() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>(0);
@@ -35,6 +46,8 @@ export function AgencyOnboardingDialog() {
     name: '',
     slug: '',
     type: '',
+    // TCK-270 — XOF is the V1 default; super-admin can override per-agency.
+    currency: 'XOF',
     email: '',
     phone: '',
     address: '',
@@ -56,6 +69,10 @@ export function AgencyOnboardingDialog() {
       name: agency.name,
       slug: agency.slug || suggestedSlug,
       type: agency.type,
+      // TCK-270 — Always send the picked currency (defaulted to XOF) so the
+      // recap card and back-end response reflect the same value the
+      // super-admin chose, even when they didn't touch the dropdown.
+      currency: agency.currency,
       email: agency.email,
       phone: agency.phone,
       address: agency.address,
@@ -95,7 +112,7 @@ export function AgencyOnboardingDialog() {
 
   function reset() {
     setStep(0);
-    setAgency({ name: '', slug: '', type: '', email: '', phone: '', address: '' });
+    setAgency({ name: '', slug: '', type: '', currency: 'XOF', email: '', phone: '', address: '' });
     setAdmin({ first_name: '', last_name: '', email: '', language: 'fr' });
     setCreatedAgencyId(null);
     setError(null);
@@ -134,6 +151,23 @@ export function AgencyOnboardingDialog() {
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Nom de l’agence">
                 <Input value={agency.name} onChange={(e) => setAgency({ ...agency, name: e.target.value })} />
+              </Field>
+              {/* TCK-270 — Devise positioned right after the name per the
+                  ticket's UX direction: it's a step-1 decision (everything
+                  downstream — pricing, invoices, payouts — depends on it). */}
+              <Field label="Devise">
+                <select
+                  value={agency.currency}
+                  onChange={(e) => setAgency({ ...agency, currency: e.target.value })}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
+                  aria-label="Devise par défaut de l’agence"
+                >
+                  {CURRENCY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
               </Field>
               <Field label="Slug">
                 <Input
@@ -195,6 +229,9 @@ export function AgencyOnboardingDialog() {
               </div>
               <p className="text-sm text-muted-foreground">
                 Admin initial : {admin.first_name} {admin.last_name} · {admin.email}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Devise par défaut : <span className="font-medium text-foreground">{agency.currency}</span>
               </p>
               {createdAgencyId ? (
                 <Link className={buttonVariants({ variant: 'outline' })} href={`/super-admin/agencies/${createdAgencyId}`}>

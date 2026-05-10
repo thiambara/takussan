@@ -151,7 +151,38 @@
       "hasAccount": "Already have an account?"
     },
     "logout": "Log out",
-    "sessionExpired": "Your session has expired. Please log in again."
+    "sessionExpired": "Your session has expired. Please log in again.",
+    "twoFactor": {
+      "intro": {
+        "title": "Strengthen your account security",
+        "description": "Enable two-factor authentication (TOTP) with an app like Google Authenticator, 1Password or Authy.",
+        "cta": "Set up now",
+        "starting": "Starting…",
+        "skip": "Later"
+      },
+      "scan": {
+        "title": "Scan the QR code",
+        "description": "Add Takussan to your authenticator app, then enter the 6-digit code it shows.",
+        "manualHint": "Can’t scan? Enter this key manually:",
+        "codeLabel": "6-digit code",
+        "cta": "Verify and enable",
+        "verifying": "Verifying…",
+        "qrAlt": "QR code to scan with your 2FA app"
+      },
+      "success": {
+        "title": "2FA enabled",
+        "description": "Your account is now protected by a second factor.",
+        "cta": "Continue"
+      },
+      "recovery": {
+        "title": "Recovery codes",
+        "warning": "Save these codes now — they will never be shown again. Each code lets you sign in once if you lose access to your app.",
+        "download": "Download as .txt",
+        "ack": "I have saved my recovery codes",
+        "fileHeader": "Takussan recovery codes — keep them safe.",
+        "fileFooter": "Each code can only be used once."
+      }
+    }
   },
   "property": {
     "list": {
@@ -216,6 +247,24 @@
       "placeholder": "Select a currency",
       "preview": "100,000 will be displayed as: {example}",
       "warningOnChange": "Changing the currency only applies to new properties, leases and payments. Existing records keep their original currency."
+    },
+    "branding": {
+      "banner": {
+        "title": "Personalise your agency",
+        "description": "Add your logo and pick your colours to stand out on Takussan.",
+        "cta": "Configure"
+      }
+    },
+    "onboarding": {
+      "steps": {
+        "welcome": "Welcome",
+        "twoFactor": "Security"
+      },
+      "welcome": {
+        "title": "Welcome to Takussan, {firstName}",
+        "body": "{agencyName}’s workspace is ready. One quick step before you dive into your dashboard.",
+        "cta": "Continue"
+      }
     }
   },
   "compare": {

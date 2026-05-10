@@ -279,6 +279,12 @@ export type AgencyOnboardingPayload = {
     email?: string;
     phone?: string;
     address?: string;
+    /**
+     * TCK-270 — Display currency picked from step 1 of the super-admin wizard.
+     * Accepts any code from the backend Currency enum (XOF, XAF, EUR, USD);
+     * omit to keep the API default (XOF).
+     */
+    currency?: string;
   };
   admin: {
     first_name: string;

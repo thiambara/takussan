@@ -180,6 +180,8 @@ export type AgencyProvisioningResponse = {
       status: string | null;
       is_verified: boolean;
       primary_admin_id: number | null;
+      // TCK-270 — display currency picked at provisioning time.
+      currency: string | null;
     };
     admin: {
       id: number;
