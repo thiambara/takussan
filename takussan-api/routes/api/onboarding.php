@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AgentOnboardingController;
 use App\Http\Controllers\HostOnboardingController;
 use App\Http\Controllers\OwnerOnboardingController;
 use App\Http\Controllers\ServiceProviderOnboardingController;
@@ -38,5 +39,14 @@ Route::middleware('auth:sanctum')->group(function () {
     // active and pins the active profile cookie.
     Route::post('owner/onboard/complete', [OwnerOnboardingController::class, 'complete'])
         ->name('owner.onboard.complete')
+        ->middleware('throttle:5,1');
+
+    // TCK-259 — finalize the post-acceptance Agent wizard. KYC docs,
+    // specialization and intervention zones are persisted upstream by
+    // the dedicated /api/me/agent-profiles/{agent_profile}/* endpoints ;
+    // this one gates the OTP, flips AgentProfile status to active and
+    // pins the active profile cookie.
+    Route::post('agent/onboard/complete', [AgentOnboardingController::class, 'complete'])
+        ->name('agent.onboard.complete')
         ->middleware('throttle:5,1');
 });

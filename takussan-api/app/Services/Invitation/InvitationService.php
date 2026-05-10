@@ -457,7 +457,12 @@ class InvitationService
                 // string for the active state.
                 $patch['status'] = 'active';
             }
-            if (in_array($invitation->role, ['service_provider', 'owner'], true)
+            // TCK-259 — agent drafts (created sans User by
+            // AgentInvitationService) get the freshly-known User attached
+            // here so the post-acceptance wizard can write to
+            // /api/me/profiles/{agent_profile}/* with a clean ownership
+            // check (mirror Owner / SP).
+            if (in_array($invitation->role, ['service_provider', 'owner', 'agent', 'agent_senior', 'agent_manager'], true)
                 && array_key_exists('user_id', $invitable->getAttributes())
                 && $invitable->user_id === null) {
                 $patch['user_id'] = $user->id;

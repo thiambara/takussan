@@ -5,11 +5,12 @@ import type { User } from '@/types/user';
 import { AppTopbar } from './AppTopbar';
 import { AppSidebar } from './AppSidebar';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { AgentWelcomeWizard } from '@/components/agent/AgentWelcomeWizard';
 import { CustomerWelcomeWizard } from '@/components/customer/CustomerWelcomeWizard';
 import { MinimalProfileTriggerProvider } from '@/components/customer/MinimalProfileTriggerProvider';
 import { OwnerWelcomeWizard } from '@/components/owner/OwnerWelcomeWizard';
 import { TenantWelcomeWizard } from '@/components/tenant/TenantWelcomeWizard';
-import { isCustomer, isOwner } from '@/lib/roles';
+import { isAgent, isCustomer, isOwner } from '@/lib/roles';
 
 interface AppShellProps {
   user: User;
@@ -27,6 +28,10 @@ export function AppShell({ user, children }: AppShellProps) {
   // welcome key is distinct), so an owner who is also a customer sees
   // both modales (each gated by its own `welcome-seen` row).
   const ownerWelcomeActive = isOwner(user.roles);
+  // TCK-259 — Agent welcome modale, mounted once on /app for users with
+  // the `agent` role (or its senior / manager flavours, both surfaced
+  // through the same `agent` spatie role from the invite acceptance).
+  const agentWelcomeActive = isAgent(user.roles);
 
   return (
     <MinimalProfileTriggerProvider roles={user.roles}>
@@ -51,6 +56,7 @@ export function AppShell({ user, children }: AppShellProps) {
             uses its own welcome key. */}
         {customerOnboardingActive ? <TenantWelcomeWizard /> : null}
         {ownerWelcomeActive ? <OwnerWelcomeWizard /> : null}
+        {agentWelcomeActive ? <AgentWelcomeWizard /> : null}
       </div>
     </MinimalProfileTriggerProvider>
   );

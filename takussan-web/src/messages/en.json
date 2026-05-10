@@ -962,6 +962,145 @@
       }
     }
   },
+  "agents": {
+    "onboarding": {
+      "pageTitle": "Welcome to your agent space",
+      "pageSubtitle": "Four guided steps to verify your identity, upload your documents and configure your scope of activity.",
+      "kyc": {
+        "labels": {
+          "license": "Professional licence card",
+          "cni": "ID document (CNI or passport)",
+          "photo": "Profile picture"
+        },
+        "hints": {
+          "license": "Scan or photo of your real-estate licence card — under 8 MB.",
+          "cni": "JPG, PNG or PDF — under 8 MB.",
+          "photo": "A recent photo with your face visible. JPG or PNG."
+        },
+        "dropZone": "Drag a file here or click to browse.",
+        "uploading": "Uploading…",
+        "uploadedBadge": "Received",
+        "removeAria": "Remove file",
+        "errors": {
+          "title": "Could not upload file",
+          "fileTooLarge": "File too large (8 MB max).",
+          "uploadFailed": "An error occurred. Please retry."
+        },
+        "success": {
+          "title": "Document received",
+          "body": "{name} has been saved."
+        }
+      },
+      "steps": {
+        "phone": {
+          "title": "Verify your phone",
+          "subtitle": "Required for client and agency notifications.",
+          "fields": { "phone": "Phone number", "code": "SMS code" },
+          "sendCta": "Send code",
+          "sending": "Sending…",
+          "verifyCta": "Verify",
+          "verifying": "Verifying…",
+          "devHint": "Dev code: {code}",
+          "sent": {
+            "title": "Code sent",
+            "body": "The code may take up to 60 seconds to arrive.",
+            "bodyDebug": "Code sent (debug: {code})."
+          },
+          "verified": {
+            "title": "Phone verified",
+            "body": "You can move on to the next step.",
+            "banner": "Number verified — you'll receive your alerts by SMS."
+          },
+          "errors": { "sendTitle": "Could not send code", "verifyTitle": "Invalid code" }
+        },
+        "kyc": {
+          "title": "Your supporting documents",
+          "subtitle": "Licence card, ID and profile picture. You may complete this in several sessions.",
+          "draftBadge": "Draft",
+          "submittedBadge": "Submitted (under review)",
+          "submitCta": "Submit my KYC dossier",
+          "submitting": "Submitting…",
+          "submittedTitle": "KYC dossier submitted",
+          "submittedBody": "Your agency will review it. You can continue.",
+          "licenseNumberLabel": "Licence number",
+          "licenseNumberHint": "Use the number printed on your professional card."
+        },
+        "specialization": {
+          "title": "Your specialization and zones",
+          "subtitle": "Helps your agency assign you the right mandates and clients.",
+          "specializationLabel": "Specialization",
+          "specializationPlaceholder": "Pick a specialization…",
+          "specializationValues": {
+            "residential": "Residential",
+            "commercial": "Commercial",
+            "luxury": "Luxury",
+            "mixed": "Mixed"
+          },
+          "zonesLabel": "Intervention zones",
+          "zonesPlaceholder": "Add a city or neighbourhood…",
+          "zonesAdd": "Add",
+          "zonesSelectedAria": "Selected zones",
+          "zonesRemoveAria": "Remove {zone}",
+          "zonesSuggestions": "Suggestions",
+          "saveCta": "Save",
+          "saving": "Saving…",
+          "savedBadge": "Saved",
+          "saved": {
+            "title": "Specialization saved",
+            "body": "Your zones and specialization are up to date."
+          },
+          "errors": {
+            "saveTitle": "Could not save"
+          }
+        },
+        "welcome": {
+          "title": "Welcome to the team",
+          "subtitle": "Your scope and your first leads are ready.",
+          "roleLabel": "Assigned role",
+          "roles": {
+            "agent": "Agent",
+            "agent_senior": "Senior agent",
+            "agent_manager": "Agent manager"
+          },
+          "permissions": {
+            "list_properties": "View properties",
+            "list_customers": "View customers",
+            "create_visits": "Schedule visits",
+            "message_customers": "Message customers",
+            "edit_properties": "Edit properties",
+            "invite_owner": "Invite an owner",
+            "invite_agent": "Invite an agent",
+            "reassign_leads": "Reassign leads"
+          },
+          "firstLeadLabel": "Your first lead",
+          "noLead": "No pre-assigned lead yet.",
+          "stageLabel": "Stage: {stage}",
+          "viewLead": "View profile →"
+        }
+      },
+      "errors": {
+        "kycSubmitTitle": "Could not submit KYC",
+        "completeTitle": "Could not finalise your onboarding"
+      },
+      "success": { "title": "Welcome!", "body": "Your agent profile is active." }
+    }
+  },
+  "agentWelcome": {
+    "slides": {
+      "leads": {
+        "title": "Your leads",
+        "body": "Find your prospects and customers with their real-time pipeline stage."
+      },
+      "properties": {
+        "title": "Your properties",
+        "body": "The agency portfolio and your mandates, available from your dashboard."
+      },
+      "messages": {
+        "title": "Stay connected",
+        "body": "Chat with your customers and agency without leaving Takussan."
+      }
+    }
+  },
   "team": {
     "page": {
       "title": "Team",

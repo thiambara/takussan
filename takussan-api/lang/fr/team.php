@@ -12,4 +12,11 @@ return [
             'invalid_role' => "Le rôle proposé n'est pas autorisé pour cette invitation.",
         ],
     ],
+    // TCK-259 — wizard onboarding agent post-acceptation
+    'onboarding' => [
+        'errors' => [
+            'invalid_otp' => 'Le code de vérification est invalide ou expiré.',
+            'not_owner' => "Vous n'avez pas accès à ce profil agent.",
+        ],
+    ],
 ];

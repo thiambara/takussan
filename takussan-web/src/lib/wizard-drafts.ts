@@ -118,9 +118,12 @@ const WIZARD_RESUME_RULES: WizardResumeRule[] = [
     i18nKey: 'owner-onboarding',
   },
   {
+    // TCK-259 — `agent-onboarding-{agent_profile_id}`. Resuming brings
+    // the agent back to the dedicated wizard page mounted at
+    // `/onboarding/agent` (mirror of the Owner / SP wizard paths).
     kind: 'prefix',
     prefix: 'agent-onboarding-',
-    build: (suffix) => `/app/profile/agent/onboarding?invitation=${encodeURIComponent(suffix)}`,
+    build: (suffix) => `/onboarding/agent?agent=${encodeURIComponent(suffix)}`,
     i18nKey: 'agent-onboarding',
   },
   {

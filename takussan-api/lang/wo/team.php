@@ -12,4 +12,11 @@ return [
             'invalid_role' => 'Rol bii nga jëfandikoo dafa antarwoo invitation bii.',
         ],
     ],
+    // TCK-259 — wizard onboarding agent post-acceptation
+    'onboarding' => [
+        'errors' => [
+            'invalid_otp' => 'Kód bu vérification dafa baaxul walla mu jeex.',
+            'not_owner' => 'Amul nga sañ-sañ ci profil agent bii.',
+        ],
+    ],
 ];

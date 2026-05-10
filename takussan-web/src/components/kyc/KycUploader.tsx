@@ -14,7 +14,8 @@ import { cn } from '@/lib/utils';
  * Talks to a SSR proxy that forwards the multipart body to the Laravel
  * backend with the user's bearer cookie. **Reused by TCK-257** (Owner
  * wizard) — pass `endpoint='owner-profiles'` to target the owner upload
- * route; defaults to `'profiles'` (SP).
+ * route; defaults to `'profiles'` (SP). **Reused by TCK-259** (Agent
+ * wizard) — pass `endpoint='agent-profiles'` + `kind='license'|'cni'|'photo'`.
  *
  * The component is intentionally barebones: a drop zone, a file picker
  * fallback, an inline preview / "remove" affordance. No image cropping,
@@ -23,7 +24,7 @@ import { cn } from '@/lib/utils';
 export type KycUploaderProps = {
   profileId: number;
   /** Backend `kind` discriminator. Maps to `App\Models\Enums\DocumentType`. */
-  kind: 'cni' | 'insurance' | 'rib' | 'ninea';
+  kind: 'cni' | 'insurance' | 'rib' | 'ninea' | 'license' | 'photo';
   /** Callback fired after a successful upload. Receives the API row id. */
   onUploaded?: (info: { id: number; fileName: string }) => void;
   /** i18n key used for the heading + helper text. Falls back to `kind`. */
@@ -32,10 +33,11 @@ export type KycUploaderProps = {
   compact?: boolean;
   /**
    * SSR proxy segment — pick `'profiles'` for the SP endpoint (default,
-   * TCK-261) or `'owner-profiles'` for the Owner endpoint (TCK-257).
-   * Both proxies share the same multipart contract.
+   * TCK-261), `'owner-profiles'` for the Owner endpoint (TCK-257), or
+   * `'agent-profiles'` for the Agent endpoint (TCK-259). Every proxy
+   * shares the same multipart contract.
    */
-  endpoint?: 'profiles' | 'owner-profiles';
+  endpoint?: 'profiles' | 'owner-profiles' | 'agent-profiles';
   /** i18n namespace for labels/hints. Defaults to SP namespace. */
   i18nNamespace?: string;
 };
