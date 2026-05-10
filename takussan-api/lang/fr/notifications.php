@@ -4,6 +4,32 @@ return [
 
     'salutation' => 'L\'équipe Takussan',
 
+    // TCK-249 — Invitation lifecycle emails (initial + reminder + inviter
+    // notifications on acceptance/expiration).
+    'invitation' => [
+        'subject' => 'Vous avez reçu une invitation Takussan',
+        'reminder_subject' => 'Rappel — votre invitation Takussan',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Vous avez été invité(e) à rejoindre Takussan en tant que :role.',
+        'reminder_intro' => 'Petit rappel : votre invitation Takussan en tant que :role est toujours en attente.',
+        'action' => 'Accepter l\'invitation',
+        'expires_at' => 'Ce lien expire le :date.',
+        'ignore' => 'Si cette invitation ne vous concerne pas, vous pouvez ignorer cet e-mail.',
+    ],
+
+    'invitation_accepted' => [
+        'subject' => ':email a accepté votre invitation',
+        'greeting' => 'Bonjour,',
+        'intro' => ':email vient d\'accepter votre invitation et a rejoint la plateforme en tant que :role.',
+    ],
+
+    'invitation_expired' => [
+        'subject' => 'Votre invitation à :email a expiré',
+        'greeting' => 'Bonjour,',
+        'intro' => 'L\'invitation que vous aviez envoyée à :email a expiré sans être acceptée.',
+        'advice' => 'Vous pouvez la renvoyer depuis votre tableau de bord pour relancer le destinataire.',
+    ],
+
     'registration' => [
         'subject' => 'Confirmez votre adresse e-mail',
         'greeting' => 'Bienvenue sur Takussan !',

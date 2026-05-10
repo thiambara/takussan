@@ -1,7 +1,7 @@
 ---
 id: TCK-249
 title: "Pattern d'invitation unifié — modèle Invitation + service + emails"
-status: todo
+status: done
 phase: P0
 family: back
 estimate: M
@@ -82,4 +82,23 @@ Job/cron `invitations:remind` (horaire) qui envoie un rappel J+2 (idempotent via
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Migration `2026_05_10_000001_create_invitations_table` créée selon §48 (token unique 64 chars, indexes `(email,status)` / `(invitable_type,invitable_id)` / `(status,expires_at)`).
+- Enum `App\Models\Enums\InvitationStatus` (sent/accepted/expired/revoked) + ajout du case `Draft` à `OwnerProfileStatus` et `AgentProfileStatus` pour permettre la pré-création du profil cible.
+- Modèle `App\Models\Invitation` avec scopes `pending()`/`expired()`, relations morph + `inviter`/`invitedUser`/`agency`, hidden `token`, casts datetimes/json/enum, normalisation email lowercase, factory `Database\Factories\InvitationFactory`.
+- Service `App\Services\Invitation\InvitationService` (orchestration unique : `send`, `accept`, `acceptForAuthenticatedUser`, `revoke`, `resend`, `expire`, `remindPending`). Token = `Str::random(64)` avec retry sur collision. Acceptation = transaction unique (User + role spatie scopé team_id=agency_id + flip profile.status si applicable + flip Invitation.status). Email à l'extérieur de la transaction.
+- Controllers : `Api\InvitationController` (index/store/show/revoke/resend, scope visibility par rôle) + `Public\InvitationAcceptController` (POST `/api/invitations/{token}/accept`, traduit le 401 service en `requires_login: true` + `email`).
+- FormRequests : `Invitation\CreateInvitationRequest`, `Invitation\AcceptInvitationRequest`.
+- Mailable `App\Mail\InvitationMailable` + template `resources/views/emails/invitation.blade.php` (FR/EN/WO via clés `notifications.invitation.*`). Subject distinct pour `isReminder`.
+- Notifications : `InvitationAcceptedNotification`, `InvitationExpiredNotification` (envoyées à l'inviteur).
+- Console commands : `invitations:expire` (hourly) + `invitations:remind` (hourly, idempotent via `last_reminded_at`, J+2). Programmées dans `routes/console.php`.
+- Policy `App\Policies\InvitationPolicy` (viewAny/view/create/revoke/resend), enregistrée via `Gate::policy` dans `AppServiceProvider`. Super_admin bypass via le `Gate::before` global existant.
+- Activity log via `spatie/laravel-activitylog` pour les 4 événements clés (`invitation_sent`, `_accepted`, `_revoked`, `_expired`) + bonus `_resent`.
+- Routes : `routes/api/invitations.php` (auto-loaded par `routes/api.php`).
+- Tests Feature : `tests/Feature/Invitation/{InvitationSendTest, InvitationAcceptTest, InvitationLifecycleTest}` — 26 tests couvrant AC1→AC7.
+- i18n : `lang/{fr,en,wo}/invitations.php` + extensions `lang/{fr,en,wo}/notifications.php`.
+
+### Hors-périmètre confirmé
+
+- Création du profil polymorphe `draft` reste à charge des per-role wizards (TCK-256/258/260) — ce ticket expose `invitable_type`/`invitable_id` mais ne crée pas le profil.
+- `ServiceProviderProfile` n'a pas de colonne `status` (lifecycle apporté par TCK-260) ; le service skip silencieusement le flip pour les morphs sans status.
+- `InvitationPolicy::create` exige `agency_admin`/`admin` (ou super_admin). Les wizards qui appelleront directement `InvitationService::send()` (TCK-256/258/260) gèreront leur propre autorisation (ex. owner invitant un agent).

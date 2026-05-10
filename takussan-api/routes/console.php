@@ -60,3 +60,11 @@ Schedule::job(new EscalateUrgentMaintenanceJob)->hourly()->withoutOverlapping();
 
 // TCK-108 — Process role delegation activation and expiration
 Schedule::job(new ProcessRoleDelegationsJob)->everyFiveMinutes()->withoutOverlapping();
+
+// TCK-249 — Invitation lifecycle sweepers (hourly, both idempotent).
+//  - `invitations:expire` flips `sent → expired` once `expires_at` is past
+//    and notifies the inviter.
+//  - `invitations:remind` emails a J+2 reminder to invitees who haven't
+//    accepted yet, using `last_reminded_at` for dedup.
+Schedule::command('invitations:expire')->hourly()->withoutOverlapping();
+Schedule::command('invitations:remind')->hourly()->withoutOverlapping();
