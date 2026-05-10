@@ -59,8 +59,14 @@ class RolesAndPermissionsSeeder extends Seeder
         // agents via {@see \App\Models\RoleDelegation}.
         Permission::firstOrCreate(['name' => 'invite_owner', 'guard_name' => 'web']);
 
+        // TCK-258 — gates the team-management surface (page `/app/team`,
+        // `POST /api/agencies/{id}/agents/invite`, suspend/remove agent).
+        // Default-granted to `agency_admin`. An `agency_admin` may delegate
+        // it to a senior agent via {@see \App\Models\RoleDelegation}.
+        Permission::firstOrCreate(['name' => 'manage_team', 'guard_name' => 'web']);
+
         $depositRefundExtras = [
-            'agency_admin' => ['leases.refund_deposit', 'leases.renew', 'leases.terminate', 'leases.rent_review', 'leases.rent_review_force', 'roles.manage_in_agency', 'invite_owner'],
+            'agency_admin' => ['leases.refund_deposit', 'leases.renew', 'leases.terminate', 'leases.rent_review', 'leases.rent_review_force', 'roles.manage_in_agency', 'invite_owner', 'manage_team'],
             'agent' => ['leases.refund_deposit', 'leases.renew', 'leases.terminate', 'leases.rent_review'],
             'owner' => ['leases.refund_deposit', 'leases.renew', 'leases.terminate', 'leases.rent_review', 'leases.rent_review_force'],
         ];

@@ -747,5 +747,74 @@
         "forbidden": "You do not have permission to invite an owner."
       }
     }
+  },
+  "team": {
+    "page": {
+      "title": "Team",
+      "subtitle": "Manage the agents attached to your agency.",
+      "empty_title": "No team members yet",
+      "empty_description": "Invite your first agent to start collaborating.",
+      "add": "Invite an agent",
+      "status": {
+        "draft": "Invited",
+        "active": "Active",
+        "inactive": "Inactive",
+        "suspended": "Suspended"
+      },
+      "roles": {
+        "agent": "Agent",
+        "agent_senior": "Senior agent",
+        "agent_manager": "Agent manager"
+      },
+      "columns": {
+        "name": "Name",
+        "email": "Email",
+        "role": "Role",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "actions": {
+        "resend": "Resend invitation",
+        "suspend": "Suspend",
+        "reactivate": "Reactivate",
+        "remove": "Remove"
+      }
+    },
+    "invite": {
+      "title": "Invite an agent",
+      "subtitle": "Send an invitation by email. The agent will create their account and complete their profile after acceptance.",
+      "fields": {
+        "email": "Email",
+        "first_name": "First name",
+        "last_name": "Last name",
+        "phone": "Phone (optional)",
+        "role": "Role"
+      },
+      "roles": {
+        "agent": "Agent",
+        "agent_senior": "Senior agent",
+        "agent_manager": "Agent manager"
+      },
+      "cta": {
+        "submit": "Send invitation",
+        "submitting": "Sending…",
+        "cancel": "Cancel"
+      },
+      "confirm": {
+        "remove": "Remove this member from the team? History remains accessible."
+      },
+      "toasts": {
+        "success_title": "Invitation sent",
+        "error_title": "Action failed",
+        "resend_success": "Invitation resent",
+        "suspend_success": "Member suspended",
+        "reactivate_success": "Member reactivated",
+        "remove_success": "Member removed"
+      },
+      "errors": {
+        "already_member": "This person is already in your team.",
+        "forbidden": "You do not have permission to manage the team."
+      }
+    }
   }
 }

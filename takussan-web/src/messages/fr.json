@@ -747,5 +747,74 @@
         "forbidden": "Vous n'avez pas la permission d'inviter un propriétaire."
       }
     }
+  },
+  "team": {
+    "page": {
+      "title": "Équipe",
+      "subtitle": "Gérez les agents rattachés à votre agence.",
+      "empty_title": "Aucun membre dans l'équipe",
+      "empty_description": "Invitez votre premier agent pour commencer à collaborer.",
+      "add": "Inviter un agent",
+      "status": {
+        "draft": "Invité",
+        "active": "Actif",
+        "inactive": "Inactif",
+        "suspended": "Suspendu"
+      },
+      "roles": {
+        "agent": "Agent",
+        "agent_senior": "Agent senior",
+        "agent_manager": "Agent manager"
+      },
+      "columns": {
+        "name": "Nom",
+        "email": "Email",
+        "role": "Rôle",
+        "status": "Statut",
+        "actions": "Actions"
+      },
+      "actions": {
+        "resend": "Renvoyer l'invitation",
+        "suspend": "Suspendre",
+        "reactivate": "Réactiver",
+        "remove": "Retirer"
+      }
+    },
+    "invite": {
+      "title": "Inviter un agent",
+      "subtitle": "Envoyez une invitation par email. L'agent pourra créer son compte et compléter son profil après acceptation.",
+      "fields": {
+        "email": "Email",
+        "first_name": "Prénom",
+        "last_name": "Nom",
+        "phone": "Téléphone (optionnel)",
+        "role": "Rôle"
+      },
+      "roles": {
+        "agent": "Agent",
+        "agent_senior": "Agent senior",
+        "agent_manager": "Agent manager"
+      },
+      "cta": {
+        "submit": "Envoyer l'invitation",
+        "submitting": "Envoi…",
+        "cancel": "Annuler"
+      },
+      "confirm": {
+        "remove": "Retirer ce membre de l'équipe ? L'historique reste consultable."
+      },
+      "toasts": {
+        "success_title": "Invitation envoyée",
+        "error_title": "Action impossible",
+        "resend_success": "Invitation renvoyée",
+        "suspend_success": "Membre suspendu",
+        "reactivate_success": "Membre réactivé",
+        "remove_success": "Membre retiré"
+      },
+      "errors": {
+        "already_member": "Cette personne fait déjà partie de votre équipe.",
+        "forbidden": "Vous n'avez pas la permission de gérer l'équipe."
+      }
+    }
   }
 }

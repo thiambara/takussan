@@ -36,6 +36,7 @@ use App\Models\Invitation;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Message;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
@@ -53,6 +54,7 @@ use App\Observers\PropertyVisitObserver;
 use App\Observers\ReviewObserver;
 use App\Observers\UserObserver;
 use App\Policies\ActivityLogPolicy;
+use App\Policies\AgentProfilePolicy;
 use App\Policies\ConversationPolicy;
 use App\Policies\InvitationPolicy;
 use App\Policies\LeasePolicy;
@@ -233,6 +235,11 @@ class AppServiceProvider extends ServiceProvider
         // takes the Agency as second argument). Bound explicitly because
         // the action is not on the OwnerProfile model itself.
         Gate::policy(OwnerProfile::class, OwnerProfilePolicy::class);
+
+        // TCK-258 — agent profile gates (custom `invite`, `suspend`,
+        // `delete` abilities). `invite` takes the Agency as second arg
+        // (mirrors OwnerProfilePolicy@invite).
+        Gate::policy(AgentProfile::class, AgentProfilePolicy::class);
 
         // TCK-098 — property moderation gates (approve, reject, resubmit).
         // Named gates avoid collision with the existing PropertyPolicy.

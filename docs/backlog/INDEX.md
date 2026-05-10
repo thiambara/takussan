@@ -172,7 +172,7 @@ _(Vague 24 finalisée — voir Review)_
 - [TCK-255](tickets/TCK-255-wizard-host-individual.md) — Wizard host individual (5 steps + création Agency+profils+1er bien draft) `M · P0 · applicatif`
 - ~~[TCK-256](tickets/TCK-256-form-invitation-owner.md) — Form invitation Owner depuis espace agence~~ ✅ done
 - [TCK-257](tickets/TCK-257-wizard-onboarding-owner.md) — Wizard onboarding Owner post-acceptation (KYC + tour) `M · P1 · applicatif`
-- [TCK-258](tickets/TCK-258-form-invitation-agent.md) — Écran "Équipe" + form invitation Agent (avec choix de rôle) `S · P0 · applicatif`
+- ~~[TCK-258](tickets/TCK-258-form-invitation-agent.md) — Écran "Équipe" + form invitation Agent (avec choix de rôle)~~ ✅ done
 - [TCK-259](tickets/TCK-259-wizard-onboarding-agent.md) — Wizard onboarding Agent post-acceptation (KYC + zones) `M · P1 · applicatif`
 - [TCK-260](tickets/TCK-260-carnet-prestataires-invitation-sp.md) — Carnet de prestataires + invitation Service Provider `S · P1 · applicatif`
 - [TCK-261](tickets/TCK-261-wizard-onboarding-service-provider.md) — Wizard onboarding Service Provider (KYC + dispos) `M · P1 · applicatif`
@@ -562,6 +562,7 @@ _(vide)_
 - [TCK-253](tickets/TCK-253-onboarding-wizard-customer.md) — Onboarding wizard Customer (welcome + profil minimal différé) `S · P0 · front`
 - [TCK-254](tickets/TCK-254-cta-publier-universelle.md) — CTA "Publier" universelle (routing selon état du user) `S · P0 · front`
 - [TCK-256](tickets/TCK-256-form-invitation-owner.md) — Form invitation Owner depuis espace agence `S · P0 · applicatif`
+- [TCK-258](tickets/TCK-258-form-invitation-agent.md) — Écran "Équipe" + form invitation Agent (avec choix de rôle) `S · P0 · applicatif`
 - [TCK-263](tickets/TCK-263-artisan-create-super-admin.md) — Commande artisan create-super-admin (bootstrap) `S · P0 · back`
 
 ### Vague 23 — Console super-admin

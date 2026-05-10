@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Controllers\Api\Agency\AgentInvitationController;
 use App\Http\Controllers\Api\Agency\KycController;
 use App\Http\Controllers\Api\Agency\OwnerInvitationController;
 use App\Http\Controllers\Api\Agency\RegenerateWatermarksController;
+use App\Http\Controllers\Api\Agency\TeamController;
 use App\Http\Controllers\Api\AgencyController;
 use App\Http\Controllers\Api\AgencyMemberRoleController;
 use App\Http\Controllers\Api\AgencyStatsController;
@@ -56,4 +58,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // exposées par TCK-249 (InvitationController).
     Route::post('agencies/{agency}/owners/invite', OwnerInvitationController::class)
         ->name('agencies.owners.invite');
+
+    // TCK-258 — équipe : listing membres + invitation agent. Resend / revoke
+    // réutilisent les routes génériques /api/invitations/{id}/*. Suspend /
+    // remove sont sur /api/profiles/{agent_profile} (routes/api/profiles.php).
+    Route::get('agencies/{agency}/team', [TeamController::class, 'index'])
+        ->name('agencies.team.index');
+    Route::post('agencies/{agency}/agents/invite', AgentInvitationController::class)
+        ->name('agencies.agents.invite');
 });
