@@ -1,7 +1,7 @@
 ---
 id: TCK-263
 title: "Commande artisan create-super-admin (bootstrap)"
-status: todo
+status: done
 phase: P0
 family: back
 estimate: S
