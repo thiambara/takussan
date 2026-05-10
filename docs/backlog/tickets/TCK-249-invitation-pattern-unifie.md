@@ -1,7 +1,7 @@
 ---
 id: TCK-249
 title: "Pattern d'invitation unifié — modèle Invitation + service + emails"
-status: review
+status: done
 phase: P0
 family: back
 estimate: M
