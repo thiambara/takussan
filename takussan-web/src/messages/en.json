@@ -703,7 +703,8 @@
         "agent-onboarding": "Agent onboarding",
         "customer-onboarding": "Tenant onboarding",
         "owner-kyc": "Owner KYC",
-        "agent-kyc": "Agent KYC"
+        "agent-kyc": "Agent KYC",
+        "sp-onboarding": "Service provider onboarding"
       }
     }
   },
@@ -981,6 +982,140 @@
       "errors": {
         "already_member": "This provider is already active in your agency.",
         "forbidden": "You do not have permission to invite a service provider."
+      }
+    },
+    "onboarding": {
+      "errors": {
+        "tradesTitle": "Could not save your trades",
+        "availabilityTitle": "Could not save your availability",
+        "completeTitle": "Could not finalize onboarding"
+      },
+      "success": {
+        "title": "Welcome!",
+        "body": "Your service provider profile is now active."
+      },
+      "kyc": {
+        "labels": {
+          "cni": "ID document",
+          "insurance": "Liability insurance",
+          "rib": "Bank account"
+        },
+        "hints": {
+          "cni": "JPG, PNG or PDF — under 8 MB.",
+          "insurance": "Optional but valued — displays the Insured badge on your profile.",
+          "rib": "For future payouts."
+        },
+        "dropZone": "Drop a file here or click to browse.",
+        "uploading": "Uploading…",
+        "uploadedBadge": "Received",
+        "removeAria": "Remove file",
+        "errors": {
+          "title": "Upload failed",
+          "fileTooLarge": "File too large (8 MB max).",
+          "uploadFailed": "An error occurred. Please try again."
+        },
+        "success": {
+          "title": "Document received",
+          "body": "{name} has been saved."
+        }
+      },
+      "trades": {
+        "legend": "Trades offered",
+        "options": {
+          "plumbing": "Plumbing",
+          "electrical": "Electrical",
+          "climate_control": "Climate control",
+          "locksmith": "Locksmith",
+          "painting": "Painting",
+          "masonry": "Masonry",
+          "other": "Other"
+        }
+      },
+      "availability": {
+        "ariaLabel": "Weekly availability",
+        "dayHeader": "Day",
+        "on": "Open",
+        "off": "—",
+        "cellAria": "{day} {period} availability",
+        "days": {
+          "monday": "Monday",
+          "tuesday": "Tuesday",
+          "wednesday": "Wednesday",
+          "thursday": "Thursday",
+          "friday": "Friday",
+          "saturday": "Saturday",
+          "sunday": "Sunday"
+        },
+        "periods": {
+          "morning": { "label": "Morning" },
+          "afternoon": { "label": "Afternoon" },
+          "evening": { "label": "Evening" }
+        }
+      },
+      "steps": {
+        "phone": {
+          "title": "Verify your phone",
+          "subtitle": "Required to receive intervention notifications.",
+          "fields": {
+            "phone": "Phone number",
+            "code": "SMS code"
+          },
+          "sendCta": "Send code",
+          "sending": "Sending…",
+          "verifyCta": "Verify",
+          "verifying": "Verifying…",
+          "devHint": "Dev code: {code}",
+          "sent": {
+            "title": "Code sent",
+            "body": "The code may take up to 60 seconds to arrive.",
+            "bodyDebug": "Code sent (debug: {code})."
+          },
+          "verified": {
+            "title": "Phone verified",
+            "body": "You can move on to the next step.",
+            "banner": "Number verified — you'll receive intervention requests by SMS."
+          },
+          "errors": {
+            "sendTitle": "Could not send the code",
+            "verifyTitle": "Invalid code"
+          }
+        },
+        "trades": {
+          "title": "Trades & rates",
+          "subtitle": "Your trades, intervention zones and rough rates.",
+          "fields": {
+            "trades": "Trades",
+            "zones": "Intervention zones",
+            "zonesPlaceholder": "Dakar, Mbour…",
+            "zonesHint": "Separate cities or districts with commas.",
+            "hourlyRate": "Hourly rate (XOF)",
+            "visitFee": "Visit fee (XOF)"
+          }
+        },
+        "availability": {
+          "title": "Your availability",
+          "subtitle": "Toggle the slots you can be reached during."
+        },
+        "recap": {
+          "title": "Almost there",
+          "subtitle": "Review the summary before finalizing.",
+          "rows": {
+            "phone": "Phone",
+            "trades": "Trades",
+            "zones": "Zones",
+            "hourlyRate": "Hourly rate",
+            "visitFee": "Visit fee",
+            "insurance": "Insurance",
+            "availability": "Availability",
+            "yes": "Yes",
+            "no": "No",
+            "slots": "slots"
+          },
+          "maintenanceRequest": {
+            "title": "An intervention is waiting",
+            "body": "An intervention request triggered your invitation. You'll see it as soon as the wizard ends."
+          }
+        }
       }
     }
   },

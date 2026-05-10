@@ -577,7 +577,8 @@
         "agent-onboarding": "Tàmbalee agent",
         "customer-onboarding": "Tàmbalee dëkkkat",
         "owner-kyc": "KYC borom",
-        "agent-kyc": "KYC agent"
+        "agent-kyc": "KYC agent",
+        "sp-onboarding": "Tàmbalee prestataire"
       }
     }
   },
@@ -855,6 +856,140 @@
       "errors": {
         "already_member": "Prestataire bii am na ba pare ci sa agence.",
         "forbidden": "Amul nga sañ-sañu wow benn prestataire."
+      }
+    },
+    "onboarding": {
+      "errors": {
+        "tradesTitle": "Mënumaa denk sa ay liggéey",
+        "availabilityTitle": "Mënumaa denk sa ay disponibilités",
+        "completeTitle": "Mënumaa jeexal sa onboarding"
+      },
+      "success": {
+        "title": "Dalal jamm!",
+        "body": "Sa profil prestataire dox na."
+      },
+      "kyc": {
+        "labels": {
+          "cni": "Carte d'identité",
+          "insurance": "Assurance RC pro",
+          "rib": "RIB"
+        },
+        "hints": {
+          "cni": "JPG, PNG mbaa PDF — 8 Mo max.",
+          "insurance": "Optionnel waaye baax na — wone na badge Assuré ci sa profil.",
+          "rib": "Ngir paie yi diy ñëw."
+        },
+        "dropZone": "Sàcc fichier fii mbaa cliquez ngir tànn.",
+        "uploading": "Yónnee…",
+        "uploadedBadge": "Jot nañu",
+        "removeAria": "Far fichier bi",
+        "errors": {
+          "title": "Yónneewul",
+          "fileTooLarge": "Fichier bi rëy na (8 Mo max).",
+          "uploadFailed": "Am na njumte. Jéem leen waxtu jënd."
+        },
+        "success": {
+          "title": "Document jot nañu ko",
+          "body": "Fichier {name} jot nañu ko."
+        }
+      },
+      "trades": {
+        "legend": "Liggéey yi nga mën a def",
+        "options": {
+          "plumbing": "Plomberie",
+          "electrical": "Électricité",
+          "climate_control": "Climatisation",
+          "locksmith": "Serrurerie",
+          "painting": "Peinture",
+          "masonry": "Maçonnerie",
+          "other": "Beneen"
+        }
+      },
+      "availability": {
+        "ariaLabel": "Disponibilités yu ayu-bés",
+        "dayHeader": "Bés",
+        "on": "Dispo",
+        "off": "—",
+        "cellAria": "Disponibilité {day} {period}",
+        "days": {
+          "monday": "Altine",
+          "tuesday": "Talaata",
+          "wednesday": "Àllarba",
+          "thursday": "Alxames",
+          "friday": "Àjjuma",
+          "saturday": "Gaawu",
+          "sunday": "Dibéer"
+        },
+        "periods": {
+          "morning": { "label": "Suba" },
+          "afternoon": { "label": "Bëccëg" },
+          "evening": { "label": "Ngoon" }
+        }
+      },
+      "steps": {
+        "phone": {
+          "title": "Vérifier sa telefoŋ",
+          "subtitle": "Ngir nga jot ay xibaar yu intervention.",
+          "fields": {
+            "phone": "Numero telefoŋ",
+            "code": "Code SMS"
+          },
+          "sendCta": "Yónnee code bi",
+          "sending": "Yónnee…",
+          "verifyCta": "Vérifier",
+          "verifying": "Vérification…",
+          "devHint": "Code dev : {code}",
+          "sent": {
+            "title": "Code yónnee nañu",
+            "body": "Code bi mën na 60 segondes ngir ñëw.",
+            "bodyDebug": "Code yónnee (debug : {code})."
+          },
+          "verified": {
+            "title": "Telefoŋ vérifier nañu",
+            "body": "Mën nga dem ci étape bu ñëw.",
+            "banner": "Numero vérifier nañu — dinga jot ay demande bu intervention ci SMS."
+          },
+          "errors": {
+            "sendTitle": "Yónneewul code bi",
+            "verifyTitle": "Code baaxul"
+          }
+        },
+        "trades": {
+          "title": "Liggéey ak prix",
+          "subtitle": "Liggéey yi, bérébi liggéey ak prix yi.",
+          "fields": {
+            "trades": "Liggéey",
+            "zones": "Bérébi liggéey",
+            "zonesPlaceholder": "Dakar, Mbour…",
+            "zonesHint": "Tofal ay dëkk ak ay quartiers ak virgule.",
+            "hourlyRate": "Tarif waxtu (XOF)",
+            "visitFee": "Frais de visite (XOF)"
+          }
+        },
+        "availability": {
+          "title": "Sa disponibilités",
+          "subtitle": "Cocher créneaux yi nga jappu."
+        },
+        "recap": {
+          "title": "Lépp pare na",
+          "subtitle": "Xool résumé bi balaa nga jeexal.",
+          "rows": {
+            "phone": "Telefoŋ",
+            "trades": "Liggéey",
+            "zones": "Bérébi",
+            "hourlyRate": "Tarif waxtu",
+            "visitFee": "Frais de visite",
+            "insurance": "Assurance",
+            "availability": "Disponibilités",
+            "yes": "Waaw",
+            "no": "Déedéet",
+            "slots": "créneaux"
+          },
+          "maintenanceRequest": {
+            "title": "Am na intervention bu lay xaar",
+            "body": "Demande bu intervention moo lay woolu. Dinga ko gis bu wizard bi jeexee."
+          }
+        }
       }
     }
   },

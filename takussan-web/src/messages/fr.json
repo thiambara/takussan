@@ -703,7 +703,8 @@
         "agent-onboarding": "Onboarding agent",
         "customer-onboarding": "Onboarding locataire",
         "owner-kyc": "KYC propriétaire",
-        "agent-kyc": "KYC agent"
+        "agent-kyc": "KYC agent",
+        "sp-onboarding": "Onboarding prestataire"
       }
     }
   },
@@ -981,6 +982,140 @@
       "errors": {
         "already_member": "Ce prestataire est déjà actif dans votre agence.",
         "forbidden": "Vous n'avez pas la permission d'inviter un prestataire."
+      }
+    },
+    "onboarding": {
+      "errors": {
+        "tradesTitle": "Impossible d'enregistrer vos métiers",
+        "availabilityTitle": "Impossible d'enregistrer vos disponibilités",
+        "completeTitle": "Impossible de finaliser votre onboarding"
+      },
+      "success": {
+        "title": "Bienvenue !",
+        "body": "Votre profil prestataire est actif."
+      },
+      "kyc": {
+        "labels": {
+          "cni": "Pièce d'identité (CNI)",
+          "insurance": "Assurance RC pro",
+          "rib": "RIB"
+        },
+        "hints": {
+          "cni": "JPG, PNG ou PDF — moins de 8 Mo.",
+          "insurance": "Optionnel mais valorisé — affiche le badge Assuré sur votre profil.",
+          "rib": "Pour les futurs paiements."
+        },
+        "dropZone": "Glissez un fichier ici ou cliquez pour parcourir.",
+        "uploading": "Envoi en cours…",
+        "uploadedBadge": "Reçu",
+        "removeAria": "Retirer le fichier",
+        "errors": {
+          "title": "Envoi du fichier impossible",
+          "fileTooLarge": "Fichier trop volumineux (8 Mo max).",
+          "uploadFailed": "Une erreur est survenue. Réessayez."
+        },
+        "success": {
+          "title": "Document reçu",
+          "body": "Le fichier {name} a été enregistré."
+        }
+      },
+      "trades": {
+        "legend": "Métiers proposés",
+        "options": {
+          "plumbing": "Plomberie",
+          "electrical": "Électricité",
+          "climate_control": "Climatisation",
+          "locksmith": "Serrurerie",
+          "painting": "Peinture",
+          "masonry": "Maçonnerie",
+          "other": "Autre"
+        }
+      },
+      "availability": {
+        "ariaLabel": "Disponibilités hebdomadaires",
+        "dayHeader": "Jour",
+        "on": "Dispo",
+        "off": "—",
+        "cellAria": "Disponibilité {day} {period}",
+        "days": {
+          "monday": "Lundi",
+          "tuesday": "Mardi",
+          "wednesday": "Mercredi",
+          "thursday": "Jeudi",
+          "friday": "Vendredi",
+          "saturday": "Samedi",
+          "sunday": "Dimanche"
+        },
+        "periods": {
+          "morning": { "label": "Matin" },
+          "afternoon": { "label": "Après-midi" },
+          "evening": { "label": "Soir" }
+        }
+      },
+      "steps": {
+        "phone": {
+          "title": "Vérifiez votre téléphone",
+          "subtitle": "Indispensable pour recevoir les notifications d'intervention.",
+          "fields": {
+            "phone": "Numéro de téléphone",
+            "code": "Code reçu par SMS"
+          },
+          "sendCta": "Envoyer le code",
+          "sending": "Envoi…",
+          "verifyCta": "Vérifier",
+          "verifying": "Vérification…",
+          "devHint": "Code de développement : {code}",
+          "sent": {
+            "title": "Code envoyé",
+            "body": "Le code peut mettre jusqu'à 60 secondes pour arriver.",
+            "bodyDebug": "Code envoyé (debug : {code})."
+          },
+          "verified": {
+            "title": "Téléphone vérifié",
+            "body": "Vous pouvez passer à l'étape suivante.",
+            "banner": "Numéro vérifié — vous recevrez vos demandes d'intervention par SMS."
+          },
+          "errors": {
+            "sendTitle": "Envoi du code impossible",
+            "verifyTitle": "Code invalide"
+          }
+        },
+        "trades": {
+          "title": "Métiers et tarifs",
+          "subtitle": "Vos métiers, vos zones d'intervention et vos tarifs indicatifs.",
+          "fields": {
+            "trades": "Métiers",
+            "zones": "Zones d'intervention",
+            "zonesPlaceholder": "Dakar, Mbour…",
+            "zonesHint": "Séparez les villes ou quartiers par une virgule.",
+            "hourlyRate": "Tarif horaire (XOF)",
+            "visitFee": "Frais de visite (XOF)"
+          }
+        },
+        "availability": {
+          "title": "Vos disponibilités",
+          "subtitle": "Cochez les créneaux pendant lesquels vous êtes joignable."
+        },
+        "recap": {
+          "title": "Tout est prêt",
+          "subtitle": "Vérifiez le résumé avant de finaliser.",
+          "rows": {
+            "phone": "Téléphone",
+            "trades": "Métiers",
+            "zones": "Zones",
+            "hourlyRate": "Tarif horaire",
+            "visitFee": "Frais de visite",
+            "insurance": "Assurance",
+            "availability": "Disponibilités",
+            "yes": "Oui",
+            "no": "Non",
+            "slots": "créneaux"
+          },
+          "maintenanceRequest": {
+            "title": "Une intervention vous attend",
+            "body": "Une demande d'intervention a déclenché votre invitation. Vous pourrez la voir dès la fin du wizard."
+          }
+        }
       }
     }
   },
