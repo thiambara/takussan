@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\Admin\PlatformPayoutController;
 use App\Http\Controllers\Api\Admin\PlatformSettingController;
 use App\Http\Controllers\Api\Admin\ReportingController;
 use App\Http\Controllers\Api\Admin\SchedulerController;
+use App\Http\Controllers\Api\Admin\SuperAdminInvitationController;
 use App\Http\Controllers\Api\Admin\SystemMetricsController;
 use App\Http\Controllers\Api\Admin\UserDetailController;
 use App\Http\Controllers\Api\Admin\UserImpersonationController;
@@ -69,6 +70,15 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
         Route::post('{agency}/unverify', [AgencyModerationController::class, 'unverify'])
             ->name('admin.agencies.unverify');
     });
+
+    // TCK-264 — Peer-to-peer super-admin cooptation. Listing surfaces
+    // both active super-admins and pending invitations so the UI can
+    // distinguish "Active" / "Awaiting 2FA" / "Invited" without a
+    // fan-out call.
+    Route::get('super-admins', [SuperAdminInvitationController::class, 'index'])
+        ->name('admin.superAdmins.index');
+    Route::post('super-admins/invite', [SuperAdminInvitationController::class, 'store'])
+        ->name('admin.superAdmins.invite');
 
     // User support — cross-tenant list/detail, strictly super_admin.
     Route::get('users', [UserDetailController::class, 'index'])

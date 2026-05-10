@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Auth\AccountDeletionController;
 use App\Http\Controllers\Api\Auth\AppleOAuthController;
 use App\Http\Controllers\Api\Auth\FacebookOAuthController;
+use App\Http\Controllers\Api\Auth\SuperAdminTwoFactorController;
 use App\Http\Controllers\Api\UserAdminController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\EmailVerificationController;
@@ -68,6 +69,16 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     Route::post('/two-factor/disable', [TwoFactorController::class, 'disable'])->middleware('throttle:5,1');
     Route::get('/two-factor/recovery-codes', [TwoFactorController::class, 'recoveryCodes']);
     Route::post('/two-factor/recovery-codes/regenerate', [TwoFactorController::class, 'regenerateRecoveryCodes']);
+
+    // TCK-264 — Mandatory TOTP enrollment for a freshly-coopted
+    // super-admin. The spatie role is deferred until /confirm flips
+    // it on, so these endpoints accept *only* users with
+    // `force_2fa_at_first_login = true`.
+    Route::post('/super-admin/2fa/enroll', [SuperAdminTwoFactorController::class, 'enroll'])
+        ->name('auth.super-admin.2fa.enroll');
+    Route::post('/super-admin/2fa/confirm', [SuperAdminTwoFactorController::class, 'confirm'])
+        ->middleware('throttle:5,1')
+        ->name('auth.super-admin.2fa.confirm');
 
     // Session management
     Route::get('/sessions', [SessionController::class, 'index']);
