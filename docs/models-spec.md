@@ -121,6 +121,11 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 46. [Announcement](#46-announcement-) 🆕
 47. [AnnouncementDismissal](#47-announcementdismissal-) 🆕
 
+### Onboarding 🆕
+48. [Invitation](#48-invitation-) 🆕
+49. [AgencyUpgradeRequest](#49-agencyupgraderequest-) 🆕
+50. [TenantOnboardingChecklist](#50-tenantonboardingchecklist-) 🆕
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -232,6 +237,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | id | bigint PK | | auto | Identifiant unique | |
 | name | string | | | Raison sociale | |
 | slug | string | | | Identifiant URL unique | |
+| kind | AgencyKind | | 'standard' | Type d'agence — `standard` (multi-membres, pleine capacité) ou `individual` (host solo auto-créé via CTA "Publier") | ➕ |
 | license_number | string | oui | null | Numéro de licence professionnelle | |
 | email | string | oui | null | Email de contact | |
 | phone | string | oui | null | Téléphone principal | |
@@ -1883,6 +1889,126 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 
 ---
 
+### 48. Invitation 🆕
+
+**Table :** `invitations`
+**Description :** Modèle générique d'invitation utilisé par tous les parcours d'onboarding par invitation (Owner, Agent, AgencyAdmin, ServiceProvider, super-admin coopté). Porte le token signé, l'expiry et l'état de l'invitation. Le profil cible (polymorphe) est créé en `draft` au moment de l'envoi et passe en `active` à l'acceptation.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| token | string(64) | | | Token signé URL-safe (SHA-256), unique |
+| email | string | | | Email du destinataire |
+| invited_user_id | FK users | oui | null | User cible si déjà existant en base (sinon créé à l'acceptation) |
+| invited_by | FK users | | | User qui a émis l'invitation |
+| invitable_type | string | oui | null | Type morph du profil cible (ex. `OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`, `AgencyAdminProfile`) |
+| invitable_id | bigint | oui | null | ID du profil cible créé en `draft` |
+| agency_id | FK agencies | oui | null | Agence d'accueil (null pour cooptation super-admin) |
+| role | string | | | Rôle spatie à assigner à l'acceptation (ex. `owner`, `agent`, `agency_admin`, `service_provider`, `super_admin`) |
+| status | InvitationStatus | | 'sent' | sent, accepted, expired, revoked |
+| expires_at | datetime | | | Expiration du token (par défaut now+7j) |
+| accepted_at | datetime | oui | null | |
+| revoked_at | datetime | oui | null | |
+| last_reminded_at | datetime | oui | null | Date du dernier rappel J+2 envoyé |
+| metadata | json | oui | null | Données additionnelles propres au parcours (ex. zones d'intervention pré-sélectionnées, premier lead pré-assigné) |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- `token` unique
+- `(email, status)` pour rechercher les invitations en cours pour un email
+- `(invitable_type, invitable_id)`
+- `(status, expires_at)` pour le cron d'expiration
+
+**Relations :**
+- `invitedUser()` → belongsTo User (via `invited_user_id`)
+- `inviter()` → belongsTo User (via `invited_by`)
+- `agency()` → belongsTo Agency
+- `invitable()` → morphTo (OwnerProfile / AgentProfile / etc.)
+
+**Notes :**
+- Conflit email : si l'email correspond à un User existant, l'acceptation passe par login + accept (pas par signup).
+- Cron quotidien `invitations:expire` flippe `sent` → `expired` quand `expires_at < now`.
+- À l'acceptation : transaction qui crée le User si besoin, flippe `Invitation.status = accepted`, flippe `<Profile>.status = active`, attache le rôle spatie scopé sur `agency_id`.
+
+---
+
+### 49. AgencyUpgradeRequest 🆕
+
+**Table :** `agency_upgrade_requests`
+**Description :** Demande d'upgrade d'une agence `individual` vers `standard`, soumise par son `agency_admin` et reviewée par un super-admin. À l'approbation, `Agency.kind` bascule vers `standard` et les champs légaux (`rc`, `ninea`) sont copiés sur l'agence. Une seule demande `pending` à la fois par agence.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `cascadeOnDelete` |
+| submitted_by | FK users | | | User (agency_admin) qui a soumis la demande |
+| rc | string | | | Numéro de Registre du Commerce |
+| ninea | string | | | Numéro NINEA |
+| rib_pro | string | | | RIB professionnel |
+| address_fiscale | string | | | Adresse fiscale |
+| company_legal_name | string | | | Raison sociale juridique |
+| planned_agents_count | integer | oui | null | Nombre estimé d'agents à inviter |
+| status | AgencyUpgradeRequestStatus | | 'pending' | pending, approved, rejected, revoked |
+| submitted_at | datetime | | auto | |
+| reviewed_by | FK users | oui | null | Super-admin reviewer |
+| reviewed_at | datetime | oui | null | |
+| review_comment | text | oui | null | Commentaire (obligatoire si rejected) |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- `(agency_id, status)` — pour empêcher plusieurs demandes `pending` simultanées (unique partiel sur `pending`)
+- `(status, submitted_at)`
+
+**Relations :**
+- `agency()` → belongsTo Agency
+- `submitter()` → belongsTo User (via `submitted_by`)
+- `reviewer()` → belongsTo User (via `reviewed_by`)
+- `documents()` → morphMany Document (statuts PDF, scan RC, scan NINEA)
+
+**Notes :**
+- À l'approbation : `Agency.kind` flippe vers `standard`, les champs `rc`, `ninea` populés sur l'agence si vides, notification au submitter, débloquage des features restreintes (invitation collaborateurs internes, multi-admin, custom roles, assignation, reporting cross-équipe, customisation tags/enums).
+- Pas de rétrogradation `standard` → `individual`.
+- L'utilisateur peut révoquer sa demande tant qu'elle est `pending` (`revoked` final).
+
+---
+
+### 50. TenantOnboardingChecklist 🆕
+
+**Table :** `tenant_onboarding_checklists`
+**Description :** Suit la complétion de l'onboarding "Espace résident" déclenché à la signature d'un bail (`Lease.signed`). Pas un parcours d'inscription mais une transition d'état du Customer existant : welcome modale, état des lieux, premier paiement, accès documents. Crée à `Lease.status = active`, fermé quand tous les items requis sont `done` ou quand le bail est résilié.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| lease_id | FK leases | | | `cascadeOnDelete`, unique (1 checklist par bail) |
+| user_id | FK users | | | Le résident (Customer) |
+| welcome_seen_at | datetime | oui | null | Welcome modale "Espace résident" vue |
+| inventory_completed_at | datetime | oui | null | État des lieux d'entrée signé (référence `Inventory` via `lease_id`) |
+| first_payment_at | datetime | oui | null | Premier paiement enregistré (acompte ou 1er loyer, voir `LeasePayment`) |
+| documents_acknowledged_at | datetime | oui | null | Bail + EDL accusés réception |
+| reminders_sent | json | | '[]' | Liste des rappels envoyés (ex. `[{type:'inventory', sent_at:...}]`) |
+| completed_at | datetime | oui | null | Tous les items requis cochés |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- `lease_id` unique
+- `user_id`
+- `(completed_at)` pour KPI de complétion
+
+**Relations :**
+- `lease()` → belongsTo Lease
+- `user()` → belongsTo User
+
+**Notes :**
+- Items requis pour `completed_at` : `inventory_completed_at` + `first_payment_at` (les deux autres sont informatifs).
+- Cron horaire : si `inventory_completed_at` null à J+7 de la signature → notification rappel locataire + notification agent.
+- N'est pas créé si l'agence n'a pas activé le workflow EDL (configurable via `Agency.settings.tenant_onboarding_enabled`).
+
+---
+
 ## Enums
 
 ### Enums existants (à renommer / ajuster)
@@ -1953,6 +2079,9 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | **BankStatementStatus** 🆕 | processing, ready_for_review, partially_reconciled, reconciled, archived | BankStatement.status |
 | **BankStatementLineDirection** 🆕 | credit, debit | BankStatementLine.direction |
 | **BankStatementLineMatchStatus** 🆕 | unmatched, suggested, confirmed, ignored | BankStatementLine.match_status |
+| **AgencyKind** 🆕 | standard, individual | Agency.kind |
+| **InvitationStatus** 🆕 | sent, accepted, expired, revoked | Invitation.status |
+| **AgencyUpgradeRequestStatus** 🆕 | pending, approved, rejected, revoked | AgencyUpgradeRequest.status |
 
 ---
 
