@@ -418,24 +418,48 @@ class InvitationService
      */
     protected function finalizeAccept(Invitation $invitation, User $user): Invitation
     {
-        // Spatie role scoping: super_admin lives at team_id=null, every
-        // other role lives at team_id=agency_id. Match the same pattern
-        // used by AgencyController::addAgent so the role probes are
-        // consistent across surfaces.
-        $registrar = app(PermissionRegistrar::class);
-        $previousTeamId = $registrar->getPermissionsTeamId();
-        $teamId = $invitation->role === 'super_admin' ? null : $invitation->agency_id;
-        $registrar->setPermissionsTeamId($teamId);
+        // TCK-264 — super_admin cooptation: the spatie role is NOT
+        // attached at acceptance time. The user must first enroll a
+        // TOTP factor through the dedicated onboarding flow; only the
+        // /api/auth/super-admin/2fa/confirm endpoint flips the role on.
+        // We set `force_2fa_at_first_login = true` (re-uses the TCK-263
+        // column) so the dashboard / router can detect the pending state
+        // and gate every super-admin surface until the factor is
+        // confirmed.
+        if ($invitation->role === 'super_admin') {
+            $user->forceFill([
+                'force_2fa_at_first_login' => true,
+                'email_verified_at' => $user->email_verified_at ?? now(),
+            ])->save();
 
-        try {
-            Role::findOrCreate($invitation->role, 'web');
-            $user->unsetRelation('roles');
-            if (! $user->hasRole($invitation->role)) {
-                $user->assignRole($invitation->role);
+            activity('Invitation')
+                ->performedOn($invitation)
+                ->causedBy($user)
+                ->withProperties([
+                    'invitation_id' => $invitation->id,
+                    'user_id' => $user->id,
+                ])
+                ->event('super_admin_role_pending')
+                ->log('super_admin_role_pending');
+        } else {
+            // Spatie role scoping: super_admin lives at team_id=null,
+            // every other role lives at team_id=agency_id. Match the
+            // same pattern used by AgencyController::addAgent so the
+            // role probes are consistent across surfaces.
+            $registrar = app(PermissionRegistrar::class);
+            $previousTeamId = $registrar->getPermissionsTeamId();
+            $registrar->setPermissionsTeamId($invitation->agency_id);
+
+            try {
+                Role::findOrCreate($invitation->role, 'web');
+                $user->unsetRelation('roles');
+                if (! $user->hasRole($invitation->role)) {
+                    $user->assignRole($invitation->role);
+                }
+            } finally {
+                $registrar->setPermissionsTeamId($previousTeamId);
+                $user->unsetRelation('roles');
             }
-        } finally {
-            $registrar->setPermissionsTeamId($previousTeamId);
-            $user->unsetRelation('roles');
         }
 
         // Flip the polymorphic profile to `active` if it exists and

@@ -21,6 +21,10 @@ class UserResource extends JsonResource
             'email_verified_at' => $this->email_verified_at?->toIso8601String(),
             'phone_verified_at' => $this->phone_verified_at?->toIso8601String(),
             'two_factor_enabled' => (bool) $this->two_factor_enabled,
+            // TCK-263 / TCK-264 — surfaced so the frontend can detect a
+            // pending super-admin onboarding state and redirect to
+            // /onboarding/super-admin before serving any super-admin route.
+            'force_2fa_at_first_login' => (bool) $this->force_2fa_at_first_login,
             'agency_id' => $this->agency_id,
             'roles' => $this->getRoleNames()->values()->all(),
             'status' => $this->status?->value,

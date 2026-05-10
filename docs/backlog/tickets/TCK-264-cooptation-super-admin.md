@@ -1,7 +1,7 @@
 ---
 id: TCK-264
 title: "Cooptation super-admin — invitation peer-to-peer + 2FA forcé"
-status: todo
+status: done
 phase: P1
 family: applicatif
 estimate: M
@@ -75,4 +75,39 @@ Notification :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Décisions clés**
+
+- **Pas de policy spatie pour le gating**. Le `EnsureSuperAdmin` middleware existe déjà (TCK-144) et garde le namespace `/api/admin/*`. On l'a réutilisé tel quel pour `POST /api/admin/super-admins/invite`. Le service `SuperAdminCooptationService::invite()` re-vérifie défensivement via `User::isSuperAdmin()` (qui pin le team à null) — défense en profondeur, pas de gate spatie supplémentaire.
+- **2FA bloque l'attache du rôle au niveau de `finalizeAccept`**. Plutôt que de créer un état `pending_2fa` sur Invitation, on a réutilisé la colonne `force_2fa_at_first_login` de TCK-263. À l'acceptation : `User` créé, flag posé, invitation passée à `accepted` (pour ne pas duplicer l'état machine), MAIS rôle spatie NON attaché. Activity log `super_admin_role_pending` ajouté pour la traçabilité. L'attache du rôle se fait *uniquement* dans `POST /api/auth/super-admin/2fa/confirm` — endpoint dédié qui hérite de la logique de `SuperAdminBootstrapService::attachSuperAdminRole` (probe team-id null + `firstOrCreate` du rôle).
+- **Endpoints TOTP super-admin dédiés** (pas une variante de `/api/auth/two-factor/*`). Raisons : (1) recovery codes hashés en DB et émis en clair *une seule fois* à l'enroll (mirror du bootstrap), (2) gating spécifique par `force_2fa_at_first_login = true` au lieu de `auth:sanctum + role check` standard, (3) confirm fait l'attache du rôle + le broadcast aux pairs — opération métier qui n'a rien à faire dans le contrôleur 2FA générique.
+- **Notifications broadcast** via `Notification::send($recipients, ...)` queueable (database + mail). `superAdmins()` qualifie `roles.name` / `roles.team_id` car spatie injecte une clause `agency_id IS NULL` non-qualifiée sur la table pivot, ce qui collisionne avec le `agency_id` de `users`.
+- **Frontend** : `<TotpEnrollment>` (TCK-270) gardé intact ; un wizard dédié `<SuperAdminOnboardingWizard>` réplique la state machine intro→scanning→success en pointant vers les actions `superAdminTwoFactor*Action`. Recovery codes affichés depuis la réponse `/enroll` (pas `/confirm`) puisque le confirm super-admin ne les ré-émet pas. Layouts `(dashboard)` + `(super-admin)/super-admin` détectent `force_2fa_at_first_login` et bouncent sur `/onboarding/super-admin`.
+
+**Fichiers touchés**
+
+Backend :
+- `app/Services/Auth/SuperAdminCooptationService.php` (nouveau)
+- `app/Services/Invitation/InvitationService.php` (`finalizeAccept` étendu — branche `super_admin`)
+- `app/Http/Controllers/Api/Admin/SuperAdminInvitationController.php` (nouveau)
+- `app/Http/Controllers/Api/Auth/SuperAdminTwoFactorController.php` (nouveau)
+- `app/Http/Requests/Admin/InviteSuperAdminRequest.php` (nouveau)
+- `app/Http/Resources/UserResource.php` (expose `force_2fa_at_first_login`)
+- `app/Notifications/SuperAdminInvitedBroadcast.php` (nouveau)
+- `app/Notifications/SuperAdminAcceptedBroadcast.php` (nouveau)
+- `routes/api/admin.php` + `routes/api/auth.php` (routes ajoutées)
+- `lang/{fr,en,wo}/super_admins.php` (nouveaux)
+- `tests/Feature/Auth/SuperAdminCooptationTest.php` (10 tests)
+
+Frontend :
+- `src/app/(super-admin)/super-admin/super-admins/page.tsx` (nouveau)
+- `src/app/onboarding/super-admin/page.tsx` (nouveau)
+- `src/app/(dashboard)/layout.tsx` + `src/app/(super-admin)/super-admin/layout.tsx` (gates ajoutés)
+- `src/app/actions/super-admin-cooptation.ts` (nouveau)
+- `src/components/super-admin/InviteSuperAdminModal.tsx` (nouveau)
+- `src/components/super-admin/SuperAdminOnboardingWizard.tsx` (nouveau)
+- `src/components/layout/SuperAdminSidebar.tsx` (lien sidebar ajouté)
+- `src/lib/queries/super-admin.ts` + `src/lib/security.ts` (helpers ajoutés)
+- `src/types/user.ts` (champ `force_2fa_at_first_login`)
+- `src/components/super-admin/__tests__/InviteSuperAdminModal.test.tsx` (nouveau)
+
+**Hors périmètre confirmé** : suspension/retrait d'un super-admin existant, double-validation V2.
