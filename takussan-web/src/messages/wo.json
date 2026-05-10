@@ -791,6 +791,73 @@
       }
     }
   },
+  "serviceProviders": {
+    "page": {
+      "title": "Téere u prestataires",
+      "subtitle": "Plombiers, électriciens ak peintres : sa téere u liggéeykat yi.",
+      "add": "Yokk benn prestataire"
+    },
+    "list": {
+      "empty_title": "Amagul prestataire",
+      "empty_description": "Wow sa prestataire bu njëkk ngir yokk ko ci sa téere.",
+      "columns": {
+        "name": "Tur",
+        "trades": "Liggéey",
+        "zones": "Bérébi liggéey",
+        "status": "Tëralin",
+        "actions": "Jëfin"
+      },
+      "status": {
+        "draft": "Wow nañu",
+        "active": "Dox na",
+        "inactive": "Doxul",
+        "suspended": "Suspendu"
+      },
+      "actions": {
+        "resend": "Yónnee waaru fi",
+        "revoke": "Far ko"
+      }
+    },
+    "invite": {
+      "title": "Wow benn prestataire",
+      "subtitle": "Yónnee benn waaru ci email. Prestataire bi dina sàmpu kompte ak baleel sa profil ginnaaw bi mu nangu.",
+      "fields": {
+        "email": "Email",
+        "first_name": "Tur",
+        "last_name": "Sant",
+        "phone": "Telefoŋ (optionnel)",
+        "trades": "Liggéey",
+        "intervention_zones": "Bérébi liggéey"
+      },
+      "trades": {
+        "plumbing": "Plonbri",
+        "electrical": "Elektrisite",
+        "structural": "Maçonneri",
+        "appliance": "Elektromenaze",
+        "painting": "Penture",
+        "cleaning": "Setal",
+        "pest_control": "Faj jëmm",
+        "locksmith": "Saraab",
+        "other": "Yeneen"
+      },
+      "cta": {
+        "submit": "Yónnee waaru bi",
+        "submitting": "Mu ngiy yónnee…",
+        "cancel": "Bañ"
+      },
+      "toasts": {
+        "success_title": "Waaru bi yónnee na",
+        "error_title": "Mënumaa yónnee waaru bi",
+        "resend_success": "Waaru bi yónnee nañu fi",
+        "revoke_success": "Waaru bi far nañu ko",
+        "existing_other_agency": "Prestataire bii am na ba pare ci beneen agence — dina mën a nangu multi-rattachement bu nu ko nangoo."
+      },
+      "errors": {
+        "already_member": "Prestataire bii am na ba pare ci sa agence.",
+        "forbidden": "Amul nga sañ-sañu wow benn prestataire."
+      }
+    }
+  },
   "onboarding": {
     "host": {
       "defaults": {

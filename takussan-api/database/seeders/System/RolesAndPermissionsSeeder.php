@@ -65,8 +65,16 @@ class RolesAndPermissionsSeeder extends Seeder
         // it to a senior agent via {@see \App\Models\RoleDelegation}.
         Permission::firstOrCreate(['name' => 'manage_team', 'guard_name' => 'web']);
 
+        // TCK-260 — gates the service provider book surface
+        // (`/app/maintenance/providers`, `POST /api/agencies/{id}/service-providers/invite`).
+        // Default-granted to `agency_admin`. Available to standard AND
+        // individual agencies (a sole-host needs its providers too).
+        // An `agency_admin` may delegate it to an agent via
+        // {@see \App\Models\RoleDelegation}.
+        Permission::firstOrCreate(['name' => 'invite_service_provider', 'guard_name' => 'web']);
+
         $depositRefundExtras = [
-            'agency_admin' => ['leases.refund_deposit', 'leases.renew', 'leases.terminate', 'leases.rent_review', 'leases.rent_review_force', 'roles.manage_in_agency', 'invite_owner', 'manage_team'],
+            'agency_admin' => ['leases.refund_deposit', 'leases.renew', 'leases.terminate', 'leases.rent_review', 'leases.rent_review_force', 'roles.manage_in_agency', 'invite_owner', 'manage_team', 'invite_service_provider'],
             'agent' => ['leases.refund_deposit', 'leases.renew', 'leases.terminate', 'leases.rent_review'],
             'owner' => ['leases.refund_deposit', 'leases.renew', 'leases.terminate', 'leases.rent_review', 'leases.rent_review_force'],
         ];
