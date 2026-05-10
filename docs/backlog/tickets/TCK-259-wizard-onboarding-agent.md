@@ -1,7 +1,7 @@
 ---
 id: TCK-259
 title: "Wizard onboarding Agent post-acceptation — KYC + zones + tour"
-status: todo
+status: done
 phase: P1
 family: applicatif
 estimate: M
@@ -77,4 +77,108 @@ Welcome modale (TCK-251), key `agent-welcome`.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Mirror exact du wizard Owner (TCK-257) avec quatre étapes : OTP téléphone, KYC,
+spécialisation+zones, écran de bienvenue. Aucun nouveau ticket de complexité —
+toutes les briques (`<WizardReprenable>`, `<KycUploader>`, `<WelcomeModal>`,
+`PhoneVerificationService`) sont réutilisées telles quelles.
+
+**Choix de stockage**
+
+- `KYC` (license / cni / photo) → `Document` polymorphe attaché à
+  `AgentProfile` (un row par `(profile, kind)`, ré-upload remplace le média
+  in-place via `medialibrary` `singleFile`). Statut + horodatage de soumission
+  dans `AgentProfile.metadata.kyc.{status, submitted_at, docs[]}` — pas de
+  migration dédiée. Mapping `kind → DocumentType` : `license`→`other`,
+  `cni`→`id_card`, `photo`→`photo`.
+- `license_number` (string) → colonne dédiée existante
+  `agent_profiles.license_number`.
+- `specialization` (string) → colonne existante `agent_profiles.specialty`
+  (le front parle de "specialization" pour la cohérence UX, mais la colonne
+  schema reste `specialty` — voir `AgentProfileFactory`). Validée contre
+  `[residential, commercial, luxury, mixed]`.
+- `intervention_zones` (string[]) → `metadata.intervention_zones` (mirror
+  des `service_areas` SP). Pas de migration : promotion en colonne quand un
+  flux booking aura besoin d'une range-query.
+
+**Premier lead pré-assigné**
+
+Le schéma `customers` ne dispose pas de colonne `assigned_agent_id` — on
+utilise `customers.added_by_id = $agent->user_id` scopé par agence comme
+proxy ("leads créés par cet agent ou attribués à lui à l'invite"). La
+pré-assignation côté admin reste hors-périmètre (autre ticket).
+
+**Hook acceptation invitation**
+
+`InvitationService::finalizeAccept` est élargi pour attacher `user_id`
+sur le draft `AgentProfile` à l'acceptation (mirror Owner / SP — il ne
+le faisait que pour `service_provider` / `owner`). Bascule status → active
+restée pilotée par le `array_key_exists('status', …)` existant.
+
+**Endpoints**
+
+- `POST   /api/me/agent-profiles/{id}/kyc/upload`     (multipart, throttle 10/min)
+- `POST   /api/me/agent-profiles/{id}/kyc/submit`     (throttle 10/min)
+- `PATCH  /api/me/agent-profiles/{id}/specialization` (JSON)
+- `GET    /api/me/agent-profiles/{id}/first-lead`
+- `POST   /api/agent/onboard/complete`                (throttle 5/min)
+
+OTP : on réutilise `/api/auth/phone/send-otp` + `/api/auth/phone/verify-otp`
+existants (pas besoin d'un endpoint `/api/me/phone/verify` dédié — le
+wizard pré-vérifie en step 1, le `complete()` re-vérifie côté serveur si
+`phone_verified_at` est encore null).
+
+**Frontend**
+
+- `<KycUploader>` étendu avec `endpoint='agent-profiles'` + nouveaux
+  `kind='license'|'photo'` (backward-compat — Owner / SP intacts ; tests
+  des deux wizards passent).
+- Nouveau `<ZoneMultiSelect>` (free-form chips + suggestions Dakar). Pas
+  de catalogue villes (codebase n'en ship pas) — swap pour Combobox
+  trivial quand un catalogue arrivera, le contrat `value/onChange` reste
+  inchangé.
+- `<AgentWelcomeWizard>` mirror de `<OwnerWelcomeWizard>` (3 slides,
+  `useWelcomeOnce('agent-welcome')`), monté dans `AppShell` derrière
+  `isAgent(user.roles)`.
+- Page `/onboarding/agent/page.tsx` — auth-gate + lookup du premier
+  `AgentProfile` via `/api/me/profiles?fields[profiles]=...&include=agency`.
+  Le rôle assigné (junior/senior/manager) est par défaut `agent` dans le
+  recap car la projection `/api/me/profiles` n'expose pas `metadata` ;
+  un endpoint dédié pourra raffiner le label dans un follow-up (purement
+  cosmétique, ne gate jamais l'onboarding).
+- `wizard-drafts.ts` : prefix `agent-onboarding-{id}` repointé vers
+  `/onboarding/agent?agent={id}` (mirror Owner/SP — le path précédent
+  `/app/profile/agent/onboarding` n'existait pas).
+
+**Fichiers touchés**
+
+Backend :
+- `app/Http/Controllers/AgentOnboardingController.php` (nouveau)
+- `app/Http/Controllers/Api/Me/AgentProfileController.php` (nouveau)
+- `app/Services/Onboarding/AgentOnboardingService.php` (nouveau)
+- `app/Services/Invitation/InvitationService.php` (élargissement de la
+  liste des rôles qui attachent `user_id`)
+- `database/factories/Profiles/AgentProfileFactory.php` (state `draft()`)
+- `lang/{fr,en,wo}/team.php` (sous-clé `onboarding.errors`)
+- `routes/api/{me,onboarding}.php` (5 routes)
+- `tests/Feature/Onboarding/AgentOnboardingTest.php` (10 cas, 59 assertions)
+
+Frontend :
+- `src/components/onboarding/AgentOnboardingWizard.tsx` (nouveau)
+- `src/components/agents/ZoneMultiSelect.tsx` (nouveau)
+- `src/components/agent/AgentWelcomeWizard.tsx` (nouveau)
+- `src/components/onboarding/__tests__/AgentOnboardingWizard.test.tsx`
+- `src/components/kyc/KycUploader.tsx` (élargissement props)
+- `src/components/layout/AppShell.tsx` (mount `<AgentWelcomeWizard>`)
+- `src/app/onboarding/agent/page.tsx` (nouveau)
+- `src/app/actions/agent-onboarding.ts` (nouveau)
+- `src/app/api/me/agent-profiles/[id]/{kyc/upload,kyc/submit,specialization,first-lead}/route.ts`
+- `src/lib/agent-onboarding.ts` (nouveau)
+- `src/lib/wizard-drafts.ts` (URL agent-onboarding-)
+- `src/messages/{fr,en,wo}.json` (namespaces `agents.onboarding.*` +
+  `agentWelcome.*`)
+
+**Hors périmètre confirmé**
+
+- Validation/refus du KYC par l'agence (workflow autre ticket).
+- Pré-assignation des leads à un agent depuis le back-office admin
+  (autre ticket).
