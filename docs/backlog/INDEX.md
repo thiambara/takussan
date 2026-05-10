@@ -180,7 +180,6 @@ _(Vague 24 finalisée — voir Review)_
 - [TCK-260](tickets/TCK-260-carnet-prestataires-invitation-sp.md) — Carnet de prestataires + invitation Service Provider `S · P1 · applicatif`
 - [TCK-261](tickets/TCK-261-wizard-onboarding-service-provider.md) — Wizard onboarding Service Provider (KYC + dispos) `M · P1 · applicatif`
 - [TCK-262](tickets/TCK-262-service-provider-multi-rattachement.md) — Multi-rattachement Service Provider à plusieurs agences `S · P2 · back`
-- [TCK-263](tickets/TCK-263-artisan-create-super-admin.md) — Commande artisan create-super-admin (bootstrap) `S · P0 · back`
 - [TCK-264](tickets/TCK-264-cooptation-super-admin.md) — Cooptation super-admin (peer-to-peer + 2FA forcé) `M · P1 · applicatif`
 - [TCK-265](tickets/TCK-265-welcome-modale-espace-resident.md) — Welcome modale "Espace résident" sur Lease.signed `S · P1 · applicatif`
 - [TCK-266](tickets/TCK-266-tenant-onboarding-checklist.md) — `TenantOnboardingChecklist` + suivi complétion EDL `M · P2 · applicatif`
@@ -562,6 +561,7 @@ _(vide)_
 - [TCK-248](tickets/TCK-248-agency-kind-individual.md) — `Agency.kind` enum (standard/individual) + migration + seed `S · P0 · back`
 - [TCK-249](tickets/TCK-249-invitation-pattern-unifie.md) — Pattern d'invitation unifié (modèle Invitation + service + emails) `M · P0 · back`
 - [TCK-250](tickets/TCK-250-wizard-reprenable-component.md) — Wizard reprenable — composant frontend + persistance draft `S · P0 · front`
+- [TCK-263](tickets/TCK-263-artisan-create-super-admin.md) — Commande artisan create-super-admin (bootstrap) `S · P0 · back`
 
 ### Vague 23 — Console super-admin
 
