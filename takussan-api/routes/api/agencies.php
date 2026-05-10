@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Agency\KycController;
+use App\Http\Controllers\Api\Agency\OwnerInvitationController;
 use App\Http\Controllers\Api\Agency\RegenerateWatermarksController;
 use App\Http\Controllers\Api\AgencyController;
 use App\Http\Controllers\Api\AgencyMemberRoleController;
@@ -48,4 +49,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('agencies/{agency}/role-delegations', [RoleDelegationController::class, 'index'])->name('agencies.role-delegations.index');
     Route::post('agencies/{agency}/role-delegations', [RoleDelegationController::class, 'store'])->name('agencies.role-delegations.store');
     Route::delete('agencies/{agency}/role-delegations/{delegation}', [RoleDelegationController::class, 'destroy'])->name('agencies.role-delegations.destroy');
+
+    // TCK-256 — invitation propriétaire depuis l'espace agence (form dédié
+    // dans /app/owners ou ouvert depuis le form de création de bien).
+    // Resend / revoke réutilisent les routes génériques /api/invitations/{id}/*
+    // exposées par TCK-249 (InvitationController).
+    Route::post('agencies/{agency}/owners/invite', OwnerInvitationController::class)
+        ->name('agencies.owners.invite');
 });

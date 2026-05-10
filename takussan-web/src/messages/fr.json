@@ -691,5 +691,61 @@
       "saving": "Enregistrement…",
       "saveError": "Impossible d enregistrer pour le moment. Réessayez."
     }
+  },
+  "owners": {
+    "page": {
+      "title": "Propriétaires",
+      "subtitle": "Gérez les bailleurs rattachés à votre agence.",
+      "empty_title": "Aucun propriétaire pour le moment",
+      "empty_description": "Invitez votre premier propriétaire pour commencer à publier des biens en son nom.",
+      "add": "Ajouter un propriétaire",
+      "status": {
+        "draft": "Invité",
+        "active": "Actif",
+        "inactive": "Inactif",
+        "blocked": "Bloqué"
+      },
+      "columns": {
+        "name": "Nom",
+        "email": "Email",
+        "status": "Statut",
+        "actions": "Actions"
+      },
+      "actions": {
+        "resend": "Renvoyer l'invitation",
+        "revoke": "Révoquer"
+      }
+    },
+    "invite": {
+      "title": "Inviter un propriétaire",
+      "subtitle": "Envoyez une invitation par email. Le propriétaire pourra créer son compte et compléter son profil après acceptation.",
+      "fields": {
+        "email": "Email",
+        "first_name": "Prénom",
+        "last_name": "Nom",
+        "phone": "Téléphone (optionnel)",
+        "owner_type": "Type de propriétaire",
+        "company_name": "Raison sociale"
+      },
+      "owner_types": {
+        "individual": "Particulier",
+        "company": "Société"
+      },
+      "cta": {
+        "submit": "Envoyer l'invitation",
+        "submitting": "Envoi…",
+        "cancel": "Annuler"
+      },
+      "toasts": {
+        "success_title": "Invitation envoyée",
+        "error_title": "Impossible d'envoyer l'invitation",
+        "resend_success": "Invitation renvoyée",
+        "revoke_success": "Invitation révoquée"
+      },
+      "errors": {
+        "already_member": "Cette personne est déjà propriétaire dans votre agence.",
+        "forbidden": "Vous n'avez pas la permission d'inviter un propriétaire."
+      }
+    }
   }
 }

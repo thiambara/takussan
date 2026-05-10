@@ -1,5 +1,15 @@
 'use client';
 
+// TCK-256 — TODO: when this form gains an "owner" select, add an
+// "Inviter un nouveau propriétaire" option that mounts the shared
+// `<InviteOwnerSheet>` (see `src/components/owners/InviteOwnerSheet.tsx`).
+// On success, auto-select the freshly invited owner via the sheet's
+// `onInvited` callback. The sheet handles its own visibility gate
+// (`agency.kind === 'standard'` + `invite_owner` permission), so the
+// option only needs to surface when the property form is rendered for
+// a standard-kind agency. Out of scope for TCK-256: adding the owner
+// select itself.
+
 import { useRouter } from 'next/navigation';
 import { useCallback, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';

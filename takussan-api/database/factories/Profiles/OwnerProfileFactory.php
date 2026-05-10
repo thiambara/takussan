@@ -7,6 +7,7 @@ use App\Models\Enums\IdType;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
+use App\Services\Invitation\OwnerInvitationService;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class OwnerProfileFactory extends Factory
@@ -38,5 +39,30 @@ class OwnerProfileFactory extends Factory
     public function blocked(): self
     {
         return $this->state(['status' => OwnerProfileStatus::Blocked->value]);
+    }
+
+    /**
+     * TCK-256 — draft profile (no User attached yet, status = draft).
+     * Mirrors the shape created by {@see OwnerInvitationService::invite()}.
+     */
+    public function draft(): self
+    {
+        return $this->state([
+            'user_id' => null,
+            'status' => OwnerProfileStatus::Draft->value,
+            'rib' => null,
+            'tax_id' => null,
+            'id_document_type' => null,
+            'id_document_number' => null,
+            'monthly_income' => null,
+            'employer' => null,
+            'metadata' => [
+                'email' => fake()->unique()->safeEmail(),
+                'first_name' => fake()->firstName(),
+                'last_name' => fake()->lastName(),
+                'phone' => fake()->e164PhoneNumber(),
+                'owner_type' => 'individual',
+            ],
+        ]);
     }
 }

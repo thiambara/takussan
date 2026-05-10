@@ -565,5 +565,61 @@
       "saving": "Mu ngi denc…",
       "saveError": "Mënul denc léegi. Jéem ci kanam."
     }
+  },
+  "owners": {
+    "page": {
+      "title": "Borom kër yi",
+      "subtitle": "Saytu borom kër yi ci sa ajance.",
+      "empty_title": "Amul borom kër",
+      "empty_description": "Inviter sa borom kër bu njëkk ngir tambali yebal kër yi.",
+      "add": "Yokk benn borom kër",
+      "status": {
+        "draft": "Inviter",
+        "active": "Mu jëfandiku",
+        "inactive": "Mu desal",
+        "blocked": "Mu téye"
+      },
+      "columns": {
+        "name": "Tur",
+        "email": "Email",
+        "status": "Aada",
+        "actions": "Jëf"
+      },
+      "actions": {
+        "resend": "Yónni invitation bi",
+        "revoke": "Bañ"
+      }
+    },
+    "invite": {
+      "title": "Inviter benn borom kër",
+      "subtitle": "Yónni invitation ci email. Borom kër bi dina sos compte bi te dafa fes profile bi bu jëfandikoo.",
+      "fields": {
+        "email": "Email",
+        "first_name": "Tur bu njëkk",
+        "last_name": "Sant",
+        "phone": "Telefon (mënul am)",
+        "owner_type": "Xeetu borom kër",
+        "company_name": "Tur sosete"
+      },
+      "owner_types": {
+        "individual": "Nit",
+        "company": "Sosete"
+      },
+      "cta": {
+        "submit": "Yónni invitation",
+        "submitting": "Mu ngi yónni…",
+        "cancel": "Bayyi"
+      },
+      "toasts": {
+        "success_title": "Invitation yónni nañu",
+        "error_title": "Mënul yónni invitation bi",
+        "resend_success": "Invitation yónni nañu ko",
+        "revoke_success": "Invitation bi bañ nañu ko"
+      },
+      "errors": {
+        "already_member": "Nit kii am na ci sa ajance.",
+        "forbidden": "Amul nga sañ-sañ inviter borom kër."
+      }
+    }
   }
 }

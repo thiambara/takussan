@@ -691,5 +691,61 @@
       "saving": "Saving…",
       "saveError": "Could not save right now. Please try again."
     }
+  },
+  "owners": {
+    "page": {
+      "title": "Owners",
+      "subtitle": "Manage the landlords linked to your agency.",
+      "empty_title": "No owners yet",
+      "empty_description": "Invite your first owner to start publishing properties on their behalf.",
+      "add": "Add an owner",
+      "status": {
+        "draft": "Invited",
+        "active": "Active",
+        "inactive": "Inactive",
+        "blocked": "Blocked"
+      },
+      "columns": {
+        "name": "Name",
+        "email": "Email",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "actions": {
+        "resend": "Resend invitation",
+        "revoke": "Revoke"
+      }
+    },
+    "invite": {
+      "title": "Invite an owner",
+      "subtitle": "Send an email invitation. The owner will create their account and complete their profile after accepting.",
+      "fields": {
+        "email": "Email",
+        "first_name": "First name",
+        "last_name": "Last name",
+        "phone": "Phone (optional)",
+        "owner_type": "Owner type",
+        "company_name": "Company name"
+      },
+      "owner_types": {
+        "individual": "Individual",
+        "company": "Company"
+      },
+      "cta": {
+        "submit": "Send invitation",
+        "submitting": "Sending…",
+        "cancel": "Cancel"
+      },
+      "toasts": {
+        "success_title": "Invitation sent",
+        "error_title": "Could not send the invitation",
+        "resend_success": "Invitation resent",
+        "revoke_success": "Invitation revoked"
+      },
+      "errors": {
+        "already_member": "This person is already an owner in your agency.",
+        "forbidden": "You do not have permission to invite an owner."
+      }
+    }
   }
 }
