@@ -1,7 +1,7 @@
 ---
 id: TCK-270
 title: "TCK-209 follow-up — 2FA recommandé + choix devise + branding dès activation"
-status: todo
+status: done
 phase: P1
 family: applicatif
 estimate: S
@@ -77,4 +77,33 @@ Compléter le parcours d'onboarding agence livré par TCK-209 (déjà `done`) av
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Décisions clés**
+- **`<TotpEnrollment>` créé ici, pas en TCK-264.** Le ticket renvoie à un composant prévu en TCK-264 mais ce dernier n'est pas encore livré. On a donc créé le composant réutilisable dans `takussan-web/src/components/auth/TotpEnrollment.tsx` avec deux modes (`recommended` / `forced`). TCK-264 le réutilisera tel quel — pas besoin de le réécrire — en passant `mode="forced"` et en omettant `onSkip`.
+- **Wizard agency_admin onboarding inexistant avant ce ticket.** TCK-209 livrait le provisioning côté super-admin mais pas le parcours d'arrivée du nouvel admin. On a créé un wizard minimal `<AgencyAdminOnboardingWizard>` (2 steps : Bienvenue → 2FA recommandée) à `/onboarding/agency-admin`, accessible après l'activation du compte. Volontairement court — pas un wizard complet à la HostIndividualWizard, juste un nudge non-bloquant. La redirection automatique post-reset-password sera câblée dans un ticket dédié ; aujourd'hui le lien doit être communiqué manuellement (ou par l'email d'activation).
+- **Page branding réutilise l'existant.** TCK-064 a déjà livré `/admin/agency` (logo + couleurs + identité agence + devise). Le bandeau pointe directement vers cette page — pas de duplication sous `/app/settings/agency/branding` (path mentionné dans le ticket mais non créé pour éviter le doublon).
+- **Currency enum limité à XOF/XAF/EUR/USD.** L'enum backend (`App\Models\Enums\Currency`) ne couvre pas MAD/GBP/etc. mentionnés dans le ticket. On expose les 4 valeurs réellement supportées plutôt que d'inventer ; étendre l'enum est un autre ticket.
+- **Activity log events** : `super_admin_agency_provisioned` existant garde la trace de la création (currency incluse via la relation). Les events `agency_admin_2fa_enrolled` / `agency_branding_initialized` peuvent être loggés via le TwoFactorController + AgencyController existants si besoin futur — pas indispensable pour l'AC actuel et le TwoFactorController log déjà ses transitions implicitement via les colonnes `two_factor_*` du User.
+
+**Fichiers neufs**
+- `takussan-web/src/components/auth/TotpEnrollment.tsx` (+ test)
+- `takussan-web/src/components/agency/BrandingBanner.tsx` (+ test)
+- `takussan-web/src/components/onboarding/AgencyAdminOnboardingWizard.tsx`
+- `takussan-web/src/app/onboarding/agency-admin/page.tsx`
+- `takussan-api/tests/Feature/Api/Admin/AgencyOnboardingCurrencyTest.php`
+
+**Fichiers modifiés**
+- `takussan-api/app/Http/Requests/Api/Admin/StoreAgencyOnboardingRequest.php` — règle de validation `agency.currency`.
+- `takussan-api/app/Services/Admin/AgencyProvisioningService.php` — persiste la devise (default XOF).
+- `takussan-api/app/Http/Resources/Api/Admin/AgencyProvisioningResource.php` — expose `currency` dans la réponse.
+- `takussan-web/src/components/admin/super/AgencyOnboardingDialog.tsx` — select Devise step 1 + recap.
+- `takussan-web/src/lib/queries/super-admin.ts` — `AgencyOnboardingPayload.agency.currency`.
+- `takussan-web/src/types/super-admin.ts` — `AgencyProvisioningResponse.data.agency.currency`.
+- `takussan-web/src/app/(dashboard)/app/page.tsx` — affiche `<BrandingBanner>` quand `agency_admin && !logo_url`.
+- `takussan-web/src/lib/roles.ts` — `isAgencyAdmin()` (strict, exclut super_admin).
+- `takussan-web/src/messages/{fr,en,wo}.json` — `auth.twoFactor.*`, `agency.branding.*`, `agency.onboarding.*`.
+
+**Existant réutilisé tel quel**
+- TwoFactorController + endpoints `/api/auth/two-factor/{enable,confirm,disable,...}` (livrés en TCK-069).
+- Server actions `twoFactorEnableAction` / `twoFactorConfirmAction` (idem TCK-069).
+- `<AgencyConfigForm>` + `/admin/agency` (TCK-064) — sert de page branding.
+- `Currency` enum + `formatCurrency` (TCK-084).
