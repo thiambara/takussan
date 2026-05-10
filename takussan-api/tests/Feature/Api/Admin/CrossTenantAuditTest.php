@@ -3,6 +3,8 @@
 namespace Tests\Feature\Api\Admin;
 
 use App\Models\Agency;
+use App\Models\Enums\KycDossierStatus;
+use App\Models\KycDossier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
@@ -21,6 +23,14 @@ class CrossTenantAuditTest extends BaseTestCase
         $this->actingAsRole('super_admin');
         $agencyA = Agency::factory()->create();
         $agencyB = Agency::factory()->create();
+
+        foreach ([$agencyA, $agencyB] as $agency) {
+            KycDossier::create([
+                'subject_type' => Agency::class,
+                'subject_id' => $agency->id,
+                'status' => KycDossierStatus::Verified,
+            ]);
+        }
 
         // Trigger two log entries from different tenants by issuing the
         // verify endpoint twice — drives the activity logger naturally.

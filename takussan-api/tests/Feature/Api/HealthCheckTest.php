@@ -3,10 +3,13 @@
 namespace Tests\Feature\Api;
 
 use App\Services\Media\Cdn\CdnProviderContract;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class HealthCheckTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_health_returns_ok_when_cdn_healthy(): void
     {
         $cdn = $this->mock(CdnProviderContract::class);
