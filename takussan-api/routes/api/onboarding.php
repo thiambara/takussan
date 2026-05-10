@@ -1,12 +1,14 @@
 <?php
 
 use App\Http\Controllers\HostOnboardingController;
+use App\Http\Controllers\OwnerOnboardingController;
 use App\Http\Controllers\ServiceProviderOnboardingController;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Onboarding Routes (TCK-255 — host individual wizard, TCK-261 — SP wizard)
+| Onboarding Routes (TCK-255 — host individual wizard, TCK-257 — owner
+| wizard, TCK-261 — SP wizard)
 |--------------------------------------------------------------------------
 */
 
@@ -28,5 +30,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // profile cookie.
     Route::post('service-provider/onboard/complete', [ServiceProviderOnboardingController::class, 'complete'])
         ->name('service-provider.onboard.complete')
+        ->middleware('throttle:5,1');
+
+    // TCK-257 — finalize the post-acceptance Owner wizard. KYC docs are
+    // persisted upstream by the dedicated /api/me/profiles/{owner_profile}/*
+    // endpoints; this one gates the OTP, flips OwnerProfile status to
+    // active and pins the active profile cookie.
+    Route::post('owner/onboard/complete', [OwnerOnboardingController::class, 'complete'])
+        ->name('owner.onboard.complete')
         ->middleware('throttle:5,1');
 });

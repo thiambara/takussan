@@ -9,4 +9,10 @@ return [
             'company_name_required' => 'Company name is required for company-type owners.',
         ],
     ],
+    'onboarding' => [
+        'errors' => [
+            'invalid_otp' => 'The verification code is invalid or expired.',
+            'not_owner' => 'You do not have access to this owner profile.',
+        ],
+    ],
 ];
