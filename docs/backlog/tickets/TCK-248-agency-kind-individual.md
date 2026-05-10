@@ -26,7 +26,7 @@ Permettre à la plateforme de différencier les **agences professionnelles** (`s
 Migration sur `agencies` :
 
 - Nouvelle colonne `kind` (enum : `standard` | `individual`), default `standard` pour les agences existantes.
-- Cast Eloquent vers `App\Enums\AgencyKind`.
+- Cast Eloquent vers `App\Models\Enums\AgencyKind`.
 
 Aucun nouvel endpoint dans ce ticket — l'utilisation du champ par les contrôleurs (gates, policies, UI) est portée par les tickets aval (TCK-255, TCK-269).
 
@@ -39,7 +39,7 @@ Aucun nouvel endpoint dans ce ticket — l'utilisation du champ par les contrôl
 ## Delta à produire
 
 - [ ] Migration : `add_kind_to_agencies_table`
-- [ ] Enum : `App\Enums\AgencyKind` (`standard`, `individual`) + helper `isIndividual()`
+- [ ] Enum : `App\Models\Enums\AgencyKind` (`standard`, `individual`) + helper `isIndividual()`
 - [ ] Cast sur `App\Models\Agency` : `'kind' => AgencyKind::class`
 - [ ] Seeder : aucune nouvelle agence créée, mais documenter que les seeders existants utilisent `kind = standard` par défaut
 - [ ] Tests : `tests/Feature/Agency/AgencyKindTest.php` (default `standard`, persistance, helper `isIndividual()`)

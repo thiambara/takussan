@@ -51,7 +51,7 @@ Job/cron `invitations:remind` (horaire) qui envoie un rappel J+2 (idempotent via
 ## Delta à produire
 
 - [ ] Migration : `create_invitations_table` (voir spec §48 pour colonnes)
-- [ ] Enum : `App\Enums\InvitationStatus` (`sent`, `accepted`, `expired`, `revoked`)
+- [ ] Enum : `App\Models\Enums\InvitationStatus` (`sent`, `accepted`, `expired`, `revoked`)
 - [ ] Modèle : `App\Models\Invitation` avec scopes `pending()`, `expired()`, relations morph
 - [ ] Service : `App\Services\Invitation\InvitationService` (méthodes `send`, `accept`, `revoke`, `resend`, `expire`)
 - [ ] Controller : `App\Http\Controllers\InvitationController` (CRUD restreint)

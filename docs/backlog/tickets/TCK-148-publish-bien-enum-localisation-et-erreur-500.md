@@ -23,7 +23,7 @@ Un agent ouvre `/app/properties/new`, remplit le formulaire et publie un nouveau
 
 ## Contrat de données
 
-**Backend** — `POST /api/properties` accepte un payload comportant les valeurs d'enum définies par `App\Enums\PropertyType` et `App\Enums\ContractType` (cf. `docs/models-spec.md#3-property`). À ce jour, l'agent reçoit un 500 à la soumission depuis l'UI : il faut (a) loguer le payload reçu côté API pour identifier la cause root, (b) corriger soit la validation, soit la sérialisation côté frontend.
+**Backend** — `POST /api/properties` accepte un payload comportant les valeurs d'enum définies par `App\Models\Enums\PropertyType` et `App\Models\Enums\ContractType` (cf. `docs/models-spec.md#3-property`). À ce jour, l'agent reçoit un 500 à la soumission depuis l'UI : il faut (a) loguer le payload reçu côté API pour identifier la cause root, (b) corriger soit la validation, soit la sérialisation côté frontend.
 
 **Frontend** — `(dashboard)/app/properties/new/page.tsx` (création) et `(dashboard)/app/properties/[id]/page.tsx` (édition) construisent les comboboxes Type de bien et Type de contrat. Les comboboxes doivent afficher et poster les valeurs **canoniques** de l'enum (telles que définies par le backend) et la **traduction FR** doit être faite uniquement à l'affichage (label visuel).
 

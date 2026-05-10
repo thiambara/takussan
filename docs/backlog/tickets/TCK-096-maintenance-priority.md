@@ -92,7 +92,7 @@ seul) avec action "Voir la demande".
 ## Delta à produire
 
 - [ ] Migration `add_priority_to_maintenance_requests` (enum, default normal, not null)
-- [ ] Enum PHP `App\Enums\MaintenancePriority` (urgent, high, normal, low) — vérifier alignement spec §21
+- [ ] Enum PHP `App\Models\Enums\MaintenancePriority` (urgent, high, normal, low) — vérifier alignement spec §21
 - [ ] Casts + `$fillable` mis à jour sur `MaintenanceRequest` model
 - [ ] AllowedFilter `priority` (exact, multi) sur `MaintenanceRequestController`
 - [ ] AllowedSort `priority` sur `MaintenanceRequestController`

@@ -129,7 +129,7 @@ state management — laissés à l'IA implémenteur.
 
 - [ ] Migration `create_role_delegations_table`
 - [ ] Modèle `App\Models\RoleDelegation` + relations + scopes (`active`, `scheduled`, `expired`)
-- [ ] Enum `App\Enums\RoleDelegationStatus`
+- [ ] Enum `App\Models\Enums\RoleDelegationStatus`
 - [ ] FormRequests `StoreRoleDelegationRequest`, validation des règles métier
 - [ ] Policy `RoleDelegationPolicy` (admin agence uniquement)
 - [ ] Controller `Api\RoleDelegationController` (index, store, destroy)

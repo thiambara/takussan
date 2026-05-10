@@ -43,7 +43,7 @@ Relations à exposer sur `Agency` :
 
 - [ ] Migration : `create_agency_upgrade_requests_table` (colonnes selon spec §49)
 - [ ] Index unique partiel `(agency_id) WHERE status = pending` (Postgres) — note pour SQLite local : émulation via `unique_index` conditionnel ou check au niveau service.
-- [ ] Enum : `App\Enums\AgencyUpgradeRequestStatus` (`pending`, `approved`, `rejected`, `revoked`)
+- [ ] Enum : `App\Models\Enums\AgencyUpgradeRequestStatus` (`pending`, `approved`, `rejected`, `revoked`)
 - [ ] Modèle : `App\Models\AgencyUpgradeRequest` avec scopes `pending()`, `historical()`
 - [ ] Relations sur `Agency` : `upgradeRequests()`, `pendingUpgradeRequest()`
 - [ ] Tests : `tests/Feature/Agency/AgencyUpgradeRequestTest.php` (création, scope pending, contrainte une seule pending par agence)
