@@ -85,7 +85,9 @@ const WIZARD_RESUME_RULES: WizardResumeRule[] = [
   {
     kind: 'exact',
     key: 'host-individual-wizard',
-    href: '/app/properties/new',
+    // TCK-255 — the wizard now lives at `/onboarding/host`. Resuming
+    // brings the user back to step+data exactly as left.
+    href: '/onboarding/host',
     i18nKey: 'host-individual-wizard',
   },
   {

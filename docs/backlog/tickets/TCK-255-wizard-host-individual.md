@@ -1,7 +1,7 @@
 ---
 id: TCK-255
 title: "Wizard host individual — création Agency.kind=individual + profils + 1er bien draft"
-status: todo
+status: done
 phase: P0
 family: applicatif
 estimate: M
@@ -107,4 +107,54 @@ Wizard reprenable (TCK-250). Si quitté, bandeau persistant "Reprenez votre publ
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Backend
+- `App\Services\Onboarding\HostIndividualOnboardingService::onboard()` —
+  valide l'OTP **avant** la transaction (un code invalide ne touche
+  jamais la DB), puis ouvre une `DB::transaction` qui crée Agency,
+  attache les rôles spatie, crée l'OwnerProfile, le Property draft, et
+  log l'activité. `markPhoneVerified()` est appelé en side-effect une
+  fois l'OTP consommé.
+- Bypass dev/test : si l'environnement n'est pas `production`, le code
+  `123456` est accepté en plus du code en cache. Permet de jouer le
+  wizard sans gateway SMS branché.
+- Endpoint : `POST /api/host/individual/onboard` (`auth:sanctum`,
+  throttle 5/min) — `routes/api/onboarding.php` (nouveau fichier auto-
+  inclus par `routes/api.php`).
+- Cookie `active_profile_id` posé sur la réponse (mêmes options que
+  `MeProfilesController::updateActive`) — l'utilisateur arrive sur
+  `/app/properties/{id}/edit` déjà scopé sur sa nouvelle agence.
+- `payment_setting.preferred_provider` est stocké dans
+  `agency.settings.payment.preferred_provider` (JSON) — pas de modèle
+  PaymentSetting dédié en V1 (config complète différée à 1ère
+  réservation, conformément à "Hors périmètre").
+
+### Spec drift résolue : AgencyAdminProfile
+TCK-258 avait noté qu'`agency_admin` est en réalité **uniquement** un
+rôle spatie (pas de table dédiée). Décision pour TCK-255 :
+- on n'introduit PAS de modèle `AgencyAdminProfile` dans ce ticket
+  (hors scope applicatif),
+- on attache le rôle spatie `agency_admin` + `owner` scopés
+  `team_id = agency.id`,
+- l'`active_profile` retourné est l'`OwnerProfile` (seul profil concret
+  matérialisable comme cible du cookie),
+- le ticket de dette **TCK-271** est créé pour faire converger code et
+  spec (option A : créer le modèle ; option B : acter l'absence).
+
+### Frontend
+- `<HostIndividualWizard>` (`src/components/onboarding/HostIndividualWizard.tsx`) —
+  5 steps via `<WizardReprenable>` (TCK-250) avec key
+  `host-individual-wizard`. Réutilise `phoneSendOtpAction` /
+  `phoneVerifyOtpAction` (TCK-069) pour l'OTP.
+- Page `/onboarding/host/page.tsx` — gate auth server-side
+  (redirect `/auth/login?redirect=/onboarding/host` si pas de token).
+- Mapping de reprise (`src/lib/wizard-drafts.ts`) : `host-individual-
+  wizard` → `/onboarding/host`.
+- i18n FR/EN/WO : namespace `onboarding.host.*` ajouté aux 3 fichiers
+  `src/messages/{fr,en,wo}.json`.
+
+### Tests
+- `tests/Feature/Onboarding/HostIndividualOnboardingTest.php` — 6 tests
+  (nominal, OTP invalide → 422 + rollback, draft invalide → 422 +
+  rollback, CGU refusé → 422, activity log, auth requis).
+- Tests existants `wizard-drafts.test.ts` mis à jour pour la nouvelle
+  href du resume.
