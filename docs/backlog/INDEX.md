@@ -169,7 +169,6 @@ _(toutes mergées — voir Done)_
 
 **Parcours utilisateur**
 
-- [TCK-257](tickets/TCK-257-wizard-onboarding-owner.md) — Wizard onboarding Owner post-acceptation (KYC + tour) `M · P1 · applicatif`
 - [TCK-259](tickets/TCK-259-wizard-onboarding-agent.md) — Wizard onboarding Agent post-acceptation (KYC + zones) `M · P1 · applicatif`
 - [TCK-264](tickets/TCK-264-cooptation-super-admin.md) — Cooptation super-admin (peer-to-peer + 2FA forcé) `M · P1 · applicatif`
 - [TCK-267](tickets/TCK-267-form-upgrade-individual-to-standard.md) — Form upgrade individual → standard (soumission user) `M · P1 · applicatif`
@@ -564,6 +563,7 @@ _(vide)_
 - [TCK-260](tickets/TCK-260-carnet-prestataires-invitation-sp.md) — Carnet de prestataires + invitation Service Provider `S · P1 · applicatif`
 - [TCK-261](tickets/TCK-261-wizard-onboarding-service-provider.md) — Wizard onboarding Service Provider (KYC + dispos + 1ère intervention) `M · P1 · applicatif`
 - [TCK-262](tickets/TCK-262-service-provider-multi-rattachement.md) — Multi-rattachement Service Provider à plusieurs agences `S · P2 · back`
+- [TCK-257](tickets/TCK-257-wizard-onboarding-owner.md) — Wizard onboarding Owner post-acceptation (KYC + tour) `M · P1 · applicatif`
 
 ### Vague 23 — Console super-admin
 

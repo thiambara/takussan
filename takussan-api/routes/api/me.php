@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Me\DataExportController;
 use App\Http\Controllers\Api\Me\MeController;
 use App\Http\Controllers\Api\Me\MeProfilesController;
+use App\Http\Controllers\Api\Me\OwnerProfileController as MeOwnerProfileController;
 use App\Http\Controllers\Api\Me\PlatformPayoutController as MePlatformPayoutController;
 use App\Http\Controllers\Api\Me\ServiceProviderAgenciesController;
 use App\Http\Controllers\Api\Me\ServiceProviderProfileController as MeServiceProviderProfileController;
@@ -77,6 +78,23 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::patch('profiles/{sp_profile}/availability', [MeServiceProviderProfileController::class, 'updateAvailability'])
         ->whereNumber('sp_profile')
         ->name('me.profiles.sp.availability');
+
+    // TCK-257 — wizard-side write endpoints on the freshly-claimed
+    // OwnerProfile. Mounted under /api/me/owner-profiles/{owner_profile}
+    // (distinct prefix from the SP `profiles/{sp_profile}/...` endpoints
+    // because Laravel can't disambiguate two routes that share the same
+    // URL pattern but bind to different model classes).
+    Route::post('owner-profiles/{owner_profile}/kyc/upload', [MeOwnerProfileController::class, 'uploadKyc'])
+        ->whereNumber('owner_profile')
+        ->middleware('throttle:10,1')
+        ->name('me.owner-profiles.kyc.upload');
+    Route::post('owner-profiles/{owner_profile}/kyc/submit', [MeOwnerProfileController::class, 'submitKyc'])
+        ->whereNumber('owner_profile')
+        ->middleware('throttle:10,1')
+        ->name('me.owner-profiles.kyc.submit');
+    Route::get('owner-profiles/{owner_profile}/properties', [MeOwnerProfileController::class, 'properties'])
+        ->whereNumber('owner_profile')
+        ->name('me.owner-profiles.properties');
 
     // TCK-262 — Multi-rattachement Service Provider. Listing cross-agences
     // des collaborations du SP authentifié + projection plate "agences".

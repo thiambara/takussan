@@ -11,10 +11,10 @@ import { cn } from '@/lib/utils';
 /**
  * TCK-261 — minimal KYC uploader.
  *
- * Talks to the SSR proxy `/api/me/profiles/{profileId}/kyc/upload` which
- * forwards the multipart body to the Laravel backend with the user's
- * bearer cookie. **Reused by TCK-257** (Owner wizard) — keep the props
- * surface stable.
+ * Talks to a SSR proxy that forwards the multipart body to the Laravel
+ * backend with the user's bearer cookie. **Reused by TCK-257** (Owner
+ * wizard) — pass `endpoint='owner-profiles'` to target the owner upload
+ * route; defaults to `'profiles'` (SP).
  *
  * The component is intentionally barebones: a drop zone, a file picker
  * fallback, an inline preview / "remove" affordance. No image cropping,
@@ -23,13 +23,21 @@ import { cn } from '@/lib/utils';
 export type KycUploaderProps = {
   profileId: number;
   /** Backend `kind` discriminator. Maps to `App\Models\Enums\DocumentType`. */
-  kind: 'cni' | 'insurance' | 'rib';
+  kind: 'cni' | 'insurance' | 'rib' | 'ninea';
   /** Callback fired after a successful upload. Receives the API row id. */
   onUploaded?: (info: { id: number; fileName: string }) => void;
   /** i18n key used for the heading + helper text. Falls back to `kind`. */
   labelKey?: string;
   /** Compact variant — no separate heading, smaller drop zone. */
   compact?: boolean;
+  /**
+   * SSR proxy segment — pick `'profiles'` for the SP endpoint (default,
+   * TCK-261) or `'owner-profiles'` for the Owner endpoint (TCK-257).
+   * Both proxies share the same multipart contract.
+   */
+  endpoint?: 'profiles' | 'owner-profiles';
+  /** i18n namespace for labels/hints. Defaults to SP namespace. */
+  i18nNamespace?: string;
 };
 
 const ACCEPT = 'image/*,application/pdf';
@@ -41,8 +49,10 @@ export function KycUploader({
   onUploaded,
   labelKey,
   compact = false,
+  endpoint = 'profiles',
+  i18nNamespace = 'serviceProviders.onboarding.kyc',
 }: KycUploaderProps) {
-  const t = useTranslations('serviceProviders.onboarding.kyc');
+  const t = useTranslations(i18nNamespace);
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [pending, startTransition] = useTransition();
@@ -65,7 +75,7 @@ export function KycUploader({
 
       startTransition(async () => {
         try {
-          const res = await fetch(`/api/me/profiles/${profileId}/kyc/upload`, {
+          const res = await fetch(`/api/me/${endpoint}/${profileId}/kyc/upload`, {
             method: 'POST',
             body: formData,
             credentials: 'same-origin',
@@ -96,7 +106,7 @@ export function KycUploader({
         }
       });
     },
-    [kind, onUploaded, profileId, t, toast],
+    [endpoint, kind, onUploaded, profileId, t, toast],
   );
 
   const handlePick = () => inputRef.current?.click();

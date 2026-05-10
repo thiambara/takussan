@@ -721,6 +721,94 @@
         "already_member": "Nit kii am na ci sa ajance.",
         "forbidden": "Amul nga sañ-sañ inviter borom kër."
       }
+    },
+    "onboarding": {
+      "pageTitle": "Dalal jamm ci sa espace borom kër",
+      "pageSubtitle": "Ñeenti etap ngir verifier sa identité, yónni sa kayit yi te xam sa biens.",
+      "kyc": {
+        "labels": { "cni": "Kayitu identité (CNI walla passeport)", "rib": "RIB", "ninea": "NINEA" },
+        "hints": {
+          "cni": "JPG, PNG walla PDF — moo gën 8 Mo.",
+          "rib": "Ngir jot sa paiements yi.",
+          "ninea": "Numéro fiscal (ñu ko jëfandikoo ngir biens yi sosete moo yor)."
+        },
+        "dropZone": "Wàccal fichier ci bii walla bësal ngir tànn.",
+        "uploading": "Yónnee na…",
+        "uploadedBadge": "Jot na",
+        "removeAria": "Dindi fichier",
+        "errors": {
+          "title": "Yónni fichier mënul",
+          "fileTooLarge": "Fichier dafa rëy lool (8 Mo max).",
+          "uploadFailed": "Am na njumte. Jéem leneen."
+        },
+        "success": { "title": "Kayit jot na", "body": "{name} dañu ko denc." }
+      },
+      "steps": {
+        "phone": {
+          "title": "Verifie sa téléphone",
+          "subtitle": "Soxla la ngir notifications paiement ak lokaasion.",
+          "fields": { "phone": "Numéro téléphone", "code": "Kod ki ngeen jot ci SMS" },
+          "sendCta": "Yónni kod bi",
+          "sending": "Yónnee na…",
+          "verifyCta": "Verifie",
+          "verifying": "Verifie na…",
+          "devHint": "Kod dev: {code}",
+          "sent": {
+            "title": "Kod yónni nañu ko",
+            "body": "Kod bi mën na jot ba 60 segond.",
+            "bodyDebug": "Kod yónni nañu ko (debug: {code})."
+          },
+          "verified": {
+            "title": "Téléphone verifie nañu ko",
+            "body": "Mën nga jàll ci etap bi ci topp.",
+            "banner": "Numéro verifie — dinga jot sa alarm yi ci SMS."
+          },
+          "errors": { "sendTitle": "Yónni kod bi mënul", "verifyTitle": "Kod bi baaxul" }
+        },
+        "kyc": {
+          "title": "Sa kayit justification",
+          "subtitle": "Yónni sa CNI, sa RIB ak sa NINEA. Mën nga ko def ñaari yoon.",
+          "draftBadge": "Brouillon",
+          "submittedBadge": "Yónni (xool nañu ko)",
+          "submitCta": "Yónni sa dossier KYC",
+          "submitting": "Yónnee na…",
+          "submittedTitle": "Dossier KYC yónni nañu ko",
+          "submittedBody": "Sa ajance dina ko xool. Mën nga jëkk."
+        },
+        "tour": {
+          "title": "Xamal sa espace",
+          "subtitle": "Ñetti tool yu am solo ngir toppatoo sa alal.",
+          "skip": "Jàllale tour bi",
+          "next": "Topp",
+          "finish": "Mujj tour bi",
+          "slides": {
+            "properties": { "title": "Sa biens", "body": "Gisal sa biens yepp ak sa lokaasion." },
+            "payments": { "title": "Paiements yu nga jot", "body": "Loyer, dépôt, vente: gisal yi nga am ak yi yeex." },
+            "messages": { "title": "Sa messages", "body": "Wax ak sa ajance ak sa lokataire ci Takussan." }
+          }
+        },
+        "recap": {
+          "title": "Sa biens",
+          "subtitle": "Biens yii sa ajance la ko dëël ci sa profil.",
+          "emptyTitle": "Amul biens yu boole",
+          "emptyBody": "Sa ajance dina yokk sa biens su mën a tax.",
+          "viewAll": "Xool sa biens yepp",
+          "completeCta": "Dem ci tableau de bord",
+          "finishing": "Mujj na…"
+        }
+      },
+      "errors": {
+        "kycSubmitTitle": "Yónni KYC mënul",
+        "completeTitle": "Mujj sa onboarding mënul"
+      },
+      "success": { "title": "Dalal jamm!", "body": "Sa profil borom kër aktiv na." }
+    }
+  },
+  "ownerWelcome": {
+    "slides": {
+      "properties": { "title": "Sa biens ci sa loxo", "body": "Gisal sa biens yepp ak sa lokataire." },
+      "payments": { "title": "Paiements yu nga jot", "body": "Loyer, dépôt, vente: gis lépp." },
+      "messages": { "title": "Wax ak ñépp", "body": "Wax ak sa ajance ak sa lokataire." }
     }
   },
   "team": {

@@ -109,9 +109,12 @@ const WIZARD_RESUME_RULES: WizardResumeRule[] = [
     i18nKey: 'agent-kyc',
   },
   {
+    // TCK-257 — `owner-onboarding-{owner_profile_id}`. Resuming brings
+    // the owner back to the dedicated wizard page mounted at
+    // `/onboarding/owner` (mirror of the SP wizard path).
     kind: 'prefix',
     prefix: 'owner-onboarding-',
-    build: (suffix) => `/app/profile/owner/onboarding?invitation=${encodeURIComponent(suffix)}`,
+    build: (suffix) => `/onboarding/owner?owner=${encodeURIComponent(suffix)}`,
     i18nKey: 'owner-onboarding',
   },
   {

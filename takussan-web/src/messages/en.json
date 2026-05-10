@@ -847,6 +847,119 @@
         "already_member": "This person is already an owner in your agency.",
         "forbidden": "You do not have permission to invite an owner."
       }
+    },
+    "onboarding": {
+      "pageTitle": "Welcome to your owner space",
+      "pageSubtitle": "Four guided steps to verify your identity, upload your documents and discover your properties.",
+      "kyc": {
+        "labels": {
+          "cni": "ID document (CNI or passport)",
+          "rib": "Bank details (RIB)",
+          "ninea": "NINEA"
+        },
+        "hints": {
+          "cni": "JPG, PNG or PDF — under 8 MB.",
+          "rib": "To receive your payments (rents, sales).",
+          "ninea": "Tax ID (useful for properties owned by a company)."
+        },
+        "dropZone": "Drag a file here or click to browse.",
+        "uploading": "Uploading…",
+        "uploadedBadge": "Received",
+        "removeAria": "Remove file",
+        "errors": {
+          "title": "Could not upload file",
+          "fileTooLarge": "File too large (8 MB max).",
+          "uploadFailed": "An error occurred. Please retry."
+        },
+        "success": {
+          "title": "Document received",
+          "body": "{name} has been saved."
+        }
+      },
+      "steps": {
+        "phone": {
+          "title": "Verify your phone",
+          "subtitle": "Required for payment and rental notifications.",
+          "fields": { "phone": "Phone number", "code": "SMS code" },
+          "sendCta": "Send code",
+          "sending": "Sending…",
+          "verifyCta": "Verify",
+          "verifying": "Verifying…",
+          "devHint": "Dev code: {code}",
+          "sent": {
+            "title": "Code sent",
+            "body": "The code may take up to 60 seconds to arrive.",
+            "bodyDebug": "Code sent (debug: {code})."
+          },
+          "verified": {
+            "title": "Phone verified",
+            "body": "You can move on to the next step.",
+            "banner": "Number verified — you'll receive your alerts by SMS."
+          },
+          "errors": { "sendTitle": "Could not send code", "verifyTitle": "Invalid code" }
+        },
+        "kyc": {
+          "title": "Your supporting documents",
+          "subtitle": "Upload your ID, bank details and NINEA. You may complete this in several sessions.",
+          "draftBadge": "Draft",
+          "submittedBadge": "Submitted (under review)",
+          "submitCta": "Submit my KYC dossier",
+          "submitting": "Submitting…",
+          "submittedTitle": "KYC dossier submitted",
+          "submittedBody": "Your agency will review it. You can continue."
+        },
+        "tour": {
+          "title": "Discover your space",
+          "subtitle": "Three key features to manage your portfolio.",
+          "skip": "Skip the tour",
+          "next": "Next",
+          "finish": "Finish tour",
+          "slides": {
+            "properties": {
+              "title": "Your properties",
+              "body": "Find all your properties for rent or sale, with their real-time status."
+            },
+            "payments": {
+              "title": "Payments to receive",
+              "body": "Rents, deposits, sales: track payments and overdue items at a glance."
+            },
+            "messages": {
+              "title": "Your messages",
+              "body": "Chat with your agency and tenants without leaving Takussan."
+            }
+          }
+        },
+        "recap": {
+          "title": "Your properties",
+          "subtitle": "These properties have already been linked to your profile by your agency.",
+          "emptyTitle": "No property attached yet",
+          "emptyBody": "Your agency will add your properties as soon as they are ready.",
+          "viewAll": "View all my properties",
+          "completeCta": "Go to dashboard",
+          "finishing": "Finalising…"
+        }
+      },
+      "errors": {
+        "kycSubmitTitle": "Could not submit KYC",
+        "completeTitle": "Could not finalise your onboarding"
+      },
+      "success": { "title": "Welcome!", "body": "Your owner profile is active." }
+    }
+  },
+  "ownerWelcome": {
+    "slides": {
+      "properties": {
+        "title": "Your properties at hand",
+        "body": "Find all your properties and tenants from your dashboard."
+      },
+      "payments": {
+        "title": "Payments to receive",
+        "body": "Rents, deposits, sales: track inflows and overdue items."
+      },
+      "messages": {
+        "title": "Stay connected",
+        "body": "Chat with your agency and tenants without leaving Takussan."
+      }
     }
   },
   "team": {

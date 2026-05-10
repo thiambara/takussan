@@ -9,4 +9,10 @@ return [
             'company_name_required' => 'Tur sosete dafa ware ngir borom kër bu sosete.',
         ],
     ],
+    'onboarding' => [
+        'errors' => [
+            'invalid_otp' => 'Kod bi neñu yónni du bañ walla mu jot lu mu jëkk.',
+            'not_owner' => 'Amul nga acces ci profil borom kër bii.',
+        ],
+    ],
 ];

@@ -7,8 +7,9 @@ import { AppSidebar } from './AppSidebar';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { CustomerWelcomeWizard } from '@/components/customer/CustomerWelcomeWizard';
 import { MinimalProfileTriggerProvider } from '@/components/customer/MinimalProfileTriggerProvider';
+import { OwnerWelcomeWizard } from '@/components/owner/OwnerWelcomeWizard';
 import { TenantWelcomeWizard } from '@/components/tenant/TenantWelcomeWizard';
-import { isCustomer } from '@/lib/roles';
+import { isCustomer, isOwner } from '@/lib/roles';
 
 interface AppShellProps {
   user: User;
@@ -21,6 +22,11 @@ export function AppShell({ user, children }: AppShellProps) {
   // SSR-resolved roles so we never paint the welcome modale (or arm the
   // deferred profile sheet) for agents / owners / admins.
   const customerOnboardingActive = isCustomer(user.roles);
+  // TCK-257 — Owner welcome modale, mounted once on /app for users
+  // with the `owner` role. Independent of the customer wizard (its
+  // welcome key is distinct), so an owner who is also a customer sees
+  // both modales (each gated by its own `welcome-seen` row).
+  const ownerWelcomeActive = isOwner(user.roles);
 
   return (
     <MinimalProfileTriggerProvider roles={user.roles}>
@@ -44,6 +50,7 @@ export function AppShell({ user, children }: AppShellProps) {
             of (or after) the generic customer wizard since each modale
             uses its own welcome key. */}
         {customerOnboardingActive ? <TenantWelcomeWizard /> : null}
+        {ownerWelcomeActive ? <OwnerWelcomeWizard /> : null}
       </div>
     </MinimalProfileTriggerProvider>
   );

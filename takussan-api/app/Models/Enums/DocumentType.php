@@ -12,5 +12,8 @@ enum DocumentType: string
     case Insurance = 'insurance';
     case InventoryReport = 'inventory_report';
     case Photo = 'photo';
+    // TCK-257 — owner KYC documents (RIB scan + NINEA tax ID).
+    case Rib = 'rib';
+    case Ninea = 'ninea';
     case Other = 'other';
 }

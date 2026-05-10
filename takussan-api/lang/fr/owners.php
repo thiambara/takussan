@@ -9,4 +9,10 @@ return [
             'company_name_required' => 'La raison sociale est obligatoire pour un propriétaire de type société.',
         ],
     ],
+    'onboarding' => [
+        'errors' => [
+            'invalid_otp' => 'Le code de vérification est invalide ou expiré.',
+            'not_owner' => "Vous n'avez pas accès à ce profil propriétaire.",
+        ],
+    ],
 ];

@@ -445,6 +445,8 @@ class InvitationService
         // by ServiceProviderInvitationService), we additionally attach
         // the freshly-known User so the post-acceptance wizard can write
         // to /api/me/profiles/{sp_profile}/* with a clean ownership check.
+        // TCK-257 — same treatment for OwnerProfile drafts created by
+        // OwnerInvitationService (user_id null until acceptance).
         $invitable = $invitation->invitable;
         if ($invitable !== null) {
             $patch = [];
@@ -455,7 +457,7 @@ class InvitationService
                 // string for the active state.
                 $patch['status'] = 'active';
             }
-            if ($invitation->role === 'service_provider'
+            if (in_array($invitation->role, ['service_provider', 'owner'], true)
                 && array_key_exists('user_id', $invitable->getAttributes())
                 && $invitable->user_id === null) {
                 $patch['user_id'] = $user->id;

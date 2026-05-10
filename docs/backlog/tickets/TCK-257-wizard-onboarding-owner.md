@@ -1,7 +1,7 @@
 ---
 id: TCK-257
 title: "Wizard onboarding Owner post-acceptation — KYC + tour + biens pré-rattachés"
-status: todo
+status: done
 phase: P1
 family: applicatif
 estimate: M
@@ -81,4 +81,43 @@ Wizard reprenable (peut quitter et revenir). KYC peut être complété en plusie
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Backend (commit `71145c1`)**
+
+- `App\Http\Controllers\Api\Me\OwnerProfileController` — monté sous `/api/me/owner-profiles/{owner_profile}`. Trois endpoints :
+  - `POST kyc/upload` — accepte CNI / RIB / NINEA via `Document` polymorph + medialibrary.
+  - `POST kyc/submit` — flippe `OwnerProfile.metadata.kyc.status = pending_review`.
+  - `GET properties` — retourne les `Property` pré-rattachés à l'owner via le couple `(user_id, agency_id)` (pas de FK `owner_profile_id` sur Property).
+- `App\Http\Controllers\OwnerOnboardingController::complete` — `POST /api/owner/onboard/complete`. Verrou OTP (`PhoneVerificationService` + bypass dev `123456`), flip `OwnerProfile.status` à `active`, set `phone_verified_at`, pose le cookie `active_profile_id`. Retourne `{owner_profile, active_profile_id, properties_count}`.
+- `App\Services\Onboarding\OwnerOnboardingService` — orchestrateur, miroir du SP. Décision : OTP validé **avant** la transaction pour ne jamais polluer la DB sur code invalide.
+- `DocumentType` étendu de `Rib` + `Ninea` (cases manquantes pour le KYC owner).
+- `InvitationService::finalizeAccept` généralisé : flip `user_id` sur l'invitable polymorphe étendu au rôle `owner` (n'était que `service_provider`).
+- 8 tests (`Feature\Onboarding\OwnerOnboardingTest`) — acceptance hook, KYC upload+submit, OTP gate, status flip, scope properties, activity log, 401/403.
+
+**Décision KYC** — Le dossier KYC owner vit dans `OwnerProfile.metadata.kyc` (`{status, submitted_at, docs[]}`) plutôt que d'instancier le modèle `KycDossier` (§4.2). Évite une migration et reste cohérent avec le pattern SP. Le workflow formel review/refus reste hors scope (ticket séparé).
+
+**Frontend**
+
+- Page : `src/app/onboarding/owner/page.tsx` — gate auth (redirect `/auth/login?redirect=%2Fonboarding%2Fowner`), récupère `OwnerProfile` via `getMyProfilesAction`, fallback `/app` si l'user n'a pas de profil owner attaché.
+- Wizard : `src/components/onboarding/OwnerOnboardingWizard.tsx` — 4 steps mirror du SP wizard (TCK-261) :
+  1. **Phone** — OTP via `phoneSendOtpAction` / `phoneVerifyOtpAction` (réutilisés du SP).
+  2. **KYC** — 3 `<KycUploader>` (CNI / RIB / NINEA), CTA "Soumettre mon dossier KYC" → `ownerSubmitKycAction`. **Non bloquant** pour la complétion (cohérent avec le service backend).
+  3. **Tour produit** — 3 slides skippables (Vos biens / Paiements / Messages).
+  4. **Recap** — fetch `getOwnerPropertiesAction` côté client dans `useEffect`, liste des biens pré-rattachés avec deep-link `/app/properties/{id}`.
+- Storage key wizard : `owner-onboarding-{ownerProfileId}` ; règle de reprise mise à jour dans `wizard-drafts.ts` (route `/onboarding/owner?owner=…`).
+- Server actions : `src/app/actions/owner-onboarding.ts` (`ownerSubmitKycAction`, `ownerOnboardCompleteAction`, `getOwnerPropertiesAction`). `ownerOnboardCompleteAction` pose aussi le cookie `active_profile_id` côté Next (en plus du cookie posé par Laravel).
+- Wire types : `src/lib/owner-onboarding.ts`.
+- SSR proxies : `src/app/api/me/owner-profiles/[id]/{kyc/upload,kyc/submit,properties}/route.ts`. L'upload re-stream le multipart (`duplex: 'half'`) — Server Actions ne forwardent pas proprement les `multipart/form-data` bodies.
+
+**`<KycUploader>` — extension backward-compatible** : nouveau prop `endpoint: 'profiles' | 'owner-profiles'` (default `'profiles'`) + `i18nNamespace`. Permet à l'owner wizard de cibler `/api/me/owner-profiles/...` sans toucher au SP wizard. `kind` étendu de `'ninea'`.
+
+**Welcome modale** — `src/components/owner/OwnerWelcomeWizard.tsx` (mirror de `<CustomerWelcomeWizard>`) consomme `useWelcomeOnce('owner-welcome', ...)` et les slides i18n existants (`ownerWelcome.slides.{properties,payments,messages}`). Monté dans `<AppShell>` derrière un guard `isOwner(user.roles)`.
+
+**Tests**
+
+- Backend : 8 tests existants conservés et verts (`Tests\Feature\Onboarding\OwnerOnboardingTest`).
+- Frontend : 1 happy-path mocké (`OwnerOnboardingWizard.test.tsx`) — navigue les 4 steps, vérifie `getOwnerPropertiesAction(7)` puis `ownerOnboardCompleteAction(7, undefined)` puis `router.push('/app')`. Disambiguation du label "Suivant" sur le tour step (slide button + wizard footer partagent le même label).
+
+**Fichiers touchés**
+
+- Backend : `app/Http/Controllers/Api/Me/OwnerProfileController.php`, `app/Http/Controllers/OwnerOnboardingController.php`, `app/Models/Enums/DocumentType.php`, `app/Services/Invitation/InvitationService.php`, `app/Services/Onboarding/OwnerOnboardingService.php`, `lang/{fr,en,wo}/owners.php`, `routes/api/me.php`, `routes/api/onboarding.php`, `tests/Feature/Onboarding/OwnerOnboardingTest.php`.
+- Frontend : `src/app/onboarding/owner/page.tsx`, `src/components/onboarding/OwnerOnboardingWizard.tsx`, `src/components/onboarding/__tests__/OwnerOnboardingWizard.test.tsx`, `src/components/owner/OwnerWelcomeWizard.tsx`, `src/components/layout/AppShell.tsx`, `src/components/kyc/KycUploader.tsx`, `src/lib/owner-onboarding.ts`, `src/lib/wizard-drafts.ts`, `src/app/actions/owner-onboarding.ts`, `src/app/api/me/owner-profiles/[id]/{kyc/upload,kyc/submit,properties}/route.ts`, `src/messages/{fr,en,wo}.json`.
