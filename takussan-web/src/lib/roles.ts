@@ -16,6 +16,14 @@ export function isAdmin(roles: UserRole[]): boolean {
   return roles.includes('agency_admin') || roles.includes('super_admin');
 }
 
+/**
+ * TCK-270 — Strict agency_admin check (excludes super_admin so the branding
+ * banner doesn't pop up when a super-admin impersonates a tenant.).
+ */
+export function isAgencyAdmin(roles: UserRole[]): boolean {
+  return roles.includes('agency_admin');
+}
+
 export function isSuperAdmin(roles: UserRole[]): boolean {
   return roles.includes('super_admin');
 }
