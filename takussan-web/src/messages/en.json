@@ -623,5 +623,30 @@
       },
       "loading": "Loading…"
     }
+  },
+  "wizardDrafts": {
+    "component": {
+      "ariaLabel": "Wizard",
+      "progressAriaLabel": "Step {current} of {total}",
+      "previous": "Back",
+      "next": "Next",
+      "complete": "Finish",
+      "loading": "Loading…",
+      "savedToastTitle": "Progress saved",
+      "savedToastBody": "You can pick up right where you left off."
+    },
+    "banner": {
+      "ariaLabel": "Resume an in-progress flow",
+      "title": "Pick up where you left off",
+      "description": "{count, plural, =1 {You have 1 unfinished flow.} other {You have # unfinished flows.}}",
+      "labels": {
+        "host-individual-wizard": "Listing a property",
+        "owner-onboarding": "Owner onboarding",
+        "agent-onboarding": "Agent onboarding",
+        "customer-onboarding": "Tenant onboarding",
+        "owner-kyc": "Owner KYC",
+        "agent-kyc": "Agent KYC"
+      }
+    }
   }
 }

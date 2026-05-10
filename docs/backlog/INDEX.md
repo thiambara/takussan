@@ -165,7 +165,6 @@ _(Vague 24 finalisée — voir Review)_
 
 **Briques transverses (P0 d'abord)**
 
-- [TCK-250](tickets/TCK-250-wizard-reprenable-component.md) — Wizard reprenable — composant frontend + persistance draft `S · P0 · front`
 - [TCK-251](tickets/TCK-251-welcome-modale-generique.md) — Welcome modale générique (3 slides skippable) `S · P1 · front`
 - [TCK-252](tickets/TCK-252-agency-upgrade-request-model.md) — `AgencyUpgradeRequest` modèle + migration + enums `S · P1 · back`
 
@@ -199,6 +198,10 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 _(vide)_
 
 ## 👀 Review
+
+### Vague 29 — Onboarding parcours acteurs
+
+- [TCK-250](tickets/TCK-250-wizard-reprenable-component.md) — Wizard reprenable — composant frontend + persistance draft `S · P0 · front`
 
 ### Vague 27 — Audit design front
 

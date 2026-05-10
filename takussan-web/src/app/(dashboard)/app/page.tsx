@@ -4,6 +4,7 @@ import { DashboardMeKpis } from '@/components/dashboard/DashboardMeKpis';
 import { DashboardShortcuts } from '@/components/dashboard/DashboardShortcuts';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
+import { WizardDraftsBanner } from '@/components/wizard/WizardDraftsBanner';
 import { isSuperAdmin } from '@/lib/roles';
 import { fetchDashboardMe } from '@/lib/queries/dashboard-me';
 
@@ -23,6 +24,9 @@ export default async function DashboardPage() {
         title={`Bonjour ${user.first_name}`}
         subtitle="Vue d'ensemble de votre activité"
       />
+
+      {/* TCK-250 — Resumable wizard drafts banner. Renders nothing when no drafts. */}
+      <WizardDraftsBanner />
 
       {payload?.data ? (
         <DashboardMeKpis role={payload.data.role} metrics={payload.data.metrics} />
