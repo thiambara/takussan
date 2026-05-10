@@ -5,6 +5,7 @@ namespace App\Services\Admin;
 use App\Models\Address;
 use App\Models\Agency;
 use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\Currency;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -38,11 +39,19 @@ class AgencyProvisioningService
                 $metadata['onboarding_type'] = $agencyPayload['type'];
             }
 
+            // TCK-270 — currency is now picked in step 1 of the wizard.
+            // Default to Currency::default() (XOF) when omitted so legacy
+            // callers keep working unchanged.
+            $currency = ! empty($agencyPayload['currency'])
+                ? Currency::from($agencyPayload['currency'])
+                : Currency::default();
+
             $agency = Agency::query()->create([
                 'name' => $agencyPayload['name'],
                 'slug' => $agencyPayload['slug'] ?? $this->uniqueSlug($agencyPayload['name']),
                 'email' => $agencyPayload['email'] ?? null,
                 'phone' => $agencyPayload['phone'] ?? null,
+                'currency' => $currency,
                 'status' => AgencyStatus::Active,
                 'is_verified' => false,
                 'verified_at' => null,

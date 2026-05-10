@@ -17,6 +17,9 @@ class AgencyProvisioningResource extends JsonResource
                 'status' => $this->resource['agency']->status?->value,
                 'is_verified' => (bool) $this->resource['agency']->is_verified,
                 'primary_admin_id' => $this->resource['agency']->primary_admin_id,
+                // TCK-270 — exposed so the wizard recap can display the
+                // chosen currency without an extra round-trip.
+                'currency' => $this->resource['agency']->currency?->value,
             ],
             'admin' => [
                 'id' => $this->resource['admin']->id,
