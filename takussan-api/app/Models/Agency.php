@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\AgencyUpgradeRequestStatus;
 use App\Models\Enums\Currency;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -139,5 +140,25 @@ class Agency extends AbstractModel implements HasMedia
     public function kycDossier(): MorphOne
     {
         return $this->morphOne(KycDossier::class, 'subject');
+    }
+
+    /**
+     * Toutes les demandes d'upgrade `individual → standard` jamais soumises
+     * par cette agence (tous statuts confondus). Voir TCK-252.
+     */
+    public function upgradeRequests(): HasMany
+    {
+        return $this->hasMany(AgencyUpgradeRequest::class);
+    }
+
+    /**
+     * Demande d'upgrade actuellement `pending` (au plus une — invariant
+     * garanti par index unique partiel sur Postgres + check applicatif sur
+     * SQLite, cf. {@see AgencyUpgradeRequest}).
+     */
+    public function pendingUpgradeRequest(): HasOne
+    {
+        return $this->hasOne(AgencyUpgradeRequest::class)
+            ->where('status', AgencyUpgradeRequestStatus::Pending->value);
     }
 }

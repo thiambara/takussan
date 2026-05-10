@@ -165,7 +165,7 @@ _(Vague 24 finalisée — voir Review)_
 
 **Briques transverses (P0 d'abord)**
 
-- [TCK-252](tickets/TCK-252-agency-upgrade-request-model.md) — `AgencyUpgradeRequest` modèle + migration + enums `S · P1 · back`
+_(toutes mergées — voir Done)_
 
 **Parcours utilisateur**
 
@@ -563,6 +563,7 @@ _(vide)_
 - [TCK-258](tickets/TCK-258-form-invitation-agent.md) — Écran "Équipe" + form invitation Agent (avec choix de rôle) `S · P0 · applicatif`
 - [TCK-263](tickets/TCK-263-artisan-create-super-admin.md) — Commande artisan create-super-admin (bootstrap) `S · P0 · back`
 - [TCK-271](tickets/TCK-271-materialize-agency-admin-profile.md) — Matérialiser le modèle AgencyAdminProfile (résolution divergence TCK-255 / TCK-258) `S · P1 · back`
+- [TCK-252](tickets/TCK-252-agency-upgrade-request-model.md) — `AgencyUpgradeRequest` modèle + migration + enums `S · P1 · back`
 
 ### Vague 23 — Console super-admin
 
