@@ -656,5 +656,40 @@
     "finish": "Finish",
     "stepAriaLabel": "Step {current} of {total}",
     "dialogAriaLabel": "Welcome"
+  },
+  "customer": {
+    "welcome": {
+      "slides": [
+        {
+          "title": "Find your perfect property",
+          "body": "Browse thousands of listings — for sale, long-term and short-stay — and zero in on the one that fits your needs."
+        },
+        {
+          "title": "Save your favorites",
+          "body": "Bookmark the properties you love and compare them on your own time, from any device."
+        },
+        {
+          "title": "Chat directly with agents",
+          "body": "Ask questions, schedule visits and negotiate without intermediaries thanks to built-in messaging."
+        }
+      ]
+    },
+    "minimalProfile": {
+      "title": "Help us tailor your search",
+      "description": "Three quick pieces of info — all optional — to personalise your results. You can finish later from your profile.",
+      "phoneLabel": "Phone (optional)",
+      "phonePlaceholder": "+221 77 000 00 00",
+      "cityLabel": "Preferred city (optional)",
+      "cityPlaceholder": "Dakar, Saint-Louis…",
+      "intentLabel": "Search type (optional)",
+      "intentPlaceholder": "Pick one",
+      "intentRent": "Rent",
+      "intentBuy": "Buy",
+      "intentBoth": "Both",
+      "skip": "Later",
+      "save": "Save",
+      "saving": "Saving…",
+      "saveError": "Could not save right now. Please try again."
+    }
   }
 }

@@ -6,6 +6,7 @@ import {
   useRemoveFavoriteMutation,
 } from '@/lib/queries/favorites';
 import { useFavorites } from '@/lib/favoritesStore';
+import { useTriggerMinimalProfileOnce } from '@/hooks/useTriggerMinimalProfileOnce';
 
 /**
  * Single-property favorite toggle. Always reads from the favorites store
@@ -24,6 +25,10 @@ export function useFavorite(propertyId: number, _initialFavoriteId: number | nul
   const { has, add, remove } = useFavorites();
   const addMutation = useAddFavoriteMutation();
   const removeMutation = useRemoveFavoriteMutation();
+  // TCK-253 — Open the deferred minimal-profile sheet on the very first
+  // favorite action. The toggle keeps running in parallel; the sheet is a
+  // no-op outside the customer dashboard (provider absent).
+  const { triggerIfNeeded } = useTriggerMinimalProfileOnce();
 
   const isFavorite = has(propertyId);
   const loading = addMutation.isPending || removeMutation.isPending;
@@ -35,6 +40,10 @@ export function useFavorite(propertyId: number, _initialFavoriteId: number | nul
 
     if (!user) return;
 
+    // Only the "add favorite" path is a sensitive intent worth profiling on;
+    // un-favoriting does not signal anything new about the user.
+    if (!wasFavorite) triggerIfNeeded();
+
     try {
       if (wasFavorite) {
         await removeMutation.mutateAsync({ property_id: propertyId });
@@ -45,7 +54,7 @@ export function useFavorite(propertyId: number, _initialFavoriteId: number | nul
       if (wasFavorite) add(propertyId);
       else remove(propertyId);
     }
-  }, [user, propertyId, has, add, remove, addMutation, removeMutation]);
+  }, [user, propertyId, has, add, remove, addMutation, removeMutation, triggerIfNeeded]);
 
   return { isFavorite, toggle, loading };
 }

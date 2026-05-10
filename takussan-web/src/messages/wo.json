@@ -530,5 +530,40 @@
     "finish": "Sukkandiku",
     "stepAriaLabel": "Etaap {current} ci {total}",
     "dialogAriaLabel": "Dalal ak diam"
+  },
+  "customer": {
+    "welcome": {
+      "slides": [
+        {
+          "title": "Gis sa kër bu jamp",
+          "body": "Tann ci téméér yu bare — jaay, luwaas walla léegi-léegi — ngir gis kër gi laaj sa coobare."
+        },
+        {
+          "title": "Denc say nob",
+          "body": "Denc kër yi nga bëgg te xool leen su la naree, fu nga nekk."
+        },
+        {
+          "title": "Wax ak ajaan yi ci sa bopp",
+          "body": "Laaj say laaj, takk ben rendez-vous te wax-wax-tóon ak ajaan bi ci messagerie bi."
+        }
+      ]
+    },
+    "minimalProfile": {
+      "title": "Dimbali nu ci sa wuti",
+      "description": "Ñetti laaj yu gaaw — ngir personnaliser sa wuti. Mën nga ko mottali ci sa profil ci kanam.",
+      "phoneLabel": "Telefón (mën dem)",
+      "phonePlaceholder": "+221 77 000 00 00",
+      "cityLabel": "Dëkk bi nga wut (mën dem)",
+      "cityPlaceholder": "Dakar, Saint-Louis…",
+      "intentLabel": "Xeetu wuti (mën dem)",
+      "intentPlaceholder": "Tann benn",
+      "intentRent": "Luwaas",
+      "intentBuy": "Jënd",
+      "intentBoth": "Ñoom ñaar",
+      "skip": "Ci kanam",
+      "save": "Denc",
+      "saving": "Mu ngi denc…",
+      "saveError": "Mënul denc léegi. Jéem ci kanam."
+    }
   }
 }

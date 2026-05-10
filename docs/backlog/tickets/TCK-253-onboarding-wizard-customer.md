@@ -1,7 +1,7 @@
 ---
 id: TCK-253
 title: "Onboarding wizard Customer — welcome modale + profil minimal différé"
-status: todo
+status: done
 phase: P0
 family: front
 estimate: S
@@ -63,4 +63,7 @@ Profil minimal différé : sheet/drawer qui s'ouvre quand le user déclenche **p
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Backend** — Migration `add_preferences_to_users_table` ajoute une colonne JSON `preferences` distincte de `metadata` (qui est interne back-office). Nouveau contrôleur `Api\Me\MeController::update` exposé via `PATCH /api/me`, accepte `phone` (E.164), `city`, `search_intent` (enum `rent|buy|both`) — tous optionnels. Le contrôleur `PUT /api/auth/profile` existant n'est pas réutilisé car il exige `first_name`/`last_name`. `UserResource` expose `preferences` (objet vide si absent).
+- **Frontend** — `<CustomerWelcomeWizard>` compose `<WelcomeModal>` + `useWelcomeOnce('customer-welcome', …)` (réuse intégrale TCK-251). `<MinimalProfileTriggerProvider>` monte le sheet une fois dans `AppShell` et expose `useTriggerMinimalProfileOnce()` via React context — appel no-op hors dashboard. Wiring dans `useFavorite` (add path uniquement), `useBookingRequest` et `useContactMessage`. Le sheet ne s'ouvre qu'une seule fois par session : `consumedRef` court-circuite les déclencheurs suivants même avant que le POST `welcome-seen` n'aboutisse.
+- **i18n** — Namespace `customer.welcome.slides[0..2]` et `customer.minimalProfile.*` dans `messages/{fr,en,wo}.json`.
+- **Tests** — Backend : `MeUpdateTest` (4 tests : patch partiel, fields supplémentaires intacts, validation enum, 401 anonyme). Frontend : `MinimalProfileTriggerProvider.test.tsx` (4 tests : ouverture, single-shot, gating non-customer, prefetch déjà-vu).
