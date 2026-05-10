@@ -32,6 +32,7 @@ use App\Listeners\Permissions\NotifyDelegationActivated;
 use App\Listeners\Permissions\NotifyDelegationExpired;
 use App\Listeners\Permissions\NotifyDelegationRevoked;
 use App\Models\Agency;
+use App\Models\AgencyUpgradeRequest;
 use App\Models\BookingPayment;
 use App\Models\Conversation;
 use App\Models\Favorite;
@@ -61,6 +62,7 @@ use App\Observers\PropertyVisitObserver;
 use App\Observers\ReviewObserver;
 use App\Observers\UserObserver;
 use App\Policies\ActivityLogPolicy;
+use App\Policies\AgencyUpgradeRequestPolicy;
 use App\Policies\AgentProfilePolicy;
 use App\Policies\ConversationPolicy;
 use App\Policies\InvitationPolicy;
@@ -249,6 +251,12 @@ class AppServiceProvider extends ServiceProvider
         // takes the Agency as second argument). Bound explicitly because
         // the action is not on the OwnerProfile model itself.
         Gate::policy(OwnerProfile::class, OwnerProfilePolicy::class);
+
+        // TCK-267 — agency upgrade request gates. `create` and `viewAny`
+        // both take the Agency as second argument; `view` and `revoke`
+        // operate on the request directly. Bound explicitly because the
+        // gate signatures don't match the implicit auto-discovery pattern.
+        Gate::policy(AgencyUpgradeRequest::class, AgencyUpgradeRequestPolicy::class);
 
         // TCK-258 — agent profile gates (custom `invite`, `suspend`,
         // `delete` abilities). `invite` takes the Agency as second arg

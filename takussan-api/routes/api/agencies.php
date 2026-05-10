@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Agency\AgencyUpgradeRequestController;
 use App\Http\Controllers\Api\Agency\AgentInvitationController;
 use App\Http\Controllers\Api\Agency\KycController;
 use App\Http\Controllers\Api\Agency\OwnerInvitationController;
@@ -84,4 +85,16 @@ Route::middleware('auth:sanctum')->group(function () {
         ->name('agencies.serviceProviders.index');
     Route::post('agencies/{agency}/service-providers/invite', ServiceProviderInvitationController::class)
         ->name('agencies.serviceProviders.invite');
+
+    // TCK-267 — agency-side upgrade request flow (`individual → standard`).
+    // Submission is multipart (statuts_doc upload). Revoke is reachable
+    // by either the original submitter or any agency_admin of the agency.
+    // The super-admin review console (TCK-268) and the actual flip
+    // (TCK-269) live behind separate controllers.
+    Route::get('agencies/{agency}/upgrade-requests', [AgencyUpgradeRequestController::class, 'index'])
+        ->name('agencies.upgrade-requests.index');
+    Route::post('agencies/{agency}/upgrade-requests', [AgencyUpgradeRequestController::class, 'store'])
+        ->name('agencies.upgrade-requests.store');
+    Route::delete('agencies/{agency}/upgrade-requests/{upgradeRequest}', [AgencyUpgradeRequestController::class, 'destroy'])
+        ->name('agencies.upgrade-requests.destroy');
 });
