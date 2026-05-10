@@ -54,6 +54,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/super-admin/agencies', label: 'Agences', icon: Building2 },
       { href: '/super-admin/users', label: 'Utilisateurs', icon: Users },
+      { href: '/super-admin/super-admins', label: 'Super-admins', icon: ShieldCheck },
       { href: '/super-admin/properties', label: 'Biens', icon: Home },
       { href: '/super-admin/kyc', label: 'KYC', icon: ShieldCheck },
       { href: '/super-admin/moderation', label: 'Modération', icon: ShieldAlert },

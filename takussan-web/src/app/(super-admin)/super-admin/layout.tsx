@@ -31,6 +31,15 @@ export default async function SuperAdminLayout({
   }
 
   const user = await getMeAction();
+
+  // TCK-264 — A coopted super-admin who hasn't yet finished mandatory
+  // 2FA enrollment must NOT see the console: their spatie role is
+  // intentionally not attached until /confirm flips it on. Detour to
+  // the onboarding wizard rather than bouncing to /app (which would
+  // round-trip through another redirect for the same reason).
+  if (user.force_2fa_at_first_login) {
+    redirect('/onboarding/super-admin');
+  }
   if (!isSuperAdmin(user.roles)) {
     redirect('/app');
   }

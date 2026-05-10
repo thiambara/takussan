@@ -1052,3 +1052,57 @@ function triggerDownload(blob: Blob, filename: string): void {
   link.remove();
   URL.revokeObjectURL(objectUrl);
 }
+
+/* ------------------------------------------------------------------ */
+/* TCK-264 — Super-admin cooptation                                    */
+/* ------------------------------------------------------------------ */
+
+export interface SuperAdminEntry {
+  id: number;
+  first_name: string | null;
+  last_name: string | null;
+  email: string;
+  status: string | null;
+  two_factor_enabled: boolean;
+  force_2fa_at_first_login: boolean;
+  last_login_at: string | null;
+  created_at: string | null;
+}
+
+export interface SuperAdminPendingInvitation {
+  id: number;
+  email: string;
+  role: string;
+  status: string;
+  agency_id: number | null;
+  invited_by: number | null;
+  expires_at: string | null;
+  created_at: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
+export interface SuperAdminCooptationListing {
+  super_admins: SuperAdminEntry[];
+  pending_invitations: SuperAdminPendingInvitation[];
+}
+
+export async function fetchSuperAdminListing(): Promise<SuperAdminCooptationListing> {
+  const res = await fetch('/api/super-admin/super-admins', { credentials: 'include' });
+  const json = await jsonOrThrow<{ data: SuperAdminCooptationListing }>(res);
+  return json.data;
+}
+
+export async function inviteSuperAdmin(payload: {
+  email: string;
+  first_name: string;
+  last_name: string;
+}): Promise<SuperAdminPendingInvitation> {
+  const res = await fetch('/api/super-admin/super-admins/invite', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const json = await jsonOrThrow<{ data: SuperAdminPendingInvitation }>(res);
+  return json.data;
+}

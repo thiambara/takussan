@@ -23,6 +23,13 @@ export type User = {
   email_verified_at: string | null;
   phone_verified_at: string | null;
   two_factor_enabled: boolean;
+  /**
+   * TCK-263 / TCK-264 — set to true on bootstrap or super-admin coopt
+   * acceptance, flipped back to false once the freshly-onboarded user
+   * has confirmed their TOTP factor. Frontend gates the super-admin
+   * onboarding wizard on this flag.
+   */
+  force_2fa_at_first_login?: boolean;
   agency_id?: number | null;
   roles: UserRole[];
   status: UserStatus;
