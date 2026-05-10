@@ -1,7 +1,7 @@
 ---
 id: TCK-248
 title: "Agency.kind — distinction standard vs individual + migration + seed"
-status: todo
+status: done
 phase: P0
 family: back
 estimate: S
@@ -59,4 +59,10 @@ Aucun nouvel endpoint dans ce ticket — l'utilisation du champ par les contrôl
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Enum placé dans `App\Models\Enums\AgencyKind` (convention projet — tous les enums vivent sous `App\Models\Enums`, pas `App\Enums`).
+- Helpers `isIndividual()` et `isStandard()` exposés sur l'enum.
+- Migration `2026_05_10_000001_add_kind_to_agencies_table` ajoute `kind` (string 20, default `standard`, indexé) après `slug`.
+- `Agency::$casts` mappe `kind => AgencyKind::class` ; `kind` ajouté à `$fillable`, `$queryFields` et `$requestFilterable` pour exposition / filtrage spatie côté frontend.
+- `AgencyResource` expose désormais `kind` (string).
+- `AgencyFactory` a un état `individual()` ; valeur par défaut `Standard`.
+- Tests : `tests/Feature/Agency/AgencyKindTest.php` couvre default, override, persistance, helpers, exposition resource, default DB pour agences legacy. 7 tests verts.

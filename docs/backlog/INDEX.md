@@ -165,7 +165,6 @@ _(Vague 24 finalisée — voir Review)_
 
 **Briques transverses (P0 d'abord)**
 
-- [TCK-248](tickets/TCK-248-agency-kind-individual.md) — `Agency.kind` enum (standard/individual) + migration + seed `S · P0 · back`
 - [TCK-249](tickets/TCK-249-invitation-pattern-unifie.md) — Pattern d'invitation unifié (modèle Invitation + service + emails) `M · P0 · back`
 - [TCK-250](tickets/TCK-250-wizard-reprenable-component.md) — Wizard reprenable — composant frontend + persistance draft `S · P0 · front`
 - [TCK-251](tickets/TCK-251-welcome-modale-generique.md) — Welcome modale générique (3 slides skippable) `S · P1 · front`
@@ -559,6 +558,10 @@ _(vide)_
 - [TCK-032](tickets/TCK-032-reporting-dashboards.md) — Reporting & tableaux de bord `L · P1 · applicatif` (PR #38 — P1+P2+P3 full ; gap `/api/dashboard/me` adaptive entry fermé pour débloquer TCK-130)
 
 ## ✅ Done
+
+### Vague 29 — Onboarding parcours acteurs
+
+- [TCK-248](tickets/TCK-248-agency-kind-individual.md) — `Agency.kind` enum (standard/individual) + migration + seed `S · P0 · back`
 
 ### Vague 23 — Console super-admin
 

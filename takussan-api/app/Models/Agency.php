@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\Currency;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -24,7 +25,7 @@ class Agency extends AbstractModel implements HasMedia
     use HasFactory, InteractsWithMedia, LemonSqueezyBillable, SoftDeletes;
 
     protected $fillable = [
-        'name', 'slug', 'license_number', 'description',
+        'name', 'slug', 'kind', 'license_number', 'description',
         'email', 'phone', 'website', 'commission_rate', 'currency',
         'founded_at', 'is_verified', 'verified_at',
         'primary_admin_id', 'status', 'metadata', 'settings',
@@ -37,6 +38,7 @@ class Agency extends AbstractModel implements HasMedia
         'verified_at' => 'datetime',
         'commission_rate' => 'decimal:2',
         'average_rating' => 'decimal:2',
+        'kind' => AgencyKind::class,
         'status' => AgencyStatus::class,
         'currency' => Currency::class,
         'metadata' => 'array',
@@ -49,7 +51,7 @@ class Agency extends AbstractModel implements HasMedia
         'currency' => 'XOF',
     ];
 
-    protected static array $requestFilterable = ['status', 'is_verified', 'primary_admin_id'];
+    protected static array $requestFilterable = ['status', 'kind', 'is_verified', 'primary_admin_id'];
 
     protected static array $requestSortable = ['id', 'name', 'created_at', 'founded_at'];
 
@@ -60,7 +62,7 @@ class Agency extends AbstractModel implements HasMedia
     protected static array $requestSearchFields = ['name', 'email', 'license_number'];
 
     protected static array $queryFields = [
-        'id', 'name', 'slug', 'license_number', 'description',
+        'id', 'name', 'slug', 'kind', 'license_number', 'description',
         'email', 'phone', 'website', 'commission_rate', 'currency',
         'founded_at', 'is_verified', 'status', 'moderation_required', 'created_at', 'updated_at',
     ];
