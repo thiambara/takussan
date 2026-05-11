@@ -169,7 +169,7 @@ _(toutes mergées — voir Done)_
 
 **Parcours utilisateur**
 
-- [TCK-269](tickets/TCK-269-flip-agency-kind-and-unlock-features.md) — Flip `Agency.kind` à l'approbation + débloquage features + welcome agence `S · P1 · applicatif`
+_(toutes mergées — voir Done)_
 
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
@@ -564,6 +564,7 @@ _(vide)_
 - [TCK-264](tickets/TCK-264-cooptation-super-admin.md) — Cooptation super-admin (peer-to-peer + 2FA forcé) `M · P1 · applicatif`
 - [TCK-267](tickets/TCK-267-form-upgrade-individual-to-standard.md) — Form upgrade individual → standard (soumission user) `M · P1 · applicatif`
 - [TCK-268](tickets/TCK-268-super-admin-upgrade-review-console.md) — Console super-admin — revue des demandes d'upgrade `M · P1 · applicatif`
+- [TCK-269](tickets/TCK-269-flip-agency-kind-and-unlock-features.md) — Flip `Agency.kind` à l'approbation + débloquage features + welcome agence `S · P1 · applicatif`
 
 ### Vague 23 — Console super-admin
 
