@@ -39,6 +39,7 @@ use Database\Seeders\Support\FilterCoverageSeeder;
 use Database\Seeders\Support\PostProcessingSeeder;
 use Database\Seeders\Support\SeedingConfig;
 use Database\Seeders\Support\SeedingContext;
+use Database\Seeders\System\AgencyUpgradeRequestSeeder;
 use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Database\Seeders\System\SettingsSeeder;
 use Database\Seeders\System\TagSeeder;
@@ -59,6 +60,9 @@ class YearOfActivitySeeder extends Seeder
         UserSeeder::class,
         DemoUsersSeeder::class,
         IntegrationSeeder::class,
+        // Doit s'exécuter après UserSeeder/DemoUsersSeeder (besoin du
+        // primary_admin de chaque agence) et avant les seeders d'activité.
+        AgencyUpgradeRequestSeeder::class,
         // Catalog
         PropertySeeder::class,
         PropertyCollaboratorSeeder::class,
