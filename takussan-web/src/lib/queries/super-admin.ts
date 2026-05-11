@@ -1106,3 +1106,156 @@ export async function inviteSuperAdmin(payload: {
   const json = await jsonOrThrow<{ data: SuperAdminPendingInvitation }>(res);
   return json.data;
 }
+
+/* ------------------------------------------------------------------ */
+/* TCK-268 — Agency upgrade review console                            */
+/* ------------------------------------------------------------------ */
+
+export type AgencyUpgradeRequestStatus =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'revoked';
+
+export interface AdminAgencyUpgradeRequestRow {
+  id: number;
+  agency_id: number;
+  submitted_by: number;
+  rc: string | null;
+  ninea: string | null;
+  rib_pro: string | null;
+  company_legal_name: string | null;
+  address_fiscale: string | null;
+  planned_agents_count: number | null;
+  status: AgencyUpgradeRequestStatus;
+  submitted_at: string | null;
+  reviewed_by: number | null;
+  reviewed_at: string | null;
+  review_comment: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  agency?: {
+    id: number;
+    name: string | null;
+    slug: string | null;
+    kind: string | null;
+    status: string | null;
+    created_at: string | null;
+  } | null;
+  submitter?: {
+    id: number;
+    first_name: string | null;
+    last_name: string | null;
+    email: string | null;
+  } | null;
+}
+
+export interface AdminAgencyUpgradeRequestDetail extends AdminAgencyUpgradeRequestRow {
+  reviewer: {
+    id: number;
+    first_name: string | null;
+    last_name: string | null;
+    email: string | null;
+  } | null;
+  documents: Array<{
+    id: number;
+    name: string | null;
+    type: string | null;
+    media_url: string | null;
+  }>;
+  counts: {
+    properties: number;
+    other_requests: number;
+  };
+}
+
+export interface AdminAgencyUpgradeRequestListResponse {
+  data: AdminAgencyUpgradeRequestRow[];
+  meta: {
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+  };
+}
+
+export async function fetchAdminAgencyUpgradeRequests(
+  params: {
+    status?: AgencyUpgradeRequestStatus | 'all';
+    submittedFrom?: string;
+    submittedTo?: string;
+    page?: number;
+    perPage?: number;
+  } = {},
+): Promise<AdminAgencyUpgradeRequestListResponse> {
+  const qs = new URLSearchParams();
+  qs.set(
+    'fields[agency_upgrade_requests]',
+    'id,agency_id,submitted_by,company_legal_name,planned_agents_count,status,submitted_at,reviewed_at,review_comment',
+  );
+  qs.set('include', 'agency,submitter');
+  qs.set('sort', '-submitted_at');
+  if (params.status && params.status !== 'all') qs.set('filter[status]', params.status);
+  if (params.submittedFrom) qs.set('filter[submitted_from]', params.submittedFrom);
+  if (params.submittedTo) qs.set('filter[submitted_to]', params.submittedTo);
+  if (params.page) qs.set('page', String(params.page));
+  if (params.perPage) qs.set('per_page', String(params.perPage));
+
+  const res = await fetch(
+    `/api/super-admin/agency-upgrade-requests?${qs.toString()}`,
+    { credentials: 'include' },
+  );
+  return jsonOrThrow<AdminAgencyUpgradeRequestListResponse>(res);
+}
+
+export async function fetchAdminAgencyUpgradeRequest(
+  requestId: number,
+): Promise<AdminAgencyUpgradeRequestDetail> {
+  const res = await fetch(`/api/super-admin/agency-upgrade-requests/${requestId}`, {
+    credentials: 'include',
+  });
+  const json = await jsonOrThrow<{ data: AdminAgencyUpgradeRequestDetail }>(res);
+  return json.data;
+}
+
+export async function fetchAdminAgencyUpgradePendingCount(): Promise<number> {
+  const res = await fetch('/api/super-admin/agency-upgrade-requests/pending-count', {
+    credentials: 'include',
+  });
+  const json = await jsonOrThrow<{ count: number }>(res);
+  return json.count;
+}
+
+export async function approveAdminAgencyUpgradeRequest(
+  requestId: number,
+  comment: string | null,
+): Promise<AdminAgencyUpgradeRequestRow> {
+  const res = await fetch(
+    `/api/super-admin/agency-upgrade-requests/${requestId}/approve`,
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ comment: comment ?? '' }),
+    },
+  );
+  const json = await jsonOrThrow<{ data: AdminAgencyUpgradeRequestRow }>(res);
+  return json.data;
+}
+
+export async function rejectAdminAgencyUpgradeRequest(
+  requestId: number,
+  comment: string,
+): Promise<AdminAgencyUpgradeRequestRow> {
+  const res = await fetch(
+    `/api/super-admin/agency-upgrade-requests/${requestId}/reject`,
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ comment }),
+    },
+  );
+  const json = await jsonOrThrow<{ data: AdminAgencyUpgradeRequestRow }>(res);
+  return json.data;
+}
