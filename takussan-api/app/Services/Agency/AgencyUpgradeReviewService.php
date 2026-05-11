@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Throwable;
 
 /**
  * TCK-268 — super-admin side of the `individual → standard` upgrade flow.
@@ -34,6 +35,10 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  */
 class AgencyUpgradeReviewService
 {
+    public function __construct(
+        private readonly AgencyKindFlipService $kindFlipService,
+    ) {}
+
     public function approve(
         AgencyUpgradeRequest $request,
         User $reviewer,
@@ -41,6 +46,14 @@ class AgencyUpgradeReviewService
     ): AgencyUpgradeRequest {
         $this->assertPending($request);
 
+        // TCK-269 — Option A: the actual `Agency.kind = standard` flip is
+        // executed inline within the same DB transaction as the approval,
+        // so any failure (DB constraint, missing agency, partial metadata
+        // write, etc.) rolls the approval back to `pending`. The
+        // `AgencyUpgradeApproved` event is still dispatched (after-commit)
+        // so out-of-band consumers can react, but the safety-net listener
+        // is a no-op on the happy path because the agency is already
+        // standard by the time it fires.
         $approved = DB::transaction(function () use ($request, $reviewer, $comment): AgencyUpgradeRequest {
             $request->update([
                 'status' => AgencyUpgradeRequestStatus::Approved->value,
@@ -58,6 +71,16 @@ class AgencyUpgradeReviewService
                 ])
                 ->event('agency_upgrade_approved')
                 ->log('agency_upgrade_approved');
+
+            try {
+                // Refresh once so the flip service sees the freshly-set
+                // `reviewed_by` (used as the activity log causer).
+                $this->kindFlipService->flip($request->fresh() ?? $request);
+            } catch (Throwable $e) {
+                // Surface as 500 so the surrounding transaction rolls back
+                // and the request remains `pending` — operators can retry.
+                throw $e;
+            }
 
             // ShouldDispatchAfterCommit on the event keeps TCK-269's
             // listener safe — it only fires once the row is persisted.

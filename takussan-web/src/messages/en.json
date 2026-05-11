@@ -275,6 +275,23 @@
       "missing": "Still missing: {items}",
       "daysOpen": "{count, plural, =0 {today} one {# day} other {# days}}"
     },
+    "standardWelcome": {
+      "title": "Welcome to your agency",
+      "slides": {
+        "invite": {
+          "title": "Invite your team",
+          "body": "Add agents and collaborators in a few clicks and delegate the day-to-day on your portfolio."
+        },
+        "roles": {
+          "title": "Configure roles",
+          "body": "Fine-tune permissions for each member to mirror how your organisation actually runs."
+        },
+        "reports": {
+          "title": "Access reports",
+          "body": "Track your agency: revenue, collections, and your team's performance — all in one place."
+        }
+      }
+    },
     "upgrade": {
       "page": {
         "eyebrow": "My agency",

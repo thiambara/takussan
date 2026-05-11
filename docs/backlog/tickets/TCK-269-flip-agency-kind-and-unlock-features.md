@@ -1,7 +1,7 @@
 ---
 id: TCK-269
 title: "Flip Agency.kind à l'approbation + débloquage features + welcome agence"
-status: todo
+status: done
 phase: P1
 family: applicatif
 estimate: S
@@ -44,24 +44,24 @@ Frontend :
 
 ## Delta à produire
 
-- [ ] Listener : `App\Listeners\FlipAgencyKindOnUpgradeApproved`
-- [ ] Service : `App\Services\Agency\AgencyKindFlipService` (réutilisable + testable isolément)
-- [ ] Tests backend :
+- [x] Listener : `App\Listeners\Agency\FlipAgencyKindOnUpgradeApproved`
+- [x] Service : `App\Services\Agency\AgencyKindFlipService` (réutilisable + testable isolément)
+- [x] Tests backend :
   - Approve → flip kind + copie champs légaux
   - Échec flip → rollback approbation
   - Activity log
-  - Welcome key posée
-- [ ] Frontend : déclencher `<WelcomeModal>` "Agence" au login si key non vue
-- [ ] Slides "Bienvenue dans votre agence" en i18n FR/EN/WO
-- [ ] Tests frontend : modale déclenchée 1 fois, ne réapparaît pas
+  - Welcome marker posé
+- [x] Frontend : déclencher `<WelcomeModal>` "Agence" au login si key non vue
+- [x] Slides "Bienvenue dans votre agence" en i18n FR/EN/WO
+- [x] Tests frontend : modale déclenchée 1 fois, ne réapparaît pas
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Approbation d'une demande → `Agency.kind` passe à `standard` immédiatement.
-- [ ] AC2 — Champs légaux copiés (`rc`, `ninea`) sur l'agence si vides.
-- [ ] AC3 — Au prochain login du `agency_admin`, welcome modale "Agence" affichée 1 fois.
-- [ ] AC4 — Les pages auparavant bloquées (équipe TCK-258) deviennent accessibles côté UI et backend.
-- [ ] AC5 — Activity log entry `agency_kind_flipped`.
+- [x] AC1 — Approbation d'une demande → `Agency.kind` passe à `standard` immédiatement.
+- [x] AC2 — Champs légaux copiés (`rc`, `ninea`) sur l'agence si vides.
+- [x] AC3 — Au prochain login du `agency_admin`, welcome modale "Agence" affichée 1 fois.
+- [x] AC4 — Les pages auparavant bloquées (équipe TCK-258) deviennent accessibles côté UI et backend.
+- [x] AC5 — Activity log entry `agency_kind_flipped`.
 
 ## Hors périmètre
 
@@ -71,4 +71,28 @@ Frontend :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Décisions clés :**
+
+1. **Transactionalité — Option A** : `AgencyUpgradeReviewService::approve()` appelle `AgencyKindFlipService::flip()` directement à l'intérieur de sa propre `DB::transaction`. Si le flip throw, la transaction roll back l'update du `status=approved`, le `reviewed_*` et l'activity log d'approbation. Le listener `FlipAgencyKindOnUpgradeApproved` reste enregistré comme filet de sécurité pour les dispatchers directs (jobs, scripts) — il est idempotent et no-op quand l'agence est déjà `standard` (cas du happy path inline).
+2. **Stockage des champs légaux** : Le modèle `Agency` n'a pas de colonnes `rc / ninea / rib_pro / company_legal_name / address_fiscale`. Tout est stocké dans `agency.metadata.legal_info.{field}` (cast `array`). Pas de migration créée — la constante `AgencyKindFlipService::LEGAL_FIELDS` documente les champs et la logique préfère une vraie colonne quand elle existe (fillable + déjà attribuée), sinon retombe sur le metadata bag. Idempotence : un champ déjà non-vide n'est jamais écrasé.
+3. **Trigger welcome modale** : pas d'entry pré-créée dans `welcome_views` (qui est strictement scoped par user). À la place, le service stamp `agency.metadata.welcome.standard_unlocked_at = now()->toIso8601String()`. Le frontend `useAgencyStandardWelcomeOnce` lit ce marker via `GET /api/agencies/{id}?fields[agencies]=id,kind,metadata`, vérifie l'absence de la clé `agency-standard-welcome-{agency_id}` côté `welcome_views` user-scoped, puis affiche `<WelcomeModal>` une fois.
+4. **Notification** : aucune nouvelle notification ajoutée — `AgencyUpgradeApprovedNotification` (TCK-268) reste seule responsable du ping submitter.
+5. **Feature unlock** : aucune policy modifiée. Les guards existants (notamment `AgentInvitationService::assertAgencyCanInvite` qui throw 403 si `kind ≠ standard`) deviennent automatiquement passants une fois le flip appliqué — testé en bout-en-bout par `test_agent_invitation_unlocks_after_flip`.
+
+**Fichiers touchés :**
+
+Backend :
+- `app/Services/Agency/AgencyKindFlipService.php` (nouveau)
+- `app/Services/Agency/AgencyUpgradeReviewService.php` (injection + appel inline du flip dans la transaction d'approve)
+- `app/Listeners/Agency/FlipAgencyKindOnUpgradeApproved.php` (nouveau, safety-net idempotent)
+- `app/Providers/AppServiceProvider.php` (enregistrement du listener)
+- `app/Http/Resources/AgencyResource.php` (expose `metadata` au frontend)
+- `tests/Feature/Agency/AgencyKindFlipTest.php` (nouveau, 7 tests)
+
+Frontend :
+- `src/types/agency.ts` (ajout `AgencyMetadata` + champ `metadata` sur `Agency`)
+- `src/hooks/useAgencyStandardWelcomeOnce.ts` (nouveau, mirror de `useTenantWelcomeOnce`)
+- `src/components/agency/AgencyStandardWelcomeWizard.tsx` (nouveau, composition `<WelcomeModal>`)
+- `src/components/layout/AppShell.tsx` (mount derrière `isAgencyAdmin`)
+- `src/messages/{fr,en,wo}.json` (clés `agency.standardWelcome.{title, slides.{invite,roles,reports}.{title,body}}`)
+- `src/hooks/__tests__/useAgencyStandardWelcomeOnce.test.tsx` (nouveau, 7 tests)
