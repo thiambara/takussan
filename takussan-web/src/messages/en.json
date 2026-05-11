@@ -274,6 +274,89 @@
       "signedAt": "Signed on {date}",
       "missing": "Still missing: {items}",
       "daysOpen": "{count, plural, =0 {today} one {# day} other {# days}}"
+    },
+    "upgrade": {
+      "page": {
+        "eyebrow": "My agency",
+        "title": "Upgrade to a professional agency",
+        "subtitle": "Unlock team features: invite collaborators, delegate roles and share your portfolio.",
+        "already_standard": {
+          "title": "Your agency is already professional",
+          "body": "No action required — every team feature is already active."
+        },
+        "benefits": {
+          "aria_label": "Benefits of a professional agency",
+          "title": "Why upgrade?",
+          "items": {
+            "team": "Invite a team of agents and delegate the day-to-day management.",
+            "multi_admin": "Co-administrate the agency with multiple admins.",
+            "custom_roles": "Define custom roles to structure your organisation."
+          },
+          "sla": "Reply from our team within 5 business days."
+        }
+      },
+      "form": {
+        "aria_label": "Upgrade request form",
+        "loading": "Loading your draft…",
+        "fields": {
+          "rc": "RC number",
+          "ninea": "NINEA",
+          "rib_pro": "Professional bank account (RIB)",
+          "company_legal_name": "Legal company name",
+          "address_fiscale": "Tax address",
+          "planned_agents_count": "Estimated number of agents (optional)",
+          "statuts_doc": "Legal statutes (PDF or image)"
+        },
+        "hints": {
+          "planned_agents_count": "Helps us size your future organisation.",
+          "statuts_doc": "PDF, JPG or PNG. 10 MB max."
+        },
+        "file_selected": "Selected file: {name}",
+        "cta": {
+          "submit": "Submit request",
+          "submitting": "Sending…"
+        },
+        "errors": {
+          "file_required": "The legal statutes scan is required.",
+          "file_too_large": "File exceeds 10 MB.",
+          "unauthorized": "You must be signed in to submit the request.",
+          "forbidden": "You are not allowed to submit this request.",
+          "generic": "Something went wrong. Please try again."
+        },
+        "toasts": {
+          "submitted": "Your request has been sent."
+        }
+      },
+      "status": {
+        "aria_label": "Upgrade request status",
+        "headings": {
+          "pending": "Request pending",
+          "approved": "Request approved",
+          "rejected": "Request rejected",
+          "revoked": "Request revoked"
+        },
+        "badges": {
+          "pending": "Pending",
+          "approved": "Approved",
+          "rejected": "Rejected",
+          "revoked": "Revoked"
+        },
+        "submitted_at": "Submitted on {date}",
+        "body": {
+          "pending": "Our team is reviewing your request. You will be notified as soon as it is processed.",
+          "approved": "Your agency is now professional (approved on {date}).",
+          "rejected": "Your request was rejected on {date}. See the comment below; you may submit a new one.",
+          "revoked": "You revoked this request. You can submit a new one at any time."
+        },
+        "cta": {
+          "revoke": "Revoke request",
+          "revoking": "Revoking…"
+        },
+        "toasts": {
+          "revoked": "Request revoked.",
+          "error": "Could not revoke."
+        }
+      }
     }
   },
   "compare": {
@@ -880,7 +963,10 @@
         "phone": {
           "title": "Verify your phone",
           "subtitle": "Required for payment and rental notifications.",
-          "fields": { "phone": "Phone number", "code": "SMS code" },
+          "fields": {
+            "phone": "Phone number",
+            "code": "SMS code"
+          },
           "sendCta": "Send code",
           "sending": "Sending…",
           "verifyCta": "Verify",
@@ -896,7 +982,10 @@
             "body": "You can move on to the next step.",
             "banner": "Number verified — you'll receive your alerts by SMS."
           },
-          "errors": { "sendTitle": "Could not send code", "verifyTitle": "Invalid code" }
+          "errors": {
+            "sendTitle": "Could not send code",
+            "verifyTitle": "Invalid code"
+          }
         },
         "kyc": {
           "title": "Your supporting documents",
@@ -943,7 +1032,10 @@
         "kycSubmitTitle": "Could not submit KYC",
         "completeTitle": "Could not finalise your onboarding"
       },
-      "success": { "title": "Welcome!", "body": "Your owner profile is active." }
+      "success": {
+        "title": "Welcome!",
+        "body": "Your owner profile is active."
+      }
     }
   },
   "ownerWelcome": {
@@ -995,7 +1087,10 @@
         "phone": {
           "title": "Verify your phone",
           "subtitle": "Required for client and agency notifications.",
-          "fields": { "phone": "Phone number", "code": "SMS code" },
+          "fields": {
+            "phone": "Phone number",
+            "code": "SMS code"
+          },
           "sendCta": "Send code",
           "sending": "Sending…",
           "verifyCta": "Verify",
@@ -1011,7 +1106,10 @@
             "body": "You can move on to the next step.",
             "banner": "Number verified — you'll receive your alerts by SMS."
           },
-          "errors": { "sendTitle": "Could not send code", "verifyTitle": "Invalid code" }
+          "errors": {
+            "sendTitle": "Could not send code",
+            "verifyTitle": "Invalid code"
+          }
         },
         "kyc": {
           "title": "Your supporting documents",
@@ -1082,7 +1180,10 @@
         "kycSubmitTitle": "Could not submit KYC",
         "completeTitle": "Could not finalise your onboarding"
       },
-      "success": { "title": "Welcome!", "body": "Your agent profile is active." }
+      "success": {
+        "title": "Welcome!",
+        "body": "Your agent profile is active."
+      }
     }
   },
   "agentWelcome": {
@@ -1299,9 +1400,15 @@
           "sunday": "Sunday"
         },
         "periods": {
-          "morning": { "label": "Morning" },
-          "afternoon": { "label": "Afternoon" },
-          "evening": { "label": "Evening" }
+          "morning": {
+            "label": "Morning"
+          },
+          "afternoon": {
+            "label": "Afternoon"
+          },
+          "evening": {
+            "label": "Evening"
+          }
         }
       },
       "steps": {
