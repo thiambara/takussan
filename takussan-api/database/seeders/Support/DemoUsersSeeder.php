@@ -3,9 +3,11 @@
 namespace Database\Seeders\Support;
 
 use App\Models\Agency;
+use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\UserStatus;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderProfile;
@@ -189,6 +191,14 @@ class DemoUsersSeeder extends Seeder
             ),
             'service_provider' => ServiceProviderProfile::query()->firstOrCreate(
                 ['user_id' => $user->id],
+            ),
+            // TCK-271 — agency_admin demo user needs the materialized profile
+            // for the active-profile resolver to pin the agency context. The
+            // global super_admin (created via createSuperAdmin) is intentionally
+            // skipped: it's not tied to an agency.
+            'admin' => AgencyAdminProfile::query()->firstOrCreate(
+                ['user_id' => $user->id, 'agency_id' => $agency->id],
+                ['status' => AgencyAdminProfileStatus::Active->value],
             ),
             default => null,
         };

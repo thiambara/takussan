@@ -3,10 +3,12 @@
 namespace Database\Seeders\Core;
 
 use App\Models\Agency;
+use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\UserStatus;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\BrokerAgencyCollaboration;
 use App\Models\Profiles\BrokerProfile;
@@ -167,9 +169,12 @@ class UserSeeder extends Seeder
 
     /**
      * Polymorphic profile creation driven by the persona string carried in the
-     * seed payload. Admins get no profile; their authority is fully expressed
-     * via spatie roles. Brokers and service providers are user-scoped, so the
-     * agency only enters via the collaboration pivot.
+     * seed payload. Since TCK-271, agency admins also get a materialized
+     * {@see AgencyAdminProfile} so the cookie-based active profile resolver
+     * can pin the agency context unambiguously and policies reading
+     * `$user->agency_id` keep returning the correct value. Brokers and
+     * service providers are user-scoped, so the agency only enters via the
+     * collaboration pivot.
      */
     private function seedProfileFor(User $user, Agency $agency, ?string $persona): void
     {
@@ -184,9 +189,18 @@ class UserSeeder extends Seeder
             ),
             'broker' => $this->seedBrokerProfile($user, $agency),
             'service_provider' => $this->seedServiceProviderProfile($user, $agency),
-            'admin', null => null,
+            'admin' => $this->seedAgencyAdminProfile($user, $agency),
+            null => null,
             default => null,
         };
+    }
+
+    private function seedAgencyAdminProfile(User $user, Agency $agency): AgencyAdminProfile
+    {
+        return AgencyAdminProfile::query()->firstOrCreate(
+            ['user_id' => $user->id, 'agency_id' => $agency->id],
+            ['status' => AgencyAdminProfileStatus::Active->value],
+        );
     }
 
     private function seedBrokerProfile(User $user, Agency $agency): void
