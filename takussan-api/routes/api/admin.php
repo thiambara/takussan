@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Admin\AgencyDetailController;
 use App\Http\Controllers\Api\Admin\AgencyModerationController;
 use App\Http\Controllers\Api\Admin\AgencyOnboardingController;
 use App\Http\Controllers\Api\Admin\AgencySubscriptionController;
+use App\Http\Controllers\Api\Admin\AgencyUpgradeRequestController;
 use App\Http\Controllers\Api\Admin\AlertRuleController;
 use App\Http\Controllers\Api\Admin\AnnouncementController;
 use App\Http\Controllers\Api\Admin\BusinessEnumController;
@@ -70,6 +71,20 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
         Route::post('{agency}/unverify', [AgencyModerationController::class, 'unverify'])
             ->name('admin.agencies.unverify');
     });
+
+    // TCK-268 — Agency upgrade request review console (cross-tenant).
+    // pending-count is mounted before the {upgradeRequest} bindings so the
+    // sidebar badge endpoint isn't shadowed by the implicit model binding.
+    Route::get('agency-upgrade-requests/pending-count', [AgencyUpgradeRequestController::class, 'pendingCount'])
+        ->name('admin.agency-upgrade-requests.pending-count');
+    Route::get('agency-upgrade-requests', [AgencyUpgradeRequestController::class, 'index'])
+        ->name('admin.agency-upgrade-requests.index');
+    Route::get('agency-upgrade-requests/{upgradeRequest}', [AgencyUpgradeRequestController::class, 'show'])
+        ->name('admin.agency-upgrade-requests.show');
+    Route::post('agency-upgrade-requests/{upgradeRequest}/approve', [AgencyUpgradeRequestController::class, 'approve'])
+        ->name('admin.agency-upgrade-requests.approve');
+    Route::post('agency-upgrade-requests/{upgradeRequest}/reject', [AgencyUpgradeRequestController::class, 'reject'])
+        ->name('admin.agency-upgrade-requests.reject');
 
     // TCK-264 — Peer-to-peer super-admin cooptation. Listing surfaces
     // both active super-admins and pending invitations so the UI can
