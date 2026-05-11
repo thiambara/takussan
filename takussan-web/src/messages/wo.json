@@ -149,6 +149,23 @@
       "missing": "Yi des: {items}",
       "daysOpen": "{count, plural, =0 {tey} one {# fan} other {# fan}}"
     },
+    "standardWelcome": {
+      "title": "Dalal jàmm ci sa agence",
+      "slides": {
+        "invite": {
+          "title": "Wooy sa ekip",
+          "body": "Dugal say agent ak say njabootu ligéey ci ay click rekk ndax nga delegate seeni liggéey."
+        },
+        "roles": {
+          "title": "Tànneel rôles yi",
+          "body": "Tabbal ndimbal yu ñépp ngir mu yelloo ak ni sa ligéey di doxe."
+        },
+        "reports": {
+          "title": "Sàcc rapport yi",
+          "body": "Topp sa agence : alal yi nga am, paye yi, ak nataal sa ekip — fii rekk."
+        }
+      }
+    },
     "upgrade": {
       "page": {
         "eyebrow": "Sama agence",

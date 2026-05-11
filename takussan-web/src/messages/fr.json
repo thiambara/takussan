@@ -254,6 +254,23 @@
       "missing": "Il reste : {items}",
       "daysOpen": "{count, plural, =0 {aujourd'hui} one {# jour} other {# jours}}"
     },
+    "standardWelcome": {
+      "title": "Bienvenue dans votre agence",
+      "slides": {
+        "invite": {
+          "title": "Invitez votre équipe",
+          "body": "Ajoutez vos agents et collaborateurs en quelques clics et déléguez le suivi de vos biens."
+        },
+        "roles": {
+          "title": "Configurez les rôles",
+          "body": "Affinez les permissions de chaque membre pour structurer votre organisation."
+        },
+        "reports": {
+          "title": "Accédez aux rapports",
+          "body": "Suivez l'activité de votre agence : revenus, encaissements, performances de vos équipes."
+        }
+      }
+    },
     "upgrade": {
       "page": {
         "eyebrow": "Mon agence",

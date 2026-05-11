@@ -12,6 +12,29 @@ export type AgencyStatus = 'active' | 'inactive' | 'suspended' | 'pending';
  *  external owners), `standard` is the multi-owner agency. */
 export type AgencyKind = 'standard' | 'individual';
 
+/**
+ * TCK-269 — JSON metadata bag carried verbatim by `AgencyResource.metadata`.
+ * `legal_info.*` is backfilled by the agency-upgrade flow when a
+ * super-admin approves the request; `welcome.standard_unlocked_at` is
+ * stamped at the same moment so the agency-admin welcome modale fires once.
+ */
+export interface AgencyMetadata {
+  legal_info?: {
+    rc?: string | null;
+    ninea?: string | null;
+    rib_pro?: string | null;
+    company_legal_name?: string | null;
+    address_fiscale?: string | null;
+    [key: string]: unknown;
+  };
+  welcome?: {
+    /** ISO-8601 timestamp set when the agency was flipped to `standard`. */
+    standard_unlocked_at?: string | null;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
 export interface AgencySettings {
   /** Stored under `settings.default_commission_rate` (fallback to top-level `commission_rate`). */
   default_commission_rate?: number | null;
@@ -45,6 +68,8 @@ export interface Agency {
   average_rating?: number | null;
   logo_url: string | null;
   settings: AgencySettings | null;
+  /** TCK-269 — JSON bag, exposes `welcome.standard_unlocked_at` and `legal_info.*`. */
+  metadata?: AgencyMetadata | null;
   /** TCK-098 — when true, new property publications require admin approval. */
   moderation_required?: boolean;
   primary_admin_id: number | null;

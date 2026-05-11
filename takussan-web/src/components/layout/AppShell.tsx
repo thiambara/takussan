@@ -5,12 +5,13 @@ import type { User } from '@/types/user';
 import { AppTopbar } from './AppTopbar';
 import { AppSidebar } from './AppSidebar';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { AgencyStandardWelcomeWizard } from '@/components/agency/AgencyStandardWelcomeWizard';
 import { AgentWelcomeWizard } from '@/components/agent/AgentWelcomeWizard';
 import { CustomerWelcomeWizard } from '@/components/customer/CustomerWelcomeWizard';
 import { MinimalProfileTriggerProvider } from '@/components/customer/MinimalProfileTriggerProvider';
 import { OwnerWelcomeWizard } from '@/components/owner/OwnerWelcomeWizard';
 import { TenantWelcomeWizard } from '@/components/tenant/TenantWelcomeWizard';
-import { isAgent, isCustomer, isOwner } from '@/lib/roles';
+import { isAgencyAdmin, isAgent, isCustomer, isOwner } from '@/lib/roles';
 
 interface AppShellProps {
   user: User;
@@ -32,6 +33,12 @@ export function AppShell({ user, children }: AppShellProps) {
   // the `agent` role (or its senior / manager flavours, both surfaced
   // through the same `agent` spatie role from the invite acceptance).
   const agentWelcomeActive = isAgent(user.roles);
+  // TCK-269 — Agency-admin welcome modale fired once after a successful
+  // `individual → standard` upgrade. Strict `agency_admin` check excludes
+  // super-admin impersonation. The hook itself only opens the modale when
+  // `agency.metadata.welcome.standard_unlocked_at` is present, so admins
+  // of always-standard agencies never see it.
+  const agencyStandardWelcomeActive = isAgencyAdmin(user.roles);
 
   return (
     <MinimalProfileTriggerProvider roles={user.roles}>
@@ -57,6 +64,7 @@ export function AppShell({ user, children }: AppShellProps) {
         {customerOnboardingActive ? <TenantWelcomeWizard /> : null}
         {ownerWelcomeActive ? <OwnerWelcomeWizard /> : null}
         {agentWelcomeActive ? <AgentWelcomeWizard /> : null}
+        {agencyStandardWelcomeActive ? <AgencyStandardWelcomeWizard /> : null}
       </div>
     </MinimalProfileTriggerProvider>
   );
