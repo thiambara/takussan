@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Events\Accounting\BankStatementFinalized;
 use App\Events\Accounting\BankStatementImported;
+use App\Events\AgencyUpgradeApproved;
 use App\Events\Lease\LeaseActivated;
 use App\Events\Lease\LeaseDepositRefunded;
 use App\Events\Lease\LeaseEarlyTerminationCancelled;
@@ -19,6 +20,7 @@ use App\Listeners\Accounting\NotifyStatementFinalized;
 use App\Listeners\Accounting\NotifyStatementImported;
 use App\Listeners\Admin\DispatchAlerts;
 use App\Listeners\Admin\RecordScheduledTaskRun;
+use App\Listeners\Agency\FlipAgencyKindOnUpgradeApproved;
 use App\Listeners\Lease\CreateTenantOnboardingChecklist;
 use App\Listeners\Lease\NotifyOnEarlyTermination;
 use App\Listeners\Lease\NotifyTenantOfDepositRefund;
@@ -309,6 +311,12 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-091 — notify the tenant when the rent on their lease is reviewed.
         $events->listen(LeaseRentReviewed::class, NotifyTenantOfRentReview::class);
+
+        // TCK-269 — safety-net flip listener. The HTTP approve flow already
+        // performs the flip inline (Option A — see AgencyUpgradeReviewService),
+        // so on the happy path this is a no-op. Stays registered so direct
+        // event dispatchers (jobs, scripts) still get the flip applied.
+        $events->listen(AgencyUpgradeApproved::class, FlipAgencyKindOnUpgradeApproved::class);
 
         // TCK-265 — welcome the tenant the first time their lease is activated.
         $events->listen(LeaseActivated::class, SendTenantWelcomeNotification::class);
