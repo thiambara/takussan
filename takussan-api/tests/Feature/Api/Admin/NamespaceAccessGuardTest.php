@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\Admin;
 
 use App\Models\Agency;
+use App\Models\AgencyUpgradeRequest;
 use App\Models\AlertRule;
 use App\Models\Announcement;
 use App\Models\Integration;
@@ -67,6 +68,12 @@ class NamespaceAccessGuardTest extends BaseTestCase
             'currency' => 'XOF',
             'status' => 'pending',
         ]);
+        // TCK-268 — `SubstituteBindings` resolves {upgradeRequest} *before*
+        // EnsureSuperAdmin runs, so without a real row the test would 404
+        // long before the namespace guard gets a chance to 403.
+        $upgradeRequest = AgencyUpgradeRequest::factory()->pending()->create([
+            'agency_id' => $agency->id,
+        ]);
 
         $routes = collect(Route::getRoutes())
             ->filter(fn ($r) => str_starts_with($r->uri(), 'api/admin'));
@@ -88,6 +95,7 @@ class NamespaceAccessGuardTest extends BaseTestCase
                     '{plan}' => (string) $plan->id,
                     '{announcement}' => (string) $announcement->id,
                     '{payout}' => (string) $payout->id,
+                    '{upgradeRequest}' => (string) $upgradeRequest->id,
                 ]);
 
                 // Replace any remaining unresolved {param} with a dummy id so

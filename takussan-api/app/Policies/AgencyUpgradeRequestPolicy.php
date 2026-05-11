@@ -57,6 +57,25 @@ class AgencyUpgradeRequestPolicy
     }
 
     /**
+     * TCK-268 — only super-admins may approve. The route group already
+     * gates on the `super-admin` middleware; this method exists so
+     * `$user->can('approve', $request)` reflects the intent in any
+     * non-HTTP caller (CLI, queue jobs).
+     */
+    public function approve(User $user, AgencyUpgradeRequest $request): bool
+    {
+        return $user->isSuperAdmin();
+    }
+
+    /**
+     * TCK-268 — symmetrical with {@see approve()}.
+     */
+    public function reject(User $user, AgencyUpgradeRequest $request): bool
+    {
+        return $user->isSuperAdmin();
+    }
+
+    /**
      * Either the original submitter or any agency_admin of the same
      * agency may revoke a pending request. The not-pending check is
      * enforced inside the service so the 422 surfaces with a clear

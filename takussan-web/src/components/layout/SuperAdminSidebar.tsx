@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import {
   Activity,
   ArrowLeft,
@@ -9,6 +10,7 @@ import {
   Bell,
   Building2,
   CalendarClock,
+  ClipboardCheck,
   CreditCard,
   FlaskConical,
   Home,
@@ -28,12 +30,19 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { fetchAdminAgencyUpgradePendingCount } from '@/lib/queries/super-admin';
 
 interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
   children?: NavItem[];
+  /**
+   * When set, the sidebar fetches the matching badge value via react-query.
+   * Currently used for `upgrade-requests` (TCK-268) — kept generic so other
+   * queues can opt-in without re-plumbing the layout.
+   */
+  badgeKey?: 'upgrade-requests-pending';
 }
 
 interface NavGroup {
@@ -53,6 +62,12 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Opérations',
     items: [
       { href: '/super-admin/agencies', label: 'Agences', icon: Building2 },
+      {
+        href: '/super-admin/agency-upgrade-requests',
+        label: "Demandes d'upgrade",
+        icon: ClipboardCheck,
+        badgeKey: 'upgrade-requests-pending',
+      },
       { href: '/super-admin/users', label: 'Utilisateurs', icon: Users },
       { href: '/super-admin/super-admins', label: 'Super-admins', icon: ShieldCheck },
       { href: '/super-admin/properties', label: 'Biens', icon: Home },
@@ -168,6 +183,7 @@ function SuperAdminNavItem({
   const active = isActivePath(pathname, item.href);
   const current = pathname === item.href;
   const Icon = item.icon;
+  const badge = useNavBadge(item.badgeKey);
 
   return (
     <div className="space-y-1">
@@ -183,7 +199,15 @@ function SuperAdminNavItem({
         )}
       >
         <Icon className="size-4 shrink-0" aria-hidden="true" />
-        <span className="truncate">{item.label}</span>
+        <span className="flex-1 truncate">{item.label}</span>
+        {badge && badge > 0 ? (
+          <span
+            aria-label={`${badge} en attente`}
+            className="inline-flex min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[11px] font-semibold text-stone-900"
+          >
+            {badge > 99 ? '99+' : badge}
+          </span>
+        ) : null}
       </Link>
       {item.children?.length ? (
         <div className="ml-5 space-y-1 border-l border-white/10 pl-2">
@@ -219,4 +243,26 @@ function isActivePath(pathname: string | null, href: string) {
   if (!pathname) return false;
   if (href === '/super-admin') return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/**
+ * TCK-268 — Live badge counts for sidebar entries that surface a backlog.
+ *
+ * The polling cadence stays generous (60 s) so the sidebar never becomes a
+ * tight cron; the dedicated pages can still invalidate the same query key
+ * immediately after a decision is recorded.
+ */
+function useNavBadge(badgeKey?: NavItem['badgeKey']): number | null {
+  const upgradePending = useQuery({
+    queryKey: ['super-admin', 'agency-upgrade-requests', 'pending-count'],
+    queryFn: fetchAdminAgencyUpgradePendingCount,
+    enabled: badgeKey === 'upgrade-requests-pending',
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
+  if (badgeKey === 'upgrade-requests-pending') {
+    return upgradePending.data ?? null;
+  }
+  return null;
 }
