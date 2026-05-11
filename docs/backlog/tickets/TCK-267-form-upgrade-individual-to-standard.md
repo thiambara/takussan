@@ -1,12 +1,12 @@
 ---
 id: TCK-267
 title: "Form upgrade individual → standard (soumission user)"
-status: todo
+status: done
 phase: P1
 family: applicatif
 estimate: M
 created: 2026-05-10
-updated: 2026-05-10
+updated: 2026-05-11
 depends_on: [TCK-248, TCK-252, TCK-250]
 blocks: [TCK-268, TCK-269]
 spec_refs:
@@ -94,4 +94,43 @@ Form reprenable via `<WizardReprenable>` (TCK-250) avec key `agency-upgrade-{age
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Décisions clés
+
+- **Upload statuts** stocké via `Document` polymorph + spatie/media-library (`documents.documentable_type = AgencyUpgradeRequest::class`, collection `file`). `DocumentType::Other` faute d'enum dédié — éviter la prolifération d'enums avant qu'un cas d'usage produit ne le réclame. Le `DocumentResource` existant peut donc lister la pièce sans changement côté FE.
+- **Pré-check pending applicatif** dans `AgencyUpgradeRequestService::submit()` (en plus de l'index unique partiel garanti par TCK-252). Sans ce check, la collision DB remonterait en 500 générique (`QueryException`) ; ici on lève un 422 avec le message localisé `agency_upgrade.submit.errors.pending_exists` et l'`request_id` existant pour que la FE puisse proposer "Révoquer la précédente".
+- **Notification super-admins** : `AgencyUpgradeRequestSubmittedNotification` (database+mail, queueable) avec un lien `/super-admin/agency-upgrade-requests/{id}` qui ne résoud pas encore (TCK-268 livrera la console). Le service ré-implémente une mini-résolution `super_admin` (probe sous `team_id = NULL`) plutôt que d'importer `SuperAdminCooptationService` — couplage minimal entre flux upgrade et flux cooptation.
+- **Policy `AgencyUpgradeRequestPolicy`** bindée explicitement (`Gate::policy(AgencyUpgradeRequest::class, ...)`) parce que `create` et `viewAny` prennent l'`Agency` en second argument (signature non auto-discoverable). Le service ré-asserte les mêmes règles défensivement pour les appels non-HTTP (jobs, console).
+- **Frontend autosave** via `useWizardDraft` direct (pas `WizardReprenable`) — le formulaire est mono-step, l'overhead "stepper + boutons next/prev" n'apporte rien. La clé `agency-upgrade-{agency_id}` est enregistrée dans `WIZARD_RESUME_RULES` pour que la bannière dashboard puisse proposer "reprendre". Le fichier PDF n'est volontairement **pas** persisté dans le draft (binaire ≠ JSON), l'utilisateur le ré-attache au retour.
+- **Page** ne redirige pas quand l'agence est déjà `standard` : un panneau "déjà professionnelle" est rendu, ce qui évite que les liens deep-link (notif, sidebar) renvoient une 404 ou un dashboard sans contexte. La sidebar entry "Passer en pro" est gated sur le rôle `agency_admin` côté FE et la kind est re-vérifiée côté backend.
+- **Test backend** : la révocation par "autre agency_admin" force une recherche manuelle de `submitted_by` ≠ `auth_user.id` parce que `actingAsRole` recrée à chaque appel un nouvel utilisateur ; la sécurité s'évalue donc sur la combinaison policy `revoke` (creator OU agency_admin de l'agence) plutôt que sur l'identité directe.
+
+### Fichiers touchés
+
+**Backend (commit `8764e231`)**
+- `app/Services/Agency/AgencyUpgradeRequestService.php` *(nouveau)* — submit / revoke + fan-out notif super-admins.
+- `app/Http/Controllers/Api/Agency/AgencyUpgradeRequestController.php` *(nouveau)* — index / store / destroy.
+- `app/Http/Requests/Agency/SubmitAgencyUpgradeRequestRequest.php` *(nouveau)* — validation multipart (PDF/JPG/PNG ≤ 10 Mo).
+- `app/Http/Resources/AgencyUpgradeRequestResource.php` *(nouveau)*.
+- `app/Policies/AgencyUpgradeRequestPolicy.php` *(nouveau)* — `viewAny` / `view` / `create` / `revoke`, bound explicit dans `AppServiceProvider`.
+- `app/Notifications/AgencyUpgradeRequestSubmittedNotification.php` *(nouveau)* — database + mail.
+- `routes/api/agencies.php` — 3 routes `agencies/{agency}/upgrade-requests[/{upgradeRequest}]`.
+- `app/Providers/AppServiceProvider.php` — bind policy.
+- `lang/{fr,en,wo}/agency_upgrade.php` *(nouveaux)*.
+- `tests/Feature/Agency/AgencyUpgradeRequestSubmissionTest.php` *(nouveau)* — 12 tests (37 assertions) ; couvre AC1/2/3/4/6 + uploads.
+
+**Frontend (commit `9b946ebd`)**
+- `src/types/agency-upgrade.ts` *(nouveau)*.
+- `src/lib/queries/agency-upgrade.ts` *(nouveau)* — sparse fieldsets + multipart submit + revoke.
+- `src/components/agency/UpgradeRequestForm.tsx` *(nouveau)* — single-step + autosave via `useWizardDraft`.
+- `src/components/agency/UpgradeRequestStatus.tsx` *(nouveau)* — états pending/approved/rejected/revoked + revoke CTA.
+- `src/components/agency/__tests__/UpgradeRequestForm.test.tsx` *(nouveau)* — 3 tests (no-file / happy path / 422 inline).
+- `src/app/(dashboard)/app/settings/agency/upgrade/page.tsx` *(nouveau)* — SSR gating + mount.
+- `src/components/layout/AppSidebar.tsx` — entry "Passer en pro".
+- `src/lib/wizard-drafts.ts` — règle de resume `agency-upgrade-{id}`.
+- `src/messages/{fr,en,wo}.json` — branche `agency.upgrade.{page,form,status}`.
+
+### Non-périmètre confirmé
+
+- Console super-admin de revue → TCK-268.
+- Flip `Agency.kind` à l'approbation + débloquage features → TCK-269.
+- Pas de modèle `Document` créé (réutilisation du pattern existant).
