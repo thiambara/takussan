@@ -1,7 +1,7 @@
 ---
 id: TCK-268
 title: "Console super-admin — revue des demandes d'upgrade agence"
-status: todo
+status: done
 phase: P1
 family: applicatif
 estimate: M
@@ -85,4 +85,63 @@ Page détail `/super-admin/agency-upgrade-requests/{id}` :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Décisions clés
+
+- **Event vs listener** : `App\Events\AgencyUpgradeApproved` est créé ici et
+  dispatch via `AgencyUpgradeApproved::dispatch($request)` à la fin de la
+  transaction d'approbation. **Aucun listener n'est implémenté dans TCK-268** —
+  TCK-269 le consommera pour flipper `Agency.kind` et envoyer les notifications
+  tenant/agency post-flip. L'event implémente `ShouldDispatchAfterCommit`
+  pour ne firer qu'une fois la transaction effectivement commitée
+  (sécurité indispensable pour TCK-269).
+- **Notification submitter au reject** : envoyée via `Notification::send()`
+  classique (pas via le canal templates / NotificationTemplate) — la
+  notification est suffisamment simple, et l'overhead du moteur de
+  template n'apporte rien tant que l'on ne donne pas la main à l'admin
+  pour personnaliser le mail (V2).
+- **Validation `comment` au reject** : double surface — le `RejectAgencyUpgradeRequest`
+  enforce `required|min:5|max:2000` côté HTTP (422 standard), et le service
+  re-valide via `ValidationException` pour les callers non-HTTP (CLI,
+  queue jobs). Le frontend désactive le bouton submit tant que
+  `trim().length < 5` pour éviter le round-trip 422.
+- **Sidebar badge** : polling react-query à 60s (refetchInterval) +
+  invalidation explicite après chaque décision via la queryKey
+  `['super-admin', 'agency-upgrade-requests', 'pending-count']`. Pas de
+  WebSocket — le coût d'infra ne se justifie pas pour cet usage.
+- **Endpoint `pending-count`** monté **avant** les bindings
+  `{upgradeRequest}` dans `routes/api/admin.php` pour ne pas être éclipsé
+  par le model binding.
+- **Détail enrichi** : la méthode `show()` ne renvoie pas l'`AgencyUpgradeRequestResource`
+  brut — elle l'étend avec un sous-objet `agency`, `submitter`, `reviewer`,
+  `documents` (avec `media_url` résolu via spatie/medialibrary) et un
+  bloc `counts` (`properties`, `other_requests`). Permet à la page
+  détail de tout rendre sans fan-out d'API.
+- **PdfViewer minimal** : utilise un `<object data type="application/pdf">`
+  natif avec fallback de téléchargement. Pas de lib externe (pdf.js,
+  react-pdf) — la triage super-admin n'en a pas besoin et l'on évite
+  d'alourdir le bundle.
+
+### Fichiers touchés
+
+**Backend** :
+- `app/Events/AgencyUpgradeApproved.php` (nouveau)
+- `app/Notifications/AgencyUpgradeApprovedNotification.php` (nouveau)
+- `app/Notifications/AgencyUpgradeRejectedNotification.php` (nouveau)
+- `app/Services/Agency/AgencyUpgradeReviewService.php` (nouveau)
+- `app/Http/Controllers/Api/Admin/AgencyUpgradeRequestController.php` (nouveau)
+- `app/Http/Requests/Admin/ApproveAgencyUpgradeRequest.php` (nouveau)
+- `app/Http/Requests/Admin/RejectAgencyUpgradeRequest.php` (nouveau)
+- `app/Policies/AgencyUpgradeRequestPolicy.php` (extension : `approve`/`reject`)
+- `routes/api/admin.php` (5 routes ajoutées)
+- `lang/{fr,en,wo}/agency_upgrade.php` (extension : `review.errors.*`,
+  `notifications.approved.*`, `notifications.rejected.*`)
+- `tests/Feature/Admin/AgencyUpgradeRequestReviewTest.php` (nouveau, 12 tests)
+
+**Frontend** :
+- `src/lib/queries/super-admin.ts` (extension : 5 fonctions + types)
+- `src/components/files/PdfViewer.tsx` (nouveau, réutilisable)
+- `src/components/super-admin/ReviewActionsModal.tsx` (nouveau)
+- `src/components/super-admin/__tests__/ReviewActionsModal.test.tsx` (nouveau, 3 tests)
+- `src/app/(super-admin)/super-admin/agency-upgrade-requests/page.tsx` (nouveau)
+- `src/app/(super-admin)/super-admin/agency-upgrade-requests/[id]/page.tsx` (nouveau)
+- `src/components/layout/SuperAdminSidebar.tsx` (entrée + badge count)
