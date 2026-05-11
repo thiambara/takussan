@@ -253,6 +253,89 @@
       "signedAt": "Signé le {date}",
       "missing": "Il reste : {items}",
       "daysOpen": "{count, plural, =0 {aujourd'hui} one {# jour} other {# jours}}"
+    },
+    "upgrade": {
+      "page": {
+        "eyebrow": "Mon agence",
+        "title": "Passer en agence professionnelle",
+        "subtitle": "Activez les fonctionnalités équipe : invitez des collaborateurs, déléguez des rôles et partagez votre portefeuille.",
+        "already_standard": {
+          "title": "Votre agence est déjà professionnelle",
+          "body": "Aucune action n'est requise — toutes les fonctionnalités équipe sont actives."
+        },
+        "benefits": {
+          "aria_label": "Avantages d'une agence professionnelle",
+          "title": "Pourquoi passer en pro ?",
+          "items": {
+            "team": "Inviter une équipe d'agents et leur déléguer le suivi de vos biens.",
+            "multi_admin": "Co-administrer l'agence à plusieurs (multi-admins).",
+            "custom_roles": "Définir des rôles personnalisés pour structurer votre organisation."
+          },
+          "sla": "Réponse de notre équipe sous 5 jours ouvrés."
+        }
+      },
+      "form": {
+        "aria_label": "Formulaire de demande d'upgrade",
+        "loading": "Chargement de votre brouillon…",
+        "fields": {
+          "rc": "Numéro RC",
+          "ninea": "NINEA",
+          "rib_pro": "RIB professionnel",
+          "company_legal_name": "Raison sociale",
+          "address_fiscale": "Adresse fiscale",
+          "planned_agents_count": "Nombre estimé d'agents (optionnel)",
+          "statuts_doc": "Statuts juridiques (PDF ou image)"
+        },
+        "hints": {
+          "planned_agents_count": "Pour dimensionner votre future organisation.",
+          "statuts_doc": "PDF, JPG ou PNG. 10 Mo max."
+        },
+        "file_selected": "Fichier sélectionné : {name}",
+        "cta": {
+          "submit": "Envoyer la demande",
+          "submitting": "Envoi en cours…"
+        },
+        "errors": {
+          "file_required": "Le scan des statuts est obligatoire.",
+          "file_too_large": "Le fichier dépasse 10 Mo.",
+          "unauthorized": "Vous devez être connecté pour soumettre la demande.",
+          "forbidden": "Vous n'avez pas la permission de soumettre cette demande.",
+          "generic": "Une erreur est survenue. Réessayez dans quelques instants."
+        },
+        "toasts": {
+          "submitted": "Votre demande a bien été envoyée."
+        }
+      },
+      "status": {
+        "aria_label": "État de la demande d'upgrade",
+        "headings": {
+          "pending": "Demande en cours",
+          "approved": "Demande approuvée",
+          "rejected": "Demande refusée",
+          "revoked": "Demande révoquée"
+        },
+        "badges": {
+          "pending": "En cours",
+          "approved": "Approuvée",
+          "rejected": "Refusée",
+          "revoked": "Révoquée"
+        },
+        "submitted_at": "Soumise le {date}",
+        "body": {
+          "pending": "Notre équipe examine votre demande. Vous recevrez une notification dès qu'elle sera traitée.",
+          "approved": "Votre agence est désormais professionnelle (validée le {date}).",
+          "rejected": "Votre demande a été refusée le {date}. Consultez le commentaire ci-dessous puis soumettez-en une nouvelle si besoin.",
+          "revoked": "Vous avez révoqué cette demande. Vous pouvez en soumettre une nouvelle à tout moment."
+        },
+        "cta": {
+          "revoke": "Révoquer la demande",
+          "revoking": "Révocation…"
+        },
+        "toasts": {
+          "revoked": "Demande révoquée.",
+          "error": "Erreur lors de la révocation."
+        }
+      }
     }
   },
   "compare": {
@@ -1317,9 +1400,15 @@
           "sunday": "Dimanche"
         },
         "periods": {
-          "morning": { "label": "Matin" },
-          "afternoon": { "label": "Après-midi" },
-          "evening": { "label": "Soir" }
+          "morning": {
+            "label": "Matin"
+          },
+          "afternoon": {
+            "label": "Après-midi"
+          },
+          "evening": {
+            "label": "Soir"
+          }
         }
       },
       "steps": {

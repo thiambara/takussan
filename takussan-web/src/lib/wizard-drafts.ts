@@ -134,6 +134,17 @@ const WIZARD_RESUME_RULES: WizardResumeRule[] = [
     build: (suffix) => `/onboarding/service-provider?sp=${encodeURIComponent(suffix)}`,
     i18nKey: 'sp-onboarding',
   },
+  {
+    // TCK-267 — `agency-upgrade-{agency_id}`. Resuming brings the
+    // agency_admin back to the upgrade form so a half-typed RC / NINEA /
+    // RIB pro is not lost between sessions. The uploaded statuts file
+    // is intentionally NOT persisted in the draft (binary blobs don't
+    // belong in the wizard-drafts table — the user re-attaches it).
+    kind: 'prefix',
+    prefix: 'agency-upgrade-',
+    build: (suffix) => `/app/settings/agency/upgrade?agency=${encodeURIComponent(suffix)}`,
+    i18nKey: 'agency-upgrade',
+  },
 ];
 
 export function resolveWizardResume(key: string): { href: string | null; i18nKey: string | null } {

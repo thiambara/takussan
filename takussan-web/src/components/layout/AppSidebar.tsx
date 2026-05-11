@@ -24,6 +24,7 @@ import {
   BookmarkCheck,
   ClipboardList,
   ClipboardCheck,
+  Sparkles,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
@@ -139,6 +140,18 @@ function buildNavItems(user: User): NavItem[] {
   // sidebar entry to disappear for non-agency-admin actors.
   if (roles.includes('agency_admin') || roles.includes('super_admin')) {
     items.push({ href: '/app/team', label: 'Équipe', icon: Users });
+  }
+
+  // TCK-267 — "Passer en pro" upgrade entry. Visible to agency_admin
+  // (super_admin sees it too via the same role gate). The page itself
+  // shows a calm "already standard" panel for non-individual agencies,
+  // so we don't need to know agency.kind here.
+  if (roles.includes('agency_admin') || roles.includes('super_admin')) {
+    items.push({
+      href: '/app/settings/agency/upgrade',
+      label: 'Passer en pro',
+      icon: Sparkles,
+    });
   }
 
   // TCK-041 dashboard agent — biens: the `/app/properties` and
