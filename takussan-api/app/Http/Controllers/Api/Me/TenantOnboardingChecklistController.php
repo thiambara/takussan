@@ -68,7 +68,7 @@ class TenantOnboardingChecklistController extends Controller
         $lease->loadMissing('tenant');
 
         $isTenant = $lease->tenant?->user_id === $userId;
-        $isAdmin = $request->user()->hasRole(['admin', 'super_admin']);
+        $isAdmin = $request->user()->hasRole('super_admin');
 
         abort_unless($isTenant || $isAdmin, Response::HTTP_FORBIDDEN);
     }

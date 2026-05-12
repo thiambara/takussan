@@ -26,7 +26,7 @@ class InvoiceService
      */
     public function create(User $user, Customer $customer, array $data): Invoice
     {
-        $canIssue = $user->hasRole(['admin', 'super_admin'])
+        $canIssue = $user->hasRole('super_admin')
             || ($user->agency_id && $customer->agency_id && $customer->agency_id === $user->agency_id)
             || $customer->added_by_id === $user->id;
         abort_unless($canIssue, 403);

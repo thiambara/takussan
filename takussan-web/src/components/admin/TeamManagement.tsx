@@ -291,7 +291,7 @@ export function TeamManagement({ agencyId, currentUserId }: TeamManagementProps)
 
 function RoleBadge({ role }: { role: string }) {
   const label = ROLE_LABEL[role] ?? role;
-  const isAdmin = role === 'agency_admin' || role === 'admin' || role === 'super_admin';
+  const isAdmin = role === 'agency_admin' || role === 'super_admin';
   return (
     <Badge
       variant="outline"

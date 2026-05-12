@@ -28,12 +28,12 @@ class OwnerProfilePolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->hasAnyRole(['admin', 'agency_admin', 'agent']);
+        return $user->hasAnyRole(['agency_admin', 'agent']);
     }
 
     public function view(User $user, OwnerProfile $profile): bool
     {
-        if ($user->hasAnyRole(['admin', 'agency_admin', 'agent'])) {
+        if ($user->hasAnyRole(['agency_admin', 'agent'])) {
             return $profile->agency_id === $user->agency_id;
         }
 

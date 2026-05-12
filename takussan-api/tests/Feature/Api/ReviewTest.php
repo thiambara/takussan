@@ -111,9 +111,11 @@ class ReviewTest extends TestCase
     {
         $agency = Agency::factory()->create();
         app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        Role::findOrCreate('admin');
+        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
+        Role::findOrCreate('super_admin', 'web');
         $admin = User::factory()->create(['agency_id' => $agency->id]);
-        $admin->assignRole('admin');
+        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
+        $admin->assignRole('super_admin');
         $review = Review::factory()->create(['is_approved' => false]);
 
         Sanctum::actingAs($admin);

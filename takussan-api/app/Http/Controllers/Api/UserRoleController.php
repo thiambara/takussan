@@ -33,7 +33,7 @@ class UserRoleController extends Controller
         $actor = $request->user();
 
         abort_unless(
-            $actor->isSuperAdmin() || $actor->hasRole(['admin', 'agency_admin']),
+            $actor->isSuperAdmin() || $actor->hasRole('agency_admin'),
             403,
         );
 
@@ -114,7 +114,6 @@ class UserRoleController extends Controller
     {
         return [
             'super_admin',
-            'admin',
             'agency_admin',
             'agent',
             'owner',

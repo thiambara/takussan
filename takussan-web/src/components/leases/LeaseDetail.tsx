@@ -73,7 +73,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   const canRefundDeposit = useMemo(() => {
     const roles = user?.roles ?? [];
     return roles.some((r) =>
-      ['super_admin', 'admin', 'agency_admin', 'agent', 'owner'].includes(r),
+      ['super_admin', 'agency_admin', 'agent', 'owner'].includes(r),
     );
   }, [user]);
 

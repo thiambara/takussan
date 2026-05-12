@@ -188,7 +188,7 @@ export function canReplyToReview({
   propertyAgencyId: number | null | undefined;
 }): boolean {
   if (!userId) return false;
-  if (userRoles.includes('super_admin') || userRoles.includes('admin')) return true;
+  if (userRoles.includes('super_admin')) return true;
   if (ownerId && userId === ownerId) return true;
   if (userAgencyId && propertyAgencyId && userAgencyId === propertyAgencyId) return true;
   return false;

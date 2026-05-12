@@ -16,7 +16,7 @@ class UserAdminController extends Controller
         $actor = $request->user();
 
         abort_unless(
-            $actor->hasRole(['admin', 'super_admin', 'agency_admin']),
+            $actor->hasRole(['super_admin', 'agency_admin']),
             403,
         );
 
@@ -27,7 +27,7 @@ class UserAdminController extends Controller
         // user with no explicit context) we refuse rather than leak across
         // tenants.
         $base = null;
-        if (! $actor->hasRole(['admin', 'super_admin'])) {
+        if (! $actor->hasRole('super_admin')) {
             $agencyId = $request->activeProfile()?->agency_id;
             abort_if($agencyId === null, 403);
             AgencyKindGuard::ensureStandardForNonGlobal($actor, $agencyId);
@@ -58,7 +58,7 @@ class UserAdminController extends Controller
         $actor = $request->user();
 
         abort_unless(
-            $actor->hasRole(['admin', 'super_admin', 'agency_admin']),
+            $actor->hasRole(['super_admin', 'agency_admin']),
             403,
         );
         abort_if($user->id === $actor->id, 422, __('messages.cannot_block_self'));
@@ -76,7 +76,7 @@ class UserAdminController extends Controller
         $actor = $request->user();
 
         abort_unless(
-            $actor->hasRole(['admin', 'super_admin', 'agency_admin']),
+            $actor->hasRole(['super_admin', 'agency_admin']),
             403,
         );
 
@@ -95,7 +95,7 @@ class UserAdminController extends Controller
     protected function ensureTargetInActorScope(Request $request, User $target): void
     {
         $actor = $request->user();
-        if ($actor->hasRole(['admin', 'super_admin'])) {
+        if ($actor->hasRole('super_admin')) {
             return;
         }
 
@@ -110,7 +110,7 @@ class UserAdminController extends Controller
 
     public function assignRole(Request $request, User $user): JsonResponse
     {
-        abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
+        abort_unless($request->user()->hasRole('super_admin'), 403);
 
         $data = $request->validate([
             'role' => ['required', 'string'],
@@ -123,7 +123,7 @@ class UserAdminController extends Controller
 
     public function removeRole(Request $request, User $user, string $role): JsonResponse
     {
-        abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
+        abort_unless($request->user()->hasRole('super_admin'), 403);
 
         $user->removeRole($role);
 
@@ -132,7 +132,7 @@ class UserAdminController extends Controller
 
     public function destroy(Request $request, User $user): JsonResponse
     {
-        abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
+        abort_unless($request->user()->hasRole('super_admin'), 403);
         abort_if($user->id === $request->user()->id, 422, __('messages.cannot_delete_self'));
 
         $this->anonymize($user);

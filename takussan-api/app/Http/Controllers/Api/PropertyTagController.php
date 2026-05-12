@@ -45,7 +45,7 @@ class PropertyTagController extends Controller
         $user = $request->user();
         $ok = $user->id === $property->user_id
             || ($user->agency_id && $user->agency_id === $property->agency_id)
-            || $user->hasRole(['admin', 'super_admin']);
+            || $user->hasRole('super_admin');
         abort_unless($ok, 403);
     }
 }

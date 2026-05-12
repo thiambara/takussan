@@ -118,7 +118,7 @@ class DocumentVersionController extends Controller
 
     private function ensureCanActOn(User $user, Document $document): void
     {
-        if ($user->hasRole(['admin', 'super_admin'])) {
+        if ($user->hasRole('super_admin')) {
             return;
         }
         if ($document->uploaded_by === $user->id) {

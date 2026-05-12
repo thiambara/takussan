@@ -18,7 +18,7 @@ class SettingController extends Controller
 
         $base = Setting::query();
 
-        if (! $user->hasRole(['admin', 'super_admin'])) {
+        if (! $user->hasRole('super_admin')) {
             abort_unless($user->agency_id, 403);
             $base->where(function ($q) use ($user) {
                 $q->where('scope', SettingScope::Agency)
@@ -52,11 +52,11 @@ class SettingController extends Controller
         $user = $request->user();
 
         if ($data['scope'] === SettingScope::Global->value) {
-            abort_unless($user->hasRole(['admin', 'super_admin']), 403, 'Only admins can manage global settings.');
+            abort_unless($user->hasRole('super_admin'), 403, 'Only admins can manage global settings.');
         } else {
             $targetAgencyId = $data['scope_id'] ?? $user->agency_id;
             abort_unless(
-                $user->hasRole(['admin', 'super_admin']) || ($user->hasRole('agency_admin') && $user->agency_id === $targetAgencyId),
+                $user->hasRole('super_admin') || ($user->hasRole('agency_admin') && $user->agency_id === $targetAgencyId),
                 403,
                 'You can only manage your own agency settings.'
             );
@@ -83,10 +83,10 @@ class SettingController extends Controller
         $user = $request->user();
 
         if ($setting->scope === SettingScope::Global) {
-            abort_unless($user->hasRole(['admin', 'super_admin']), 403);
+            abort_unless($user->hasRole('super_admin'), 403);
         } else {
             abort_unless(
-                $user->hasRole(['admin', 'super_admin']) || ($user->hasRole('agency_admin') && $user->agency_id === $setting->scope_id),
+                $user->hasRole('super_admin') || ($user->hasRole('agency_admin') && $user->agency_id === $setting->scope_id),
                 403
             );
         }
@@ -108,10 +108,10 @@ class SettingController extends Controller
         $user = $request->user();
 
         if ($setting->scope === SettingScope::Global) {
-            abort_unless($user->hasRole(['admin', 'super_admin']), 403);
+            abort_unless($user->hasRole('super_admin'), 403);
         } else {
             abort_unless(
-                $user->hasRole(['admin', 'super_admin']) || ($user->hasRole('agency_admin') && $user->agency_id === $setting->scope_id),
+                $user->hasRole('super_admin') || ($user->hasRole('agency_admin') && $user->agency_id === $setting->scope_id),
                 403
             );
         }

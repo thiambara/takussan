@@ -63,7 +63,7 @@ class PipelineStatsService
         $query = Customer::query()
             ->where('status', CustomerStatus::Active);
 
-        if ($user->hasRole(['admin', 'super_admin'])) {
+        if ($user->hasRole('super_admin')) {
             return $query;
         }
 

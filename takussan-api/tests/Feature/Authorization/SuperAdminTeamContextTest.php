@@ -26,7 +26,7 @@ class SuperAdminTeamContextTest extends ApiTestCase
 
             return response()->json([
                 'has_super' => $user?->hasRole('super_admin'),
-                'has_any_admin' => $user?->hasRole(['admin', 'super_admin']),
+                'has_any_admin' => $user?->isSuperAdmin(),
                 'team_id' => app(PermissionRegistrar::class)->getPermissionsTeamId(),
             ]);
         });

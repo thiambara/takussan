@@ -22,7 +22,7 @@ class BookingController extends Controller
 
         $base = Booking::query()->with(['property.address', 'customer']);
 
-        if (! $user->hasRole(['admin', 'super_admin'])) {
+        if (! $user->hasRole('super_admin')) {
             $base->where(function ($q) use ($user) {
                 $q->where('created_by_id', $user->id)
                     ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id))
@@ -122,7 +122,7 @@ class BookingController extends Controller
     {
         $user = $request->user();
         $property = $booking->property;
-        $ok = $user->hasRole(['admin', 'super_admin'])
+        $ok = $user->hasRole('super_admin')
             || $booking->created_by_id === $user->id
             || ($property && $property->user_id === $user->id)
             || ($user->agency_id && $user->agency_id === $booking->agency_id)
@@ -135,7 +135,7 @@ class BookingController extends Controller
     {
         $user = $request->user();
         $property = $booking->property;
-        $ok = $user->hasRole(['admin', 'super_admin'])
+        $ok = $user->hasRole('super_admin')
             || ($property && $property->user_id === $user->id)
             || ($user->agency_id && $user->agency_id === $booking->agency_id);
 

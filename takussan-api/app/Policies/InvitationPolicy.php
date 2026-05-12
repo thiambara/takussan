@@ -28,12 +28,12 @@ class InvitationPolicy
         // Listing requires either super_admin (handled by Gate::before)
         // or an agency-side role. The controller further narrows the
         // result set by `agency_id` for non-super actors.
-        return $user->hasAnyRole(['admin', 'agency_admin']);
+        return $user->hasRole('agency_admin');
     }
 
     public function view(User $user, Invitation $invitation): bool
     {
-        if ($user->hasAnyRole(['admin', 'agency_admin'])) {
+        if ($user->hasRole('agency_admin')) {
             return $invitation->agency_id === null
                 || $invitation->agency_id === $user->agency_id;
         }
@@ -49,7 +49,7 @@ class InvitationPolicy
         // Per-role wizards (TCK-256/258/260) bypass this policy by
         // talking to InvitationService directly with their own,
         // role-aware authorisation.
-        return $user->hasAnyRole(['admin', 'agency_admin']);
+        return $user->hasRole('agency_admin');
     }
 
     public function revoke(User $user, Invitation $invitation): bool
@@ -58,7 +58,7 @@ class InvitationPolicy
             return true;
         }
 
-        return $user->hasAnyRole(['admin', 'agency_admin'])
+        return $user->hasRole('agency_admin')
             && $invitation->agency_id === $user->agency_id;
     }
 

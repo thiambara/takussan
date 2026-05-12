@@ -171,9 +171,11 @@ class DocumentTest extends TestCase
         $registrar = app(PermissionRegistrar::class);
         $registrar->forgetCachedPermissions();
         $registrar->setPermissionsTeamId($agency->id);
-        Role::findOrCreate('admin');
+        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
+        Role::findOrCreate('super_admin', 'web');
         $admin = User::factory()->create(['agency_id' => $agency->id]);
-        $admin->assignRole('admin');
+        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
+        $admin->assignRole('super_admin');
 
         $user = User::factory()->create();
         $property = Property::factory()->create(['user_id' => $user->id]);

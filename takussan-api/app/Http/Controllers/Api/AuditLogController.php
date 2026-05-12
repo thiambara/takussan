@@ -20,7 +20,7 @@ class AuditLogController extends Controller
     {
         $user = $request->user();
         abort_unless(
-            $user->isSuperAdmin() || $user->hasRole(['admin', 'agency_admin']),
+            $user->isSuperAdmin() || $user->hasRole('agency_admin'),
             403
         );
         AgencyKindGuard::ensureStandardForNonGlobal(
@@ -66,7 +66,7 @@ class AuditLogController extends Controller
         // TCK-104 — `agency_admin` can browse the audit dashboard scoped
         // to their own agency. `admin` is preserved for legacy clients.
         abort_unless(
-            $authedUser->isSuperAdmin() || $authedUser->hasRole(['admin', 'agency_admin']),
+            $authedUser->isSuperAdmin() || $authedUser->hasRole('agency_admin'),
             403
         );
         AgencyKindGuard::ensureStandardForNonGlobal(

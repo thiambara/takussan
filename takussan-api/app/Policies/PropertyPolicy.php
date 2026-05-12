@@ -39,7 +39,7 @@ class PropertyPolicy extends BasePolicy
             return true;
         }
 
-        if ($user->isSuperAdmin() || $user->hasRole('admin')) {
+        if ($user->isSuperAdmin()) {
             return true;
         }
 

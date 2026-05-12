@@ -28,7 +28,7 @@ class PropertyVisitController extends Controller
         $user = $request->user();
         $base = PropertyVisit::query();
 
-        if (! $user->hasRole(['admin', 'super_admin'])) {
+        if (! $user->hasRole('super_admin')) {
             $base->where(function ($q) use ($user) {
                 $q->where('visitor_id', $user->id)
                     ->orWhere('agent_id', $user->id)
@@ -74,7 +74,7 @@ class PropertyVisitController extends Controller
         $property = Property::findOrFail($data['property_id']);
         $user = $request->user();
 
-        $isStaff = $user->hasRole(['admin', 'super_admin'])
+        $isStaff = $user->hasRole('super_admin')
             || $property->user_id === $user->id
             || ($user->agency_id && $property->agency_id && $user->agency_id === $property->agency_id);
 
@@ -254,7 +254,7 @@ class PropertyVisitController extends Controller
 
         $isCustomer = $visit->visitor_id === $user->id
             || ($visit->customer && $visit->customer->user_id === $user->id);
-        $isAgent = $user->hasRole(['admin', 'super_admin'])
+        $isAgent = $user->hasRole('super_admin')
             || $visit->agent_id === $user->id
             || ($property && $property->user_id === $user->id)
             || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
@@ -349,7 +349,7 @@ class PropertyVisitController extends Controller
     {
         $user = $request->user();
         $property = $visit->property;
-        $ok = $user->hasRole(['admin', 'super_admin'])
+        $ok = $user->hasRole('super_admin')
             || $visit->visitor_id === $user->id
             || $visit->agent_id === $user->id
             || ($property && $property->user_id === $user->id)
@@ -363,7 +363,7 @@ class PropertyVisitController extends Controller
     {
         $user = $request->user();
         $property = $visit->property;
-        $ok = $user->hasRole(['admin', 'super_admin'])
+        $ok = $user->hasRole('super_admin')
             || $visit->agent_id === $user->id
             || ($property && $property->user_id === $user->id)
             || ($user->agency_id && $property && $property->agency_id === $user->agency_id);

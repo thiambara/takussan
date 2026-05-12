@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Api;
 
-use App\Models\Agency;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\ApiTestCase;
 
@@ -38,11 +37,9 @@ class ExportActivityLogPolicyTest extends ApiTestCase
         $this->apiGet('/api/activity-logs/export?format=csv')->assertForbidden();
     }
 
-    public function test_admin_role_cannot_export(): void
+    public function test_customer_cannot_export(): void
     {
-        // 'admin' is the legacy role — only agency_admin and super_admin are allowed.
-        $agency = Agency::factory()->create();
-        $this->apiActingAsRole('admin', ['agency' => $agency]);
+        $this->apiActingAsRole('customer');
         $this->apiGet('/api/activity-logs/export?format=csv')->assertForbidden();
     }
 }

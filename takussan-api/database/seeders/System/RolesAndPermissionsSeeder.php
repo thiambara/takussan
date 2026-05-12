@@ -81,7 +81,6 @@ class RolesAndPermissionsSeeder extends Seeder
 
         $roles = [
             'super_admin' => Permission::pluck('name')->toArray(),
-            'admin' => Permission::pluck('name')->toArray(),
             'agency_admin' => array_merge($this->permissionsFor(['properties', 'bookings', 'leases', 'lease_payments', 'customers', 'conversations', 'messages', 'maintenance_requests', 'property_visits', 'documents', 'saved_searches', 'reviews']), $depositRefundExtras['agency_admin']),
             'agent' => array_merge($this->permissionsFor(['properties', 'bookings', 'leases', 'customers', 'conversations', 'messages', 'property_visits', 'documents', 'saved_searches', 'reviews'], ['view', 'create', 'update']), $depositRefundExtras['agent']),
             'owner' => array_merge($this->permissionsFor(['properties', 'bookings', 'leases', 'lease_payments', 'conversations', 'messages', 'maintenance_requests', 'property_visits', 'documents', 'reviews'], ['view', 'create', 'update']), $depositRefundExtras['owner']),

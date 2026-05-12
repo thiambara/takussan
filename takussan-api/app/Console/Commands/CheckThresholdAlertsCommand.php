@@ -54,7 +54,7 @@ class CheckThresholdAlertsCommand extends Command
                 $recipients = User::query()->where(function ($q) use ($agency) {
                     $q->whereHas('agentProfiles', fn ($qq) => $qq->where('agency_id', $agency->id))->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agency->id));
                 })
-                    ->whereHas('roles', fn ($q) => $q->whereIn('name', ['agency_admin', 'admin']))
+                    ->whereHas('roles', fn ($q) => $q->where('name', 'agency_admin'))
                     ->get();
 
                 if ($recipients->isNotEmpty()) {

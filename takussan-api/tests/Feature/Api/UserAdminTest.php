@@ -22,9 +22,11 @@ class UserAdminTest extends TestCase
         $agency = Agency::factory()->create();
         app(PermissionRegistrar::class)->forgetCachedPermissions();
         app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        Role::findOrCreate('admin');
+        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
+        Role::findOrCreate('super_admin', 'web');
         $admin = User::factory()->create(['agency_id' => $agency->id]);
-        $admin->assignRole('admin');
+        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
+        $admin->assignRole('super_admin');
 
         return $admin;
     }
@@ -102,9 +104,11 @@ class UserAdminTest extends TestCase
         $admin = $this->createAdmin();
         $user = User::factory()->create(['agency_id' => $admin->agency_id]);
 
-        // Create the role first (Spatie requires it to exist)
+        // Create the role first (Spatie requires it to exist). The super_admin
+        // actor keeps team_id=null in the request context, so the role lookup
+        // must resolve under the same context.
         app(PermissionRegistrar::class)->forgetCachedPermissions();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($admin->agency_id);
+        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
         Role::findOrCreate('agent');
 
         Sanctum::actingAs($admin);
@@ -119,8 +123,9 @@ class UserAdminTest extends TestCase
         $admin = $this->createAdmin();
         $user = User::factory()->create(['agency_id' => $admin->agency_id]);
 
+        // Super_admin actor stays at team_id=null; mirror that context here.
         app(PermissionRegistrar::class)->forgetCachedPermissions();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($admin->agency_id);
+        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
         Role::findOrCreate('agent');
         $user->assignRole('agent');
 

@@ -32,7 +32,7 @@ class AgentProfilePolicy
             return $this->canManageTeamIn($user, $agency);
         }
 
-        return $user->hasAnyRole(['admin', 'agency_admin', 'agent']);
+        return $user->hasAnyRole(['agency_admin', 'agent']);
     }
 
     /**

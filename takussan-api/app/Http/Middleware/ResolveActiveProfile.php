@@ -56,7 +56,7 @@ class ResolveActiveProfile
         $registrar = app(PermissionRegistrar::class);
         $registrar->setPermissionsTeamId(null);
         $user->unsetRelation('roles');
-        $isGlobalAdmin = $user->hasRole(['super_admin', 'admin']);
+        $isGlobalAdmin = $user->hasRole('super_admin');
         $user->unsetRelation('roles');
 
         if ($isGlobalAdmin) {

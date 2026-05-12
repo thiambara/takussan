@@ -169,7 +169,7 @@ class ExportDataService
     protected function scopeToActor($query, User $actor, string $entity): void
     {
         // Super admin / platform admin can see everything
-        if ($actor->hasRole(['super_admin', 'admin'])) {
+        if ($actor->hasRole('super_admin')) {
             return;
         }
 

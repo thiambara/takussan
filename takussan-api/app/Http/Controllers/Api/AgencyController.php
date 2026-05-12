@@ -41,7 +41,7 @@ class AgencyController extends Controller
 
         $alreadyOwns = Agency::where('primary_admin_id', $user->id)->exists();
         abort_if(
-            $alreadyOwns && ! ($user->isSuperAdmin() || $user->hasRole('admin')),
+            $alreadyOwns && ! ($user->isSuperAdmin()),
             422,
             'You already administer an agency.'
         );
@@ -79,7 +79,6 @@ class AgencyController extends Controller
         $user = $request->user();
         abort_unless(
             $user->isSuperAdmin()
-            || $user->hasRole('admin')
             || $agency->primary_admin_id === $user->id
             || (
                 $request->activeProfile()?->agency_id === $agency->id
@@ -99,7 +98,7 @@ class AgencyController extends Controller
     {
         $user = $request->user();
         abort_unless(
-            $user->isSuperAdmin() || $user->hasRole('admin') || $agency->primary_admin_id === $user->id,
+            $user->isSuperAdmin() || $agency->primary_admin_id === $user->id,
             403
         );
         // destroy is intentionally restricted to super_admin and primary_admin_id — agency_admin can edit but not delete.
@@ -265,7 +264,6 @@ class AgencyController extends Controller
         // hold a member profile there — they must switch profile first.
         abort_unless(
             $user->isSuperAdmin()
-            || $user->hasRole('admin')
             || $agency->primary_admin_id === $user->id
             || (
                 $request->activeProfile()?->agency_id === $agency->id
@@ -277,7 +275,7 @@ class AgencyController extends Controller
 
     private function visibleAgencyQuery(User $user): Builder
     {
-        if ($user->isSuperAdmin() || $user->hasRole('admin')) {
+        if ($user->isSuperAdmin()) {
             return Agency::query();
         }
 
@@ -288,7 +286,7 @@ class AgencyController extends Controller
 
     private function canViewAgency(User $user, Agency $agency): bool
     {
-        if ($user->isSuperAdmin() || $user->hasRole('admin')) {
+        if ($user->isSuperAdmin()) {
             return true;
         }
 

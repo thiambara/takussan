@@ -21,11 +21,13 @@ class AgencyMembersListTest extends TestCase
         $agency = Agency::factory()->create();
         app(PermissionRegistrar::class)->forgetCachedPermissions();
         app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        Role::findOrCreate('admin');
+        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
+        Role::findOrCreate('super_admin', 'web');
         Role::findOrCreate('agency_admin');
         Role::findOrCreate('agent');
         $admin = User::factory()->create(['agency_id' => $agency->id]);
-        $admin->assignRole('admin');
+        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
+        $admin->assignRole('super_admin');
         $agency->update(['primary_admin_id' => $admin->id]);
 
         return [$admin, $agency];
@@ -123,6 +125,9 @@ class AgencyMembersListTest extends TestCase
         ])->assertOk()
             ->assertJsonPath('data.role', 'agency_admin');
 
+        // The controller scopes the role to the agency's team; pin the
+        // probe to the same team so hasRole resolves correctly.
+        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
         $this->assertTrue($target->refresh()->hasRole('agency_admin'));
     }
 

@@ -34,7 +34,7 @@ class TenantOnboardingPendingController extends Controller
         $isMember = $user->isAgentAt($agency->id)
             || $user->isOwnerAt($agency->id)
             || $user->agencyAdminProfiles()->where('agency_id', $agency->id)->exists();
-        $isAdmin = $user->hasRole(['admin', 'super_admin']);
+        $isAdmin = $user->hasRole('super_admin');
 
         abort_unless($isMember || $isAdmin, Response::HTTP_FORBIDDEN);
 

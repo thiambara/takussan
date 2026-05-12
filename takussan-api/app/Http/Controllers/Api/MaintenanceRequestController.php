@@ -31,7 +31,7 @@ class MaintenanceRequestController extends Controller
         $user = $request->user();
 
         $base = MaintenanceRequest::query();
-        if (! $user->hasRole(['admin', 'super_admin'])) {
+        if (! $user->hasRole('super_admin')) {
             $base->where(function ($q) use ($user) {
                 $q->where('requester_id', $user->id)
                     ->orWhere('assigned_to', $user->id)
@@ -90,7 +90,7 @@ class MaintenanceRequestController extends Controller
         $user = $request->user();
         $property = Property::findOrFail($data['property_id']);
 
-        $isStaff = $user->hasRole(['admin', 'super_admin'])
+        $isStaff = $user->hasRole('super_admin')
             || $property->user_id === $user->id
             || ($user->agency_id && $user->agency_id === $property->agency_id);
         $isActiveTenant = $property->leases()
@@ -263,7 +263,7 @@ class MaintenanceRequestController extends Controller
     {
         $user = $request->user();
         $property = $mr->property;
-        $ok = $user->hasRole(['admin', 'super_admin'])
+        $ok = $user->hasRole('super_admin')
             || $mr->requester_id === $user->id
             || $mr->assigned_to === $user->id
             || ($property && $property->user_id === $user->id)
@@ -276,7 +276,7 @@ class MaintenanceRequestController extends Controller
     {
         $user = $request->user();
         $property = $mr->property;
-        $ok = $user->hasRole(['admin', 'super_admin'])
+        $ok = $user->hasRole('super_admin')
             || $mr->assigned_to === $user->id
             || ($property && $property->user_id === $user->id)
             || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
@@ -287,7 +287,7 @@ class MaintenanceRequestController extends Controller
     protected function authorizeAccessProperty(Request $request, Property $property): void
     {
         $user = $request->user();
-        $ok = $user->hasRole(['admin', 'super_admin'])
+        $ok = $user->hasRole('super_admin')
             || $property->user_id === $user->id
             || ($user->agency_id && $property->agency_id === $user->agency_id);
 

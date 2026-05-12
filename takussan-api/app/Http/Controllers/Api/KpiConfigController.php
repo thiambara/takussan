@@ -20,10 +20,10 @@ class KpiConfigController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user->agency_id || $user->hasRole(['super_admin', 'admin']), 403);
+        abort_unless($user->agency_id || $user->hasRole('super_admin'), 403);
 
         $base = KpiConfig::query();
-        if (! $user->hasRole(['super_admin', 'admin'])) {
+        if (! $user->hasRole('super_admin')) {
             $base->where('agency_id', $user->agency_id);
         }
 
@@ -45,7 +45,7 @@ class KpiConfigController extends Controller
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user->hasRole(['super_admin', 'admin', 'agency_admin']), 403);
+        abort_unless($user->hasRole(['super_admin', 'agency_admin']), 403);
 
         $validated = $request->validate([
             'agency_id' => ['sometimes', 'integer', 'exists:agencies,id'],
@@ -60,7 +60,7 @@ class KpiConfigController extends Controller
         $agencyId = $validated['agency_id'] ?? $user->agency_id;
         abort_unless($agencyId, 422, 'agency_id is required.');
 
-        if (! $user->hasRole(['super_admin', 'admin'])) {
+        if (! $user->hasRole('super_admin')) {
             abort_unless((int) $agencyId === (int) $user->agency_id, 403);
         }
 
@@ -109,7 +109,7 @@ class KpiConfigController extends Controller
     private function authorizeAgency($user, KpiConfig $kpi): void
     {
         abort_unless(
-            $user->hasRole(['super_admin', 'admin'])
+            $user->hasRole('super_admin')
                 || ($user->agency_id === $kpi->agency_id && $user->hasRole(['agency_admin'])),
             403,
         );

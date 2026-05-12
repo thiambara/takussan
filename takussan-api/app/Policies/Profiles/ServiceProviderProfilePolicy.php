@@ -33,7 +33,7 @@ class ServiceProviderProfilePolicy
             return $this->canInviteIn($user, $agency);
         }
 
-        return $user->hasAnyRole(['admin', 'agency_admin', 'agent', 'service_provider']);
+        return $user->hasAnyRole(['agency_admin', 'agent', 'service_provider']);
     }
 
     public function view(User $user, ServiceProviderProfile $profile): bool
@@ -43,7 +43,7 @@ class ServiceProviderProfilePolicy
             return true;
         }
 
-        if (! $user->hasAnyRole(['admin', 'agency_admin', 'agent'])) {
+        if (! $user->hasAnyRole(['agency_admin', 'agent'])) {
             return false;
         }
 

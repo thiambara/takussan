@@ -153,7 +153,7 @@ class InvitationController extends Controller
      */
     protected function visibleScope(User $user): Builder
     {
-        if ($user->isSuperAdmin() || $user->hasRole('admin')) {
+        if ($user->isSuperAdmin()) {
             return Invitation::query();
         }
 

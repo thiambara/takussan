@@ -14,7 +14,7 @@ class PayoutService
     public function create(User $user, User $landlord, array $data): Payout
     {
         abort_unless(
-            $user->hasRole(['admin', 'super_admin']) || $user->agency_id,
+            $user->hasRole('super_admin') || $user->agency_id,
             403,
             'Only agency members or admins can issue payouts.'
         );
