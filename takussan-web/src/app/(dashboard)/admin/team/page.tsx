@@ -3,15 +3,18 @@ import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { TeamManagement } from '@/components/admin/TeamManagement';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { ensureStandardAgencyOrRedirect } from '@/lib/access/server-guards';
 
 /**
  * TCK-065 — Admin team management page. `agency_admin` and `super_admin`
  * can see and manage members of their agency. Superadmins without an
  * `agency_id` are redirected to /admin/agency where they can pick an agency.
+ * Standard-only: agency_admins on `kind=individual` are bounced to /app.
  */
 export default async function TeamPage() {
   const user = await getMeAction();
   if (!isAdmin(user.roles)) redirect('/admin');
+  await ensureStandardAgencyOrRedirect(user);
 
   if (!user.agency_id) {
     // Super admins currently pick their working agency via /admin/agency.

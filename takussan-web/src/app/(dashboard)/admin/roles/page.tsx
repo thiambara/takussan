@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { AdminRolesClient } from '@/components/admin/roles/AdminRolesClient';
+import { ensureStandardAgencyOrRedirect } from '@/lib/access/server-guards';
 
 /**
  * TCK-135 — `/admin/roles` editor for predefined and custom roles.
@@ -16,6 +17,7 @@ import { AdminRolesClient } from '@/components/admin/roles/AdminRolesClient';
 export default async function Page() {
   const user = await getMeAction();
   if (!isAdmin(user.roles)) redirect('/app/profile');
+  await ensureStandardAgencyOrRedirect(user);
 
   // `agency_admin` and `super_admin` both reach this page. Granular
   // control is enforced server-side by `roles.manage_in_agency`. We

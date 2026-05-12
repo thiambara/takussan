@@ -3,18 +3,15 @@ import { apiRequest } from './api';
 /**
  * TCK-255 — Wire payload for `POST /api/host/individual/onboard`.
  * Mirrors `App\Http\Requests\Onboarding\HostIndividualOnboardRequest`.
+ *
+ * Note: the original spec carried a `first_property_draft` block. That step
+ * has been removed from the wizard so the user lands on the regular
+ * property-creation form right after onboarding instead.
  */
 export type HostIndividualOnboardPayload = {
   agency: { name: string; primary_city: string; currency: string };
   phone_otp: { phone: string; code: string };
   preferences: { primary_property_type: string };
-  first_property_draft: {
-    title: string;
-    type: string;
-    city: string;
-    contract_type: 'rent' | 'sale';
-    price: number;
-  };
   payment_setting: { preferred_provider: string };
   cgu_accepted: boolean;
 };
@@ -26,7 +23,6 @@ export type HostIndividualOnboardResponse = {
       agency_admin: { role: 'agency_admin'; agency_id: number };
       owner: { id: number; agency_id: number; status: string };
     };
-    property_draft: { id: number; slug: string; status: string; visibility: string };
     active_profile_id: string;
   };
 };

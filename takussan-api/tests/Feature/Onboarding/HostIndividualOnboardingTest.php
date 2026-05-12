@@ -7,11 +7,8 @@ use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\OwnerProfileStatus;
-use App\Models\Enums\PropertyStatus;
-use App\Models\Enums\PropertyVisibility;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\OwnerProfile;
-use App\Models\Property;
 use App\Models\User;
 use App\Services\Auth\PhoneVerificationService;
 use Database\Seeders\System\RolesAndPermissionsSeeder;
@@ -24,10 +21,11 @@ use Tests\TestCase;
 /**
  * TCK-255 — host individual onboarding wizard backend.
  *
- * Covers AC3 (agency + profiles + draft property created), AC4 (rollback
- * on invalid OTP), AC6 (activity log) plus the spatie role attachment
- * scoped to the freshly-created agency team_id, and the active profile
- * cookie returned to the caller.
+ * Covers AC3 (agency + profiles created), AC4 (rollback on invalid OTP),
+ * AC6 (activity log) plus the spatie role attachment scoped to the
+ * freshly-created agency team_id, and the active profile cookie returned
+ * to the caller. The first-property step has been removed from the wizard
+ * so this test no longer covers a draft property creation.
  */
 class HostIndividualOnboardingTest extends TestCase
 {
@@ -54,13 +52,6 @@ class HostIndividualOnboardingTest extends TestCase
             'preferences' => [
                 'primary_property_type' => 'apartment',
             ],
-            'first_property_draft' => [
-                'title' => 'Appartement vue mer',
-                'type' => 'apartment',
-                'city' => 'Dakar',
-                'contract_type' => 'rent',
-                'price' => 350000,
-            ],
             'payment_setting' => [
                 'preferred_provider' => 'wave',
             ],
@@ -68,7 +59,7 @@ class HostIndividualOnboardingTest extends TestCase
         ];
     }
 
-    public function test_nominal_flow_creates_agency_admin_and_owner_profiles_property_draft_and_attaches_roles(): void
+    public function test_nominal_flow_creates_agency_admin_and_owner_profiles_and_attaches_roles(): void
     {
         $user = User::factory()->create([
             'phone' => '+221770000000',
@@ -90,8 +81,7 @@ class HostIndividualOnboardingTest extends TestCase
             ->assertJsonPath('data.agency.kind', AgencyKind::Individual->value)
             ->assertJsonPath('data.profiles.agency_admin.role', 'agency_admin')
             ->assertJsonPath('data.profiles.agency_admin.status', AgencyAdminProfileStatus::Active->value)
-            ->assertJsonPath('data.property_draft.status', PropertyStatus::Draft->value)
-            ->assertJsonPath('data.property_draft.visibility', PropertyVisibility::Private->value);
+            ->assertJsonMissingPath('data.property_draft');
 
         // Agency persisted with kind=individual + active.
         $agencyId = $response->json('data.agency.id');
@@ -117,13 +107,6 @@ class HostIndividualOnboardingTest extends TestCase
             ->firstOrFail();
         $this->assertSame(AgencyAdminProfileStatus::Active, $admin->status);
         $this->assertSame($admin->id, (int) $response->json('data.profiles.agency_admin.id'));
-
-        // Property draft persisted.
-        $propertyId = $response->json('data.property_draft.id');
-        $property = Property::query()->findOrFail($propertyId);
-        $this->assertSame(PropertyStatus::Draft, $property->status);
-        $this->assertSame(PropertyVisibility::Private, $property->visibility);
-        $this->assertSame($agency->id, $property->agency_id);
 
         // Spatie roles scoped to agency team_id.
         $registrar = app(PermissionRegistrar::class);
@@ -163,7 +146,6 @@ class HostIndividualOnboardingTest extends TestCase
         Sanctum::actingAs($user);
 
         $agencyCountBefore = Agency::query()->count();
-        $propertyCountBefore = Property::query()->count();
         $ownerCountBefore = OwnerProfile::query()->count();
         $adminCountBefore = AgencyAdminProfile::query()->count();
 
@@ -176,34 +158,8 @@ class HostIndividualOnboardingTest extends TestCase
             ->assertJsonValidationErrors(['phone_otp.code']);
 
         $this->assertSame($agencyCountBefore, Agency::query()->count());
-        $this->assertSame($propertyCountBefore, Property::query()->count());
         $this->assertSame($ownerCountBefore, OwnerProfile::query()->count());
         $this->assertSame($adminCountBefore, AgencyAdminProfile::query()->count());
-    }
-
-    public function test_invalid_first_property_draft_is_rejected_and_rolls_back(): void
-    {
-        $user = User::factory()->create([
-            'phone' => '+221770000000',
-            'phone_verified_at' => null,
-        ]);
-        Sanctum::actingAs($user);
-
-        $payload = $this->defaultPayload();
-        $payload['first_property_draft']['contract_type'] = 'lease'; // not in ContractType enum
-        $payload['first_property_draft']['price'] = -10;
-
-        $agencyCountBefore = Agency::query()->count();
-
-        $response = $this->postJson('/api/host/individual/onboard', $payload);
-
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors([
-                'first_property_draft.contract_type',
-                'first_property_draft.price',
-            ]);
-
-        $this->assertSame($agencyCountBefore, Agency::query()->count());
     }
 
     public function test_cgu_must_be_accepted_otherwise_422(): void
@@ -246,7 +202,6 @@ class HostIndividualOnboardingTest extends TestCase
         $this->assertNotNull($activity);
         $this->assertSame($user->id, (int) $activity->properties->get('user_id'));
         $this->assertSame('wizard', $activity->properties->get('source'));
-        $this->assertNotNull($activity->properties->get('first_property_id'));
         $this->assertNotNull($activity->properties->get('agency_id'));
     }
 
@@ -254,5 +209,36 @@ class HostIndividualOnboardingTest extends TestCase
     {
         $this->postJson('/api/host/individual/onboard', $this->defaultPayload())
             ->assertStatus(401);
+    }
+
+    public function test_second_onboarding_attempt_is_rejected_and_does_not_create_duplicate_agency(): void
+    {
+        $user = User::factory()->create([
+            'phone' => '+221770000000',
+            'phone_verified_at' => null,
+        ]);
+        Sanctum::actingAs($user);
+
+        // First onboarding — happy path.
+        $code = app(PhoneVerificationService::class)->sendOtp($user);
+        $payload = $this->defaultPayload();
+        $payload['phone_otp']['code'] = $code;
+        $this->postJson('/api/host/individual/onboard', $payload)->assertStatus(201);
+
+        $this->assertSame(1, Agency::query()->count());
+        $this->assertSame(1, OwnerProfile::query()->count());
+        $this->assertSame(1, AgencyAdminProfile::query()->count());
+
+        // Second attempt with a fresh OTP — must be refused without touching the DB.
+        $code2 = app(PhoneVerificationService::class)->sendOtp($user);
+        $payload2 = $this->defaultPayload();
+        $payload2['phone_otp']['code'] = $code2;
+        $this->postJson('/api/host/individual/onboard', $payload2)
+            ->assertStatus(409)
+            ->assertJsonValidationErrors(['agency']);
+
+        $this->assertSame(1, Agency::query()->count());
+        $this->assertSame(1, OwnerProfile::query()->count());
+        $this->assertSame(1, AgencyAdminProfile::query()->count());
     }
 }

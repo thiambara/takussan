@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Onboarding;
 
-use App\Models\Enums\ContractType;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentProvider;
 use App\Models\Enums\PropertyType;
@@ -12,11 +11,12 @@ use Illuminate\Validation\Rule;
 /**
  * TCK-255 — validates the body of `POST /api/host/individual/onboard`.
  *
- * Mirrors the wizard step contract:
- *   - Step 2 (Identité)         → `agency.*`, `phone_otp.*`, `preferences.*`
- *   - Step 3 (Premier bien)     → `first_property_draft.*`
- *   - Step 4 (Paiement)         → `payment_setting.preferred_provider`
- *   - Step 5 (Récap)            → `cgu_accepted`
+ * Mirrors the wizard step contract (four-step flow — the "first property"
+ * step has been moved out of the wizard, the user is routed to
+ * `/app/properties/new` after onboarding instead):
+ *   - Step 2 (Identité)  → `agency.*`, `phone_otp.*`, `preferences.*`
+ *   - Step 3 (Paiement)  → `payment_setting.preferred_provider`
+ *   - Step 4 (Récap)     → `cgu_accepted`
  *
  * The `cgu_accepted` flag must be true — the wizard disables the publish
  * button until the user ticks the box; we reject server-side too because
@@ -43,7 +43,16 @@ class HostIndividualOnboardRequest extends FormRequest
 
             'phone_otp' => ['required', 'array'],
             'phone_otp.phone' => ['required', 'string', 'max:32'],
-            'phone_otp.code' => ['required', 'string', 'size:6'],
+            // The wizard pre-verifies the OTP via PhoneVerificationController,
+            // which consumes the cached code and sets `phone_verified_at`.
+            // Already-verified users (registration, prior onboarding) also
+            // skip the OTP UI. The service layer mirrors this: when the user
+            // is already phone-verified, no fresh `code` is required.
+            'phone_otp.code' => [
+                $this->user()?->phone_verified_at === null ? 'required' : 'nullable',
+                'string',
+                'size:6',
+            ],
 
             'preferences' => ['required', 'array'],
             'preferences.primary_property_type' => [
@@ -51,21 +60,6 @@ class HostIndividualOnboardRequest extends FormRequest
                 'string',
                 Rule::in(array_map(fn (PropertyType $t) => $t->value, PropertyType::cases())),
             ],
-
-            'first_property_draft' => ['required', 'array'],
-            'first_property_draft.title' => ['required', 'string', 'max:200'],
-            'first_property_draft.type' => [
-                'required',
-                'string',
-                Rule::in(array_map(fn (PropertyType $t) => $t->value, PropertyType::cases())),
-            ],
-            'first_property_draft.city' => ['required', 'string', 'max:120'],
-            'first_property_draft.contract_type' => [
-                'required',
-                'string',
-                Rule::in(array_map(fn (ContractType $c) => $c->value, ContractType::cases())),
-            ],
-            'first_property_draft.price' => ['required', 'numeric', 'min:0'],
 
             'payment_setting' => ['required', 'array'],
             'payment_setting.preferred_provider' => [

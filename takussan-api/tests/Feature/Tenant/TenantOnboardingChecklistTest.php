@@ -14,6 +14,8 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\TenantOnboardingChecklist;
 use App\Models\User;
 use App\Notifications\AgentTenantInventoryReminderNotification;
@@ -339,6 +341,38 @@ class TenantOnboardingChecklistTest extends TestCase
         $this->actingAs($other)
             ->getJson("/api/agencies/{$agency->id}/tenant-onboarding-pending")
             ->assertForbidden();
+    }
+
+    public function test_pending_endpoint_admits_agency_admin_with_multi_profile(): void
+    {
+        // Agency_admin user attached to $agency via AgencyAdminProfile and
+        // *also* an OwnerProfile at a different agency — this forces the
+        // legacy `agency_id` accessor to fall through to `null` (more than
+        // one profile and no active profile resolved). The membership check
+        // must rely on the explicit profile lookup, not on that accessor.
+        $agency = Agency::factory()->create();
+        $otherAgency = Agency::factory()->create();
+        $user = User::factory()->create();
+        AgencyAdminProfile::factory()->create([
+            'user_id' => $user->id,
+            'agency_id' => $agency->id,
+        ]);
+        OwnerProfile::factory()->create([
+            'user_id' => $user->id,
+            'agency_id' => $otherAgency->id,
+        ]);
+
+        $this->assertNull($user->fresh()->agency_id, 'multi-profile users should resolve to null via the legacy accessor');
+
+        $overdue = $this->makeChecklist($agency);
+        $overdue->forceFill(['created_at' => now()->subDays(10)])->save();
+
+        $response = $this->actingAs($user)
+            ->getJson("/api/agencies/{$agency->id}/tenant-onboarding-pending")
+            ->assertOk();
+
+        $ids = collect($response->json('data'))->pluck('id')->all();
+        $this->assertContains($overdue->id, $ids);
     }
 
     /**

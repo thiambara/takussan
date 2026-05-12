@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Support\AgencyKindGuard;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Permission;
@@ -26,6 +27,7 @@ class RoleController extends Controller
     {
         $agencyId = $this->resolveAgencyId($request);
         abort_unless($agencyId !== null, 403);
+        AgencyKindGuard::ensureStandardForNonGlobal($request->user(), $agencyId);
 
         $scope = $request->input('filter.scope');
         $teamsKey = app(PermissionRegistrar::class)->teamsKey;
@@ -206,6 +208,10 @@ class RoleController extends Controller
         if ($user->isSuperAdmin() || $user->hasRole('admin')) {
             return;
         }
+
+        // Custom roles are a Standard-only feature (spec features.md §2.2 —
+        // « pas de rôles personnalisés » pour individual).
+        AgencyKindGuard::ensureStandardForNonGlobal($user, $agencyId);
 
         app(PermissionRegistrar::class)->setPermissionsTeamId($agencyId);
         $user->unsetRelation('roles');

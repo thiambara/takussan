@@ -200,6 +200,47 @@ class PropertyCrudTest extends TestCase
         $this->assertDatabaseCount('addresses', 1);
     }
 
+    public function test_rent_period_defaults_to_monthly_when_contract_is_rent(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/properties', [
+            'title' => 'Studio sans période',
+            'type' => 'apartment',
+            'contract_type' => 'rent',
+            'price' => 150000,
+            'currency' => 'XOF',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.contract_type', 'rent')
+            ->assertJsonPath('data.rent_period', 'monthly');
+
+        $this->assertDatabaseHas('properties', [
+            'contract_type' => 'rent',
+            'rent_period' => 'monthly',
+        ]);
+    }
+
+    public function test_rent_period_defaults_to_monthly_when_switching_to_rent_via_update(): void
+    {
+        $user = User::factory()->create();
+        $property = Property::factory()->create([
+            'user_id' => $user->id,
+            'contract_type' => 'sale',
+            'rent_period' => null,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->patchJson("/api/properties/{$property->id}", [
+            'contract_type' => 'rent',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.contract_type', 'rent')
+            ->assertJsonPath('data.rent_period', 'monthly');
+    }
+
     public function test_publishes_property(): void
     {
         $user = User::factory()->create();

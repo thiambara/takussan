@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
 import { fetchSettingsAction } from '@/app/actions/admin-settings';
-import { isAdmin, isSuperAdmin } from '@/lib/roles';
+import { isSuperAdmin } from '@/lib/roles';
 import { SettingsManager } from '@/components/admin-settings/SettingsManager';
 
 /**
@@ -18,7 +18,10 @@ export const dynamic = 'force-dynamic';
 
 export default async function Page() {
   const user = await getMeAction();
-  if (!isAdmin(user.roles)) {
+  // `/api/admin/settings` is gated by the `super-admin` route middleware
+  // (`routes/api/admin.php`), so only super-admins can load the page. Any
+  // other admin (agency_admin) is bounced rather than shown a broken card.
+  if (!isSuperAdmin(user.roles)) {
     redirect('/admin');
   }
 

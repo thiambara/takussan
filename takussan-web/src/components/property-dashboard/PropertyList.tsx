@@ -27,6 +27,7 @@ import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { PaginatedResponse } from '@/types/api';
 import type { PropertyListItem } from '@/types/property';
+import { RENT_PERIOD_SHORT } from '@/components/property/cards/types';
 import {
   CONTRACT_TYPE_LABELS,
   PROPERTY_STATUS_LABELS,
@@ -225,12 +226,18 @@ export function PropertyList({
                   {property.reference_number ? ` · ${property.reference_number}` : ''}
                 </p>
                 <div className="mt-1.5 flex items-baseline gap-2">
-                  <span className="text-base font-semibold text-app-ink">
+                  <span className="text-base font-semibold text-app-ink tabular-nums">
                     {typeof property.price === 'number'
                       ? formatCurrency(property.price, 'fr', {
                           currency: property.currency ?? 'XOF',
                         })
                       : '—'}
+                    {property.contract_type === 'rent' &&
+                    property.rent_period ? (
+                      <span className="ml-0.5 text-xs font-medium text-app-ink-muted">
+                        /{RENT_PERIOD_SHORT[property.rent_period]}
+                      </span>
+                    ) : null}
                   </span>
                   {property.contract_type ? (
                     <span className="text-xs text-app-ink-muted">
@@ -347,14 +354,20 @@ function BienCell({
 }
 
 function PriceCell({ property }: { readonly property: PropertyListItem }) {
+  const isRent = property.contract_type === 'rent';
   return (
     <div className="space-y-0.5">
-      <div className="text-base font-semibold text-app-ink">
+      <div className="text-base font-semibold text-app-ink tabular-nums">
         {typeof property.price === 'number'
           ? formatCurrency(property.price, 'fr', {
               currency: property.currency ?? 'XOF',
             })
           : '—'}
+        {isRent && property.rent_period ? (
+          <span className="ml-0.5 text-xs font-medium text-app-ink-muted">
+            /{RENT_PERIOD_SHORT[property.rent_period]}
+          </span>
+        ) : null}
       </div>
       {property.contract_type ? (
         <div className="text-xs text-app-ink-muted">

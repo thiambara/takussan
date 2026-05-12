@@ -65,10 +65,17 @@ export async function twoFactorRegenerateRecoveryCodes(
 
 export async function phoneSendOtp(
   token: string,
+  phone?: string,
 ): Promise<{ sent: boolean; debug_code?: string }> {
   const res = await apiRequest<{ data: { sent: boolean; debug_code?: string } }>(
     '/api/auth/phone/send-otp',
-    { method: 'POST', token },
+    {
+      method: 'POST',
+      token,
+      // Forward `phone` only when explicitly provided so legacy callers
+      // (e.g. profile re-send) still hit the user's existing number.
+      body: phone === undefined ? undefined : { phone },
+    },
   );
   return res.data;
 }

@@ -2,6 +2,10 @@
 
 namespace App\Services\Profiles;
 
+use App\Models\Enums\AgencyAdminProfileStatus;
+use App\Models\Enums\AgentProfileStatus;
+use App\Models\Enums\OwnerProfileStatus;
+use App\Models\Enums\ServiceProviderProfileStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\BrokerProfile;
@@ -75,6 +79,21 @@ class ActiveProfileResolver
             ->where('user_id', $user->id)
             ->first();
 
-        return $profile;
+        if ($profile === null) {
+            return null;
+        }
+
+        // Reject suspended/draft/inactive profiles. A cookie or explicit
+        // header pointing to a non-Active profile must not lock the user
+        // into that team_id for the request (the middleware will silently
+        // skip the cookie path; the controller will return 403).
+        return match (true) {
+            $profile instanceof OwnerProfile => $profile->status === OwnerProfileStatus::Active ? $profile : null,
+            $profile instanceof AgentProfile => $profile->status === AgentProfileStatus::Active ? $profile : null,
+            $profile instanceof AgencyAdminProfile => $profile->status === AgencyAdminProfileStatus::Active ? $profile : null,
+            $profile instanceof ServiceProviderProfile => $profile->status === ServiceProviderProfileStatus::Active ? $profile : null,
+            // BrokerProfile has no status enum — accept as-is.
+            default => $profile,
+        };
     }
 }

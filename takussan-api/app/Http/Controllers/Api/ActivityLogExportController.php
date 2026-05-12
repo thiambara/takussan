@@ -7,6 +7,7 @@ use App\Http\Requests\Audit\ExportActivityLogRequest;
 use App\Jobs\Audit\ExportActivityLogJob;
 use App\Services\Audit\ActivityLogExporter;
 use App\Services\Export\ExportWriter;
+use App\Support\AgencyKindGuard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -24,6 +25,11 @@ class ActivityLogExportController extends Controller
         Gate::authorize('export', Activity::class);
 
         $user = $request->user();
+        AgencyKindGuard::ensureStandardForNonGlobal(
+            $user,
+            $request->activeProfile()?->agency_id ?? $user->agency_id,
+        );
+
         $filters = $request->resolvedFilters();
         $format = $request->validated('format');
 

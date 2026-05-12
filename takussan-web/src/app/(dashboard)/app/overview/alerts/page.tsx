@@ -1,6 +1,8 @@
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { redirect } from 'next/navigation';
+import { getToken } from '@/lib/session';
+import { fetchAgency } from '@/lib/queries/agencies';
 import { fetchThresholdAlerts } from '@/lib/queries/alerts';
 import { AlertList } from './AlertList';
 
@@ -10,6 +12,14 @@ import { AlertList } from './AlertList';
 export default async function AlertsPage() {
   const user = await getMeAction();
   if (!isAdmin(user.roles)) redirect('/app/overview');
+
+  // Pro-only — bounce individual agencies back to dashboard. Super-admins
+  // have no `agency_id` and are passed through.
+  if (user.agency_id) {
+    const token = await getToken();
+    const agency = token ? await fetchAgency(token, user.agency_id).catch(() => null) : null;
+    if (agency && agency.kind !== 'standard') redirect('/app');
+  }
 
   const alerts = await fetchThresholdAlerts();
 

@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { isSuperAdmin } from '@/lib/roles';
 import { fetchDashboardAgency } from '@/lib/queries/dashboard-agency';
+import { ensureStandardAgencyOrRedirect } from '@/lib/access/server-guards';
 
 export default async function Page() {
   const user = await getMeAction();
@@ -15,6 +16,8 @@ export default async function Page() {
   if (isSuperAdmin(user.roles) && !user.agency_id) {
     return <NoAgencyState title="Tableau de bord agence" />;
   }
+
+  await ensureStandardAgencyOrRedirect(user);
 
   const payload = await fetchDashboardAgency({ withTimeseries: true });
 

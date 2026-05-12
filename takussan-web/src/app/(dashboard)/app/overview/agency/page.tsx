@@ -2,6 +2,8 @@ import { getMeAction } from '@/app/actions/auth';
 import { isAdmin, isAgent, isSuperAdmin } from '@/lib/roles';
 import { redirect } from 'next/navigation';
 import { fetchAgencyDashboard } from '@/lib/queries/dashboard';
+import { fetchAgency } from '@/lib/queries/agencies';
+import { getToken } from '@/lib/session';
 import { StatCard } from '@/components/charts/StatCard';
 import { LineChart } from '@/components/charts/LineChart';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -10,7 +12,9 @@ import { NoAgencyState } from '@/components/shared/NoAgencyState';
 
 /**
  * TCK-032 P1 — agency dashboard.
- * Super_admin / agency_admin / agent inside an agency.
+ * Super_admin / agency_admin / agent d'une agence `standard`. Le reporting
+ * cross-équipe n'est pas disponible pour les agences `individual` (un seul
+ * collaborateur par construction).
  */
 export default async function AgencyDashboardPage() {
   const user = await getMeAction();
@@ -22,6 +26,14 @@ export default async function AgencyDashboardPage() {
   // (Spatie team scope). Guard before the API call to avoid the unhandled exception.
   if (isSuperAdmin(user.roles) && !user.agency_id) {
     return <NoAgencyState title="Vue agence" />;
+  }
+
+  if (user.agency_id) {
+    const token = await getToken();
+    if (token) {
+      const agency = await fetchAgency(token, user.agency_id).catch(() => null);
+      if (agency && agency.kind !== 'standard') redirect('/app');
+    }
   }
 
   const payload = await fetchAgencyDashboard();

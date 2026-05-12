@@ -3,12 +3,14 @@ import { getMeAction } from '@/app/actions/auth';
 import { AgencyBillingClient } from '@/components/billing/AgencyBillingClient';
 import { AgencyPayoutsClient } from '@/components/billing/AgencyPayoutsClient';
 import { isAdmin } from '@/lib/roles';
+import { ensureStandardAgencyOrRedirect } from '@/lib/access/server-guards';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
   const user = await getMeAction();
   if (!isAdmin(user.roles)) redirect('/admin');
+  await ensureStandardAgencyOrRedirect(user);
 
   return (
     <div className="space-y-6">

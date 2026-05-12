@@ -4,6 +4,7 @@ namespace Tests\Feature\Dashboard;
 
 use App\Models\Agency;
 use App\Models\Customer;
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -138,5 +139,18 @@ class DashboardAgencyTest extends ApiTestCase
         $this->assertArrayHasKey('occupancy', $data);
         $this->assertArrayHasKey('agency_id', $data); // always present
         $this->assertArrayNotHasKey('properties', $data);
+    }
+
+    public function test_individual_agency_admin_receives_403(): void
+    {
+        $agency = Agency::factory()->individual()->create();
+        $admin = $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $agency->update(['primary_admin_id' => $admin->id]);
+
+        $this->apiGet('/api/dashboard/agency')->assertForbidden();
+
+        $agency->update(['kind' => AgencyKind::Standard]);
+
+        $this->apiGet('/api/dashboard/agency')->assertOk();
     }
 }

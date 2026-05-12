@@ -71,12 +71,9 @@ class HostOnboardingController extends Controller
                         'status' => $result['owner_profile']->status->value,
                     ],
                 ],
-                'property_draft' => [
-                    'id' => $result['property_draft']->id,
-                    'slug' => $result['property_draft']->slug,
-                    'status' => $result['property_draft']->status->value,
-                    'visibility' => $result['property_draft']->visibility->value,
-                ],
+                // No `property_draft` block anymore — the wizard now
+                // routes the user to `/app/properties/new` after onboarding
+                // instead of bundling the first listing inline.
                 'active_profile_id' => $compositeId,
             ],
         ], 201)->withCookie($cookie);

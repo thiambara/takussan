@@ -15,6 +15,7 @@ import {
   Wrench,
   Users,
   ShieldCheck,
+  Lock,
   PlusCircle,
   BarChart3,
   Download,
@@ -24,12 +25,13 @@ import {
   BookmarkCheck,
   ClipboardList,
   ClipboardCheck,
-  Sparkles,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
 import { isAgent, isOwner, isCustomer, isAdmin, isServiceProvider } from '@/lib/roles';
+import { isProRouteLocked } from '@/lib/access/pro-features';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ProUpgradeCard } from './ProUpgradeCard';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -37,12 +39,21 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   emphasized?: boolean;
+  locked?: boolean;
 }
 
 interface AppSidebarProps {
   user: User;
   className?: string;
   onNavigate?: () => void;
+  /**
+   * TCK-267 — pinned at the bottom of the sidebar (above the user footer)
+   * for agency admins still on `kind = individual`. Set to `true` once the
+   * agency has been promoted to `standard` so the CTA disappears for good.
+   */
+  agencyIsStandard?: boolean;
+  /** `true` when an upgrade request is awaiting super-admin review. */
+  hasPendingUpgrade?: boolean;
 }
 
 function buildNavItems(user: User): NavItem[] {
@@ -123,15 +134,28 @@ function buildNavItems(user: User): NavItem[] {
     // TCK-032 overview/stats — exports (P2)
     items.push({ href: '/app/overview/exports', label: 'Exports', icon: Download });
   }
-  if (isAdmin(roles)) {
-    // TCK-032 overview/stats — KPIs personnalisables (P3)
+  // Vue agence cross-team — visible to agency_admin so individuals see the
+  // padlock, and to agents/admins. Standard-only via PRO_ROUTES.
+  if (roles.includes('agency_admin') || isAdmin(roles) || isAgent(roles)) {
+    items.push({ href: '/app/overview/agency', label: 'Vue agence', icon: BarChart3 });
+  }
+  if (isAdmin(roles) || roles.includes('agency_admin')) {
+    // TCK-032 overview/stats — KPIs personnalisables (P3). Standard-only
+    // for agency_admin (padlock via PRO_ROUTES on `individual`).
     items.push({ href: '/app/overview/kpis', label: 'KPIs', icon: Gauge });
-    // TCK-032 overview/stats — alertes (P3)
+    // TCK-032 overview/stats — alertes (P3). Standard-only for agency_admin.
     items.push({ href: '/app/overview/alerts', label: 'Alertes', icon: BellRing });
   }
 
-  if (isAdmin(roles)) {
-    items.push({ href: '/admin', label: 'Administration', icon: ShieldCheck, emphasized: true });
+  // TCK-256 — owners directory. Visible to agency_admin and global admins.
+  // Standard-only via PRO_ROUTES; on `individual` the page itself redirects
+  // and OwnerProfilePolicy@invite returns 403 in defense in depth.
+  if (
+    roles.includes('agency_admin') ||
+    isAdmin(roles) ||
+    roles.includes('super_admin')
+  ) {
+    items.push({ href: '/app/owners', label: 'Propriétaires', icon: Users });
   }
 
   // TCK-258 — team management. Visible to agency_admin (and global admins).
@@ -142,17 +166,11 @@ function buildNavItems(user: User): NavItem[] {
     items.push({ href: '/app/team', label: 'Équipe', icon: Users });
   }
 
-  // TCK-267 — "Passer en pro" upgrade entry. Visible to agency_admin
-  // (super_admin sees it too via the same role gate). The page itself
-  // shows a calm "already standard" panel for non-individual agencies,
-  // so we don't need to know agency.kind here.
-  if (roles.includes('agency_admin') || roles.includes('super_admin')) {
-    items.push({
-      href: '/app/settings/agency/upgrade',
-      label: 'Passer en pro',
-      icon: Sparkles,
-    });
-  }
+  // TCK-267 — "Passer en pro" CTA is rendered as a pinned card at the
+  // bottom of the sidebar (above the user footer) instead of an inline
+  // nav row. See {@see ProUpgradeCard} below for the visual, and the
+  // conditional render in {@see AppSidebar} for the gate (which now also
+  // checks `agency.kind` to hide the card once the agency is `standard`).
 
   // TCK-041 dashboard agent — biens: the `/app/properties` and
   // `/app/properties/new` entries above are now owned by TCK-041 (dashboard
@@ -190,6 +208,11 @@ function buildNavItems(user: User): NavItem[] {
   // TCK-045 messages
   items.push({ href: '/app/messages', label: 'Messagerie', icon: MessageSquare });
 
+  // Administration — pinned last in the nav for admins / super_admins.
+  if (isAdmin(roles)) {
+    items.push({ href: '/admin', label: 'Administration', icon: ShieldCheck, emphasized: true });
+  }
+
   // Dedup by href while preserving first occurrence
   const seen = new Set<string>();
   return items.filter((item) => {
@@ -205,8 +228,23 @@ function SidebarItem({
   icon: Icon,
   active,
   emphasized,
+  locked,
   onNavigate,
 }: NavItem & { active: boolean; onNavigate?: () => void }) {
+  if (locked) {
+    return (
+      <span
+        role="link"
+        aria-disabled="true"
+        title="Réservé aux comptes pro"
+        className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-app-ink-muted opacity-60"
+      >
+        <Icon className="size-4 shrink-0" />
+        <span className="truncate">{label}</span>
+        <Lock className="ml-auto size-3.5 shrink-0" aria-hidden />
+      </span>
+    );
+  }
   return (
     <Link
       href={href}
@@ -245,9 +283,22 @@ function SidebarUserFooter({ user, onNavigate }: { user: User; onNavigate?: () =
   );
 }
 
-export function AppSidebar({ user, className, onNavigate }: AppSidebarProps) {
+export function AppSidebar({
+  user,
+  className,
+  onNavigate,
+  agencyIsStandard,
+  hasPendingUpgrade,
+}: AppSidebarProps) {
   const pathname = usePathname();
-  const navItems = buildNavItems(user);
+  const navItems = buildNavItems(user).map((item) => ({
+    ...item,
+    locked: isProRouteLocked(user, agencyIsStandard, item.href),
+  }));
+  const showProUpgradeCard =
+    user.roles.includes('agency_admin') &&
+    typeof user.agency_id === 'number' &&
+    agencyIsStandard === false;
 
   return (
     <aside className={cn('flex h-full w-64 flex-col bg-app-surface-1', className)}>
@@ -271,6 +322,9 @@ export function AppSidebar({ user, className, onNavigate }: AppSidebarProps) {
         ))}
       </nav>
       <div className="px-3 pb-4">
+        {showProUpgradeCard ? (
+          <ProUpgradeCard pending={Boolean(hasPendingUpgrade)} onNavigate={onNavigate} />
+        ) : null}
         <SidebarUserFooter user={user} onNavigate={onNavigate} />
       </div>
     </aside>

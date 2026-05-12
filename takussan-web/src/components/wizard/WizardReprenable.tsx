@@ -53,6 +53,33 @@ export type WizardReprenableProps<TData> = {
   className?: string;
 };
 
+// Deep-merge a persisted draft over the initial skeleton. Recurses into plain
+// objects so nested defaults survive partial drafts; treats null leaves as
+// "missing" and falls back to the initial value (React controlled inputs
+// reject value={null}).
+function mergeDraft<T>(base: T, patch: Partial<T> | null | undefined): T {
+  if (patch === null || patch === undefined) return base;
+  if (
+    typeof base !== 'object' ||
+    base === null ||
+    Array.isArray(base) ||
+    typeof patch !== 'object' ||
+    Array.isArray(patch)
+  ) {
+    return (patch as T) ?? base;
+  }
+  const out: Record<string, unknown> = { ...(base as Record<string, unknown>) };
+  for (const key of Object.keys(patch as Record<string, unknown>)) {
+    const next = (patch as Record<string, unknown>)[key];
+    if (next === null) continue;
+    out[key] = mergeDraft(
+      (base as Record<string, unknown>)[key] as unknown,
+      next as never,
+    );
+  }
+  return out as T;
+}
+
 export function WizardReprenable<TData extends Record<string, unknown>>({
   storageKey,
   initialData,
@@ -77,7 +104,7 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
     if (isLoading || hydrated) return;
     if (draft && draft.data) {
       setStepIndex(Math.min(draft.step, steps.length - 1));
-      setData({ ...initialData, ...(draft.data as Partial<TData>) } as TData);
+      setData(mergeDraft(initialData, draft.data as Partial<TData>));
     }
     setHydrated(true);
   }, [draft, isLoading, hydrated, initialData, steps.length]);

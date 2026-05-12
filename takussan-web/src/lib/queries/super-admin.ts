@@ -413,6 +413,7 @@ export const ADMIN_PROPERTY_FIELDS = [
   'slug',
   'type',
   'contract_type',
+  'rent_period',
   'status',
   'visibility',
   'price',

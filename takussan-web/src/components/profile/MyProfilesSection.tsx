@@ -4,6 +4,13 @@ import { useMyProfiles } from '@/hooks/useProfiles';
 import type { Profile, ProfileType } from '@/types/profile';
 import { ProfileBadge, profileTypeLabel } from './ProfileBadge';
 
+const DISPLAY_TYPES: ReadonlySet<ProfileType> = new Set([
+  'owner',
+  'agent',
+  'broker',
+  'service_provider',
+]);
+
 const KYC_FIELDS: Record<ProfileType, { label: string; help: string }[]> = {
   owner: [
     { label: 'RIB', help: 'Iban / BIC pour le versement des loyers.' },
@@ -57,7 +64,12 @@ export function MyProfilesSection() {
     );
   }
 
-  const profiles = data.data;
+  // Backend `/api/me/profiles` ships `agency_admin` profiles alongside the
+  // four métier profiles (used by ActiveProfileResolver for team scoping),
+  // but they share an agency with the user's owner/agent row and would
+  // surface as a second "ghost" card with no KYC fields. Mirror the
+  // ProfileSwitcher's filter and keep only métier profiles here.
+  const profiles = data.data.filter((p) => DISPLAY_TYPES.has(p.type));
 
   if (profiles.length === 0) {
     return (

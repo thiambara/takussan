@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\Me;
 
 use App\Models\Agency;
+use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\BrokerProfile;
 use App\Models\Profiles\OwnerProfile;
@@ -77,6 +78,32 @@ class ProfilesEndpointTest extends TestCase
         $this->getJson('/api/me/profiles')
             ->assertOk()
             ->assertJsonPath('meta.active_profile_id', "agent:{$profile->id}");
+    }
+
+    public function test_index_filters_out_inactive_profiles(): void
+    {
+        $user = User::factory()->create();
+        $a = Agency::factory()->create();
+        $b = Agency::factory()->create();
+
+        $active = OwnerProfile::factory()->create([
+            'user_id' => $user->id,
+            'agency_id' => $a->id,
+            'status' => OwnerProfileStatus::Active,
+        ]);
+        OwnerProfile::factory()->create([
+            'user_id' => $user->id,
+            'agency_id' => $b->id,
+            'status' => OwnerProfileStatus::Blocked,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson('/api/me/profiles')->assertOk();
+
+        $ids = collect($response->json('data'))->pluck('id')->all();
+        $this->assertSame(["owner:{$active->id}"], $ids);
+        $this->assertSame(1, $response->json('meta.count'));
     }
 
     public function test_resource_exposes_composite_id_type_and_agency(): void

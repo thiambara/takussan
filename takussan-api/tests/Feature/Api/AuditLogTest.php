@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Agency;
+use App\Models\Enums\AgencyKind;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -82,5 +83,19 @@ class AuditLogTest extends TestCase
         $this->getJson("/api/audit-log/user/{$admin->id}")
             ->assertOk()
             ->assertJsonCount(2, 'data');
+    }
+
+    public function test_individual_agency_admin_cannot_read_audit_log(): void
+    {
+        $this->dummyAgency->update(['kind' => AgencyKind::Individual]);
+        Role::findOrCreate('agency_admin');
+        $admin = User::factory()->create(['agency_id' => $this->dummyAgency->id]);
+        $admin->assignRole('agency_admin');
+        Sanctum::actingAs($admin);
+
+        $this->getJson('/api/audit-log')->assertForbidden();
+
+        $this->dummyAgency->update(['kind' => AgencyKind::Standard]);
+        $this->getJson('/api/audit-log')->assertOk();
     }
 }

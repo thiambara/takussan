@@ -804,7 +804,8 @@
         "customer-onboarding": "Onboarding locataire",
         "owner-kyc": "KYC propriétaire",
         "agent-kyc": "KYC agent",
-        "sp-onboarding": "Onboarding prestataire"
+        "sp-onboarding": "Onboarding prestataire",
+        "agency-upgrade": "Passage en pro"
       }
     }
   },

@@ -13,6 +13,7 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
@@ -95,7 +96,11 @@ class AuthController extends Controller
     {
         $request->user()->currentAccessToken()->delete();
 
-        return $this->json(['message' => __('auth.logout_successful')]);
+        // Expire the active-profile cookie so a subsequent login on a shared
+        // device doesn't inherit the previous user's selection (and so the
+        // next anonymous request to backend stops carrying it around).
+        return $this->json(['message' => __('auth.logout_successful')])
+            ->withCookie(Cookie::forget('active_profile_id'));
     }
 
     public function me(Request $request): JsonResponse

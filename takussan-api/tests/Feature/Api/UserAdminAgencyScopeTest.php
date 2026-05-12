@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Agency;
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
@@ -162,5 +163,16 @@ class UserAdminAgencyScopeTest extends ApiTestCase
         $this->apiActingAsRole('agent', ['agency' => $agency]);
 
         $this->apiGet('/api/users')->assertForbidden();
+    }
+
+    public function test_individual_agency_admin_cannot_list_users(): void
+    {
+        $agency = Agency::factory()->individual()->create();
+        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+
+        $this->apiGet('/api/users')->assertForbidden();
+
+        $agency->update(['kind' => AgencyKind::Standard]);
+        $this->apiGet('/api/users')->assertOk();
     }
 }

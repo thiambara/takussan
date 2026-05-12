@@ -142,7 +142,7 @@ _(Vague 24 finalisée — voir Review)_
 
 > Smoke test browser suivant `docs/qa/utilisateurs-authentifies-qa.md`. Les anomalies sont recensées dans `docs/smoke-tests/utilisateurs-authentifies-2026-05-08.md` et groupées ici par surface de correction.
 
-
+- [TCK-272](tickets/TCK-272-oauth-only-account-deletion-step-up.md) — Suppression de compte — step-up alternative pour comptes OAuth-only `M · P2 · applicatif`
 
 ### Vague 26 — Bugs smoke test super-admin (2026-05-08)
 
@@ -689,6 +689,7 @@ TCK-021 + TCK-027 + TCK-028 ──▶ TCK-077 (PDF templates)
 ── Vague 7 : Enrichissement P2 (hors-périmètre V4-V6) ──
 TCK-028 + TCK-068 ──▶ TCK-079 (payment gateway Wave/OM/Lemon Squeezy)
 TCK-013 + TCK-018 + TCK-069 ──▶ TCK-080 (account deletion RGPD)
+TCK-080 ──▶ TCK-272 (deletion step-up OAuth-only)
 TCK-060 ──▶ TCK-081 (OAuth Facebook/Apple)
 TCK-039 + TCK-046 + TCK-047 ──▶ TCK-082 (property comparator)
 TCK-020 + TCK-042 ──▶ TCK-083 (CRM prospect pipeline)

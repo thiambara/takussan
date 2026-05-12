@@ -76,7 +76,7 @@ class Property extends AbstractModel implements HasMedia
 
     /** @var array<int,string> */
     protected static array $requestSortable = [
-        'id', 'created_at', 'published_at', 'price', 'views_count', 'area', 'bedrooms', 'bathrooms', 'featured',
+        'id', 'title', 'created_at', 'published_at', 'price', 'views_count', 'area', 'bedrooms', 'bathrooms', 'featured',
     ];
 
     /** @var array<int,string> */
@@ -98,7 +98,7 @@ class Property extends AbstractModel implements HasMedia
     /** @var array<int,string> */
     protected static array $queryFields = [
         'id', 'user_id', 'agency_id', 'parent_id', 'reference_number',
-        'title', 'slug', 'type', 'contract_type', 'title_type', 'status', 'visibility',
+        'title', 'slug', 'type', 'contract_type', 'rent_period', 'title_type', 'status', 'visibility',
         'price', 'currency', 'area', 'bedrooms', 'bathrooms', 'furnished',
         'floor_number', 'total_floors', 'year_built', 'parking_spaces', 'featured',
         'views_count', 'favorites_count', 'available_from', 'published_at', 'created_at', 'updated_at',
@@ -112,6 +112,15 @@ class Property extends AbstractModel implements HasMedia
             }
             if (empty($m->reference_number)) {
                 $m->reference_number = 'TK-'.now()->format('Y').'-'.strtoupper(Str::random(6));
+            }
+        });
+
+        // Invariant: a rental listing must always carry a billing period.
+        // If contract_type=rent but rent_period is missing/cleared, default
+        // to monthly — the most common rental cadence in the local market.
+        static::saving(function (self $m) {
+            if ($m->contract_type === ContractType::Rent && $m->rent_period === null) {
+                $m->rent_period = RentPeriod::Monthly;
             }
         });
 

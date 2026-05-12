@@ -16,9 +16,21 @@ import { isAgencyAdmin, isAgent, isCustomer, isOwner } from '@/lib/roles';
 interface AppShellProps {
   user: User;
   children: React.ReactNode;
+  /**
+   * TCK-267 — server-resolved flags consumed by the sidebar's
+   * "Passer en pro" card. Computed in the dashboard layout so the
+   * client tree doesn't have to fetch the agency on every navigation.
+   */
+  agencyIsStandard?: boolean;
+  hasPendingUpgrade?: boolean;
 }
 
-export function AppShell({ user, children }: AppShellProps) {
+export function AppShell({
+  user,
+  children,
+  agencyIsStandard,
+  hasPendingUpgrade,
+}: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // TCK-253 — Customer-only onboarding surfaces. Gated server-side via the
   // SSR-resolved roles so we never paint the welcome modale (or arm the
@@ -46,11 +58,20 @@ export function AppShell({ user, children }: AppShellProps) {
         <AppTopbar user={user} onMenuToggle={() => setSidebarOpen((v) => !v)} />
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <div className="hidden md:block md:h-full">
-            <AppSidebar user={user} />
+            <AppSidebar
+              user={user}
+              agencyIsStandard={agencyIsStandard}
+              hasPendingUpgrade={hasPendingUpgrade}
+            />
           </div>
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
             <SheetContent side="left" className="p-0">
-              <AppSidebar user={user} onNavigate={() => setSidebarOpen(false)} />
+              <AppSidebar
+              user={user}
+              onNavigate={() => setSidebarOpen(false)}
+              agencyIsStandard={agencyIsStandard}
+              hasPendingUpgrade={hasPendingUpgrade}
+            />
             </SheetContent>
           </Sheet>
           <main className="relative min-h-0 flex-1 overflow-y-auto bg-app-bg">

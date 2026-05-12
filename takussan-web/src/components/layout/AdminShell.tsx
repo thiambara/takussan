@@ -9,9 +9,12 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 interface AdminShellProps {
   user: User;
   children: React.ReactNode;
+  /** `true` once the active agency is on `kind=standard`. Drives the sidebar
+   *  padlock for Standard-only items when the agency is still `individual`. */
+  agencyIsStandard?: boolean;
 }
 
-export function AdminShell({ user, children }: AdminShellProps) {
+export function AdminShell({ user, children, agencyIsStandard }: AdminShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -19,11 +22,15 @@ export function AdminShell({ user, children }: AdminShellProps) {
       <AppTopbar user={user} onMenuToggle={() => setSidebarOpen((v) => !v)} />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="hidden md:block md:h-full">
-          <AdminSidebar user={user} />
+          <AdminSidebar user={user} agencyIsStandard={agencyIsStandard} />
         </div>
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
           <SheetContent side="left" className="bg-app-topbar p-0">
-            <AdminSidebar user={user} onNavigate={() => setSidebarOpen(false)} />
+            <AdminSidebar
+              user={user}
+              agencyIsStandard={agencyIsStandard}
+              onNavigate={() => setSidebarOpen(false)}
+            />
           </SheetContent>
         </Sheet>
         <main className="relative min-h-0 flex-1 overflow-y-auto bg-app-bg">

@@ -2,14 +2,33 @@ import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { AdminShell } from '@/components/layout/AdminShell';
+import { getToken } from '@/lib/session';
+import { fetchAgency } from '@/lib/queries/agencies';
 
 /**
  * Admin dashboard layout — restricted to users with admin-level roles
  * (`super_admin`, `agency_admin`). Auth gate is enforced at the
  * `(dashboard)` group level; here we only add the role-based redirect.
+ *
+ * Hydrate `agencyIsStandard` so the sidebar can padlock Standard-only items
+ * for agency_admins still on `kind=individual` (mirroring AppLayout/AppShell).
  */
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getMeAction();
   if (!isAdmin(user.roles)) redirect('/app/profile');
-  return <AdminShell user={user}>{children}</AdminShell>;
+
+  let agencyIsStandard: boolean | undefined;
+  if (typeof user.agency_id === 'number') {
+    const token = await getToken();
+    if (token) {
+      const agency = await fetchAgency(token, user.agency_id).catch(() => null);
+      agencyIsStandard = agency?.kind === 'standard';
+    }
+  }
+
+  return (
+    <AdminShell user={user} agencyIsStandard={agencyIsStandard}>
+      {children}
+    </AdminShell>
+  );
 }

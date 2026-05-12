@@ -88,6 +88,20 @@ class AuthLoginTest extends TestCase
         $this->assertDatabaseCount('personal_access_tokens', 0);
     }
 
+    public function test_logout_clears_active_profile_cookie(): void
+    {
+        $user = User::factory()->create();
+        $token = $user->createToken('test')->plainTextToken;
+
+        $response = $this->withToken($token)->postJson('/api/auth/logout');
+
+        $response->assertStatus(200);
+        $cookie = collect($response->headers->getCookies())
+            ->firstWhere(fn ($c) => $c->getName() === 'active_profile_id');
+        $this->assertNotNull($cookie, 'logout must Set-Cookie active_profile_id (expired)');
+        $this->assertLessThanOrEqual(time(), $cookie->getExpiresTime(), 'cookie must be expired');
+    }
+
     public function test_logout_requires_authentication(): void
     {
         $response = $this->postJson('/api/auth/logout');

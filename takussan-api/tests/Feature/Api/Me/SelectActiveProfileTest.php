@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\Me;
 
 use App\Models\Agency;
+use App\Models\Enums\AgentProfileStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
@@ -84,5 +85,22 @@ class SelectActiveProfileTest extends TestCase
     {
         $this->patchJson('/api/me/active-profile', ['profile_id' => 'owner:1'])
             ->assertStatus(401);
+    }
+
+    public function test_patch_active_profile_rejects_suspended_profile_with_403(): void
+    {
+        $user = User::factory()->create();
+        $agency = Agency::factory()->create();
+        $suspended = AgentProfile::factory()->create([
+            'user_id' => $user->id,
+            'agency_id' => $agency->id,
+            'status' => AgentProfileStatus::Suspended,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->patchJson('/api/me/active-profile', [
+            'profile_id' => "agent:{$suspended->id}",
+        ])->assertStatus(403);
     }
 }

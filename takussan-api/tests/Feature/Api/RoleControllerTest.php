@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Agency;
+use App\Models\Enums\AgencyKind;
 use App\Models\User;
 use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -365,5 +366,23 @@ class RoleControllerTest extends TestCase
 
         // Sanity: confirm Permission still has expected entries.
         $this->assertGreaterThan(0, Permission::query()->count());
+    }
+
+    public function test_individual_agency_admin_cannot_list_roles(): void
+    {
+        $this->seed(RolesAndPermissionsSeeder::class);
+        $agency = Agency::factory()->individual()->create();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
+        Role::findOrCreate('agency_admin');
+        $user = User::factory()->create(['agency_id' => $agency->id]);
+        $user->assignRole('agency_admin');
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/roles')->assertForbidden();
+
+        $agency->update(['kind' => AgencyKind::Standard]);
+        $this->getJson('/api/roles')->assertOk();
     }
 }

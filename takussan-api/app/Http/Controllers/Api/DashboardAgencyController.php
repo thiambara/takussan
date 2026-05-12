@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Models\Agency;
+use App\Models\Enums\AgencyKind;
 use App\Services\Dashboard\DashboardAgencyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -41,6 +42,15 @@ class DashboardAgencyController extends Controller
                     && $user->hasRole(['admin', 'agency_admin', 'agent'])
                 ),
             403,
+        );
+
+        // Reporting cross-équipe réservé aux agences `standard` (cf.
+        // features.md §2.2). Les autres dashboards (agent/owner/tenant)
+        // restent ouverts car ils ne sont pas cross-team.
+        abort_unless(
+            $agency->kind === AgencyKind::Standard,
+            403,
+            'Agency dashboard is reserved for standard agencies.',
         );
 
         $data = $this->service->summary($agency);

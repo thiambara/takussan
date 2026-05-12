@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Models\User;
+use App\Support\AgencyKindGuard;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -21,6 +22,10 @@ class AuditLogController extends Controller
         abort_unless(
             $user->isSuperAdmin() || $user->hasRole(['admin', 'agency_admin']),
             403
+        );
+        AgencyKindGuard::ensureStandardForNonGlobal(
+            $user,
+            $request->activeProfile()?->agency_id ?? $user->agency_id,
         );
 
         // `Str::studly` handles multi-word slugs (`booking_payment` → `BookingPayment`)
@@ -63,6 +68,10 @@ class AuditLogController extends Controller
         abort_unless(
             $authedUser->isSuperAdmin() || $authedUser->hasRole(['admin', 'agency_admin']),
             403
+        );
+        AgencyKindGuard::ensureStandardForNonGlobal(
+            $authedUser,
+            $request->activeProfile()?->agency_id ?? $authedUser->agency_id,
         );
 
         // Accept legacy flat params (?log_name=, ?event=, ?from=, ?to=, ?causer_id=…)

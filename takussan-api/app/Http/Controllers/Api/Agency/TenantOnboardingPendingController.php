@@ -26,9 +26,15 @@ class TenantOnboardingPendingController extends Controller
 {
     public function index(Request $request, Agency $agency): JsonResponse
     {
-        $userId = $request->user()->id;
-        $isMember = ($request->user()->agency_id ?? null) === $agency->id;
-        $isAdmin = $request->user()->hasRole(['admin', 'super_admin']);
+        $user = $request->user();
+        // Membership is resolved by any agency-scoped profile (Agent /
+        // Owner / AgencyAdmin) pointing at this agency, not by the legacy
+        // `agency_id` accessor which returns null for multi-profile users
+        // without an active profile resolved (TCK-142).
+        $isMember = $user->isAgentAt($agency->id)
+            || $user->isOwnerAt($agency->id)
+            || $user->agencyAdminProfiles()->where('agency_id', $agency->id)->exists();
+        $isAdmin = $user->hasRole(['admin', 'super_admin']);
 
         abort_unless($isMember || $isAdmin, Response::HTTP_FORBIDDEN);
 

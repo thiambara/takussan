@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { AdminUsersClient } from './AdminUsersClient';
+import { ensureStandardAgencyOrRedirect } from '@/lib/access/server-guards';
 
 /**
  * TCK-133 — `/admin/users` agency-scoped users management. The
@@ -15,6 +16,7 @@ import { AdminUsersClient } from './AdminUsersClient';
 export default async function Page() {
   const user = await getMeAction();
   if (!isAdmin(user.roles)) redirect('/app/profile');
+  await ensureStandardAgencyOrRedirect(user);
 
   return (
     <div className="space-y-6">

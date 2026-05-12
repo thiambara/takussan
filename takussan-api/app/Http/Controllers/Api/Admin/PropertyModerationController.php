@@ -8,6 +8,7 @@ use App\Http\Resources\PropertyResource;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Services\Property\PropertyModerationService;
+use App\Support\AgencyKindGuard;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -40,6 +41,7 @@ class PropertyModerationController extends Controller
         // multi-agency admin who switched profiles gets the correct slice.
         if (! $user->isSuperAdmin()) {
             $activeAgencyId = $request->activeProfile()?->agency_id ?? $user->agency_id;
+            AgencyKindGuard::ensureStandardForNonGlobal($user, $activeAgencyId);
             $query->where('agency_id', $activeAgencyId);
         }
 
@@ -73,6 +75,7 @@ class PropertyModerationController extends Controller
     public function approve(Request $request, Property $property): JsonResponse
     {
         abort_unless($request->user()->can('approve-property', $property), 403);
+        AgencyKindGuard::ensureStandardForNonGlobal($request->user(), $property->agency_id);
 
         $property = $this->service->approve($property, $request->user());
 
@@ -85,6 +88,7 @@ class PropertyModerationController extends Controller
     public function reject(RejectPropertyRequest $request, Property $property): JsonResponse
     {
         abort_unless($request->user()->can('reject-property', $property), 403);
+        AgencyKindGuard::ensureStandardForNonGlobal($request->user(), $property->agency_id);
 
         $property = $this->service->reject($property, $request->user(), $request->string('rejection_reason')->value());
 
@@ -97,6 +101,7 @@ class PropertyModerationController extends Controller
     public function resubmit(Request $request, Property $property): JsonResponse
     {
         abort_unless($request->user()->can('resubmit-property', $property), 403);
+        AgencyKindGuard::ensureStandardForNonGlobal($request->user(), $property->agency_id);
 
         $property = $this->service->resubmit($property, $request->user());
 

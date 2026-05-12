@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Models\Enums\UserStatus;
 use App\Models\User;
+use App\Support\AgencyKindGuard;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -29,6 +30,7 @@ class UserAdminController extends Controller
         if (! $actor->hasRole(['admin', 'super_admin'])) {
             $agencyId = $request->activeProfile()?->agency_id;
             abort_if($agencyId === null, 403);
+            AgencyKindGuard::ensureStandardForNonGlobal($actor, $agencyId);
 
             $base = User::query()->where(function ($q) use ($agencyId) {
                 $q->whereHas('agentProfiles', fn ($qq) => $qq->where('agency_id', $agencyId))
@@ -98,6 +100,7 @@ class UserAdminController extends Controller
         }
 
         $agencyId = $request->activeProfile()?->agency_id;
+        AgencyKindGuard::ensureStandardForNonGlobal($actor, $agencyId);
         if ($agencyId === null
             || (! $target->isAgentAt($agencyId) && ! $target->isOwnerAt($agencyId))
         ) {

@@ -747,6 +747,7 @@ export type AdminPropertyRow = {
   status_label: string | null;
   visibility: string | null;
   contract_type: string | null;
+  rent_period: 'daily' | 'weekly' | 'monthly' | 'yearly' | null;
   price: number;
   currency: string | null;
   published_at: string | null;

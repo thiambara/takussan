@@ -180,7 +180,7 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
           <Input
             id="upgrade-rc"
             required
-            value={form.rc}
+            value={form.rc ?? ''}
             onChange={(e) => update('rc', e.target.value)}
             aria-invalid={!!fieldError('rc')}
           />
@@ -194,7 +194,7 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
           <Input
             id="upgrade-ninea"
             required
-            value={form.ninea}
+            value={form.ninea ?? ''}
             onChange={(e) => update('ninea', e.target.value)}
             aria-invalid={!!fieldError('ninea')}
           />
@@ -209,7 +209,7 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
         <Input
           id="upgrade-rib-pro"
           required
-          value={form.rib_pro}
+          value={form.rib_pro ?? ''}
           onChange={(e) => update('rib_pro', e.target.value)}
           aria-invalid={!!fieldError('rib_pro')}
         />
@@ -225,7 +225,7 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
         <Input
           id="upgrade-company-legal-name"
           required
-          value={form.company_legal_name}
+          value={form.company_legal_name ?? ''}
           onChange={(e) => update('company_legal_name', e.target.value)}
           aria-invalid={!!fieldError('company_legal_name')}
         />
@@ -239,7 +239,7 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
         <Input
           id="upgrade-address-fiscale"
           required
-          value={form.address_fiscale}
+          value={form.address_fiscale ?? ''}
           onChange={(e) => update('address_fiscale', e.target.value)}
           aria-invalid={!!fieldError('address_fiscale')}
         />

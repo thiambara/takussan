@@ -14,15 +14,10 @@ export const dynamic = 'force-dynamic';
 /**
  * TCK-256 — owners listing page for the agency.
  *
- * The "Add owner" CTA is hidden when the active agency is not
- * `standard` (typology gate) or when the current user is not at least
- * `agency_admin` / `super_admin` / `admin`. The backend policy
- * (`OwnerProfilePolicy@invite`) re-checks both rules so an evaded UI
- * gate still yields a 403.
- *
- * Agents with the `invite_owner` permission delegated will see a
- * "permission denied" toast if they invent a payload — the next iteration
- * (TCK-260+) can pull permissions client-side to hide the CTA pre-flight.
+ * Réservé aux agences `standard`. Pour une agence `individual`, le user
+ * est le seul propriétaire par construction — pas de gestion d'autres
+ * propriétaires. La page redirige donc vers `/app` ; la policy backend
+ * (`OwnerProfilePolicy@invite`) renvoie 403 en defense in depth.
  */
 export default async function Page() {
   const user = await getMeAction();
@@ -49,12 +44,12 @@ export default async function Page() {
     fetchOwners(token, { agencyId }),
   ]);
 
-  // TCK-256 — UI visibility gate. The backend re-checks both conditions.
+  if (agency.kind !== 'standard') redirect('/app');
+
   const canInvite =
-    agency.kind === 'standard' &&
-    (user.roles.includes('agency_admin') ||
-      isAdmin(user.roles) ||
-      user.roles.includes('super_admin'));
+    user.roles.includes('agency_admin') ||
+    isAdmin(user.roles) ||
+    user.roles.includes('super_admin');
 
   return (
     <OwnersList agencyId={agencyId} canInvite={canInvite} initialData={owners} />
