@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     Authorization: `Bearer ${token}`,
   };
   const activeProfileId = request.cookies.get(ACTIVE_PROFILE_COOKIE)?.value;
-  if (activeProfileId) headers['X-Profile-Id'] = activeProfileId;
+  if (activeProfileId) headers['X-Active-Profile-Hint'] = activeProfileId;
 
   const upstream = await fetch(`${API_URL}/api/me/subscription${request.nextUrl.search}`, { headers });
   return new NextResponse(await upstream.text(), {

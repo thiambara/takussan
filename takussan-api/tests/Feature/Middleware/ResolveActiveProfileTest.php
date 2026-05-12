@@ -159,6 +159,61 @@ class ResolveActiveProfileTest extends TestCase
         $this->assertNull($response->json('profile_class'));
     }
 
+    public function test_active_profile_hint_header_resolves_like_a_cookie(): void
+    {
+        $user = User::factory()->create();
+        $a = Agency::factory()->create();
+        $b = Agency::factory()->create();
+        OwnerProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $a->id]);
+        $agentB = AgentProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $b->id]);
+
+        Sanctum::actingAs($user);
+
+        $this->withHeaders(['X-Active-Profile-Hint' => "agent:{$agentB->id}"])
+            ->getJson(self::PROBE_ROUTE)
+            ->assertOk()
+            ->assertJsonPath('team_id', $b->id)
+            ->assertJsonPath('profile_id', $agentB->id);
+    }
+
+    public function test_stale_active_profile_hint_is_silently_ignored(): void
+    {
+        $user = User::factory()->create();
+        $a = Agency::factory()->create();
+        $owner = OwnerProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $a->id]);
+
+        Sanctum::actingAs($user);
+
+        // A stale hint (e.g. a cookie value left over after migrate:fresh
+        // --seed) must not abort the request — soft signal, mirrors the
+        // cookie semantics. Fallback paths still resolve the active profile.
+        $this->withHeaders(['X-Active-Profile-Hint' => 'owner:99999'])
+            ->getJson(self::PROBE_ROUTE)
+            ->assertOk()
+            ->assertJsonPath('team_id', $a->id)
+            ->assertJsonPath('profile_id', $owner->id);
+    }
+
+    public function test_strict_header_still_beats_active_profile_hint(): void
+    {
+        $user = User::factory()->create();
+        $a = Agency::factory()->create();
+        $b = Agency::factory()->create();
+        $ownerA = OwnerProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $a->id]);
+        $agentB = AgentProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $b->id]);
+
+        Sanctum::actingAs($user);
+
+        $this->withHeaders([
+            'X-Profile-Id' => "agent:{$agentB->id}",
+            'X-Active-Profile-Hint' => "owner:{$ownerA->id}",
+        ])
+            ->getJson(self::PROBE_ROUTE)
+            ->assertOk()
+            ->assertJsonPath('team_id', $b->id)
+            ->assertJsonPath('profile_id', $agentB->id);
+    }
+
     public function test_multiple_profiles_without_signal_does_not_pick_arbitrarily(): void
     {
         $user = User::factory()->create();

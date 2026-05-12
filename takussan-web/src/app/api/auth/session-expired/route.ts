@@ -1,4 +1,5 @@
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
+import { ACTIVE_PROFILE_COOKIE } from '@/lib/profiles';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -8,5 +9,6 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const cookieStore = await cookies();
   cookieStore.delete(AUTH_COOKIE_NAME);
+  cookieStore.delete(ACTIVE_PROFILE_COOKIE);
   return NextResponse.redirect(new URL('/auth/login', request.url));
 }

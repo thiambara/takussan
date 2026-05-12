@@ -16,10 +16,16 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
  *
  *   1. Explicit signal — `X-Profile-Id` header or `?profile_id` query.
  *      A value that doesn't match a profile owned by the user → 403.
- *   2. Cookie `active_profile_id` — silently ignored if invalid (the user
+ *   2. Soft hint — `X-Active-Profile-Hint` header. Mirrors the cookie
+ *      semantics: silently ignored if invalid. Used by SSR fetchers that
+ *      forward the browser-bound `active_profile_id` cookie value as a
+ *      header (the cookie itself isn't transmitted across the Next ↔
+ *      Laravel hop). Distinct from `X-Profile-Id` so a deliberate UI
+ *      switch keeps its strict semantics.
+ *   3. Cookie `active_profile_id` — silently ignored if invalid (the user
  *      may have lost a profile since the cookie was issued).
- *   3. Auto-bascule — if the user owns exactly one profile, pick it.
- *   4. None — pure admins (no profile) keep `team_id = null`; agency-
+ *   4. Auto-bascule — if the user owns exactly one profile, pick it.
+ *   5. None — pure admins (no profile) keep `team_id = null`; agency-
  *      scoped roles simply won't resolve.
  *
  * Stored on the request so downstream code can call `$request->activeProfile()`
@@ -70,6 +76,16 @@ class ResolveActiveProfile
                     throw new AccessDeniedHttpException('Profile not accessible.');
                 }
                 $this->bind($request, $user, $profile);
+
+                return $next($request);
+            }
+
+            $hint = $request->header('X-Active-Profile-Hint');
+            if (is_string($hint) && $hint !== '') {
+                $profile = $this->resolver->resolve($hint, $user);
+                if ($profile !== null) {
+                    $this->bind($request, $user, $profile);
+                }
             }
 
             return $next($request);
@@ -84,6 +100,16 @@ class ResolveActiveProfile
             $this->bind($request, $user, $profile);
 
             return $next($request);
+        }
+
+        $hint = $request->header('X-Active-Profile-Hint');
+        if (is_string($hint) && $hint !== '') {
+            $profile = $this->resolver->resolve($hint, $user);
+            if ($profile !== null) {
+                $this->bind($request, $user, $profile);
+
+                return $next($request);
+            }
         }
 
         $cookie = $request->cookie('active_profile_id');

@@ -43,9 +43,11 @@ export type RequestOptions = {
   locale?: string;
   signal?: AbortSignal;
   /**
-   * Active profile composite id (e.g. `agent:5`) forwarded as `X-Profile-Id`
-   * so the backend resolves the spatie team scope without relying on a
-   * browser-bound cookie. Set by SSR fetchers — see TCK-141 / TCK-143.
+   * Active profile composite id (e.g. `agent:5`) forwarded as
+   * `X-Active-Profile-Hint` so the backend resolves the spatie team scope
+   * without relying on a browser-bound cookie. Soft signal: an invalid /
+   * stale value is silently ignored by the backend (cookie-style). Set by
+   * SSR fetchers — see TCK-141 / TCK-143.
    */
   activeProfileId?: string;
 };
@@ -109,8 +111,8 @@ export async function apiRequest<T>(
     requestHeaders['Accept-Language'] = requestLocale;
   }
 
-  if (activeProfileId && !requestHeaders['X-Profile-Id']) {
-    requestHeaders['X-Profile-Id'] = activeProfileId;
+  if (activeProfileId && !requestHeaders['X-Active-Profile-Hint']) {
+    requestHeaders['X-Active-Profile-Hint'] = activeProfileId;
   }
 
   const response = await fetch(`${API_URL}${path}`, {

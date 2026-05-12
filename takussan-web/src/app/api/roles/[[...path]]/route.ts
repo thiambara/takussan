@@ -9,8 +9,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
 /**
  * TCK-135 — Same-origin proxy for the role editor. Forwards
  * `/api/roles[/...]` 1:1 to the backend, attaching the auth bearer and
- * the `X-Profile-Id` header so the active-profile-resolved team_id
- * gates writes correctly.
+ * the `X-Active-Profile-Hint` header so the active-profile-resolved
+ * team_id gates writes correctly. Hint is soft: a stale cookie value is
+ * silently ignored upstream.
  */
 async function forward(request: NextRequest, segments: string[]): Promise<NextResponse> {
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
@@ -24,7 +25,7 @@ async function forward(request: NextRequest, segments: string[]): Promise<NextRe
     Authorization: `Bearer ${token}`,
   };
   const activeProfileId = request.cookies.get(ACTIVE_PROFILE_COOKIE)?.value;
-  if (activeProfileId) headers['X-Profile-Id'] = activeProfileId;
+  if (activeProfileId) headers['X-Active-Profile-Hint'] = activeProfileId;
   const contentType = request.headers.get('content-type');
   if (contentType) headers['Content-Type'] = contentType;
 

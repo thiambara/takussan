@@ -18,7 +18,7 @@ async function forward(request: NextRequest, segments: string[]): Promise<NextRe
     Authorization: `Bearer ${token}`,
   };
   const activeProfileId = request.cookies.get(ACTIVE_PROFILE_COOKIE)?.value;
-  if (activeProfileId) headers['X-Profile-Id'] = activeProfileId;
+  if (activeProfileId) headers['X-Active-Profile-Hint'] = activeProfileId;
   const contentType = request.headers.get('content-type');
   if (contentType) headers['Content-Type'] = contentType;
 
