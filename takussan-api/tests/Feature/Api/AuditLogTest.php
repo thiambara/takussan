@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class AuditLogTest extends TestCase
@@ -20,7 +21,8 @@ class AuditLogTest extends TestCase
         parent::setUp();
 
         $this->dummyAgency = Agency::factory()->create();
-        Role::create(['name' => 'admin', 'team_id' => $this->dummyAgency->id]);
+        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
+        Role::findOrCreate('super_admin', 'web');
         setPermissionsTeamId($this->dummyAgency->id);
     }
 
@@ -35,7 +37,8 @@ class AuditLogTest extends TestCase
     public function test_admin_can_list_audit_logs(): void
     {
         $admin = User::factory()->create(['agency_id' => $this->dummyAgency->id]);
-        $admin->assignRole('admin');
+        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
+        $admin->assignRole('super_admin');
         Sanctum::actingAs($admin);
 
         Activity::create([
@@ -69,7 +72,8 @@ class AuditLogTest extends TestCase
     public function test_admin_can_get_audit_logs_by_entity(): void
     {
         $admin = User::factory()->create(['agency_id' => $this->dummyAgency->id]);
-        $admin->assignRole('admin');
+        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
+        $admin->assignRole('super_admin');
         Sanctum::actingAs($admin);
 
         Activity::create([

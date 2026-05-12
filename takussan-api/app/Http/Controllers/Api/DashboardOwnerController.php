@@ -20,7 +20,7 @@ class DashboardOwnerController extends Controller
 
         abort_unless(
             $user->hasRole('owner')
-                || $user->hasRole(['super_admin', 'admin', 'agency_admin']),
+                || $user->hasRole(['super_admin', 'agency_admin']),
             403,
         );
 

@@ -49,7 +49,7 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
-        if ($user->isSuperAdmin() || $user->hasRole('admin')) {
+        if ($user->isSuperAdmin()) {
             return $this->json(['data' => $this->globalStats()]);
         }
 

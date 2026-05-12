@@ -205,7 +205,7 @@ class RoleController extends Controller
 
         // super_admin bypass via Gate::before. agency_admin needs the
         // explicit permission resolved under the active team_id.
-        if ($user->isSuperAdmin() || $user->hasRole('admin')) {
+        if ($user->isSuperAdmin()) {
             return;
         }
 

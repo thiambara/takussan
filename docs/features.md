@@ -345,7 +345,7 @@ Cartographie complète des parcours d'entrée dans le système (référence : `d
 
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
-| P0 | 🛡️ | Rôles prédéfinis : `super_admin`, `admin` (globaux, sans `team_id`) ; `agency_admin`, `agent`, `owner`, `tenant`, `customer`, `service_provider` (scopés via le profil actif → `team_id = profile.agency_id`) |
+| P0 | 🛡️ | Rôles prédéfinis : `super_admin` (global, sans `team_id`) ; `agency_admin`, `agent`, `owner`, `tenant`, `customer`, `service_provider` (scopés via le profil actif → `team_id = profile.agency_id`) |
 | P0 | 🛡️ | Permissions granulaires par ressource (view, create, update, delete, update_all…) |
 | P0 | 🛡️ | Distinction « mes ressources » vs « toutes les ressources » |
 | P0 | 🛡️ | Résolution des permissions au runtime selon le **profil actif** de la requête (header `X-Profile-Id`, cookie ou auto-bascule) |

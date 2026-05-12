@@ -19,7 +19,7 @@ class AgencyKindGuard
 {
     public static function ensureStandardForNonGlobal(User $user, ?int $agencyId): void
     {
-        if ($user->isSuperAdmin() || $user->hasRole('admin')) {
+        if ($user->isSuperAdmin()) {
             return;
         }
         if ($agencyId === null) {

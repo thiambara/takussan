@@ -95,7 +95,7 @@ class InventorySignatureService
     {
         $property = $inventory->property;
         $tenant = $inventory->tenant;
-        $isAdmin = $user->hasRole(['admin', 'super_admin']);
+        $isAdmin = $user->hasRole('super_admin');
 
         if ($role === InventorySignRequest::ROLE_TENANT) {
             $allowed = $isAdmin || ($tenant && $tenant->user_id === $user->id);

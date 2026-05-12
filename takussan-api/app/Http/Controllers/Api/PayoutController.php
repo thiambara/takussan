@@ -23,7 +23,7 @@ class PayoutController extends Controller
 
         $base = Payout::query()->with('landlord');
 
-        if (! $user->hasRole(['admin', 'super_admin'])) {
+        if (! $user->hasRole('super_admin')) {
             $base->where(function ($q) use ($user) {
                 $q->where('landlord_id', $user->id)
                     ->orWhere('issued_by_id', $user->id);
@@ -125,7 +125,7 @@ class PayoutController extends Controller
     protected function authorizeAccess(Request $request, Payout $payout): void
     {
         $user = $request->user();
-        $ok = $user->hasRole(['admin', 'super_admin'])
+        $ok = $user->hasRole('super_admin')
             || $payout->landlord_id === $user->id
             || $payout->issued_by_id === $user->id
             || ($user->agency_id && $user->agency_id === $payout->agency_id);
@@ -136,7 +136,7 @@ class PayoutController extends Controller
     protected function authorizeManage(Request $request, Payout $payout): void
     {
         $user = $request->user();
-        $ok = $user->hasRole(['admin', 'super_admin'])
+        $ok = $user->hasRole('super_admin')
             || $payout->issued_by_id === $user->id
             || ($user->agency_id && $user->agency_id === $payout->agency_id);
 

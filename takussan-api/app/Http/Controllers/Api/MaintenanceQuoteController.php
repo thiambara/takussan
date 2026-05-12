@@ -129,7 +129,7 @@ class MaintenanceQuoteController extends Controller
     {
         $user = $request->user();
         $property = $mr->property;
-        $ok = $user->hasRole(['admin', 'super_admin'])
+        $ok = $user->hasRole('super_admin')
             || ($property && $property->user_id === $user->id)
             || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
 
@@ -139,7 +139,7 @@ class MaintenanceQuoteController extends Controller
     protected function authorizeProvider(Request $request, MaintenanceRequest $mr): void
     {
         $user = $request->user();
-        $ok = $user->hasRole(['admin', 'super_admin'])
+        $ok = $user->hasRole('super_admin')
             || $mr->assigned_to === $user->id;
 
         abort_unless($ok, 403);
@@ -149,7 +149,7 @@ class MaintenanceQuoteController extends Controller
     {
         $user = $request->user();
         $property = $mr->property;
-        $ok = $user->hasRole(['admin', 'super_admin'])
+        $ok = $user->hasRole('super_admin')
             || $mr->assigned_to === $user->id
             || ($property && $property->user_id === $user->id)
             || ($user->agency_id && $property && $property->agency_id === $user->agency_id);

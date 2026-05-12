@@ -57,7 +57,7 @@ class BookingPaymentController extends Controller
         // ignore any client-provided shortcut to `paid`.
         $user = $request->user();
         $isCustomer = $booking->customer && $booking->customer->user_id === $user->id;
-        if ($isCustomer && ! $user->hasRole(['admin', 'super_admin', 'agent', 'agency_admin', 'owner'])) {
+        if ($isCustomer && ! $user->hasRole(['super_admin', 'agent', 'agency_admin', 'owner'])) {
             $data['status'] = PaymentStatus::Pending->value;
             $data['paid_at'] = null;
             unset($data['payment_method'], $data['transaction_id']);
@@ -117,7 +117,7 @@ class BookingPaymentController extends Controller
     {
         $user = $request->user();
         $property = $booking->property;
-        $ok = $user->hasRole(['admin', 'super_admin'])
+        $ok = $user->hasRole('super_admin')
             || $booking->created_by_id === $user->id
             || ($property && $property->user_id === $user->id)
             || ($user->agency_id && $user->agency_id === $booking->agency_id)
@@ -130,7 +130,7 @@ class BookingPaymentController extends Controller
     {
         $user = $request->user();
         $property = $booking->property;
-        $ok = $user->hasRole(['admin', 'super_admin'])
+        $ok = $user->hasRole('super_admin')
             || ($property && $property->user_id === $user->id)
             || ($user->agency_id && $user->agency_id === $booking->agency_id)
             // TCK-172 — the customer creates their own pending payment so the

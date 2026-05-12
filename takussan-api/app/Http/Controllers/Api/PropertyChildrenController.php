@@ -46,7 +46,7 @@ class PropertyChildrenController extends Controller
         if ($user->agency_id && $user->agency_id === $property->agency_id) {
             return;
         }
-        if ($user->hasRole(['admin', 'super_admin'])) {
+        if ($user->hasRole('super_admin')) {
             return;
         }
         abort(403);

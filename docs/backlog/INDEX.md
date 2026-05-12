@@ -143,7 +143,6 @@ _(Vague 24 finalisée — voir Review)_
 > Smoke test browser suivant `docs/qa/utilisateurs-authentifies-qa.md`. Les anomalies sont recensées dans `docs/smoke-tests/utilisateurs-authentifies-2026-05-08.md` et groupées ici par surface de correction.
 
 - [TCK-272](tickets/TCK-272-oauth-only-account-deletion-step-up.md) — Suppression de compte — step-up alternative pour comptes OAuth-only `M · P2 · applicatif`
-
 ### Vague 26 — Bugs smoke test super-admin (2026-05-08)
 
 > Smoke test browser suivant `docs/qa/super-admin-qa.md`. Les anomalies ouvertes sont recensées dans `docs/smoke-tests/super-admin-2026-05-08.md` et groupées ici par surface de correction.
@@ -180,6 +179,8 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 _(vide)_
 
 ## 👀 Review
+
+- [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 
 ### Vague 27 — Audit design front
 

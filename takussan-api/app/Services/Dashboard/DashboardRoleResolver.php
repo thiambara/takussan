@@ -37,7 +37,7 @@ class DashboardRoleResolver
 
     public function resolve(User $user): ?DashboardMetrics
     {
-        if ($user->hasRole(['super_admin', 'agency_admin', 'admin']) && $user->agency_id) {
+        if ($user->hasRole(['super_admin', 'agency_admin']) && $user->agency_id) {
             return $this->agency;
         }
 

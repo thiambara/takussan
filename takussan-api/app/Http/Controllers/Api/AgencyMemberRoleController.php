@@ -37,7 +37,7 @@ class AgencyMemberRoleController extends Controller
                 || $agency->primary_admin_id === $actor->id
                 || (
                     $request->activeProfile()?->agency_id === $agency->id
-                    && $actor->hasRole(['admin', 'agency_admin'])
+                    && $actor->hasRole('agency_admin')
                 ),
             403,
         );
@@ -66,7 +66,14 @@ class AgencyMemberRoleController extends Controller
         // Wrapped in a transaction with row locks to prevent concurrent role
         // changes from both observing "one admin remains" and both succeeding.
         DB::transaction(function () use ($user, $agency, $data) {
+            // Pin the team context to the target agency so hasRole() and the
+            // remaining-admins count below resolve correctly even when the
+            // actor is a super_admin (whose request context is team_id=null).
+            $registrar = app(PermissionRegistrar::class);
+            $registrar->setPermissionsTeamId($agency->id);
+
             $locked = User::where('id', $user->id)->lockForUpdate()->first();
+            $locked?->unsetRelation('roles');
             if ($data['role'] !== 'agency_admin' && $locked && $locked->hasRole('agency_admin')) {
                 $remainingAdmins = User::query()
                     ->where(function ($q) use ($agency) {
@@ -80,7 +87,6 @@ class AgencyMemberRoleController extends Controller
                 abort_if($remainingAdmins === 0, 422, __('messages.cannot_remove_last_agency_admin'));
             }
 
-            $registrar = app(PermissionRegistrar::class);
             $teamId = $data['role'] === 'super_admin' ? null : $agency->id;
             $registrar->setPermissionsTeamId($teamId);
 
@@ -110,7 +116,6 @@ class AgencyMemberRoleController extends Controller
     {
         return [
             'super_admin',
-            'admin',
             'agency_admin',
             'agent',
             'owner',

@@ -19,7 +19,7 @@ class TagController extends Controller
         // This lets autocomplete show only tags relevant to the agent's agency.
         if ($request->input('filter.type') === TagType::Crm->value) {
             $user = $request->user();
-            if ($user && ! $user->hasRole(['admin', 'super_admin']) && $user->agency_id) {
+            if ($user && ! $user->hasRole('super_admin') && $user->agency_id) {
                 $agencyId = $user->agency_id;
                 $base->whereHas('customers', fn ($q) => $q->where('agency_id', $agencyId));
             }

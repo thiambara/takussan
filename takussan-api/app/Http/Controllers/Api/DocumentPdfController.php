@@ -95,7 +95,7 @@ class DocumentPdfController extends Controller
             ->where('user_id', $user->id)
             ->whereNotNull('accepted_at')
             ->exists();
-        $isAdmin = $user->hasRole(['admin', 'super_admin']);
+        $isAdmin = $user->hasRole('super_admin');
 
         abort_unless($isAdmin || $isTenant || $isLandlord || $isAgency || $isCollab, 403);
     }
@@ -111,7 +111,7 @@ class DocumentPdfController extends Controller
         $isRecipient = $invoice->customer && $invoice->customer->user_id === $user->id;
         $isIssuer = $invoice->issued_by_id === $user->id;
         $isAgency = $user->agency_id && $user->agency_id === $invoice->agency_id;
-        $isAdmin = $user->hasRole(['admin', 'super_admin']);
+        $isAdmin = $user->hasRole('super_admin');
 
         abort_unless($isAdmin || $isRecipient || $isIssuer || $isAgency, 403);
     }
@@ -127,7 +127,7 @@ class DocumentPdfController extends Controller
         $isTenant = $lease->tenant && $lease->tenant->user_id === $user->id;
         $isLandlord = $lease->landlord_id === $user->id;
         $isAgency = $user->agency_id && $user->agency_id === $lease->agency_id;
-        $isAdmin = $user->hasRole(['admin', 'super_admin']);
+        $isAdmin = $user->hasRole('super_admin');
 
         abort_unless($isAdmin || $isTenant || $isLandlord || $isAgency, 403);
     }

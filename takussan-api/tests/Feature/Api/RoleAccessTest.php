@@ -19,7 +19,7 @@ class RoleAccessTest extends ApiTestCase
 
     public function test_admin_can_access_users_list(): void
     {
-        $this->apiActingAsRole('admin');
+        $this->apiActingAsRole('super_admin');
 
         $this->apiGet('/api/users')->assertOk();
     }
@@ -40,7 +40,7 @@ class RoleAccessTest extends ApiTestCase
 
     public function test_admin_can_block_user(): void
     {
-        $this->apiActingAsRole('admin');
+        $this->apiActingAsRole('super_admin');
         $target = User::factory()->create();
 
         $this->apiPost("/api/users/{$target->id}/block")->assertOk();
@@ -64,7 +64,7 @@ class RoleAccessTest extends ApiTestCase
 
     public function test_admin_can_activate_user(): void
     {
-        $this->apiActingAsRole('admin');
+        $this->apiActingAsRole('super_admin');
         $target = User::factory()->create();
 
         $this->apiPost("/api/users/{$target->id}/activate")->assertOk();
@@ -80,7 +80,7 @@ class RoleAccessTest extends ApiTestCase
 
     public function test_admin_can_delete_user(): void
     {
-        $this->apiActingAsRole('admin');
+        $this->apiActingAsRole('super_admin');
         $target = User::factory()->create();
 
         $this->apiDelete("/api/users/{$target->id}")->assertNoContent();

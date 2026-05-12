@@ -34,7 +34,7 @@ class PropertyController extends Controller
 
         $base = Property::query()->with(['address', 'owner', 'collaborators.user']);
 
-        if (! $user->hasRole(['admin', 'super_admin'])) {
+        if (! $user->hasRole('super_admin')) {
             $base->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id);
                 if ($user->agency_id) {
@@ -100,7 +100,7 @@ class PropertyController extends Controller
             'address.longitude' => ['nullable', 'numeric'],
         ]);
 
-        if (! $request->user()->hasRole(['admin', 'super_admin'])) {
+        if (! $request->user()->hasRole('super_admin')) {
             $data['agency_id'] = $request->user()->agency_id;
         }
 
@@ -367,7 +367,7 @@ class PropertyController extends Controller
         if ($user->agency_id && $user->agency_id === $property->agency_id) {
             return;
         }
-        if ($user->hasRole(['admin', 'super_admin'])) {
+        if ($user->hasRole('super_admin')) {
             return;
         }
         abort(403);

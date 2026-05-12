@@ -29,7 +29,7 @@ class PermissionController extends Controller
         // this list reveals the platform's access surface and isn't
         // useful to other roles.
         abort_unless($user !== null, 401);
-        if (! $user->isSuperAdmin() && ! $user->hasRole('admin')) {
+        if (! $user->isSuperAdmin()) {
             abort_unless($agencyId !== null, 403);
             app(PermissionRegistrar::class)->setPermissionsTeamId($agencyId);
             $user->unsetRelation('roles');

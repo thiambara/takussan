@@ -42,10 +42,10 @@ class ExportController extends Controller
         $allowed = ['payments', 'leases', 'customers', 'properties'];
         abort_unless(in_array($entity, $allowed, true), 404, "Unknown entity: {$entity}");
 
-        if ($entity === 'customers' && ! $user->hasRole(['super_admin', 'admin', 'agency_admin', 'agent'])) {
+        if ($entity === 'customers' && ! $user->hasRole(['super_admin', 'agency_admin', 'agent'])) {
             abort(403, 'CRM export restricted to agency staff.');
         }
-        if ($entity === 'properties' && ! $user->hasRole(['super_admin', 'admin', 'agency_admin', 'agent', 'owner'])) {
+        if ($entity === 'properties' && ! $user->hasRole(['super_admin', 'agency_admin', 'agent', 'owner'])) {
             abort(403, 'Properties export restricted to staff and owners.');
         }
 
