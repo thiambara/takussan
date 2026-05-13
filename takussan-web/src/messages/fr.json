@@ -515,6 +515,17 @@
     "listHeading": "Conversations",
     "newGroup": "Nouveau groupe",
     "emptyState": "Sélectionnez une conversation pour afficher les messages.",
+    "widget": {
+      "launcherAria": "Ouvrir la messagerie",
+      "launcherAriaWithUnread": "Ouvrir la messagerie ({count, plural, one {# message non lu} other {# messages non lus}})",
+      "panelTitle": "Messagerie",
+      "panelAriaLabel": "Panneau de messagerie",
+      "closePanel": "Fermer le panneau",
+      "viewAll": "Voir toute la messagerie",
+      "unreadInline": "{count, plural, one {# non lu} other {# non lus}}",
+      "chatBack": "Retour aux conversations",
+      "manageGroup": "Gérer le groupe"
+    },
     "system": {
       "participantAdded": "{actor} a ajouté {target} au groupe.",
       "participantRemoved": "{actor} a retiré {target} du groupe.",

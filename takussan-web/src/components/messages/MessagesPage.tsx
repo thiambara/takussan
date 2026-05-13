@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConversationList } from './ConversationList';
@@ -10,12 +11,20 @@ import { NewGroupDialog } from './NewGroupDialog';
 
 /**
  * Two-pane messaging layout: conversation list on the left, active chat on
- * the right. Selection is held locally — deep-linking (URL-driven) can be
- * added later without changing the API surface.
+ * the right. Selection is held locally; the initial value can be seeded
+ * from a `?conversation=ID` query param (TCK-274) so the floating chat
+ * widget can deep-link into this page (mobile FAB, "Manage group" link).
  */
 export function MessagesPage() {
   const t = useTranslations('messaging');
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const searchParams = useSearchParams();
+  const initialId = (() => {
+    const raw = searchParams?.get('conversation');
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isInteger(n) && n > 0 ? n : null;
+  })();
+  const [selectedId, setSelectedId] = useState<number | null>(initialId);
   const [groupOpen, setGroupOpen] = useState(false);
 
   return (

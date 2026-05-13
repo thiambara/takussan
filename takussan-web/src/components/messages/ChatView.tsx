@@ -5,8 +5,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useLocale } from 'next-intl';
-import { Info, Paperclip, Send, Users } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
+import { ArrowLeft, Info, Paperclip, Send, Settings, Users } from 'lucide-react';
 import {
   useConversation,
   useMessages,
@@ -26,6 +26,16 @@ import type { Message } from '@/types/message';
 
 interface ChatViewProps {
   readonly conversationId: number;
+  /**
+   * `page` (default) renders the full-page chat with the in-place group info
+   * sheet (TCK-085). `widget` is the compact variant used by the floating
+   * chat widget (TCK-274): it adds a back button to the header, drops the
+   * group info sheet, and replaces the info button with a link to the full
+   * `/app/messages` page so admin actions stay in their dedicated UI.
+   */
+  readonly variant?: 'page' | 'widget';
+  /** Required when `variant === 'widget'` to render the back button. */
+  readonly onBack?: () => void;
 }
 
 /**
@@ -33,7 +43,9 @@ interface ChatViewProps {
  * When the tab is hidden we pause polling to save bandwidth (document
  * visibility listener below). See TCK-045 Notes d'implémentation.
  */
-export function ChatView({ conversationId }: ChatViewProps) {
+export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewProps) {
+  const isWidget = variant === 'widget';
+  const tWidget = useTranslations('messaging.widget');
   const locale = useLocale() as Locale;
   const { user, token } = useAuth();
   const [isVisible, setIsVisible] = useState(
@@ -139,6 +151,18 @@ export function ChatView({ conversationId }: ChatViewProps) {
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center gap-3 border-b border-stone-200 bg-white px-4 py-3">
+        {isWidget && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onBack}
+            aria-label={tWidget('chatBack')}
+            data-testid="chat-back-button"
+          >
+            <ArrowLeft className="size-4" aria-hidden />
+          </Button>
+        )}
         {isGroup ? (
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-stone-200">
             <Users className="size-5 text-stone-600" aria-hidden />
@@ -177,7 +201,7 @@ export function ChatView({ conversationId }: ChatViewProps) {
             </Link>
           )}
         </div>
-        {isGroup && (
+        {isGroup && !isWidget && (
           <Button
             type="button"
             variant="ghost"
@@ -189,8 +213,18 @@ export function ChatView({ conversationId }: ChatViewProps) {
             <Info className="size-4" aria-hidden />
           </Button>
         )}
+        {isGroup && isWidget && (
+          <Link
+            href={`/app/messages?conversation=${conversationId}`}
+            className="inline-flex size-9 items-center justify-center rounded-md text-stone-600 hover:bg-stone-100"
+            aria-label={tWidget('manageGroup')}
+            data-testid="chat-manage-group-link"
+          >
+            <Settings className="size-4" aria-hidden />
+          </Link>
+        )}
       </header>
-      {isGroup && (
+      {isGroup && !isWidget && (
         <ConversationInfoSheet
           open={infoOpen}
           onClose={() => setInfoOpen(false)}

@@ -11,6 +11,7 @@ import { FeatureFlagProvider } from '@/components/providers/FeatureFlagProvider'
 import { UserLocationProvider } from '@/components/providers/UserLocationProvider';
 import { MaintenanceBanner } from '@/components/maintenance/MaintenanceBanner';
 import { GlobalAnnouncementBanner } from '@/components/announcements/GlobalAnnouncementBanner';
+import { ChatWidget } from '@/components/chat-widget/ChatWidget';
 import { TIMEZONE } from '@/i18n/config';
 import './globals.css';
 
@@ -52,6 +53,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <UserLocationProvider>
                   <MaintenanceBanner />
                   <GlobalAnnouncementBanner />
+                  <ChatWidget />
                   {children}
                 </UserLocationProvider>
               </FeatureFlagProvider>

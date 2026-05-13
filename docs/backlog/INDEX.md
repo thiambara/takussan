@@ -170,6 +170,12 @@ _(toutes mergées — voir Done)_
 
 _(toutes mergées — voir Done)_
 
+### Vague 30 — Messagerie UX flottante (2026-05-13)
+
+> Raccourci global vers la messagerie : widget flottant style Facebook Messenger (desktop) + FAB redirigeant vers `/app/messages` (mobile). N'introduit aucun nouvel endpoint — réutilise les API livrées par TCK-045 et TCK-085.
+
+_(TCK-274 en review)_
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
@@ -180,6 +186,7 @@ _(vide)_
 
 ## 👀 Review
 
+- [TCK-274](tickets/TCK-274-messaging-floating-widget.md) — Messagerie — widget flottant accessible site-wide `M · P2 · front`
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 
 ### Vague 27 — Audit design front

@@ -536,6 +536,17 @@
     "listHeading": "Conversations",
     "newGroup": "New group",
     "emptyState": "Select a conversation to view messages.",
+    "widget": {
+      "launcherAria": "Open messaging",
+      "launcherAriaWithUnread": "Open messaging ({count, plural, one {# unread message} other {# unread messages}})",
+      "panelTitle": "Messaging",
+      "panelAriaLabel": "Messaging panel",
+      "closePanel": "Close panel",
+      "viewAll": "View all messages",
+      "unreadInline": "{count, plural, one {# unread} other {# unread}}",
+      "chatBack": "Back to conversations",
+      "manageGroup": "Manage group"
+    },
     "system": {
       "participantAdded": "{actor} added {target} to the group.",
       "participantRemoved": "{actor} removed {target} from the group.",

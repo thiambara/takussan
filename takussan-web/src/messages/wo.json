@@ -410,6 +410,17 @@
     "listHeading": "Waxtaan",
     "newGroup": "Bantu bu bees",
     "emptyState": "Tànn benn waxtaan ngir gis bataaxal yi.",
+    "widget": {
+      "launcherAria": "Ubbil waxtaan",
+      "launcherAriaWithUnread": "Ubbil waxtaan ({count, plural, one {# bataaxal bu jëkku jàng} other {# bataaxal yu jëkku jàng}})",
+      "panelTitle": "Waxtaan",
+      "panelAriaLabel": "Panneau waxtaan",
+      "closePanel": "Tëj panneau bi",
+      "viewAll": "Gis lépp waxtaan",
+      "unreadInline": "{count, plural, one {# bu jëkku jàng} other {# yu jëkku jàng}}",
+      "chatBack": "Dellu ci waxtaan yi",
+      "manageGroup": "Jaaweel kuréel gi"
+    },
     "system": {
       "participantAdded": "{actor} dafa yokk {target} ci kuréel gi.",
       "participantRemoved": "{actor} dafa génn {target} ci kuréel gi.",
