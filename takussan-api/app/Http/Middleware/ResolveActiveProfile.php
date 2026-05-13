@@ -6,6 +6,7 @@ use App\Services\Profiles\ActiveProfileResolver;
 use Closure;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -46,6 +47,17 @@ class ResolveActiveProfile
                 $user = $request->user('sanctum');
             } catch (AuthenticationException) {
                 $user = null;
+            }
+
+            // Propagate the Sanctum-resolved user to the default guard so
+            // `$request->user()` (and `auth()->user()`) return it for the
+            // rest of the request, even on routes that aren't wrapped in
+            // `auth:sanctum` (eg. public optional-auth endpoints like the
+            // property visit-request / review-eligibility / contact-lead).
+            // Without this, the controller sees an anonymous request and
+            // enforces the guest validation rules (TCK-179).
+            if ($user !== null) {
+                Auth::setUser($user);
             }
         }
 

@@ -20,7 +20,7 @@ describe('resolveWizardResume', () => {
 
   it('matches prefix rules and forwards the suffix', () => {
     expect(resolveWizardResume('owner-onboarding-42')).toEqual({
-      href: '/app/profile/owner/onboarding?invitation=42',
+      href: '/onboarding/owner?owner=42',
       i18nKey: 'owner-onboarding',
     });
   });

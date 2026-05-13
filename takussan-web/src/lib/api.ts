@@ -89,6 +89,36 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * When `apiRequest` runs server-side (RSC, server actions, route handlers),
+ * the outgoing fetch originates from the Next.js process — not the visitor's
+ * browser — so Laravel sees a single shared origin IP. Without forwarding,
+ * per-IP rate limiters and `Request::ip()` collapse onto one bucket for all
+ * visitors. We read the inbound visitor IP from `next/headers` and propagate
+ * it via `X-Forwarded-For`, paired with `TrustProxies` configured on the API.
+ *
+ * Returns `undefined` when there is no resolvable visitor (client-side calls,
+ * out-of-request execution like build-time, or no upstream proxy header).
+ */
+async function resolveVisitorIp(): Promise<string | undefined> {
+  if (typeof window !== 'undefined') return undefined;
+  try {
+    const { headers } = await import('next/headers');
+    const incoming = await headers();
+    const xff = incoming.get('x-forwarded-for');
+    if (xff) {
+      // XFF is a comma-separated list — the left-most entry is the original
+      // client. Trim whitespace which is permitted by RFC 7239-style proxies.
+      const first = xff.split(',')[0]?.trim();
+      if (first) return first;
+    }
+    const xri = incoming.get('x-real-ip')?.trim();
+    return xri && xri.length > 0 ? xri : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function apiRequest<T>(
   path: string,
   { method = 'GET', body, token, headers = {}, formData = false, locale, signal, activeProfileId }: RequestOptions = {},
@@ -113,6 +143,13 @@ export async function apiRequest<T>(
 
   if (activeProfileId && !requestHeaders['X-Active-Profile-Hint']) {
     requestHeaders['X-Active-Profile-Hint'] = activeProfileId;
+  }
+
+  if (!requestHeaders['X-Forwarded-For']) {
+    const visitorIp = await resolveVisitorIp();
+    if (visitorIp) {
+      requestHeaders['X-Forwarded-For'] = visitorIp;
+    }
   }
 
   const response = await fetch(`${API_URL}${path}`, {

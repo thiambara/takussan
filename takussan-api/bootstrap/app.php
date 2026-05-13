@@ -22,6 +22,18 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Trust the upstream proxy that fronts the API (Next.js server actions,
+        // load balancer, reverse proxy). Without this, every request appears to
+        // come from the proxy's IP and rate limiters keyed on `Request::ip()`
+        // become a single shared bucket for all visitors. Configure via the
+        // `TRUSTED_PROXIES` env var as a comma-separated list of IPs/CIDRs
+        // (e.g. `10.0.0.0/8,::1`). Defaults to loopback only — production must
+        // pin it to the actual proxy address(es) before XFF can be honoured.
+        $middleware->trustProxies(at: array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('TRUSTED_PROXIES', '127.0.0.1,::1')),
+        ))));
+
         $middleware->api(prepend: [
             ForceJsonResponseMiddleware::class,
             SetLocaleMiddleware::class,

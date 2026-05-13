@@ -108,6 +108,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\PersonalAccessToken;
 use LemonSqueezy\Laravel\Events\OrderCreated as LemonSqueezyOrderCreated;
 use LemonSqueezy\Laravel\Events\OrderRefunded as LemonSqueezyOrderRefunded;
 use LemonSqueezy\Laravel\Events\SubscriptionCreated as LemonSqueezySubscriptionCreated;
@@ -120,10 +121,43 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->registerCurrencyFormatter();
+        $this->registerCdnServices();
+        $this->registerSmsServices();
+    }
+
+    public function boot(Dispatcher $events): void
+    {
+        $this->bootRequestMacros();
+        $this->bootRateLimiters();
+        $this->bootObservers();
+        $this->bootReportingHooks();
+        $this->bootGatesAndPolicies();
+        $this->bootBladeDirectives();
+        $this->bootSocialiteProviders($events);
+        $this->bootPaymentEventListeners();
+        $this->bootLeaseEventListeners($events);
+        $this->bootAgencyEventListeners($events);
+        $this->bootRoleDelegationEventListeners();
+        $this->bootMediaEventListeners();
+        $this->bootBankReconciliationListeners();
+        $this->bootAuthEventListeners($events);
+        $this->bootNotificationChannels();
+    }
+
+    // -----------------------------------------------------------------
+    // register() helpers
+    // -----------------------------------------------------------------
+
+    private function registerCurrencyFormatter(): void
+    {
         // TCK-084 — share a single CurrencyFormatter so both the Blade
         // directive and any controller/service can resolve the same instance.
         $this->app->singleton(CurrencyFormatter::class);
+    }
 
+    private function registerCdnServices(): void
+    {
         // TCK-105 — CDN layer. The contract is bound to the active provider
         // from config. MediaUrlResolver and CdnHealthGuard are singletons so
         // the circuit-breaker counter survives across multiple URL resolutions
@@ -141,7 +175,10 @@ class AppServiceProvider extends ServiceProvider
                 guard: $app->make(CdnHealthGuard::class),
             );
         });
+    }
 
+    private function registerSmsServices(): void
+    {
         // TCK-102 — register the multi-provider SMS stack. Each leaf
         // driver is a singleton so its in-process state (Mtarget batch
         // counter, LAM ret_url cache, etc.) survives across notifications
@@ -170,6 +207,7 @@ class AppServiceProvider extends ServiceProvider
                 config: $app->make('config'),
             );
         });
+
         // The interface resolves to whatever driver is active in this
         // env: in `local`/`testing` we default to log-only, otherwise the
         // router orchestrates the real providers.
@@ -183,7 +221,11 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 
-    public function boot(Dispatcher $events): void
+    // -----------------------------------------------------------------
+    // boot() helpers
+    // -----------------------------------------------------------------
+
+    private function bootRequestMacros(): void
     {
         // TCK-141 — `$request->activeProfile()` reads the profile resolved by
         // `ResolveActiveProfile`. Returns null on routes the middleware did
@@ -192,10 +234,50 @@ class AppServiceProvider extends ServiceProvider
             /** @var Request $this */
             return $this->attributes->get('active_profile');
         });
+    }
 
+    private function bootRateLimiters(): void
+    {
         // TCK-107 — named rate limiter; key is "search-suggest|{ip}" (Laravel default for named limiters).
         RateLimiter::for('search-suggest', fn () => Limit::perMinute(60));
 
+        // Public POST endpoints — keyed by authenticated user_id when a valid
+        // Bearer token is present, otherwise by the visitor IP (resolved via
+        // TrustProxies + X-Forwarded-For). Authenticated users behind a shared
+        // NAT can no longer DoS each other, and a logged-in user keeps the
+        // same bucket across networks. `$request->user('sanctum')` is invoked
+        // *before* ResolveActiveProfile runs at the end of the api group, so
+        // we probe the sanctum guard directly here — Sanctum caches the
+        // resolved user on the guard, so the downstream middleware call is a
+        // hit, not a second DB query.
+        RateLimiter::for('public-report', fn (Request $request) => Limit::perHour(5)->by($this->visitorRateLimitKey($request)));
+        RateLimiter::for('public-visit-request', fn (Request $request) => Limit::perHour(10)->by($this->visitorRateLimitKey($request)));
+        RateLimiter::for('public-contact-lead', fn (Request $request) => Limit::perMinutes(10, 5)->by($this->visitorRateLimitKey($request)));
+    }
+
+    private function visitorRateLimitKey(Request $request): string
+    {
+        // Resolve the Sanctum personal access token directly rather than going
+        // through `$request->user('sanctum')`. The throttle middleware runs
+        // before ResolveActiveProfile, and the sanctum guard's user resolution
+        // does not always succeed at this point of the pipeline (e.g. the
+        // session-backed `web` guard fallback returns null first and the
+        // guard's request binding may not have been refreshed). Hitting
+        // `PersonalAccessToken::findToken()` ourselves is the same DB lookup
+        // sanctum performs internally and is unambiguous from anywhere.
+        $bearer = $request->bearerToken();
+        if (is_string($bearer) && $bearer !== '') {
+            $accessToken = PersonalAccessToken::findToken($bearer);
+            if ($accessToken !== null && $accessToken->tokenable_id !== null) {
+                return 'user:'.$accessToken->tokenable_id;
+            }
+        }
+
+        return 'ip:'.$request->ip();
+    }
+
+    private function bootObservers(): void
+    {
         Property::observe(PropertyObserver::class);
         Message::observe(MessageObserver::class);
         Favorite::observe(FavoriteObserver::class);
@@ -212,15 +294,21 @@ class AppServiceProvider extends ServiceProvider
         Inventory::observe(InventoryOnboardingObserver::class);
         LeasePayment::observe(LeasePaymentOnboardingObserver::class);
 
+        // TCK-105 — purge CDN cache when a media item is deleted or replaced.
+        Media::observe(MediaCdnObserver::class);
+    }
+
+    private function bootReportingHooks(): void
+    {
         // TCK-227 — bump the reporting cache version on agency creation so
         // every cached growth/revenue/cohort key cold-misses next call.
         Agency::created(fn () => PlatformReportingService::bumpCacheVersion());
         Activity::created(fn (Activity $activity) => app(DispatchAlerts::class)->handle($activity));
         Event::listen(ScheduledTaskFinished::class, RecordScheduledTaskRun::class);
+    }
 
-        // TCK-105 — purge CDN cache when a media item is deleted or replaced.
-        Media::observe(MediaCdnObserver::class);
-
+    private function bootGatesAndPolicies(): void
+    {
         // TCK-144 — Probe under team_id=null. Without `isSuperAdmin()` here a
         // super-admin acting under an agency context (e.g. via `X-Profile-Id`)
         // would silently lose the gate-bypass — `Gate::before` runs at whatever
@@ -277,6 +365,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('approve-property', [PropertyModerationPolicy::class, 'approve']);
         Gate::define('reject-property', [PropertyModerationPolicy::class, 'reject']);
         Gate::define('resubmit-property', [PropertyModerationPolicy::class, 'resubmit']);
+    }
+
+    private function bootBladeDirectives(): void
+    {
         // TCK-084 — `@currency($amount, $currency)` Blade directive used by
         // PDF templates. Accepts either a Currency enum case or its string
         // value so existing templates that thread `$invoice->currency` (a
@@ -284,10 +376,16 @@ class AppServiceProvider extends ServiceProvider
         Blade::directive('currency', function (string $expression): string {
             return "<?php echo \\App\\Support\\Blade\\CurrencyDirective::render({$expression}); ?>";
         });
+    }
 
+    private function bootSocialiteProviders(Dispatcher $events): void
+    {
         $events->listen(SocialiteWasCalled::class, 'SocialiteProviders\\Apple\\AppleExtendSocialite@handle');
         $events->listen(SocialiteWasCalled::class, 'SocialiteProviders\\Facebook\\FacebookExtendSocialite@handle');
+    }
 
+    private function bootPaymentEventListeners(): void
+    {
         // TCK-079 — bridge lemonsqueezy/laravel webhook events onto our
         // domain payment gateway service. The package validates X-Signature
         // upstream; we only need to map events to local payment rows.
@@ -297,7 +395,10 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(LemonSqueezyOrderCreated::class, [LemonSqueezyEventListener::class, 'handleOrderCreated']);
         Event::listen(LemonSqueezyOrderRefunded::class, [LemonSqueezyEventListener::class, 'handleOrderRefunded']);
         Event::listen(LemonSqueezySubscriptionCreated::class, [LemonSqueezyEventListener::class, 'handleSubscriptionCreated']);
+    }
 
+    private function bootLeaseEventListeners(Dispatcher $events): void
+    {
         // TCK-088 — notify the tenant when their lease deposit is refunded.
         $events->listen(LeaseDepositRefunded::class, NotifyTenantOfDepositRefund::class);
 
@@ -312,12 +413,6 @@ class AppServiceProvider extends ServiceProvider
         // TCK-091 — notify the tenant when the rent on their lease is reviewed.
         $events->listen(LeaseRentReviewed::class, NotifyTenantOfRentReview::class);
 
-        // TCK-269 — safety-net flip listener. The HTTP approve flow already
-        // performs the flip inline (Option A — see AgencyUpgradeReviewService),
-        // so on the happy path this is a no-op. Stays registered so direct
-        // event dispatchers (jobs, scripts) still get the flip applied.
-        $events->listen(AgencyUpgradeApproved::class, FlipAgencyKindOnUpgradeApproved::class);
-
         // TCK-265 — welcome the tenant the first time their lease is activated.
         $events->listen(LeaseActivated::class, SendTenantWelcomeNotification::class);
 
@@ -325,19 +420,40 @@ class AppServiceProvider extends ServiceProvider
         // (independent listener: welcome notification can be skipped per
         // user preference, the checklist must always be created).
         $events->listen(LeaseActivated::class, CreateTenantOnboardingChecklist::class);
+    }
 
+    private function bootAgencyEventListeners(Dispatcher $events): void
+    {
+        // TCK-269 — safety-net flip listener. The HTTP approve flow already
+        // performs the flip inline (Option A — see AgencyUpgradeReviewService),
+        // so on the happy path this is a no-op. Stays registered so direct
+        // event dispatchers (jobs, scripts) still get the flip applied.
+        $events->listen(AgencyUpgradeApproved::class, FlipAgencyKindOnUpgradeApproved::class);
+    }
+
+    private function bootRoleDelegationEventListeners(): void
+    {
         // TCK-108 — notify on role delegation lifecycle events.
         Event::listen(RoleDelegationActivated::class, NotifyDelegationActivated::class);
         Event::listen(RoleDelegationExpired::class, NotifyDelegationExpired::class);
         Event::listen(RoleDelegationRevoked::class, NotifyDelegationRevoked::class);
+    }
 
+    private function bootMediaEventListeners(): void
+    {
         // TCK-106 — apply watermark after Spatie generates each conversion.
         Event::listen(ConversionHasBeenCompletedEvent::class, ApplyWatermarkOnConversionListener::class);
+    }
 
+    private function bootBankReconciliationListeners(): void
+    {
         // TCK-109 — bank reconciliation event listeners.
         Event::listen(BankStatementImported::class, NotifyStatementImported::class);
         Event::listen(BankStatementFinalized::class, NotifyStatementFinalized::class);
+    }
 
+    private function bootAuthEventListeners(Dispatcher $events): void
+    {
         // TCK-022: dispatch the email verification notification on user
         // registration (Laravel no longer auto-registers this in the
         // "modern" bootstrap structure).
@@ -360,11 +476,6 @@ class AppServiceProvider extends ServiceProvider
             return $frontend.str_replace('/api/auth/verify-email', '/auth/verify-email', $apiPath);
         });
 
-        // TCK-102 — register the `sms` notification channel so any
-        // Notification can list `SmsChannel::class` (or simply `'sms'`
-        // via Notifiable::notify) in its via() return.
-        $this->app->make(ChannelManager::class)->extend('sms', fn ($app) => $app->make(SmsChannel::class));
-
         // TCK-022: build the password reset URL against the configured
         // frontend URL — avoids depending on a named route defined in
         // another host (`password.reset`).
@@ -373,5 +484,13 @@ class AppServiceProvider extends ServiceProvider
 
             return $frontend.'/auth/reset-password?token='.$token.'&email='.urlencode($notifiable->getEmailForPasswordReset());
         });
+    }
+
+    private function bootNotificationChannels(): void
+    {
+        // TCK-102 — register the `sms` notification channel so any
+        // Notification can list `SmsChannel::class` (or simply `'sms'`
+        // via Notifiable::notify) in its via() return.
+        $this->app->make(ChannelManager::class)->extend('sms', fn ($app) => $app->make(SmsChannel::class));
     }
 }

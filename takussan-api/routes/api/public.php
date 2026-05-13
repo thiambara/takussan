@@ -41,15 +41,15 @@ Route::prefix('public')->name('public.')->group(function () {
         ->name('properties.review-eligibility');
 
     Route::post('properties/{slug}/report', [PublicPropertyController::class, 'report'])
-        ->middleware('throttle:5,60')
+        ->middleware('throttle:public-report')
         ->name('properties.report');
 
     Route::post('properties/{slug}/visit-request', [PublicPropertyController::class, 'visitRequest'])
-        ->middleware('throttle:10,60')
+        ->middleware('throttle:public-visit-request')
         ->name('properties.visit-request');
 
     Route::post('properties/{slug}/contact-lead', [PublicPropertyController::class, 'contactLead'])
-        ->middleware('throttle:5,10')
+        ->middleware('throttle:public-contact-lead')
         ->name('properties.contact-lead');
 
     Route::middleware('auth:sanctum')->group(function () {

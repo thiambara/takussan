@@ -1,6 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { CalendarIcon, ClockIcon, MapPinIcon, VideoIcon, KeyIcon, SparklesIcon } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -9,8 +10,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -21,6 +23,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useVisitRequest } from '@/hooks/useVisitRequest';
 import type { VisitType } from '@/types/visit';
+import { cn } from '@/lib/utils';
 
 interface PropertyVisitDialogProps {
   slug: string;
@@ -29,25 +32,113 @@ interface PropertyVisitDialogProps {
   onSuccess?: () => void;
 }
 
-const VISIT_TYPES: Array<{ value: VisitType; label: string }> = [
-  { value: 'in_person', label: 'En personne' },
-  { value: 'virtual', label: 'Virtuelle (visio)' },
-  { value: 'self_guided', label: 'Autonome (clés)' },
-  { value: 'hybrid', label: 'Hybride' },
+const VISIT_TYPES: Array<{ value: VisitType; label: string; description: string; Icon: typeof MapPinIcon }> = [
+  { value: 'in_person', label: 'En personne', description: 'Visite accompagnée du propriétaire ou de l\u2019agent.', Icon: MapPinIcon },
+  { value: 'virtual', label: 'Virtuelle', description: 'Visioconférence depuis chez vous.', Icon: VideoIcon },
+  { value: 'self_guided', label: 'Autonome', description: 'Vous récupérez les clés sur place.', Icon: KeyIcon },
+  { value: 'hybrid', label: 'Hybride', description: 'Première visio puis visite physique.', Icon: SparklesIcon },
 ];
+
+const TIME_SLOTS: string[] = (() => {
+  const slots: string[] = [];
+  for (let hour = 9; hour <= 19; hour += 1) {
+    for (const minute of [0, 30]) {
+      if (hour === 19 && minute === 30) break;
+      slots.push(`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
+    }
+  }
+  return slots;
+})();
+
+/** Minimum lead-time before a slot is offered (avoids "now-ish" requests). */
+const MIN_LEAD_MINUTES = 30;
+
+function formatDateLabel(date: Date | undefined): string {
+  if (!date) return 'Choisir une date';
+  return new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
+function isSameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+/**
+ * For a given date, return only slots that are still bookable. When the
+ * date is today we filter out anything earlier than `now + MIN_LEAD_MINUTES`
+ * so the user can't pick a time that's already in the past (or imminent).
+ */
+function availableSlotsForDate(date: Date | undefined): string[] {
+  if (!date) return TIME_SLOTS;
+  const now = new Date();
+  if (!isSameDay(date, now)) return TIME_SLOTS;
+
+  const cutoff = now.getHours() * 60 + now.getMinutes() + MIN_LEAD_MINUTES;
+  return TIME_SLOTS.filter((slot) => {
+    const [h, m] = slot.split(':').map((v) => Number.parseInt(v, 10));
+    return h * 60 + m >= cutoff;
+  });
+}
 
 export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: PropertyVisitDialogProps) {
   const { user } = useAuth();
   const { submit, submitting, error } = useVisitRequest(slug);
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState<Date | undefined>(undefined);
   const [time, setTime] = useState('10:00');
   const [type, setType] = useState<VisitType>('in_person');
   const [notes, setNotes] = useState('');
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
+  const today = useMemo(() => {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    return t;
+  }, []);
+
+  // Recompute available slots whenever the picked date changes; if today
+  // is selected, slots earlier than `now + MIN_LEAD_MINUTES` are dropped.
+  const slots = useMemo(() => availableSlotsForDate(date), [date]);
+
+  // Effective time, derived. If the previously-picked hour is no longer
+  // available (eg. user just switched to today and 10:00 has passed), we
+  // fall back to the first remaining slot — without an effect, so the
+  // value stays consistent every render.
+  const effectiveTime = slots.includes(time) ? time : (slots[0] ?? '');
+
+  const todayHasNoSlots =
+    date !== undefined && isSameDay(date, new Date()) && slots.length === 0;
+
+  /**
+   * `onSelect` from the calendar. When the user picks a new date we also
+   * snap the chosen time to the first available slot for that date — so
+   * switching to today never leaves a stale past hour selected.
+   */
+  function handleDateSelect(d: Date | undefined): void {
+    setDate(d ?? undefined);
+    if (d) {
+      const next = availableSlotsForDate(d);
+      if (next.length > 0 && !next.includes(time)) {
+        setTime(next[0]);
+      }
+      setCalendarOpen(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
-    if (!date) return;
-    const scheduledAt = new Date(`${date}T${time}:00`).toISOString();
+    if (!date || !effectiveTime) return;
+    const [hh, mm] = effectiveTime.split(':').map((v) => Number.parseInt(v, 10));
+    const scheduled = new Date(date);
+    scheduled.setHours(hh, mm, 0, 0);
+    const scheduledAt = scheduled.toISOString();
     try {
       await submit({
         scheduled_at: scheduledAt,
@@ -87,66 +178,161 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
     );
   }
 
+  const activeType = VISIT_TYPES.find((t) => t.value === type) ?? VISIT_TYPES[0];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Demander une visite</DialogTitle>
           <DialogDescription>
             Choisissez une date et un créneau — le propriétaire confirmera rapidement.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <label className="space-y-1 text-sm">
-              <span className="text-stone-700">Date</span>
-              <Input
-                type="date"
-                required
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                min={new Date().toISOString().slice(0, 10)}
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="text-stone-700">Heure</span>
-              <Input type="time" required value={time} onChange={(e) => setTime(e.target.value)} />
-            </label>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
+            <div className="space-y-1.5">
+              <label htmlFor="visit-date" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Date
+              </label>
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <PopoverTrigger
+                  render={
+                    <Button
+                      type="button"
+                      id="visit-date"
+                      variant="outline"
+                      className={cn(
+                        'h-10 w-full justify-start gap-2 px-3 text-left font-normal',
+                        !date && 'text-muted-foreground',
+                      )}
+                    />
+                  }
+                >
+                  <CalendarIcon className="size-4 text-muted-foreground" />
+                  <span className="capitalize">{formatDateLabel(date)}</span>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={handleDateSelect}
+                    disabled={{ before: today }}
+                    defaultMonth={date ?? today}
+                    autoFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="visit-time" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Heure
+              </label>
+              <Select
+                value={effectiveTime}
+                onValueChange={(v) => setTime((v as string) ?? slots[0] ?? '')}
+                items={slots.map((slot) => ({ value: slot, label: slot }))}
+                disabled={slots.length === 0}
+              >
+                <SelectTrigger
+                  id="visit-time"
+                  className="w-full data-[size=default]:h-10 sm:w-30"
+                >
+                  <ClockIcon className="size-4 text-muted-foreground" />
+                  <SelectValue placeholder="—" />
+                </SelectTrigger>
+                <SelectContent>
+                  {slots.map((slot) => (
+                    <SelectItem key={slot} value={slot}>
+                      {slot}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <label className="block space-y-1 text-sm">
-            <span className="text-stone-700">Type de visite</span>
-            <Select
-              value={type}
-              onValueChange={(v) => setType((v as VisitType) ?? 'in_person')}
-              items={VISIT_TYPES.map((t) => ({ value: t.value, label: t.label }))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {VISIT_TYPES.map((t) => (
-                  <SelectItem key={t.value} value={t.value}>
-                    {t.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-          <label className="block space-y-1 text-sm">
-            <span className="text-stone-700">Message (optionnel)</span>
+
+          {todayHasNoSlots && (
+            <p className="-mt-2 text-xs text-muted-foreground">
+              Plus de créneau disponible aujourd&apos;hui — choisissez une autre date.
+            </p>
+          )}
+
+          <fieldset className="space-y-2">
+            <legend className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Type de visite
+            </legend>
+            <div className="grid grid-cols-2 gap-2">
+              {VISIT_TYPES.map(({ value, label, description, Icon }) => {
+                const selected = value === type;
+                return (
+                  <button
+                    type="button"
+                    key={value}
+                    onClick={() => setType(value)}
+                    aria-pressed={selected}
+                    className={cn(
+                      'group flex items-start gap-2.5 rounded-lg p-3 text-left text-sm transition-all',
+                      'ring-1 ring-foreground/10 hover:bg-muted/60',
+                      selected
+                        ? 'bg-primary/10 ring-primary/40 shadow-sm'
+                        : 'bg-background',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'mt-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-md transition-colors',
+                        selected
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground group-hover:bg-foreground/10',
+                      )}
+                    >
+                      <Icon className="size-3.5" />
+                    </span>
+                    <span className="flex flex-col gap-0.5">
+                      <span className={cn('font-medium leading-tight', selected ? 'text-foreground' : 'text-foreground')}>
+                        {label}
+                      </span>
+                      <span className="text-xs leading-snug text-muted-foreground">
+                        {description}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="sr-only" aria-live="polite">{activeType.label} sélectionné</p>
+          </fieldset>
+
+          <div className="space-y-1.5">
+            <label htmlFor="visit-notes" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Message <span className="font-normal normal-case text-muted-foreground/70">(optionnel)</span>
+            </label>
             <Textarea
+              id="visit-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Précisions pour le propriétaire…"
               rows={3}
+              maxLength={1000}
             />
-          </label>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <div className="flex justify-end gap-2">
+          </div>
+
+          {error && (
+            <div
+              role="alert"
+              className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive ring-1 ring-destructive/20"
+            >
+              {error}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Annuler
             </Button>
-            <Button type="submit" disabled={submitting}>
+            <Button type="submit" disabled={submitting || !date || !effectiveTime}>
               {submitting ? 'Envoi…' : 'Demander la visite'}
             </Button>
           </div>
