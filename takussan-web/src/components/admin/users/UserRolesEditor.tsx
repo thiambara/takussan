@@ -4,6 +4,13 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { putUserRole } from '@/lib/queries/admin-users';
 import type { AdminAgencyUserRow } from '@/types/admin-users';
 import type { UserRole } from '@/types/user';
@@ -55,22 +62,21 @@ export function UserRolesEditor({ user }: UserRolesEditorProps) {
       <p className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">
         Rôle
       </p>
-      <select
-        aria-label="Rôle de l'utilisateur"
-        value={selected}
-        onChange={(e) => setSelected(e.target.value as UserRole)}
+      <Select
+        value={selected || ''}
+        onValueChange={(value) => setSelected((value ?? '') as UserRole)}
         disabled={mutation.isPending}
-        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-app-ink"
+        items={ROLE_CHOICES as unknown as Array<{ value: string; label: string }>}
       >
-        <option value="" disabled>
-          Choisir un rôle
-        </option>
-        {ROLE_CHOICES.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger className="w-full" aria-label="Rôle de l'utilisateur">
+          <SelectValue placeholder="Choisir un rôle" />
+        </SelectTrigger>
+        <SelectContent>
+          {ROLE_CHOICES.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       {error ? (
         <p className="text-xs text-destructive" role="alert">
           {error}

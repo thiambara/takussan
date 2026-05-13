@@ -18,6 +18,7 @@ import {
   FormSelect,
   FormTextarea,
   FormGlobalError,
+  FormDatePicker,
 } from '@/components/forms';
 import {
   useCreateLease,
@@ -187,17 +188,15 @@ export function CreateLeaseForm() {
         />
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormInput<CreateLeaseFormValues>
+          <FormDatePicker<CreateLeaseFormValues>
             control={form.control}
             name="start_date"
-            type="date"
             label="Date de début"
             required
           />
-          <FormInput<CreateLeaseFormValues>
+          <FormDatePicker<CreateLeaseFormValues>
             control={form.control}
             name="end_date"
-            type="date"
             label="Date de fin (optionnel)"
           />
         </div>

@@ -13,6 +13,13 @@ import { Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { useUserLocation } from '@/components/providers/UserLocationProvider';
@@ -385,48 +392,59 @@ function IdentityStep({ data, setData }: StepProps) {
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor="agency-currency">{t('fields.currency')}</Label>
-          <select
-            id="agency-currency"
+          <Select
             value={data.agency.currency}
-            onChange={(e) =>
+            onValueChange={(value) =>
               setData({
                 ...data,
-                agency: { ...data.agency, currency: e.target.value },
+                agency: { ...data.agency, currency: value ?? '' },
               })
             }
-            className="h-9 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm"
+            items={CURRENCIES.map((c) => ({ value: c, label: c }))}
           >
-            {CURRENCIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger id="agency-currency" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CURRENCIES.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor="primary-property-type">
             {t('fields.primaryPropertyType')}
           </Label>
-          <select
-            id="primary-property-type"
+          <Select
             value={data.preferences.primary_property_type}
-            onChange={(e) =>
+            onValueChange={(value) =>
               setData({
                 ...data,
                 preferences: {
                   ...data.preferences,
-                  primary_property_type: e.target.value,
+                  primary_property_type: value ?? '',
                 },
               })
             }
-            className="h-9 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm"
+            items={PROPERTY_TYPES.map((p) => ({
+              value: p,
+              label: t(`propertyTypes.${p}` as never),
+            }))}
           >
-            {PROPERTY_TYPES.map((p) => (
-              <option key={p} value={p}>
-                {t(`propertyTypes.${p}` as never)}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger id="primary-property-type" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PROPERTY_TYPES.map((p) => (
+                <SelectItem key={p} value={p}>
+                  {t(`propertyTypes.${p}` as never)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

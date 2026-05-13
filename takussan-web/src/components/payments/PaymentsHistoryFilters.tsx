@@ -5,6 +5,7 @@ import { useCallback } from 'react';
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   Select,
   SelectContent,
@@ -114,11 +115,10 @@ export function PaymentsHistoryFilters() {
         <Label htmlFor="payments-from" className="mb-1.5 block text-xs font-medium">
           Du
         </Label>
-        <Input
+        <DatePicker
           id="payments-from"
-          type="date"
-          defaultValue={searchParams.get('date_from') ?? ''}
-          onChange={(e) => update('date_from', e.currentTarget.value || null)}
+          value={searchParams.get('date_from') ?? ''}
+          onValueChange={(value) => update('date_from', value || null)}
         />
       </div>
 
@@ -126,11 +126,10 @@ export function PaymentsHistoryFilters() {
         <Label htmlFor="payments-to" className="mb-1.5 block text-xs font-medium">
           Au
         </Label>
-        <Input
+        <DatePicker
           id="payments-to"
-          type="date"
-          defaultValue={searchParams.get('date_to') ?? ''}
-          onChange={(e) => update('date_to', e.currentTarget.value || null)}
+          value={searchParams.get('date_to') ?? ''}
+          onValueChange={(value) => update('date_to', value || null)}
         />
       </div>
     </div>

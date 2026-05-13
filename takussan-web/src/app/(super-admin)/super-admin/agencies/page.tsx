@@ -9,6 +9,7 @@ import { AgencyOnboardingDialog } from '@/components/admin/super/AgencyOnboardin
 import { Pagination } from '@/components/super-admin/Pagination';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   Select,
   SelectContent,
@@ -113,25 +114,25 @@ export default function SuperAdminAgenciesPage() {
           />
         </div>
 
-        <Input
-          type="date"
+        <DatePicker
           value={createdFrom}
-          onChange={(e) => {
-            setCreatedFrom(e.target.value);
+          onValueChange={(value) => {
+            setCreatedFrom(value);
             setPage(1);
           }}
           aria-label="Créée à partir du"
-          className="h-10 w-auto"
+          buttonClassName="h-10"
+          className="w-44"
         />
-        <Input
-          type="date"
+        <DatePicker
           value={createdTo}
-          onChange={(e) => {
-            setCreatedTo(e.target.value);
+          onValueChange={(value) => {
+            setCreatedTo(value);
             setPage(1);
           }}
           aria-label="Créée jusqu’au"
-          className="h-10 w-auto"
+          buttonClassName="h-10"
+          className="w-44"
         />
 
         <Select

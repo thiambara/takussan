@@ -3,6 +3,13 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fetchAdminReportGrowth } from '@/lib/queries/super-admin';
 import type { GrowthMetric, ReportPeriod } from '@/types/super-admin';
@@ -33,26 +40,34 @@ export function GrowthChart() {
     <div className="space-y-4">
       <Card>
         <CardContent className="flex flex-wrap items-center gap-3 p-4">
-          <select
-            className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+          <Select
             value={metric}
-            onChange={(event) => setMetric(event.target.value as GrowthMetric)}
-            aria-label="Métrique"
+            onValueChange={(value) => setMetric((value ?? metric) as GrowthMetric)}
+            items={METRICS as unknown as Array<{ value: string; label: string }>}
           >
-            {METRICS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-          <select
-            className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+            <SelectTrigger className="h-9" aria-label="Métrique">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {METRICS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
             value={period}
-            onChange={(event) => setPeriod(event.target.value as ReportPeriod)}
-            aria-label="Période"
+            onValueChange={(value) => setPeriod((value ?? period) as ReportPeriod)}
+            items={PERIODS as unknown as Array<{ value: string; label: string }>}
           >
-            {PERIODS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
+            <SelectTrigger className="h-9" aria-label="Période">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PERIODS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <span className="ml-auto text-xs text-muted-foreground">
             Total: <span className="font-semibold text-foreground">{query.data?.data.totals.total ?? 0}</span>
           </span>

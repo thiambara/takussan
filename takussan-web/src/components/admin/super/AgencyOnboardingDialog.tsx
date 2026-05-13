@@ -16,6 +16,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { ApiError } from '@/lib/api';
 import { postAgencyOnboarding, type AgencyOnboardingPayload } from '@/lib/queries/super-admin';
@@ -156,18 +163,20 @@ export function AgencyOnboardingDialog() {
                   ticket's UX direction: it's a step-1 decision (everything
                   downstream — pricing, invoices, payouts — depends on it). */}
               <Field label="Devise">
-                <select
+                <Select
                   value={agency.currency}
-                  onChange={(e) => setAgency({ ...agency, currency: e.target.value })}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
-                  aria-label="Devise par défaut de l’agence"
+                  onValueChange={(value) => setAgency({ ...agency, currency: value ?? 'XOF' })}
+                  items={CURRENCY_OPTIONS}
                 >
-                  {CURRENCY_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-9 w-full" aria-label="Devise par défaut de l’agence">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CURRENCY_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
               <Field label="Slug">
                 <Input

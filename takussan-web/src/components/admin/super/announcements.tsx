@@ -6,6 +6,7 @@ import { Megaphone, PauseCircle, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -110,11 +111,11 @@ export function AnnouncementsConsole() {
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1.5">
               <Label htmlFor="announcement-start">Début</Label>
-              <Input id="announcement-start" type="datetime-local" value={form.startsAt} onChange={(event) => setForm({ ...form, startsAt: event.target.value })} />
+              <DateTimePicker id="announcement-start" value={form.startsAt} onValueChange={(value) => setForm({ ...form, startsAt: value })} />
             </label>
             <label className="space-y-1.5">
               <Label htmlFor="announcement-end">Fin</Label>
-              <Input id="announcement-end" type="datetime-local" value={form.endsAt} onChange={(event) => setForm({ ...form, endsAt: event.target.value })} />
+              <DateTimePicker id="announcement-end" value={form.endsAt} onValueChange={(value) => setForm({ ...form, endsAt: value })} />
             </label>
           </div>
 

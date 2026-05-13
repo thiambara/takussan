@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
 import { useBookingRequest } from '@/hooks/useBookingRequest';
@@ -168,22 +169,22 @@ function ReservationForm({ property, onClose, onSuccess, submitLabel, title }: I
         <div className="grid grid-cols-2 gap-3">
           <label className="space-y-1 text-sm">
             <span className="text-stone-700">Arrivée</span>
-            <Input
-              type="date"
+            <DatePicker
               required
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onValueChange={setStartDate}
               min={new Date().toISOString().slice(0, 10)}
+              placeholder="Date d'arrivée"
             />
           </label>
           <label className="space-y-1 text-sm">
             <span className="text-stone-700">Départ</span>
-            <Input
-              type="date"
+            <DatePicker
               required
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onValueChange={setEndDate}
               min={startDate || new Date().toISOString().slice(0, 10)}
+              placeholder="Date de départ"
             />
           </label>
         </div>
@@ -301,12 +302,12 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
         </label>
         <label className="block space-y-1 text-sm">
           <span className="text-stone-700">Validité de l&apos;offre</span>
-          <Input
-            type="date"
+          <DatePicker
             required
             value={offerExpiresAt}
-            onChange={(e) => setOfferExpiresAt(e.target.value)}
+            onValueChange={setOfferExpiresAt}
             min={minExpiry}
+            placeholder="Date d'expiration"
           />
         </label>
         <label className="block space-y-1 text-sm">

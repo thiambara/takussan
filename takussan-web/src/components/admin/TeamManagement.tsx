@@ -23,6 +23,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -33,6 +40,12 @@ import { InviteMemberDialog } from './InviteMemberDialog';
 import { ConfirmRemoveDialog } from './ConfirmRemoveDialog';
 import { ApiError } from '@/lib/api';
 import type { User } from '@/types/user';
+
+const ROLE_FILTER_OPTIONS = [
+  { value: 'all', label: 'Tous les rôles' },
+  { value: 'agent', label: 'Agents' },
+  { value: 'agency_admin', label: 'Administrateurs' },
+] as const;
 
 interface TeamManagementProps {
   readonly agencyId: number;
@@ -115,16 +128,20 @@ export function TeamManagement({ agencyId, currentUserId }: TeamManagementProps)
             onChange={(e) => setSearch(e.target.value)}
             className="h-9 flex-1 max-w-sm rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           />
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value as AgencyMemberRole | '')}
-            className="h-9 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-            aria-label="Filtrer par rôle"
+          <Select
+            value={roleFilter === '' ? 'all' : roleFilter}
+            onValueChange={(value) => setRoleFilter(value === 'all' ? '' : ((value ?? '') as AgencyMemberRole | ''))}
+            items={ROLE_FILTER_OPTIONS as unknown as Array<{ value: string; label: string }>}
           >
-            <option value="">Tous les rôles</option>
-            <option value="agent">Agents</option>
-            <option value="agency_admin">Administrateurs</option>
-          </select>
+            <SelectTrigger className="h-9" aria-label="Filtrer par rôle">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ROLE_FILTER_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <Button onClick={() => setInviteOpen(true)}>
           <UserPlus className="size-4" />

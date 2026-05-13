@@ -8,6 +8,14 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   fetchAuditLogs,
   buildExportUrl,
@@ -29,6 +37,18 @@ const KNOWN_SUBJECT_TYPES: { label: string; value: string }[] = [
   { label: 'Facture', value: 'App\\Models\\Invoice' },
   { label: 'Client', value: 'App\\Models\\Customer' },
   { label: 'Utilisateur', value: 'App\\Models\\User' },
+];
+
+const ANY = '__any__';
+
+const EVENT_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: ANY, label: 'Toutes les actions' },
+  ...KNOWN_EVENTS.map((ev) => ({ value: ev, label: ev })),
+];
+
+const SUBJECT_TYPE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: ANY, label: 'Tous les objets' },
+  ...KNOWN_SUBJECT_TYPES.map((st) => ({ value: st.value, label: st.label })),
 ];
 
 function today(): string {
@@ -160,55 +180,59 @@ export function AuditTrail() {
       <div className="sticky top-0 z-10 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-background/95 p-4 shadow-sm backdrop-blur">
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-app-ink-muted">Du</label>
-          <input
-            type="date"
+          <DatePicker
             value={dateFrom}
             max={dateTo || today()}
-            onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-            className="h-9 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            onValueChange={(value) => { setDateFrom(value); setPage(1); }}
+            buttonClassName="h-9"
           />
         </div>
 
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-app-ink-muted">Au</label>
-          <input
-            type="date"
+          <DatePicker
             value={dateTo}
             min={dateFrom}
             max={today()}
-            onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-            className="h-9 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            onValueChange={(value) => { setDateTo(value); setPage(1); }}
+            buttonClassName="h-9"
           />
         </div>
 
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-app-ink-muted">Action</label>
-          <select
-            value={event}
-            onChange={(e) => { setEvent(e.target.value); setPage(1); }}
-            className="h-9 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-            aria-label="Filtrer par action"
+          <Select
+            value={event || ANY}
+            onValueChange={(next) => { setEvent(next === ANY ? '' : (next ?? '')); setPage(1); }}
+            items={EVENT_OPTIONS}
           >
-            <option value="">Toutes les actions</option>
-            {KNOWN_EVENTS.map((ev) => (
-              <option key={ev} value={ev}>{ev}</option>
-            ))}
-          </select>
+            <SelectTrigger className="h-9" aria-label="Filtrer par action">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {EVENT_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-app-ink-muted">Type d&apos;objet</label>
-          <select
-            value={subjectType}
-            onChange={(e) => { setSubjectType(e.target.value); setPage(1); }}
-            className="h-9 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-            aria-label="Filtrer par type d'objet"
+          <Select
+            value={subjectType || ANY}
+            onValueChange={(next) => { setSubjectType(next === ANY ? '' : (next ?? '')); setPage(1); }}
+            items={SUBJECT_TYPE_OPTIONS}
           >
-            <option value="">Tous les objets</option>
-            {KNOWN_SUBJECT_TYPES.map((st) => (
-              <option key={st.value} value={st.value}>{st.label}</option>
-            ))}
-          </select>
+            <SelectTrigger className="h-9" aria-label="Filtrer par type d'objet">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SUBJECT_TYPE_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="flex flex-col gap-1">

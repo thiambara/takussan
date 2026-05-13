@@ -6,6 +6,7 @@ import { ChevronDown, Search, SlidersHorizontal, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   Select,
   SelectContent,
@@ -349,20 +350,18 @@ export function PropertyListFilters({
             />
             <div>
               <label className="mb-1 block text-xs text-app-ink-muted">Créé après</label>
-              <Input
+              <DatePicker
                 aria-label="Créé après"
-                type="date"
                 value={currentCreatedFrom}
-                onChange={(e) => updateParam('created_from', e.target.value || null)}
+                onValueChange={(value) => updateParam('created_from', value || null)}
               />
             </div>
             <div>
               <label className="mb-1 block text-xs text-app-ink-muted">Créé avant</label>
-              <Input
+              <DatePicker
                 aria-label="Créé avant"
-                type="date"
                 value={currentCreatedTo}
-                onChange={(e) => updateParam('created_to', e.target.value || null)}
+                onValueChange={(value) => updateParam('created_to', value || null)}
               />
             </div>
           </div>

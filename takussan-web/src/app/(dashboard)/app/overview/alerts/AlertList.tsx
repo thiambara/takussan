@@ -1,8 +1,28 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { ThresholdAlert } from '@/lib/queries/alerts';
 import { createThresholdAlertAction, deleteThresholdAlertAction } from '@/app/actions/alerts';
+
+const OPERATOR_OPTIONS = [
+  { value: '>', label: '>' },
+  { value: '>=', label: '>=' },
+  { value: '<', label: '<' },
+  { value: '<=', label: '<=' },
+] as const;
+
+const SEVERITY_OPTIONS = [
+  { value: 'info', label: 'Info' },
+  { value: 'warning', label: 'Attention' },
+  { value: 'critical', label: 'Critique' },
+] as const;
 
 const ALERT_METRICS = [
   'unpaid_rate_percent',
@@ -64,30 +84,37 @@ export function AlertList({ initialAlerts }: Props) {
         <div className="grid gap-3 md:grid-cols-3">
           <label className="text-sm">
             <span className="mb-1 block font-medium text-foreground">Métrique</span>
-            <select
+            <Select
               value={metric}
-              onChange={(e) => setMetric(e.target.value as (typeof ALERT_METRICS)[number])}
-              className="w-full rounded-md border border-border bg-white px-3 py-2"
+              onValueChange={(value) => setMetric((value ?? metric) as (typeof ALERT_METRICS)[number])}
+              items={ALERT_METRICS.map((m) => ({ value: m, label: m }))}
             >
-              {ALERT_METRICS.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ALERT_METRICS.map((m) => (
+                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
           <label className="text-sm">
             <span className="mb-1 block font-medium text-foreground">Opérateur</span>
-            <select
+            <Select
               value={operator}
-              onChange={(e) => setOperator(e.target.value as typeof operator)}
-              className="w-full rounded-md border border-border bg-white px-3 py-2"
+              onValueChange={(value) => setOperator((value ?? operator) as typeof operator)}
+              items={OPERATOR_OPTIONS as unknown as Array<{ value: string; label: string }>}
             >
-              <option value=">">&gt;</option>
-              <option value=">=">&gt;=</option>
-              <option value="<">&lt;</option>
-              <option value="<=">&lt;=</option>
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {OPERATOR_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
           <label className="text-sm">
             <span className="mb-1 block font-medium text-foreground">Seuil</span>
@@ -100,15 +127,20 @@ export function AlertList({ initialAlerts }: Props) {
           </label>
           <label className="text-sm">
             <span className="mb-1 block font-medium text-foreground">Sévérité</span>
-            <select
+            <Select
               value={severity}
-              onChange={(e) => setSeverity(e.target.value as typeof severity)}
-              className="w-full rounded-md border border-border bg-white px-3 py-2"
+              onValueChange={(value) => setSeverity((value ?? severity) as typeof severity)}
+              items={SEVERITY_OPTIONS as unknown as Array<{ value: string; label: string }>}
             >
-              <option value="info">Info</option>
-              <option value="warning">Attention</option>
-              <option value="critical">Critique</option>
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SEVERITY_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
           <label className="text-sm">
             <span className="mb-1 block font-medium text-foreground">Cooldown (h)</span>

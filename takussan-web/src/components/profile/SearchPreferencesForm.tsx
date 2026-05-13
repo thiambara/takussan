@@ -5,6 +5,13 @@ import { useMemo, useState } from 'react';
 import { Loader2, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { PROPERTY_TYPE_LABELS } from '@/components/property-form/options';
 import {
   useCreateSavedSearchMutation,
@@ -14,6 +21,12 @@ import {
 } from '@/lib/queries/saved-searches';
 import type { PropertyType } from '@/types/property';
 import type { ApiError } from '@/lib/api';
+
+const FREQUENCY_OPTIONS = [
+  { value: 'instant', label: 'Instantané' },
+  { value: 'daily', label: 'Quotidien' },
+  { value: 'weekly', label: 'Hebdomadaire' },
+] as const;
 
 const DEFAULT_NAME = 'Mes préférences';
 const ENABLED_FREQUENCY: SavedSearchNotificationFrequency = 'daily';
@@ -264,22 +277,28 @@ export function SearchPreferencesForm({
             </span>
           </label>
           {values.alertsEnabled && emailVerified ? (
-            <select
-              className="rounded-md border border-app-surface-3 bg-white px-2 py-1 text-sm"
+            <Select
               value={values.frequency}
-              onChange={(e) =>
+              onValueChange={(value) =>
                 setValues((v) => ({
                   ...v,
-                  frequency: e.target.value as SavedSearchNotificationFrequency,
+                  frequency: (value ?? v.frequency) as SavedSearchNotificationFrequency,
                 }))
               }
-              aria-label="Fréquence des alertes"
-              data-testid="pref-alerts-frequency"
+              items={FREQUENCY_OPTIONS as unknown as Array<{ value: string; label: string }>}
             >
-              <option value="instant">Instantané</option>
-              <option value="daily">Quotidien</option>
-              <option value="weekly">Hebdomadaire</option>
-            </select>
+              <SelectTrigger
+                aria-label="Fréquence des alertes"
+                data-testid="pref-alerts-frequency"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FREQUENCY_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           ) : null}
         </div>
       </div>

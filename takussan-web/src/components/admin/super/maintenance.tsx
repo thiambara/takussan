@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { CalendarClock, RotateCcw, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cancelMaintenance, scheduleMaintenance } from '@/lib/queries/super-admin';
@@ -87,11 +87,11 @@ export function MaintenanceScheduler({ status }: { status: MaintenanceStatus }) 
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <label className="space-y-1.5">
             <Label htmlFor="maintenance-start">Début</Label>
-            <Input id="maintenance-start" type="datetime-local" value={startsAt} onChange={(event) => setStartsAt(event.target.value)} />
+            <DateTimePicker id="maintenance-start" value={startsAt} onValueChange={setStartsAt} />
           </label>
           <label className="space-y-1.5">
             <Label htmlFor="maintenance-end">Fin</Label>
-            <Input id="maintenance-end" type="datetime-local" value={endsAt} onChange={(event) => setEndsAt(event.target.value)} />
+            <DateTimePicker id="maintenance-end" value={endsAt} onValueChange={setEndsAt} />
           </label>
         </div>
         <Segmented label="Mode" value={mode} options={modes} onChange={setMode} />

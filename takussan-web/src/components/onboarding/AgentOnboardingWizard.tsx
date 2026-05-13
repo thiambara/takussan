@@ -7,6 +7,13 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -449,28 +456,34 @@ function SpecializationStep({
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
         <Label htmlFor="agent-specialization">{t('specializationLabel')}</Label>
-        <select
-          id="agent-specialization"
-          value={data.specialization.value}
-          onChange={(e) =>
+        <Select
+          value={data.specialization.value || ''}
+          onValueChange={(value) =>
             setData({
               ...data,
               specialization: {
                 ...data.specialization,
-                value: e.target.value as Specialization,
+                value: (value ?? '') as Specialization,
                 saved: false,
               },
             })
           }
-          className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+          items={SPECIALIZATIONS.map((s) => ({
+            value: s,
+            label: t(`specializationValues.${s}`),
+          }))}
         >
-          <option value="">{t('specializationPlaceholder')}</option>
-          {SPECIALIZATIONS.map((s) => (
-            <option key={s} value={s}>
-              {t(`specializationValues.${s}`)}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger id="agent-specialization" className="w-full">
+            <SelectValue placeholder={t('specializationPlaceholder')} />
+          </SelectTrigger>
+          <SelectContent>
+            {SPECIALIZATIONS.map((s) => (
+              <SelectItem key={s} value={s}>
+                {t(`specializationValues.${s}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <ZoneMultiSelect

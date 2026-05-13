@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
 import { ApiError } from '@/lib/api';
@@ -45,10 +46,9 @@ export function PayoutCloseDialog({ defaultAgencyId }: { defaultAgencyId?: numbe
         <CardTitle>Clôturer une période</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-[160px_180px_auto]">
-        <Input
-          type="date"
+        <DatePicker
           value={periodEnd}
-          onChange={(event) => setPeriodEnd(event.target.value)}
+          onValueChange={setPeriodEnd}
           aria-label="Période fin"
         />
         <Input

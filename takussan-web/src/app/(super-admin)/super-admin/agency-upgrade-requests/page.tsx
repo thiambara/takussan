@@ -7,6 +7,14 @@ import { ArrowUpRight, Building2, ChevronLeft, ChevronRight, Filter } from 'luci
 
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DatePicker } from '@/components/ui/date-picker';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   fetchAdminAgencyUpgradeRequests,
@@ -25,6 +33,14 @@ import {
  * Defers the per-row decision to the detail page so the list stays fast
  * and avoids modal coupling at the top level.
  */
+const STATUS_FILTER_OPTIONS = [
+  { value: 'all', label: 'Tous' },
+  { value: 'pending', label: 'En attente' },
+  { value: 'approved', label: 'Approuvées' },
+  { value: 'rejected', label: 'Rejetées' },
+  { value: 'revoked', label: 'Révoquées' },
+] as const;
+
 export default function AgencyUpgradeRequestsListPage() {
   const [statusFilter, setStatusFilter] = useState<AgencyUpgradeRequestStatus | 'all'>('all');
   const [submittedFrom, setSubmittedFrom] = useState('');
@@ -85,50 +101,50 @@ export default function AgencyUpgradeRequestsListPage() {
               <label htmlFor="status-filter" className="text-xs font-medium text-muted-foreground">
                 Statut
               </label>
-              <select
-                id="status-filter"
-                className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              <Select
                 value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value as AgencyUpgradeRequestStatus | 'all');
+                onValueChange={(next) => {
+                  setStatusFilter((next ?? 'all') as AgencyUpgradeRequestStatus | 'all');
                   setPage(1);
                 }}
+                items={STATUS_FILTER_OPTIONS}
               >
-                <option value="all">Tous</option>
-                <option value="pending">En attente</option>
-                <option value="approved">Approuvées</option>
-                <option value="rejected">Rejetées</option>
-                <option value="revoked">Révoquées</option>
-              </select>
+                <SelectTrigger id="status-filter" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_FILTER_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1">
               <label htmlFor="from-filter" className="text-xs font-medium text-muted-foreground">
                 Soumise depuis
               </label>
-              <input
+              <DatePicker
                 id="from-filter"
-                type="date"
                 value={submittedFrom}
-                onChange={(e) => {
-                  setSubmittedFrom(e.target.value);
+                onValueChange={(value) => {
+                  setSubmittedFrom(value);
                   setPage(1);
                 }}
-                className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
             <div className="space-y-1">
               <label htmlFor="to-filter" className="text-xs font-medium text-muted-foreground">
                 Soumise jusqu&apos;à
               </label>
-              <input
+              <DatePicker
                 id="to-filter"
-                type="date"
                 value={submittedTo}
-                onChange={(e) => {
-                  setSubmittedTo(e.target.value);
+                onValueChange={(value) => {
+                  setSubmittedTo(value);
                   setPage(1);
                 }}
-                className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
           </div>

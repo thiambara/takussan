@@ -3,6 +3,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const ALL = '__all__';
 
@@ -121,18 +128,20 @@ function FilterSelect({
   return (
     <label className="flex flex-col text-xs text-app-ink-muted">
       <span className="sr-only">{label}</span>
-      <select
-        aria-label={label}
+      <Select
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="min-w-40 rounded-md border border-input bg-background px-3 py-2 text-sm text-app-ink outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        onValueChange={(next) => onChange(next ?? '')}
+        items={options}
       >
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger className="min-w-40" aria-label={label}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </label>
   );
 }

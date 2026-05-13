@@ -3,6 +3,13 @@
 import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import {
   addDays,
@@ -236,19 +243,21 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
 
           {/* Filtre bien — visible seulement s'il y a des biens à afficher */}
           {propertyOptions.length > 0 && (
-            <select
-              data-testid="calendar-property-filter"
-              className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm text-stone-700"
-              value={propertyId ?? ''}
-              onChange={(e) => setPropertyId(e.target.value ? Number(e.target.value) : null)}
+            <Select
+              value={propertyId === null ? '__all__' : String(propertyId)}
+              onValueChange={(value) => setPropertyId(value === '__all__' || !value ? null : Number(value))}
+              items={[{ value: '__all__', label: 'Tous les biens' }, ...propertyOptions.map((p) => ({ value: String(p.id), label: p.label }))]}
             >
-              <option value="">Tous les biens</option>
-              {propertyOptions.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger data-testid="calendar-property-filter" className="min-w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Tous les biens</SelectItem>
+                {propertyOptions.map((p) => (
+                  <SelectItem key={p.id} value={String(p.id)}>{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         </div>
       </header>

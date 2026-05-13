@@ -1,6 +1,14 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { DatePicker } from '@/components/ui/date-picker';
 import { buildExportUrl, type ExportEntity, type ExportFormat } from '@/lib/queries/exports';
 
 type Props = {
@@ -13,6 +21,12 @@ const ENTITY_LABELS: Record<ExportEntity, string> = {
   customers: 'Clients',
   properties: 'Biens',
 };
+
+const FORMAT_OPTIONS: ReadonlyArray<{ value: ExportFormat; label: string }> = [
+  { value: 'csv', label: 'CSV' },
+  { value: 'xlsx', label: 'Excel (xlsx)' },
+  { value: 'pdf', label: 'PDF' },
+];
 
 export function ExportForm({ canExportCustomers }: Props) {
   const [entity, setEntity] = useState<ExportEntity>('payments');
@@ -46,47 +60,49 @@ export function ExportForm({ canExportCustomers }: Props) {
       <div className="grid gap-4 md:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium text-foreground">Type de données</span>
-          <select
-            className="rounded-md border border-border bg-white px-3 py-2"
+          <Select
             value={entity}
-            onChange={(e) => setEntity(e.target.value as ExportEntity)}
+            onValueChange={(value) => setEntity((value ?? 'payments') as ExportEntity)}
+            items={entities.map((e) => ({ value: e, label: ENTITY_LABELS[e] }))}
           >
-            {entities.map((e) => (
-              <option key={e} value={e}>
-                {ENTITY_LABELS[e]}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {entities.map((e) => (
+                <SelectItem key={e} value={e}>
+                  {ENTITY_LABELS[e]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium text-foreground">Format</span>
-          <select
-            className="rounded-md border border-border bg-white px-3 py-2"
+          <Select
             value={format}
-            onChange={(e) => setFormat(e.target.value as ExportFormat)}
+            onValueChange={(value) => setFormat((value ?? 'csv') as ExportFormat)}
+            items={FORMAT_OPTIONS}
           >
-            <option value="csv">CSV</option>
-            <option value="xlsx">Excel (xlsx)</option>
-            <option value="pdf">PDF</option>
-          </select>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {FORMAT_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium text-foreground">Du</span>
-          <input
-            type="date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            className="rounded-md border border-border bg-white px-3 py-2"
-          />
+          <DatePicker value={from} onValueChange={setFrom} />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium text-foreground">Au</span>
-          <input
-            type="date"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className="rounded-md border border-border bg-white px-3 py-2"
-          />
+          <DatePicker value={to} onValueChange={setTo} />
         </label>
       </div>
       <button

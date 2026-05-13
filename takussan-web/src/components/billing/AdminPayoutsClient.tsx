@@ -4,14 +4,23 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { fetchAdminPlatformPayouts } from '@/lib/queries/super-admin';
 import type { PlatformPayoutStatus } from '@/types/super-admin';
 import { PayoutCloseDialog } from './PayoutCloseDialog';
 import { PayoutDetailPanel } from './PayoutDetailPanel';
 import { PayoutTable } from './PayoutTable';
 
-const STATUSES: { value: PlatformPayoutStatus | ''; label: string }[] = [
-  { value: '', label: 'Tous statuts' },
+const ALL_STATUS = '__all__';
+
+const STATUSES: { value: string; label: string }[] = [
+  { value: ALL_STATUS, label: 'Tous statuts' },
   { value: 'pending', label: 'En attente' },
   { value: 'approved', label: 'Approuvé' },
   { value: 'processing', label: 'En cours' },
@@ -50,16 +59,20 @@ export function AdminPayoutsClient() {
             onChange={(event) => setAgencyFilter(event.target.value)}
             aria-label="Filtrer par agence"
           />
-          <select
-            className="h-9 rounded-md border border-border bg-background px-2 text-sm"
-            value={status}
-            onChange={(event) => setStatus(event.target.value as PlatformPayoutStatus | '')}
-            aria-label="Filtrer par statut"
+          <Select
+            value={status || ALL_STATUS}
+            onValueChange={(value) => setStatus(value === ALL_STATUS ? '' : ((value ?? '') as PlatformPayoutStatus | ''))}
+            items={STATUSES}
           >
-            {STATUSES.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
+            <SelectTrigger className="h-9" aria-label="Filtrer par statut">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUSES.map((option) => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <p className="self-center text-xs text-muted-foreground">
             {query.data?.meta?.total ?? 0} reversement{(query.data?.meta?.total ?? 0) > 1 ? 's' : ''} — tri par fin de période décroissante.
           </p>

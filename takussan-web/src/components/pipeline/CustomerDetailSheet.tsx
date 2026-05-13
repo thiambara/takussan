@@ -10,6 +10,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { ApiError, apiRequest, buildQueryString } from '@/lib/api';
 import {
@@ -321,10 +322,9 @@ function TasksTab({ tasks, isLoading, onAdd, isAdding, onToggleStatus }: TasksTa
           onChange={(e) => setTitle(e.target.value)}
           placeholder={t('tasks.titlePlaceholder')}
         />
-        <Input
-          type="datetime-local"
+        <DateTimePicker
           value={due}
-          onChange={(e) => setDue(e.target.value)}
+          onValueChange={setDue}
         />
         <div className="flex justify-end">
           <Button

@@ -28,6 +28,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
@@ -210,17 +217,28 @@ export function InviteAgentModal({
 
           <div className="space-y-1.5">
             <Label htmlFor="invite-agent-role">{t('fields.role')}</Label>
-            <select
-              id="invite-agent-role"
+            <Select
               value={form.role}
-              onChange={(e) => update('role', e.target.value as InvitedRole)}
-              className="w-full rounded-md border border-app-surface-2 bg-app-surface-1 px-3 py-2 text-sm text-app-ink"
-              aria-invalid={!!fieldError('role')}
+              onValueChange={(value) => update('role', (value ?? 'agent') as InvitedRole)}
+              items={[
+                { value: 'agent', label: t('roles.agent') },
+                { value: 'agent_senior', label: t('roles.agent_senior') },
+                { value: 'agent_manager', label: t('roles.agent_manager') },
+              ]}
             >
-              <option value="agent">{t('roles.agent')}</option>
-              <option value="agent_senior">{t('roles.agent_senior')}</option>
-              <option value="agent_manager">{t('roles.agent_manager')}</option>
-            </select>
+              <SelectTrigger
+                id="invite-agent-role"
+                className="w-full"
+                aria-invalid={!!fieldError('role')}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="agent">{t('roles.agent')}</SelectItem>
+                <SelectItem value="agent_senior">{t('roles.agent_senior')}</SelectItem>
+                <SelectItem value="agent_manager">{t('roles.agent_manager')}</SelectItem>
+              </SelectContent>
+            </Select>
             {fieldError('role') ? (
               <p className="text-xs text-destructive">{fieldError('role')}</p>
             ) : null}

@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { ApiError } from '@/lib/api';
 import { useRenewLease, type RenewLeasePayload } from '@/lib/queries/leases';
@@ -193,26 +194,24 @@ export function LeaseRenewalDialog({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium text-stone-700" htmlFor="renew-start">{t('field_start_date')}</label>
-                <Input
+                <DatePicker
                   id="renew-start"
-                  type="date"
                   value={form.start_date}
-                  onChange={(e) =>
+                  onValueChange={(value) =>
                     setForm((s) => ({
                       ...s,
-                      start_date: e.target.value,
-                      end_date: defaultEndDate(e.target.value),
+                      start_date: value,
+                      end_date: defaultEndDate(value),
                     }))
                   }
                 />
               </div>
               <div>
                 <label className="text-xs font-medium text-stone-700" htmlFor="renew-end">{t('field_end_date')}</label>
-                <Input
+                <DatePicker
                   id="renew-end"
-                  type="date"
                   value={form.end_date}
-                  onChange={(e) => setForm((s) => ({ ...s, end_date: e.target.value }))}
+                  onValueChange={(value) => setForm((s) => ({ ...s, end_date: value }))}
                 />
               </div>
             </div>

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
@@ -109,7 +110,7 @@ function PayoutActions({ payout, onClose }: { payout: PlatformPayout; onClose: (
 
         {payout.status === 'approved' || payout.status === 'processing' ? (
           <div className="grid gap-2 md:grid-cols-[160px_1fr_auto]">
-            <Input type="date" value={processedAt} onChange={(event) => setProcessedAt(event.target.value)} aria-label="Date de traitement" />
+            <DatePicker value={processedAt} onValueChange={setProcessedAt} aria-label="Date de traitement" />
             <Input placeholder="Référence bancaire (optionnel)" value={bankRef} onChange={(event) => setBankRef(event.target.value)} />
             <Button type="button" disabled={markPaid.isPending} onClick={() => markPaid.mutate()}>
               {markPaid.isPending ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" /> : null}

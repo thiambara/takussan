@@ -3,6 +3,13 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fetchAdminReportFunnel } from '@/lib/queries/super-admin';
 import type { ReportPeriod } from '@/types/super-admin';
@@ -39,16 +46,20 @@ export function FunnelChart() {
     <div className="space-y-4">
       <Card>
         <CardContent className="flex flex-wrap items-center gap-3 p-4">
-          <select
-            className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+          <Select
             value={period}
-            onChange={(event) => setPeriod(event.target.value as ReportPeriod)}
-            aria-label="Période"
+            onValueChange={(value) => setPeriod((value ?? period) as ReportPeriod)}
+            items={PERIODS as unknown as Array<{ value: string; label: string }>}
           >
-            {PERIODS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
+            <SelectTrigger className="h-9" aria-label="Période">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PERIODS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <span className="text-xs text-muted-foreground">
             Conversion globale: <span className="font-semibold text-foreground">{conversion !== null && conversion !== undefined ? `${(Number(conversion) * 100).toFixed(1)}%` : '—'}</span>
           </span>

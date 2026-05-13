@@ -6,6 +6,13 @@ import { useLocale } from 'next-intl';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { formatDate } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import {
@@ -49,33 +56,41 @@ export function InventoryList() {
           <label htmlFor="inventory-filter-type" className="mb-1.5 text-sm font-medium">
             Type
           </label>
-          <select
-            id="inventory-filter-type"
-            value={type}
-            onChange={(e) => setType(e.target.value as '' | InventoryType)}
-            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+          <Select
+            value={type || '__all__'}
+            onValueChange={(value) => setType(value === '__all__' ? '' : ((value ?? '') as '' | InventoryType))}
+            items={[{ value: '__all__', label: 'Tous les types' }, ...INVENTORY_TYPES.map((t) => ({ value: t, label: INVENTORY_TYPE_LABEL[t] }))]}
           >
-            <option value="">Tous les types</option>
-            {INVENTORY_TYPES.map((t) => (
-              <option key={t} value={t}>{INVENTORY_TYPE_LABEL[t]}</option>
-            ))}
-          </select>
+            <SelectTrigger id="inventory-filter-type" className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Tous les types</SelectItem>
+              {INVENTORY_TYPES.map((t) => (
+                <SelectItem key={t} value={t}>{INVENTORY_TYPE_LABEL[t]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex w-56 flex-col">
           <label htmlFor="inventory-filter-status" className="mb-1.5 text-sm font-medium">
             Statut
           </label>
-          <select
-            id="inventory-filter-status"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as '' | InventoryStatus)}
-            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+          <Select
+            value={status || '__all__'}
+            onValueChange={(value) => setStatus(value === '__all__' ? '' : ((value ?? '') as '' | InventoryStatus))}
+            items={[{ value: '__all__', label: 'Tous les statuts' }, ...INVENTORY_STATUSES.map((s) => ({ value: s, label: INVENTORY_STATUS_LABEL[s] }))]}
           >
-            <option value="">Tous les statuts</option>
-            {INVENTORY_STATUSES.map((s) => (
-              <option key={s} value={s}>{INVENTORY_STATUS_LABEL[s]}</option>
-            ))}
-          </select>
+            <SelectTrigger id="inventory-filter-status" className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Tous les statuts</SelectItem>
+              {INVENTORY_STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>{INVENTORY_STATUS_LABEL[s]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
