@@ -225,21 +225,29 @@ describe('<CalendarPage>', () => {
     );
   });
 
-  it('exposes a property filter built from the returned events', () => {
+  it('exposes a property filter built from the returned events', async () => {
+    const user = userEvent.setup();
     render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
 
-    const select = screen.getByTestId('calendar-property-filter') as HTMLSelectElement;
-    const options = Array.from(select.options).map((o) => o.text);
-    expect(options[0]).toBe('Tous les biens');
-    expect(options).toContain('Villa Almadies');
-    expect(options).toContain('Appart Point E');
+    // The filter is a Base UI Select (combobox + popup listbox), not a native
+    // <select>. We click the trigger to open the popup, then read the rendered
+    // <option role> children.
+    await user.click(screen.getByTestId('calendar-property-filter'));
+    const options = await screen.findAllByRole('option');
+    const labels = options.map((o) => o.textContent?.trim());
+
+    expect(labels[0]).toBe('Tous les biens');
+    expect(labels).toContain('Villa Almadies');
+    expect(labels).toContain('Appart Point E');
   });
 
   it('updates the query and shows active state when the property filter changes', async () => {
     const user = userEvent.setup();
     render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
 
-    await user.selectOptions(screen.getByTestId('calendar-property-filter'), '10');
+    await user.click(screen.getByTestId('calendar-property-filter'));
+    const villaOption = await screen.findByRole('option', { name: 'Villa Almadies' });
+    await user.click(villaOption);
 
     await waitFor(() => {
       expect(useCalendarMock).toHaveBeenLastCalledWith(

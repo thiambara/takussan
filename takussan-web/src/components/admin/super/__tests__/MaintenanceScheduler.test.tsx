@@ -11,6 +11,29 @@ vi.mock('@/lib/queries/super-admin', () => ({
   scheduleMaintenance: vi.fn(),
 }));
 
+// The scheduler now uses our shadcn `<DateTimePicker>` (button + popover).
+// In jsdom we shim it back to a native `datetime-local` input so the
+// existing test (which types into the field) keeps its intent without
+// depending on the popover internals.
+vi.mock('@/components/ui/date-time-picker', () => ({
+  DateTimePicker: ({
+    id,
+    value,
+    onValueChange,
+  }: {
+    id?: string;
+    value?: string;
+    onValueChange: (v: string) => void;
+  }) => (
+    <input
+      id={id}
+      type="datetime-local"
+      value={value ?? ''}
+      onChange={(e) => onValueChange(e.target.value)}
+    />
+  ),
+}));
+
 const emptyStatus: MaintenanceStatus = {
   active: false,
   show_banner: false,

@@ -13,6 +13,33 @@ vi.mock('@/lib/queries/leases', () => ({
   useRequestEarlyTermination: () => ({ mutateAsync, isPending: false }),
 }));
 
+// The component uses our shadcn `<DatePicker>` (button + popover). Exposing
+// the underlying ISO date through a button is not testable via the same DOM
+// assertions as a native `<input type="date">`, so for these state-level
+// tests we shim the picker into a native date input that proxies the
+// controlled value through `onValueChange`.
+vi.mock('@/components/ui/date-picker', () => ({
+  DatePicker: ({
+    id,
+    value,
+    onValueChange,
+    min,
+  }: {
+    id?: string;
+    value?: string;
+    onValueChange: (v: string) => void;
+    min?: string;
+  }) => (
+    <input
+      id={id}
+      type="date"
+      data-min={min}
+      value={value ?? ''}
+      onChange={(e) => onValueChange(e.target.value)}
+    />
+  ),
+}));
+
 function makeLease(overrides: Partial<Lease> = {}): Lease {
   return {
     id: 1,

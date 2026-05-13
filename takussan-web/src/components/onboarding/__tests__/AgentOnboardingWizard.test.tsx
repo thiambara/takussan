@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 
 import frMessages from '@/messages/fr.json';
@@ -130,9 +131,12 @@ describe('<AgentOnboardingWizard>', () => {
     // Step 2 (KYC) — non-blocking per spec, no canAdvance gate.
     fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
 
-    // Step 3 (specialization & zones) — pick a value, save, then advance.
-    const select = screen.getByLabelText(/Spécialisation/i) as HTMLSelectElement;
-    fireEvent.change(select, { target: { value: 'luxury' } });
+    // Step 3 (specialization & zones) — pick a value via the Base UI Select
+    // (combobox + popup listbox), save, then advance.
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText(/Spécialisation/i));
+    const luxuryOption = await screen.findByRole('option', { name: /Luxe/i });
+    await user.click(luxuryOption);
     fireEvent.click(screen.getByRole('button', { name: /^Enregistrer$/i }));
     await waitFor(() => {
       expect(agentUpdateSpecializationAction).toHaveBeenCalledWith(
