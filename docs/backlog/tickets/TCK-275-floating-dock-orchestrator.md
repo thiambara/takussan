@@ -1,7 +1,7 @@
 ---
 id: TCK-275
 title: "Floating Dock — orchestrateur des éléments UI flottants en bas d'écran"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: S
