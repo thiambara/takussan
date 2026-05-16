@@ -209,13 +209,44 @@ class ConversationController extends Controller
     {
         $this->ensureParticipant($request, $conversation);
 
-        $messages = $conversation->messages()
-            ->latest()
-            ->paginate((int) $request->input('per_page', 30));
+        // TCK — cursor pagination. The history is paged via `before_id` (load
+        // older messages on scroll-up); `after_id` is used by the live-polling
+        // query to fetch only messages newer than the latest one already in
+        // the client cache, so polling never re-downloads loaded history.
+        $data = $request->validate([
+            'before_id' => ['nullable', 'integer', 'min:1', 'prohibits:after_id'],
+            'after_id' => ['nullable', 'integer', 'min:1', 'prohibits:before_id'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $perPage = (int) ($data['per_page'] ?? 30);
+
+        if (isset($data['after_id'])) {
+            $messages = $conversation->messages()
+                ->where('id', '>', (int) $data['after_id'])
+                ->oldest()
+                // Safety cap if the client missed many ticks (e.g. tab hidden
+                // for a long time). The client re-polls so anything beyond
+                // this cap will be fetched on the next call.
+                ->limit(200)
+                ->get();
+
+            return $this->json([
+                'data' => MessageResource::collection($messages)->toArray($request),
+                'meta' => ['has_more' => false],
+            ]);
+        }
+
+        $query = $conversation->messages()->latest();
+        if (isset($data['before_id'])) {
+            $query->where('id', '<', (int) $data['before_id']);
+        }
+
+        $messages = $query->limit($perPage)->get();
 
         return $this->json([
             'data' => MessageResource::collection($messages)->toArray($request),
-            'meta' => ['total' => $messages->total(), 'current_page' => $messages->currentPage()],
+            'meta' => ['has_more' => $messages->count() === $perPage],
         ]);
     }
 

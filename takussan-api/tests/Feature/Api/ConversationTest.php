@@ -33,7 +33,8 @@ class ConversationTest extends TestCase
 
         $this->getJson("/api/conversations/{$conversationId}/messages")
             ->assertOk()
-            ->assertJsonPath('meta.total', 2);
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('meta.has_more', false);
     }
 
     public function test_non_participant_cannot_send_message(): void

@@ -427,6 +427,12 @@
       "roleChanged": "{actor} soppil na ndëgg {target} ci {role}.",
       "renamed": "{actor} tudd waaye kuréel gi « {subject} »."
     },
+    "chat": {
+      "dateSeparator": {
+        "today": "Tey",
+        "yesterday": "Démb"
+      }
+    },
     "group": {
       "create": {
         "title": "Bantu bu bees",

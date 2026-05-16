@@ -1,6 +1,16 @@
 'use client';
 
+import {
+  useInfiniteQuery,
+  useQueryClient,
+  type InfiniteData,
+  type QueryKey,
+} from '@tanstack/react-query';
+import { useLocale } from 'next-intl';
+import { useEffect } from 'react';
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
+import { useAuth } from '@/context/AuthContext';
+import { apiRequest, buildQueryString, type ApiError } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
 import type { Conversation, Message, MessageAttachment } from '@/types/message';
 
@@ -98,31 +108,135 @@ export function useConversation(id: number | null | undefined) {
   );
 }
 
-export function useMessages(
+/**
+ * Cursor-paginated history. The first page (no cursor) returns the newest
+ * `MESSAGES_PAGE_SIZE` messages, and each subsequent `fetchNextPage` sends
+ * `before_id = <oldest loaded id>` to load older history. The list is kept
+ * newest-first inside each page; `ChatView`'s `groupMessagesByDay` re-sorts
+ * ascending for rendering.
+ *
+ * Polling for new messages lives in `useNewMessagesPolling` — it merges its
+ * result back into this query's cache via `setQueryData`. That way the
+ * infinite query is the single source of truth and polling never re-fetches
+ * already-loaded history.
+ */
+export const MESSAGES_PAGE_SIZE = 30;
+
+export type MessagesPage = {
+  data: Message[];
+  meta: { has_more: boolean };
+};
+
+export function messagesInfiniteQueryKey(
   conversationId: number | null | undefined,
-  options: { refetchInterval?: number | false } = {},
-) {
-  const spatieParams: SpatieQueryParams = {
-    fields: {
-      messages: MESSAGE_LIST_FIELDS,
+): QueryKey {
+  return ['conversations', conversationId, 'messages-infinite'];
+}
+
+export function useMessagesInfinite(conversationId: number | null | undefined) {
+  const locale = useLocale();
+  const { token } = useAuth();
+
+  return useInfiniteQuery<MessagesPage, ApiError, InfiniteData<MessagesPage>, QueryKey, number | undefined>({
+    queryKey: messagesInfiniteQueryKey(conversationId),
+    enabled: Boolean(conversationId),
+    initialPageParam: undefined,
+    staleTime: 0,
+    queryFn: async ({ pageParam, signal }) => {
+      const params: SpatieQueryParams = {
+        fields: { messages: MESSAGE_LIST_FIELDS },
+        include: ['sender', 'attachments'],
+        per_page: MESSAGES_PAGE_SIZE,
+        extra: pageParam != null ? { before_id: pageParam } : undefined,
+      };
+      const qs = buildQueryString(params);
+      const path = `/api/conversations/${conversationId}/messages${qs ? `?${qs}` : ''}`;
+      return apiRequest<MessagesPage>(path, {
+        token: token ?? undefined,
+        locale,
+        signal,
+      });
     },
-    include: ['sender', 'attachments'],
-    sort: ['created_at'],
-    per_page: 200,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage.meta.has_more || lastPage.data.length === 0) return undefined;
+      return lastPage.data[lastPage.data.length - 1]!.id;
+    },
+  });
+}
+
+/**
+ * Merge fresh messages (typically from `after_id` polling or the response of
+ * `useSendMessage`) into `pages[0]` of the infinite-query cache, deduped by
+ * `id`, preserving newest-first ordering.
+ */
+export function mergeNewMessages(
+  cache: InfiniteData<MessagesPage> | undefined,
+  incoming: readonly Message[],
+): InfiniteData<MessagesPage> | undefined {
+  if (!cache) return cache;
+  if (incoming.length === 0) return cache;
+
+  const knownIds = new Set<number>();
+  for (const page of cache.pages) {
+    for (const m of page.data) knownIds.add(m.id);
+  }
+
+  const additions = incoming.filter((m) => !knownIds.has(m.id));
+  if (additions.length === 0) return cache;
+
+  // Newest-first: largest id at index 0.
+  const sortedAdditions = [...additions].sort((a, b) => b.id - a.id);
+  const firstPage = cache.pages[0] ?? { data: [], meta: { has_more: false } };
+  const nextFirstPage: MessagesPage = {
+    ...firstPage,
+    data: [...sortedAdditions, ...firstPage.data],
   };
 
-  return useApiQuery<PaginatedResponse<Message>>(
-    ['conversations', conversationId, 'messages'],
+  return {
+    ...cache,
+    pages: [nextFirstPage, ...cache.pages.slice(1)],
+  };
+}
+
+/**
+ * Polls `?after_id=<anchorId>` every 3 s when the tab is visible and feeds
+ * the returned messages into the infinite-query cache. Pass the highest id
+ * already in the client cache as `anchorId`.
+ */
+export function useNewMessagesPolling(
+  conversationId: number | null | undefined,
+  anchorId: number | null,
+  options: { enabled?: boolean } = {},
+) {
+  const queryClient = useQueryClient();
+  const enabled = (options.enabled ?? true) && Boolean(conversationId) && anchorId != null;
+
+  const query = useApiQuery<{ data: Message[] }>(
+    ['conversations', conversationId, 'messages', 'live', anchorId],
     `/api/conversations/${conversationId ?? ''}/messages`,
     {
-      params: spatieParams,
-      enabled: Boolean(conversationId),
-      // 3 s polling when the conversation is open. Callers can pass
-      // `refetchInterval: false` to pause when the tab is hidden.
-      refetchInterval: options.refetchInterval ?? 3_000,
+      enabled,
+      params: {
+        fields: { messages: MESSAGE_LIST_FIELDS },
+        include: ['sender', 'attachments'],
+        extra: anchorId != null ? { after_id: anchorId } : undefined,
+      },
+      refetchInterval: enabled ? 3_000 : false,
       staleTime: 0,
     },
   );
+
+  useEffect(() => {
+    if (!conversationId) return;
+    const incoming = query.data?.data;
+    if (!incoming || incoming.length === 0) return;
+    queryClient.setQueryData<InfiniteData<MessagesPage>>(
+      messagesInfiniteQueryKey(conversationId),
+      (cache) => mergeNewMessages(cache, incoming),
+    );
+  }, [conversationId, query.data, queryClient]);
+
+  return query;
 }
 
 export type SendMessagePayload = {
@@ -130,17 +244,26 @@ export type SendMessagePayload = {
 };
 
 export function useSendMessage(conversationId: number) {
+  const queryClient = useQueryClient();
   return useApiMutation<ApiResponse<Message>, SendMessagePayload>(
     {
       path: `/api/conversations/${conversationId}/messages`,
       method: 'POST',
     },
     {
+      // We deliberately do NOT invalidate the infinite messages query — that
+      // would refetch every loaded page. Instead, prepend the new message to
+      // page 0 of the cache so it shows up immediately.
       invalidate: [
-        ['conversations', conversationId, 'messages'],
         ['conversations', 'list'],
         ['conversations', 'detail', conversationId],
       ],
+      onSuccess: (response) => {
+        queryClient.setQueryData<InfiniteData<MessagesPage>>(
+          messagesInfiniteQueryKey(conversationId),
+          (cache) => mergeNewMessages(cache, [response.data]),
+        );
+      },
     },
   );
 }

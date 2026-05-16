@@ -553,6 +553,12 @@
       "roleChanged": "{actor} changed {target}'s role to {role}.",
       "renamed": "{actor} renamed the group to \"{subject}\"."
     },
+    "chat": {
+      "dateSeparator": {
+        "today": "Today",
+        "yesterday": "Yesterday"
+      }
+    },
     "group": {
       "create": {
         "title": "New group",
