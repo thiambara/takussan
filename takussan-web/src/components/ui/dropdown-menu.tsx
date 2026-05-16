@@ -30,7 +30,18 @@ function DropdownMenuContent({
 }) {
   return (
     <DropdownMenuPortal>
-      <MenuPrimitive.Positioner sideOffset={sideOffset} align={align}>
+      {/*
+        The Positioner is the element that gets portaled to <body>; the Popup
+        sits inside it. The z-index MUST live on the Positioner — otherwise
+        the menu lands inside a `position: fixed` ancestor's stacking context
+        (e.g. the home navbar at `z-50`) and renders behind it. Mirrors the
+        Popover and Select primitives.
+      */}
+      <MenuPrimitive.Positioner
+        sideOffset={sideOffset}
+        align={align}
+        className="isolate z-[1100]"
+      >
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"
           className={cn(
