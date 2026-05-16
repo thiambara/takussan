@@ -77,6 +77,21 @@
   --app-ink: #1f1812;
   --app-ink-muted: #6e655a;
   --app-accent: #a85332;
+
+  /* === Floating Dock (TCK-275) === */
+  /*
+   * Base offset for floating bottom UI (compare bar, chat widget, etc.).
+   * Matches `bottom-4` (16px) on small screens and `bottom-6` (24px) on
+   * `sm:`+, mirroring the legacy Tailwind classes the components used to
+   * apply directly. Read by `useFloatingDockSlot`.
+   */
+  --floating-dock-base: 16px;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --floating-dock-base: 24px;
+  }
 }
 
 @theme inline {

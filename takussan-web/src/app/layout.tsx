@@ -12,6 +12,7 @@ import { UserLocationProvider } from '@/components/providers/UserLocationProvide
 import { MaintenanceBanner } from '@/components/maintenance/MaintenanceBanner';
 import { GlobalAnnouncementBanner } from '@/components/announcements/GlobalAnnouncementBanner';
 import { ChatWidget } from '@/components/chat-widget/ChatWidget';
+import { FloatingDockProvider } from '@/components/floating-dock';
 import { TIMEZONE } from '@/i18n/config';
 import './globals.css';
 
@@ -51,10 +52,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <AuthProvider initialUser={initialUser} initialToken={token ?? null}>
               <FeatureFlagProvider>
                 <UserLocationProvider>
-                  <MaintenanceBanner />
-                  <GlobalAnnouncementBanner />
-                  <ChatWidget />
-                  {children}
+                  <FloatingDockProvider>
+                    <MaintenanceBanner />
+                    <GlobalAnnouncementBanner />
+                    <ChatWidget />
+                    {children}
+                  </FloatingDockProvider>
                 </UserLocationProvider>
               </FeatureFlagProvider>
             </AuthProvider>

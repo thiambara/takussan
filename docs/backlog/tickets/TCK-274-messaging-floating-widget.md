@@ -1,12 +1,12 @@
 ---
 id: TCK-274
 title: "Messagerie — widget flottant accessible site-wide"
-status: review
+status: done
 phase: P2
 family: front
 estimate: M
 created: 2026-05-13
-updated: 2026-05-13
+updated: 2026-05-15
 depends_on: [TCK-045, TCK-085, TCK-129]
 blocks: []
 spec_refs:

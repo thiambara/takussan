@@ -6,8 +6,16 @@ import { Scale, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { useCompare } from '@/context/CompareContext';
+import { useFloatingDockSlot } from '@/components/floating-dock';
 import { COMPARE_MAX_IDS, idsToCsv } from '@/lib/compare';
 import { cn } from '@/lib/utils';
+
+/**
+ * Logical height of the pill (px). Used by the FloatingDock to compute the
+ * vertical offset of the slots that stack above us. Calibrated against the
+ * actual rendered height (avatar pill ~64 incl. padding).
+ */
+const COMPARE_PILL_HEIGHT_PX = 64;
 
 /**
  * TCK-082 — sticky bottom-right pill showing the current comparator
@@ -17,7 +25,19 @@ export function CompareFloatingBar({ className }: { className?: string }) {
   const { ids, isHydrated, remove, clear } = useCompare();
   const t = useTranslations('compare.floatingBar');
 
-  if (!isHydrated || ids.length === 0) return null;
+  // Register with the FloatingDock orchestrator (TCK-275). The slot is only
+  // “active” once we actually render content — otherwise the dock would
+  // reserve vertical space for an invisible bar.
+  const isVisible = isHydrated && ids.length > 0;
+  const { bottom } = useFloatingDockSlot({
+    id: 'compare-floating-bar',
+    corner: 'bottom-right',
+    priority: 1, // sits above chat (priority 0)
+    height: COMPARE_PILL_HEIGHT_PX,
+    enabled: isVisible,
+  });
+
+  if (!isVisible) return null;
 
   const cta = t('cta', { count: ids.length });
   const canCompare = ids.length >= 2;
@@ -25,10 +45,11 @@ export function CompareFloatingBar({ className }: { className?: string }) {
   return (
     <aside
       aria-label={t('ariaLabel')}
+      style={{ bottom }}
       className={cn(
-        'fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-2xl',
+        'fixed right-4 z-40 flex items-center gap-2 rounded-2xl',
         'border border-stone-200 bg-white/95 p-2 pl-3 shadow-lg backdrop-blur',
-        'sm:bottom-6 sm:right-6',
+        'sm:right-6',
         className,
       )}
     >

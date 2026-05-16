@@ -174,7 +174,13 @@ _(toutes mergées — voir Done)_
 
 > Raccourci global vers la messagerie : widget flottant style Facebook Messenger (desktop) + FAB redirigeant vers `/app/messages` (mobile). N'introduit aucun nouvel endpoint — réutilise les API livrées par TCK-045 et TCK-085.
 
-_(TCK-274 en review)_
+_(TCK-274 done)_
+
+### Vague 31 — Orchestration UI flottante bas d'écran (2026-05-15)
+
+> Refacto frontend : les éléments flottants en bas d'écran (`CompareFloatingBar`, `ChatWidget` desktop + FAB mobile, `PropertyMobileBottomBar`) se chevauchent aujourd'hui en bas-droite. Introduit un orchestrateur partagé (Floating Dock) qui empile les éléments verticalement et décale automatiquement quand une sticky bar full-width occupe le bas (fiche bien mobile). Aucun changement backend.
+
+_(TCK-275 en doing)_
 
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
@@ -182,11 +188,10 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 
 ## 🚧 Doing
 
-_(vide)_
+- [TCK-275](tickets/TCK-275-floating-dock-orchestrator.md) — Floating Dock — orchestrateur des éléments UI flottants en bas d'écran `S · P2 · front`
 
 ## 👀 Review
 
-- [TCK-274](tickets/TCK-274-messaging-floating-widget.md) — Messagerie — widget flottant accessible site-wide `M · P2 · front`
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 
 ### Vague 27 — Audit design front
@@ -546,6 +551,10 @@ _(vide)_
 - [TCK-032](tickets/TCK-032-reporting-dashboards.md) — Reporting & tableaux de bord `L · P1 · applicatif` (PR #38 — P1+P2+P3 full ; gap `/api/dashboard/me` adaptive entry fermé pour débloquer TCK-130)
 
 ## ✅ Done
+
+### Vague 30 — Messagerie UX flottante
+
+- [TCK-274](tickets/TCK-274-messaging-floating-widget.md) — Messagerie — widget flottant accessible site-wide `M · P2 · front`
 
 ### Vague 29 — Onboarding parcours acteurs
 

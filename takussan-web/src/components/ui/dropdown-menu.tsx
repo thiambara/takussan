@@ -34,7 +34,7 @@ function DropdownMenuContent({
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"
           className={cn(
-            "z-50 min-w-48 overflow-hidden rounded-xl bg-white p-1 text-sm text-app-ink shadow-[0_0_40px_0_rgba(31,27,23,0.04)] outline-none ring-1 ring-black/5 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+            "z-[1100] min-w-48 overflow-hidden rounded-xl bg-white p-1 text-sm text-app-ink shadow-[0_0_40px_0_rgba(31,27,23,0.04)] outline-none ring-1 ring-black/5 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
             className
           )}
           {...props}

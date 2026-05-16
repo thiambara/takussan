@@ -8,8 +8,22 @@ import { MessageSquare, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { ConversationList } from '@/components/messages/ConversationList';
 import { ChatView } from '@/components/messages/ChatView';
+import { useFloatingDockSlot } from '@/components/floating-dock';
+import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
 import { cn } from '@/lib/utils';
 import { useUnreadCount } from './useUnreadCount';
+
+/** Tailwind `md` breakpoint — desktop launcher visible at >= 768px. */
+const MD_BREAKPOINT_PX = 768;
+
+/**
+ * Static logical heights of the chat launchers, used by the FloatingDock to
+ * decide where neighbouring slots stack. We intentionally measure only the
+ * pill (not the open panel) so the comparator pill above us doesn't jump
+ * 500 px when the user toggles the chat — standard Messenger / Intercom UX.
+ */
+const CHAT_LAUNCHER_DESKTOP_HEIGHT_PX = 56; // size-14
+const CHAT_FAB_MOBILE_HEIGHT_PX = 48; // size-12
 
 /**
  * TCK-274 — Floating messaging widget mounted once at the root layout.
@@ -61,18 +75,41 @@ export function ChatWidget() {
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
 
-  // Visibility gates — keep them synchronous so the component returns null
-  // before any expensive child renders.
-  if (!user) return null;
-  if (
+  // Visibility gates — derived booleans first so we can wire them into the
+  // FloatingDock `enabled` flag without violating the Rules of Hooks (hooks
+  // must run unconditionally on every render).
+  const isHiddenByRoute =
     pathname === '/maintenance' ||
     pathname === '/app/messages' ||
     pathname.startsWith('/app/messages/') ||
     pathname.startsWith('/auth/') ||
-    pathname.startsWith('/onboarding/')
-  ) {
-    return null;
-  }
+    pathname.startsWith('/onboarding/');
+  const isVisible = Boolean(user) && !isHiddenByRoute;
+
+  // Register both launchers with the FloatingDock orchestrator (TCK-275).
+  // Tailwind hides one of them visually (`hidden md:block` vs `md:hidden`) —
+  // we mirror that gate here so the *invisible* launcher never claims a slot
+  // in the dock. Otherwise its declared height would push every higher-priority
+  // slot (e.g. the comparator pill) up by ~48 px of phantom space, and the
+  // 3 mm gap the user sees would no longer be 3 mm.
+  const isMobile = useMatchesMaxWidth(MD_BREAKPOINT_PX - 1);
+  const desktopSlot = useFloatingDockSlot({
+    id: 'chat-widget-desktop',
+    corner: 'bottom-right',
+    priority: 0,
+    height: CHAT_LAUNCHER_DESKTOP_HEIGHT_PX,
+    enabled: isVisible && !isMobile,
+  });
+  const mobileSlot = useFloatingDockSlot({
+    id: 'chat-widget-mobile-fab',
+    corner: 'bottom-right',
+    priority: 0,
+    height: CHAT_FAB_MOBILE_HEIGHT_PX,
+    enabled: isVisible && isMobile,
+  });
+
+  // Bail out late — after every hook has run.
+  if (!isVisible) return null;
 
   const badgeLabel = unread > 9 ? '9+' : String(unread);
   const launcherAria =
@@ -81,7 +118,17 @@ export function ChatWidget() {
   return (
     <>
       {/* Desktop launcher + panel */}
-      <div className="pointer-events-none fixed bottom-4 right-4 z-40 hidden md:block">
+      <div
+        style={{ bottom: desktopSlot.bottom }}
+        className={cn(
+          'pointer-events-none fixed right-4 hidden md:block',
+          // While the panel is open we lift the whole container above other
+          // floating UI (compare pill at z-40, Leaflet's internal panes that
+          // reach z-700 on the publish location picker). When closed we stay
+          // at z-40 so real Radix modals (z-50) can still cover the launcher.
+          open ? 'z-[1000]' : 'z-40',
+        )}
+      >
         {open && (
           <div
             role="dialog"
@@ -181,7 +228,8 @@ export function ChatWidget() {
         href="/app/messages"
         aria-label={launcherAria}
         data-testid="chat-widget-mobile-fab"
-        className="fixed bottom-4 right-4 z-40 inline-flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg md:hidden focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        style={{ bottom: mobileSlot.bottom }}
+        className="fixed right-4 z-40 inline-flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg md:hidden focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <MessageSquare className="size-5" aria-hidden />
         {unread > 0 && (
