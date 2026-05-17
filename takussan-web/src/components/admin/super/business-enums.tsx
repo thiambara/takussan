@@ -83,30 +83,30 @@ export function EnumValueTable({
         </div>
       ) : null}
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-stone-200 text-sm">
+        <table className="min-w-full divide-y divide-stone-200 text-xs sm:text-sm">
           <thead className="bg-stone-50 text-left text-xs font-semibold uppercase text-stone-500">
             <tr>
-              <th className="px-4 py-2">Valeur</th>
-              <th className="px-4 py-2">FR</th>
-              <th className="px-4 py-2">EN</th>
-              <th className="px-4 py-2">WO</th>
-              <th className="px-4 py-2">Usage</th>
-              <th className="px-4 py-2"><span className="sr-only">Actions</span></th>
+              <th className="px-2 py-2 sm:px-4">Valeur</th>
+              <th className="px-2 py-2 sm:px-4">FR</th>
+              <th className="px-2 py-2 sm:px-4">EN</th>
+              <th className="px-2 py-2 sm:px-4">WO</th>
+              <th className="px-2 py-2 sm:px-4">Usage</th>
+              <th className="px-2 py-2 sm:px-4"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-100">
             {item.values.map((value) => (
               <tr key={value.value} className={cn(!value.is_active && 'opacity-55')}>
-                <td className="px-4 py-3 font-mono text-xs">{value.value}</td>
-                <td className="px-4 py-3">{value.labels.fr}</td>
-                <td className="px-4 py-3">{value.labels.en}</td>
-                <td className="px-4 py-3">{value.labels.wo}</td>
-                <td className="px-4 py-3">
+                <td className="px-2 py-2 font-mono text-xs sm:px-4 sm:py-3">{value.value}</td>
+                <td className="px-2 py-2 sm:px-4 sm:py-3">{value.labels.fr}</td>
+                <td className="px-2 py-2 sm:px-4 sm:py-3">{value.labels.en}</td>
+                <td className="px-2 py-2 sm:px-4 sm:py-3">{value.labels.wo}</td>
+                <td className="px-2 py-2 sm:px-4 sm:py-3">
                   <Badge variant={value.usage_count > 0 ? 'secondary' : 'outline'}>
                     {value.usage_count}
                   </Badge>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-2 py-2 sm:px-4 sm:py-3">
                   <div className="flex justify-end gap-1">
                     <Button type="button" variant="ghost" size="icon-sm" aria-label={`Modifier ${value.value}`} onClick={() => onEdit(value)}>
                       <Edit3 className="size-4" aria-hidden="true" />

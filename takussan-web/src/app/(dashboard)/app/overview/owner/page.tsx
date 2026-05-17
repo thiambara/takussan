@@ -55,7 +55,7 @@ export default async function OwnerDashboardPage() {
         </section>
       )}
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         <StatCard
           label="Biens"
           value={formatNumber(data.portfolio?.total ?? 0, 'fr')}
@@ -79,7 +79,7 @@ export default async function OwnerDashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         <StatCard
           label="Taux d'occupation"
           value={`${data.occupancy?.rate_percent ?? 0}%`}

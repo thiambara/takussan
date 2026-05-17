@@ -54,7 +54,7 @@ export default async function AgencyDashboardPage() {
         subtitle={`Indicateurs clés sur la période — ${data.period.start.slice(0, 10)} au ${data.period.end.slice(0, 10)}`}
       />
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         <StatCard
           label="Biens actifs"
           value={formatNumber(data.properties?.total ?? 0, 'fr')}
@@ -81,7 +81,7 @@ export default async function AgencyDashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         <StatCard
           label="Clients"
           value={formatNumber(data.customers_count ?? 0, 'fr')}
