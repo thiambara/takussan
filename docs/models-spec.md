@@ -33,13 +33,23 @@ Les conversions d'images (thumbnails, responsive) sont configurées dans `regist
 
 ### `spatie/laravel-permission`
 
-Gère les **rôles et permissions** via le trait `HasRoles` sur le modèle `User`.
-Les rôles sont définis dans l'enum `UserRole` et les permissions sont assignées via le seeder `RolesAndPermissionsSeeder`.
-Les tables `roles`, `permissions`, `model_has_roles`, `model_has_permissions` et `role_has_permissions` sont gérées automatiquement par le package — elles ne sont **pas** décrites dans ce document.
+> ⚠️ **Refonte architecturale TCK-278 → TCK-279.** Le trait `HasRoles` est **retiré du modèle `User`**. Le « rôle » d'un humain dans le système n'est plus un attribut auth-level mais une **propriété dérivée du profil polymorphe** dont il dispose dans un contexte donné (agence ou plateforme). Voir [Règle 5 — Profil = rôle](#règle-5--profil--rôle).
 
-**Rôles existants :** customer, agency_admin, super_admin, agent, owner, service_provider
+**Phase 1 (TCK-278) — Suppression de spatie sur User.**
+- `User` ne porte plus de rôle direct. Les checks `$user->hasRole('agent')` sont remplacés par `$user->isAgentAt($agency)` / `$user->hasProfileAt($agency, AgentProfile::class)` / `$user->canActAt(Capability::xxx, $agency)`.
+- Les rôles « plateforme » (`super_admin`, `support`, `viewer`) deviennent un nouveau modèle polymorphe : [PlatformProfile](#51-platformprofile-).
+- Les rôles « customer » et « tenant » ne deviennent pas des profils en phase 1 : ils sont **dérivés** de la présence d'une `Booking` / `Lease` actif dans l'agence (helpers `isCustomerOf($agency)` / `isTenantOf($agency)`). Profile-isation reportée si TCK-020 / TCK-090 en font émerger le besoin.
+- L'enum `Capability` (code-defined) catalogue toutes les capacités atomiques de l'application (≈ 30–50 entrées groupées par domaine). Un résolveur `MembershipCapabilityResolver` mappe `(Capability, ProfileType) → bool`.
+- Les tables spatie (`roles`, `permissions`, `model_has_roles`, `model_has_permissions`, `role_has_permissions`) **disparaissent**.
 
-**Scope multi-agences (teams) :** le package est configuré en mode `teams = true` avec `team_foreign_key = agency_id`. Les rôles et permissions personnalisés créés par un `agency_admin` sont automatiquement scopés à son `agency_id`, ce qui permet à chaque agence d'avoir sa propre matrice de rôles sans collision. Les rôles globaux (super_admin) ne sont pas rattachés à une agence.
+**Phase 2 (TCK-279) — Réintroduction du trait `HasRoles` + `HasPermissions` sur les Profils.**
+- Les profils polymorphes (`AgentProfile`, `AgencyAdminProfile`, `OwnerProfile`, `ServiceProviderProfile`, `BrokerProfile`) reçoivent le trait `HasRoles`.
+- La table [AgencyRole](#52-agencyrole-) remplace la table spatie `roles` côté agence : rôles par agence (`name`, `base_profile_type`, `is_system`).
+- Un profil pointe vers exactement un `AgencyRole` (`agency_role_id` NOT NULL) — voir [Règle 6 — 1 profil = 1 rôle personnalisé](#règle-6--1-profil--1-rôle-personnalisé).
+- Permissions atomiques (catalogue `Capability`) attachées à un `AgencyRole` via le pivot `agency_role_capabilities`.
+- `MembershipCapabilityResolver` consulte le pivot ; les sites d'appel `$user->canActAt(...)` restent inchangés.
+
+**Rôles métier actuels** (= types de profils en phase 1+) : owner, agent, agency_admin, broker, service_provider, *(customer/tenant dérivés)*.
 
 ### `spatie/laravel-activitylog`
 
@@ -126,6 +136,11 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 49. [AgencyUpgradeRequest](#49-agencyupgraderequest-) 🆕
 50. [TenantOnboardingChecklist](#50-tenantonboardingchecklist-) 🆕
 
+### RBAC refondu 🆕 (TCK-278 → TCK-279)
+51. [PlatformProfile](#51-platformprofile-) 🆕
+52. [AgencyRole](#52-agencyrole--tck-279) 🆕
+53. [AgencyRoleCapability](#53-agencyrolecapability--tck-279) 🆕
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -147,9 +162,11 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 ### 1. User
 
 **Table :** `users`
-**Description :** **Identité authentifiée pure.** Le User porte uniquement ce qui caractérise un humain (email, mot de passe, contacts, 2FA, OAuth, préférences). Sa **nature métier** (propriétaire, agent, courtier, prestataire) est portée par des **profils polymorphes** dédiés liés au user et scopés par agence (voir [Profils](#34-ownerprofile-)). Un même humain peut cumuler plusieurs profils chez plusieurs agences via une seule identité.
+**Description :** **Identité authentifiée pure.** Le User porte uniquement ce qui caractérise un humain (email, mot de passe, contacts, 2FA, OAuth, préférences). Sa **nature métier** (propriétaire, agent, admin agence, courtier, prestataire, opérateur plateforme) est portée par des **profils polymorphes** dédiés liés au user et scopés par agence — ou par la plateforme pour `PlatformProfile`. Un même humain peut cumuler plusieurs profils chez plusieurs agences via une seule identité.
 
 > **Évolution TCK-138 → TCK-142.** Les colonnes `type` (enum `UserType`) et `agency_id` sont **dépréciées** ; elles disparaissent de `users` au cutover (TCK-142). Toute logique d'autorisation/scoping est rebasée sur le **profil actif** de la requête (voir [Active profile context](#active-profile-context)).
+
+> **Évolution TCK-278 (refonte RBAC).** Le User **ne porte plus de rôle direct** (`HasRoles` retiré). Le rôle est la conséquence de l'existence d'un profil dans un scope. Voir [Règle 5 — Profil = rôle](#règle-5--profil--rôle). Les rôles plateforme (super_admin, support, viewer) sont portés par [PlatformProfile](#51-platformprofile-).
 
 | Colonne | Type | Nullable | Défaut | Description | Changement |
 |---------|------|----------|--------|-------------|------------|
@@ -194,9 +211,9 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 
 **Traits :**
 - `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `avatar`
-- `HasRoles` (spatie/laravel-permission) — gestion des rôles et permissions, scopés par profil actif (`teams = true`, `team_id = profile.agency_id`)
+- ~~`HasRoles` (spatie/laravel-permission)~~ — **retiré en TCK-278.** Le rôle est dérivé des profils ; voir [Règle 5](#règle-5--profil--rôle).
 - `HasApiTokens` (laravel/sanctum) — authentification API
-- `HasProfiles` (custom, TCK-140) — expose `ownerProfiles()`, `agentProfiles()`, `brokerProfile()`, `serviceProviderProfile()`, `profiles()`, `activeProfile()`, `hasProfile()`, `isAgentAt()`, etc.
+- `HasProfiles` (custom, TCK-140 / enrichi TCK-278) — expose `ownerProfiles()`, `agentProfiles()`, `agencyAdminProfiles()`, `brokerProfile()`, `serviceProviderProfile()`, `platformProfile()`, `profiles()`, `activeProfile()`, `hasProfileAt()`, `isAgentAt()`, `isAgencyAdminAt()`, `isOwnerAt()`, `isSuperAdmin()`, `canActAt(Capability, Agency)` etc.
 
 **Accesseurs :**
 - `full_name` : concaténation de `first_name` + `last_name`
@@ -205,9 +222,11 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 - `added_by()` → belongsTo User
 - `owner_profiles()` → hasMany OwnerProfile 🆕
 - `agent_profiles()` → hasMany AgentProfile 🆕
+- `agency_admin_profiles()` → hasMany AgencyAdminProfile 🆕 (TCK-271)
 - `broker_profile()` → hasOne BrokerProfile 🆕
 - `service_provider_profile()` → hasOne ServiceProviderProfile 🆕
-- `profiles()` → collection unifiée des 4 types de profils (Eloquent `Collection` retournée par accesseur, pas une relation Eloquent native) 🆕
+- `platform_profile()` → hasOne PlatformProfile 🆕 (TCK-278)
+- `profiles()` → collection unifiée des profils du user (Eloquent `Collection` retournée par accesseur, pas une relation Eloquent native) 🆕
 - `properties()` → hasMany Property
 - `bookings()` → hasMany Booking
 - `booking_payments()` → hasMany BookingPayment
@@ -2009,6 +2028,113 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 
 ---
 
+### 51. PlatformProfile 🆕
+
+**Table :** `platform_profiles`
+**Description :** Profil polymorphe **plateforme-scoped** (agency_id = NULL) qui porte les rôles d'opération de la plateforme : `super_admin` (cross-tenant, accès complet), `support` (accès lecture + actions limitées d'assistance utilisateur), `viewer` (lecture seule pour audit/business intelligence). **Introduit en TCK-278** pour absorber les rôles plateforme historiquement portés par `User` via spatie. Un user a au plus **un** PlatformProfile.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | | | `cascadeOnDelete`, **unique** (1 profil plateforme par user) |
+| level | PlatformProfileLevel | | 'viewer' | `super_admin` / `support` / `viewer` |
+| granted_by_id | FK users | oui | null | User qui a octroyé le profil (audit) — `nullOnDelete` |
+| granted_at | datetime | | auto | Date d'octroi |
+| revoked_at | datetime | oui | null | Soft-revoke (le profil reste pour audit, mais n'est plus actif) |
+| notes | text | oui | null | Justification interne (audit) |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+| deleted_at | datetime | oui | null | Soft delete |
+
+**Index :**
+- `user_id` unique
+- `level`
+
+**Relations :**
+- `user()` → belongsTo User
+- `granted_by()` → belongsTo User
+
+**Scopes :**
+- `active()` : `whereNull('revoked_at')`
+
+**Règles métier :**
+- Seul un `PlatformProfile.level = super_admin` actif peut créer / promouvoir / révoquer un autre `PlatformProfile`.
+- La création du premier `super_admin` se fait via seeder/console (bootstrap).
+- Révocation = `revoked_at = now()` + `tokens()->delete()` du user pour invalider les sessions actives.
+
+**Notes :**
+- Pas de `agency_id` (le profil est strictement plateforme).
+- `level` est un enum séparé pour éviter d'introduire un type polymorphe par niveau (cf. justification dans la décision design TCK-278).
+- Le check `$user->isSuperAdmin()` devient `$user->platformProfile?->level === PlatformProfileLevel::SuperAdmin && $user->platformProfile->isActive()`.
+
+---
+
+### 52. AgencyRole 🆕 (TCK-279)
+
+**Table :** `agency_roles`
+**Description :** **Rôles personnalisés** par agence (remplace l'usage de la table `roles` de spatie côté agence). Chaque agence reçoit au seed des rôles **système** (`is_system=true`) — un par type de profil métier — et peut en créer/cloner d'autres (`is_system=false`). Un profil métier pointe **toujours** vers exactement un `AgencyRole` via `agency_role_id`.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `cascadeOnDelete` |
+| name | string | | | Libellé affiché (« Agent », « Manager équipe Nord ») |
+| base_profile_type | string | | | Nom court du profil cible : `agent` / `agency_admin` / `owner` / `service_provider` |
+| description | text | oui | null | Description fonctionnelle |
+| is_system | boolean | | false | `true` pour les rôles seedés par défaut, non éditables |
+| is_clonable | boolean | | true | Permet à l'agence de cloner ce rôle |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- `(agency_id, base_profile_type)`
+- `(agency_id, is_system)`
+
+**Contraintes :**
+- Unique `(agency_id, name)` — pas de doublon de libellé dans une agence
+- Unique `(agency_id, base_profile_type, is_system=true)` — exactement un rôle système par type
+
+**Relations :**
+- `agency()` → belongsTo Agency
+- `capabilities()` → belongsToMany Capability (pivot `agency_role_capabilities`)
+- `agent_profiles()` → hasMany AgentProfile (via `agency_role_id`)
+- `agency_admin_profiles()` → hasMany AgencyAdminProfile
+- `owner_profiles()` → hasMany OwnerProfile
+
+**Règles métier :**
+- Suppression d'un `AgencyRole` utilisé par au moins un profil : **restrict** (FK). Forcer la réaffectation préalable.
+- Édition d'un rôle `is_system=true` : refusée. Pour personnaliser, l'UI propose un **clone** (`is_system=false`).
+- L'édition d'un rôle non-système prend effet **immédiatement** pour tous les profils attachés (pas de cache).
+
+**Notes :**
+- Modèle additif uniquement : une `Capability` est présente ou absente, pas de deny override.
+- L'`AgencyRole` n'a pas de `status` actif/inactif : un rôle qu'on veut désactiver doit être supprimé (après réaffectation) ou cloné dans un état restreint.
+
+---
+
+### 53. AgencyRoleCapability 🆕 (TCK-279)
+
+**Table :** `agency_role_capabilities`
+**Description :** Pivot M:N entre `agency_roles` et le catalogue de capacités (`Capability` enum PHP). Chaque ligne déclare qu'un rôle dispose d'une capacité atomique.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_role_id | FK agency_roles | | | `cascadeOnDelete` |
+| capability | string | | | Valeur de l'enum `Capability` (ex. `properties.publish`) |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- Unique `(agency_role_id, capability)`
+- `capability` (pour requêtes inverses « quels rôles ont la capacité X ? »)
+
+**Notes :**
+- La valeur `capability` n'est pas une FK vers une table (le catalogue est code-defined). Une validation applicative refuse une valeur hors enum à l'écriture.
+- Pas de timestamps métier nécessaires ; on garde `created_at` / `updated_at` pour audit.
+
+---
+
 ## Enums
 
 ### Enums existants (à renommer / ajuster)
@@ -2019,7 +2145,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | ~~ProprietyVisibility~~ | **PropertyVisibility** | public, private |
 | BookingStatus | BookingStatus | pending, confirmed, rejected, cancelled, completed, **expired** |
 | UserStatus | UserStatus | active, inactive, blocked, deleted |
-| UserRole | UserRole | customer, agency_admin, super_admin, **agent**, **owner**, **service_provider** (✏️ `vendor` → `service_provider`) |
+| UserRole | UserRole | ~~customer, agency_admin, super_admin, agent, owner, service_provider~~ — **@deprecated TCK-278** (le rôle est désormais dérivé du profil ; voir [Règle 5](#règle-5--profil--rôle)) |
 | CustomerStatus | CustomerStatus | active, inactive, blocked, deleted |
 
 > **`UserType` — déprécié (TCK-138 → TCK-142).** L'enum `UserType` est conservé en lecture pendant la phase de migration mais **disparaît** au cutover (TCK-142, suppression de `users.type` + des deux fichiers `app/Models/Enums/UserType.php` et `app/Models/Bases/Enums/UserType.php`). La nature métier d'un user est désormais portée par ses **profils polymorphes** (OwnerProfile / AgentProfile / BrokerProfile / ServiceProviderProfile) ; les permissions par les rôles spatie scopés via le profil actif. Aucun nouveau code ne doit lire `users.type`.
@@ -2082,6 +2208,31 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | **AgencyKind** 🆕 | standard, individual | Agency.kind |
 | **InvitationStatus** 🆕 | sent, accepted, expired, revoked | Invitation.status |
 | **AgencyUpgradeRequestStatus** 🆕 | pending, approved, rejected, revoked | AgencyUpgradeRequest.status |
+| **PlatformProfileLevel** 🆕 (TCK-278) | super_admin, support, viewer | PlatformProfile.level |
+| **AgencyRoleBaseType** 🆕 (TCK-279) | agent, agency_admin, owner, service_provider | AgencyRole.base_profile_type |
+| **Capability** 🆕 (TCK-278) | catalogue code-defined ≈ 30–50 entrées groupées par domaine — voir « Catalogue Capability » ci-dessous | `MembershipCapabilityResolver`, `AgencyRoleCapability.capability` |
+
+#### Catalogue `Capability` (TCK-278 → TCK-279)
+
+Énumération PHP, code-defined, immuable hors livraison. Groupée par domaine pour pouvoir afficher l'éditeur de rôle en sections (UI TCK-279). Liste indicative (non exhaustive — le catalogue grandit au fil des Policies) :
+
+| Groupe | Valeurs |
+|---|---|
+| `agency.*` | `agency.update`, `agency.update_kyc`, `agency.update_billing`, `agency.upgrade_request` |
+| `team.*` | `team.invite`, `team.assign_role`, `team.remove`, `team.suspend` |
+| `properties.*` | `properties.create`, `properties.update_any`, `properties.update_own`, `properties.delete`, `properties.publish`, `properties.moderate` |
+| `bookings.*` | `bookings.validate`, `bookings.cancel`, `bookings.refund` |
+| `leases.*` | `leases.create`, `leases.sign`, `leases.terminate`, `leases.renew` |
+| `payments.*` | `payments.record`, `payments.refund`, `payments.export` |
+| `invoices.*` | `invoices.create`, `invoices.write_off`, `invoices.send` |
+| `payouts.*` | `payouts.create`, `payouts.approve` |
+| `crm.*` | `crm.view_all`, `crm.export`, `crm.assign` |
+| `maintenance.*` | `maintenance.assign`, `maintenance.close` |
+| `messaging.*` | `messaging.broadcast`, `messaging.archive` |
+| `reports.*` | `reports.view_global`, `reports.export` |
+| `roles.*` | `roles.create_custom`, `roles.edit_custom`, `roles.delete_custom` |
+
+Chaque entrée est de la forme `<domain>.<verb>` ; les verbes sont normalisés (`create`, `update_any`, `update_own`, `delete`, `view`, `export`, `assign`, `approve`, etc.).
 
 ---
 
@@ -2239,6 +2390,37 @@ Les colonnes `*_count` et `average_rating` ne doivent **jamais** être mises à 
 
 La relation `referenceable()` de `AppNotification` est intentionnellement **non standard** (morph manuel via `referenceable_id`/`referenceable_type` sans utiliser Eloquent `morphTo` standard). Cela évite la création des tables `model_has_...` de spatie et permet un contrôle fin des types autorisés : Booking, Lease, LeasePayment, MaintenanceRequest.
 
+### Règle 5 — Profil = rôle
+
+> 🆕 TCK-278 (refonte RBAC). Le User ne porte plus de rôle ; toute autorisation passe par le profil.
+
+Loi architecturale : **le rôle d'un humain dans un contexte est l'existence d'un profil polymorphe actif dans ce contexte.** Le User est une identité authentifiée pure (email, mot de passe, 2FA, OAuth, status). Il n'a plus de table `model_has_roles` ni d'array `$user->roles[]`.
+
+- **Inventaire des profils porteurs de rôle** :
+  - `AgentProfile` ↔ rôle `agent`, scope `agency`
+  - `AgencyAdminProfile` ↔ rôle `agency_admin`, scope `agency`
+  - `OwnerProfile` ↔ rôle `owner`, scope `agency`
+  - `ServiceProviderProfile` + `ServiceProviderAgencyCollaboration` ↔ rôle `service_provider`, scope `agency` via la collaboration
+  - `BrokerProfile` + `BrokerAgencyCollaboration` ↔ rôle `broker`, scope `agency` via la collaboration
+  - `PlatformProfile` ↔ rôles plateforme (`super_admin` / `support` / `viewer`), scope `null` (cross-tenant)
+- **Rôles dérivés non-profil-isés** (phase 1) : `customer` ⇔ `Booking.user_id` existant chez l'agence ; `tenant` ⇔ `Lease.tenant_id` actif. Profile-isation reportée à un ticket dédié si TCK-020 / TCK-090 en font émerger le besoin.
+- **Résolution d'une capacité** : un `MembershipCapabilityResolver` (service applicatif) mappe `(Capability, ProfileType) → bool` en phase 1 (table de vérité code-defined), et consulte le pivot `agency_role_capabilities` en phase 2 (TCK-279). Le site d'appel reste `$user->canActAt(Capability::PropertiesPublish, $agency)`.
+- **Suppression d'un profil** = révocation immédiate du rôle correspondant. Aucun héritage résiduel, aucun cache de rôle sur User.
+- **Invariant base de données** : il est **interdit** d'écrire dans `model_has_roles` / `model_has_permissions` après le cutover TCK-278. Ces tables sont supprimées par la migration de refonte.
+
+### Règle 6 — 1 profil = 1 rôle personnalisé
+
+> 🆕 TCK-279 (rôles personnalisés). Préalable : Règle 5 + tables `agency_roles` / `agency_role_capabilities`.
+
+Chaque profil métier (`AgentProfile`, `AgencyAdminProfile`, `OwnerProfile`, `ServiceProviderProfile`) pointe vers **exactement un** `AgencyRole` via `agency_role_id NOT NULL`. Pas de M:N, pas de fallback : la capacité d'un user à agir s'obtient en lisant un seul rôle.
+
+- **Seed agence** : à la création d'une agence, un job/observer seed quatre `AgencyRole` `is_system=true` (un par base_profile_type). Tout profil créé reçoit par défaut le `AgencyRole` système de son type.
+- **Personnalisation** : pour modifier les permissions d'un type, l'agency_admin **clone** le rôle système (`is_system=false`), édite le pivot capabilities, puis ré-affecte les profils concernés via `PATCH /api/profiles/{id}/agency-role`.
+- **Cumul de capacités** : pour qu'un user cumule deux rôles dans une même agence (« Agent + Validateur »), créer un `AgencyRole` qui bundle les deux. Pas de second profil de même type.
+- **Cross-agence** : un user avec des profils dans plusieurs agences a un `AgencyRole` distinct par agence — résolu par `request()->activeProfile()->agency_role`.
+- **Suppression d'un AgencyRole utilisé** : refusée (FK restrict). La transition d'un rôle vers un autre passe par la ré-affectation explicite, puis suppression.
+- **Plateforme** : `PlatformProfile` n'a pas de `agency_role_id` (les capacités plateforme sont dérivées de `level` directement, pas d'agence à scoper).
+
 ### Règle 4 — Active profile context
 
 > 🆕 TCK-138 → TCK-141. Préalable à la suppression de `users.agency_id` (TCK-142).
@@ -2250,7 +2432,7 @@ Toute requête authentifiée résout un **profil actif** parmi les profils du us
   2. Cookie httpOnly `active_profile_id` posé par `PATCH /api/me/active-profile`
   3. Auto-bascule si l'utilisateur n'a qu'un seul profil
   4. **Aucun profil** : autorisé pour les admins purs (rôles globaux non scopés) — `team_id = null`
-- **Effet sur spatie** : `app(PermissionRegistrar::class)->setPermissionsTeamId($profile?->agency_id)`. Les rôles `owner` / `agent` / `agency_admin` / `customer` / `tenant` / `service_provider` portent leur scope via le `team_id` ; les rôles `admin` / `super_admin` restent globaux (`team_id = null`).
+- **Effet sur le RBAC (post-TCK-278)** : plus de `setPermissionsTeamId()` — l'autorisation passe par le profil actif (cf. [Règle 5](#règle-5--profil--rôle)). Le middleware expose `request()->activeProfile()` ; les Policies appellent `$user->canActAt(Capability::xxx, $profile->agency)` ou consultent directement `$profile->agencyRole`.
 - **Exposition runtime** : `request()->activeProfile()` et `auth()->user()->activeProfile()` (helpers fournis en TCK-141). Tout site applicatif consultant l'agence du user **doit** lire `request()->activeProfile()->agency_id` plutôt que `users.agency_id` (qui disparaît en TCK-142).
 - **Endpoints** :
   - `GET /api/me/profiles` — liste des profils du user authentifié (avec agence et statut)
