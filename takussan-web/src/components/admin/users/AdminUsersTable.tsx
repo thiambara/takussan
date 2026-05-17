@@ -51,6 +51,7 @@ interface AdminUsersTableProps {
   currentUserId: number;
   onSelect: (user: AdminAgencyUserRow) => void;
   onQuickAction: (user: AdminAgencyUserRow, action: 'block' | 'activate') => void;
+  onRemove?: (user: AdminAgencyUserRow) => void;
 }
 
 export function AdminUsersTable({
@@ -59,6 +60,7 @@ export function AdminUsersTable({
   currentUserId,
   onSelect,
   onQuickAction,
+  onRemove,
 }: AdminUsersTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -190,6 +192,18 @@ export function AdminUsersTable({
                           Bloquer
                         </DropdownMenuItem>
                       )}
+                      {onRemove ? (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            disabled={isSelf}
+                            onClick={() => onRemove(row)}
+                            className="text-destructive"
+                          >
+                            Retirer de l&apos;agence
+                          </DropdownMenuItem>
+                        </>
+                      ) : null}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </td>

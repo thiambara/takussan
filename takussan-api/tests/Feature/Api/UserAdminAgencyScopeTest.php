@@ -5,10 +5,12 @@ namespace Tests\Feature\Api;
 use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\UserStatus;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\ApiTestCase;
 
 /**
@@ -163,6 +165,39 @@ class UserAdminAgencyScopeTest extends ApiTestCase
         $this->apiActingAsRole('agent', ['agency' => $agency]);
 
         $this->apiGet('/api/users')->assertForbidden();
+    }
+
+    /**
+     * TCK-277 — regression: a user holding only an {@see AgencyAdminProfile}
+     * (i.e. an agency admin without an Agent/Owner profile, as produced by
+     * the host wizard or super-admin onboarding) must appear in the
+     * agency-scoped listing. Previously the scope only matched
+     * `agentProfiles`/`ownerProfiles`, hiding the founding admin from
+     * `/admin/team`'s Administrators tab.
+     */
+    public function test_agency_admin_listing_includes_users_with_only_agency_admin_profile(): void
+    {
+        $agency = Agency::factory()->create();
+        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+
+        $pureAdmin = User::factory()->create();
+        AgencyAdminProfile::factory()->create([
+            'user_id' => $pureAdmin->id,
+            'agency_id' => $agency->id,
+        ]);
+        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
+        $pureAdmin->assignRole('agency_admin');
+
+        $ids = collect(
+            $this->apiGet('/api/users?filter[role]=agency_admin')
+                ->assertOk()
+                ->json('data')
+        )->pluck('id');
+
+        $this->assertTrue(
+            $ids->contains($pureAdmin->id),
+            'AgencyAdminProfile-only user must appear in the agency-scoped listing.',
+        );
     }
 
     public function test_individual_agency_admin_cannot_list_users(): void

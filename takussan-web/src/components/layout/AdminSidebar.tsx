@@ -54,7 +54,6 @@ function buildAdminItems(
     items.push({ href: '/admin/properties', label: 'Biens', icon: Building2 });
   }
   items.push({ href: '/admin/team', label: 'Équipe', icon: Users });
-  items.push({ href: '/admin/users', label: 'Utilisateurs', icon: Users });
   items.push({ href: '/admin/agency', label: 'Agence', icon: Briefcase });
   items.push({ href: '/admin/agency/kyc', label: 'KYC agence', icon: ShieldCheck });
   items.push({ href: '/admin/agency/billing', label: 'Abonnement', icon: CreditCard });

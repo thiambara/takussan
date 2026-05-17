@@ -128,6 +128,14 @@ trait HasProfiles
             ->exists();
     }
 
+    public function isAgencyAdminAt(int $agencyId): bool
+    {
+        return $this->agencyAdminProfiles()
+            ->where('agency_id', $agencyId)
+            ->whereNull('deleted_at')
+            ->exists();
+    }
+
     public function isProviderAt(int $agencyId): bool
     {
         return $this->serviceProviderProfile()

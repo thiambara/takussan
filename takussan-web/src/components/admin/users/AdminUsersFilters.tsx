@@ -28,14 +28,21 @@ const ROLE_OPTIONS: readonly { value: string; label: string }[] = [
   { value: 'service_provider', label: 'Prestataire' },
 ];
 
+interface AdminUsersFiltersProps {
+  readonly hideRoleFilter?: boolean;
+}
+
 /**
  * TCK-133 — filter bar for `/admin/users` (agency_admin scope). All
  * state is mirrored in the URL query string so the page is shareable
  * and reload-safe. The agency scope itself is implicit — the backend
  * applies it from the active profile (TCK-141 / TCK-147), the frontend
  * never sends `filter[agency_id]`.
+ *
+ * TCK-277 — `hideRoleFilter` lets the unified TeamConsole drive role
+ * selection through its segmented tabs instead.
  */
-export function AdminUsersFilters() {
+export function AdminUsersFilters({ hideRoleFilter = false }: AdminUsersFiltersProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -103,12 +110,14 @@ export function AdminUsersFilters() {
           onChange={(v) => updateParam('filter[status]', v === ALL ? null : v)}
           options={[{ value: ALL, label: 'Tous statuts' }, ...STATUS_OPTIONS]}
         />
-        <FilterSelect
-          label="Rôle"
-          value={currentRole || ALL}
-          onChange={(v) => updateParam('filter[role]', v === ALL ? null : v)}
-          options={[{ value: ALL, label: 'Tous rôles' }, ...ROLE_OPTIONS]}
-        />
+        {hideRoleFilter ? null : (
+          <FilterSelect
+            label="Rôle"
+            value={currentRole || ALL}
+            onChange={(v) => updateParam('filter[role]', v === ALL ? null : v)}
+            options={[{ value: ALL, label: 'Tous rôles' }, ...ROLE_OPTIONS]}
+          />
+        )}
       </div>
     </div>
   );

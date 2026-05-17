@@ -86,7 +86,7 @@ export function InviteMemberDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Inviter un agent</DialogTitle>
+          <DialogTitle>Inviter un membre</DialogTitle>
           <DialogDescription>
             Saisissez l&apos;email d&apos;un utilisateur déjà inscrit. Il sera
             ajouté à votre agence avec le rôle choisi.

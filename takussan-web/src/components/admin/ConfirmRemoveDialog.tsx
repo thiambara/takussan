@@ -11,21 +11,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { User } from '@/types/user';
 
-interface ConfirmRemoveDialogProps {
-  readonly member: User | null;
+interface MinimalMember {
+  readonly first_name: string;
+  readonly last_name: string;
+  readonly full_name?: string;
+}
+
+interface ConfirmRemoveDialogProps<T extends MinimalMember> {
+  readonly member: T | null;
   readonly onCancel: () => void;
-  readonly onConfirm: (member: User) => void;
+  readonly onConfirm: (member: T) => void;
   readonly isPending?: boolean;
 }
 
-export function ConfirmRemoveDialog({
+export function ConfirmRemoveDialog<T extends MinimalMember>({
   member,
   onCancel,
   onConfirm,
   isPending,
-}: ConfirmRemoveDialogProps) {
+}: ConfirmRemoveDialogProps<T>) {
   const open = member !== null;
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? onCancel() : undefined)}>

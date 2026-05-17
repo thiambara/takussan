@@ -16,7 +16,6 @@ export const PRO_ROUTES: ReadonlySet<string> = new Set([
   // /admin/... — console admin agence
   '/admin',
   '/admin/team',
-  '/admin/users',
   '/admin/agency/billing',
   '/admin/moderation/properties',
   '/admin/roles',

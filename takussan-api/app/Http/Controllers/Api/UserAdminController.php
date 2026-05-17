@@ -21,11 +21,15 @@ class UserAdminController extends Controller
         );
 
         // TCK-147 — `super_admin` and global `admin` keep the cross-tenant
-        // scope. `agency_admin` is restricted to users with an agent or
-        // owner profile in the **active profile's** agency (resolved by
-        // `ResolveActiveProfile`). Without an active profile (multi-profile
-        // user with no explicit context) we refuse rather than leak across
-        // tenants.
+        // scope. `agency_admin` is restricted to users attached to the
+        // **active profile's** agency (resolved by `ResolveActiveProfile`)
+        // via any of the polymorphic profile types. Without an active
+        // profile (multi-profile user with no explicit context) we refuse
+        // rather than leak across tenants.
+        //
+        // TCK-277 — `agencyAdminProfiles` added to the OR list so pure
+        // agency admins (no agent/owner profile, e.g. agency founder via
+        // host wizard or super-admin onboarding) appear in the listing.
         $base = null;
         if (! $actor->hasRole('super_admin')) {
             $agencyId = $request->activeProfile()?->agency_id;
@@ -34,7 +38,8 @@ class UserAdminController extends Controller
 
             $base = User::query()->where(function ($q) use ($agencyId) {
                 $q->whereHas('agentProfiles', fn ($qq) => $qq->where('agency_id', $agencyId))
-                    ->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agencyId));
+                    ->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agencyId))
+                    ->orWhereHas('agencyAdminProfiles', fn ($qq) => $qq->where('agency_id', $agencyId));
             });
         }
 
@@ -102,7 +107,9 @@ class UserAdminController extends Controller
         $agencyId = $request->activeProfile()?->agency_id;
         AgencyKindGuard::ensureStandardForNonGlobal($actor, $agencyId);
         if ($agencyId === null
-            || (! $target->isAgentAt($agencyId) && ! $target->isOwnerAt($agencyId))
+            || (! $target->isAgentAt($agencyId)
+                && ! $target->isOwnerAt($agencyId)
+                && ! $target->isAgencyAdminAt($agencyId))
         ) {
             abort(422, __('messages.target_user_not_in_active_agency'));
         }

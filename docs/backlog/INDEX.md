@@ -188,6 +188,12 @@ _(TCK-275 en doing)_
 
 _(TCK-276 en doing)_
 
+### Vague 33 — Fusion console admin Équipe & Utilisateurs (2026-05-17)
+
+> Les deux pages `/admin/team` (TCK-065 / TCK-258, angle RH) et `/admin/users` (TCK-133 / TCK-147, angle IAM) couvrent la même population sous deux angles. Fusion en une seule page « Équipe » avec onglets (Tous/Agents/Admins/Propriétaires) + modal d'invitation unifiée. Aucun nouvel endpoint backend ; `/admin/users` répond 308 vers `/admin/team`.
+
+_(TCK-277 en review)_
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
@@ -200,6 +206,7 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-276](tickets/TCK-276-public-agency-agent-portrait-redesign.md) — Pages publiques agence & agent — itération "Portrait/confiance" `L · P2 · applicatif`
+- [TCK-277](tickets/TCK-277-fusion-admin-team-users.md) — Fusion pages admin Équipe & Utilisateurs `M · P2 · front`
 
 ### Vague 27 — Audit design front
 
