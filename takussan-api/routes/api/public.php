@@ -64,6 +64,12 @@ Route::prefix('public')->name('public.')->group(function () {
     Route::get('agents/{slug}', [PublicAgentController::class, 'show'])
         ->name('agents.show');
 
+    Route::get('agents/{slug}/properties', [PublicAgentController::class, 'properties'])
+        ->name('agents.properties');
+
     Route::get('agencies/{slug}', [PublicAgencyController::class, 'show'])
         ->name('agencies.show');
+
+    Route::get('agencies/{slug}/properties', [PublicAgencyController::class, 'properties'])
+        ->name('agencies.properties');
 });

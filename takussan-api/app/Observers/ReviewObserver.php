@@ -3,6 +3,8 @@
 namespace App\Observers;
 
 use App\Models\Review;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 
 class ReviewObserver
 {
@@ -23,11 +25,38 @@ class ReviewObserver
             return;
         }
 
-        $stats = $reviewable->reviews()->selectRaw('COUNT(*) as count, AVG(rating) as avg')->first();
+        $relation = $this->resolveReviewsRelation($reviewable);
+        if ($relation === null) {
+            return;
+        }
 
-        $reviewable->forceFill([
-            'reviews_count' => (int) ($stats->count ?? 0),
-            'average_rating' => $stats->avg ? round((float) $stats->avg, 2) : null,
-        ])->save();
+        $stats = $reviewable->{$relation}()
+            ->selectRaw('COUNT(*) as count, AVG(rating) as avg')
+            ->first();
+
+        $payload = [];
+        $table = $reviewable->getTable();
+
+        if (Schema::hasColumn($table, 'reviews_count')) {
+            $payload['reviews_count'] = (int) ($stats->count ?? 0);
+        }
+        if (Schema::hasColumn($table, 'average_rating')) {
+            $payload['average_rating'] = $stats->avg ? round((float) $stats->avg, 2) : null;
+        }
+
+        if ($payload !== []) {
+            $reviewable->forceFill($payload)->save();
+        }
+    }
+
+    private function resolveReviewsRelation(Model $reviewable): ?string
+    {
+        foreach (['reviews', 'received_reviews'] as $candidate) {
+            if (method_exists($reviewable, $candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 }

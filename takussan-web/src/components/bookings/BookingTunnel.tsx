@@ -161,10 +161,15 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
           Vous devez être connecté pour finaliser la demande de réservation.
         </p>
         <div className="mt-6 flex justify-center gap-2">
-          <Button variant="outline" render={<Link href={`/properties/${property.slug}`} />}>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href={`/properties/${property.slug}`} />}
+          >
             Retour au bien
           </Button>
           <Button
+            nativeButton={false}
             render={<Link href={`/auth/login?redirect=${encodeURIComponent(redirect)}`} />}
           >
             Se connecter
@@ -199,10 +204,17 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
           </div>
         </dl>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <Button variant="outline" render={<Link href={`/properties/${property.slug}`} />}>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href={`/properties/${property.slug}`} />}
+          >
             Retour au bien
           </Button>
-          <Button render={<Link href={`/app/bookings/${createdBooking.id}`} />}>
+          <Button
+            nativeButton={false}
+            render={<Link href={`/app/bookings/${createdBooking.id}`} />}
+          >
             Voir ma réservation
           </Button>
         </div>

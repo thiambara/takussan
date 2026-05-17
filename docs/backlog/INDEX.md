@@ -182,6 +182,12 @@ _(TCK-274 done)_
 
 _(TCK-275 en doing)_
 
+### Vague 32 — Itération design pages publiques agence/agent (2026-05-17)
+
+> Suite directe de TCK-242 (rhabillage DS Lin). Itération "Portrait/confiance" : hero asymétrique, stats dérivées, portefeuille à onglets (Tous/Location/Vente), équipe agence en strip scrollable, section Avis branchée sur les reviews polymorphes existantes (TCK-180 livré). Backend : exposer city via Address morph, bio depuis User, specialty + years dérivés depuis AgentProfile, reviews + stats.
+
+_(TCK-276 en doing)_
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
@@ -193,6 +199,7 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 ## 👀 Review
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
+- [TCK-276](tickets/TCK-276-public-agency-agent-portrait-redesign.md) — Pages publiques agence & agent — itération "Portrait/confiance" `L · P2 · applicatif`
 
 ### Vague 27 — Audit design front
 

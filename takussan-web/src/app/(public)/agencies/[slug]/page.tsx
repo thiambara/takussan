@@ -1,14 +1,18 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
-import Link from 'next/link';
-import { Mail, Phone, ShieldCheck } from 'lucide-react';
+import { Building2, ShieldCheck } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { Navbar } from '@/components/home/Navbar';
 import { Footer } from '@/components/home/Footer';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { BogolanPattern } from '@/components/property/cards/BogolanPattern';
-import { PropertyCardListing } from '@/components/property/cards/PropertyCardListing';
+import { ContactSheet } from '@/components/public/profile/ContactSheet';
+import { StatsBar } from '@/components/public/profile/StatsBar';
+import { PortfolioTabs } from '@/components/public/profile/PortfolioTabs';
+import {
+  ReviewsSection,
+  type PublicReview,
+} from '@/components/public/profile/ReviewsSection';
+import { TeamStrip } from '@/components/public/profile/TeamStrip';
 import type { PropertyListItem } from '@/types/property';
 
 interface AgencyAgentDto {
@@ -17,6 +21,15 @@ interface AgencyAgentDto {
   full_name: string;
   email?: string | null;
   avatar_url: string | null;
+  specialty?: string | null;
+  portfolio_count?: number;
+}
+
+interface AgencyStats {
+  rent_count: number;
+  sale_count: number;
+  cities: number;
+  agents: number;
 }
 
 interface AgencyDto {
@@ -27,12 +40,18 @@ interface AgencyDto {
   license_number: string | null;
   email?: string | null;
   phone?: string | null;
-  whatsapp?: string | null;
   city?: string | null;
   logo_url: string | null;
   agents: AgencyAgentDto[];
   portfolio_count: number;
+  portfolio_total: number;
   portfolio: PropertyListItem[];
+  stats?: AgencyStats;
+  reviews?: {
+    average: number | null;
+    count: number;
+    recent: PublicReview[];
+  };
 }
 
 interface ApiEnvelope<T> {
@@ -53,16 +72,20 @@ async function loadAgency(slug: string): Promise<AgencyDto | null> {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const agency = await loadAgency(slug);
+  if (!agency) {
+    return { title: 'Agence introuvable' };
+  }
+  const summary = agency.stats
+    ? `${agency.portfolio_count} bien${agency.portfolio_count > 1 ? 's' : ''}${agency.city ? ` à ${agency.city}` : ''}`
+    : null;
   return {
-    title: agency ? `${agency.name} — Agence immobilière` : 'Agence introuvable',
-    description: agency?.description ?? undefined,
-    openGraph: agency
-      ? {
-          title: `${agency.name} — Agence immobilière`,
-          description: agency.description ?? undefined,
-          images: agency.logo_url ? [agency.logo_url] : undefined,
-        }
-      : undefined,
+    title: `${agency.name} — Agence immobilière`,
+    description: agency.description ?? summary ?? undefined,
+    openGraph: {
+      title: `${agency.name} — Agence immobilière`,
+      description: agency.description ?? summary ?? undefined,
+      images: agency.logo_url ? [agency.logo_url] : undefined,
+    },
   };
 }
 
@@ -75,29 +98,32 @@ function getInitials(name: string): string {
     .join('');
 }
 
-function whatsappLink(raw: string): string {
-  const digits = raw.replace(/\D/g, '');
-  return `https://wa.me/${digits}`;
-}
-
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const agency = await loadAgency(slug);
   if (!agency) notFound();
 
-  const eyebrowParts = [
-    agency.city,
-    `${agency.portfolio_count} bien${agency.portfolio_count > 1 ? 's' : ''}`,
-  ].filter(Boolean) as string[];
+  const stats = agency.stats;
+  const reviews = agency.reviews;
+
+  const eyebrowParts = [agency.city, agency.license_number ? null : null].filter(Boolean) as string[];
+
+  const statsItems = stats
+    ? [
+        { label: 'Biens à louer', value: stats.rent_count },
+        { label: 'Biens à vendre', value: stats.sale_count },
+        { label: 'Villes', value: stats.cities },
+        { label: 'Agents', value: stats.agents },
+      ]
+    : [];
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-
-      {/* Spacer : 1ère ligne navbar (~65px) + ligne catégories (~68px). */}
       <div className="h-[133px]" />
 
       <main className="max-w-[1200px] mx-auto px-6 md:px-12 pt-10 pb-24 space-y-16">
+        {/* Hero asymétrique avec watermark bogolan */}
         <section className="relative">
           <div className="absolute inset-x-[-12px] inset-y-[-32px] md:inset-x-[-24px] md:inset-y-[-48px] -z-10 rounded-[28px] overflow-hidden bg-card">
             <div className="absolute inset-0 opacity-[0.04] text-foreground">
@@ -105,151 +131,127 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
             </div>
           </div>
 
-          <div className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
-            <div className="flex flex-col gap-6 md:flex-row md:items-center">
-              <div className="relative size-24 shrink-0 overflow-hidden rounded-2xl border border-border bg-muted">
+          <div className="grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] md:gap-12 md:items-start">
+            {/* Colonne identité */}
+            <div className="flex flex-col gap-6">
+              <div className="relative size-32 shrink-0 overflow-hidden rounded-2xl border border-border bg-muted">
                 {agency.logo_url ? (
                   <Image
                     src={agency.logo_url}
                     alt={agency.name}
                     fill
-                    sizes="96px"
+                    sizes="128px"
                     className="object-cover"
                     priority
                   />
                 ) : (
-                  <span className="flex size-full items-center justify-center text-2xl font-display text-muted-foreground">
+                  <span className="flex size-full items-center justify-center text-3xl font-display text-muted-foreground">
                     {getInitials(agency.name)}
                   </span>
                 )}
               </div>
 
-              <div className="min-w-0">
+              <div>
                 {eyebrowParts.length > 0 && (
                   <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                     {eyebrowParts.join(' · ')}
                   </p>
                 )}
-                <h1 className="mt-2 font-display text-4xl md:text-5xl font-semibold text-foreground">
+                <h1 className="mt-2 font-display text-4xl md:text-5xl font-semibold leading-tight tracking-tight text-foreground">
                   {agency.name}
                 </h1>
                 {agency.license_number && (
-                  <p className="mt-3 inline-flex items-center gap-2 text-sm text-muted-foreground">
+                  <address className="not-italic mt-3 inline-flex items-center gap-2 text-sm text-muted-foreground">
                     <ShieldCheck className="size-4" aria-hidden />
-                    <span>
-                      <address className="not-italic inline">
-                        Licence n° {agency.license_number}
-                      </address>
-                    </span>
-                  </p>
+                    <span>Licence n° {agency.license_number}</span>
+                  </address>
                 )}
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {agency.email && (
-                <Button size="lg" render={<a href={`mailto:${agency.email}`} />}>
-                  <Mail aria-hidden />
-                  Envoyer un email
-                </Button>
+            {/* Colonne contenu */}
+            <div className="flex flex-col gap-6">
+              {agency.description && (
+                <p className="text-base md:text-lg leading-relaxed text-muted-foreground max-w-prose">
+                  {agency.description}
+                </p>
               )}
-              {agency.phone && (
-                <Button size="lg" variant="outline" render={<a href={`tel:${agency.phone}`} />}>
-                  <Phone aria-hidden />
-                  Appeler
-                </Button>
-              )}
-              {agency.whatsapp && (
-                <Button
-                  size="lg"
-                  variant="outline"
-                  render={
-                    <a
-                      href={whatsappLink(agency.whatsapp)}
-                      rel="noopener noreferrer"
-                      target="_blank"
-                    />
-                  }
-                >
-                  WhatsApp
-                </Button>
-              )}
+
+              <ContactSheet
+                name={agency.name}
+                email={agency.email}
+                phone={agency.phone}
+                subject={`Contact via Takussan — ${agency.name}`}
+              />
             </div>
           </div>
-
-          {agency.description && (
-            <p className="mt-8 max-w-3xl text-base leading-relaxed text-muted-foreground">
-              {agency.description}
-            </p>
-          )}
         </section>
 
+        {/* Bandeau de stats */}
+        {stats && <StatsBar items={statsItems} />}
+
+        {/* Équipe — strip horizontal scrollable */}
         {agency.agents.length > 0 && (
-          <section>
+          <section aria-labelledby="team-heading">
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
               L&apos;équipe
             </p>
-            <h2 className="mt-2 font-display text-2xl md:text-3xl font-semibold text-foreground">
-              {agency.agents.length} agent{agency.agents.length > 1 ? 's' : ''} pour vous accompagner
+            <h2
+              id="team-heading"
+              className="mt-2 font-display text-2xl md:text-3xl font-semibold text-foreground"
+            >
+              {agency.agents.length}&nbsp;agent{agency.agents.length > 1 ? 's' : ''}&nbsp;pour&nbsp;t&apos;accompagner
             </h2>
 
-            <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {agency.agents.map((a) => {
-                const Inner = (
-                  <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-muted/40">
-                    <Avatar size="lg">
-                      {a.avatar_url && <AvatarImage src={a.avatar_url} alt={a.full_name} />}
-                      <AvatarFallback>{getInitials(a.full_name)}</AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-foreground">{a.full_name}</p>
-                      {a.email && (
-                        <p className="truncate text-xs text-muted-foreground">{a.email}</p>
-                      )}
-                    </div>
-                  </div>
-                );
-                return (
-                  <li key={a.id}>
-                    {a.slug ? (
-                      <Link href={`/agents/${a.slug}`} className="block">
-                        {Inner}
-                      </Link>
-                    ) : (
-                      Inner
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="mt-6">
+              <TeamStrip agents={agency.agents} />
+            </div>
           </section>
         )}
 
-        <section>
+        {/* Portefeuille avec onglets */}
+        <section aria-labelledby="portfolio-heading">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Portefeuille
           </p>
-          <h2 className="mt-2 font-display text-2xl md:text-3xl font-semibold text-foreground">
+          <h2
+            id="portfolio-heading"
+            className="mt-2 mb-6 font-display text-2xl md:text-3xl font-semibold text-foreground"
+          >
             Biens à l&apos;affiche
           </h2>
 
           {agency.portfolio.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-border bg-card p-10 text-center">
-              <p className="font-display text-xl text-foreground">
+            <div className="rounded-2xl border border-border bg-card p-10 text-center">
+              <Building2 className="mx-auto size-6 text-muted-foreground" aria-hidden />
+              <p className="mt-3 font-display text-xl text-foreground">
                 Pas encore de bien à présenter
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
-                Cette agence prépare ses prochaines annonces — revenez bientôt.
+                Cette agence prépare ses prochaines annonces — reviens bientôt.
               </p>
             </div>
           ) : (
-            <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {agency.portfolio.map((p, index) => (
-                <PropertyCardListing key={p.id} property={p} index={index} />
-              ))}
-            </div>
+            <PortfolioTabs
+              portfolio={agency.portfolio}
+              source={{ kind: 'agency', slug: agency.slug }}
+              totals={{
+                all: agency.portfolio_total,
+                rent: stats?.rent_count ?? 0,
+                sale: stats?.sale_count ?? 0,
+              }}
+            />
           )}
         </section>
+
+        {/* Avis */}
+        {reviews && (
+          <ReviewsSection
+            average={reviews.average}
+            count={reviews.count}
+            reviews={reviews.recent}
+          />
+        )}
       </main>
 
       <Footer />
