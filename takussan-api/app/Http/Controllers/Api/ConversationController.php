@@ -24,16 +24,17 @@ class ConversationController extends Controller
         $user = $request->user();
         $includeArchived = (bool) $request->boolean('archived');
 
-        $paginator = Conversation::whereHas('participants', function ($q) use ($user, $includeArchived) {
-            $q->where('user_id', $user->id);
-            // TCK-085 — participants who left a group no longer see it.
-            $q->whereNull('conversation_participants.left_at');
-            if ($includeArchived) {
-                $q->whereNotNull('conversation_participants.archived_at');
-            } else {
-                $q->whereNull('conversation_participants.archived_at');
-            }
-        })
+        $paginator = Conversation::with('property')
+            ->whereHas('participants', function ($q) use ($user, $includeArchived) {
+                $q->where('user_id', $user->id);
+                // TCK-085 — participants who left a group no longer see it.
+                $q->whereNull('conversation_participants.left_at');
+                if ($includeArchived) {
+                    $q->whereNotNull('conversation_participants.archived_at');
+                } else {
+                    $q->whereNull('conversation_participants.archived_at');
+                }
+            })
             ->orderByDesc('last_message_at')
             ->paginate((int) $request->input('per_page', 20));
 
@@ -102,6 +103,8 @@ class ConversationController extends Controller
             return $conversation;
         });
 
+        $conversation->loadMissing('property');
+
         return $this->json([
             'data' => ConversationResource::make($conversation)->toArray($request),
         ], 201);
@@ -144,6 +147,8 @@ class ConversationController extends Controller
             $conversation->refresh();
         }
 
+        $conversation->loadMissing('property');
+
         return $this->json([
             'data' => ConversationResource::make($conversation)->toArray($request),
         ], 201);
@@ -167,8 +172,11 @@ class ConversationController extends Controller
 
         $groups->rename($conversation, $user, $data['subject']);
 
+        $fresh = $conversation->fresh();
+        $fresh?->loadMissing('property');
+
         return $this->json([
-            'data' => ConversationResource::make($conversation->fresh())->toArray($request),
+            'data' => ConversationResource::make($fresh)->toArray($request),
         ]);
     }
 
@@ -199,6 +207,8 @@ class ConversationController extends Controller
     public function show(Request $request, Conversation $conversation): JsonResponse
     {
         $this->ensureParticipant($request, $conversation);
+
+        $conversation->loadMissing('property');
 
         return $this->json([
             'data' => ConversationResource::make($conversation)->toArray($request),
