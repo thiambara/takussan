@@ -254,12 +254,12 @@ dig +short takussan.api.preview.checkprintplus.com</code></pre>
 </ol>
 
 <h3>3.2 Variables d'environnement Vercel</h3>
+<p>Audit du code (<code>grep "process.env" takussan-web/src/</code>) : <strong>seul <code>NEXT_PUBLIC_API_URL</code> est utilisé</strong>. Aucune autre variable Next.js custom n'est référencée — inutile d'en déclarer.</p>
 <table>
   <tr><th>Variable</th><th>Production</th><th>Preview</th><th>Development</th></tr>
   <tr><td><code>NEXT_PUBLIC_API_URL</code></td><td>(à définir au launch prod)</td><td><code>https://takussan.api.preview.checkprintplus.com</code></td><td><code>http://localhost:8002</code></td></tr>
-  <tr><td><code>NEXT_PUBLIC_APP_URL</code></td><td>(à définir)</td><td><code>https://takussan.preview.checkprintplus.com</code></td><td><code>http://localhost:3000</code></td></tr>
-  <tr><td><code>NEXT_PUBLIC_ENV</code></td><td><code>production</code></td><td><code>preprod</code></td><td><code>development</code></td></tr>
 </table>
+<div class="warn">Vercel injecte automatiquement <code>VERCEL_ENV</code>, <code>VERCEL_URL</code>, <code>VERCEL_GIT_COMMIT_*</code> etc. — accessibles côté serveur uniquement. Si un jour le front a besoin de savoir s'il tourne en preview ou prod, lire <code>process.env.VERCEL_ENV</code> dans un Server Component plutôt que de dupliquer en <code>NEXT_PUBLIC_*</code>.</div>
 
 <h3>3.3 Production branch + domaine custom</h3>
 <ol>
@@ -510,43 +510,156 @@ sudo certbot renew --dry-run</code></pre>
 <!-- ============================================================ -->
 <h2 id="env">10. Préparer le secret <code>ENV_FILE_PREVIEW</code></h2>
 
-<p>Contrairement au step précédent, le <code>.env</code> ne reste pas en clair sur le VPS — il est <strong>injecté à chaque deploy</strong> via secret GH (pattern CheckPrint). Préparer son contenu :</p>
+<p>Le <code>.env</code> ne vit pas en clair sur le VPS — il est <strong>injecté à chaque deploy</strong> via secret GH (pattern CheckPrint). Le bloc ci-dessous est l'audit des variables réellement utilisées par le code Takussan, regroupées par domaine. Tout ce qui n'apparaît pas ici tombe sur le default Laravel et reste sain pour préprod.</p>
 
-<div class="file-banner">contenu du secret ENV_FILE_PREVIEW</div>
-<pre><code>APP_NAME=Takussan
+<div class="ok"><strong>Audit méthode</strong> : <code>grep -rh "env(['\"]" takussan-api/config takussan-api/app | sort -u</code>. Les variables custom Takussan (CDN, SMS, ActivityLog, AccountDeletion, Visits, PDF) sont incluses avec leur default explicite. Les variables Laravel standard non listées (Memcached, Beanstalkd, Pusher, Reverb, Algolia, Postmark, AWS, etc.) ne sont pas activées en préprod et n'ont pas besoin d'être déclarées.</div>
+
+<div class="file-banner">secret GH : ENV_FILE_PREVIEW</div>
+<pre><code># ════════════════════════════════════════════════════════════
+# App
+# ════════════════════════════════════════════════════════════
+APP_NAME=Takussan
 APP_ENV=preprod
-APP_KEY=base64:GENERER_LOCALEMENT_AVEC_php_artisan_key:generate_--show
+APP_KEY=base64:GENERER_LOCALEMENT
 APP_DEBUG=false
 APP_URL=https://takussan.api.preview.checkprintplus.com
+APP_LOCALE=fr
+APP_FALLBACK_LOCALE=en
+APP_FAKER_LOCALE=fr_FR
+APP_MAINTENANCE_DRIVER=file
+BCRYPT_ROUNDS=12
+
+# ════════════════════════════════════════════════════════════
+# Frontend & Sanctum  (cookies cross-subdomain — voir §11)
+# ════════════════════════════════════════════════════════════
 FRONTEND_URL=https://takussan.preview.checkprintplus.com
+SANCTUM_STATEFUL_DOMAINS=takussan.preview.checkprintplus.com
 
-LOG_CHANNEL=stack
-LOG_LEVEL=info
+# Cloudflare est en proxy devant le VPS — sans ça, Request::ip() retourne
+# l'IP du proxy et toutes les sessions partagent le même rate-limit bucket.
+# `*` est OK en préprod ; en prod, pinner sur les CIDR Cloudflare.
+TRUSTED_PROXIES=*
 
+# ════════════════════════════════════════════════════════════
+# Database
+# ════════════════════════════════════════════════════════════
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_DATABASE=takussan_preprod
 DB_USERNAME=takussan_pre
-DB_PASSWORD=LE_PASSWORD_DU_STEP_6
+DB_PASSWORD=REMPLACER_PAR_LE_PASSWORD_DU_STEP_6
 
+# ════════════════════════════════════════════════════════════
+# Session
+# ════════════════════════════════════════════════════════════
 SESSION_DRIVER=database
+SESSION_LIFETIME=120
 SESSION_DOMAIN=.preview.checkprintplus.com
 SESSION_SECURE_COOKIE=true
 SESSION_SAME_SITE=lax
+SESSION_HTTP_ONLY=true
 
-SANCTUM_STATEFUL_DOMAINS=takussan.preview.checkprintplus.com
-
+# ════════════════════════════════════════════════════════════
+# Cache / Queue / Filesystem
+# (override du default Redis du .env.example — pas de Redis en préprod)
+# ════════════════════════════════════════════════════════════
 CACHE_STORE=database
 QUEUE_CONNECTION=database
+BROADCAST_CONNECTION=log
+FILESYSTEM_DISK=local
 
-MAIL_MAILER=log</code></pre>
+# ════════════════════════════════════════════════════════════
+# Logging
+# ════════════════════════════════════════════════════════════
+LOG_CHANNEL=stack
+LOG_STACK=single
+LOG_LEVEL=info
+LOG_DEPRECATIONS_CHANNEL=null
 
-<h3>Générer APP_KEY localement (avant d'enregistrer le secret)</h3>
+# ════════════════════════════════════════════════════════════
+# Mail  (log driver tant qu'aucun SMTP n'est wiré)
+# ════════════════════════════════════════════════════════════
+MAIL_MAILER=log
+MAIL_FROM_ADDRESS=noreply@takussan.local
+MAIL_FROM_NAME="${APP_NAME}"
+
+# ════════════════════════════════════════════════════════════
+# Search  (Scout — collection driver = pas de service externe)
+# ════════════════════════════════════════════════════════════
+SCOUT_DRIVER=collection
+
+# ════════════════════════════════════════════════════════════
+# Media library (Spatie)
+# ════════════════════════════════════════════════════════════
+MEDIA_DISK=public
+SEED_DOWNLOAD_MEDIA=false
+
+# ════════════════════════════════════════════════════════════
+# Spatie Laravel PDF  (dompdf = pas de Chromium à installer)
+# ════════════════════════════════════════════════════════════
+LARAVEL_PDF_DRIVER=dompdf
+
+# ════════════════════════════════════════════════════════════
+# CDN (TCK-105) — désactivé en préprod
+# ════════════════════════════════════════════════════════════
+CDN_ENABLED=false
+
+# ════════════════════════════════════════════════════════════
+# Activity log (Spatie)
+# ════════════════════════════════════════════════════════════
+ACTIVITYLOG_ENABLED=true
+ACTIVITYLOG_BUFFER_ENABLED=false
+
+# ════════════════════════════════════════════════════════════
+# Account deletion (TCK custom)
+# ════════════════════════════════════════════════════════════
+ACCOUNT_DELETION_GRACE_DAYS=30
+ACCOUNT_DELETION_REMINDER_DAYS=7
+
+# ════════════════════════════════════════════════════════════
+# Visits (TCK custom)
+# ════════════════════════════════════════════════════════════
+VISITS_FEEDBACK_WINDOW_HOURS=24
+
+# ════════════════════════════════════════════════════════════
+# SMS  (router driver = no-op tant qu'aucun provider n'est wiré)
+# ════════════════════════════════════════════════════════════
+SMS_DEFAULT_DRIVER=router
+
+# ════════════════════════════════════════════════════════════
+# OAuth  (laisser vide → le frontend masque les boutons)
+# ════════════════════════════════════════════════════════════
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+FACEBOOK_CLIENT_ID=
+FACEBOOK_CLIENT_SECRET=
+APPLE_CLIENT_ID=
+APPLE_TEAM_ID=
+APPLE_KEY_ID=
+APPLE_PRIVATE_KEY_PATH=
+</code></pre>
+
+<h3>10.1 Générer APP_KEY localement (avant d'enregistrer le secret)</h3>
 <pre><code>cd takussan-api
 php artisan key:generate --show
 # → base64:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=
-# Copier dans la ligne APP_KEY= du secret avant de le sauvegarder sur GH.</code></pre>
+# Copier la valeur EXACTE dans la ligne APP_KEY= du secret avant de le
+# sauvegarder dans GitHub Secrets.</code></pre>
+
+<h3>10.2 Variables à <em>activer plus tard</em> (hors périmètre préprod)</h3>
+<table>
+  <tr><th>Variable</th><th>Quand l'activer</th></tr>
+  <tr><td><code>REDIS_HOST</code> + <code>CACHE_STORE=redis</code> + <code>QUEUE_CONNECTION=redis</code></td><td>Quand Redis est installé sur le VPS et qu'on veut perf cache/queue.</td></tr>
+  <tr><td><code>MAIL_MAILER=smtp</code> + <code>MAIL_HOST/PORT/USERNAME/PASSWORD</code></td><td>Dès qu'un provider SMTP (Resend, Postmark…) est configuré.</td></tr>
+  <tr><td><code>FILESYSTEM_DISK=s3</code> + <code>AWS_*</code></td><td>Si on veut déporter le storage public sur S3/Bunny.</td></tr>
+  <tr><td><code>CDN_ENABLED=true</code> + <code>CDN_BASE_URL</code> + <code>BUNNY_*</code> ou <code>CLOUDFLARE_*</code></td><td>Quand la pull-zone CDN est provisionnée (cf. TCK-105).</td></tr>
+  <tr><td><code>GOOGLE_/FACEBOOK_/APPLE_*</code></td><td>Quand les apps OAuth sont créées chez chaque provider.</td></tr>
+  <tr><td><code>SMS_*</code> (LAM, MTARGET, ORANGE)</td><td>Quand un provider SMS est wiré (cf. TCK-102).</td></tr>
+  <tr><td><code>LEMON_SQUEEZY_*</code></td><td>Si la facturation passe par LemonSqueezy.</td></tr>
+</table>
+
+<div class="warn">Quand tu ajoutes une de ces variables, tu <strong>recolles le secret entier</strong> dans GitHub (les secrets sont opaques — pas d'édition partielle). Re-push <code>preview</code> ou <em>Run workflow</em> pour redéployer avec le nouveau <code>.env</code>.</div>
 
 <!-- ============================================================ -->
 <h2 id="cors">11. CORS + Sanctum cross-domain</h2>
