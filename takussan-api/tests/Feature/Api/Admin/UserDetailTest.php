@@ -7,7 +7,6 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\BaseTestCase;
 
 class UserDetailTest extends BaseTestCase

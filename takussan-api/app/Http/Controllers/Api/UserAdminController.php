@@ -116,28 +116,6 @@ class UserAdminController extends Controller
         }
     }
 
-    public function assignRole(Request $request, User $user): JsonResponse
-    {
-        abort_unless($request->user()->isSuperAdmin(), 403);
-
-        $data = $request->validate([
-            'role' => ['required', 'string'],
-        ]);
-
-        $user->assignRole($data['role']);
-
-        return $this->json(['data' => ['id' => $user->id, 'roles' => $user->getRoleNames()]]);
-    }
-
-    public function removeRole(Request $request, User $user, string $role): JsonResponse
-    {
-        abort_unless($request->user()->isSuperAdmin(), 403);
-
-        $user->removeRole($role);
-
-        return $this->json(['data' => ['id' => $user->id, 'roles' => $user->getRoleNames()]]);
-    }
-
     public function destroy(Request $request, User $user): JsonResponse
     {
         abort_unless($request->user()->isSuperAdmin(), 403);

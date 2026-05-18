@@ -7,7 +7,6 @@ use App\Models\Agency;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class RegenerateWatermarksEndpointTest extends TestCase

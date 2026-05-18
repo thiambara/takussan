@@ -4,8 +4,6 @@ namespace Tests\Feature\Testing;
 
 use Database\Seeders\TestSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\BaseTestCase;
 
 class TestSeederTest extends BaseTestCase

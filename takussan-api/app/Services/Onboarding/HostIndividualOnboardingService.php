@@ -16,8 +16,6 @@ use App\Services\Auth\PhoneVerificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -89,7 +87,8 @@ class HostIndividualOnboardingService
 
         return DB::transaction(function () use ($user, $payload): array {
             $agency = $this->createAgency($user, $payload);
-            $this->attachRoles($user, $agency);
+            // TCK-278 — Plus d'attachement spatie : les profils créés ci-dessous
+            // (AgencyAdminProfile + OwnerProfile) sont la source de vérité.
             $agencyAdminProfile = $this->createAgencyAdminProfile($user, $agency);
             $ownerProfile = $this->createOwnerProfile($user, $agency);
             $this->markPhoneVerified($user);
@@ -185,35 +184,6 @@ class HostIndividualOnboardingService
             'primary_admin_id' => $user->id,
             'settings' => $settings,
         ]);
-    }
-
-    /**
-     * TCK-278 — Coexistence : on continue d'assigner les rôles spatie (le
-     * cutover P3 les supprimera) ; les profils polymorphes sont créés par
-     * `materializeProfiles()` ci-dessous (matérialisation pré-existante,
-     * source de vérité depuis la refonte RBAC).
-     */
-    private function attachRoles(User $user, Agency $agency): void
-    {
-        Role::findOrCreate('agency_admin', 'web');
-        Role::findOrCreate('owner', 'web');
-
-        $registrar = app(PermissionRegistrar::class);
-        $previous = $registrar->getPermissionsTeamId();
-        $registrar->setPermissionsTeamId($agency->id);
-        $user->unsetRelation('roles');
-
-        try {
-            if (! $user->hasRole('agency_admin')) {
-                $user->assignRole('agency_admin');
-            }
-            if (! $user->hasRole('owner')) {
-                $user->assignRole('owner');
-            }
-        } finally {
-            $registrar->setPermissionsTeamId($previous);
-            $user->unsetRelation('roles');
-        }
     }
 
     /**

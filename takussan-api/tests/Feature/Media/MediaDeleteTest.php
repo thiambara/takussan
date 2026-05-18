@@ -9,7 +9,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class MediaDeleteTest extends TestCase

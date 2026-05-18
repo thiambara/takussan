@@ -6,8 +6,6 @@ use App\Models\Agency;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\ApiTestCase;
 
 /**

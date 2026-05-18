@@ -8,7 +8,6 @@ use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\ApiTestCase;
 
 /**

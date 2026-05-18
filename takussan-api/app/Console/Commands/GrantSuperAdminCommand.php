@@ -7,17 +7,12 @@ use App\Models\Profiles\PlatformProfile;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
-use Spatie\Permission\PermissionRegistrar;
 
 /**
  * TCK-278 — Octroie un PlatformProfile(level = super_admin) à un user
  * existant, à partir de son email. Idempotent : si le user a déjà un
  * profil plateforme, on le promeut au niveau super_admin et on lève le
  * `revoked_at` éventuel.
- *
- * Pendant la fenêtre de coexistence (P1 → P3), assigne aussi le rôle
- * spatie `super_admin` sous `team_id = null` pour que les checks
- * `User::isSuperAdmin()` historiques restent vrais.
  */
 class GrantSuperAdminCommand extends Command
 {
@@ -45,23 +40,6 @@ class GrantSuperAdminCommand extends Command
                 $profile->granted_at = now();
             }
             $profile->save();
-
-            // Coexistence P1/P2 : conserver le rôle spatie super_admin pour
-            // que les sites d'appel encore basés sur `hasRole('super_admin')`
-            // continuent à passer. Le cutover P3 droppera ces tables.
-            if (method_exists($user, 'assignRole')) {
-                $registrar = app(PermissionRegistrar::class);
-                $previous = $registrar->getPermissionsTeamId();
-                $registrar->setPermissionsTeamId(null);
-                try {
-                    if (! $user->hasRole('super_admin')) {
-                        $user->assignRole('super_admin');
-                    }
-                } finally {
-                    $registrar->setPermissionsTeamId($previous);
-                    $user->unsetRelation('roles');
-                }
-            }
         });
 
         $this->info("PlatformProfile super_admin actif pour {$email}.");

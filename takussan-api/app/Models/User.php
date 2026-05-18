@@ -31,14 +31,12 @@ use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
-use Spatie\Permission\PermissionRegistrar;
-use Spatie\Permission\Traits\HasRoles;
 use Spatie\QueryBuilder\AllowedFilter;
 
 class User extends Authenticatable implements HasLocalePreference, HasMedia, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasProfiles, HasQueryBuilder, HasRoles, InteractsWithMedia, LogsActivity, Notifiable, SoftDeletes;
+    use HasApiTokens, HasFactory, HasProfiles, HasQueryBuilder, InteractsWithMedia, LogsActivity, Notifiable, SoftDeletes;
 
     use HasMediaConversions {
         HasMediaConversions::registerMediaConversions insteadof InteractsWithMedia;
@@ -110,10 +108,9 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
      * TCK-147 / TCK-278 — expose les relations de profil pour rendre la
      * colonne « rôle » côté UI sans round-trip supplémentaire.
      * `agencyAdminProfiles` ajouté pour que la console équipe (TCK-277)
-     * affiche correctement les admins. `roles` reste exposé pendant la
-     * fenêtre de coexistence P2/P3 (retiré au cutover P3).
+     * affiche correctement les admins.
      */
-    protected static array $requestLoadable = ['agentProfiles', 'ownerProfiles', 'agencyAdminProfiles', 'roles'];
+    protected static array $requestLoadable = ['agentProfiles', 'ownerProfiles', 'agencyAdminProfiles', 'platformProfile'];
 
     /**
      * TCK-147 / TCK-278 — `?filter[role]=agent|agency_admin|owner` est
@@ -144,7 +141,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     protected static array $requestSearchFields = ['first_name', 'last_name', 'email', 'username', 'phone'];
 
     protected static array $queryFields = [
-        'id', 'username', 'first_name', 'last_name', 'roles', 'email', 'phone',
+        'id', 'username', 'first_name', 'last_name', 'email', 'phone',
         'status', 'bio', 'preferred_language',
         'timezone', 'last_login_at', 'created_at', 'updated_at',
     ];
@@ -232,30 +229,12 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     }
 
     /**
-     * TCK-278 — Source de vérité unifiée pour le statut super-admin :
-     *   1. PlatformProfile actif `level = super_admin` (modèle cible),
-     *   2. fallback : rôle spatie `super_admin` sous `team_id = null`
-     *      (modèle legacy, retiré au cutover P3).
-     *
-     * Le double check garantit qu'aucun super-admin existant ne perd ses
-     * droits pendant la fenêtre de coexistence P2/P3.
+     * TCK-278 — Source de vérité unique : `PlatformProfile` actif niveau
+     * super_admin.
      */
     public function isSuperAdmin(): bool
     {
-        if ($this->hasActiveSuperAdminProfile()) {
-            return true;
-        }
-
-        $registrar = app(PermissionRegistrar::class);
-        $previous = $registrar->getPermissionsTeamId();
-        $registrar->setPermissionsTeamId(null);
-        $this->unsetRelation('roles');
-        try {
-            return $this->hasRole('super_admin');
-        } finally {
-            $registrar->setPermissionsTeamId($previous);
-            $this->unsetRelation('roles');
-        }
+        return $this->hasActiveSuperAdminProfile();
     }
 
     protected static function booted(): void

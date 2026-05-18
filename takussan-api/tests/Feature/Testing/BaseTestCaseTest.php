@@ -6,8 +6,6 @@ use App\Models\Agency;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Testing\TestResponse;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\BaseTestCase;
 
 class BaseTestCaseTest extends BaseTestCase

@@ -16,7 +16,6 @@ use Illuminate\Support\Facades\Notification;
 use Mockery;
 use RuntimeException;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\BaseTestCase;
 use Throwable;

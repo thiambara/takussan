@@ -12,7 +12,6 @@ use App\Models\User;
 use App\Notifications\ThresholdAlertTriggered;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
-use Spatie\Permission\Models\Role;
 use Tests\ApiTestCase;
 
 /**

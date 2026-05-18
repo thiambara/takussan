@@ -8,7 +8,6 @@ use App\Models\User;
 use App\Policies\BasePolicy;
 use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /**

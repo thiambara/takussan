@@ -14,8 +14,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class AgencyProvisioningService
@@ -132,9 +130,7 @@ class AgencyProvisioningService
 
     /**
      * TCK-278 — Le rôle est matérialisé via `AgencyAdminProfile` (source de
-     * vérité depuis la refonte RBAC). L'assignation spatie historique est
-     * conservée pendant la fenêtre de coexistence ; le cutover P3 la
-     * supprimera.
+     * vérité unique post-cutover).
      */
     private function assignAgencyAdminRole(User $admin, Agency $agency): void
     {
@@ -142,21 +138,5 @@ class AgencyProvisioningService
             ['user_id' => $admin->id, 'agency_id' => $agency->id],
             ['status' => AgencyAdminProfileStatus::Active->value],
         );
-
-        Role::findOrCreate('agency_admin', 'web');
-
-        $registrar = app(PermissionRegistrar::class);
-        $previousTeamId = $registrar->getPermissionsTeamId();
-        $registrar->setPermissionsTeamId($agency->id);
-        $admin->unsetRelation('roles');
-
-        try {
-            if (! $admin->hasRole('agency_admin')) {
-                $admin->assignRole('agency_admin');
-            }
-        } finally {
-            $registrar->setPermissionsTeamId($previousTeamId);
-            $admin->unsetRelation('roles');
-        }
     }
 }

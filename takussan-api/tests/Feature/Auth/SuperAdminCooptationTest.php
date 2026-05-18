@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use PragmaRX\Google2FA\Google2FA;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\BaseTestCase;
 
 /**

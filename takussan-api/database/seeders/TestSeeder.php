@@ -3,21 +3,28 @@
 namespace Database\Seeders;
 
 use App\Models\Agency;
+use App\Models\Enums\AgencyAdminProfileStatus;
+use App\Models\Enums\AgentProfileStatus;
+use App\Models\Enums\OwnerProfileStatus;
+use App\Models\Enums\PlatformProfileLevel;
+use App\Models\Enums\ServiceProviderProfileStatus;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\BrokerProfile;
+use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\PlatformProfile;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
-use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Baseline fixtures for integration tests: one agency with one user per role.
  *
  * Users are keyed by role name in the returned context so callers can do
- * `$seeder->users['agent']` after running. Seeds roles+permissions idempotently
- * (RolesAndPermissionsSeeder uses firstOrCreate).
+ * `$seeder->users['agent']` after running.
  *
- * Side effect: leaves `PermissionRegistrar::setPermissionsTeamId()` pinned to
- * the seeded agency so callers can `hasRole()` on the returned users directly.
+ * TCK-278 — Le rôle est désormais matérialisé via un profil polymorphe
+ * (cf. Règle 5). Le seeder crée le bon profil pour chaque rôle.
  */
 class TestSeeder extends Seeder
 {
@@ -28,16 +35,43 @@ class TestSeeder extends Seeder
 
     public function run(): void
     {
-        $this->call(RolesAndPermissionsSeeder::class);
-
         $this->agency = Agency::factory()->create();
 
-        app(PermissionRegistrar::class)->setPermissionsTeamId($this->agency->id);
-
-        foreach (Role::query()->pluck('name')->all() as $role) {
-            $user = User::factory()->create(['agency_id' => $this->agency->id]);
-            $user->assignRole($role);
+        $roles = ['super_admin', 'agency_admin', 'agent', 'owner', 'broker', 'service_provider'];
+        foreach ($roles as $role) {
+            $user = User::factory()->create();
+            $this->materializeProfile($user, $role);
             $this->users[$role] = $user;
         }
+    }
+
+    private function materializeProfile(User $user, string $role): void
+    {
+        match ($role) {
+            'super_admin' => PlatformProfile::query()->firstOrCreate(
+                ['user_id' => $user->id],
+                ['level' => PlatformProfileLevel::SuperAdmin, 'granted_at' => now()],
+            ),
+            'agency_admin' => AgencyAdminProfile::query()->firstOrCreate(
+                ['user_id' => $user->id, 'agency_id' => $this->agency->id],
+                ['status' => AgencyAdminProfileStatus::Active->value],
+            ),
+            'agent' => AgentProfile::query()->firstOrCreate(
+                ['user_id' => $user->id, 'agency_id' => $this->agency->id],
+                ['status' => AgentProfileStatus::Active->value],
+            ),
+            'owner' => OwnerProfile::query()->firstOrCreate(
+                ['user_id' => $user->id, 'agency_id' => $this->agency->id],
+                ['status' => OwnerProfileStatus::Active->value],
+            ),
+            'broker' => BrokerProfile::query()->firstOrCreate(
+                ['user_id' => $user->id],
+            ),
+            'service_provider' => ServiceProviderProfile::query()->firstOrCreate(
+                ['user_id' => $user->id],
+                ['status' => ServiceProviderProfileStatus::Active->value],
+            ),
+            default => null,
+        };
     }
 }
