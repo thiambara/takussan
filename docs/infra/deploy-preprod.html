@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Takussan — Guide de déploiement préprod (Vercel + Contabo)</title>
+<style>
+  :root {
+    --bg: #faf8f3;
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --accent: #2d5016;
+    --warn: #b8541a;
+    --code-bg: #1e1e1e;
+    --code-ink: #e8e8e8;
+    --rule: #e0dcd1;
+    --ok: #2d7a3e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+  }
+  .container { max-width: 940px; margin: 0 auto; padding: 40px 24px 120px; }
+  header { border-bottom: 2px solid var(--ink); padding-bottom: 24px; margin-bottom: 32px; }
+  h1 { font-size: 32px; margin: 0 0 8px; letter-spacing: -0.02em; }
+  h2 {
+    font-size: 22px;
+    margin: 48px 0 12px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    letter-spacing: -0.01em;
+  }
+  h3 { font-size: 16px; margin: 24px 0 8px; color: var(--accent); }
+  .lede { color: var(--muted); font-size: 15px; }
+  nav.toc {
+    background: #fff;
+    border: 1px solid var(--rule);
+    padding: 16px 24px;
+    margin: 24px 0 0;
+    font-size: 14px;
+  }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 4px 0; }
+  nav.toc a { color: var(--ink); text-decoration: none; }
+  nav.toc a:hover { color: var(--accent); text-decoration: underline; }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    padding: 14px 18px;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 12.5px;
+    font-family: "SF Mono", Monaco, Menlo, monospace;
+    line-height: 1.5;
+  }
+  code {
+    font-family: "SF Mono", Monaco, Menlo, monospace;
+    font-size: 13px;
+    background: #efece4;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  pre code { background: none; padding: 0; }
+  .warn {
+    background: #fdf3e8;
+    border-left: 3px solid var(--warn);
+    padding: 12px 16px;
+    margin: 12px 0;
+    font-size: 14px;
+  }
+  .ok {
+    background: #eef5ea;
+    border-left: 3px solid var(--ok);
+    padding: 12px 16px;
+    margin: 12px 0;
+    font-size: 14px;
+  }
+  .check {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin: 6px 0;
+  }
+  .check input[type="checkbox"] { margin-top: 4px; cursor: pointer; }
+  .check label { cursor: pointer; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--rule); }
+  th { background: #efece4; font-weight: 600; }
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--accent);
+    color: white;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .pill.vercel { background: #000; }
+  .pill.warn { background: var(--warn); }
+  .pill.muted { background: var(--muted); }
+  details { margin: 10px 0; padding: 10px 14px; background: #f3f1ea; border-radius: 4px; }
+  details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+  .ascii {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    padding: 16px;
+    font-family: "SF Mono", Monaco, Menlo, monospace;
+    font-size: 12px;
+    white-space: pre;
+    overflow-x: auto;
+    line-height: 1.4;
+  }
+  .file-banner {
+    background: #2d2d2d;
+    color: #aaa;
+    font-family: "SF Mono", Monaco, Menlo, monospace;
+    font-size: 12px;
+    padding: 6px 14px;
+    border-radius: 4px 4px 0 0;
+    margin-top: 12px;
+    border-bottom: 1px solid #444;
+  }
+  .file-banner + pre { margin-top: 0; border-radius: 0 0 4px 4px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <span class="pill">Préprod</span>
+  <span class="pill vercel">Vercel</span>
+  <span class="pill">Contabo</span>
+  <h1>Takussan — Déploiement préprod : Vercel (web) + Contabo (API)</h1>
+  <p class="lede">Frontend Next.js sur <strong>Vercel</strong>. Backend Laravel sur <strong>VPS Contabo</strong> via <strong>script <code>deploy.sh</code> sur le serveur</strong> + <code>appleboy/ssh-action</code> + rollback auto. Conventions alignées sur l'infra CheckPrint déjà en place sur le même VPS.</p>
+</header>
+
+<nav class="toc">
+  <strong>Sommaire</strong>
+  <ol>
+    <li><a href="#archi">Architecture & inventaire</a></li>
+    <li><a href="#dns">DNS sur checkprintplus.com</a></li>
+    <li><a href="#vercel">Frontend sur Vercel</a></li>
+    <li><a href="#preflight">Audit du VPS (cohabitation CheckPrint)</a></li>
+    <li><a href="#server-setup">Script <code>server-setup.sh</code> Takussan</a></li>
+    <li><a href="#mysql">MySQL : base + user dédiés</a></li>
+    <li><a href="#php-fpm">Pool PHP-FPM isolé</a></li>
+    <li><a href="#nginx">Vhost Nginx API</a></li>
+    <li><a href="#ssl">SSL via Let's Encrypt</a></li>
+    <li><a href="#env">Préparer le secret <code>ENV_FILE_PREVIEW</code></a></li>
+    <li><a href="#cors">CORS + Sanctum cross-domain</a></li>
+    <li><a href="#deploy-key">GitHub Deploy Key (clone sur le serveur)</a></li>
+    <li><a href="#gh-actions-key">SSH Actions key (déjà existante ?)</a></li>
+    <li><a href="#gh-secrets">Secrets GitHub Actions</a></li>
+    <li><a href="#deploy-script">Script <code>deploy.sh</code> Takussan</a></li>
+    <li><a href="#workflow">Workflow <code>deploy-api-preprod.yml</code></a></li>
+    <li><a href="#first-deploy">Premier déploiement & validation</a></li>
+    <li><a href="#rollback">Rollback</a></li>
+    <li><a href="#prod">Préparer prod (branche <code>master</code>)</a></li>
+    <li><a href="#troubleshoot">Dépannage</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ -->
+<h2 id="archi">1. Architecture & inventaire</h2>
+
+<div class="ascii">
+              ┌──────────────────────┐
+   Internet   │      Vercel          │
+      │       │  Next.js (web)       │  ◀── push branch `preview`
+      ├──────▶│  branch=preview      │      auto-build & deploy
+      │       │  domaine custom :    │
+      │       │  takussan.preview…   │
+      │       └──────────┬───────────┘
+      │                  │ fetch (credentials: include)
+      │                  ▼
+      │       ┌──────────────────────────────────────────────┐
+      │       │  VPS Contabo  —  user `deploy` (partagé)     │
+      │       │                                               │
+      │       │  takussan.api.preview.checkprintplus.com      │
+      │       │           │                                   │
+      │       │           ▼                                   │
+      │       │   ┌──────────────┐                            │
+      │       │   │ Nginx vhost  │                            │
+      │       │   └──────┬───────┘                            │
+      │       │          ▼                                    │
+      │       │   ┌─────────────────┐    ┌──────────────┐     │
+      │       │   │ PHP-FPM pool    │───▶│ MySQL        │     │
+      │       │   │ takussan-pre    │    │ takussan_    │     │
+      │       │   │ socket dédié    │    │   preprod    │     │
+      │       │   └─────────────────┘    └──────────────┘     │
+      │       │                                                │
+      │       │  + systemd: takussan-queue-preprod (Laravel)  │
+      │       │  + crontab : schedule:run every minute        │
+      │       │                                                │
+      │       │  /var/www/takussan-preprod/                    │
+      │       │    ├── deploy.sh        (poussé par GH SCP)    │
+      │       │    ├── releases/<ts>/   (atomique)             │
+      │       │    ├── current → releases/<latest>             │
+      │       │    └── shared/                                 │
+      │       │         ├── .env       (réécrit à chaque run)  │
+      │       │         └── storage/   (persistant)            │
+      │       └──────────────────────────────────────────────────┘
+
+   ┌─ Apps déjà sur ce VPS (à NE PAS toucher) ─────────────┐
+   │  /var/www/check-print-plus            (prod CheckPrint)│
+   │  /var/www/check-print-plus-preview    (preview)        │
+   │  systemd: checkprint-queue, checkprint-queue-preview   │
+   └────────────────────────────────────────────────────────┘
+</div>
+
+<table>
+  <tr><th>Élément</th><th>Valeur préprod Takussan</th></tr>
+  <tr><td>Domaine front (Vercel)</td><td><code>takussan.preview.checkprintplus.com</code></td></tr>
+  <tr><td>Domaine API (Contabo)</td><td><code>takussan.api.preview.checkprintplus.com</code></td></tr>
+  <tr><td>User Linux</td><td><code>deploy</code> <span class="pill muted">réutilisé de CheckPrint</span></td></tr>
+  <tr><td>Racine de déploiement</td><td><code>/var/www/takussan-preprod</code></td></tr>
+  <tr><td>Sous-dossier monorepo</td><td><code>takussan-api/</code></td></tr>
+  <tr><td>Socket PHP-FPM</td><td><code>/run/php/takussan-preprod.sock</code></td></tr>
+  <tr><td>Base MySQL</td><td><code>takussan_preprod</code> / user <code>takussan_pre</code></td></tr>
+  <tr><td>Service queue</td><td><code>takussan-queue-preprod</code></td></tr>
+  <tr><td>Branche Git</td><td><code>preview</code></td></tr>
+</table>
+
+<div class="ok">L'infrastructure de déploiement CheckPrint est déjà en place (user <code>deploy</code>, clé SSH GH Actions, sudoers, Nginx, PHP-FPM, MySQL, Certbot). On la réutilise et on ne crée que ce qui est spécifique à Takussan.</div>
+
+<!-- ============================================================ -->
+<h2 id="dns">2. DNS sur checkprintplus.com</h2>
+
+<table>
+  <tr><th>Type</th><th>Nom</th><th>Valeur</th><th>Proxied (Cloudflare)</th><th>Pour</th></tr>
+  <tr><td>CNAME</td><td><code>takussan.preview</code></td><td><code>cname.vercel-dns.com</code></td><td>DNS only (gris)</td><td>Front Vercel</td></tr>
+  <tr><td>A</td><td><code>takussan.api.preview</code></td><td><code>&lt;IP_VPS&gt;</code></td><td>Proxied (orange) — comme CheckPrint</td><td>API VPS</td></tr>
+</table>
+
+<div class="warn"><strong>Cloudflare proxied + Vercel</strong> : ne pas proxifier le record Vercel via Cloudflare (DNS only). Sinon double-CDN et conflits TLS. Pour l'API, suivre la convention CheckPrint (proxied OK).</div>
+
+<pre><code>dig +short takussan.preview.checkprintplus.com
+dig +short takussan.api.preview.checkprintplus.com</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="vercel">3. Frontend sur Vercel</h2>
+
+<h3>3.1 Importer le repo</h3>
+<ol>
+  <li><a href="https://vercel.com/new" target="_blank">vercel.com/new</a> → GitHub → choisir <code>takussan</code>.</li>
+  <li><strong>Root Directory</strong> : <code>takussan-web</code>.</li>
+  <li><strong>Framework Preset</strong> : Next.js (auto).</li>
+  <li>Configurer les env vars (3.2) <em>avant</em> de cliquer Deploy.</li>
+</ol>
+
+<h3>3.2 Variables d'environnement Vercel</h3>
+<table>
+  <tr><th>Variable</th><th>Production</th><th>Preview</th><th>Development</th></tr>
+  <tr><td><code>NEXT_PUBLIC_API_URL</code></td><td>(à définir au launch prod)</td><td><code>https://takussan.api.preview.checkprintplus.com</code></td><td><code>http://localhost:8002</code></td></tr>
+  <tr><td><code>NEXT_PUBLIC_APP_URL</code></td><td>(à définir)</td><td><code>https://takussan.preview.checkprintplus.com</code></td><td><code>http://localhost:3000</code></td></tr>
+  <tr><td><code>NEXT_PUBLIC_ENV</code></td><td><code>production</code></td><td><code>preprod</code></td><td><code>development</code></td></tr>
+</table>
+
+<h3>3.3 Production branch + domaine custom</h3>
+<ol>
+  <li><em>Settings → Git → Production Branch</em> : <code>master</code>.</li>
+  <li><em>Settings → Domains</em> → ajouter <code>takussan.preview.checkprintplus.com</code> → <em>Edit</em> → <strong>Git Branch</strong> = <code>preview</code>.</li>
+</ol>
+
+<h3>3.4 <code>next.config.ts</code></h3>
+<pre><code>const nextConfig = {
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'takussan.api.preview.checkprintplus.com' },
+    ],
+  },
+};
+export default nextConfig;</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="preflight">4. Audit du VPS (cohabitation CheckPrint)</h2>
+
+<p>SSH sur le VPS (avec un user admin, pas <code>deploy</code>) :</p>
+
+<pre><code># 1. Confirmer la présence de l'infra CheckPrint
+ls -la /var/www/
+# → check-print-plus/ + check-print-plus-preview/
+
+id deploy
+# → uid=... groups=...,www-data
+
+# 2. Pools PHP-FPM existants (ne pas écraser)
+ls /etc/php/*/fpm/pool.d/
+
+# 3. Vhosts nginx existants
+ls /etc/nginx/sites-enabled/
+
+# 4. Services queue déjà actifs
+sudo systemctl list-units 'checkprint-*' --no-pager
+
+# 5. Cron du user deploy
+sudo crontab -u deploy -l
+
+# 6. Versions runtime
+php -v               # >= 8.3
+node -v && npm -v    # >= 20 (pour Vite build sur serveur)
+composer -V
+mysql --version
+
+# 7. Espace disque
+df -h /var</code></pre>
+
+<div class="check"><input type="checkbox"><label>User <code>deploy</code> existe et est dans <code>www-data</code></label></div>
+<div class="check"><input type="checkbox"><label>PHP 8.3 + Composer + Node 20 présents (déjà installés pour CheckPrint)</label></div>
+<div class="check"><input type="checkbox"><label>MySQL/MariaDB en service</label></div>
+<div class="check"><input type="checkbox"><label>Nginx + Certbot opérationnels</label></div>
+<div class="check"><input type="checkbox"><label>Au moins 3 Go libres sur <code>/var</code></label></div>
+
+<!-- ============================================================ -->
+<h2 id="server-setup">5. Script <code>server-setup.sh</code> Takussan</h2>
+
+<p>Adapté du modèle CheckPrint. Idempotent — sûr à re-exécuter. Crée l'arbo, le pool PHP-FPM, la queue systemd et le cron Takussan, sans toucher à CheckPrint.</p>
+
+<p>À créer dans le repo Takussan à <code>scripts/server-setup.sh</code> puis transférer sur le VPS et exécuter en root.</p>
+
+<div class="file-banner">scripts/server-setup.sh</div>
+<pre><code>#!/usr/bin/env bash
+# Setup serveur Takussan préprod (idempotent). À lancer en root.
+set -euo pipefail
+
+APP_DIR="/var/www/takussan-preprod"
+DEPLOY_USER="deploy"
+WEB_GROUP="www-data"
+POOL_NAME="takussan-preprod"
+QUEUE_SERVICE="takussan-queue-preprod"
+PHP_VERSION="8.3"
+
+log() { echo "[setup] $*"; }
+
+[ "$(id -u)" -eq 0 ] || { echo "Run as root"; exit 1; }
+id "$DEPLOY_USER" &amp;>/dev/null || { echo "User $DEPLOY_USER manquant (devrait exister via CheckPrint)"; exit 1; }
+
+# 1. Arbo
+log "Arbo $APP_DIR"
+mkdir -p "$APP_DIR/releases"
+mkdir -p "$APP_DIR/shared/storage/app/public"
+mkdir -p "$APP_DIR/shared/storage/app/private"
+mkdir -p "$APP_DIR/shared/storage/framework/cache/data"
+mkdir -p "$APP_DIR/shared/storage/framework/sessions"
+mkdir -p "$APP_DIR/shared/storage/framework/views"
+mkdir -p "$APP_DIR/shared/storage/framework/testing"
+mkdir -p "$APP_DIR/shared/storage/logs"
+chown -R "$DEPLOY_USER:$WEB_GROUP" "$APP_DIR"
+chmod -R 775 "$APP_DIR/shared/storage"
+
+# 2. Pool PHP-FPM dédié
+POOL_FILE="/etc/php/$PHP_VERSION/fpm/pool.d/$POOL_NAME.conf"
+log "Pool PHP-FPM $POOL_NAME"
+cat > "$POOL_FILE" &lt;&lt;CONF
+[$POOL_NAME]
+user = $DEPLOY_USER
+group = $WEB_GROUP
+listen = /run/php/$POOL_NAME.sock
+listen.owner = www-data
+listen.group = www-data
+listen.mode = 0660
+
+pm = dynamic
+pm.max_children = 10
+pm.start_servers = 2
+pm.min_spare_servers = 1
+pm.max_spare_servers = 4
+pm.max_requests = 500
+
+php_admin_value[error_log] = /var/log/php/$POOL_NAME.error.log
+php_admin_flag[log_errors] = on
+php_admin_value[memory_limit] = 256M
+php_admin_value[upload_max_filesize] = 20M
+php_admin_value[post_max_size] = 25M
+env[APP_ENV] = preprod
+CONF
+mkdir -p /var/log/php
+touch "/var/log/php/$POOL_NAME.error.log"
+chown www-data:www-data "/var/log/php/$POOL_NAME.error.log"
+systemctl restart "php$PHP_VERSION-fpm"
+
+# 3. Queue worker systemd
+SERVICE_FILE="/etc/systemd/system/$QUEUE_SERVICE.service"
+log "Queue systemd $QUEUE_SERVICE"
+cat > "$SERVICE_FILE" &lt;&lt;UNIT
+[Unit]
+Description=Takussan Laravel Queue Worker (preprod)
+After=network.target mysql.service
+
+[Service]
+User=$DEPLOY_USER
+Group=$WEB_GROUP
+WorkingDirectory=$APP_DIR/current
+ExecStart=/usr/bin/php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+Restart=always
+RestartSec=5
+StandardOutput=append:$APP_DIR/shared/storage/logs/queue-worker.log
+StandardError=append:$APP_DIR/shared/storage/logs/queue-worker.log
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload
+systemctl enable "$QUEUE_SERVICE"
+# Ne pas start tant que current/ n'existe pas — sera start au 1er deploy.
+
+# 4. Cron Laravel scheduler
+CRON_LINE="* * * * * cd $APP_DIR/current && php artisan schedule:run >> /dev/null 2>&1"
+EXISTING=$(crontab -u "$DEPLOY_USER" -l 2>/dev/null || true)
+if echo "$EXISTING" | grep -qF "$APP_DIR/current"; then
+    log "Cron Takussan préprod déjà présent"
+else
+    log "Ajout cron Takussan préprod"
+    (echo "$EXISTING"; echo "$CRON_LINE") | crontab -u "$DEPLOY_USER" -
+fi
+
+log ""
+log "=================================================="
+log "  Setup Takussan préprod terminé."
+log "=================================================="
+log "Prochaines étapes :"
+log "  - Créer la base MySQL takussan_preprod (step 6)"
+log "  - Configurer le vhost nginx (step 8)"
+log "  - SSL Let's Encrypt (step 9)"
+log "  - Ajouter le secret ENV_FILE_PREVIEW + REPO_URL côté GH"
+log "  - Pousser sur la branche preview"
+</code></pre>
+
+<p>Transfert et exécution :</p>
+<pre><code>scp scripts/server-setup.sh admin@&lt;IP_VPS&gt;:/tmp/
+ssh admin@&lt;IP_VPS&gt; "sudo bash /tmp/server-setup.sh && rm /tmp/server-setup.sh"</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="mysql">6. MySQL : base + user dédiés</h2>
+
+<pre><code>sudo mysql &lt;&lt;'SQL'
+CREATE DATABASE takussan_preprod CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'takussan_pre'@'localhost' IDENTIFIED BY 'REMPLACER_PAR_MOT_DE_PASSE_FORT';
+GRANT ALL PRIVILEGES ON takussan_preprod.* TO 'takussan_pre'@'localhost';
+FLUSH PRIVILEGES;
+SQL</code></pre>
+
+<div class="warn">Génère un password fort : <code>openssl rand -base64 24</code>. À reporter dans <code>ENV_FILE_PREVIEW</code> (step 10).</div>
+
+<!-- ============================================================ -->
+<h2 id="php-fpm">7. Pool PHP-FPM isolé</h2>
+<p>Créé automatiquement par <code>server-setup.sh</code> (step 5). Vérification :</p>
+<pre><code>sudo ls -la /run/php/takussan-preprod.sock
+sudo systemctl status php8.3-fpm --no-pager</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="nginx">8. Vhost Nginx API</h2>
+
+<pre><code>sudo tee /etc/nginx/sites-available/takussan-preprod-api &gt; /dev/null &lt;&lt;'CONF'
+server {
+    listen 80;
+    listen [::]:80;
+    server_name takussan.api.preview.checkprintplus.com;
+
+    root /var/www/takussan-preprod/current/public;
+    index index.php;
+
+    client_max_body_size 25M;
+
+    access_log /var/log/nginx/takussan-preprod-api.access.log;
+    error_log  /var/log/nginx/takussan-preprod-api.error.log;
+
+    # Storage public (via storage:link)
+    location /storage/ {
+        alias /var/www/takussan-preprod/shared/storage/app/public/;
+        expires 7d;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/takussan-preprod.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_read_timeout 60;
+    }
+
+    location ~ /\.(?!well-known) { deny all; }
+}
+CONF
+
+sudo ln -sf /etc/nginx/sites-available/takussan-preprod-api /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx</code></pre>
+
+<div class="warn">Le <code>deploy.sh</code> Takussan symlie <code>current</code> directement vers <code>releases/&lt;ts&gt;</code> (pas vers un sous-dossier <code>takussan-api/</code>) — voir step 15. Donc <code>root</code> = <code>.../current/public</code>.</div>
+
+<!-- ============================================================ -->
+<h2 id="ssl">9. SSL via Let's Encrypt</h2>
+
+<pre><code>sudo certbot --nginx \
+  -d takussan.api.preview.checkprintplus.com \
+  --redirect --agree-tos -m diaw@tanelhealth.com --no-eff-email
+
+sudo certbot renew --dry-run</code></pre>
+
+<div class="ok">Vercel gère son propre TLS pour le domaine front. Aucune action côté Contabo pour <code>takussan.preview.checkprintplus.com</code>.</div>
+
+<!-- ============================================================ -->
+<h2 id="env">10. Préparer le secret <code>ENV_FILE_PREVIEW</code></h2>
+
+<p>Contrairement au step précédent, le <code>.env</code> ne reste pas en clair sur le VPS — il est <strong>injecté à chaque deploy</strong> via secret GH (pattern CheckPrint). Préparer son contenu :</p>
+
+<div class="file-banner">contenu du secret ENV_FILE_PREVIEW</div>
+<pre><code>APP_NAME=Takussan
+APP_ENV=preprod
+APP_KEY=base64:GENERER_LOCALEMENT_AVEC_php_artisan_key:generate_--show
+APP_DEBUG=false
+APP_URL=https://takussan.api.preview.checkprintplus.com
+FRONTEND_URL=https://takussan.preview.checkprintplus.com
+
+LOG_CHANNEL=stack
+LOG_LEVEL=info
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=takussan_preprod
+DB_USERNAME=takussan_pre
+DB_PASSWORD=LE_PASSWORD_DU_STEP_6
+
+SESSION_DRIVER=database
+SESSION_DOMAIN=.preview.checkprintplus.com
+SESSION_SECURE_COOKIE=true
+SESSION_SAME_SITE=lax
+
+SANCTUM_STATEFUL_DOMAINS=takussan.preview.checkprintplus.com
+
+CACHE_STORE=database
+QUEUE_CONNECTION=database
+
+MAIL_MAILER=log</code></pre>
+
+<h3>Générer APP_KEY localement (avant d'enregistrer le secret)</h3>
+<pre><code>cd takussan-api
+php artisan key:generate --show
+# → base64:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=
+# Copier dans la ligne APP_KEY= du secret avant de le sauvegarder sur GH.</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="cors">11. CORS + Sanctum cross-domain</h2>
+
+<h3><code>takussan-api/config/cors.php</code></h3>
+<pre><code>return [
+    'paths' =&gt; ['api/*', 'sanctum/csrf-cookie', 'login', 'logout', 'storage/*'],
+    'allowed_methods' =&gt; ['*'],
+    'allowed_origins' =&gt; [
+        env('FRONTEND_URL', 'http://localhost:3000'),
+    ],
+    'allowed_origins_patterns' =&gt; [
+        // Builds preview Vercel random : takussan-<hash>.vercel.app
+        '#^https://takussan-[a-z0-9-]+\.vercel\.app$#',
+    ],
+    'allowed_headers' =&gt; ['*'],
+    'exposed_headers' =&gt; [],
+    'max_age' =&gt; 0,
+    'supports_credentials' =&gt; true,   // OBLIGATOIRE pour Sanctum
+];</code></pre>
+
+<h3>Côté Next.js</h3>
+<pre><code>// Toutes les requêtes auth doivent envoyer les cookies
+fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/...`, { credentials: 'include' });
+
+// Avant un login Sanctum :
+await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sanctum/csrf-cookie`, {
+  credentials: 'include',
+});</code></pre>
+
+<div class="warn"><strong>Cookies cross-subdomain</strong> : <code>SESSION_DOMAIN=.preview.checkprintplus.com</code> (point en préfixe). Sans le point → cookie posé par l'API non lisible côté front.</div>
+
+<!-- ============================================================ -->
+<h2 id="deploy-key">12. GitHub Deploy Key (clone sur le serveur)</h2>
+
+<p>Le script <code>deploy.sh</code> clone le repo Takussan <strong>depuis le serveur</strong>. Il faut donc une clé SSH côté <code>deploy@VPS</code> autorisée en lecture sur le repo GitHub.</p>
+
+<pre><code>ssh admin@&lt;IP_VPS&gt;
+sudo -iu deploy
+ssh-keygen -t ed25519 -C "takussan-deploy-key" -f ~/.ssh/takussan_deploy -N ""
+cat ~/.ssh/takussan_deploy.pub
+# → coller dans GitHub : repo takussan → Settings → Deploy keys → Add deploy key
+#   (Lecture seule, pas besoin de write)
+
+# Configurer SSH pour utiliser cette clé pour github.com / repo takussan
+cat &gt;&gt; ~/.ssh/config &lt;&lt;'CFG'
+Host github.com-takussan
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/takussan_deploy
+    IdentitiesOnly yes
+CFG
+chmod 600 ~/.ssh/config
+
+# Tester
+ssh -T github.com-takussan
+# → "Hi <user>/takussan! You've successfully authenticated"</code></pre>
+
+<p>Le <code>REPO_URL</code> à mettre en secret GH devra utiliser cet alias : <code>git@github.com-takussan:&lt;owner&gt;/takussan.git</code>.</p>
+
+<!-- ============================================================ -->
+<h2 id="gh-actions-key">13. SSH Actions key (déjà existante ?)</h2>
+
+<p>Le secret <code>CONTABO_SSH_KEY</code> utilisé par CheckPrint contient la clé privée GH Actions ↔ <code>deploy@VPS</code>. <strong>On peut la réutiliser telle quelle</strong> — pas besoin d'en créer une nouvelle, le user <code>deploy</code> est le même.</p>
+
+<details><summary>Si tu préfères une clé séparée pour Takussan</summary>
+<pre><code># En local
+ssh-keygen -t ed25519 -C "gh-actions-takussan" -f ~/.ssh/takussan_gh_actions -N ""
+ssh-copy-id -i ~/.ssh/takussan_gh_actions.pub deploy@&lt;IP_VPS&gt;</code></pre>
+</details>
+
+<!-- ============================================================ -->
+<h2 id="gh-secrets">14. Secrets GitHub Actions</h2>
+
+<p>Repo Takussan → <em>Settings → Secrets and variables → Actions</em>. Ajouter ces secrets (les valeurs CONTABO peuvent être copiées du repo CheckPrint si tu as accès) :</p>
+
+<table>
+  <tr><th>Nom</th><th>Valeur</th></tr>
+  <tr><td><code>CONTABO_HOST</code></td><td>IP publique du VPS</td></tr>
+  <tr><td><code>CONTABO_USER</code></td><td><code>deploy</code></td></tr>
+  <tr><td><code>CONTABO_SSH_KEY</code></td><td>Clé privée GH Actions ↔ <code>deploy@VPS</code> (BEGIN/END inclus)</td></tr>
+  <tr><td><code>REPO_URL</code></td><td><code>git@github.com-takussan:&lt;owner&gt;/takussan.git</code> (utilise l'alias du step 12)</td></tr>
+  <tr><td><code>ENV_FILE_PREVIEW</code></td><td>Contenu complet préparé au step 10 (avec APP_KEY remplie)</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="deploy-script">15. Script <code>deploy.sh</code> Takussan</h2>
+
+<p>Adapté du modèle CheckPrint, simplifié car Takussan n'a pas de Vite build admin pour l'instant (à ré-ajouter si besoin plus tard).</p>
+
+<div class="file-banner">scripts/deploy.sh</div>
+<pre><code>#!/usr/bin/env bash
+# deploy.sh — Zero-downtime deployment Takussan (Laravel API)
+# Usage: deploy.sh <repo-url> [branch] [app-dir]
+set -euo pipefail
+
+BRANCH="${2:-master}"
+APP_DIR="${3:-/var/www/takussan}"
+RELEASES_DIR="$APP_DIR/releases"
+SHARED_DIR="$APP_DIR/shared"
+CURRENT_LINK="$APP_DIR/current"
+KEEP_RELEASES=5
+TIMESTAMP=$(date +%Y%m%d%H%M%S)
+RELEASE_DIR="$RELEASES_DIR/$TIMESTAMP"
+
+REPO_URL="${1:?Usage: deploy.sh <repo-url> [branch] [app-dir]}"
+
+PREVIOUS_RELEASE=""
+
+log() { echo "[deploy] $(date '+%H:%M:%S') $*"; }
+
+get_previous_release() {
+    if [ -L "$CURRENT_LINK" ]; then
+        readlink -f "$CURRENT_LINK"
+    fi
+}
+
+rollback() {
+    local exit_code=$?
+    log "ERROR (exit=$exit_code). Rolling back..."
+    if [ -n "$PREVIOUS_RELEASE" ] && [ -d "$PREVIOUS_RELEASE" ]; then
+        log "Restoring symlink to $PREVIOUS_RELEASE"
+        ln -sfn "$PREVIOUS_RELEASE" "$CURRENT_LINK.tmp" && mv -Tf "$CURRENT_LINK.tmp" "$CURRENT_LINK"
+    fi
+    if [ -d "$RELEASE_DIR" ]; then
+        log "Removing failed release $RELEASE_DIR"
+        rm -rf "$RELEASE_DIR"
+    fi
+    log "Rollback done."
+    exit 1
+}
+trap rollback ERR
+
+log "Starting deploy"
+log "Repo=$REPO_URL  Branch=$BRANCH  AppDir=$APP_DIR  Release=$TIMESTAMP"
+
+[ -d "$SHARED_DIR" ] || { log "FATAL: $SHARED_DIR missing — run server-setup.sh first"; exit 1; }
+
+# Écrire .env depuis le secret GH si fourni
+if [ -n "${ENV_FILE:-}" ]; then
+    log "Writing .env from ENV_FILE secret"
+    echo "$ENV_FILE" > "$SHARED_DIR/.env"
+    chown deploy:www-data "$SHARED_DIR/.env"
+    chmod 640 "$SHARED_DIR/.env"
+elif [ ! -f "$SHARED_DIR/.env" ]; then
+    log "FATAL: pas de ENV_FILE et $SHARED_DIR/.env absent"
+    exit 1
+fi
+
+[ -d "$SHARED_DIR/storage" ] || { log "FATAL: $SHARED_DIR/storage missing"; exit 1; }
+
+PREVIOUS_RELEASE=$(get_previous_release)
+[ -n "$PREVIOUS_RELEASE" ] && log "Previous release: $PREVIOUS_RELEASE" || log "First deploy."
+
+mkdir -p "$RELEASES_DIR"
+
+# 1. Clone (sparse — on ne prend que takussan-api/)
+log "Cloning..."
+git clone --depth 1 --branch "$BRANCH" --filter=blob:none --no-checkout "$REPO_URL" "$RELEASE_DIR.tmp"
+cd "$RELEASE_DIR.tmp"
+git sparse-checkout init --cone
+git sparse-checkout set takussan-api
+git checkout
+
+# Aplatir : on déplace le contenu de takussan-api/ comme racine de la release
+mv "$RELEASE_DIR.tmp/takussan-api" "$RELEASE_DIR"
+rm -rf "$RELEASE_DIR.tmp"
+
+# 2. Symlinks shared
+log "Linking shared .env + storage"
+rm -f "$RELEASE_DIR/.env"
+ln -sfn "$SHARED_DIR/.env" "$RELEASE_DIR/.env"
+rm -rf "$RELEASE_DIR/storage"
+ln -sfn "$SHARED_DIR/storage" "$RELEASE_DIR/storage"
+
+# 3. Composer
+log "composer install --no-dev"
+cd "$RELEASE_DIR"
+composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+
+# 4. Migrations
+log "artisan migrate --force"
+php artisan migrate --force
+
+# 5. Caches
+log "artisan config/route/view:cache"
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# 6. Storage link (idempotent)
+log "artisan storage:link"
+php artisan storage:link || true
+
+# 7. Swap atomique
+log "Atomic symlink swap"
+ln -sfn "$RELEASE_DIR" "$CURRENT_LINK.tmp"
+mv -Tf "$CURRENT_LINK.tmp" "$CURRENT_LINK"
+
+# 8. Restart queue + reload nginx + restart PHP-FPM
+log "Restart queue + reload nginx + restart php-fpm"
+cd "$CURRENT_LINK"
+php artisan queue:restart 2>/dev/null || log "No queue running (ok)"
+sudo /bin/systemctl restart takussan-queue-preprod 2>/dev/null || log "queue service not yet running"
+sudo /bin/systemctl reload nginx
+sudo /bin/systemctl restart php8.3-fpm
+
+# 9. Cleanup old releases
+log "Cleanup (keep $KEEP_RELEASES)"
+cd "$RELEASES_DIR"
+COUNT=$(ls -1d */ 2>/dev/null | wc -l)
+if [ "$COUNT" -gt "$KEEP_RELEASES" ]; then
+    REM=$((COUNT - KEEP_RELEASES))
+    ls -1d */ | head -n "$REM" | while read -r r; do
+        log "  rm old release $r"
+        rm -rf "$RELEASES_DIR/$r"
+    done
+fi
+
+log "Deploy OK — release: $RELEASE_DIR"
+</code></pre>
+
+<div class="warn"><strong>Sudoers</strong> : le user <code>deploy</code> doit être autorisé à <code>systemctl restart takussan-queue-preprod</code> en plus de ce que CheckPrint exigeait déjà. À ajouter :
+<pre><code>sudo visudo -f /etc/sudoers.d/deploy
+# Ajouter (ou compléter la ligne existante) :
+deploy ALL=(root) NOPASSWD: /bin/systemctl reload nginx, \
+  /bin/systemctl restart php8.3-fpm, \
+  /bin/systemctl restart takussan-queue-preprod, \
+  /bin/systemctl restart checkprint-queue, \
+  /bin/systemctl restart checkprint-queue-preview</code></pre>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="workflow">16. Workflow <code>deploy-api-preprod.yml</code></h2>
+
+<p>Calqué sur <code>deploy-preview.yml</code> de CheckPrint. À créer dans <code>.github/workflows/deploy-api-preprod.yml</code> du repo Takussan.</p>
+
+<div class="file-banner">.github/workflows/deploy-api-preprod.yml</div>
+<pre><code>name: Deploy API preprod
+
+on:
+  push:
+    branches: [preview]
+    paths:
+      - "takussan-api/**"
+      - "scripts/deploy.sh"
+      - ".github/workflows/deploy-api-preprod.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: takussan-preprod-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy preprod to Contabo
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Copy deploy.sh to server
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.CONTABO_HOST }}
+          username: ${{ secrets.CONTABO_USER }}
+          key: ${{ secrets.CONTABO_SSH_KEY }}
+          source: "scripts/deploy.sh"
+          target: "/var/www/takussan-preprod/"
+          strip_components: 1
+
+      - name: Run deploy.sh via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.CONTABO_HOST }}
+          username: ${{ secrets.CONTABO_USER }}
+          key: ${{ secrets.CONTABO_SSH_KEY }}
+          timeout: 10m
+          envs: ENV_FILE
+          script: |
+            chmod +x /var/www/takussan-preprod/deploy.sh
+            bash /var/www/takussan-preprod/deploy.sh \
+              "${{ secrets.REPO_URL }}" preview /var/www/takussan-preprod
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE_PREVIEW }}
+
+      - name: Smoke test
+        run: |
+          sleep 3
+          curl -fsS https://takussan.api.preview.checkprintplus.com/up \
+            || (echo "API DOWN"; exit 1)
+          echo "✓ API preprod OK"
+</code></pre>
+
+<h3>Branche <code>preview</code></h3>
+<pre><code>git checkout -b preview
+git push -u origin preview</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="first-deploy">17. Premier déploiement & validation</h2>
+
+<h3>17.1 Déclencher</h3>
+<p>GitHub → Actions → <em>Deploy API preprod</em> → <em>Run workflow</em> sur <code>preview</code>. Ou push direct sur <code>preview</code>.</p>
+
+<h3>17.2 Démarrer la queue (une fois <code>current/</code> existe)</h3>
+<pre><code>ssh deploy@&lt;IP_VPS&gt;
+sudo /bin/systemctl start takussan-queue-preprod
+sudo systemctl status takussan-queue-preprod --no-pager</code></pre>
+
+<h3>17.3 Checks</h3>
+<pre><code># API
+curl https://takussan.api.preview.checkprintplus.com/up
+
+# Front
+curl -I https://takussan.preview.checkprintplus.com/
+
+# Logs
+sudo tail -f /var/www/takussan-preprod/shared/storage/logs/laravel.log
+sudo tail -f /var/www/takussan-preprod/shared/storage/logs/queue-worker.log
+sudo tail -f /var/log/nginx/takussan-preprod-api.error.log
+sudo journalctl -u takussan-queue-preprod -f</code></pre>
+
+<div class="check"><input type="checkbox"><label>Front charge sur <code>takussan.preview.checkprintplus.com</code></label></div>
+<div class="check"><input type="checkbox"><label>API <code>/up</code> répond 200</label></div>
+<div class="check"><input type="checkbox"><label><code>/sanctum/csrf-cookie</code> → 204 + Set-Cookie</label></div>
+<div class="check"><input type="checkbox"><label>Login OK + session conservée</label></div>
+<div class="check"><input type="checkbox"><label>Migrations passées</label></div>
+<div class="check"><input type="checkbox"><label>Queue worker actif</label></div>
+<div class="check"><input type="checkbox"><label>Cron scheduler tourne (<code>sudo grep CRON /var/log/syslog | grep deploy</code>)</label></div>
+
+<!-- ============================================================ -->
+<h2 id="rollback">18. Rollback</h2>
+
+<h3>Automatique (script)</h3>
+<p>Le <code>trap rollback ERR</code> dans <code>deploy.sh</code> restaure le symlink <code>current</code> sur la release précédente <strong>si une étape post-clone échoue</strong>. Aucune action manuelle requise.</p>
+
+<h3>Manuel (rollback après coup)</h3>
+<pre><code>ssh deploy@&lt;IP_VPS&gt;
+cd /var/www/takussan-preprod/releases
+ls -1t
+ln -sfn /var/www/takussan-preprod/releases/&lt;ID_PRECEDENT&gt; /var/www/takussan-preprod/current
+sudo /bin/systemctl restart php8.3-fpm
+sudo /bin/systemctl restart takussan-queue-preprod
+sudo /bin/systemctl reload nginx</code></pre>
+
+<h3>Front (Vercel)</h3>
+<p>Dashboard Vercel → <em>Deployments</em> → trouver le deploy précédent stable → menu <em>···</em> → <em>Promote</em> ou <em>Rollback</em>.</p>
+
+<div class="warn">⚠️ Le rollback automatique restaure le code mais <strong>pas la DB</strong>. Si la release fautive a tourné <code>migrate --force</code>, le schéma reste en avant. Toujours écrire des migrations rétrocompatibles (ajouter colonnes nullable, jamais drop sans 2 deploys).</div>
+
+<!-- ============================================================ -->
+<h2 id="prod">19. Préparer prod (branche <code>master</code>)</h2>
+
+<table>
+  <tr><th>Élément</th><th>Prod</th></tr>
+  <tr><td>Front</td><td>Même projet Vercel — Production Branch = <code>master</code> → domaine prod à acheter</td></tr>
+  <tr><td>App dir</td><td><code>/var/www/takussan</code></td></tr>
+  <tr><td>Pool PHP-FPM</td><td><code>takussan</code> (socket <code>/run/php/takussan.sock</code>)</td></tr>
+  <tr><td>DB MySQL</td><td><code>takussan_prod</code> / <code>takussan_pro</code></td></tr>
+  <tr><td>Domaine API</td><td><code>api.takussan.&lt;tld&gt;</code></td></tr>
+  <tr><td>Queue systemd</td><td><code>takussan-queue</code></td></tr>
+  <tr><td>Workflow</td><td><code>.github/workflows/deploy-api-prod.yml</code> (trigger <code>master</code>)</td></tr>
+  <tr><td>Secrets</td><td><code>ENV_FILE</code> (prod) en plus de <code>ENV_FILE_PREVIEW</code></td></tr>
+  <tr><td>Environment GH</td><td>Créer <em>production</em> avec required reviewer (toi) → bouton « Approve » obligatoire avant deploy</td></tr>
+</table>
+
+<p>Dupliquer <code>server-setup.sh</code> avec <code>APP_DIR=/var/www/takussan</code> et <code>POOL_NAME=takussan</code>, exécuter. Dupliquer <code>deploy-api-preprod.yml</code> en <code>deploy-api-prod.yml</code> en changeant le branch trigger et les paths cibles.</p>
+
+<div class="warn"><strong>Avant go-live prod</strong> : <code>APP_DEBUG=false</code>, backup MySQL cron (<code>mysqldump</code> + offsite), monitoring uptime, Sentry (ou équivalent), Vercel Analytics activé.</div>
+
+<!-- ============================================================ -->
+<h2 id="troubleshoot">20. Dépannage</h2>
+
+<details><summary>CORS error côté Next.js</summary>
+<ul>
+  <li><strong>"No 'Access-Control-Allow-Origin' header"</strong> → <code>FRONTEND_URL</code> dans le secret <code>ENV_FILE_PREVIEW</code> ne match pas l'origin. Redéployer après correction.</li>
+  <li><strong>"...Access-Control-Allow-Credentials is not 'true'"</strong> → <code>supports_credentials =&gt; true</code> dans <code>config/cors.php</code>. Re-cache : <code>php artisan config:cache</code> (sur prochain deploy auto).</li>
+</ul>
+</details>
+
+<details><summary>Login passe mais requêtes suivantes 401</summary>
+<ul>
+  <li><code>credentials: 'include'</code> oublié côté Next.</li>
+  <li><code>SESSION_DOMAIN</code> sans point devant.</li>
+  <li><code>SESSION_SAME_SITE=strict</code> → mettre <code>lax</code>.</li>
+  <li>HTTPS manquant sur un des deux côtés.</li>
+</ul>
+</details>
+
+<details><summary>deploy.sh : "Permission denied (publickey)" lors du <code>git clone</code></summary>
+<p>La Deploy Key (step 12) n'est pas en place ou l'alias SSH n'est pas utilisé.</p>
+<pre><code>ssh -T github.com-takussan
+# doit dire "Hi <owner>/takussan!"
+# Si non : revoir ~/.ssh/config et la deploy key dans GH</code></pre>
+</details>
+
+<details><summary>deploy.sh échoue à <code>sudo systemctl restart takussan-queue-preprod</code></summary>
+<p>Manque dans <code>/etc/sudoers.d/deploy</code>. Voir l'encart sudoers du step 15.</p>
+</details>
+
+<details><summary>502 Bad Gateway sur l'API</summary>
+<pre><code>ls -la /run/php/takussan-preprod.sock
+sudo systemctl status php8.3-fpm
+sudo tail -30 /var/log/php/takussan-preprod.error.log
+# Vérifier que le pool takussan-preprod est bien chargé :
+sudo php-fpm8.3 -tt 2>&1 | grep -i takussan</code></pre>
+</details>
+
+<details><summary>Certbot timeout sur l'API</summary>
+<p>Si le DNS est <em>proxied</em> via Cloudflare avec mode SSL strict, faire d'abord un challenge sans proxy. Sinon utiliser <code>--dns-cloudflare</code> avec API token.</p>
+</details>
+
+<details><summary>Le secret <code>ENV_FILE_PREVIEW</code> n'arrive pas dans <code>deploy.sh</code></summary>
+<p>Vérifier dans le workflow que <code>envs: ENV_FILE</code> et <code>env: ENV_FILE: ${{ secrets.ENV_FILE_PREVIEW }}</code> sont bien tous les deux présents dans le step <code>appleboy/ssh-action</code>.</p>
+</details>
+
+<details><summary>Cron scheduler ne se déclenche pas</summary>
+<pre><code>sudo crontab -u deploy -l | grep takussan-preprod
+# Si absent : re-rouler server-setup.sh
+sudo grep CRON /var/log/syslog | tail -20</code></pre>
+</details>
+
+<details><summary>Sparse checkout ne trouve pas <code>takussan-api/</code></summary>
+<p>Si la racine du repo change un jour. Vérifier dans le clone temporaire :</p>
+<pre><code>cd /tmp && git clone --depth 1 --branch preview --filter=blob:none --no-checkout git@github.com-takussan:owner/takussan.git x
+cd x && git sparse-checkout init --cone && git sparse-checkout set takussan-api && git checkout
+ls takussan-api</code></pre>
+</details>
+
+<hr style="margin-top: 60px; border: none; border-top: 1px solid var(--rule);">
+<p style="color: var(--muted); font-size: 13px; margin-top: 24px;">
+  Pattern aligné sur le déploiement CheckPrint Plus déjà en place sur le même VPS Contabo.<br>
+  User <code>deploy</code> partagé, infrastructure runtime mutualisée, isolation applicative via dossiers / pools / DB / services systemd dédiés.
+</p>
+
+</div>
+</body>
+</html>

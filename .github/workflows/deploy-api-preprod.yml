@@ -1,0 +1,57 @@
+name: Deploy API preprod
+
+on:
+  push:
+    branches:
+      - preview
+    paths:
+      - "takussan-api/**"
+      - "scripts/deploy.sh"
+      - ".github/workflows/deploy-api-preprod.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: takussan-preprod-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy preprod to Contabo
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Copy deploy.sh to server
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.CONTABO_HOST }}
+          username: ${{ secrets.CONTABO_USER }}
+          key: ${{ secrets.CONTABO_SSH_KEY }}
+          source: "scripts/deploy.sh"
+          target: "/var/www/takussan-preprod/"
+          strip_components: 1
+
+      - name: Run deploy.sh via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.CONTABO_HOST }}
+          username: ${{ secrets.CONTABO_USER }}
+          key: ${{ secrets.CONTABO_SSH_KEY }}
+          timeout: 10m
+          envs: ENV_FILE
+          script: |
+            chmod +x /var/www/takussan-preprod/deploy.sh
+            bash /var/www/takussan-preprod/deploy.sh \
+              "${{ secrets.REPO_URL }}" preview /var/www/takussan-preprod
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE_PREVIEW }}
+
+      - name: Smoke test
+        run: |
+          set -e
+          sleep 3
+          curl -fsS https://takussan.api.preview.checkprintplus.com/up \
+            || (echo "API preprod DOWN"; exit 1)
+          echo "✓ API preprod responds on /up"
