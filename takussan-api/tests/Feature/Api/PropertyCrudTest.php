@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Agency;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Models\User;
@@ -31,6 +32,139 @@ class PropertyCrudTest extends TestCase
         $this->getJson('/api/properties')
             ->assertOk()
             ->assertJsonPath('meta.total', 3);
+    }
+
+    public function test_filters_property_portfolio_by_city_price_date_and_assigned_agent(): void
+    {
+        $agency = Agency::factory()->create();
+        $agent = User::factory()->withAgentProfile($agency)->create();
+        $otherAgent = User::factory()->withAgentProfile($agency)->create();
+
+        $match = Property::factory()->create([
+            'user_id' => $agent->id,
+            'agency_id' => $agency->id,
+            'price' => 450000,
+            'created_at' => '2026-05-06 10:00:00',
+        ]);
+        $match->address()->create(['city' => 'Dakar', 'country' => 'SN']);
+
+        $outsideCity = Property::factory()->create([
+            'user_id' => $agent->id,
+            'agency_id' => $agency->id,
+            'price' => 450000,
+            'created_at' => '2026-05-06 10:00:00',
+        ]);
+        $outsideCity->address()->create(['city' => 'Thiès', 'country' => 'SN']);
+
+        Property::factory()->create([
+            'user_id' => $otherAgent->id,
+            'agency_id' => $agency->id,
+            'price' => 450000,
+            'created_at' => '2026-05-06 10:00:00',
+        ])->address()->create(['city' => 'Dakar', 'country' => 'SN']);
+
+        Sanctum::actingAs($agent);
+
+        $this->getJson('/api/properties?filter[city]=Dak&filter[price_min]=400000&filter[price_max]=500000&filter[created_from]=2026-05-01&filter[created_to]=2026-05-31&filter[user_id]='.$agent->id)
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $match->id);
+    }
+
+    public function test_property_portfolio_excludes_archived_by_default_and_can_include_them(): void
+    {
+        $user = User::factory()->create();
+        $active = Property::factory()->create([
+            'user_id' => $user->id,
+            'status' => PropertyStatus::Available,
+            'created_at' => '2026-05-06 12:00:00',
+        ]);
+        Property::factory()->create([
+            'user_id' => $user->id,
+            'status' => PropertyStatus::Archived,
+            'created_at' => '2026-05-06 13:00:00',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/properties')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $active->id);
+
+        $this->getJson('/api/properties?include_archived=true')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2);
+    }
+
+    public function test_property_portfolio_explicit_status_filter_can_return_archived_properties(): void
+    {
+        $user = User::factory()->create();
+        Property::factory()->create([
+            'user_id' => $user->id,
+            'status' => PropertyStatus::Available,
+        ]);
+        $archived = Property::factory()->create([
+            'user_id' => $user->id,
+            'status' => PropertyStatus::Archived,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/properties?filter[status]='.PropertyStatus::Archived->value)
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $archived->id)
+            ->assertJsonPath('data.0.status', PropertyStatus::Archived->value);
+    }
+
+    public function test_property_portfolio_sorts_by_views_count_and_exposes_counter_fields(): void
+    {
+        $user = User::factory()->create();
+        Property::factory()->create([
+            'user_id' => $user->id,
+            'title' => 'Low Views',
+            'views_count' => 3,
+            'favorites_count' => 1,
+        ]);
+        $popular = Property::factory()->create([
+            'user_id' => $user->id,
+            'title' => 'High Views',
+            'views_count' => 42,
+            'favorites_count' => 7,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/properties?sort=-views_count&fields[properties]=id,title,views_count,favorites_count')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2)
+            ->assertJsonPath('data.0.id', $popular->id)
+            ->assertJsonPath('data.0.views_count', 42)
+            ->assertJsonPath('data.0.favorites_count', 7);
+    }
+
+    public function test_assigns_property_agent_inside_active_agency(): void
+    {
+        $agency = Agency::factory()->create();
+        $owner = User::factory()->withAgentProfile($agency)->create();
+        $target = User::factory()->withAgentProfile($agency)->create();
+        $property = Property::factory()->create([
+            'user_id' => $owner->id,
+            'agency_id' => $agency->id,
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->putJson("/api/properties/{$property->id}/assigned-agent", [
+            'user_id' => $target->id,
+        ])->assertOk()
+            ->assertJsonPath('data.owner.id', $target->id);
+
+        $this->assertDatabaseHas('properties', [
+            'id' => $property->id,
+            'user_id' => $target->id,
+        ]);
     }
 
     public function test_creates_property_with_address(): void
@@ -66,6 +200,47 @@ class PropertyCrudTest extends TestCase
         $this->assertDatabaseCount('addresses', 1);
     }
 
+    public function test_rent_period_defaults_to_monthly_when_contract_is_rent(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/properties', [
+            'title' => 'Studio sans période',
+            'type' => 'apartment',
+            'contract_type' => 'rent',
+            'price' => 150000,
+            'currency' => 'XOF',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.contract_type', 'rent')
+            ->assertJsonPath('data.rent_period', 'monthly');
+
+        $this->assertDatabaseHas('properties', [
+            'contract_type' => 'rent',
+            'rent_period' => 'monthly',
+        ]);
+    }
+
+    public function test_rent_period_defaults_to_monthly_when_switching_to_rent_via_update(): void
+    {
+        $user = User::factory()->create();
+        $property = Property::factory()->create([
+            'user_id' => $user->id,
+            'contract_type' => 'sale',
+            'rent_period' => null,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->patchJson("/api/properties/{$property->id}", [
+            'contract_type' => 'rent',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.contract_type', 'rent')
+            ->assertJsonPath('data.rent_period', 'monthly');
+    }
+
     public function test_publishes_property(): void
     {
         $user = User::factory()->create();
@@ -77,6 +252,64 @@ class PropertyCrudTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.status', 'available')
             ->assertJsonPath('data.visibility', 'public');
+    }
+
+    public function test_visibility_endpoint_publishes_draft_property(): void
+    {
+        $user = User::factory()->create();
+        $property = Property::factory()->draft()->create(['user_id' => $user->id]);
+
+        Sanctum::actingAs($user);
+
+        $this->putJson("/api/properties/{$property->id}/visibility", ['visibility' => 'public'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'available')
+            ->assertJsonPath('data.visibility', 'public');
+
+        $property->refresh();
+        $this->assertNotNull($property->published_at);
+    }
+
+    public function test_visibility_endpoint_unpublishes_public_property(): void
+    {
+        $user = User::factory()->create();
+        $property = Property::factory()->create([
+            'user_id' => $user->id,
+            'status' => 'available',
+            'visibility' => 'public',
+            'published_at' => now(),
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->putJson("/api/properties/{$property->id}/visibility", ['visibility' => 'private'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'draft')
+            ->assertJsonPath('data.visibility', 'private');
+
+        $this->assertNull($property->refresh()->published_at);
+    }
+
+    public function test_status_endpoint_archives_property_and_removes_public_visibility(): void
+    {
+        $user = User::factory()->create();
+        $property = Property::factory()->create([
+            'user_id' => $user->id,
+            'status' => 'available',
+            'visibility' => 'public',
+            'published_at' => now(),
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->putJson("/api/properties/{$property->id}/status", ['status' => 'archived'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'archived')
+            ->assertJsonPath('data.visibility', 'private');
+
+        $property->refresh();
+        $this->assertNull($property->published_at);
+        $this->assertNotNull($property->archived_at);
     }
 
     public function test_cannot_access_other_user_property(): void

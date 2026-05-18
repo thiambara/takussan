@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Public\PublicAgencyController;
+use App\Http\Controllers\Public\PublicAgentController;
 use App\Http\Controllers\Public\PublicPropertyController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,13 +36,21 @@ Route::prefix('public')->name('public.')->group(function () {
     Route::get('properties/{slug}/reviews', [PublicPropertyController::class, 'reviews'])
         ->name('properties.reviews');
 
+    // TCK-180 — gate the property review form. Anonymous = always false.
+    Route::get('properties/{slug}/review-eligibility', [PublicPropertyController::class, 'reviewEligibility'])
+        ->name('properties.review-eligibility');
+
     Route::post('properties/{slug}/report', [PublicPropertyController::class, 'report'])
-        ->middleware('throttle:5,60')
+        ->middleware('throttle:public-report')
         ->name('properties.report');
 
     Route::post('properties/{slug}/visit-request', [PublicPropertyController::class, 'visitRequest'])
-        ->middleware('throttle:10,60')
+        ->middleware('throttle:public-visit-request')
         ->name('properties.visit-request');
+
+    Route::post('properties/{slug}/contact-lead', [PublicPropertyController::class, 'contactLead'])
+        ->middleware('throttle:public-contact-lead')
+        ->name('properties.contact-lead');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('properties/{slug}/booking-request', [PublicPropertyController::class, 'bookingRequest'])
@@ -49,4 +59,17 @@ Route::prefix('public')->name('public.')->group(function () {
         Route::post('properties/{slug}/contact-message', [PublicPropertyController::class, 'contactMessage'])
             ->name('properties.contact-message');
     });
+
+    // TCK-177 — public agent / agency profile pages.
+    Route::get('agents/{slug}', [PublicAgentController::class, 'show'])
+        ->name('agents.show');
+
+    Route::get('agents/{slug}/properties', [PublicAgentController::class, 'properties'])
+        ->name('agents.properties');
+
+    Route::get('agencies/{slug}', [PublicAgencyController::class, 'show'])
+        ->name('agencies.show');
+
+    Route::get('agencies/{slug}/properties', [PublicAgencyController::class, 'properties'])
+        ->name('agencies.properties');
 });

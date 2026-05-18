@@ -9,7 +9,6 @@ use App\Policies\MediaPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class MediaPolicyTest extends TestCase
@@ -44,9 +43,8 @@ class MediaPolicyTest extends TestCase
     {
         [, , , $media] = $this->createSetup();
 
-        Role::findOrCreate('super_admin');
         $superAdmin = User::factory()->create();
-        $superAdmin->assignRole('super_admin');
+        $this->materializeRoleProfile($superAdmin, 'super_admin');
 
         $policy = new MediaPolicy;
         $this->assertTrue($policy->viewRaw($superAdmin, $media));

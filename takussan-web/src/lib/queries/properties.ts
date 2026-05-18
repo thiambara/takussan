@@ -28,224 +28,41 @@ import type {
   ApiResponse,
   SpatieQueryParams,
 } from '@/types/api';
-import type {
-  PropertyListItem,
-  PropertyDetail,
-  PropertyPriceHistoryItem,
-} from '@/types/property';
-import type { PropertyFormPayload } from '@/lib/schemas/property';
+import type { PropertyListItem } from '@/types/property';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Dashboard (agent CRUD) — TCK-041
 // Re-exported from properties-server.ts (server-safe, no 'use client') so that
-// both Server Components and this client module can share the same symbols.
+// both Server Components/Actions and this client module can share the same
+// symbols. Marking this file 'use client' turned every direct export into a
+// client reference, breaking server-side calls from app/actions/* — hence the
+// move into the server-safe sibling.
 // ─────────────────────────────────────────────────────────────────────────────
 export type {
   DashboardPropertyFilters,
   FetchDashboardPropertiesParams,
+  PropertyMediaItem,
+  PropertyAddressPayload,
 } from './properties-server';
 export {
   DASHBOARD_PROPERTY_FIELDS,
   DASHBOARD_PROPERTY_DETAIL_FIELDS,
   fetchDashboardProperties,
   fetchDashboardProperty,
+  createProperty,
+  updateProperty,
+  deleteProperty,
+  updatePropertyStatus,
+  updatePropertyVisibility,
+  assignPropertyAgent,
+  uploadPropertyPhotos,
+  fetchPropertyMedia,
+  deletePropertyMedia,
+  reorderPropertyMedia,
+  setPropertyAddress,
+  setPropertyTags,
+  fetchPropertyPriceHistory,
 } from './properties-server';
-
-export async function createProperty(
-  token: string,
-  payload: PropertyFormPayload,
-): Promise<PropertyDetail> {
-  const res = await apiRequest<ApiResponse<PropertyDetail>>('/api/properties', {
-    method: 'POST',
-    body: payload,
-    token,
-  });
-  return res.data;
-}
-
-export async function updateProperty(
-  token: string,
-  propertyId: number,
-  payload: PropertyFormPayload,
-): Promise<PropertyDetail> {
-  const res = await apiRequest<ApiResponse<PropertyDetail>>(
-    `/api/properties/${propertyId}`,
-    {
-      method: 'PUT',
-      body: payload,
-      token,
-    },
-  );
-  return res.data;
-}
-
-export async function deleteProperty(
-  token: string,
-  propertyId: number,
-): Promise<void> {
-  await apiRequest<void>(`/api/properties/${propertyId}`, {
-    method: 'DELETE',
-    token,
-  });
-}
-
-export async function updatePropertyStatus(
-  token: string,
-  propertyId: number,
-  status: string,
-): Promise<PropertyDetail> {
-  const res = await apiRequest<ApiResponse<PropertyDetail>>(
-    `/api/properties/${propertyId}/status`,
-    {
-      method: 'PUT',
-      body: { status },
-      token,
-    },
-  );
-  return res.data;
-}
-
-export async function updatePropertyVisibility(
-  token: string,
-  propertyId: number,
-  visibility: 'public' | 'private',
-): Promise<PropertyDetail> {
-  const res = await apiRequest<ApiResponse<PropertyDetail>>(
-    `/api/properties/${propertyId}/visibility`,
-    {
-      method: 'PUT',
-      body: { visibility },
-      token,
-    },
-  );
-  return res.data;
-}
-
-/**
- * TCK-071 — upload one or more photos to a property's `photos` media
- * collection. The backend route is `POST /api/properties/:id/media`
- * (see `PropertyMediaController::store`), expecting a `photos[]` array.
- */
-export async function uploadPropertyPhotos(
-  token: string,
-  propertyId: number,
-  files: File[],
-): Promise<void> {
-  const form = new FormData();
-  for (const file of files) {
-    form.append('photos[]', file);
-  }
-  await apiRequest<void>(`/api/properties/${propertyId}/media`, {
-    method: 'POST',
-    body: form,
-    token,
-    formData: true,
-  });
-}
-
-/**
- * TCK-071 — one Media entry as exposed by `PropertyMediaController::index`.
- */
-export interface PropertyMediaItem {
-  readonly id: number;
-  readonly thumbnail: string;
-  readonly preview: string;
-  readonly original: string;
-  readonly order: number | null;
-}
-
-/**
- * TCK-071 — fetch the current photo list (cover = item at position 0).
- */
-export async function fetchPropertyMedia(
-  token: string,
-  propertyId: number,
-): Promise<PropertyMediaItem[]> {
-  const res = await apiRequest<ApiResponse<PropertyMediaItem[]>>(
-    `/api/properties/${propertyId}/media`,
-    { token },
-  );
-  return res.data;
-}
-
-/**
- * TCK-071 — delete a single media item. Backend: `DELETE
- * /api/properties/:id/media/:mediaId`.
- */
-export async function deletePropertyMedia(
-  token: string,
-  propertyId: number,
-  mediaId: number,
-): Promise<void> {
-  await apiRequest<void>(`/api/properties/${propertyId}/media/${mediaId}`, {
-    method: 'DELETE',
-    token,
-  });
-}
-
-/**
- * TCK-071 — persist a new order for the `photos` collection. The backend
- * uses `PropertyMediaController::reorder` which expects a body of the
- * shape `{ order: number[] }` where the array position becomes the new
- * `order_column`. The first id is therefore the cover photo.
- */
-export async function reorderPropertyMedia(
-  token: string,
-  propertyId: number,
-  mediaIds: number[],
-): Promise<void> {
-  await apiRequest<void>(`/api/properties/${propertyId}/media/reorder`, {
-    method: 'PUT',
-    body: { order: mediaIds },
-    token,
-  });
-}
-
-export interface PropertyAddressPayload {
-  readonly street?: string;
-  readonly neighborhood?: string;
-  readonly city?: string;
-  readonly region?: string;
-  readonly country?: string;
-  readonly postal_code?: string;
-  readonly latitude?: number | null;
-  readonly longitude?: number | null;
-}
-
-export async function setPropertyAddress(
-  token: string,
-  propertyId: number,
-  data: PropertyAddressPayload,
-): Promise<void> {
-  await apiRequest<unknown>(`/api/properties/${propertyId}/address`, {
-    method: 'PUT',
-    body: data,
-    token,
-  });
-}
-
-export async function setPropertyTags(
-  token: string,
-  propertyId: number,
-  tagIds: number[],
-): Promise<void> {
-  await apiRequest<unknown>(`/api/properties/${propertyId}/tags`, {
-    method: 'POST',
-    body: { tag_ids: tagIds },
-    token,
-  });
-}
-
-export async function fetchPropertyPriceHistory(
-  token: string,
-  propertyId: number,
-): Promise<PropertyPriceHistoryItem[]> {
-  const res = await apiRequest<ApiResponse<PropertyPriceHistoryItem[]>>(
-    `/api/properties/${propertyId}/price-history`,
-    { token },
-  );
-  return res.data;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public discovery (Wave 3) — React Query hooks

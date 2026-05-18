@@ -14,12 +14,15 @@ use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RentPeriod;
 use App\Models\Property;
+use App\Models\User;
+use App\Services\Billing\QuotaResolver;
 use App\Services\Property\PropertyBulkArchiveService;
 use App\Services\Property\PropertyDuplicationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
 
@@ -29,15 +32,25 @@ class PropertyController extends Controller
     {
         $user = $request->user();
 
-        $base = Property::query()->with(['address']);
+        $base = Property::query()->with(['address', 'owner', 'collaborators.user']);
 
-        if (! $user->hasRole(['admin', 'super_admin'])) {
+        if (! $user->isSuperAdmin()) {
             $base->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id);
                 if ($user->agency_id) {
                     $q->orWhere('agency_id', $user->agency_id);
                 }
             });
+        }
+
+        $statusFilter = $request->query('filter.status')
+            ?? data_get($request->query('filter', []), 'status');
+        $includeArchived = filter_var(
+            $request->query('include_archived', false),
+            FILTER_VALIDATE_BOOL,
+        );
+        if (! $includeArchived && ! $statusFilter) {
+            $base->where('status', '!=', PropertyStatus::Archived);
         }
 
         $paginator = Property::buildQuery($base, $request)
@@ -87,28 +100,42 @@ class PropertyController extends Controller
             'address.longitude' => ['nullable', 'numeric'],
         ]);
 
-        if (! $request->user()->hasRole(['admin', 'super_admin'])) {
+        if (! $request->user()->isSuperAdmin()) {
             $data['agency_id'] = $request->user()->agency_id;
         }
 
-        $property = DB::transaction(function () use ($data, $request) {
-            $property = Property::create(array_merge($data, [
-                'user_id' => $request->user()->id,
-                'status' => $data['status'] ?? PropertyStatus::Draft->value,
-                'visibility' => $data['visibility'] ?? PropertyVisibility::Private->value,
-            ]));
+        if (! empty($data['agency_id'])) {
+            app(QuotaResolver::class)->assertCanCreateActiveListing((int) $data['agency_id']);
+        }
 
-            if (! empty($data['address'])) {
-                $property->address()->create($data['address']);
-            }
+        try {
+            $property = DB::transaction(function () use ($data, $request) {
+                $property = Property::create(array_merge($data, [
+                    'user_id' => $request->user()->id,
+                    'status' => $data['status'] ?? PropertyStatus::Draft->value,
+                    'visibility' => $data['visibility'] ?? PropertyVisibility::Private->value,
+                ]));
 
-            return $property;
-        });
+                if (! empty($data['address'])) {
+                    $property->address()->create($data['address']);
+                }
 
-        return $this->json(
-            ['data' => PropertyResource::make($property->load('address'))->toArray($request)],
-            201
-        );
+                return $property;
+            });
+
+            return $this->json(
+                ['data' => PropertyResource::make($property->load('address'))->toArray($request)],
+                201
+            );
+        } catch (\Throwable $e) {
+            Log::error('[PropertyController::store] Failed to create property', [
+                'user_id' => $request->user()?->id,
+                'payload' => $request->all(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e;
+        }
     }
 
     public function show(Request $request, Property $property): JsonResponse
@@ -191,7 +218,7 @@ class PropertyController extends Controller
     {
         $this->authorizeManage($request, $property);
         abort_unless(
-            $property->status === PropertyStatus::Available,
+            in_array($property->status, [PropertyStatus::Available, PropertyStatus::Published], true),
             422,
             __('messages.property_cannot_unpublish')
         );
@@ -203,6 +230,76 @@ class PropertyController extends Controller
 
         return $this->json([
             'data' => PropertyResource::make($property->refresh()->load('address'))->toArray($request),
+        ]);
+    }
+
+    public function updateStatus(Request $request, Property $property): JsonResponse
+    {
+        $this->authorizeManage($request, $property);
+
+        $data = $request->validate([
+            'status' => ['required', Rule::enum(PropertyStatus::class)],
+        ]);
+
+        $status = PropertyStatus::from($data['status']);
+        $updates = ['status' => $status];
+
+        if ($status === PropertyStatus::Archived) {
+            $updates['visibility'] = PropertyVisibility::Private;
+            $updates['published_at'] = null;
+            $updates['archived_at'] = now();
+        }
+
+        if ($property->status === PropertyStatus::Archived && $status !== PropertyStatus::Archived) {
+            $updates['archived_at'] = null;
+        }
+
+        $property->update($updates);
+
+        return $this->json([
+            'data' => PropertyResource::make($property->refresh()->load('address'))->toArray($request),
+        ]);
+    }
+
+    public function updateVisibility(Request $request, Property $property): JsonResponse
+    {
+        $this->authorizeManage($request, $property);
+
+        $data = $request->validate([
+            'visibility' => ['required', Rule::enum(PropertyVisibility::class)],
+        ]);
+
+        $visibility = PropertyVisibility::from($data['visibility']);
+        if ($visibility === PropertyVisibility::Public) {
+            return $this->publish($request, $property);
+        }
+
+        return $this->unpublish($request, $property);
+    }
+
+    public function assignAgent(Request $request, Property $property): JsonResponse
+    {
+        $this->authorizeManage($request, $property);
+
+        $data = $request->validate([
+            'user_id' => ['required', 'integer', 'exists:users,id'],
+        ]);
+
+        $target = User::findOrFail($data['user_id']);
+        $actor = $request->user();
+        $agencyId = $property->agency_id ?? $actor->agency_id;
+        if ($agencyId !== null) {
+            abort_unless(
+                $target->agency_id === $agencyId || $target->isAgentAt($agencyId),
+                422,
+                __('messages.target_user_not_in_active_agency')
+            );
+        }
+
+        $property->update(['user_id' => $target->id]);
+
+        return $this->json([
+            'data' => PropertyResource::make($property->refresh()->load(['address', 'owner', 'collaborators.user']))->toArray($request),
         ]);
     }
 
@@ -270,7 +367,7 @@ class PropertyController extends Controller
         if ($user->agency_id && $user->agency_id === $property->agency_id) {
             return;
         }
-        if ($user->hasRole(['admin', 'super_admin'])) {
+        if ($user->isSuperAdmin()) {
             return;
         }
         abort(403);

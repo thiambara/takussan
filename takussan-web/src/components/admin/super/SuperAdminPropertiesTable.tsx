@@ -21,6 +21,7 @@ import {
 } from '@/lib/queries/super-admin';
 import type { AdminPropertyRow } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
+import { RENT_PERIOD_SHORT } from '@/components/property/cards/types';
 
 type SortableKey = 'created_at' | 'price' | 'published_at';
 
@@ -250,6 +251,11 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
                 <td className="px-3 py-2 text-stone-700">{row.type ?? '—'}</td>
                 <td className="px-3 py-2 text-stone-900 tabular-nums">
                   {formatPrice(row.price, row.currency)}
+                  {row.contract_type === 'rent' && row.rent_period ? (
+                    <span className="ml-0.5 text-xs font-medium text-stone-500">
+                      /{RENT_PERIOD_SHORT[row.rent_period]}
+                    </span>
+                  ) : null}
                 </td>
                 <td className="px-3 py-2">
                   <StatusBadge status={row.status} label={row.status_label} />

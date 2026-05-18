@@ -27,6 +27,20 @@ class AuthPasswordResetTest extends TestCase
         Notification::assertSentTo($user, ResetPassword::class);
     }
 
+    public function test_reset_password_email_points_to_frontend_route(): void
+    {
+        config(['app.frontend_url' => 'http://localhost:3000']);
+
+        $user = User::factory()->create();
+        $notification = new ResetPassword('fake-token');
+        $actionUrl = $notification->toMail($user)->actionUrl;
+
+        $this->assertSame(
+            'http://localhost:3000/auth/reset-password?token=fake-token&email='.urlencode($user->email),
+            $actionUrl
+        );
+    }
+
     public function test_forgot_password_returns_200_for_unknown_email(): void
     {
         $response = $this->postJson('/api/auth/forgot-password', [

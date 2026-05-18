@@ -6,12 +6,12 @@ import { ProfileReviewsList } from '@/components/profile/ProfileReviewsList';
 export default async function ProfileReviewsPage() {
   // Force a session check — if the user isn't authenticated, getMeAction
   // redirects them to /auth/login.
-  await getMeAction();
+  const user = await getMeAction();
 
   return (
     <ProfileLayout>
       <header className="space-y-1">
-        <nav className="text-sm text-app-ink-muted">
+        <nav className="text-sm text-muted-foreground">
           <Link href="/app/profile" className="hover:underline">
             Profil
           </Link>
@@ -20,13 +20,15 @@ export default async function ProfileReviewsPage() {
           </span>
           <span>Avis</span>
         </nav>
-        <h1 className="text-2xl font-bold text-app-ink">Vos avis</h1>
-        <p className="text-sm text-app-ink-muted">
-          Retrouvez ici vos séjours et baux éligibles à un avis public.
+        <h1 className="font-display text-2xl font-bold text-foreground">
+          Vos avis
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Retrouvez les avis que vous avez publiés, leurs statuts, et les séjours ou baux encore éligibles à un avis public.
         </p>
       </header>
 
-      <ProfileReviewsList />
+      <ProfileReviewsList roles={user.roles} />
     </ProfileLayout>
   );
 }

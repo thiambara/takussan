@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { postAgencyAction } from '@/lib/queries/super-admin';
 import type { AdminAgency } from '@/types/super-admin';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { ConfirmActionDialog } from './ConfirmActionDialog';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -71,9 +73,29 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
       className="space-y-3 rounded-xl bg-white p-4 ring-1 ring-stone-200"
     >
       <header className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h3 className="text-base font-semibold text-stone-900">{agency.name}</h3>
-          <p className="text-xs text-stone-500">/{agency.slug}</p>
+        <div className="flex min-w-0 items-start gap-3">
+          {agency.logo_url ? (
+            <Image
+              src={agency.logo_url}
+              alt=""
+              width={44}
+              height={44}
+              unoptimized
+              className="size-11 rounded-md border border-stone-200 object-cover"
+            />
+          ) : (
+            <div className="flex size-11 items-center justify-center rounded-md bg-stone-100 text-sm font-semibold text-stone-700">
+              {agency.name.slice(0, 2).toUpperCase()}
+            </div>
+          )}
+          <div className="min-w-0">
+            <h3 className="truncate text-base font-semibold text-stone-900">
+              <Link className="hover:text-amber-700" href={`/super-admin/agencies/${agency.id}`}>
+                {agency.name}
+              </Link>
+            </h3>
+            <p className="truncate text-xs text-stone-500">/{agency.slug}</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[status] ?? STATUS_BADGE.inactive}`}>
@@ -87,7 +109,7 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
         </div>
       </header>
 
-      <dl className="grid grid-cols-2 gap-2 text-xs text-stone-600">
+      <dl className="grid grid-cols-2 gap-2 text-xs text-stone-600 lg:grid-cols-3">
         <div>
           <dt className="font-semibold text-stone-700">Email</dt>
           <dd className="truncate">{agency.email ?? '—'}</dd>
@@ -96,9 +118,28 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
           <dt className="font-semibold text-stone-700">License</dt>
           <dd>{agency.license_number ?? '—'}</dd>
         </div>
+        <div>
+          <dt className="font-semibold text-stone-700">Membres</dt>
+          <dd className="tabular-nums">{agency.members_count}</dd>
+        </div>
+        <div>
+          <dt className="font-semibold text-stone-700">Biens</dt>
+          <dd className="tabular-nums">{agency.properties_count}</dd>
+        </div>
+        <div>
+          <dt className="font-semibold text-stone-700">Créée le</dt>
+          <dd>{formatDate(agency.created_at)}</dd>
+        </div>
+        <div>
+          <dt className="font-semibold text-stone-700">Dernière activité</dt>
+          <dd>{formatDate(agency.last_activity_at)}</dd>
+        </div>
       </dl>
 
       <div className="flex flex-wrap gap-2">
+        <Link className={buttonVariants({ size: 'sm', variant: 'outline' })} href={`/super-admin/agencies/${agency.id}`}>
+          Ouvrir
+        </Link>
         <Button size="sm" variant="default" onClick={() => setPending('verify')} disabled={mutation.isPending}>
           Vérifier
         </Button>
@@ -125,4 +166,14 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
       ) : null}
     </article>
   );
+}
+
+function formatDate(value: string | null): string {
+  if (!value) return '—';
+
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(value));
 }

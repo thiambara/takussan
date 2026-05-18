@@ -73,19 +73,243 @@ _(vide — TCK-137 en doing)_
 
 _(vide — TCK-146 en review)_
 
+### Vague 19 — Bugs smoke test locataire / acheteur (2026-05-05)
+
+> Smoke test browser exhaustif du parcours customer connecté (compte tenant, 2 baux + 4 réservations + 7 visites) suivant `docs/qa/locataire-acheteur-qa.md`. 48 anomalies recensées dans `docs/smoke-tests/locataire-acheteur-2026-05-05.md` (6 P0, 17 P1, 19 P2, 6 P3). 12 tickets de fix groupés par scope.
+
+- [TCK-167](tickets/TCK-167-fix-forbidden-server-pages-customer.md) — Fix `forbidden()` 6 pages dashboard plantent en 500 `S · P0 · bug` **[done]**
+- [TCK-168](tickets/TCK-168-fix-base-ui-label-field-root-context.md) — Fix Base UI `<Label>` hors `<Field.Root>` (/app/payments + SaveSearchButton) `S · P0 · bug`
+- [TCK-169](tickets/TCK-169-login-email-case-insensitive.md) — Login — match email insensible à la casse `S · P1 · bug`
+- [TCK-170](tickets/TCK-170-visit-request-hydrate-authenticated-user.md) — Demande de visite — hydrater `visitor_*` depuis l'utilisateur connecté `S · P1 · bug`
+- [TCK-171](tickets/TCK-171-visits-bookings-customer-scope-and-tabs.md) — Visites & réservations customer — filtre `customer_id`, onglets, annulation, timeline `M · P1 · applicatif` **[done]**
+- [TCK-172](tickets/TCK-172-payment-gateway-customer-side.md) — Paiement passerelle (Wave / OM / Stripe) — flow customer acompte/solde/loyer `L · P2 · applicatif` **[review]**
+- [TCK-173](tickets/TCK-173-customer-rbac-ui-leak-and-sidebar.md) — RBAC UI customer — masquer surfaces agent + compléter sidebar `M · P1 · front` **[done]**
+- [TCK-174](tickets/TCK-174-maintenance-new-property-selector.md) — Maintenance — sélecteur de bien sur `/app/maintenance/new` `S · P1 · front` **[done]**
+- [TCK-175](tickets/TCK-175-i18n-authenticated-shell-and-shared-components.md) — i18n — layout authentifié et composants partagés `M · P1 · front` **[review]**
+- [TCK-176](tickets/TCK-176-offer-vs-booking-modal-by-contract-type.md) — Fiche bien — modale `Réserver` (location) vs `Faire une offre` (vente) `M · P1 · front` **[done]**
+- [TCK-177](tickets/TCK-177-public-agent-and-agency-pages.md) — Pages publiques agents & agences + lien depuis fiche bien `L · P2 · front` **[review]**
+- [TCK-178](tickets/TCK-178-dashboard-page-titles-metadata.md) — Dashboard — `<title>` figé sur "Tableau de bord" sur 7 pages `S · P2 · front` **[done]**
+- [TCK-179](tickets/TCK-179-customer-status-and-enum-localization.md) — Statuts & enums côté customer — localiser les valeurs brutes `S · P2 · front` **[done]**
+- [TCK-180](tickets/TCK-180-property-review-form-eligibility-gating.md) — Avis fiche bien — gating du formulaire selon historique `S · P2 · front` **[done]**
+- [TCK-181](tickets/TCK-181-recently-viewed-on-home-and-format.md) — « Récemment consultés » — affichage home + i18n + format unifié `S · P2 · front` **[done]**
+- [TCK-182](tickets/TCK-182-inventories-customer-access-and-labels.md) — États des lieux customer — libellés humains + PDF `S · P2 · front` **[done]**
+
+### Vague 20 — Bugs smoke test bailleur / propriétaire (2026-05-06)
+
+> Smoke test browser exhaustif du parcours owner connecté suivant `docs/qa/bailleur-proprietaire-qa.md`. 28 anomalies recensées dans `docs/smoke-tests/bailleur-proprietaire-2026-05-06.md` (4 P0, 9 P1, 10 P2, 5 P3). 10 tickets de fix groupés par scope. **Note** : plusieurs défauts i18n, formats et titres sont déjà couverts par TCK-153, TCK-154, TCK-178 et ne sont pas dupliqués ici.
+
+### Vague 21 — Dette technique checks frontend (2026-05-06)
+
+> Erreurs globales préexistantes relevées après l'implémentation TCK-183 → TCK-192 : `npm run lint` bloqué par 2 erreurs ESLint et `npx tsc --noEmit` bloqué par plusieurs erreurs TypeScript hors scope.
+
+### Vague 22 — Bugs smoke test agent immobilier (2026-05-06)
+
+> Smoke test browser du parcours agent immobilier suivant `docs/qa/agent-qa.md`. 19 anomalies recensées dans `docs/smoke-tests/agent-immobilier-2026-05-06.md` (1 P0, 7 P1, 8 P2, 3 P3). 9 tickets de fix groupés par scope.
+
+
+### Vague 18 — Bugs smoke test visiteur anonyme (2026-05-05)
+
+> Smoke test browser exhaustif du parcours public (incognito, aucune session) suivant `docs/qa/visiteur-anonyme-qa.md`. 22 anomalies recensées dans `docs/smoke-tests/visiteur-anonyme-2026-05-05.md` (0 P0, 6 P1, 12 P2, 4 P3). 8 tickets de fix groupés par scope. **Note** : les bugs P1-1 et P2-10 (pages légales / footer enrichi) ne sont pas ticketés ici — la fonctionnalité n'existe pas dans `docs/features.md` et nécessite un ajout de spec préalable.
+
+
+### Vague 17 — Bugs smoke test agent (2026-05-04)
+
+> Smoke test browser exhaustif sur le compte `agent1@dakarimmo.sn` (rôle Agent · Dakar Immo). 21 anomalies recensées dans `docs/smoke-tests/agent-smoke-test-2026-05-04.md` (2 P0 bloquants, 4 P1 dégradés, 12 P2 i18n/format, 3 P3 polish). 11 tickets de fix groupés par scope.
+
+- [TCK-148](tickets/TCK-148-publish-bien-enum-localisation-et-erreur-500.md) — Publication de bien : enums envoyés en EN, 500 sur création, alerte parasite à l'édition `M · P1 · applicatif` **[review]**
+- [TCK-149](tickets/TCK-149-customer-detail-include-fields-spatie-400.md) — Fiche client dashboard — 400 sur include/fields Spatie `S · P1 · back` **[review]**
+- [TCK-150](tickets/TCK-150-favorites-401-race-after-login.md) — Favoris — 401 immédiat après login (race condition token) `S · P1 · front` **[review]**
+- [TCK-151](tickets/TCK-151-pagination-controls-listings-totaux.md) — Pagination listings — total tronqué (clients) et boutons absents (états des lieux) `S · P1 · front` **[review]**
+- [TCK-152](tickets/TCK-152-dashboard-page-titles-localisation-dedup.md) — Dashboard — titres de page non localisés et suffixe Takussan dupliqué `S · P1 · front` **[review]**
+- [TCK-153](tickets/TCK-153-formats-devise-date-harmonises.md) — Formats devise & date — harmonisation FR site-wide `M · P1 · front` **[review]**
+- [TCK-154](tickets/TCK-154-i18n-dashboard-labels-anglais-restants.md) — Dashboard — chaînes anglaises résiduelles & libellés bruts `M · P1 · front` **[review]**
+- [TCK-155](tickets/TCK-155-documents-base-ui-button-warning.md) — Documents — warning a11y Base UI Button (`nativeButton`) `S · P2 · front`
+- [TCK-156](tickets/TCK-156-bookings-detail-rbac-display-cree-le.md) — Fiche réservation — masquer le CTA review pour l'agent et afficher la date de création `S · P1 · front`
+- [TCK-157](tickets/TCK-157-property-edit-photos-section-doublon.md) — Fiche bien (édition) — section Photos dupliquée `S · P2 · front`
+- [TCK-158](tickets/TCK-158-dashboard-detail-headings-semantiques.md) — Pages détail dashboard — hiérarchie de headings (h1/h2 dupliqués ou manquants) `S · P2 · front`
+
+### Vague 23 — Console super-admin (gouvernance plateforme, 2026-05-07)
+
+> Extension de la console super-admin livrée par TCK-144/145/132/115/116. Couvre les capacités plateforme attendues d'un super-admin SaaS multi-tenant : gouvernance des agences (détail, onboarding), support utilisateur cross-tenant, modération unifiée, référentiels globaux (tags, enums), templates de notification, paramètres plateforme, intégrations tierces, mode maintenance, feature flags, alertes sur actions sensibles. Les sujets nécessitant une extension de spec préalable (KYC documentaire, plans / quotas, payouts plateforme, broadcast in-app, RGPD export user, healthcheck UI) ne sont **pas** ticketés ici — un PR sur `features.md` doit les introduire d'abord.
+
+### Vague 24 — Console super-admin · gouvernance SaaS (2026-05-07)
+
+> Suite logique de la Vague 23 — adresse les sujets qui requéraient une extension de spec préalable. `features.md` §1.5 / §1.12 / §2.1 / §2.3 / §2.5 / §2.9 et `models-spec.md` (#42 → #47 + 4 nouveaux enums) ont été étendus dans le même chantier pour ancrer ces tickets.
+
+_(Vague 24 finalisée — voir Review)_
+
+### Vague 25 — Bugs smoke test utilisateurs authentifiés (2026-05-08)
+
+> Smoke test browser suivant `docs/qa/utilisateurs-authentifies-qa.md`. Les anomalies sont recensées dans `docs/smoke-tests/utilisateurs-authentifies-2026-05-08.md` et groupées ici par surface de correction.
+
+- [TCK-272](tickets/TCK-272-oauth-only-account-deletion-step-up.md) — Suppression de compte — step-up alternative pour comptes OAuth-only `M · P2 · applicatif`
+### Vague 26 — Bugs smoke test super-admin (2026-05-08)
+
+> Smoke test browser suivant `docs/qa/super-admin-qa.md`. Les anomalies ouvertes sont recensées dans `docs/smoke-tests/super-admin-2026-05-08.md` et groupées ici par surface de correction.
+
+
+### Vague 27 — Audit design front (2026-05-09)
+
+> Suite à `docs/design-audit-2026-05-09.md` : 5 pages 🔴 (vraiment moches) + ~70 pages 🟠 (tokens legacy) regroupées en 5 tickets transversaux pour limiter la fragmentation. Toutes dépendent de TCK-129 (fondation DS).
+
+- [TCK-246](tickets/TCK-246-empty-error-states-and-cta-buttons-harmonization.md) — Empty / error states + CTA shadcn - harmonisation transverse `M · P2 · front`
+
+### Vague 28 — Discovery / homepage (2026-05-10)
+
+- [TCK-247](tickets/TCK-247-public-homepage-discovery-endpoint.md) — Endpoint unique homepage discovery (4 rangées dédupliquées côté serveur) `M · P2 · back`
+
+### Vague 29 — Onboarding parcours acteurs (2026-05-10)
+
+> Discovery doc : [`docs/superpowers/specs/2026-05-10-onboarding-discovery-design.md`](../superpowers/specs/2026-05-10-onboarding-discovery-design.md). Spec PRs préalables mergés : `Agency.kind` enum, modèles `Invitation` / `AgencyUpgradeRequest` / `TenantOnboardingChecklist`, sous-section `features.md §2.1 Onboarding parcours`.
+
+**Briques transverses (P0 d'abord)**
+
+_(toutes mergées — voir Done)_
+
+**Parcours utilisateur**
+
+_(toutes mergées — voir Done)_
+
+### Vague 30 — Messagerie UX flottante (2026-05-13)
+
+> Raccourci global vers la messagerie : widget flottant style Facebook Messenger (desktop) + FAB redirigeant vers `/app/messages` (mobile). N'introduit aucun nouvel endpoint — réutilise les API livrées par TCK-045 et TCK-085.
+
+_(TCK-274 done)_
+
+### Vague 31 — Orchestration UI flottante bas d'écran (2026-05-15)
+
+> Refacto frontend : les éléments flottants en bas d'écran (`CompareFloatingBar`, `ChatWidget` desktop + FAB mobile, `PropertyMobileBottomBar`) se chevauchent aujourd'hui en bas-droite. Introduit un orchestrateur partagé (Floating Dock) qui empile les éléments verticalement et décale automatiquement quand une sticky bar full-width occupe le bas (fiche bien mobile). Aucun changement backend.
+
+_(TCK-275 en doing)_
+
+### Vague 32 — Itération design pages publiques agence/agent (2026-05-17)
+
+> Suite directe de TCK-242 (rhabillage DS Lin). Itération "Portrait/confiance" : hero asymétrique, stats dérivées, portefeuille à onglets (Tous/Location/Vente), équipe agence en strip scrollable, section Avis branchée sur les reviews polymorphes existantes (TCK-180 livré). Backend : exposer city via Address morph, bio depuis User, specialty + years dérivés depuis AgentProfile, reviews + stats.
+
+_(TCK-276 en doing)_
+
+### Vague 33 — Fusion console admin Équipe & Utilisateurs (2026-05-17)
+
+> Les deux pages `/admin/team` (TCK-065 / TCK-258, angle RH) et `/admin/users` (TCK-133 / TCK-147, angle IAM) couvrent la même population sous deux angles. Fusion en une seule page « Équipe » avec onglets (Tous/Agents/Admins/Propriétaires) + modal d'invitation unifiée. Aucun nouvel endpoint backend ; `/admin/users` répond 308 vers `/admin/team`.
+
+_(TCK-277 en review)_
+
+### Vague 34 — Refonte RBAC : profil = rôle (2026-05-17)
+
+> Architectural. La double-source-de-vérité « rôle spatie sur User + profil polymorphe » a causé plusieurs bugs (cf. notes TCK-277). On unifie : le profil porte le rôle, User redevient identité pure. Phase 1 (TCK-278) supprime spatie de User, ajoute `PlatformProfile` et l'enum `Capability` + résolveur. Phase 2 (TCK-279) ajoute le trait `HasRoles` sur les profils, la table `agency_roles` et débloque les rôles personnalisés (supersede TCK-135).
+
+- [TCK-279](tickets/TCK-279-rbac-custom-roles-phase-2.md) — RBAC phase 2 : rôles personnalisés par agence (HasRoles sur Profils + AgencyRole) `L · P1 · full` **[blocked: TCK-278]**
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 
 ## 🚧 Doing
 
-_(vide)_
+- [TCK-275](tickets/TCK-275-floating-dock-orchestrator.md) — Floating Dock — orchestrateur des éléments UI flottants en bas d'écran `S · P2 · front`
 
 ## 👀 Review
 
+- [TCK-278](tickets/TCK-278-rbac-profile-based-phase-1.md) — RBAC phase 1 : suppression spatie sur User + PlatformProfile + Capability resolver `XL · P1 · technique` *(P1 + P2.A→D + P3 cutover + P3.b tests verts + frontend types + CI guard — branche `feat/tck-278-279-rbac-architecture-spec`)*
+- [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
+- [TCK-276](tickets/TCK-276-public-agency-agent-portrait-redesign.md) — Pages publiques agence & agent — itération "Portrait/confiance" `L · P2 · applicatif`
+- [TCK-277](tickets/TCK-277-fusion-admin-team-users.md) — Fusion pages admin Équipe & Utilisateurs `M · P2 · front`
+
+### Vague 27 — Audit design front
+
+- [TCK-242](tickets/TCK-242-public-agency-agent-pages-design-refresh.md) — Refonte design fiches publiques agence & agent `M · P1 · front`
+- [TCK-243](tickets/TCK-243-super-admin-native-controls-pagination.md) — Super-admin - éliminer contrôles HTML natifs et factoriser pagination `M · P2 · front`
+- [TCK-244](tickets/TCK-244-dashboard-admin-legacy-tokens-migration.md) — Dashboard /app + /admin - migration tokens legacy → tokens DS Lin `L · P2 · front`
+- [TCK-245](tickets/TCK-245-super-admin-stone-palette-to-ds-tokens.md) — Super-admin - palette stone → tokens DS Lin `M · P2 · front`
+
+### Vague 26 — Bugs smoke test super-admin
+
+- [TCK-237](tickets/TCK-237-super-admin-report-export-csv.md) — Super-admin reporting - corriger l'export CSV `S · P2 · bug`
+- [TCK-238](tickets/TCK-238-super-admin-agencies-list-completeness.md) — Super-admin agences - compléter la liste plateforme `M · P1 · bug`
+- [TCK-239](tickets/TCK-239-super-admin-users-roles-filters.md) — Super-admin utilisateurs - afficher rôles et filtres `M · P1 · bug`
+- [TCK-240](tickets/TCK-240-admin-properties-route-scope.md) — Admin biens - restaurer la liste /admin/properties `S · P1 · bug`
+- [TCK-241](tickets/TCK-241-api-agencies-agency-admin-scope.md) — API agences - corriger le scope agency_admin `S · P0 · bug`
+
+### Vague 25 — Bugs smoke test utilisateurs authentifiés
+
+- [TCK-228](tickets/TCK-228-notification-preferences-crash.md) — Préférences notifications — corriger le crash au toggle `S · P1 · bug`
+- [TCK-229](tickets/TCK-229-notification-bell-feed.md) — Notifications — restaurer la cloche et le feed `M · P0 · bug`
+- [TCK-230](tickets/TCK-230-auth-email-links.md) — Auth — corriger les liens email transactionnels `M · P0 · bug`
+- [TCK-231](tickets/TCK-231-profile-edit-avatar.md) — Profil — synchroniser édition et avatar `M · P0 · bug`
+- [TCK-232](tickets/TCK-232-auth-form-ux.md) — Auth — aligner les formulaires publics `S · P0 · bug`
+- [TCK-233](tickets/TCK-233-auth-oauth-provider-smoke.md) — Auth — fiabiliser OAuth en smoke local `M · P1 · bug`
+- [TCK-234](tickets/TCK-234-i18n-auth-account-errors.md) — i18n — corriger auth et compte `M · P0 · bug`
+- [TCK-235](tickets/TCK-235-search-relevance-appartement.md) — Recherche — améliorer la pertinence plein texte `M · P0 · bug`
+- [TCK-236](tickets/TCK-236-profile-posted-reviews.md) — Profil — afficher les avis postés `M · P2 · bug`
+
+### Vague 24 — Console super-admin · gouvernance SaaS
+
+- [TCK-221](tickets/TCK-221-super-admin-agency-kyc.md) — Super-admin — KYC documentaire des agences (workflow vérification) `L · P1 · applicatif`
+- [TCK-222](tickets/TCK-222-super-admin-plans-subscriptions.md) — Super-admin — Plans & abonnements plateforme (catalogue + assignation par agence) `L · P2 · applicatif`
+- [TCK-223](tickets/TCK-223-super-admin-platform-payouts.md) — Super-admin — Reversement plateforme → agences (payout périodique) `L · P2 · applicatif`
+- [TCK-227](tickets/TCK-227-super-admin-platform-reporting.md) — Super-admin — Reporting plateforme cross-tenant (croissance, MRR, cohortes) `L · P2 · applicatif`
+- [TCK-226](tickets/TCK-226-super-admin-healthcheck-jobs.md) — Super-admin — Healthcheck plateforme & supervision des jobs `M · P2 · applicatif`
+- [TCK-225](tickets/TCK-225-super-admin-rgpd-user-data-export.md) — Super-admin — Export RGPD des données utilisateur (portabilité) `M · P2 · applicatif`
+- [TCK-224](tickets/TCK-224-super-admin-broadcast-announcements.md) — Super-admin — Annonces in-app cross-tenant (broadcast par segment) `M · P2 · applicatif`
+
+### Vague 23 — Console super-admin
+
+- [TCK-220](tickets/TCK-220-super-admin-sensitive-action-alerts.md) — Super-admin — Alertes sur actions sensibles `S · P3 · applicatif`
+- [TCK-219](tickets/TCK-219-super-admin-feature-flags.md) — Super-admin — Feature flags applicatifs `M · P3 · applicatif`
+- [TCK-218](tickets/TCK-218-super-admin-maintenance-mode.md) — Super-admin — Mode maintenance programmé `S · P3 · applicatif`
+- [TCK-217](tickets/TCK-217-super-admin-third-party-integrations.md) — Super-admin — Intégrations tierces (API keys, webhooks) `M · P2 · applicatif`
+- [TCK-212](tickets/TCK-212-super-admin-moderation-queue.md) — Super-admin — File de modération unifiée (signalements cross-tenant) `L · P2 · applicatif`
+- [TCK-213](tickets/TCK-213-super-admin-tags-amenities-global.md) — Super-admin — Tags & amenités globaux (référentiel plateforme) `S · P1 · front`
+- [TCK-214](tickets/TCK-214-super-admin-business-enums.md) — Super-admin — Enums métier éditables (catégories, libellés, traductions) `M · P1 · applicatif`
+- [TCK-215](tickets/TCK-215-super-admin-notification-templates.md) — Super-admin — Templates de notification (email / SMS / push) `M · P1 · applicatif`
+- [TCK-208](tickets/TCK-208-super-admin-agency-detail.md) — Super-admin — Détail agence cross-tenant `/super-admin/agencies/[id]` `M · P1 · front`
+- [TCK-209](tickets/TCK-209-super-admin-agency-onboarding.md) — Super-admin — Onboarding agence (création + admin initial) `M · P1 · applicatif`
+
+### Vague 22 — Bugs smoke test agent immobilier
+
+- [TCK-196](tickets/TCK-196-agent-crm-detail-404.md) — CRM agent — restaurer les fiches client détail `S · P0 · bug`
+- [TCK-197](tickets/TCK-197-agent-property-lifecycle-actions.md) — Biens agent — fiabiliser publication, statuts et actions `M · P0 · bug`
+- [TCK-198](tickets/TCK-198-agent-property-portfolio-controls.md) — Mes biens agent — compléter filtres, colonnes et actions en lot `M · P1 · front`
+- [TCK-199](tickets/TCK-199-property-media-validation-advanced.md) — Médias biens — validation robuste et supports avancés `M · P1 · applicatif`
+- [TCK-200](tickets/TCK-200-agent-dashboard-operational-widgets.md) — Dashboard agent — widgets opérationnels manquants `M · P1 · front`
+- [TCK-201](tickets/TCK-201-crm-pipeline-agent-data-i18n.md) — Pipeline CRM agent — données vides et libellés anglais `M · P1 · bug`
+- [TCK-202](tickets/TCK-202-property-create-redirect-detail.md) — Création bien — rediriger vers la fiche créée `S · P1 · front`
+- [TCK-203](tickets/TCK-203-agent-visit-requester-context.md) — Visites agent — afficher le demandeur exploitable `S · P1 · front`
+- [TCK-204](tickets/TCK-204-agent-dashboard-i18n-format-regressions.md) — Dashboard agent — corriger régressions i18n et formats `M · P1 · bug`
+
+### Vague 20 — Bugs smoke test bailleur / propriétaire
+
+- [TCK-183](tickets/TCK-183-owner-booking-actions.md) — Réservations owner — actions accepter/refuser/annuler `M · P1 · front`
+- [TCK-184](tickets/TCK-184-owner-visit-actions.md) — Visites owner — confirmation et suivi `M · P2 · front`
+- [TCK-185](tickets/TCK-185-owner-lease-create-ux.md) — Baux owner — création avec sélecteurs métier `M · P1 · front`
+- [TCK-186](tickets/TCK-186-owner-lease-lifecycle-ui.md) — Baux owner — actions cycle de vie `M · P1 · front`
+- [TCK-187](tickets/TCK-187-owner-reviews-inbox.md) — Avis owner — boîte des avis reçus `M · P2 · front`
+- [TCK-188](tickets/TCK-188-owner-dashboard-shell.md) — Dashboard owner — widgets et navigation `M · P1 · front`
+- [TCK-189](tickets/TCK-189-owner-property-portfolio-ui.md) — Biens owner — gestion portefeuille complète `L · P1 · front`
+- [TCK-190](tickets/TCK-190-owner-calendar-usability.md) — Calendrier owner — lisibilité gros portefeuille `S · P2 · front`
+- [TCK-191](tickets/TCK-191-owner-maintenance-detail-ux.md) — Maintenance owner — détail lisible `S · P2 · front`
+- [TCK-192](tickets/TCK-192-owner-documents-empty-state.md) — Documents owner — état vide actionnable `S · P2 · front`
+
+### Vague 21 — Dette technique checks frontend
+
+- [TCK-193](tickets/TCK-193-frontend-eslint-blockers.md) — Frontend — corriger les erreurs ESLint bloquantes `S · P1 · technique`
+- [TCK-194](tickets/TCK-194-frontend-test-type-errors.md) — Frontend — fiabiliser les types des tests `M · P1 · technique`
+- [TCK-195](tickets/TCK-195-frontend-runtime-type-errors.md) — Frontend — corriger les erreurs TypeScript runtime `S · P1 · technique`
+
+### Vague 18 — Bugs smoke test visiteur anonyme
+
+- [TCK-159](tickets/TCK-159-i18n-public-language-switcher-wired.md) — Sélecteur de langue public — câblage i18n FR/EN/WO `M · P1 · front`
+- [TCK-160](tickets/TCK-160-i18n-public-residual-english-strings.md) — i18n public — chaînes anglaises résiduelles côté visiteur anonyme `M · P1 · front`
+- [TCK-161](tickets/TCK-161-fiche-bien-formulaire-contact-public-anonyme.md) — Fiche bien — formulaire de contact public anonyme `M · P1 · front`
+- [TCK-162](tickets/TCK-162-vue-carte-marqueurs-prix.md) — Vue carte — marqueurs avec prix `S · P2 · front`
+- [TCK-163](tickets/TCK-163-seed-test-data-exclude-from-public.md) — Données seed — exclure les biens de test du flux public `S · P2 · technique`
+- [TCK-164](tickets/TCK-164-home-coherence-sections-cards-adresse.md) — Home publique — cohérence sections, cards et format adresse `M · P2 · front`
+- [TCK-165](tickets/TCK-165-fiche-bien-cta-adapte-type-contrat.md) — Fiche bien — CTA adapté au type de contrat `S · P2 · front`
+- [TCK-166](tickets/TCK-166-public-polish-title-redirect-preload-tri.md) — Polish public — title dupliqué, redirect /super-admin, preload, libellés tri `S · P3 · front`
+
 ### Vague 15 — Câblage des zones UI stub
 
-- [TCK-135](tickets/TCK-135-admin-roles-editor.md) — `/admin/roles` — Éditeur de rôles & permissions personnalisés `M · P1 · full`
+- ~~[TCK-135](tickets/TCK-135-admin-roles-editor.md)~~ — ~~`/admin/roles` — Éditeur de rôles & permissions personnalisés `M · P1 · full`~~ **[superseded par TCK-279, architecture spatie+teams abandonnée]**
 - [TCK-136](tickets/TCK-136-profile-customer-search-preferences.md) — Profil locataire — Préférences de recherche & alertes `M · P1 · front`
 - [TCK-137](tickets/TCK-137-profile-contact-phone-edit.md) — Profil contact — Édition téléphone `S · P1 · front`
 
@@ -349,6 +573,43 @@ _(vide)_
 
 ## ✅ Done
 
+### Vague 30 — Messagerie UX flottante
+
+- [TCK-274](tickets/TCK-274-messaging-floating-widget.md) — Messagerie — widget flottant accessible site-wide `M · P2 · front`
+
+### Vague 29 — Onboarding parcours acteurs
+
+- [TCK-248](tickets/TCK-248-agency-kind-individual.md) — `Agency.kind` enum (standard/individual) + migration + seed `S · P0 · back`
+- [TCK-249](tickets/TCK-249-invitation-pattern-unifie.md) — Pattern d'invitation unifié (modèle Invitation + service + emails) `M · P0 · back`
+- [TCK-250](tickets/TCK-250-wizard-reprenable-component.md) — Wizard reprenable — composant frontend + persistance draft `S · P0 · front`
+- [TCK-251](tickets/TCK-251-welcome-modale-generique.md) — Welcome modale générique (3 slides skippable) `S · P1 · front`
+- [TCK-253](tickets/TCK-253-onboarding-wizard-customer.md) — Onboarding wizard Customer (welcome + profil minimal différé) `S · P0 · front`
+- [TCK-254](tickets/TCK-254-cta-publier-universelle.md) — CTA "Publier" universelle (routing selon état du user) `S · P0 · front`
+- [TCK-255](tickets/TCK-255-wizard-host-individual.md) — Wizard host individual (5 steps + création Agency+profils+1er bien draft) `M · P0 · applicatif`
+- [TCK-256](tickets/TCK-256-form-invitation-owner.md) — Form invitation Owner depuis espace agence `S · P0 · applicatif`
+- [TCK-258](tickets/TCK-258-form-invitation-agent.md) — Écran "Équipe" + form invitation Agent (avec choix de rôle) `S · P0 · applicatif`
+- [TCK-263](tickets/TCK-263-artisan-create-super-admin.md) — Commande artisan create-super-admin (bootstrap) `S · P0 · back`
+- [TCK-271](tickets/TCK-271-materialize-agency-admin-profile.md) — Matérialiser le modèle AgencyAdminProfile (résolution divergence TCK-255 / TCK-258) `S · P1 · back`
+- [TCK-252](tickets/TCK-252-agency-upgrade-request-model.md) — `AgencyUpgradeRequest` modèle + migration + enums `S · P1 · back`
+- [TCK-270](tickets/TCK-270-tck-209-followup-2fa-currency-branding.md) — TCK-209 follow-up (2FA recommandé + choix devise + branding dès activation) `S · P1 · applicatif`
+- [TCK-265](tickets/TCK-265-welcome-modale-espace-resident.md) — Welcome modale "Espace résident" sur Lease.signed `S · P1 · applicatif`
+- [TCK-266](tickets/TCK-266-tenant-onboarding-checklist.md) — `TenantOnboardingChecklist` + suivi complétion EDL `M · P2 · applicatif`
+- [TCK-260](tickets/TCK-260-carnet-prestataires-invitation-sp.md) — Carnet de prestataires + invitation Service Provider `S · P1 · applicatif`
+- [TCK-261](tickets/TCK-261-wizard-onboarding-service-provider.md) — Wizard onboarding Service Provider (KYC + dispos + 1ère intervention) `M · P1 · applicatif`
+- [TCK-262](tickets/TCK-262-service-provider-multi-rattachement.md) — Multi-rattachement Service Provider à plusieurs agences `S · P2 · back`
+- [TCK-257](tickets/TCK-257-wizard-onboarding-owner.md) — Wizard onboarding Owner post-acceptation (KYC + tour) `M · P1 · applicatif`
+- [TCK-259](tickets/TCK-259-wizard-onboarding-agent.md) — Wizard onboarding Agent post-acceptation (KYC + zones) `M · P1 · applicatif`
+- [TCK-264](tickets/TCK-264-cooptation-super-admin.md) — Cooptation super-admin (peer-to-peer + 2FA forcé) `M · P1 · applicatif`
+- [TCK-267](tickets/TCK-267-form-upgrade-individual-to-standard.md) — Form upgrade individual → standard (soumission user) `M · P1 · applicatif`
+- [TCK-268](tickets/TCK-268-super-admin-upgrade-review-console.md) — Console super-admin — revue des demandes d'upgrade `M · P1 · applicatif`
+- [TCK-269](tickets/TCK-269-flip-agency-kind-and-unlock-features.md) — Flip `Agency.kind` à l'approbation + débloquage features + welcome agence `S · P1 · applicatif`
+
+### Vague 23 — Console super-admin
+
+- [TCK-216](tickets/TCK-216-super-admin-platform-settings.md) — Super-admin — Paramètres globaux plateforme & devises `M · P2 · applicatif`
+- [TCK-210](tickets/TCK-210-super-admin-user-detail.md) — Super-admin — Détail utilisateur cross-tenant `/super-admin/users/[id]` `M · P1 · front`
+- [TCK-211](tickets/TCK-211-super-admin-user-support-actions.md) — Super-admin — Actions support utilisateur (reset password, unlock, 2FA, sessions) `M · P1 · applicatif`
+
 ### Phase 0 — Fondation Backend
 
 - [TCK-048](tickets/TCK-048-base-model-api-response.md) — API Response Infrastructure (base resource + error handler) `M · P0 · back`
@@ -466,6 +727,7 @@ TCK-021 + TCK-027 + TCK-028 ──▶ TCK-077 (PDF templates)
 ── Vague 7 : Enrichissement P2 (hors-périmètre V4-V6) ──
 TCK-028 + TCK-068 ──▶ TCK-079 (payment gateway Wave/OM/Lemon Squeezy)
 TCK-013 + TCK-018 + TCK-069 ──▶ TCK-080 (account deletion RGPD)
+TCK-080 ──▶ TCK-272 (deletion step-up OAuth-only)
 TCK-060 ──▶ TCK-081 (OAuth Facebook/Apple)
 TCK-039 + TCK-046 + TCK-047 ──▶ TCK-082 (property comparator)
 TCK-020 + TCK-042 ──▶ TCK-083 (CRM prospect pipeline)
@@ -522,6 +784,71 @@ TCK-141 ──▶ TCK-142 (refactor consumers + drop legacy UserType)
 TCK-141 ──▶ TCK-143 (frontend multi-profile switcher)
 TCK-142 ──▶ TCK-144 (backend super_admin namespace)
 TCK-144 ──▶ TCK-145 (frontend super-admin area)
+
+── Vague 18 : Bugs smoke test visiteur anonyme ──
+TCK-159 (i18n public switcher) ──▶ TCK-160 (i18n public residual EN strings)
+
+── Vague 23 : Console super-admin (gouvernance plateforme) ──
+TCK-145 ──▶ TCK-208 (super-admin agency detail)
+TCK-145 ──▶ TCK-209 (super-admin agency onboarding)
+TCK-145 ──▶ TCK-210 (super-admin user detail)
+TCK-210 ──▶ TCK-211 (super-admin user support actions)
+TCK-145 ──▶ TCK-212 (super-admin unified moderation queue)
+TCK-145 ──▶ TCK-213 (super-admin global tags & amenities)
+TCK-145 ──▶ TCK-214 (super-admin business enums)
+TCK-145 ──▶ TCK-215 (super-admin notification templates)
+TCK-145 ──▶ TCK-216 (super-admin platform settings)
+TCK-216 ──▶ TCK-218 (super-admin maintenance mode)
+TCK-145 ──▶ TCK-217 (super-admin third-party integrations)
+TCK-145 ──▶ TCK-219 (super-admin feature flags)
+TCK-145 ──▶ TCK-220 (super-admin sensitive action alerts)
+
+── Vague 24 : Console super-admin · gouvernance SaaS ──
+TCK-208 ──▶ TCK-221 (super-admin agency KYC dossier)
+TCK-208 ──▶ TCK-222 (super-admin plans & subscriptions)
+TCK-222 ──▶ TCK-223 (super-admin platform payouts)
+TCK-145 ──▶ TCK-224 (super-admin broadcast announcements)
+TCK-210 ──▶ TCK-225 (super-admin RGPD user data export)
+TCK-145 ──▶ TCK-226 (super-admin healthcheck & jobs)
+TCK-222 ──▶ TCK-227 (super-admin platform reporting)
+
+── Vague 29 : Onboarding parcours acteurs ──
+# Briques transverses (P0)
+TCK-248 (Agency.kind)
+TCK-249 (Invitation pattern)
+TCK-250 (Wizard reprenable)
+TCK-251 (Welcome modale générique)
+TCK-248 ──▶ TCK-252 (AgencyUpgradeRequest model)
+
+# Parcours customer & host
+TCK-251 ──▶ TCK-253 (onboarding wizard Customer)
+TCK-248 ──▶ TCK-254 (CTA "Publier" universelle)
+TCK-248 + TCK-250 + TCK-254 ──▶ TCK-255 (Wizard host individual)
+
+# Parcours invités (Owner / Agent / Service Provider)
+TCK-249 ──▶ TCK-256 (Form invitation Owner)
+TCK-256 + TCK-250 + TCK-251 ──▶ TCK-257 (Wizard onboarding Owner)
+TCK-249 ──▶ TCK-258 (Form invitation Agent)
+TCK-258 + TCK-250 + TCK-251 ──▶ TCK-259 (Wizard onboarding Agent)
+TCK-249 ──▶ TCK-260 (Carnet prestataires + invitation SP)
+TCK-260 + TCK-250 + TCK-251 ──▶ TCK-261 (Wizard onboarding SP)
+TCK-260 + TCK-261 ──▶ TCK-262 (Multi-rattachement SP)
+
+# Super-admin
+TCK-263 (Artisan create-super-admin)
+TCK-249 + TCK-263 ──▶ TCK-264 (Cooptation super-admin + 2FA forcé)
+
+# Parcours résident (Customer → Tenant)
+TCK-251 ──▶ TCK-265 (Welcome modale Espace résident)
+TCK-265 ──▶ TCK-266 (TenantOnboardingChecklist + EDL)
+
+# Upgrade individual → standard
+TCK-248 + TCK-252 + TCK-250 ──▶ TCK-267 (Form upgrade)
+TCK-252 + TCK-267 ──▶ TCK-268 (Console super-admin revue upgrade)
+TCK-248 + TCK-267 + TCK-268 ──▶ TCK-269 (Flip Agency.kind + débloquage features)
+
+# Follow-up TCK-209 (déjà done)
+TCK-270 (TCK-209 follow-up : 2FA + devise + branding)
 ```
 
 ---

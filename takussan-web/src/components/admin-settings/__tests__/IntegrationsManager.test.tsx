@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { NextIntlClientProvider } from 'next-intl';
 
 import { IntegrationsManager } from '../IntegrationsManager';
 
@@ -40,9 +41,17 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+function renderWithIntl(ui: React.ReactElement) {
+  return render(
+    <NextIntlClientProvider locale="fr" messages={{ common: { actions: { close: 'Fermer' } } }}>
+      {ui}
+    </NextIntlClientProvider>,
+  );
+}
+
 describe('<IntegrationsManager />', () => {
   it('renders the integration card with provider + status', () => {
-    render(<IntegrationsManager initialIntegrations={initial} />);
+    renderWithIntl(<IntegrationsManager initialIntegrations={initial} />);
     expect(screen.getByText(/wave/i)).toBeInTheDocument();
     expect(screen.getByText(/Active/)).toBeInTheDocument();
   });
@@ -53,7 +62,7 @@ describe('<IntegrationsManager />', () => {
       data: { ok: true, message: 'Connexion vérifiée.' },
     });
     const user = userEvent.setup();
-    render(<IntegrationsManager initialIntegrations={initial} />);
+    renderWithIntl(<IntegrationsManager initialIntegrations={initial} />);
 
     await user.click(screen.getByRole('button', { name: /Tester la connexion/ }));
     expect(testMock).toHaveBeenCalledWith(42);
@@ -66,7 +75,7 @@ describe('<IntegrationsManager />', () => {
       data: { ok: false, message: 'Clé API invalide.' },
     });
     const user = userEvent.setup();
-    render(<IntegrationsManager initialIntegrations={initial} />);
+    renderWithIntl(<IntegrationsManager initialIntegrations={initial} />);
 
     await user.click(screen.getByRole('button', { name: /Tester la connexion/ }));
     expect(await screen.findByText('Clé API invalide.')).toBeInTheDocument();
@@ -74,7 +83,7 @@ describe('<IntegrationsManager />', () => {
 
   it('masks the secret input until the reveal toggle is pressed', async () => {
     const user = userEvent.setup();
-    render(<IntegrationsManager initialIntegrations={[]} />);
+    renderWithIntl(<IntegrationsManager initialIntegrations={[]} />);
 
     await user.click(screen.getByRole('button', { name: /Ajouter une intégration/ }));
     const secret = await screen.findByLabelText('Secret');
@@ -87,7 +96,7 @@ describe('<IntegrationsManager />', () => {
 
   it('renders Orange SMS specific fields when provider = sms_orange (TCK-102)', async () => {
     const user = userEvent.setup();
-    render(<IntegrationsManager initialIntegrations={[]} />);
+    renderWithIntl(<IntegrationsManager initialIntegrations={[]} />);
 
     await user.click(screen.getByRole('button', { name: /Ajouter une intégration/ }));
     const providerInput = await screen.findByLabelText(/Fournisseur/);
@@ -106,7 +115,7 @@ describe('<IntegrationsManager />', () => {
 
   it('renders LAfricaMobile specific fields when provider = sms_lafricamobile (TCK-102)', async () => {
     const user = userEvent.setup();
-    render(<IntegrationsManager initialIntegrations={[]} />);
+    renderWithIntl(<IntegrationsManager initialIntegrations={[]} />);
 
     await user.click(screen.getByRole('button', { name: /Ajouter une intégration/ }));
     const providerInput = await screen.findByLabelText(/Fournisseur/);
@@ -122,7 +131,7 @@ describe('<IntegrationsManager />', () => {
   it('submits Orange credentials in the right shape (TCK-102)', async () => {
     createMock.mockResolvedValue({ ok: true, data: { id: 99, provider: 'sms_orange' } });
     const user = userEvent.setup();
-    render(<IntegrationsManager initialIntegrations={[]} />);
+    renderWithIntl(<IntegrationsManager initialIntegrations={[]} />);
 
     await user.click(screen.getByRole('button', { name: /Ajouter une intégration/ }));
     const providerInput = await screen.findByLabelText(/Fournisseur/);

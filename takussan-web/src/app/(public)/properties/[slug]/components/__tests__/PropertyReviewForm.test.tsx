@@ -1,13 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ComponentProps } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PropertyReviewForm, REVIEW_CONTENT_MIN } from '../PropertyReviewForm';
 
+type ReviewSubmit = ComponentProps<typeof PropertyReviewForm>['onSubmit'];
+
 describe('<PropertyReviewForm>', () => {
-  let submit: ReturnType<typeof vi.fn>;
+  let submit: ReturnType<typeof vi.fn<ReviewSubmit>>;
 
   beforeEach(() => {
-    submit = vi.fn().mockResolvedValue(undefined);
+    submit = vi.fn<ReviewSubmit>().mockResolvedValue(undefined);
   });
 
   it('blocks submit when no rating is selected', async () => {
@@ -66,7 +69,7 @@ describe('<PropertyReviewForm>', () => {
   it('surfaces the server error (e.g. 422 "déjà reviewed")', async () => {
     const user = userEvent.setup();
     const serverMessage = 'Vous avez déjà évalué ce bien.';
-    submit = vi.fn().mockRejectedValue(new Error(serverMessage));
+    submit = vi.fn<ReviewSubmit>().mockRejectedValue(new Error(serverMessage));
     render(<PropertyReviewForm onSubmit={submit} />);
 
     await user.click(screen.getByRole('radio', { name: /3 étoiles/i }));

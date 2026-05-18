@@ -81,7 +81,7 @@ function PaymentReturnInner() {
   if (!paymentType || !paymentId) {
     return (
       <main className="mx-auto max-w-md py-16 text-center">
-        <h1 className="text-2xl font-semibold text-app-ink">{t('return.invalid.title')}</h1>
+        <h1 className="font-display text-2xl font-semibold text-foreground">{t('return.invalid.title')}</h1>
         <p className="mt-3 text-sm text-stone-600">{t('return.invalid.body')}</p>
         <div className="mt-6">
           <Button onClick={() => router.push('/app/payments')}>{t('return.actions.backToPayments')}</Button>
@@ -92,7 +92,7 @@ function PaymentReturnInner() {
 
   return (
     <main className="mx-auto max-w-md py-16 text-center">
-      <h1 className="text-2xl font-semibold text-app-ink">
+      <h1 className="font-display text-2xl font-semibold text-foreground">
         {bucket === 'success' && t('return.success.title')}
         {bucket === 'failed' && t('return.failed.title')}
         {bucket === 'pending' && t('return.pending.title')}

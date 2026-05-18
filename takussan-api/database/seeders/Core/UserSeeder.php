@@ -3,14 +3,18 @@
 namespace Database\Seeders\Core;
 
 use App\Models\Agency;
+use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\OwnerProfileStatus;
+use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\UserStatus;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\BrokerAgencyCollaboration;
 use App\Models\Profiles\BrokerProfile;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
@@ -19,8 +23,6 @@ use Database\Seeders\Support\Timeline;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use Spatie\Permission\Exceptions\RoleDoesNotExist;
-use Spatie\Permission\PermissionRegistrar;
 
 class UserSeeder extends Seeder
 {
@@ -53,14 +55,15 @@ class UserSeeder extends Seeder
             ],
         );
         $user->forceFill(['email_verified_at' => Timeline::seedStart()])->save();
-        // Super admin is not tied to an agency. Assign the role with a null
-        // team context so it resolves regardless of the active team.
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
-        try {
-            $user->syncRoles(['super_admin']);
-        } catch (RoleDoesNotExist) {
-            // RolesAndPermissionsSeeder must run before UserSeeder.
-        }
+        // TCK-278 — super_admin matérialisé via PlatformProfile (source de
+        // vérité unique post-cutover).
+        PlatformProfile::query()->firstOrCreate(
+            ['user_id' => $user->id],
+            [
+                'level' => PlatformProfileLevel::SuperAdmin,
+                'granted_at' => Timeline::seedStart(),
+            ],
+        );
         $this->ctx->registerUser($user);
 
         $avatarUrl = 'https://api.dicebear.com/7.x/avataaars/png?seed='.urlencode($user->username);
@@ -69,8 +72,6 @@ class UserSeeder extends Seeder
 
     private function seedAgencyTeam(Agency $agency): void
     {
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-
         $slug = $agency->slug;
         $domain = parse_url((string) $agency->website, PHP_URL_HOST) ?? ($slug.'.sn');
 
@@ -148,14 +149,9 @@ class UserSeeder extends Seeder
         );
         $user->forceFill(['email_verified_at' => $createdAt])->save();
 
-        if ($role) {
-            try {
-                $user->syncRoles([$role]);
-            } catch (RoleDoesNotExist) {
-                // Role not defined for this team — safe to skip in the seeder.
-            }
-        }
-
+        // TCK-278 — Le rôle est matérialisé via le profil polymorphe
+        // (cf. seedProfileFor + Règle 5). Plus de spatie syncRoles ici.
+        unset($role);
         $this->seedProfileFor($user, $agency, $persona);
         $this->ctx->registerUser($user, $persona, $agency->id);
 
@@ -167,9 +163,12 @@ class UserSeeder extends Seeder
 
     /**
      * Polymorphic profile creation driven by the persona string carried in the
-     * seed payload. Admins get no profile; their authority is fully expressed
-     * via spatie roles. Brokers and service providers are user-scoped, so the
-     * agency only enters via the collaboration pivot.
+     * seed payload. Since TCK-271, agency admins also get a materialized
+     * {@see AgencyAdminProfile} so the cookie-based active profile resolver
+     * can pin the agency context unambiguously and policies reading
+     * `$user->agency_id` keep returning the correct value. Brokers and
+     * service providers are user-scoped, so the agency only enters via the
+     * collaboration pivot.
      */
     private function seedProfileFor(User $user, Agency $agency, ?string $persona): void
     {
@@ -184,9 +183,18 @@ class UserSeeder extends Seeder
             ),
             'broker' => $this->seedBrokerProfile($user, $agency),
             'service_provider' => $this->seedServiceProviderProfile($user, $agency),
-            'admin', null => null,
+            'admin' => $this->seedAgencyAdminProfile($user, $agency),
+            null => null,
             default => null,
         };
+    }
+
+    private function seedAgencyAdminProfile(User $user, Agency $agency): AgencyAdminProfile
+    {
+        return AgencyAdminProfile::query()->firstOrCreate(
+            ['user_id' => $user->id, 'agency_id' => $agency->id],
+            ['status' => AgencyAdminProfileStatus::Active->value],
+        );
     }
 
     private function seedBrokerProfile(User $user, Agency $agency): void

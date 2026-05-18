@@ -107,7 +107,7 @@ du prix pour éviter toute confusion.
 ## Delta à produire
 
 - [ ] Migration `add_currency_to_agencies_table` (char(3), default XOF)
-- [ ] Enum `App\Enums\Currency` (XOF, EUR, USD)
+- [ ] Enum `App\Models\Enums\Currency` (XOF, EUR, USD)
 - [ ] Helper Blade `@currency($amount, $currency)` via `Blade::directive`
 - [ ] Service `App\Services\Formatting\CurrencyFormatter` (format / parse)
 - [ ] Mise à jour `AgencyResource` pour exposer `currency`

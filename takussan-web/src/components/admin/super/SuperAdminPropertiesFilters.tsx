@@ -3,6 +3,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   PROPERTY_STATUS_OPTIONS,
   PROPERTY_TYPE_OPTIONS,
@@ -66,7 +74,7 @@ export function SuperAdminPropertiesFilters({ agencies }: SuperAdminPropertiesFi
 
   return (
     <div
-      className="flex flex-col gap-3 rounded-xl bg-white p-4 ring-1 ring-stone-200 md:flex-row md:items-center"
+      className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 md:flex-row md:items-center"
       data-testid="super-admin-properties-filters"
     >
       <form onSubmit={onSearchSubmit} className="flex-1">
@@ -75,16 +83,16 @@ export function SuperAdminPropertiesFilters({ agencies }: SuperAdminPropertiesFi
         </label>
         <div className="relative">
           <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-stone-500"
+            aria-hidden
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           />
-          <input
+          <Input
             id="super-admin-properties-search"
             type="search"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Rechercher (titre, référence, description)"
-            className="w-full rounded-md border border-stone-300 bg-white py-2 pl-9 pr-3 text-sm"
+            className="h-10 pl-9"
           />
         </div>
       </form>
@@ -134,20 +142,17 @@ function FilterSelect({
   options: readonly { value: string; label: string }[];
 }) {
   return (
-    <label className="flex flex-col text-xs text-stone-600">
-      <span className="sr-only">{label}</span>
-      <select
-        aria-label={label}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="min-w-40 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
-      >
+    <Select value={value} onValueChange={(next) => onChange((next ?? ALL) as string)} items={options}>
+      <SelectTrigger aria-label={label} className="h-10 min-w-40">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
         {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
+          <SelectItem key={opt.value} value={opt.value}>
             {opt.label}
-          </option>
+          </SelectItem>
         ))}
-      </select>
-    </label>
+      </SelectContent>
+    </Select>
   );
 }

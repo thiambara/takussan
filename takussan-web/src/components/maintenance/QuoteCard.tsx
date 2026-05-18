@@ -4,6 +4,7 @@ import { useLocale } from 'next-intl';
 import { formatCurrency, formatDateTime } from '@/lib/format';
 import type { MaintenanceRequest } from '@/types/maintenance';
 import type { Locale } from '@/i18n/config';
+import { quoteDecisionLabel } from './labels';
 
 export function QuoteCard({ request }: { readonly request: MaintenanceRequest }) {
   const locale = useLocale() as Locale;
@@ -47,10 +48,7 @@ export function QuoteCard({ request }: { readonly request: MaintenanceRequest })
         <div>
           <dt className="text-xs font-semibold text-app-ink-muted uppercase tracking-wide">Décision</dt>
           <dd className="mt-1 text-app-ink">
-            {request.status === 'approved' && <span className="text-green-600 font-medium">Approuvé</span>}
-            {request.status === 'rejected' && <span className="text-red-600 font-medium">Rejeté</span>}
-            {request.status === 'quote_submitted' && <span className="text-amber-600 font-medium">En attente</span>}
-            {['in_progress', 'completed', 'closed'].includes(request.status) && <span className="text-green-600 font-medium">Approuvé</span>}
+            <span className="font-medium">{quoteDecisionLabel(request)}</span>
           </dd>
         </div>
         <div>
@@ -60,6 +58,12 @@ export function QuoteCard({ request }: { readonly request: MaintenanceRequest })
           </dd>
         </div>
       </dl>
+
+      {request.quote_decision_by ? (
+        <p className="mt-3 text-xs text-app-ink-muted">
+          Décision par {request.quote_decision_by.name ?? request.quote_decision_by.email ?? 'utilisateur identifié'}.
+        </p>
+      ) : null}
 
       {request.status === 'rejected' && request.quote_rejection_reason && (
         <div className="mt-4 rounded-lg bg-red-50 p-3">

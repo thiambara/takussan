@@ -4,6 +4,31 @@ return [
 
     'salutation' => 'The Takussan team',
 
+    // TCK-249 — Invitation lifecycle emails.
+    'invitation' => [
+        'subject' => 'You have a Takussan invitation',
+        'reminder_subject' => 'Reminder — your Takussan invitation',
+        'greeting' => 'Hello,',
+        'intro' => 'You have been invited to join Takussan as a :role.',
+        'reminder_intro' => 'Friendly reminder: your Takussan invitation as :role is still pending.',
+        'action' => 'Accept the invitation',
+        'expires_at' => 'This link expires on :date.',
+        'ignore' => 'If this invitation does not concern you, you may ignore this email.',
+    ],
+
+    'invitation_accepted' => [
+        'subject' => ':email accepted your invitation',
+        'greeting' => 'Hello,',
+        'intro' => ':email has just accepted your invitation and joined the platform as :role.',
+    ],
+
+    'invitation_expired' => [
+        'subject' => 'Your invitation to :email has expired',
+        'greeting' => 'Hello,',
+        'intro' => 'The invitation you sent to :email expired before it was accepted.',
+        'advice' => 'You can resend it from your dashboard to nudge the recipient.',
+    ],
+
     'registration' => [
         'subject' => 'Confirm your email address',
         'greeting' => 'Welcome to Takussan!',
@@ -130,6 +155,33 @@ return [
         'greeting' => 'Hello,',
         'intro' => 'An amendment has been created for your lease (:reference). The new terms now apply.',
         'period' => 'Period: from :start to :end.',
+    ],
+
+    // TCK-265 — one-shot welcome notification fired on Lease.activated.
+    'tenant_welcome' => [
+        'subject' => 'Welcome home — lease :reference',
+        'greeting' => 'Hello,',
+        'intro' => 'Your lease :reference is now active.',
+        'body' => 'Track your upcoming payments, request maintenance and access your documents from your tenant space.',
+        'action' => 'Open my tenant space',
+    ],
+
+    // TCK-266 — J+7 reminder when the move-in inventory is still unsigned.
+    'tenant_inventory_reminder' => [
+        'subject' => 'Reminder — move-in inventory still unsigned (lease :reference)',
+        'greeting' => 'Hello,',
+        'intro' => 'Your move-in inventory for lease :reference has not been signed yet.',
+        'body' => 'Without a signed inventory, your file remains incomplete. Sign in to your tenant space to finalize the signature.',
+        'action' => 'Sign the inventory',
+    ],
+
+    'agent_tenant_inventory_reminder' => [
+        'subject' => 'Tenant late on move-in inventory — lease :reference',
+        'greeting' => 'Hello,',
+        'intro' => ':tenant has not signed the move-in inventory for lease :reference yet (more than 7 days).',
+        'body' => 'Check with your tenant whether a follow-up or assistance is needed to complete the signature.',
+        'action' => 'View pending onboardings',
+        'unknown_tenant' => 'The tenant',
     ],
 
     'lease_early_termination' => [

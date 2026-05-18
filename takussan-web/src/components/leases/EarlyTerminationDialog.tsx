@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { ApiError } from '@/lib/api';
 import { useRequestEarlyTermination } from '@/lib/queries/leases';
@@ -129,12 +129,11 @@ export function EarlyTerminationDialog({
             <label className="text-xs font-medium text-stone-700" htmlFor="et-effective">
               {t('field_effective_date')}
             </label>
-            <Input
+            <DatePicker
               id="et-effective"
-              type="date"
               min={minDate}
               value={effectiveDate}
-              onChange={(e) => setEffectiveDate(e.target.value)}
+              onValueChange={setEffectiveDate}
             />
             <p className="mt-1 text-xs text-stone-500">
               {t('notice_hint', { days: noticeDays, min: minDate })}

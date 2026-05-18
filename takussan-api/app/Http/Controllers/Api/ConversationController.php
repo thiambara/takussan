@@ -24,16 +24,17 @@ class ConversationController extends Controller
         $user = $request->user();
         $includeArchived = (bool) $request->boolean('archived');
 
-        $paginator = Conversation::whereHas('participants', function ($q) use ($user, $includeArchived) {
-            $q->where('user_id', $user->id);
-            // TCK-085 — participants who left a group no longer see it.
-            $q->whereNull('conversation_participants.left_at');
-            if ($includeArchived) {
-                $q->whereNotNull('conversation_participants.archived_at');
-            } else {
-                $q->whereNull('conversation_participants.archived_at');
-            }
-        })
+        $paginator = Conversation::with('property')
+            ->whereHas('participants', function ($q) use ($user, $includeArchived) {
+                $q->where('user_id', $user->id);
+                // TCK-085 — participants who left a group no longer see it.
+                $q->whereNull('conversation_participants.left_at');
+                if ($includeArchived) {
+                    $q->whereNotNull('conversation_participants.archived_at');
+                } else {
+                    $q->whereNull('conversation_participants.archived_at');
+                }
+            })
             ->orderByDesc('last_message_at')
             ->paginate((int) $request->input('per_page', 20));
 
@@ -102,6 +103,8 @@ class ConversationController extends Controller
             return $conversation;
         });
 
+        $conversation->loadMissing('property');
+
         return $this->json([
             'data' => ConversationResource::make($conversation)->toArray($request),
         ], 201);
@@ -144,6 +147,8 @@ class ConversationController extends Controller
             $conversation->refresh();
         }
 
+        $conversation->loadMissing('property');
+
         return $this->json([
             'data' => ConversationResource::make($conversation)->toArray($request),
         ], 201);
@@ -167,8 +172,11 @@ class ConversationController extends Controller
 
         $groups->rename($conversation, $user, $data['subject']);
 
+        $fresh = $conversation->fresh();
+        $fresh?->loadMissing('property');
+
         return $this->json([
-            'data' => ConversationResource::make($conversation->fresh())->toArray($request),
+            'data' => ConversationResource::make($fresh)->toArray($request),
         ]);
     }
 
@@ -200,6 +208,8 @@ class ConversationController extends Controller
     {
         $this->ensureParticipant($request, $conversation);
 
+        $conversation->loadMissing('property');
+
         return $this->json([
             'data' => ConversationResource::make($conversation)->toArray($request),
         ]);
@@ -209,13 +219,44 @@ class ConversationController extends Controller
     {
         $this->ensureParticipant($request, $conversation);
 
-        $messages = $conversation->messages()
-            ->latest()
-            ->paginate((int) $request->input('per_page', 30));
+        // TCK — cursor pagination. The history is paged via `before_id` (load
+        // older messages on scroll-up); `after_id` is used by the live-polling
+        // query to fetch only messages newer than the latest one already in
+        // the client cache, so polling never re-downloads loaded history.
+        $data = $request->validate([
+            'before_id' => ['nullable', 'integer', 'min:1', 'prohibits:after_id'],
+            'after_id' => ['nullable', 'integer', 'min:1', 'prohibits:before_id'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $perPage = (int) ($data['per_page'] ?? 30);
+
+        if (isset($data['after_id'])) {
+            $messages = $conversation->messages()
+                ->where('id', '>', (int) $data['after_id'])
+                ->oldest()
+                // Safety cap if the client missed many ticks (e.g. tab hidden
+                // for a long time). The client re-polls so anything beyond
+                // this cap will be fetched on the next call.
+                ->limit(200)
+                ->get();
+
+            return $this->json([
+                'data' => MessageResource::collection($messages)->toArray($request),
+                'meta' => ['has_more' => false],
+            ]);
+        }
+
+        $query = $conversation->messages()->latest();
+        if (isset($data['before_id'])) {
+            $query->where('id', '<', (int) $data['before_id']);
+        }
+
+        $messages = $query->limit($perPage)->get();
 
         return $this->json([
             'data' => MessageResource::collection($messages)->toArray($request),
-            'meta' => ['total' => $messages->total(), 'current_page' => $messages->currentPage()],
+            'meta' => ['has_more' => $messages->count() === $perPage],
         ]);
     }
 
@@ -327,7 +368,7 @@ class ConversationController extends Controller
     protected function ensureParticipant(Request $request, Conversation $conversation): void
     {
         $user = $request->user();
-        if ($user->hasRole(['admin', 'super_admin'])) {
+        if ($user->isSuperAdmin()) {
             return;
         }
         // TCK-085 — `left_at != null` means the user already exited the

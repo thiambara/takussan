@@ -19,7 +19,6 @@ export const AGENCY_MEMBER_FIELDS = [
   'email',
   'phone',
   'status',
-  'agency_id',
   'created_at',
 ] as const;
 

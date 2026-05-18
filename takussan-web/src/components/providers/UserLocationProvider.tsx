@@ -1,0 +1,125 @@
+'use client';
+
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+
+/**
+ * Géo-IP de l'utilisateur — résolu une fois au chargement du site via
+ * ipapi.co, mis en cache 24h dans localStorage, exposé à toute l'app via
+ * le Context. N'importe quel composant peut consommer ces infos avec
+ * `useUserLocation()` sans déclencher un nouveau fetch.
+ *
+ * La forme du payload reflète la réponse ipapi (https://ipapi.co/json/).
+ * Tous les champs sont optionnels — on n'assume jamais qu'un champ est
+ * présent côté consommateur.
+ */
+export type UserLocation = {
+  ip?: string;
+  network?: string;
+  version?: string;
+  city?: string;
+  region?: string;
+  region_code?: string;
+  country?: string;
+  country_name?: string;
+  country_code?: string;
+  country_code_iso3?: string;
+  country_capital?: string;
+  country_tld?: string;
+  continent_code?: string;
+  in_eu?: boolean;
+  postal?: string | null;
+  latitude?: number;
+  longitude?: number;
+  timezone?: string;
+  utc_offset?: string;
+  country_calling_code?: string;
+  currency?: string;
+  currency_name?: string;
+  languages?: string;
+  country_area?: number;
+  country_population?: number;
+  asn?: string;
+  org?: string;
+};
+
+type UserLocationContextValue = {
+  /** Réponse brute ipapi — `null` tant que le fetch n'a pas répondu (ou a échoué). */
+  location: UserLocation | null;
+  /** `true` pendant le tout premier fetch (ignore le cache hit, qui est synchrone). */
+  loading: boolean;
+  /** Raccourci pratique : `location.city` avec fallback Dakar — toujours safe à afficher. */
+  city: string;
+};
+
+const STORAGE_KEY = 'takussan:user-location';
+const TTL_MS = 24 * 60 * 60 * 1000;
+const FALLBACK_CITY = 'Dakar';
+
+const UserLocationContext = createContext<UserLocationContextValue>({
+  location: null,
+  loading: true,
+  city: FALLBACK_CITY,
+});
+
+type Cached = { data: UserLocation; at: number };
+
+export function UserLocationProvider({ children }: { children: ReactNode }) {
+  const [location, setLocation] = useState<UserLocation | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const cached = JSON.parse(raw) as Cached;
+        if (cached.data && Date.now() - cached.at < TTL_MS) {
+          setLocation(cached.data);
+          setLoading(false);
+          return;
+        }
+      }
+    } catch {
+      // localStorage indisponible (Safari privé) — on tombe sur le fetch.
+    }
+
+    fetch('https://ipapi.co/json/')
+      .then((r) => (r.ok ? (r.json() as Promise<UserLocation>) : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        try {
+          window.localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({ data, at: Date.now() } satisfies Cached),
+          );
+        } catch {
+          // ignore quota / private mode errors
+        }
+        setLocation(data);
+      })
+      .catch(() => {
+        // garde location=null → consommateurs basculent sur leurs fallbacks
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const city =
+    location?.city && location.city.trim() ? location.city.trim() : FALLBACK_CITY;
+
+  return (
+    <UserLocationContext.Provider value={{ location, loading, city }}>
+      {children}
+    </UserLocationContext.Provider>
+  );
+}
+
+export function useUserLocation(): UserLocationContextValue {
+  return useContext(UserLocationContext);
+}

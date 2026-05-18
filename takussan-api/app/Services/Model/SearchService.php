@@ -16,7 +16,7 @@ class SearchService
         $query = Property::query()->with('address');
 
         // Public-only unless authenticated
-        if ($user === null || ! $user->hasRole(['admin', 'super_admin'])) {
+        if ($user === null || ! $user->isSuperAdmin()) {
             $query->public();
         }
 

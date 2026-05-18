@@ -2,7 +2,9 @@
 
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
+import type { CustomerListItem } from '@/types/customer';
 import type { Guarantor, Lease, LeasePayment } from '@/types/lease';
+import type { PropertyListItem } from '@/types/property';
 
 /**
  * React Query hooks for the Lease resource.
@@ -87,6 +89,61 @@ export function useLeases(params: UseLeasesParams = {}) {
   return useApiQuery<PaginatedResponse<Lease>>(
     ['leases', 'list', params],
     '/api/leases',
+    { params: spatieParams },
+  );
+}
+
+export function useLeasePropertyOptions() {
+  const spatieParams: SpatieQueryParams = {
+    fields: {
+      properties: [
+        'id',
+        'reference_number',
+        'title',
+        'slug',
+        'price',
+        'currency',
+        'type',
+        'contract_type',
+        'status',
+        'visibility',
+        'created_at',
+      ],
+    },
+    filter: { status: 'available' },
+    sort: ['title'],
+    per_page: 100,
+  };
+
+  return useApiQuery<PaginatedResponse<PropertyListItem>>(
+    ['leases', 'property-options'],
+    '/api/properties',
+    { params: spatieParams },
+  );
+}
+
+export function useLeaseCustomerOptions(search?: string) {
+  const spatieParams: SpatieQueryParams = {
+    fields: {
+      customers: [
+        'id',
+        'first_name',
+        'last_name',
+        'email',
+        'phone',
+        'status',
+        'pipeline_stage',
+        'created_at',
+      ],
+    },
+    filter: search ? { search } : {},
+    sort: ['last_name', 'first_name'],
+    per_page: 50,
+  };
+
+  return useApiQuery<PaginatedResponse<CustomerListItem>>(
+    ['leases', 'customer-options', search ?? ''],
+    '/api/customers',
     { params: spatieParams },
   );
 }
@@ -188,6 +245,38 @@ export function useCreateLease() {
 export function useUpdateLease(id: number) {
   return useApiMutation<ApiResponse<Lease>, Partial<CreateLeasePayload>>(
     { path: `/api/leases/${id}`, method: 'PUT' },
+    {
+      invalidate: [
+        ['leases', 'list'],
+        ['leases', 'detail', id],
+      ],
+    },
+  );
+}
+
+export function useActivateLease(id: number) {
+  return useApiMutation<ApiResponse<Lease>, void>(
+    { path: `/api/leases/${id}/activate`, method: 'POST' },
+    {
+      invalidate: [
+        ['leases', 'list'],
+        ['leases', 'detail', id],
+        ['leases', 'payments', id],
+      ],
+    },
+  );
+}
+
+export type ReviewRentPayload = {
+  new_rent: number;
+  reason: string;
+  effective_date?: string;
+  force?: boolean;
+};
+
+export function useReviewLeaseRent(id: number) {
+  return useApiMutation<ApiResponse<Lease>, ReviewRentPayload>(
+    { path: `/api/leases/${id}/rent`, method: 'PATCH' },
     {
       invalidate: [
         ['leases', 'list'],

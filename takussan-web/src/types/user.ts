@@ -2,6 +2,15 @@ export type UserRole = 'customer' | 'tenant' | 'agent' | 'agency_admin' | 'owner
 
 export type UserStatus = 'active' | 'inactive' | 'banned';
 
+/**
+ * TCK-253 — Opt-in personalisation hints stored in `users.preferences`
+ * (JSON column on the API). All fields are optional and user-tunable.
+ */
+export type UserPreferences = {
+  city?: string;
+  search_intent?: 'rent' | 'buy' | 'both';
+};
+
 export type User = {
   id: number;
   first_name: string;
@@ -14,8 +23,17 @@ export type User = {
   email_verified_at: string | null;
   phone_verified_at: string | null;
   two_factor_enabled: boolean;
+  /**
+   * TCK-263 / TCK-264 — set to true on bootstrap or super-admin coopt
+   * acceptance, flipped back to false once the freshly-onboarded user
+   * has confirmed their TOTP factor. Frontend gates the super-admin
+   * onboarding wizard on this flag.
+   */
+  force_2fa_at_first_login?: boolean;
   agency_id?: number | null;
   roles: UserRole[];
   status: UserStatus;
+  /** TCK-253 — empty `{}` when the user has set nothing yet. */
+  preferences?: UserPreferences;
   created_at: string;
 };

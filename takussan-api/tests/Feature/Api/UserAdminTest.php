@@ -9,8 +9,6 @@ use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class UserAdminTest extends TestCase
@@ -20,11 +18,8 @@ class UserAdminTest extends TestCase
     protected function createAdmin(): User
     {
         $agency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        Role::findOrCreate('admin');
         $admin = User::factory()->create(['agency_id' => $agency->id]);
-        $admin->assignRole('admin');
+        $this->materializeRoleProfile($admin, 'super_admin');
 
         return $admin;
     }
@@ -97,40 +92,11 @@ class UserAdminTest extends TestCase
             ->assertJsonPath('data.status', UserStatus::Active->value);
     }
 
-    public function test_admin_can_assign_role(): void
-    {
-        $admin = $this->createAdmin();
-        $user = User::factory()->create(['agency_id' => $admin->agency_id]);
-
-        // Create the role first (Spatie requires it to exist)
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($admin->agency_id);
-        Role::findOrCreate('agent');
-
-        Sanctum::actingAs($admin);
-
-        $this->postJson("/api/users/{$user->id}/roles", ['role' => 'agent'])
-            ->assertOk()
-            ->assertJsonFragment(['agent']);
-    }
-
-    public function test_admin_can_remove_role(): void
-    {
-        $admin = $this->createAdmin();
-        $user = User::factory()->create(['agency_id' => $admin->agency_id]);
-
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($admin->agency_id);
-        Role::findOrCreate('agent');
-        $user->assignRole('agent');
-
-        Sanctum::actingAs($admin);
-
-        $this->deleteJson("/api/users/{$user->id}/roles/agent")
-            ->assertOk();
-
-        $this->assertFalse($user->fresh()->hasRole('agent'));
-    }
+    // TCK-278 — Les endpoints POST /users/{user}/roles et
+    // DELETE /users/{user}/roles/{role} ont été retirés en P3 (cf.
+    // routes/api/users.php). L'assignation de rôle passe désormais par
+    // `PUT /users/{user}/role` (UserRoleController), testé dans
+    // UserRoleControllerTest.
 
     public function test_admin_can_delete_user(): void
     {

@@ -78,7 +78,7 @@ describe('<MediaDropzone>', () => {
     });
 
     expect(onChange).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert')).toHaveTextContent(/Taille/);
+    expect(screen.getByRole('alert')).toHaveTextContent(/dépasse/);
   });
 });
 

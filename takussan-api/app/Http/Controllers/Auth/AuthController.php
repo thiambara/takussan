@@ -13,6 +13,7 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
@@ -31,7 +32,7 @@ class AuthController extends Controller
         event(new Registered($user));
 
         return $this->json([
-            'message' => 'Registration successful. Please verify your email.',
+            'message' => __('auth.registration_successful'),
             'user' => new UserResource($user),
         ], 201);
     }
@@ -41,7 +42,7 @@ class AuthController extends Controller
         $user = User::where('email', $request->input('email'))->first();
 
         if (! $user || ! Hash::check($request->input('password'), $user->password)) {
-            return $this->json(['message' => 'Invalid credentials.'], 401);
+            return $this->json(['message' => __('auth.failed')], 401);
         }
 
         // Password OK — challenge for 2FA if enabled. The caller must repost
@@ -53,7 +54,7 @@ class AuthController extends Controller
             if (! $code && ! $recovery) {
                 return $this->json([
                     'requires_2fa' => true,
-                    'message' => 'Two-factor authentication required.',
+                    'message' => __('auth.two_factor_required'),
                 ], 200);
             }
 
@@ -74,7 +75,7 @@ class AuthController extends Controller
             if (! $authorized) {
                 return $this->json([
                     'requires_2fa' => true,
-                    'message' => 'Invalid two-factor or recovery code.',
+                    'message' => __('auth.two_factor_invalid'),
                 ], 401);
             }
         }
@@ -95,7 +96,11 @@ class AuthController extends Controller
     {
         $request->user()->currentAccessToken()->delete();
 
-        return $this->json(['message' => 'Logged out successfully.']);
+        // Expire the active-profile cookie so a subsequent login on a shared
+        // device doesn't inherit the previous user's selection (and so the
+        // next anonymous request to backend stops carrying it around).
+        return $this->json(['message' => __('auth.logout_successful')])
+            ->withCookie(Cookie::forget('active_profile_id'));
     }
 
     public function me(Request $request): JsonResponse
@@ -121,9 +126,14 @@ class AuthController extends Controller
             }
         }
 
+        if ($request->boolean('avatar_remove')) {
+            $user->clearMediaCollection('avatar');
+        }
+
         if ($request->hasFile('avatar')) {
-            $path = $request->file('avatar')->store('avatars', 'public');
-            $data['metadata'] = array_merge($user->metadata ?? [], ['avatar' => $path]);
+            $user
+                ->addMediaFromRequest('avatar')
+                ->toMediaCollection('avatar');
         }
 
         $user->update($data);

@@ -6,15 +6,13 @@ use App\Models\Agency;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\ApiTestCase;
 
 /**
  * Tests for the dedicated PUT /api/users/{user}/role endpoint (TCK-014).
  *
  * Separate from UserAdminController — this endpoint is the single source of
- * truth for replacing a user's role (syncRoles, not additive assignRole).
+ * truth for replacing a user's role (swap profile, not additive).
  */
 class UserRoleControllerTest extends ApiTestCase
 {
@@ -44,7 +42,7 @@ class UserRoleControllerTest extends ApiTestCase
         $this->apiPut("/api/users/{$target->id}/role", ['role' => 'agent'])
             ->assertOk();
 
-        $this->assertTrue($target->fresh()->hasRole('agent'));
+        $this->assertTrue($target->fresh()->isAgentAt($agency->id));
         $this->assertNotNull($admin);
     }
 
@@ -105,7 +103,7 @@ class UserRoleControllerTest extends ApiTestCase
         $this->apiPut("/api/users/{$target->id}/role", ['role' => 'super_admin'])
             ->assertOk();
 
-        $this->assertTrue($target->fresh()->hasRole('super_admin'));
+        $this->assertTrue($target->fresh()->isSuperAdmin());
     }
 
     public function test_replacing_role_removes_previous_roles(): void
@@ -123,8 +121,8 @@ class UserRoleControllerTest extends ApiTestCase
             ->assertOk();
 
         $fresh = $target->fresh();
-        $this->assertTrue($fresh->hasRole('owner'));
-        $this->assertFalse($fresh->hasRole('agent'));
+        $this->assertTrue($fresh->isOwnerAt($agency->id));
+        $this->assertFalse($fresh->isAgentAt($agency->id));
         $this->assertNotNull($admin);
     }
 
@@ -150,34 +148,11 @@ class UserRoleControllerTest extends ApiTestCase
             ->assertForbidden();
     }
 
-    public function test_role_assignment_does_not_create_ghost_guard_duplicates(): void
+    public function test_super_admin_assigns_agency_scoped_role_under_target_agency(): void
     {
-        $agency = Agency::factory()->create();
-        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
-        $target = User::factory()->create(['agency_id' => $agency->id]);
-
-        // Count roles named `agent` before the call.
-        $before = Role::where('name', 'agent')->count();
-
-        $this->apiPut("/api/users/{$target->id}/role", ['role' => 'agent'])
-            ->assertOk();
-
-        // No new `agent` row should be created under a ghost guard_name.
-        $rows = Role::where('name', 'agent')->get();
-        $this->assertLessThanOrEqual($before + 1, $rows->count(), 'agent role should not be duplicated per request guard.');
-        foreach ($rows as $row) {
-            $this->assertSame('web', $row->guard_name, 'role guard_name must stay aligned with the seeder (web).');
-        }
-    }
-
-    public function test_super_admin_assigns_agency_scoped_role_under_target_agency_team_id(): void
-    {
-        // PR #104 review regression — when a super_admin assigns an
-        // agency-scoped role (e.g. `agent`), the role must be bound to the
-        // *target* user's agency, not the actor's. Without the fix the
-        // post-TCK-142 hardening resolved $teamId from the actor's active
-        // profile (null for a pure super_admin), promoting an agency-
-        // scoped role to a global one.
+        // TCK-278 — PR #104 regression rewritten : le rôle agent est
+        // matérialisé par un AgentProfile attaché à l'agence du *target*,
+        // peu importe que l'acteur soit super_admin (sans active profile).
         $this->apiActingAsRole('super_admin');
 
         $targetAgency = Agency::factory()->create();
@@ -186,20 +161,9 @@ class UserRoleControllerTest extends ApiTestCase
         $this->apiPut("/api/users/{$target->id}/role", ['role' => 'agent'])
             ->assertOk();
 
-        $registrar = app(PermissionRegistrar::class);
-
-        $registrar->setPermissionsTeamId($targetAgency->id);
-        $registrar->forgetCachedPermissions();
         $this->assertTrue(
-            $target->fresh()->hasRole('agent'),
-            'Agent role must be assigned under the target agency team_id.',
-        );
-
-        $registrar->setPermissionsTeamId(null);
-        $registrar->forgetCachedPermissions();
-        $this->assertFalse(
-            $target->fresh()->hasRole('agent'),
-            'Agent role must NOT be assigned under team_id=null (would promote it to a global role).',
+            $target->fresh()->isAgentAt($targetAgency->id),
+            'Agent profile must be materialized on the target agency.',
         );
     }
 
@@ -220,24 +184,18 @@ class UserRoleControllerTest extends ApiTestCase
             ->assertStatus(422);
     }
 
-    public function test_super_admin_assignment_does_not_create_duplicate_team_scoped_role(): void
+    public function test_super_admin_assignment_creates_global_platform_profile(): void
     {
+        // TCK-278 — super_admin n'est plus team-scopé : la matérialisation
+        // crée un PlatformProfile global pour le target.
         $this->apiActingAsRole('super_admin');
 
         $agency = Agency::factory()->create();
         $target = User::factory()->create(['agency_id' => $agency->id]);
 
-        $before = Role::where('name', 'super_admin')->count();
-
         $this->apiPut("/api/users/{$target->id}/role", ['role' => 'super_admin'])
             ->assertOk();
 
-        // Assigning super_admin must not create a NEW super_admin row.
-        // Without the fix, findOrCreate in team context creates a duplicate.
-        $after = Role::where('name', 'super_admin')->count();
-        $this->assertSame($before, $after, 'super_admin should not be duplicated when assigned cross-tenant.');
-
-        // And the target user's super_admin must be the global one (team_id = null).
-        $this->assertTrue($target->fresh()->hasRole('super_admin'));
+        $this->assertTrue($target->fresh()->isSuperAdmin());
     }
 }

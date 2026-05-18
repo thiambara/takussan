@@ -14,6 +14,17 @@ class OAuthCallbackTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config([
+            'services.google.client_id' => 'test-client-id',
+            'services.google.client_secret' => 'test-secret',
+            'services.google.redirect' => 'http://localhost/api/auth/oauth/google/callback',
+        ]);
+    }
+
     public function test_callback_creates_new_user_and_returns_token(): void
     {
         Cache::put('oauth_state:valid', ['provider' => 'google'], now()->addMinutes(5));

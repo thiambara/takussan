@@ -49,24 +49,26 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
-        if ($user->isSuperAdmin() || $user->hasRole('admin')) {
+        if ($user->isSuperAdmin()) {
             return $this->json(['data' => $this->globalStats()]);
         }
 
         $activeAgencyId = $request->activeProfile()?->agency_id ?? $user->agency_id;
-        if ($user->hasRole('agency_admin') && $activeAgencyId) {
+        if ($activeAgencyId && $user->isAgencyAdminAt((int) $activeAgencyId)) {
             return $this->json(['data' => $this->agencyStats($activeAgencyId)]);
         }
 
-        if ($user->hasRole('agent') && $activeAgencyId) {
+        if ($activeAgencyId && $user->isAgentAt((int) $activeAgencyId)) {
             return $this->json(['data' => $this->agentStats($user->id, $activeAgencyId)]);
         }
 
-        if ($user->hasRole('owner')) {
+        if ($activeAgencyId && $user->isOwnerAt((int) $activeAgencyId)) {
             return $this->json(['data' => $this->ownerStats($user->id)]);
         }
 
-        if ($user->hasRole('tenant') || Customer::where('user_id', $user->id)->exists()) {
+        // TCK-278 — `tenant` reste dérivé (cf. Règle 5) : présence en
+        // Customer suffit.
+        if (Customer::where('user_id', $user->id)->exists()) {
             return $this->json(['data' => $this->tenantStats($user->id)]);
         }
 

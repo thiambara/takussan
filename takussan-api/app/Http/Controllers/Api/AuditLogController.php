@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Models\User;
+use App\Support\AgencyKindGuard;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -19,8 +20,12 @@ class AuditLogController extends Controller
     {
         $user = $request->user();
         abort_unless(
-            $user->isSuperAdmin() || $user->hasRole(['admin', 'agency_admin']),
+            $user->isSuperAdmin() || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)),
             403
+        );
+        AgencyKindGuard::ensureStandardForNonGlobal(
+            $user,
+            $request->activeProfile()?->agency_id ?? $user->agency_id,
         );
 
         // `Str::studly` handles multi-word slugs (`booking_payment` → `BookingPayment`)
@@ -61,8 +66,12 @@ class AuditLogController extends Controller
         // TCK-104 — `agency_admin` can browse the audit dashboard scoped
         // to their own agency. `admin` is preserved for legacy clients.
         abort_unless(
-            $authedUser->isSuperAdmin() || $authedUser->hasRole(['admin', 'agency_admin']),
+            $authedUser->isSuperAdmin() || ($authedUser->agency_id !== null && $authedUser->isAgencyAdminAt((int) $authedUser->agency_id)),
             403
+        );
+        AgencyKindGuard::ensureStandardForNonGlobal(
+            $authedUser,
+            $request->activeProfile()?->agency_id ?? $authedUser->agency_id,
         );
 
         // Accept legacy flat params (?log_name=, ?event=, ?from=, ?to=, ?causer_id=…)
@@ -87,7 +96,7 @@ class AuditLogController extends Controller
 
         // TCK-104 — agency_admin sees only logs caused by users from their
         // agency. super_admin / legacy `admin` retain global visibility.
-        if (! $authedUser->isSuperAdmin() && $authedUser->hasRole('agency_admin')) {
+        if (! $authedUser->isSuperAdmin() && $authedUser->agency_id !== null && $authedUser->isAgencyAdminAt((int) $authedUser->agency_id)) {
             $agencyId = $request->activeProfile()?->agency_id ?? $authedUser->agency_id;
             if (! $agencyId) {
                 $baseQuery->whereRaw('0 = 1');

@@ -2,6 +2,7 @@
 import { Star, Eye, Heart, Share2, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { formatAddressShort } from '@/lib/format/address';
 import type { PropertyDetail } from '@/types/property';
 
 interface PropertyHeaderProps {
@@ -29,7 +30,7 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
             )}
             <span className="inline-flex items-center gap-1">
               <MapPin className="size-4" aria-hidden />
-              <span>{property.location.full}</span>
+              <span>{formatAddressShort(property.location, { fallback: property.location.full })}</span>
             </span>
             <span className="inline-flex items-center gap-1 text-stone-500">
               <Eye className="size-4" aria-hidden />
@@ -68,7 +69,7 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
               className={`size-4 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`}
               aria-hidden
             />
-            <span className="hidden sm:inline">{isFavorite ? 'Favori' : 'Favori'}</span>
+            <span className="hidden sm:inline">{isFavorite ? 'Favori' : 'Ajouter'}</span>
           </Button>
         </div>
       </div>

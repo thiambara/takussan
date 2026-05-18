@@ -4,9 +4,9 @@ import { useRouter } from 'next/navigation';
 
 import {
   FormGlobalError,
-  FormInput,
   FormSelect,
   FormTextarea,
+  FormDateTimePicker,
 } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { useApiForm } from '@/hooks/useApiForm';
@@ -84,11 +84,10 @@ export function InventoryForm({ leaseId }: { readonly leaseId: number }) {
           label="État général"
           required
         />
-        <FormInput
+        <FormDateTimePicker
           name="conducted_at"
           control={form.control}
           label="Date de réalisation"
-          type="datetime-local"
         />
       </div>
 

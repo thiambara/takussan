@@ -3,10 +3,17 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useLocale } from 'next-intl';
-import { useLease, useGenerateSchedule, useLeasePayments } from '@/lib/queries/leases';
+import {
+  useActivateLease,
+  useGenerateSchedule,
+  useLease,
+  useLeasePayments,
+  useReviewLeaseRent,
+} from '@/lib/queries/leases';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
 import type { Locale } from '@/i18n/config';
 import type { LeaseStatus } from '@/types/lease';
 import { LeaseSchedule } from './LeaseSchedule';
@@ -33,6 +40,16 @@ const STATUS_LABEL: Record<LeaseStatus, string> = {
   renewed: 'Renouvelé',
 };
 
+// TCK-179 — display the FR label instead of the raw `Residential Rent`
+// snake_case enum value. Aligns with the type definition in
+// `models-spec.md#13-lease`.
+const LEASE_TYPE_LABEL: Record<string, string> = {
+  residential_rent: 'Bail d’habitation',
+  commercial_rent: 'Bail commercial',
+  seasonal_rent: 'Location saisonnière',
+  sale: 'Vente',
+};
+
 interface LeaseDetailProps {
   readonly leaseId: number;
 }
@@ -46,6 +63,9 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   const { data, isLoading, isError } = useLease(leaseId);
   const { data: paymentsData } = useLeasePayments(leaseId);
   const generateSchedule = useGenerateSchedule(leaseId);
+  const activateLease = useActivateLease(leaseId);
+  const reviewRent = useReviewLeaseRent(leaseId);
+  const toast = useToast();
 
   // TCK-088 — display the refund action only to roles that hold
   // `leases.refund_deposit` server-side. Backend re-checks scope
@@ -53,9 +73,15 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   const canRefundDeposit = useMemo(() => {
     const roles = user?.roles ?? [];
     return roles.some((r) =>
-      ['super_admin', 'admin', 'agency_admin', 'agent', 'owner'].includes(r),
+      ['super_admin', 'agency_admin', 'agent', 'owner'].includes(r),
     );
   }, [user]);
+
+  // TCK-173 — agent-only management CTAs (add document, generate schedule,
+  // record a manual payment, add a guarantor) must not surface to a tenant.
+  // The same role gate as refund_deposit is reused: anyone with a managing
+  // role can act, the tenant cannot.
+  const isAgentSurface = canRefundDeposit;
 
   // TCK-089 — same role gate as refund_deposit (server checks `leases.renew`).
   const canRenew = canRefundDeposit;
@@ -92,6 +118,30 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   const lease = data.data;
   const rentOrPrice = lease.type === 'sale' ? lease.sale_price : lease.monthly_rent;
 
+  async function handleActivate() {
+    await activateLease.mutateAsync();
+    toast.add({
+      title: 'Bail activé',
+      description: 'L’échéancier peut maintenant être généré ou consulté.',
+      type: 'success',
+    });
+  }
+
+  async function handleRentReview() {
+    const rawRent = window.prompt('Nouveau loyer mensuel', String(lease.monthly_rent ?? ''))?.trim();
+    if (!rawRent) return;
+    const newRent = Number(rawRent);
+    if (!Number.isFinite(newRent) || newRent <= 0) return;
+    const reason = window.prompt('Motif de révision du loyer')?.trim();
+    if (!reason) return;
+    await reviewRent.mutateAsync({ new_rent: newRent, reason });
+    toast.add({
+      title: 'Loyer révisé',
+      description: 'La révision est journalisée dans l’historique du bail.',
+      type: 'success',
+    });
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -104,29 +154,60 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
           </h1>
           <div className="mt-2 flex items-center gap-2 text-xs text-stone-500">
             <Badge>{STATUS_LABEL[lease.status]}</Badge>
-            {lease.type && <span className="capitalize">{lease.type.replace(/_/g, ' ')}</span>}
+            {lease.type && <span>{LEASE_TYPE_LABEL[lease.type] ?? lease.type}</span>}
             {latePaymentsCount > 0 && (
               <Badge variant="destructive">{latePaymentsCount} en retard</Badge>
             )}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <AddDocumentButton
-            documentableType="lease"
-            documentableId={leaseId}
-            displayLabel={lease.reference_number || `Bail #${lease.id}`}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => generateSchedule.mutate({})}
-            disabled={generateSchedule.isPending}
-          >
-            {generateSchedule.isPending ? 'Génération…' : 'Générer l’échéancier'}
-          </Button>
-          <Button type="button" onClick={() => setPaymentOpen(true)}>
-            Enregistrer un paiement
-          </Button>
+          {isAgentSurface && (
+            <>
+              <AddDocumentButton
+                documentableType="lease"
+                documentableId={leaseId}
+                displayLabel={lease.reference_number || `Bail #${lease.id}`}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => generateSchedule.mutate({})}
+                disabled={generateSchedule.isPending || lease.status === 'draft'}
+              >
+                {generateSchedule.isPending ? 'Génération…' : 'Générer l’échéancier'}
+              </Button>
+              {lease.status === 'draft' && (
+                <Button
+                  type="button"
+                  onClick={handleActivate}
+                  disabled={activateLease.isPending}
+                >
+                  {activateLease.isPending ? 'Activation…' : 'Activer le bail'}
+                </Button>
+              )}
+              {lease.status === 'active' && lease.type !== 'sale' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleRentReview}
+                  disabled={reviewRent.isPending}
+                >
+                  Réviser le loyer
+                </Button>
+              )}
+              <Button type="button" onClick={() => setPaymentOpen(true)}>
+                Enregistrer un paiement reçu
+              </Button>
+            </>
+          )}
+          {!isAgentSurface && (
+            <Link
+              href={`/api/leases/${leaseId}/contract/pdf`}
+              className="inline-flex h-9 items-center justify-center rounded-md border border-stone-200 bg-white px-4 text-sm font-medium text-stone-900 hover:bg-stone-50"
+            >
+              Télécharger le contrat PDF
+            </Link>
+          )}
           {canRenew && (lease.status === 'active' || lease.status === 'expired') && (
             <Button
               type="button"
@@ -189,13 +270,36 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
 
       <section>
         <h2 className="mb-3 text-sm font-semibold text-app-ink">Échéancier</h2>
+        {lease.status === 'draft' ? (
+          <p className="mb-3 rounded-lg border border-dashed border-stone-200 bg-white p-3 text-sm text-stone-500">
+            Activez le bail avant de générer l’échéancier.
+          </p>
+        ) : null}
         <LeaseSchedule leaseId={leaseId} agencyId={lease.agency_id ?? null} />
+      </section>
+
+      <section className="rounded-xl border border-stone-200 bg-white p-5">
+        <h2 className="text-sm font-semibold text-stone-900">Caution</h2>
+        <p className="mt-2 text-sm text-stone-600">
+          Montant initial :{' '}
+          <span className="font-medium text-stone-900">
+            {typeof lease.deposit_amount === 'number'
+              ? formatCurrency(lease.deposit_amount, locale)
+              : '—'}
+          </span>
+          {lease.deposit_refunded_at ? (
+            <> · Remboursée le {formatDate(lease.deposit_refunded_at, locale)}</>
+          ) : (
+            <> · Aucun remboursement enregistré</>
+          )}
+        </p>
       </section>
 
       <GuarantorSection
         leaseId={leaseId}
         guarantor={lease.guarantor ?? null}
         guarantorsCount={lease.guarantor ? 1 : 0}
+        canManage={isAgentSurface}
       />
 
       {(lease.terms || lease.special_conditions) && (

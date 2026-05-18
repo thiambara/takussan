@@ -4,6 +4,7 @@ import {
   currencyLocale,
   currencySymbol,
   formatCurrency,
+  formatPriceShort,
 } from '../format/currency';
 
 /**
@@ -55,6 +56,23 @@ describe('formatCurrency (TCK-084 multi-currency)', () => {
   it('honours an explicit locale override', () => {
     // EUR with en-US grouping/decimal — uncommon but supported.
     expect(formatCurrency(1000, 'EUR', { locale: 'en-US' })).toMatch(/1,000\.00/);
+  });
+
+  it('formats compact prices for map markers (TCK-162)', () => {
+    expect(normalize(formatPriceShort(850, 'fr-SN'))).toBe('850');
+    expect(normalize(formatPriceShort(12_000, 'fr-SN'))).toBe('12 K');
+    expect(normalize(formatPriceShort(850_000, 'fr-SN'))).toBe('850 K');
+    expect(normalize(formatPriceShort(1_200_000, 'fr-SN'))).toBe('1,2 M');
+    expect(normalize(formatPriceShort(120_000_000, 'fr-SN'))).toBe('120 M');
+    expect(normalize(formatPriceShort(1_500_000_000, 'fr-SN'))).toBe('1,5 Md');
+    expect(formatPriceShort(null)).toBe('');
+    expect(formatPriceShort(undefined)).toBe('');
+    expect(formatPriceShort(Number.NaN)).toBe('');
+  });
+
+  it('formats compact prices in en-US with B suffix for billions', () => {
+    expect(formatPriceShort(1_200_000, 'en-US')).toBe('1.2 M');
+    expect(formatPriceShort(2_000_000_000, 'en-US')).toBe('2 B');
   });
 
   it('exposes metadata helpers used by <Money> and the agency settings preview', () => {

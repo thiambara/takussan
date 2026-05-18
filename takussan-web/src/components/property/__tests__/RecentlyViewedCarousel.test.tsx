@@ -12,19 +12,51 @@ import type { PropertyListItem } from '@/types/property';
 const mockClear = vi.fn();
 let mockItems: PropertyListItem[] = [];
 let mockLoading = false;
+let mockExcludeId: number | undefined;
 
 vi.mock('@/hooks/useRecentlyViewed', () => ({
-  useRecentlyViewed: (_excludeId?: number) => ({
-    items: mockItems,
-    loading: mockLoading,
-    push: vi.fn(),
-    clear: mockClear,
-  }),
+  useRecentlyViewed: (excludeId?: number) => {
+    mockExcludeId = excludeId;
+    return {
+      items: mockItems,
+      loading: mockLoading,
+      push: vi.fn(),
+      clear: mockClear,
+    };
+  },
 }));
 
 vi.mock('@/components/property/PropertyCard', () => ({
   PropertyCard: ({ property }: { property: PropertyListItem }) => (
     <div data-testid={`card-${property.id}`}>{property.title}</div>
+  ),
+}));
+
+vi.mock('@/components/property/cards/PropertyRow', () => ({
+  PropertyRow: ({
+    title,
+    properties,
+    loading,
+    action,
+  }: {
+    title: string;
+    properties: readonly PropertyListItem[];
+    loading: boolean;
+    action?: { label: string; onClick: () => void };
+  }) => (
+    <section>
+      <h2>{title}</h2>
+      {action ? <button type="button" onClick={action.onClick}>{action.label}</button> : null}
+      {loading ? (
+        <div data-testid="recently-viewed-skeleton" />
+      ) : (
+        properties.map((property) => (
+          <div key={property.id} data-testid={`card-${property.id}`}>
+            {property.title}
+          </div>
+        ))
+      )}
+    </section>
   ),
 }));
 
@@ -75,6 +107,7 @@ describe('<RecentlyViewedCarousel>', () => {
   beforeEach(() => {
     mockItems = [];
     mockLoading = false;
+    mockExcludeId = undefined;
     mockClear.mockClear();
   });
 
@@ -84,10 +117,10 @@ describe('<RecentlyViewedCarousel>', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders nothing when there is only 1 item (AC6 — < 2 threshold)', () => {
+  it('renders the carousel when there is 1 item', () => {
     mockItems = [makeProperty(1)];
-    const { container } = render(wrap());
-    expect(container.firstChild).toBeNull();
+    render(wrap());
+    expect(screen.getByTestId('card-1')).toBeInTheDocument();
   });
 
   it('renders the carousel section with cards when there are 2+ items', () => {
@@ -97,16 +130,17 @@ describe('<RecentlyViewedCarousel>', () => {
     expect(screen.getByTestId('card-2')).toBeInTheDocument();
   });
 
-  it('shows the section title "Vus récemment"', () => {
+  it('shows the section title "Récemment consultés"', () => {
     mockItems = [makeProperty(1), makeProperty(2)];
     render(wrap());
-    expect(screen.getByText('Vus récemment')).toBeInTheDocument();
+    expect(screen.getByText('Récemment consultés')).toBeInTheDocument();
   });
 
   it('the current property is absent from its own carousel (AC5) — hook receives excludeId', () => {
     // The hook filters by excludeId; here it returns items without id=1.
     mockItems = [makeProperty(2), makeProperty(3)];
     render(wrap(1));
+    expect(mockExcludeId).toBe(1);
     expect(screen.queryByTestId('card-1')).not.toBeInTheDocument();
     expect(screen.getByTestId('card-2')).toBeInTheDocument();
     expect(screen.getByTestId('card-3')).toBeInTheDocument();
@@ -140,7 +174,8 @@ describe('<RecentlyViewedCarousel>', () => {
     mockItems = [];
     render(wrap());
     // While loading, the section title is visible but no cards
-    expect(screen.getByText('Vus récemment')).toBeInTheDocument();
+    expect(screen.getByText('Récemment consultés')).toBeInTheDocument();
+    expect(screen.getByTestId('recently-viewed-skeleton')).toBeInTheDocument();
     expect(screen.queryByTestId('card-1')).not.toBeInTheDocument();
   });
 });

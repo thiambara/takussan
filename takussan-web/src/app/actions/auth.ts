@@ -1,6 +1,7 @@
 'use server';
 
 import { cache } from 'react';
+import { revalidatePath } from 'next/cache';
 import { ApiError } from '@/lib/api';
 import { getMe, logout, resendVerification, updateProfile, UpdateProfilePayload } from '@/lib/auth';
 import { clearToken, getActiveProfileId, getToken } from '@/lib/session';
@@ -59,9 +60,12 @@ export async function updateProfileAction(
   if (avatarFile && avatarFile.size > 0) {
     payload.avatar = avatarFile;
   }
+  payload.avatar_remove = formData.get('avatar_remove') === '1';
 
   try {
     const user = await updateProfile(token, payload);
+    revalidatePath('/app/profile');
+    revalidatePath('/app');
     return { ok: true, user };
   } catch (err) {
     if (err instanceof ApiError) {

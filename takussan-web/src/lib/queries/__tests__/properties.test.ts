@@ -4,6 +4,9 @@ import {
   DASHBOARD_PROPERTY_DETAIL_FIELDS,
   fetchDashboardProperties,
   fetchDashboardProperty,
+  assignPropertyAgent,
+  updatePropertyStatus,
+  updatePropertyVisibility,
 } from '../properties';
 import {
   DASHBOARD_CUSTOMER_FIELDS,
@@ -49,11 +52,27 @@ describe('fetchDashboardProperties — spatie conventions', () => {
   it('forwards filters as spatie filter[...] params', async () => {
     const fetchSpy = mockFetch({ data: [], meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } });
     await fetchDashboardProperties('tok', {
-      filters: { status: 'available', search: 'villa' },
+      filters: {
+        status: 'available',
+        search: 'villa',
+        city: 'Dakar',
+        user_id: '7',
+        price_min: '100000',
+        price_max: '500000',
+        created_from: '2026-05-01',
+        created_to: '2026-05-31',
+      },
     });
     const url = String(fetchSpy.mock.calls[0][0]);
     expect(url).toContain('filter%5Bstatus%5D=available');
     expect(url).toContain('filter%5Bsearch%5D=villa');
+    expect(url).toContain('filter%5Bcity%5D=Dakar');
+    expect(url).toContain('filter%5Buser_id%5D=7');
+    expect(url).toContain('filter%5Bprice_min%5D=100000');
+    expect(url).toContain('filter%5Bprice_max%5D=500000');
+    expect(url).toContain('filter%5Bcreated_from%5D=2026-05-01');
+    expect(url).toContain('filter%5Bcreated_to%5D=2026-05-31');
+    expect(url).toContain('include=address%2Cowner%2Ccollaborators');
   });
 });
 
@@ -65,6 +84,44 @@ describe('fetchDashboardProperty', () => {
     const url = String(fetchSpy.mock.calls[0][0]);
     expect(url).toContain(
       `fields%5Bproperties%5D=${DASHBOARD_PROPERTY_DETAIL_FIELDS.join('%2C')}`,
+    );
+  });
+});
+
+describe('property lifecycle mutations', () => {
+  it('calls the status transition endpoint', async () => {
+    const fetchSpy = mockFetch({ data: { id: 5, status: 'archived' } });
+    await updatePropertyStatus('tok', 5, 'archived');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/api/properties/5/status'),
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ status: 'archived' }),
+      }),
+    );
+  });
+
+  it('calls the visibility transition endpoint', async () => {
+    const fetchSpy = mockFetch({ data: { id: 5, visibility: 'public' } });
+    await updatePropertyVisibility('tok', 5, 'public');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/api/properties/5/visibility'),
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ visibility: 'public' }),
+      }),
+    );
+  });
+
+  it('calls the assigned agent endpoint', async () => {
+    const fetchSpy = mockFetch({ data: { id: 5, user_id: 9 } });
+    await assignPropertyAgent('tok', 5, 9);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/api/properties/5/assigned-agent'),
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ user_id: 9 }),
+      }),
     );
   });
 });

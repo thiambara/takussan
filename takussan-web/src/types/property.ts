@@ -11,6 +11,7 @@ export type PropertyTitleType = 'bail' | 'titre_foncier' | 'deliberation' | 'oth
 
 export interface PropertyListItem {
   id: number;
+  user_id?: number;
   reference_number: string;
   title: string;
   slug: string;
@@ -21,6 +22,8 @@ export interface PropertyListItem {
   rent_period: RentPeriod | null;
   status: string | null;
   visibility: string | null;
+  views_count?: number;
+  favorites_count?: number;
   location: {
     quarter: string | null;
     city: string | null;
@@ -35,6 +38,18 @@ export interface PropertyListItem {
   furnished: boolean;
   featured: boolean;
   main_photo_url: string | null;
+  owner?: PropertyOwnerLite | null;
+  collaborators?: {
+    id: number;
+    user_id: number;
+    role: string | null;
+    commission_share: number | null;
+    user: {
+      id: number;
+      name: string;
+      email: string | null;
+    } | null;
+  }[];
   published_at: string | null;
   created_at: string;
 }
@@ -42,6 +57,8 @@ export interface PropertyListItem {
 export interface PropertyOwnerLite {
   id: number;
   name: string;
+  /** TCK-177 — links the contact card to /agents/[slug] when populated. */
+  slug?: string | null;
   avatar_url: string | null;
   is_agent: boolean;
   member_since: string | null;

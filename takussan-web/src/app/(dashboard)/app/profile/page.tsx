@@ -1,5 +1,8 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getMeAction } from '@/app/actions/auth';
+
+export const metadata: Metadata = { title: 'Mon profil' };
 import { isAgent, isOwner, isCustomer, isAdmin } from '@/lib/roles';
 import { ProfileLayout } from '@/components/profile/ProfileLayout';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
@@ -24,17 +27,17 @@ export default async function ProfilePage() {
       {isAdmin(user.roles) && <ProfileAdminSection user={user} />}
       <ProfileSecuritySection />
 
-      <section className="rounded-2xl bg-app-surface-1 p-6">
+      <section className="rounded-2xl bg-card p-6">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-app-ink">Notifications</h2>
-            <p className="text-sm text-app-ink-muted">
+            <h2 className="text-lg font-bold text-foreground">Notifications</h2>
+            <p className="text-sm text-muted-foreground">
               Choisissez les canaux utilisés pour chaque type d&apos;événement.
             </p>
           </div>
           <Link
             href="/app/profile/notifications"
-            className="rounded-md border border-app-surface-3 bg-white px-3 py-2 text-sm font-semibold text-app-ink hover:bg-app-surface-3"
+            className="rounded-md border border-border bg-white px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
           >
             Gérer les préférences
           </Link>
@@ -42,17 +45,17 @@ export default async function ProfilePage() {
       </section>
 
       {isCustomer(user.roles) && (
-        <section className="rounded-2xl bg-app-surface-1 p-6">
+        <section className="rounded-2xl bg-card p-6">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-bold text-app-ink">Avis</h2>
-              <p className="text-sm text-app-ink-muted">
+              <h2 className="text-lg font-bold text-foreground">Avis</h2>
+              <p className="text-sm text-muted-foreground">
                 Séjours et baux sur lesquels vous pouvez laisser un avis public.
               </p>
             </div>
             <Link
               href="/app/profile/reviews"
-              className="rounded-md border border-app-surface-3 bg-white px-3 py-2 text-sm font-semibold text-app-ink hover:bg-app-surface-3"
+              className="rounded-md border border-border bg-white px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
             >
               Voir mes avis
             </Link>

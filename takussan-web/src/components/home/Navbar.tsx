@@ -2,21 +2,18 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Home, MapPin, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle, Search } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { navLinks, categories, moreCategories } from '@/data/mockData';
 import { useAuth } from '@/context/AuthContext';
+import { setPublishIntent } from '@/lib/publish-intent';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
-
-const TRANSACTION_OPTIONS = [
-  { value: 'Acheter', label: 'Acheter' },
-  { value: 'Louer', label: 'Louer' },
-  { value: 'Neuf', label: 'Neuf' },
-] as const;
+import { FavoritesPopover } from '@/components/favorites/FavoritesPopover';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   apartment: Building2,
@@ -43,11 +40,17 @@ export interface NavbarProps {
 
 export function Navbar({ className }: NavbarProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isLoading, setUser } = useAuth();
+  const t = useTranslations('nav');
+  const TRANSACTION_OPTIONS = [
+    { value: 'Acheter', label: t('buy') },
+    { value: 'Louer', label: t('rent') },
+  ] as const;
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [location, setLocation] = useState('');
-  const [transaction, setTransaction] = useState('Acheter');
+  const [transaction, setTransaction] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
@@ -77,24 +80,37 @@ export function Navbar({ className }: NavbarProps) {
     ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
     : '';
 
+  // TCK-254 — `Publier` is universal: everyone sees the CTA. The
+  // `/publish` page resolves where to send the user (login, host wizard,
+  // /app/properties/new). Persist intent on click so OAuth round-trips can
+  // resume the flow even when `?redirect=/publish` is dropped by the
+  // provider.
+  const armPublishIntent = useCallback(() => {
+    setPublishIntent();
+  }, []);
+
   // ─── Navigation helpers ─────────────────────────────────────────────────────
 
   const buildSearchUrl = useCallback((overrides: Record<string, string> = {}) => {
-    const params = new URLSearchParams();
-    // contract_type from transaction selector
+    // Preserve any sidebar filter already in the URL
+    const params = new URLSearchParams(searchParams.toString());
+    // contract_type from transaction selector (only override if explicitly set)
     if (transaction === 'Acheter') params.set('contract_type', 'sale');
     if (transaction === 'Louer')   params.set('contract_type', 'rent');
-    // location text → city filter
-    if (location.trim()) params.set('city', location.trim());
-    // active category → type filter
+    // free text from the searchbox maps to full-text search; selecting a
+    // city/neighborhood suggestion still writes the dedicated location params.
+    if (location.trim()) params.set('q', location.trim());
+    // active category → type filter (only override if set)
     if (activeCategory) params.set('type', activeCategory);
-    // apply overrides (e.g. from a category click)
+    // reset pagination on new search
+    params.delete('page');
+    // apply explicit overrides last
     Object.entries(overrides).forEach(([k, v]) => {
       if (v === '') params.delete(k); else params.set(k, v);
     });
     const qs = params.toString();
     return `/properties${qs ? '?' + qs : ''}`;
-  }, [transaction, location, activeCategory]);
+  }, [searchParams, transaction, location, activeCategory]);
 
   const handleSearch = useCallback(() => {
     router.push(buildSearchUrl());
@@ -104,13 +120,14 @@ export function Navbar({ className }: NavbarProps) {
     // toggle off if same, else navigate with new type
     const newType = currentActive === type ? null : type;
     setActiveCategory(newType);
-    const params = new URLSearchParams();
+    const params = new URLSearchParams(searchParams.toString());
     if (transaction === 'Acheter') params.set('contract_type', 'sale');
     if (transaction === 'Louer')   params.set('contract_type', 'rent');
     if (location.trim()) params.set('city', location.trim());
-    if (newType) params.set('type', newType);
+    if (newType) params.set('type', newType); else params.delete('type');
+    params.delete('page');
     router.push(`/properties${params.size ? '?' + params.toString() : ''}`);
-  }, [router, transaction, location]);
+  }, [router, searchParams, transaction, location]);
 
   return (
     <nav
@@ -128,28 +145,27 @@ export function Navbar({ className }: NavbarProps) {
           <div className="flex items-center bg-white border border-gray-300 rounded-full shadow-sm hover:shadow-md transition-shadow overflow-hidden">
             <SearchAutocomplete
               variant="hero"
-              placeholder="Où cherchez-vous ?"
+              placeholder={t('searchPlaceholder')}
               className="flex-1 [&>div]:border-none [&>div]:shadow-none [&>div]:rounded-none [&>div]:bg-transparent"
               onQueryChange={(v) => setLocation(v)}
             />
             <div className="w-px h-6 bg-gray-200 shrink-0" />
             <div className="flex items-center gap-1.5 px-4 py-2.5 shrink-0">
               <Home className="w-4 h-4 text-primary" />
-              <Select value={transaction} onValueChange={(v) => setTransaction(v ?? 'Acheter')} items={TRANSACTION_OPTIONS}>
+              <Select value={transaction} onValueChange={(v) => setTransaction(v ?? '')} items={TRANSACTION_OPTIONS}>
                 <SelectTrigger className="border-none shadow-none bg-transparent p-0 h-auto text-sm text-gray-900 font-medium focus-visible:ring-0 focus-visible:border-transparent gap-1">
-                  <SelectValue />
+                  <SelectValue placeholder={t('transactionPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Acheter">Acheter</SelectItem>
-                  <SelectItem value="Louer">Louer</SelectItem>
-                  <SelectItem value="Neuf">Neuf</SelectItem>
+                  <SelectItem value="Acheter">{t('buy')}</SelectItem>
+                  <SelectItem value="Louer">{t('rent')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <button
               onClick={handleSearch}
               className="m-1.5 bg-primary hover:bg-primary/90 text-white rounded-full p-2.5 transition-colors active:scale-95 shrink-0"
-              aria-label="Lancer la recherche"
+              aria-label={t('searchAria')}
             >
               <Search className="w-4 h-4" />
             </button>
@@ -183,10 +199,10 @@ export function Navbar({ className }: NavbarProps) {
                   ? 'border-gray-900 text-gray-900'
                   : 'border-transparent text-gray-500 hover:border-gray-400 hover:text-gray-700'
                   }`}
-                aria-label="Plus de types"
+                aria-label={t('moreTypes')}
               >
                 {moreOpen ? <ChevronUp className="w-[18px] h-[18px]" /> : <PlusCircle className="w-[18px] h-[18px]" />}
-                <span className="text-[11px] font-semibold whitespace-nowrap">Plus</span>
+                <span className="text-[11px] font-semibold whitespace-nowrap">{t('more')}</span>
               </button>
 
               {moreOpen && (
@@ -210,7 +226,7 @@ export function Navbar({ className }: NavbarProps) {
                         <Icon className="w-[18px] h-[18px] shrink-0" />
                         <div className="min-w-0">
                           <p className="text-[12px] font-semibold leading-none truncate">{cat.name}</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">{cat.count} biens</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">{t('propertiesCount', { count: cat.count })}</p>
                         </div>
                       </button>
                     );
@@ -223,21 +239,23 @@ export function Navbar({ className }: NavbarProps) {
 
         {/* Actions — desktop, aligned to top */}
         <div className="hidden md:flex items-center gap-3 shrink-0 ml-auto mt-2">
+          <FavoritesPopover />
           <LanguageSwitcher variant="compact" />
           {isLoading ? (
             <div className="size-8 rounded-full bg-gray-100 animate-pulse" />
           ) : user ? (
             <>
               <Link
-                href="/app/properties/new"
+                href="/publish"
+                onClick={armPublishIntent}
                 className="inline-flex items-center px-5 py-2 rounded-full bg-foreground text-background text-sm font-semibold hover:bg-primary transition-colors whitespace-nowrap"
               >
-                Publier
+                {t('publish')}
               </Link>
               <div ref={userMenuRef} className="relative">
                 <button
                   onClick={() => setUserMenuOpen((v) => !v)}
-                  aria-label="Menu utilisateur"
+                  aria-label={t('userMenu')}
                   className="flex items-center gap-2 rounded-full px-2 py-1 hover:bg-gray-100 transition-colors"
                 >
                   <Avatar size="default" className="bg-primary">
@@ -261,14 +279,14 @@ export function Navbar({ className }: NavbarProps) {
                       className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-gray-50 transition-colors"
                     >
                       <UserCircle className="size-4 text-slate-400" />
-                      Mon profil
+                      {t('myProfile')}
                     </Link>
                     <button
                       onClick={handleLogout}
                       className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-gray-50 transition-colors"
                     >
                       <LogOut className="size-4 text-slate-400" />
-                      Déconnexion
+                      {t('logout')}
                     </button>
                   </div>
                 )}
@@ -280,31 +298,33 @@ export function Navbar({ className }: NavbarProps) {
                 href="/auth/login"
                 className="inline-flex items-center text-sm font-medium text-foreground hover:text-primary transition-colors whitespace-nowrap"
               >
-                Connexion
+                {t('login')}
               </Link>
               <Link
-                href="/auth/login?redirect=/app"
+                href="/publish"
+                onClick={armPublishIntent}
                 className="inline-flex items-center px-5 py-2 rounded-full bg-foreground text-background text-sm font-semibold hover:bg-primary transition-colors whitespace-nowrap"
               >
-                Publier
+                {t('publish')}
               </Link>
             </>
           )}
         </div>
 
           {/* Mobile: search pill → opens search page */}
-          <div className="flex md:hidden flex-1 items-center gap-3">
+          <div className="flex md:hidden flex-1 items-center gap-2">
             <button
               onClick={handleSearch}
               className="flex-1 flex items-center gap-2 bg-white border border-gray-300 rounded-full px-4 py-2.5 shadow-sm text-left"
             >
               <Search className="w-4 h-4 text-gray-400 shrink-0" />
-              <span className="text-sm text-gray-400 truncate">Où cherchez-vous ?</span>
+              <span className="text-sm text-gray-400 truncate">{t('searchPlaceholder')}</span>
             </button>
+          <FavoritesPopover variant="compact" />
           <button
             className="p-2 rounded-lg text-slate-600 hover:text-primary hover:bg-gray-100 transition-colors"
             onClick={() => setMenuOpen((o) => !o)}
-            aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+            aria-label={menuOpen ? t('closeMenu') : t('openMenu')}
           >
             {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -320,7 +340,7 @@ export function Navbar({ className }: NavbarProps) {
                 <MapPin className="w-4 h-4 text-primary shrink-0" />
                 <input
                   type="text"
-                  placeholder="Où cherchez-vous ?"
+                  placeholder={t('searchPlaceholder')}
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { setMenuOpen(false); handleSearch(); } }}
@@ -328,16 +348,19 @@ export function Navbar({ className }: NavbarProps) {
                 />
               </div>
               <div className="flex gap-2">
-                {['Acheter', 'Louer', 'Neuf'].map((t) => (
+                {[
+                  { value: 'Acheter', label: t('buy') },
+                  { value: 'Louer', label: t('rent') },
+                ].map((opt) => (
                   <button
-                    key={t}
-                    onClick={() => setTransaction(t)}
-                    className={`flex-1 py-2 rounded-full text-sm font-semibold transition-colors ${transaction === t
+                    key={opt.value}
+                    onClick={() => setTransaction(opt.value)}
+                    className={`flex-1 py-2 rounded-full text-sm font-semibold transition-colors ${transaction === opt.value
                       ? 'bg-primary text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                   >
-                    {t}
+                    {opt.label}
                   </button>
                 ))}
               </div>
@@ -345,7 +368,7 @@ export function Navbar({ className }: NavbarProps) {
                 onClick={() => { setMenuOpen(false); handleSearch(); }}
                 className="mt-3 w-full rounded-full h-auto py-2.5 text-sm font-semibold"
               >
-                Rechercher
+                {t('search')}
               </Button>
             </div>
 
@@ -410,30 +433,34 @@ export function Navbar({ className }: NavbarProps) {
                   className="flex items-center gap-2.5 text-sm text-slate-700 py-1"
                 >
                   <UserCircle className="size-4 text-slate-400" />
-                  Mon profil
+                  {t('myProfile')}
                 </Link>
                 <Link
-                  href="/app/properties/new"
-                  onClick={() => setMenuOpen(false)}
+                  href="/publish"
+                  onClick={() => { armPublishIntent(); setMenuOpen(false); }}
                   className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
                 >
-                  Publier une annonce
+                  {t('publishListing')}
                 </Link>
                 <button
                   onClick={() => { setMenuOpen(false); void handleLogout(); }}
                   className="flex items-center gap-2.5 text-sm text-slate-700 py-1"
                 >
                   <LogOut className="size-4 text-slate-400" />
-                  Déconnexion
+                  {t('logout')}
                 </button>
               </>
             ) : (
               <>
                 <Link href="/auth/login" onClick={() => setMenuOpen(false)} className={buttonVariants({ variant: 'ghost', className: 'text-slate-600 font-medium text-sm h-auto py-1 justify-start' })}>
-                  Connexion
+                  {t('login')}
                 </Link>
-                <Link href="/auth/login?redirect=/app" onClick={() => setMenuOpen(false)} className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}>
-                  Publier une annonce
+                <Link
+                  href="/publish"
+                  onClick={() => { armPublishIntent(); setMenuOpen(false); }}
+                  className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
+                >
+                  {t('publishListing')}
                 </Link>
               </>
             )}

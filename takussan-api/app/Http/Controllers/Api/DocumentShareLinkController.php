@@ -114,7 +114,7 @@ class DocumentShareLinkController extends Controller
     {
         $user = $request->user();
         $documentable = $document->documentable;
-        $ok = $user->hasRole(['admin', 'super_admin'])
+        $ok = $user->isSuperAdmin()
             || $document->uploaded_by_id === $user->id
             || ($documentable && isset($documentable->user_id) && $documentable->user_id === $user->id)
             || ($user->agency_id && $documentable && isset($documentable->agency_id) && $documentable->agency_id === $user->agency_id);

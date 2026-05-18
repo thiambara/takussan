@@ -33,13 +33,23 @@ Les conversions d'images (thumbnails, responsive) sont configurées dans `regist
 
 ### `spatie/laravel-permission`
 
-Gère les **rôles et permissions** via le trait `HasRoles` sur le modèle `User`.
-Les rôles sont définis dans l'enum `UserRole` et les permissions sont assignées via le seeder `RolesAndPermissionsSeeder`.
-Les tables `roles`, `permissions`, `model_has_roles`, `model_has_permissions` et `role_has_permissions` sont gérées automatiquement par le package — elles ne sont **pas** décrites dans ce document.
+> ⚠️ **Refonte architecturale TCK-278 → TCK-279.** Le trait `HasRoles` est **retiré du modèle `User`**. Le « rôle » d'un humain dans le système n'est plus un attribut auth-level mais une **propriété dérivée du profil polymorphe** dont il dispose dans un contexte donné (agence ou plateforme). Voir [Règle 5 — Profil = rôle](#règle-5--profil--rôle).
 
-**Rôles existants :** customer, agency_admin, super_admin, agent, owner, service_provider
+**Phase 1 (TCK-278) — Suppression de spatie sur User.**
+- `User` ne porte plus de rôle direct. Les checks `$user->hasRole('agent')` sont remplacés par `$user->isAgentAt($agency)` / `$user->hasProfileAt($agency, AgentProfile::class)` / `$user->canActAt(Capability::xxx, $agency)`.
+- Les rôles « plateforme » (`super_admin`, `support`, `viewer`) deviennent un nouveau modèle polymorphe : [PlatformProfile](#51-platformprofile-).
+- Les rôles « customer » et « tenant » ne deviennent pas des profils en phase 1 : ils sont **dérivés** de la présence d'une `Booking` / `Lease` actif dans l'agence (helpers `isCustomerOf($agency)` / `isTenantOf($agency)`). Profile-isation reportée si TCK-020 / TCK-090 en font émerger le besoin.
+- L'enum `Capability` (code-defined) catalogue toutes les capacités atomiques de l'application (≈ 30–50 entrées groupées par domaine). Un résolveur `MembershipCapabilityResolver` mappe `(Capability, ProfileType) → bool`.
+- Les tables spatie (`roles`, `permissions`, `model_has_roles`, `model_has_permissions`, `role_has_permissions`) **disparaissent**.
 
-**Scope multi-agences (teams) :** le package est configuré en mode `teams = true` avec `team_foreign_key = agency_id`. Les rôles et permissions personnalisés créés par un `agency_admin` sont automatiquement scopés à son `agency_id`, ce qui permet à chaque agence d'avoir sa propre matrice de rôles sans collision. Les rôles globaux (super_admin) ne sont pas rattachés à une agence.
+**Phase 2 (TCK-279) — Réintroduction du trait `HasRoles` + `HasPermissions` sur les Profils.**
+- Les profils polymorphes (`AgentProfile`, `AgencyAdminProfile`, `OwnerProfile`, `ServiceProviderProfile`, `BrokerProfile`) reçoivent le trait `HasRoles`.
+- La table [AgencyRole](#52-agencyrole-) remplace la table spatie `roles` côté agence : rôles par agence (`name`, `base_profile_type`, `is_system`).
+- Un profil pointe vers exactement un `AgencyRole` (`agency_role_id` NOT NULL) — voir [Règle 6 — 1 profil = 1 rôle personnalisé](#règle-6--1-profil--1-rôle-personnalisé).
+- Permissions atomiques (catalogue `Capability`) attachées à un `AgencyRole` via le pivot `agency_role_capabilities`.
+- `MembershipCapabilityResolver` consulte le pivot ; les sites d'appel `$user->canActAt(...)` restent inchangés.
+
+**Rôles métier actuels** (= types de profils en phase 1+) : owner, agent, agency_admin, broker, service_provider, *(customer/tenant dérivés)*.
 
 ### `spatie/laravel-activitylog`
 
@@ -109,6 +119,28 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 38. [BrokerAgencyCollaboration](#38-brokeragencycollaboration-) 🆕
 39. [ServiceProviderAgencyCollaboration](#39-serviceprovideragencycollaboration-) 🆕
 
+### Comptabilité bancaire 🆕
+40. [BankStatement](#40-bankstatement-) 🆕
+41. [BankStatementLine](#41-bankstatementline-) 🆕
+
+### Gouvernance plateforme 🆕
+42. [KycDossier](#42-kycdossier-) 🆕
+43. [Plan](#43-plan-) 🆕
+44. [AgencySubscription](#44-agencysubscription-) 🆕
+45. [PlatformPayout](#45-platformpayout-) 🆕
+46. [Announcement](#46-announcement-) 🆕
+47. [AnnouncementDismissal](#47-announcementdismissal-) 🆕
+
+### Onboarding 🆕
+48. [Invitation](#48-invitation-) 🆕
+49. [AgencyUpgradeRequest](#49-agencyupgraderequest-) 🆕
+50. [TenantOnboardingChecklist](#50-tenantonboardingchecklist-) 🆕
+
+### RBAC refondu 🆕 (TCK-278 → TCK-279)
+51. [PlatformProfile](#51-platformprofile-) 🆕
+52. [AgencyRole](#52-agencyrole--tck-279) 🆕
+53. [AgencyRoleCapability](#53-agencyrolecapability--tck-279) 🆕
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -130,9 +162,11 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 ### 1. User
 
 **Table :** `users`
-**Description :** **Identité authentifiée pure.** Le User porte uniquement ce qui caractérise un humain (email, mot de passe, contacts, 2FA, OAuth, préférences). Sa **nature métier** (propriétaire, agent, courtier, prestataire) est portée par des **profils polymorphes** dédiés liés au user et scopés par agence (voir [Profils](#34-ownerprofile-)). Un même humain peut cumuler plusieurs profils chez plusieurs agences via une seule identité.
+**Description :** **Identité authentifiée pure.** Le User porte uniquement ce qui caractérise un humain (email, mot de passe, contacts, 2FA, OAuth, préférences). Sa **nature métier** (propriétaire, agent, admin agence, courtier, prestataire, opérateur plateforme) est portée par des **profils polymorphes** dédiés liés au user et scopés par agence — ou par la plateforme pour `PlatformProfile`. Un même humain peut cumuler plusieurs profils chez plusieurs agences via une seule identité.
 
 > **Évolution TCK-138 → TCK-142.** Les colonnes `type` (enum `UserType`) et `agency_id` sont **dépréciées** ; elles disparaissent de `users` au cutover (TCK-142). Toute logique d'autorisation/scoping est rebasée sur le **profil actif** de la requête (voir [Active profile context](#active-profile-context)).
+
+> **Évolution TCK-278 (refonte RBAC).** Le User **ne porte plus de rôle direct** (`HasRoles` retiré). Le rôle est la conséquence de l'existence d'un profil dans un scope. Voir [Règle 5 — Profil = rôle](#règle-5--profil--rôle). Les rôles plateforme (super_admin, support, viewer) sont portés par [PlatformProfile](#51-platformprofile-).
 
 | Colonne | Type | Nullable | Défaut | Description | Changement |
 |---------|------|----------|--------|-------------|------------|
@@ -177,9 +211,9 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 
 **Traits :**
 - `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `avatar`
-- `HasRoles` (spatie/laravel-permission) — gestion des rôles et permissions, scopés par profil actif (`teams = true`, `team_id = profile.agency_id`)
+- ~~`HasRoles` (spatie/laravel-permission)~~ — **retiré en TCK-278.** Le rôle est dérivé des profils ; voir [Règle 5](#règle-5--profil--rôle).
 - `HasApiTokens` (laravel/sanctum) — authentification API
-- `HasProfiles` (custom, TCK-140) — expose `ownerProfiles()`, `agentProfiles()`, `brokerProfile()`, `serviceProviderProfile()`, `profiles()`, `activeProfile()`, `hasProfile()`, `isAgentAt()`, etc.
+- `HasProfiles` (custom, TCK-140 / enrichi TCK-278) — expose `ownerProfiles()`, `agentProfiles()`, `agencyAdminProfiles()`, `brokerProfile()`, `serviceProviderProfile()`, `platformProfile()`, `profiles()`, `activeProfile()`, `hasProfileAt()`, `isAgentAt()`, `isAgencyAdminAt()`, `isOwnerAt()`, `isSuperAdmin()`, `canActAt(Capability, Agency)` etc.
 
 **Accesseurs :**
 - `full_name` : concaténation de `first_name` + `last_name`
@@ -188,9 +222,11 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 - `added_by()` → belongsTo User
 - `owner_profiles()` → hasMany OwnerProfile 🆕
 - `agent_profiles()` → hasMany AgentProfile 🆕
+- `agency_admin_profiles()` → hasMany AgencyAdminProfile 🆕 (TCK-271)
 - `broker_profile()` → hasOne BrokerProfile 🆕
 - `service_provider_profile()` → hasOne ServiceProviderProfile 🆕
-- `profiles()` → collection unifiée des 4 types de profils (Eloquent `Collection` retournée par accesseur, pas une relation Eloquent native) 🆕
+- `platform_profile()` → hasOne PlatformProfile 🆕 (TCK-278)
+- `profiles()` → collection unifiée des profils du user (Eloquent `Collection` retournée par accesseur, pas une relation Eloquent native) 🆕
 - `properties()` → hasMany Property
 - `bookings()` → hasMany Booking
 - `booking_payments()` → hasMany BookingPayment
@@ -220,6 +256,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | id | bigint PK | | auto | Identifiant unique | |
 | name | string | | | Raison sociale | |
 | slug | string | | | Identifiant URL unique | |
+| kind | AgencyKind | | 'standard' | Type d'agence — `standard` (multi-membres, pleine capacité) ou `individual` (host solo auto-créé via CTA "Publier") | ➕ |
 | license_number | string | oui | null | Numéro de licence professionnelle | |
 | email | string | oui | null | Email de contact | |
 | phone | string | oui | null | Téléphone principal | |
@@ -1591,6 +1628,513 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 
 ---
 
+### 40. BankStatement 🆕
+
+**Table :** `bank_statements`
+**Description :** Relevé bancaire importé par une agence pour rapprocher ses paiements (§1.5 P2 « Rapprochement bancaire semi-automatique »). Un relevé est un fichier (CSV/OFX) téléversé une fois, parsé en lignes (`BankStatementLine`), puis progressivement réconcilié avec les paiements existants (`BookingPayment`, `LeasePayment`).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant unique |
+| agency_id | FK agencies | | | Agence propriétaire (`cascadeOnDelete`) |
+| uploaded_by | FK users | | | Utilisateur ayant téléversé le fichier (`restrictOnDelete`) |
+| source_format | BankStatementSourceFormat enum | | | Format du fichier source (csv, ofx) |
+| file_hash | string(64) | | | Hash SHA-256 du fichier — empêche les imports en doublon |
+| bank_name | string | oui | null | Nom de la banque (libre, parsé si possible) |
+| account_iban_masked | string | oui | null | IBAN masqué (4 derniers caractères visibles) |
+| period_start | date | oui | null | Début de la période couverte par le relevé |
+| period_end | date | oui | null | Fin de la période couverte |
+| lines_count | unsignedInteger | | 0 | Compteur cache des lignes parsées (cf. Règle 2) |
+| status | BankStatementStatus enum | | 'processing' | Cycle de vie (processing → ready_for_review → partially_reconciled → reconciled → archived) |
+| finalized_at | datetime | oui | null | Date à laquelle le relevé a été clôturé |
+| finalized_by | FK users | oui | null | Utilisateur ayant clôturé le rapprochement (`nullOnDelete`) |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes d'unicité :**
+- `(agency_id, file_hash)` unique — un même fichier ne peut être importé qu'une fois par agence
+
+**Index :**
+- `(agency_id, status)` — relevés ouverts par agence
+- `(agency_id, created_at)` — tri chronologique par agence
+
+**Traits :**
+- `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `statement` (single file, disk `local`) qui stocke le fichier source
+- `Auditable` — journalisation des changements
+
+**Relations :**
+- `agency()` → belongsTo Agency
+- `uploaded_by()` → belongsTo User (via `uploaded_by`)
+- `finalized_by()` → belongsTo User (via `finalized_by`)
+- `lines()` → hasMany BankStatementLine
+
+**Accesseurs :**
+- `reconciled_ratio` : tableau `{ confirmed, ignored, remaining, total }` calculé à partir des lignes (groupBy `match_status`)
+
+**Scopes :**
+- `forAgency($id)` — filtre par agence
+- `open()` — relevés non clôturés (status ∉ {reconciled, archived})
+
+---
+
+### 41. BankStatementLine 🆕
+
+**Table :** `bank_statement_lines`
+**Description :** Ligne d'un relevé bancaire — une transaction unitaire à apparier (suggéré ou confirmé) avec un paiement existant (`BookingPayment` ou `LeasePayment`).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant unique |
+| bank_statement_id | FK bank_statements | | | Relevé parent (`cascadeOnDelete`) |
+| posted_at | date | | | Date d'écriture bancaire |
+| amount | decimal(12,2) | | | Montant (toujours positif — le sens est porté par `direction`) |
+| direction | BankStatementLineDirection enum | | | Sens du flux (credit, debit) |
+| currency | char(3) | | | Code ISO devise (XOF, XAF, EUR, USD) |
+| label | text | | | Libellé bancaire complet |
+| reference | string | oui | null | Référence bancaire (transaction id) |
+| counterparty | string | oui | null | Contrepartie identifiée (libre) |
+| raw_payload | json | | | Payload brut de la ligne tel qu'importée (CSV/OFX) — traçabilité totale |
+| match_status | BankStatementLineMatchStatus enum | | 'unmatched' | État d'appariement (unmatched, suggested, confirmed, ignored) |
+| matched_payment_type | string | oui | null | Type morph du paiement apparié (`BookingPayment` ou `LeasePayment`) |
+| matched_payment_id | bigint | oui | null | ID du paiement apparié |
+| match_confidence | unsignedTinyInteger | oui | null | Score de confiance 0–100 produit par l'algorithme de suggestion |
+| confirmed_at | datetime | oui | null | Date de confirmation manuelle de l'appariement |
+| confirmed_by | FK users | oui | null | Utilisateur ayant confirmé (`nullOnDelete`) |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- `(bank_statement_id, match_status)` — file de réconciliation par relevé
+- `(matched_payment_type, matched_payment_id)` — recherche inverse depuis un paiement
+- `(posted_at, amount)` — recherche d'appariement par date/montant
+
+**Traits :**
+- `Auditable`
+
+**Relations :**
+- `statement()` → belongsTo BankStatement (via `bank_statement_id`)
+- `matched_payment()` → morphTo standard (`matched_payment_type` / `matched_payment_id`) → BookingPayment | LeasePayment
+- `confirmed_by()` → belongsTo User (via `confirmed_by`)
+
+**Scopes :**
+- `unmatched()`, `suggested()`, `confirmed()`, `ignored()` — filtre par état
+- `readyToConfirm($minConfidence = 60)` — suggérées avec confiance suffisante
+
+---
+
+### 42. KycDossier 🆕
+
+**Table :** `kyc_dossiers`
+**Description :** Dossier de vérification documentaire (KYC) attaché de manière polymorphe à une entité vérifiable — `Agency` (RCCM, NINEA, pièce du dirigeant), ou un profil métier (OwnerProfile, AgentProfile, BrokerProfile, ServiceProviderProfile). Workflow standardisé : pending → submitted → verified / rejected, avec motif et acteur de la décision.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| subject_type | string | | | Type morph de l'entité vérifiée (Agency, OwnerProfile, AgentProfile, ...) |
+| subject_id | bigint | | | ID morph |
+| status | KycDossierStatus enum | | 'pending' | pending, submitted, verified, rejected |
+| submitted_at | datetime | oui | null | Soumission par l'entité |
+| reviewed_at | datetime | oui | null | Décision rendue |
+| reviewed_by | FK users | oui | null | Super-admin (ou agency_admin pour les profils internes) ayant statué (`nullOnDelete`) |
+| rejection_reason | text | oui | null | Motif si `status=rejected` |
+| metadata | json | oui | null | Champs libres dépendants du type (numéro RCCM, pays d'émission, etc.) |
+| created_at / updated_at | datetime | | auto | |
+
+**Index :**
+- `(subject_type, subject_id)` — unique : un seul dossier actif par sujet
+- `(status)` — file de modération
+
+**Traits :**
+- `LogsActivity` (spatie) — chaque transition de statut est journalisée
+- `InteractsWithMedia` (spatie/medialibrary) — collection `documents` (RCCM, NINEA, pièce d'identité scannée…)
+
+**Relations :**
+- `subject()` → morphTo
+- `reviewer()` → belongsTo User (via `reviewed_by`)
+
+**Scopes :**
+- `pending()`, `submitted()`, `verified()`, `rejected()`
+
+---
+
+### 43. Plan 🆕
+
+**Table :** `plans`
+**Description :** Catalogue des plans d'abonnement plateforme proposés aux agences (free trial, starter, pro, enterprise…). Référentiel maintenu par le super-admin.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| code | string | | | Slug unique (`free`, `starter`, `pro`, `enterprise`) |
+| label | string | | | Libellé affiché |
+| description | text | oui | null | |
+| monthly_price_xof | decimal(12,2) | | 0 | Prix mensuel hors taxes en XOF |
+| platform_fee_pct | decimal(5,2) | | 0 | Commission plateforme par défaut sur transactions (%) |
+| trial_days | unsignedSmallInteger | | 0 | Période d'essai gratuite |
+| limits | json | oui | null | Quotas (`max_active_listings`, `max_agents`, `max_branches`…) |
+| is_active | boolean | | true | Affichable dans le catalogue |
+| sort_order | unsignedSmallInteger | | 0 | Ordre d'affichage |
+| created_at / updated_at | datetime | | auto | |
+
+**Index :**
+- `code` unique
+- `(is_active, sort_order)` — listing public catalogue
+
+**Traits :**
+- `LogsActivity`
+
+**Relations :**
+- `subscriptions()` → hasMany AgencySubscription
+
+---
+
+### 44. AgencySubscription 🆕
+
+**Table :** `agency_subscriptions`
+**Description :** Abonnement courant d'une agence à un Plan plateforme. Une agence a au plus une souscription active à un instant T ; l'historique est conservé via `ended_at`. Les overrides éventuels (commission négociée, quotas custom) écrasent les valeurs du plan.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `cascadeOnDelete` |
+| plan_id | FK plans | | | `restrictOnDelete` (un plan référencé ne peut pas être supprimé) |
+| status | AgencySubscriptionStatus enum | | 'trialing' | trialing, active, past_due, suspended, ended |
+| trial_ends_at | datetime | oui | null | |
+| current_period_start | datetime | | | |
+| current_period_end | datetime | | | |
+| ended_at | datetime | oui | null | Si non null, souscription archivée — une nouvelle peut être active |
+| platform_fee_pct_override | decimal(5,2) | oui | null | Si non null, écrase `Plan.platform_fee_pct` |
+| limits_override | json | oui | null | Quotas négociés ; merge sur `Plan.limits` |
+| created_at / updated_at | datetime | | auto | |
+
+**Index :**
+- `(agency_id, ended_at)` — recherche de la souscription active
+- `(status)` — files de relance
+
+**Traits :**
+- `LogsActivity`
+
+**Relations :**
+- `agency()` → belongsTo Agency
+- `plan()` → belongsTo Plan
+
+**Scopes :**
+- `active()` — `ended_at IS NULL AND status IN (trialing, active)`
+
+---
+
+### 45. PlatformPayout 🆕
+
+**Table :** `platform_payouts`
+**Description :** Reversement périodique de la plateforme vers une agence — le **net** dû à l'agence après commission plateforme retenue. Distinct du `Payout` métier (#28) qui matérialise le reversement agence → bailleur.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `cascadeOnDelete` |
+| period_start | date | | | |
+| period_end | date | | | |
+| gross_amount | decimal(14,2) | | | Total encaissé sur la période (pour info) |
+| platform_fee_amount | decimal(14,2) | | | Commission plateforme retenue |
+| net_amount | decimal(14,2) | | | Montant à verser à l'agence (`gross - fees`) |
+| currency | char(3) | | | XOF, EUR, USD |
+| status | PlatformPayoutStatus enum | | 'pending' | pending, approved, processing, paid, failed, cancelled |
+| approved_by | FK users | oui | null | Super-admin ayant approuvé |
+| processed_at | datetime | oui | null | Date d'exécution du virement |
+| failure_reason | text | oui | null | |
+| metadata | json | oui | null | Référence virement bancaire, lot, breakdown |
+| created_at / updated_at | datetime | | auto | |
+
+**Index :**
+- `(agency_id, period_end)` — un payout par agence/période
+- `(status)` — file d'approbation
+
+**Traits :**
+- `LogsActivity`
+
+**Relations :**
+- `agency()` → belongsTo Agency
+- `approver()` → belongsTo User (via `approved_by`)
+
+**Scopes :**
+- `pending()`, `approved()`, `paid()`
+
+---
+
+### 46. Announcement 🆕
+
+**Table :** `announcements`
+**Description :** Annonce in-app diffusée par le super-admin à un segment d'utilisateurs (rôle, agence, custom). Affichée comme bandeau ou centre de notifications jusqu'à dismissal individuel ou expiration.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| title | json | | | Titre par locale (`{fr, en, wo}`) |
+| body | json | | | Corps multilingue |
+| severity | AnnouncementSeverity enum | | 'info' | info, success, warning, critical |
+| segment | json | | | `{roles?: [...], agency_ids?: [...], rollout_percentage?: int}` — l'absence de segment = tout le monde |
+| starts_at | datetime | | | |
+| ends_at | datetime | oui | null | Si null, jusqu'à désactivation explicite |
+| is_active | boolean | | true | |
+| created_by | FK users | oui | null | Super-admin auteur |
+| created_at / updated_at | datetime | | auto | |
+
+**Index :**
+- `(is_active, starts_at, ends_at)` — fenêtre de diffusion
+
+**Traits :**
+- `LogsActivity`
+
+**Relations :**
+- `creator()` → belongsTo User (via `created_by`)
+- `dismissals()` → hasMany AnnouncementDismissal
+
+---
+
+### 47. AnnouncementDismissal 🆕
+
+**Table :** `announcement_dismissals`
+**Description :** Marque qu'un utilisateur a dismissé une annonce — empêche sa réapparition.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| announcement_id | FK announcements | | | `cascadeOnDelete` |
+| user_id | FK users | | | `cascadeOnDelete` |
+| dismissed_at | datetime | | auto | |
+
+**Index :**
+- `(announcement_id, user_id)` unique
+
+---
+
+### 48. Invitation 🆕
+
+**Table :** `invitations`
+**Description :** Modèle générique d'invitation utilisé par tous les parcours d'onboarding par invitation (Owner, Agent, AgencyAdmin, ServiceProvider, super-admin coopté). Porte le token signé, l'expiry et l'état de l'invitation. Le profil cible (polymorphe) est créé en `draft` au moment de l'envoi et passe en `active` à l'acceptation.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| token | string(64) | | | Token signé URL-safe (SHA-256), unique |
+| email | string | | | Email du destinataire |
+| invited_user_id | FK users | oui | null | User cible si déjà existant en base (sinon créé à l'acceptation) |
+| invited_by | FK users | | | User qui a émis l'invitation |
+| invitable_type | string | oui | null | Type morph du profil cible (ex. `OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`, `AgencyAdminProfile`) |
+| invitable_id | bigint | oui | null | ID du profil cible créé en `draft` |
+| agency_id | FK agencies | oui | null | Agence d'accueil (null pour cooptation super-admin) |
+| role | string | | | Rôle spatie à assigner à l'acceptation (ex. `owner`, `agent`, `agency_admin`, `service_provider`, `super_admin`) |
+| status | InvitationStatus | | 'sent' | sent, accepted, expired, revoked |
+| expires_at | datetime | | | Expiration du token (par défaut now+7j) |
+| accepted_at | datetime | oui | null | |
+| revoked_at | datetime | oui | null | |
+| last_reminded_at | datetime | oui | null | Date du dernier rappel J+2 envoyé |
+| metadata | json | oui | null | Données additionnelles propres au parcours (ex. zones d'intervention pré-sélectionnées, premier lead pré-assigné) |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- `token` unique
+- `(email, status)` pour rechercher les invitations en cours pour un email
+- `(invitable_type, invitable_id)`
+- `(status, expires_at)` pour le cron d'expiration
+
+**Relations :**
+- `invitedUser()` → belongsTo User (via `invited_user_id`)
+- `inviter()` → belongsTo User (via `invited_by`)
+- `agency()` → belongsTo Agency
+- `invitable()` → morphTo (OwnerProfile / AgentProfile / etc.)
+
+**Notes :**
+- Conflit email : si l'email correspond à un User existant, l'acceptation passe par login + accept (pas par signup).
+- Cron quotidien `invitations:expire` flippe `sent` → `expired` quand `expires_at < now`.
+- À l'acceptation : transaction qui crée le User si besoin, flippe `Invitation.status = accepted`, flippe `<Profile>.status = active`, attache le rôle spatie scopé sur `agency_id`.
+
+---
+
+### 49. AgencyUpgradeRequest 🆕
+
+**Table :** `agency_upgrade_requests`
+**Description :** Demande d'upgrade d'une agence `individual` vers `standard`, soumise par son `agency_admin` et reviewée par un super-admin. À l'approbation, `Agency.kind` bascule vers `standard` et les champs légaux (`rc`, `ninea`) sont copiés sur l'agence. Une seule demande `pending` à la fois par agence.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `cascadeOnDelete` |
+| submitted_by | FK users | | | User (agency_admin) qui a soumis la demande |
+| rc | string | | | Numéro de Registre du Commerce |
+| ninea | string | | | Numéro NINEA |
+| rib_pro | string | | | RIB professionnel |
+| address_fiscale | string | | | Adresse fiscale |
+| company_legal_name | string | | | Raison sociale juridique |
+| planned_agents_count | integer | oui | null | Nombre estimé d'agents à inviter |
+| status | AgencyUpgradeRequestStatus | | 'pending' | pending, approved, rejected, revoked |
+| submitted_at | datetime | | auto | |
+| reviewed_by | FK users | oui | null | Super-admin reviewer |
+| reviewed_at | datetime | oui | null | |
+| review_comment | text | oui | null | Commentaire (obligatoire si rejected) |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- `(agency_id, status)` — pour empêcher plusieurs demandes `pending` simultanées (unique partiel sur `pending`)
+- `(status, submitted_at)`
+
+**Relations :**
+- `agency()` → belongsTo Agency
+- `submitter()` → belongsTo User (via `submitted_by`)
+- `reviewer()` → belongsTo User (via `reviewed_by`)
+- `documents()` → morphMany Document (statuts PDF, scan RC, scan NINEA)
+
+**Notes :**
+- À l'approbation : `Agency.kind` flippe vers `standard`, les champs `rc`, `ninea` populés sur l'agence si vides, notification au submitter, débloquage des features restreintes (invitation collaborateurs internes, multi-admin, custom roles, assignation, reporting cross-équipe, customisation tags/enums).
+- Pas de rétrogradation `standard` → `individual`.
+- L'utilisateur peut révoquer sa demande tant qu'elle est `pending` (`revoked` final).
+
+---
+
+### 50. TenantOnboardingChecklist 🆕
+
+**Table :** `tenant_onboarding_checklists`
+**Description :** Suit la complétion de l'onboarding "Espace résident" déclenché à la signature d'un bail (`Lease.signed`). Pas un parcours d'inscription mais une transition d'état du Customer existant : welcome modale, état des lieux, premier paiement, accès documents. Crée à `Lease.status = active`, fermé quand tous les items requis sont `done` ou quand le bail est résilié.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| lease_id | FK leases | | | `cascadeOnDelete`, unique (1 checklist par bail) |
+| user_id | FK users | | | Le résident (Customer) |
+| welcome_seen_at | datetime | oui | null | Welcome modale "Espace résident" vue |
+| inventory_completed_at | datetime | oui | null | État des lieux d'entrée signé (référence `Inventory` via `lease_id`) |
+| first_payment_at | datetime | oui | null | Premier paiement enregistré (acompte ou 1er loyer, voir `LeasePayment`) |
+| documents_acknowledged_at | datetime | oui | null | Bail + EDL accusés réception |
+| reminders_sent | json | | '[]' | Liste des rappels envoyés (ex. `[{type:'inventory', sent_at:...}]`) |
+| completed_at | datetime | oui | null | Tous les items requis cochés |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- `lease_id` unique
+- `user_id`
+- `(completed_at)` pour KPI de complétion
+
+**Relations :**
+- `lease()` → belongsTo Lease
+- `user()` → belongsTo User
+
+**Notes :**
+- Items requis pour `completed_at` : `inventory_completed_at` + `first_payment_at` (les deux autres sont informatifs).
+- Cron horaire : si `inventory_completed_at` null à J+7 de la signature → notification rappel locataire + notification agent.
+- N'est pas créé si l'agence n'a pas activé le workflow EDL (configurable via `Agency.settings.tenant_onboarding_enabled`).
+
+---
+
+### 51. PlatformProfile 🆕
+
+**Table :** `platform_profiles`
+**Description :** Profil polymorphe **plateforme-scoped** (agency_id = NULL) qui porte les rôles d'opération de la plateforme : `super_admin` (cross-tenant, accès complet), `support` (accès lecture + actions limitées d'assistance utilisateur), `viewer` (lecture seule pour audit/business intelligence). **Introduit en TCK-278** pour absorber les rôles plateforme historiquement portés par `User` via spatie. Un user a au plus **un** PlatformProfile.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | | | `cascadeOnDelete`, **unique** (1 profil plateforme par user) |
+| level | PlatformProfileLevel | | 'viewer' | `super_admin` / `support` / `viewer` |
+| granted_by_id | FK users | oui | null | User qui a octroyé le profil (audit) — `nullOnDelete` |
+| granted_at | datetime | | auto | Date d'octroi |
+| revoked_at | datetime | oui | null | Soft-revoke (le profil reste pour audit, mais n'est plus actif) |
+| notes | text | oui | null | Justification interne (audit) |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+| deleted_at | datetime | oui | null | Soft delete |
+
+**Index :**
+- `user_id` unique
+- `level`
+
+**Relations :**
+- `user()` → belongsTo User
+- `granted_by()` → belongsTo User
+
+**Scopes :**
+- `active()` : `whereNull('revoked_at')`
+
+**Règles métier :**
+- Seul un `PlatformProfile.level = super_admin` actif peut créer / promouvoir / révoquer un autre `PlatformProfile`.
+- La création du premier `super_admin` se fait via seeder/console (bootstrap).
+- Révocation = `revoked_at = now()` + `tokens()->delete()` du user pour invalider les sessions actives.
+
+**Notes :**
+- Pas de `agency_id` (le profil est strictement plateforme).
+- `level` est un enum séparé pour éviter d'introduire un type polymorphe par niveau (cf. justification dans la décision design TCK-278).
+- Le check `$user->isSuperAdmin()` devient `$user->platformProfile?->level === PlatformProfileLevel::SuperAdmin && $user->platformProfile->isActive()`.
+
+---
+
+### 52. AgencyRole 🆕 (TCK-279)
+
+**Table :** `agency_roles`
+**Description :** **Rôles personnalisés** par agence (remplace l'usage de la table `roles` de spatie côté agence). Chaque agence reçoit au seed des rôles **système** (`is_system=true`) — un par type de profil métier — et peut en créer/cloner d'autres (`is_system=false`). Un profil métier pointe **toujours** vers exactement un `AgencyRole` via `agency_role_id`.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `cascadeOnDelete` |
+| name | string | | | Libellé affiché (« Agent », « Manager équipe Nord ») |
+| base_profile_type | string | | | Nom court du profil cible : `agent` / `agency_admin` / `owner` / `service_provider` |
+| description | text | oui | null | Description fonctionnelle |
+| is_system | boolean | | false | `true` pour les rôles seedés par défaut, non éditables |
+| is_clonable | boolean | | true | Permet à l'agence de cloner ce rôle |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- `(agency_id, base_profile_type)`
+- `(agency_id, is_system)`
+
+**Contraintes :**
+- Unique `(agency_id, name)` — pas de doublon de libellé dans une agence
+- Unique `(agency_id, base_profile_type, is_system=true)` — exactement un rôle système par type
+
+**Relations :**
+- `agency()` → belongsTo Agency
+- `capabilities()` → belongsToMany Capability (pivot `agency_role_capabilities`)
+- `agent_profiles()` → hasMany AgentProfile (via `agency_role_id`)
+- `agency_admin_profiles()` → hasMany AgencyAdminProfile
+- `owner_profiles()` → hasMany OwnerProfile
+
+**Règles métier :**
+- Suppression d'un `AgencyRole` utilisé par au moins un profil : **restrict** (FK). Forcer la réaffectation préalable.
+- Édition d'un rôle `is_system=true` : refusée. Pour personnaliser, l'UI propose un **clone** (`is_system=false`).
+- L'édition d'un rôle non-système prend effet **immédiatement** pour tous les profils attachés (pas de cache).
+
+**Notes :**
+- Modèle additif uniquement : une `Capability` est présente ou absente, pas de deny override.
+- L'`AgencyRole` n'a pas de `status` actif/inactif : un rôle qu'on veut désactiver doit être supprimé (après réaffectation) ou cloné dans un état restreint.
+
+---
+
+### 53. AgencyRoleCapability 🆕 (TCK-279)
+
+**Table :** `agency_role_capabilities`
+**Description :** Pivot M:N entre `agency_roles` et le catalogue de capacités (`Capability` enum PHP). Chaque ligne déclare qu'un rôle dispose d'une capacité atomique.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_role_id | FK agency_roles | | | `cascadeOnDelete` |
+| capability | string | | | Valeur de l'enum `Capability` (ex. `properties.publish`) |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- Unique `(agency_role_id, capability)`
+- `capability` (pour requêtes inverses « quels rôles ont la capacité X ? »)
+
+**Notes :**
+- La valeur `capability` n'est pas une FK vers une table (le catalogue est code-defined). Une validation applicative refuse une valeur hors enum à l'écriture.
+- Pas de timestamps métier nécessaires ; on garde `created_at` / `updated_at` pour audit.
+
+---
+
 ## Enums
 
 ### Enums existants (à renommer / ajuster)
@@ -1601,7 +2145,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | ~~ProprietyVisibility~~ | **PropertyVisibility** | public, private |
 | BookingStatus | BookingStatus | pending, confirmed, rejected, cancelled, completed, **expired** |
 | UserStatus | UserStatus | active, inactive, blocked, deleted |
-| UserRole | UserRole | customer, agency_admin, super_admin, **agent**, **owner**, **service_provider** (✏️ `vendor` → `service_provider`) |
+| UserRole | UserRole | ~~customer, agency_admin, super_admin, agent, owner, service_provider~~ — **@deprecated TCK-278** (le rôle est désormais dérivé du profil ; voir [Règle 5](#règle-5--profil--rôle)) |
 | CustomerStatus | CustomerStatus | active, inactive, blocked, deleted |
 
 > **`UserType` — déprécié (TCK-138 → TCK-142).** L'enum `UserType` est conservé en lecture pendant la phase de migration mais **disparaît** au cutover (TCK-142, suppression de `users.type` + des deux fichiers `app/Models/Enums/UserType.php` et `app/Models/Bases/Enums/UserType.php`). La nature métier d'un user est désormais portée par ses **profils polymorphes** (OwnerProfile / AgentProfile / BrokerProfile / ServiceProviderProfile) ; les permissions par les rôles spatie scopés via le profil actif. Aucun nouveau code ne doit lire `users.type`.
@@ -1614,6 +2158,10 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | **OwnerProfileStatus** 🆕 | active, inactive, blocked | OwnerProfile.status |
 | **AgentProfileStatus** 🆕 | active, inactive, suspended | AgentProfile.status |
 | **CollaborationStatus** 🆕 | active, paused, ended | BrokerAgencyCollaboration.status, ServiceProviderAgencyCollaboration.status |
+| **KycDossierStatus** 🆕 | pending, submitted, verified, rejected | KycDossier.status |
+| **AgencySubscriptionStatus** 🆕 | trialing, active, past_due, suspended, ended | AgencySubscription.status |
+| **PlatformPayoutStatus** 🆕 | pending, approved, processing, paid, failed, cancelled | PlatformPayout.status |
+| **AnnouncementSeverity** 🆕 | info, success, warning, critical | Announcement.severity |
 | **Currency** | XOF, XAF, EUR, USD | Property, Booking, BookingPayment, Lease, LeasePayment |
 | **PropertyType** | land, house, apartment, villa, studio, room, office, shop, warehouse, factory, farm, hotel, resort, garage, parking, other | Property.type |
 | **ContractType** | sale, rent | Property.contract_type |
@@ -1653,6 +2201,38 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | **TaskStatus** | open, in_progress, done, cancelled | Task.status 🆕 |
 | **TaskPriority** | low, medium, high | Task.priority 🆕 |
 | **SettingScope** | global, agency | Setting.scope 🆕 |
+| **BankStatementSourceFormat** 🆕 | csv, ofx | BankStatement.source_format |
+| **BankStatementStatus** 🆕 | processing, ready_for_review, partially_reconciled, reconciled, archived | BankStatement.status |
+| **BankStatementLineDirection** 🆕 | credit, debit | BankStatementLine.direction |
+| **BankStatementLineMatchStatus** 🆕 | unmatched, suggested, confirmed, ignored | BankStatementLine.match_status |
+| **AgencyKind** 🆕 | standard, individual | Agency.kind |
+| **InvitationStatus** 🆕 | sent, accepted, expired, revoked | Invitation.status |
+| **AgencyUpgradeRequestStatus** 🆕 | pending, approved, rejected, revoked | AgencyUpgradeRequest.status |
+| **PlatformProfileLevel** 🆕 (TCK-278) | super_admin, support, viewer | PlatformProfile.level |
+| **AgencyRoleBaseType** 🆕 (TCK-279) | agent, agency_admin, owner, service_provider | AgencyRole.base_profile_type |
+| **Capability** 🆕 (TCK-278) | catalogue code-defined ≈ 30–50 entrées groupées par domaine — voir « Catalogue Capability » ci-dessous | `MembershipCapabilityResolver`, `AgencyRoleCapability.capability` |
+
+#### Catalogue `Capability` (TCK-278 → TCK-279)
+
+Énumération PHP, code-defined, immuable hors livraison. Groupée par domaine pour pouvoir afficher l'éditeur de rôle en sections (UI TCK-279). Liste indicative (non exhaustive — le catalogue grandit au fil des Policies) :
+
+| Groupe | Valeurs |
+|---|---|
+| `agency.*` | `agency.update`, `agency.update_kyc`, `agency.update_billing`, `agency.upgrade_request` |
+| `team.*` | `team.invite`, `team.assign_role`, `team.remove`, `team.suspend` |
+| `properties.*` | `properties.create`, `properties.update_any`, `properties.update_own`, `properties.delete`, `properties.publish`, `properties.moderate` |
+| `bookings.*` | `bookings.validate`, `bookings.cancel`, `bookings.refund` |
+| `leases.*` | `leases.create`, `leases.sign`, `leases.terminate`, `leases.renew` |
+| `payments.*` | `payments.record`, `payments.refund`, `payments.export` |
+| `invoices.*` | `invoices.create`, `invoices.write_off`, `invoices.send` |
+| `payouts.*` | `payouts.create`, `payouts.approve` |
+| `crm.*` | `crm.view_all`, `crm.export`, `crm.assign` |
+| `maintenance.*` | `maintenance.assign`, `maintenance.close` |
+| `messaging.*` | `messaging.broadcast`, `messaging.archive` |
+| `reports.*` | `reports.view_global`, `reports.export` |
+| `roles.*` | `roles.create_custom`, `roles.edit_custom`, `roles.delete_custom` |
+
+Chaque entrée est de la forme `<domain>.<verb>` ; les verbes sont normalisés (`create`, `update_any`, `update_own`, `delete`, `view`, `export`, `assign`, `approve`, etc.).
 
 ---
 
@@ -1696,7 +2276,7 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 - **MaintenanceRequest** : +relation `requesterCustomer()`
 - **Document** : morphTo élargi à User, Agency, Booking
 
-### Nouveaux modèles (20)
+### Nouveaux modèles (22)
 
 - **Lease** — Contrats / Baux
 - **LeasePayment** — Paiements récurrents
@@ -1718,13 +2298,15 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 - **Integration** — Intégrations tierces (API keys) 🆕
 - **Task** — Tâches/rappels polymorphes (CRM) 🆕
 - **CustomerNote** — Notes CRM horodatées 🆕
+- **BankStatement** — Relevés bancaires (rapprochement) 🆕
+- **BankStatementLine** — Lignes d'un relevé bancaire 🆕
 
 ### Enums renommés (2)
 
 - ProprietyStatus → **PropertyStatus**
 - ProprietyVisibility → **PropertyVisibility**
 
-### Nouveaux enums (41)
+### Nouveaux enums (45)
 
 - **Scalaires métier :** UserType, Currency, CancellationBy, IdType, CollaboratorRole, TagType, RelationshipType, RelationshipStatus
 - **Agence / Propriété :** AgencyStatus, PropertyType, ContractType, TitleType
@@ -1736,6 +2318,7 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 - **Maintenance :** MaintenanceCategory, MaintenancePriority, MaintenanceStatus
 - **Documents / Inventaires :** DocumentType, InventoryType, InventoryStatus, InventoryCondition
 - **CRM / Plateforme :** CustomerPipelineStage 🆕, TaskStatus 🆕, TaskPriority 🆕, SettingScope 🆕
+- **Comptabilité bancaire 🆕 :** BankStatementSourceFormat, BankStatementStatus, BankStatementLineDirection, BankStatementLineMatchStatus
 
 ---
 
@@ -1775,6 +2358,11 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 | customer_notes | `customer_id`, `created_at DESC` | Historique des notes d'un client |
 | settings | `(key, scope, scope_id)` | Résolution unique d'un paramètre |
 | integrations | `(provider, agency_id)` | Intégration unique par fournisseur / agence |
+| bank_statements | `(agency_id, status)` | Relevés ouverts par agence 🆕 |
+| bank_statements | `(agency_id, created_at)` | Tri chronologique par agence 🆕 |
+| bank_statement_lines | `(bank_statement_id, match_status)` | File de réconciliation par relevé 🆕 |
+| bank_statement_lines | `(matched_payment_type, matched_payment_id)` | Recherche inverse depuis un paiement 🆕 |
+| bank_statement_lines | `(posted_at, amount)` | Recherche d'appariement par date / montant 🆕 |
 
 ---
 
@@ -1802,6 +2390,37 @@ Les colonnes `*_count` et `average_rating` ne doivent **jamais** être mises à 
 
 La relation `referenceable()` de `AppNotification` est intentionnellement **non standard** (morph manuel via `referenceable_id`/`referenceable_type` sans utiliser Eloquent `morphTo` standard). Cela évite la création des tables `model_has_...` de spatie et permet un contrôle fin des types autorisés : Booking, Lease, LeasePayment, MaintenanceRequest.
 
+### Règle 5 — Profil = rôle
+
+> 🆕 TCK-278 (refonte RBAC). Le User ne porte plus de rôle ; toute autorisation passe par le profil.
+
+Loi architecturale : **le rôle d'un humain dans un contexte est l'existence d'un profil polymorphe actif dans ce contexte.** Le User est une identité authentifiée pure (email, mot de passe, 2FA, OAuth, status). Il n'a plus de table `model_has_roles` ni d'array `$user->roles[]`.
+
+- **Inventaire des profils porteurs de rôle** :
+  - `AgentProfile` ↔ rôle `agent`, scope `agency`
+  - `AgencyAdminProfile` ↔ rôle `agency_admin`, scope `agency`
+  - `OwnerProfile` ↔ rôle `owner`, scope `agency`
+  - `ServiceProviderProfile` + `ServiceProviderAgencyCollaboration` ↔ rôle `service_provider`, scope `agency` via la collaboration
+  - `BrokerProfile` + `BrokerAgencyCollaboration` ↔ rôle `broker`, scope `agency` via la collaboration
+  - `PlatformProfile` ↔ rôles plateforme (`super_admin` / `support` / `viewer`), scope `null` (cross-tenant)
+- **Rôles dérivés non-profil-isés** (phase 1) : `customer` ⇔ `Booking.user_id` existant chez l'agence ; `tenant` ⇔ `Lease.tenant_id` actif. Profile-isation reportée à un ticket dédié si TCK-020 / TCK-090 en font émerger le besoin.
+- **Résolution d'une capacité** : un `MembershipCapabilityResolver` (service applicatif) mappe `(Capability, ProfileType) → bool` en phase 1 (table de vérité code-defined), et consulte le pivot `agency_role_capabilities` en phase 2 (TCK-279). Le site d'appel reste `$user->canActAt(Capability::PropertiesPublish, $agency)`.
+- **Suppression d'un profil** = révocation immédiate du rôle correspondant. Aucun héritage résiduel, aucun cache de rôle sur User.
+- **Invariant base de données** : il est **interdit** d'écrire dans `model_has_roles` / `model_has_permissions` après le cutover TCK-278. Ces tables sont supprimées par la migration de refonte.
+
+### Règle 6 — 1 profil = 1 rôle personnalisé
+
+> 🆕 TCK-279 (rôles personnalisés). Préalable : Règle 5 + tables `agency_roles` / `agency_role_capabilities`.
+
+Chaque profil métier (`AgentProfile`, `AgencyAdminProfile`, `OwnerProfile`, `ServiceProviderProfile`) pointe vers **exactement un** `AgencyRole` via `agency_role_id NOT NULL`. Pas de M:N, pas de fallback : la capacité d'un user à agir s'obtient en lisant un seul rôle.
+
+- **Seed agence** : à la création d'une agence, un job/observer seed quatre `AgencyRole` `is_system=true` (un par base_profile_type). Tout profil créé reçoit par défaut le `AgencyRole` système de son type.
+- **Personnalisation** : pour modifier les permissions d'un type, l'agency_admin **clone** le rôle système (`is_system=false`), édite le pivot capabilities, puis ré-affecte les profils concernés via `PATCH /api/profiles/{id}/agency-role`.
+- **Cumul de capacités** : pour qu'un user cumule deux rôles dans une même agence (« Agent + Validateur »), créer un `AgencyRole` qui bundle les deux. Pas de second profil de même type.
+- **Cross-agence** : un user avec des profils dans plusieurs agences a un `AgencyRole` distinct par agence — résolu par `request()->activeProfile()->agency_role`.
+- **Suppression d'un AgencyRole utilisé** : refusée (FK restrict). La transition d'un rôle vers un autre passe par la ré-affectation explicite, puis suppression.
+- **Plateforme** : `PlatformProfile` n'a pas de `agency_role_id` (les capacités plateforme sont dérivées de `level` directement, pas d'agence à scoper).
+
 ### Règle 4 — Active profile context
 
 > 🆕 TCK-138 → TCK-141. Préalable à la suppression de `users.agency_id` (TCK-142).
@@ -1813,7 +2432,7 @@ Toute requête authentifiée résout un **profil actif** parmi les profils du us
   2. Cookie httpOnly `active_profile_id` posé par `PATCH /api/me/active-profile`
   3. Auto-bascule si l'utilisateur n'a qu'un seul profil
   4. **Aucun profil** : autorisé pour les admins purs (rôles globaux non scopés) — `team_id = null`
-- **Effet sur spatie** : `app(PermissionRegistrar::class)->setPermissionsTeamId($profile?->agency_id)`. Les rôles `owner` / `agent` / `agency_admin` / `customer` / `tenant` / `service_provider` portent leur scope via le `team_id` ; les rôles `admin` / `super_admin` restent globaux (`team_id = null`).
+- **Effet sur le RBAC (post-TCK-278)** : plus de `setPermissionsTeamId()` — l'autorisation passe par le profil actif (cf. [Règle 5](#règle-5--profil--rôle)). Le middleware expose `request()->activeProfile()` ; les Policies appellent `$user->canActAt(Capability::xxx, $profile->agency)` ou consultent directement `$profile->agencyRole`.
 - **Exposition runtime** : `request()->activeProfile()` et `auth()->user()->activeProfile()` (helpers fournis en TCK-141). Tout site applicatif consultant l'agence du user **doit** lire `request()->activeProfile()->agency_id` plutôt que `users.agency_id` (qui disparaît en TCK-142).
 - **Endpoints** :
   - `GET /api/me/profiles` — liste des profils du user authentifié (avec agence et statut)
@@ -1852,6 +2471,7 @@ Toute requête authentifiée résout un **profil actif** parmi les profils du us
 | service_provider_profiles | `user_id` | unique | toujours 🆕 |
 | broker_agency_collaborations | `(broker_profile_id, agency_id)` | unique composé | toujours 🆕 |
 | service_provider_agency_collaborations | `(service_provider_profile_id, agency_id)` | unique composé | toujours 🆕 |
+| bank_statements | `(agency_id, file_hash)` | unique composé | toujours 🆕 |
 
 ---
 

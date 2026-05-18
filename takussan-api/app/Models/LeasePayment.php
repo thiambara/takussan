@@ -44,6 +44,7 @@ class LeasePayment extends AbstractModel
         'period_start', 'period_end', 'due_date', 'paid_at', 'status',
         'late_fee_amount', 'late_fee_applied_at', 'transaction_id', 'notes', 'metadata',
         'bank_reconciled_at', 'bank_statement_line_id',
+        'platform_fee_pct_at_payment', 'platform_payout_id',
     ];
 
     protected $casts = [
@@ -55,6 +56,7 @@ class LeasePayment extends AbstractModel
         'late_fee_applied_at' => 'datetime',
         'metadata' => 'array',
         'bank_reconciled_at' => 'datetime',
+        'platform_fee_pct_at_payment' => 'decimal:2',
     ];
 
     public function lease(): BelongsTo

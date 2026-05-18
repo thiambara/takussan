@@ -10,6 +10,12 @@ import type { Tag } from '@/types/tag';
 
 // ── Server actions ──────────────────────────────────────────────────────────
 
+const routerMocks = vi.hoisted(() => ({
+  push: vi.fn(),
+  back: vi.fn(),
+  refresh: vi.fn(),
+}));
+
 vi.mock('@/app/actions/dashboard-properties', () => ({
   createPropertyAction: vi.fn(),
   updatePropertyAction: vi.fn(),
@@ -19,7 +25,7 @@ vi.mock('@/app/actions/dashboard-properties', () => ({
 }));
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), back: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => routerMocks,
 }));
 
 // LocationPickerMapLoader is a dynamic import that touches Leaflet/window — stub it
@@ -60,7 +66,10 @@ async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
 describe('PropertyForm — creation mode', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(createPropertyAction).mockResolvedValue({ ok: true, data: { id: 42 } as never });
+    vi.mocked(createPropertyAction).mockResolvedValue({
+      ok: true,
+      data: { id: 42, reference_number: 'TK-2026-0042' } as never,
+    });
     vi.mocked(setPropertyAddressAction).mockResolvedValue({ ok: true });
     vi.mocked(setPropertyTagsAction).mockResolvedValue({ ok: true });
     vi.mocked(uploadPropertyPhotosAction).mockResolvedValue({ ok: true });
@@ -111,7 +120,7 @@ describe('PropertyForm — creation mode', () => {
     const user = userEvent.setup();
     renderForm();
     await fillRequiredFields(user);
-    await user.click(screen.getByRole('button', { name: /publier le bien/i }));
+    await user.click(screen.getByRole('button', { name: /soumettre à publication/i }));
     await waitFor(() => {
       expect(createPropertyAction).toHaveBeenCalledOnce();
       const payload = vi.mocked(createPropertyAction).mock.calls[0][0] as Record<string, unknown>;
@@ -123,12 +132,45 @@ describe('PropertyForm — creation mode', () => {
     });
   });
 
+  it('redirects to the created draft detail page after server id confirmation', async () => {
+    const user = userEvent.setup();
+    renderForm();
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('button', { name: /enregistrer en brouillon/i }));
+
+    await waitFor(() => {
+      expect(createPropertyAction).toHaveBeenCalledOnce();
+      expect(routerMocks.push).toHaveBeenCalledWith('/app/properties/42');
+    });
+    expect(vi.mocked(createPropertyAction).mock.calls[0][0]).toMatchObject({
+      status: 'draft',
+      visibility: 'private',
+    });
+    expect(screen.getByRole('status')).toHaveTextContent('Bien créé. Ouverture de la fiche');
+  });
+
+  it('redirects to the created detail page after publication submission', async () => {
+    const user = userEvent.setup();
+    renderForm();
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('button', { name: /soumettre à publication/i }));
+
+    await waitFor(() => {
+      expect(createPropertyAction).toHaveBeenCalledOnce();
+      expect(routerMocks.push).toHaveBeenCalledWith('/app/properties/42');
+    });
+    expect(vi.mocked(createPropertyAction).mock.calls[0][0]).toMatchObject({
+      status: 'pending_review',
+      visibility: 'private',
+    });
+  });
+
   it('calls setPropertyAddressAction when street is filled', async () => {
     const user = userEvent.setup();
     renderForm();
     await fillRequiredFields(user);
     await user.type(screen.getByLabelText(/rue \/ adresse/i), '12 Rue des Baobabs');
-    await user.click(screen.getByRole('button', { name: /publier le bien/i }));
+    await user.click(screen.getByRole('button', { name: /soumettre à publication/i }));
     await waitFor(() => {
       expect(setPropertyAddressAction).toHaveBeenCalledWith(
         42,
@@ -145,7 +187,7 @@ describe('PropertyForm — creation mode', () => {
     renderForm(tags);
     await fillRequiredFields(user);
     await user.click(screen.getByRole('button', { name: 'Piscine' }));
-    await user.click(screen.getByRole('button', { name: /publier le bien/i }));
+    await user.click(screen.getByRole('button', { name: /soumettre à publication/i }));
     await waitFor(() => {
       expect(setPropertyTagsAction).toHaveBeenCalledWith(42, [1]);
     });
@@ -158,7 +200,7 @@ describe('PropertyForm — creation mode', () => {
     ];
     renderForm(tags);
     await fillRequiredFields(user);
-    await user.click(screen.getByRole('button', { name: /publier le bien/i }));
+    await user.click(screen.getByRole('button', { name: /soumettre à publication/i }));
     await waitFor(() => {
       expect(createPropertyAction).toHaveBeenCalledOnce();
     });
@@ -172,11 +214,28 @@ describe('PropertyForm — creation mode', () => {
     await user.clear(screen.getByLabelText(/prix/i));
     await user.type(screen.getByLabelText(/prix/i), '100000');
     // city left blank
-    await user.click(screen.getByRole('button', { name: /publier le bien/i }));
+    await user.click(screen.getByRole('button', { name: /soumettre à publication/i }));
     await waitFor(() => {
       expect(screen.getByText(/la ville est requise/i)).toBeDefined();
     });
     expect(createPropertyAction).not.toHaveBeenCalled();
+  });
+
+  it('keeps entered values and stays on the form when creation fails', async () => {
+    vi.mocked(createPropertyAction).mockResolvedValue({
+      ok: false,
+      status: 500,
+      message: 'Création impossible.',
+    });
+    const user = userEvent.setup();
+    renderForm();
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('button', { name: /enregistrer en brouillon/i }));
+
+    expect(await screen.findByText('Le serveur a rencontré une erreur. Réessayez dans un instant.')).toBeDefined();
+    expect(routerMocks.push).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/titre/i)).toHaveValue('Ma villa test');
+    expect(screen.getByLabelText(/ville/i)).toHaveValue('Dakar');
   });
 
   it('shows description character counter', () => {

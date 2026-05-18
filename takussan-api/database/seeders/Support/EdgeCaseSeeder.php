@@ -264,11 +264,14 @@ class EdgeCaseSeeder extends Seeder
         ]);
 
         // 4. Property featured avec prix premium
+        // TCK-163 — flagged as test data so the implausible 999,999,999 F CFA
+        // sticker price never leaks into the public listing/home rows.
         $premiumProperty = $this->createPropertyWithSpecifics($agencyId, $ownerId, [
             'featured' => true,
             'price' => 999999999,
             'title' => 'Propriété Premium Featured',
             'contract_type' => ContractType::Sale,
+            'is_test' => true,
         ]);
 
         Address::create([

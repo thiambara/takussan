@@ -14,6 +14,32 @@ vi.mock('@/lib/queries/leases', () => ({
   }),
 }));
 
+// The renewal wizard now uses our shadcn `<DatePicker>` (button + popover).
+// For these state-level tests we shim it into a native date input so the
+// existing assertions (`getElementById('renew-start').value`, fireEvent
+// change) keep their intent without depending on the popover internals.
+vi.mock('@/components/ui/date-picker', () => ({
+  DatePicker: ({
+    id,
+    value,
+    onValueChange,
+    min,
+  }: {
+    id?: string;
+    value?: string;
+    onValueChange: (v: string) => void;
+    min?: string;
+  }) => (
+    <input
+      id={id}
+      type="date"
+      data-min={min}
+      value={value ?? ''}
+      onChange={(e) => onValueChange(e.target.value)}
+    />
+  ),
+}));
+
 const parent: Lease = {
   id: 1,
   property_id: 10,

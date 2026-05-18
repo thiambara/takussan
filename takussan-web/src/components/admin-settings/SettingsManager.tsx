@@ -5,6 +5,13 @@ import { Loader2, Pencil, Plus, Save, Trash2, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
@@ -369,21 +376,22 @@ function CreateSettingDialog({
             <label htmlFor="setting-scope" className="mb-1.5 block text-sm font-medium">
               Portée <span className="text-destructive">*</span>
             </label>
-            <select
-              id="setting-scope"
+            <Select
               value={values.scope}
-              onChange={(e) =>
-                setValues((v) => ({ ...v, scope: e.target.value as SettingScope }))
-              }
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              required
+              onValueChange={(value) => setValues((v) => ({ ...v, scope: (value ?? v.scope) as SettingScope }))}
+              items={settingScopeValues.map((s) => ({ value: s, label: SCOPE_LABELS[s] }))}
             >
-              {settingScopeValues.map((s) => (
-                <option key={s} value={s} disabled={s === 'global' && !canManageGlobal}>
-                  {SCOPE_LABELS[s]}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="setting-scope" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {settingScopeValues.map((s) => (
+                  <SelectItem key={s} value={s} disabled={s === 'global' && !canManageGlobal}>
+                    {SCOPE_LABELS[s]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <label htmlFor="setting-value" className="mb-1.5 block text-sm font-medium">

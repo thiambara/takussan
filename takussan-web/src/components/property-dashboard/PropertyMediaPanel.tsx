@@ -124,6 +124,7 @@ export function PropertyMediaPanel({ propertyId }: PropertyMediaPanelProps) {
         onUpload={handleUpload}
         onReorder={handleReorder}
         onDelete={handleDelete}
+        maxSize={10 * 1024 * 1024}
         title="Photos du bien"
         hint="Glissez pour réorganiser — la première photo devient la couverture."
       />

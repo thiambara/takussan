@@ -114,6 +114,37 @@ describe('<NotificationPreferencesMatrix>', () => {
     );
   });
 
+  it('keeps rendering after a save response without metadata', async () => {
+    const user = userEvent.setup();
+    const initial = buildGrid();
+    const updated = buildGrid([
+      { event: 'message_received', channel: 'email', enabled: false },
+    ]);
+    getMock.mockResolvedValue({ ok: true, data: initial });
+    updateMock.mockResolvedValue({
+      ok: true,
+      data: { preferences: updated.preferences },
+    });
+
+    render(wrap(<NotificationPreferencesMatrix />));
+    await waitFor(() => screen.getByText('Nouveau message'));
+
+    const checkbox = screen.getByRole('checkbox', {
+      name: /Nouveau message.*Email/i,
+    }) as HTMLInputElement;
+
+    await user.click(checkbox);
+
+    await waitFor(() =>
+      expect(screen.getByText('Préférences enregistrées.')).toBeInTheDocument(),
+    );
+    expect(screen.getByText('Nouveau message')).toBeInTheDocument();
+    expect(checkbox.checked).toBe(false);
+    expect(
+      screen.getByRole('checkbox', { name: /Nouveau message.*SMS/i }),
+    ).toBeDisabled();
+  });
+
   it('disables locked cells (inapp always on, sms without verified phone)', async () => {
     getMock.mockResolvedValue({ ok: true, data: buildGrid() });
     render(wrap(<NotificationPreferencesMatrix />));

@@ -46,7 +46,22 @@ class AuthLoginTest extends TestCase
         ]);
 
         $response->assertStatus(401)
-            ->assertJson(['message' => 'Invalid credentials.']);
+            ->assertJson(['message' => 'These credentials do not match our records.']);
+    }
+
+    public function test_login_failure_is_localized_from_accept_language(): void
+    {
+        $user = User::factory()->create(['password' => bcrypt('password123')]);
+
+        $response = $this
+            ->withHeaders(['Accept-Language' => 'fr'])
+            ->postJson('/api/auth/login', [
+                'email' => $user->email,
+                'password' => 'wrongpassword',
+            ]);
+
+        $response->assertStatus(401)
+            ->assertJson(['message' => 'Ces identifiants ne correspondent pas.']);
     }
 
     public function test_login_fails_with_unknown_email(): void
@@ -71,6 +86,20 @@ class AuthLoginTest extends TestCase
             ->assertJson(['message' => 'Logged out successfully.']);
 
         $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
+
+    public function test_logout_clears_active_profile_cookie(): void
+    {
+        $user = User::factory()->create();
+        $token = $user->createToken('test')->plainTextToken;
+
+        $response = $this->withToken($token)->postJson('/api/auth/logout');
+
+        $response->assertStatus(200);
+        $cookie = collect($response->headers->getCookies())
+            ->firstWhere(fn ($c) => $c->getName() === 'active_profile_id');
+        $this->assertNotNull($cookie, 'logout must Set-Cookie active_profile_id (expired)');
+        $this->assertLessThanOrEqual(time(), $cookie->getExpiresTime(), 'cookie must be expired');
     }
 
     public function test_logout_requires_authentication(): void

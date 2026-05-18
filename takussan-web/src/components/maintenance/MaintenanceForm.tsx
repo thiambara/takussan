@@ -1,5 +1,18 @@
 'use client';
 
+/**
+ * TODO TCK-261 — depuis ce formulaire, exposer un bouton "Inviter un
+ * nouveau prestataire" qui monte
+ * `<InviteServiceProviderSheet>` (cf. TCK-260) avec :
+ *   - `prefilledTrades`   : la `category` choisie ici
+ *   - `prefilledZones`    : la zone du bien (city / quartier)
+ *   - `fromMaintenanceRequestId` : l'id de la demande qu'on vient de
+ *     créer (à passer après la mutation `useCreateMaintenanceRequest`).
+ * Le contrôleur backend propage déjà `from_maintenance_request_id` dans
+ * la metadata de l'invitation pour que le SP atterrisse directement sur
+ * la demande à l'acceptation.
+ */
+
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 

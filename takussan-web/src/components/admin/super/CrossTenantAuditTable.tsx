@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { DatePicker } from '@/components/ui/date-picker';
 import { fetchAuditLog } from '@/lib/queries/super-admin';
 import type { AuditLogResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
@@ -51,23 +52,21 @@ export function CrossTenantAuditTable() {
           placeholder="ID du causer"
           className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
         />
-        <input
-          type="date"
+        <DatePicker
           value={dateFrom}
-          onChange={(e) => {
-            setDateFrom(e.target.value);
+          onValueChange={(value) => {
+            setDateFrom(value);
             setPage(1);
           }}
-          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+          aria-label="Date depuis"
         />
-        <input
-          type="date"
+        <DatePicker
           value={dateTo}
-          onChange={(e) => {
-            setDateTo(e.target.value);
+          onValueChange={(value) => {
+            setDateTo(value);
             setPage(1);
           }}
-          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+          aria-label="Date jusqu'à"
         />
       </div>
 

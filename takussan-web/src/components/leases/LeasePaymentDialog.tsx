@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { FormInput, FormSelect, FormTextarea, FormGlobalError } from '@/components/forms';
+import { FormInput, FormSelect, FormTextarea, FormGlobalError, FormDatePicker } from '@/components/forms';
 import { useApiForm } from '@/hooks/useApiForm';
 import { useCreateLeasePayment } from '@/lib/queries/leases';
 import { leasePaymentSchema, type LeasePaymentFormValues } from '@/lib/schemas/lease';
@@ -102,25 +102,22 @@ export function LeasePaymentDialog({ leaseId, open, onOpenChange }: LeasePayment
             options={PAYMENT_METHOD_OPTIONS}
           />
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormInput<LeasePaymentFormValues>
+            <FormDatePicker<LeasePaymentFormValues>
               control={form.control}
               name="period_start"
-              type="date"
               label="Période début"
               required
             />
-            <FormInput<LeasePaymentFormValues>
+            <FormDatePicker<LeasePaymentFormValues>
               control={form.control}
               name="period_end"
-              type="date"
               label="Période fin"
               required
             />
           </div>
-          <FormInput<LeasePaymentFormValues>
+          <FormDatePicker<LeasePaymentFormValues>
             control={form.control}
             name="paid_at"
-            type="date"
             label="Date effective"
           />
           <FormInput<LeasePaymentFormValues>

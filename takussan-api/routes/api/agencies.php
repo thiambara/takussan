@@ -1,11 +1,19 @@
 <?php
 
+use App\Http\Controllers\Api\Agency\AgencyUpgradeRequestController;
+use App\Http\Controllers\Api\Agency\AgentInvitationController;
+use App\Http\Controllers\Api\Agency\KycController;
+use App\Http\Controllers\Api\Agency\OwnerInvitationController;
 use App\Http\Controllers\Api\Agency\RegenerateWatermarksController;
+use App\Http\Controllers\Api\Agency\ServiceProviderInvitationController;
+use App\Http\Controllers\Api\Agency\TeamController;
+use App\Http\Controllers\Api\Agency\TenantOnboardingPendingController;
 use App\Http\Controllers\Api\AgencyController;
 use App\Http\Controllers\Api\AgencyMemberRoleController;
 use App\Http\Controllers\Api\AgencyStatsController;
 use App\Http\Controllers\Api\Permissions\RoleDelegationController;
 use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\Api\ServiceProviderProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -34,6 +42,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Agency stats (P1 — simple aggregates, no cache).
     Route::get('agencies/{agency}/stats', [AgencyStatsController::class, 'show'])->name('agencies.stats.show');
 
+    // Agency KYC dossier.
+    Route::get('agencies/{agency}/kyc', [KycController::class, 'show'])->name('agencies.kyc.show');
+    Route::post('agencies/{agency}/kyc/documents', [KycController::class, 'upload'])->name('agencies.kyc.documents.store');
+    Route::post('agencies/{agency}/kyc/submit', [KycController::class, 'submit'])->name('agencies.kyc.submit');
+
     // Agency reviews
     Route::get('agencies/{agency}/reviews', [ReviewController::class, 'indexForAgency'])->name('agencies.reviews.index');
     Route::post('agencies/{agency}/reviews', [ReviewController::class, 'storeForAgency'])->name('agencies.reviews.store');
@@ -42,4 +55,46 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('agencies/{agency}/role-delegations', [RoleDelegationController::class, 'index'])->name('agencies.role-delegations.index');
     Route::post('agencies/{agency}/role-delegations', [RoleDelegationController::class, 'store'])->name('agencies.role-delegations.store');
     Route::delete('agencies/{agency}/role-delegations/{delegation}', [RoleDelegationController::class, 'destroy'])->name('agencies.role-delegations.destroy');
+
+    // TCK-256 — invitation propriétaire depuis l'espace agence (form dédié
+    // dans /app/owners ou ouvert depuis le form de création de bien).
+    // Resend / revoke réutilisent les routes génériques /api/invitations/{id}/*
+    // exposées par TCK-249 (InvitationController).
+    Route::post('agencies/{agency}/owners/invite', OwnerInvitationController::class)
+        ->name('agencies.owners.invite');
+
+    // TCK-258 — équipe : listing membres + invitation agent. Resend / revoke
+    // réutilisent les routes génériques /api/invitations/{id}/*. Suspend /
+    // remove sont sur /api/profiles/{agent_profile} (routes/api/profiles.php).
+    Route::get('agencies/{agency}/team', [TeamController::class, 'index'])
+        ->name('agencies.team.index');
+    Route::post('agencies/{agency}/agents/invite', AgentInvitationController::class)
+        ->name('agencies.agents.invite');
+
+    // TCK-266 — Console agence : queue locataires avec onboarding bloqué
+    // (EDL d'entrée non signé > 7 j). Réservée aux membres de l'agence
+    // (agency_admin / agent) et aux super-admins.
+    Route::get('agencies/{agency}/tenant-onboarding-pending', [TenantOnboardingPendingController::class, 'index'])
+        ->name('agencies.tenant-onboarding-pending.index');
+
+    // TCK-260 — Carnet de prestataires + invitation Service Provider.
+    // Listing des SP rattachés à l'agence (via collaborations) et envoi
+    // d'invitation. Resend / revoke réutilisent les routes génériques
+    // /api/invitations/{id}/* exposées par TCK-249.
+    Route::get('agencies/{agency}/service-providers', [ServiceProviderProfileController::class, 'index'])
+        ->name('agencies.serviceProviders.index');
+    Route::post('agencies/{agency}/service-providers/invite', ServiceProviderInvitationController::class)
+        ->name('agencies.serviceProviders.invite');
+
+    // TCK-267 — agency-side upgrade request flow (`individual → standard`).
+    // Submission is multipart (statuts_doc upload). Revoke is reachable
+    // by either the original submitter or any agency_admin of the agency.
+    // The super-admin review console (TCK-268) and the actual flip
+    // (TCK-269) live behind separate controllers.
+    Route::get('agencies/{agency}/upgrade-requests', [AgencyUpgradeRequestController::class, 'index'])
+        ->name('agencies.upgrade-requests.index');
+    Route::post('agencies/{agency}/upgrade-requests', [AgencyUpgradeRequestController::class, 'store'])
+        ->name('agencies.upgrade-requests.store');
+    Route::delete('agencies/{agency}/upgrade-requests/{upgradeRequest}', [AgencyUpgradeRequestController::class, 'destroy'])
+        ->name('agencies.upgrade-requests.destroy');
 });

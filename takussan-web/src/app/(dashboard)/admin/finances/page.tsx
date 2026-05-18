@@ -42,8 +42,8 @@ export default async function Page() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-app-ink">Finances</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">
+        <h1 className="font-display text-2xl font-bold text-foreground">Finances</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Encaissements, factures et reversements — vue comptable de votre agence.
         </p>
       </header>

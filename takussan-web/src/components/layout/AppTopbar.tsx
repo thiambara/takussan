@@ -6,6 +6,7 @@ import type { User } from '@/types/user';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import { ProfileSwitcher } from '@/components/profile/ProfileSwitcher';
 import { UserMenu } from './UserMenu';
+import { NotificationBell } from './NotificationBell';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { cn } from '@/lib/utils';
 
@@ -43,6 +44,7 @@ export function AppTopbar({ user, onMenuToggle }: AppTopbarProps) {
           variant="compact"
           className="bg-white/10 text-white ring-white/10 hover:bg-white/20"
         />
+        <NotificationBell />
         <UserMenu user={user} variant="dark" />
       </div>
     </header>

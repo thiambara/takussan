@@ -21,6 +21,13 @@ class ConversationResource extends JsonResource
             'last_message_preview' => $this->last_message_preview,
             'last_message_at' => $this->last_message_at?->toISOString(),
             'created_at' => $this->created_at?->toISOString(),
+            // Relation is `BelongsTo` so `whenLoaded` can yield null when the
+            // FK is null and the relation has been eager-loaded — guard
+            // against feeding `null` to `PropertyResource::make`.
+            'property' => $this->whenLoaded(
+                'property',
+                fn () => $this->property ? PropertyResource::make($this->property) : null,
+            ),
         ];
     }
 }

@@ -4,10 +4,11 @@
  * `CalendarEvent` reflète la forme retournée par `GET /api/calendar`
  * (voir `App\Http\Controllers\Api\CalendarController`). Un événement
  * peut être une réservation courte durée (plage jour/jour, `all_day:
- * true`) ou une visite (ponctuelle, `all_day: false`).
+ * true`), une visite (ponctuelle, `all_day: false`) ou une période de bail
+ * quand l'agrégateur expose ce type.
  */
 
-export type CalendarEventType = 'booking' | 'visit';
+export type CalendarEventType = 'booking' | 'visit' | 'lease';
 
 /**
  * `booking` — `status` ∈ {pending, confirmed} côté back. Le front affiche

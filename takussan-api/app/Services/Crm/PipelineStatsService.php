@@ -4,6 +4,7 @@ namespace App\Services\Crm;
 
 use App\Models\Customer;
 use App\Models\Enums\CustomerPipelineStage;
+use App\Models\Enums\CustomerStatus;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -15,8 +16,12 @@ use Spatie\Activitylog\Models\Activity;
  *
  * Scope rule (kept aligned with `CustomerController::index`):
  *   - admin / super_admin → unrestricted
- *   - agency members → all customers belonging to their agency
+ *   - agency members → all customers belonging to their agency, plus
+ *     legacy rows they personally added before agency_id was attached
  *   - everyone else → only customers they personally added
+ *
+ * Pipeline widgets represent active CRM prospects, so terminal/customer
+ * lifecycle archives are excluded by Customer.status.
  *
  * `avg_time_in_stage` and `stage_changes_last_30d` are derived from the
  * spatie activity log entries that already capture `pipeline_stage`
@@ -55,14 +60,19 @@ class PipelineStatsService
      */
     protected function scopedQuery(User $user): Builder
     {
-        $query = Customer::query();
+        $query = Customer::query()
+            ->where('status', CustomerStatus::Active);
 
-        if ($user->hasRole(['admin', 'super_admin'])) {
+        if ($user->isSuperAdmin()) {
             return $query;
         }
 
         if ($user->agency_id) {
-            return $query->where('agency_id', $user->agency_id);
+            return $query->where(function (Builder $inner) use ($user) {
+                $inner
+                    ->where('agency_id', $user->agency_id)
+                    ->orWhere('added_by_id', $user->id);
+            });
         }
 
         return $query->where('added_by_id', $user->id);

@@ -13,6 +13,7 @@ class AgencyResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
+            'kind' => $this->kind?->value,
             'license_number' => $this->license_number,
             'description' => $this->description,
             'email' => $this->email,
@@ -27,6 +28,11 @@ class AgencyResource extends JsonResource
             'average_rating' => $this->average_rating !== null ? (float) $this->average_rating : null,
             'logo_url' => $this->getFirstMediaUrl('logo') ?: null,
             'settings' => $this->settings ?? null,
+            // TCK-269 — metadata carries `welcome.standard_unlocked_at` (read by
+            // the agency-standard welcome modale) and `legal_info.*` (legal
+            // fields backfilled at upgrade approval). Exposed verbatim so the
+            // frontend hook can detect both without a dedicated endpoint.
+            'metadata' => $this->metadata ?? null,
             'moderation_required' => (bool) ($this->moderation_required ?? false),
             'primary_admin_id' => $this->primary_admin_id,
             'created_at' => $this->created_at?->toISOString(),

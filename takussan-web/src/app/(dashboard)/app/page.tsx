@@ -1,9 +1,14 @@
 import { getMeAction } from '@/app/actions/auth';
+import { fetchAgencyAction } from '@/app/actions/admin-agency';
+import { BrandingBanner } from '@/components/agency/BrandingBanner';
 import { DashboardEmpty } from '@/components/dashboard/DashboardEmpty';
 import { DashboardMeKpis } from '@/components/dashboard/DashboardMeKpis';
 import { DashboardShortcuts } from '@/components/dashboard/DashboardShortcuts';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
-import { isSuperAdmin } from '@/lib/roles';
+import { WizardDraftsBanner } from '@/components/wizard/WizardDraftsBanner';
+import { TenantOnboardingChecklistWidget } from '@/components/tenant/TenantOnboardingChecklistWidget';
+import { isAgencyAdmin, isCustomer, isSuperAdmin } from '@/lib/roles';
 import { fetchDashboardMe } from '@/lib/queries/dashboard-me';
 
 export default async function DashboardPage() {
@@ -16,12 +21,34 @@ export default async function DashboardPage() {
 
   const payload = await fetchDashboardMe();
 
+  // TCK-270 — Surface a "Personnalisez votre agence" banner when the
+  // agency_admin lands on the dashboard right after activation and hasn't
+  // uploaded a logo yet. We swallow fetch errors here so a stale agency
+  // record never breaks the dashboard render — the banner just stays hidden.
+  let showBrandingBanner = false;
+  if (isAgencyAdmin(user.roles) && user.agency_id) {
+    const agencyResult = await fetchAgencyAction(user.agency_id);
+    if (agencyResult.ok && agencyResult.data) {
+      showBrandingBanner = !agencyResult.data.logo_url;
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-app-ink">Bonjour {user.first_name}</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">Vue d&apos;ensemble de votre activité</p>
-      </div>
+      <PageHeader
+        title={`Bonjour ${user.first_name}`}
+        subtitle="Vue d'ensemble de votre activité"
+      />
+
+      {showBrandingBanner ? <BrandingBanner /> : null}
+
+      {/* TCK-250 — Resumable wizard drafts banner. Renders nothing when no drafts. */}
+      <WizardDraftsBanner />
+
+      {/* TCK-266 — Tenant onboarding checklist widget. Renders nothing
+          for non-customers and for tenants whose active leases are all
+          fully onboarded. */}
+      {isCustomer(user.roles) ? <TenantOnboardingChecklistWidget /> : null}
 
       {payload?.data ? (
         <DashboardMeKpis role={payload.data.role} metrics={payload.data.metrics} />

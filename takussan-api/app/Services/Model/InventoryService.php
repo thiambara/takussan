@@ -79,7 +79,7 @@ class InventoryService
 
         $isOwner = $property && $property->user_id === $user->id;
         $isTenant = $tenant && $tenant->user_id === $user->id;
-        $isAdmin = $user->hasRole(['admin', 'super_admin']);
+        $isAdmin = $user->isSuperAdmin();
 
         abort_unless($isOwner || $isTenant || $isAdmin, 403);
 

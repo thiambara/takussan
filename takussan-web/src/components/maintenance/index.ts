@@ -5,6 +5,7 @@ export { QuoteCard } from './QuoteCard';
 export { QuoteSubmitForm } from './QuoteSubmitForm';
 export { QuoteRejectionModal } from './QuoteRejectionModal';
 export { MaintenanceForm } from './MaintenanceForm';
+export { MaintenanceNewLauncher } from './MaintenanceNewLauncher';
 export { MaintenanceCompleteForm } from './MaintenanceCompleteForm';
 export { MaintenanceHistoryByProperty } from './MaintenanceHistoryByProperty';
 export {

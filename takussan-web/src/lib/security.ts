@@ -65,10 +65,17 @@ export async function twoFactorRegenerateRecoveryCodes(
 
 export async function phoneSendOtp(
   token: string,
+  phone?: string,
 ): Promise<{ sent: boolean; debug_code?: string }> {
   const res = await apiRequest<{ data: { sent: boolean; debug_code?: string } }>(
     '/api/auth/phone/send-otp',
-    { method: 'POST', token },
+    {
+      method: 'POST',
+      token,
+      // Forward `phone` only when explicitly provided so legacy callers
+      // (e.g. profile re-send) still hit the user's existing number.
+      body: phone === undefined ? undefined : { phone },
+    },
   );
   return res.data;
 }
@@ -108,4 +115,38 @@ export async function revokeSession(token: string, sessionId: number): Promise<v
     method: 'DELETE',
     token,
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* TCK-264 — Super-admin cooptation: mandatory 2FA enrollment.         */
+/* ------------------------------------------------------------------ */
+
+export type SuperAdminTwoFactorEnrollResponse = TwoFactorEnableResponse & {
+  recovery_codes: string[];
+};
+
+export type SuperAdminTwoFactorConfirmResponse = {
+  enabled: true;
+  role_attached: true;
+};
+
+export async function superAdminTwoFactorEnroll(
+  token: string,
+): Promise<SuperAdminTwoFactorEnrollResponse> {
+  const res = await apiRequest<{ data: SuperAdminTwoFactorEnrollResponse }>(
+    '/api/auth/super-admin/2fa/enroll',
+    { method: 'POST', token },
+  );
+  return res.data;
+}
+
+export async function superAdminTwoFactorConfirm(
+  token: string,
+  code: string,
+): Promise<SuperAdminTwoFactorConfirmResponse> {
+  const res = await apiRequest<{ data: SuperAdminTwoFactorConfirmResponse }>(
+    '/api/auth/super-admin/2fa/confirm',
+    { method: 'POST', token, body: { code } },
+  );
+  return res.data;
 }

@@ -31,6 +31,7 @@ export const emailSchema = z
  */
 export const passwordSchema = z
   .string()
+  .min(1, 'Le mot de passe est requis.')
   .min(8, 'Le mot de passe doit contenir au moins 8 caractères.')
   .max(72, 'Le mot de passe ne doit pas dépasser 72 caractères.')
   .regex(/[A-Za-z]/, 'Le mot de passe doit contenir au moins une lettre.')

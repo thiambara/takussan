@@ -29,8 +29,9 @@ export function RecentlyViewedCarousel({ excludeId }: RecentlyViewedCarouselProp
   const { items, loading, clear } = useRecentlyViewed(excludeId);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  // AC6 historique : on cache la rangée tant qu'il y a moins de 2 entrées.
-  if (!loading && items.length < 2) return null;
+  // TCK-181 — masquer la rangée uniquement si le localStorage est vide ; on
+  // accepte de rendre la section même avec un seul item visité.
+  if (!loading && items.length < 1) return null;
 
   return (
     <>

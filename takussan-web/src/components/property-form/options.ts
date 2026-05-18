@@ -47,12 +47,14 @@ export const PROPERTY_STATUS_LABELS: Record<
   (typeof propertyStatusValues)[number],
   string
 > = {
+  draft: 'Brouillon',
   available: 'Disponible',
   sold: 'Vendu',
   rented: 'Loué',
   under_maintenance: 'En maintenance',
   unavailable: 'Indisponible',
   pending: 'En attente',
+  archived: 'Archivé',
 };
 
 export const PROPERTY_VISIBILITY_LABELS: Record<

@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\Billing\ProcessTrialExpirations;
 use App\Jobs\Booking\ExpirePendingBookingsJob;
 use App\Jobs\EscalateUrgentMaintenanceJob;
 use App\Jobs\ExpireBookings;
@@ -8,6 +9,7 @@ use App\Jobs\Lease\ApplyLateFeesJob;
 use App\Jobs\Lease\ConfirmEarlyTerminationsJob;
 use App\Jobs\Notifications\SendNotificationDigestJob;
 use App\Jobs\Permissions\ProcessRoleDelegationsJob;
+use App\Jobs\Privacy\PurgeExpiredDataExports;
 use App\Jobs\SendLeasePaymentReminders;
 use App\Jobs\SendPropertyVisitReminders;
 use App\Jobs\SendSavedSearchAlerts;
@@ -25,6 +27,7 @@ Artisan::command('inspire', function () {
 Schedule::job(new ExpirePendingBookingsJob)->everyFifteenMinutes()->withoutOverlapping();
 Schedule::job(new ExpireBookings)->hourly()->withoutOverlapping();
 Schedule::job(new ApplyLateFeesJob)->dailyAt('02:00')->withoutOverlapping();
+Schedule::job(new ProcessTrialExpirations)->dailyAt('02:15')->withoutOverlapping();
 // TCK-090 — Closes leases whose effective_date has passed AND whose
 // penalty invoice is settled. Idempotent: unpaid penalties are skipped
 // silently and reprocessed on the next sweep.
@@ -50,8 +53,25 @@ Schedule::command('dashboard:check-alerts')->hourly()->withoutOverlapping(); // 
 Schedule::command('tasks:send-due-reminders')->hourly()->withoutOverlapping();
 // TCK-080 — RGPD: send J-N reminders + execute scheduled anonymizations.
 Schedule::command('account:execute-deletions')->hourly()->withoutOverlapping();
+// TCK-225 — RGPD portability archives expire after 7 days.
+Schedule::job(new PurgeExpiredDataExports)->dailyAt('02:30')->withoutOverlapping();
 // TCK-096 — Escalate urgent maintenance requests to agency managers
 Schedule::job(new EscalateUrgentMaintenanceJob)->hourly()->withoutOverlapping();
 
 // TCK-108 — Process role delegation activation and expiration
 Schedule::job(new ProcessRoleDelegationsJob)->everyFiveMinutes()->withoutOverlapping();
+
+// TCK-249 — Invitation lifecycle sweepers (hourly, both idempotent).
+//  - `invitations:expire` flips `sent → expired` once `expires_at` is past
+//    and notifies the inviter.
+//  - `invitations:remind` emails a J+2 reminder to invitees who haven't
+//    accepted yet, using `last_reminded_at` for dedup.
+Schedule::command('invitations:expire')->hourly()->withoutOverlapping();
+Schedule::command('invitations:remind')->hourly()->withoutOverlapping();
+
+// TCK-250 — Garbage-collect resumable wizard drafts older than 90 days.
+Schedule::command('wizard-drafts:purge')->dailyAt('03:30')->withoutOverlapping();
+
+// TCK-266 — Hourly J+7 reminder for tenants whose move-in inventory is
+// still unsigned. Idempotent via `tenant_onboarding_checklists.reminders_sent`.
+Schedule::command('tenant-onboarding:remind')->hourly()->withoutOverlapping();

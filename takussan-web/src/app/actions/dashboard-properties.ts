@@ -7,6 +7,7 @@ import {
   createProperty,
   deleteProperty,
   deletePropertyMedia,
+  duplicateProperty,
   fetchPropertyMedia,
   reorderPropertyMedia,
   setPropertyAddress,
@@ -17,7 +18,8 @@ import {
   uploadPropertyPhotos,
   type PropertyAddressPayload,
   type PropertyMediaItem,
-} from '@/lib/queries/properties';
+  assignPropertyAgent,
+} from '@/lib/queries/properties-server';
 import type { PropertyFormPayload } from '@/lib/schemas/property';
 import type { PropertyDetail } from '@/types/property';
 
@@ -48,6 +50,13 @@ function mapError(e: unknown): {
       message: e.displayMessage,
       errors: e.validationErrors,
     };
+  }
+  if (e instanceof Error) {
+    console.error(
+      `[dashboard-properties.action] ${e.name}: ${e.message}\ncause=${String(e.cause ?? 'none')}\n${e.stack ?? ''}`,
+    );
+  } else {
+    console.error('[dashboard-properties.action] non-Error:', String(e));
   }
   return { message: 'Erreur réseau. Réessayez.' };
 }
@@ -109,6 +118,20 @@ export async function deletePropertyAction(
   }
 }
 
+export async function duplicatePropertyAction(
+  propertyId: number,
+): Promise<ActionResult<PropertyDetail>> {
+  const auth = await requireToken();
+  if (!auth.ok) return auth.result;
+  try {
+    const data = await duplicateProperty(auth.token, propertyId);
+    revalidatePath('/app/properties');
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, ...mapError(e) };
+  }
+}
+
 export async function updatePropertyStatusAction(
   propertyId: number,
   status: string,
@@ -137,6 +160,22 @@ export async function updatePropertyVisibilityAction(
       propertyId,
       visibility,
     );
+    revalidatePath('/app/properties');
+    revalidatePath(`/app/properties/${propertyId}`);
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, ...mapError(e) };
+  }
+}
+
+export async function assignPropertyAgentAction(
+  propertyId: number,
+  userId: number,
+): Promise<ActionResult<PropertyDetail>> {
+  const auth = await requireToken();
+  if (!auth.ok) return auth.result;
+  try {
+    const data = await assignPropertyAgent(auth.token, propertyId, userId);
     revalidatePath('/app/properties');
     revalidatePath(`/app/properties/${propertyId}`);
     return { ok: true, data };

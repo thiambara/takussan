@@ -7,6 +7,18 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 // API base with /api suffix — used by apiFetch
 const API_BASE = `${API_URL}/api`;
+const SUPPORTED_LOCALES = new Set(['fr', 'en', 'wo']);
+
+function clientLocaleCookie(): string | undefined {
+  if (typeof document === 'undefined') return undefined;
+
+  const cookie = document.cookie
+    .split('; ')
+    .find((entry) => entry.startsWith('NEXT_LOCALE='));
+  const locale = cookie ? decodeURIComponent(cookie.split('=')[1] ?? '') : '';
+
+  return SUPPORTED_LOCALES.has(locale) ? locale : undefined;
+}
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -31,9 +43,11 @@ export type RequestOptions = {
   locale?: string;
   signal?: AbortSignal;
   /**
-   * Active profile composite id (e.g. `agent:5`) forwarded as `X-Profile-Id`
-   * so the backend resolves the spatie team scope without relying on a
-   * browser-bound cookie. Set by SSR fetchers — see TCK-141 / TCK-143.
+   * Active profile composite id (e.g. `agent:5`) forwarded as
+   * `X-Active-Profile-Hint` so the backend resolves the spatie team scope
+   * without relying on a browser-bound cookie. Soft signal: an invalid /
+   * stale value is silently ignored by the backend (cookie-style). Set by
+   * SSR fetchers — see TCK-141 / TCK-143.
    */
   activeProfileId?: string;
 };
@@ -75,6 +89,36 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * When `apiRequest` runs server-side (RSC, server actions, route handlers),
+ * the outgoing fetch originates from the Next.js process — not the visitor's
+ * browser — so Laravel sees a single shared origin IP. Without forwarding,
+ * per-IP rate limiters and `Request::ip()` collapse onto one bucket for all
+ * visitors. We read the inbound visitor IP from `next/headers` and propagate
+ * it via `X-Forwarded-For`, paired with `TrustProxies` configured on the API.
+ *
+ * Returns `undefined` when there is no resolvable visitor (client-side calls,
+ * out-of-request execution like build-time, or no upstream proxy header).
+ */
+async function resolveVisitorIp(): Promise<string | undefined> {
+  if (typeof window !== 'undefined') return undefined;
+  try {
+    const { headers } = await import('next/headers');
+    const incoming = await headers();
+    const xff = incoming.get('x-forwarded-for');
+    if (xff) {
+      // XFF is a comma-separated list — the left-most entry is the original
+      // client. Trim whitespace which is permitted by RFC 7239-style proxies.
+      const first = xff.split(',')[0]?.trim();
+      if (first) return first;
+    }
+    const xri = incoming.get('x-real-ip')?.trim();
+    return xri && xri.length > 0 ? xri : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function apiRequest<T>(
   path: string,
   { method = 'GET', body, token, headers = {}, formData = false, locale, signal, activeProfileId }: RequestOptions = {},
@@ -92,12 +136,20 @@ export async function apiRequest<T>(
     requestHeaders['Authorization'] = `Bearer ${token}`;
   }
 
-  if (locale && !requestHeaders['Accept-Language']) {
-    requestHeaders['Accept-Language'] = locale;
+  const requestLocale = clientLocaleCookie() ?? locale;
+  if (requestLocale && !requestHeaders['Accept-Language']) {
+    requestHeaders['Accept-Language'] = requestLocale;
   }
 
-  if (activeProfileId && !requestHeaders['X-Profile-Id']) {
-    requestHeaders['X-Profile-Id'] = activeProfileId;
+  if (activeProfileId && !requestHeaders['X-Active-Profile-Hint']) {
+    requestHeaders['X-Active-Profile-Hint'] = activeProfileId;
+  }
+
+  if (!requestHeaders['X-Forwarded-For']) {
+    const visitorIp = await resolveVisitorIp();
+    if (visitorIp) {
+      requestHeaders['X-Forwarded-For'] = visitorIp;
+    }
   }
 
   const response = await fetch(`${API_URL}${path}`, {

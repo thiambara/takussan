@@ -11,8 +11,6 @@ use App\Models\Review;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class ReviewTest extends TestCase
@@ -110,10 +108,8 @@ class ReviewTest extends TestCase
     public function test_admin_can_approve_review(): void
     {
         $agency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        Role::findOrCreate('admin');
         $admin = User::factory()->create(['agency_id' => $agency->id]);
-        $admin->assignRole('admin');
+        $this->materializeRoleProfile($admin, 'super_admin');
         $review = Review::factory()->create(['is_approved' => false]);
 
         Sanctum::actingAs($admin);
@@ -229,15 +225,32 @@ class ReviewTest extends TestCase
     {
         $user = User::factory()->create();
         $other = User::factory()->create();
+        $property = Property::factory()->create([
+            'title' => 'Appartement témoin',
+            'slug' => 'appartement-temoin',
+            'reference_number' => 'TK-TEST-236',
+        ]);
 
-        Review::factory()->count(2)->create(['author_id' => $user->id]);
+        Review::factory()->create([
+            'author_id' => $user->id,
+            'created_at' => now()->subDay(),
+        ]);
+        Review::factory()->create([
+            'author_id' => $user->id,
+            'reviewable_type' => Property::class,
+            'reviewable_id' => $property->id,
+            'created_at' => now(),
+        ]);
         Review::factory()->count(3)->create(['author_id' => $other->id]);
 
         Sanctum::actingAs($user);
 
         $this->getJson('/api/reviews?filter[author_id]=me')
             ->assertOk()
-            ->assertJsonCount(2, 'data');
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.target.title', 'Appartement témoin')
+            ->assertJsonPath('data.0.target.slug', 'appartement-temoin')
+            ->assertJsonPath('data.0.target.subtitle', 'TK-TEST-236');
     }
 
     public function test_non_admin_without_author_filter_is_forbidden_on_reviews_index(): void

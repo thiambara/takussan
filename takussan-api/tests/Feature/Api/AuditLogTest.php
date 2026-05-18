@@ -3,11 +3,11 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Agency;
+use App\Models\Enums\AgencyKind;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class AuditLogTest extends TestCase
@@ -19,8 +19,6 @@ class AuditLogTest extends TestCase
         parent::setUp();
 
         $this->dummyAgency = Agency::factory()->create();
-        Role::create(['name' => 'admin', 'team_id' => $this->dummyAgency->id]);
-        setPermissionsTeamId($this->dummyAgency->id);
     }
 
     public function test_only_admins_can_access_audit_logs(): void
@@ -34,7 +32,7 @@ class AuditLogTest extends TestCase
     public function test_admin_can_list_audit_logs(): void
     {
         $admin = User::factory()->create(['agency_id' => $this->dummyAgency->id]);
-        $admin->assignRole('admin');
+        $this->materializeRoleProfile($admin, 'super_admin');
         Sanctum::actingAs($admin);
 
         Activity::create([
@@ -68,7 +66,7 @@ class AuditLogTest extends TestCase
     public function test_admin_can_get_audit_logs_by_entity(): void
     {
         $admin = User::factory()->create(['agency_id' => $this->dummyAgency->id]);
-        $admin->assignRole('admin');
+        $this->materializeRoleProfile($admin, 'super_admin');
         Sanctum::actingAs($admin);
 
         Activity::create([
@@ -82,5 +80,18 @@ class AuditLogTest extends TestCase
         $this->getJson("/api/audit-log/user/{$admin->id}")
             ->assertOk()
             ->assertJsonCount(2, 'data');
+    }
+
+    public function test_individual_agency_admin_cannot_read_audit_log(): void
+    {
+        $this->dummyAgency->update(['kind' => AgencyKind::Individual]);
+        $admin = User::factory()->create(['agency_id' => $this->dummyAgency->id]);
+        $this->materializeRoleProfile($admin, 'agency_admin', $this->dummyAgency);
+        Sanctum::actingAs($admin);
+
+        $this->getJson('/api/audit-log')->assertForbidden();
+
+        $this->dummyAgency->update(['kind' => AgencyKind::Standard]);
+        $this->getJson('/api/audit-log')->assertOk();
     }
 }

@@ -13,7 +13,7 @@ class Integration extends AbstractModel
 
     protected $fillable = [
         'provider', 'agency_id', 'credentials', 'is_active',
-        'last_used_at', 'metadata',
+        'last_used_at', 'last_health_check_at', 'health_status', 'metadata',
     ];
 
     protected $hidden = ['credentials'];
@@ -22,16 +22,17 @@ class Integration extends AbstractModel
         'credentials' => 'encrypted:array',
         'is_active' => 'boolean',
         'last_used_at' => 'datetime',
+        'last_health_check_at' => 'datetime',
         'metadata' => 'array',
     ];
 
-    protected static array $requestFilterable = ['agency_id', 'provider', 'is_active'];
+    protected static array $requestFilterable = ['agency_id', 'provider', 'is_active', 'health_status'];
 
     protected static array $requestSortable = ['id', 'created_at', 'provider'];
 
     // `metadata` is allowed so the admin UI can list provider notes via
     // sparse fieldsets (TCK-068). `credentials` remains hidden at all layers.
-    protected static array $queryFields = ['id', 'agency_id', 'provider', 'is_active', 'last_used_at', 'metadata', 'created_at', 'updated_at'];
+    protected static array $queryFields = ['id', 'agency_id', 'provider', 'is_active', 'last_used_at', 'last_health_check_at', 'health_status', 'metadata', 'created_at', 'updated_at'];
 
     public function agency(): BelongsTo
     {

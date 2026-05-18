@@ -6,7 +6,6 @@ use App\Models\Document;
 use App\Models\Enums\DocumentType;
 use App\Models\Property;
 use App\Models\User;
-use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -233,10 +232,8 @@ class DocumentSearchTest extends TestCase
 
     public function test_admin_can_see_all_documents(): void
     {
-        $this->seed(RolesAndPermissionsSeeder::class);
-
         $admin = User::factory()->create();
-        $admin->assignRole('super_admin');
+        $this->materializeRoleProfile($admin, 'super_admin');
 
         $other = User::factory()->create();
         $property = Property::factory()->create(['user_id' => $other->id]);

@@ -3,10 +3,12 @@
 use App\Http\Controllers\Api\Auth\AccountDeletionController;
 use App\Http\Controllers\Api\Auth\AppleOAuthController;
 use App\Http\Controllers\Api\Auth\FacebookOAuthController;
+use App\Http\Controllers\Api\Auth\SuperAdminTwoFactorController;
 use App\Http\Controllers\Api\UserAdminController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\OAuthController;
+use App\Http\Controllers\Auth\OAuthProviderController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\PhoneVerificationController;
 use App\Http\Controllers\Auth\SessionController;
@@ -39,7 +41,7 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
 
     // Email verification
     Route::get('/verify-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])
-        ->middleware('signed')
+        ->middleware('signed:relative')
         ->name('verification.verify');
     Route::post('/email/resend', [EmailVerificationController::class, 'resend'])
         ->middleware('throttle:6,1')
@@ -68,6 +70,16 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     Route::get('/two-factor/recovery-codes', [TwoFactorController::class, 'recoveryCodes']);
     Route::post('/two-factor/recovery-codes/regenerate', [TwoFactorController::class, 'regenerateRecoveryCodes']);
 
+    // TCK-264 — Mandatory TOTP enrollment for a freshly-coopted
+    // super-admin. The spatie role is deferred until /confirm flips
+    // it on, so these endpoints accept *only* users with
+    // `force_2fa_at_first_login = true`.
+    Route::post('/super-admin/2fa/enroll', [SuperAdminTwoFactorController::class, 'enroll'])
+        ->name('auth.super-admin.2fa.enroll');
+    Route::post('/super-admin/2fa/confirm', [SuperAdminTwoFactorController::class, 'confirm'])
+        ->middleware('throttle:5,1')
+        ->name('auth.super-admin.2fa.confirm');
+
     // Session management
     Route::get('/sessions', [SessionController::class, 'index']);
     Route::delete('/sessions/{tokenId}', [SessionController::class, 'destroy']);
@@ -87,6 +99,8 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
 // IP mirrors Laravel's default API throttle and leaves plenty of room
 // for retries while blocking cheap enumeration.
 Route::prefix('auth/oauth')->middleware('throttle:60,1')->group(function () {
+    Route::get('/providers', OAuthProviderController::class);
+
     // Dedicated Facebook/Apple controllers (TCK-081) — declared before the
     // generic `{provider}` route so Laravel matches them first.
     Route::get('/facebook/redirect', [FacebookOAuthController::class, 'redirect']);

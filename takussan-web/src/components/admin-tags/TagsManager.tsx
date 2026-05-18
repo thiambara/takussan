@@ -13,6 +13,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { FormError, FormGlobalError } from '@/components/forms';
 import type { Tag, TagType } from '@/types/tag';
 import {
@@ -157,13 +164,14 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
         <FormGlobalError>
           <span className="flex items-center justify-between gap-4">
             <span>{globalError}</span>
-            <button
+            <Button
               type="button"
               onClick={() => setGlobalError(null)}
-              className="text-xs underline"
+              variant="ghost"
+              size="xs"
             >
               Fermer
-            </button>
+            </Button>
           </span>
         </FormGlobalError>
       ) : null}
@@ -173,20 +181,18 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
           {(['all', ...tagTypeValues] as const).map((opt) => {
             const active = activeType === opt;
             return (
-              <button
+              <Button
                 key={opt}
                 role="tab"
                 aria-selected={active}
                 type="button"
                 onClick={() => setActiveType(opt)}
-                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  active
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-input text-muted-foreground hover:bg-muted'
-                }`}
+                variant={active ? 'default' : 'outline'}
+                size="sm"
+                className="rounded-full"
               >
                 {TAG_TYPE_LABELS[opt]}
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -345,7 +351,7 @@ function CreateTagDialog({ open, onOpenChange, onSubmit }: CreateTagDialogProps)
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [isSubmitting, setSubmitting] = useState(false);
 
-  const handleChange = (field: keyof TagFormValues) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (field: keyof TagFormValues) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setValues((v) => ({ ...v, [field]: e.target.value }));
   };
 
@@ -400,19 +406,22 @@ function CreateTagDialog({ open, onOpenChange, onSubmit }: CreateTagDialogProps)
             <label htmlFor="tag-type" className="mb-1.5 block text-sm font-medium">
               Type <span className="text-destructive">*</span>
             </label>
-            <select
-              id="tag-type"
+            <Select
               value={values.type}
-              onChange={handleChange('type')}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              required
+              onValueChange={(value) => setValues((current) => ({ ...current, type: (value ?? 'amenity') as TagType }))}
+              items={TAG_TYPE_OPTIONS}
             >
-              {TAG_TYPE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="tag-type" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TAG_TYPE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <FormError>{errors.type?.[0]}</FormError>
           </div>
           <div className="grid gap-4 md:grid-cols-2">

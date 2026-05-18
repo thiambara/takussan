@@ -39,7 +39,7 @@ class DocumentController extends Controller
 
         $base = Document::query();
 
-        if (! $user->hasRole(['admin', 'super_admin'])) {
+        if (! $user->isSuperAdmin()) {
             $base->where('uploaded_by', $user->id);
         }
 
@@ -108,7 +108,7 @@ class DocumentController extends Controller
     public function verify(Request $request, Document $document): JsonResponse
     {
         abort_unless(
-            $request->user()->hasRole(['admin', 'super_admin']),
+            $request->user()->isSuperAdmin(),
             403,
             'Only administrators can verify documents.'
         );
@@ -151,7 +151,7 @@ class DocumentController extends Controller
 
     protected function authorizeUpload($user, $documentable): void
     {
-        if ($user->hasRole(['admin', 'super_admin'])) {
+        if ($user->isSuperAdmin()) {
             return;
         }
 
@@ -189,7 +189,7 @@ class DocumentController extends Controller
     protected function authorizeAccess(Request $request, Document $document): void
     {
         $user = $request->user();
-        if ($user->hasRole(['admin', 'super_admin'])) {
+        if ($user->isSuperAdmin()) {
             return;
         }
 
@@ -205,7 +205,7 @@ class DocumentController extends Controller
     protected function authorizeManage(Request $request, Document $document): void
     {
         $user = $request->user();
-        $ok = $user->hasRole(['admin', 'super_admin'])
+        $ok = $user->isSuperAdmin()
             || $document->uploaded_by === $user->id;
 
         abort_unless($ok, 403);

@@ -1,28 +1,29 @@
 import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
-import { TeamManagement } from '@/components/admin/TeamManagement';
+import { TeamConsole } from '@/components/admin/TeamConsole';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { ensureStandardAgencyOrRedirect } from '@/lib/access/server-guards';
 
 /**
- * TCK-065 — Admin team management page. `agency_admin` and `super_admin`
- * can see and manage members of their agency. Superadmins without an
- * `agency_id` are redirected to /admin/agency where they can pick an agency.
+ * TCK-277 — unified team console (fusion of TCK-065 `/admin/team` and
+ * TCK-133 `/admin/users`). Single screen with segmented tabs for the
+ * different role typologies plus a single «&nbsp;Inviter&nbsp;» CTA.
+ *
+ * Super-admins without an `agency_id` see a stub directing them to pick
+ * an agency from the dedicated section. Hosts on `kind=individual` are
+ * bounced to `/app` by `ensureStandardAgencyOrRedirect`.
  */
 export default async function TeamPage() {
   const user = await getMeAction();
   if (!isAdmin(user.roles)) redirect('/admin');
+  await ensureStandardAgencyOrRedirect(user);
 
   if (!user.agency_id) {
-    // Super admins currently pick their working agency via /admin/agency.
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-app-ink">Équipe</h1>
-          <p className="mt-1 text-sm text-app-ink-muted">
-            Gestion des membres de l&apos;agence
-          </p>
-        </div>
-        <div className="rounded-xl bg-app-surface-1 p-8 text-sm text-app-ink-muted">
+        <PageHeader title="Équipe" subtitle="Gestion des membres de l'agence" />
+        <div className="rounded-xl bg-card p-8 text-sm text-muted-foreground">
           Vous n&apos;êtes rattaché à aucune agence. Rendez-vous dans la
           section « Configuration de l&apos;agence » pour en créer une ou en
           rejoindre une.
@@ -33,14 +34,11 @@ export default async function TeamPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-app-ink">Équipe</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">
-          Gérez les membres de votre agence : invitez des agents, attribuez
-          des rôles, retirez un accès.
-        </p>
-      </div>
-      <TeamManagement agencyId={user.agency_id} currentUserId={user.id} />
+      <PageHeader
+        title="Équipe"
+        subtitle="Gérez tous les membres de votre agence : agents, administrateurs, propriétaires. Invitez, attribuez des rôles, suspendez ou retirez un accès."
+      />
+      <TeamConsole agencyId={user.agency_id} currentUserId={user.id} />
     </div>
   );
 }

@@ -15,7 +15,7 @@ class RegenerateWatermarksController extends Controller
         $user = $request->user();
 
         abort_unless(
-            $agency->primary_admin_id === $user->id || $user->hasRole(['admin', 'super_admin']),
+            $agency->primary_admin_id === $user->id || $user->isSuperAdmin(),
             403,
         );
 

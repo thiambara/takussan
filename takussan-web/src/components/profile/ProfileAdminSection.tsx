@@ -9,6 +9,7 @@ interface ProfileAdminSectionProps {
 
 const ROLE_LABELS: Record<UserRole, string> = {
   customer: 'Locataire / Acheteur',
+  tenant: 'Locataire',
   agent: 'Agent immobilier',
   owner: 'Propriétaire bailleur',
   agency_admin: 'Admin agence',

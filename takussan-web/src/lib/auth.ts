@@ -1,7 +1,14 @@
 import { apiRequest } from './api';
 import type { User as CanonicalUser } from '@/types/user';
+import type { Locale } from '@/i18n/config';
 
 export type OAuthProvider = 'google' | 'facebook' | 'apple';
+
+export type OAuthProviderAvailability = {
+  provider: OAuthProvider;
+  configured: boolean;
+  missing: string[];
+};
 
 export type User = CanonicalUser;
 
@@ -49,6 +56,7 @@ export type UpdateProfilePayload = {
   last_name: string;
   bio?: string;
   avatar?: File | null;
+  avatar_remove?: boolean;
   /**
    * E.164-formatted phone (e.g. `+221770000000`). Pass `null` or empty
    * string to clear it. Omit the key entirely to leave the current value
@@ -62,8 +70,8 @@ export async function register(payload: RegisterPayload): Promise<AuthResponse &
   return apiRequest('/api/auth/register', { method: 'POST', body: payload });
 }
 
-export async function login(payload: LoginPayload): Promise<LoginResponse> {
-  return apiRequest('/api/auth/login', { method: 'POST', body: payload });
+export async function login(payload: LoginPayload, locale?: Locale): Promise<LoginResponse> {
+  return apiRequest('/api/auth/login', { method: 'POST', body: payload, locale });
 }
 
 export async function logout(token: string): Promise<void> {
@@ -81,6 +89,7 @@ export async function updateProfile(token: string, payload: UpdateProfilePayload
   formData.append('last_name', payload.last_name);
   if (payload.bio !== undefined) formData.append('bio', payload.bio);
   if (payload.avatar) formData.append('avatar', payload.avatar);
+  if (payload.avatar_remove) formData.append('avatar_remove', '1');
   if (payload.phone !== undefined) formData.append('phone', payload.phone ?? '');
 
   return apiRequest('/api/auth/profile', {
@@ -115,6 +124,13 @@ export async function oauthRedirect(
     `/api/auth/oauth/${provider}/redirect`,
   );
   return res.data;
+}
+
+export async function oauthProviders(): Promise<OAuthProviderAvailability[]> {
+  const res = await apiRequest<{ data: { providers: OAuthProviderAvailability[] } }>(
+    '/api/auth/oauth/providers',
+  );
+  return res.data.providers;
 }
 
 export async function oauthCallback(

@@ -1,5 +1,6 @@
 'use client';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useState } from 'react';
 import { BadgeCheck, MessageCircle, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -61,10 +62,23 @@ export function PropertyAgentCard({
           )}
         </div>
         <div className="min-w-0">
-          <p className="font-semibold text-stone-900 truncate">{owner.name}</p>
+          <p className="font-semibold text-stone-900 truncate">
+            {owner.slug ? (
+              <Link href={`/agents/${owner.slug}`} className="hover:underline">
+                {owner.name}
+              </Link>
+            ) : (
+              owner.name
+            )}
+          </p>
           {agency ? (
             <p className="text-sm text-stone-600 flex items-center gap-1 truncate">
-              {agency.name}
+              <Link
+                href={`/agencies/${agency.slug}`}
+                className="hover:underline"
+              >
+                {agency.name}
+              </Link>
               {agency.verified && (
                 <BadgeCheck className="size-4 text-sky-500 shrink-0" aria-label="Agence vérifiée" />
               )}

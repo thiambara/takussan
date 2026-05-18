@@ -34,7 +34,29 @@ class PhoneVerificationController extends Controller
 
     public function resend(Request $request): JsonResponse
     {
+        $request->validate([
+            'phone' => ['sometimes', 'nullable', 'string', 'max:32'],
+        ]);
+
         $user = $request->user();
+
+        // Onboarding wizards collect the phone in the same step as the OTP
+        // send — persist it here (mirroring `MeController::update` semantics)
+        // so the user record has the value before we hit the SMS gateway.
+        // Changing the phone resets `phone_verified_at`, matching the
+        // contract of every other update path.
+        if ($request->has('phone')) {
+            $incoming = $request->input('phone');
+            $incoming = is_string($incoming) ? trim($incoming) : null;
+            $incoming = $incoming === '' ? null : $incoming;
+            if ($incoming !== null && $incoming !== $user->phone) {
+                $user->forceFill([
+                    'phone' => $incoming,
+                    'phone_verified_at' => null,
+                ])->save();
+            }
+        }
+
         abort_if($user->phone_verified_at !== null, 422, 'Phone already verified.');
         abort_unless($user->phone !== null, 422, 'No phone number on file.');
         abort_unless(

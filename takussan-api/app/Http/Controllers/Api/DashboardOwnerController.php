@@ -19,8 +19,9 @@ class DashboardOwnerController extends Controller
         $user = $request->user();
 
         abort_unless(
-            $user->hasRole('owner')
-                || $user->hasRole(['super_admin', 'admin', 'agency_admin']),
+            ($user->agency_id !== null && $user->isOwnerAt((int) $user->agency_id))
+                || $user->isSuperAdmin()
+                || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)),
             403,
         );
 

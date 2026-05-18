@@ -1,6 +1,9 @@
+import type { Metadata } from 'next';
 import { forbidden } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
+
+export const metadata: Metadata = { title: 'Ajouter un client' };
 import { isAdmin, isAgent, isOwner } from '@/lib/roles';
 import { CustomerForm } from '@/components/customer-form';
 
@@ -19,8 +22,8 @@ export default async function Page() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-app-ink">Ajouter un client</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">
+        <h1 className="font-display text-2xl font-bold text-foreground">Ajouter un client</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Indiquez au minimum un prénom et un nom. Un contact peut exister sans
           compte utilisateur.
         </p>

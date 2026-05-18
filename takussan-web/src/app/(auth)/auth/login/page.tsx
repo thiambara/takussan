@@ -13,13 +13,16 @@ import { loginSchema, type LoginFormValues } from '@/lib/schemas';
 import { useApiForm } from '@/hooks/useApiForm';
 import { login, isTwoFactorChallenge, type LoginResponse } from '@/lib/auth';
 import { useAuth } from '@/context/AuthContext';
+import { useCurrentLocale } from '@/i18n/hooks';
 
 function LoginForm() {
   const router = useRouter();
   const { setUser } = useAuth();
+  const locale = useCurrentLocale();
   const searchParams = useSearchParams();
   const raw = searchParams.get('redirect') ?? '/app';
   const redirectTo = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/app';
+  const passwordWasReset = searchParams.get('reset') === '1';
   const [showPassword, setShowPassword] = useState(false);
 
   // TCK-069 — 2FA challenge. When the first POST returns `requires_2fa`,
@@ -43,7 +46,7 @@ function LoginForm() {
     schema: loginSchema,
     defaultValues,
     formOptions: { mode: 'onTouched' },
-    onSubmit: (values) => login(values),
+    onSubmit: (values) => login(values, locale),
     onSuccess: async (result, values) => {
       if (isTwoFactorChallenge(result)) {
         setChallenge({ email: values.email, password: values.password });
@@ -65,13 +68,16 @@ function LoginForm() {
     setChallengePending(true);
     setChallengeError(null);
     try {
-      const result = await login({
-        email: challenge.email,
-        password: challenge.password,
-        ...(useRecovery
-          ? { recovery_code: twoFactorCode }
-          : { two_factor_code: twoFactorCode }),
-      });
+      const result = await login(
+        {
+          email: challenge.email,
+          password: challenge.password,
+          ...(useRecovery
+            ? { recovery_code: twoFactorCode }
+            : { two_factor_code: twoFactorCode }),
+        },
+        locale,
+      );
       if (isTwoFactorChallenge(result)) {
         setChallengeError(result.message ?? 'Code invalide.');
         return;
@@ -191,6 +197,15 @@ function LoginForm() {
         Connectez-vous pour accéder à votre espace Takussan.
       </p>
 
+      {passwordWasReset ? (
+        <div
+          role="status"
+          className="mb-6 rounded-lg border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-700"
+        >
+          Votre mot de passe a été réinitialisé. Vous pouvez maintenant vous connecter.
+        </div>
+      ) : null}
+
       <OAuthButtons />
       <OAuthSeparator />
 
@@ -227,7 +242,7 @@ function LoginForm() {
             id="field-password"
             type={showPassword ? 'text' : 'password'}
             autoComplete="current-password"
-            placeholder="••••••••"
+            placeholder="........"
             className="h-11 pr-10"
             required
             trailing={

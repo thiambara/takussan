@@ -52,7 +52,7 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
 
     protected static array $requestSortable = ['id', 'created_at', 'scheduled_at', 'priority', 'status'];
 
-    protected static array $requestLoadable = ['property', 'lease', 'requester', 'assignee'];
+    protected static array $requestLoadable = ['property', 'lease', 'requester', 'assignee', 'quoteDecisionBy'];
 
     protected static array $requestSearchFields = ['title', 'description'];
 
@@ -60,7 +60,7 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
         'id', 'property_id', 'lease_id', 'requester_id', 'assigned_to',
         'title', 'category', 'priority', 'status',
         'estimated_cost', 'actual_cost', 'quote_amount', 'quote_currency',
-        'quote_submitted_at', 'quote_decision_at',
+        'quote_submitted_at', 'quote_decision_at', 'quote_decision_by_id',
         'scheduled_at', 'completed_at',
         'created_at', 'updated_at',
     ];
@@ -78,8 +78,8 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
                 'status',
                 AllowedSort::custom('priority', new MaintenancePrioritySort),
             )
-            ->allowedIncludes(...static::getAllowedQueryIncludes())
-            ->allowedFields(...(static::$queryFields ?? []));
+            ->allowedFields(...static::getAllAllowedQueryFields())
+            ->allowedIncludes(...static::getAllowedQueryIncludes());
     }
 
     public function registerMediaCollections(): void

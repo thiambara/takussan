@@ -33,20 +33,27 @@ const TYPE_LABEL: Record<VisitType, string> = {
   hybrid: 'Hybride',
 };
 
+type TabKey = 'requested' | 'confirmed' | 'past' | 'cancelled';
+
 /**
- * TCK-075 — Dashboard list of visits with "À venir" / "Passées" tabs.
- *
- * Filtering happens server-side through spatie's `filter[scheduled_at_min]`
- * / `filter[scheduled_at_max]` parameters — the frontend never slices a
- * pre-fetched array.
+ * TCK-171 — 4 tabs: Demandées / Confirmées / Passées / Annulées.
+ * Filtering is server-side via spatie filters.
  */
 export function VisitsList() {
   const locale = useLocale() as Locale;
-  const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [tab, setTab] = useState<TabKey>('requested');
 
   const nowIso = useMemo(() => new Date().toISOString(), []);
 
-  const upcoming = useVisits({
+  const requested = useVisits({
+    status: 'scheduled',
+    scheduled_at_min: nowIso,
+    sort: 'scheduled_at',
+    per_page: 30,
+  });
+
+  const confirmed = useVisits({
+    status: 'confirmed',
     scheduled_at_min: nowIso,
     sort: 'scheduled_at',
     per_page: 30,
@@ -58,24 +65,37 @@ export function VisitsList() {
     per_page: 30,
   });
 
-  const current = tab === 'upcoming' ? upcoming : past;
+  const cancelled = useVisits({
+    status: 'cancelled',
+    sort: '-scheduled_at',
+    per_page: 30,
+  });
+
+  const tabs: ReadonlyArray<{ value: TabKey; label: string; query: ReturnType<typeof useVisits>; emptyLabel: string }> = [
+    { value: 'requested', label: 'Demandées', query: requested, emptyLabel: 'Aucune visite demandée.' },
+    { value: 'confirmed', label: 'Confirmées', query: confirmed, emptyLabel: 'Aucune visite confirmée.' },
+    { value: 'past', label: 'Passées', query: past, emptyLabel: 'Aucune visite passée.' },
+    { value: 'cancelled', label: 'Annulées', query: cancelled, emptyLabel: 'Aucune visite annulée.' },
+  ];
 
   return (
-    <Tabs value={tab} onValueChange={(v) => setTab((v as 'upcoming' | 'past') ?? 'upcoming')}>
+    <Tabs value={tab} onValueChange={(v) => setTab((v as TabKey) ?? 'requested')}>
       <TabsList>
-        <TabsTrigger value="upcoming">À venir</TabsTrigger>
-        <TabsTrigger value="past">Passées</TabsTrigger>
+        {tabs.map((t) => (
+          <TabsTrigger key={t.value} value={t.value}>
+            {t.label}
+            {typeof t.query.data?.meta?.total === 'number' && (
+              <span className="ml-1.5 text-xs text-stone-500">({t.query.data.meta.total})</span>
+            )}
+          </TabsTrigger>
+        ))}
       </TabsList>
 
-      <TabsContent value="upcoming" className="mt-4">
-        <VisitsListBody query={upcoming} locale={locale} emptyLabel="Aucune visite à venir." />
-      </TabsContent>
-      <TabsContent value="past" className="mt-4">
-        <VisitsListBody query={past} locale={locale} emptyLabel="Aucune visite passée." />
-      </TabsContent>
-
-      {/* Both tabs share the same loader UI — avoid layout jumps while query refetches. */}
-      {current.isLoading ? null : null}
+      {tabs.map((t) => (
+        <TabsContent key={t.value} value={t.value} className="mt-4">
+          <VisitsListBody query={t.query} locale={locale} emptyLabel={t.emptyLabel} />
+        </TabsContent>
+      ))}
     </Tabs>
   );
 }

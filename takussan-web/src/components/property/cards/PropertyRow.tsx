@@ -26,6 +26,13 @@ interface PropertyRowProps {
   readonly showArrows?: boolean;
   /** Bouton custom à droite du header (remplace `viewAllHref`). */
   readonly action?: { label: string; onClick: () => void; variant?: 'link' | 'destructive-link' };
+  /**
+   * Number of cards to flag with `priority` (eager preload). Default 0:
+   * use `2` for the first above-the-fold row only, otherwise Next.js
+   * will preload below-the-fold images and the browser console will
+   * warn `was preloaded using link preload but not used` (TCK-166).
+   */
+  readonly priorityCount?: number;
 }
 
 interface VariantSpec {
@@ -95,6 +102,7 @@ export function PropertyRow({
   error,
   showArrows = true,
   action,
+  priorityCount = 0,
 }: PropertyRowProps) {
   const spec = VARIANTS[variant];
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -215,7 +223,7 @@ export function PropertyRow({
                 <Card
                   key={property.id}
                   property={property}
-                  priority={i < 2}
+                  priority={i < priorityCount}
                   index={i}
                 />
               ))}

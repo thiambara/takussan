@@ -3,6 +3,7 @@
 namespace Tests\Feature\Public;
 
 use App\Models\Address;
+use App\Models\Enums\PropertyType;
 use App\Models\Property;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -119,5 +120,37 @@ class PropertySearchTest extends TestCase
         $response->assertOk();
         $prices = collect($response->json('data'))->pluck('price')->toArray();
         $this->assertEquals([500_000, 300_000, 100_000], $prices);
+    }
+
+    public function test_search_alias_prioritizes_matching_property_types(): void
+    {
+        $textOnlyMatch = $this->published([
+            'title' => 'Appartement dans maison familiale',
+            'description' => 'Annonce de test avec le terme exact.',
+            'type' => PropertyType::House,
+            'featured' => true,
+            'published_at' => now(),
+        ]);
+
+        $typeMatch = $this->published([
+            'title' => 'Loft lumineux aux Almadies',
+            'description' => 'Vue mer et terrasse.',
+            'type' => PropertyType::Apartment,
+            'featured' => false,
+            'published_at' => now()->subDay(),
+        ]);
+
+        $this->published([
+            'title' => 'Villa familiale',
+            'description' => 'Grand jardin.',
+            'type' => PropertyType::Villa,
+        ]);
+
+        $response = $this->getJson('/api/public/properties/search?search=appartement');
+
+        $response->assertOk();
+        $ids = collect($response->json('data'))->pluck('id')->all();
+
+        $this->assertSame([$typeMatch->id, $textOnlyMatch->id], $ids);
     }
 }

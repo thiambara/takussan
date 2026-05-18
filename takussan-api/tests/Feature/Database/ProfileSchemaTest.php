@@ -34,7 +34,7 @@ class ProfileSchemaTest extends TestCase
                 'deleted_at', 'created_at', 'updated_at',
             ],
             'service_provider_profiles' => [
-                'id', 'user_id', 'specialties', 'service_areas',
+                'id', 'user_id', 'status', 'specialties', 'service_areas',
                 'insurance_policy_id', 'certifications',
                 'hourly_rate_min', 'hourly_rate_max', 'active_until',
                 'metadata', 'deleted_at', 'created_at', 'updated_at',
@@ -153,23 +153,38 @@ class ProfileSchemaTest extends TestCase
         ]);
     }
 
-    public function test_service_provider_profile_unique_user(): void
+    /**
+     * TCK-260 — la contrainte `unique(user_id)` sur
+     * `service_provider_profiles` a été levée pour permettre :
+     *  - les drafts (user_id = NULL) lors de l'envoi d'une invitation,
+     *  - le multi-rattachement futur (TCK-262) qui pourrait, selon le
+     *    design final, créer un profil dédié par agence.
+     *
+     * L'unicité réelle est portée par la table pivot
+     * `service_provider_agency_collaborations(profile, agency)`.
+     */
+    public function test_service_provider_profile_allows_multiple_rows_for_same_user(): void
     {
         $user = User::factory()->create();
 
         DB::table('service_provider_profiles')->insert([
             'user_id' => $user->id,
+            'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-
-        $this->expectException(QueryException::class);
 
         DB::table('service_provider_profiles')->insert([
             'user_id' => $user->id,
+            'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        $this->assertSame(
+            2,
+            DB::table('service_provider_profiles')->where('user_id', $user->id)->count(),
+        );
     }
 
     public function test_broker_agency_collaboration_unique_pair(): void

@@ -15,6 +15,7 @@ import {
   Wrench,
   Users,
   ShieldCheck,
+  Lock,
   PlusCircle,
   BarChart3,
   Download,
@@ -23,11 +24,14 @@ import {
   Heart,
   BookmarkCheck,
   ClipboardList,
+  ClipboardCheck,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
 import { isAgent, isOwner, isCustomer, isAdmin, isServiceProvider } from '@/lib/roles';
+import { isProRouteLocked } from '@/lib/access/pro-features';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ProUpgradeCard } from './ProUpgradeCard';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -35,12 +39,21 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   emphasized?: boolean;
+  locked?: boolean;
 }
 
 interface AppSidebarProps {
   user: User;
   className?: string;
   onNavigate?: () => void;
+  /**
+   * TCK-267 — pinned at the bottom of the sidebar (above the user footer)
+   * for agency admins still on `kind = individual`. Set to `true` once the
+   * agency has been promoted to `standard` so the CTA disappears for good.
+   */
+  agencyIsStandard?: boolean;
+  /** `true` when an upgrade request is awaiting super-admin review. */
+  hasPendingUpgrade?: boolean;
 }
 
 function buildNavItems(user: User): NavItem[] {
@@ -70,11 +83,20 @@ function buildNavItems(user: User): NavItem[] {
   });
 
   if (isCustomer(roles)) {
+    // TCK-173 — full customer flow ordered by user journey:
+    // discovery (favorites/saved searches above) →
+    // requests (visits, bookings, maintenance) →
+    // engagements (leases, payments, inventories).
+    items.push({ href: '/app/visits', label: 'Mes visites', icon: CalendarClock });
     items.push({ href: '/app/bookings', label: 'Mes réservations', icon: CalendarCheck });
+    items.push({ href: '/app/maintenance', label: 'Maintenance', icon: Wrench });
     items.push({ href: '/app/leases', label: 'Mes baux', icon: FileText });
     items.push({ href: '/app/payments', label: 'Paiements', icon: CreditCard });
+    items.push({ href: '/app/inventories', label: 'États des lieux', icon: ClipboardList });
+    items.push({ href: '/app/profile/reviews', label: 'Mes avis', icon: BookmarkCheck });
   } else if (isOwner(roles)) {
     items.push({ href: '/app/bookings', label: 'Réservations', icon: CalendarCheck });
+    items.push({ href: '/app/maintenance', label: 'Maintenance', icon: Wrench });
     items.push({ href: '/app/leases', label: 'Baux', icon: FileText });
     items.push({ href: '/app/payments', label: 'Finances', icon: CreditCard });
   } else if (isAgent(roles) || isAdmin(roles)) {
@@ -86,6 +108,23 @@ function buildNavItems(user: User): NavItem[] {
     items.push({ href: '/app/maintenance', label: isServiceProvider(roles) ? 'Interventions' : 'Maintenance', icon: Wrench });
   }
 
+  // TCK-260 — Carnet prestataires. Visible pour agency_admin (et global
+  // admin / super_admin via le gate). Ouvert aux agences `standard` ET
+  // `individual` (un host individual a aussi besoin de ses prestataires).
+  // La page elle-même filtre par rôle ; on ne connaît pas l'agency.kind
+  // ici, le contrôle ultime est côté backend (policy + permission).
+  if (
+    roles.includes('agency_admin') ||
+    isAdmin(roles) ||
+    roles.includes('super_admin')
+  ) {
+    items.push({
+      href: '/app/maintenance/providers',
+      label: 'Carnet prestataires',
+      icon: Wrench,
+    });
+  }
+
   items.push({ href: '/app/messages', label: 'Messagerie', icon: MessageSquare });
   items.push({ href: '/app/documents', label: 'Documents', icon: FolderOpen });
 
@@ -95,16 +134,35 @@ function buildNavItems(user: User): NavItem[] {
     // TCK-032 overview/stats — exports (P2)
     items.push({ href: '/app/overview/exports', label: 'Exports', icon: Download });
   }
-  if (isAdmin(roles)) {
-    // TCK-032 overview/stats — KPIs personnalisables (P3)
+  // Vue agence cross-team — visible to agency_admin so individuals see the
+  // padlock, and to agents/admins. Standard-only via PRO_ROUTES.
+  if (roles.includes('agency_admin') || isAdmin(roles) || isAgent(roles)) {
+    items.push({ href: '/app/overview/agency', label: 'Vue agence', icon: BarChart3 });
+  }
+  if (isAdmin(roles) || roles.includes('agency_admin')) {
+    // TCK-032 overview/stats — KPIs personnalisables (P3). Standard-only
+    // for agency_admin (padlock via PRO_ROUTES on `individual`).
     items.push({ href: '/app/overview/kpis', label: 'KPIs', icon: Gauge });
-    // TCK-032 overview/stats — alertes (P3)
+    // TCK-032 overview/stats — alertes (P3). Standard-only for agency_admin.
     items.push({ href: '/app/overview/alerts', label: 'Alertes', icon: BellRing });
   }
 
-  if (isAdmin(roles)) {
-    items.push({ href: '/admin', label: 'Administration', icon: ShieldCheck, emphasized: true });
+  // TCK-256 — owners directory. Visible to agency_admin and global admins.
+  // Standard-only via PRO_ROUTES; on `individual` the page itself redirects
+  // and OwnerProfilePolicy@invite returns 403 in defense in depth.
+  if (
+    roles.includes('agency_admin') ||
+    isAdmin(roles) ||
+    roles.includes('super_admin')
+  ) {
+    items.push({ href: '/app/owners', label: 'Propriétaires', icon: Users });
   }
+
+  // TCK-267 — "Passer en pro" CTA is rendered as a pinned card at the
+  // bottom of the sidebar (above the user footer) instead of an inline
+  // nav row. See {@see ProUpgradeCard} below for the visual, and the
+  // conditional render in {@see AppSidebar} for the gate (which now also
+  // checks `agency.kind` to hide the card once the agency is `standard`).
 
   // TCK-041 dashboard agent — biens: the `/app/properties` and
   // `/app/properties/new` entries above are now owned by TCK-041 (dashboard
@@ -129,8 +187,23 @@ function buildNavItems(user: User): NavItem[] {
   }
   // TCK-044 leases
   items.push({ href: '/app/leases', label: isCustomer(roles) ? 'Mes baux' : 'Baux', icon: FileText });
+  // TCK-266 — sub-entry for the agency console: tenants whose move-in
+  // inventory has been pending for more than 7 days. Visible to
+  // agency_admin and agent (admin gate covers super_admin too).
+  if (isAgent(roles) || isAdmin(roles)) {
+    items.push({
+      href: '/app/leases/onboarding-pending',
+      label: 'Onboardings en attente',
+      icon: ClipboardCheck,
+    });
+  }
   // TCK-045 messages
   items.push({ href: '/app/messages', label: 'Messagerie', icon: MessageSquare });
+
+  // Administration — pinned last in the nav for admins / super_admins.
+  if (isAdmin(roles)) {
+    items.push({ href: '/admin', label: 'Administration', icon: ShieldCheck, emphasized: true });
+  }
 
   // Dedup by href while preserving first occurrence
   const seen = new Set<string>();
@@ -147,8 +220,23 @@ function SidebarItem({
   icon: Icon,
   active,
   emphasized,
+  locked,
   onNavigate,
 }: NavItem & { active: boolean; onNavigate?: () => void }) {
+  if (locked) {
+    return (
+      <span
+        role="link"
+        aria-disabled="true"
+        title="Réservé aux comptes pro"
+        className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-app-ink-muted opacity-60"
+      >
+        <Icon className="size-4 shrink-0" />
+        <span className="truncate">{label}</span>
+        <Lock className="ml-auto size-3.5 shrink-0" aria-hidden />
+      </span>
+    );
+  }
   return (
     <Link
       href={href}
@@ -187,9 +275,22 @@ function SidebarUserFooter({ user, onNavigate }: { user: User; onNavigate?: () =
   );
 }
 
-export function AppSidebar({ user, className, onNavigate }: AppSidebarProps) {
+export function AppSidebar({
+  user,
+  className,
+  onNavigate,
+  agencyIsStandard,
+  hasPendingUpgrade,
+}: AppSidebarProps) {
   const pathname = usePathname();
-  const navItems = buildNavItems(user);
+  const navItems = buildNavItems(user).map((item) => ({
+    ...item,
+    locked: isProRouteLocked(user, agencyIsStandard, item.href),
+  }));
+  const showProUpgradeCard =
+    user.roles.includes('agency_admin') &&
+    typeof user.agency_id === 'number' &&
+    agencyIsStandard === false;
 
   return (
     <aside className={cn('flex h-full w-64 flex-col bg-app-surface-1', className)}>
@@ -213,6 +314,9 @@ export function AppSidebar({ user, className, onNavigate }: AppSidebarProps) {
         ))}
       </nav>
       <div className="px-3 pb-4">
+        {showProUpgradeCard ? (
+          <ProUpgradeCard pending={Boolean(hasPendingUpgrade)} onNavigate={onNavigate} />
+        ) : null}
         <SidebarUserFooter user={user} onNavigate={onNavigate} />
       </div>
     </aside>

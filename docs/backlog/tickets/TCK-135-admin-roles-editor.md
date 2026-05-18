@@ -1,12 +1,13 @@
 ---
 id: TCK-135
-title: "/admin/roles — Éditeur de rôles & permissions personnalisés (agency_admin)"
-status: done
+title: "/admin/roles — Éditeur de rôles & permissions personnalisés (agency_admin) [SUPERSEDED]"
+status: obsolete
 phase: P1
 family: full
 estimate: M
 created: 2026-05-02
-updated: 2026-05-03
+updated: 2026-05-17
+superseded_by: TCK-279
 depends_on: [TCK-014, TCK-141]
 blocks: []
 spec_refs:

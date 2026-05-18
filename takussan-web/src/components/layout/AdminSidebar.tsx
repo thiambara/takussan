@@ -14,10 +14,12 @@ import {
   ArrowLeft,
   Shield,
   Briefcase,
+  Lock,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
 import { isSuperAdmin } from '@/lib/roles';
+import { isProRouteLocked } from '@/lib/access/pro-features';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
@@ -29,12 +31,17 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   badge?: number;
+  locked?: boolean;
 }
 
 interface AdminSidebarProps {
   user: User;
   className?: string;
   onNavigate?: () => void;
+  /** `true` when the active agency is on `kind=standard`. Items in
+   *  `PRO_ROUTES` are padlocked when this is `false` (individual) for
+   *  agency_admins; super_admin is never padlocked. */
+  agencyIsStandard?: boolean;
 }
 
 function buildAdminItems(
@@ -47,8 +54,9 @@ function buildAdminItems(
     items.push({ href: '/admin/properties', label: 'Biens', icon: Building2 });
   }
   items.push({ href: '/admin/team', label: 'Équipe', icon: Users });
-  items.push({ href: '/admin/users', label: 'Utilisateurs', icon: Users });
   items.push({ href: '/admin/agency', label: 'Agence', icon: Briefcase });
+  items.push({ href: '/admin/agency/kyc', label: 'KYC agence', icon: ShieldCheck });
+  items.push({ href: '/admin/agency/billing', label: 'Abonnement', icon: CreditCard });
   items.push({ href: '/admin/finances', label: 'Finances', icon: CreditCard });
   if (isSuperAdmin(user.roles)) {
     items.push({
@@ -65,9 +73,13 @@ function buildAdminItems(
     icon: Building2,
     badge: propertyPendingCount || undefined,
   });
-  items.push({ href: '/admin/roles', label: 'Rôles & Permissions', icon: ShieldCheck });
   items.push({ href: '/admin/audit', label: "Journal d'audit", icon: FileText });
-  items.push({ href: '/admin/settings', label: 'Paramètres', icon: Settings });
+  // `/api/admin/settings` is super-admin-only at the route middleware level
+  // (`routes/api/admin.php` group), so showing this entry to agency_admin
+  // only leads to a broken page. Restrict to super_admin.
+  if (isSuperAdmin(user.roles)) {
+    items.push({ href: '/admin/settings', label: 'Paramètres', icon: Settings });
+  }
   return items;
 }
 
@@ -76,9 +88,24 @@ function AdminItem({
   label,
   icon: Icon,
   badge,
+  locked,
   active,
   onNavigate,
 }: NavItem & { active: boolean; onNavigate?: () => void }) {
+  if (locked) {
+    return (
+      <span
+        role="link"
+        aria-disabled="true"
+        title="Réservé aux comptes pro"
+        className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-white/40 opacity-60"
+      >
+        <Icon className="size-4 shrink-0" />
+        <span className="truncate flex-1">{label}</span>
+        <Lock className="ml-auto size-3.5 shrink-0" aria-hidden />
+      </span>
+    );
+  }
   return (
     <Link
       href={href}
@@ -104,7 +131,7 @@ function AdminItem({
   );
 }
 
-export function AdminSidebar({ user, className, onNavigate }: AdminSidebarProps) {
+export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: AdminSidebarProps) {
   const pathname = usePathname();
   const { token } = useAuth();
 
@@ -118,16 +145,22 @@ export function AdminSidebar({ user, className, onNavigate }: AdminSidebarProps)
   });
 
   // TCK-098 — poll property moderation count (available to agency_admin too).
+  // Standard-only feature: skip the poll for individual agencies (the entry
+  // is padlocked in the sidebar and the backend returns 403 anyway).
   const { data: propModMeta } = useQuery({
     queryKey: ['property-moderation', 'pending-count'],
     queryFn: () =>
       fetchPropertyModerationQueue(token ?? '', { perPage: 1 }).then((r) => r.meta),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && agencyIsStandard !== false,
     refetchInterval: 60_000,
     staleTime: 30_000,
   });
 
-  const items = buildAdminItems(user, modMeta?.pending_count ?? 0, propModMeta?.pending_count ?? 0);
+  const items = buildAdminItems(user, modMeta?.pending_count ?? 0, propModMeta?.pending_count ?? 0)
+    .map((item) => ({
+      ...item,
+      locked: isProRouteLocked(user, agencyIsStandard, item.href),
+    }));
   const initials = `${user.first_name[0] ?? ''}${user.last_name[0] ?? ''}`.toUpperCase();
 
   return (
@@ -147,8 +180,8 @@ export function AdminSidebar({ user, className, onNavigate }: AdminSidebarProps)
           // Exact match for the dashboard root, prefix match for nested routes
           // so "Paramètres" stays highlighted on /admin/settings/tags etc.
           const active =
-            item.href === '/admin'
-              ? pathname === '/admin'
+            item.href === '/admin' || item.href === '/admin/agency'
+              ? pathname === item.href
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
             <AdminItem

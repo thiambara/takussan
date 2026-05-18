@@ -53,10 +53,9 @@
     49 => 'Spatie\\Activitylog\\ActivitylogServiceProvider',
     50 => 'Spatie\\MediaLibrary\\MediaLibraryServiceProvider',
     51 => 'Spatie\\LaravelPdf\\PdfServiceProvider',
-    52 => 'Spatie\\Permission\\PermissionServiceProvider',
-    53 => 'Spatie\\QueryBuilder\\QueryBuilderServiceProvider',
-    54 => 'App\\Providers\\AppServiceProvider',
-    55 => 'App\\Providers\\Filament\\AdminPanelProvider',
+    52 => 'Spatie\\QueryBuilder\\QueryBuilderServiceProvider',
+    53 => 'App\\Providers\\AppServiceProvider',
+    54 => 'App\\Providers\\Filament\\AdminPanelProvider',
   ),
   'eager' => 
   array (
@@ -96,10 +95,9 @@
     33 => 'Spatie\\Activitylog\\ActivitylogServiceProvider',
     34 => 'Spatie\\MediaLibrary\\MediaLibraryServiceProvider',
     35 => 'Spatie\\LaravelPdf\\PdfServiceProvider',
-    36 => 'Spatie\\Permission\\PermissionServiceProvider',
-    37 => 'Spatie\\QueryBuilder\\QueryBuilderServiceProvider',
-    38 => 'App\\Providers\\AppServiceProvider',
-    39 => 'App\\Providers\\Filament\\AdminPanelProvider',
+    36 => 'Spatie\\QueryBuilder\\QueryBuilderServiceProvider',
+    37 => 'App\\Providers\\AppServiceProvider',
+    38 => 'App\\Providers\\Filament\\AdminPanelProvider',
   ),
   'deferred' => 
   array (

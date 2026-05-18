@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Models\User;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,21 +22,7 @@ class NotificationPreferenceController extends Controller
 
     public function show(Request $request): JsonResponse
     {
-        $user = $request->user();
-
-        return $this->json([
-            'data' => [
-                'preferences' => $this->resolver->matrixFor($user),
-                'events' => PreferenceResolver::EVENTS,
-                'channels' => PreferenceResolver::CHANNELS,
-                'phone_verified' => $user->phone_verified_at !== null,
-
-                // Legacy flat flags — do not rely on for new code.
-                'notifications_email_enabled' => (bool) $user->notifications_email_enabled,
-                'notifications_push_enabled' => (bool) $user->notifications_push_enabled,
-                'notifications_sms_enabled' => (bool) $user->notifications_sms_enabled,
-            ],
-        ]);
+        return $this->json(['data' => $this->payloadFor($request->user())]);
     }
 
     public function update(Request $request): JsonResponse
@@ -64,13 +51,24 @@ class NotificationPreferenceController extends Controller
             $user->fill($flat)->save();
         }
 
-        return $this->json([
-            'data' => [
-                'preferences' => $this->resolver->matrixFor($user),
-                'notifications_email_enabled' => (bool) $user->notifications_email_enabled,
-                'notifications_push_enabled' => (bool) $user->notifications_push_enabled,
-                'notifications_sms_enabled' => (bool) $user->notifications_sms_enabled,
-            ],
-        ]);
+        return $this->json(['data' => $this->payloadFor($user)]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function payloadFor(User $user): array
+    {
+        return [
+            'preferences' => $this->resolver->matrixFor($user),
+            'events' => PreferenceResolver::EVENTS,
+            'channels' => PreferenceResolver::CHANNELS,
+            'phone_verified' => $user->phone_verified_at !== null,
+
+            // Legacy flat flags — do not rely on for new code.
+            'notifications_email_enabled' => (bool) $user->notifications_email_enabled,
+            'notifications_push_enabled' => (bool) $user->notifications_push_enabled,
+            'notifications_sms_enabled' => (bool) $user->notifications_sms_enabled,
+        ];
     }
 }

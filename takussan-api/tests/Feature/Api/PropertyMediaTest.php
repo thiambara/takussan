@@ -54,6 +54,23 @@ class PropertyMediaTest extends TestCase
         ])->assertStatus(422);
     }
 
+    public function test_corrupted_image_is_rejected_without_persisting_media(): void
+    {
+        Storage::fake('public');
+
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/properties/{$property->id}/media", [
+            'photos' => [UploadedFile::fake()->create('broken.png', 1, 'image/png')],
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['photos']);
+
+        $this->assertSame(0, $property->refresh()->getMedia('photos')->count());
+    }
+
     public function test_missing_photos_returns_422(): void
     {
         $owner = User::factory()->create();

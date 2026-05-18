@@ -3,6 +3,7 @@
  *
  * Réservations confirmées : bleu.
  * Visites confirmées : violet.
+ * Baux / périodes longues : vert.
  * Statuts en attente (`pending` / `scheduled`) : gris — pour distinguer
  * visuellement les demandes non traitées.
  */
@@ -20,7 +21,7 @@ export type EventPalette = {
 
 export function paletteFor(event: Pick<CalendarEvent, 'type' | 'status'>): EventPalette {
   const pending =
-    event.status === 'pending' || event.status === 'scheduled';
+    event.status === 'pending' || event.status === 'scheduled' || event.status === 'pending_signature';
   if (pending) {
     return {
       pill: 'bg-stone-100 text-stone-700 border-stone-300',
@@ -35,6 +36,13 @@ export function paletteFor(event: Pick<CalendarEvent, 'type' | 'status'>): Event
       label: 'Confirmée',
     };
   }
+  if (event.type === 'lease') {
+    return {
+      pill: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+      accent: 'bg-emerald-500',
+      label: 'Bail',
+    };
+  }
   // visit
   return {
     pill: 'bg-violet-100 text-violet-800 border-violet-300',
@@ -44,5 +52,7 @@ export function paletteFor(event: Pick<CalendarEvent, 'type' | 'status'>): Event
 }
 
 export function typeLabel(type: CalendarEvent['type']): string {
-  return type === 'booking' ? 'Réservation' : 'Visite';
+  if (type === 'booking') return 'Réservation';
+  if (type === 'lease') return 'Bail';
+  return 'Visite';
 }

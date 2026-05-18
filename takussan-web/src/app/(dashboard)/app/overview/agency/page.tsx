@@ -2,14 +2,19 @@ import { getMeAction } from '@/app/actions/auth';
 import { isAdmin, isAgent, isSuperAdmin } from '@/lib/roles';
 import { redirect } from 'next/navigation';
 import { fetchAgencyDashboard } from '@/lib/queries/dashboard';
+import { fetchAgency } from '@/lib/queries/agencies';
+import { getToken } from '@/lib/session';
 import { StatCard } from '@/components/charts/StatCard';
 import { LineChart } from '@/components/charts/LineChart';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 
 /**
  * TCK-032 P1 — agency dashboard.
- * Super_admin / agency_admin / agent inside an agency.
+ * Super_admin / agency_admin / agent d'une agence `standard`. Le reporting
+ * cross-équipe n'est pas disponible pour les agences `individual` (un seul
+ * collaborateur par construction).
  */
 export default async function AgencyDashboardPage() {
   const user = await getMeAction();
@@ -23,12 +28,19 @@ export default async function AgencyDashboardPage() {
     return <NoAgencyState title="Vue agence" />;
   }
 
+  if (user.agency_id) {
+    const token = await getToken();
+    if (token) {
+      const agency = await fetchAgency(token, user.agency_id).catch(() => null);
+      if (agency && agency.kind !== 'standard') redirect('/app');
+    }
+  }
+
   const payload = await fetchAgencyDashboard();
   if (!payload) {
     return (
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold text-app-ink">Vue agence</h1>
-        <p className="text-sm text-app-ink-muted">Impossible de charger les données.</p>
+        <PageHeader title="Vue agence" subtitle="Impossible de charger les données." />
       </div>
     );
   }
@@ -37,15 +49,12 @@ export default async function AgencyDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-app-ink">Vue agence</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">
-          Indicateurs clés sur la période — {data.period.start.slice(0, 10)} au{' '}
-          {data.period.end.slice(0, 10)}
-        </p>
-      </div>
+      <PageHeader
+        title="Vue agence"
+        subtitle={`Indicateurs clés sur la période — ${data.period.start.slice(0, 10)} au ${data.period.end.slice(0, 10)}`}
+      />
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         <StatCard
           label="Biens actifs"
           value={formatNumber(data.properties?.total ?? 0, 'fr')}
@@ -72,7 +81,7 @@ export default async function AgencyDashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         <StatCard
           label="Clients"
           value={formatNumber(data.customers_count ?? 0, 'fr')}
@@ -94,18 +103,18 @@ export default async function AgencyDashboardPage() {
       </div>
 
       {ts && (
-        <section className="rounded-2xl bg-app-surface-1 p-6">
+        <section className="rounded-2xl bg-card p-6">
           <LineChart
             title="Revenus et occupation sur 12 mois"
             unit=""
             data={{
               labels: ts.months,
               series: [
-                { name: 'Revenus', values: (ts.revenue as number[]) ?? [], color: 'stroke-emerald-500' },
+                { name: 'Revenus', values: (ts.revenue as number[]) ?? [], color: 'stroke-chart-1' },
                 {
                   name: 'Taux d’occupation (%)',
                   values: (ts.occupancy as number[]) ?? [],
-                  color: 'stroke-sky-500',
+                  color: 'stroke-chart-2',
                 },
               ],
             }}

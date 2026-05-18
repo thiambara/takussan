@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import { AdminUsersFilters } from '../AdminUsersFilters';
 
@@ -28,18 +29,29 @@ describe('<AdminUsersFilters>', () => {
     expect(screen.queryByLabelText('Agence')).toBeNull();
   });
 
-  it('writes filter[role] to the URL when a role is picked', () => {
+  it('writes filter[role] to the URL when a role is picked', async () => {
+    const user = userEvent.setup();
     render(<AdminUsersFilters />);
-    fireEvent.change(screen.getByLabelText('Rôle'), { target: { value: 'agent' } });
+
+    // The role filter is a Base UI Select — open the popup, pick "Agent".
+    await user.click(screen.getByLabelText('Rôle'));
+    const agentOption = await screen.findByRole('option', { name: /^Agent$/ });
+    await user.click(agentOption);
+
     expect(mockReplace).toHaveBeenCalledWith(
       expect.stringContaining('filter%5Brole%5D=agent'),
     );
   });
 
-  it('resets pagination when changing a filter', () => {
+  it('resets pagination when changing a filter', async () => {
     mockSearchParams.toString.mockReturnValue('page=4');
+    const user = userEvent.setup();
     render(<AdminUsersFilters />);
-    fireEvent.change(screen.getByLabelText('Statut'), { target: { value: 'banned' } });
+
+    await user.click(screen.getByLabelText('Statut'));
+    const bannedOption = await screen.findByRole('option', { name: /Bloqu/i });
+    await user.click(bannedOption);
+
     const replaced = String(mockReplace.mock.calls[0][0]);
     expect(replaced).not.toContain('page=4');
     expect(replaced).toContain('filter%5Bstatus%5D=banned');

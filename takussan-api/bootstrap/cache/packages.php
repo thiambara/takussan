@@ -222,13 +222,6 @@
       0 => 'Spatie\\LaravelPdf\\PdfServiceProvider',
     ),
   ),
-  'spatie/laravel-permission' => 
-  array (
-    'providers' => 
-    array (
-      0 => 'Spatie\\Permission\\PermissionServiceProvider',
-    ),
-  ),
   'spatie/laravel-query-builder' => 
   array (
     'providers' => 

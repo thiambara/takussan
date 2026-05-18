@@ -51,6 +51,7 @@ interface AdminUsersTableProps {
   currentUserId: number;
   onSelect: (user: AdminAgencyUserRow) => void;
   onQuickAction: (user: AdminAgencyUserRow, action: 'block' | 'activate') => void;
+  onRemove?: (user: AdminAgencyUserRow) => void;
 }
 
 export function AdminUsersTable({
@@ -59,6 +60,7 @@ export function AdminUsersTable({
   currentUserId,
   onSelect,
   onQuickAction,
+  onRemove,
 }: AdminUsersTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -138,16 +140,24 @@ export function AdminUsersTable({
                   </a>
                 </td>
                 <td className="px-4 py-3">
-                  {row.roles?.length ? (
-                    <Badge
-                      variant="outline"
-                      className="border-primary/30 bg-primary/5 text-primary"
-                    >
-                      {ROLE_LABEL[row.roles[0].name] ?? row.roles[0].name}
-                    </Badge>
-                  ) : (
-                    <span className="text-xs text-app-ink-muted">—</span>
-                  )}
+                  {(() => {
+                    // TCK-278 — `row.roles` peut être `string[]`
+                    // (UserResource standard) ou `Array<{name}>` (vue admin
+                    // détaillée). Normalise pour récupérer un label.
+                    const first = row.roles?.[0];
+                    const name =
+                      typeof first === 'string' ? first : first?.name;
+                    return name ? (
+                      <Badge
+                        variant="outline"
+                        className="border-primary/30 bg-primary/5 text-primary"
+                      >
+                        {ROLE_LABEL[name] ?? name}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-app-ink-muted">—</span>
+                    );
+                  })()}
                 </td>
                 <td className="px-4 py-3">
                   <Badge variant="outline" className={status.cls}>
@@ -190,6 +200,18 @@ export function AdminUsersTable({
                           Bloquer
                         </DropdownMenuItem>
                       )}
+                      {onRemove ? (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            disabled={isSelf}
+                            onClick={() => onRemove(row)}
+                            className="text-destructive"
+                          >
+                            Retirer de l&apos;agence
+                          </DropdownMenuItem>
+                        </>
+                      ) : null}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </td>

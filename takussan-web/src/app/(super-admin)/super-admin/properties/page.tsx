@@ -6,6 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchAdminAgencies, fetchAdminProperties } from '@/lib/queries/super-admin';
 import { SuperAdminPropertiesFilters } from '@/components/admin/super/SuperAdminPropertiesFilters';
 import { SuperAdminPropertiesTable } from '@/components/admin/super/SuperAdminPropertiesTable';
+import { Pagination } from '@/components/super-admin/Pagination';
+import { Card, CardContent } from '@/components/ui/card';
 import type { AdminPropertiesResponse, AdminAgenciesResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 
@@ -16,6 +18,7 @@ import type { ApiError } from '@/lib/api';
  * filtered views are shareable; React Query manages the request lifecycle.
  */
 export default function SuperAdminPropertiesPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   const params = useMemo(
@@ -51,11 +54,17 @@ export default function SuperAdminPropertiesPage() {
     [agenciesQuery.data],
   );
 
+  const goToPage = (next: number) => {
+    const next_params = new URLSearchParams(searchParams.toString());
+    next_params.set('page', String(next));
+    router.replace(`?${next_params.toString()}`);
+  };
+
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-stone-900">Biens</h1>
-        <p className="mt-1 text-sm text-stone-600">
+        <h1 className="font-display text-2xl font-bold text-foreground">Biens</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Catalogue cross-tenant — filtrer, trier et agir sur les biens de toutes les agences.
         </p>
       </header>
@@ -65,20 +74,26 @@ export default function SuperAdminPropertiesPage() {
       {propertiesQuery.isLoading ? (
         <div className="space-y-2" data-testid="properties-loading">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-12 animate-pulse rounded-md bg-stone-200" aria-hidden="true" />
+            <div
+              key={i}
+              className="h-12 animate-pulse rounded-md bg-muted"
+              aria-hidden="true"
+            />
           ))}
         </div>
       ) : propertiesQuery.isError ? (
-        <div className="rounded-xl bg-red-50 p-4 text-sm text-red-900" role="alert">
+        <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive" role="alert">
           Erreur de chargement. {propertiesQuery.error?.displayMessage}
         </div>
       ) : !propertiesQuery.data || propertiesQuery.data.data.length === 0 ? (
-        <p
-          className="rounded-xl bg-white p-6 text-center text-sm text-stone-500 ring-1 ring-stone-200"
-          data-testid="properties-empty"
-        >
-          Aucun bien ne correspond aux filtres courants.
-        </p>
+        <Card>
+          <CardContent
+            className="p-6 text-center text-sm text-muted-foreground"
+            data-testid="properties-empty"
+          >
+            Aucun bien ne correspond aux filtres courants.
+          </CardContent>
+        </Card>
       ) : (
         <>
           <SuperAdminPropertiesTable
@@ -89,48 +104,10 @@ export default function SuperAdminPropertiesPage() {
           <Pagination
             page={propertiesQuery.data.meta.current_page}
             lastPage={propertiesQuery.data.meta.last_page}
+            onChange={goToPage}
           />
         </>
       )}
     </div>
-  );
-}
-
-function Pagination({ page, lastPage }: { page: number; lastPage: number }) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  if (lastPage <= 1) return null;
-
-  const goTo = (next: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('page', String(next));
-    router.replace(`?${params.toString()}`);
-  };
-
-  return (
-    <nav
-      aria-label="Pagination"
-      className="flex items-center justify-between text-sm text-stone-600"
-    >
-      <button
-        type="button"
-        onClick={() => goTo(Math.max(1, page - 1))}
-        disabled={page <= 1}
-        className="rounded-md border border-stone-300 bg-white px-3 py-1 disabled:opacity-50"
-      >
-        Précédent
-      </button>
-      <span>
-        Page {page} sur {lastPage}
-      </span>
-      <button
-        type="button"
-        onClick={() => goTo(Math.min(lastPage, page + 1))}
-        disabled={page >= lastPage}
-        className="rounded-md border border-stone-300 bg-white px-3 py-1 disabled:opacity-50"
-      >
-        Suivant
-      </button>
-    </nav>
   );
 }

@@ -109,9 +109,10 @@ export function useVisit(id: number | null | undefined) {
     fields: {
       property_visits: VISIT_DETAIL_FIELDS,
       properties: ['id', 'title', 'slug'],
-      users: ['id', 'first_name', 'last_name', 'email'],
+      users: ['id', 'first_name', 'last_name', 'email', 'phone'],
+      customers: ['id', 'user_id', 'first_name', 'last_name', 'email', 'phone'],
     },
-    include: ['property', 'agent', 'visitor'],
+    include: ['property', 'agent', 'visitor', 'customer'],
   };
 
   return useApiQuery<ApiResponse<PropertyVisit>>(
@@ -154,6 +155,21 @@ export function useCompleteVisit(id: number) {
 export function useCancelVisit(id: number) {
   return useApiMutation<ApiResponse<PropertyVisit>, { reason?: string }>(
     { path: `/api/property-visits/${id}/cancel`, method: 'POST' },
+    {
+      invalidate: [
+        ['visits', 'list'],
+        ['visits', 'detail', id],
+      ],
+    },
+  );
+}
+
+export function useUpdateVisit(id: number) {
+  return useApiMutation<
+    ApiResponse<PropertyVisit>,
+    { scheduled_at?: string; duration_minutes?: number; notes?: string }
+  >(
+    { path: `/api/property-visits/${id}`, method: 'PATCH' },
     {
       invalidate: [
         ['visits', 'list'],

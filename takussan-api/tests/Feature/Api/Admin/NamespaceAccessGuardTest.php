@@ -3,6 +3,13 @@
 namespace Tests\Feature\Api\Admin;
 
 use App\Models\Agency;
+use App\Models\AgencyUpgradeRequest;
+use App\Models\AlertRule;
+use App\Models\Announcement;
+use App\Models\Integration;
+use App\Models\KycDossier;
+use App\Models\Plan;
+use App\Models\PlatformPayout;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
@@ -24,7 +31,49 @@ class NamespaceAccessGuardTest extends BaseTestCase
         $this->actingAsRole('agency_admin');
 
         $agency = Agency::factory()->create();
+        $alertRule = AlertRule::create([
+            'event' => 'super_admin_setting_updated',
+            'channels_json' => ['email'],
+            'recipients_json' => ['emails' => ['ops@example.test']],
+            'is_active' => true,
+        ]);
         $user = User::factory()->create();
+        $integration = Integration::factory()->create();
+        $dossier = KycDossier::create([
+            'subject_type' => Agency::class,
+            'subject_id' => $agency->id,
+            'status' => 'pending',
+        ]);
+        $plan = Plan::create([
+            'code' => 'test',
+            'label' => 'Test Plan',
+            'monthly_price_xof' => 0,
+            'limits' => [],
+            'is_active' => true,
+        ]);
+        $announcement = Announcement::create([
+            'title' => ['fr' => 'Test'],
+            'body' => ['fr' => 'Test'],
+            'severity' => 'info',
+            'starts_at' => now(),
+            'ends_at' => now()->addDay(),
+        ]);
+        $payout = PlatformPayout::create([
+            'agency_id' => $agency->id,
+            'period_start' => now(),
+            'period_end' => now(),
+            'gross_amount' => 0,
+            'platform_fee_amount' => 0,
+            'net_amount' => 0,
+            'currency' => 'XOF',
+            'status' => 'pending',
+        ]);
+        // TCK-268 — `SubstituteBindings` resolves {upgradeRequest} *before*
+        // EnsureSuperAdmin runs, so without a real row the test would 404
+        // long before the namespace guard gets a chance to 403.
+        $upgradeRequest = AgencyUpgradeRequest::factory()->pending()->create([
+            'agency_id' => $agency->id,
+        ]);
 
         $routes = collect(Route::getRoutes())
             ->filter(fn ($r) => str_starts_with($r->uri(), 'api/admin'));
@@ -39,8 +88,19 @@ class NamespaceAccessGuardTest extends BaseTestCase
 
                 $resolved = '/'.strtr($route->uri(), [
                     '{agency}' => (string) $agency->id,
+                    '{alertRule}' => (string) $alertRule->id,
+                    '{integration}' => (string) $integration->id,
                     '{user}' => (string) $user->id,
+                    '{dossier}' => (string) $dossier->id,
+                    '{plan}' => (string) $plan->id,
+                    '{announcement}' => (string) $announcement->id,
+                    '{payout}' => (string) $payout->id,
+                    '{upgradeRequest}' => (string) $upgradeRequest->id,
                 ]);
+
+                // Replace any remaining unresolved {param} with a dummy id so
+                // route-model binding doesn't fail with a 404 before the guard runs.
+                $resolved = preg_replace('/\{[a-zA-Z_]+\}/', '1', $resolved);
 
                 $payload = $method === 'POST' ? ['user_id' => $user->id] : [];
 

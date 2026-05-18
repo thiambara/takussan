@@ -3,7 +3,9 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Agency;
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\UserStatus;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
@@ -53,11 +55,15 @@ class UserAdminAgencyScopeTest extends ApiTestCase
         $agency = Agency::factory()->create();
         $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
 
+        // TCK-278 — le filtre `?filter[role]=agent` interroge désormais la
+        // présence d'un `AgentProfile` (et non plus la table spatie `roles`).
         $agentUser = User::factory()->create(['agency_id' => $agency->id]);
-        $agentUser->assignRole('agent');
+        AgentProfile::factory()->create([
+            'user_id' => $agentUser->id,
+            'agency_id' => $agency->id,
+        ]);
 
         $customerUser = User::factory()->create(['agency_id' => $agency->id]);
-        $customerUser->assignRole('customer');
 
         $ids = collect($this->apiGet('/api/users?filter[role]=agent')->assertOk()->json('data'))
             ->pluck('id');
@@ -162,5 +168,47 @@ class UserAdminAgencyScopeTest extends ApiTestCase
         $this->apiActingAsRole('agent', ['agency' => $agency]);
 
         $this->apiGet('/api/users')->assertForbidden();
+    }
+
+    /**
+     * TCK-277 — regression: a user holding only an {@see AgencyAdminProfile}
+     * (i.e. an agency admin without an Agent/Owner profile, as produced by
+     * the host wizard or super-admin onboarding) must appear in the
+     * agency-scoped listing. Previously the scope only matched
+     * `agentProfiles`/`ownerProfiles`, hiding the founding admin from
+     * `/admin/team`'s Administrators tab.
+     */
+    public function test_agency_admin_listing_includes_users_with_only_agency_admin_profile(): void
+    {
+        $agency = Agency::factory()->create();
+        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+
+        $pureAdmin = User::factory()->create();
+        AgencyAdminProfile::factory()->create([
+            'user_id' => $pureAdmin->id,
+            'agency_id' => $agency->id,
+        ]);
+
+        $ids = collect(
+            $this->apiGet('/api/users?filter[role]=agency_admin')
+                ->assertOk()
+                ->json('data')
+        )->pluck('id');
+
+        $this->assertTrue(
+            $ids->contains($pureAdmin->id),
+            'AgencyAdminProfile-only user must appear in the agency-scoped listing.',
+        );
+    }
+
+    public function test_individual_agency_admin_cannot_list_users(): void
+    {
+        $agency = Agency::factory()->individual()->create();
+        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+
+        $this->apiGet('/api/users')->assertForbidden();
+
+        $agency->update(['kind' => AgencyKind::Standard]);
+        $this->apiGet('/api/users')->assertOk();
     }
 }

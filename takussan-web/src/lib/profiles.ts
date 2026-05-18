@@ -13,7 +13,7 @@ const profilesQuery = buildQueryString({
 
 export async function fetchMyProfiles(token: string, activeProfileId?: string): Promise<MyProfilesResponse> {
   const headers: Record<string, string> = {};
-  if (activeProfileId) headers['X-Profile-Id'] = activeProfileId;
+  if (activeProfileId) headers['X-Active-Profile-Hint'] = activeProfileId;
 
   return apiRequest<MyProfilesResponse>(
     `/api/me/profiles${profilesQuery ? `?${profilesQuery}` : ''}`,

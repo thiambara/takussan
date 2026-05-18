@@ -3,6 +3,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const ALL = '__all__';
 
@@ -21,14 +28,21 @@ const ROLE_OPTIONS: readonly { value: string; label: string }[] = [
   { value: 'service_provider', label: 'Prestataire' },
 ];
 
+interface AdminUsersFiltersProps {
+  readonly hideRoleFilter?: boolean;
+}
+
 /**
  * TCK-133 — filter bar for `/admin/users` (agency_admin scope). All
  * state is mirrored in the URL query string so the page is shareable
  * and reload-safe. The agency scope itself is implicit — the backend
  * applies it from the active profile (TCK-141 / TCK-147), the frontend
  * never sends `filter[agency_id]`.
+ *
+ * TCK-277 — `hideRoleFilter` lets the unified TeamConsole drive role
+ * selection through its segmented tabs instead.
  */
-export function AdminUsersFilters() {
+export function AdminUsersFilters({ hideRoleFilter = false }: AdminUsersFiltersProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -96,12 +110,14 @@ export function AdminUsersFilters() {
           onChange={(v) => updateParam('filter[status]', v === ALL ? null : v)}
           options={[{ value: ALL, label: 'Tous statuts' }, ...STATUS_OPTIONS]}
         />
-        <FilterSelect
-          label="Rôle"
-          value={currentRole || ALL}
-          onChange={(v) => updateParam('filter[role]', v === ALL ? null : v)}
-          options={[{ value: ALL, label: 'Tous rôles' }, ...ROLE_OPTIONS]}
-        />
+        {hideRoleFilter ? null : (
+          <FilterSelect
+            label="Rôle"
+            value={currentRole || ALL}
+            onChange={(v) => updateParam('filter[role]', v === ALL ? null : v)}
+            options={[{ value: ALL, label: 'Tous rôles' }, ...ROLE_OPTIONS]}
+          />
+        )}
       </div>
     </div>
   );
@@ -121,18 +137,20 @@ function FilterSelect({
   return (
     <label className="flex flex-col text-xs text-app-ink-muted">
       <span className="sr-only">{label}</span>
-      <select
-        aria-label={label}
+      <Select
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="min-w-40 rounded-md border border-input bg-background px-3 py-2 text-sm text-app-ink outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        onValueChange={(next) => onChange(next ?? '')}
+        items={options}
       >
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger className="min-w-40" aria-label={label}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </label>
   );
 }

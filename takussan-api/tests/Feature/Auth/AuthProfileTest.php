@@ -4,6 +4,8 @@ namespace Tests\Feature\Auth;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AuthProfileTest extends TestCase
@@ -106,6 +108,48 @@ class AuthProfileTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonFragment(['phone' => '+221770000000']);
+    }
+
+    public function test_profile_update_stores_avatar_in_media_collection(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+        $token = $user->createToken('test')->plainTextToken;
+
+        $response = $this->withToken($token)->post('/api/auth/profile', [
+            '_method' => 'PUT',
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'avatar' => UploadedFile::fake()->image('avatar.jpg', 256, 256),
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('avatar_url', fn (?string $url) => filled($url));
+
+        $this->assertCount(1, $user->fresh()->getMedia('avatar'));
+    }
+
+    public function test_profile_update_can_remove_avatar(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+        $user->addMedia(UploadedFile::fake()->image('avatar.jpg'))
+            ->toMediaCollection('avatar');
+        $token = $user->createToken('test')->plainTextToken;
+
+        $response = $this->withToken($token)->post('/api/auth/profile', [
+            '_method' => 'PUT',
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'avatar_remove' => '1',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('avatar_url', null);
+
+        $this->assertCount(0, $user->fresh()->getMedia('avatar'));
     }
 
     public function test_profile_update_rejects_non_e164_phone(): void

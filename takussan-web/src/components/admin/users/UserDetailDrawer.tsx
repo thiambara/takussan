@@ -22,6 +22,8 @@ interface UserDetailDrawerProps {
   user: AdminAgencyUserRow | null;
   currentUserId: number;
   onOpenChange: (open: boolean) => void;
+  onRemove?: (user: AdminAgencyUserRow) => void;
+  isRemoving?: boolean;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -46,7 +48,13 @@ function getInitials(u: AdminAgencyUserRow): string {
  * editor and the activate/block toggle. Uses the shared `Sheet` (base-ui
  * dialog) so the focus trap and ESC handling are inherited.
  */
-export function UserDetailDrawer({ user, currentUserId, onOpenChange }: UserDetailDrawerProps) {
+export function UserDetailDrawer({
+  user,
+  currentUserId,
+  onOpenChange,
+  onRemove,
+  isRemoving = false,
+}: UserDetailDrawerProps) {
   const queryClient = useQueryClient();
 
   const blockMutation = useMutation({
@@ -94,11 +102,16 @@ export function UserDetailDrawer({ user, currentUserId, onOpenChange }: UserDeta
                 <Badge variant="outline">
                   {STATUS_LABEL[user.status] ?? user.status}
                 </Badge>
-                {user.roles?.map((r) => (
-                  <Badge key={r.name} variant="outline" className="border-primary/30 bg-primary/5 text-primary">
-                    {r.name}
-                  </Badge>
-                ))}
+                {user.roles?.map((r) => {
+                  // TCK-278 — l'API peut retourner soit une string (UserResource)
+                  // soit `{name}` (UserDetailResource). Normalise.
+                  const name = typeof r === 'string' ? r : r.name;
+                  return (
+                    <Badge key={name} variant="outline" className="border-primary/30 bg-primary/5 text-primary">
+                      {name}
+                    </Badge>
+                  );
+                })}
               </div>
             </SheetHeader>
 
@@ -120,27 +133,41 @@ export function UserDetailDrawer({ user, currentUserId, onOpenChange }: UserDeta
                   {lastError.displayMessage}
                 </p>
               ) : null}
-              {isBlocked ? (
-                <Button
-                  className="w-full"
-                  disabled={isPending || isSelf}
-                  onClick={() => activateMutation.mutate()}
-                >
-                  {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-                  Réactiver le compte
-                </Button>
-              ) : (
-                <Button
-                  className="w-full"
-                  variant="destructive"
-                  disabled={isPending || isSelf}
-                  onClick={() => blockMutation.mutate()}
-                  data-testid="block-user-button"
-                >
-                  {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-                  Bloquer le compte
-                </Button>
-              )}
+              <div className="flex flex-col gap-2">
+                {isBlocked ? (
+                  <Button
+                    className="w-full"
+                    disabled={isPending || isSelf}
+                    onClick={() => activateMutation.mutate()}
+                  >
+                    {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
+                    Réactiver le compte
+                  </Button>
+                ) : (
+                  <Button
+                    className="w-full"
+                    variant="destructive"
+                    disabled={isPending || isSelf}
+                    onClick={() => blockMutation.mutate()}
+                    data-testid="block-user-button"
+                  >
+                    {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
+                    Bloquer le compte
+                  </Button>
+                )}
+                {onRemove ? (
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    disabled={isRemoving || isSelf}
+                    onClick={() => onRemove(user)}
+                    data-testid="remove-user-button"
+                  >
+                    {isRemoving ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
+                    Retirer de l&apos;agence
+                  </Button>
+                ) : null}
+              </div>
               {isSelf ? (
                 <p className="mt-2 text-center text-xs text-app-ink-muted">
                   Vous ne pouvez pas modifier le statut de votre propre compte.

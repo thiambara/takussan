@@ -2,6 +2,7 @@
 
 namespace App\Services\Model;
 
+use App\Events\Lease\LeaseActivated;
 use App\Jobs\GenerateLeasePaymentSchedule;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
@@ -20,7 +21,7 @@ class LeaseService
      */
     public function create(Property $property, User $user, array $data): Lease
     {
-        $canCreate = $user->hasRole(['admin', 'super_admin'])
+        $canCreate = $user->isSuperAdmin()
             || $property->user_id === $user->id
             || ($user->agency_id && $property->agency_id === $user->agency_id);
         abort_unless($canCreate, 403);
@@ -48,9 +49,17 @@ class LeaseService
             'signed_at' => now(),
         ]);
 
-        GenerateLeasePaymentSchedule::dispatch($lease->refresh());
+        $fresh = $lease->refresh();
 
-        return $lease->refresh();
+        GenerateLeasePaymentSchedule::dispatch($fresh);
+
+        // TCK-265 — fan out the welcome notification to the tenant.
+        // The event is `ShouldDispatchAfterCommit`, so even if the caller
+        // wraps activation in a transaction the listener still sees the
+        // committed `status = active` row.
+        LeaseActivated::dispatch($fresh);
+
+        return $fresh;
     }
 
     public function generateSchedule(Lease $lease): int

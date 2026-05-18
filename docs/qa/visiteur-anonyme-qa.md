@@ -1,9 +1,10 @@
 # QA — Visiteur anonyme 👤
 
 **Acteur :** Visiteur non connecté (aucun compte requis)
+**Précondition globale :** Ouvrir une fenêtre **incognito / privée** pour éviter toute session résiduelle.
 **Environnement :** `http://localhost:3000` (frontend) · `http://localhost:8002` (backend)
-**Testeur :** Claude Code (MCP Chrome DevTools)
-**Date :** 2026-04-30
+**Testeur :**
+**Date :**
 **Version :** dev branch
 
 ---
@@ -19,301 +20,805 @@
 
 ---
 
+## Ordre de test optimisé
+
+> Suivre l'ordre ci-dessous pour minimiser les allers-retours entre pages.
+
+1. **Page d'accueil** (`/`) — header, hero, sections, footer
+2. **Liste des biens** (`/properties`) — recherche, filtres, tri, pagination
+3. **Filtres avancés** sur la même page
+4. **Fiche bien publique** (`/properties/[slug]`) — galerie, infos, contact, partage, avis
+5. **Comparateur** (`/compare`) — depuis la liste
+6. **Favoris anonymes** (`/favorites`) — depuis la fiche bien
+7. **Protection des routes privées** — vérification d'accès refusé
+8. **i18n & footer** — changement de langue, liens légaux
+
+---
+
 ## 1. Page d'accueil (`/`)
 
-### TC-VA-01 — Chargement de la page d'accueil
+### TC-VA-01 — Chargement initial
 
-**Q1 :** La page se charge sans erreur console (F12) ?
-> Réponse : Quelques avertissements mineurs (Leaflet CSS) mais aucune erreur bloquante
-> Statut : ✅
+**Étape 1 :** Naviguer vers `http://localhost:3000/` en navigation privée.
 
-**Q2 :** Le logo Takussan est visible dans la navbar ?
-> Réponse : Oui, "Takussan" affiché en haut à gauche
-> Statut : ✅
+**Q1 :** La page se charge en moins de 3 secondes sans erreur bloquante dans la console (F12 → Console) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q3 :** La navbar affiche les liens de navigation (Recherche, Acheter/Louer, catégories) ?
-> Réponse : Oui — dropdown "Acheter", barre de recherche, catégories (Appartement, Villa, Terrain, Commerce, Maison, Bureau, Plus)
-> Statut : ✅
+**Q2 :** Le logo "Takussan" est visible en haut à gauche, cliquable, et renvoie sur `/` ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q4 :** Les boutons "Connexion" et "Publier" sont visibles ?
-> Réponse : Oui, "Connexion" et "Publier" (bleu) présents en haut à droite
-> Statut : ✅
+**Q3 :** La barre de navigation affiche le sélecteur "Acheter / Louer", la barre de recherche (champ ville/quartier) et le bouton "Rechercher" ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q5 :** La section "Biens en vedette" affiche des cartes de biens avec prix, localisation et type ?
-> Réponse : Oui, section présente avec cartes prix/localisation/type
-> Statut : ✅
+**Q4 :** La barre de catégories sous le hero affiche au moins : Appartement, Villa, Terrain, Commerce, Maison, Bureau, et un menu "Plus" ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q6 :** La section "Derniers ajouts" affiche des biens différents de "En vedette" ?
-> Réponse : Certains biens apparaissent dans les deux sections simultanément
-> Statut : ⚠️
+**Q5 :** Les boutons "Connexion" et "Publier" (CTA bleu) sont visibles en haut à droite ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q7 :** Le footer est complet (liens, réseaux sociaux, newsletter) et fonctionnel ?
-> Réponse : Footer présent avec tagline, newsletter et liens "Découvrir". Icônes réseaux sociaux absentes (WhatsApp, Facebook, Twitter/X manquants)
-> Statut : ⚠️
+**Q6 :** Le sélecteur de langue (FR / EN / WO) est présent dans la barre supérieure ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q8 :** En cliquant "Connexion", la redirection va vers `/auth/login` ?
-> Réponse : Oui, redirige correctement vers /auth/login
-> Statut : ✅
+### TC-VA-02 — Sections de découverte
 
-**Q9 :** En cliquant "Publier" sans être connecté, l'utilisateur est redirigé vers l'authentification ?
-> Réponse : Oui, redirige vers /auth/login
-> Statut : ✅
+**Q1 :** La section "Biens en vedette" affiche au moins 4 cartes avec photo, prix en F CFA, ville, type de bien et nombre de chambres ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
----
+**Q2 :** La section "Derniers ajouts" affiche des biens distincts de "En vedette" (pas de doublons visibles) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-## 2. Recherche plein-texte et filtres de base (`/properties`)
+**Q3 :** Survoler une carte de bien fait apparaître un effet visuel (ombre, agrandissement, ou bouton "Voir") ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-### TC-VA-02 — Barre de recherche
+**Q4 :** Cliquer sur une carte ouvre la fiche détaillée du bien sur `/properties/[slug]` ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q1 :** La barre de recherche sur l'accueil redirige vers `/properties?search=...` après soumission ?
-> Réponse : NON — la barre envoie `city=` au lieu de `search=`. Ex : "Dakar" → `/properties?city=Dakar` (pas `?search=Dakar`)
-> Statut : ❌
+### TC-VA-03 — Footer
 
-**Q2 :** Le texte saisi est bien préservé dans l'URL après soumission ?
-> Réponse : Oui, le texte est dans l'URL, mais sous le mauvais paramètre (`city=` au lieu de `search=`)
-> Statut : ⚠️
+**Étape 1 :** Faire défiler la page jusqu'en bas.
 
-**Q3 :** La recherche "appartement Dakar" retourne des résultats cohérents ?
-> Réponse : NON — 0 résultats car la valeur entière "appartement Dakar" est passée comme nom de ville exact
-> Statut : ❌
+**Q1 :** Le footer contient les colonnes : à propos / liens utiles / contact / réseaux sociaux ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q4 :** Le compteur de résultats ("X biens trouvés") est affiché et se met à jour avec les filtres ?
-> Réponse : Oui, "303 biens trouvés" affiché, se met à jour avec les filtres actifs
-> Statut : ✅
+**Q2 :** Les icônes des réseaux sociaux (WhatsApp, Facebook, Twitter/X, Instagram) sont présentes et cliquables ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-### TC-VA-03 — Filtres de base
+**Q3 :** Le formulaire de newsletter est présent et accepte une saisie d'email ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q1 :** Le filtre **Type de transaction** (Vente / Location) fonctionne et réduit les résultats ?
-> Réponse : Oui, cliquer "Vente" ou "Location" filtre correctement les résultats
-> Statut : ✅
+**Q4 :** Soumettre la newsletter avec un email valide renvoie un message de confirmation ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q2 :** Le filtre **Type de bien** (Appartement, Villa, Terrain, Commerce, etc.) fonctionne ?
-> Réponse : Oui, tous les types présents (Appartement, Maison, Villa, Studio, Chambre, Terrain, Bureau, Commerce, Entrepôt, Hôtel, Complexe, Garage, Parking, Ferme, Usine, Autre)
-> Statut : ✅
+**Q5 :** Soumettre la newsletter avec un email vide ou invalide affiche une erreur ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q3 :** Le filtre **Ville** fonctionne et réduit les résultats ?
-> Réponse : Oui, via `?city=Dakar` — les résultats sont filtrés par ville
-> Statut : ✅
+### TC-VA-04 — CTAs Connexion / Publier (route protégée)
 
-**Q4 :** Le filtre **Budget min/max** fonctionne correctement ?
-> Réponse : Oui, champs Min/Max FCFA présents et fonctionnels (ex: `?price_min=50000&price_max=200000`)
-> Statut : ✅
+**Étape 1 :** Cliquer sur "Connexion" en haut à droite.
 
-**Q5 :** Le filtre **Chambres** fonctionne (ex: "2 ch." réduit les résultats) ?
-> Réponse : Oui, filtre Chambres présent et réduit les résultats correctement
-> Statut : ✅
+**Q1 :** La redirection mène vers `/auth/login` avec le formulaire de connexion ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q6 :** Le filtre **Surface** (min/max m²) fonctionne ?
-> Réponse : Oui, champs Min m² / Max m² présents et fonctionnels
-> Statut : ✅
+**Étape 2 :** Revenir à `/` (logo Takussan) puis cliquer sur "Publier".
 
-**Q7 :** Les tags de filtres actifs (avec ×) apparaissent au-dessus des résultats ?
-> Réponse : Oui, chips de filtres actifs affichées avec × pour supprimer individuellement
-> Statut : ✅
-
-**Q8 :** Le bouton "Tout effacer" supprime tous les filtres et restaure les résultats complets ?
-> Réponse : Oui, "Tout effacer" réinitialise tous les filtres et recharge les 303 résultats
-> Statut : ✅
-
-### TC-VA-04 — Tri des résultats
-
-**Q1 :** Le tri par **Prix croissant** réordonne les biens correctement ?
-> Réponse : Oui — `?sort=price_asc` : 50 000 → 50 000 → 100 000 → 197 552 → 226 077 F CFA
-> Statut : ✅
-
-**Q2 :** Le tri par **Prix décroissant** fonctionne ?
-> Réponse : Oui — `?sort=price_desc` : 999 999 999 → 999 999 999 → 500 000 000 → 451 000 000 F CFA
-> Statut : ✅
-
-**Q3 :** Le tri par **Récence** (derniers ajouts en premier) fonctionne ?
-> Réponse : Oui — `?sort=created_desc` affiche "il y a 4 jours", "la semaine dernière" en tête
-> Statut : ✅
-
-**Q4 :** Le tri par **Pertinence** fonctionne quand une recherche textuelle est active ?
-> Réponse : Le paramètre `sort=relevance` ne provoque pas d'erreur mais la recherche textuelle (`search=`) ne filtre pas réellement, donc la pertinence ne peut pas être pleinement évaluée
-> Statut : ⚠️
-
-**Q5 :** Les labels du dropdown de tri sont en français (pas les valeurs internes comme `price_asc`) ?
-> Réponse : NON — le bouton/trigger du dropdown affiche les clés internes (`relevance`, `price_asc`, `created_desc`) quand une option est sélectionnée. Les options dans le dropdown ouvert sont en français (Pertinence, Prix ↑, Prix ↓, Plus récent)
-> Statut : ❌
-
-### TC-VA-05 — Pagination
-
-**Q1 :** La pagination est présente et fonctionnelle (page 1, 2, 3…) ?
-> Réponse : Oui — 11 pages pour 303 résultats (30/page), navigation 1, 2, ..., 11 fonctionnelle
-> Statut : ✅
-
-**Q2 :** Le changement de page ne remet pas les filtres à zéro ?
-> Réponse : Oui, les paramètres de filtre sont maintenus dans l'URL lors du changement de page
-> Statut : ✅
+**Q2 :** L'utilisateur anonyme est redirigé vers `/auth/login?redirect=...` (page de connexion avec retour prévu) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
 ---
 
-## 3. Filtres avancés (P1)
+## 2. Recherche depuis la page d'accueil
 
-### TC-VA-06 — Filtres avancés
+### TC-VA-05 — Recherche plein-texte (depuis le hero)
 
-**Q1 :** Un filtre **Amenités / Équipements** (piscine, parking, gardiennage, etc.) est disponible ?
-> Réponse : Oui — section "Équipements" avec champ texte libre (placeholder "piscine, parking, terrasse..."), séparation par virgules
-> Statut : ✅
+**Étape 1 :** Sur `/`, cliquer dans la barre de recherche (champ ville/quartier).
 
-**Q2 :** Le filtre **Disponibilité** (disponible immédiatement, date) existe ?
-> Réponse : Non — aucun filtre de disponibilité trouvé dans le panneau de filtres
-> Statut : ❌
+**Q1 :** Une auto-complétion affiche des suggestions dès la saisie de 2-3 caractères (ex: "Da" → Dakar, Dakar Plateau…) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q3 :** Le filtre **Étage** est disponible pour les appartements ?
-> Réponse : Non — aucun filtre d'étage trouvé dans le panneau de filtres
-> Statut : ❌
+**Étape 2 :** Saisir `Dakar` puis cliquer sur "Rechercher".
 
-**Q4 :** Le filtre **Meublé / Non meublé** est disponible ?
-> Réponse : Toggle "Meublé uniquement" présent sous "État du bien" — permet de filtrer uniquement les meublés, pas une option binaire meublé/non-meublé
-> Statut : ⚠️
+**Q2 :** L'URL résultante est `/properties?city=Dakar` (ou équivalent) avec des résultats correspondants ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 3 :** Revenir à `/`, sélectionner "Louer" dans le sélecteur, saisir `Yoff` puis rechercher.
+
+**Q3 :** Les résultats sont filtrés à la fois par ville **et** par type de transaction (location uniquement) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 4 :** Revenir à `/`, saisir une chaîne libre comme `appartement avec piscine`.
+
+**Q4 :** La recherche envoie cette saisie comme paramètre de recherche textuelle (`search=` ou équivalent) et renvoie des résultats pertinents ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+---
+
+## 3. Liste des biens (`/properties`)
+
+> ⚠️ Tous les TC suivants se font sur `/properties`. Garder l'onglet ouvert pour éviter les rechargements.
+
+### TC-VA-06 — Affichage de la liste
+
+**Étape 1 :** Naviguer directement vers `http://localhost:3000/properties` (sans filtre).
+
+**Q1 :** Le compteur de résultats ("X biens trouvés" ou similaire) est affiché en haut de la liste ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** Chaque carte affiche : photo (ou placeholder), titre, prix F CFA, ville, type, surface en m², chambres/SDB ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q3 :** Un panneau de filtres latéral (gauche) ou en haut est visible avec les sections : Transaction, Type, Ville, Budget, Chambres, Surface ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q4 :** Un dropdown de tri (Pertinence, Prix ↑, Prix ↓, Récents) est visible en haut à droite des résultats ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-VA-07 — Filtres de base
+
+**Étape 1 :** Cliquer sur le filtre "Vente" (ou case "Acheter" dans le filtre Transaction).
+
+**Q1 :** Les résultats sont mis à jour, l'URL contient `transaction=sale` (ou équivalent), le compteur diminue ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Cocher "Appartement" dans le filtre "Type de bien".
+
+**Q2 :** Les résultats sont à nouveau filtrés (uniquement appartements en vente) et l'URL est mise à jour ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 3 :** Saisir `Dakar` dans le filtre "Ville".
+
+**Q3 :** Les résultats sont filtrés par ville et le compteur reflète le changement ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 4 :** Saisir un budget min de `50000` et un budget max de `200000000` (en F CFA).
+
+**Q4 :** Les résultats hors plage (< 50 000 ou > 200 000 000) disparaissent ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 5 :** Sélectionner "2+" dans le filtre "Chambres".
+
+**Q5 :** Les résultats à 0 ou 1 chambre disparaissent ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 6 :** Saisir une surface min de `50` m².
+
+**Q6 :** Les biens < 50 m² disparaissent ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 7 :** Vérifier en haut des résultats que des chips/tags de filtres actifs sont affichés (avec un × pour les retirer un par un).
+
+**Q7 :** Les chips reflètent fidèlement chaque filtre actif (Vente, Appartement, Dakar, 50k–200M, 2+ ch., 50+ m²) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 8 :** Cliquer sur le × du chip "Dakar".
+
+**Q8 :** Le filtre Ville est retiré, l'URL est mise à jour, les résultats incluent à nouveau les autres villes ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 9 :** Cliquer sur le bouton "Tout effacer" / "Réinitialiser les filtres".
+
+**Q9 :** Tous les filtres sont vidés, l'URL revient à `/properties` simple, le compteur affiche le total initial ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-VA-08 — Tri des résultats
+
+**Étape 1 :** Ouvrir le dropdown de tri en haut à droite.
+
+**Q1 :** Les options affichent des libellés français (Pertinence, Prix croissant, Prix décroissant, Plus récent) — pas des clés techniques (`price_asc`, `created_desc`) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Sélectionner "Prix croissant".
+
+**Q2 :** Les premiers résultats affichent les prix les plus bas, en ordre croissant strict ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q3 :** Le dropdown affiche ensuite "Prix croissant" (libellé français) — pas la clé interne `price_asc` ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 3 :** Sélectionner "Prix décroissant".
+
+**Q4 :** Les premiers résultats affichent les prix les plus élevés ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 4 :** Sélectionner "Plus récent".
+
+**Q5 :** Les biens créés/publiés le plus récemment apparaissent en premier (date "il y a X jours" visible) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 5 :** Saisir un mot-clé dans la barre de recherche en haut, puis sélectionner "Pertinence".
+
+**Q6 :** Les résultats les plus pertinents pour le mot-clé apparaissent en premier ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-VA-09 — Pagination
+
+**Étape 1 :** Réinitialiser les filtres pour avoir le maximum de résultats. Faire défiler en bas de la liste.
+
+**Q1 :** Une pagination (1, 2, 3 … N) est présente et indique correctement le nombre total de pages ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Cliquer sur la page 2.
+
+**Q2 :** Les résultats changent (nouveaux biens), l'URL contient `page=2`, le scroll remonte en haut de la liste ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 3 :** Appliquer un filtre (ex: Vente), puis cliquer sur la page 2.
+
+**Q3 :** Les filtres sont conservés sur la page 2 (URL contient `transaction=sale&page=2`) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 4 :** Cliquer sur le bouton "Précédent" / "Suivant" pour vérifier la navigation.
+
+**Q4 :** Les boutons précédent/suivant sont désactivés sur la première / dernière page ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-VA-10 — Filtres avancés (P1)
+
+**Étape 1 :** Sur `/properties`, ouvrir le panneau de filtres avancés (peut nécessiter un bouton "Plus de filtres").
+
+**Q1 :** Un filtre "Amenités / Équipements" (piscine, parking, gardiennage…) est disponible ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** Un filtre "Disponibilité" (date à partir de laquelle le bien est disponible) est présent ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q3 :** Un filtre "Étage" (pour les appartements) est présent ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q4 :** Un toggle ou filtre "Meublé / Non meublé" est présent ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Activer un de ces filtres avancés et vérifier que les résultats sont mis à jour.
+
+**Q5 :** L'application des filtres avancés se reflète dans l'URL et le compteur diminue cohéremment ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-VA-11 — Recherche par carte (P1)
+
+**Étape 1 :** Repérer un toggle "Vue carte" / icône carte sur `/properties`.
+
+**Q1 :** Le toggle "Vue carte" est présent et bascule l'affichage sur une carte interactive ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** Les biens sont représentés par des marqueurs avec leur prix sur la carte ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q3 :** Cliquer sur un marqueur ouvre une mini-fiche du bien (prix, photo, lien) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q4 :** Déplacer/zoomer sur la carte met à jour la liste et les marqueurs visibles ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
 ---
 
 ## 4. Fiche bien publique (`/properties/[slug]`)
 
-### TC-VA-07 — Affichage de la fiche bien
+### TC-VA-12 — Ouverture de la fiche
 
-**Q1 :** La fiche bien s'affiche avec un titre, une adresse, le prix et la surface ?
-> Réponse : Oui — "Appartement F2 à Yoff", adresse "Yoff, Dakar, Dakar, SN", 174 000 000 F CFA, surface visible
-> Statut : ✅
+**Étape 1 :** Depuis `/properties`, cliquer sur la première carte de bien.
 
-**Q2 :** La galerie photos s'affiche correctement et est navigable (précédent/suivant) ?
-> Réponse : Zone galerie présente mais affiche "Aucune photo disponible" / "Photo à venir" — données de dev sans photos
-> Statut : ⚠️
+**Q1 :** L'URL devient `/properties/[slug-du-bien]` (slug lisible) et la page se charge sans erreur ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q3 :** Les caractéristiques détaillées (chambres, SDB, surface, année de construction) sont visibles ?
-> Réponse : Oui — chambres, SDB, surface, année de construction (2027) affichés dans les caractéristiques
-> Statut : ✅
+**Q2 :** Un breadcrumb (fil d'Ariane) est affiché : Accueil > Acheter|Louer > Ville > Quartier ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q4 :** La description du bien est affichée ?
-> Réponse : Oui — "Magnifique bien situé à Yoff, eau et électricité disponibles..."
-> Statut : ✅
+### TC-VA-13 — Galerie photos
 
-**Q5 :** L'agent responsable est affiché (nom, agence) ?
-> Réponse : Oui — nom de l'agent et agence affichés dans le panneau de droite
-> Statut : ✅
+**Q1 :** La galerie principale affiche la photo de couverture du bien ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q6 :** Le breadcrumb de navigation est présent (Accueil > Type > Ville > Quartier) ?
-> Réponse : Oui — "Accueil > Acheter > Dakar > Yoff"
-> Statut : ✅
+**Q2 :** Des miniatures de photos secondaires sont visibles sous la photo principale ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-### TC-VA-08 — Formulaire de contact
+**Q3 :** Cliquer sur une miniature change la photo principale ou ouvre une lightbox ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q1 :** Un formulaire de contact ou un bouton "Contacter l'agent" est présent sur la fiche ?
-> Réponse : Oui — bouton "Envoyer un message" présent dans le panneau de droite
-> Statut : ✅
+**Q4 :** La navigation précédent/suivant fonctionne (clavier ← →, ou flèches sur l'image) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q2 :** Tenter de contacter sans être connecté redirige vers la page de login ?
-> Réponse : NON — cliquer "Envoyer un message" affiche une modale "Connexion requise" au lieu de rediriger vers /auth/login
-> Statut : ⚠️
+**Q5 :** Si le bien n'a aucune photo, un placeholder explicite est affiché ("Photo à venir" ou similaire) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q3 :** Le bouton "Réserver" est visible sur la fiche bien ?
-> Réponse : Bouton de réservation présent mais libellé "Faire une offre" (pas "Réserver") — incohérence avec la spec
-> Statut : ⚠️
+### TC-VA-14 — Caractéristiques détaillées
 
-**Q4 :** Cliquer "Réserver" sans être connecté demande bien de se connecter (pas d'accès direct) ?
-> Réponse : Oui — modale "Connectez-vous pour réserver / Vous devez être connecté pour faire une demande de réservation"
-> Statut : ✅
+**Q1 :** Le titre, le prix (F CFA, format "1 234 567"), l'adresse complète et le type de transaction sont en haut de la fiche ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q5 :** Le bouton "Demander une visite" est visible ?
-> Réponse : Oui, visible. MAIS : le formulaire s'ouvre directement sans demander de connexion — bug d'authentification (visiteur anonyme peut soumettre une demande de visite)
-> Statut : ❌
+**Q2 :** Les caractéristiques principales sont listées : surface, chambres, SDB, étage (si applicable), année de construction ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q3 :** La description complète du bien est affichée en pleine largeur (paragraphes lisibles) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q4 :** Les amenités/équipements (piscine, parking, climatisation…) sont affichés sous forme de liste avec icônes ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q5 :** Une carte (Leaflet/Google Maps) montre la localisation du bien ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q6 :** L'agent ou l'agence responsable du bien est identifié·e dans une carte/panneau dédié (nom, photo, agence) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q7 :** Une référence unique du bien (ex: TK-2025-001) est visible quelque part sur la fiche ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-VA-15 — Compteur de vues
+
+**Étape 1 :** Noter le nombre de vues affiché (s'il existe). Recharger la page (F5).
+
+**Q1 :** Un compteur "X vues" est visible sur la fiche ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** Le compteur s'incrémente (au plus tard après plusieurs rechargements) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-VA-16 — Formulaire de contact
+
+**Étape 1 :** Repérer le bouton "Contacter l'agent" / "Envoyer un message" dans le panneau latéral.
+
+**Q1 :** Le bouton est visible et cliquable ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Cliquer sur le bouton de contact.
+
+**Q2 :** Pour un visiteur anonyme, un formulaire public s'affiche avec les champs : Nom, Email, Téléphone, Message ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q3 :** Le bouton "Envoyer" est désactivé tant que les champs requis ne sont pas remplis ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 3 :** Saisir nom = `Test Visiteur`, email invalide `pasunemail`, message = `Bonjour`, puis tenter d'envoyer.
+
+**Q4 :** Une erreur de validation sur l'email s'affiche ("Adresse e-mail invalide" ou similaire) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 4 :** Corriger l'email en `visiteur@test.fr`, soumettre.
+
+**Q5 :** Un toast/banner de succès s'affiche ("Message envoyé") et le formulaire se ferme ou se vide ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-VA-17 — Demande de réservation (route protégée)
+
+**Étape 1 :** Sur la fiche bien, repérer le bouton "Réserver" / "Faire une offre".
+
+**Q1 :** Le bouton est visible avec un libellé clair (cohérent avec la spec : "Réserver" pour location, "Faire une offre" pour vente) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Cliquer sur "Réserver".
+
+**Q2 :** Une modale "Connexion requise" s'affiche **OU** redirection vers `/auth/login?redirect=...` ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q3 :** Un visiteur anonyme ne peut **pas** soumettre une demande de réservation sans s'authentifier ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-VA-18 — Demande de visite (route protégée)
+
+**Étape 1 :** Sur la fiche bien, repérer le bouton "Demander une visite" / "Planifier une visite".
+
+**Q1 :** Le bouton est visible ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Cliquer sur "Demander une visite".
+
+**Q2 :** Une modale demande de se connecter **OU** redirige vers `/auth/login` (le formulaire de visite ne doit PAS s'ouvrir directement pour un visiteur anonyme) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-VA-19 — Partage du bien
+
+**Étape 1 :** Sur la fiche bien, repérer le bouton "Partager" en haut.
+
+**Q1 :** Le bouton est visible et ouvre une modale au clic ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** La modale affiche une URL canonique du bien (`/properties/[slug]`) avec un bouton "Copier" ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Cliquer sur "Copier".
+
+**Q3 :** Un feedback visuel ("Lien copié !") s'affiche ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q4 :** Coller l'URL dans un nouvel onglet ouvre la même fiche ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q5 :** Des boutons de partage WhatsApp, Facebook, X/Twitter, Email sont présents et fonctionnels ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-VA-20 — Avis publics (P2)
+
+**Étape 1 :** Faire défiler la fiche bien jusqu'à la section "Avis".
+
+**Q1 :** La section "Avis" est visible ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** Si des avis existent : auteur, note (étoiles), date, texte sont affichés ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q3 :** Si aucun avis n'existe, un message clair "Aucun avis pour l'instant" s'affiche ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q4 :** Les éventuelles réponses publiques de l'agent / propriétaire sont visibles sous l'avis ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-VA-21 — Signaler un avis ou une annonce (P2)
+
+**Étape 1 :** Sur la fiche bien, repérer le lien "Signaler cette annonce".
+
+**Q1 :** Le lien est visible (souvent en bas de la fiche) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Cliquer sur "Signaler cette annonce".
+
+**Q2 :** Pour un visiteur anonyme, soit une modale "Connexion requise" s'affiche, soit un formulaire public minimal (motif + email) s'ouvre ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q3 :** Le menu "Motif" propose : Spam, Annonce trompeuse, Arnaque/fraude, Contenu inapproprié, Autre — avec libellés français (pas les clés techniques) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 3 :** Si un avis est présent dans la section avis, repérer un bouton "Signaler cet avis" sur l'avis lui-même.
+
+**Q4 :** Un signalement par avis individuel est-il disponible (sinon : géré globalement par signalement d'annonce) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+### TC-VA-22 — Biens similaires (P2)
+
+**Étape 1 :** Faire défiler tout en bas de la fiche bien.
+
+**Q1 :** Une section "Biens similaires" affiche 3 à 6 biens dans la même ville ou du même type ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** Cliquer sur un bien similaire mène à sa fiche ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
 ---
 
-## 5. Partage d'un bien (P1)
+## 5. Comparateur de biens (`/compare`) (P2)
 
-### TC-VA-09 — Partage
+### TC-VA-23 — Sélection de biens à comparer
 
-**Q1 :** Un bouton ou lien de partage est présent sur la fiche bien ?
-> Réponse : Oui — bouton "Partager" en haut de la fiche, à côté du titre
-> Statut : ✅
+**Étape 1 :** Retourner sur `/properties`. Repérer un bouton "Comparer" ou une case à cocher sur les cartes.
 
-**Q2 :** L'option "Copier le lien" génère une URL directe vers la fiche ?
-> Réponse : Oui — URL correcte affichée : `http://localhost:3000/properties/appartement-f2-a-yoff-2p27sk`, bouton "Copier" présent (sans feedback visuel de confirmation)
-> Statut : ✅
+**Q1 :** Une case à cocher / bouton "Comparer" est présente sur chaque carte de bien ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q3 :** Des icônes de partage sur les réseaux sociaux (WhatsApp, Facebook, Twitter/X) sont disponibles ?
-> Réponse : Oui — WhatsApp, Facebook, X, Email présents dans la modale de partage
-> Statut : ✅
+**Étape 2 :** Cocher 2 biens.
 
-**Q4 :** L'URL partagée ouvre bien la bonne fiche bien quand on la colle dans le navigateur ?
-> Réponse : Oui — l'URL slug ouvre directement la fiche correspondante
-> Statut : ✅
+**Q2 :** Une barre flottante apparaît en bas de l'écran indiquant "X biens sélectionnés" avec un bouton "Comparer" ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
----
+**Étape 3 :** Cocher un 3e, puis un 4e bien.
 
-## 6. Avis publics (P2)
+**Q3 :** La sélection est plafonnée (max 4 biens) avec un toast d'avertissement si dépassement ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-### TC-VA-10 — Consultation des avis
+**Étape 4 :** Cliquer sur "Comparer" dans la barre flottante.
 
-**Q1 :** La section "Avis" est visible sur la fiche bien (ou la fiche agence/agent) ?
-> Réponse : Oui — section "Avis" présente en bas de la fiche bien, affiche "Aucun avis pour l'instant"
-> Statut : ✅
+**Q4 :** L'URL devient `/compare?ids=...` et un tableau comparatif (prix, surface, chambres, type, ville, équipements) s'affiche en colonnes ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
-**Q2 :** Les avis affichent auteur, note (étoiles), date et texte ?
-> Réponse : Impossible à vérifier — aucun avis dans les données de développement
-> Statut : 🔲
-
-**Q3 :** Les réponses publiques des propriétaires/agents aux avis sont visibles ?
-> Réponse : Impossible à vérifier — aucun avis dans les données de développement
-> Statut : 🔲
-
-### TC-VA-11 — Signalement d'un avis
-
-**Q1 :** Un lien "Signaler cet avis" est disponible sur chaque avis public ?
-> Réponse : Lien "Signaler cette annonce" présent pour l'annonce globale. Pas de signalement par avis individuel (aucun avis disponible pour vérifier)
-> Statut : ⚠️
-
-**Q2 :** Le clic sur "Signaler" sans être connecté demande de se connecter ?
-> Réponse : NON — le formulaire "Signaler cette annonce" s'ouvre directement sans authentification
-> Statut : ❌
-
-**Q3 :** Le formulaire de signalement permet de choisir un motif ?
-> Réponse : Oui — dropdown Motif avec : Spam, Annonce trompeuse, Arnaque / fraude, Contenu inapproprié, Autre. NOTE : le trigger affiche la clé interne `spam` au lieu du label "Spam" quand fermé
-> Statut : ✅
+**Q5 :** Chaque colonne du comparateur a un bouton "✕" pour retirer le bien et un lien vers la fiche complète ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
 ---
 
-## 7. Protection des routes
+## 6. Favoris anonymes (`/favorites`)
 
-### TC-VA-12 — Accès refusé aux zones privées
+### TC-VA-24 — Ajouter un favori anonyme
+
+**Étape 1 :** Retourner sur `/properties`. Repérer une icône "♥" (cœur) sur les cartes de bien.
+
+**Q1 :** L'icône cœur est présente sur chaque carte et cliquable sans être connecté ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Cliquer sur le cœur d'un bien.
+
+**Q2 :** Le cœur passe à l'état "rempli" (couleur active) et un toast "Ajouté aux favoris" apparaît ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q3 :** Un compteur de favoris apparaît dans la navbar (icône cœur avec badge "1") ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 3 :** Cliquer sur l'icône favoris dans la navbar.
+
+**Q4 :** Un popover affiche les biens favoris stockés localement (Zustand store) avec photo + titre + prix ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 4 :** Cliquer sur "Voir tous mes favoris" (ou équivalent).
+
+**Q5 :** L'URL devient `/favorites` et la liste complète des favoris anonymes s'affiche ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q6 :** Recharger la page (F5) — les favoris sont-ils conservés (persistance localStorage) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 5 :** Cliquer à nouveau sur le cœur d'un favori pour le retirer.
+
+**Q7 :** Le cœur redevient vide, le toast "Retiré des favoris" apparaît, le compteur diminue ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+---
+
+## 7. Protection des routes privées
+
+### TC-VA-25 — Tentatives d'accès direct aux zones protégées
+
+**Étape 1 :** Pour chaque URL ci-dessous, saisir l'URL directement dans la barre d'adresse en navigation privée :
 
 | Route | Comportement attendu | Comportement observé | Statut |
-|-------|---------------------|----------------------|--------|
-| `/app` | Redirection vers `/auth/login` | Redirige vers `/auth/login` | ✅ |
-| `/app/properties` | Redirection vers `/auth/login` | Redirige vers `/auth/login?redirect=%2Fapp%2Fproperties` | ✅ |
-| `/app/leases` | Redirection vers `/auth/login` | Redirige vers `/auth/login?redirect=%2Fapp%2Fleases` | ✅ |
-| `/app/messages` | Redirection vers `/auth/login` | Redirige vers `/auth/login?redirect=%2Fapp%2Fmessages` | ✅ |
-| `/admin` | Redirection vers `/auth/login` | Redirige vers `/auth/login?redirect=%2Fadmin` | ✅ |
-| `/admin/team` | Redirection vers `/auth/login` | Redirige vers `/auth/login?redirect=%2Fadmin%2Fteam` | ✅ |
+|-------|----------------------|----------------------|--------|
+| `/app` | Redirection vers `/auth/login?redirect=%2Fapp` | _______ | ✅ ❌ ⚠️ 🔲 |
+| `/app/properties` | Redirection vers `/auth/login?redirect=...` | _______ | ✅ ❌ ⚠️ 🔲 |
+| `/app/leases` | Redirection vers `/auth/login?redirect=...` | _______ | ✅ ❌ ⚠️ 🔲 |
+| `/app/messages` | Redirection vers `/auth/login?redirect=...` | _______ | ✅ ❌ ⚠️ 🔲 |
+| `/app/payments` | Redirection vers `/auth/login?redirect=...` | _______ | ✅ ❌ ⚠️ 🔲 |
+| `/app/profile` | Redirection vers `/auth/login?redirect=...` | _______ | ✅ ❌ ⚠️ 🔲 |
+| `/admin` | Redirection vers `/auth/login?redirect=%2Fadmin` | _______ | ✅ ❌ ⚠️ 🔲 |
+| `/admin/team` | Redirection vers `/auth/login` | _______ | ✅ ❌ ⚠️ 🔲 |
+| `/admin/users` | Redirection vers `/auth/login` | _______ | ✅ ❌ ⚠️ 🔲 |
+| `/admin/finances` | Redirection vers `/auth/login` | _______ | ✅ ❌ ⚠️ 🔲 |
+| `/super-admin` | Redirection vers `/auth/login` | _______ | ✅ ❌ ⚠️ 🔲 |
+
+**Q1 :** Aucune des routes ci-dessus ne laisse fuiter du contenu privé (pas de flash de page protégée avant redirection) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** Après login, l'utilisateur est correctement redirigé vers la route initialement demandée (paramètre `redirect=`) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
 
 ---
 
-## 8. Récapitulatif des bugs trouvés
+## 8. i18n & langues
+
+### TC-VA-26 — Changement de langue
+
+**Étape 1 :** Sur `/`, cliquer sur le sélecteur de langue.
+
+**Q1 :** Les options FR / EN / WO sont disponibles ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Sélectionner "EN".
+
+**Q2 :** Les libellés de navigation, hero, sections, footer passent en anglais ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q3 :** Naviguer vers `/properties` — les filtres et les libellés sont aussi en anglais ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q4 :** La langue choisie est conservée après rechargement (cookie/localStorage) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 3 :** Sélectionner "WO" (Wolof).
+
+**Q5 :** Les chaînes traduites en wolof apparaissent (au moins partiellement) sans casser la mise en page ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 4 :** Revenir en FR pour la suite des tests.
+
+---
+
+## 9. Pages annexes (mentions légales)
+
+### TC-VA-27 — Liens du footer
+
+**Étape 1 :** Cliquer sur chacun des liens du footer (Mentions légales, CGU, Politique de confidentialité, Cookies, Contact, À propos…).
+
+| Lien | URL attendue | Page chargée | Statut |
+|------|--------------|--------------|--------|
+| Mentions légales | `/mentions-legales` | _______ | ✅ ❌ ⚠️ 🔲 |
+| CGU | `/cgu` | _______ | ✅ ❌ ⚠️ 🔲 |
+| Politique de confidentialité | `/confidentialite` | _______ | ✅ ❌ ⚠️ 🔲 |
+| Cookies | `/cookies` | _______ | ✅ ❌ ⚠️ 🔲 |
+| À propos | `/a-propos` | _______ | ✅ ❌ ⚠️ 🔲 |
+| Contact | `/contact` | _______ | ✅ ❌ ⚠️ 🔲 |
+| Recherche | `/properties` | _______ | ✅ ❌ ⚠️ 🔲 |
+
+**Q1 :** Tous les liens du footer mènent à des pages existantes (pas de 404) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** Les pages légales contiennent du contenu (pas de placeholder vide) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+---
+
+## 10. Performance & accessibilité (rapide)
+
+### TC-VA-28 — Audit léger Lighthouse
+
+**Étape 1 :** Sur `/`, ouvrir DevTools → Lighthouse → analyser en mode mobile.
+
+**Q1 :** Score Performance ≥ 70 ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** Score Accessibilité ≥ 85 ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q3 :** Score SEO ≥ 90 ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q4 :** Pas d'erreur "Cumulative Layout Shift" majeure ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Étape 2 :** Naviguer au clavier uniquement (Tab / Shift+Tab / Entrée) sur la page d'accueil.
+
+**Q5 :** Tous les éléments interactifs (liens, boutons, inputs) sont atteignables au clavier avec un focus visible ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+---
+
+## 11. Responsive (mobile)
+
+### TC-VA-29 — Affichage mobile
+
+**Étape 1 :** Ouvrir DevTools → Mode mobile (iPhone 12 / Pixel 5). Recharger `/`.
+
+**Q1 :** La navbar s'effondre en menu hamburger ; le hero reste lisible ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q2 :** La barre de recherche reste utilisable (champs empilés verticalement) ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q3 :** Sur `/properties`, le panneau de filtres devient un drawer / accordéon ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q4 :** Sur la fiche bien, la galerie photos est swipeable au touch ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+**Q5 :** Aucun overflow horizontal (pas de scrollbar en bas) sur aucune page testée ?
+> Réponse : _______________________________________________
+> Statut : ✅ ❌ ⚠️ 🔲
+
+---
+
+## 12. Récapitulatif — Bugs trouvés
+
+> À remplir au fil des tests. Reporter les TC en ❌ ou ⚠️.
 
 | # | Sévérité | TC | Page | Description | Statut |
 |---|----------|----|------|-------------|--------|
-| 1 | P1 | TC-VA-02 Q1 | `/` | Barre de recherche accueil envoie `city=` au lieu de `search=` — recherche textuelle non fonctionnelle | Ouvert |
-| 2 | P1 | TC-VA-02 Q3 | `/` | "appartement Dakar" retourne 0 résultats (valeur entière traitée comme ville) | Ouvert |
-| 3 | P1 | TC-VA-08 Q5 | `/properties/[slug]` | "Demander une visite" ouvre le formulaire sans authentification — visiteur anonyme peut soumettre | Ouvert |
-| 4 | P1 | TC-VA-11 Q2 | `/properties/[slug]` | "Signaler cette annonce" accessible sans connexion — formulaire ouvert directement | Ouvert |
-| 5 | P2 | TC-VA-04 Q5 | `/properties` | Dropdown tri affiche les clés internes (`relevance`, `price_asc`, `created_desc`) quand fermé | Ouvert |
-| 6 | P2 | TC-VA-08 Q2 | `/properties/[slug]` | "Envoyer un message" affiche une modale au lieu de rediriger vers `/auth/login` | Ouvert |
-| 7 | P2 | TC-VA-08 Q3 | `/properties/[slug]` | Bouton "Réserver" libellé "Faire une offre" — incohérence avec la spec | Ouvert |
-| 8 | P2 | TC-VA-06 Q2 | `/properties` | Filtre "Disponibilité" absent du panneau de filtres | Ouvert |
-| 9 | P2 | TC-VA-06 Q3 | `/properties` | Filtre "Étage" absent du panneau de filtres | Ouvert |
-| 10 | P3 | TC-VA-01 Q7 | `/` | Footer sans icônes réseaux sociaux (WhatsApp, Facebook, Twitter/X) | Ouvert |
-| 11 | P3 | TC-VA-01 Q6 | `/` | Certains biens apparaissent dans "En vedette" ET "Derniers ajouts" simultanément | Ouvert |
-| 12 | Info | TC-VA-07 Q2 | `/properties/[slug]` | Aucune photo dans les données de dev ("Photo à venir" / "Aucune photo disponible") | Data dev |
+| 1 |   |   |   |   |  |
+| 2 |   |   |   |   |  |
+| 3 |   |   |   |   |  |
+
+**Sévérité :**
+- **P0 — Bloquant** : empêche un parcours métier critique
+- **P1 — Majeur** : dégrade fortement l'UX, contournement difficile
+- **P2 — Mineur** : gêne notable mais contournable
+- **P3 — Cosmétique** : libellé, couleur, espacement
 
 ---
 
-## 9. Notes du testeur
+## 13. Notes du testeur
 
-> Tests réalisés via MCP Chrome DevTools sur environnement local (frontend :3000, backend :8002).
-> Les données de dev ne contiennent pas de photos ni d'avis — les TC correspondants ne peuvent être pleinement évalués.
-> Le paramètre `sort=-created_at` (Spatie Laravel format) renvoie une erreur API — le frontend utilise `created_desc` comme valeur correcte.
-> La protection des routes `/app/*` et `/admin/*` fonctionne parfaitement avec redirection + param `redirect=` pour retour post-login.
+> _Ajouter ici toute observation transversale, problème environnemental, état des données de seed, etc._
+
+```
+_______________________________________________________________
+
+_______________________________________________________________
+
+_______________________________________________________________
+```

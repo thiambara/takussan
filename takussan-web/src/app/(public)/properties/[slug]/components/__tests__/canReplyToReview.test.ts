@@ -62,11 +62,11 @@ describe('canReplyToReview', () => {
     ).toBe(true);
   });
 
-  it('returns true for admin regardless of ownership (matches backend reply policy)', () => {
+  it('returns true for super_admin regardless of ownership (matches backend reply policy)', () => {
     expect(
       canReplyToReview({
         userId: 2,
-        userRoles: ['admin'],
+        userRoles: ['super_admin'],
         userAgencyId: null,
         ownerId: 99,
         propertyAgencyId: 42,

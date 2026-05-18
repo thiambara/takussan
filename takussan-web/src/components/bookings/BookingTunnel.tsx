@@ -8,7 +8,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { FormInput, FormTextarea, FormCheckbox, FormGlobalError } from '@/components/forms';
+import { FormInput, FormTextarea, FormCheckbox, FormGlobalError, FormDatePicker } from '@/components/forms';
 import { useAuth } from '@/context/AuthContext';
 import { useCreateBooking } from '@/lib/queries/bookings';
 import { ApiError } from '@/lib/api';
@@ -161,10 +161,15 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
           Vous devez être connecté pour finaliser la demande de réservation.
         </p>
         <div className="mt-6 flex justify-center gap-2">
-          <Button variant="outline" render={<Link href={`/properties/${property.slug}`} />}>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href={`/properties/${property.slug}`} />}
+          >
             Retour au bien
           </Button>
           <Button
+            nativeButton={false}
             render={<Link href={`/auth/login?redirect=${encodeURIComponent(redirect)}`} />}
           >
             Se connecter
@@ -199,10 +204,17 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
           </div>
         </dl>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <Button variant="outline" render={<Link href={`/properties/${property.slug}`} />}>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href={`/properties/${property.slug}`} />}
+          >
             Retour au bien
           </Button>
-          <Button render={<Link href={`/app/bookings/${createdBooking.id}`} />}>
+          <Button
+            nativeButton={false}
+            render={<Link href={`/app/bookings/${createdBooking.id}`} />}
+          >
             Voir ma réservation
           </Button>
         </div>
@@ -224,21 +236,21 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
                 Sélectionnez votre période et le nombre de voyageurs.
               </p>
               <div className="grid gap-4 sm:grid-cols-2">
-                <FormInput<BookingRequestFormValues>
+                <FormDatePicker<BookingRequestFormValues>
                   control={form.control}
                   name="start_date"
-                  type="date"
                   label="Arrivée"
                   required
                   min={new Date().toISOString().slice(0, 10)}
+                  placeholder="Date d'arrivée"
                 />
-                <FormInput<BookingRequestFormValues>
+                <FormDatePicker<BookingRequestFormValues>
                   control={form.control}
                   name="end_date"
-                  type="date"
                   label="Départ"
                   required
                   min={startDate || new Date().toISOString().slice(0, 10)}
+                  placeholder="Date de départ"
                 />
               </div>
               <FormInput<BookingRequestFormValues>

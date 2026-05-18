@@ -1,10 +1,6 @@
-import { redirect } from 'next/navigation';
+export { default, metadata } from '../../app/properties/page';
 
-/**
- * TCK-132 — the cross-tenant properties view moved to `/super-admin/properties`
- * (the agency_admin dashboard owns `/admin/*`, see TCK-131). The old super_admin
- * stub at this path now permanently redirects to the new home.
- */
-export default function Page() {
-  redirect('/super-admin/properties');
-}
+// Next.js 16 Turbopack refuses re-exports for route-segment config values;
+// `dynamic` must be declared statically here. Keep in sync with the source
+// route `(dashboard)/app/properties/page.tsx`.
+export const dynamic = 'force-dynamic';

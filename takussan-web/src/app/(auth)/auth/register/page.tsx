@@ -19,6 +19,7 @@ import { register } from '@/lib/auth';
 export default function RegisterPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
 
   const defaultValues: RegisterFormValues = {
     first_name: '',
@@ -58,13 +59,10 @@ export default function RegisterPage() {
         Rejoignez Takussan et gérez vos recherches et vos biens en toute simplicité.
       </p>
 
-      <OAuthButtons />
-      <OAuthSeparator />
-
       <FormGlobalError>{globalError}</FormGlobalError>
 
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormInput<RegisterFormValues>
             name="first_name"
             control={form.control}
@@ -119,10 +117,25 @@ export default function RegisterPage() {
           name="password_confirmation"
           control={form.control}
           label="Confirmer le mot de passe"
-          type={showPassword ? 'text' : 'password'}
+          type={showPasswordConfirmation ? 'text' : 'password'}
           autoComplete="new-password"
-          className="h-11"
+          placeholder="Répétez le mot de passe"
+          className="h-11 pr-10"
           required
+          trailing={
+            <button
+              type="button"
+              onClick={() => setShowPasswordConfirmation((v) => !v)}
+              className="pr-1 text-muted-foreground hover:text-foreground"
+              aria-label={
+                showPasswordConfirmation
+                  ? 'Masquer la confirmation du mot de passe'
+                  : 'Afficher la confirmation du mot de passe'
+              }
+            >
+              {showPasswordConfirmation ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          }
         />
 
         <FormCheckbox<RegisterFormValues>
@@ -159,6 +172,9 @@ export default function RegisterPage() {
           )}
         </Button>
       </form>
+
+      <OAuthSeparator label="ou créer un compte avec" />
+      <OAuthButtons />
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Déjà un compte ?{' '}

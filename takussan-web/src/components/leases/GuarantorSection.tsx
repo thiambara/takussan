@@ -25,6 +25,8 @@ interface GuarantorSectionProps {
   readonly guarantor?: Guarantor | null;
   /** Count of guarantors already attached. Max 3 per lease (TCK-044). */
   readonly guarantorsCount?: number;
+  /** TCK-173 — false hides the add button for tenants. */
+  readonly canManage?: boolean;
 }
 
 const ID_TYPE_OPTIONS = [
@@ -39,9 +41,13 @@ export function GuarantorSection({
   leaseId,
   guarantor,
   guarantorsCount = 0,
+  canManage = true,
 }: GuarantorSectionProps) {
   const [open, setOpen] = useState(false);
   const disabled = guarantorsCount >= MAX_GUARANTORS;
+
+  // TCK-173 — tenants without an existing guarantor have nothing to display.
+  if (!canManage && !guarantor) return null;
 
   return (
     <section className="rounded-xl border border-stone-200 bg-white p-5">
@@ -52,15 +58,17 @@ export function GuarantorSection({
             Maximum {MAX_GUARANTORS} garants par bail.
           </p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setOpen(true)}
-          disabled={disabled}
-          title={disabled ? 'Maximum 3 garants atteint' : undefined}
-        >
-          Ajouter un garant
-        </Button>
+        {canManage && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setOpen(true)}
+            disabled={disabled}
+            title={disabled ? 'Maximum 3 garants atteint' : undefined}
+          >
+            Ajouter un garant
+          </Button>
+        )}
       </div>
 
       {guarantor ? (

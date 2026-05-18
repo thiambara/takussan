@@ -37,19 +37,27 @@ class DashboardRoleResolver
 
     public function resolve(User $user): ?DashboardMetrics
     {
-        if ($user->hasRole(['super_admin', 'agency_admin', 'admin']) && $user->agency_id) {
+        $agencyId = $user->agency_id;
+
+        if ($agencyId !== null
+            && ($user->isSuperAdmin() || $user->isAgencyAdminAt((int) $agencyId))) {
             return $this->agency;
         }
 
-        if ($user->hasRole('agent') && $user->agency_id) {
+        if ($agencyId !== null && $user->isAgentAt((int) $agencyId)) {
             return $this->agent;
         }
 
-        if ($user->hasRole('owner') || Property::where('user_id', $user->id)->exists()) {
+        if (($agencyId !== null && $user->isOwnerAt((int) $agencyId))
+            || Property::where('user_id', $user->id)->exists()) {
             return $this->owner;
         }
 
-        if ($user->hasRole('customer') || Customer::where('user_id', $user->id)->exists()) {
+        // TCK-278 — `customer` reste un rôle dérivé (cf. Règle 5) : on
+        // s'appuie uniquement sur la table Customer (la profile-isation
+        // est reportée à un ticket ultérieur si TCK-020/090 en font émerger
+        // le besoin).
+        if (Customer::where('user_id', $user->id)->exists()) {
             return $this->tenant;
         }
 

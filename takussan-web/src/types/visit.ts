@@ -43,8 +43,22 @@ export interface PropertyVisit {
   notes?: string | null;
   metadata?: Record<string, unknown> | null;
   property?: { id: number; title?: string | null; slug?: string | null } | null;
-  visitor?: { id: number; first_name?: string; last_name?: string; email?: string | null } | null;
+  visitor?: {
+    id: number;
+    first_name?: string | null;
+    last_name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  } | null;
   agent?: { id: number; first_name?: string; last_name?: string } | null;
+  customer?: {
+    id: number;
+    user_id?: number | null;
+    first_name?: string | null;
+    last_name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  } | null;
   created_at?: string | null;
 }
 
@@ -58,6 +72,18 @@ export interface BookingRequestPayload {
   start_date: string;
   end_date: string;
   guests: number;
+  message?: string;
+}
+
+/**
+ * TCK-176 — purchase-offer payload for a `sale` property. Posts to the
+ * same endpoint (`/api/public/properties/{slug}/booking-request`) but
+ * never sends `start_date` / `end_date` / `guests`.
+ */
+export interface OfferRequestPayload {
+  offer_amount: number;
+  offer_expires_at: string;
+  terms_accepted: true;
   message?: string;
 }
 

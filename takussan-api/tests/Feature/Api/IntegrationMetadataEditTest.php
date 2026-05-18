@@ -7,8 +7,6 @@ use App\Models\Integration;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /**
@@ -24,10 +22,8 @@ class IntegrationMetadataEditTest extends TestCase
 
     private function agencyAdmin(Agency $agency): User
     {
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
         $admin = User::factory()->create(['agency_id' => $agency->id]);
-        Role::findOrCreate('agency_admin');
-        $admin->assignRole('agency_admin');
+        $this->materializeRoleProfile($admin, 'agency_admin', $agency);
 
         return $admin;
     }

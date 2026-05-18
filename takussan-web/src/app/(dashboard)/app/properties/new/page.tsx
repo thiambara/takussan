@@ -1,17 +1,17 @@
-import { forbidden } from 'next/navigation';
+import type { Metadata } from 'next';
 
 import { getMeAction } from '@/app/actions/auth';
+
+export const metadata: Metadata = { title: 'Publier un bien' };
 import { fetchTagsAction } from '@/app/actions/admin-tags';
-import { isAdmin, isAgent, isOwner } from '@/lib/roles';
+import { assertCanReachAgentArea } from '@/lib/auth/guards';
 import { PropertyForm } from '@/components/property-form';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
   const user = await getMeAction();
-  if (!(isAgent(user.roles) || isAdmin(user.roles) || isOwner(user.roles))) {
-    forbidden();
-  }
+  assertCanReachAgentArea(user.roles);
 
   const tagsResult = await fetchTagsAction({ filters: { type: 'amenity' }, perPage: 200 });
   const tags = tagsResult.ok ? (tagsResult.data?.data ?? []) : [];
@@ -19,8 +19,8 @@ export default async function Page() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-app-ink">Publier un bien</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">
+        <h1 className="font-display text-2xl font-bold text-foreground">Publier un bien</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Remplissez les informations essentielles. Vous pourrez enrichir la
           fiche après publication.
         </p>

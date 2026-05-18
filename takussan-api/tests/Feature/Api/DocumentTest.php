@@ -11,8 +11,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class DocumentTest extends TestCase
@@ -168,12 +166,8 @@ class DocumentTest extends TestCase
     public function test_admin_can_verify_document(): void
     {
         $agency = Agency::factory()->create();
-        $registrar = app(PermissionRegistrar::class);
-        $registrar->forgetCachedPermissions();
-        $registrar->setPermissionsTeamId($agency->id);
-        Role::findOrCreate('admin');
         $admin = User::factory()->create(['agency_id' => $agency->id]);
-        $admin->assignRole('admin');
+        $this->materializeRoleProfile($admin, 'super_admin');
 
         $user = User::factory()->create();
         $property = Property::factory()->create(['user_id' => $user->id]);

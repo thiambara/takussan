@@ -6,6 +6,13 @@ import { useLocale } from 'next-intl';
 
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { buttonVariants } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { formatDate } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import {
@@ -52,37 +59,41 @@ export function MaintenanceList() {
           <label htmlFor="maintenance-filter-status" className="mb-1.5 text-sm font-medium">
             Statut
           </label>
-          <select
-            id="maintenance-filter-status"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as '' | MaintenanceStatus)}
-            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+          <Select
+            value={status || '__all__'}
+            onValueChange={(value) => setStatus(value === '__all__' ? '' : ((value ?? '') as '' | MaintenanceStatus))}
+            items={[{ value: '__all__', label: 'Tous les statuts' }, ...MAINTENANCE_STATUSES.map((s) => ({ value: s, label: MAINTENANCE_STATUS_LABEL[s] }))]}
           >
-            <option value="">Tous les statuts</option>
-            {MAINTENANCE_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {MAINTENANCE_STATUS_LABEL[s]}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger id="maintenance-filter-status" className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Tous les statuts</SelectItem>
+              {MAINTENANCE_STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>{MAINTENANCE_STATUS_LABEL[s]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex w-56 flex-col">
           <label htmlFor="maintenance-filter-priority" className="mb-1.5 text-sm font-medium">
             Priorité
           </label>
-          <select
-            id="maintenance-filter-priority"
-            value={priority}
-            onChange={(e) => setPriority(e.target.value as '' | MaintenancePriority)}
-            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+          <Select
+            value={priority || '__all__'}
+            onValueChange={(value) => setPriority(value === '__all__' ? '' : ((value ?? '') as '' | MaintenancePriority))}
+            items={[{ value: '__all__', label: 'Toutes les priorités' }, ...MAINTENANCE_PRIORITIES.map((p) => ({ value: p, label: MAINTENANCE_PRIORITY_LABEL[p] }))]}
           >
-            <option value="">Toutes les priorités</option>
-            {MAINTENANCE_PRIORITIES.map((p) => (
-              <option key={p} value={p}>
-                {MAINTENANCE_PRIORITY_LABEL[p]}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger id="maintenance-filter-priority" className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Toutes les priorités</SelectItem>
+              {MAINTENANCE_PRIORITIES.map((p) => (
+                <SelectItem key={p} value={p}>{MAINTENANCE_PRIORITY_LABEL[p]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="ml-auto">
           <Link

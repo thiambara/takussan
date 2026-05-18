@@ -72,6 +72,13 @@ export function EventDetailSheet({ event, open, onOpenChange }: EventDetailSheet
 
 function EventDetailBody({ event }: { event: CalendarEvent }) {
   const palette = paletteFor(event);
+  const openLabel =
+    event.type === 'booking'
+      ? 'la réservation'
+      : event.type === 'lease'
+        ? 'le bail'
+        : 'la visite';
+
   return (
     <div className="flex h-full flex-col">
       <header className="border-b border-stone-200 px-6 py-5">
@@ -124,7 +131,7 @@ function EventDetailBody({ event }: { event: CalendarEvent }) {
           className="inline-flex w-full items-center justify-center rounded-lg bg-app-topbar px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
           data-testid="calendar-event-open-resource"
         >
-          Ouvrir {event.type === 'booking' ? 'la réservation' : 'la visite'}
+          Ouvrir {openLabel}
         </Link>
       </footer>
     </div>

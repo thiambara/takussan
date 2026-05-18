@@ -92,13 +92,13 @@ export async function twoFactorRegenerateAction(): Promise<
   }
 }
 
-export async function phoneSendOtpAction(): Promise<
-  ActionResult<{ sent: boolean; debug_code?: string }>
-> {
+export async function phoneSendOtpAction(
+  phone?: string,
+): Promise<ActionResult<{ sent: boolean; debug_code?: string }>> {
   try {
     const token = await getToken();
     requireToken(token);
-    const data = await phoneSendOtp(token);
+    const data = await phoneSendOtp(token, phone);
     return { ok: true, data };
   } catch (err) {
     return failure(err, "Impossible d'envoyer le code.");

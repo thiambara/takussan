@@ -17,6 +17,7 @@ import {
   FormInput,
   FormSelect,
   FormTextarea,
+  FormDatePicker,
 } from '@/components/forms';
 import { useApiForm } from '@/hooks/useApiForm';
 import { useCreateInvoice } from '@/lib/queries/payments';
@@ -164,17 +165,15 @@ export function CreateInvoiceDialog({
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormInput<CreateInvoiceFormValues>
+            <FormDatePicker<CreateInvoiceFormValues>
               control={form.control}
               name="issue_date"
-              type="date"
               label="Date d'émission"
               required
             />
-            <FormInput<CreateInvoiceFormValues>
+            <FormDatePicker<CreateInvoiceFormValues>
               control={form.control}
               name="due_date"
-              type="date"
               label="Échéance"
             />
           </div>

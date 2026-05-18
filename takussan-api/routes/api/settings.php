@@ -1,7 +1,10 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\PlatformSettingController;
 use App\Http\Controllers\Api\SettingController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('settings/public', [PlatformSettingController::class, 'publicIndex'])->name('settings.public');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('settings', [SettingController::class, 'index'])->name('settings.index');

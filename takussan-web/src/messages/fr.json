@@ -34,6 +34,83 @@
       "current": "Langue actuelle : {locale}"
     }
   },
+  "nav": {
+    "publish": "Publier",
+    "publishListing": "Publier une annonce",
+    "login": "Connexion",
+    "logout": "Déconnexion",
+    "myProfile": "Mon profil",
+    "userMenu": "Menu utilisateur",
+    "openMenu": "Ouvrir le menu",
+    "closeMenu": "Fermer le menu",
+    "searchPlaceholder": "Où cherchez-vous ?",
+    "transactionPlaceholder": "Acheter / Louer",
+    "buy": "Acheter",
+    "rent": "Louer",
+    "search": "Rechercher",
+    "searchAria": "Lancer la recherche",
+    "moreTypes": "Plus de types",
+    "more": "Plus",
+    "propertiesCount": "{count} biens"
+  },
+  "footer": {
+    "tagline": "Votre partenaire de confiance pour trouver le bien immobilier idéal au Sénégal.",
+    "newsletterPlaceholder": "Votre email",
+    "newsletterSubmit": "S'inscrire",
+    "discoverHeading": "Découvrir",
+    "copyright": "© {year} Takussan. Tous droits réservés."
+  },
+  "map": {
+    "zoomIn": "Zoomer",
+    "zoomOut": "Dézoomer",
+    "markerAlt": "Marqueur de bien",
+    "loading": "Chargement…",
+    "truncated": "{count}+ biens — zoomez pour affiner"
+  },
+  "publicContact": {
+    "title": "Envoyer un message",
+    "description": "Vos coordonnées sont transmises à l'agent du bien. Aucun compte n'est requis.",
+    "name": "Nom complet",
+    "email": "Email",
+    "phone": "Téléphone (optionnel)",
+    "message": "Votre message",
+    "messagePlaceholder": "Bonjour, je suis intéressé(e) par votre bien…",
+    "submit": "Envoyer le message",
+    "submitting": "Envoi en cours…",
+    "cancel": "Annuler",
+    "successTitle": "Message envoyé.",
+    "successBody": "L'agent vous recontactera sous peu.",
+    "errorTitle": "Échec de l'envoi",
+    "errorBody": "Réessayez dans un instant.",
+    "validation": {
+      "nameRequired": "Votre nom est requis.",
+      "emailRequired": "Une adresse email valide est requise.",
+      "messageMin": "Votre message doit contenir au moins 5 caractères.",
+      "messageMax": "Votre message ne peut pas dépasser 2000 caractères."
+    }
+  },
+  "meta": {
+    "home": {
+      "title": "Takussan — Immobilier au Sénégal",
+      "description": "Louez, achetez, vendez en toute confiance. Des milliers de biens au Sénégal vous attendent."
+    },
+    "properties": {
+      "title": "Rechercher des biens",
+      "description": "Trouvez des appartements, villas, terrains, bureaux et bien plus au Sénégal. Filtrez par prix, type, localisation et surface, visualisez les biens sur une carte interactive."
+    },
+    "compare": {
+      "title": "Comparer des biens",
+      "description": "Comparez jusqu'à 4 biens côte à côte : prix, surface, pièces, amenités et localisation."
+    },
+    "favorites": {
+      "title": "Mes favoris",
+      "description": "Retrouvez tous les biens que vous avez sauvegardés. Synchronisés sur cet appareil même sans compte."
+    },
+    "propertyMissing": {
+      "title": "Bien introuvable",
+      "description": "Ce bien n'est plus disponible sur Takussan."
+    }
+  },
   "auth": {
     "login": {
       "title": "Connexion",
@@ -53,7 +130,38 @@
       "hasAccount": "Déjà un compte ?"
     },
     "logout": "Se déconnecter",
-    "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter."
+    "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
+    "twoFactor": {
+      "intro": {
+        "title": "Renforcez la sécurité de votre compte",
+        "description": "Activez l’authentification à deux facteurs (TOTP) avec une application comme Google Authenticator, 1Password ou Authy.",
+        "cta": "Configurer maintenant",
+        "starting": "Initialisation…",
+        "skip": "Plus tard"
+      },
+      "scan": {
+        "title": "Scannez le QR code",
+        "description": "Ajoutez Takussan dans votre application d’authentification, puis saisissez le code à 6 chiffres affiché.",
+        "manualHint": "Vous ne pouvez pas scanner ? Saisissez cette clé manuellement :",
+        "codeLabel": "Code à 6 chiffres",
+        "cta": "Vérifier et activer",
+        "verifying": "Vérification…",
+        "qrAlt": "QR code à scanner avec votre application 2FA"
+      },
+      "success": {
+        "title": "2FA activée",
+        "description": "Votre compte est désormais protégé par un second facteur.",
+        "cta": "Continuer"
+      },
+      "recovery": {
+        "title": "Codes de récupération",
+        "warning": "Notez ces codes maintenant — ils ne seront plus jamais affichés. Chaque code permet une connexion d’urgence si vous perdez l’accès à votre application.",
+        "download": "Télécharger en .txt",
+        "ack": "J’ai sauvegardé mes codes de récupération",
+        "fileHeader": "Codes de récupération Takussan — conservez-les en lieu sûr.",
+        "fileFooter": "Chaque code n’est utilisable qu’une seule fois."
+      }
+    }
   },
   "property": {
     "list": {
@@ -118,13 +226,140 @@
       "placeholder": "Sélectionner une devise",
       "preview": "100 000 sera affiché : {example}",
       "warningOnChange": "Le changement de devise ne s’applique qu’aux nouveaux biens, baux et paiements. Les enregistrements existants conservent leur devise d’origine."
+    },
+    "branding": {
+      "banner": {
+        "title": "Personnalisez votre agence",
+        "description": "Ajoutez votre logo et choisissez vos couleurs pour une identité forte sur Takussan.",
+        "cta": "Configurer"
+      }
+    },
+    "onboarding": {
+      "steps": {
+        "welcome": "Bienvenue",
+        "twoFactor": "Sécurité"
+      },
+      "welcome": {
+        "title": "Bienvenue sur Takussan, {firstName}",
+        "body": "L’espace de {agencyName} est prêt. Encore une étape rapide avant de plonger dans votre dashboard.",
+        "cta": "Continuer"
+      }
+    },
+    "tenantOnboardingPending": {
+      "error": "Impossible de charger la liste pour le moment.",
+      "emptyTitle": "Aucun onboarding en retard",
+      "emptyDescription": "Tous les onboardings de moins de 7 jours ne sont pas listés ici.",
+      "leaseReference": "Bail {reference}",
+      "signedAt": "Signé le {date}",
+      "missing": "Il reste : {items}",
+      "daysOpen": "{count, plural, =0 {aujourd'hui} one {# jour} other {# jours}}"
+    },
+    "standardWelcome": {
+      "title": "Bienvenue dans votre agence",
+      "slides": {
+        "invite": {
+          "title": "Invitez votre équipe",
+          "body": "Ajoutez vos agents et collaborateurs en quelques clics et déléguez le suivi de vos biens."
+        },
+        "roles": {
+          "title": "Configurez les rôles",
+          "body": "Affinez les permissions de chaque membre pour structurer votre organisation."
+        },
+        "reports": {
+          "title": "Accédez aux rapports",
+          "body": "Suivez l'activité de votre agence : revenus, encaissements, performances de vos équipes."
+        }
+      }
+    },
+    "upgrade": {
+      "page": {
+        "eyebrow": "Mon agence",
+        "title": "Passer en agence professionnelle",
+        "subtitle": "Activez les fonctionnalités équipe : invitez des collaborateurs, déléguez des rôles et partagez votre portefeuille.",
+        "already_standard": {
+          "title": "Votre agence est déjà professionnelle",
+          "body": "Aucune action n'est requise — toutes les fonctionnalités équipe sont actives."
+        },
+        "benefits": {
+          "aria_label": "Avantages d'une agence professionnelle",
+          "title": "Pourquoi passer en pro ?",
+          "items": {
+            "team": "Inviter une équipe d'agents et leur déléguer le suivi de vos biens.",
+            "multi_admin": "Co-administrer l'agence à plusieurs (multi-admins).",
+            "custom_roles": "Définir des rôles personnalisés pour structurer votre organisation."
+          },
+          "sla": "Réponse de notre équipe sous 5 jours ouvrés."
+        }
+      },
+      "form": {
+        "aria_label": "Formulaire de demande d'upgrade",
+        "loading": "Chargement de votre brouillon…",
+        "fields": {
+          "rc": "Numéro RC",
+          "ninea": "NINEA",
+          "rib_pro": "RIB professionnel",
+          "company_legal_name": "Raison sociale",
+          "address_fiscale": "Adresse fiscale",
+          "planned_agents_count": "Nombre estimé d'agents (optionnel)",
+          "statuts_doc": "Statuts juridiques (PDF ou image)"
+        },
+        "hints": {
+          "planned_agents_count": "Pour dimensionner votre future organisation.",
+          "statuts_doc": "PDF, JPG ou PNG. 10 Mo max."
+        },
+        "file_selected": "Fichier sélectionné : {name}",
+        "cta": {
+          "submit": "Envoyer la demande",
+          "submitting": "Envoi en cours…"
+        },
+        "errors": {
+          "file_required": "Le scan des statuts est obligatoire.",
+          "file_too_large": "Le fichier dépasse 10 Mo.",
+          "unauthorized": "Vous devez être connecté pour soumettre la demande.",
+          "forbidden": "Vous n'avez pas la permission de soumettre cette demande.",
+          "generic": "Une erreur est survenue. Réessayez dans quelques instants."
+        },
+        "toasts": {
+          "submitted": "Votre demande a bien été envoyée."
+        }
+      },
+      "status": {
+        "aria_label": "État de la demande d'upgrade",
+        "headings": {
+          "pending": "Demande en cours",
+          "approved": "Demande approuvée",
+          "rejected": "Demande refusée",
+          "revoked": "Demande révoquée"
+        },
+        "badges": {
+          "pending": "En cours",
+          "approved": "Approuvée",
+          "rejected": "Refusée",
+          "revoked": "Révoquée"
+        },
+        "submitted_at": "Soumise le {date}",
+        "body": {
+          "pending": "Notre équipe examine votre demande. Vous recevrez une notification dès qu'elle sera traitée.",
+          "approved": "Votre agence est désormais professionnelle (validée le {date}).",
+          "rejected": "Votre demande a été refusée le {date}. Consultez le commentaire ci-dessous puis soumettez-en une nouvelle si besoin.",
+          "revoked": "Vous avez révoqué cette demande. Vous pouvez en soumettre une nouvelle à tout moment."
+        },
+        "cta": {
+          "revoke": "Révoquer la demande",
+          "revoking": "Révocation…"
+        },
+        "toasts": {
+          "revoked": "Demande révoquée.",
+          "error": "Erreur lors de la révocation."
+        }
+      }
     }
   },
   "compare": {
     "eyebrow": "Comparateur",
     "title": "Comparer des biens",
-    "subtitle": "{count} biens sélectionnés — comparez pour décider.",
-    "unavailableNotice": "{missing} bien(s) ne sont plus disponibles et ont été retirés du comparatif.",
+    "subtitle": "{count, plural, =0 {Aucun bien sélectionné.} =1 {1 bien sélectionné — ajoutez-en un autre pour comparer.} other {# biens sélectionnés — comparez pour décider.}}",
+    "unavailableNotice": "{missing, plural, =1 {1 bien n'est plus disponible et a été retiré du comparatif.} other {# biens ne sont plus disponibles et ont été retirés du comparatif.}}",
     "actions": {
       "view": "Voir le bien",
       "remove": "Retirer"
@@ -167,7 +402,7 @@
     "floatingBar": {
       "ariaLabel": "Biens sélectionnés pour la comparaison",
       "title": "Comparateur",
-      "count": "{count} / {max} bien(s)",
+      "count": "{count, plural, =1 {1 bien sélectionné} other {# biens sélectionnés}} sur {max}",
       "cta": "Comparer ({count})",
       "removeAria": "Retirer le bien #{id} du comparateur",
       "clearAria": "Vider le comparateur"
@@ -280,11 +515,28 @@
     "listHeading": "Conversations",
     "newGroup": "Nouveau groupe",
     "emptyState": "Sélectionnez une conversation pour afficher les messages.",
+    "widget": {
+      "launcherAria": "Ouvrir la messagerie",
+      "launcherAriaWithUnread": "Ouvrir la messagerie ({count, plural, one {# message non lu} other {# messages non lus}})",
+      "panelTitle": "Messagerie",
+      "panelAriaLabel": "Panneau de messagerie",
+      "closePanel": "Fermer le panneau",
+      "viewAll": "Voir toute la messagerie",
+      "unreadInline": "{count, plural, one {# non lu} other {# non lus}}",
+      "chatBack": "Retour aux conversations",
+      "manageGroup": "Gérer le groupe"
+    },
     "system": {
       "participantAdded": "{actor} a ajouté {target} au groupe.",
       "participantRemoved": "{actor} a retiré {target} du groupe.",
       "roleChanged": "{actor} a changé le rôle de {target} en {role}.",
       "renamed": "{actor} a renommé le groupe en « {subject} »."
+    },
+    "chat": {
+      "dateSeparator": {
+        "today": "Aujourd'hui",
+        "yesterday": "Hier"
+      }
     },
     "group": {
       "create": {
@@ -472,10 +724,10 @@
   },
   "maintenance": {
     "priority": {
-      "urgent": "Urgent",
-      "high": "Haute",
+      "urgent": "Urgente",
+      "high": "Élevée",
       "normal": "Normale",
-      "low": "Basse"
+      "low": "Faible"
     }
   },
   "homepage": {
@@ -483,7 +735,7 @@
       "viewAll": "Tout voir",
       "near": {
         "eyebrow": "Près de toi",
-        "title": "À découvrir à Dakar"
+        "title": "À découvrir à {city}"
       },
       "rent": {
         "eyebrow": "À louer",
@@ -500,13 +752,36 @@
     }
   },
   "recentlyViewed": {
-    "eyebrow": "Pour toi",
-    "title": "Vus récemment",
+    "eyebrow": "Pour vous",
+    "title": "Récemment consultés",
     "clearHistory": "Effacer l'historique",
     "confirmTitle": "Effacer l'historique ?",
     "confirmBody": "Vos biens consultés seront supprimés de votre navigateur. Cette action est irréversible.",
     "confirmCta": "Effacer",
     "cancel": "Annuler"
+  },
+  "favorites": {
+    "button": {
+      "aria": "Mes favoris"
+    },
+    "popover": {
+      "title": "Mes favoris",
+      "count": "{count, plural, =0 {aucun favori} =1 {1 favori} other {# favoris}}",
+      "empty": "Aucun favori pour le moment",
+      "emptyHint": "Cliquez sur le cœur d'une annonce pour la sauvegarder ici.",
+      "discoverCta": "Découvrir des biens",
+      "removeAria": "Retirer ce bien des favoris",
+      "viewAll": "Voir tous mes favoris"
+    },
+    "page": {
+      "title": "Mes favoris",
+      "subtitle": "{count, plural, =0 {Aucun bien sauvegardé pour le moment.} =1 {1 bien sauvegardé.} other {# biens sauvegardés.}}",
+      "subtitleLoading": "Chargement de vos favoris…",
+      "empty": "Aucun favori pour le moment",
+      "emptyHint": "Parcourez les biens et cliquez sur le cœur pour les retrouver ici.",
+      "discoverCta": "Découvrir des biens",
+      "error": "Impossible de charger vos favoris pour le moment."
+    }
   },
   "search": {
     "suggest": {
@@ -522,6 +797,895 @@
         "all_types": "Tous les types"
       },
       "loading": "Chargement…"
+    }
+  },
+  "wizardDrafts": {
+    "component": {
+      "ariaLabel": "Assistant",
+      "progressAriaLabel": "Étape {current} sur {total}",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "complete": "Terminer",
+      "loading": "Chargement…",
+      "savedToastTitle": "Progression sauvegardée",
+      "savedToastBody": "Vous pourrez reprendre exactement où vous en êtes."
+    },
+    "banner": {
+      "ariaLabel": "Reprendre une démarche en cours",
+      "title": "Reprenez là où vous vous étiez arrêté",
+      "description": "{count, plural, =1 {Vous avez 1 démarche en cours.} other {Vous avez # démarches en cours.}}",
+      "labels": {
+        "host-individual-wizard": "Publication d'un bien",
+        "owner-onboarding": "Onboarding propriétaire",
+        "agent-onboarding": "Onboarding agent",
+        "customer-onboarding": "Onboarding locataire",
+        "owner-kyc": "KYC propriétaire",
+        "agent-kyc": "KYC agent",
+        "sp-onboarding": "Onboarding prestataire",
+        "agency-upgrade": "Passage en pro"
+      }
+    }
+  },
+  "welcome": {
+    "welcome": "Bienvenue",
+    "next": "Suivant",
+    "skip": "Passer",
+    "finish": "Terminer",
+    "stepAriaLabel": "Étape {current} sur {total}",
+    "dialogAriaLabel": "Bienvenue"
+  },
+  "customer": {
+    "welcome": {
+      "slides": [
+        {
+          "title": "Trouvez le bien parfait",
+          "body": "Filtrez plus de mille annonces — vente, location, courte durée — pour repérer le logement qui colle à vos critères."
+        },
+        {
+          "title": "Sauvegardez vos favoris",
+          "body": "Mettez de côté les biens qui vous plaisent et comparez-les à votre rythme depuis n importe quel appareil."
+        },
+        {
+          "title": "Discutez directement avec les agents",
+          "body": "Posez vos questions, planifiez une visite et négociez sans intermédiaire grâce à la messagerie intégrée."
+        }
+      ]
+    },
+    "minimalProfile": {
+      "title": "Aidez-nous à mieux vous accompagner",
+      "description": "Trois infos rapides — toutes optionnelles — pour personnaliser vos résultats. Vous pouvez compléter plus tard depuis votre profil.",
+      "phoneLabel": "Téléphone (optionnel)",
+      "phonePlaceholder": "+221 77 000 00 00",
+      "cityLabel": "Ville recherchée (optionnel)",
+      "cityPlaceholder": "Dakar, Saint-Louis…",
+      "intentLabel": "Type de recherche (optionnel)",
+      "intentPlaceholder": "Choisissez une option",
+      "intentRent": "Louer",
+      "intentBuy": "Acheter",
+      "intentBoth": "Les deux",
+      "skip": "Plus tard",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "saveError": "Impossible d enregistrer pour le moment. Réessayez."
+    }
+  },
+  "tenant": {
+    "welcome": {
+      "slides": [
+        {
+          "title": "Vos paiements",
+          "body": "Retrouvez le calendrier de vos prochaines échéances et votre méthode de paiement préférée, sans quitter votre espace."
+        },
+        {
+          "title": "Demander une intervention",
+          "body": "Signalez une panne ou demandez une intervention en quelques clics, avec photos à l’appui."
+        },
+        {
+          "title": "Vos documents",
+          "body": "Bail, état des lieux et quittances : tout est centralisé et accessible quand vous en avez besoin."
+        }
+      ]
+    },
+    "onboarding": {
+      "widget": {
+        "title": "Bienvenue chez vous — bail {reference}",
+        "subtitle": "Quelques étapes pour finaliser votre installation."
+      },
+      "items": {
+        "welcome_seen": {
+          "title": "Découvrir votre espace résident",
+          "description": "Faites le tour rapide pour comprendre où trouver paiements, EDL et documents."
+        },
+        "inventory_completed": {
+          "title": "Signer l'état des lieux d'entrée",
+          "description": "Étape obligatoire. Vous protège en cas de litige sur l'état du logement."
+        },
+        "first_payment": {
+          "title": "Effectuer votre premier paiement",
+          "description": "Acompte ou premier loyer — au choix selon votre contrat."
+        },
+        "documents_acknowledged": {
+          "title": "Accuser réception de vos documents",
+          "description": "Bail signé, état des lieux et quittances : confirmer que tout est accessible."
+        }
+      }
+    }
+  },
+  "owners": {
+    "page": {
+      "title": "Propriétaires",
+      "subtitle": "Gérez les bailleurs rattachés à votre agence.",
+      "empty_title": "Aucun propriétaire pour le moment",
+      "empty_description": "Invitez votre premier propriétaire pour commencer à publier des biens en son nom.",
+      "add": "Ajouter un propriétaire",
+      "status": {
+        "draft": "Invité",
+        "active": "Actif",
+        "inactive": "Inactif",
+        "blocked": "Bloqué"
+      },
+      "columns": {
+        "name": "Nom",
+        "email": "Email",
+        "status": "Statut",
+        "actions": "Actions"
+      },
+      "actions": {
+        "resend": "Renvoyer l'invitation",
+        "revoke": "Révoquer"
+      }
+    },
+    "invite": {
+      "title": "Inviter un propriétaire",
+      "subtitle": "Envoyez une invitation par email. Le propriétaire pourra créer son compte et compléter son profil après acceptation.",
+      "fields": {
+        "email": "Email",
+        "first_name": "Prénom",
+        "last_name": "Nom",
+        "phone": "Téléphone (optionnel)",
+        "owner_type": "Type de propriétaire",
+        "company_name": "Raison sociale"
+      },
+      "owner_types": {
+        "individual": "Particulier",
+        "company": "Société"
+      },
+      "cta": {
+        "submit": "Envoyer l'invitation",
+        "submitting": "Envoi…",
+        "cancel": "Annuler"
+      },
+      "toasts": {
+        "success_title": "Invitation envoyée",
+        "error_title": "Impossible d'envoyer l'invitation",
+        "resend_success": "Invitation renvoyée",
+        "revoke_success": "Invitation révoquée"
+      },
+      "errors": {
+        "already_member": "Cette personne est déjà propriétaire dans votre agence.",
+        "forbidden": "Vous n'avez pas la permission d'inviter un propriétaire."
+      }
+    },
+    "onboarding": {
+      "pageTitle": "Bienvenue dans votre espace propriétaire",
+      "pageSubtitle": "Quatre étapes guidées pour vérifier votre identité, transmettre vos pièces et découvrir vos biens.",
+      "kyc": {
+        "labels": {
+          "cni": "Pièce d'identité (CNI ou passeport)",
+          "rib": "RIB",
+          "ninea": "NINEA"
+        },
+        "hints": {
+          "cni": "JPG, PNG ou PDF — moins de 8 Mo.",
+          "rib": "Pour recevoir vos paiements (loyers, ventes).",
+          "ninea": "Numéro d'identification fiscale (utile pour les biens en société)."
+        },
+        "dropZone": "Glissez un fichier ici ou cliquez pour parcourir.",
+        "uploading": "Envoi en cours…",
+        "uploadedBadge": "Reçu",
+        "removeAria": "Retirer le fichier",
+        "errors": {
+          "title": "Envoi du fichier impossible",
+          "fileTooLarge": "Fichier trop volumineux (8 Mo max).",
+          "uploadFailed": "Une erreur est survenue. Réessayez."
+        },
+        "success": {
+          "title": "Document reçu",
+          "body": "Le fichier {name} a été enregistré."
+        }
+      },
+      "steps": {
+        "phone": {
+          "title": "Vérifiez votre téléphone",
+          "subtitle": "Indispensable pour les notifications de paiement et de location.",
+          "fields": {
+            "phone": "Numéro de téléphone",
+            "code": "Code reçu par SMS"
+          },
+          "sendCta": "Envoyer le code",
+          "sending": "Envoi…",
+          "verifyCta": "Vérifier",
+          "verifying": "Vérification…",
+          "devHint": "Code de développement : {code}",
+          "sent": {
+            "title": "Code envoyé",
+            "body": "Le code peut mettre jusqu'à 60 secondes pour arriver.",
+            "bodyDebug": "Code envoyé (debug : {code})."
+          },
+          "verified": {
+            "title": "Téléphone vérifié",
+            "body": "Vous pouvez passer à l'étape suivante.",
+            "banner": "Numéro vérifié — vous recevrez vos alertes par SMS."
+          },
+          "errors": {
+            "sendTitle": "Envoi du code impossible",
+            "verifyTitle": "Code invalide"
+          }
+        },
+        "kyc": {
+          "title": "Vos pièces justificatives",
+          "subtitle": "Téléchargez votre CNI, votre RIB et votre NINEA. Vous pouvez compléter en plusieurs fois.",
+          "draftBadge": "Brouillon",
+          "submittedBadge": "Soumis (en revue)",
+          "submitCta": "Soumettre mon dossier KYC",
+          "submitting": "Envoi…",
+          "submittedTitle": "Dossier KYC envoyé",
+          "submittedBody": "Votre agence va le vérifier. Vous pouvez continuer."
+        },
+        "tour": {
+          "title": "Découvrez votre espace",
+          "subtitle": "Trois fonctions clés pour suivre votre patrimoine.",
+          "skip": "Passer le tour",
+          "next": "Suivant",
+          "finish": "Terminer le tour",
+          "slides": {
+            "properties": {
+              "title": "Vos biens",
+              "body": "Retrouvez tous vos biens en location ou en vente, avec leur statut en temps réel."
+            },
+            "payments": {
+              "title": "Vos paiements à recevoir",
+              "body": "Loyers, dépôts, ventes : suivez les versements et les retards en un coup d'œil."
+            },
+            "messages": {
+              "title": "Vos messages",
+              "body": "Échangez avec votre agence et vos locataires sans quitter Takussan."
+            }
+          }
+        },
+        "recap": {
+          "title": "Vos biens",
+          "subtitle": "Voici les biens déjà associés à votre profil par votre agence.",
+          "emptyTitle": "Aucun bien rattaché pour le moment",
+          "emptyBody": "Votre agence ajoutera vos biens dès qu'ils seront prêts.",
+          "viewAll": "Voir tous mes biens",
+          "completeCta": "Aller au tableau de bord",
+          "finishing": "Finalisation…"
+        }
+      },
+      "errors": {
+        "kycSubmitTitle": "Soumission du KYC impossible",
+        "completeTitle": "Impossible de finaliser votre onboarding"
+      },
+      "success": {
+        "title": "Bienvenue !",
+        "body": "Votre profil propriétaire est actif."
+      }
+    }
+  },
+  "ownerWelcome": {
+    "slides": {
+      "properties": {
+        "title": "Vos biens, à portée de main",
+        "body": "Retrouvez tous vos biens et leurs locataires depuis votre tableau de bord."
+      },
+      "payments": {
+        "title": "Vos paiements à recevoir",
+        "body": "Loyers, dépôts, ventes : suivez les rentrées et les retards."
+      },
+      "messages": {
+        "title": "Restez connecté",
+        "body": "Échangez avec votre agence et vos locataires sans quitter Takussan."
+      }
+    }
+  },
+  "agents": {
+    "onboarding": {
+      "pageTitle": "Bienvenue dans votre espace agent",
+      "pageSubtitle": "Quatre étapes guidées pour vérifier votre identité, transmettre vos pièces et configurer votre périmètre d'activité.",
+      "kyc": {
+        "labels": {
+          "license": "Carte professionnelle",
+          "cni": "Pièce d'identité (CNI ou passeport)",
+          "photo": "Photo de profil"
+        },
+        "hints": {
+          "license": "Scan ou photo de votre carte d'agent immobilier — moins de 8 Mo.",
+          "cni": "JPG, PNG ou PDF — moins de 8 Mo.",
+          "photo": "Une photo récente, visage visible. JPG ou PNG."
+        },
+        "dropZone": "Glissez un fichier ici ou cliquez pour parcourir.",
+        "uploading": "Envoi en cours…",
+        "uploadedBadge": "Reçu",
+        "removeAria": "Retirer le fichier",
+        "errors": {
+          "title": "Envoi du fichier impossible",
+          "fileTooLarge": "Fichier trop volumineux (8 Mo max).",
+          "uploadFailed": "Une erreur est survenue. Réessayez."
+        },
+        "success": {
+          "title": "Document reçu",
+          "body": "Le fichier {name} a été enregistré."
+        }
+      },
+      "steps": {
+        "phone": {
+          "title": "Vérifiez votre téléphone",
+          "subtitle": "Indispensable pour les notifications de vos clients et de votre agence.",
+          "fields": {
+            "phone": "Numéro de téléphone",
+            "code": "Code reçu par SMS"
+          },
+          "sendCta": "Envoyer le code",
+          "sending": "Envoi…",
+          "verifyCta": "Vérifier",
+          "verifying": "Vérification…",
+          "devHint": "Code de développement : {code}",
+          "sent": {
+            "title": "Code envoyé",
+            "body": "Le code peut mettre jusqu'à 60 secondes pour arriver.",
+            "bodyDebug": "Code envoyé (debug : {code})."
+          },
+          "verified": {
+            "title": "Téléphone vérifié",
+            "body": "Vous pouvez passer à l'étape suivante.",
+            "banner": "Numéro vérifié — vous recevrez vos alertes par SMS."
+          },
+          "errors": {
+            "sendTitle": "Envoi du code impossible",
+            "verifyTitle": "Code invalide"
+          }
+        },
+        "kyc": {
+          "title": "Vos pièces justificatives",
+          "subtitle": "Carte professionnelle, pièce d'identité et photo de profil. Vous pouvez compléter en plusieurs fois.",
+          "draftBadge": "Brouillon",
+          "submittedBadge": "Soumis (en revue)",
+          "submitCta": "Soumettre mon dossier KYC",
+          "submitting": "Envoi…",
+          "submittedTitle": "Dossier KYC envoyé",
+          "submittedBody": "Votre agence va le vérifier. Vous pouvez continuer.",
+          "licenseNumberLabel": "Numéro de carte professionnelle",
+          "licenseNumberHint": "Reportez ici le numéro inscrit sur votre carte d'agent."
+        },
+        "specialization": {
+          "title": "Votre spécialisation et vos zones",
+          "subtitle": "Aide votre agence à vous attribuer les bons mandats et clients.",
+          "specializationLabel": "Spécialisation",
+          "specializationPlaceholder": "Choisir une spécialisation…",
+          "specializationValues": {
+            "residential": "Résidentiel",
+            "commercial": "Commercial",
+            "luxury": "Luxe",
+            "mixed": "Mixte"
+          },
+          "zonesLabel": "Zones d'intervention",
+          "zonesPlaceholder": "Ajouter une ville ou un quartier…",
+          "zonesAdd": "Ajouter",
+          "zonesSelectedAria": "Zones sélectionnées",
+          "zonesRemoveAria": "Retirer {zone}",
+          "zonesSuggestions": "Suggestions",
+          "saveCta": "Enregistrer",
+          "saving": "Enregistrement…",
+          "savedBadge": "Enregistré",
+          "saved": {
+            "title": "Spécialisation enregistrée",
+            "body": "Vos zones et votre spécialisation sont à jour."
+          },
+          "errors": {
+            "saveTitle": "Enregistrement impossible"
+          }
+        },
+        "welcome": {
+          "title": "Bienvenue dans l'équipe",
+          "subtitle": "Votre périmètre et vos premiers leads sont prêts.",
+          "roleLabel": "Rôle assigné",
+          "roles": {
+            "agent": "Agent",
+            "agent_senior": "Agent senior",
+            "agent_manager": "Agent manager"
+          },
+          "permissions": {
+            "list_properties": "Voir les biens",
+            "list_customers": "Voir les clients",
+            "create_visits": "Programmer des visites",
+            "message_customers": "Messager les clients",
+            "edit_properties": "Éditer les biens",
+            "invite_owner": "Inviter un propriétaire",
+            "invite_agent": "Inviter un agent",
+            "reassign_leads": "Réattribuer des leads"
+          },
+          "firstLeadLabel": "Votre premier lead",
+          "noLead": "Aucun lead pré-assigné pour le moment.",
+          "stageLabel": "Étape : {stage}",
+          "viewLead": "Voir la fiche →"
+        }
+      },
+      "errors": {
+        "kycSubmitTitle": "Soumission du KYC impossible",
+        "completeTitle": "Impossible de finaliser votre onboarding"
+      },
+      "success": {
+        "title": "Bienvenue !",
+        "body": "Votre profil agent est actif."
+      }
+    }
+  },
+  "agentWelcome": {
+    "slides": {
+      "leads": {
+        "title": "Vos leads",
+        "body": "Retrouvez vos prospects et clients avec leur étape de pipeline en temps réel."
+      },
+      "properties": {
+        "title": "Vos biens",
+        "body": "Le portefeuille de l'agence et vos mandats, accessibles depuis le tableau de bord."
+      },
+      "messages": {
+        "title": "Restez connecté",
+        "body": "Échangez avec vos clients et votre agence sans quitter Takussan."
+      }
+    }
+  },
+  "team": {
+    "page": {
+      "title": "Équipe",
+      "subtitle": "Gérez les agents rattachés à votre agence.",
+      "empty_title": "Aucun membre dans l'équipe",
+      "empty_description": "Invitez votre premier agent pour commencer à collaborer.",
+      "add": "Inviter un agent",
+      "status": {
+        "draft": "Invité",
+        "active": "Actif",
+        "inactive": "Inactif",
+        "suspended": "Suspendu"
+      },
+      "roles": {
+        "agent": "Agent",
+        "agent_senior": "Agent senior",
+        "agent_manager": "Agent manager"
+      },
+      "columns": {
+        "name": "Nom",
+        "email": "Email",
+        "role": "Rôle",
+        "status": "Statut",
+        "actions": "Actions"
+      },
+      "actions": {
+        "resend": "Renvoyer l'invitation",
+        "suspend": "Suspendre",
+        "reactivate": "Réactiver",
+        "remove": "Retirer"
+      }
+    },
+    "invite": {
+      "title": "Inviter un agent",
+      "subtitle": "Envoyez une invitation par email. L'agent pourra créer son compte et compléter son profil après acceptation.",
+      "fields": {
+        "email": "Email",
+        "first_name": "Prénom",
+        "last_name": "Nom",
+        "phone": "Téléphone (optionnel)",
+        "role": "Rôle"
+      },
+      "roles": {
+        "agent": "Agent",
+        "agent_senior": "Agent senior",
+        "agent_manager": "Agent manager"
+      },
+      "cta": {
+        "submit": "Envoyer l'invitation",
+        "submitting": "Envoi…",
+        "cancel": "Annuler"
+      },
+      "confirm": {
+        "remove": "Retirer ce membre de l'équipe ? L'historique reste consultable."
+      },
+      "toasts": {
+        "success_title": "Invitation envoyée",
+        "error_title": "Action impossible",
+        "resend_success": "Invitation renvoyée",
+        "suspend_success": "Membre suspendu",
+        "reactivate_success": "Membre réactivé",
+        "remove_success": "Membre retiré"
+      },
+      "errors": {
+        "already_member": "Cette personne fait déjà partie de votre équipe.",
+        "forbidden": "Vous n'avez pas la permission de gérer l'équipe."
+      }
+    }
+  },
+  "serviceProviders": {
+    "page": {
+      "title": "Carnet prestataires",
+      "subtitle": "Plombiers, électriciens, peintres : votre carnet d'intervenants pour la maintenance.",
+      "add": "Ajouter un prestataire"
+    },
+    "list": {
+      "empty_title": "Aucun prestataire pour le moment",
+      "empty_description": "Invitez votre premier prestataire pour le rattacher à votre carnet.",
+      "columns": {
+        "name": "Nom",
+        "trades": "Métiers",
+        "zones": "Zones",
+        "status": "Statut",
+        "actions": "Actions"
+      },
+      "status": {
+        "draft": "Invité",
+        "active": "Actif",
+        "inactive": "Inactif",
+        "suspended": "Suspendu"
+      },
+      "actions": {
+        "resend": "Renvoyer l'invitation",
+        "revoke": "Révoquer"
+      }
+    },
+    "invite": {
+      "title": "Inviter un prestataire",
+      "subtitle": "Envoyez une invitation par email. Le prestataire pourra créer son compte et compléter son profil après acceptation.",
+      "fields": {
+        "email": "Email",
+        "first_name": "Prénom",
+        "last_name": "Nom",
+        "phone": "Téléphone (optionnel)",
+        "trades": "Métiers",
+        "intervention_zones": "Zones d'intervention"
+      },
+      "trades": {
+        "plumbing": "Plomberie",
+        "electrical": "Électricité",
+        "structural": "Maçonnerie",
+        "appliance": "Électroménager",
+        "painting": "Peinture",
+        "cleaning": "Nettoyage",
+        "pest_control": "Désinsectisation",
+        "locksmith": "Serrurerie",
+        "other": "Autre"
+      },
+      "cta": {
+        "submit": "Envoyer l'invitation",
+        "submitting": "Envoi…",
+        "cancel": "Annuler"
+      },
+      "toasts": {
+        "success_title": "Invitation envoyée",
+        "error_title": "Impossible d'envoyer l'invitation",
+        "resend_success": "Invitation renvoyée",
+        "revoke_success": "Invitation révoquée",
+        "existing_other_agency": "Ce prestataire est déjà rattaché à une autre agence — il pourra accepter le multi-rattachement à l'acceptation."
+      },
+      "errors": {
+        "already_member": "Ce prestataire est déjà actif dans votre agence.",
+        "forbidden": "Vous n'avez pas la permission d'inviter un prestataire."
+      }
+    },
+    "onboarding": {
+      "errors": {
+        "tradesTitle": "Impossible d'enregistrer vos métiers",
+        "availabilityTitle": "Impossible d'enregistrer vos disponibilités",
+        "completeTitle": "Impossible de finaliser votre onboarding"
+      },
+      "success": {
+        "title": "Bienvenue !",
+        "body": "Votre profil prestataire est actif."
+      },
+      "kyc": {
+        "labels": {
+          "cni": "Pièce d'identité (CNI)",
+          "insurance": "Assurance RC pro",
+          "rib": "RIB"
+        },
+        "hints": {
+          "cni": "JPG, PNG ou PDF — moins de 8 Mo.",
+          "insurance": "Optionnel mais valorisé — affiche le badge Assuré sur votre profil.",
+          "rib": "Pour les futurs paiements."
+        },
+        "dropZone": "Glissez un fichier ici ou cliquez pour parcourir.",
+        "uploading": "Envoi en cours…",
+        "uploadedBadge": "Reçu",
+        "removeAria": "Retirer le fichier",
+        "errors": {
+          "title": "Envoi du fichier impossible",
+          "fileTooLarge": "Fichier trop volumineux (8 Mo max).",
+          "uploadFailed": "Une erreur est survenue. Réessayez."
+        },
+        "success": {
+          "title": "Document reçu",
+          "body": "Le fichier {name} a été enregistré."
+        }
+      },
+      "trades": {
+        "legend": "Métiers proposés",
+        "options": {
+          "plumbing": "Plomberie",
+          "electrical": "Électricité",
+          "climate_control": "Climatisation",
+          "locksmith": "Serrurerie",
+          "painting": "Peinture",
+          "masonry": "Maçonnerie",
+          "other": "Autre"
+        }
+      },
+      "availability": {
+        "ariaLabel": "Disponibilités hebdomadaires",
+        "dayHeader": "Jour",
+        "on": "Dispo",
+        "off": "—",
+        "cellAria": "Disponibilité {day} {period}",
+        "days": {
+          "monday": "Lundi",
+          "tuesday": "Mardi",
+          "wednesday": "Mercredi",
+          "thursday": "Jeudi",
+          "friday": "Vendredi",
+          "saturday": "Samedi",
+          "sunday": "Dimanche"
+        },
+        "periods": {
+          "morning": {
+            "label": "Matin"
+          },
+          "afternoon": {
+            "label": "Après-midi"
+          },
+          "evening": {
+            "label": "Soir"
+          }
+        }
+      },
+      "steps": {
+        "phone": {
+          "title": "Vérifiez votre téléphone",
+          "subtitle": "Indispensable pour recevoir les notifications d'intervention.",
+          "fields": {
+            "phone": "Numéro de téléphone",
+            "code": "Code reçu par SMS"
+          },
+          "sendCta": "Envoyer le code",
+          "sending": "Envoi…",
+          "verifyCta": "Vérifier",
+          "verifying": "Vérification…",
+          "devHint": "Code de développement : {code}",
+          "sent": {
+            "title": "Code envoyé",
+            "body": "Le code peut mettre jusqu'à 60 secondes pour arriver.",
+            "bodyDebug": "Code envoyé (debug : {code})."
+          },
+          "verified": {
+            "title": "Téléphone vérifié",
+            "body": "Vous pouvez passer à l'étape suivante.",
+            "banner": "Numéro vérifié — vous recevrez vos demandes d'intervention par SMS."
+          },
+          "errors": {
+            "sendTitle": "Envoi du code impossible",
+            "verifyTitle": "Code invalide"
+          }
+        },
+        "trades": {
+          "title": "Métiers et tarifs",
+          "subtitle": "Vos métiers, vos zones d'intervention et vos tarifs indicatifs.",
+          "fields": {
+            "trades": "Métiers",
+            "zones": "Zones d'intervention",
+            "zonesPlaceholder": "Dakar, Mbour…",
+            "zonesHint": "Séparez les villes ou quartiers par une virgule.",
+            "hourlyRate": "Tarif horaire (XOF)",
+            "visitFee": "Frais de visite (XOF)"
+          }
+        },
+        "availability": {
+          "title": "Vos disponibilités",
+          "subtitle": "Cochez les créneaux pendant lesquels vous êtes joignable."
+        },
+        "recap": {
+          "title": "Tout est prêt",
+          "subtitle": "Vérifiez le résumé avant de finaliser.",
+          "rows": {
+            "phone": "Téléphone",
+            "trades": "Métiers",
+            "zones": "Zones",
+            "hourlyRate": "Tarif horaire",
+            "visitFee": "Frais de visite",
+            "insurance": "Assurance",
+            "availability": "Disponibilités",
+            "yes": "Oui",
+            "no": "Non",
+            "slots": "créneaux"
+          },
+          "maintenanceRequest": {
+            "title": "Une intervention vous attend",
+            "body": "Une demande d'intervention a déclenché votre invitation. Vous pourrez la voir dès la fin du wizard."
+          }
+        }
+      }
+    },
+    "multiAgency": {
+      "welcomeAgency": "Bienvenue chez {agency}",
+      "welcomeGeneric": "Une nouvelle agence vous attend",
+      "subtitle": "Vous collaborez désormais avec {count} agence(s). Votre profil, votre KYC et vos métiers sont mutualisés.",
+      "status": {
+        "active": "Actif",
+        "paused": "En pause",
+        "ended": "Terminé",
+        "unknown": "—"
+      },
+      "cta": {
+        "dashboard": "Aller au tableau de bord"
+      },
+      "switch": {
+        "label": "Changer d'agence partenaire",
+        "empty": "Aucune agence partenaire pour le moment."
+      }
+    }
+  },
+  "onboarding": {
+    "host": {
+      "defaults": {
+        "spaceNameOf": "Espace de {name}"
+      },
+      "errors": {
+        "cguTitle": "Conditions à accepter",
+        "cguBody": "Vous devez accepter les conditions d'utilisation pour publier votre bien.",
+        "otpTitle": "Téléphone non vérifié",
+        "otpBody": "Vérifiez votre numéro avec le code reçu par SMS avant de publier.",
+        "submitTitle": "Publication impossible"
+      },
+      "success": {
+        "title": "Espace créé",
+        "body": "Votre premier bien est en brouillon. Ajoutez les photos et publiez quand vous êtes prêt."
+      },
+      "steps": {
+        "intent": {
+          "title": "Vous publiez en tant que…",
+          "subtitle": "Choisissez le mode qui correspond à votre activité.",
+          "legend": "Type de profil",
+          "options": {
+            "individual": {
+              "title": "Particulier (mon espace)",
+              "body": "Idéal pour publier vos propres biens. Vous gardez le contrôle total, sans collaborateur."
+            },
+            "professional": {
+              "title": "Professionnel (créer une vraie agence)",
+              "body": "Vous gérez plusieurs biens, des équipes ou des propriétaires tiers : nous créons une agence dédiée."
+            }
+          },
+          "professionalNotice": {
+            "title": "Création d'agence professionnelle",
+            "body": "Pour créer une agence avec plusieurs collaborateurs, contactez notre équipe — nous configurons votre espace en moins de 24h.",
+            "mailSubject": "Demande de création d'agence professionnelle",
+            "contactCta": "Contacter le support",
+            "continueIndividual": "Ou continuer en individuel et basculer plus tard"
+          }
+        },
+        "identity": {
+          "title": "Votre espace",
+          "subtitle": "Quelques informations pour personnaliser votre tableau de bord.",
+          "fields": {
+            "spaceName": "Nom de votre espace",
+            "primaryCity": "Ville principale",
+            "currency": "Devise",
+            "primaryPropertyType": "Type de bien principal",
+            "phone": "Numéro de téléphone",
+            "otpCode": "Code reçu par SMS"
+          },
+          "propertyTypes": {
+            "apartment": "Appartement",
+            "house": "Maison",
+            "villa": "Villa",
+            "studio": "Studio",
+            "room": "Chambre",
+            "land": "Terrain",
+            "office": "Bureau",
+            "shop": "Local commercial",
+            "warehouse": "Entrepôt",
+            "other": "Autre"
+          },
+          "otp": {
+            "heading": "Vérification du téléphone",
+            "body": "Pour la sécurité, nous vous envoyons un code SMS à 6 chiffres.",
+            "statusPending": "À vérifier",
+            "statusVerified": "Vérifié",
+            "sendCta": "Envoyer le code",
+            "sending": "Envoi…",
+            "verifyCta": "Vérifier",
+            "verifying": "Vérification…",
+            "sentTitle": "Code envoyé",
+            "sentBody": "Le code peut mettre jusqu'à 60 secondes pour arriver.",
+            "sentDebug": "Code envoyé (debug : {code}).",
+            "verifiedTitle": "Téléphone vérifié",
+            "verifiedBody": "Vous pouvez maintenant publier votre bien.",
+            "devHint": "Code de développement : {code}",
+            "errors": {
+              "sendFailed": "Envoi du code impossible",
+              "verifyFailed": "Code invalide"
+            }
+          }
+        },
+        "firstProperty": {
+          "title": "Votre premier bien",
+          "subtitle": "Une esquisse — vous pourrez compléter la fiche après publication.",
+          "fields": {
+            "title": "Titre de l'annonce",
+            "type": "Type de bien",
+            "city": "Ville",
+            "contractType": "Transaction",
+            "price": "Prix indicatif"
+          },
+          "types": {
+            "apartment": "Appartement",
+            "house": "Maison",
+            "villa": "Villa",
+            "studio": "Studio",
+            "room": "Chambre",
+            "land": "Terrain",
+            "office": "Bureau",
+            "shop": "Local commercial",
+            "warehouse": "Entrepôt",
+            "other": "Autre"
+          },
+          "contracts": {
+            "rent": "Location",
+            "sale": "Vente"
+          }
+        },
+        "payment": {
+          "title": "Mode de paiement",
+          "subtitle": "Choisissez votre fournisseur préféré — la configuration complète sera demandée à la première réservation.",
+          "legend": "Fournisseur de paiement",
+          "providers": {
+            "wave": {
+              "title": "Wave",
+              "body": "Mobile money — recommandé au Sénégal."
+            },
+            "orange_money": {
+              "title": "Orange Money",
+              "body": "Mobile money — Afrique de l'Ouest."
+            },
+            "lemon_squeezy": {
+              "title": "Carte bancaire (Lemon Squeezy)",
+              "body": "Paiements internationaux par carte."
+            }
+          },
+          "disclaimer": "Vous pourrez configurer plusieurs fournisseurs et changer de défaut depuis votre tableau de bord."
+        },
+        "recap": {
+          "title": "Récapitulatif",
+          "subtitle": "Vérifiez avant de publier — vous pourrez tout modifier ensuite.",
+          "rows": {
+            "spaceName": "Nom de l'espace",
+            "primaryCity": "Ville principale",
+            "currency": "Devise",
+            "phone": "Téléphone",
+            "phoneVerified": "Téléphone vérifié",
+            "firstPropertyTitle": "Titre du bien",
+            "firstPropertyType": "Type de bien",
+            "firstPropertyContract": "Transaction",
+            "firstPropertyPrice": "Prix",
+            "paymentProvider": "Fournisseur de paiement",
+            "yes": "Oui",
+            "no": "Non"
+          },
+          "warnings": {
+            "otpRequired": "Vérifiez votre numéro de téléphone à l'étape 2 avant de publier."
+          },
+          "cgu": {
+            "label": "J'accepte les <link>conditions générales d'utilisation</link>."
+          }
+        }
+      }
     }
   }
 }

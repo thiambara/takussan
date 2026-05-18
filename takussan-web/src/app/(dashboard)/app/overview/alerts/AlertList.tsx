@@ -1,8 +1,28 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { ThresholdAlert } from '@/lib/queries/alerts';
 import { createThresholdAlertAction, deleteThresholdAlertAction } from '@/app/actions/alerts';
+
+const OPERATOR_OPTIONS = [
+  { value: '>', label: '>' },
+  { value: '>=', label: '>=' },
+  { value: '<', label: '<' },
+  { value: '<=', label: '<=' },
+] as const;
+
+const SEVERITY_OPTIONS = [
+  { value: 'info', label: 'Info' },
+  { value: 'warning', label: 'Attention' },
+  { value: 'critical', label: 'Critique' },
+] as const;
 
 const ALERT_METRICS = [
   'unpaid_rate_percent',
@@ -59,66 +79,78 @@ export function AlertList({ initialAlerts }: Props) {
 
   return (
     <div className="space-y-6">
-      <section className="max-w-2xl space-y-3 rounded-2xl bg-app-surface-1 p-6">
-        <h2 className="text-sm font-semibold text-app-ink">Ajouter une alerte</h2>
+      <section className="max-w-2xl space-y-3 rounded-2xl bg-card p-6">
+        <h2 className="text-sm font-semibold text-foreground">Ajouter une alerte</h2>
         <div className="grid gap-3 md:grid-cols-3">
           <label className="text-sm">
-            <span className="mb-1 block font-medium text-app-ink">Métrique</span>
-            <select
+            <span className="mb-1 block font-medium text-foreground">Métrique</span>
+            <Select
               value={metric}
-              onChange={(e) => setMetric(e.target.value as (typeof ALERT_METRICS)[number])}
-              className="w-full rounded-md border border-app-surface-3 bg-white px-3 py-2"
+              onValueChange={(value) => setMetric((value ?? metric) as (typeof ALERT_METRICS)[number])}
+              items={ALERT_METRICS.map((m) => ({ value: m, label: m }))}
             >
-              {ALERT_METRICS.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ALERT_METRICS.map((m) => (
+                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block font-medium text-app-ink">Opérateur</span>
-            <select
+            <span className="mb-1 block font-medium text-foreground">Opérateur</span>
+            <Select
               value={operator}
-              onChange={(e) => setOperator(e.target.value as typeof operator)}
-              className="w-full rounded-md border border-app-surface-3 bg-white px-3 py-2"
+              onValueChange={(value) => setOperator((value ?? operator) as typeof operator)}
+              items={OPERATOR_OPTIONS as unknown as Array<{ value: string; label: string }>}
             >
-              <option value=">">&gt;</option>
-              <option value=">=">&gt;=</option>
-              <option value="<">&lt;</option>
-              <option value="<=">&lt;=</option>
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {OPERATOR_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block font-medium text-app-ink">Seuil</span>
+            <span className="mb-1 block font-medium text-foreground">Seuil</span>
             <input
               type="number"
               value={threshold}
               onChange={(e) => setThreshold(e.target.value)}
-              className="w-full rounded-md border border-app-surface-3 bg-white px-3 py-2"
+              className="w-full rounded-md border border-border bg-white px-3 py-2"
             />
           </label>
           <label className="text-sm">
-            <span className="mb-1 block font-medium text-app-ink">Sévérité</span>
-            <select
+            <span className="mb-1 block font-medium text-foreground">Sévérité</span>
+            <Select
               value={severity}
-              onChange={(e) => setSeverity(e.target.value as typeof severity)}
-              className="w-full rounded-md border border-app-surface-3 bg-white px-3 py-2"
+              onValueChange={(value) => setSeverity((value ?? severity) as typeof severity)}
+              items={SEVERITY_OPTIONS as unknown as Array<{ value: string; label: string }>}
             >
-              <option value="info">Info</option>
-              <option value="warning">Attention</option>
-              <option value="critical">Critique</option>
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SEVERITY_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block font-medium text-app-ink">Cooldown (h)</span>
+            <span className="mb-1 block font-medium text-foreground">Cooldown (h)</span>
             <input
               type="number"
               min="1"
               max="720"
               value={cooldownHours}
               onChange={(e) => setCooldownHours(e.target.value)}
-              className="w-full rounded-md border border-app-surface-3 bg-white px-3 py-2"
+              className="w-full rounded-md border border-border bg-white px-3 py-2"
             />
           </label>
         </div>
@@ -133,20 +165,20 @@ export function AlertList({ initialAlerts }: Props) {
         {error && <p className="text-xs text-rose-600">{error}</p>}
       </section>
 
-      <section className="rounded-2xl bg-app-surface-1 p-6">
-        <h2 className="mb-3 text-sm font-semibold text-app-ink">Alertes actives</h2>
+      <section className="rounded-2xl bg-card p-6">
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Alertes actives</h2>
         {alerts.length === 0 ? (
-          <p className="text-sm text-app-ink-muted">Aucune alerte configurée.</p>
+          <p className="text-sm text-muted-foreground">Aucune alerte configurée.</p>
         ) : (
           <ul className="divide-y divide-app-surface-3">
             {alerts.map((a) => (
               <li key={a.id} className="flex items-center justify-between py-2 text-sm">
                 <span>
-                  <span className="font-medium text-app-ink">{a.metric}</span>{' '}
-                  <span className="text-app-ink-muted">
+                  <span className="font-medium text-foreground">{a.metric}</span>{' '}
+                  <span className="text-muted-foreground">
                     {a.operator} {a.threshold}
                   </span>{' '}
-                  <span className="ml-2 rounded-full bg-app-surface-3 px-2 py-0.5 text-xs">
+                  <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">
                     {a.severity}
                   </span>
                 </span>

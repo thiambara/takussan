@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\Api\Admin\AgencyResource;
 use App\Models\Agency;
 use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\KycDossierStatus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -25,7 +26,11 @@ class AgencyModerationController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Agency::query()->orderByDesc('created_at');
+        $query = Agency::query()
+            ->select('agencies.*')
+            ->withCount('properties')
+            ->selectSub($this->memberCountSubquery(), 'members_count')
+            ->selectSub($this->lastActivitySubquery(), 'last_activity_at');
 
         if ($status = $request->string('filter.status')->trim()->value()) {
             if ($enum = AgencyStatus::tryFrom($status)) {
@@ -39,6 +44,30 @@ class AgencyModerationController extends Controller
                     ->orWhere('slug', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
             });
+        }
+
+        if ($createdFrom = $request->string('filter.created_from')->trim()->value()) {
+            $query->whereDate('agencies.created_at', '>=', $createdFrom);
+        }
+
+        if ($createdTo = $request->string('filter.created_to')->trim()->value()) {
+            $query->whereDate('agencies.created_at', '<=', $createdTo);
+        }
+
+        $sort = (string) $request->query('sort', '-created_at');
+        $direction = str_starts_with($sort, '-') ? 'desc' : 'asc';
+        $field = ltrim($sort, '-');
+        $sorts = [
+            'created_at' => 'agencies.created_at',
+            'name' => 'agencies.name',
+            'members_count' => 'members_count',
+            'properties_count' => 'properties_count',
+        ];
+
+        if (isset($sorts[$field])) {
+            $query->orderBy($sorts[$field], $direction);
+        } else {
+            $query->orderByDesc('agencies.created_at');
         }
 
         $perPage = (int) ($request->query('per_page') ?? 15);
@@ -55,8 +84,75 @@ class AgencyModerationController extends Controller
         ]);
     }
 
+    private function memberCountSubquery(): string
+    {
+        return <<<'SQL'
+            select count(*) from (
+                select owner_profiles.user_id
+                from owner_profiles
+                where owner_profiles.agency_id = agencies.id
+                    and owner_profiles.deleted_at is null
+                    and owner_profiles.status = 'active'
+                union
+                select agent_profiles.user_id
+                from agent_profiles
+                where agent_profiles.agency_id = agencies.id
+                    and agent_profiles.deleted_at is null
+                    and agent_profiles.status = 'active'
+                union
+                select broker_profiles.user_id
+                from broker_profiles
+                inner join broker_agency_collaborations
+                    on broker_agency_collaborations.broker_profile_id = broker_profiles.id
+                where broker_agency_collaborations.agency_id = agencies.id
+                    and broker_agency_collaborations.deleted_at is null
+                    and broker_agency_collaborations.status = 'active'
+                    and broker_profiles.deleted_at is null
+                union
+                select service_provider_profiles.user_id
+                from service_provider_profiles
+                inner join service_provider_agency_collaborations
+                    on service_provider_agency_collaborations.service_provider_profile_id = service_provider_profiles.id
+                where service_provider_agency_collaborations.agency_id = agencies.id
+                    and service_provider_agency_collaborations.deleted_at is null
+                    and service_provider_agency_collaborations.status = 'active'
+                    and service_provider_profiles.deleted_at is null
+            ) as agency_member_users
+        SQL;
+    }
+
+    private function lastActivitySubquery(): string
+    {
+        return <<<'SQL'
+            select max(last_at) from (
+                select agencies.updated_at as last_at
+                union all
+                select max(properties.updated_at)
+                from properties
+                where properties.agency_id = agencies.id
+                    and properties.deleted_at is null
+                union all
+                select max(owner_profiles.updated_at)
+                from owner_profiles
+                where owner_profiles.agency_id = agencies.id
+                    and owner_profiles.deleted_at is null
+                union all
+                select max(agent_profiles.updated_at)
+                from agent_profiles
+                where agent_profiles.agency_id = agencies.id
+                    and agent_profiles.deleted_at is null
+            ) as agency_activity
+        SQL;
+    }
+
     public function verify(Request $request, Agency $agency): JsonResponse
     {
+        abort_unless(
+            $agency->kycDossier?->status === KycDossierStatus::Verified,
+            422,
+            'Agency KYC must be verified before agency verification.',
+        );
+
         return $this->transition($request, $agency, AgencyStatus::Active, 'super_admin_agency_verified', [
             'is_verified' => true,
             'verified_at' => now(),

@@ -7,7 +7,6 @@ use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Lease\RentReviewService;
-use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
@@ -20,7 +19,6 @@ class LeaseRentHistoryEndpointTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(RolesAndPermissionsSeeder::class);
         Notification::fake();
     }
 
@@ -99,7 +97,6 @@ class LeaseRentHistoryEndpointTest extends TestCase
     {
         [, $lease] = $this->scaffold();
         $stranger = User::factory()->create();
-        $stranger->assignRole('customer');
         Sanctum::actingAs($stranger);
 
         $this->getJson("/api/leases/{$lease->id}/rent-history")->assertStatus(403);
@@ -111,7 +108,6 @@ class LeaseRentHistoryEndpointTest extends TestCase
     private function scaffold(): array
     {
         $landlord = User::factory()->create();
-        $landlord->assignRole('owner');
         $property = Property::factory()->create(['user_id' => $landlord->id]);
         $tenant = Customer::factory()->create();
 

@@ -52,6 +52,12 @@ export type Booking = {
   rejection_date: string | null;
   cancellation_date: string | null;
   completion_date: string | null;
+  /** Backend canonical timestamps (BookingResource). */
+  confirmed_at?: string | null;
+  cancelled_at?: string | null;
+  expires_at?: string | null;
+  expired_at?: string | null;
+  cancellation_reason?: string | null;
   price_at_booking: number | null;
   total_amount: number | null;
   deposit_amount: number | null;
@@ -71,5 +77,6 @@ export type Booking = {
     currency: string | null;
     contract_type: 'sale' | 'rent' | null;
   };
+  customer?: { id: number; user_id?: number | null } | null;
   booking_payments?: BookingPayment[];
 };

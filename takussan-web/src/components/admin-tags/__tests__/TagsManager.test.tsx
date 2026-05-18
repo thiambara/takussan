@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { NextIntlClientProvider } from 'next-intl';
 
 import { TagsManager } from '../TagsManager';
 
@@ -35,6 +36,14 @@ const initialTags = [
   },
 ];
 
+function renderTagsManager() {
+  return render(
+    <NextIntlClientProvider locale="fr" messages={{ common: { actions: { close: 'Fermer' } } }}>
+      <TagsManager initialTags={initialTags} />
+    </NextIntlClientProvider>,
+  );
+}
+
 beforeEach(() => {
   createMock.mockReset();
   updateMock.mockReset();
@@ -47,14 +56,14 @@ afterEach(() => {
 
 describe('<TagsManager />', () => {
   it('renders the initial tags in the table', () => {
-    render(<TagsManager initialTags={initialTags} />);
+    renderTagsManager();
     expect(screen.getByText('Piscine')).toBeInTheDocument();
     expect(screen.getByText('Meublé')).toBeInTheDocument();
   });
 
   it('filters by type via the tabs', async () => {
     const user = userEvent.setup();
-    render(<TagsManager initialTags={initialTags} />);
+    renderTagsManager();
     await user.click(screen.getByRole('tab', { name: 'Caractéristiques' }));
     expect(screen.queryByText('Piscine')).not.toBeInTheDocument();
     expect(screen.getByText('Meublé')).toBeInTheDocument();
@@ -64,7 +73,7 @@ describe('<TagsManager />', () => {
     const user = userEvent.setup();
     deleteMock.mockResolvedValue({ ok: false, status: 409, message: 'Tag in use' });
 
-    render(<TagsManager initialTags={initialTags} />);
+    renderTagsManager();
     const row = screen.getByText('Piscine').closest('tr');
     expect(row).not.toBeNull();
     await user.click(within(row as HTMLElement).getByRole('button', { name: /Supprimer/ }));
@@ -88,7 +97,7 @@ describe('<TagsManager />', () => {
       },
     });
 
-    render(<TagsManager initialTags={initialTags} />);
+    renderTagsManager();
     await user.click(screen.getByRole('button', { name: 'Nouveau tag' }));
 
     const nameInput = await screen.findByLabelText(/Libellé/);

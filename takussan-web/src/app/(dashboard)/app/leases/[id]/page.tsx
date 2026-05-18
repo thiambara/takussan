@@ -1,5 +1,35 @@
 import { getMeAction } from '@/app/actions/auth';
+import { apiRequest } from '@/lib/api';
+import { getToken } from '@/lib/session';
 import { LeaseDetail } from '@/components/leases/LeaseDetail';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const leaseId = Number(id);
+  if (!Number.isFinite(leaseId) || leaseId <= 0) {
+    return { title: 'Bail introuvable' };
+  }
+
+  // Resolve the lease reference best-effort. A 401/404 here just means we
+  // fall back to the generic title — the actual page rendering owns the
+  // hard error path.
+  try {
+    const token = await getToken();
+    if (!token) return { title: `Bail #${leaseId}` };
+    const res = await apiRequest<{ data: { reference_number?: string | null } }>(
+      `/api/leases/${leaseId}?fields[leases]=id,reference_number`,
+      { token },
+    );
+    const ref = res.data?.reference_number;
+    return { title: ref ? `Bail ${ref}` : `Bail #${leaseId}` };
+  } catch {
+    return { title: `Bail #${leaseId}` };
+  }
+}
 
 export default async function Page({
   params,
@@ -12,7 +42,7 @@ export default async function Page({
 
   if (!Number.isFinite(leaseId) || leaseId <= 0) {
     return (
-      <div className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
+      <div className="rounded-xl bg-card p-6 text-sm text-red-600">
         Bail introuvable.
       </div>
     );

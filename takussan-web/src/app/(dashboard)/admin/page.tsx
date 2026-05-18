@@ -3,9 +3,11 @@ import { AgencyActivityFeed } from '@/components/dashboard/admin/AgencyActivityF
 import { AgencyDegradedState } from '@/components/dashboard/admin/AgencyDegradedState';
 import { AgencyKpis } from '@/components/dashboard/admin/AgencyKpis';
 import { AgencyRevenueSnapshot } from '@/components/dashboard/admin/AgencyRevenueSnapshot';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { isSuperAdmin } from '@/lib/roles';
 import { fetchDashboardAgency } from '@/lib/queries/dashboard-agency';
+import { ensureStandardAgencyOrRedirect } from '@/lib/access/server-guards';
 
 export default async function Page() {
   const user = await getMeAction();
@@ -15,14 +17,16 @@ export default async function Page() {
     return <NoAgencyState title="Tableau de bord agence" />;
   }
 
+  await ensureStandardAgencyOrRedirect(user);
+
   const payload = await fetchDashboardAgency({ withTimeseries: true });
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-app-ink">Tableau de bord agence</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">Vue d&apos;ensemble de l&apos;agence</p>
-      </div>
+      <PageHeader
+        title="Tableau de bord agence"
+        subtitle="Vue d'ensemble de l'agence"
+      />
 
       {payload ? (
         <>

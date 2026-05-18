@@ -65,6 +65,10 @@ const DETAIL_FIELDS = [
   'quote_rejection_reason',
 ] as const;
 
+const PROPERTY_FIELDS = ['id', 'title', 'slug'] as const;
+
+const USER_FIELDS = ['id', 'first_name', 'last_name', 'username', 'email'] as const;
+
 export interface MaintenanceListParams {
   readonly status?: MaintenanceStatus;
   readonly priority?: MaintenancePriority;
@@ -126,7 +130,14 @@ export function useMaintenanceRequest(id: number | null) {
     maintenanceKeys.detail(id ?? 0),
     `/api/maintenance-requests/${id}`,
     {
-      params: { fields: { maintenance_requests: [...DETAIL_FIELDS] } },
+      params: {
+        fields: {
+          maintenance_requests: [...DETAIL_FIELDS],
+          properties: [...PROPERTY_FIELDS],
+          users: [...USER_FIELDS],
+        },
+        include: ['property', 'requester', 'assignee', 'quoteDecisionBy'],
+      },
       enabled: id !== null && id > 0,
     },
   );

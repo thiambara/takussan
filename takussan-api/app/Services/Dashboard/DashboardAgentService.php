@@ -64,12 +64,22 @@ class DashboardAgentService
 
         // Commissions earned by agent's agency this month (proxy metric).
         $commissionsMonth = 0.0;
+        $commissionsYear = 0.0;
+        $leasesToSign = 0;
         if ($agent->agency_id) {
             $commissionsMonth = (float) Lease::where('agency_id', $agent->agency_id)
                 ->whereNotNull('signed_at')
                 ->whereBetween('signed_at', [$monthStart, $monthEnd])
                 ->whereNotIn('status', [LeaseStatus::Draft, LeaseStatus::PendingSignature, LeaseStatus::Terminated])
                 ->sum('commission_amount');
+            $commissionsYear = (float) Lease::where('agency_id', $agent->agency_id)
+                ->whereNotNull('signed_at')
+                ->whereYear('signed_at', now()->year)
+                ->whereNotIn('status', [LeaseStatus::Draft, LeaseStatus::PendingSignature, LeaseStatus::Terminated])
+                ->sum('commission_amount');
+            $leasesToSign = Lease::where('agency_id', $agent->agency_id)
+                ->where('status', LeaseStatus::PendingSignature)
+                ->count();
         }
 
         // Tasks owned by the agent
@@ -82,6 +92,66 @@ class DashboardAgentService
             ->whereNotNull('due_at')
             ->where('due_at', '<', now())
             ->count();
+
+        $tasksToday = Task::where('assigned_to_id', $agent->id)
+            ->whereIn('status', [TaskStatus::Open, TaskStatus::InProgress])
+            ->whereDate('due_at', today())
+            ->count();
+
+        $taskList = Task::where('assigned_to_id', $agent->id)
+            ->whereIn('status', [TaskStatus::Open, TaskStatus::InProgress])
+            ->with('taskable')
+            ->orderByRaw('due_at IS NULL, due_at asc')
+            ->orderByDesc('priority')
+            ->limit(5)
+            ->get()
+            ->map(fn (Task $task) => [
+                'id' => $task->id,
+                'title' => $task->title,
+                'priority' => $task->priority?->value,
+                'due_at' => $task->due_at?->toIso8601String(),
+                'customer' => $task->taskable instanceof Customer
+                    ? [
+                        'id' => $task->taskable->id,
+                        'name' => $task->taskable->full_name,
+                    ]
+                    : null,
+            ])
+            ->values()
+            ->all();
+
+        $visitsToday = PropertyVisit::where('agent_id', $agent->id)
+            ->whereDate('scheduled_at', today())
+            ->with(['property:id,title', 'customer:id,first_name,last_name'])
+            ->orderBy('scheduled_at')
+            ->limit(5)
+            ->get()
+            ->map(fn (PropertyVisit $visit) => [
+                'id' => $visit->id,
+                'scheduled_at' => $visit->scheduled_at?->toIso8601String(),
+                'status' => $visit->status?->value,
+                'property' => $visit->property
+                    ? ['id' => $visit->property->id, 'title' => $visit->property->title]
+                    : null,
+                'requester' => $visit->customer
+                    ? ['id' => $visit->customer->id, 'name' => $visit->customer->full_name]
+                    : ['name' => $visit->visitor_name],
+            ])
+            ->values()
+            ->all();
+
+        $recentActivity = Task::where('assigned_to_id', $agent->id)
+            ->latest('updated_at')
+            ->limit(5)
+            ->get()
+            ->map(fn (Task $task) => [
+                'id' => $task->id,
+                'label' => $task->title,
+                'type' => 'task',
+                'at' => $task->updated_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
 
         $openMaintenance = MaintenanceRequest::where('assigned_to', $agent->id)
             ->whereIn('status', [MaintenanceStatus::Open, MaintenanceStatus::InProgress])
@@ -101,14 +171,25 @@ class DashboardAgentService
             ],
             'visits' => [
                 'upcoming_7d' => $upcomingVisits,
+                'today' => count($visitsToday),
+                'today_items' => $visitsToday,
             ],
             'finance' => [
                 'commissions_month' => round($commissionsMonth, 2),
+                'commissions_year' => round($commissionsYear, 2),
             ],
             'tasks' => [
                 'open' => $openTasks,
                 'overdue' => $overdueTasks,
+                'today' => $tasksToday,
+                'items' => $taskList,
             ],
+            'pipeline_ops' => [
+                'pending_bookings' => $pendingBookings,
+                'leases_to_sign' => $leasesToSign,
+                'tasks_today' => $tasksToday,
+            ],
+            'recent_activity' => $recentActivity,
             'maintenance' => [
                 'open' => $openMaintenance,
             ],

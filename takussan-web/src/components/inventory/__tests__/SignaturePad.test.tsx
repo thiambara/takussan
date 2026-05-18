@@ -9,23 +9,24 @@ import { SignaturePad } from '../SignaturePad';
  * contract: disabled states, clear button semantics, confirm payload.
  */
 function stubCanvas() {
-  HTMLCanvasElement.prototype.getContext = () =>
-    ({
-      lineCap: '',
-      lineJoin: '',
-      lineWidth: 0,
-      strokeStyle: '',
-      beginPath: vi.fn(),
-      moveTo: vi.fn(),
-      lineTo: vi.fn(),
-      stroke: vi.fn(),
-      clearRect: vi.fn(),
-      scale: vi.fn(),
-    }) as unknown as CanvasRenderingContext2D;
+  const context = {
+    lineCap: '',
+    lineJoin: '',
+    lineWidth: 0,
+    strokeStyle: '',
+    beginPath: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    stroke: vi.fn(),
+    clearRect: vi.fn(),
+    scale: vi.fn(),
+  } as unknown as CanvasRenderingContext2D;
+
+  HTMLCanvasElement.prototype.getContext = vi.fn((contextId: string) =>
+    contextId === '2d' ? context : null,
+  ) as typeof HTMLCanvasElement.prototype.getContext;
   HTMLCanvasElement.prototype.toDataURL = () => 'data:image/png;base64,AAAA';
-  // @ts-expect-error – pointer capture not in jsdom
   HTMLElement.prototype.setPointerCapture = () => undefined;
-  // @ts-expect-error – pointer capture not in jsdom
   HTMLElement.prototype.releasePointerCapture = () => undefined;
 }
 

@@ -1,9 +1,10 @@
 'use client';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Star, MessageSquareReply, Pencil } from 'lucide-react';
 import { usePropertyReviews } from '@/hooks/usePropertyReviews';
 import { useAuth } from '@/context/AuthContext';
+import { getReviewEligibility } from '@/app/actions/property';
 import { PropertyReviewForm } from './PropertyReviewForm';
 import { PropertyReviewReplyForm } from './PropertyReviewReplyForm';
 import type { PropertyReview } from '@/types/review';
@@ -187,7 +188,7 @@ export function canReplyToReview({
   propertyAgencyId: number | null | undefined;
 }): boolean {
   if (!userId) return false;
-  if (userRoles.includes('super_admin') || userRoles.includes('admin')) return true;
+  if (userRoles.includes('super_admin')) return true;
   if (ownerId && userId === ownerId) return true;
   if (userAgencyId && propertyAgencyId && userAgencyId === propertyAgencyId) return true;
   return false;
@@ -204,6 +205,26 @@ export function PropertyReviews({
   const { user } = useAuth();
   const { data, loading, error, submit, reply } = usePropertyReviews(slug, propertyId);
 
+  // TCK-180 — gate the review form on history. The endpoint requires
+  // auth, so anonymous users skip the call and simply never see the form.
+  const [eligibility, setEligibility] = useState<{
+    slug: string;
+    userId: number;
+    result: { eligible: boolean; alreadyReviewed: boolean };
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!user) return;
+    (async () => {
+      const result = await getReviewEligibility(slug);
+      if (!cancelled) setEligibility({ slug, userId: user.id, result });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, user]);
+
   const canReply = canReplyToReview({
     userId: user?.id,
     userRoles: user?.roles ?? [],
@@ -211,6 +232,17 @@ export function PropertyReviews({
     ownerId,
     propertyAgencyId: agencyId,
   });
+
+  const activeEligibility =
+    user && eligibility?.slug === slug && eligibility.userId === user.id
+      ? eligibility.result
+      : null;
+
+  const showReviewForm =
+    !!user &&
+    !!activeEligibility &&
+    activeEligibility.eligible &&
+    !activeEligibility.alreadyReviewed;
 
   return (
     <section id="avis" className="space-y-4 scroll-mt-24">
@@ -251,7 +283,18 @@ export function PropertyReviews({
         <p className="text-sm text-stone-500">Aucun avis pour l’instant.</p>
       )}
 
-      {user && <PropertyReviewForm onSubmit={submit} />}
+      {showReviewForm && <PropertyReviewForm onSubmit={submit} />}
+      {user && activeEligibility && !activeEligibility.eligible && !activeEligibility.alreadyReviewed && (
+        <p className="rounded-xl bg-app-surface-1 p-4 text-sm text-app-ink-muted">
+          Vous pourrez laisser un avis après une visite finalisée ou la signature d&apos;un bail
+          sur ce bien.
+        </p>
+      )}
+      {user && activeEligibility?.alreadyReviewed && (
+        <p className="rounded-xl bg-app-surface-1 p-4 text-sm text-app-ink-muted">
+          Merci, vous avez déjà laissé un avis sur ce bien.
+        </p>
+      )}
     </section>
   );
 }

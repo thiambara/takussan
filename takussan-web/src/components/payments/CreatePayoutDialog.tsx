@@ -16,6 +16,7 @@ import {
   FormInput,
   FormSelect,
   FormTextarea,
+  FormDatePicker,
 } from '@/components/forms';
 import { useApiForm } from '@/hooks/useApiForm';
 import { useCreatePayout } from '@/lib/queries/payments';
@@ -195,16 +196,14 @@ export function CreatePayoutDialog({
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormInput<CreatePayoutFormValues>
+            <FormDatePicker<CreatePayoutFormValues>
               control={form.control}
               name="period_start"
-              type="date"
               label="Début de période"
             />
-            <FormInput<CreatePayoutFormValues>
+            <FormDatePicker<CreatePayoutFormValues>
               control={form.control}
               name="period_end"
-              type="date"
               label="Fin de période"
             />
           </div>
@@ -256,10 +255,9 @@ export function CreatePayoutDialog({
                 ...PAYMENT_METHOD_OPTIONS.map((o) => ({ ...o })),
               ]}
             />
-            <FormInput<CreatePayoutFormValues>
+            <FormDatePicker<CreatePayoutFormValues>
               control={form.control}
               name="scheduled_at"
-              type="date"
               label="Prévu le"
             />
           </div>

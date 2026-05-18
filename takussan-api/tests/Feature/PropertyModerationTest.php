@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Agency;
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
@@ -232,5 +233,16 @@ class PropertyModerationTest extends BaseTestCase
 
         $this->postJson("/api/properties/{$property->id}/approve")
             ->assertForbidden();
+    }
+
+    public function test_individual_agency_admin_cannot_list_moderation_queue(): void
+    {
+        $agency = Agency::factory()->individual()->create(['moderation_required' => true]);
+        $this->actingAsRole('agency_admin', ['agency_id' => $agency->id]);
+
+        $this->getJson('/api/properties/moderation')->assertForbidden();
+
+        $agency->update(['kind' => AgencyKind::Standard]);
+        $this->getJson('/api/properties/moderation')->assertOk();
     }
 }

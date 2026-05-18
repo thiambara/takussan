@@ -1,17 +1,19 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useLocale } from 'next-intl';
-import { Info, Paperclip, Send, Users } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
+import { ArrowLeft, Info, Paperclip, Send, Settings, Users } from 'lucide-react';
 import {
   useConversation,
-  useMessages,
+  useMessagesInfinite,
+  useNewMessagesPolling,
   useSendMessage,
 } from '@/lib/queries/conversations';
+import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
 import { apiRequest } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -21,25 +23,42 @@ import { isAllowedAttachment, sendMessageSchema, type SendMessageFormValues } fr
 import { cn } from '@/lib/utils';
 import { SystemMessageBubble } from './SystemMessageBubble';
 import { ConversationInfoSheet } from './ConversationInfoSheet';
+import { MessageDateSeparator } from './MessageDateSeparator';
+import { groupMessagesByDay } from '@/lib/messages/groupByDay';
 import type { Locale } from '@/i18n/config';
 import type { Message } from '@/types/message';
 
 interface ChatViewProps {
   readonly conversationId: number;
+  /**
+   * `page` (default) renders the full-page chat with the in-place group info
+   * sheet (TCK-085). `widget` is the compact variant used by the floating
+   * chat widget (TCK-274): it adds a back button to the header, drops the
+   * group info sheet, and replaces the info button with a link to the full
+   * `/app/messages` page so admin actions stay in their dedicated UI.
+   */
+  readonly variant?: 'page' | 'widget';
+  /** Required when `variant === 'widget'` to render the back button. */
+  readonly onBack?: () => void;
 }
 
 /**
- * Realtime strategy: `useMessages` polls every 3 s while the tab is focused.
- * When the tab is hidden we pause polling to save bandwidth (document
- * visibility listener below). See TCK-045 Notes d'implémentation.
+ * Realtime strategy: `useMessagesInfinite` loads 30 newest messages on mount
+ * and pages older history when the user scrolls up; `useNewMessagesPolling`
+ * polls `?after_id=<latest>` every 3 s and merges results into the same cache
+ * so polling never re-downloads loaded history. Polling pauses while the tab
+ * is hidden (visibility listener below). See TCK-045 / pagination plan.
  */
-export function ChatView({ conversationId }: ChatViewProps) {
+export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewProps) {
+  const isWidget = variant === 'widget';
+  const tWidget = useTranslations('messaging.widget');
   const locale = useLocale() as Locale;
   const { user, token } = useAuth();
   const [isVisible, setIsVisible] = useState(
     typeof document === 'undefined' ? true : !document.hidden,
   );
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreRef = useRef<HTMLLIElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -54,12 +73,27 @@ export function ChatView({ conversationId }: ChatViewProps) {
 
   const { data: conversationData } = useConversation(conversationId);
   const {
-    data: messagesData,
+    data: infiniteData,
     isLoading,
     isError,
-  } = useMessages(conversationId, {
-    refetchInterval: isVisible ? 3_000 : false,
-  });
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useMessagesInfinite(conversationId);
+
+  const messages = useMemo<Message[]>(
+    () => infiniteData?.pages.flatMap((p) => p.data) ?? [],
+    [infiniteData],
+  );
+
+  const anchorId = useMemo<number | null>(() => {
+    if (messages.length === 0) return null;
+    let max = messages[0]!.id;
+    for (const m of messages) if (m.id > max) max = m.id;
+    return max;
+  }, [messages]);
+
+  useNewMessagesPolling(conversationId, anchorId, { enabled: isVisible });
 
   const sendMessage = useSendMessage(conversationId);
 
@@ -69,7 +103,6 @@ export function ChatView({ conversationId }: ChatViewProps) {
     defaultValues: { content: '' },
   });
 
-  const messages = messagesData?.data ?? [];
   const conversation = conversationData?.data;
   const isGroup = conversation?.type === 'group';
   const myParticipant = conversation?.participants?.find(
@@ -77,12 +110,84 @@ export function ChatView({ conversationId }: ChatViewProps) {
   );
   const isMuted = Boolean(myParticipant?.is_muted);
 
-  // Auto-scroll on new messages
+  // Reset the per-conversation scroll bookkeeping whenever the open
+  // conversation changes — otherwise the dashboard's persistent ChatView
+  // would carry the previous conversation's `hasScrolledOnLoadRef = true`
+  // and skip the auto-scroll-to-bottom for every subsequent conversation.
+  const hasScrolledOnLoadRef = useRef(false);
+  const lastIncomingIdRef = useRef<number | null>(null);
+  const scrollHeightBeforeFetchRef = useRef<number | null>(null);
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    hasScrolledOnLoadRef.current = false;
+    lastIncomingIdRef.current = null;
+    scrollHeightBeforeFetchRef.current = null;
+  }, [conversationId]);
+
+  // Auto-scroll when the newest message id changes (incoming via polling or
+  // sent locally) — but only if the user is already near the bottom, so we
+  // don't yank them out of their history reading.
+  useEffect(() => {
+    if (anchorId == null) return;
+    if (lastIncomingIdRef.current === anchorId) return;
+    lastIncomingIdRef.current = anchorId;
+
+    const el = scrollRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distanceFromBottom < 120) {
+      el.scrollTop = el.scrollHeight;
     }
-  }, [messages.length]);
+  }, [anchorId]);
+
+  // Initial-load scroll: when the first batch of messages is painted, wait
+  // for the layout pass (rAF) so `scrollHeight` reflects every bubble
+  // (including images / attachments) before jumping to the bottom. The ref
+  // is reset on `conversationId` change above so this fires per-conversation.
+  useEffect(() => {
+    if (hasScrolledOnLoadRef.current) return;
+    if (isLoading || messages.length === 0) return;
+    hasScrolledOnLoadRef.current = true;
+    requestAnimationFrame(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+    });
+  }, [isLoading, messages.length]);
+
+  // Preserve scroll position when older history is prepended on scroll-up.
+  // Capture `scrollHeight` right before triggering `fetchNextPage`, then
+  // after the new page is rendered, restore the visual offset by adding the
+  // delta to `scrollTop`.
+  const pagesLength = infiniteData?.pages.length ?? 0;
+  const prevPagesLengthRef = useRef(pagesLength);
+  useEffect(() => {
+    if (pagesLength > prevPagesLengthRef.current && scrollHeightBeforeFetchRef.current != null) {
+      const saved = scrollHeightBeforeFetchRef.current;
+      scrollHeightBeforeFetchRef.current = null;
+      requestAnimationFrame(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        el.scrollTop = el.scrollHeight - saved;
+      });
+    }
+    prevPagesLengthRef.current = pagesLength;
+  }, [pagesLength]);
+
+  // IntersectionObserver on the top sentinel triggers older-history fetch.
+  const isSentinelVisible = useIntersectionObserver(loadMoreRef, {
+    root: scrollRef.current,
+    rootMargin: '120px 0px 0px 0px',
+    enabled: Boolean(hasNextPage) && !isLoading,
+  });
+  useEffect(() => {
+    if (!isSentinelVisible || !hasNextPage || isFetchingNextPage || isLoading) return;
+    if (scrollRef.current) {
+      scrollHeightBeforeFetchRef.current = scrollRef.current.scrollHeight;
+    }
+    void fetchNextPage();
+  }, [isSentinelVisible, hasNextPage, isFetchingNextPage, isLoading, fetchNextPage]);
+
+  const renderItems = groupMessagesByDay(messages);
 
   async function uploadAttachment(messageId: number, file: File) {
     const fd = new FormData();
@@ -139,6 +244,18 @@ export function ChatView({ conversationId }: ChatViewProps) {
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center gap-3 border-b border-stone-200 bg-white px-4 py-3">
+        {isWidget && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onBack}
+            aria-label={tWidget('chatBack')}
+            data-testid="chat-back-button"
+          >
+            <ArrowLeft className="size-4" aria-hidden />
+          </Button>
+        )}
         {isGroup ? (
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-stone-200">
             <Users className="size-5 text-stone-600" aria-hidden />
@@ -177,7 +294,7 @@ export function ChatView({ conversationId }: ChatViewProps) {
             </Link>
           )}
         </div>
-        {isGroup && (
+        {isGroup && !isWidget && (
           <Button
             type="button"
             variant="ghost"
@@ -189,8 +306,18 @@ export function ChatView({ conversationId }: ChatViewProps) {
             <Info className="size-4" aria-hidden />
           </Button>
         )}
+        {isGroup && isWidget && (
+          <Link
+            href={`/app/messages?conversation=${conversationId}`}
+            className="inline-flex size-9 items-center justify-center rounded-md text-stone-600 hover:bg-stone-100"
+            aria-label={tWidget('manageGroup')}
+            data-testid="chat-manage-group-link"
+          >
+            <Settings className="size-4" aria-hidden />
+          </Link>
+        )}
       </header>
-      {isGroup && (
+      {isGroup && !isWidget && (
         <ConversationInfoSheet
           open={infoOpen}
           onClose={() => setInfoOpen(false)}
@@ -216,8 +343,24 @@ export function ChatView({ conversationId }: ChatViewProps) {
           </p>
         ) : (
           <ul className="space-y-3">
-            {messages.map((m) =>
-              m.type === 'system' ? (
+            <li
+              ref={loadMoreRef}
+              aria-hidden={!hasNextPage}
+              className={cn(
+                'flex justify-center',
+                hasNextPage ? 'py-2' : 'py-0',
+              )}
+            >
+              {isFetchingNextPage ? (
+                <span className="text-[11px] text-stone-500">Chargement…</span>
+              ) : null}
+            </li>
+            {renderItems.map((item) => {
+              if (item.kind === 'separator') {
+                return <MessageDateSeparator key={item.key} date={item.date} />;
+              }
+              const m = item.message;
+              return m.type === 'system' ? (
                 <SystemMessageBubble key={m.id} message={m} />
               ) : (
                 <MessageBubble
@@ -226,8 +369,8 @@ export function ChatView({ conversationId }: ChatViewProps) {
                   isOwn={m.sender_id === user?.id}
                   locale={locale}
                 />
-              ),
-            )}
+              );
+            })}
           </ul>
         )}
       </div>

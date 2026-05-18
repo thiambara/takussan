@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Models\Enums\UserStatus;
 use App\Models\User;
+use App\Support\AgencyKindGuard;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -13,26 +14,29 @@ class UserAdminController extends Controller
     public function index(Request $request): JsonResponse
     {
         $actor = $request->user();
+        $agencyId = $request->activeProfile()?->agency_id;
 
         abort_unless(
-            $actor->hasRole(['admin', 'super_admin', 'agency_admin']),
+            $actor->isSuperAdmin()
+                || ($agencyId !== null && $actor->isAgencyAdminAt((int) $agencyId)),
             403,
         );
 
-        // TCK-147 — `super_admin` and global `admin` keep the cross-tenant
-        // scope. `agency_admin` is restricted to users with an agent or
-        // owner profile in the **active profile's** agency (resolved by
-        // `ResolveActiveProfile`). Without an active profile (multi-profile
-        // user with no explicit context) we refuse rather than leak across
-        // tenants.
+        // TCK-147 — `super_admin` keeps the cross-tenant scope.
+        // `agency_admin` is restricted to users attached to the **active
+        // profile's** agency (resolved by `ResolveActiveProfile`) via any
+        // of the polymorphic profile types.
+        //
+        // TCK-277 — `agencyAdminProfiles` added to the OR list so pure
+        // agency admins (no agent/owner profile) appear in the listing.
         $base = null;
-        if (! $actor->hasRole(['admin', 'super_admin'])) {
-            $agencyId = $request->activeProfile()?->agency_id;
-            abort_if($agencyId === null, 403);
+        if (! $actor->isSuperAdmin()) {
+            AgencyKindGuard::ensureStandardForNonGlobal($actor, $agencyId);
 
             $base = User::query()->where(function ($q) use ($agencyId) {
                 $q->whereHas('agentProfiles', fn ($qq) => $qq->where('agency_id', $agencyId))
-                    ->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agencyId));
+                    ->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agencyId))
+                    ->orWhereHas('agencyAdminProfiles', fn ($qq) => $qq->where('agency_id', $agencyId));
             });
         }
 
@@ -54,9 +58,11 @@ class UserAdminController extends Controller
     public function block(Request $request, User $user): JsonResponse
     {
         $actor = $request->user();
+        $agencyId = $request->activeProfile()?->agency_id;
 
         abort_unless(
-            $actor->hasRole(['admin', 'super_admin', 'agency_admin']),
+            $actor->isSuperAdmin()
+                || ($agencyId !== null && $actor->isAgencyAdminAt((int) $agencyId)),
             403,
         );
         abort_if($user->id === $actor->id, 422, __('messages.cannot_block_self'));
@@ -72,9 +78,11 @@ class UserAdminController extends Controller
     public function activate(Request $request, User $user): JsonResponse
     {
         $actor = $request->user();
+        $agencyId = $request->activeProfile()?->agency_id;
 
         abort_unless(
-            $actor->hasRole(['admin', 'super_admin', 'agency_admin']),
+            $actor->isSuperAdmin()
+                || ($agencyId !== null && $actor->isAgencyAdminAt((int) $agencyId)),
             403,
         );
 
@@ -93,43 +101,24 @@ class UserAdminController extends Controller
     protected function ensureTargetInActorScope(Request $request, User $target): void
     {
         $actor = $request->user();
-        if ($actor->hasRole(['admin', 'super_admin'])) {
+        if ($actor->isSuperAdmin()) {
             return;
         }
 
         $agencyId = $request->activeProfile()?->agency_id;
+        AgencyKindGuard::ensureStandardForNonGlobal($actor, $agencyId);
         if ($agencyId === null
-            || (! $target->isAgentAt($agencyId) && ! $target->isOwnerAt($agencyId))
+            || (! $target->isAgentAt($agencyId)
+                && ! $target->isOwnerAt($agencyId)
+                && ! $target->isAgencyAdminAt($agencyId))
         ) {
             abort(422, __('messages.target_user_not_in_active_agency'));
         }
     }
 
-    public function assignRole(Request $request, User $user): JsonResponse
-    {
-        abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
-
-        $data = $request->validate([
-            'role' => ['required', 'string'],
-        ]);
-
-        $user->assignRole($data['role']);
-
-        return $this->json(['data' => ['id' => $user->id, 'roles' => $user->getRoleNames()]]);
-    }
-
-    public function removeRole(Request $request, User $user, string $role): JsonResponse
-    {
-        abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
-
-        $user->removeRole($role);
-
-        return $this->json(['data' => ['id' => $user->id, 'roles' => $user->getRoleNames()]]);
-    }
-
     public function destroy(Request $request, User $user): JsonResponse
     {
-        abort_unless($request->user()->hasRole(['admin', 'super_admin']), 403);
+        abort_unless($request->user()->isSuperAdmin(), 403);
         abort_if($user->id === $request->user()->id, 422, __('messages.cannot_delete_self'));
 
         $this->anonymize($user);

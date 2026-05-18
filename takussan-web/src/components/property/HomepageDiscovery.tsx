@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Navbar } from '@/components/home/Navbar';
 import { Footer } from '@/components/home/Footer';
@@ -8,6 +8,8 @@ import { PropertyRow } from '@/components/property/cards/PropertyRow';
 import { BogolanPattern } from '@/components/property/cards/BogolanPattern';
 import { RecentlyViewedCarousel } from '@/components/property/RecentlyViewedCarousel';
 import { useProperties } from '@/hooks/useProperties';
+import { useUserLocation } from '@/components/providers/UserLocationProvider';
+import { dedupeAcross } from '@/lib/dedupeBy';
 
 /**
  * Homepage publique — TCK-129.
@@ -23,13 +25,31 @@ import { useProperties } from '@/hooks/useProperties';
  */
 export function HomepageDiscovery() {
   const t = useTranslations('homepage.row');
+  const { city: nearCity } = useUserLocation();
 
-  const dakar = useProperties({ city: 'Dakar', perPage: 10 });
-  const rent = useProperties({ transaction: 'rent', perPage: 10 });
-  const featured = useProperties({ featured: true, perPage: 10 });
-  const latest = useProperties({ sort: 'latest', perPage: 10 });
+  // Slight over-fetch so the dedup pass can drop crossover IDs without
+  // leaving a section visibly thin (each row still aims for ~6–8 visible).
+  const near = useProperties({ city: nearCity, perPage: 10 });
+  const rent = useProperties({ transaction: 'rent', perPage: 12 });
+  const featured = useProperties({ featured: true, perPage: 12 });
+  const latest = useProperties({ sort: 'latest', perPage: 14 });
 
   const viewAll = t('viewAll');
+
+  // Featured est une rangée curée : ses items réapparaissent intentionnellement
+  // dans les autres rangées (un coup de cœur en location à Dakar *est* aussi
+  // un bien Dakar et un bien à louer). On dédupe donc uniquement entre les
+  // trois rangées de découverte par filtre, où voir le même bien deux fois
+  // côte à côte serait gênant.
+  const [nearUnique, rentUnique, latestUnique] = useMemo(
+    () =>
+      dedupeAcross(
+        [near.properties, rent.properties, latest.properties],
+        (p) => p.id,
+      ),
+    [near.properties, rent.properties, latest.properties],
+  );
+  const featuredUnique = featured.properties;
 
   return (
     <div className="min-h-screen bg-background">
@@ -46,12 +66,13 @@ export function HomepageDiscovery() {
           <PropertyRow
             variant="standard"
             eyebrow={t('near.eyebrow')}
-            title={t('near.title')}
-            viewAllHref="/properties?city=Dakar"
+            title={t('near.title', { city: nearCity })}
+            viewAllHref={`/properties?city=${encodeURIComponent(nearCity)}`}
             viewAllLabel={viewAll}
-            properties={dakar.properties}
-            loading={dakar.loading}
-            error={dakar.error}
+            properties={nearUnique}
+            loading={near.loading}
+            error={near.error}
+            priorityCount={2}
           />
         </div>
 
@@ -65,7 +86,7 @@ export function HomepageDiscovery() {
             title={t('rent.title')}
             viewAllHref="/properties?contract_type=rent"
             viewAllLabel={viewAll}
-            properties={rent.properties}
+            properties={rentUnique}
             loading={rent.loading}
             error={rent.error}
           />
@@ -88,7 +109,7 @@ export function HomepageDiscovery() {
             title={t('featured.title')}
             viewAllHref="/properties?featured=true"
             viewAllLabel={viewAll}
-            properties={featured.properties}
+            properties={featuredUnique}
             loading={featured.loading}
             error={featured.error}
           />
@@ -104,7 +125,7 @@ export function HomepageDiscovery() {
             title={t('latest.title')}
             viewAllHref="/properties?sort=created_desc"
             viewAllLabel={viewAll}
-            properties={latest.properties}
+            properties={latestUnique}
             loading={latest.loading}
             error={latest.error}
           />

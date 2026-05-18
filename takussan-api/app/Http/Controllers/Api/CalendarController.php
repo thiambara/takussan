@@ -51,7 +51,7 @@ class CalendarController extends Controller
             ->all();
         $types = collect($validated['types'] ?? ['booking', 'visit'])->unique();
 
-        $isAdmin = $user->hasRole(['admin', 'super_admin']);
+        $isAdmin = $user->isSuperAdmin();
         $userId = $user->id;
         $agencyId = $user->agency_id;
 

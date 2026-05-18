@@ -145,6 +145,7 @@ Gestion complète d'un contrat de bail et de son cycle de vie.
 | P2 | 🏠🏢 | Révision annuelle du loyer (indice ou accord amiable) journalisée via le journal d'activité |
 | P3 | 🏠🏢 | Signature électronique du bail |
 | P3 | 🏠 | Espace locataire dédié (quittances, factures, maintenance) |
+| P1 | 🏠🧑‍💼 | Onboarding résident à la signature du bail : notification "Bienvenue chez vous", welcome modale "Espace résident", checklist d'entrée (état des lieux, premier paiement, accès aux documents), suivi de complétion par un `TenantOnboardingChecklist` |
 
 ### 1.5 Transactions & paiements
 
@@ -160,6 +161,7 @@ Encaissements, factures et reversements.
 | P2 | 🛡️ | Intégration d'une passerelle de paiement (Wave, Orange Money, Stripe) |
 | P2 | 🛡️ | Rapprochement bancaire semi-automatique |
 | P2 | 🛡️ | Relance automatique des factures en retard |
+| P2 | 🛡️ | Reversement plateforme → agence (commission plateforme retenue à la source, payout périodique agrégé) |
 | P3 | 🛡️ | Commissions automatiques par agent / collaborateur |
 | P3 | 🛡️ | Comptabilité exportable (FEC, journaux) |
 
@@ -261,16 +263,24 @@ Notation et commentaires publics.
 
 Gestion de la structure organisationnelle.
 
+Une agence porte un **`kind`** :
+
+- **`standard`** — agence professionnelle multi-membres : peut inviter des collaborateurs internes (agents, autres admins), créer des rôles personnalisés, assigner biens/leads aux agents, accéder au reporting cross-équipe, customiser les tags/enums plateforme. Créée via le parcours super-admin (§2.9 → §2.1).
+- **`individual`** — agence individuelle (host solo) auto-créée par n'importe quel user via la CTA "Publier" (pattern Airbnb). Le user devient simultanément `agency_admin` + `owner` de cette agence. Restrictions par rapport à `standard` : pas d'invitation de collaborateurs internes, un seul `agency_admin`, pas de rôles personnalisés, pas d'assignation de biens/leads à un agent, pas de reporting cross-équipe, pas de customisation des tags/enums plateforme. Toutes les autres capacités (publication de biens, baux, encaissements, branding, sous-domaine, devise, intégrations, invitation de prestataires externes `ServiceProvider`) restent disponibles. Pas de quota MVP — la monétisation future est `pay-per-listing`.
+
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
 | P0 | 🛡️ | Créer et configurer une agence (nom, licence, contact, logo) |
 | P0 | 🛡️ | Ajouter et retirer des agents |
 | P0 | 🛡️ | Attribution de rôles aux membres |
+| P0 | 👤🏠 | Auto-création d'une agence `individual` via la CTA "Publier" du header (pattern Airbnb) — wizard 5 steps qui crée simultanément `Agency.kind=individual`, `AgencyAdminProfile`, `OwnerProfile` et un premier `Property` brouillon |
 | P1 | 🛡️ | Statistiques globales d'agence (portefeuille, revenus) |
 | P1 | 🛡️ | Paramètres de commission par défaut |
+| P1 | 🛡️ | Dossier KYC documentaire de l'agence (RCCM, NINEA, pièce dirigeant) avec workflow vérification (pending → submitted → verified / rejected) |
+| P1 | 🛡️ | Upgrade `individual` → `standard` : l'admin de l'agence individuelle soumet une demande (`AgencyUpgradeRequest`) avec compléments légaux (RC, NINEA, RIB pro, statuts) ; un super-admin la review depuis la console ; à l'approbation, `Agency.kind` bascule vers `standard` et débloque les capacités restreintes (invitation collaborateurs internes, multi-admin, custom roles, etc.). Pas d'upgrade self-service direct, pas de rétrogradation `standard` → `individual`. |
+| P2 | 🛡️ | Plans d'abonnement et quotas par agence (catalogue, période d'essai, limites) |
 | P3 | 🛡️ | Gestion multi-branches / sous-agences |
 | P3 | 🛡️ | Gestion des congés / disponibilité des agents |
-| P3 | 🛡️ | Plan d'abonnement et facturation SaaS |
 | P3 | 🛡️ | Marketplace inter-agences |
 
 ---
@@ -292,6 +302,8 @@ Gestion de la structure organisationnelle.
 | P1 | Tous | Authentification à deux facteurs (TOTP + codes de récupération) |
 | P1 | Tous | Gestion des sessions actives |
 | P2 | Tous | Suppression de compte avec anonymisation (RGPD) |
+| P2 | Tous | Export des données personnelles (portabilité RGPD — déclenché par l'utilisateur) |
+| P2 | 🛡️ | Déclenchement de l'export RGPD par un super-admin pour le compte d'un utilisateur (support / réquisition) |
 | P2 | Tous | OAuth Facebook / Apple |
 | P3 | Tous | Magic link de connexion |
 
@@ -311,13 +323,29 @@ Une **identité = un User**, qui peut porter plusieurs **profils métier** chez 
 | P2 | Tous | Indication visuelle de "profil actif" sur toutes les vues authentifiées |
 | P2 | 🛡️ | Audit log dédié : changements de profil actif, créations/suspensions de profils |
 
+#### Onboarding parcours
+
+Cartographie complète des parcours d'entrée dans le système (référence : `docs/superpowers/specs/2026-05-10-onboarding-discovery-design.md`). Tous les parcours d'invitation (Owner, Agent, AgencyAdmin, ServiceProvider, super-admin coopté) reposent sur un **pattern d'invitation unifié** (modèle `Invitation`, token signé, expiry 7j, rappel J+2). Tous les profils traversent la même machine à états `draft → pending → active → suspended | expired | archived`.
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P0 | Tous | Pattern d'invitation unifié — création par un inviteur autorisé, email d'invitation avec token signé (expiry 7j, rappel automatique J+2, renvoi self-service par l'inviteur, révocation possible avant acceptation) ; à l'acceptation, le profil cible passe en `active` et devient le profil actif |
+| P0 | 🛡️ | Bootstrap super-admin via commande artisan `takussan:create-super-admin` (1ère installation par environnement) — exige 2FA TOTP au premier login |
+| P0 | 👤🏠 | Onboarding wizard Customer post-signup — welcome modale (3 slides skippables) + complétion différée du profil minimal (téléphone, ville, type de recherche) au moment de la première action sensible (favoris / réservation / contact) |
+| P1 | 🛡️ | Cooptation super-admin (super-admin → super-admin) — invitation pair-à-pair via console super-admin avec 2FA TOTP **obligatoire** avant `active` (bloquant), audit log automatique, notification broadcast aux autres super-admins |
+| P1 | 🏢 | Wizard onboarding Owner post-acceptation invitation — vérification téléphone OTP (obligatoire), KYC documentaire (CNI/passeport, RIB, NINEA, statut particulier/société) en `pending_review` non bloquant, tour produit 3 slides, vue "biens déjà associés" si pré-rattachement |
+| P1 | 🧑‍💼 | Wizard onboarding Agent post-acceptation invitation — vérification téléphone OTP, KYC (license_number, pièce d'identité, photo profil, spécialisation, zones d'intervention), affichage du périmètre de permissions choisi par l'admin inviteur, lien vers premier lead pré-assigné |
+| P1 | 🔧 | Wizard onboarding Service Provider post-acceptation invitation — vérification téléphone OTP, KYC (pièce d'identité, métiers multi-select, zones, tarifs indicatifs, assurance RC pro optionnelle valorisée), disponibilités hebdomadaires, accès direct à la 1ère intervention si invitation déclenchée par une demande active. Multi-rattachement à plusieurs agences via plusieurs `ServiceProviderAgencyCollaboration` sans dupliquer le compte. |
+| P1 | Tous | Composant wizard reprenable — chaque step sauvegardé en `draft`, bandeau persistant "Reprenez votre publication / votre onboarding" sur dashboard, reprise depuis le menu compte |
+| P1 | Tous | Welcome modale générique réutilisable — composant 3 slides max, skippable, paramétrable par parcours (Customer, Host, Owner, Agent, AgencyAdmin, ServiceProvider, Tenant) |
+
 ### 2.2 Rôles & permissions
 
 > **TCK-138 → TCK-142.** Les rôles spatie sont **scopés par profil** : `team_id = profile.agency_id`. La nature métier (owner / agent / broker / service_provider) est portée par le profil actif ; les permissions par les rôles spatie attachés à ce profil. Plus aucun scoping direct par `users.agency_id`.
 
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
-| P0 | 🛡️ | Rôles prédéfinis : `super_admin`, `admin` (globaux, sans `team_id`) ; `agency_admin`, `agent`, `owner`, `tenant`, `customer`, `service_provider` (scopés via le profil actif → `team_id = profile.agency_id`) |
+| P0 | 🛡️ | Rôles prédéfinis : `super_admin` (global, sans `team_id`) ; `agency_admin`, `agent`, `owner`, `tenant`, `customer`, `service_provider` (scopés via le profil actif → `team_id = profile.agency_id`) |
 | P0 | 🛡️ | Permissions granulaires par ressource (view, create, update, delete, update_all…) |
 | P0 | 🛡️ | Distinction « mes ressources » vs « toutes les ressources » |
 | P0 | 🛡️ | Résolution des permissions au runtime selon le **profil actif** de la requête (header `X-Profile-Id`, cookie ou auto-bascule) |
@@ -337,6 +365,7 @@ Une **identité = un User**, qui peut porter plusieurs **profils métier** chez 
 | P1 | Tous | Préférences par canal (email, push, SMS) |
 | P1 | Tous | Templates localisés via fichiers lang/ Laravel |
 | P2 | Tous | Notifications SMS (événements critiques) |
+| P2 | 🛡️ | Annonces in-app cross-tenant (broadcast) ciblées par rôle / agence / segment, avec dismissal côté utilisateur |
 | P2 | Tous | Digest quotidien / hebdomadaire |
 | P3 | Tous | Notifications WhatsApp |
 
@@ -364,6 +393,7 @@ Une **identité = un User**, qui peut porter plusieurs **profils métier** chez 
 | P2 | 🛡️ | Export CSV / Excel (paiements, baux, clients) |
 | P2 | 🛡️ | Export PDF (quittances, factures, rapports) |
 | P2 | 🛡️ | Graphiques temporels (revenus, occupation) |
+| P2 | 🛡️ | Reporting plateforme cross-tenant (croissance agences/users/listings, MRR/ARR, cohortes de rétention, funnel) — strictement super_admin |
 | P3 | 🛡️ | KPI personnalisables par agence |
 | P3 | 🛡️ | Alertes sur seuils (taux d'impayés, vacance) |
 
@@ -408,10 +438,12 @@ Une **identité = un User**, qui peut porter plusieurs **profils métier** chez 
 |------|---------|----------------|
 | P0 | 🛡️ | Gestion des tags et amenités |
 | P0 | 🛡️ | Gestion des utilisateurs (activation, blocage) |
+| P0 | 🛡️ | Onboarding d'une agence par un super-admin (création + admin initial invité, hors auto-inscription) |
 | P1 | 🛡️ | Gestion des enums métier (types de biens, statuts) |
 | P1 | 🛡️ | Configuration email (templates, expéditeur) |
 | P2 | 🛡️ | Paramètres globaux de plateforme |
 | P2 | 🛡️ | Gestion des intégrations tierces (API keys) |
+| P2 | 🛡️ | Healthcheck plateforme et supervision des jobs en arrière-plan (file de queue, échecs, rejouer) |
 | P3 | 🛡️ | Mode maintenance programmé |
 | P3 | 🛡️ | Feature flags |
 

@@ -1,8 +1,17 @@
 'use client';
 
+// TCK-256 — TODO: when this form gains an "owner" select, add an
+// "Inviter un nouveau propriétaire" option that mounts the shared
+// `<InviteOwnerSheet>` (see `src/components/owners/InviteOwnerSheet.tsx`).
+// On success, auto-select the freshly invited owner via the sheet's
+// `onInvited` callback. The sheet handles its own visibility gate
+// (`agency.kind === 'standard'` + `invite_owner` permission), so the
+// option only needs to surface when the property form is rendered for
+// a standard-kind agency. Out of scope for TCK-256: adding the owner
+// select itself.
+
 import { useRouter } from 'next/navigation';
-import { useCallback, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useCallback, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -33,7 +42,9 @@ import type { PropertyDetail } from '@/types/property';
 import type { Tag } from '@/types/tag';
 
 import {
+  CONTRACT_TYPE_LABELS,
   CURRENCY_OPTIONS,
+  PROPERTY_TYPE_LABELS,
   RENT_PERIOD_OPTIONS,
 } from './options';
 import {
@@ -105,20 +116,36 @@ function toDefaults(property?: PropertyDetail): PropertyFormValues {
   };
 }
 
+function toPropertyCrudPayload(payload: PropertyFormPayload): PropertyFormPayload {
+  const basicPayload: Partial<PropertyFormPayload> = { ...payload };
+  delete basicPayload.street;
+  delete basicPayload.postal_code;
+  delete basicPayload.country;
+  delete basicPayload.latitude;
+  delete basicPayload.longitude;
+  delete basicPayload.tag_ids;
+  return basicPayload as PropertyFormPayload;
+}
+
 export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
   const router = useRouter();
-  const tProp = useTranslations('property');
   const propertyTypeOptions = propertyTypeValues.map((v) => ({
     value: v,
-    label: tProp(`types.${v}`),
+    label: PROPERTY_TYPE_LABELS[v],
   }));
   const contractTypeOptions = contractTypeValues.map((v) => ({
     value: v,
-    label: tProp(`contractTypes.${v}`),
+    label: CONTRACT_TYPE_LABELS[v],
   }));
   const [pendingPhotos, setPendingPhotos] = useState<File[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const submitIntentRef = useRef<'draft' | 'submit'>('submit');
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const selectSubmitIntent = useCallback((intent: 'draft' | 'submit') => {
+    submitIntentRef.current = intent;
+  }, []);
 
   const onPhotosChange = useCallback((files: File[]) => {
     setPhotoError(null);
@@ -135,21 +162,21 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
       schema: propertyFormSchema,
       defaultValues: toDefaults(property),
       onSubmit: async (values) => {
+        setSuccessMessage(null);
         const payload = values as unknown as PropertyFormPayload;
-        // Strip address/tag fields before sending to property CRUD endpoint
-        const {
-          street: _street,
-          postal_code: _postalCode,
-          country: _country,
-          latitude: _lat,
-          longitude: _lng,
-          tag_ids: _tagIds,
-          ...basicPayload
-        } = payload;
+        const basicPayload = toPropertyCrudPayload(payload);
+        const createPayload =
+          mode === 'create'
+            ? {
+                ...basicPayload,
+                status: submitIntentRef.current === 'draft' ? 'draft' : 'pending_review',
+                visibility: 'private',
+              }
+            : basicPayload;
         const result =
           mode === 'edit' && property
             ? await updatePropertyAction(property.id, basicPayload as PropertyFormPayload)
-            : await createPropertyAction(basicPayload as PropertyFormPayload);
+            : await createPropertyAction(createPayload as PropertyFormPayload);
         if (!result.ok) {
           throw new ApiError(result.status ?? 500, {
             message: result.message,
@@ -160,6 +187,11 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
       },
       onSuccess: async (result) => {
         if (!result?.id) {
+          if (mode === 'create') {
+            throw new ApiError(500, {
+              message: "Le bien a été créé, mais l'identifiant serveur est absent.",
+            });
+          }
           router.push('/app/properties');
           router.refresh();
           return;
@@ -206,12 +238,19 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
           }
         }
 
-        router.push('/app/properties');
+        if (mode === 'create') {
+          setSuccessMessage('Bien créé. Ouverture de la fiche…');
+          router.push(`/app/properties/${pid}`);
+        } else {
+          setSuccessMessage('Modifications enregistrées.');
+          router.push('/app/properties');
+        }
         router.refresh();
       },
     });
 
-  const { control, watch, setValue } = form;
+  const { control, watch, setValue, formState } = form;
+  const dirtyCount = Object.keys(formState.dirtyFields).length;
   const contractType = watch('contract_type');
   const description = watch('description') ?? '';
   const lat = watch('latitude') as number | null | undefined;
@@ -256,6 +295,14 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
           </span>
         ) : null}
       </FormGlobalError>
+      {successMessage ? (
+        <p
+          role="status"
+          className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
+        >
+          {successMessage}
+        </p>
+      ) : null}
 
       {/* ── Section 1 : Informations générales ── */}
       <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
@@ -509,52 +556,79 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
         </section>
       )}
 
-      {/* ── Section 7 : Photos ── */}
-      <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
-        <header>
-          <h2 className="text-base font-semibold text-app-ink">Photos</h2>
+      {/* ── Section 7 : Photos (creation only — edit uses PropertyMediaPanel) ── */}
+      {mode === 'create' && (
+        <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
+          <header>
+            <h2 className="text-base font-semibold text-app-ink">Photos</h2>
+            <p className="text-xs text-app-ink-muted">
+              Glissez-déposez ou sélectionnez les photos (max {MAX_PHOTOS}).
+            </p>
+          </header>
+          <MediaDropzone
+            onChange={onPhotosChange}
+            files={pendingPhotos}
+            onRemove={removePhoto}
+            maxFiles={MAX_PHOTOS}
+          />
           <p className="text-xs text-app-ink-muted">
-            Glissez-déposez ou sélectionnez les photos (max {MAX_PHOTOS}).
+            {pendingPhotos.length} / {MAX_PHOTOS} photo{pendingPhotos.length !== 1 ? 's' : ''}
           </p>
-        </header>
-        <MediaDropzone
-          onChange={onPhotosChange}
-          files={pendingPhotos}
-          onRemove={removePhoto}
-          maxFiles={MAX_PHOTOS}
-        />
-        <p className="text-xs text-app-ink-muted">
-          {pendingPhotos.length} / {MAX_PHOTOS} photo{pendingPhotos.length !== 1 ? 's' : ''}
-        </p>
-        {photoError ? (
-          <p className="text-xs text-destructive" role="alert">
-            {photoError}
-          </p>
-        ) : null}
-      </section>
+          {photoError ? (
+            <p className="text-xs text-destructive" role="alert">
+              {photoError}
+            </p>
+          ) : null}
+        </section>
+      )}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" disabled={isSubmitting || photoUploading} size="lg">
-          {isSubmitting || photoUploading ? (
-            <>
-              <Loader2 className="animate-spin" aria-hidden="true" />
-              <span>Enregistrement…</span>
-            </>
-          ) : (
-            <span>
-              {mode === 'create' ? 'Publier le bien' : 'Enregistrer les modifications'}
-            </span>
+      <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-background/95 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <p className="text-xs text-app-ink-muted" aria-live="polite">
+          {mode === 'edit' && dirtyCount > 0
+            ? `${dirtyCount} champ${dirtyCount > 1 ? 's' : ''} modifié${dirtyCount > 1 ? 's' : ''} · non enregistré${dirtyCount > 1 ? 's' : ''}`
+            : mode === 'edit'
+              ? 'Aucune modification.'
+              : 'Tous les champs requis sont marqués d’un *.'}
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="lg"
+            onClick={() => router.back()}
+            disabled={isSubmitting || photoUploading}
+          >
+            Annuler
+          </Button>
+          {mode === 'create' && (
+            <Button
+              type="submit"
+              disabled={isSubmitting || photoUploading}
+              size="lg"
+              variant="outline"
+              onClick={() => selectSubmitIntent('draft')}
+            >
+              Enregistrer en brouillon
+            </Button>
           )}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="lg"
-          onClick={() => router.back()}
-          disabled={isSubmitting || photoUploading}
-        >
-          Annuler
-        </Button>
+          <Button
+            type="submit"
+            disabled={isSubmitting || photoUploading}
+            size="lg"
+            onClick={() => selectSubmitIntent('submit')}
+          >
+            {isSubmitting || photoUploading ? (
+              <>
+                <Loader2 className="animate-spin" aria-hidden="true" />
+                <span>Enregistrement…</span>
+              </>
+            ) : (
+              <span>
+                {mode === 'create' ? 'Soumettre à publication' : 'Enregistrer les modifications'}
+              </span>
+            )}
+          </Button>
+        </div>
       </div>
     </form>
   );

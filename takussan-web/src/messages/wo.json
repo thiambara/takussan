@@ -26,6 +26,51 @@
       "label": "Làkk"
     }
   },
+  "nav": {
+    "publish": "Yebbi",
+    "publishListing": "Yebbi kër",
+    "login": "Dugg",
+    "logout": "Génn",
+    "myProfile": "Sama profil",
+    "search": "Seet",
+    "buy": "Jënd",
+    "rent": "Luwaa"
+  },
+  "footer": {
+    "tagline": "Sa nawle bu wér ngir gis kër bi nga bëgg ci Senegaal."
+  },
+  "map": {
+    "zoomIn": "Yokk",
+    "zoomOut": "Wàññi",
+    "markerAlt": "Màndarga kër"
+  },
+  "publicContact": {
+    "title": "Yónnee bataaxal",
+    "description": "Sa ay xibaar ñoo leen jox boroom kër bi.",
+    "submit": "Yónnee",
+    "cancel": "Bàyyi"
+  },
+  "homepage": {
+    "row": {
+      "viewAll": "Gis lépp",
+      "near": {
+        "eyebrow": "Ci sa wet",
+        "title": "Gis {city}"
+      },
+      "rent": {
+        "eyebrow": "Luwaa",
+        "title": "Sa kër bu yees"
+      },
+      "featured": {
+        "eyebrow": "Tànneef",
+        "title": "Tànneef bu ayu-bés"
+      },
+      "latest": {
+        "eyebrow": "Bees",
+        "title": "Yees yebbi"
+      }
+    }
+  },
   "auth": {
     "login": {
       "title": "Dugg",
@@ -33,7 +78,38 @@
       "email": "Email",
       "password": "Baatu-jub"
     },
-    "logout": "Génn"
+    "logout": "Génn",
+    "twoFactor": {
+      "intro": {
+        "title": "Suuf sa kont",
+        "description": "Jëfandikoo authentification ñaari yoon (TOTP) ak applications ni Google Authenticator, 1Password mbaa Authy.",
+        "cta": "Defar léegi",
+        "starting": "Tambalee…",
+        "skip": "Ginnaaw"
+      },
+      "scan": {
+        "title": "Scan QR code bi",
+        "description": "Yokk Takussan ci sa application 2FA, bind koddu 6 chiffres bi mu wone.",
+        "manualHint": "Mën nga koy bind ci sa loxo ak xelu bii :",
+        "codeLabel": "Koddu 6 chiffres",
+        "cta": "Verifié te ubbi",
+        "verifying": "Veriifie…",
+        "qrAlt": "QR code ngir scan ak sa application 2FA"
+      },
+      "success": {
+        "title": "2FA ubbi na",
+        "description": "Sa kont aaru na léegi ak ñaareelu sumb.",
+        "cta": "Toxal"
+      },
+      "recovery": {
+        "title": "Kodd yu reccu",
+        "warning": "Bind kodd yii léegi — duñu leen wone benen yoon. Kodd ku nekk dafa la jox dugg-am-bu-jamono bu sa application réer.",
+        "download": "Téel ci .txt",
+        "ack": "Den naa sama kodd yu reccu",
+        "fileHeader": "Kodd yu reccu Takussan — denc leen ci bérébu wér.",
+        "fileFooter": "Kodd ku nekk benn yoon rekk lay jëf."
+      }
+    }
   },
   "errors": {
     "generic": "Am na jafe-jafe. Jéemat.",
@@ -45,13 +121,140 @@
       "placeholder": "Tànn xaalis",
       "preview": "100 000 dañ koy wone ni: {example}",
       "warningOnChange": "Soppi xaalis di jëf rekk ci yu bees yi (kër, baat, ak fay). Yi am ba tey, ci xaalis bu ñu jëkk a séddale lañu nekk."
+    },
+    "branding": {
+      "banner": {
+        "title": "Defar sa Agence",
+        "description": "Yokk sa logo ak melo yi ngir am identité bu rafet ci Takussan.",
+        "cta": "Defar"
+      }
+    },
+    "onboarding": {
+      "steps": {
+        "welcome": "Dalal ak jam",
+        "twoFactor": "Kaaraange"
+      },
+      "welcome": {
+        "title": "Dalal ak jam ci Takussan, {firstName}",
+        "body": "Espace bu {agencyName} pare na. Etape gu gaaw rekk ci kanam dashboard bi.",
+        "cta": "Toxal"
+      }
+    },
+    "tenantOnboardingPending": {
+      "error": "Mënul a yengal liste bi léegi.",
+      "emptyTitle": "Amul onboarding bu yagg",
+      "emptyDescription": "Onboardings yi gën a néew 7 fan jiitu nañ list bi.",
+      "leaseReference": "Luwé {reference}",
+      "signedAt": "Signe nañ ko ci {date}",
+      "missing": "Yi des: {items}",
+      "daysOpen": "{count, plural, =0 {tey} one {# fan} other {# fan}}"
+    },
+    "standardWelcome": {
+      "title": "Dalal jàmm ci sa agence",
+      "slides": {
+        "invite": {
+          "title": "Wooy sa ekip",
+          "body": "Dugal say agent ak say njabootu ligéey ci ay click rekk ndax nga delegate seeni liggéey."
+        },
+        "roles": {
+          "title": "Tànneel rôles yi",
+          "body": "Tabbal ndimbal yu ñépp ngir mu yelloo ak ni sa ligéey di doxe."
+        },
+        "reports": {
+          "title": "Sàcc rapport yi",
+          "body": "Topp sa agence : alal yi nga am, paye yi, ak nataal sa ekip — fii rekk."
+        }
+      }
+    },
+    "upgrade": {
+      "page": {
+        "eyebrow": "Sama agence",
+        "title": "Yokku ci agence professionnelle",
+        "subtitle": "Yokk fonctionnalités équipe : woo collaborateurs, délégué fonctions, partagé biens.",
+        "already_standard": {
+          "title": "Sa agence agagi am na fonctionnalités professionnelles",
+          "body": "Liggéey la la nga war ñaaw — fonctionnalités yi ñoom dañu sax."
+        },
+        "benefits": {
+          "aria_label": "Avantages agence professionnelle",
+          "title": "Lan moo tax mu yokku ci pro ?",
+          "items": {
+            "team": "Woo agent yu bari, jox léen liggéey.",
+            "multi_admin": "Multi-admins ngir ko yorr ci ñépp.",
+            "custom_roles": "Bind fonctions personnalisés."
+          },
+          "sla": "Réponse ci 5 fan."
+        }
+      },
+      "form": {
+        "aria_label": "Formulaire demaande upgrade",
+        "loading": "Loading brouillon bi…",
+        "fields": {
+          "rc": "Limeer RC",
+          "ninea": "NINEA",
+          "rib_pro": "RIB professionnel",
+          "company_legal_name": "Tëraab agence",
+          "address_fiscale": "Adresse fiscale",
+          "planned_agents_count": "Lim agents (optionnel)",
+          "statuts_doc": "Statuts (PDF / image)"
+        },
+        "hints": {
+          "planned_agents_count": "Ngir xam organisation bi.",
+          "statuts_doc": "PDF, JPG, walla PNG. 10 Mo max."
+        },
+        "file_selected": "Fichier tànn na : {name}",
+        "cta": {
+          "submit": "Yónni demaande bi",
+          "submitting": "Yónni…"
+        },
+        "errors": {
+          "file_required": "Statuts bi ëmb na.",
+          "file_too_large": "Fichier bi épp na 10 Mo.",
+          "unauthorized": "Dafa nga war duggu.",
+          "forbidden": "Amul nga ndombo-tànk ngir loolu.",
+          "generic": "Am na njumte. Jëkkël tey."
+        },
+        "toasts": {
+          "submitted": "Demaande bi dem na."
+        }
+      },
+      "status": {
+        "aria_label": "Etat demaande upgrade",
+        "headings": {
+          "pending": "Demaande dafa nekk ci en attente",
+          "approved": "Demaande validé na",
+          "rejected": "Demaande bañ na",
+          "revoked": "Demaande révoque la"
+        },
+        "badges": {
+          "pending": "En attente",
+          "approved": "Validé",
+          "rejected": "Bañ",
+          "revoked": "Révoqué"
+        },
+        "submitted_at": "Yónni la ci {date}",
+        "body": {
+          "pending": "Equipe bi xool na. Dees na la xamal su mu noppee.",
+          "approved": "Agence bi ag professionnelle la léegi (validé ci {date}).",
+          "rejected": "Demaande bi bañ ñu ci {date}. Xoolal commentaire bi.",
+          "revoked": "Yaay révoque demaande bi. Mën nga yónni beneen."
+        },
+        "cta": {
+          "revoke": "Révoque demaande bi",
+          "revoking": "Révoque…"
+        },
+        "toasts": {
+          "revoked": "Demaande bi révoque na.",
+          "error": "Mënul a révoque."
+        }
+      }
     }
   },
   "compare": {
     "eyebrow": "Méengal",
     "title": "Méengal kër yi",
-    "subtitle": "{count} kër yu tànn — méengal ngir tànn.",
-    "unavailableNotice": "{missing} kër yoo amul, dañ leen jëla.",
+    "subtitle": "{count, plural, =0 {Amul kër yu tànn.} =1 {1 kër bu tànn — yokk beneen ngir méengal.} other {# kër yu tànn — méengal ngir tànn.}}",
+    "unavailableNotice": "{missing, plural, =1 {1 kër du am, dañ ko jëla.} other {# kër yu amul, dañ leen jëla.}}",
     "actions": {
       "view": "Xool kër bi",
       "remove": "Jëla"
@@ -94,7 +297,7 @@
     "floatingBar": {
       "ariaLabel": "Kër yu tànn ngir méengal",
       "title": "Méengal",
-      "count": "{count} / {max} kër",
+      "count": "{count, plural, =1 {1 kër bu tànn} other {# kër yu tànn}} ci {max}",
       "cta": "Méengal ({count})",
       "removeAria": "Jëla kër #{id} ci méengal bi",
       "clearAria": "Fommi méengal bi"
@@ -207,11 +410,28 @@
     "listHeading": "Waxtaan",
     "newGroup": "Bantu bu bees",
     "emptyState": "Tànn benn waxtaan ngir gis bataaxal yi.",
+    "widget": {
+      "launcherAria": "Ubbil waxtaan",
+      "launcherAriaWithUnread": "Ubbil waxtaan ({count, plural, one {# bataaxal bu jëkku jàng} other {# bataaxal yu jëkku jàng}})",
+      "panelTitle": "Waxtaan",
+      "panelAriaLabel": "Panneau waxtaan",
+      "closePanel": "Tëj panneau bi",
+      "viewAll": "Gis lépp waxtaan",
+      "unreadInline": "{count, plural, one {# bu jëkku jàng} other {# yu jëkku jàng}}",
+      "chatBack": "Dellu ci waxtaan yi",
+      "manageGroup": "Jaaweel kuréel gi"
+    },
     "system": {
       "participantAdded": "{actor} dafa yokk {target} ci kuréel gi.",
       "participantRemoved": "{actor} dafa génn {target} ci kuréel gi.",
       "roleChanged": "{actor} soppil na ndëgg {target} ci {role}.",
       "renamed": "{actor} tudd waaye kuréel gi « {subject} »."
+    },
+    "chat": {
+      "dateSeparator": {
+        "today": "Tey",
+        "yesterday": "Démb"
+      }
     },
     "group": {
       "create": {
@@ -414,6 +634,29 @@
     "confirmCta": "Fommi",
     "cancel": "Bàyyi"
   },
+  "favorites": {
+    "button": {
+      "aria": "Sama bëgg-bëgg"
+    },
+    "popover": {
+      "title": "Sama bëgg-bëgg",
+      "count": "{count, plural, =0 {amul bëgg-bëgg} =1 {1 bëgg-bëgg} other {# bëgg-bëgg}}",
+      "empty": "Amul bëgg-bëgg léegi",
+      "emptyHint": "Bësal xolu kër ngir denc ko fii.",
+      "discoverCta": "Gis kër yi",
+      "removeAria": "Dindi kër bii ci bëgg-bëgg yi",
+      "viewAll": "Gis sama bëgg-bëgg yépp"
+    },
+    "page": {
+      "title": "Sama bëgg-bëgg yi",
+      "subtitle": "{count, plural, =0 {Amul kër bu nga denc ba leegi.} =1 {1 kër la nga denc.} other {# kër yi nga denc.}}",
+      "subtitleLoading": "Mu ngi yebal sa bëgg-bëgg yi…",
+      "empty": "Amul bëgg-bëgg ba leegi",
+      "emptyHint": "Yëngal kër yi te bësal xolu ngir denc leen fii.",
+      "discoverCta": "Gis kër yi",
+      "error": "Mënul yebal sa bëgg-bëgg yi leegi."
+    }
+  },
   "search": {
     "suggest": {
       "placeholder": "Seet dëkk, quartier, wàll kër…",
@@ -428,6 +671,895 @@
         "all_types": "Wàll yépp"
       },
       "loading": "Yëgël…"
+    }
+  },
+  "wizardDrafts": {
+    "component": {
+      "ariaLabel": "Jëf-jëf",
+      "progressAriaLabel": "Etape {current} ci {total}",
+      "previous": "Dellu ginnaaw",
+      "next": "Kaw",
+      "complete": "Mottali",
+      "loading": "Yëgël…",
+      "savedToastTitle": "Sa liggéey denc nañu ko",
+      "savedToastBody": "Dinga waax dellusi fa nga taxoon."
+    },
+    "banner": {
+      "ariaLabel": "Dellusi liggéey bi nga taxoon",
+      "title": "Dellusi fa nga taxoon",
+      "description": "{count, plural, =1 {Am nga 1 jëf-jëf bu pare.} other {Am nga # jëf-jëf yu pare.}}",
+      "labels": {
+        "host-individual-wizard": "Bind ab kër",
+        "owner-onboarding": "Tàmbalee borom",
+        "agent-onboarding": "Tàmbalee agent",
+        "customer-onboarding": "Tàmbalee dëkkkat",
+        "owner-kyc": "KYC borom",
+        "agent-kyc": "KYC agent",
+        "sp-onboarding": "Tàmbalee prestataire",
+        "agency-upgrade": "Yokk ci pro"
+      }
+    }
+  },
+  "welcome": {
+    "welcome": "Dalal ak diam",
+    "next": "Topp",
+    "skip": "Tëju",
+    "finish": "Sukkandiku",
+    "stepAriaLabel": "Etaap {current} ci {total}",
+    "dialogAriaLabel": "Dalal ak diam"
+  },
+  "customer": {
+    "welcome": {
+      "slides": [
+        {
+          "title": "Gis sa kër bu jamp",
+          "body": "Tann ci téméér yu bare — jaay, luwaas walla léegi-léegi — ngir gis kër gi laaj sa coobare."
+        },
+        {
+          "title": "Denc say nob",
+          "body": "Denc kër yi nga bëgg te xool leen su la naree, fu nga nekk."
+        },
+        {
+          "title": "Wax ak ajaan yi ci sa bopp",
+          "body": "Laaj say laaj, takk ben rendez-vous te wax-wax-tóon ak ajaan bi ci messagerie bi."
+        }
+      ]
+    },
+    "minimalProfile": {
+      "title": "Dimbali nu ci sa wuti",
+      "description": "Ñetti laaj yu gaaw — ngir personnaliser sa wuti. Mën nga ko mottali ci sa profil ci kanam.",
+      "phoneLabel": "Telefón (mën dem)",
+      "phonePlaceholder": "+221 77 000 00 00",
+      "cityLabel": "Dëkk bi nga wut (mën dem)",
+      "cityPlaceholder": "Dakar, Saint-Louis…",
+      "intentLabel": "Xeetu wuti (mën dem)",
+      "intentPlaceholder": "Tann benn",
+      "intentRent": "Luwaas",
+      "intentBuy": "Jënd",
+      "intentBoth": "Ñoom ñaar",
+      "skip": "Ci kanam",
+      "save": "Denc",
+      "saving": "Mu ngi denc…",
+      "saveError": "Mënul denc léegi. Jéem ci kanam."
+    }
+  },
+  "tenant": {
+    "welcome": {
+      "slides": [
+        {
+          "title": "Sa fey yi",
+          "body": "Xool sa fey yi di ñëw ak sa moy bu nga gën a bëgg, te bëggu fa génn ci sa espas."
+        },
+        {
+          "title": "Laaj benn intervention",
+          "body": "Bind benn problème wala laaj benn intervention ci ay click, ak ay photo."
+        },
+        {
+          "title": "Sa documents",
+          "body": "Luwé, EDL ak quittances : ñépp ci benn bopp, jot leen saa su nga bëgg."
+        }
+      ]
+    },
+    "onboarding": {
+      "widget": {
+        "title": "Dalal ak jam ci sa kër — luwé {reference}",
+        "subtitle": "Ay etap yu gaaw ngir mottali sa installation."
+      },
+      "items": {
+        "welcome_seen": {
+          "title": "Xam sa espas waa-kër",
+          "description": "Topp ci tour gi ngir xam fu nga jëndee fey yi, EDL ak documents."
+        },
+        "inventory_completed": {
+          "title": "Signe état des lieux entrée",
+          "description": "Etap bu war. Mu ngi lay aar su am ay litige ci anam kër bi."
+        },
+        "first_payment": {
+          "title": "Defar sa fey bu jëkk",
+          "description": "Acompte mbaa loyer bu jëkk — bayyi ko ci sa kontraa."
+        },
+        "documents_acknowledged": {
+          "title": "Nangu sa documents",
+          "description": "Luwé bi signe, EDL ak quittances : nangul ne ñépp jot nañu leen."
+        }
+      }
+    }
+  },
+  "owners": {
+    "page": {
+      "title": "Borom kër yi",
+      "subtitle": "Saytu borom kër yi ci sa ajance.",
+      "empty_title": "Amul borom kër",
+      "empty_description": "Inviter sa borom kër bu njëkk ngir tambali yebal kër yi.",
+      "add": "Yokk benn borom kër",
+      "status": {
+        "draft": "Inviter",
+        "active": "Mu jëfandiku",
+        "inactive": "Mu desal",
+        "blocked": "Mu téye"
+      },
+      "columns": {
+        "name": "Tur",
+        "email": "Email",
+        "status": "Aada",
+        "actions": "Jëf"
+      },
+      "actions": {
+        "resend": "Yónni invitation bi",
+        "revoke": "Bañ"
+      }
+    },
+    "invite": {
+      "title": "Inviter benn borom kër",
+      "subtitle": "Yónni invitation ci email. Borom kër bi dina sos compte bi te dafa fes profile bi bu jëfandikoo.",
+      "fields": {
+        "email": "Email",
+        "first_name": "Tur bu njëkk",
+        "last_name": "Sant",
+        "phone": "Telefon (mënul am)",
+        "owner_type": "Xeetu borom kër",
+        "company_name": "Tur sosete"
+      },
+      "owner_types": {
+        "individual": "Nit",
+        "company": "Sosete"
+      },
+      "cta": {
+        "submit": "Yónni invitation",
+        "submitting": "Mu ngi yónni…",
+        "cancel": "Bayyi"
+      },
+      "toasts": {
+        "success_title": "Invitation yónni nañu",
+        "error_title": "Mënul yónni invitation bi",
+        "resend_success": "Invitation yónni nañu ko",
+        "revoke_success": "Invitation bi bañ nañu ko"
+      },
+      "errors": {
+        "already_member": "Nit kii am na ci sa ajance.",
+        "forbidden": "Amul nga sañ-sañ inviter borom kër."
+      }
+    },
+    "onboarding": {
+      "pageTitle": "Dalal jamm ci sa espace borom kër",
+      "pageSubtitle": "Ñeenti etap ngir verifier sa identité, yónni sa kayit yi te xam sa biens.",
+      "kyc": {
+        "labels": {
+          "cni": "Kayitu identité (CNI walla passeport)",
+          "rib": "RIB",
+          "ninea": "NINEA"
+        },
+        "hints": {
+          "cni": "JPG, PNG walla PDF — moo gën 8 Mo.",
+          "rib": "Ngir jot sa paiements yi.",
+          "ninea": "Numéro fiscal (ñu ko jëfandikoo ngir biens yi sosete moo yor)."
+        },
+        "dropZone": "Wàccal fichier ci bii walla bësal ngir tànn.",
+        "uploading": "Yónnee na…",
+        "uploadedBadge": "Jot na",
+        "removeAria": "Dindi fichier",
+        "errors": {
+          "title": "Yónni fichier mënul",
+          "fileTooLarge": "Fichier dafa rëy lool (8 Mo max).",
+          "uploadFailed": "Am na njumte. Jéem leneen."
+        },
+        "success": {
+          "title": "Kayit jot na",
+          "body": "{name} dañu ko denc."
+        }
+      },
+      "steps": {
+        "phone": {
+          "title": "Verifie sa téléphone",
+          "subtitle": "Soxla la ngir notifications paiement ak lokaasion.",
+          "fields": {
+            "phone": "Numéro téléphone",
+            "code": "Kod ki ngeen jot ci SMS"
+          },
+          "sendCta": "Yónni kod bi",
+          "sending": "Yónnee na…",
+          "verifyCta": "Verifie",
+          "verifying": "Verifie na…",
+          "devHint": "Kod dev: {code}",
+          "sent": {
+            "title": "Kod yónni nañu ko",
+            "body": "Kod bi mën na jot ba 60 segond.",
+            "bodyDebug": "Kod yónni nañu ko (debug: {code})."
+          },
+          "verified": {
+            "title": "Téléphone verifie nañu ko",
+            "body": "Mën nga jàll ci etap bi ci topp.",
+            "banner": "Numéro verifie — dinga jot sa alarm yi ci SMS."
+          },
+          "errors": {
+            "sendTitle": "Yónni kod bi mënul",
+            "verifyTitle": "Kod bi baaxul"
+          }
+        },
+        "kyc": {
+          "title": "Sa kayit justification",
+          "subtitle": "Yónni sa CNI, sa RIB ak sa NINEA. Mën nga ko def ñaari yoon.",
+          "draftBadge": "Brouillon",
+          "submittedBadge": "Yónni (xool nañu ko)",
+          "submitCta": "Yónni sa dossier KYC",
+          "submitting": "Yónnee na…",
+          "submittedTitle": "Dossier KYC yónni nañu ko",
+          "submittedBody": "Sa ajance dina ko xool. Mën nga jëkk."
+        },
+        "tour": {
+          "title": "Xamal sa espace",
+          "subtitle": "Ñetti tool yu am solo ngir toppatoo sa alal.",
+          "skip": "Jàllale tour bi",
+          "next": "Topp",
+          "finish": "Mujj tour bi",
+          "slides": {
+            "properties": {
+              "title": "Sa biens",
+              "body": "Gisal sa biens yepp ak sa lokaasion."
+            },
+            "payments": {
+              "title": "Paiements yu nga jot",
+              "body": "Loyer, dépôt, vente: gisal yi nga am ak yi yeex."
+            },
+            "messages": {
+              "title": "Sa messages",
+              "body": "Wax ak sa ajance ak sa lokataire ci Takussan."
+            }
+          }
+        },
+        "recap": {
+          "title": "Sa biens",
+          "subtitle": "Biens yii sa ajance la ko dëël ci sa profil.",
+          "emptyTitle": "Amul biens yu boole",
+          "emptyBody": "Sa ajance dina yokk sa biens su mën a tax.",
+          "viewAll": "Xool sa biens yepp",
+          "completeCta": "Dem ci tableau de bord",
+          "finishing": "Mujj na…"
+        }
+      },
+      "errors": {
+        "kycSubmitTitle": "Yónni KYC mënul",
+        "completeTitle": "Mujj sa onboarding mënul"
+      },
+      "success": {
+        "title": "Dalal jamm!",
+        "body": "Sa profil borom kër aktiv na."
+      }
+    }
+  },
+  "ownerWelcome": {
+    "slides": {
+      "properties": {
+        "title": "Sa biens ci sa loxo",
+        "body": "Gisal sa biens yepp ak sa lokataire."
+      },
+      "payments": {
+        "title": "Paiements yu nga jot",
+        "body": "Loyer, dépôt, vente: gis lépp."
+      },
+      "messages": {
+        "title": "Wax ak ñépp",
+        "body": "Wax ak sa ajance ak sa lokataire."
+      }
+    }
+  },
+  "agents": {
+    "onboarding": {
+      "pageTitle": "Dalal jamm ci sa espace agent",
+      "pageSubtitle": "Ñeenti étape ngir vérifier sa identité, yónn sa pieces, te taxoo sa zones.",
+      "kyc": {
+        "labels": {
+          "license": "Karte professionnelle",
+          "cni": "CNI walla passeport",
+          "photo": "Foto"
+        },
+        "hints": {
+          "license": "Scan walla foto sa karte d'agent — su tudd 8 Mo.",
+          "cni": "JPG, PNG walla PDF — su tudd 8 Mo.",
+          "photo": "Foto bu xeebal — kanam bi gën a leer. JPG walla PNG."
+        },
+        "dropZone": "Sàcc fichier walla cliquer ngir parcourir.",
+        "uploading": "Yónn naa…",
+        "uploadedBadge": "Jot na",
+        "removeAria": "Rëdd fichier bi",
+        "errors": {
+          "title": "Yónn fichier bi du mën",
+          "fileTooLarge": "Fichier bi rëy lool (8 Mo lañu mën).",
+          "uploadFailed": "Am na njumte. Jëfandikoo waxtu bi."
+        },
+        "success": {
+          "title": "Document jot na",
+          "body": "{name} dañu ko denc."
+        }
+      },
+      "steps": {
+        "phone": {
+          "title": "Vérifie sa téléphone",
+          "subtitle": "Soxla na ngir notifications sa client ak sa ajance.",
+          "fields": {
+            "phone": "Numero téléphone",
+            "code": "Code SMS"
+          },
+          "sendCta": "Yónn code bi",
+          "sending": "Yónn naa…",
+          "verifyCta": "Vérifie",
+          "verifying": "Vérifie naa…",
+          "devHint": "Code dev: {code}",
+          "sent": {
+            "title": "Code yónn na",
+            "body": "Code bi mën na jaar 60 segondas balaa mu jot.",
+            "bodyDebug": "Code yónn na (debug: {code})."
+          },
+          "verified": {
+            "title": "Téléphone vérifie na",
+            "body": "Mën nga jëm étape bi ci kanam.",
+            "banner": "Numero vérifie na — dinga am sa SMS yi."
+          },
+          "errors": {
+            "sendTitle": "Yónn code du mën",
+            "verifyTitle": "Code dafa baaxul"
+          }
+        },
+        "kyc": {
+          "title": "Sa pieces justificatives",
+          "subtitle": "Karte professionnelle, pièce d'identité ak foto. Mën nga ko mottali ñu bari.",
+          "draftBadge": "Brouillon",
+          "submittedBadge": "Soumis (ñu di seet)",
+          "submitCta": "Yónn sa dossier KYC",
+          "submitting": "Yónn naa…",
+          "submittedTitle": "Dossier KYC yónn na",
+          "submittedBody": "Sa ajance dina ko vérifier. Mën nga continuer.",
+          "licenseNumberLabel": "Numero karte professionnelle",
+          "licenseNumberHint": "Bind fi numero bi nekk ci sa karte d'agent."
+        },
+        "specialization": {
+          "title": "Sa spécialisation ak sa zones",
+          "subtitle": "Aide na sa ajance jox la mandats yu jaadu ak client yu jaadu.",
+          "specializationLabel": "Spécialisation",
+          "specializationPlaceholder": "Tànn spécialisation…",
+          "specializationValues": {
+            "residential": "Résidentiel",
+            "commercial": "Commercial",
+            "luxury": "Lukse",
+            "mixed": "Mixte"
+          },
+          "zonesLabel": "Zones intervention",
+          "zonesPlaceholder": "Yokk dëkk walla quartier…",
+          "zonesAdd": "Yokk",
+          "zonesSelectedAria": "Zones tànn",
+          "zonesRemoveAria": "Rëdd {zone}",
+          "zonesSuggestions": "Suggestions",
+          "saveCta": "Denc",
+          "saving": "Denc naa…",
+          "savedBadge": "Denc na",
+          "saved": {
+            "title": "Spécialisation denc na",
+            "body": "Sa zones ak sa spécialisation à jour lañu."
+          },
+          "errors": {
+            "saveTitle": "Denc du mën"
+          }
+        },
+        "welcome": {
+          "title": "Dalal jamm ci kuréel gi",
+          "subtitle": "Sa périmètre ak sa lead yu njëkk wujj nañu.",
+          "roleLabel": "Rôle bi nga jot",
+          "roles": {
+            "agent": "Agent",
+            "agent_senior": "Agent senior",
+            "agent_manager": "Agent manager"
+          },
+          "permissions": {
+            "list_properties": "Gis biens",
+            "list_customers": "Gis client",
+            "create_visits": "Programmer visites",
+            "message_customers": "Wax ak client",
+            "edit_properties": "Soppi biens",
+            "invite_owner": "Inviter propriétaire",
+            "invite_agent": "Inviter agent",
+            "reassign_leads": "Réattribuer leads"
+          },
+          "firstLeadLabel": "Sa lead bu njëkk",
+          "noLead": "Amul lead bu nga jot ba leegi.",
+          "stageLabel": "Étape: {stage}",
+          "viewLead": "Gis fiche bi →"
+        }
+      },
+      "errors": {
+        "kycSubmitTitle": "Yónn KYC du mën",
+        "completeTitle": "Mottali sa onboarding du mën"
+      },
+      "success": {
+        "title": "Dalal jamm!",
+        "body": "Sa profil agent active na."
+      }
+    }
+  },
+  "agentWelcome": {
+    "slides": {
+      "leads": {
+        "title": "Sa lead yi",
+        "body": "Gisal sa client yi ak étape pipeline bi ci waxtu wi."
+      },
+      "properties": {
+        "title": "Sa biens",
+        "body": "Portfolio sa ajance ak sa mandats nekk ci sa tableau de bord."
+      },
+      "messages": {
+        "title": "Wax ak ñépp",
+        "body": "Wax ak sa client ak sa ajance ci Takussan."
+      }
+    }
+  },
+  "team": {
+    "page": {
+      "title": "Kuréel",
+      "subtitle": "Toppatoo agents yi nekk ci sa ajance.",
+      "empty_title": "Amul ndaw ci kuréel gi",
+      "empty_description": "Inviter sa agent bu njëkk ngir tambali liggéey ndawal.",
+      "add": "Inviter agent",
+      "status": {
+        "draft": "Inviter nañu ko",
+        "active": "Mu ngi liggéey",
+        "inactive": "Du liggéey",
+        "suspended": "Bañ nañu ko"
+      },
+      "roles": {
+        "agent": "Agent",
+        "agent_senior": "Agent senior",
+        "agent_manager": "Agent manager"
+      },
+      "columns": {
+        "name": "Tur",
+        "email": "Email",
+        "role": "Rol",
+        "status": "Anam",
+        "actions": "Jëf"
+      },
+      "actions": {
+        "resend": "Yónni invitation gu bees",
+        "suspend": "Bañ ko ba ëllëg",
+        "reactivate": "Defaraat",
+        "remove": "Génne ko"
+      }
+    },
+    "invite": {
+      "title": "Inviter agent",
+      "subtitle": "Yónni invitation ci email. Agent bi mën na sos sa kontu te bind sa profil bu nopp.",
+      "fields": {
+        "email": "Email",
+        "first_name": "Tur bu njëkk",
+        "last_name": "Sant",
+        "phone": "Telefon (mënul am)",
+        "role": "Rol"
+      },
+      "roles": {
+        "agent": "Agent",
+        "agent_senior": "Agent senior",
+        "agent_manager": "Agent manager"
+      },
+      "cta": {
+        "submit": "Yónni invitation",
+        "submitting": "Mu ngi yónni…",
+        "cancel": "Bayyi"
+      },
+      "confirm": {
+        "remove": "Génne ndaw mii ci kuréel gi ? Taariix bi des na ci yoon."
+      },
+      "toasts": {
+        "success_title": "Invitation yónni nañu",
+        "error_title": "Mënul def jëf bi",
+        "resend_success": "Invitation yónni nañu ko",
+        "suspend_success": "Ndaw bañ nañu ko",
+        "reactivate_success": "Ndaw defar nañu ko",
+        "remove_success": "Ndaw génne nañu ko"
+      },
+      "errors": {
+        "already_member": "Nit kii am na ci sa kuréel.",
+        "forbidden": "Amul nga sañ-sañu toppatoo kuréel gi."
+      }
+    }
+  },
+  "serviceProviders": {
+    "page": {
+      "title": "Téere u prestataires",
+      "subtitle": "Plombiers, électriciens ak peintres : sa téere u liggéeykat yi.",
+      "add": "Yokk benn prestataire"
+    },
+    "list": {
+      "empty_title": "Amagul prestataire",
+      "empty_description": "Wow sa prestataire bu njëkk ngir yokk ko ci sa téere.",
+      "columns": {
+        "name": "Tur",
+        "trades": "Liggéey",
+        "zones": "Bérébi liggéey",
+        "status": "Tëralin",
+        "actions": "Jëfin"
+      },
+      "status": {
+        "draft": "Wow nañu",
+        "active": "Dox na",
+        "inactive": "Doxul",
+        "suspended": "Suspendu"
+      },
+      "actions": {
+        "resend": "Yónnee waaru fi",
+        "revoke": "Far ko"
+      }
+    },
+    "invite": {
+      "title": "Wow benn prestataire",
+      "subtitle": "Yónnee benn waaru ci email. Prestataire bi dina sàmpu kompte ak baleel sa profil ginnaaw bi mu nangu.",
+      "fields": {
+        "email": "Email",
+        "first_name": "Tur",
+        "last_name": "Sant",
+        "phone": "Telefoŋ (optionnel)",
+        "trades": "Liggéey",
+        "intervention_zones": "Bérébi liggéey"
+      },
+      "trades": {
+        "plumbing": "Plonbri",
+        "electrical": "Elektrisite",
+        "structural": "Maçonneri",
+        "appliance": "Elektromenaze",
+        "painting": "Penture",
+        "cleaning": "Setal",
+        "pest_control": "Faj jëmm",
+        "locksmith": "Saraab",
+        "other": "Yeneen"
+      },
+      "cta": {
+        "submit": "Yónnee waaru bi",
+        "submitting": "Mu ngiy yónnee…",
+        "cancel": "Bañ"
+      },
+      "toasts": {
+        "success_title": "Waaru bi yónnee na",
+        "error_title": "Mënumaa yónnee waaru bi",
+        "resend_success": "Waaru bi yónnee nañu fi",
+        "revoke_success": "Waaru bi far nañu ko",
+        "existing_other_agency": "Prestataire bii am na ba pare ci beneen agence — dina mën a nangu multi-rattachement bu nu ko nangoo."
+      },
+      "errors": {
+        "already_member": "Prestataire bii am na ba pare ci sa agence.",
+        "forbidden": "Amul nga sañ-sañu wow benn prestataire."
+      }
+    },
+    "onboarding": {
+      "errors": {
+        "tradesTitle": "Mënumaa denk sa ay liggéey",
+        "availabilityTitle": "Mënumaa denk sa ay disponibilités",
+        "completeTitle": "Mënumaa jeexal sa onboarding"
+      },
+      "success": {
+        "title": "Dalal jamm!",
+        "body": "Sa profil prestataire dox na."
+      },
+      "kyc": {
+        "labels": {
+          "cni": "Carte d'identité",
+          "insurance": "Assurance RC pro",
+          "rib": "RIB"
+        },
+        "hints": {
+          "cni": "JPG, PNG mbaa PDF — 8 Mo max.",
+          "insurance": "Optionnel waaye baax na — wone na badge Assuré ci sa profil.",
+          "rib": "Ngir paie yi diy ñëw."
+        },
+        "dropZone": "Sàcc fichier fii mbaa cliquez ngir tànn.",
+        "uploading": "Yónnee…",
+        "uploadedBadge": "Jot nañu",
+        "removeAria": "Far fichier bi",
+        "errors": {
+          "title": "Yónneewul",
+          "fileTooLarge": "Fichier bi rëy na (8 Mo max).",
+          "uploadFailed": "Am na njumte. Jéem leen waxtu jënd."
+        },
+        "success": {
+          "title": "Document jot nañu ko",
+          "body": "Fichier {name} jot nañu ko."
+        }
+      },
+      "trades": {
+        "legend": "Liggéey yi nga mën a def",
+        "options": {
+          "plumbing": "Plomberie",
+          "electrical": "Électricité",
+          "climate_control": "Climatisation",
+          "locksmith": "Serrurerie",
+          "painting": "Peinture",
+          "masonry": "Maçonnerie",
+          "other": "Beneen"
+        }
+      },
+      "availability": {
+        "ariaLabel": "Disponibilités yu ayu-bés",
+        "dayHeader": "Bés",
+        "on": "Dispo",
+        "off": "—",
+        "cellAria": "Disponibilité {day} {period}",
+        "days": {
+          "monday": "Altine",
+          "tuesday": "Talaata",
+          "wednesday": "Àllarba",
+          "thursday": "Alxames",
+          "friday": "Àjjuma",
+          "saturday": "Gaawu",
+          "sunday": "Dibéer"
+        },
+        "periods": {
+          "morning": {
+            "label": "Suba"
+          },
+          "afternoon": {
+            "label": "Bëccëg"
+          },
+          "evening": {
+            "label": "Ngoon"
+          }
+        }
+      },
+      "steps": {
+        "phone": {
+          "title": "Vérifier sa telefoŋ",
+          "subtitle": "Ngir nga jot ay xibaar yu intervention.",
+          "fields": {
+            "phone": "Numero telefoŋ",
+            "code": "Code SMS"
+          },
+          "sendCta": "Yónnee code bi",
+          "sending": "Yónnee…",
+          "verifyCta": "Vérifier",
+          "verifying": "Vérification…",
+          "devHint": "Code dev : {code}",
+          "sent": {
+            "title": "Code yónnee nañu",
+            "body": "Code bi mën na 60 segondes ngir ñëw.",
+            "bodyDebug": "Code yónnee (debug : {code})."
+          },
+          "verified": {
+            "title": "Telefoŋ vérifier nañu",
+            "body": "Mën nga dem ci étape bu ñëw.",
+            "banner": "Numero vérifier nañu — dinga jot ay demande bu intervention ci SMS."
+          },
+          "errors": {
+            "sendTitle": "Yónneewul code bi",
+            "verifyTitle": "Code baaxul"
+          }
+        },
+        "trades": {
+          "title": "Liggéey ak prix",
+          "subtitle": "Liggéey yi, bérébi liggéey ak prix yi.",
+          "fields": {
+            "trades": "Liggéey",
+            "zones": "Bérébi liggéey",
+            "zonesPlaceholder": "Dakar, Mbour…",
+            "zonesHint": "Tofal ay dëkk ak ay quartiers ak virgule.",
+            "hourlyRate": "Tarif waxtu (XOF)",
+            "visitFee": "Frais de visite (XOF)"
+          }
+        },
+        "availability": {
+          "title": "Sa disponibilités",
+          "subtitle": "Cocher créneaux yi nga jappu."
+        },
+        "recap": {
+          "title": "Lépp pare na",
+          "subtitle": "Xool résumé bi balaa nga jeexal.",
+          "rows": {
+            "phone": "Telefoŋ",
+            "trades": "Liggéey",
+            "zones": "Bérébi",
+            "hourlyRate": "Tarif waxtu",
+            "visitFee": "Frais de visite",
+            "insurance": "Assurance",
+            "availability": "Disponibilités",
+            "yes": "Waaw",
+            "no": "Déedéet",
+            "slots": "créneaux"
+          },
+          "maintenanceRequest": {
+            "title": "Am na intervention bu lay xaar",
+            "body": "Demande bu intervention moo lay woolu. Dinga ko gis bu wizard bi jeexee."
+          }
+        }
+      }
+    },
+    "multiAgency": {
+      "welcomeAgency": "Dalal jamm ci {agency}",
+      "welcomeGeneric": "Am na agence bu bees bu lay xaar",
+      "subtitle": "Sa liggéey jëfandikoo na ak {count} agence. Sa profil, sa KYC ak sa liggéey yepp ñoo bokk.",
+      "status": {
+        "active": "Mu jëfandikoo",
+        "paused": "Mu taxaw",
+        "ended": "Mu jeex",
+        "unknown": "—"
+      },
+      "cta": {
+        "dashboard": "Dem ci tableau de bord"
+      },
+      "switch": {
+        "label": "Soppi agence",
+        "empty": "Amul agence bu bokkoon ba leegi."
+      }
+    }
+  },
+  "onboarding": {
+    "host": {
+      "defaults": {
+        "spaceNameOf": "Espas {name}"
+      },
+      "errors": {
+        "cguTitle": "Kondisioŋ yi",
+        "cguBody": "Dangaa wara nangu kondisioŋ yi ngir publikoŋ sa biir.",
+        "otpTitle": "Telefoŋ bi véerifikoŋ",
+        "otpBody": "Véerifikaal sa nimero ak kódu SMS bi laata mu publi.",
+        "submitTitle": "Du man a publikoŋ"
+      },
+      "success": {
+        "title": "Espas yi tax",
+        "body": "Sa biir bu njëkk dafa nekk brouillon. Yokk fototu yi te publi bu nga jëfandikoo."
+      },
+      "steps": {
+        "intent": {
+          "title": "Yaa ngi publi ni…",
+          "subtitle": "Tànneel mood mi mengoo ak sa liggéey.",
+          "legend": "Xeetu profil",
+          "options": {
+            "individual": {
+              "title": "Particulier (sama espas)",
+              "body": "Bu bees ngir publikoŋ sa bopp biir yi. Yaa moom kontrol bi."
+            },
+            "professional": {
+              "title": "Professionnel (sos ajaans bi)",
+              "body": "Soo amaan ay biir, ay ekip walla ay borom : danuy sos ajaans."
+            }
+          },
+          "professionalNotice": {
+            "title": "Sos ajaans professionnelle",
+            "body": "Ngir sos ajaans ak ay collaborateurs, takkalal ak sunu ekip — danuy défar la espas bi diirub 24h.",
+            "mailSubject": "Demande sos ajaans professionnelle",
+            "contactCta": "Takkal ak support",
+            "continueIndividual": "Walla continuer ni particulier te upgrader sutura"
+          }
+        },
+        "identity": {
+          "title": "Sa espas",
+          "subtitle": "Ay info ngir personalisé sa tableau.",
+          "fields": {
+            "spaceName": "Turu espas bi",
+            "primaryCity": "Dëkk bu njëkk",
+            "currency": "Xaalis",
+            "primaryPropertyType": "Xeetu biir bu njëkk",
+            "phone": "Nimerou telefoŋ",
+            "otpCode": "Kódu SMS bi"
+          },
+          "propertyTypes": {
+            "apartment": "Appartement",
+            "house": "Néeg",
+            "villa": "Villa",
+            "studio": "Studio",
+            "room": "Néeg bu rëy",
+            "land": "Suuf",
+            "office": "Bureau",
+            "shop": "Boutik",
+            "warehouse": "Magasin",
+            "other": "Yu sax"
+          },
+          "otp": {
+            "heading": "Véerifikaasioŋ telefoŋ",
+            "body": "Ngir sécurité, danuy yónni la kódu SMS 6 chifr.",
+            "statusPending": "Mu ngi yagg",
+            "statusVerified": "Véerifié",
+            "sendCta": "Yónnee kódu",
+            "sending": "Yónni…",
+            "verifyCta": "Véerifier",
+            "verifying": "Véerifikoŋ…",
+            "sentTitle": "Kódu yónni",
+            "sentBody": "Kódu bi mën na jaar ba 60 segond.",
+            "sentDebug": "Kódu yónni (debug : {code}).",
+            "verifiedTitle": "Telefoŋ véerifié",
+            "verifiedBody": "Mën nga publi sa biir.",
+            "devHint": "Kódu développement : {code}",
+            "errors": {
+              "sendFailed": "Kódu bi mënul yónni",
+              "verifyFailed": "Kódu baaxul"
+            }
+          }
+        },
+        "firstProperty": {
+          "title": "Sa biir bu njëkk",
+          "subtitle": "Esquise rekk — mën nga compléter fiche bi sutura.",
+          "fields": {
+            "title": "Tur",
+            "type": "Xeetu biir",
+            "city": "Dëkk",
+            "contractType": "Tijaari",
+            "price": "Njëg"
+          },
+          "types": {
+            "apartment": "Appartement",
+            "house": "Néeg",
+            "villa": "Villa",
+            "studio": "Studio",
+            "room": "Néeg bu rëy",
+            "land": "Suuf",
+            "office": "Bureau",
+            "shop": "Boutik",
+            "warehouse": "Magasin",
+            "other": "Yu sax"
+          },
+          "contracts": {
+            "rent": "Loyer",
+            "sale": "Jaay"
+          }
+        },
+        "payment": {
+          "title": "Mood paiement",
+          "subtitle": "Tànneel sa fournisseur préféré — configuration bi mu mat la nekk ci njëkk réservation.",
+          "legend": "Fournisseur paiement",
+          "providers": {
+            "wave": {
+              "title": "Wave",
+              "body": "Mobile money — recommandé Senegal."
+            },
+            "orange_money": {
+              "title": "Orange Money",
+              "body": "Mobile money — Afrique de l'Ouest."
+            },
+            "lemon_squeezy": {
+              "title": "Carte (Lemon Squeezy)",
+              "body": "Paiements internationaux."
+            }
+          },
+          "disclaimer": "Mën nga configurer ay fournisseur te soppi défaut bi ci sa tableau."
+        },
+        "recap": {
+          "title": "Résumé",
+          "subtitle": "Verifié laata nga publi — mën nga soppi lépp sutura.",
+          "rows": {
+            "spaceName": "Turu espas",
+            "primaryCity": "Dëkk bu njëkk",
+            "currency": "Xaalis",
+            "phone": "Telefoŋ",
+            "phoneVerified": "Telefoŋ véerifié",
+            "firstPropertyTitle": "Tur biir",
+            "firstPropertyType": "Xeetu biir",
+            "firstPropertyContract": "Tijaari",
+            "firstPropertyPrice": "Njëg",
+            "paymentProvider": "Fournisseur paiement",
+            "yes": "Waaw",
+            "no": "Déedéet"
+          },
+          "warnings": {
+            "otpRequired": "Véerifikaal sa nimero ci étape 2 laata nga publi."
+          },
+          "cgu": {
+            "label": "Mu ma nangu <link>kondisioŋ yi</link>."
+          }
+        }
+      }
     }
   }
 }

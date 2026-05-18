@@ -37,6 +37,28 @@ export const LOCALE_LABELS: Record<Locale, string> = {
   wo: 'Wolof',
 };
 
+export const LOCALE_DISPLAY_LABELS: Record<Locale, Record<Locale, string>> = {
+  fr: {
+    fr: 'Français',
+    en: 'Anglais',
+    wo: 'Wolof',
+  },
+  en: {
+    fr: 'French',
+    en: 'English',
+    wo: 'Wolof',
+  },
+  wo: {
+    fr: 'Français',
+    en: 'Anglais',
+    wo: 'Wolof',
+  },
+};
+
+export function localeDisplayLabel(code: Locale, displayLocale: Locale): string {
+  return LOCALE_DISPLAY_LABELS[displayLocale]?.[code] ?? LOCALE_LABELS[code];
+}
+
 /**
  * Short labels for compact UI (language switcher badge).
  */

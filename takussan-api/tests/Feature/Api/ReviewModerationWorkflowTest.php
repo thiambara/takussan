@@ -8,8 +8,6 @@ use App\Models\Review;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class ReviewModerationWorkflowTest extends TestCase
@@ -19,10 +17,8 @@ class ReviewModerationWorkflowTest extends TestCase
     private function admin(): User
     {
         $agency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        Role::findOrCreate('admin');
         $admin = User::factory()->create(['agency_id' => $agency->id]);
-        $admin->assignRole('admin');
+        $this->materializeRoleProfile($admin, 'super_admin');
 
         return $admin;
     }

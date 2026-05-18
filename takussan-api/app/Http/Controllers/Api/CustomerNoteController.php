@@ -47,7 +47,7 @@ class CustomerNoteController extends Controller
         abort_unless($note->customer_id === $customer->id, 404);
 
         $user = $request->user();
-        $ok = $user->hasRole(['admin', 'super_admin']) || $note->author_id === $user->id;
+        $ok = $user->isSuperAdmin() || $note->author_id === $user->id;
         abort_unless($ok, 403);
 
         $note->delete();
@@ -58,7 +58,7 @@ class CustomerNoteController extends Controller
     protected function authorizeCustomerAccess(Request $request, Customer $customer): void
     {
         $user = $request->user();
-        $ok = $user->hasRole(['admin', 'super_admin'])
+        $ok = $user->isSuperAdmin()
             || $customer->added_by_id === $user->id
             || ($user->agency_id && $customer->agency_id === $user->agency_id);
 

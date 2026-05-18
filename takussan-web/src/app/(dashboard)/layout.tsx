@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
 import { getAccountDeletionRequestAction } from '@/app/actions/account-deletion';
 import { AccountDeletionBanner } from '@/components/profile/security/AccountDeletionBanner';
@@ -33,7 +34,17 @@ export default async function DashboardGroupLayout({
 }: {
   children: React.ReactNode;
 }) {
-  await getMeAction();
+  const user = await getMeAction();
+
+  // TCK-264 — A freshly-coopted super-admin lands here without their
+  // spatie role yet (it's deferred until 2FA enrollment) but with
+  // `force_2fa_at_first_login = true`. The dashboard isn't a valid
+  // destination in that state — bounce them straight to the mandatory
+  // onboarding wizard.
+  if (user.force_2fa_at_first_login) {
+    redirect('/onboarding/super-admin');
+  }
+
   const deletion = await getAccountDeletionRequestAction();
   const pending = deletion.ok ? deletion.data : null;
 

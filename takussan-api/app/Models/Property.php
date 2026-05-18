@@ -37,7 +37,7 @@ class Property extends AbstractModel implements HasMedia
         'price', 'currency',
         'area', 'bedrooms', 'bathrooms', 'furnished',
         'floor_number', 'total_floors', 'year_built', 'parking_spaces',
-        'featured', 'lot_position', 'level', 'admin_monitored',
+        'featured', 'lot_position', 'level', 'admin_monitored', 'is_test',
         'available_from', 'published_at', 'archived_at', 'metadata',
         'rejection_reason', 'submitted_at', 'approved_at', 'rejected_at',
         'approved_by_user_id', 'rejected_by_user_id',
@@ -57,6 +57,7 @@ class Property extends AbstractModel implements HasMedia
         'featured' => 'boolean',
         'level' => 'integer',
         'admin_monitored' => 'boolean',
+        'is_test' => 'boolean',
         'available_from' => 'date',
         'published_at' => 'datetime',
         'archived_at' => 'datetime',
@@ -75,12 +76,12 @@ class Property extends AbstractModel implements HasMedia
 
     /** @var array<int,string> */
     protected static array $requestSortable = [
-        'id', 'created_at', 'published_at', 'price', 'area', 'bedrooms', 'bathrooms', 'featured',
+        'id', 'title', 'created_at', 'published_at', 'price', 'views_count', 'area', 'bedrooms', 'bathrooms', 'featured',
     ];
 
     /** @var array<int,string> */
     protected static array $requestLoadable = [
-        'address', 'agency', 'owner', 'tags', 'children', 'parent',
+        'address', 'agency', 'owner', 'tags', 'children', 'parent', 'collaborators',
     ];
 
     /** @var array<int,string> */
@@ -97,10 +98,10 @@ class Property extends AbstractModel implements HasMedia
     /** @var array<int,string> */
     protected static array $queryFields = [
         'id', 'user_id', 'agency_id', 'parent_id', 'reference_number',
-        'title', 'slug', 'type', 'contract_type', 'title_type', 'status', 'visibility',
+        'title', 'slug', 'type', 'contract_type', 'rent_period', 'title_type', 'status', 'visibility',
         'price', 'currency', 'area', 'bedrooms', 'bathrooms', 'furnished',
         'floor_number', 'total_floors', 'year_built', 'parking_spaces', 'featured',
-        'available_from', 'published_at', 'created_at', 'updated_at',
+        'views_count', 'favorites_count', 'available_from', 'published_at', 'created_at', 'updated_at',
     ];
 
     protected static function booted(): void
@@ -111,6 +112,15 @@ class Property extends AbstractModel implements HasMedia
             }
             if (empty($m->reference_number)) {
                 $m->reference_number = 'TK-'.now()->format('Y').'-'.strtoupper(Str::random(6));
+            }
+        });
+
+        // Invariant: a rental listing must always carry a billing period.
+        // If contract_type=rent but rent_period is missing/cleared, default
+        // to monthly — the most common rental cadence in the local market.
+        static::saving(function (self $m) {
+            if ($m->contract_type === ContractType::Rent && $m->rent_period === null) {
+                $m->rent_period = RentPeriod::Monthly;
             }
         });
 
@@ -148,6 +158,7 @@ class Property extends AbstractModel implements HasMedia
     public function scopePublic(Builder $query): Builder
     {
         return $query->where('visibility', PropertyVisibility::Public)
+            ->where('is_test', false)
             ->whereNotNull('published_at')
             ->whereNotIn('status', [
                 PropertyStatus::Draft,
@@ -196,6 +207,27 @@ class Property extends AbstractModel implements HasMedia
             }
 
             $q->where('parent_id', $value);
+        });
+
+        $filters[] = AllowedFilter::callback('city', function (Builder $q, mixed $value): void {
+            $city = trim((string) $value);
+            if ($city === '') {
+                return;
+            }
+
+            $q->whereHas('address', fn (Builder $address) => $address->where('city', 'like', '%'.$city.'%'));
+        });
+
+        $filters[] = AllowedFilter::callback('created_from', function (Builder $q, mixed $value): void {
+            if ($value !== null && $value !== '') {
+                $q->whereDate('created_at', '>=', (string) $value);
+            }
+        });
+
+        $filters[] = AllowedFilter::callback('created_to', function (Builder $q, mixed $value): void {
+            if ($value !== null && $value !== '') {
+                $q->whereDate('created_at', '<=', (string) $value);
+            }
         });
 
         return $filters;

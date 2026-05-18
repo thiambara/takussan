@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Webhooks;
 
 use App\Http\Controllers\Base\Controller;
 use App\Models\Enums\PaymentProvider;
+use App\Services\Admin\IntegrationService;
 use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,7 +23,10 @@ use Illuminate\Http\Request;
  */
 class PaymentWebhookController extends Controller
 {
-    public function __construct(protected PaymentGatewayService $gateway) {}
+    public function __construct(
+        protected PaymentGatewayService $gateway,
+        protected IntegrationService $integrations,
+    ) {}
 
     public function __invoke(Request $request, string $provider): JsonResponse
     {
@@ -30,6 +34,7 @@ class PaymentWebhookController extends Controller
         abort_unless($providerEnum, 404, 'Unknown provider.');
 
         $event = $this->gateway->handleWebhook($providerEnum, $request);
+        $this->integrations->recordWebhook($providerEnum->value, $request->all(), 'processed', $event->type);
 
         return $this->json([
             'data' => [

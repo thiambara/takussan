@@ -1,14 +1,18 @@
-import { forbidden, notFound } from 'next/navigation';
+import type { Metadata } from 'next';
+import { notFound, redirect } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
+
+export const metadata: Metadata = { title: 'Fiche bien' };
 import { fetchTagsAction } from '@/app/actions/admin-tags';
 import { getToken } from '@/lib/session';
 import { fetchDashboardProperty } from '@/lib/queries/properties-server';
 import { ApiError } from '@/lib/api';
-import { isAdmin, isAgent, isOwner } from '@/lib/roles';
-import { PropertyForm } from '@/components/property-form';
-import { PropertyMediaPanel } from '@/components/property-dashboard/PropertyMediaPanel';
-import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
+import { assertCanReachAgentArea } from '@/lib/auth/guards';
+import { PropertyDetailTabs } from '@/components/property-dashboard/PropertyDetailTabs';
+import { PropertyHeaderActions } from '@/components/property-dashboard/PropertyHeaderActions';
+import { PropertyStatusBadge } from '@/components/property-dashboard/PropertyStatusBadge';
+import { PropertyVisibilityBadge } from '@/components/property-dashboard/PropertyVisibilityBadge';
 import { PropertyModerationBanner } from '@/components/property-form/PropertyModerationBanner';
 
 /**
@@ -21,13 +25,11 @@ type Params = Promise<{ id: string }>;
 
 export default async function Page({ params }: { params: Params }) {
   const user = await getMeAction();
-  if (!(isAgent(user.roles) || isAdmin(user.roles) || isOwner(user.roles))) {
-    forbidden();
-  }
+  assertCanReachAgentArea(user.roles);
 
   const { id } = await params;
   const token = await getToken();
-  if (!token) forbidden();
+  if (!token) redirect('/app');
 
   let property;
   try {
@@ -35,7 +37,7 @@ export default async function Page({ params }: { params: Params }) {
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) notFound();
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
-      forbidden();
+      redirect('/app');
     }
     throw e;
   }
@@ -45,26 +47,35 @@ export default async function Page({ params }: { params: Params }) {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-app-ink-muted">
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             Bien · {property.reference_number ?? `#${property.id}`}
           </p>
-          <h1 className="mt-1 text-2xl font-bold text-app-ink">{property.title}</h1>
-          <p className="mt-1 text-sm text-app-ink-muted">
-            Modifiez les informations puis enregistrez pour mettre l&apos;annonce à jour.
-          </p>
+          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-foreground">
+            {property.title}
+          </h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <PropertyStatusBadge
+              status={property.status}
+              statusLabel={property.status_label}
+            />
+            <PropertyVisibilityBadge visibility={property.visibility} />
+            <span className="text-xs text-muted-foreground">
+              {property.type_label}
+              {property.contract_type_label
+                ? ` · ${property.contract_type_label}`
+                : ''}
+              {property.location?.city ? ` · ${property.location.city}` : ''}
+            </span>
+          </div>
         </div>
-        <AddDocumentButton
-          documentableType="property"
-          documentableId={property.id}
-          displayLabel={property.title}
-        />
+        <PropertyHeaderActions property={property} />
       </header>
-      {/* TCK-098 — show moderation status to the agent */}
+
       <PropertyModerationBanner property={property} />
-      <PropertyForm mode="edit" property={property} tags={tags} />
-      <PropertyMediaPanel propertyId={property.id} />
+
+      <PropertyDetailTabs property={property} tags={tags} />
     </div>
   );
 }

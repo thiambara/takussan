@@ -4,6 +4,32 @@ return [
 
     'salutation' => 'L\'équipe Takussan',
 
+    // TCK-249 — Invitation lifecycle emails (initial + reminder + inviter
+    // notifications on acceptance/expiration).
+    'invitation' => [
+        'subject' => 'Vous avez reçu une invitation Takussan',
+        'reminder_subject' => 'Rappel — votre invitation Takussan',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Vous avez été invité(e) à rejoindre Takussan en tant que :role.',
+        'reminder_intro' => 'Petit rappel : votre invitation Takussan en tant que :role est toujours en attente.',
+        'action' => 'Accepter l\'invitation',
+        'expires_at' => 'Ce lien expire le :date.',
+        'ignore' => 'Si cette invitation ne vous concerne pas, vous pouvez ignorer cet e-mail.',
+    ],
+
+    'invitation_accepted' => [
+        'subject' => ':email a accepté votre invitation',
+        'greeting' => 'Bonjour,',
+        'intro' => ':email vient d\'accepter votre invitation et a rejoint la plateforme en tant que :role.',
+    ],
+
+    'invitation_expired' => [
+        'subject' => 'Votre invitation à :email a expiré',
+        'greeting' => 'Bonjour,',
+        'intro' => 'L\'invitation que vous aviez envoyée à :email a expiré sans être acceptée.',
+        'advice' => 'Vous pouvez la renvoyer depuis votre tableau de bord pour relancer le destinataire.',
+    ],
+
     'registration' => [
         'subject' => 'Confirmez votre adresse e-mail',
         'greeting' => 'Bienvenue sur Takussan !',
@@ -130,6 +156,33 @@ return [
         'greeting' => 'Bonjour,',
         'intro' => 'Un avenant a été créé pour votre bail (:reference). Les nouvelles conditions sont désormais applicables.',
         'period' => 'Période : du :start au :end.',
+    ],
+
+    // TCK-265 — one-shot welcome notification fired on Lease.activated.
+    'tenant_welcome' => [
+        'subject' => 'Bienvenue chez vous — bail :reference',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Votre bail :reference est désormais actif.',
+        'body' => 'Retrouvez vos prochaines échéances, demandez une intervention et accédez à vos documents depuis votre espace résident.',
+        'action' => 'Ouvrir mon espace résident',
+    ],
+
+    // TCK-266 — J+7 reminder when the move-in inventory is still unsigned.
+    'tenant_inventory_reminder' => [
+        'subject' => 'Rappel — état des lieux à signer (bail :reference)',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Votre état des lieux d\'entrée pour le bail :reference n\'a pas encore été signé.',
+        'body' => 'Sans état des lieux signé, votre dossier reste incomplet. Connectez-vous à votre espace résident pour finaliser la signature.',
+        'action' => 'Signer l\'état des lieux',
+    ],
+
+    'agent_tenant_inventory_reminder' => [
+        'subject' => 'Locataire en retard sur son EDL — bail :reference',
+        'greeting' => 'Bonjour,',
+        'intro' => ':tenant n\'a pas encore signé l\'état des lieux d\'entrée du bail :reference (plus de 7 jours).',
+        'body' => 'Vérifiez avec votre locataire si une relance ou une assistance est nécessaire pour finaliser la signature.',
+        'action' => 'Voir les onboardings en retard',
+        'unknown_tenant' => 'Le locataire',
     ],
 
     'lease_early_termination' => [

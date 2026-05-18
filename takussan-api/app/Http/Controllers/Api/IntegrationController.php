@@ -16,8 +16,8 @@ class IntegrationController extends Controller
 
         $base = Integration::query();
 
-        if (! $user->hasRole(['admin', 'super_admin'])) {
-            abort_unless($user->hasRole('agency_admin') && $user->agency_id, 403);
+        if (! $user->isSuperAdmin()) {
+            abort_unless($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id), 403);
             $base->where('agency_id', $user->agency_id);
         }
 
@@ -49,7 +49,7 @@ class IntegrationController extends Controller
         $agencyId = $data['agency_id'] ?? $user->agency_id;
 
         abort_unless(
-            $user->hasRole(['admin', 'super_admin']) || ($user->hasRole('agency_admin') && $user->agency_id === $agencyId),
+            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $agencyId && $user->isAgencyAdminAt((int) $agencyId)),
             403,
             'You can only manage your own agency integrations.'
         );
@@ -72,7 +72,7 @@ class IntegrationController extends Controller
         $user = $request->user();
 
         abort_unless(
-            $user->hasRole(['admin', 'super_admin']) || ($user->hasRole('agency_admin') && $user->agency_id === $integration->agency_id),
+            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $integration->agency_id && $user->isAgencyAdminAt((int) $integration->agency_id)),
             403
         );
 
@@ -108,7 +108,7 @@ class IntegrationController extends Controller
         $user = $request->user();
 
         abort_unless(
-            $user->hasRole(['admin', 'super_admin']) || ($user->hasRole('agency_admin') && $user->agency_id === $integration->agency_id),
+            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $integration->agency_id && $user->isAgencyAdminAt((int) $integration->agency_id)),
             403
         );
 
@@ -130,7 +130,7 @@ class IntegrationController extends Controller
         $user = $request->user();
 
         abort_unless(
-            $user->hasRole(['admin', 'super_admin']) || ($user->hasRole('agency_admin') && $user->agency_id === $integration->agency_id),
+            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $integration->agency_id && $user->isAgencyAdminAt((int) $integration->agency_id)),
             403
         );
 

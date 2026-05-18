@@ -8,6 +8,7 @@ class ActivityLogPolicy
 {
     public function export(User $user): bool
     {
-        return $user->isSuperAdmin() || $user->hasRole('agency_admin');
+        return $user->isSuperAdmin()
+            || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id));
     }
 }

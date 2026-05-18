@@ -6,6 +6,13 @@ import { Loader2, ShieldAlert } from 'lucide-react';
 
 import { useAuth } from '@/context/AuthContext';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   fetchModerationQueue,
   type ModerationReview,
   type ModerationStatus,
@@ -13,6 +20,21 @@ import {
 import { ModerationQueueList } from './ModerationQueueList';
 import { ModerationDetail } from './ModerationDetail';
 import { ApiError } from '@/lib/api';
+
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'Tous les statuts' },
+  { value: 'pending', label: 'En attente' },
+  { value: 'flagged', label: 'Signalés' },
+  { value: 'approved', label: 'Approuvés' },
+  { value: 'rejected', label: 'Rejetés' },
+] as const;
+
+const SUBJECT_TYPE_OPTIONS = [
+  { value: 'all', label: 'Tous les sujets' },
+  { value: 'App\\Models\\Property', label: 'Biens' },
+  { value: 'App\\Models\\Agency', label: 'Agences' },
+  { value: 'App\\Models\\User', label: 'Utilisateurs' },
+] as const;
 
 export function ModerationWorkspace() {
   const { token } = useAuth();
@@ -50,29 +72,34 @@ export function ModerationWorkspace() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value as ModerationStatus | '')}
-          className="h-9 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-          aria-label="Filtrer par statut"
+        <Select
+          value={status || 'all'}
+          onValueChange={(value) => setStatus(value === 'all' ? '' : ((value ?? '') as ModerationStatus | ''))}
+          items={STATUS_OPTIONS as unknown as Array<{ value: string; label: string }>}
         >
-          <option value="">Tous les statuts</option>
-          <option value="pending">En attente</option>
-          <option value="flagged">Signalés</option>
-          <option value="approved">Approuvés</option>
-          <option value="rejected">Rejetés</option>
-        </select>
-        <select
-          value={subjectType}
-          onChange={(e) => setSubjectType(e.target.value)}
-          className="h-9 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-          aria-label="Type de sujet"
+          <SelectTrigger className="h-9" aria-label="Filtrer par statut">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={subjectType || 'all'}
+          onValueChange={(value) => setSubjectType(value === 'all' ? '' : (value ?? ''))}
+          items={SUBJECT_TYPE_OPTIONS as unknown as Array<{ value: string; label: string }>}
         >
-          <option value="">Tous les sujets</option>
-          <option value="App\\Models\\Property">Biens</option>
-          <option value="App\\Models\\Agency">Agences</option>
-          <option value="App\\Models\\User">Utilisateurs</option>
-        </select>
+          <SelectTrigger className="h-9" aria-label="Type de sujet">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SUBJECT_TYPE_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <label className="inline-flex items-center gap-2 text-sm text-app-ink">
           <input
             type="checkbox"

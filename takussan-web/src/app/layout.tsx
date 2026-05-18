@@ -7,6 +7,12 @@ import { getMe } from '@/lib/auth';
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { AuthProvider } from '@/context/AuthContext';
 import { QueryProvider } from '@/components/providers/QueryProvider';
+import { FeatureFlagProvider } from '@/components/providers/FeatureFlagProvider';
+import { UserLocationProvider } from '@/components/providers/UserLocationProvider';
+import { MaintenanceBanner } from '@/components/maintenance/MaintenanceBanner';
+import { GlobalAnnouncementBanner } from '@/components/announcements/GlobalAnnouncementBanner';
+import { ChatWidget } from '@/components/chat-widget/ChatWidget';
+import { FloatingDockProvider } from '@/components/floating-dock';
 import { TIMEZONE } from '@/i18n/config';
 import './globals.css';
 
@@ -44,7 +50,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <NextIntlClientProvider locale={locale} messages={messages} timeZone={TIMEZONE}>
           <QueryProvider>
             <AuthProvider initialUser={initialUser} initialToken={token ?? null}>
-              {children}
+              <FeatureFlagProvider>
+                <UserLocationProvider>
+                  <FloatingDockProvider>
+                    <MaintenanceBanner />
+                    <GlobalAnnouncementBanner />
+                    <ChatWidget />
+                    {children}
+                  </FloatingDockProvider>
+                </UserLocationProvider>
+              </FeatureFlagProvider>
             </AuthProvider>
           </QueryProvider>
         </NextIntlClientProvider>

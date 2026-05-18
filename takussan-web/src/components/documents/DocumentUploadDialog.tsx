@@ -16,6 +16,7 @@ import {
   FormInput,
   FormSelect,
   FormTextarea,
+  FormDatePicker,
 } from '@/components/forms';
 import { useApiForm } from '@/hooks/useApiForm';
 import {
@@ -243,10 +244,9 @@ export function DocumentUploadDialog({
               label="Catégorie"
               options={DOCUMENT_TYPE_OPTIONS.map((o) => ({ ...o }))}
             />
-            <FormInput<DocumentUploadFormValues>
+            <FormDatePicker<DocumentUploadFormValues>
               control={form.control}
               name="expiry_date"
-              type="date"
               label="Date d'expiration"
             />
           </div>

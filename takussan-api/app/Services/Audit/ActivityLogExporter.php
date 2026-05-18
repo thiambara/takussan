@@ -34,7 +34,7 @@ class ActivityLogExporter
     public function buildPayload(User $user, array $filters): array
     {
         $rows = $this->baseQuery($user, $filters)
-            ->with(['causer', 'causer.roles'])
+            ->with(['causer', 'causer.platformProfile', 'causer.agencyAdminProfiles', 'causer.agentProfiles', 'causer.ownerProfiles'])
             ->orderByDesc('created_at')
             ->get()
             ->map(fn (Activity $log) => $this->mapRow($log))
@@ -139,7 +139,7 @@ class ActivityLogExporter
             'id' => $log->id,
             'logged_at' => $log->created_at?->toIso8601String(),
             'causer_email' => $causer?->email ?? 'system',
-            'causer_role' => $causer?->roles->first()?->name ?? 'system',
+            'causer_role' => $causer?->profileTypes()->first() ?? 'system',
             'event' => $log->event,
             'subject_type' => $log->subject_type ? class_basename($log->subject_type) : null,
             'subject_id' => $log->subject_id,

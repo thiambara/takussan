@@ -4,6 +4,7 @@ import { ApiError, apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import type {
   BookingRequestPayload,
+  OfferRequestPayload,
   ReportPayload,
   VisitRequestPayload,
 } from '@/types/visit';
@@ -74,6 +75,54 @@ export async function submitBookingRequest(
   }
 }
 
+/**
+ * TCK-180 — review eligibility for the connected user on a given property.
+ * Anonymous → returns `{ eligible: false, alreadyReviewed: false }` without
+ * calling the backend (the route is gated by sanctum).
+ */
+export async function getReviewEligibility(
+  slug: string,
+): Promise<{ eligible: boolean; alreadyReviewed: boolean }> {
+  const token = await getToken();
+  if (!token) return { eligible: false, alreadyReviewed: false };
+  try {
+    const res = await apiRequest<{
+      data: { eligible: boolean; reason: string; already_reviewed: boolean };
+    }>(`/api/public/properties/${encodeURIComponent(slug)}/review-eligibility`, {
+      token,
+    });
+    return {
+      eligible: !!res.data.eligible,
+      alreadyReviewed: !!res.data.already_reviewed,
+    };
+  } catch {
+    return { eligible: false, alreadyReviewed: false };
+  }
+}
+
+/**
+ * TCK-176 — purchase-offer submission. Same endpoint as
+ * `submitBookingRequest`, but with the offer payload (no dates / guests).
+ * Backend branches on `Property.contract_type === 'sale'`.
+ */
+export async function submitPurchaseOffer(
+  slug: string,
+  payload: OfferRequestPayload,
+): Promise<ActionResult> {
+  const token = await getToken();
+  if (!token) return { ok: false, status: 401, message: 'Authentification requise.' };
+  try {
+    await apiRequest(`/api/public/properties/${slug}/booking-request`, {
+      method: 'POST',
+      body: payload,
+      token,
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, ...errorFromApi(e) };
+  }
+}
+
 export async function submitContactMessage(
   slug: string,
   message: string,
@@ -86,6 +135,26 @@ export async function submitContactMessage(
       { method: 'POST', body: { message }, token },
     );
     return { ok: true, data: res.data };
+  } catch (e) {
+    return { ok: false, ...errorFromApi(e) };
+  }
+}
+
+/**
+ * TCK-161 — anonymous lead capture. Public endpoint, no auth required.
+ * The `company` field is a honeypot; bots fill all visible inputs and
+ * the backend silently accepts but skips persistence when it's not empty.
+ */
+export async function submitContactLead(
+  slug: string,
+  payload: { name: string; email: string; phone?: string; message: string; company?: string },
+): Promise<ActionResult> {
+  try {
+    await apiRequest(`/api/public/properties/${slug}/contact-lead`, {
+      method: 'POST',
+      body: payload,
+    });
+    return { ok: true };
   } catch (e) {
     return { ok: false, ...errorFromApi(e) };
   }

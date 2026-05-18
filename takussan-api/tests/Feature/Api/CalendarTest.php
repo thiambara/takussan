@@ -14,8 +14,6 @@ use App\Models\PropertyVisit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class CalendarTest extends TestCase
@@ -321,10 +319,8 @@ class CalendarTest extends TestCase
     public function test_calendar_agency_filter_is_admin_only(): void
     {
         $agency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        Role::findOrCreate('super_admin');
         $admin = User::factory()->create(['agency_id' => $agency->id]);
-        $admin->assignRole('super_admin');
+        $this->materializeRoleProfile($admin, 'super_admin');
 
         $targetAgency = Agency::factory()->create();
         $propertyInTarget = Property::factory()->create(['agency_id' => $targetAgency->id]);

@@ -61,7 +61,7 @@ class Customer extends AbstractModel
 
     protected static array $requestSortable = ['id', 'created_at', 'first_name', 'last_name', 'status'];
 
-    protected static array $requestLoadable = ['user', 'agency', 'addresses', 'tags', 'addedBy', 'notes', 'tasks'];
+    protected static array $requestLoadable = ['user', 'agency', 'addresses', 'tags', 'addedBy', 'notes', 'documents', 'tasks'];
 
     protected static array $requestCountable = ['bookings', 'leases', 'notes', 'tasks'];
 
@@ -70,7 +70,9 @@ class Customer extends AbstractModel
     protected static array $queryFields = [
         'id', 'user_id', 'agency_id', 'added_by_id',
         'first_name', 'last_name', 'email', 'phone',
-        'status', 'pipeline_stage', 'occupation',
+        'id_type', 'id_number', 'occupation',
+        'emergency_contact_name', 'emergency_contact_phone',
+        'status', 'pipeline_stage', 'metadata',
         'created_at', 'updated_at',
     ];
 

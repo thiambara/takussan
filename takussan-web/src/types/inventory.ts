@@ -55,10 +55,24 @@ export interface InventoryRoom {
   readonly elements?: readonly InventoryElement[];
 }
 
+/** TCK-182 — eager-loaded relation summaries served via `include=`. */
+export interface InventoryPropertyLite {
+  readonly id: number;
+  readonly title: string | null;
+  readonly slug: string | null;
+}
+
+export interface InventoryLeaseLite {
+  readonly id: number;
+  readonly reference_number: string | null;
+}
+
 export interface Inventory {
   readonly id: number;
   readonly lease_id: number;
   readonly property_id: number;
+  readonly property?: InventoryPropertyLite | null;
+  readonly lease?: InventoryLeaseLite | null;
   readonly type: InventoryType;
   readonly conducted_by: number;
   readonly tenant_id: number | null;

@@ -2,6 +2,7 @@
 import { Calendar, KeyRound, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/format/currency';
+import { getPrimaryCtaForProperty } from '@/lib/property-cta';
 import type { PropertyDetail } from '@/types/property';
 
 interface PropertyBookingCardProps {
@@ -25,6 +26,7 @@ export function PropertyBookingCard({
 }: PropertyBookingCardProps) {
   const isRent = property.contract_type === 'rent';
   const periodLabel = property.rent_period_label ?? (isRent ? 'mois' : null);
+  const primaryCta = getPrimaryCtaForProperty(property);
 
   return (
     <aside className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm space-y-4 lg:sticky lg:top-40">
@@ -43,7 +45,7 @@ export function PropertyBookingCard({
       <div className="space-y-2">
         <Button type="button" className="w-full gap-2" onClick={onRequestBooking}>
           <KeyRound className="size-4" aria-hidden />
-          {isRent ? 'Réserver' : 'Faire une offre'}
+          {primaryCta.label}
         </Button>
         <Button type="button" variant="outline" className="w-full gap-2" onClick={onRequestVisit}>
           <Calendar className="size-4" aria-hidden />

@@ -26,8 +26,8 @@ export default async function Page() {
     <div className="space-y-6">
       <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-app-ink">Intégrations</h1>
-          <p className="mt-1 text-sm text-app-ink-muted">
+          <h1 className="font-display text-2xl font-bold text-foreground">Intégrations</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Providers externes (paiement, SMS, e-mail) et leurs clés d&apos;API.
           </p>
         </div>
@@ -37,12 +37,6 @@ export default async function Page() {
             className="rounded-full border border-input px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
           >
             Général
-          </Link>
-          <Link
-            href="/admin/settings/tags"
-            className="rounded-full border border-input px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
-          >
-            Tags &amp; amenités
           </Link>
           <Link
             href="/admin/settings/integrations"

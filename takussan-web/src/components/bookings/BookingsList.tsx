@@ -1,10 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { useLocale } from 'next-intl';
 import { useBookings } from '@/lib/queries/bookings';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Booking, BookingStatus } from '@/types/booking';
 import type { Locale } from '@/i18n/config';
 
@@ -26,18 +28,59 @@ const STATUS_VARIANT: Record<BookingStatus, 'default' | 'secondary' | 'outline' 
   completed: 'default',
 };
 
+type TabKey = 'pending' | 'confirmed' | 'rejected' | 'cancelled' | 'expired';
+
+const TABS: ReadonlyArray<{ value: TabKey; label: string; emptyLabel: string }> = [
+  { value: 'pending', label: 'En attente', emptyLabel: 'Aucune réservation en attente.' },
+  { value: 'confirmed', label: 'Confirmées', emptyLabel: 'Aucune réservation confirmée.' },
+  { value: 'rejected', label: 'Refusées', emptyLabel: 'Aucune réservation refusée.' },
+  { value: 'cancelled', label: 'Annulées', emptyLabel: 'Aucune réservation annulée.' },
+  { value: 'expired', label: 'Expirées', emptyLabel: 'Aucune réservation expirée.' },
+];
+
+/**
+ * TCK-171 — 5 status tabs for the customer's bookings list.
+ * Filtering is server-side via spatie's `filter[status]`.
+ */
 export function BookingsList() {
   const locale = useLocale() as Locale;
-  const { data, isLoading, isError } = useBookings({ per_page: 30 });
+  const [tab, setTab] = useState<TabKey>('pending');
+
+  return (
+    <Tabs value={tab} onValueChange={(v) => setTab((v as TabKey) ?? 'pending')}>
+      <TabsList>
+        {TABS.map((t) => (
+          <TabsTrigger key={t.value} value={t.value}>
+            {t.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+
+      {TABS.map((t) => (
+        <TabsContent key={t.value} value={t.value} className="mt-4">
+          <BookingsListBody status={t.value} locale={locale} emptyLabel={t.emptyLabel} />
+        </TabsContent>
+      ))}
+    </Tabs>
+  );
+}
+
+function BookingsListBody({
+  status,
+  locale,
+  emptyLabel,
+}: {
+  status: BookingStatus;
+  locale: Locale;
+  emptyLabel: string;
+}) {
+  const { data, isLoading, isError } = useBookings({ status, per_page: 30 });
 
   if (isLoading) {
     return (
       <div className="space-y-3">
         {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className="h-24 animate-pulse rounded-xl bg-app-surface-1"
-          />
+          <div key={i} className="h-24 animate-pulse rounded-xl bg-app-surface-1" />
         ))}
       </div>
     );
@@ -52,11 +95,10 @@ export function BookingsList() {
   }
 
   const bookings = data?.data ?? [];
-
   if (bookings.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-stone-200 bg-white p-8 text-center text-sm text-stone-500">
-        Aucune réservation pour l&apos;instant.
+        {emptyLabel}
       </div>
     );
   }

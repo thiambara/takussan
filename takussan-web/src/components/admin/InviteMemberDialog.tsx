@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { Loader2 } from 'lucide-react';
 
@@ -16,6 +17,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+const ROLE_OPTIONS = [
+  { value: 'agent', label: 'Agent' },
+  { value: 'agency_admin', label: 'Administrateur' },
+] as const;
 
 const schema = z.object({
   email: z.string().email('Email invalide.'),
@@ -65,6 +78,7 @@ export function InviteMemberDialog({
 
   const {
     register,
+    control,
     formState: { errors },
   } = form;
 
@@ -72,7 +86,7 @@ export function InviteMemberDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Inviter un agent</DialogTitle>
+          <DialogTitle>Inviter un membre</DialogTitle>
           <DialogDescription>
             Saisissez l&apos;email d&apos;un utilisateur déjà inscrit. Il sera
             ajouté à votre agence avec le rôle choisi.
@@ -102,14 +116,26 @@ export function InviteMemberDialog({
             <label htmlFor="invite-role" className="text-xs font-semibold text-app-ink">
               Rôle
             </label>
-            <select
-              id="invite-role"
-              className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-              {...register('role')}
-            >
-              <option value="agent">Agent</option>
-              <option value="agency_admin">Administrateur</option>
-            </select>
+            <Controller
+              control={control}
+              name="role"
+              render={({ field }) => (
+                <Select
+                  value={field.value}
+                  onValueChange={(value) => field.onChange(value ?? 'agent')}
+                  items={ROLE_OPTIONS as unknown as Array<{ value: string; label: string }>}
+                >
+                  <SelectTrigger id="invite-role" className="mt-1 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROLE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
           </div>
 
           {globalError ? (

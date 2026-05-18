@@ -35,7 +35,7 @@ class PropertyPriceHistoryController extends Controller
     protected function authorizeAccess(Request $request, Property $property): void
     {
         $user = $request->user();
-        $ok = $user->hasRole(['admin', 'super_admin'])
+        $ok = $user->isSuperAdmin()
             || $property->user_id === $user->id
             || ($user->agency_id && $property->agency_id === $user->agency_id);
 

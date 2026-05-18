@@ -6,7 +6,6 @@ use App\Models\Customer;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
-use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
@@ -20,7 +19,6 @@ class LeaseRentEndpointTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(RolesAndPermissionsSeeder::class);
         Notification::fake();
     }
 
@@ -73,7 +71,9 @@ class LeaseRentEndpointTest extends TestCase
     public function test_excessive_variation_with_force_and_permission_returns_200(): void
     {
         [$landlord, $lease] = $this->scaffold();
-        // `owner` already has `leases.rent_review_force` via the seeder.
+        // TCK-278 — `leases.rent_review_force` est désormais réservé au
+        // super_admin (bypass Gate::before). Promouvoir le landlord.
+        $this->materializeRoleProfile($landlord, 'super_admin');
         Sanctum::actingAs($landlord);
 
         $this->patchJson("/api/leases/{$lease->id}/rent", [
@@ -91,7 +91,6 @@ class LeaseRentEndpointTest extends TestCase
         // landlord short-circuit grants access; the force flag must
         // still be rejected at the service layer.
         $agent = User::factory()->create();
-        $agent->assignRole('agent');
 
         $property = Property::factory()->create(['user_id' => $agent->id]);
         $tenant = Customer::factory()->create();
@@ -128,7 +127,6 @@ class LeaseRentEndpointTest extends TestCase
     {
         [, $lease] = $this->scaffold();
         $stranger = User::factory()->create();
-        $stranger->assignRole('customer');
         Sanctum::actingAs($stranger);
 
         $this->patchJson("/api/leases/{$lease->id}/rent", [
@@ -155,10 +153,8 @@ class LeaseRentEndpointTest extends TestCase
     private function scaffold(): array
     {
         $landlord = User::factory()->create();
-        $landlord->assignRole('owner');
         $property = Property::factory()->create(['user_id' => $landlord->id]);
         $tenantUser = User::factory()->create();
-        $tenantUser->assignRole('tenant');
         $tenant = Customer::factory()->create(['user_id' => $tenantUser->id]);
 
         $lease = Lease::factory()->active()->create([

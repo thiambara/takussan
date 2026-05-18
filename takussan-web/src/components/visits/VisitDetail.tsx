@@ -8,12 +8,15 @@ import {
   useCancelVisit,
   useCompleteVisit,
   useConfirmVisit,
+  useUpdateVisit,
   useVisit,
 } from '@/lib/queries/visits';
 import { useAuth } from '@/context/AuthContext';
 import { formatDateTime } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
+import { isAdmin, isAgent as hasAgentRole, isOwner } from '@/lib/roles';
 import { VisitFeedbackForm } from './VisitFeedbackForm';
 import type { PropertyVisit, VisitStatus, VisitType } from '@/types/visit';
 import type { Locale } from '@/i18n/config';
@@ -40,18 +43,19 @@ export function VisitDetail({ id }: { id: number }) {
   const locale = useLocale() as Locale;
   const { user } = useAuth();
   const router = useRouter();
+  const [renderedAt] = useState(() => Date.now());
 
   const confirm = useConfirmVisit(id);
   const complete = useCompleteVisit(id);
   const cancel = useCancelVisit(id);
-
-  const visit = data?.data;
+  const updateVisit = useUpdateVisit(id);
+  const toast = useToast();
 
   if (isLoading) {
     return <div className="h-48 animate-pulse rounded-xl bg-app-surface-1" />;
   }
 
-  if (isError || !visit) {
+  if (isError || !data) {
     return (
       <div className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
         Impossible de charger cette visite.
@@ -59,23 +63,68 @@ export function VisitDetail({ id }: { id: number }) {
     );
   }
 
+  const visit = data.data;
   const status = visit.status ?? 'scheduled';
   const type = visit.type ?? 'in_person';
-  const isVisitor = user?.id === visit.visitor_id;
-  const isAgent = user?.id === visit.agent_id;
+  const isVisitor =
+    (!!user?.id && user.id === visit.visitor_id) ||
+    (!!user?.id && !!visit.customer && user.id === visit.customer.user_id);
+  const isAssignedAgent = user?.id === visit.agent_id;
+  const isManager = user ? isOwner(user.roles) || hasAgentRole(user.roles) || isAdmin(user.roles) : false;
   const feedbackLocked = !isFeedbackOpen(visit);
+  const scheduledAtMs = visit.scheduled_at ? new Date(visit.scheduled_at).getTime() : Number.NaN;
+  const isPastSlot = Number.isFinite(scheduledAtMs) && scheduledAtMs <= renderedAt;
+  const canConfirm = isManager && status === 'scheduled';
+  const canCancel = (isVisitor || isManager) && (status === 'scheduled' || status === 'confirmed');
+  const canComplete =
+    isManager &&
+    (status === 'confirmed' || status === 'scheduled') &&
+    (isPastSlot || status === 'confirmed');
+  const canReschedule = isManager && (status === 'scheduled' || status === 'confirmed');
 
   async function handleConfirm() {
     await confirm.mutateAsync();
+    toast.add({
+      title: 'Visite confirmée',
+      description: 'Le créneau est confirmé et les rappels restent gérés par le workflow existant.',
+      type: 'success',
+    });
   }
 
   async function handleComplete() {
     await complete.mutateAsync({});
+    toast.add({
+      title: 'Visite marquée effectuée',
+      description: 'Le suivi post-visite est maintenant disponible.',
+      type: 'success',
+    });
   }
 
   async function handleCancel() {
-    await cancel.mutateAsync({ reason: 'Annulée par l’utilisateur' });
+    const reason = window.prompt('Motif d’annulation')?.trim();
+    if (!reason) return;
+    await cancel.mutateAsync({ reason });
+    toast.add({
+      title: 'Visite annulée',
+      description: 'Le motif est enregistré sur la demande.',
+      type: 'success',
+    });
     router.push('/app/visits');
+  }
+
+  async function handleReschedule() {
+    const nextSlot = window.prompt(
+      'Nouveau créneau (format YYYY-MM-DD HH:mm)',
+      visit.scheduled_at?.slice(0, 16).replace('T', ' ') ?? '',
+    )?.trim();
+    if (!nextSlot) return;
+    const iso = new Date(nextSlot.replace(' ', 'T')).toISOString();
+    await updateVisit.mutateAsync({ scheduled_at: iso });
+    toast.add({
+      title: 'Visite replanifiée',
+      description: 'Le nouveau créneau est enregistré.',
+      type: 'success',
+    });
   }
 
   return (
@@ -88,9 +137,9 @@ export function VisitDetail({ id }: { id: number }) {
 
       <div className="rounded-xl border border-stone-200 bg-white p-6 space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-lg font-semibold text-stone-900">
+          <h1 className="text-lg font-semibold text-stone-900">
             {visit.property?.title ?? `Visite #${visit.id}`}
-          </h2>
+          </h1>
           <Badge variant="outline">{STATUS_LABEL[status]}</Badge>
           <Badge variant="outline">{TYPE_LABEL[type]}</Badge>
         </div>
@@ -117,20 +166,39 @@ export function VisitDetail({ id }: { id: number }) {
               <dd className="text-stone-900">{visit.cancellation_reason}</dd>
             </div>
           )}
+          <div>
+            <dt className="text-stone-500">Demandeur</dt>
+            <dd className="text-stone-900">
+              <RequesterSummary visit={visit} />
+            </dd>
+          </div>
+          {visit.agent ? (
+            <div>
+              <dt className="text-stone-500">Accompagnement</dt>
+              <dd className="font-medium text-stone-900">
+                {formatUserName(visit.agent) || 'Agent assigné'}
+              </dd>
+            </div>
+          ) : null}
         </dl>
 
         <div className="flex flex-wrap gap-2 pt-2">
-          {status === 'scheduled' && isAgent && (
+          {canConfirm && (
             <Button onClick={handleConfirm} disabled={confirm.isPending}>
               Confirmer la visite
             </Button>
           )}
-          {status === 'confirmed' && isAgent && (
+          {canComplete && (
             <Button onClick={handleComplete} disabled={complete.isPending} variant="outline">
-              Marquer terminée
+              Marquer effectuée
             </Button>
           )}
-          {(status === 'scheduled' || status === 'confirmed') && (isVisitor || isAgent) && (
+          {canReschedule && (
+            <Button onClick={handleReschedule} disabled={updateVisit.isPending} variant="outline">
+              Replanifier
+            </Button>
+          )}
+          {canCancel && (
             <Button
               onClick={handleCancel}
               disabled={cancel.isPending}
@@ -156,11 +224,93 @@ export function VisitDetail({ id }: { id: number }) {
           visit={visit}
           locked={feedbackLocked}
           canCustomer={isVisitor}
-          canAgent={isAgent}
+          canAgent={isAssignedAgent || isManager}
         />
       )}
     </div>
   );
+}
+
+function formatUserName(user: {
+  first_name?: string | null;
+  last_name?: string | null;
+  email?: string | null;
+}): string {
+  return [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || user.email || '';
+}
+
+function RequesterSummary({ visit }: { visit: PropertyVisit }) {
+  const requester = resolveRequester(visit);
+
+  return (
+    <div className="space-y-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-medium">{requester.name}</span>
+        {requester.customerId ? (
+          <Link
+            href={`/app/customers/${requester.customerId}`}
+            className="text-xs font-semibold text-primary hover:underline"
+          >
+            Fiche CRM
+          </Link>
+        ) : null}
+      </div>
+      {requester.email || requester.phone ? (
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-stone-500">
+          {requester.phone ? (
+            <a href={`tel:${requester.phone}`} className="hover:text-stone-900">
+              {requester.phone}
+            </a>
+          ) : null}
+          {requester.email ? (
+            <a href={`mailto:${requester.email}`} className="hover:text-stone-900">
+              {requester.email}
+            </a>
+          ) : null}
+        </div>
+      ) : (
+        <p className="text-xs text-stone-500">{requester.fallback}</p>
+      )}
+    </div>
+  );
+}
+
+function resolveRequester(visit: PropertyVisit): {
+  name: string;
+  email: string | null;
+  phone: string | null;
+  customerId: number | null;
+  fallback: string;
+} {
+  if (visit.customer) {
+    return {
+      name: formatUserName(visit.customer) || `Client CRM #${visit.customer.id}`,
+      email: visit.customer.email ?? null,
+      phone: visit.customer.phone ?? null,
+      customerId: visit.customer.id,
+      fallback: 'Aucun contact renseigné sur la fiche CRM.',
+    };
+  }
+
+  if (visit.visitor) {
+    return {
+      name: formatUserName(visit.visitor) || 'Utilisateur inscrit',
+      email: visit.visitor.email ?? null,
+      phone: visit.visitor.phone ?? null,
+      customerId: null,
+      fallback: 'Aucun contact renseigné sur le compte utilisateur.',
+    };
+  }
+
+  const anonymousName = visit.visitor_name?.trim() || 'Visiteur anonyme';
+
+  return {
+    name: anonymousName,
+    email: visit.visitor_email ?? null,
+    phone: visit.visitor_phone ?? null,
+    customerId: null,
+    fallback: 'Coordonnées anonymes incomplètes.',
+  };
 }
 
 function FeedbackSection({

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\UserResource;
+use App\Services\Auth\OAuthProviderConfiguration;
 use App\Services\Auth\OAuthProvisioningService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,11 +28,15 @@ class OAuthController extends Controller
     // incorrect for Facebook's unreliable `email_verified` claim).
     private const ALLOWED_PROVIDERS = ['google'];
 
-    public function __construct(private readonly OAuthProvisioningService $provisioning) {}
+    public function __construct(
+        private readonly OAuthProvisioningService $provisioning,
+        private readonly OAuthProviderConfiguration $configuration,
+    ) {}
 
     public function redirect(string $provider): JsonResponse
     {
         abort_unless(in_array($provider, self::ALLOWED_PROVIDERS, true), 404);
+        abort_unless($this->configuration->isConfigured($provider), 422, 'OAuth provider is not configured.');
 
         $state = Str::random(40);
         Cache::put('oauth_state:'.$state, ['provider' => $provider], now()->addMinutes(10));
@@ -48,6 +53,7 @@ class OAuthController extends Controller
     public function callback(string $provider, Request $request): JsonResponse
     {
         abort_unless(in_array($provider, self::ALLOWED_PROVIDERS, true), 404);
+        abort_unless($this->configuration->isConfigured($provider), 422, 'OAuth provider is not configured.');
 
         $request->validate([
             'code' => ['required', 'string'],

@@ -6,6 +6,7 @@ use App\Models\Concerns\HasMediaConversions;
 use App\Models\Concerns\HasProfiles;
 use App\Models\Concerns\HasQueryBuilder;
 use App\Models\Enums\EmailFrequency;
+use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
@@ -30,14 +31,12 @@ use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
-use Spatie\Permission\PermissionRegistrar;
-use Spatie\Permission\Traits\HasRoles;
 use Spatie\QueryBuilder\AllowedFilter;
 
 class User extends Authenticatable implements HasLocalePreference, HasMedia, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasProfiles, HasQueryBuilder, HasRoles, InteractsWithMedia, LogsActivity, Notifiable, SoftDeletes;
+    use HasApiTokens, HasFactory, HasProfiles, HasQueryBuilder, InteractsWithMedia, LogsActivity, Notifiable, SoftDeletes;
 
     use HasMediaConversions {
         HasMediaConversions::registerMediaConversions insteadof InteractsWithMedia;
@@ -50,10 +49,12 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         'last_login_at', 'added_by_id',
         'google_id', 'facebook_id', 'apple_id',
         'two_factor_enabled', 'two_factor_secret', 'two_factor_recovery_codes',
+        'force_2fa_at_first_login',
         'phone_verified_at',
         'notifications_email_enabled', 'notifications_push_enabled', 'notifications_sms_enabled',
         'email_frequency', 'digest_send_at', 'digest_day_of_week',
         'metadata',
+        'preferences',
         'deletion_requested_at',
         // TCK-142 — kept fillable so the legacy `agency_id` mutator gets a
         // chance to run during `update()` / `fill()`. The mutator itself
@@ -65,6 +66,17 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     protected $hidden = [
         'password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes',
     ];
+
+    /**
+     * Normalize email to lowercase on every write so the unique index and
+     * all lookups are case-insensitive by construction.
+     */
+    public function setEmailAttribute(?string $value): void
+    {
+        $this->attributes['email'] = $value !== null
+            ? strtolower(trim($value))
+            : null;
+    }
 
     protected function casts(): array
     {
@@ -78,11 +90,13 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             'two_factor_enabled' => 'boolean',
             'two_factor_secret' => 'encrypted',
             'two_factor_recovery_codes' => 'encrypted',
+            'force_2fa_at_first_login' => 'boolean',
             'notifications_email_enabled' => 'boolean',
             'notifications_push_enabled' => 'boolean',
             'notifications_sms_enabled' => 'boolean',
             'email_frequency' => EmailFrequency::class,
             'metadata' => 'array',
+            'preferences' => 'array',
         ];
     }
 
@@ -91,28 +105,35 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     protected static array $requestSortable = ['id', 'created_at', 'first_name', 'last_name', 'email', 'status'];
 
     /**
-     * TCK-147 — expose the agency-scoped profile relations and the spatie
-     * `roles` relation so admin UIs can request `include=agentProfiles,
-     * ownerProfiles,roles` and render the membership/role columns without a
-     * second round-trip.
+     * TCK-147 / TCK-278 — expose les relations de profil pour rendre la
+     * colonne « rôle » côté UI sans round-trip supplémentaire.
+     * `agencyAdminProfiles` ajouté pour que la console équipe (TCK-277)
+     * affiche correctement les admins.
      */
-    protected static array $requestLoadable = ['agentProfiles', 'ownerProfiles', 'roles'];
+    protected static array $requestLoadable = ['agentProfiles', 'ownerProfiles', 'agencyAdminProfiles', 'platformProfile'];
 
     /**
-     * TCK-147 — register a `role` callback filter so `?filter[role]=agent`
-     * isn't rejected with HTTP 400 before reaching the query. Spatie roles
-     * live on a relation, not a column, so the trait's exact/partial/range
-     * mechanisms don't apply.
+     * TCK-147 / TCK-278 — `?filter[role]=agent|agency_admin|owner` est
+     * désormais résolu via les profils polymorphes plutôt que la relation
+     * spatie `roles`. Le mapping rôle → profil est figé ici (les profils
+     * sont la source de vérité depuis TCK-278).
      */
     protected static function customQueryFilters(): array
     {
         return [
             AllowedFilter::callback(
                 'role',
-                fn (Builder $q, string $value) => $q->whereHas(
-                    'roles',
-                    fn (Builder $rq) => $rq->where('name', $value),
-                ),
+                fn (Builder $q, string $value) => match ($value) {
+                    'agent' => $q->whereHas('agentProfiles'),
+                    'agency_admin' => $q->whereHas('agencyAdminProfiles'),
+                    'owner' => $q->whereHas('ownerProfiles'),
+                    'service_provider' => $q->whereHas('serviceProviderProfile'),
+                    'broker' => $q->whereHas('brokerProfile'),
+                    'super_admin' => $q->whereHas('platformProfile', fn (Builder $pp) => $pp
+                        ->whereNull('revoked_at')
+                        ->where('level', PlatformProfileLevel::SuperAdmin->value)),
+                    default => $q->whereRaw('1 = 0'),
+                },
             ),
         ];
     }
@@ -156,20 +177,22 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             return $active->agency_id;
         }
 
-        // Auto-bascule mirrors `ResolveActiveProfile` — exactly one profile
-        // (any of the four types). `profiles()` reuses eager-loaded
-        // relations when available so a per-row authz check inside an
-        // index loop doesn't fan out into N×3 queries; the trait method
-        // also keeps this accessor in lockstep with the middleware's
-        // single-profile rule for users holding e.g. one broker profile.
+        // Auto-bascule mirrors `ResolveActiveProfile` — exactly one agency
+        // across all profiles. `profiles()` reuses eager-loaded relations
+        // when available so a per-row authz check inside an index loop
+        // doesn't fan out into N×3 queries.
+        //
+        // TCK-278 — Tolérer plusieurs profils dans la **même** agence
+        // (ex. AgentProfile + OwnerProfile materialisés ensemble par les
+        // fixtures de coexistence). Multi-agences reste null par sécurité.
         $profiles = $this->profiles();
-        if ($profiles->count() !== 1) {
-            return null;
-        }
+        $agencyIds = $profiles
+            ->map(fn ($p) => isset($p->agency_id) ? (int) $p->agency_id : null)
+            ->filter()
+            ->unique()
+            ->values();
 
-        $only = $profiles->first();
-
-        return isset($only->agency_id) ? (int) $only->agency_id : null;
+        return $agencyIds->count() === 1 ? (int) $agencyIds->first() : null;
     }
 
     /**
@@ -206,25 +229,12 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     }
 
     /**
-     * TCK-144 — `super_admin` is always assigned under `team_id = null`
-     * (it's a global role). Probing it under whatever team the registrar
-     * happens to be on right now would silently miss the role for any
-     * super-admin who is also acting inside an agency context (e.g. via
-     * `X-Profile-Id`). This helper pins the team probe to null and
-     * restores the previous context, so callers don't have to.
+     * TCK-278 — Source de vérité unique : `PlatformProfile` actif niveau
+     * super_admin.
      */
     public function isSuperAdmin(): bool
     {
-        $registrar = app(PermissionRegistrar::class);
-        $previous = $registrar->getPermissionsTeamId();
-        $registrar->setPermissionsTeamId(null);
-        $this->unsetRelation('roles');
-        try {
-            return $this->hasRole('super_admin');
-        } finally {
-            $registrar->setPermissionsTeamId($previous);
-            $this->unsetRelation('roles');
-        }
+        return $this->hasActiveSuperAdminProfile();
     }
 
     protected static function booted(): void

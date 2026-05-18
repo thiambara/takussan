@@ -5,6 +5,7 @@
  */
 
 import type {
+  MaintenanceRequest,
   MaintenanceCategory,
   MaintenancePriority,
   MaintenanceStatus,
@@ -70,4 +71,14 @@ const PRIORITY_TONE: Record<MaintenancePriority, string> = {
 
 export function maintenancePriorityBadgeClass(priority: MaintenancePriority): string {
   return PRIORITY_TONE[priority] ?? 'bg-gray-100 text-gray-700';
+}
+
+export function quoteDecisionLabel(request: Pick<MaintenanceRequest, 'status'>): string {
+  if (request.status === 'rejected') return 'Refusé';
+  if (['approved', 'in_progress', 'completed', 'closed'].includes(request.status)) {
+    return 'Approuvé';
+  }
+  if (request.status === 'quote_submitted') return 'En attente de décision';
+  if (request.status === 'quote_requested') return 'Devis demandé';
+  return 'Non applicable';
 }

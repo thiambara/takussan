@@ -20,7 +20,7 @@ Document de référence pour configurer le monorepo **Takussan** de A à Z (dép
 | Search | Laravel Scout | ^11.1 (driver `collection` par défaut, Meilisearch / Algolia / Typesense supportés) |
 | OAuth social | Laravel Socialite | ^5.26 + providers `apple`, `facebook` (Google natif) |
 | Admin panel | Filament | ^4.0 (+ plugin `spatie-laravel-media-library-plugin`) |
-| Permissions | spatie/laravel-permission | ^7.3 |
+| Permissions | ~~spatie/laravel-permission~~ — **retiré en TCK-278**, remplacé par les profils polymorphes (cf. Règle 5 de `models-spec.md`) | — |
 | Audit log | spatie/laravel-activitylog | ^5.0 |
 | Médias | spatie/laravel-medialibrary | ^11.0 |
 | PDF | spatie/laravel-pdf | ^2.0 (driver `cloudflare` par défaut, `dompdf` / `browsershot` / `gotenberg` possibles) |

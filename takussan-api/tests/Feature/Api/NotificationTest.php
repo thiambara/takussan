@@ -67,6 +67,23 @@ class NotificationTest extends TestCase
         $this->assertNotNull($notification->fresh()->read_at);
     }
 
+    public function test_user_can_mark_notification_as_unread(): void
+    {
+        $user = User::factory()->create();
+        $notification = $this->makeNotification($user, [
+            'is_read' => true,
+            'read_at' => now(),
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/notifications/{$notification->id}/unread")
+            ->assertOk();
+
+        $this->assertFalse($notification->fresh()->is_read);
+        $this->assertNull($notification->fresh()->read_at);
+    }
+
     public function test_user_cannot_mark_another_users_notification_as_read(): void
     {
         $owner = User::factory()->create();
@@ -76,6 +93,21 @@ class NotificationTest extends TestCase
         Sanctum::actingAs($other);
 
         $this->postJson("/api/notifications/{$notification->id}/read")
+            ->assertForbidden();
+    }
+
+    public function test_user_cannot_mark_another_users_notification_as_unread(): void
+    {
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+        $notification = $this->makeNotification($owner, [
+            'is_read' => true,
+            'read_at' => now(),
+        ]);
+
+        Sanctum::actingAs($other);
+
+        $this->postJson("/api/notifications/{$notification->id}/unread")
             ->assertForbidden();
     }
 
@@ -97,6 +129,7 @@ class NotificationTest extends TestCase
     {
         $this->getJson('/api/notifications')->assertUnauthorized();
         $this->postJson('/api/notifications/1/read')->assertUnauthorized();
+        $this->postJson('/api/notifications/1/unread')->assertUnauthorized();
         $this->postJson('/api/notifications/read-all')->assertUnauthorized();
     }
 }

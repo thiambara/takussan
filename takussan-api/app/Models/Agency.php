@@ -3,12 +3,16 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\AgencyUpgradeRequestStatus;
 use App\Models\Enums\Currency;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use LemonSqueezy\Laravel\Billable as LemonSqueezyBillable;
@@ -22,7 +26,7 @@ class Agency extends AbstractModel implements HasMedia
     use HasFactory, InteractsWithMedia, LemonSqueezyBillable, SoftDeletes;
 
     protected $fillable = [
-        'name', 'slug', 'license_number', 'description',
+        'name', 'slug', 'kind', 'license_number', 'description',
         'email', 'phone', 'website', 'commission_rate', 'currency',
         'founded_at', 'is_verified', 'verified_at',
         'primary_admin_id', 'status', 'metadata', 'settings',
@@ -35,6 +39,7 @@ class Agency extends AbstractModel implements HasMedia
         'verified_at' => 'datetime',
         'commission_rate' => 'decimal:2',
         'average_rating' => 'decimal:2',
+        'kind' => AgencyKind::class,
         'status' => AgencyStatus::class,
         'currency' => Currency::class,
         'metadata' => 'array',
@@ -47,7 +52,7 @@ class Agency extends AbstractModel implements HasMedia
         'currency' => 'XOF',
     ];
 
-    protected static array $requestFilterable = ['status', 'is_verified', 'primary_admin_id'];
+    protected static array $requestFilterable = ['status', 'kind', 'is_verified', 'primary_admin_id'];
 
     protected static array $requestSortable = ['id', 'name', 'created_at', 'founded_at'];
 
@@ -58,7 +63,7 @@ class Agency extends AbstractModel implements HasMedia
     protected static array $requestSearchFields = ['name', 'email', 'license_number'];
 
     protected static array $queryFields = [
-        'id', 'name', 'slug', 'license_number', 'description',
+        'id', 'name', 'slug', 'kind', 'license_number', 'description',
         'email', 'phone', 'website', 'commission_rate', 'currency',
         'founded_at', 'is_verified', 'status', 'moderation_required', 'created_at', 'updated_at',
     ];
@@ -117,8 +122,43 @@ class Agency extends AbstractModel implements HasMedia
         return $this->hasMany(Lease::class);
     }
 
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(AgencySubscription::class);
+    }
+
+    public function currentSubscription(): HasOne
+    {
+        return $this->hasOne(AgencySubscription::class)->whereNull('ended_at')->latestOfMany();
+    }
+
     public function bankStatements(): HasMany
     {
         return $this->hasMany(BankStatement::class);
+    }
+
+    public function kycDossier(): MorphOne
+    {
+        return $this->morphOne(KycDossier::class, 'subject');
+    }
+
+    /**
+     * Toutes les demandes d'upgrade `individual → standard` jamais soumises
+     * par cette agence (tous statuts confondus). Voir TCK-252.
+     */
+    public function upgradeRequests(): HasMany
+    {
+        return $this->hasMany(AgencyUpgradeRequest::class);
+    }
+
+    /**
+     * Demande d'upgrade actuellement `pending` (au plus une — invariant
+     * garanti par index unique partiel sur Postgres + check applicatif sur
+     * SQLite, cf. {@see AgencyUpgradeRequest}).
+     */
+    public function pendingUpgradeRequest(): HasOne
+    {
+        return $this->hasOne(AgencyUpgradeRequest::class)
+            ->where('status', AgencyUpgradeRequestStatus::Pending->value);
     }
 }

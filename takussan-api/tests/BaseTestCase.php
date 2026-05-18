@@ -4,46 +4,41 @@ namespace Tests;
 
 use App\Models\Agency;
 use App\Models\User;
-use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Assert;
-use Spatie\Permission\PermissionRegistrar;
 
 abstract class BaseTestCase extends TestCase
 {
     /**
-     * Creates a user in a fresh agency, assigns the given role within that
-     * agency's team context, and logs the user into the default guard.
+     * TCK-278 — Crée un user dans une agence et matérialise le profil
+     * polymorphe correspondant au rôle (`super_admin` → PlatformProfile ;
+     * `agency_admin`/`agent`/`owner` → profil agence-scopé). Pour les rôles
+     * dérivés (`customer`, `tenant`) il n'y a pas de profil polymorphe en
+     * phase 1 (cf. Règle 5), donc pas d'agence implicite.
      *
-     * Agency resolution (first match wins):
-     *   1. `agency`    — Agency model passed in $attributes
-     *   2. `agency_id` — raw id passed in $attributes
-     *   3. fresh Agency via factory
+     * Agency resolution (first match wins) :
+     *   1. `agency`    — Agency model passé dans $attributes
+     *   2. `agency_id` — raw id passé dans $attributes
+     *   3. fresh Agency via factory (sauf rôles dérivés)
      *
-     * `super_admin` is assigned with a null team context so `hasRole()` keeps
-     * resolving to true after subsequent `setPermissionsTeamId()` calls in the
-     * same test (cross-tenant role — no agency binding).
-     *
-     * @param  array<string,mixed>  $attributes  User attrs; pass `agency` or `agency_id` to reuse one.
+     * @param  array<string,mixed>  $attributes  User attrs ; pass `agency` ou `agency_id` to reuse one.
      */
     protected function actingAsRole(string $role, array $attributes = [], ?string $guard = null): User
     {
-        $this->ensureRolesSeeded();
-
         $agency = $attributes['agency'] ?? null;
         unset($attributes['agency']);
 
+        $derivedRoles = ['customer', 'tenant'];
+
         if ($agency !== null) {
             $attributes['agency_id'] = $agency->id;
-        } elseif (! isset($attributes['agency_id'])) {
+        } elseif (! isset($attributes['agency_id']) && ! in_array($role, $derivedRoles, true)) {
             $attributes['agency_id'] = Agency::factory()->create()->id;
         }
 
         $user = User::factory()->create($attributes);
 
-        $registrar = app(PermissionRegistrar::class);
-        $registrar->setPermissionsTeamId($role === 'super_admin' ? null : $user->agency_id);
-        $user->assignRole($role);
+        $this->materializeRoleProfile($user, $role);
 
         $this->actingAs($user, $guard);
 
@@ -69,8 +64,13 @@ abstract class BaseTestCase extends TestCase
         }
     }
 
+    /**
+     * @deprecated TCK-278 — Le seeder spatie a été supprimé. Conservé en
+     *   no-op pour compatibilité descendante avec les tests qui appellent
+     *   `$this->ensureRolesSeeded()` explicitement.
+     */
     protected function ensureRolesSeeded(): void
     {
-        $this->seed(RolesAndPermissionsSeeder::class);
+        // no-op
     }
 }

@@ -9,11 +9,232 @@ export type AdminAgency = {
   license_number: string | null;
   email: string | null;
   phone: string | null;
+  logo_url: string | null;
+  properties_count: number;
+  members_count: number;
+  last_activity_at: string | null;
   created_at: string | null;
 };
 
 export type AdminAgenciesResponse = {
   data: AdminAgency[];
+  meta: {
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+  };
+};
+
+export type AdminAgencyDetail = AdminAgency & {
+  website: string | null;
+  description: string | null;
+  commission_rate: number | null;
+  currency: string | null;
+  founded_at: string | null;
+  logo_url: string | null;
+  public_url: string;
+  primary_admin: {
+    id: number;
+    full_name: string;
+    email: string;
+  } | null;
+  address: {
+    line1: string | null;
+    line2: string | null;
+    city: string | null;
+    region: string | null;
+    country: string | null;
+  } | null;
+};
+
+export type AdminAgencyDetailResponse = { data: AdminAgencyDetail };
+
+export type KycDossierStatus = 'pending' | 'submitted' | 'verified' | 'rejected';
+
+export type KycDocument = {
+  id: number;
+  file_name: string;
+  mime_type: string | null;
+  size: number;
+  document_type: 'rccm' | 'ninea' | 'director_id' | string;
+  signed_url: string;
+  expires_at: string;
+};
+
+export type KycDossier = {
+  id: number;
+  subject_type: string;
+  subject_id: number;
+  status: KycDossierStatus;
+  submitted_at: string | null;
+  reviewed_at: string | null;
+  reviewed_by: number | null;
+  rejection_reason: string | null;
+  metadata: Record<string, unknown>;
+  documents: KycDocument[];
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type KycDossierResponse = { data: KycDossier };
+
+export type KycDossiersResponse = {
+  data: KycDossier[];
+  meta: {
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+  };
+};
+
+export type Plan = {
+  id: number;
+  code: string;
+  label: string;
+  description: string | null;
+  monthly_price_xof: number;
+  platform_fee_pct: number;
+  trial_days: number;
+  limits: Record<string, number>;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type PlansResponse = { data: Plan[] };
+export type PlanResponse = { data: Plan };
+
+export type PlanPayload = {
+  code?: string;
+  label?: string;
+  description?: string | null;
+  monthly_price_xof?: number;
+  platform_fee_pct?: number;
+  trial_days?: number;
+  limits?: Record<string, number>;
+  is_active?: boolean;
+  sort_order?: number;
+};
+
+export type AgencySubscription = {
+  id: number;
+  agency_id: number;
+  plan_id: number;
+  status: 'trialing' | 'active' | 'past_due' | 'suspended' | 'ended';
+  trial_ends_at: string | null;
+  current_period_start: string;
+  current_period_end: string;
+  ended_at: string | null;
+  platform_fee_pct_override: number | null;
+  limits_override: Record<string, number>;
+  effective_platform_fee_pct: number;
+  effective_limits: Record<string, number>;
+  plan?: Plan;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type AgencySubscriptionResponse = { data: AgencySubscription | null };
+
+export type AdminAgencyHealth = {
+  active_properties: number;
+  properties_in_moderation: number;
+  transactions_30d: number;
+  revenue_30d: number;
+  last_platform_payment_at: string | null;
+  open_complaints: number;
+};
+
+export type AdminAgencyHealthResponse = { data: AdminAgencyHealth };
+
+export type AdminAgencyTeamMember = {
+  id: number;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string;
+  email: string;
+  status: string | null;
+  roles: string[];
+  last_login_at: string | null;
+};
+
+export type AdminAgencyTeamResponse = {
+  data: AdminAgencyTeamMember[];
+  meta: {
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+  };
+};
+
+export type AgencyProvisioningResponse = {
+  data: {
+    agency: {
+      id: number;
+      name: string;
+      slug: string;
+      status: string | null;
+      is_verified: boolean;
+      primary_admin_id: number | null;
+      // TCK-270 — display currency picked at provisioning time.
+      currency: string | null;
+    };
+    admin: {
+      id: number;
+      first_name: string | null;
+      last_name: string | null;
+      full_name: string;
+      email: string;
+      preferred_language: string | null;
+    };
+  };
+};
+
+export type AdminUserDetail = {
+  id: number;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  status: string | null;
+  preferred_language: string | null;
+  timezone: string | null;
+  email_verified_at: string | null;
+  phone_verified_at: string | null;
+  last_login_at: string | null;
+  two_factor_enabled: boolean;
+  mfa_enabled: boolean;
+  created_at: string | null;
+  roles: Array<{ name: string; team_id: number | null }>;
+  profiles: {
+    agent: Array<{ id: number; agency_id: number; agency_name: string | null; status: string | null; license_number: string | null }>;
+    owner: Array<{ id: number; agency_id: number; agency_name: string | null; status: string | null }>;
+    broker: { id: number; status: string | null } | null;
+    service_provider: { id: number; status: string | null } | null;
+  };
+  agencies: Array<{ id: number; name: string; slug: string }>;
+};
+
+export type AdminUserDetailResponse = { data: AdminUserDetail };
+
+export type AdminUserSession = {
+  id: number;
+  name: string;
+  last_used_at: string | null;
+  ip: string | null;
+  user_agent: string | null;
+  created_at: string | null;
+  expires_at: string | null;
+};
+
+export type AdminUserSessionsResponse = {
+  data: AdminUserSession[];
   meta: {
     total: number;
     current_page: number;
@@ -85,6 +306,432 @@ export type AuditLogResponse = {
   };
 };
 
+export type ModerationItemType = 'property' | 'review';
+export type ModerationItemStatus = 'pending' | 'flagged';
+export type ModerationDecision = 'approve' | 'reject' | 'hide' | 'remove';
+
+export type AdminModerationItem = {
+  id: string;
+  type: ModerationItemType;
+  status: ModerationItemStatus;
+  subject_type: 'property' | 'review';
+  subject_id: number;
+  subject: {
+    id: number;
+    title: string;
+    subtitle: string | null;
+    href: string;
+  } | null;
+  reporter: {
+    id: number;
+    name: string;
+    email: string;
+  } | null;
+  agency: {
+    id: number;
+    name: string;
+    slug: string;
+  } | null;
+  reason: string;
+  reported_count: number | null;
+  reported_at: string | null;
+  created_at: string | null;
+};
+
+export type AdminModerationResponse = {
+  data: AdminModerationItem[];
+  meta: {
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+  };
+};
+
+export type BusinessEnumValue = {
+  value: string;
+  labels: {
+    fr: string;
+    en: string;
+    wo: string;
+  };
+  is_active: boolean;
+  is_custom: boolean;
+  usage_count: number;
+};
+
+export type BusinessEnum = {
+  key: string;
+  name: string;
+  description: string;
+  values: BusinessEnumValue[];
+};
+
+export type BusinessEnumsResponse = { data: BusinessEnum[] };
+export type BusinessEnumResponse = { data: BusinessEnum };
+
+export type NotificationTemplateChannel = 'email' | 'sms' | 'push';
+export type NotificationTemplateLocale = 'fr' | 'en' | 'wo';
+
+export type NotificationTemplateDetail = {
+  event: string;
+  channel: NotificationTemplateChannel;
+  name: string;
+  domain: string;
+  placeholders: string[];
+  sample_data: Record<string, unknown>;
+  is_active: boolean;
+  templates: Record<NotificationTemplateLocale, { subject: string | null; body: string }>;
+};
+
+export type NotificationTemplatesResponse = { data: NotificationTemplateDetail[] };
+export type NotificationTemplateResponse = { data: NotificationTemplateDetail };
+export type NotificationTemplatePreviewResponse = {
+  data: {
+    event: string;
+    channel: NotificationTemplateChannel;
+    locale: NotificationTemplateLocale;
+    subject: string;
+    body: string;
+  };
+};
+
+export type PlatformSettingCategory = 'currency' | 'format' | 'transaction' | 'limits';
+export type PlatformSettingType = 'select' | 'multi_select' | 'percentage' | 'integer';
+
+export type PlatformSetting = {
+  key: string;
+  category: PlatformSettingCategory;
+  label: string;
+  description: string;
+  type: PlatformSettingType;
+  value: string | number | string[];
+  default_value: string | number | string[];
+  options: string[] | null;
+  public: boolean;
+  requires_restart: boolean;
+  updated_at: string | null;
+  updated_by: {
+    id: number;
+    name: string;
+    email: string;
+  } | null;
+};
+
+export type PlatformSettingsGrouped = Partial<Record<PlatformSettingCategory, PlatformSetting[]>>;
+export type PlatformSettingsResponse = { data: PlatformSettingsGrouped };
+
+export type AdminIntegration = {
+  id: number;
+  provider: string;
+  label: string;
+  category: 'payments' | 'messaging' | 'email' | 'storage' | 'other';
+  critical: boolean;
+  agency_id: number | null;
+  is_active: boolean;
+  status: 'unknown' | 'healthy' | 'failed' | 'disabled' | string;
+  last_used_at: string | null;
+  last_health_check_at: string | null;
+  metadata: Record<string, unknown>;
+  masked_credentials: Record<string, string>;
+};
+
+export type IntegrationSchemaField = {
+  name: string;
+  label: string;
+  type: string;
+  secret: boolean;
+  required: boolean;
+};
+
+export type IntegrationSchema = {
+  provider: string;
+  label: string;
+  category: string;
+  fields: IntegrationSchemaField[];
+};
+
+export type AdminIntegrationsResponse = { data: AdminIntegration[] };
+export type AdminIntegrationResponse = { data: AdminIntegration };
+export type AdminIntegrationSchemaResponse = { data: IntegrationSchema };
+export type IntegrationTestResponse = { data: { success: boolean; latency_ms: number; error: string | null } };
+
+export type IntegrationWebhookLog = {
+  id: number;
+  status: string;
+  direction: string;
+  event_type: string | null;
+  payload: { truncated: string };
+  processed_at: string | null;
+  created_at: string | null;
+};
+
+export type IntegrationWebhooksResponse = {
+  data: IntegrationWebhookLog[];
+  meta: {
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+  };
+};
+
+export type MaintenanceMode = 'banner' | 'read_only' | 'down';
+export type MaintenanceSeverity = 'info' | 'scheduled' | 'interruption';
+
+export type MaintenanceWindow = {
+  id: number;
+  starts_at: string;
+  ends_at: string;
+  mode: MaintenanceMode;
+  severity: MaintenanceSeverity;
+  messages: { fr: string; en?: string | null; wo?: string | null };
+  banner_lead_minutes: number;
+};
+
+export type MaintenanceStatus = {
+  active: boolean;
+  show_banner: boolean;
+  window: MaintenanceWindow | null;
+  generated_at: string;
+};
+
+export type MaintenanceStatusResponse = { data: MaintenanceStatus };
+
+export type AdminFeatureFlag = {
+  key: string;
+  label: string;
+  description: string;
+  client_visible: boolean;
+  enabled: boolean;
+  segments: {
+    roles?: string[];
+    agency_ids?: number[];
+    rollout_percentage?: number;
+  };
+  updated_at: string | null;
+};
+
+export type AdminFeatureFlagsResponse = { data: AdminFeatureFlag[] };
+export type FeatureFlagsMeResponse = { data: Record<string, boolean> };
+
+export type AlertRule = {
+  id: number;
+  event: string;
+  label: string;
+  channels: string[];
+  recipients: { emails?: string[]; webhooks?: string[] };
+  is_active: boolean;
+  last_triggered_at: string | null;
+  failure_count: number;
+};
+
+export type AlertRulesResponse = {
+  data: AlertRule[];
+  catalogue: Record<string, string>;
+};
+export type AlertRuleResponse = { data: AlertRule };
+
+export type AnnouncementSeverity = 'info' | 'success' | 'warning' | 'critical';
+
+export type AnnouncementSegment = {
+  roles?: string[];
+  agency_ids?: number[];
+  rollout_percentage?: number;
+};
+
+export type AnnouncementLocaleMap = {
+  fr: string;
+  en: string;
+  wo: string;
+};
+
+export type Announcement = {
+  id: number;
+  title: AnnouncementLocaleMap;
+  body: AnnouncementLocaleMap;
+  severity: AnnouncementSeverity;
+  segment: AnnouncementSegment;
+  starts_at: string;
+  ends_at: string | null;
+  is_active: boolean;
+  created_by: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type AnnouncementsResponse = {
+  data: Announcement[];
+  meta?: {
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+  };
+};
+
+export type AnnouncementPayload = {
+  title: AnnouncementLocaleMap;
+  body: AnnouncementLocaleMap;
+  severity: AnnouncementSeverity;
+  segment?: AnnouncementSegment;
+  starts_at: string;
+  ends_at?: string | null;
+  is_active: boolean;
+};
+
+export type DataExportStatus = 'queued' | 'processing' | 'ready' | 'expired' | 'failed';
+
+export type DataExport = {
+  id: number;
+  user_id: number;
+  requested_by: number | null;
+  reason: string | null;
+  status: DataExportStatus;
+  size_bytes: number | null;
+  requested_at: string;
+  ready_at: string | null;
+  expires_at: string | null;
+  last_downloaded_at: string | null;
+  download_url: string | null;
+};
+
+export type DataExportsResponse = {
+  data: DataExport[];
+  meta?: {
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+  };
+};
+
+export type HealthcheckStatus = {
+  status: 'ok' | 'failed';
+  latency_ms?: number;
+  driver?: string;
+  value?: string;
+  error?: string;
+};
+
+export type PlatformHealth = {
+  db: HealthcheckStatus;
+  cache: HealthcheckStatus;
+  storage: HealthcheckStatus;
+  mail: HealthcheckStatus;
+  sms: HealthcheckStatus;
+  queue: { pending: number; processing: number; failed_24h: number };
+  scheduler: { last_run_at: string | null };
+  generated_at: string;
+};
+
+export type PlatformHealthResponse = { data: PlatformHealth };
+
+export type FailedJob = {
+  id: number;
+  uuid: string;
+  connection: string;
+  queue: string;
+  payload: string;
+  exception: string;
+  failed_at: string;
+};
+
+export type FailedJobsResponse = {
+  data: FailedJob[];
+  meta: {
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+  };
+};
+
+export type ScheduledTask = {
+  task: string;
+  last_run_at: string | null;
+  next_due_at: string | null;
+  average_duration_ms: number | null;
+};
+
+export type SchedulerResponse = { data: ScheduledTask[] };
+
+// TCK-227 — Cross-tenant reporting.
+export type ReportPeriod = '30d' | '90d' | '3m' | '6m' | '12m';
+export type ReportGranularity = 'day' | 'week' | 'month';
+export type GrowthMetric = 'agencies' | 'users' | 'listings';
+
+export type ReportEnvelope<TRow> = {
+  rows: TRow[];
+  totals: Record<string, number | string | null>;
+  period: { range: string; granularity: string };
+  generated_at: string;
+};
+
+export type GrowthRow = {
+  bucket: string;
+  starts_at: string;
+  ends_at: string;
+  count: number;
+};
+
+export type RevenueRow = GrowthRow & {
+  mrr: number;
+  arr: number;
+  active_subscriptions: number;
+};
+
+export type CohortCell = { month: number; active: number | null; rate: number | null };
+export type CohortRow = { cohort: string; cohort_size: number; cells: CohortCell[] };
+
+export type FunnelRow = { stage: string; count: number };
+
+export type GrowthResponse = { data: ReportEnvelope<GrowthRow> };
+export type RevenueResponse = { data: ReportEnvelope<RevenueRow> };
+export type CohortsResponse = { data: ReportEnvelope<CohortRow> };
+export type FunnelResponse = { data: ReportEnvelope<FunnelRow> };
+
+// TCK-223 — Platform → agency payouts.
+export type PlatformPayoutStatus = 'pending' | 'approved' | 'processing' | 'paid' | 'failed' | 'cancelled';
+
+export type PlatformPayoutBreakdownGroup = {
+  count: number;
+  gross: number;
+  fees: number;
+};
+
+export type PlatformPayout = {
+  id: number;
+  agency_id: number;
+  period_start: string | null;
+  period_end: string | null;
+  gross_amount: number;
+  platform_fee_amount: number;
+  net_amount: number;
+  currency: string;
+  status: PlatformPayoutStatus;
+  approved_by: number | null;
+  processed_at: string | null;
+  failure_reason: string | null;
+  metadata: Record<string, unknown> | null;
+  breakdown?: { booking: PlatformPayoutBreakdownGroup; lease: PlatformPayoutBreakdownGroup } | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type PlatformPayoutsResponse = {
+  data: PlatformPayout[];
+  meta: {
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+  };
+};
+
+export type PlatformPayoutResponse = { data: PlatformPayout };
+export type PlatformPayoutClosePeriodResponse = { data: PlatformPayout[] };
+
 /**
  * TCK-132 — row shape for the cross-tenant properties table. Only fields the
  * UI actually renders, fed by `fields[properties]=...&include=address,agency`
@@ -100,6 +747,7 @@ export type AdminPropertyRow = {
   status_label: string | null;
   visibility: string | null;
   contract_type: string | null;
+  rent_period: 'daily' | 'weekly' | 'monthly' | 'yearly' | null;
   price: number;
   currency: string | null;
   published_at: string | null;

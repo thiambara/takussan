@@ -19,14 +19,14 @@ export default async function Page({ searchParams }: PageProps) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-app-ink">Nouvel état des lieux</h1>
-          <p className="mt-1 text-sm text-app-ink-muted">
+          <h1 className="font-display text-2xl font-bold text-foreground">Nouvel état des lieux</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Sélectionnez un bail pour démarrer un état des lieux.
           </p>
         </div>
-        <div className="rounded-2xl bg-app-surface-1 p-8 text-center text-sm text-app-ink-muted">
+        <div className="rounded-2xl bg-card p-8 text-center text-sm text-muted-foreground">
           Ouvrez un inventaire depuis la page d&apos;un bail ou passez le paramètre
-          <code className="mx-1 rounded bg-app-surface-2 px-1 py-0.5">?lease=</code>
+          <code className="mx-1 rounded bg-muted px-1 py-0.5">?lease=</code>
           dans l&apos;URL.
         </div>
       </div>
@@ -36,8 +36,8 @@ export default async function Page({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-app-ink">Nouvel état des lieux</h1>
-        <p className="mt-1 text-sm text-app-ink-muted">
+        <h1 className="font-display text-2xl font-bold text-foreground">Nouvel état des lieux</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Pièce par pièce, état et éléments, photos.
         </p>
       </div>

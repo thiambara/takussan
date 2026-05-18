@@ -25,6 +25,12 @@ export const PIPELINE_CARD_FIELDS = [
   'added_by_id',
 ] as const;
 
+export const PIPELINE_ADDED_BY_FIELDS = [
+  'id',
+  'first_name',
+  'last_name',
+] as const;
+
 export const PIPELINE_STAGES: readonly CustomerPipelineStage[] = [
   'lead',
   'prospect',
@@ -44,8 +50,11 @@ export function buildPipelineColumnParams({
   perPage = 50,
 }: FetchPipelineColumnParams): SpatieQueryParams {
   return {
-    fields: { customers: PIPELINE_CARD_FIELDS },
-    filter: { pipeline_stage: stage },
+    fields: {
+      customers: PIPELINE_CARD_FIELDS,
+      users: PIPELINE_ADDED_BY_FIELDS,
+    },
+    filter: { pipeline_stage: stage, status: 'active' },
     include: ['addedBy', 'tasksCount'],
     sort: '-updated_at',
     per_page: perPage,

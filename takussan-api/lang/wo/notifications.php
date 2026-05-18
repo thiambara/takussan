@@ -4,6 +4,31 @@ return [
 
     'salutation' => 'Ekip Takussan',
 
+    // TCK-249 — Invitation lifecycle emails (Wolof).
+    'invitation' => [
+        'subject' => 'Am nga invitation Takussan',
+        'reminder_subject' => 'Tee — invitation Takussan',
+        'greeting' => 'Asalaa Maalekum,',
+        'intro' => 'Wax nañu la nga bokk Takussan ni :role.',
+        'reminder_intro' => 'Buñ la fàttali: invitation Takussan bi nga jot ni :role mu ngi xaar.',
+        'action' => 'Nangu invitation bi',
+        'expires_at' => 'Lëkkalekaay bii dafay jeex ci :date.',
+        'ignore' => 'Soo xamul invitation bi, mën nga ko bañ.',
+    ],
+
+    'invitation_accepted' => [
+        'subject' => ':email nangu na sa invitation',
+        'greeting' => 'Asalaa Maalekum,',
+        'intro' => ':email nangu na sa invitation mu bokk Takussan ni :role.',
+    ],
+
+    'invitation_expired' => [
+        'subject' => 'Invitation bi nga yónni :email jeex na',
+        'greeting' => 'Asalaa Maalekum,',
+        'intro' => 'Invitation bi nga yónni :email jeex na sa nguñu ko nangu.',
+        'advice' => 'Mën nga ko yónniwaat ci sa table de bord.',
+    ],
+
     'registration' => [
         'subject' => 'Dëggël sa adrees e-mail',
         'greeting' => 'Dalal ak jàmm ci Takussan !',
@@ -106,6 +131,33 @@ return [
         'greeting' => 'Salaam,',
         'intro' => 'Avenant am na ci sa luwé (:reference). Conditions yu bees yi tàmbali nañ.',
         'period' => 'Période : :start ba :end.',
+    ],
+
+    // TCK-265 — one-shot welcome notification fired on Lease.activated.
+    'tenant_welcome' => [
+        'subject' => 'Dalal jàmm ci sa kër — luwé :reference',
+        'greeting' => 'Salaam,',
+        'intro' => 'Sa luwé :reference jàppal na léegi.',
+        'body' => 'Xool sa fey yi di ñëw, laaj nañu maintenance ak feeg sa documents ci sa espas waa-kër.',
+        'action' => 'Ubbi sama espas waa-kër',
+    ],
+
+    // TCK-266 — J+7 reminder when the move-in inventory is still unsigned.
+    'tenant_inventory_reminder' => [
+        'subject' => 'Faatu — état des lieux war ngaa ko shign (luwé :reference)',
+        'greeting' => 'Salaam,',
+        'intro' => 'État des lieux bu sa luwé :reference signe nañ ko ba léegi.',
+        'body' => 'Ba kerig dossier bi am, war ngaa shigne ko. Dugu ci sa espas waa-kër ngir mottali shignal bi.',
+        'action' => 'Shigne état des lieux',
+    ],
+
+    'agent_tenant_inventory_reminder' => [
+        'subject' => 'Waa-kër bu yegg ci EDL — luwé :reference',
+        'greeting' => 'Salaam,',
+        'intro' => ':tenant signe wuñu état des lieux entrée bu luwé :reference (lu ëpp 7 fan).',
+        'body' => 'Xoolal ak waa-kër bi su fekk dañu ko war di gungé ngir mottali signe bi.',
+        'action' => 'Xool onboardings yi yagg',
+        'unknown_tenant' => 'Waa-kër bi',
     ],
 
     'lease_early_termination' => [

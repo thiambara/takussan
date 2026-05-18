@@ -11,6 +11,19 @@ vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 1 }, refreshUser: refreshUserMock }),
 }));
 
+// `useSwitchActiveProfile` (called unconditionally by <ProfileSwitcher>) reaches
+// into `next/navigation` for `useRouter().refresh()` after a successful switch.
+// The app router isn't mounted in vitest, so we stub a minimal compatible shape.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }),
+}));
+
+// The mutation also calls `useToast().add(...)` on success/error. Avoid pulling
+// in the full Base UI provider tree by stubbing the hook directly.
+vi.mock('@/components/ui/toast', () => ({
+  useToast: () => ({ add: vi.fn() }),
+}));
+
 function makeUser(overrides: Partial<User> = {}): User {
   return {
     id: 1,

@@ -18,15 +18,20 @@ use App\Models\Enums\ConversationType;
 use App\Models\Enums\MessageType;
 use App\Models\Enums\NotificationType;
 use App\Models\Enums\PropertyStatus;
+use App\Models\Enums\PropertyType;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
+use App\Models\Lease;
 use App\Models\Property;
+use App\Models\PropertyContactLead;
 use App\Models\PropertyReport;
 use App\Models\PropertyVisit;
+use App\Models\Review;
 use App\Services\Model\CustomerService;
 use App\Services\Model\NotificationService;
 use App\Services\Property\SimilarPropertiesService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -82,6 +87,7 @@ class PublicPropertyController extends Controller
     {
         $validated = $request->validate([
             'q' => 'nullable|string|max:200',
+            'search' => 'nullable|string|max:200',
             'location' => 'nullable|string|max:100',
             'city' => 'nullable|string|max:100',
             'price_min' => 'nullable|numeric|min:0',
@@ -109,11 +115,9 @@ class PublicPropertyController extends Controller
             ->public()
             ->whereNot('status', PropertyStatus::Draft);
 
-        if (! empty($validated['q'])) {
-            $query->where(function ($q) use ($validated) {
-                $q->where('title', 'like', '%'.$validated['q'].'%')
-                    ->orWhere('description', 'like', '%'.$validated['q'].'%');
-            });
+        $searchTerm = trim((string) ($validated['q'] ?? $validated['search'] ?? ''));
+        if ($searchTerm !== '') {
+            $this->applySearchFilter($query, $searchTerm);
         }
 
         if (! empty($validated['location']) || ! empty($validated['city'])) {
@@ -205,7 +209,9 @@ class PublicPropertyController extends Controller
             'price_asc' => $query->orderBy('price'),
             'price_desc' => $query->orderByDesc('price'),
             'created_desc' => $query->orderByDesc('created_at'),
-            default => $query->orderByDesc('featured')->orderByDesc('published_at'),
+            default => $searchTerm !== ''
+                ? $this->orderBySearchRelevance($query, $searchTerm)
+                : $query->orderByDesc('featured')->orderByDesc('published_at'),
         };
 
         $paginated = $query->paginate((int) ($validated['per_page'] ?? 20), ['*'], 'page', $validated['page'] ?? 1);
@@ -220,6 +226,122 @@ class PublicPropertyController extends Controller
                 'total' => $paginated->total(),
             ],
         ];
+    }
+
+    /**
+     * @param  Builder<Property>  $query
+     */
+    private function applySearchFilter(Builder $query, string $term): void
+    {
+        $normalizedTypes = $this->matchingPropertyTypes($term);
+        $like = '%'.mb_strtolower($term).'%';
+
+        $query->where(function (Builder $inner) use ($like, $normalizedTypes) {
+            $inner
+                ->whereRaw('LOWER(properties.title) LIKE ?', [$like])
+                ->orWhereRaw('LOWER(properties.description) LIKE ?', [$like])
+                ->orWhereRaw('LOWER(properties.reference_number) LIKE ?', [$like])
+                ->orWhereHas('address', function (Builder $address) use ($like) {
+                    $address
+                        ->whereRaw('LOWER(city) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(neighborhood) LIKE ?', [$like]);
+                });
+
+            if ($normalizedTypes !== []) {
+                $inner->orWhereIn('properties.type', $normalizedTypes);
+            }
+        });
+    }
+
+    /**
+     * @param  Builder<Property>  $query
+     */
+    private function orderBySearchRelevance(Builder $query, string $term): Builder
+    {
+        $normalizedTypes = $this->matchingPropertyTypes($term);
+        $like = '%'.mb_strtolower($term).'%';
+        $prefix = mb_strtolower($term).'%';
+
+        $bindings = [];
+        $typeCase = '0';
+        if ($normalizedTypes !== []) {
+            $placeholders = implode(',', array_fill(0, count($normalizedTypes), '?'));
+            $typeCase = "CASE WHEN properties.type IN ({$placeholders}) THEN 250 ELSE 0 END";
+            $bindings = array_merge($bindings, $normalizedTypes);
+        }
+
+        return $query
+            ->orderByRaw(
+                "(
+                    {$typeCase}
+                    + CASE WHEN LOWER(properties.title) LIKE ? THEN 80 ELSE 0 END
+                    + CASE WHEN LOWER(properties.title) LIKE ? THEN 40 ELSE 0 END
+                    + CASE WHEN LOWER(properties.reference_number) LIKE ? THEN 25 ELSE 0 END
+                    + CASE WHEN EXISTS (
+                        SELECT 1
+                        FROM addresses
+                        WHERE addresses.addressable_type = ?
+                            AND addresses.addressable_id = properties.id
+                            AND (
+                                LOWER(addresses.city) LIKE ?
+                                OR LOWER(addresses.neighborhood) LIKE ?
+                            )
+                    ) THEN 20 ELSE 0 END
+                    + CASE WHEN LOWER(properties.description) LIKE ? THEN 10 ELSE 0 END
+                ) DESC",
+                [
+                    ...$bindings,
+                    $prefix,
+                    $like,
+                    $like,
+                    Property::class,
+                    $like,
+                    $like,
+                    $like,
+                ]
+            )
+            ->orderByDesc('featured')
+            ->orderByDesc('published_at');
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function matchingPropertyTypes(string $term): array
+    {
+        $normalized = $this->normalizeSearchTerm($term);
+        $aliases = [
+            PropertyType::Apartment->value => ['apartment', 'appartement', 'appartements', 'apt'],
+            PropertyType::House->value => ['house', 'maison', 'maisons'],
+            PropertyType::Villa->value => ['villa', 'villas'],
+            PropertyType::Land->value => ['land', 'terrain', 'terrains'],
+            PropertyType::Studio->value => ['studio', 'studios'],
+            PropertyType::Room->value => ['room', 'chambre', 'chambres'],
+            PropertyType::Office->value => ['office', 'bureau', 'bureaux'],
+            PropertyType::Shop->value => ['shop', 'boutique', 'magasin', 'commerce'],
+            PropertyType::Warehouse->value => ['warehouse', 'entrepot', 'entrepots'],
+            PropertyType::Factory->value => ['factory', 'usine', 'usines'],
+            PropertyType::Farm->value => ['farm', 'ferme', 'fermes'],
+            PropertyType::Hotel->value => ['hotel', 'hotels'],
+            PropertyType::Resort->value => ['resort'],
+            PropertyType::Garage->value => ['garage', 'garages'],
+            PropertyType::Parking->value => ['parking', 'parkings'],
+            PropertyType::Other->value => ['other', 'autre', 'autres'],
+        ];
+
+        return collect($aliases)
+            ->filter(fn (array $terms) => in_array($normalized, $terms, true))
+            ->keys()
+            ->values()
+            ->all();
+    }
+
+    private function normalizeSearchTerm(string $term): string
+    {
+        $term = mb_strtolower(trim($term));
+        $term = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $term);
+
+        return is_string($term) ? $term : '';
     }
 
     /**
@@ -546,6 +668,7 @@ class PublicPropertyController extends Controller
         $visit = PropertyVisit::create([
             'property_id' => $property->id,
             'visitor_id' => $user?->id,
+            'customer_id' => $user?->customer?->id,
             'scheduled_at' => $data['scheduled_at'],
             'type' => $data['type'] ?? VisitType::InPerson->value,
             'duration_minutes' => $data['duration_minutes'] ?? 30,
@@ -561,6 +684,65 @@ class PublicPropertyController extends Controller
         ], 201);
     }
 
+    /**
+     * TCK-180 — gate the "Laisser un avis" form on the property page.
+     *
+     * GET /api/public/properties/{slug}/review-eligibility →
+     *   { eligible: bool, reason: 'visit'|'lease'|'none', already_reviewed: bool }
+     *
+     * Anonymous callers always get `eligible:false, reason:'none'`.
+     */
+    public function reviewEligibility(Request $request, string $slug): JsonResponse
+    {
+        $property = Property::query()
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        $user = $request->user();
+        if ($user === null) {
+            return $this->json([
+                'data' => ['eligible' => false, 'reason' => 'none', 'already_reviewed' => false],
+            ]);
+        }
+
+        $hasCompletedVisit = PropertyVisit::query()
+            ->where('property_id', $property->id)
+            ->where('status', VisitStatus::Completed)
+            ->where(function ($q) use ($user): void {
+                $q->where('visitor_id', $user->id)
+                    ->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
+            })
+            ->exists();
+
+        $hasLease = Lease::query()
+            ->where('property_id', $property->id)
+            ->whereHas('tenant', fn ($c) => $c->where('user_id', $user->id))
+            ->exists();
+
+        $alreadyReviewed = Review::query()
+            ->where('reviewable_type', Property::class)
+            ->where('reviewable_id', $property->id)
+            ->where('author_id', $user->id)
+            ->exists();
+
+        $reason = 'none';
+        if ($hasLease) {
+            $reason = 'lease';
+        } elseif ($hasCompletedVisit) {
+            $reason = 'visit';
+        }
+
+        return $this->json([
+            'data' => [
+                'eligible' => $reason !== 'none',
+                'reason' => $reason,
+                'already_reviewed' => $alreadyReviewed,
+            ],
+        ]);
+    }
+
     public function bookingRequest(Request $request, CustomerService $customers, string $slug): JsonResponse
     {
         $property = Property::query()
@@ -569,17 +751,58 @@ class PublicPropertyController extends Controller
             ->where('slug', $slug)
             ->firstOrFail();
 
-        $data = $request->validate([
-            'start_date' => ['required', 'date', 'after_or_equal:today'],
-            'end_date' => ['required', 'date', 'after:start_date'],
-            'guests' => ['required', 'integer', 'min:1', 'max:50'],
-            'message' => ['nullable', 'string', 'max:1000'],
-        ]);
+        // TCK-176 — for a sale property the booking is actually a *purchase
+        // offer*: collect `offer_amount` + `offer_expires_at` + `terms_accepted`
+        // instead of dates/guests; for a rent property keep the original
+        // booking-request payload.
+        $isSale = $property->contract_type?->value === 'sale';
+
+        $rules = $isSale
+            ? [
+                'offer_amount' => ['required', 'numeric', 'min:1'],
+                'offer_expires_at' => ['required', 'date', 'after:today'],
+                'terms_accepted' => ['required', 'accepted'],
+                'message' => ['nullable', 'string', 'max:1000'],
+            ]
+            : [
+                'start_date' => ['required', 'date', 'after_or_equal:today'],
+                'end_date' => ['required', 'date', 'after:start_date'],
+                'guests' => ['required', 'integer', 'min:1', 'max:50'],
+                'message' => ['nullable', 'string', 'max:1000'],
+            ];
+
+        $data = $request->validate($rules);
 
         $user = $request->user();
         abort_if($user === null, 401);
 
         $customer = $customers->findOrCreateFromUser($user);
+
+        if ($isSale) {
+            $booking = Booking::create([
+                'property_id' => $property->id,
+                'customer_id' => $customer->id,
+                'created_by_id' => $user->id,
+                'agency_id' => $property->agency_id,
+                'start_date' => null,
+                'end_date' => null,
+                'total_amount' => (float) $data['offer_amount'],
+                'currency' => $property->currency,
+                'status' => BookingStatus::Pending->value,
+                'expires_at' => $data['offer_expires_at'],
+                'notes' => $data['message'] ?? null,
+                'metadata' => [
+                    'kind' => 'offer',
+                    'offer_amount' => (float) $data['offer_amount'],
+                    'offer_expires_at' => $data['offer_expires_at'],
+                    'list_price_at_offer' => (float) $property->price,
+                ],
+            ]);
+
+            return $this->json([
+                'data' => BookingResource::make($booking)->toArray($request),
+            ], 201);
+        }
 
         $start = Carbon::parse($data['start_date']);
         $end = Carbon::parse($data['end_date']);
@@ -683,6 +906,63 @@ class PublicPropertyController extends Controller
                 'redirect_to' => "/messages/{$conversation->id}",
             ],
         ], 201);
+    }
+
+    /**
+     * Anonymous lead capture endpoint (TCK-161). Lets a non-authenticated
+     * visitor send a one-shot contact message to the property's primary
+     * agent (or owner) without creating an account. Persists the lead for
+     * moderation/anti-spam follow-up and pings the recipient via the
+     * existing notification channel. A filled honeypot returns 201 silently
+     * — bots get a normal-looking success without polluting the database.
+     */
+    public function contactLead(Request $request, NotificationService $notifications, string $slug): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'email' => ['required', 'email:rfc', 'max:180'],
+            'phone' => ['nullable', 'string', 'max:32'],
+            'message' => ['required', 'string', 'min:5', 'max:2000'],
+            'company' => ['nullable', 'string', 'max:120'], // honeypot
+        ]);
+
+        if (! empty($data['company'])) {
+            return $this->json(['data' => ['accepted' => true]], 201);
+        }
+
+        $property = Property::query()
+            ->with('owner', 'collaborators.user')
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        $primaryAgent = $property->collaborators
+            ->firstWhere('role', CollaboratorRole::Agent)?->user
+            ?? $property->owner;
+
+        $lead = PropertyContactLead::create([
+            'property_id' => $property->id,
+            'recipient_user_id' => $primaryAgent?->id,
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
+            'message' => $data['message'],
+            'ip' => $request->ip(),
+            'user_agent' => substr((string) $request->userAgent(), 0, 255),
+        ]);
+
+        if ($primaryAgent !== null) {
+            $notifications->notify(
+                $primaryAgent,
+                NotificationType::Message,
+                'Nouveau lead anonyme',
+                $data['name'].' ('.$data['email'].') : '.mb_strimwidth($data['message'], 0, 80, '…'),
+                ['property_id' => $property->id, 'lead_id' => $lead->id],
+            );
+        }
+
+        return $this->json(['data' => ['accepted' => true]], 201);
     }
 
     public function contact(string $slug): JsonResponse

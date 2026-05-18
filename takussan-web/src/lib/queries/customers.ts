@@ -36,7 +36,6 @@ export const TAG_FIELDS = ['id', 'name', 'color', 'usage_count'] as const;
 
 export const DASHBOARD_CUSTOMER_DETAIL_FIELDS = [
   ...DASHBOARD_CUSTOMER_FIELDS,
-  'birth_date',
   'id_type',
   'id_number',
   'emergency_contact_name',
