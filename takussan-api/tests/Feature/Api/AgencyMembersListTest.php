@@ -17,15 +17,7 @@ class AgencyMembersListTest extends TestCase
     protected function createAdminWithAgency(): array
     {
         $agency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
-        Role::findOrCreate('super_admin', 'web');
-        Role::findOrCreate('agency_admin');
-        Role::findOrCreate('agent');
         $admin = User::factory()->create(['agency_id' => $agency->id]);
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
-        $admin->assignRole('super_admin');
         $this->materializeRoleProfile($admin, 'super_admin');
         $agency->update(['primary_admin_id' => $admin->id]);
 
@@ -149,8 +141,6 @@ class AgencyMembersListTest extends TestCase
         // Create a second member who is the only agency_admin. The primary_admin
         // guard already blocks removing `admin`, so we use a separate user.
         $onlyAdmin = User::factory()->create(['agency_id' => $agency->id]);
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        $onlyAdmin->assignRole('agency_admin');
         $this->materializeRoleProfile($onlyAdmin, 'agency_admin', $agency);
 
         Sanctum::actingAs($admin);
@@ -167,8 +157,6 @@ class AgencyMembersListTest extends TestCase
         // must fail — the DELETE path already guards this; the PATCH/PUT role
         // endpoint must apply the same invariant.
         $onlyAdmin = User::factory()->create(['agency_id' => $agency->id]);
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        $onlyAdmin->assignRole('agency_admin');
         $this->materializeRoleProfile($onlyAdmin, 'agency_admin', $agency);
 
         Sanctum::actingAs($admin);
@@ -181,21 +169,16 @@ class AgencyMembersListTest extends TestCase
             'role' => 'agent',
         ])->assertStatus(422);
 
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        $this->assertTrue($onlyAdmin->refresh()->hasRole('agency_admin'));
+        $this->assertTrue($onlyAdmin->refresh()->isAgencyAdminAt((int) $agency->id));
     }
 
     public function test_can_demote_agency_admin_when_other_admins_remain(): void
     {
         [$admin, $agency] = $this->createAdminWithAgency();
 
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
         $adminA = User::factory()->create(['agency_id' => $agency->id]);
-        $adminA->assignRole('agency_admin');
         $this->materializeRoleProfile($adminA, 'agency_admin', $agency);
         $adminB = User::factory()->create(['agency_id' => $agency->id]);
-        $adminB->assignRole('agency_admin');
         $this->materializeRoleProfile($adminB, 'agency_admin', $agency);
 
         Sanctum::actingAs($admin);

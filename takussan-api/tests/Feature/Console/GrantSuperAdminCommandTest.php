@@ -5,7 +5,6 @@ namespace Tests\Feature\Console;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\User;
-use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -25,7 +24,6 @@ class GrantSuperAdminCommandTest extends TestCase
         // RolesAndPermissionsSeeder crée le rôle spatie super_admin sous
         // team_id = null — pré-requis pour que `assignRole('super_admin')`
         // dans la commande ne lève pas `RoleDoesNotExist`.
-        $this->seed(RolesAndPermissionsSeeder::class);
     }
 
     public function test_creates_super_admin_profile_for_existing_user(): void

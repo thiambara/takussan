@@ -73,10 +73,8 @@ class AgencyUpgradeRequestSubmissionTest extends BaseTestCase
         [$agency, $admin] = $this->individualAgencyWithAdmin();
 
         // Seed a super-admin so the fan-out has a recipient.
-        $registrar = app(PermissionRegistrar::class);
-        $registrar->setPermissionsTeamId(null);
         $superAdmin = User::factory()->create();
-        $superAdmin->assignRole('super_admin');
+        $this->materializeRoleProfile($superAdmin, 'super_admin');
 
         $response = $this->postJson(
             "/api/agencies/{$agency->id}/upgrade-requests",

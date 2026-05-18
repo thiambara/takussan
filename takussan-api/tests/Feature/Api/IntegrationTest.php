@@ -18,10 +18,7 @@ class IntegrationTest extends TestCase
     public function test_agency_admin_can_manage_integrations(): void
     {
         $agency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
         $agencyAdmin = User::factory()->create(['agency_id' => $agency->id]);
-        Role::findOrCreate('agency_admin');
-        $agencyAdmin->assignRole('agency_admin');
         $this->materializeRoleProfile($agencyAdmin, 'agency_admin', $agency);
 
         Sanctum::actingAs($agencyAdmin);
@@ -53,10 +50,7 @@ class IntegrationTest extends TestCase
     public function test_test_endpoint_reports_ok_with_credentials(): void
     {
         $agency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
         $agencyAdmin = User::factory()->create(['agency_id' => $agency->id]);
-        Role::findOrCreate('agency_admin');
-        $agencyAdmin->assignRole('agency_admin');
         $this->materializeRoleProfile($agencyAdmin, 'agency_admin', $agency);
 
         Sanctum::actingAs($agencyAdmin);
@@ -79,10 +73,7 @@ class IntegrationTest extends TestCase
     public function test_test_endpoint_reports_ko_when_inactive(): void
     {
         $agency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
         $agencyAdmin = User::factory()->create(['agency_id' => $agency->id]);
-        Role::findOrCreate('agency_admin');
-        $agencyAdmin->assignRole('agency_admin');
         $this->materializeRoleProfile($agencyAdmin, 'agency_admin', $agency);
 
         $integration = Integration::factory()->create([
@@ -104,10 +95,7 @@ class IntegrationTest extends TestCase
         // in the allowedFields list (spatie throws 400 otherwise). Also
         // double-checks that `credentials` is never exposed by the resource.
         $agency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
         $agencyAdmin = User::factory()->create(['agency_id' => $agency->id]);
-        Role::findOrCreate('agency_admin');
-        $agencyAdmin->assignRole('agency_admin');
         $this->materializeRoleProfile($agencyAdmin, 'agency_admin', $agency);
 
         Integration::factory()->create([
@@ -133,10 +121,7 @@ class IntegrationTest extends TestCase
     public function test_credentials_are_stored_as_array_and_decrypt_once(): void
     {
         $agency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
         $agencyAdmin = User::factory()->create(['agency_id' => $agency->id]);
-        Role::findOrCreate('agency_admin');
-        $agencyAdmin->assignRole('agency_admin');
         $this->materializeRoleProfile($agencyAdmin, 'agency_admin', $agency);
 
         Sanctum::actingAs($agencyAdmin);
@@ -172,10 +157,7 @@ class IntegrationTest extends TestCase
 
         $integration = Integration::factory()->create(['agency_id' => $agency1->id]);
 
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency2->id);
         $agencyAdmin2 = User::factory()->create(['agency_id' => $agency2->id]);
-        Role::findOrCreate('agency_admin');
-        $agencyAdmin2->assignRole('agency_admin');
         $this->materializeRoleProfile($agencyAdmin2, 'agency_admin', $agency2);
 
         Sanctum::actingAs($agencyAdmin2);

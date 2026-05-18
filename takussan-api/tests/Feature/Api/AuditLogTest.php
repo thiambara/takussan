@@ -19,9 +19,6 @@ class AuditLogTest extends TestCase
         parent::setUp();
 
         $this->dummyAgency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
-        Role::findOrCreate('super_admin', 'web');
-        setPermissionsTeamId($this->dummyAgency->id);
     }
 
     public function test_only_admins_can_access_audit_logs(): void
@@ -35,8 +32,6 @@ class AuditLogTest extends TestCase
     public function test_admin_can_list_audit_logs(): void
     {
         $admin = User::factory()->create(['agency_id' => $this->dummyAgency->id]);
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
-        $admin->assignRole('super_admin');
         $this->materializeRoleProfile($admin, 'super_admin');
         Sanctum::actingAs($admin);
 
@@ -71,8 +66,6 @@ class AuditLogTest extends TestCase
     public function test_admin_can_get_audit_logs_by_entity(): void
     {
         $admin = User::factory()->create(['agency_id' => $this->dummyAgency->id]);
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
-        $admin->assignRole('super_admin');
         $this->materializeRoleProfile($admin, 'super_admin');
         Sanctum::actingAs($admin);
 
@@ -92,9 +85,7 @@ class AuditLogTest extends TestCase
     public function test_individual_agency_admin_cannot_read_audit_log(): void
     {
         $this->dummyAgency->update(['kind' => AgencyKind::Individual]);
-        Role::findOrCreate('agency_admin');
         $admin = User::factory()->create(['agency_id' => $this->dummyAgency->id]);
-        $admin->assignRole('agency_admin');
         $this->materializeRoleProfile($admin, 'agency_admin', $this->dummyAgency);
         Sanctum::actingAs($admin);
 

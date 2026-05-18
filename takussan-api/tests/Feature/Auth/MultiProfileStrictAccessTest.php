@@ -7,7 +7,6 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
-use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -36,7 +35,6 @@ class MultiProfileStrictAccessTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(RolesAndPermissionsSeeder::class);
     }
 
     public function test_multi_profile_user_without_active_context_resolves_null_agency_id(): void
@@ -75,11 +73,7 @@ class MultiProfileStrictAccessTest extends TestCase
         AgentProfile::factory()->create(['user_id' => $bob->id, 'agency_id' => $agencyX->id]);
 
         // Assign agency_admin under Y's team — Bob's authority is Y-scoped.
-        $registrar = app(PermissionRegistrar::class);
-        $registrar->setPermissionsTeamId($agencyY->id);
-        $bob->assignRole('agency_admin');
         $this->materializeRoleProfile($bob, 'agency_admin', $agencyY);
-        $registrar->setPermissionsTeamId(null);
 
         Sanctum::actingAs($bob);
 
@@ -104,11 +98,7 @@ class MultiProfileStrictAccessTest extends TestCase
         AgentProfile::factory()->create(['user_id' => $bob->id, 'agency_id' => $agencyY->id]);
         $agentX = AgentProfile::factory()->create(['user_id' => $bob->id, 'agency_id' => $agencyX->id]);
 
-        $registrar = app(PermissionRegistrar::class);
-        $registrar->setPermissionsTeamId($agencyY->id);
-        $bob->assignRole('agency_admin');
         $this->materializeRoleProfile($bob, 'agency_admin', $agencyY);
-        $registrar->setPermissionsTeamId(null);
 
         Sanctum::actingAs($bob);
 
@@ -130,11 +120,7 @@ class MultiProfileStrictAccessTest extends TestCase
             'agency_id' => $agencyX->id,
         ]);
 
-        $registrar = app(PermissionRegistrar::class);
-        $registrar->setPermissionsTeamId($agencyX->id);
-        $carol->assignRole('agency_admin');
         $this->materializeRoleProfile($carol, 'agency_admin', $agencyX);
-        $registrar->setPermissionsTeamId(null);
 
         Sanctum::actingAs($carol);
 

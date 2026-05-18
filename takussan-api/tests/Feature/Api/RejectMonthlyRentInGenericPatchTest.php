@@ -6,7 +6,6 @@ use App\Models\Customer;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
-use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -24,7 +23,6 @@ class RejectMonthlyRentInGenericPatchTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(RolesAndPermissionsSeeder::class);
     }
 
     public function test_generic_patch_rejects_monthly_rent_payload(): void
@@ -76,7 +74,6 @@ class RejectMonthlyRentInGenericPatchTest extends TestCase
     private function scaffold(): array
     {
         $landlord = User::factory()->create();
-        $landlord->assignRole('owner');
         $property = Property::factory()->create(['user_id' => $landlord->id]);
         $tenant = Customer::factory()->create();
 

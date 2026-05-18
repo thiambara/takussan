@@ -29,16 +29,14 @@ class LeasePolicy extends BasePolicy
      */
     public function refundDeposit(User $user, Lease $lease): bool
     {
-        if (! $user->can('leases.refund_deposit')) {
-            return false;
-        }
-
+        // TCK-278 — Le landlord direct est toujours autorisé sur ses propres
+        // baux (cf. requestEarlyTermination), peu importe son agence.
         if ($user->id === $lease->landlord_id) {
             return true;
         }
 
         if ($user->agency_id !== null && $user->agency_id === $lease->agency_id) {
-            return true;
+            return $user->can('leases.refund_deposit');
         }
 
         return $user->isSuperAdmin();
@@ -53,16 +51,14 @@ class LeasePolicy extends BasePolicy
      */
     public function renew(User $user, Lease $lease): bool
     {
-        if (! $user->can('leases.renew')) {
-            return false;
-        }
-
+        // TCK-278 — Le landlord direct est toujours autorisé sur ses propres
+        // baux (cf. requestEarlyTermination).
         if ($user->id === $lease->landlord_id) {
             return true;
         }
 
         if ($user->agency_id !== null && $user->agency_id === $lease->agency_id) {
-            return true;
+            return $user->can('leases.renew');
         }
 
         return $user->isSuperAdmin();
@@ -85,16 +81,16 @@ class LeasePolicy extends BasePolicy
             return true;
         }
 
-        if (! $user->can('leases.terminate')) {
-            return false;
-        }
-
+        // TCK-278 — le landlord direct est toujours autorisé sur ses propres
+        // baux (pre-existing : check déplacé avant `can()` puisque la résolution
+        // par capacité passe désormais par le profil agence, qui peut être
+        // null pour un bailleur particulier sans agency rattachée).
         if ($user->id === $lease->landlord_id) {
             return true;
         }
 
         if ($user->agency_id !== null && $user->agency_id === $lease->agency_id) {
-            return true;
+            return $user->can('leases.terminate');
         }
 
         return $user->isSuperAdmin();
@@ -118,16 +114,14 @@ class LeasePolicy extends BasePolicy
      */
     public function confirmEarlyTermination(User $user, Lease $lease): bool
     {
-        if (! $user->can('leases.terminate')) {
-            return false;
-        }
-
+        // TCK-278 — Le landlord direct est toujours autorisé (cf.
+        // requestEarlyTermination).
         if ($user->id === $lease->landlord_id) {
             return true;
         }
 
         if ($user->agency_id !== null && $user->agency_id === $lease->agency_id) {
-            return true;
+            return $user->can('leases.terminate');
         }
 
         return $user->isSuperAdmin();
@@ -141,16 +135,14 @@ class LeasePolicy extends BasePolicy
      */
     public function reviewRent(User $user, Lease $lease): bool
     {
-        if (! $user->can('leases.rent_review')) {
-            return false;
-        }
-
+        // TCK-278 — Le landlord direct est toujours autorisé (cf.
+        // requestEarlyTermination).
         if ($user->id === $lease->landlord_id) {
             return true;
         }
 
         if ($user->agency_id !== null && $user->agency_id === $lease->agency_id) {
-            return true;
+            return $user->can('leases.rent_review');
         }
 
         return $user->isSuperAdmin();

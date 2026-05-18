@@ -37,10 +37,7 @@ class SuperAdminCooptationTest extends BaseTestCase
 {
     use RefreshDatabase;
 
-    private function pinSuperAdminTeam(): void
-    {
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
-    }
+    private function pinSuperAdminTeam(): void {}
 
     public function test_super_admin_can_invite_another_super_admin(): void
     {
@@ -50,7 +47,6 @@ class SuperAdminCooptationTest extends BaseTestCase
         // A second existing super-admin to receive the broadcast.
         $peer = User::factory()->create();
         $this->pinSuperAdminTeam();
-        $peer->assignRole('super_admin');
         $this->materializeRoleProfile($peer, 'super_admin');
 
         $response = $this->postJson('/api/admin/super-admins/invite', [
@@ -155,11 +151,9 @@ class SuperAdminCooptationTest extends BaseTestCase
     public function test_two_factor_confirm_attaches_role_and_clears_force_flag(): void
     {
         Notification::fake();
-        $this->ensureRolesSeeded();
         // A peer super-admin to receive the broadcast.
         $peer = User::factory()->create();
         $this->pinSuperAdminTeam();
-        $peer->assignRole('super_admin');
         $this->materializeRoleProfile($peer, 'super_admin');
 
         $candidate = User::factory()->create([
@@ -255,7 +249,6 @@ class SuperAdminCooptationTest extends BaseTestCase
         $inviter = $this->actingAsRole('super_admin');
         $existing = User::factory()->create(['email' => 'old@example.com']);
         $this->pinSuperAdminTeam();
-        $existing->assignRole('super_admin');
         $this->materializeRoleProfile($existing, 'super_admin');
 
         $this->postJson('/api/admin/super-admins/invite', [

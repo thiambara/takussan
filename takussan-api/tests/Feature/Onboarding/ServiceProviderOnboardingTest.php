@@ -38,7 +38,6 @@ class ServiceProviderOnboardingTest extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->ensureRolesSeeded();
         // medialibrary writes to disk during the upload tests — point at
         // a fake disk so the suite stays isolated.
         Storage::fake(config('media-library.disk_name', 'public'));

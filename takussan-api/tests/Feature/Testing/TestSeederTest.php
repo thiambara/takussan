@@ -10,21 +10,29 @@ class TestSeederTest extends BaseTestCase
 {
     use RefreshDatabase;
 
-    public function test_test_seeder_creates_agency_and_one_user_per_role(): void
+    public function test_test_seeder_creates_agency_and_one_user_per_profile_role(): void
     {
         $seeder = new TestSeeder;
         $seeder->run();
 
-        $roleNames = Role::query()->pluck('name')->all();
-        $this->assertNotEmpty($roleNames);
-        $this->assertCount(count($roleNames), $seeder->users);
+        $roles = ['super_admin', 'agency_admin', 'agent', 'owner', 'broker', 'service_provider'];
 
-        app(PermissionRegistrar::class)->setPermissionsTeamId($seeder->agency->id);
+        $this->assertCount(count($roles), $seeder->users);
 
-        foreach ($roleNames as $role) {
+        foreach ($roles as $role) {
             $this->assertArrayHasKey($role, $seeder->users);
-            $this->assertSame($seeder->agency->id, $seeder->users[$role]->agency_id);
-            $this->assertTrue($seeder->users[$role]->hasRole($role));
+
+            $user = $seeder->users[$role];
+            $agencyId = $seeder->agency->id;
+
+            match ($role) {
+                'super_admin' => $this->assertTrue($user->isSuperAdmin()),
+                'agency_admin' => $this->assertTrue($user->isAgencyAdminAt($agencyId)),
+                'agent' => $this->assertTrue($user->isAgentAt($agencyId)),
+                'owner' => $this->assertTrue($user->isOwnerAt($agencyId)),
+                'broker' => $this->assertNotNull($user->brokerProfile),
+                'service_provider' => $this->assertNotNull($user->serviceProviderProfile),
+            };
         }
     }
 }

@@ -9,7 +9,6 @@ use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
-use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
@@ -23,7 +22,6 @@ class LeaseEarlyTerminationEndpointTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(RolesAndPermissionsSeeder::class);
         // Listener notifies tenant + landlord (both Users in this scaffold);
         // fake the Notification facade so the listener doesn't try to write
         // to the missing `notifications` table.
@@ -116,7 +114,6 @@ class LeaseEarlyTerminationEndpointTest extends TestCase
     {
         [, $lease] = $this->scaffold();
         $stranger = User::factory()->create();
-        $stranger->assignRole('customer'); // no leases.terminate permission
         Sanctum::actingAs($stranger);
 
         $this->postJson("/api/leases/{$lease->id}/early-termination", [
@@ -152,10 +149,8 @@ class LeaseEarlyTerminationEndpointTest extends TestCase
     private function scaffold(): array
     {
         $landlord = User::factory()->create();
-        $landlord->assignRole('owner');
         $property = Property::factory()->create(['user_id' => $landlord->id]);
         $tenantUser = User::factory()->create();
-        $tenantUser->assignRole('tenant');
         $tenant = Customer::factory()->create(['user_id' => $tenantUser->id]);
 
         $lease = Lease::factory()->active()->create([

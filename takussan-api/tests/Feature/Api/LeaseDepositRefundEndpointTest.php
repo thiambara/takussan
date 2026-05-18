@@ -8,7 +8,6 @@ use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\Payout;
 use App\Models\User;
-use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -28,7 +27,6 @@ class LeaseDepositRefundEndpointTest extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(RolesAndPermissionsSeeder::class);
         Storage::fake('public');
     }
 
@@ -146,7 +144,6 @@ class LeaseDepositRefundEndpointTest extends BaseTestCase
         ]);
 
         // tenant role does NOT have `leases.refund_deposit`
-        $tenantUser->assignRole('tenant');
         Sanctum::actingAs($tenantUser);
 
         $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 500000])

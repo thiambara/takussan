@@ -27,10 +27,13 @@ class UserDetailResource extends JsonResource
             'last_login_at' => $this->last_login_at?->toIso8601String(),
             'two_factor_enabled' => (bool) $this->two_factor_enabled,
             'created_at' => $this->created_at?->toIso8601String(),
-            'roles' => collect($this->admin_role_rows ?? $this->roles->map(fn ($role) => [
-                'name' => $role->name,
-                'team_id' => $role->pivot?->team_id,
-            ])->values()->all())->values()->all(),
+            // TCK-278 — `roles` est désormais dérivé des profils polymorphes.
+            // `admin_role_rows` (legacy) peut encore alimenter ce champ pour
+            // les vues admin qui exposent un détail par-agence.
+            'roles' => collect($this->admin_role_rows ?? $this->profileTypes()->map(fn (string $name) => [
+                'name' => $name,
+                'team_id' => null,
+            ])->all())->values()->all(),
             'profiles' => [
                 'agent' => $this->agentProfiles->map(fn (AgentProfile $profile) => [
                     'id' => $profile->id,

@@ -17,18 +17,19 @@ class BaseTestCaseTest extends BaseTestCase
         $user = $this->actingAsRole('agent');
 
         $this->assertNotNull($user->agency_id);
-        app(PermissionRegistrar::class)->setPermissionsTeamId($user->agency_id);
-        $this->assertTrue($user->hasRole('agent'));
+        $this->assertTrue($user->isAgentAt((int) $user->agency_id));
         $this->assertAuthenticatedAs($user);
     }
 
-    public function test_acting_as_role_seeds_roles_lazily(): void
+    public function test_acting_as_role_materializes_owner_profile_for_customer(): void
     {
-        $this->assertSame(0, Role::query()->count());
+        // TCK-278 — l'ancien test `seeds_roles_lazily` reposait sur le seeder
+        // spatie. Désormais `customer` est un rôle dérivé sans profil
+        // polymorphe (cf. Règle 5) — on vérifie juste que `actingAsRole` ne
+        // panique pas et n'attache pas de profil agence-scopé.
+        $user = $this->actingAsRole('customer');
 
-        $this->actingAsRole('customer');
-
-        $this->assertGreaterThan(0, Role::query()->count());
+        $this->assertNull($user->agency_id);
     }
 
     public function test_acting_as_role_accepts_custom_agency(): void

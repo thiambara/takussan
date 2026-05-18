@@ -16,10 +16,7 @@ class SettingTest extends TestCase
     public function test_super_admin_can_manage_global_settings(): void
     {
         $agency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
         $admin = User::factory()->create(['agency_id' => $agency->id]);
-        Role::findOrCreate('super_admin');
-        $admin->assignRole('super_admin');
         $this->materializeRoleProfile($admin, 'super_admin');
 
         Sanctum::actingAs($admin);
@@ -50,10 +47,7 @@ class SettingTest extends TestCase
     public function test_agency_admin_can_manage_agency_settings(): void
     {
         $agency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
         $agencyAdmin = User::factory()->create(['agency_id' => $agency->id]);
-        Role::findOrCreate('agency_admin');
-        $agencyAdmin->assignRole('agency_admin');
         $this->materializeRoleProfile($agencyAdmin, 'agency_admin', $agency);
 
         Sanctum::actingAs($agencyAdmin);
@@ -72,10 +66,7 @@ class SettingTest extends TestCase
         // `fields[settings]=id,key,value,scope,...` — the `value` column
         // must be in the model's allowedFields list or spatie returns 400.
         $agency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
         $admin = User::factory()->create(['agency_id' => $agency->id]);
-        Role::findOrCreate('super_admin');
-        $admin->assignRole('super_admin');
         $this->materializeRoleProfile($admin, 'super_admin');
 
         Sanctum::actingAs($admin);
@@ -95,10 +86,7 @@ class SettingTest extends TestCase
     public function test_regular_agent_cannot_manage_settings(): void
     {
         $agency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
         $agent = User::factory()->create(['agency_id' => $agency->id]);
-        Role::findOrCreate('agent');
-        $agent->assignRole('agent');
         $this->materializeRoleProfile($agent, 'agent', $agency);
 
         Sanctum::actingAs($agent);

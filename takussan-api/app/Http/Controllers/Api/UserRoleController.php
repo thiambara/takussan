@@ -86,6 +86,10 @@ class UserRoleController extends Controller
             'data' => [
                 'id' => $user->id,
                 'role' => $data['role'],
+                // TCK-278 — `roles` est dérivé des profils polymorphes
+                // (cf. Règle 5) ; expose-le pour rétro-compat des clients
+                // qui utilisaient la sortie spatie.
+                'roles' => $user->fresh()->profileTypes()->all(),
             ],
         ]);
     }
@@ -131,7 +135,8 @@ class UserRoleController extends Controller
     {
         $user->agentProfiles()->where('agency_id', $agencyId)->delete();
         $user->ownerProfiles()->where('agency_id', $agencyId)->delete();
-        AgencyAdminProfile::query()->firstOrCreate(
+        $this->materializeOrRestore(
+            AgencyAdminProfile::query(),
             ['user_id' => $user->id, 'agency_id' => $agencyId],
             ['status' => AgencyAdminProfileStatus::Active->value],
         );
@@ -141,7 +146,8 @@ class UserRoleController extends Controller
     {
         $user->agencyAdminProfiles()->where('agency_id', $agencyId)->delete();
         $user->ownerProfiles()->where('agency_id', $agencyId)->delete();
-        AgentProfile::query()->firstOrCreate(
+        $this->materializeOrRestore(
+            AgentProfile::query(),
             ['user_id' => $user->id, 'agency_id' => $agencyId],
             ['status' => AgentProfileStatus::Active->value],
         );
@@ -151,9 +157,32 @@ class UserRoleController extends Controller
     {
         $user->agencyAdminProfiles()->where('agency_id', $agencyId)->delete();
         $user->agentProfiles()->where('agency_id', $agencyId)->delete();
-        OwnerProfile::query()->firstOrCreate(
+        $this->materializeOrRestore(
+            OwnerProfile::query(),
             ['user_id' => $user->id, 'agency_id' => $agencyId],
+            [],
         );
+    }
+
+    /**
+     * TCK-278 — Idempotent : si un profil soft-deleted existe sur la même
+     * (user_id, agency_id), le restaure plutôt que de tenter un INSERT qui
+     * violerait l'index UNIQUE. Si rien n'existe, crée. Si actif, no-op.
+     */
+    private function materializeOrRestore($query, array $match, array $defaults): void
+    {
+        $existing = (clone $query)->withTrashed()->where($match)->first();
+        if ($existing !== null) {
+            if ($existing->trashed()) {
+                $existing->restore();
+                if ($defaults !== []) {
+                    $existing->forceFill($defaults)->save();
+                }
+            }
+
+            return;
+        }
+        $query->create(array_merge($match, $defaults));
     }
 
     /**

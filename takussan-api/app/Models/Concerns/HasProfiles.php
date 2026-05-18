@@ -166,6 +166,42 @@ trait HasProfiles
     }
 
     /**
+     * TCK-278 — Liste des "rôles" du user, dérivée de ses profils polymorphes
+     * (cf. Règle 5). Remplace l'ancien `getRoleNames()` de spatie.
+     *
+     * Retourne une `Collection<string>` contenant les rôles présents parmi :
+     * `super_admin`, `agency_admin`, `agent`, `owner`, `broker`,
+     * `service_provider`. Les rôles agence-scopés apparaissent une fois si
+     * le user les détient au moins dans une agence.
+     *
+     * @return Collection<int,string>
+     */
+    public function profileTypes(): Collection
+    {
+        $types = new Collection;
+        if ($this->hasActiveSuperAdminProfile()) {
+            $types->push('super_admin');
+        }
+        if ($this->agencyAdminProfiles()->exists()) {
+            $types->push('agency_admin');
+        }
+        if ($this->agentProfiles()->exists()) {
+            $types->push('agent');
+        }
+        if ($this->ownerProfiles()->exists()) {
+            $types->push('owner');
+        }
+        if ($this->brokerProfile()->exists()) {
+            $types->push('broker');
+        }
+        if ($this->serviceProviderProfile()->exists()) {
+            $types->push('service_provider');
+        }
+
+        return $types->values();
+    }
+
+    /**
      * TCK-278 — Vrai si l'utilisateur détient un profil polymorphe du
      * type donné, optionnellement scopé à une agence. `$profileType` est
      * le FQN du modèle (`OwnerProfile::class`, etc.) ; alias court de

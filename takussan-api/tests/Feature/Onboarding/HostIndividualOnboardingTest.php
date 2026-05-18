@@ -11,7 +11,6 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Services\Auth\PhoneVerificationService;
-use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
@@ -33,7 +32,6 @@ class HostIndividualOnboardingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(RolesAndPermissionsSeeder::class);
     }
 
     private function defaultPayload(): array
@@ -107,13 +105,10 @@ class HostIndividualOnboardingTest extends TestCase
         $this->assertSame(AgencyAdminProfileStatus::Active, $admin->status);
         $this->assertSame($admin->id, (int) $response->json('data.profiles.agency_admin.id'));
 
-        // Spatie roles scoped to agency team_id.
-        $registrar = app(PermissionRegistrar::class);
-        $registrar->setPermissionsTeamId($agency->id);
-        $user->unsetRelation('roles');
-        $this->assertTrue($user->hasRole('agency_admin'));
-        $this->assertTrue($user->hasRole('owner'));
-        $registrar->setPermissionsTeamId(null);
+        // TCK-278 — Le rôle est matérialisé par les profils polymorphes
+        // (AgencyAdminProfile + OwnerProfile sur la même agence individuelle).
+        $this->assertTrue($user->isAgencyAdminAt((int) $agency->id));
+        $this->assertTrue($user->isOwnerAt((int) $agency->id));
 
         // Active profile cookie set on the response so the next request
         // resolves the agency context automatically. TCK-271 — the cookie

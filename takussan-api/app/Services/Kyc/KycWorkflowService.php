@@ -7,6 +7,7 @@ use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\KycDossierStatus;
 use App\Models\Enums\NotificationChannel;
 use App\Models\Enums\NotificationType;
+use App\Models\Enums\PlatformProfileLevel;
 use App\Models\KycDossier;
 use App\Models\User;
 use App\Services\Model\NotificationService;
@@ -152,7 +153,9 @@ class KycWorkflowService
     {
         $subjectName = $dossier->subject instanceof Agency ? $dossier->subject->name : 'Dossier';
         User::query()
-            ->whereHas('roles', fn ($query) => $query->where('name', 'super_admin'))
+            ->whereHas('platformProfile', fn ($query) => $query
+                ->whereNull('revoked_at')
+                ->where('level', PlatformProfileLevel::SuperAdmin->value))
             ->get()
             ->each(function (User $user) use ($dossier, $subjectName): void {
                 $this->notifications->notify(

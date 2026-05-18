@@ -276,13 +276,4 @@ class InviteOwnerTest extends BaseTestCase
             'owner_type' => 'individual',
         ])->assertStatus(201);
     }
-
-    public function test_role_owner_exists_for_acceptance(): void
-    {
-        // Defensive: the InvitationService accept flow needs `owner` role
-        // to exist under the agency team_id. The seeder creates it; this
-        // assertion guards against accidental removal.
-        $this->ensureRolesSeeded();
-        $this->assertNotNull(Role::query()->where('name', 'owner')->first());
-    }
 }

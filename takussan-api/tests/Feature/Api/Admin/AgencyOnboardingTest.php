@@ -34,13 +34,7 @@ class AgencyOnboardingTest extends BaseTestCase
 
         $this->assertSame($admin->id, $agency->primary_admin_id);
         $this->assertTrue($admin->agentProfiles()->where('agency_id', $agency->id)->exists());
-
-        $registrar = app(PermissionRegistrar::class);
-        $previous = $registrar->getPermissionsTeamId();
-        $registrar->setPermissionsTeamId($agency->id);
-        $admin->unsetRelation('roles');
-        $this->assertTrue($admin->hasRole('agency_admin'));
-        $registrar->setPermissionsTeamId($previous);
+        $this->assertTrue($admin->isAgencyAdminAt((int) $agency->id));
 
         Notification::assertSentTo($admin, ResetPasswordNotification::class);
 

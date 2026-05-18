@@ -21,29 +21,27 @@ class AuthMeRolesTest extends TestCase
     public function test_me_returns_agency_scoped_role(): void
     {
         $agency = Agency::factory()->create();
-
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        Role::create(['name' => 'agent', 'guard_name' => 'web', 'agency_id' => $agency->id]);
-
         $user = User::factory()->create(['agency_id' => $agency->id]);
-        $user->assignRole('agent');
+        $this->materializeRoleProfile($user, 'agent', $agency);
 
         $token = $user->createToken('test')->plainTextToken;
 
         $this->withToken($token)
             ->getJson('/api/auth/me')
             ->assertOk()
-            ->assertJsonPath('roles', ['agent'])
             ->assertJsonPath('agency_id', $agency->id);
+        // TCK-278 — le shim UserFactory auto-crée un OwnerProfile quand
+        // agency_id est passé en attribut (legacy hosts individuels) ; on
+        // a aussi matérialisé AgentProfile ci-dessus, donc `roles` contient
+        // les deux. On vérifie juste la présence d'`agent`.
+        $response = $this->withToken($token)->getJson('/api/auth/me');
+        $this->assertContains('agent', $response->json('roles'));
     }
 
     public function test_me_returns_super_admin_with_null_team(): void
     {
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
-        Role::create(['name' => 'super_admin', 'guard_name' => 'web']);
-
         $user = User::factory()->create(['agency_id' => null]);
-        $user->assignRole('super_admin');
+        $this->materializeRoleProfile($user, 'super_admin');
 
         $token = $user->createToken('test')->plainTextToken;
 

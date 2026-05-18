@@ -108,12 +108,8 @@ class ReviewTest extends TestCase
     public function test_admin_can_approve_review(): void
     {
         $agency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
-        Role::findOrCreate('super_admin', 'web');
         $admin = User::factory()->create(['agency_id' => $agency->id]);
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
-        $admin->assignRole('super_admin');
+        $this->materializeRoleProfile($admin, 'super_admin');
         $review = Review::factory()->create(['is_approved' => false]);
 
         Sanctum::actingAs($admin);

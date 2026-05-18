@@ -17,25 +17,16 @@ class ReviewModerationQueueTest extends TestCase
     private function admin(): User
     {
         $agency = Agency::factory()->create();
-        $registrar = app(PermissionRegistrar::class);
-        $registrar->forgetCachedPermissions();
-        $registrar->setPermissionsTeamId($agency->id);
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
-        Role::findOrCreate('super_admin', 'web');
         $admin = User::factory()->create(['agency_id' => $agency->id]);
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
-        $admin->assignRole('super_admin');
-        $registrar->forgetCachedPermissions();
+        $this->materializeRoleProfile($admin, 'super_admin');
 
         return $admin;
     }
 
     private function superAdmin(): User
     {
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
-        Role::findOrCreate('super_admin');
         $user = User::factory()->create();
-        $user->assignRole('super_admin');
+        $this->materializeRoleProfile($user, 'super_admin');
 
         return $user;
     }
@@ -89,7 +80,6 @@ class ReviewModerationQueueTest extends TestCase
         Review::factory()->create(['status' => ReviewStatus::Approved]);
 
         Sanctum::actingAs($this->admin());
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $response = $this->getJson('/api/reviews')->assertOk();
         $this->assertSame(2, $response->json('meta.pending_count'));

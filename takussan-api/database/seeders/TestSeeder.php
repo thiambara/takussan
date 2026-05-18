@@ -64,9 +64,7 @@ class TestSeeder extends Seeder
                 ['user_id' => $user->id, 'agency_id' => $this->agency->id],
                 ['status' => OwnerProfileStatus::Active->value],
             ),
-            'broker' => BrokerProfile::query()->firstOrCreate(
-                ['user_id' => $user->id],
-            ),
+            'broker' => BrokerProfile::factory()->create(['user_id' => $user->id]),
             'service_provider' => ServiceProviderProfile::query()->firstOrCreate(
                 ['user_id' => $user->id],
                 ['status' => ServiceProviderProfileStatus::Active->value],

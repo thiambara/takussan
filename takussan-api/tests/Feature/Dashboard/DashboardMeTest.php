@@ -24,7 +24,6 @@ class DashboardMeTest extends ApiTestCase
 
     public function test_returns_404_when_no_profile_resolves(): void
     {
-        $this->ensureRolesSeeded();
         $user = User::factory()->create();
         $this->actingAs($user, 'sanctum');
 
@@ -89,7 +88,6 @@ class DashboardMeTest extends ApiTestCase
 
     public function test_user_with_only_properties_resolves_to_owner(): void
     {
-        $this->ensureRolesSeeded();
         $user = User::factory()->create();
         $this->actingAs($user, 'sanctum');
 
@@ -116,8 +114,6 @@ class DashboardMeTest extends ApiTestCase
         $user = $this->apiActingAsRole('agent', ['agency' => $agency]);
 
         // Add owner role + a property to the same user — agent should still win.
-        app(PermissionRegistrar::class)->setPermissionsTeamId($user->agency_id);
-        $user->assignRole('owner');
         $this->materializeRoleProfile($user, 'owner', $agency);
         Property::factory()->create(['user_id' => $user->id]);
 
@@ -141,10 +137,7 @@ class DashboardMeTest extends ApiTestCase
 
     public function test_super_admin_without_agency_does_not_resolve_to_agency(): void
     {
-        $this->ensureRolesSeeded();
         $user = User::factory()->create(['agency_id' => null]);
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
-        $user->assignRole('super_admin');
         $this->materializeRoleProfile($user, 'super_admin');
         $this->actingAs($user, 'sanctum');
 

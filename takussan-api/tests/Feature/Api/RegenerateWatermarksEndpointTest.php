@@ -24,6 +24,7 @@ class RegenerateWatermarksEndpointTest extends TestCase
         $admin = User::factory()->create();
         $agency = Agency::factory()->create(['primary_admin_id' => $admin->id]);
         $admin->update(['agency_id' => $agency->id]);
+        $this->materializeRoleProfile($admin, 'agency_admin', $agency);
 
         return [$admin, $agency];
     }
@@ -55,9 +56,8 @@ class RegenerateWatermarksEndpointTest extends TestCase
 
     public function test_super_admin_can_trigger_regeneration_for_any_agency(): void
     {
-        Role::findOrCreate('super_admin');
         $superAdmin = User::factory()->create();
-        $superAdmin->assignRole('super_admin');
+        $this->materializeRoleProfile($superAdmin, 'super_admin');
 
         [, $agency] = $this->createAdminAndAgency();
 

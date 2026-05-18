@@ -43,6 +43,9 @@ enum Capability: string
     case LeasesSign = 'leases.sign';
     case LeasesTerminate = 'leases.terminate';
     case LeasesRenew = 'leases.renew';
+    case LeasesRefundDeposit = 'leases.refund_deposit';
+    case LeasesRentReview = 'leases.rent_review';
+    case LeasesRentReviewForce = 'leases.rent_review_force';
 
     // payments.*
     case PaymentsRecord = 'payments.record';

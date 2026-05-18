@@ -10,7 +10,6 @@ use App\Models\Property;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\Lease\RentReviewService;
-use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
@@ -31,7 +30,6 @@ class RentReviewServiceTest extends TestCase
         Notification::fake();
         // Permissions registered by the seeder are required for
         // `givePermissionTo('leases.rent_review_force')` to resolve.
-        $this->seed(RolesAndPermissionsSeeder::class);
     }
 
     public function test_review_updates_rent_and_writes_activity_log(): void
@@ -88,7 +86,9 @@ class RentReviewServiceTest extends TestCase
     public function test_review_accepts_excessive_variation_when_forced_with_permission(): void
     {
         [$service, $lease, $actor] = $this->scaffold();
-        $actor->givePermissionTo('leases.rent_review_force');
+        // TCK-278 — `leases.rent_review_force` reste réservé au super_admin
+        // (bypass via Gate::before). Promouvoir l'actor.
+        $this->materializeRoleProfile($actor, 'super_admin');
 
         $result = $service->review($lease, $actor, [
             'new_rent' => 260_000,

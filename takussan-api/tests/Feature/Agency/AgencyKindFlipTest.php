@@ -178,15 +178,10 @@ class AgencyKindFlipTest extends BaseTestCase
     {
         Notification::fake();
         Mail::fake();
-        $this->ensureRolesSeeded();
 
         // Pre-flip — invitation must be 403'd (kind=individual).
         $agency = Agency::factory()->individual()->create();
         $admin = User::factory()->create(['agency_id' => $agency->id]);
-
-        $registrar = app(PermissionRegistrar::class);
-        $registrar->setPermissionsTeamId($agency->id);
-        $admin->assignRole('agency_admin');
 
         // TCK-278 — la check de permission interroge désormais le profil
         // polymorphe ; le matérialiser explicitement (le test bypass
@@ -216,7 +211,6 @@ class AgencyKindFlipTest extends BaseTestCase
         app(AgencyKindFlipService::class)->flip($request);
 
         // Refresh permission context after flip, then re-invite.
-        $registrar->setPermissionsTeamId($agency->fresh()->id);
         $invitation = $service->invite($agency->fresh(), $admin, [
             'email' => 'post-flip@example.com',
             'role' => 'agent',

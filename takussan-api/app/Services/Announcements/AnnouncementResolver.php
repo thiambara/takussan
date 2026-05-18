@@ -49,7 +49,7 @@ class AnnouncementResolver
 
         $roles = $segment['roles'] ?? [];
         if (is_array($roles) && $roles !== []) {
-            $matched = collect($roles)->intersect($user->getRoleNames())->isNotEmpty();
+            $matched = collect($roles)->intersect($user->profileTypes())->isNotEmpty();
         }
 
         $agencyIds = $segment['agency_ids'] ?? [];

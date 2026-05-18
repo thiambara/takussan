@@ -32,7 +32,9 @@ class ResolveActiveProfileTest extends TestCase
                 $profile = request()->activeProfile();
 
                 return response()->json([
-                    'team_id' => app(PermissionRegistrar::class)->getPermissionsTeamId(),
+                    // TCK-278 — `team_id` est devenu l'agency_id porté par le
+                    // profil actif (la fonction spatie a disparu en P3).
+                    'team_id' => $profile?->agency_id,
                     'profile_id' => $profile?->getKey(),
                     'profile_class' => $profile ? $profile::class : null,
                 ]);

@@ -43,9 +43,8 @@ class MediaPolicyTest extends TestCase
     {
         [, , , $media] = $this->createSetup();
 
-        Role::findOrCreate('super_admin');
         $superAdmin = User::factory()->create();
-        $superAdmin->assignRole('super_admin');
+        $this->materializeRoleProfile($superAdmin, 'super_admin');
 
         $policy = new MediaPolicy;
         $this->assertTrue($policy->viewRaw($superAdmin, $media));

@@ -106,9 +106,7 @@ class ThresholdAlertTest extends ApiTestCase
 
         $agency = Agency::factory()->create();
         $admin = User::factory()->create(['agency_id' => $agency->id]);
-        Role::create(['name' => 'agency_admin', 'team_id' => $agency->id]);
-        setPermissionsTeamId($agency->id);
-        $admin->assignRole('agency_admin');
+        $this->materializeRoleProfile($admin, 'agency_admin', $agency);
 
         // Build a high unpaid rate: one overdue, zero revenue.
         $lease = Lease::factory()->active()->create([
@@ -150,9 +148,6 @@ class ThresholdAlertTest extends ApiTestCase
 
         $agency = Agency::factory()->create();
         $admin = User::factory()->create(['agency_id' => $agency->id]);
-        Role::create(['name' => 'agency_admin', 'team_id' => $agency->id]);
-        setPermissionsTeamId($agency->id);
-        $admin->assignRole('agency_admin');
 
         $alert = ThresholdAlert::create([
             'agency_id' => $agency->id,

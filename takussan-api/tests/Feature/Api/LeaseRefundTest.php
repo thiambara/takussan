@@ -5,7 +5,6 @@ namespace Tests\Feature\Api;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\User;
-use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\BaseTestCase;
@@ -22,7 +21,6 @@ class LeaseRefundTest extends BaseTestCase
 
     public function test_refund_deposit_on_terminated_lease(): void
     {
-        $this->seed(RolesAndPermissionsSeeder::class);
 
         $landlord = $this->actingAsRole('agency_admin');
         $lease = Lease::factory()->create([
@@ -45,7 +43,6 @@ class LeaseRefundTest extends BaseTestCase
 
     public function test_cannot_refund_deposit_on_active_lease(): void
     {
-        $this->seed(RolesAndPermissionsSeeder::class);
 
         $landlord = $this->actingAsRole('agency_admin');
         $lease = Lease::factory()->active()->create([
@@ -62,7 +59,6 @@ class LeaseRefundTest extends BaseTestCase
 
     public function test_cannot_double_refund_deposit_after_full(): void
     {
-        $this->seed(RolesAndPermissionsSeeder::class);
 
         $landlord = $this->actingAsRole('agency_admin');
         $lease = Lease::factory()->create([
