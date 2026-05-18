@@ -1,7 +1,7 @@
 ---
 id: TCK-243
 title: "Super-admin — éliminer les contrôles HTML natifs et factoriser la pagination"
-status: review
+status: done
 phase: P2
 family: front
 estimate: M

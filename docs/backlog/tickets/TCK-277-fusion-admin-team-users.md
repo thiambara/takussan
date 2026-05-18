@@ -1,7 +1,7 @@
 ---
 id: TCK-277
 title: Fusion pages admin Équipe & Utilisateurs
-status: review
+status: done
 phase: P2
 family: front
 estimate: M

@@ -1,7 +1,7 @@
 ---
 id: TCK-276
 title: Pages publiques agence & agent — itération "Portrait/confiance"
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: L
