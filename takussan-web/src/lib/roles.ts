@@ -1,5 +1,14 @@
 import type { UserRole } from '@/types/user';
 
+/**
+ * TCK-278 — Le champ `roles` exposé par l'API (`UserResource`) est désormais
+ * dérivé des profils polymorphes du user (cf. Règle 5 du models-spec :
+ * « profil = rôle »). Le contrat HTTP est inchangé (array de strings), donc
+ * les helpers ci-dessous restent valides. Pour les vues admin détaillées,
+ * `UserDetailResource` expose en plus `admin_role_rows` avec `(name, team_id)`
+ * où `team_id` = `agency_id` du profil polymorphe.
+ */
+
 export function isAgent(roles: UserRole[]): boolean {
   return roles.includes('agent');
 }

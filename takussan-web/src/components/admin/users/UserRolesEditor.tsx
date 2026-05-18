@@ -37,7 +37,10 @@ interface UserRolesEditorProps {
  */
 export function UserRolesEditor({ user }: UserRolesEditorProps) {
   const queryClient = useQueryClient();
-  const initialRole = user.roles?.[0]?.name ?? '';
+  // TCK-278 — `roles[0]` peut être une string (UserResource) ou `{name}`
+  // (UserDetailResource). Normalise pour récupérer le rôle.
+  const firstRole = user.roles?.[0];
+  const initialRole = (typeof firstRole === 'string' ? firstRole : firstRole?.name) ?? '';
   const [baselineRole, setBaselineRole] = useState<UserRole | ''>(initialRole);
   const [selected, setSelected] = useState<UserRole | ''>(initialRole);
   const [error, setError] = useState<string | null>(null);

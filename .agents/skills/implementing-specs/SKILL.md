@@ -109,7 +109,7 @@ Invoke `.agent/skills/test-driven-development/SKILL.md`. Write the failing test 
 
 **11. Respect the architecture** documented in `CLAUDE.md`:
 
-- **Backend**: Controllers are thin and delegate to `App\Services\Model\...`. Models extend `App\Models\Bases\AbstractModel`. Routes live under `routes/api/<resource>.php`. Permissions use `spatie/laravel-permission`. Media uses `spatie/laravel-medialibrary`.
+- **Backend**: Controllers are thin and delegate to `App\Services\Model\...`. Models extend `App\Models\Bases\AbstractModel`. Routes live under `routes/api/<resource>.php`. Permissions sont résolues par `MembershipCapabilityResolver` à partir des **profils polymorphes** (TCK-278, Règle 5 du models-spec : profil = rôle ; `spatie/laravel-permission` a été retiré). Media uses `spatie/laravel-medialibrary`.
 - **Frontend**: Standalone components (no NgModules). Services in `core/services/http/`. PrimeNG 21 + Tailwind 4. Template control flow uses `@if` / `@for` / `@switch`. Auth token in `AuthService.authToken` (static).
 - **API base URL (dev)**: `http://127.0.0.1:8002`. Frontend runs on port 4201.
 

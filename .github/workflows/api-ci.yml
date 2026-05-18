@@ -52,6 +52,17 @@ jobs:
       - name: Run Laravel Pint (lint)
         run: ./vendor/bin/pint --test
 
+      - name: Guard — no Spatie\Permission imports (TCK-278)
+        # Le package spatie/laravel-permission a été retiré en TCK-278 (cf.
+        # Règle 5 : rôle = profil polymorphe). Tout import résiduel signale
+        # une régression — l'app/ et tests/ doivent rester propres.
+        run: |
+          if grep -rn --include='*.php' 'Spatie\\Permission\\' app/ tests/ database/ config/ 2>/dev/null; then
+            echo "::error::Spatie\\Permission references found — TCK-278 forbids them."
+            exit 1
+          fi
+          echo "OK — no Spatie\\Permission references."
+
       - name: Run tests
         env:
           DB_CONNECTION: sqlite

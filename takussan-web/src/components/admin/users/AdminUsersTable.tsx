@@ -140,16 +140,24 @@ export function AdminUsersTable({
                   </a>
                 </td>
                 <td className="px-4 py-3">
-                  {row.roles?.length ? (
-                    <Badge
-                      variant="outline"
-                      className="border-primary/30 bg-primary/5 text-primary"
-                    >
-                      {ROLE_LABEL[row.roles[0].name] ?? row.roles[0].name}
-                    </Badge>
-                  ) : (
-                    <span className="text-xs text-app-ink-muted">—</span>
-                  )}
+                  {(() => {
+                    // TCK-278 — `row.roles` peut être `string[]`
+                    // (UserResource standard) ou `Array<{name}>` (vue admin
+                    // détaillée). Normalise pour récupérer un label.
+                    const first = row.roles?.[0];
+                    const name =
+                      typeof first === 'string' ? first : first?.name;
+                    return name ? (
+                      <Badge
+                        variant="outline"
+                        className="border-primary/30 bg-primary/5 text-primary"
+                      >
+                        {ROLE_LABEL[name] ?? name}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-app-ink-muted">—</span>
+                    );
+                  })()}
                 </td>
                 <td className="px-4 py-3">
                   <Badge variant="outline" className={status.cls}>

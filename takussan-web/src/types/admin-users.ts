@@ -6,11 +6,11 @@ import type { UserRole, UserStatus } from './user';
  * `$paginator->items()`), so all fields are snake_case. Keep this list
  * aligned with `ADMIN_USERS_FIELDS` in `lib/queries/admin-users.ts`.
  *
- * `roles` is shipped via `include=roles` (TCK-147 added it to
- * `User::$requestLoadable`) — each entry is a spatie role row, of which
- * we only consume `name`. `agentProfiles` / `ownerProfiles` are
- * available via the same include but the table only needs a count
- * fall-back when the user has no spatie role yet (e.g. fresh signup).
+ * TCK-278 — `roles` est désormais dérivé des profils polymorphes côté
+ * backend (cf. `User::profileTypes()` / Règle 5 du models-spec). Le format
+ * historique `{name}[]` reste supporté pour les vues admin détaillées
+ * qui exposent un détail par-agence ; les listings utilisent l'array de
+ * strings exposé via `UserResource`.
  */
 export type AdminAgencyUserRow = {
   id: number;
@@ -21,7 +21,7 @@ export type AdminAgencyUserRow = {
   status: UserStatus;
   last_login_at: string | null;
   created_at: string;
-  roles?: { name: UserRole }[];
+  roles?: Array<UserRole | { name: UserRole }>;
 };
 
 export type AdminAgencyUsersResponse = {

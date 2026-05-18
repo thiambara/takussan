@@ -206,11 +206,11 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 
 ## 🚧 Doing
 
-- [TCK-278](tickets/TCK-278-rbac-profile-based-phase-1.md) — RBAC phase 1 : suppression spatie sur User + PlatformProfile + Capability resolver `XL · P1 · technique` *(phasé : P1 fondations → P2 callsites → P3 cutover)*
 - [TCK-275](tickets/TCK-275-floating-dock-orchestrator.md) — Floating Dock — orchestrateur des éléments UI flottants en bas d'écran `S · P2 · front`
 
 ## 👀 Review
 
+- [TCK-278](tickets/TCK-278-rbac-profile-based-phase-1.md) — RBAC phase 1 : suppression spatie sur User + PlatformProfile + Capability resolver `XL · P1 · technique` *(P1 + P2.A→D + P3 cutover + P3.b tests verts + frontend types + CI guard — branche `feat/tck-278-279-rbac-architecture-spec`)*
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-276](tickets/TCK-276-public-agency-agent-portrait-redesign.md) — Pages publiques agence & agent — itération "Portrait/confiance" `L · P2 · applicatif`
 - [TCK-277](tickets/TCK-277-fusion-admin-team-users.md) — Fusion pages admin Équipe & Utilisateurs `M · P2 · front`
