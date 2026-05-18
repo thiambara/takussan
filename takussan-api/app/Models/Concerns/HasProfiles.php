@@ -5,6 +5,7 @@ namespace App\Models\Concerns;
 use App\Models\Agency;
 use App\Models\Enums\Capability;
 use App\Models\Enums\PlatformProfileLevel;
+use App\Models\Enums\RoleDelegationStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\BrokerProfile;
@@ -201,6 +202,26 @@ trait HasProfiles
     public function canActAt(Capability $capability, ?Agency $agency = null): bool
     {
         return app(MembershipCapabilityResolver::class)->allows($this, $capability, $agency);
+    }
+
+    /**
+     * TCK-278 — Vrai si l'utilisateur dispose d'une `RoleDelegation` active
+     * pour le rôle indiqué dans l'agence donnée. Remplace l'ancien check
+     * spatie `hasPermissionTo` qui dépendait de `setPermissionsTeamId`.
+     *
+     * Une délégation est active quand : status = Active et (ends_at est
+     * null OU dans le futur).
+     */
+    public function hasActiveAgencyDelegation(int $agencyId, string $role): bool
+    {
+        return $this->roleDelegations()
+            ->where('agency_id', $agencyId)
+            ->where('role', $role)
+            ->where('status', RoleDelegationStatus::Active)
+            ->where(function ($q) {
+                $q->whereNull('ends_at')->orWhere('ends_at', '>', now());
+            })
+            ->exists();
     }
 
     /**

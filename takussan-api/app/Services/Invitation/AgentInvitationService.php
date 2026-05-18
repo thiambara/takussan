@@ -11,7 +11,6 @@ use App\Models\RoleDelegation;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
@@ -209,21 +208,9 @@ class AgentInvitationService
             return;
         }
 
-        $registrar = app(PermissionRegistrar::class);
-        $previous = $registrar->getPermissionsTeamId();
-        $registrar->setPermissionsTeamId($agency->id);
-
-        try {
-            $actor->unsetRelation('roles');
-            $actor->unsetRelation('permissions');
-            $allowed = $actor->hasPermissionTo(self::PERMISSION, 'web');
-        } catch (\Throwable) {
-            $allowed = false;
-        } finally {
-            $registrar->setPermissionsTeamId($previous);
-            $actor->unsetRelation('roles');
-            $actor->unsetRelation('permissions');
-        }
+        // TCK-278 — Profile-based check (cf. policy).
+        $allowed = $actor->isAgencyAdminAt((int) $agency->id)
+            || $actor->hasActiveAgencyDelegation((int) $agency->id, 'agency_admin');
 
         if (! $allowed) {
             throw new HttpException(403, __('team.invite.errors.permission_denied'));

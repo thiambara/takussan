@@ -36,21 +36,17 @@ class PropertyModerationPolicy
 
     private function canModerate(User $user, Property $property): bool
     {
-        if (! ($user->isSuperAdmin() || $user->hasRole('agency_admin'))) {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        // TCK-278 — agency_admin scoped to the property's agency only.
+        // The active-profile-aware `$user->agency_id` accessor enforces
+        // that the admin is currently acting under the right agency.
+        if ($user->agency_id === null || $user->agency_id !== $property->agency_id) {
             return false;
         }
 
-        // An agency_admin can only moderate properties of the agency they
-        // are *currently* acting under. The earlier `isAgentAt || isOwnerAt`
-        // form combined with the active-team-scoped `hasRole` let an admin
-        // at agency Y moderate properties at X just by being a member of X.
-        // The active-profile-aware accessor closes the loop: equality with
-        // `$property->agency_id` only succeeds when both the role *and* the
-        // active context line up on the same agency.
-        if (! $user->isSuperAdmin()) {
-            return $user->agency_id !== null && $user->agency_id === $property->agency_id;
-        }
-
-        return true;
+        return $user->isAgencyAdminAt((int) $user->agency_id);
     }
 }

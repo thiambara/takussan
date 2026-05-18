@@ -8,8 +8,6 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
 use App\Providers\AppServiceProvider;
-use App\Services\Invitation\AgentInvitationService;
-use Spatie\Permission\PermissionRegistrar;
 
 /**
  * TCK-258 — gates the team-management surface (page `/app/team`).
@@ -20,9 +18,9 @@ use Spatie\Permission\PermissionRegistrar;
  * Other agency-side actors must:
  *  - belong to a `standard` agency (TCK-248); `individual` agencies
  *    don't manage a team.
- *  - hold the `manage_team` permission *under that agency's team
- *    context* (default-granted to `agency_admin`, optionally to a senior
- *    agent via {@see RoleDelegation}).
+ *  - hold an `AgencyAdminProfile` actif sur l'agence, OU bénéficier d'une
+ *    `RoleDelegation` active pour le rôle `agency_admin` sur cette agence
+ *    (TCK-108).
  */
 class AgentProfilePolicy
 {
@@ -32,7 +30,12 @@ class AgentProfilePolicy
             return $this->canManageTeamIn($user, $agency);
         }
 
-        return $user->hasAnyRole(['agency_admin', 'agent']);
+        $agencyId = $user->agency_id;
+        if ($agencyId === null) {
+            return false;
+        }
+
+        return $user->isAgencyAdminAt((int) $agencyId) || $user->isAgentAt((int) $agencyId);
     }
 
     /**
@@ -58,6 +61,12 @@ class AgentProfilePolicy
         return $agency !== null && $this->canManageTeamIn($user, $agency);
     }
 
+    /**
+     * TCK-278 — Profile-based check (no more spatie `setPermissionsTeamId` +
+     * `hasPermissionTo`). Membership comes from `AgencyAdminProfile` actif
+     * OR an active `RoleDelegation` granting `agency_admin` on the agency
+     * (TCK-108).
+     */
     protected function canManageTeamIn(User $user, Agency $agency): bool
     {
         $kind = $agency->kind instanceof AgencyKind
@@ -68,22 +77,10 @@ class AgentProfilePolicy
             return false;
         }
 
-        $registrar = app(PermissionRegistrar::class);
-        $previous = $registrar->getPermissionsTeamId();
-        $registrar->setPermissionsTeamId($agency->id);
-
-        try {
-            $user->unsetRelation('roles');
-            $user->unsetRelation('permissions');
-            $allowed = $user->hasPermissionTo(AgentInvitationService::PERMISSION, 'web');
-        } catch (\Throwable) {
-            $allowed = false;
-        } finally {
-            $registrar->setPermissionsTeamId($previous);
-            $user->unsetRelation('roles');
-            $user->unsetRelation('permissions');
+        if ($user->isAgencyAdminAt((int) $agency->id)) {
+            return true;
         }
 
-        return $allowed;
+        return $user->hasActiveAgencyDelegation((int) $agency->id, 'agency_admin');
     }
 }

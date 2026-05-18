@@ -65,19 +65,11 @@ class ResolveActiveProfile
             return $next($request);
         }
 
-        // Probe global roles under a null team first so super_admin / admin
-        // are detected even when the user also happens to hold an agency-
-        // scoped profile. Without this guard the auto-bascule below would
-        // pin team_id to that profile's agency and `hasRole('super_admin')`
-        // (assigned with team_id = null) would silently start returning
-        // false on every subsequent request.
-        $registrar = app(PermissionRegistrar::class);
-        $registrar->setPermissionsTeamId(null);
-        $user->unsetRelation('roles');
-        $isGlobalAdmin = $user->hasRole('super_admin');
-        $user->unsetRelation('roles');
-
-        if ($isGlobalAdmin) {
+        // TCK-278 — Probe super_admin via la source de vérité unifiée
+        // (`User::isSuperAdmin()` qui regarde PlatformProfile puis fallback
+        // spatie). Plus de `setPermissionsTeamId` ici : le RBAC ne dépend
+        // plus du team context du registrar.
+        if ($user->isSuperAdmin()) {
             // Stay at team_id = null. Explicit profile signals still apply
             // for super_admins acting on behalf of a specific agency, but
             // the auto-bascule and cookie paths below are skipped.
@@ -134,9 +126,24 @@ class ResolveActiveProfile
             }
         }
 
+        // TCK-278 — Auto-bascule : (a) exactly one profile, ou (b) plusieurs
+        // profils mais tous dans la même agence (cas créé par les fixtures
+        // de coexistence qui matérialisent à la fois OwnerProfile du shim
+        // TCK-142 et le profil canonique du rôle, ou par un user portant
+        // légitimement plusieurs rôles dans la même agence — agent+owner).
+        // Multi-agences reste sans auto-bascule (sécurité explicite, le
+        // user doit choisir).
         $profiles = $user->profiles();
-        if ($profiles->count() === 1) {
-            $this->bind($request, $user, $profiles->first());
+        if ($profiles->isNotEmpty()) {
+            $agencyIds = $profiles
+                ->map(fn ($p) => $p->agency_id ?? null)
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($agencyIds->count() === 1) {
+                $this->bind($request, $user, $profiles->first());
+            }
         }
 
         return $next($request);
@@ -146,9 +153,19 @@ class ResolveActiveProfile
     {
         $request->attributes->set('active_profile', $profile);
 
+        // TCK-278 — On ne touche plus au team context spatie : l'autorisation
+        // passe par les profils (`canActAt` / `isXxxAt`). Le team context
+        // restera utile en P2 pour les check spatie résiduels (hasRole) qui
+        // disparaîtront au cutover P3.
         $agencyId = $profile->agency_id ?? null;
-        $registrar = app(PermissionRegistrar::class);
-        $registrar->setPermissionsTeamId($agencyId);
-        $user->unsetRelation('roles');
+        if ($agencyId !== null && app()->bound(PermissionRegistrar::class)) {
+            try {
+                $registrar = app(PermissionRegistrar::class);
+                $registrar->setPermissionsTeamId($agencyId);
+                $user->unsetRelation('roles');
+            } catch (\Throwable) {
+                // Spatie absent ou erreur de registrar : non bloquant.
+            }
+        }
     }
 }

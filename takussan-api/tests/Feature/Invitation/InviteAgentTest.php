@@ -7,13 +7,14 @@ use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\InvitationStatus;
+use App\Models\Enums\RoleDelegationStatus;
 use App\Models\Invitation;
 use App\Models\Profiles\AgentProfile;
+use App\Models\RoleDelegation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\BaseTestCase;
 
 /**
@@ -141,9 +142,21 @@ class InviteAgentTest extends BaseTestCase
         $agency = Agency::factory()->create(['kind' => AgencyKind::Standard]);
         $agent = $this->actingAsRole('agent', ['agency_id' => $agency->id]);
 
-        $registrar = app(PermissionRegistrar::class);
-        $registrar->setPermissionsTeamId($agency->id);
-        $agent->givePermissionTo('manage_team');
+        // TCK-278 — la délégation passe désormais par le modèle
+        // `RoleDelegation` (TCK-108) et non plus par `givePermissionTo`
+        // sur spatie. Une délégation active de `agency_admin` autorise
+        // les actions team.*.
+        RoleDelegation::create([
+            'user_id' => $agent->id,
+            'delegator_id' => $agent->id,
+            'agency_id' => $agency->id,
+            'role' => 'agency_admin',
+            'starts_at' => now(),
+            'ends_at' => now()->addDay(),
+            'status' => RoleDelegationStatus::Active,
+            'activated_at' => now(),
+            'user_native_roles_snapshot' => [],
+        ]);
 
         $this->postJson("/api/agencies/{$agency->id}/agents/invite", [
             'email' => 'delegated@example.com',

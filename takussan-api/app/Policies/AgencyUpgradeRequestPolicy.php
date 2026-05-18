@@ -7,7 +7,6 @@ use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\AgencyKind;
 use App\Models\User;
 use App\Providers\AppServiceProvider;
-use Spatie\Permission\PermissionRegistrar;
 
 /**
  * TCK-267 — gates the agency upgrade-request surface.
@@ -17,7 +16,7 @@ use Spatie\Permission\PermissionRegistrar;
  *
  * Other actors must:
  *  - belong to an `individual` agency (only kind that can upgrade), AND
- *  - hold the `agency_admin` role *under that agency's team_id*.
+ *  - hold an active `AgencyAdminProfile` in that agency.
  *
  * Bound explicitly in `AppServiceProvider::boot()` because some abilities
  * take an Agency (not the model itself) as their second argument.
@@ -95,23 +94,12 @@ class AgencyUpgradeRequestPolicy
         return $this->isAgencyAdminOfAgency($user, $agency);
     }
 
+    /**
+     * TCK-278 — Profile-based check (no more spatie `setPermissionsTeamId` +
+     * `hasRole`). An `AgencyAdminProfile` actif sur l'agence cible suffit.
+     */
     protected function isAgencyAdminOfAgency(User $user, Agency $agency): bool
     {
-        $registrar = app(PermissionRegistrar::class);
-        $previous = $registrar->getPermissionsTeamId();
-        $registrar->setPermissionsTeamId($agency->id);
-
-        try {
-            $user->unsetRelation('roles');
-            $user->unsetRelation('permissions');
-
-            return $user->hasRole('agency_admin');
-        } catch (\Throwable) {
-            return false;
-        } finally {
-            $registrar->setPermissionsTeamId($previous);
-            $user->unsetRelation('roles');
-            $user->unsetRelation('permissions');
-        }
+        return $user->isAgencyAdminAt((int) $agency->id);
     }
 }

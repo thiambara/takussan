@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
 use App\Services\Agency\AgencyKindFlipService;
 use App\Services\Invitation\AgentInvitationService;
@@ -187,6 +188,14 @@ class AgencyKindFlipTest extends BaseTestCase
         $registrar = app(PermissionRegistrar::class);
         $registrar->setPermissionsTeamId($agency->id);
         $admin->assignRole('agency_admin');
+
+        // TCK-278 — la check de permission interroge désormais le profil
+        // polymorphe ; le matérialiser explicitement (le test bypass
+        // `actingAsRole` qui le ferait automatiquement).
+        AgencyAdminProfile::factory()->create([
+            'user_id' => $admin->id,
+            'agency_id' => $agency->id,
+        ]);
 
         $service = app(AgentInvitationService::class);
 

@@ -57,7 +57,7 @@ class MediaPolicy extends BasePolicy
                 return true;
             }
 
-            if ($user->hasRole(['agency_admin']) && $user->can('properties.update')) {
+            if ($user->isAgencyAdminAt((int) $user->agency_id) && $user->can('properties.update')) {
                 return true;
             }
         }
@@ -102,7 +102,7 @@ class MediaPolicy extends BasePolicy
         // must hold an admin/agency_admin role at that team.
         if (isset($target->agency_id) && $user->agency_id !== null
             && (int) $target->agency_id === (int) $user->agency_id
-            && $user->hasRole('agency_admin')) {
+            && $user->isAgencyAdminAt((int) $user->agency_id)) {
             return true;
         }
 

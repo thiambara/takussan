@@ -56,8 +56,14 @@ class UserAdminAgencyScopeTest extends ApiTestCase
         $agency = Agency::factory()->create();
         $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
 
+        // TCK-278 — le filtre `?filter[role]=agent` interroge désormais la
+        // présence d'un `AgentProfile` (et non plus la table spatie `roles`).
         $agentUser = User::factory()->create(['agency_id' => $agency->id]);
         $agentUser->assignRole('agent');
+        AgentProfile::factory()->create([
+            'user_id' => $agentUser->id,
+            'agency_id' => $agency->id,
+        ]);
 
         $customerUser = User::factory()->create(['agency_id' => $agency->id]);
         $customerUser->assignRole('customer');

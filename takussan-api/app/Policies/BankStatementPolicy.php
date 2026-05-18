@@ -10,8 +10,12 @@ class BankStatementPolicy
 {
     public function viewAny(User $user, Agency $agency): bool
     {
-        return $user->agency_id === $agency->id
-            && ($user->id === $agency->primary_admin_id || $user->hasRole(['agency_admin']));
+        if ($user->agency_id !== $agency->id) {
+            return false;
+        }
+
+        return $user->id === $agency->primary_admin_id
+            || $user->isAgencyAdminAt((int) $agency->id);
     }
 
     public function view(User $user, BankStatement $statement): bool
