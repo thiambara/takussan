@@ -45,6 +45,7 @@ use App\Models\LeasePayment;
 use App\Models\Message;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
@@ -59,6 +60,7 @@ use App\Observers\LeasePaymentOnboardingObserver;
 use App\Observers\MediaCdnObserver;
 use App\Observers\MessageObserver;
 use App\Observers\PaymentPlatformFeeObserver;
+use App\Observers\PlatformProfileObserver;
 use App\Observers\PropertyObserver;
 use App\Observers\PropertyVisitObserver;
 use App\Observers\ReviewObserver;
@@ -285,6 +287,7 @@ class AppServiceProvider extends ServiceProvider
         Lease::observe(LeaseObserver::class);
         PropertyVisit::observe(PropertyVisitObserver::class);
         User::observe(UserObserver::class);
+        PlatformProfile::observe(PlatformProfileObserver::class);
         BookingPayment::observe(PaymentPlatformFeeObserver::class);
         LeasePayment::observe(PaymentPlatformFeeObserver::class);
 

@@ -1,12 +1,13 @@
 ---
 id: TCK-278
 title: "RBAC refondu — phase 1 : suppression de spatie sur User + PlatformProfile + Capability resolver"
-status: todo
+status: doing
 phase: P1
 family: technique
 estimate: XL
 created: 2026-05-17
 updated: 2026-05-17
+execution_strategy: phased-on-branch (P1 foundations coexist with spatie → P2 callsite refactor → P3 cutover/drop)
 depends_on: []
 blocks: [TCK-279]
 spec_refs:

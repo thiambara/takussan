@@ -198,7 +198,6 @@ _(TCK-277 en review)_
 
 > Architectural. La double-source-de-vérité « rôle spatie sur User + profil polymorphe » a causé plusieurs bugs (cf. notes TCK-277). On unifie : le profil porte le rôle, User redevient identité pure. Phase 1 (TCK-278) supprime spatie de User, ajoute `PlatformProfile` et l'enum `Capability` + résolveur. Phase 2 (TCK-279) ajoute le trait `HasRoles` sur les profils, la table `agency_roles` et débloque les rôles personnalisés (supersede TCK-135).
 
-- [TCK-278](tickets/TCK-278-rbac-profile-based-phase-1.md) — RBAC phase 1 : suppression spatie sur User + PlatformProfile + Capability resolver `XL · P1 · technique`
 - [TCK-279](tickets/TCK-279-rbac-custom-roles-phase-2.md) — RBAC phase 2 : rôles personnalisés par agence (HasRoles sur Profils + AgencyRole) `L · P1 · full` **[blocked: TCK-278]**
 
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
@@ -207,6 +206,7 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 
 ## 🚧 Doing
 
+- [TCK-278](tickets/TCK-278-rbac-profile-based-phase-1.md) — RBAC phase 1 : suppression spatie sur User + PlatformProfile + Capability resolver `XL · P1 · technique` *(phasé : P1 fondations → P2 callsites → P3 cutover)*
 - [TCK-275](tickets/TCK-275-floating-dock-orchestrator.md) — Floating Dock — orchestrateur des éléments UI flottants en bas d'écran `S · P2 · front`
 
 ## 👀 Review
