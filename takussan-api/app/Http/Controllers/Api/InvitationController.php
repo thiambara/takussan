@@ -157,7 +157,7 @@ class InvitationController extends Controller
             return Invitation::query();
         }
 
-        if ($user->hasRole('agency_admin')) {
+        if ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)) {
             return Invitation::query()->where('agency_id', $user->agency_id);
         }
 

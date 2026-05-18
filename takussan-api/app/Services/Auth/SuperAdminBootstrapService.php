@@ -2,7 +2,9 @@
 
 namespace App\Services\Auth;
 
+use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\UserStatus;
+use App\Models\Profiles\PlatformProfile;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -98,8 +100,21 @@ class SuperAdminBootstrapService
      * usable on a freshly-migrated database where
      * RolesAndPermissionsSeeder has not been run.
      */
+    /**
+     * TCK-278 — Matérialise le PlatformProfile super_admin (source de vérité
+     * depuis la refonte RBAC) ET conserve l'assignation spatie historique
+     * pour la coexistence pré-cutover P3.
+     */
     private function attachSuperAdminRole(User $user): void
     {
+        PlatformProfile::query()->firstOrCreate(
+            ['user_id' => $user->id],
+            [
+                'level' => PlatformProfileLevel::SuperAdmin,
+                'granted_at' => now(),
+            ],
+        );
+
         $registrar = app(PermissionRegistrar::class);
         $previous = $registrar->getPermissionsTeamId();
         $registrar->setPermissionsTeamId(null);

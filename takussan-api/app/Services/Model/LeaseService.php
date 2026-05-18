@@ -21,7 +21,7 @@ class LeaseService
      */
     public function create(Property $property, User $user, array $data): Lease
     {
-        $canCreate = $user->hasRole('super_admin')
+        $canCreate = $user->isSuperAdmin()
             || $property->user_id === $user->id
             || ($user->agency_id && $property->agency_id === $user->agency_id);
         abort_unless($canCreate, 403);

@@ -109,7 +109,7 @@ class PaymentController extends Controller
 
         $bookingQuery = BookingPayment::query()
             ->with('booking.property')
-            ->when(! $user->hasRole('super_admin'), function ($q) use ($user): void {
+            ->when(! $user->isSuperAdmin(), function ($q) use ($user): void {
                 $q->whereHas('booking', function ($bq) use ($user): void {
                     $bq->where(function ($inner) use ($user): void {
                         $inner->where('created_by_id', $user->id)
@@ -124,7 +124,7 @@ class PaymentController extends Controller
 
         $leaseQuery = LeasePayment::query()
             ->with('lease.property')
-            ->when(! $user->hasRole('super_admin'), function ($q) use ($user): void {
+            ->when(! $user->isSuperAdmin(), function ($q) use ($user): void {
                 $q->whereHas('lease', function ($lq) use ($user): void {
                     $lq->where(function ($inner) use ($user): void {
                         $inner->where('landlord_id', $user->id);
@@ -351,7 +351,7 @@ class PaymentController extends Controller
     {
         $property = $booking->property;
         $customer = $booking->customer;
-        $ok = $user->hasRole('super_admin')
+        $ok = $user->isSuperAdmin()
             || ($property && $property->user_id === $user->id)
             || ($user->agency_id && $user->agency_id === $booking->agency_id)
             // TCK-172 — the customer themselves can create their own pending payment
@@ -364,7 +364,7 @@ class PaymentController extends Controller
     protected function authorizeLeaseManage($user, Lease $lease): void
     {
         $tenant = $lease->tenant;
-        $ok = $user->hasRole('super_admin')
+        $ok = $user->isSuperAdmin()
             || $lease->landlord_id === $user->id
             || ($user->agency_id && $user->agency_id === $lease->agency_id)
             // TCK-172 — tenant can create their own pending lease payment.

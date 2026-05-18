@@ -2,6 +2,7 @@
 
 namespace App\Services\Auth;
 
+use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Invitation;
 use App\Models\User;
 use App\Notifications\SuperAdminInvitedBroadcast;
@@ -10,7 +11,6 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
-use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
@@ -140,32 +140,17 @@ class SuperAdminCooptationService
     }
 
     /**
-     * Resolve every user holding the global super_admin role
-     * (`team_id = null`).
+     * TCK-278 — Source de vérité unifiée : `PlatformProfile` actif niveau
+     * super_admin. Plus de probe spatie team_id=null.
      *
      * @return Collection<int, User>
      */
     public function superAdmins(): Collection
     {
-        $registrar = app(PermissionRegistrar::class);
-        $previous = $registrar->getPermissionsTeamId();
-        $registrar->setPermissionsTeamId(null);
-
-        try {
-            $teamColumn = config('permission.column_names.team_foreign_key', 'team_id');
-
-            // Qualify the team-id column to `roles.{team_id}` to avoid the
-            // SQLite "ambiguous column" error: spatie's permission middleware
-            // already injects an unqualified `agency_id IS NULL` clause on
-            // the join table when the team scope is pinned to null.
-            return User::query()
-                ->whereHas('roles', function ($query) use ($teamColumn): void {
-                    $query->where('roles.name', 'super_admin')
-                        ->whereNull('roles.'.$teamColumn);
-                })
-                ->get();
-        } finally {
-            $registrar->setPermissionsTeamId($previous);
-        }
+        return User::query()
+            ->whereHas('platformProfile', fn ($q) => $q
+                ->whereNull('revoked_at')
+                ->where('level', PlatformProfileLevel::SuperAdmin->value))
+            ->get();
     }
 }

@@ -4,8 +4,10 @@ namespace App\Services\Admin;
 
 use App\Models\Address;
 use App\Models\Agency;
+use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\Currency;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -128,8 +130,19 @@ class AgencyProvisioningService
         return $slug;
     }
 
+    /**
+     * TCK-278 — Le rôle est matérialisé via `AgencyAdminProfile` (source de
+     * vérité depuis la refonte RBAC). L'assignation spatie historique est
+     * conservée pendant la fenêtre de coexistence ; le cutover P3 la
+     * supprimera.
+     */
     private function assignAgencyAdminRole(User $admin, Agency $agency): void
     {
+        AgencyAdminProfile::query()->firstOrCreate(
+            ['user_id' => $admin->id, 'agency_id' => $agency->id],
+            ['status' => AgencyAdminProfileStatus::Active->value],
+        );
+
         Role::findOrCreate('agency_admin', 'web');
 
         $registrar = app(PermissionRegistrar::class);

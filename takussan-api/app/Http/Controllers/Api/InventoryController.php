@@ -32,7 +32,7 @@ class InventoryController extends Controller
 
         $base = Inventory::query()->with(['lease', 'property']);
 
-        if (! $user->hasRole('super_admin')) {
+        if (! $user->isSuperAdmin()) {
             $base->where(function ($q) use ($user) {
                 $q->where('conducted_by', $user->id)
                     ->orWhereHas('property', function ($pq) use ($user) {
@@ -284,7 +284,7 @@ class InventoryController extends Controller
 
     protected function authorizeManageLease($user, Lease $lease): void
     {
-        $ok = $user->hasRole('super_admin')
+        $ok = $user->isSuperAdmin()
             || $lease->landlord_id === $user->id
             || ($user->agency_id && $lease->agency_id === $user->agency_id);
 
@@ -297,7 +297,7 @@ class InventoryController extends Controller
         $property = $inventory->property;
         $tenant = $inventory->tenant;
 
-        $ok = $user->hasRole('super_admin')
+        $ok = $user->isSuperAdmin()
             || $inventory->conducted_by === $user->id
             || ($property && $property->user_id === $user->id)
             || ($tenant && $tenant->user_id === $user->id)
@@ -311,7 +311,7 @@ class InventoryController extends Controller
         $user = $request->user();
         $property = $inventory->property;
 
-        $ok = $user->hasRole('super_admin')
+        $ok = $user->isSuperAdmin()
             || $inventory->conducted_by === $user->id
             || ($property && $property->user_id === $user->id)
             || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
@@ -323,7 +323,7 @@ class InventoryController extends Controller
     {
         $user = $request->user();
 
-        $ok = $user->hasRole('super_admin')
+        $ok = $user->isSuperAdmin()
             || $property->user_id === $user->id
             || ($user->agency_id && $property->agency_id === $user->agency_id);
 

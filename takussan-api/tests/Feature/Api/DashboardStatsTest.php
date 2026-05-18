@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -53,6 +54,7 @@ class DashboardStatsTest extends TestCase
 
         $admin = User::factory()->create();
         $admin->assignRole('super_admin');
+        $this->materializeRoleProfile($admin, 'super_admin');
         Sanctum::actingAs($admin);
 
         $this->getJson('/api/dashboard/stats')->assertOk()
@@ -67,6 +69,7 @@ class DashboardStatsTest extends TestCase
 
         $admin = User::factory()->create(['agency_id' => $agency->id]);
         $admin->assignRole('agency_admin');
+        $this->materializeRoleProfile($admin, 'agency_admin', $agency);
         Sanctum::actingAs($admin);
 
         $this->getJson('/api/dashboard/stats')->assertOk()
@@ -81,6 +84,7 @@ class DashboardStatsTest extends TestCase
 
         $agent = User::factory()->create(['agency_id' => $agency->id]);
         $agent->assignRole('agent');
+        $this->materializeRoleProfile($agent, 'agent', $agency);
         Sanctum::actingAs($agent);
 
         $this->getJson('/api/dashboard/stats')->assertOk()
@@ -94,6 +98,10 @@ class DashboardStatsTest extends TestCase
         setPermissionsTeamId($dummyAgency->id);
 
         $tenantUser = User::factory()->create(['agency_id' => $dummyAgency->id]);
+        // TCK-278 — Le shim TCK-142 crée un OwnerProfile auto sur la paire
+        // (user, agency_id). Un tenant n'est pas un owner ; on supprime le
+        // profil parasite pour que le DashboardController route via Customer.
+        OwnerProfile::query()->where('user_id', $tenantUser->id)->delete();
         $tenantUser->assignRole('tenant');
         $customer = Customer::factory()->create(['user_id' => $tenantUser->id]);
         Sanctum::actingAs($tenantUser);
@@ -109,6 +117,7 @@ class DashboardStatsTest extends TestCase
         setPermissionsTeamId($dummyAgency->id);
 
         $tenantUser = User::factory()->create(['agency_id' => $dummyAgency->id]);
+        OwnerProfile::query()->where('user_id', $tenantUser->id)->delete();
         $tenantUser->assignRole('tenant');
         Customer::factory()->create(['user_id' => $tenantUser->id]);
 

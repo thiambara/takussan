@@ -119,6 +119,7 @@ class DashboardMeTest extends ApiTestCase
         // Add owner role + a property to the same user — agent should still win.
         app(PermissionRegistrar::class)->setPermissionsTeamId($user->agency_id);
         $user->assignRole('owner');
+        $this->materializeRoleProfile($user, 'owner', $agency);
         Property::factory()->create(['user_id' => $user->id]);
 
         $data = $this->apiGet('/api/dashboard/me')->assertOk()->json('data');
@@ -145,6 +146,7 @@ class DashboardMeTest extends ApiTestCase
         $user = User::factory()->create(['agency_id' => null]);
         app(PermissionRegistrar::class)->setPermissionsTeamId(null);
         $user->assignRole('super_admin');
+        $this->materializeRoleProfile($user, 'super_admin');
         $this->actingAs($user, 'sanctum');
 
         // No properties, no customer profile → 404 (frontend renders NoAgencyState).

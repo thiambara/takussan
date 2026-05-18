@@ -40,7 +40,7 @@ class FavoriteController extends Controller
         $property = Property::findOrFail($data['property_id']);
         $canSee = $property->visibility === PropertyVisibility::Public
             && $property->published_at !== null;
-        $isStaff = $user->hasRole('super_admin')
+        $isStaff = $user->isSuperAdmin()
             || $property->user_id === $user->id
             || ($user->agency_id && $user->agency_id === $property->agency_id);
         abort_unless($canSee || $isStaff, 403);

@@ -24,6 +24,7 @@ class IntegrationTest extends TestCase
         $agencyAdmin = User::factory()->create(['agency_id' => $agency->id]);
         Role::findOrCreate('agency_admin');
         $agencyAdmin->assignRole('agency_admin');
+        $this->materializeRoleProfile($agencyAdmin, 'agency_admin', $agency);
 
         Sanctum::actingAs($agencyAdmin);
 
@@ -58,6 +59,7 @@ class IntegrationTest extends TestCase
         $agencyAdmin = User::factory()->create(['agency_id' => $agency->id]);
         Role::findOrCreate('agency_admin');
         $agencyAdmin->assignRole('agency_admin');
+        $this->materializeRoleProfile($agencyAdmin, 'agency_admin', $agency);
 
         Sanctum::actingAs($agencyAdmin);
 
@@ -83,6 +85,7 @@ class IntegrationTest extends TestCase
         $agencyAdmin = User::factory()->create(['agency_id' => $agency->id]);
         Role::findOrCreate('agency_admin');
         $agencyAdmin->assignRole('agency_admin');
+        $this->materializeRoleProfile($agencyAdmin, 'agency_admin', $agency);
 
         $integration = Integration::factory()->create([
             'agency_id' => $agency->id,
@@ -107,6 +110,7 @@ class IntegrationTest extends TestCase
         $agencyAdmin = User::factory()->create(['agency_id' => $agency->id]);
         Role::findOrCreate('agency_admin');
         $agencyAdmin->assignRole('agency_admin');
+        $this->materializeRoleProfile($agencyAdmin, 'agency_admin', $agency);
 
         Integration::factory()->create([
             'agency_id' => $agency->id,
@@ -135,6 +139,7 @@ class IntegrationTest extends TestCase
         $agencyAdmin = User::factory()->create(['agency_id' => $agency->id]);
         Role::findOrCreate('agency_admin');
         $agencyAdmin->assignRole('agency_admin');
+        $this->materializeRoleProfile($agencyAdmin, 'agency_admin', $agency);
 
         Sanctum::actingAs($agencyAdmin);
 
@@ -173,6 +178,7 @@ class IntegrationTest extends TestCase
         $agencyAdmin2 = User::factory()->create(['agency_id' => $agency2->id]);
         Role::findOrCreate('agency_admin');
         $agencyAdmin2->assignRole('agency_admin');
+        $this->materializeRoleProfile($agencyAdmin2, 'agency_admin', $agency2);
 
         Sanctum::actingAs($agencyAdmin2);
 

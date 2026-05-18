@@ -169,29 +169,16 @@ class AgencyUpgradeRequestService
      * a user who is `agency_admin` of *another* agency must not pass the
      * gate here.
      */
+    /**
+     * TCK-278 — Profile-based check (cf. policy).
+     */
     protected function assertSubmitterIsAgencyAdmin(User $submitter, Agency $agency): void
     {
         if ($submitter->isSuperAdmin()) {
             return;
         }
 
-        $registrar = app(PermissionRegistrar::class);
-        $previous = $registrar->getPermissionsTeamId();
-        $registrar->setPermissionsTeamId($agency->id);
-
-        try {
-            $submitter->unsetRelation('roles');
-            $submitter->unsetRelation('permissions');
-            $allowed = $submitter->hasRole('agency_admin');
-        } catch (\Throwable) {
-            $allowed = false;
-        } finally {
-            $registrar->setPermissionsTeamId($previous);
-            $submitter->unsetRelation('roles');
-            $submitter->unsetRelation('permissions');
-        }
-
-        if (! $allowed) {
+        if (! $submitter->isAgencyAdminAt((int) $agency->id)) {
             throw new HttpException(403, __('agency_upgrade.submit.errors.permission_denied'));
         }
     }

@@ -28,6 +28,7 @@ class AgencyMembersListTest extends TestCase
         $admin = User::factory()->create(['agency_id' => $agency->id]);
         app(PermissionRegistrar::class)->setPermissionsTeamId(null);
         $admin->assignRole('super_admin');
+        $this->materializeRoleProfile($admin, 'super_admin');
         $agency->update(['primary_admin_id' => $admin->id]);
 
         return [$admin, $agency];
@@ -125,10 +126,9 @@ class AgencyMembersListTest extends TestCase
         ])->assertOk()
             ->assertJsonPath('data.role', 'agency_admin');
 
-        // The controller scopes the role to the agency's team; pin the
-        // probe to the same team so hasRole resolves correctly.
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        $this->assertTrue($target->refresh()->hasRole('agency_admin'));
+        // TCK-278 — Le rôle est désormais matérialisé par AgencyAdminProfile
+        // (cf. Règle 5), plus par spatie team-scoped role.
+        $this->assertTrue($target->refresh()->isAgencyAdminAt((int) $agency->id));
     }
 
     public function test_cannot_add_member_with_invalid_role(): void
@@ -153,6 +153,7 @@ class AgencyMembersListTest extends TestCase
         $onlyAdmin = User::factory()->create(['agency_id' => $agency->id]);
         app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
         $onlyAdmin->assignRole('agency_admin');
+        $this->materializeRoleProfile($onlyAdmin, 'agency_admin', $agency);
 
         Sanctum::actingAs($admin);
 
@@ -170,6 +171,7 @@ class AgencyMembersListTest extends TestCase
         $onlyAdmin = User::factory()->create(['agency_id' => $agency->id]);
         app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
         $onlyAdmin->assignRole('agency_admin');
+        $this->materializeRoleProfile($onlyAdmin, 'agency_admin', $agency);
 
         Sanctum::actingAs($admin);
 
@@ -193,8 +195,10 @@ class AgencyMembersListTest extends TestCase
         app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
         $adminA = User::factory()->create(['agency_id' => $agency->id]);
         $adminA->assignRole('agency_admin');
+        $this->materializeRoleProfile($adminA, 'agency_admin', $agency);
         $adminB = User::factory()->create(['agency_id' => $agency->id]);
         $adminB->assignRole('agency_admin');
+        $this->materializeRoleProfile($adminB, 'agency_admin', $agency);
 
         Sanctum::actingAs($admin);
 

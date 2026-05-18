@@ -39,6 +39,7 @@ class AuditLogTest extends TestCase
         $admin = User::factory()->create(['agency_id' => $this->dummyAgency->id]);
         app(PermissionRegistrar::class)->setPermissionsTeamId(null);
         $admin->assignRole('super_admin');
+        $this->materializeRoleProfile($admin, 'super_admin');
         Sanctum::actingAs($admin);
 
         Activity::create([
@@ -74,6 +75,7 @@ class AuditLogTest extends TestCase
         $admin = User::factory()->create(['agency_id' => $this->dummyAgency->id]);
         app(PermissionRegistrar::class)->setPermissionsTeamId(null);
         $admin->assignRole('super_admin');
+        $this->materializeRoleProfile($admin, 'super_admin');
         Sanctum::actingAs($admin);
 
         Activity::create([
@@ -95,6 +97,7 @@ class AuditLogTest extends TestCase
         Role::findOrCreate('agency_admin');
         $admin = User::factory()->create(['agency_id' => $this->dummyAgency->id]);
         $admin->assignRole('agency_admin');
+        $this->materializeRoleProfile($admin, 'agency_admin', $this->dummyAgency);
         Sanctum::actingAs($admin);
 
         $this->getJson('/api/audit-log')->assertForbidden();

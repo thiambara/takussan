@@ -58,7 +58,7 @@ class KycController extends Controller
             $user->isSuperAdmin()
             || (
                 $request->activeProfile()?->agency_id === $agency->id
-                && $user->hasRole('agency_admin')
+                && $user->isAgencyAdminAt((int) $agency->id)
             ),
             403,
         );

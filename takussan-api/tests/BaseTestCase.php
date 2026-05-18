@@ -3,7 +3,6 @@
 namespace Tests;
 
 use App\Models\Agency;
-use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
@@ -44,9 +43,15 @@ abstract class BaseTestCase extends TestCase
         $agency = $attributes['agency'] ?? null;
         unset($attributes['agency']);
 
+        // TCK-278 — Pour les rôles dérivés (`customer`, `tenant`) il n'y a
+        // pas de profil polymorphe en phase 1 (cf. Règle 5). On ne crée pas
+        // d'agence implicite pour eux, sinon le shim UserFactory créerait
+        // un OwnerProfile parasite qui ferait passer le user pour un owner.
+        $derivedRoles = ['customer', 'tenant'];
+
         if ($agency !== null) {
             $attributes['agency_id'] = $agency->id;
-        } elseif (! isset($attributes['agency_id'])) {
+        } elseif (! isset($attributes['agency_id']) && ! in_array($role, $derivedRoles, true)) {
             $attributes['agency_id'] = Agency::factory()->create()->id;
         }
 
@@ -71,44 +76,12 @@ abstract class BaseTestCase extends TestCase
 
     /**
      * TCK-278 — Matérialise le profil polymorphe correspondant au rôle de
-     * coexistence spatie. Idempotent (firstOrCreate sur la clé naturelle).
-     *
-     * - super_admin → PlatformProfile (cross-tenant, pas de scope agence)
-     * - agency_admin / agent → profil agence-scopé créé en plus du shim
-     *   OwnerProfile de TCK-142 ; l'accessor `User::getAgencyIdAttribute`
-     *   gère le cas multi-profils dans la même agence.
-     * - owner → déjà couvert par le shim UserFactory ; no-op.
-     * - customer / tenant / admin / service_provider / broker → no-op
-     *   (gérés explicitement par les tests qui en ont besoin).
+     * coexistence spatie. Alias interne vers `materializeRoleProfile`
+     * défini sur `TestCase` (helper universel disponible partout).
      */
     private function materializeProfileForRole(User $user, string $role): void
     {
-        if ($role === 'super_admin') {
-            PlatformProfile::query()->firstOrCreate(
-                ['user_id' => $user->id],
-                [
-                    'level' => PlatformProfileLevel::SuperAdmin,
-                    'granted_at' => now(),
-                ],
-            );
-
-            return;
-        }
-
-        $agencyId = $user->agency_id;
-        if ($agencyId === null) {
-            return;
-        }
-
-        match ($role) {
-            'agency_admin' => AgencyAdminProfile::query()->firstOrCreate(
-                ['user_id' => $user->id, 'agency_id' => $agencyId],
-            ),
-            'agent' => AgentProfile::query()->firstOrCreate(
-                ['user_id' => $user->id, 'agency_id' => $agencyId],
-            ),
-            default => null,
-        };
+        $this->materializeRoleProfile($user, $role);
     }
 
     protected function assertJsonStructurePaginated(TestResponse $response): void

@@ -79,6 +79,7 @@ class MultiProfileStrictAccessTest extends TestCase
         $registrar = app(PermissionRegistrar::class);
         $registrar->setPermissionsTeamId($agencyY->id);
         $bob->assignRole('agency_admin');
+        $this->materializeRoleProfile($bob, 'agency_admin', $agencyY);
         $registrar->setPermissionsTeamId(null);
 
         Sanctum::actingAs($bob);
@@ -107,6 +108,7 @@ class MultiProfileStrictAccessTest extends TestCase
         $registrar = app(PermissionRegistrar::class);
         $registrar->setPermissionsTeamId($agencyY->id);
         $bob->assignRole('agency_admin');
+        $this->materializeRoleProfile($bob, 'agency_admin', $agencyY);
         $registrar->setPermissionsTeamId(null);
 
         Sanctum::actingAs($bob);
@@ -132,6 +134,7 @@ class MultiProfileStrictAccessTest extends TestCase
         $registrar = app(PermissionRegistrar::class);
         $registrar->setPermissionsTeamId($agencyX->id);
         $carol->assignRole('agency_admin');
+        $this->materializeRoleProfile($carol, 'agency_admin', $agencyX);
         $registrar->setPermissionsTeamId(null);
 
         Sanctum::actingAs($carol);

@@ -38,7 +38,7 @@ class ReviewController extends Controller
         // the admin-only lock.
         $isSelfFilter = in_array($authorFilter, ['me', 'auth', (string) $user->id], true);
         abort_unless(
-            $isSelfFilter || $user->hasRole(['agency_admin', 'super_admin']),
+            $isSelfFilter || $user->isSuperAdmin() || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)),
             403,
         );
 
@@ -120,7 +120,7 @@ class ReviewController extends Controller
      */
     public function moderate(Request $request, Review $review): JsonResponse
     {
-        abort_unless($request->user()->hasRole(['agency_admin', 'super_admin']), 403);
+        abort_unless($request->user()->isSuperAdmin() || ($request->user()->agency_id !== null && $request->user()->isAgencyAdminAt((int) $request->user()->agency_id)), 403);
 
         $data = $request->validate([
             'decision' => ['required', Rule::in(['approve', 'hide', 'delete', 'ignore'])],
@@ -154,7 +154,7 @@ class ReviewController extends Controller
      */
     public function reports(Request $request, Review $review): JsonResponse
     {
-        abort_unless($request->user()->hasRole(['agency_admin', 'super_admin']), 403);
+        abort_unless($request->user()->isSuperAdmin() || ($request->user()->agency_id !== null && $request->user()->isAgencyAdminAt((int) $request->user()->agency_id)), 403);
 
         $reports = collect($review->metadata['reports'] ?? [])
             ->map(function (array $r): array {
@@ -207,7 +207,7 @@ class ReviewController extends Controller
             ->whereHas('tenant', fn ($q) => $q->where('user_id', $user->id))
             ->exists();
         abort_unless(
-            $hasCompletedBooking || $hasLease || $user->hasRole('super_admin'),
+            $hasCompletedBooking || $hasLease || $user->isSuperAdmin(),
             403,
             'Only customers with a completed booking or lease can review this property.'
         );
@@ -241,7 +241,7 @@ class ReviewController extends Controller
         $user = $request->user();
         $reviewable = $review->reviewable;
 
-        $ok = $user->hasRole('super_admin')
+        $ok = $user->isSuperAdmin()
             || ($review->replied_by_id && $review->replied_by_id === $user->id)
             || ($reviewable && isset($reviewable->user_id) && $reviewable->user_id === $user->id)
             || ($user->agency_id && $reviewable && isset($reviewable->agency_id) && $reviewable->agency_id === $user->agency_id);
@@ -262,7 +262,7 @@ class ReviewController extends Controller
     {
         $user = $request->user();
         $reviewable = $review->reviewable;
-        $ok = $user->hasRole('super_admin')
+        $ok = $user->isSuperAdmin()
             || ($reviewable && isset($reviewable->user_id) && $reviewable->user_id === $user->id)
             || ($user->agency_id && isset($reviewable->agency_id) && $reviewable->agency_id === $user->agency_id);
         abort_unless($ok, 403);
@@ -291,7 +291,7 @@ class ReviewController extends Controller
 
     public function approve(Request $request, Review $review): JsonResponse
     {
-        abort_unless($request->user()->hasRole(['agency_admin', 'super_admin']), 403);
+        abort_unless($request->user()->isSuperAdmin() || ($request->user()->agency_id !== null && $request->user()->isAgencyAdminAt((int) $request->user()->agency_id)), 403);
 
         $review = $this->moderationService->approve($review, $request->user());
 
@@ -300,7 +300,7 @@ class ReviewController extends Controller
 
     public function reject(Request $request, Review $review): JsonResponse
     {
-        abort_unless($request->user()->hasRole(['agency_admin', 'super_admin']), 403);
+        abort_unless($request->user()->isSuperAdmin() || ($request->user()->agency_id !== null && $request->user()->isAgencyAdminAt((int) $request->user()->agency_id)), 403);
 
         $review = $this->moderationService->reject($review, $request->user());
 
@@ -328,7 +328,7 @@ class ReviewController extends Controller
             ->whereHas('tenant', fn ($q) => $q->where('user_id', $user->id))
             ->exists();
         abort_unless(
-            $hasInteraction || $user->hasRole('super_admin'),
+            $hasInteraction || $user->isSuperAdmin(),
             403,
             'Only customers with a completed transaction can review this agency.'
         );

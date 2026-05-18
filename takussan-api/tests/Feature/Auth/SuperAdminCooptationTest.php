@@ -52,6 +52,7 @@ class SuperAdminCooptationTest extends BaseTestCase
         $peer = User::factory()->create();
         $this->pinSuperAdminTeam();
         $peer->assignRole('super_admin');
+        $this->materializeRoleProfile($peer, 'super_admin');
 
         $response = $this->postJson('/api/admin/super-admins/invite', [
             'email' => 'NewAdmin@example.com',
@@ -160,6 +161,7 @@ class SuperAdminCooptationTest extends BaseTestCase
         $peer = User::factory()->create();
         $this->pinSuperAdminTeam();
         $peer->assignRole('super_admin');
+        $this->materializeRoleProfile($peer, 'super_admin');
 
         $candidate = User::factory()->create([
             'force_2fa_at_first_login' => true,
@@ -255,6 +257,7 @@ class SuperAdminCooptationTest extends BaseTestCase
         $existing = User::factory()->create(['email' => 'old@example.com']);
         $this->pinSuperAdminTeam();
         $existing->assignRole('super_admin');
+        $this->materializeRoleProfile($existing, 'super_admin');
 
         $this->postJson('/api/admin/super-admins/invite', [
             'email' => 'old@example.com',

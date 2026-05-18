@@ -32,7 +32,7 @@ class KycDocumentController extends Controller
             || (
                 $subject instanceof Agency
                 && $request->activeProfile()?->agency_id === $subject->id
-                && $user->hasRole('agency_admin')
+                && $user->isAgencyAdminAt((int) $subject->id)
             ),
             403,
         );

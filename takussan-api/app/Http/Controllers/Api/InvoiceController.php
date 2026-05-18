@@ -22,7 +22,7 @@ class InvoiceController extends Controller
 
         $base = Invoice::query()->with('customer');
 
-        if (! $user->hasRole('super_admin')) {
+        if (! $user->isSuperAdmin()) {
             $base->where(function ($q) use ($user) {
                 $q->where('issued_by_id', $user->id)
                     ->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
@@ -110,7 +110,7 @@ class InvoiceController extends Controller
     protected function authorizeAccess(Request $request, Invoice $invoice): void
     {
         $user = $request->user();
-        $ok = $user->hasRole('super_admin')
+        $ok = $user->isSuperAdmin()
             || $invoice->issued_by_id === $user->id
             || ($user->agency_id && $user->agency_id === $invoice->agency_id)
             || ($invoice->customer && $invoice->customer->user_id === $user->id);
@@ -121,7 +121,7 @@ class InvoiceController extends Controller
     protected function authorizeManage(Request $request, Invoice $invoice): void
     {
         $user = $request->user();
-        $ok = $user->hasRole('super_admin')
+        $ok = $user->isSuperAdmin()
             || $invoice->issued_by_id === $user->id
             || ($user->agency_id && $user->agency_id === $invoice->agency_id);
 

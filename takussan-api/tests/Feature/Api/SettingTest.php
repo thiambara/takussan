@@ -22,6 +22,7 @@ class SettingTest extends TestCase
         $admin = User::factory()->create(['agency_id' => $agency->id]);
         Role::findOrCreate('super_admin');
         $admin->assignRole('super_admin');
+        $this->materializeRoleProfile($admin, 'super_admin');
 
         Sanctum::actingAs($admin);
 
@@ -55,6 +56,7 @@ class SettingTest extends TestCase
         $agencyAdmin = User::factory()->create(['agency_id' => $agency->id]);
         Role::findOrCreate('agency_admin');
         $agencyAdmin->assignRole('agency_admin');
+        $this->materializeRoleProfile($agencyAdmin, 'agency_admin', $agency);
 
         Sanctum::actingAs($agencyAdmin);
 
@@ -76,6 +78,7 @@ class SettingTest extends TestCase
         $admin = User::factory()->create(['agency_id' => $agency->id]);
         Role::findOrCreate('super_admin');
         $admin->assignRole('super_admin');
+        $this->materializeRoleProfile($admin, 'super_admin');
 
         Sanctum::actingAs($admin);
 
@@ -98,6 +101,7 @@ class SettingTest extends TestCase
         $agent = User::factory()->create(['agency_id' => $agency->id]);
         Role::findOrCreate('agent');
         $agent->assignRole('agent');
+        $this->materializeRoleProfile($agent, 'agent', $agency);
 
         Sanctum::actingAs($agent);
 

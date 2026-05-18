@@ -325,6 +325,7 @@ class CalendarTest extends TestCase
         Role::findOrCreate('super_admin');
         $admin = User::factory()->create(['agency_id' => $agency->id]);
         $admin->assignRole('super_admin');
+        $this->materializeRoleProfile($admin, 'super_admin');
 
         $targetAgency = Agency::factory()->create();
         $propertyInTarget = Property::factory()->create(['agency_id' => $targetAgency->id]);

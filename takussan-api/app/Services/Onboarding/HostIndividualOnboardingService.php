@@ -187,6 +187,12 @@ class HostIndividualOnboardingService
         ]);
     }
 
+    /**
+     * TCK-278 — Coexistence : on continue d'assigner les rôles spatie (le
+     * cutover P3 les supprimera) ; les profils polymorphes sont créés par
+     * `materializeProfiles()` ci-dessous (matérialisation pré-existante,
+     * source de vérité depuis la refonte RBAC).
+     */
     private function attachRoles(User $user, Agency $agency): void
     {
         Role::findOrCreate('agency_admin', 'web');

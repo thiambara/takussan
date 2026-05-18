@@ -28,6 +28,7 @@ class IntegrationMetadataEditTest extends TestCase
         $admin = User::factory()->create(['agency_id' => $agency->id]);
         Role::findOrCreate('agency_admin');
         $admin->assignRole('agency_admin');
+        $this->materializeRoleProfile($admin, 'agency_admin', $agency);
 
         return $admin;
     }
