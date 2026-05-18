@@ -73,7 +73,6 @@ function buildAdminItems(
     icon: Building2,
     badge: propertyPendingCount || undefined,
   });
-  items.push({ href: '/admin/roles', label: 'Rôles & Permissions', icon: ShieldCheck });
   items.push({ href: '/admin/audit', label: "Journal d'audit", icon: FileText });
   // `/api/admin/settings` is super-admin-only at the route middleware level
   // (`routes/api/admin.php` group), so showing this entry to agency_admin

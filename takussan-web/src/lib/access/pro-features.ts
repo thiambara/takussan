@@ -18,7 +18,6 @@ export const PRO_ROUTES: ReadonlySet<string> = new Set([
   '/admin/team',
   '/admin/agency/billing',
   '/admin/moderation/properties',
-  '/admin/roles',
   '/admin/audit',
 ]);
 
