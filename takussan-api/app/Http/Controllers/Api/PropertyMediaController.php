@@ -95,7 +95,7 @@ class PropertyMediaController extends Controller
         $user = $request->user();
         $ok = $user->id === $property->user_id
             || ($user->agency_id && $user->agency_id === $property->agency_id)
-            || $user->hasRole('super_admin');
+            || $user->isSuperAdmin();
         abort_unless($ok, 403);
     }
 

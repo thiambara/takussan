@@ -17,8 +17,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
@@ -442,24 +440,10 @@ class InvitationService
                 ->event('super_admin_role_pending')
                 ->log('super_admin_role_pending');
         } else {
-            // Spatie role scoping: super_admin lives at team_id=null,
-            // every other role lives at team_id=agency_id. Match the
-            // same pattern used by AgencyController::addAgent so the
-            // role probes are consistent across surfaces.
-            $registrar = app(PermissionRegistrar::class);
-            $previousTeamId = $registrar->getPermissionsTeamId();
-            $registrar->setPermissionsTeamId($invitation->agency_id);
-
-            try {
-                Role::findOrCreate($invitation->role, 'web');
-                $user->unsetRelation('roles');
-                if (! $user->hasRole($invitation->role)) {
-                    $user->assignRole($invitation->role);
-                }
-            } finally {
-                $registrar->setPermissionsTeamId($previousTeamId);
-                $user->unsetRelation('roles');
-            }
+            // TCK-278 — Le rôle est matérialisé par le profil polymorphe
+            // (cf. Règle 5). Le flip de profil ci-dessous (statut Draft →
+            // Active sur l'invitable_type ciblé) suffit pour rendre le
+            // user opérationnel ; plus de double-écriture spatie.
         }
 
         // Flip the polymorphic profile to `active` if it exists and

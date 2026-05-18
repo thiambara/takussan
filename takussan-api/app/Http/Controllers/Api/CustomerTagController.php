@@ -89,7 +89,7 @@ class CustomerTagController extends Controller
     private function authorizeAccess(Request $request, Customer $customer): void
     {
         $user = $request->user();
-        $ok = $user->hasRole('super_admin')
+        $ok = $user->isSuperAdmin()
             || $customer->added_by_id === $user->id
             || ($user->agency_id && $user->agency_id === $customer->agency_id);
 

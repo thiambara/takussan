@@ -5,11 +5,11 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\Api\Admin\UserDetailResource;
 use App\Http\Resources\Api\Admin\UserListResource;
+use App\Models\Enums\PlatformProfileLevel;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\PersonalAccessToken;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -40,14 +40,19 @@ class UserDetailController extends Controller
         }
 
         if ($role = $request->string('filter.role')->trim()->value()) {
-            $query->whereExists(function ($sub) use ($role): void {
-                $sub->selectRaw('1')
-                    ->from('model_has_roles')
-                    ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
-                    ->whereColumn('model_has_roles.model_id', 'users.id')
-                    ->where('model_has_roles.model_type', (new User)->getMorphClass())
-                    ->where('roles.name', $role);
-            });
+            // TCK-278 — Le rôle est matérialisé par les profils polymorphes
+            // (cf. Règle 5). Filtrer via les relations correspondantes.
+            match ($role) {
+                'super_admin' => $query->whereHas('platformProfile', fn (Builder $q) => $q
+                    ->whereNull('revoked_at')
+                    ->where('level', PlatformProfileLevel::SuperAdmin->value)),
+                'agency_admin' => $query->whereHas('agencyAdminProfiles'),
+                'agent' => $query->whereHas('agentProfiles'),
+                'owner' => $query->whereHas('ownerProfiles'),
+                'broker' => $query->whereHas('brokerProfile'),
+                'service_provider' => $query->whereHas('serviceProviderProfile'),
+                default => $query->whereRaw('1 = 0'),
+            };
         }
 
         if ($agencyId = $request->string('filter.agency_id')->trim()->value()) {
@@ -74,7 +79,14 @@ class UserDetailController extends Controller
         $query->orderBy(in_array($field, $sorts, true) ? $field : 'created_at', $direction);
 
         $paginator = $query->paginate(min(max((int) $request->query('per_page', 20), 1), 100));
-        $users = $paginator->getCollection()->load(['agentProfiles.agency', 'ownerProfiles.agency']);
+        $users = $paginator->getCollection()->load([
+            'agentProfiles.agency',
+            'ownerProfiles.agency',
+            'agencyAdminProfiles.agency',
+            'brokerProfile',
+            'serviceProviderProfile',
+            'platformProfile',
+        ]);
         $this->attachRoleRows($users);
 
         return $this->json([
@@ -91,11 +103,12 @@ class UserDetailController extends Controller
     public function show(Request $request, User $user): JsonResponse
     {
         $user->load([
-            'roles',
             'agentProfiles.agency',
             'ownerProfiles.agency',
+            'agencyAdminProfiles.agency',
             'brokerProfile',
             'serviceProviderProfile',
+            'platformProfile',
         ]);
         $this->attachRoleRows(collect([$user]));
 
@@ -174,33 +187,38 @@ class UserDetailController extends Controller
         ]);
     }
 
+    /**
+     * TCK-278 — Reconstruit la liste `(role, team_id)` à partir des profils
+     * polymorphes (cf. Règle 5). `team_id` = `agency_id` du profil ; null
+     * pour `super_admin` (PlatformProfile global) et pour broker /
+     * service_provider (rattachement user-scoped).
+     */
     private function attachRoleRows($users): void
     {
-        $ids = $users->pluck('id');
-        if ($ids->isEmpty()) {
-            return;
-        }
+        $users->each(function (User $user): void {
+            $rows = [];
 
-        $rows = DB::table('model_has_roles')
-            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
-            ->where('model_has_roles.model_type', (new User)->getMorphClass())
-            ->whereIn('model_has_roles.model_id', $ids)
-            ->orderBy('roles.name')
-            ->get([
-                'model_has_roles.model_id',
-                'roles.name',
-                'model_has_roles.agency_id as team_id',
-            ])
-            ->groupBy('model_id');
+            if ($user->platformProfile && $user->platformProfile->isActive()
+                && $user->platformProfile->level === PlatformProfileLevel::SuperAdmin) {
+                $rows[] = ['name' => 'super_admin', 'team_id' => null];
+            }
+            foreach ($user->agencyAdminProfiles ?? [] as $profile) {
+                $rows[] = ['name' => 'agency_admin', 'team_id' => $profile->agency_id];
+            }
+            foreach ($user->agentProfiles ?? [] as $profile) {
+                $rows[] = ['name' => 'agent', 'team_id' => $profile->agency_id];
+            }
+            foreach ($user->ownerProfiles ?? [] as $profile) {
+                $rows[] = ['name' => 'owner', 'team_id' => $profile->agency_id];
+            }
+            if ($user->brokerProfile) {
+                $rows[] = ['name' => 'broker', 'team_id' => null];
+            }
+            if ($user->serviceProviderProfile) {
+                $rows[] = ['name' => 'service_provider', 'team_id' => null];
+            }
 
-        $users->each(function (User $user) use ($rows): void {
-            $user->admin_role_rows = collect($rows->get($user->id, []))
-                ->map(fn ($row) => [
-                    'name' => $row->name,
-                    'team_id' => $row->team_id,
-                ])
-                ->values()
-                ->all();
+            $user->admin_role_rows = $rows;
         });
     }
 

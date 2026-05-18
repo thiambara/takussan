@@ -37,6 +37,7 @@ use App\Models\Agency;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\BookingPayment;
 use App\Models\Conversation;
+use App\Models\Enums\Capability;
 use App\Models\Favorite;
 use App\Models\Inventory;
 use App\Models\Invitation;
@@ -45,6 +46,7 @@ use App\Models\LeasePayment;
 use App\Models\Message;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
@@ -59,6 +61,7 @@ use App\Observers\LeasePaymentOnboardingObserver;
 use App\Observers\MediaCdnObserver;
 use App\Observers\MessageObserver;
 use App\Observers\PaymentPlatformFeeObserver;
+use App\Observers\PlatformProfileObserver;
 use App\Observers\PropertyObserver;
 use App\Observers\PropertyVisitObserver;
 use App\Observers\ReviewObserver;
@@ -81,6 +84,7 @@ use App\Services\Media\Cdn\CdnHealthGuard;
 use App\Services\Media\Cdn\CdnProviderContract;
 use App\Services\Media\Cdn\CloudflareCdnDriver;
 use App\Services\Media\MediaUrlResolver;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Notifications\Sms\Drivers\LAfricaMobileSmsDriver;
 use App\Services\Notifications\Sms\Drivers\LogSmsDriver;
 use App\Services\Notifications\Sms\Drivers\MtargetSmsDriver;
@@ -285,6 +289,7 @@ class AppServiceProvider extends ServiceProvider
         Lease::observe(LeaseObserver::class);
         PropertyVisit::observe(PropertyVisitObserver::class);
         User::observe(UserObserver::class);
+        PlatformProfile::observe(PlatformProfileObserver::class);
         BookingPayment::observe(PaymentPlatformFeeObserver::class);
         LeasePayment::observe(PaymentPlatformFeeObserver::class);
 
@@ -365,6 +370,35 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('approve-property', [PropertyModerationPolicy::class, 'approve']);
         Gate::define('reject-property', [PropertyModerationPolicy::class, 'reject']);
         Gate::define('resubmit-property', [PropertyModerationPolicy::class, 'resubmit']);
+
+        // TCK-278 — enregistre une Gate pour chaque `Capability` afin que les
+        // appels historiques `$user->can('leases.terminate')` (etc.) résolvent
+        // via `MembershipCapabilityResolver`. L'agence cible est dérivée :
+        //   1. du second argument de `can()` s'il a un `agency_id`/`agency`,
+        //   2. sinon de `request()->activeProfile()->agency_id`,
+        //   3. sinon de `$user->agency_id` (rétrocompat).
+        $resolver = app(MembershipCapabilityResolver::class);
+        foreach (Capability::cases() as $capability) {
+            Gate::define($capability->value, function (User $user, mixed $context = null) use ($capability, $resolver): bool {
+                $agency = null;
+                if ($context instanceof Agency) {
+                    $agency = $context;
+                } elseif (is_object($context) && isset($context->agency_id) && $context->agency_id) {
+                    $agency = Agency::query()->find($context->agency_id);
+                }
+                if ($agency === null && app()->bound('request')) {
+                    $profile = request()->activeProfile();
+                    if ($profile && isset($profile->agency_id)) {
+                        $agency = Agency::query()->find($profile->agency_id);
+                    }
+                }
+                if ($agency === null && $user->agency_id !== null) {
+                    $agency = Agency::query()->find($user->agency_id);
+                }
+
+                return $resolver->allows($user, $capability, $agency);
+            });
+        }
     }
 
     private function bootBladeDirectives(): void

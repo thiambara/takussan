@@ -79,7 +79,7 @@ class PaymentGatewayController extends Controller
         if ($user === null) {
             abort(401);
         }
-        if ($user->hasRole('super_admin')) {
+        if ($user->isSuperAdmin()) {
             return;
         }
 

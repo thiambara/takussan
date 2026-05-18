@@ -9,8 +9,6 @@ use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class TagTest extends TestCase
@@ -19,10 +17,8 @@ class TagTest extends TestCase
 
     private function superAdmin(): User
     {
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
-        Role::findOrCreate('super_admin');
         $user = User::factory()->create();
-        $user->assignRole('super_admin');
+        $this->materializeRoleProfile($user, 'super_admin');
 
         return $user;
     }
@@ -30,10 +26,8 @@ class TagTest extends TestCase
     private function agencyAdmin(): User
     {
         $agency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        Role::findOrCreate('agency_admin');
         $user = User::factory()->create(['agency_id' => $agency->id]);
-        $user->assignRole('agency_admin');
+        $this->materializeRoleProfile($user, 'agency_admin', $agency);
 
         return $user;
     }

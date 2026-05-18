@@ -16,7 +16,7 @@ class DocumentSearchService
         $query = Document::search($params['q'])
             ->query(function ($builder) use ($user, $params) {
                 // Scoping: non-admin users see only their own uploaded documents
-                if (! $user->hasRole('super_admin')) {
+                if (! $user->isSuperAdmin()) {
                     $builder->where('uploaded_by', $user->id);
                 }
 

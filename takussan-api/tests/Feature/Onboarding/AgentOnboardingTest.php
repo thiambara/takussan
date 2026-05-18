@@ -39,7 +39,6 @@ class AgentOnboardingTest extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->ensureRolesSeeded();
         Storage::fake(config('media-library.disk_name', 'public'));
     }
 

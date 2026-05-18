@@ -8,8 +8,6 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
 use App\Providers\AppServiceProvider;
-use App\Services\Invitation\OwnerInvitationService;
-use Spatie\Permission\PermissionRegistrar;
 
 /**
  * TCK-256 — gates the owner invitation surface.
@@ -20,21 +18,27 @@ use Spatie\Permission\PermissionRegistrar;
  * Other agency-side actors must:
  *  - belong to a `standard` agency (TCK-248); `individual` agencies
  *    don't have a portfolio of distinct owners.
- *  - hold the `invite_owner` permission *under that agency's team
- *    context* (default-granted to `agency_admin`, optionally to `agent`
- *    via {@see RoleDelegation}).
+ *  - hold an `AgencyAdminProfile` actif sur l'agence, OU bénéficier d'une
+ *    `RoleDelegation` active pour le rôle `agency_admin` (TCK-108).
  */
 class OwnerProfilePolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->hasAnyRole(['agency_admin', 'agent']);
+        $agencyId = $user->agency_id;
+        if ($agencyId === null) {
+            return false;
+        }
+
+        return $user->isAgencyAdminAt((int) $agencyId) || $user->isAgentAt((int) $agencyId);
     }
 
     public function view(User $user, OwnerProfile $profile): bool
     {
-        if ($user->hasAnyRole(['agency_admin', 'agent'])) {
-            return $profile->agency_id === $user->agency_id;
+        $agencyId = $user->agency_id;
+        if ($agencyId !== null
+            && ($user->isAgencyAdminAt((int) $agencyId) || $user->isAgentAt((int) $agencyId))) {
+            return $profile->agency_id === $agencyId;
         }
 
         return $profile->user_id === $user->id;
@@ -43,6 +47,9 @@ class OwnerProfilePolicy
     /**
      * `invite` is intentionally agency-scoped (the controller passes the
      * Agency in via `$user->can('invite', [OwnerProfile::class, $agency])`).
+     *
+     * TCK-278 — Profile-based check (no more spatie `setPermissionsTeamId` +
+     * `hasPermissionTo`).
      */
     public function invite(User $user, Agency $agency): bool
     {
@@ -54,22 +61,10 @@ class OwnerProfilePolicy
             return false;
         }
 
-        $registrar = app(PermissionRegistrar::class);
-        $previous = $registrar->getPermissionsTeamId();
-        $registrar->setPermissionsTeamId($agency->id);
-
-        try {
-            $user->unsetRelation('roles');
-            $user->unsetRelation('permissions');
-            $allowed = $user->hasPermissionTo(OwnerInvitationService::PERMISSION, 'web');
-        } catch (\Throwable) {
-            $allowed = false;
-        } finally {
-            $registrar->setPermissionsTeamId($previous);
-            $user->unsetRelation('roles');
-            $user->unsetRelation('permissions');
+        if ($user->isAgencyAdminAt((int) $agency->id)) {
+            return true;
         }
 
-        return $allowed;
+        return $user->hasActiveAgencyDelegation((int) $agency->id, 'agency_admin');
     }
 }

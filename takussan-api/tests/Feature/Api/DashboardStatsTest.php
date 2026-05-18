@@ -8,11 +8,11 @@ use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class DashboardStatsTest extends TestCase
@@ -48,11 +48,9 @@ class DashboardStatsTest extends TestCase
         // TCK-144 — super_admin is a *global* role, always assigned under
         // team_id=null. Probing it under any other team is non-canonical
         // and the new `User::isSuperAdmin()` helper enforces team-null.
-        Role::create(['name' => 'super_admin', 'team_id' => null]);
-        setPermissionsTeamId(null);
 
         $admin = User::factory()->create();
-        $admin->assignRole('super_admin');
+        $this->materializeRoleProfile($admin, 'super_admin');
         Sanctum::actingAs($admin);
 
         $this->getJson('/api/dashboard/stats')->assertOk()
@@ -62,11 +60,9 @@ class DashboardStatsTest extends TestCase
     public function test_agency_admin_stats(): void
     {
         $agency = Agency::factory()->create();
-        Role::create(['name' => 'agency_admin', 'team_id' => $agency->id]);
-        setPermissionsTeamId($agency->id);
 
         $admin = User::factory()->create(['agency_id' => $agency->id]);
-        $admin->assignRole('agency_admin');
+        $this->materializeRoleProfile($admin, 'agency_admin', $agency);
         Sanctum::actingAs($admin);
 
         $this->getJson('/api/dashboard/stats')->assertOk()
@@ -76,11 +72,9 @@ class DashboardStatsTest extends TestCase
     public function test_agent_stats(): void
     {
         $agency = Agency::factory()->create();
-        Role::create(['name' => 'agent', 'team_id' => $agency->id]);
-        setPermissionsTeamId($agency->id);
 
         $agent = User::factory()->create(['agency_id' => $agency->id]);
-        $agent->assignRole('agent');
+        $this->materializeRoleProfile($agent, 'agent', $agency);
         Sanctum::actingAs($agent);
 
         $this->getJson('/api/dashboard/stats')->assertOk()
@@ -90,11 +84,12 @@ class DashboardStatsTest extends TestCase
     public function test_tenant_stats(): void
     {
         $dummyAgency = Agency::factory()->create();
-        Role::create(['name' => 'tenant', 'team_id' => $dummyAgency->id]);
-        setPermissionsTeamId($dummyAgency->id);
 
         $tenantUser = User::factory()->create(['agency_id' => $dummyAgency->id]);
-        $tenantUser->assignRole('tenant');
+        // TCK-278 — Le shim TCK-142 crée un OwnerProfile auto sur la paire
+        // (user, agency_id). Un tenant n'est pas un owner ; on supprime le
+        // profil parasite pour que le DashboardController route via Customer.
+        OwnerProfile::query()->where('user_id', $tenantUser->id)->delete();
         $customer = Customer::factory()->create(['user_id' => $tenantUser->id]);
         Sanctum::actingAs($tenantUser);
 
@@ -105,11 +100,9 @@ class DashboardStatsTest extends TestCase
     public function test_tenant_stats_counts_open_maintenance_by_requester(): void
     {
         $dummyAgency = Agency::factory()->create();
-        Role::create(['name' => 'tenant', 'team_id' => $dummyAgency->id]);
-        setPermissionsTeamId($dummyAgency->id);
 
         $tenantUser = User::factory()->create(['agency_id' => $dummyAgency->id]);
-        $tenantUser->assignRole('tenant');
+        OwnerProfile::query()->where('user_id', $tenantUser->id)->delete();
         Customer::factory()->create(['user_id' => $tenantUser->id]);
 
         $property = Property::factory()->create();

@@ -12,7 +12,6 @@ use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
@@ -197,27 +196,20 @@ class ServiceProviderInvitationService
      * the agency team context*. Mirror la sonde Owner/Agent pour qu'un
      * user ayant la permission ailleurs ne passe pas accidentellement.
      */
+    /**
+     * TCK-278 — Profile-based check (plus de spatie `setPermissionsTeamId` +
+     * `hasPermissionTo`). Autorisé pour un `AgencyAdminProfile` actif sur
+     * l'agence ou pour un user bénéficiant d'une `RoleDelegation` active
+     * `agency_admin` (TCK-108).
+     */
     protected function assertInviterCanInvite(User $inviter, Agency $agency): void
     {
         if (method_exists($inviter, 'isSuperAdmin') && $inviter->isSuperAdmin()) {
             return;
         }
 
-        $registrar = app(PermissionRegistrar::class);
-        $previous = $registrar->getPermissionsTeamId();
-        $registrar->setPermissionsTeamId($agency->id);
-
-        try {
-            $inviter->unsetRelation('roles');
-            $inviter->unsetRelation('permissions');
-            $allowed = $inviter->hasPermissionTo(self::PERMISSION, 'web');
-        } catch (\Throwable) {
-            $allowed = false;
-        } finally {
-            $registrar->setPermissionsTeamId($previous);
-            $inviter->unsetRelation('roles');
-            $inviter->unsetRelation('permissions');
-        }
+        $allowed = $inviter->isAgencyAdminAt((int) $agency->id)
+            || $inviter->hasActiveAgencyDelegation((int) $agency->id, 'agency_admin');
 
         if (! $allowed) {
             throw new HttpException(403, __('service_providers.invite.errors.permission_denied'));

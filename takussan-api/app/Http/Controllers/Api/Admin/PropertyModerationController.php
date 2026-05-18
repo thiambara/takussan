@@ -30,7 +30,7 @@ class PropertyModerationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user->isSuperAdmin() || $user->hasRole('agency_admin'), 403);
+        abort_unless($user->isSuperAdmin() || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)), 403);
 
         $query = Property::query()
             ->with(['owner', 'agency', 'address'])

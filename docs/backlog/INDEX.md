@@ -194,6 +194,12 @@ _(TCK-276 en doing)_
 
 _(TCK-277 en review)_
 
+### Vague 34 — Refonte RBAC : profil = rôle (2026-05-17)
+
+> Architectural. La double-source-de-vérité « rôle spatie sur User + profil polymorphe » a causé plusieurs bugs (cf. notes TCK-277). On unifie : le profil porte le rôle, User redevient identité pure. Phase 1 (TCK-278) supprime spatie de User, ajoute `PlatformProfile` et l'enum `Capability` + résolveur. Phase 2 (TCK-279) ajoute le trait `HasRoles` sur les profils, la table `agency_roles` et débloque les rôles personnalisés (supersede TCK-135).
+
+- [TCK-279](tickets/TCK-279-rbac-custom-roles-phase-2.md) — RBAC phase 2 : rôles personnalisés par agence (HasRoles sur Profils + AgencyRole) `L · P1 · full` **[blocked: TCK-278]**
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
@@ -204,6 +210,7 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 
 ## 👀 Review
 
+- [TCK-278](tickets/TCK-278-rbac-profile-based-phase-1.md) — RBAC phase 1 : suppression spatie sur User + PlatformProfile + Capability resolver `XL · P1 · technique` *(P1 + P2.A→D + P3 cutover + P3.b tests verts + frontend types + CI guard — branche `feat/tck-278-279-rbac-architecture-spec`)*
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-276](tickets/TCK-276-public-agency-agent-portrait-redesign.md) — Pages publiques agence & agent — itération "Portrait/confiance" `L · P2 · applicatif`
 - [TCK-277](tickets/TCK-277-fusion-admin-team-users.md) — Fusion pages admin Équipe & Utilisateurs `M · P2 · front`
@@ -302,7 +309,7 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 
 ### Vague 15 — Câblage des zones UI stub
 
-- [TCK-135](tickets/TCK-135-admin-roles-editor.md) — `/admin/roles` — Éditeur de rôles & permissions personnalisés `M · P1 · full`
+- ~~[TCK-135](tickets/TCK-135-admin-roles-editor.md)~~ — ~~`/admin/roles` — Éditeur de rôles & permissions personnalisés `M · P1 · full`~~ **[superseded par TCK-279, architecture spatie+teams abandonnée]**
 - [TCK-136](tickets/TCK-136-profile-customer-search-preferences.md) — Profil locataire — Préférences de recherche & alertes `M · P1 · front`
 - [TCK-137](tickets/TCK-137-profile-contact-phone-edit.md) — Profil contact — Édition téléphone `S · P1 · front`
 

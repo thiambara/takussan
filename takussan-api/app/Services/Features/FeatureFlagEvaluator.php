@@ -38,7 +38,7 @@ class FeatureFlagEvaluator
         }
 
         $roles = $segments['roles'] ?? [];
-        if (is_array($roles) && $roles !== [] && collect($roles)->intersect($user->getRoleNames())->isNotEmpty()) {
+        if (is_array($roles) && $roles !== [] && collect($roles)->intersect($user->profileTypes())->isNotEmpty()) {
             return true;
         }
 

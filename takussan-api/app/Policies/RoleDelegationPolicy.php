@@ -19,7 +19,7 @@ class RoleDelegationPolicy
         }
 
         return $agency->primary_admin_id === $user->id
-            || $user->hasRole('agency_admin');
+            || $user->isAgencyAdminAt((int) $agency->id);
     }
 
     /**

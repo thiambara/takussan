@@ -7,8 +7,6 @@ use App\Models\Enums\RoleDelegationStatus;
 use App\Models\RoleDelegation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class RoleDelegationTest extends TestCase
@@ -26,9 +24,6 @@ class RoleDelegationTest extends TestCase
         parent::setUp();
 
         // Create roles
-        Role::create(['name' => 'agency_admin', 'guard_name' => 'web']);
-        Role::create(['name' => 'agent', 'guard_name' => 'web']);
-        Role::create(['name' => 'super_admin', 'guard_name' => 'web']);
 
         // Create agency and users
         $this->primaryAdmin = User::factory()->create();
@@ -79,14 +74,12 @@ class RoleDelegationTest extends TestCase
         $response->assertStatus(201)
             ->assertJsonPath('data.status', 'active');
 
-        // Verify role was assigned via Spatie (check directly in pivot table)
+        // TCK-278 — La délégation enregistre une `RoleDelegation` Active ;
+        // le check d'autorisation passe via `hasActiveAgencyDelegation`
+        // (cf. MembershipCapabilityResolver), pas par matérialisation
+        // d'un AgencyAdminProfile.
         $this->agent->refresh();
-        $this->assertDatabaseHas('model_has_roles', [
-            'model_id' => $this->agent->id,
-            'model_type' => User::class,
-            'role_id' => Role::findByName('agency_admin', 'web')->id,
-            'agency_id' => $this->agency->id,
-        ]);
+        $this->assertTrue($this->agent->hasActiveAgencyDelegation((int) $this->agency->id, 'agency_admin'));
     }
 
     /** @test */
@@ -163,7 +156,6 @@ class RoleDelegationTest extends TestCase
         ]);
 
         // Manually assign role via Spatie to simulate active state
-        $this->agent->assignRole('agency_admin', $this->agency->id);
 
         $this->actingAs($this->primaryAdmin);
 
@@ -174,7 +166,7 @@ class RoleDelegationTest extends TestCase
 
         // Role should be removed
         $this->agent->refresh();
-        $this->assertFalse($this->agent->hasRole('agency_admin', $this->agency->id));
+        $this->assertFalse($this->agent->isAgencyAdminAt((int) $this->agency->id));
     }
 
     /** @test */
@@ -205,7 +197,6 @@ class RoleDelegationTest extends TestCase
     public function test_non_admin_cannot_create_delegation_returns_403(): void
     {
         $regularAgent = User::factory()->create(['agency_id' => $this->agency->id]);
-        $regularAgent->assignRole('agent', $this->agency->id);
 
         $this->actingAs($regularAgent);
 
@@ -297,8 +288,6 @@ class RoleDelegationTest extends TestCase
     public function test_beneficiary_can_view_own_delegation_but_not_others(): void
     {
         $beneficiary = User::factory()->create(['agency_id' => $this->agency->id]);
-        app(PermissionRegistrar::class)->setPermissionsTeamId($this->agency->id);
-        $beneficiary->assignRole('agent');
 
         // Create delegation for beneficiary
         $delegation = RoleDelegation::factory()->create([

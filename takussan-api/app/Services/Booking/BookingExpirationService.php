@@ -219,8 +219,13 @@ class BookingExpirationService
             return $booking->property->owner;
         }
 
-        // Fall back to the booking creator if they have agent role
-        if ($booking->createdBy && $booking->createdBy->hasRole('agent')) {
+        // Fall back to the booking creator if they have an active agent
+        // profile in the booking's agency (TCK-278 — rôle = profil).
+        $bookingAgencyId = $booking->agency_id
+            ?? $booking->property?->agency_id;
+        if ($booking->createdBy
+            && $bookingAgencyId !== null
+            && $booking->createdBy->isAgentAt((int) $bookingAgencyId)) {
             return $booking->createdBy;
         }
 

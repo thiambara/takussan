@@ -2,11 +2,17 @@
 
 namespace App\Models\Concerns;
 
+use App\Models\Agency;
+use App\Models\Enums\Capability;
+use App\Models\Enums\PlatformProfileLevel;
+use App\Models\Enums\RoleDelegationStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\BrokerProfile;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderProfile;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -47,6 +53,15 @@ trait HasProfiles
     public function serviceProviderProfile(): HasOne
     {
         return $this->hasOne(ServiceProviderProfile::class);
+    }
+
+    /**
+     * TCK-278 — profil plateforme (cross-tenant). Contrainte unique sur
+     * `user_id` au niveau schéma : un user a au plus un PlatformProfile.
+     */
+    public function platformProfile(): HasOne
+    {
+        return $this->hasOne(PlatformProfile::class);
     }
 
     /**
@@ -148,6 +163,101 @@ trait HasProfiles
         return $this->agentProfiles()->exists()
             || $this->brokerProfile()->exists()
             || $this->serviceProviderProfile()->exists();
+    }
+
+    /**
+     * TCK-278 — Liste des "rôles" du user, dérivée de ses profils polymorphes
+     * (cf. Règle 5). Remplace l'ancien `getRoleNames()` de spatie.
+     *
+     * Retourne une `Collection<string>` contenant les rôles présents parmi :
+     * `super_admin`, `agency_admin`, `agent`, `owner`, `broker`,
+     * `service_provider`. Les rôles agence-scopés apparaissent une fois si
+     * le user les détient au moins dans une agence.
+     *
+     * @return Collection<int,string>
+     */
+    public function profileTypes(): Collection
+    {
+        $types = new Collection;
+        if ($this->hasActiveSuperAdminProfile()) {
+            $types->push('super_admin');
+        }
+        if ($this->agencyAdminProfiles()->exists()) {
+            $types->push('agency_admin');
+        }
+        if ($this->agentProfiles()->exists()) {
+            $types->push('agent');
+        }
+        if ($this->ownerProfiles()->exists()) {
+            $types->push('owner');
+        }
+        if ($this->brokerProfile()->exists()) {
+            $types->push('broker');
+        }
+        if ($this->serviceProviderProfile()->exists()) {
+            $types->push('service_provider');
+        }
+
+        return $types->values();
+    }
+
+    /**
+     * TCK-278 — Vrai si l'utilisateur détient un profil polymorphe du
+     * type donné, optionnellement scopé à une agence. `$profileType` est
+     * le FQN du modèle (`OwnerProfile::class`, etc.) ; alias court de
+     * `hasProfile()` qui complète l'API publique avec une signature
+     * explicite `(agencyId, type)` côté Policies/Services.
+     */
+    public function hasProfileAt(int $agencyId, string $profileType): bool
+    {
+        return $this->hasProfile($profileType, $agencyId);
+    }
+
+    /**
+     * TCK-278 — Vrai si l'utilisateur dispose d'un PlatformProfile
+     * `super_admin` actif. Source de vérité unique à terme ; cohabite en
+     * P1/P2 avec le check spatie historique (`User::isSuperAdmin`) jusqu'au
+     * cutover P3.
+     */
+    public function hasActiveSuperAdminProfile(): bool
+    {
+        $profile = $this->relationLoaded('platformProfile')
+            ? $this->platformProfile
+            : $this->platformProfile()->active()->first();
+
+        return $profile !== null
+            && $profile->isActive()
+            && $profile->level === PlatformProfileLevel::SuperAdmin;
+    }
+
+    /**
+     * TCK-278 — Vérifie une capacité atomique pour cet utilisateur dans le
+     * contexte (`Agency` ou plateforme si null). Délègue au
+     * `MembershipCapabilityResolver` ; site d'appel stable pour P2/P3.
+     */
+    public function canActAt(Capability $capability, ?Agency $agency = null): bool
+    {
+        return app(MembershipCapabilityResolver::class)->allows($this, $capability, $agency);
+    }
+
+    /**
+     * TCK-278 — Vrai si l'utilisateur dispose d'une `RoleDelegation` active
+     * pour le rôle indiqué dans l'agence donnée. Remplace l'ancien check
+     * spatie `hasPermissionTo` qui dépendait de `setPermissionsTeamId`.
+     *
+     * Une délégation est active quand : status = Active et (ends_at est
+     * null OU dans le futur).
+     */
+    public function hasActiveAgencyDelegation(int $agencyId, string $role): bool
+    {
+        return $this->roleDelegations()
+            ->where('agency_id', $agencyId)
+            ->where('role', $role)
+            ->where('status', RoleDelegationStatus::Active)
+            ->where(function ($q) {
+                $q->whereNull('ends_at')->orWhere('ends_at', '>', now());
+            })
+            ->exists();
     }
 
     /**

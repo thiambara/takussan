@@ -8,8 +8,6 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /**
@@ -31,16 +29,12 @@ class ActivityLogEndpointTest extends TestCase
         parent::setUp();
 
         $this->agency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
-        Role::findOrCreate('super_admin', 'web');
-        setPermissionsTeamId($this->agency->id);
     }
 
     private function actingAsAdmin(): User
     {
         $admin = User::factory()->create(['agency_id' => $this->agency->id]);
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
-        $admin->assignRole('super_admin');
+        $this->materializeRoleProfile($admin, 'super_admin');
         Sanctum::actingAs($admin);
 
         return $admin;

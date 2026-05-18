@@ -37,7 +37,7 @@ class PropertyAncestorsController extends Controller
         if ($user->agency_id && $user->agency_id === $property->agency_id) {
             return;
         }
-        if ($user->hasRole('super_admin')) {
+        if ($user->isSuperAdmin()) {
             return;
         }
         abort(403);

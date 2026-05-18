@@ -6,15 +6,16 @@ use App\Models\Agency;
 use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\OwnerProfileStatus;
+use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Génère des utilisateurs de test prédéfinis pour faciliter les démonstrations.
@@ -89,11 +90,7 @@ class DemoUsersSeeder extends Seeder
 
         $this->command?->getOutput()?->writeln('  > Création des utilisateurs de démo...');
 
-        $registrar = app(PermissionRegistrar::class);
-
         foreach ($this->ctx->agencies as $agency) {
-            $registrar->setPermissionsTeamId($agency->id);
-
             foreach (self::DEMO_USERS as $userData) {
                 // Ignorer super_admin pour les agences (il est global)
                 if ($userData['role'] === 'super_admin') {
@@ -139,8 +136,9 @@ class DemoUsersSeeder extends Seeder
             ]
         );
 
-        $user->assignRole($userData['role']);
-
+        // TCK-278 — Le rôle est matérialisé par le profil polymorphe
+        // (ensureProfileFor ci-dessous). Plus de spatie assignRole.
+        unset($userData['role']);
         $this->ensureProfileFor($user, $agency, $userData['persona']);
         $this->ctx->registerUser($user, $userData['persona'], $agency->id);
     }
@@ -155,8 +153,6 @@ class DemoUsersSeeder extends Seeder
         if (! $superAdminData) {
             return;
         }
-
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
 
         $user = User::updateOrCreate(
             ['email' => $superAdminData['email']],
@@ -174,7 +170,14 @@ class DemoUsersSeeder extends Seeder
             ]
         );
 
-        $user->assignRole('super_admin');
+        // TCK-278 — super_admin matérialisé via PlatformProfile.
+        PlatformProfile::query()->firstOrCreate(
+            ['user_id' => $user->id],
+            [
+                'level' => PlatformProfileLevel::SuperAdmin,
+                'granted_at' => now(),
+            ],
+        );
         $this->ctx->systemUsers->push($user);
     }
 

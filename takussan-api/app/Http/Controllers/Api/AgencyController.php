@@ -7,9 +7,11 @@ use App\Http\Requests\AgencyUpdateRequest;
 use App\Http\Resources\AgencyResource;
 use App\Http\Resources\UserResource;
 use App\Models\Agency;
+use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\Currency;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use App\Services\Billing\QuotaResolver;
@@ -18,8 +20,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 
 class AgencyController extends Controller
 {
@@ -82,7 +82,7 @@ class AgencyController extends Controller
             || $agency->primary_admin_id === $user->id
             || (
                 $request->activeProfile()?->agency_id === $agency->id
-                && $user->hasRole('agency_admin')
+                && $user->isAgencyAdminAt((int) $agency->id)
             ),
             403
         );
@@ -127,10 +127,16 @@ class AgencyController extends Controller
         $query = User::buildQuery($base, $request)
             ->defaultSort('-created_at');
 
-        // Optional post-filter on role — spatie roles aren't a regular column.
+        // TCK-278 — Filtre `?filter[role]=...` désormais résolu via les
+        // profils polymorphes plutôt que la table spatie `roles`.
         $role = $request->query('filter.role') ?? data_get($request->query('filter', []), 'role');
         if ($role) {
-            $query->whereHas('roles', fn ($q) => $q->where('name', $role));
+            match ($role) {
+                'agent' => $query->whereHas('agentProfiles'),
+                'agency_admin' => $query->whereHas('agencyAdminProfiles'),
+                'owner' => $query->whereHas('ownerProfiles'),
+                default => $query->whereRaw('1 = 0'),
+            };
         }
 
         $paginator = $query->paginate((int) $request->input('per_page', 20));
@@ -171,29 +177,22 @@ class AgencyController extends Controller
             ->exists();
         abort_if($existingElsewhere, 422, __('messages.user_already_in_agency'));
 
+        // TCK-278 — Rôle = présence d'un profil polymorphe. On crée toujours
+        // un AgentProfile (le rôle de base d'un membre d'équipe) ; si le rôle
+        // demandé est `agency_admin`, on matérialise aussi un AgencyAdminProfile
+        // sur la même agence.
         AgentProfile::query()->firstOrCreate(
             ['user_id' => $target->id, 'agency_id' => $agency->id],
             ['status' => AgentProfileStatus::Active->value],
         );
 
         $role = $data['role'] ?? 'agent';
-        Role::findOrCreate($role, 'web');
-
-        // Always scope role assignment to the agency's team, not the requester's
-        // team. When super_admin calls this endpoint their team context is null,
-        // which would assign the role with team_id = null and break hasRole()
-        // checks for the target user on all subsequent requests.
-        $registrar = app(PermissionRegistrar::class);
-        $originalTeamId = $registrar->getPermissionsTeamId();
-        $registrar->setPermissionsTeamId($agency->id);
-        $target->unsetRelation('roles');
-
-        if (! $target->hasRole($role)) {
-            $target->assignRole($role);
+        if ($role === 'agency_admin') {
+            AgencyAdminProfile::query()->firstOrCreate(
+                ['user_id' => $target->id, 'agency_id' => $agency->id],
+                ['status' => AgencyAdminProfileStatus::Active->value],
+            );
         }
-
-        $registrar->setPermissionsTeamId($originalTeamId);
-        $target->unsetRelation('roles');
 
         return $this->json([
             'data' => [
@@ -212,46 +211,24 @@ class AgencyController extends Controller
         abort_if(! $belongsToAgency, 422, __('messages.user_not_in_agency'));
         abort_if($user->id === $agency->primary_admin_id, 422, __('messages.cannot_remove_primary_admin'));
 
-        // Race guard: wrap the last-admin check + mutation in a transaction
-        // with a row lock on the target. Without this, two concurrent DELETEs
-        // for two distinct agency_admins can both observe "one admin remains"
-        // and both succeed, leaving the agency with zero admins.
-        $registrar = app(PermissionRegistrar::class);
-        $originalTeamId = $registrar->getPermissionsTeamId();
-
-        DB::transaction(function () use ($user, $agency, $registrar) {
-            // Scope all role operations to the agency's team. When super_admin
-            // calls this endpoint their team context is null, which would cause
-            // hasRole() and removeRole() to miss roles assigned with the
-            // agency's team_id.
-            $registrar->setPermissionsTeamId($agency->id);
-
+        // TCK-278 — Last-admin guard : maintenant que le rôle est porté par
+        // `AgencyAdminProfile`, on compte les profils admin restants (et non
+        // plus les users avec rôle spatie `agency_admin` + agent profile).
+        DB::transaction(function () use ($user, $agency) {
             $locked = User::where('id', $user->id)->lockForUpdate()->first();
-            if ($locked) {
-                $locked->unsetRelation('roles');
-                if ($locked->hasRole('agency_admin')) {
-                    // TCK-142 — peers in this agency are users with an
-                    // AgentProfile here, not users with `agency_id = X`.
-                    $remainingAdmins = User::query()
-                        ->whereHas('agentProfiles', fn ($q) => $q->where('agency_id', $agency->id))
-                        ->whereHas('roles', fn ($q) => $q->where('name', 'agency_admin'))
-                        ->where('id', '!=', $user->id)
-                        ->lockForUpdate()
-                        ->count();
-                    abort_if($remainingAdmins === 0, 422, __('messages.cannot_remove_last_agency_admin'));
-                }
+            if ($locked && $locked->isAgencyAdminAt((int) $agency->id)) {
+                $remainingAdmins = AgencyAdminProfile::query()
+                    ->where('agency_id', $agency->id)
+                    ->whereNull('deleted_at')
+                    ->where('user_id', '!=', $user->id)
+                    ->lockForUpdate()
+                    ->count();
+                abort_if($remainingAdmins === 0, 422, __('messages.cannot_remove_last_agency_admin'));
             }
 
             $user->agentProfiles()->where('agency_id', $agency->id)->delete();
-            foreach (['agent', 'agency_admin'] as $role) {
-                $user->unsetRelation('roles');
-                if ($user->hasRole($role)) {
-                    $user->removeRole($role);
-                }
-            }
+            $user->agencyAdminProfiles()->where('agency_id', $agency->id)->delete();
         });
-
-        $registrar->setPermissionsTeamId($originalTeamId);
 
         return $this->json(['data' => ['user_id' => $user->id, 'removed' => true]]);
     }
@@ -267,7 +244,7 @@ class AgencyController extends Controller
             || $agency->primary_admin_id === $user->id
             || (
                 $request->activeProfile()?->agency_id === $agency->id
-                && $user->hasRole('agency_admin')
+                && $user->isAgencyAdminAt((int) $agency->id)
             ),
             403,
         );

@@ -25,7 +25,6 @@
         "spatie/laravel-activitylog": "^5.0",
         "spatie/laravel-medialibrary": "^11.0",
         "spatie/laravel-pdf": "^2.0",
-        "spatie/laravel-permission": "^7.3",
         "spatie/laravel-query-builder": "^7.2"
     },
     "require-dev": {

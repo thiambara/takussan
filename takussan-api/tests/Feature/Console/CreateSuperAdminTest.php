@@ -7,8 +7,6 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /**
@@ -30,7 +28,6 @@ class CreateSuperAdminTest extends TestCase
         parent::setUp();
         // Reset the spatie team scope between tests so role lookups
         // happen on the global (null-team) bucket the command targets.
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
     }
 
     public function test_interactive_mode_creates_super_admin(): void
@@ -155,14 +152,9 @@ class CreateSuperAdminTest extends TestCase
 
         $user = User::query()->where('email', 'role@takussan.test')->first();
 
-        // The role is attached under the null-team bucket, regardless
-        // of the registrar's current scope at probe time.
-        app(PermissionRegistrar::class)->setPermissionsTeamId(42);
+        // TCK-278 — super_admin se matérialise via PlatformProfile, plus
+        // par une ligne dans la table spatie roles.
         $this->assertTrue($user->isSuperAdmin());
-
-        // Role exists, was created on demand if it was not seeded.
-        $role = Role::findByName('super_admin', 'web');
-        $this->assertNotNull($role);
     }
 
     public function test_activity_log_super_admin_bootstrapped_is_written(): void

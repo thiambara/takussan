@@ -16,7 +16,7 @@ class GuarantorController extends Controller
         $user = $request->user();
         $base = Guarantor::query();
 
-        if (! $user->hasRole('super_admin')) {
+        if (! $user->isSuperAdmin()) {
             $base->where('added_by_id', $user->id);
         }
 
@@ -100,7 +100,7 @@ class GuarantorController extends Controller
     protected function authorizeAccess(Request $request, Guarantor $guarantor): void
     {
         $user = $request->user();
-        $ok = $user->hasRole('super_admin')
+        $ok = $user->isSuperAdmin()
             || $guarantor->added_by_id === $user->id
             || ($user->agency_id && $guarantor->addedBy?->agency_id === $user->agency_id);
 

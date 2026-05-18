@@ -6,8 +6,6 @@ use App\Models\Agency;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Testing\TestResponse;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\BaseTestCase;
 
 class BaseTestCaseTest extends BaseTestCase
@@ -19,23 +17,27 @@ class BaseTestCaseTest extends BaseTestCase
         $user = $this->actingAsRole('agent');
 
         $this->assertNotNull($user->agency_id);
-        app(PermissionRegistrar::class)->setPermissionsTeamId($user->agency_id);
-        $this->assertTrue($user->hasRole('agent'));
+        $this->assertTrue($user->isAgentAt((int) $user->agency_id));
         $this->assertAuthenticatedAs($user);
     }
 
-    public function test_acting_as_role_seeds_roles_lazily(): void
+    public function test_acting_as_role_materializes_owner_profile_for_customer(): void
     {
-        $this->assertSame(0, Role::query()->count());
+        // TCK-278 — l'ancien test `seeds_roles_lazily` reposait sur le seeder
+        // spatie. Désormais `customer` est un rôle dérivé sans profil
+        // polymorphe (cf. Règle 5) — on vérifie juste que `actingAsRole` ne
+        // panique pas et n'attache pas de profil agence-scopé.
+        $user = $this->actingAsRole('customer');
 
-        $this->actingAsRole('customer');
-
-        $this->assertGreaterThan(0, Role::query()->count());
+        $this->assertNull($user->agency_id);
     }
 
     public function test_acting_as_role_accepts_custom_agency(): void
     {
-        $user = $this->actingAsRole('customer');
+        // TCK-278 — `customer` is a derived role with no implicit agency
+        // (cf. Règle 5). Use `agent` here since the test only cares about
+        // agency-reuse semantics, not the role itself.
+        $user = $this->actingAsRole('agent');
         $agency = Agency::findOrFail($user->agency_id);
 
         $second = $this->actingAsRole('agent', ['agency' => $agency]);
@@ -45,7 +47,7 @@ class BaseTestCaseTest extends BaseTestCase
 
     public function test_acting_as_role_accepts_agency_id_directly(): void
     {
-        $user = $this->actingAsRole('customer');
+        $user = $this->actingAsRole('agent');
 
         $second = $this->actingAsRole('agent', ['agency_id' => $user->agency_id]);
 
@@ -54,7 +56,10 @@ class BaseTestCaseTest extends BaseTestCase
 
     public function test_acting_as_role_prefers_agency_model_over_agency_id_on_conflict(): void
     {
-        $user = $this->actingAsRole('customer');
+        // TCK-278 — `customer` is a derived role with no implicit agency
+        // (cf. Règle 5). Use `agent` here since the test only cares about
+        // agency-reuse semantics, not the role itself.
+        $user = $this->actingAsRole('agent');
         $agency = Agency::findOrFail($user->agency_id);
 
         $second = $this->actingAsRole('agent', [

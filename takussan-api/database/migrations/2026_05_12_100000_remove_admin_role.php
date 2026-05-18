@@ -2,10 +2,14 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
-use Spatie\Permission\PermissionRegistrar;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * TCK-273 — Remove the redundant `admin` Spatie role.
+ *
+ * TCK-278 — Post-cutover : tables spatie supprimées par la migration
+ * `2026_05_18_120000_drop_spatie_permission_tables`. Cette migration
+ * devient un no-op si les tables n'existent plus.
  *
  * The `admin` role was seeded as a strict clone of `super_admin` (same full
  * permission set) but was never assigned by any code path. Every check in
@@ -26,6 +30,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (! Schema::hasTable('roles')) {
+            return; // TCK-278 cutover already dropped the spatie tables.
+        }
+
         $adminRoleIds = DB::table('roles')
             ->where('name', 'admin')
             ->where('guard_name', 'web')
@@ -73,12 +81,14 @@ return new class extends Migration
 
         // 3. Drop the role itself.
         DB::table('roles')->whereIn('id', $adminRoleIds)->delete();
-
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 
     public function down(): void
     {
+        if (! Schema::hasTable('roles')) {
+            return; // TCK-278 cutover : tables spatie n'existent plus.
+        }
+
         // Recreate an empty `admin` role under the web guard, team_id = null
         // (matches the original seeder shape). User assignments are not
         // restored — the information was lost by design in up().
@@ -97,7 +107,5 @@ return new class extends Migration
                 'updated_at' => now(),
             ]);
         }
-
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 };

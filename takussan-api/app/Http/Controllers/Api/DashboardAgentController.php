@@ -19,7 +19,11 @@ class DashboardAgentController extends Controller
         $user = $request->user();
 
         abort_unless(
-            $user->hasRole(['agent', 'agency_admin', 'super_admin']),
+            $user->isSuperAdmin()
+                || ($user->agency_id !== null && (
+                    $user->isAgentAt((int) $user->agency_id)
+                    || $user->isAgencyAdminAt((int) $user->agency_id)
+                )),
             403,
         );
 

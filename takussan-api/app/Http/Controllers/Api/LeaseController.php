@@ -28,7 +28,7 @@ class LeaseController extends Controller
 
         $base = Lease::query()->with(['property.address', 'tenant']);
 
-        if (! $user->hasRole('super_admin')) {
+        if (! $user->isSuperAdmin()) {
             $base->where(function ($q) use ($user) {
                 $q->where('landlord_id', $user->id)
                     ->orWhereHas('tenant', fn ($t) => $t->where('user_id', $user->id));
@@ -252,7 +252,7 @@ class LeaseController extends Controller
     protected function authorizeAccess(Request $request, Lease $lease): void
     {
         $user = $request->user();
-        $ok = $user->hasRole('super_admin')
+        $ok = $user->isSuperAdmin()
             || $lease->landlord_id === $user->id
             || ($user->agency_id && $user->agency_id === $lease->agency_id)
             || ($lease->tenant && $lease->tenant->user_id === $user->id);
@@ -263,7 +263,7 @@ class LeaseController extends Controller
     protected function authorizeManage(Request $request, Lease $lease): void
     {
         $user = $request->user();
-        $ok = $user->hasRole('super_admin')
+        $ok = $user->isSuperAdmin()
             || $lease->landlord_id === $user->id
             || ($user->agency_id && $user->agency_id === $lease->agency_id);
 

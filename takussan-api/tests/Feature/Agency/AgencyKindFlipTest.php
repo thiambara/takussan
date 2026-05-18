@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
 use App\Services\Agency\AgencyKindFlipService;
 use App\Services\Invitation\AgentInvitationService;
@@ -15,7 +16,6 @@ use Illuminate\Support\Facades\Notification;
 use Mockery;
 use RuntimeException;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\BaseTestCase;
 use Throwable;
@@ -178,15 +178,18 @@ class AgencyKindFlipTest extends BaseTestCase
     {
         Notification::fake();
         Mail::fake();
-        $this->ensureRolesSeeded();
 
         // Pre-flip — invitation must be 403'd (kind=individual).
         $agency = Agency::factory()->individual()->create();
         $admin = User::factory()->create(['agency_id' => $agency->id]);
 
-        $registrar = app(PermissionRegistrar::class);
-        $registrar->setPermissionsTeamId($agency->id);
-        $admin->assignRole('agency_admin');
+        // TCK-278 — la check de permission interroge désormais le profil
+        // polymorphe ; le matérialiser explicitement (le test bypass
+        // `actingAsRole` qui le ferait automatiquement).
+        AgencyAdminProfile::factory()->create([
+            'user_id' => $admin->id,
+            'agency_id' => $agency->id,
+        ]);
 
         $service = app(AgentInvitationService::class);
 
@@ -208,7 +211,6 @@ class AgencyKindFlipTest extends BaseTestCase
         app(AgencyKindFlipService::class)->flip($request);
 
         // Refresh permission context after flip, then re-invite.
-        $registrar->setPermissionsTeamId($agency->fresh()->id);
         $invitation = $service->invite($agency->fresh(), $admin, [
             'email' => 'post-flip@example.com',
             'role' => 'agent',

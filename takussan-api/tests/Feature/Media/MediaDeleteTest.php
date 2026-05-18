@@ -3,13 +3,11 @@
 namespace Tests\Feature\Media;
 
 use App\Models\User;
-use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class MediaDeleteTest extends TestCase
@@ -61,14 +59,12 @@ class MediaDeleteTest extends TestCase
 
     public function test_super_admin_can_delete_any_media(): void
     {
-        $this->seed(RolesAndPermissionsSeeder::class);
 
         $owner = User::factory()->create();
         $id = $this->uploadFor($owner);
 
         $admin = User::factory()->create();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($admin->agency_id);
-        $admin->assignRole('super_admin');
+        $this->materializeRoleProfile($admin, 'super_admin');
 
         Sanctum::actingAs($admin);
         $this->deleteJson("/api/media/{$id}")->assertNoContent();

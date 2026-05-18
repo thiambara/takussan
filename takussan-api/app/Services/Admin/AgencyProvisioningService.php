@@ -4,16 +4,16 @@ namespace App\Services\Admin;
 
 use App\Models\Address;
 use App\Models\Agency;
+use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\Currency;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class AgencyProvisioningService
@@ -128,22 +128,15 @@ class AgencyProvisioningService
         return $slug;
     }
 
+    /**
+     * TCK-278 — Le rôle est matérialisé via `AgencyAdminProfile` (source de
+     * vérité unique post-cutover).
+     */
     private function assignAgencyAdminRole(User $admin, Agency $agency): void
     {
-        Role::findOrCreate('agency_admin', 'web');
-
-        $registrar = app(PermissionRegistrar::class);
-        $previousTeamId = $registrar->getPermissionsTeamId();
-        $registrar->setPermissionsTeamId($agency->id);
-        $admin->unsetRelation('roles');
-
-        try {
-            if (! $admin->hasRole('agency_admin')) {
-                $admin->assignRole('agency_admin');
-            }
-        } finally {
-            $registrar->setPermissionsTeamId($previousTeamId);
-            $admin->unsetRelation('roles');
-        }
+        AgencyAdminProfile::query()->firstOrCreate(
+            ['user_id' => $admin->id, 'agency_id' => $agency->id],
+            ['status' => AgencyAdminProfileStatus::Active->value],
+        );
     }
 }

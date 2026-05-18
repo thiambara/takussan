@@ -26,7 +26,7 @@ class UserResource extends JsonResource
             // /onboarding/super-admin before serving any super-admin route.
             'force_2fa_at_first_login' => (bool) $this->force_2fa_at_first_login,
             'agency_id' => $this->agency_id,
-            'roles' => $this->getRoleNames()->values()->all(),
+            'roles' => $this->profileTypes()->all(),
             'status' => $this->status?->value,
             // TCK-253 — opt-in personalisation hints set via PATCH /api/me.
             // Always returned as an object (possibly empty) so clients can

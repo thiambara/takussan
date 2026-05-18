@@ -8,6 +8,7 @@ use App\Models\Document;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
 use App\Models\Enums\DocumentType;
+use App\Models\Enums\PlatformProfileLevel;
 use App\Models\User;
 use App\Notifications\AgencyUpgradeRequestSubmittedNotification;
 use App\Policies\AgencyUpgradeRequestPolicy;
@@ -17,7 +18,6 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
-use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
@@ -169,29 +169,16 @@ class AgencyUpgradeRequestService
      * a user who is `agency_admin` of *another* agency must not pass the
      * gate here.
      */
+    /**
+     * TCK-278 — Profile-based check (cf. policy).
+     */
     protected function assertSubmitterIsAgencyAdmin(User $submitter, Agency $agency): void
     {
         if ($submitter->isSuperAdmin()) {
             return;
         }
 
-        $registrar = app(PermissionRegistrar::class);
-        $previous = $registrar->getPermissionsTeamId();
-        $registrar->setPermissionsTeamId($agency->id);
-
-        try {
-            $submitter->unsetRelation('roles');
-            $submitter->unsetRelation('permissions');
-            $allowed = $submitter->hasRole('agency_admin');
-        } catch (\Throwable) {
-            $allowed = false;
-        } finally {
-            $registrar->setPermissionsTeamId($previous);
-            $submitter->unsetRelation('roles');
-            $submitter->unsetRelation('permissions');
-        }
-
-        if (! $allowed) {
+        if (! $submitter->isAgencyAdminAt((int) $agency->id)) {
             throw new HttpException(403, __('agency_upgrade.submit.errors.permission_denied'));
         }
     }
@@ -232,31 +219,17 @@ class AgencyUpgradeRequestService
     }
 
     /**
-     * Resolve every user holding the global `super_admin` role.
-     *
-     * Mirrors {@see SuperAdminCooptationService::superAdmins()}
-     * — kept self-contained here to avoid coupling the upgrade flow to
-     * the cooptation surface.
+     * TCK-278 — Source de vérité unifiée : `PlatformProfile` actif niveau
+     * super_admin. Mirror de {@see SuperAdminCooptationService::superAdmins()}.
      *
      * @return Collection<int, User>
      */
     public function resolveSuperAdmins(): Collection
     {
-        $registrar = app(PermissionRegistrar::class);
-        $previous = $registrar->getPermissionsTeamId();
-        $registrar->setPermissionsTeamId(null);
-
-        try {
-            $teamColumn = config('permission.column_names.team_foreign_key', 'team_id');
-
-            return User::query()
-                ->whereHas('roles', function ($query) use ($teamColumn): void {
-                    $query->where('roles.name', 'super_admin')
-                        ->whereNull('roles.'.$teamColumn);
-                })
-                ->get();
-        } finally {
-            $registrar->setPermissionsTeamId($previous);
-        }
+        return User::query()
+            ->whereHas('platformProfile', fn ($q) => $q
+                ->whereNull('revoked_at')
+                ->where('level', PlatformProfileLevel::SuperAdmin->value))
+            ->get();
     }
 }

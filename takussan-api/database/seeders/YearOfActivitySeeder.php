@@ -40,7 +40,6 @@ use Database\Seeders\Support\PostProcessingSeeder;
 use Database\Seeders\Support\SeedingConfig;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\System\AgencyUpgradeRequestSeeder;
-use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Database\Seeders\System\SettingsSeeder;
 use Database\Seeders\System\TagSeeder;
 use Illuminate\Database\Seeder;
@@ -52,7 +51,6 @@ class YearOfActivitySeeder extends Seeder
     /** @var array<int, class-string<Seeder>> */
     private const PIPELINE = [
         // System
-        RolesAndPermissionsSeeder::class,
         TagSeeder::class,
         // Core
         AgencySeeder::class,

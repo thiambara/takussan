@@ -49,12 +49,12 @@ class BookingService
 
         // Owners cannot book their own property (admins can still act on their behalf).
         abort_if(
-            $property->user_id === $user->id && ! $user->hasRole('super_admin'),
+            $property->user_id === $user->id && ! $user->isSuperAdmin(),
             403,
             'You cannot book your own property.'
         );
 
-        $isStaff = $user->hasRole('super_admin')
+        $isStaff = $user->isSuperAdmin()
             || ($user->agency_id && $property->agency_id && $user->agency_id === $property->agency_id)
             || $property->user_id === $user->id;
 

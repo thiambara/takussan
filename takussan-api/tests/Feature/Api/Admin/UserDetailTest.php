@@ -7,7 +7,6 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\BaseTestCase;
 
 class UserDetailTest extends BaseTestCase
@@ -27,9 +26,6 @@ class UserDetailTest extends BaseTestCase
             'last_login_at' => '2026-05-01 08:00:00',
         ]);
         AgentProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $agency->id]);
-
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        $user->assignRole('agent');
 
         $this->getJson('/api/admin/users?filter[search]=awa.roles@example.test&fields[users]=id,first_name,last_name,email,phone,status,email_verified_at,two_factor_enabled,last_login_at&include=roles,agentProfiles,ownerProfiles')
             ->assertOk()
@@ -52,8 +48,6 @@ class UserDetailTest extends BaseTestCase
             'two_factor_enabled' => true,
         ]);
         AgentProfile::factory()->create(['user_id' => $match->id, 'agency_id' => $agency->id]);
-        app(PermissionRegistrar::class)->setPermissionsTeamId($agency->id);
-        $match->assignRole('agent');
 
         $other = User::factory()->create([
             'email' => 'other@example.test',
@@ -61,7 +55,6 @@ class UserDetailTest extends BaseTestCase
             'two_factor_enabled' => false,
         ]);
         AgentProfile::factory()->create(['user_id' => $other->id, 'agency_id' => $agency->id]);
-        $other->assignRole('customer');
 
         $ids = collect($this->getJson("/api/admin/users?filter[role]=agent&filter[agency_id]={$agency->id}&filter[email_verified]=1&filter[two_factor_enabled]=1")
             ->assertOk()

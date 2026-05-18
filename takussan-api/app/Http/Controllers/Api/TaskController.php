@@ -17,7 +17,7 @@ class TaskController extends Controller
         $user = $request->user();
         $base = Task::query()->with(['assignee', 'creator']);
 
-        if (! $user->hasRole('super_admin')) {
+        if (! $user->isSuperAdmin()) {
             $base->where(function ($q) use ($user) {
                 $q->where('assigned_to_id', $user->id)
                     ->orWhere('created_by_id', $user->id);
@@ -96,7 +96,7 @@ class TaskController extends Controller
     protected function authorizeAccess(Request $request, Task $task): void
     {
         $user = $request->user();
-        $ok = $user->hasRole('super_admin')
+        $ok = $user->isSuperAdmin()
             || $task->created_by_id === $user->id
             || $task->assigned_to_id === $user->id;
 

@@ -7,14 +7,14 @@ use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\OwnerProfileStatus;
+use App\Models\Enums\RoleDelegationStatus;
 use App\Models\Invitation;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\RoleDelegation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\BaseTestCase;
 
 /**
@@ -138,9 +138,19 @@ class InviteOwnerTest extends BaseTestCase
         $agency = Agency::factory()->create(['kind' => AgencyKind::Standard]);
         $agent = $this->actingAsRole('agent', ['agency_id' => $agency->id]);
 
-        $registrar = app(PermissionRegistrar::class);
-        $registrar->setPermissionsTeamId($agency->id);
-        $agent->givePermissionTo('invite_owner');
+        // TCK-278 — délégation via RoleDelegation (TCK-108) au lieu de
+        // l'ancien `givePermissionTo` sur spatie.
+        RoleDelegation::create([
+            'user_id' => $agent->id,
+            'delegator_id' => $agent->id,
+            'agency_id' => $agency->id,
+            'role' => 'agency_admin',
+            'starts_at' => now(),
+            'ends_at' => now()->addDay(),
+            'status' => RoleDelegationStatus::Active,
+            'activated_at' => now(),
+            'user_native_roles_snapshot' => [],
+        ]);
 
         $this->postJson("/api/agencies/{$agency->id}/owners/invite", [
             'email' => 'delegated@example.com',
@@ -265,14 +275,5 @@ class InviteOwnerTest extends BaseTestCase
             'last_name' => 'B',
             'owner_type' => 'individual',
         ])->assertStatus(201);
-    }
-
-    public function test_role_owner_exists_for_acceptance(): void
-    {
-        // Defensive: the InvitationService accept flow needs `owner` role
-        // to exist under the agency team_id. The seeder creates it; this
-        // assertion guards against accidental removal.
-        $this->ensureRolesSeeded();
-        $this->assertNotNull(Role::query()->where('name', 'owner')->first());
     }
 }

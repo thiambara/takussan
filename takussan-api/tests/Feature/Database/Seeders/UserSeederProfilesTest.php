@@ -9,7 +9,6 @@ use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
 use Database\Seeders\Core\UserSeeder;
 use Database\Seeders\Support\SeedingContext;
-use Database\Seeders\System\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Tests\TestCase;
@@ -23,7 +22,6 @@ class UserSeederProfilesTest extends TestCase
         // Boot a minimal SeedingContext with one real agency so UserSeeder
         // walks its full per-agency persona pipeline (admin + 4 agents +
         // 10 owners + 5 providers).
-        (new RolesAndPermissionsSeeder)->run();
         $agency = Agency::factory()->create();
 
         $context = new SeedingContext;
@@ -50,11 +48,9 @@ class UserSeederProfilesTest extends TestCase
         $this->assertSame(4, AgentProfile::query()->count());
         $this->assertSame(5, ServiceProviderProfile::query()->count());
 
-        // Agency admin has no agency-scoped profile (their authority is
-        // entirely role-based) — only one such admin user is created per
-        // agency by the seeder.
+        // TCK-278 — Agency admin = présence d'un AgencyAdminProfile (cf. Règle 5).
         $admin = User::query()
-            ->whereHas('roles', fn ($q) => $q->where('name', 'agency_admin'))
+            ->whereHas('agencyAdminProfiles', fn ($q) => $q->where('agency_id', $agency->id))
             ->first();
         $this->assertNotNull($admin);
         $this->assertSame(0, OwnerProfile::query()->where('user_id', $admin->id)->count());

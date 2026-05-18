@@ -2,13 +2,13 @@
 
 namespace App\Services\Auth;
 
+use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\UserStatus;
+use App\Models\Profiles\PlatformProfile;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use RuntimeException;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 
 /**
  * TCK-263 — bootstraps a fully-formed super-admin account on a brand
@@ -92,43 +92,16 @@ class SuperAdminBootstrapService
     }
 
     /**
-     * Pin the spatie team scope to `null` (the role is global) and
-     * attach `super_admin`, creating the role on the fly if the
-     * environment hasn't been seeded yet. This keeps the bootstrap
-     * usable on a freshly-migrated database where
-     * RolesAndPermissionsSeeder has not been run.
+     * TCK-278 — Source de vérité unique : `PlatformProfile` super_admin.
      */
     private function attachSuperAdminRole(User $user): void
     {
-        $registrar = app(PermissionRegistrar::class);
-        $previous = $registrar->getPermissionsTeamId();
-        $registrar->setPermissionsTeamId(null);
-
-        try {
-            // Bypass spatie's `findByName` because it inherits the team
-            // scope at query time even when the registrar has been
-            // pinned to null — under `teams=true` the package adds an
-            // implicit `team_id IS ?` clause that does not match a
-            // legacy null-team row created in a different scope. Direct
-            // firstOrCreate on the role table is the documented escape
-            // hatch for global roles.
-            $registrar->forgetCachedPermissions();
-            $role = Role::query()
-                ->where('name', 'super_admin')
-                ->where('guard_name', 'web')
-                ->whereNull(config('permission.column_names.team_foreign_key', 'team_id'))
-                ->first();
-
-            if ($role === null) {
-                $role = Role::create([
-                    'name' => 'super_admin',
-                    'guard_name' => 'web',
-                ]);
-            }
-
-            $user->assignRole($role);
-        } finally {
-            $registrar->setPermissionsTeamId($previous);
-        }
+        PlatformProfile::query()->firstOrCreate(
+            ['user_id' => $user->id],
+            [
+                'level' => PlatformProfileLevel::SuperAdmin,
+                'granted_at' => now(),
+            ],
+        );
     }
 }

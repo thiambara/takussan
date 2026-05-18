@@ -169,13 +169,14 @@ class ExportDataService
     protected function scopeToActor($query, User $actor, string $entity): void
     {
         // Super admin / platform admin can see everything
-        if ($actor->hasRole('super_admin')) {
+        if ($actor->isSuperAdmin()) {
             return;
         }
 
         $agencyId = $actor->agency_id;
 
-        if ($actor->hasRole(['agency_admin', 'agent']) && $agencyId) {
+        if ($agencyId
+            && ($actor->isAgencyAdminAt((int) $agencyId) || $actor->isAgentAt((int) $agencyId))) {
             match ($entity) {
                 'property', 'customer' => $query->where('agency_id', $agencyId),
                 'lease' => $query->where('agency_id', $agencyId),
@@ -186,7 +187,7 @@ class ExportDataService
             return;
         }
 
-        if ($actor->hasRole('owner')) {
+        if ($agencyId && $actor->isOwnerAt((int) $agencyId)) {
             match ($entity) {
                 'property' => $query->where('user_id', $actor->id),
                 'lease' => $query->where('landlord_id', $actor->id),

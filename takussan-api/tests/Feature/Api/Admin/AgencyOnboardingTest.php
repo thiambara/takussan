@@ -9,7 +9,6 @@ use App\Services\Admin\AgencyProvisioningService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\BaseTestCase;
 
@@ -35,13 +34,7 @@ class AgencyOnboardingTest extends BaseTestCase
 
         $this->assertSame($admin->id, $agency->primary_admin_id);
         $this->assertTrue($admin->agentProfiles()->where('agency_id', $agency->id)->exists());
-
-        $registrar = app(PermissionRegistrar::class);
-        $previous = $registrar->getPermissionsTeamId();
-        $registrar->setPermissionsTeamId($agency->id);
-        $admin->unsetRelation('roles');
-        $this->assertTrue($admin->hasRole('agency_admin'));
-        $registrar->setPermissionsTeamId($previous);
+        $this->assertTrue($admin->isAgencyAdminAt((int) $agency->id));
 
         Notification::assertSentTo($admin, ResetPasswordNotification::class);
 

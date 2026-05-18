@@ -12,8 +12,6 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class BankReconciliationTest extends TestCase
@@ -29,14 +27,10 @@ class BankReconciliationTest extends TestCase
         parent::setUp();
 
         $this->agency = Agency::factory()->create();
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-        app(PermissionRegistrar::class)->setPermissionsTeamId($this->agency->id);
-        Role::findOrCreate('agency_admin');
         $this->admin = User::factory()->create([
             'agency_id' => $this->agency->id,
         ]);
         $this->agency->update(['primary_admin_id' => $this->admin->id]);
-        $this->admin->assignRole('agency_admin');
     }
 
     // ─── Upload / Import ─────────────────────────────────────────

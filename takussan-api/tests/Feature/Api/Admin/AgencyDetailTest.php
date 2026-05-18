@@ -119,7 +119,10 @@ class AgencyDetailTest extends BaseTestCase
         AgentProfile::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id]);
         Property::factory()->create(['agency_id' => $agency->id, 'title' => 'Villa Almadies']);
 
-        $this->getJson("/api/admin/agencies/{$agency->id}/team?include=roles&fields[users]=id,first_name,last_name,email,status&per_page=10")
+        // TCK-278 — `include=roles` était un alias spatie ; les rôles sont
+        // désormais dérivés des profils polymorphes et déjà inclus dans la
+        // réponse via `$user->profileTypes()` côté controller.
+        $this->getJson("/api/admin/agencies/{$agency->id}/team?fields[users]=id,first_name,last_name,email,status&per_page=10")
             ->assertOk()
             ->assertJsonPath('data.0.full_name', 'Awa Diallo')
             ->assertJsonStructure(['meta' => ['total', 'current_page', 'last_page', 'per_page']]);

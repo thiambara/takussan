@@ -12,8 +12,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\BaseTestCase;
 
 /**
@@ -27,12 +25,14 @@ class InvitationAcceptTest extends BaseTestCase
     public function test_new_user_can_accept_and_user_is_created_and_role_attached(): void
     {
         Mail::fake();
-        $this->ensureRolesSeeded();
         $agency = Agency::factory()->create();
         $inviter = User::factory()->create();
         $profile = OwnerProfile::factory()->create([
             'agency_id' => $agency->id,
             'status' => OwnerProfileStatus::Draft->value,
+            // TCK-278 — draft sans user_id : l'invitation accept patchera
+            // le user nouvellement créé sur le profil.
+            'user_id' => null,
         ]);
 
         $invitation = Invitation::factory()->create([
@@ -62,10 +62,7 @@ class InvitationAcceptTest extends BaseTestCase
         $this->assertSame($created->id, $invitation->invited_user_id);
 
         // Role attached scoped on agency.
-        $registrar = app(PermissionRegistrar::class);
-        $registrar->setPermissionsTeamId($agency->id);
-        $created->unsetRelation('roles');
-        $this->assertTrue($created->hasRole('owner'));
+        $this->assertTrue($created->isOwnerAt((int) $agency->id));
 
         // Profile flipped to active.
         $profile->refresh();
@@ -75,7 +72,6 @@ class InvitationAcceptTest extends BaseTestCase
     public function test_existing_user_returns_401_with_requires_login(): void
     {
         Mail::fake();
-        $this->ensureRolesSeeded();
         $existing = User::factory()->create(['email' => 'existing@example.com']);
         $inviter = User::factory()->create();
         $agency = Agency::factory()->create();
@@ -97,11 +93,9 @@ class InvitationAcceptTest extends BaseTestCase
     public function test_existing_user_can_accept_when_authenticated(): void
     {
         Mail::fake();
-        $this->ensureRolesSeeded();
         $agency = Agency::factory()->create();
         $existing = User::factory()->create(['email' => 'auth@example.com']);
         $inviter = User::factory()->create();
-        Role::findOrCreate('agent', 'web');
 
         $invitation = Invitation::factory()->create([
             'email' => 'auth@example.com',
@@ -143,7 +137,6 @@ class InvitationAcceptTest extends BaseTestCase
     public function test_activity_log_records_invitation_accepted(): void
     {
         Mail::fake();
-        $this->ensureRolesSeeded();
         $agency = Agency::factory()->create();
         $invitation = Invitation::factory()->create([
             'email' => 'log-accept@example.com',
@@ -163,7 +156,6 @@ class InvitationAcceptTest extends BaseTestCase
 
     public function test_authenticated_user_with_mismatched_email_is_rejected(): void
     {
-        $this->ensureRolesSeeded();
         $other = User::factory()->create(['email' => 'other@example.com']);
         $agency = Agency::factory()->create();
         $invitation = Invitation::factory()->create([

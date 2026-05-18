@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Base\Controller;
+use App\Models\Enums\PlatformProfileLevel;
+use App\Models\Profiles\PlatformProfile;
 use App\Notifications\SuperAdminAcceptedBroadcast;
+use App\Services\Auth\SuperAdminBootstrapService;
 use App\Services\Auth\SuperAdminCooptationService;
 use App\Services\Auth\TwoFactorService;
 use Illuminate\Http\JsonResponse;
@@ -11,8 +14,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 
 /**
  * TCK-264 — Mandatory TOTP enrollment for a freshly-coopted super-admin.
@@ -24,7 +25,7 @@ use Spatie\Permission\PermissionRegistrar;
  *  1. The spatie `super_admin` role is **deferred** until the factor is
  *     confirmed — `confirm()` is the place that finally attaches it.
  *  2. Recovery codes are generated and **hashed** in storage (mirror of
- *     {@see \App\Services\Auth\SuperAdminBootstrapService}) so they
+ *     {@see SuperAdminBootstrapService}) so they
  *     cannot be re-emitted later, even by an attacker holding DB read
  *     access.
  *
@@ -147,41 +148,20 @@ class SuperAdminTwoFactorController extends Controller
     }
 
     /**
-     * Re-implements the same null-team scoping pattern as
-     * {@see SuperAdminBootstrapService::attachSuperAdminRole} so a
-     * coopted super-admin lands in exactly the same role context as a
-     * bootstrapped one. Idempotent: re-running on a user who already
-     * holds the role is a no-op.
+     * TCK-278 — Source de vérité unique : `PlatformProfile` super_admin.
+     * Idempotent : re-running on a user who already holds the profile is
+     * a no-op (et lève `revoked_at` si présent).
      */
     protected function attachSuperAdminRole($user): void
     {
-        $registrar = app(PermissionRegistrar::class);
-        $previous = $registrar->getPermissionsTeamId();
-        $registrar->setPermissionsTeamId(null);
-
-        try {
-            $registrar->forgetCachedPermissions();
-            $role = Role::query()
-                ->where('name', 'super_admin')
-                ->where('guard_name', 'web')
-                ->whereNull(config('permission.column_names.team_foreign_key', 'team_id'))
-                ->first();
-
-            if ($role === null) {
-                $role = Role::create([
-                    'name' => 'super_admin',
-                    'guard_name' => 'web',
-                ]);
-            }
-
-            $user->unsetRelation('roles');
-            if (! $user->hasRole($role)) {
-                $user->assignRole($role);
-            }
-        } finally {
-            $registrar->setPermissionsTeamId($previous);
-            $user->unsetRelation('roles');
+        $profile = PlatformProfile::query()
+            ->firstOrNew(['user_id' => $user->id]);
+        $profile->level = PlatformProfileLevel::SuperAdmin;
+        $profile->revoked_at = null;
+        if (! $profile->exists) {
+            $profile->granted_at = now();
         }
+        $profile->save();
     }
 
     /**

@@ -102,11 +102,16 @@ export function UserDetailDrawer({
                 <Badge variant="outline">
                   {STATUS_LABEL[user.status] ?? user.status}
                 </Badge>
-                {user.roles?.map((r) => (
-                  <Badge key={r.name} variant="outline" className="border-primary/30 bg-primary/5 text-primary">
-                    {r.name}
-                  </Badge>
-                ))}
+                {user.roles?.map((r) => {
+                  // TCK-278 — l'API peut retourner soit une string (UserResource)
+                  // soit `{name}` (UserDetailResource). Normalise.
+                  const name = typeof r === 'string' ? r : r.name;
+                  return (
+                    <Badge key={name} variant="outline" className="border-primary/30 bg-primary/5 text-primary">
+                      {name}
+                    </Badge>
+                  );
+                })}
               </div>
             </SheetHeader>
 

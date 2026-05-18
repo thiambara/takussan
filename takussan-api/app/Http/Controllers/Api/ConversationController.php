@@ -368,7 +368,7 @@ class ConversationController extends Controller
     protected function ensureParticipant(Request $request, Conversation $conversation): void
     {
         $user = $request->user();
-        if ($user->hasRole('super_admin')) {
+        if ($user->isSuperAdmin()) {
             return;
         }
         // TCK-085 — `left_at != null` means the user already exited the
