@@ -27,7 +27,7 @@ afterEach(() => {
 });
 
 describe('TCK-133 — admin (agency-scoped) user queries', () => {
-  it('fetchAdminUsers hits the proxy with sparse fields, include=roles, no agency_id filter', async () => {
+  it('fetchAdminUsers hits the proxy with sparse fields, polymorphic profile includes, no agency_id filter', async () => {
     const spy = mockFetch({
       data: [],
       meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 },
@@ -45,7 +45,7 @@ describe('TCK-133 — admin (agency-scoped) user queries', () => {
     const url = String(spy.mock.calls[0][0]);
     expect(url.startsWith('/api/admin-users')).toBe(true);
     expect(url).toContain(`fields%5Busers%5D=${ADMIN_USERS_FIELDS.join('%2C')}`);
-    expect(url).toContain('include=roles');
+    expect(url).toContain('include=agentProfiles%2CownerProfiles%2CagencyAdminProfiles%2CplatformProfile');
     expect(url).toContain('filter%5Bsearch%5D=amadou');
     expect(url).toContain('filter%5Bstatus%5D=active');
     expect(url).toContain('filter%5Brole%5D=agent');

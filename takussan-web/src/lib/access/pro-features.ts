@@ -8,7 +8,6 @@ import type { User } from '@/types/user';
  */
 export const PRO_ROUTES: ReadonlySet<string> = new Set([
   // /app/... — espace perso agency_admin
-  '/app/team',
   '/app/overview/kpis',
   '/app/overview/alerts',
   '/app/overview/agency',

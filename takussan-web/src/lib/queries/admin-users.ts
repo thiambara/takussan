@@ -22,8 +22,10 @@ async function jsonOrThrow<T>(res: Response): Promise<T> {
  * `fields[users]` would fail with HTTP 400 (`InvalidFieldQuery`) against
  * the canonical `User::$queryFields` whitelist.
  *
- * `roles` is *not* in this list either — it lives on a relation
- * (spatie). Use `include=roles` (TCK-147) to load it.
+ * `roles` is *not* in this list either — it is derived server-side by
+ * `UserResource::toArray()` from `profileTypes()` (TCK-278, post-spatie
+ * removal). To avoid N+1 when the resource enumerates each user's
+ * polymorphic profiles, we eager-load them via `include=…` below.
  */
 export const ADMIN_USERS_FIELDS = [
   'id',
@@ -50,7 +52,7 @@ export async function fetchAdminUsers(
 ): Promise<AdminAgencyUsersResponse> {
   const qs = new URLSearchParams();
   qs.set('fields[users]', ADMIN_USERS_FIELDS.join(','));
-  qs.set('include', 'roles');
+  qs.set('include', 'agentProfiles,ownerProfiles,agencyAdminProfiles,platformProfile');
   if (params.search) qs.set('filter[search]', params.search);
   if (params.status) qs.set('filter[status]', params.status);
   if (params.role) qs.set('filter[role]', params.role);
