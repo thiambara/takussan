@@ -179,8 +179,10 @@ else
 fi
 
 # ─── Step 9c: Health check post-swap ─────────────────────────────────────────
-# Hits /up on localhost with the right Host header. Any non-200 triggers the
-# rollback trap (restores previous symlink, removes new release).
+# Hits /up on localhost via HTTPS with --resolve (forces 127.0.0.1 so the cert
+# stays valid). Any non-200 triggers the rollback trap.
+# Fallback to HTTP for the case where Certbot hasn't run yet (1st deploy);
+# in that case the HTTP vhost serves /up directly without redirect.
 case "${APP_DIR}" in
     */takussan)         HOST_HEADER="api.takussan.com" ;;
     */takussan-preview) HOST_HEADER="preview.api.takussan.com" ;;
@@ -188,11 +190,20 @@ case "${APP_DIR}" in
 esac
 
 if [ -n "${HOST_HEADER}" ]; then
-    log "Health check: curl http://127.0.0.1/up (Host: ${HOST_HEADER})..."
+    log "Health check: curl https://${HOST_HEADER}/up (via 127.0.0.1)..."
     HEALTH_CODE=$(curl -sS -o /dev/null -w "%{http_code}" \
-        -H "Host: ${HOST_HEADER}" \
+        --resolve "${HOST_HEADER}:443:127.0.0.1" \
         --max-time 10 \
-        http://127.0.0.1/up || echo "000")
+        "https://${HOST_HEADER}/up" 2>/dev/null || echo "000")
+
+    # If HTTPS isn't up yet (e.g. Certbot not run on 1st deploy), retry on HTTP.
+    if [ "${HEALTH_CODE}" = "000" ] || [ "${HEALTH_CODE}" = "502" ]; then
+        log "  HTTPS unreachable, trying HTTP fallback (Certbot may not be configured yet)..."
+        HEALTH_CODE=$(curl -sS -o /dev/null -w "%{http_code}" \
+            -H "Host: ${HOST_HEADER}" \
+            --max-time 10 \
+            http://127.0.0.1/up || echo "000")
+    fi
 
     if [ "${HEALTH_CODE}" != "200" ]; then
         log "FATAL: Health check failed (HTTP ${HEALTH_CODE}). Triggering rollback..."
