@@ -36,7 +36,10 @@ return new class extends Migration
             $table->timestamp('first_payment_at')->nullable();
             $table->timestamp('documents_acknowledged_at')->nullable();
 
-            $table->json('reminders_sent')->default(json_encode([]));
+            // MySQL < 8.0.13 refuse DEFAULT sur JSON. Le default '[]' est
+            // posé côté Model via $attributes (TenantOnboardingChecklist.php),
+            // et la lecture est défensive via "?? []" partout.
+            $table->json('reminders_sent')->nullable();
 
             $table->timestamp('completed_at')->nullable();
 

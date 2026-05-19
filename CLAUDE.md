@@ -46,6 +46,33 @@ php artisan migrate:fresh --seed
 
 > État actuel : skeleton vierge. Seuls `Controller.php` (abstract) et `User.php` existent.
 
+### Migrations — gotchas MySQL vs SQLite (CI)
+
+CI tourne sur **SQLite** (permissif), prod sur **MySQL/MariaDB** (strict). Patterns qui passent en CI mais cassent en prod :
+
+1. **`DEFAULT` sur types restreints**. MySQL refuse `DEFAULT` sur `JSON`, `BLOB`, `TEXT`, `LONGTEXT`, `MEDIUMTEXT`, `TINYTEXT`, `GEOMETRY`, `POINT`.
+   ```php
+   ❌ $table->json('col')->default(json_encode([]));
+   ✓ $table->json('col')->nullable();   // + $attributes = ['col' => '[]'] dans le Model
+   ```
+
+2. **`dropUnique` / `dropIndex` sur colonne avec FK active**. MySQL refuse car l'index back la FK.
+   ```php
+   ❌ $table->dropUnique('table_col_unique');   // si col a une FK
+   ✓ $table->dropForeign(['col']);
+     $table->dropUnique('table_col_unique');
+     // … puis re-add la FK plus tard, MySQL auto-créera un index regular
+   ```
+
+3. **Noms d'index/FK auto-générés > 64 chars** (limite MySQL). Laravel concat `{table}_{col1}_{col2}_{suffix}`.
+   ```php
+   ❌ $table->index(['long_col_1', 'long_col_2']);   // si table déjà longue
+   ✓ $table->index(['long_col_1', 'long_col_2'], 'short_explicit_name_idx');
+   ✓ $table->foreignId('col')->constrained('table', 'id', 'short_fk_name');   // 3e arg = nom FK
+   ```
+
+4. **Pas de `enum()`** — préférer `string()` + check applicatif (portable + facile à faire évoluer).
+
 ---
 
 ## Frontend (`takussan-web/`)
