@@ -52,6 +52,6 @@ jobs:
         run: |
           set -e
           sleep 3
-          curl -fsS https://takussan.api.preview.checkprintplus.com/up \
+          curl -fsS https://preview.api.takussan.com/up \
             || (echo "API preprod DOWN"; exit 1)
           echo "✓ API preprod responds on /up"

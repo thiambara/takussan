@@ -143,7 +143,7 @@
   <strong>Sommaire</strong>
   <ol>
     <li><a href="#archi">Architecture & inventaire</a></li>
-    <li><a href="#dns">DNS sur checkprintplus.com</a></li>
+    <li><a href="#dns">DNS sur takussan.com (Cloudflare)</a></li>
     <li><a href="#vercel">Frontend sur Vercel</a></li>
     <li><a href="#preflight">Audit du VPS (cohabitation CheckPrint)</a></li>
     <li><a href="#server-setup">Script <code>server-setup.sh</code> Takussan</a></li>
@@ -181,7 +181,7 @@
       │       ┌──────────────────────────────────────────────┐
       │       │  VPS Contabo  —  user `deploy` (partagé)     │
       │       │                                               │
-      │       │  takussan.api.preview.checkprintplus.com      │
+      │       │  preview.api.takussan.com      │
       │       │           │                                   │
       │       │           ▼                                   │
       │       │   ┌──────────────┐                            │
@@ -215,8 +215,8 @@
 
 <table>
   <tr><th>Élément</th><th>Valeur préprod Takussan</th></tr>
-  <tr><td>Domaine front (Vercel)</td><td><code>takussan.preview.checkprintplus.com</code></td></tr>
-  <tr><td>Domaine API (Contabo)</td><td><code>takussan.api.preview.checkprintplus.com</code></td></tr>
+  <tr><td>Domaine front (Vercel)</td><td><code>preview.takussan.com</code></td></tr>
+  <tr><td>Domaine API (Contabo)</td><td><code>preview.api.takussan.com</code></td></tr>
   <tr><td>User Linux</td><td><code>deploy</code> <span class="pill muted">réutilisé de CheckPrint</span></td></tr>
   <tr><td>Racine de déploiement</td><td><code>/var/www/takussan-preprod</code></td></tr>
   <tr><td>Sous-dossier monorepo</td><td><code>takussan-api/</code></td></tr>
@@ -229,18 +229,27 @@
 <div class="ok">L'infrastructure de déploiement CheckPrint est déjà en place (user <code>deploy</code>, clé SSH GH Actions, sudoers, Nginx, PHP-FPM, MySQL, Certbot). On la réutilise et on ne crée que ce qui est spécifique à Takussan.</div>
 
 <!-- ============================================================ -->
-<h2 id="dns">2. DNS sur checkprintplus.com</h2>
+<h2 id="dns">2. DNS sur takussan.com (Cloudflare)</h2>
 
 <table>
-  <tr><th>Type</th><th>Nom</th><th>Valeur</th><th>Proxied (Cloudflare)</th><th>Pour</th></tr>
-  <tr><td>CNAME</td><td><code>takussan.preview</code></td><td><code>cname.vercel-dns.com</code></td><td>DNS only (gris)</td><td>Front Vercel</td></tr>
-  <tr><td>A</td><td><code>takussan.api.preview</code></td><td><code>&lt;IP_VPS&gt;</code></td><td>Proxied (orange) — comme CheckPrint</td><td>API VPS</td></tr>
+  <tr><th>Type</th><th>Nom</th><th>Valeur</th><th>Mode CF</th><th>Pour</th></tr>
+  <tr><td>CNAME</td><td><code>preview</code></td><td><code>cname.vercel-dns.com</code></td><td>DNS only (gris)</td><td>Front Vercel</td></tr>
+  <tr><td>A</td><td><code>preview.api</code></td><td><code>&lt;IP_VPS&gt;</code></td><td>DNS only (gris)</td><td>API VPS</td></tr>
 </table>
 
-<div class="warn"><strong>Cloudflare proxied + Vercel</strong> : ne pas proxifier le record Vercel via Cloudflare (DNS only). Sinon double-CDN et conflits TLS. Pour l'API, suivre la convention CheckPrint (proxied OK).</div>
+<div class="warn"><strong>Pourquoi DNS only sur les deux records ?</strong>
+<ul>
+  <li><strong>Vercel</strong> : ne JAMAIS proxifier via Cloudflare. Double-CDN, conflits TLS, Vercel ne reçoit pas la vraie IP.</li>
+  <li><strong>API VPS</strong> : choix actuel = DNS only. Certbot Let's Encrypt fonctionne nativement, pas de surprise sur les certs. Inconvénient : pas de DDoS protection / WAF devant l'API. Si tu veux passer en Proxied plus tard, il faudra :
+    <ul>
+      <li>Repasser <code>TRUSTED_PROXIES</code> sur les CIDR Cloudflare (cf. §10) sinon <code>Request::ip()</code> renverra l'IP CF.</li>
+      <li>Régler Cloudflare SSL en mode "Full (strict)" pour respecter le cert Let's Encrypt.</li>
+    </ul>
+  </li>
+</ul></div>
 
-<pre><code>dig +short takussan.preview.checkprintplus.com
-dig +short takussan.api.preview.checkprintplus.com</code></pre>
+<pre><code>dig +short preview.takussan.com
+dig +short preview.api.takussan.com</code></pre>
 
 <!-- ============================================================ -->
 <h2 id="vercel">3. Frontend sur Vercel</h2>
@@ -257,21 +266,21 @@ dig +short takussan.api.preview.checkprintplus.com</code></pre>
 <p>Audit du code (<code>grep "process.env" takussan-web/src/</code>) : <strong>seul <code>NEXT_PUBLIC_API_URL</code> est utilisé</strong>. Aucune autre variable Next.js custom n'est référencée — inutile d'en déclarer.</p>
 <table>
   <tr><th>Variable</th><th>Production</th><th>Preview</th><th>Development</th></tr>
-  <tr><td><code>NEXT_PUBLIC_API_URL</code></td><td>(à définir au launch prod)</td><td><code>https://takussan.api.preview.checkprintplus.com</code></td><td><code>http://localhost:8002</code></td></tr>
+  <tr><td><code>NEXT_PUBLIC_API_URL</code></td><td>(à définir au launch prod)</td><td><code>https://preview.api.takussan.com</code></td><td><code>http://localhost:8002</code></td></tr>
 </table>
 <div class="warn">Vercel injecte automatiquement <code>VERCEL_ENV</code>, <code>VERCEL_URL</code>, <code>VERCEL_GIT_COMMIT_*</code> etc. — accessibles côté serveur uniquement. Si un jour le front a besoin de savoir s'il tourne en preview ou prod, lire <code>process.env.VERCEL_ENV</code> dans un Server Component plutôt que de dupliquer en <code>NEXT_PUBLIC_*</code>.</div>
 
 <h3>3.3 Production branch + domaine custom</h3>
 <ol>
   <li><em>Settings → Git → Production Branch</em> : <code>master</code>.</li>
-  <li><em>Settings → Domains</em> → ajouter <code>takussan.preview.checkprintplus.com</code> → <em>Edit</em> → <strong>Git Branch</strong> = <code>preview</code>.</li>
+  <li><em>Settings → Domains</em> → ajouter <code>preview.takussan.com</code> → <em>Edit</em> → <strong>Git Branch</strong> = <code>preview</code>.</li>
 </ol>
 
 <h3>3.4 <code>next.config.ts</code></h3>
 <pre><code>const nextConfig = {
   images: {
     remotePatterns: [
-      { protocol: 'https', hostname: 'takussan.api.preview.checkprintplus.com' },
+      { protocol: 'https', hostname: 'preview.api.takussan.com' },
     ],
   },
 };
@@ -460,7 +469,7 @@ sudo systemctl status php8.3-fpm --no-pager</code></pre>
 server {
     listen 80;
     listen [::]:80;
-    server_name takussan.api.preview.checkprintplus.com;
+    server_name preview.api.takussan.com;
 
     root /var/www/takussan-preprod/current/public;
     index index.php;
@@ -500,12 +509,12 @@ sudo nginx -t && sudo systemctl reload nginx</code></pre>
 <h2 id="ssl">9. SSL via Let's Encrypt</h2>
 
 <pre><code>sudo certbot --nginx \
-  -d takussan.api.preview.checkprintplus.com \
+  -d preview.api.takussan.com \
   --redirect --agree-tos -m diaw@tanelhealth.com --no-eff-email
 
 sudo certbot renew --dry-run</code></pre>
 
-<div class="ok">Vercel gère son propre TLS pour le domaine front. Aucune action côté Contabo pour <code>takussan.preview.checkprintplus.com</code>.</div>
+<div class="ok">Vercel gère son propre TLS pour le domaine front. Aucune action côté Contabo pour <code>preview.takussan.com</code>.</div>
 
 <!-- ============================================================ -->
 <h2 id="env">10. Préparer le secret <code>ENV_FILE_PREVIEW</code></h2>
@@ -522,7 +531,7 @@ APP_NAME=Takussan
 APP_ENV=preprod
 APP_KEY=base64:GENERER_LOCALEMENT
 APP_DEBUG=false
-APP_URL=https://takussan.api.preview.checkprintplus.com
+APP_URL=https://preview.api.takussan.com
 APP_LOCALE=fr
 APP_FALLBACK_LOCALE=en
 APP_FAKER_LOCALE=fr_FR
@@ -532,13 +541,13 @@ BCRYPT_ROUNDS=12
 # ════════════════════════════════════════════════════════════
 # Frontend & Sanctum  (cookies cross-subdomain — voir §11)
 # ════════════════════════════════════════════════════════════
-FRONTEND_URL=https://takussan.preview.checkprintplus.com
-SANCTUM_STATEFUL_DOMAINS=takussan.preview.checkprintplus.com
+FRONTEND_URL=https://preview.takussan.com
+SANCTUM_STATEFUL_DOMAINS=preview.takussan.com
 
-# Cloudflare est en proxy devant le VPS — sans ça, Request::ip() retourne
-# l'IP du proxy et toutes les sessions partagent le même rate-limit bucket.
-# `*` est OK en préprod ; en prod, pinner sur les CIDR Cloudflare.
-TRUSTED_PROXIES=*
+# Cloudflare est en DNS only sur preview.api.takussan.com → aucun proxy
+# applicatif devant Nginx. Loopback suffit. Si tu passes CF en Proxied
+# plus tard, remplace par les CIDR Cloudflare (cf. cloudflare.com/ips/).
+TRUSTED_PROXIES=127.0.0.1,::1
 
 # ════════════════════════════════════════════════════════════
 # Database
@@ -555,7 +564,12 @@ DB_PASSWORD=REMPLACER_PAR_LE_PASSWORD_DU_STEP_6
 # ════════════════════════════════════════════════════════════
 SESSION_DRIVER=database
 SESSION_LIFETIME=120
-SESSION_DOMAIN=.preview.checkprintplus.com
+# .takussan.com couvre preview.takussan.com ET preview.api.takussan.com
+# (les deux ne partagent pas de suffixe plus spécifique). Conséquence :
+# le cookie est aussi valide sur takussan.com / api.takussan.com (prod
+# future). On isole via SESSION_COOKIE différent par env (voir ci-dessous).
+SESSION_DOMAIN=.takussan.com
+SESSION_COOKIE=takussan_session_preprod
 SESSION_SECURE_COOKIE=true
 SESSION_SAME_SITE=lax
 SESSION_HTTP_ONLY=true
@@ -690,7 +704,7 @@ await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sanctum/csrf-cookie`, {
   credentials: 'include',
 });</code></pre>
 
-<div class="warn"><strong>Cookies cross-subdomain</strong> : <code>SESSION_DOMAIN=.preview.checkprintplus.com</code> (point en préfixe). Sans le point → cookie posé par l'API non lisible côté front.</div>
+<div class="warn"><strong>Cookies cross-subdomain</strong> : <code>SESSION_DOMAIN=.takussan.com</code> (point en préfixe). Sans le point → cookie posé par l'API non lisible côté front. Couvre <code>preview.takussan.com</code> et <code>preview.api.takussan.com</code> en préprod ; aussi <code>takussan.com</code> / <code>api.takussan.com</code> en prod future, mais <code>SESSION_COOKIE</code> différent par env empêche le partage de session.</div>
 
 <!-- ============================================================ -->
 <h2 id="deploy-key">12. GitHub Deploy Key (clone sur le serveur)</h2>
@@ -949,7 +963,7 @@ jobs:
       - name: Smoke test
         run: |
           sleep 3
-          curl -fsS https://takussan.api.preview.checkprintplus.com/up \
+          curl -fsS https://preview.api.takussan.com/up \
             || (echo "API DOWN"; exit 1)
           echo "✓ API preprod OK"
 </code></pre>
@@ -971,10 +985,10 @@ sudo systemctl status takussan-queue-preprod --no-pager</code></pre>
 
 <h3>17.3 Checks</h3>
 <pre><code># API
-curl https://takussan.api.preview.checkprintplus.com/up
+curl https://preview.api.takussan.com/up
 
 # Front
-curl -I https://takussan.preview.checkprintplus.com/
+curl -I https://preview.takussan.com/
 
 # Logs
 sudo tail -f /var/www/takussan-preprod/shared/storage/logs/laravel.log
@@ -982,7 +996,7 @@ sudo tail -f /var/www/takussan-preprod/shared/storage/logs/queue-worker.log
 sudo tail -f /var/log/nginx/takussan-preprod-api.error.log
 sudo journalctl -u takussan-queue-preprod -f</code></pre>
 
-<div class="check"><input type="checkbox"><label>Front charge sur <code>takussan.preview.checkprintplus.com</code></label></div>
+<div class="check"><input type="checkbox"><label>Front charge sur <code>preview.takussan.com</code></label></div>
 <div class="check"><input type="checkbox"><label>API <code>/up</code> répond 200</label></div>
 <div class="check"><input type="checkbox"><label><code>/sanctum/csrf-cookie</code> → 204 + Set-Cookie</label></div>
 <div class="check"><input type="checkbox"><label>Login OK + session conservée</label></div>
@@ -1015,11 +1029,12 @@ sudo /bin/systemctl reload nginx</code></pre>
 
 <table>
   <tr><th>Élément</th><th>Prod</th></tr>
-  <tr><td>Front</td><td>Même projet Vercel — Production Branch = <code>master</code> → domaine prod à acheter</td></tr>
+  <tr><td>Front</td><td>Même projet Vercel — Production Branch = <code>master</code> → domaine <code>takussan.com</code></td></tr>
   <tr><td>App dir</td><td><code>/var/www/takussan</code></td></tr>
   <tr><td>Pool PHP-FPM</td><td><code>takussan</code> (socket <code>/run/php/takussan.sock</code>)</td></tr>
   <tr><td>DB MySQL</td><td><code>takussan_prod</code> / <code>takussan_pro</code></td></tr>
-  <tr><td>Domaine API</td><td><code>api.takussan.&lt;tld&gt;</code></td></tr>
+  <tr><td>Domaine API</td><td><code>api.takussan.com</code></td></tr>
+  <tr><td>SESSION_COOKIE</td><td><code>takussan_session</code> (différent de préprod pour isoler)</td></tr>
   <tr><td>Queue systemd</td><td><code>takussan-queue</code></td></tr>
   <tr><td>Workflow</td><td><code>.github/workflows/deploy-api-prod.yml</code> (trigger <code>master</code>)</td></tr>
   <tr><td>Secrets</td><td><code>ENV_FILE</code> (prod) en plus de <code>ENV_FILE_PREVIEW</code></td></tr>
@@ -1069,7 +1084,7 @@ sudo php-fpm8.3 -tt 2>&1 | grep -i takussan</code></pre>
 </details>
 
 <details><summary>Certbot timeout sur l'API</summary>
-<p>Si le DNS est <em>proxied</em> via Cloudflare avec mode SSL strict, faire d'abord un challenge sans proxy. Sinon utiliser <code>--dns-cloudflare</code> avec API token.</p>
+<p>Vérifier que le record A <code>preview.api.takussan.com</code> dans Cloudflare est bien en <strong>DNS only (gris)</strong> et propagé (<code>dig +short preview.api.takussan.com</code>). Si tu décides plus tard de passer en Proxied (orange) avec SSL "Full (strict)", le challenge HTTP-01 fonctionne quand même tant que Cloudflare n'intercepte pas <code>/.well-known/acme-challenge/</code>. Alternative robuste : <code>certbot --dns-cloudflare</code> avec un API token CF (challenge DNS-01, fonctionne quel que soit le mode).</p>
 </details>
 
 <details><summary>Le secret <code>ENV_FILE_PREVIEW</code> n'arrive pas dans <code>deploy.sh</code></summary>
