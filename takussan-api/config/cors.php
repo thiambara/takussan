@@ -12,7 +12,7 @@ return [
     |  - the front origin allowed explicitly (FRONTEND_URL)
     |  - Vercel preview deploy URLs allowed via regex
     |
-    | See docs/infra/deploy-preprod.html for the full deployment context.
+    | See docs/infra/deploy-preview.html for the full deployment context.
     |
     */
 
