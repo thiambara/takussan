@@ -89,6 +89,14 @@ elif [ ! -f "${SHARED_DIR}/.env" ]; then
     exit 1
 fi
 
+# Validate APP_KEY is present and non-empty — Laravel sessions/cookies/Sanctum
+# silently break without it, so fail fast before clone.
+if ! grep -qE '^APP_KEY=base64:.+' "${SHARED_DIR}/.env"; then
+    log "FATAL: ${SHARED_DIR}/.env is missing or has an empty APP_KEY (expected APP_KEY=base64:...)."
+    log "       Regenerate with: php artisan key:generate --show"
+    exit 1
+fi
+
 if [ ! -d "${SHARED_DIR}/storage" ]; then
     log "FATAL: Shared storage directory ${SHARED_DIR}/storage does not exist."
     exit 1
@@ -130,6 +138,8 @@ log "Installing npm dependencies..."
 npm ci --no-audit --no-fund
 log "Building Vite assets..."
 npm run build
+log "Removing node_modules (no longer needed at runtime)..."
+rm -rf "${RELEASE_DIR}/takussan-api/node_modules"
 
 # ─── Step 6: Migrations ──────────────────────────────────────────────────────
 # NOTE: If migration succeeds but a later step fails, rollback restores old code
@@ -154,6 +164,44 @@ log "Swapping symlink to new release (atomic)..."
 ln -sfn "${RELEASE_DIR}/takussan-api" "${CURRENT_LINK}.tmp"
 mv -Tf "${CURRENT_LINK}.tmp" "${CURRENT_LINK}"
 log "Symlink swapped successfully."
+
+# ─── Step 9b: Reload PHP-FPM (clear opcache) ─────────────────────────────────
+# Without this, FPM keeps the previous release's realpath in opcache and serves
+# stale bytecode until the next FPM reload. Sudoers entry installed by
+# server-setup.sh (Step 9) allows the deploy user to reload without password.
+PHP_FPM_VERSION=$(cat /etc/takussan/php-version 2>/dev/null || echo "")
+if [ -n "${PHP_FPM_VERSION}" ]; then
+    log "Reloading php${PHP_FPM_VERSION}-fpm to clear opcache..."
+    sudo -n /bin/systemctl reload "php${PHP_FPM_VERSION}-fpm"
+else
+    log "WARNING: /etc/takussan/php-version not found — skipping FPM reload."
+    log "         Run server-setup.sh on the VPS to install the pin (opcache may serve stale code)."
+fi
+
+# ─── Step 9c: Health check post-swap ─────────────────────────────────────────
+# Hits /up on localhost with the right Host header. Any non-200 triggers the
+# rollback trap (restores previous symlink, removes new release).
+case "${APP_DIR}" in
+    */takussan)         HOST_HEADER="api.takussan.com" ;;
+    */takussan-preview) HOST_HEADER="preview.api.takussan.com" ;;
+    *)                  HOST_HEADER="" ;;
+esac
+
+if [ -n "${HOST_HEADER}" ]; then
+    log "Health check: curl http://127.0.0.1/up (Host: ${HOST_HEADER})..."
+    HEALTH_CODE=$(curl -sS -o /dev/null -w "%{http_code}" \
+        -H "Host: ${HOST_HEADER}" \
+        --max-time 10 \
+        http://127.0.0.1/up || echo "000")
+
+    if [ "${HEALTH_CODE}" != "200" ]; then
+        log "FATAL: Health check failed (HTTP ${HEALTH_CODE}). Triggering rollback..."
+        false   # trips the ERR trap → rollback() restores previous release
+    fi
+    log "Health check passed (HTTP 200)."
+else
+    log "WARNING: APP_DIR=${APP_DIR} doesn't match any known vhost — skipping health check."
+fi
 
 # ─── Step 10: Restart queue workers ──────────────────────────────────────────
 log "Restarting queue workers..."

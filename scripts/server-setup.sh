@@ -56,6 +56,303 @@ install_deploy_script() {
     fi
 }
 
+setup_github_known_hosts() {
+    local ssh_dir="$1"
+    local known_hosts="${ssh_dir}/known_hosts"
+
+    # Official GitHub ED25519 fingerprint (rotated 2023-03-24 after the
+    # exposure incident). Verify against
+    # https://docs.github.com/en/authentication/keys-to-remember-when-using-ssh
+    local expected_ed25519_fp="SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU"
+
+    if [ -f "${known_hosts}" ] && grep -q "^github\.com " "${known_hosts}"; then
+        log "GitHub host keys already in ${known_hosts}, skipping."
+        return
+    fi
+
+    log "Fetching GitHub SSH host keys via ssh-keyscan..."
+    local tmpfile
+    tmpfile=$(mktemp)
+
+    if ! ssh-keyscan -t ed25519,ecdsa,rsa github.com > "${tmpfile}" 2>/dev/null; then
+        log "WARNING: ssh-keyscan github.com failed (network issue?). Skipping."
+        rm -f "${tmpfile}"
+        return
+    fi
+
+    # Defense against MITM during setup: verify the ED25519 fingerprint
+    # matches the value GitHub publishes.
+    local actual_fp
+    actual_fp=$(ssh-keygen -lf "${tmpfile}" 2>/dev/null | awk '/ED25519/{print $2}')
+
+    if [ "${actual_fp}" != "${expected_ed25519_fp}" ]; then
+        log "ERROR: GitHub ED25519 fingerprint mismatch — refusing to trust."
+        log "  Expected: ${expected_ed25519_fp}"
+        log "  Got:      ${actual_fp:-<none>}"
+        log "  Check https://docs.github.com/en/authentication/keys-to-remember-when-using-ssh"
+        log "  (GitHub may have rotated its host keys — update expected_ed25519_fp.)"
+        rm -f "${tmpfile}"
+        return 1
+    fi
+
+    cat "${tmpfile}" >> "${known_hosts}"
+    rm -f "${tmpfile}"
+    chown "${DEPLOY_USER}:${DEPLOY_USER}" "${known_hosts}"
+    chmod 644 "${known_hosts}"
+    log "GitHub host keys added to ${known_hosts} (ED25519 fingerprint verified)."
+}
+
+setup_php_fpm_pool() {
+    local name="$1"
+    local socket_name="$2"
+    local max_children="$3"
+    local min_spare="$4"
+    local max_spare="$5"
+
+    local php_version
+    php_version=$(php -v 2>/dev/null | awk '/^PHP/{print $2}' | cut -d. -f1,2)
+
+    if [ -z "${php_version}" ]; then
+        log "WARNING: PHP not found in PATH. Skipping pool ${name}."
+        log "         Install PHP first, then re-run this script."
+        return
+    fi
+
+    local pool_dir="/etc/php/${php_version}/fpm/pool.d"
+    local pool_file="${pool_dir}/${name}.conf"
+
+    if [ ! -d "${pool_dir}" ]; then
+        log "WARNING: ${pool_dir} does not exist. Is php${php_version}-fpm installed?"
+        log "         apt install php${php_version}-fpm, then re-run this script."
+        return
+    fi
+
+    # Pin the detected PHP version so deploy.sh knows which FPM unit to reload
+    # after the symlink swap (opcache clear).
+    if [ ! -d /etc/takussan ]; then
+        mkdir -p /etc/takussan
+        chmod 755 /etc/takussan
+    fi
+    echo "${php_version}" > /etc/takussan/php-version
+    chmod 644 /etc/takussan/php-version
+
+    if [ -f "${pool_file}" ]; then
+        log "PHP-FPM pool ${name} already exists, updating..."
+    else
+        log "Creating PHP-FPM pool ${name} (PHP ${php_version})..."
+    fi
+
+    cat > "${pool_file}" <<POOL
+[${name}]
+user = ${DEPLOY_USER}
+group = ${WEB_GROUP}
+listen = /run/php/${socket_name}.sock
+listen.owner = ${WEB_GROUP}
+listen.group = ${WEB_GROUP}
+listen.mode = 0660
+
+pm = dynamic
+pm.max_children = ${max_children}
+pm.start_servers = 2
+pm.min_spare_servers = ${min_spare}
+pm.max_spare_servers = ${max_spare}
+pm.max_requests = 500
+
+php_admin_value[memory_limit] = 256M
+php_admin_value[upload_max_filesize] = 25M
+php_admin_value[post_max_size] = 30M
+POOL
+
+    PHP_FPM_VERSION="${php_version}"
+    PHP_FPM_NEEDS_RELOAD=1
+    log "Pool ${name} written to ${pool_file}."
+}
+
+setup_nginx_vhost() {
+    local name="$1"         # e.g. api.takussan.com or preview.api.takussan.com
+    local app_dir="$2"      # /var/www/takussan or /var/www/takussan-preview
+    local socket_name="$3"  # takussan or takussan-preview
+    local server_name="$4"  # api.takussan.com or preview.api.takussan.com
+
+    local sites_available="/etc/nginx/sites-available"
+    local sites_enabled="/etc/nginx/sites-enabled"
+
+    if [ ! -d "${sites_available}" ]; then
+        log "WARNING: ${sites_available} not found. Is nginx installed?"
+        log "         apt install nginx, then re-run this script."
+        return
+    fi
+
+    local vhost_file="${sites_available}/${name}"
+
+    if [ -f "${vhost_file}" ]; then
+        log "Nginx vhost ${name} already exists, updating..."
+    else
+        log "Creating nginx vhost ${name} (${server_name})..."
+    fi
+
+    # HTTP-only vhost. Certbot --nginx will add the 443 server block and a
+    # 301 redirect on first run (see Next steps below).
+    cat > "${vhost_file}" <<NGINX
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${server_name};
+
+    root ${app_dir}/current/public;
+    index index.php;
+
+    client_max_body_size 25M;
+
+    access_log /var/log/nginx/${name}.access.log;
+    error_log  /var/log/nginx/${name}.error.log;
+
+    location /storage/ {
+        alias ${app_dir}/shared/storage/app/public/;
+        expires 7d;
+    }
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$query_string;
+    }
+
+    location ~ \.php\$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/${socket_name}.sock;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        fastcgi_read_timeout 60;
+    }
+
+    # Allow Let's Encrypt HTTP-01 challenges; deny everything else dotted.
+    location ~ /\.(?!well-known) { deny all; }
+}
+NGINX
+
+    ln -sf "${vhost_file}" "${sites_enabled}/${name}"
+    NGINX_NEEDS_RELOAD=1
+    log "Vhost ${name} written to ${vhost_file} and enabled."
+}
+
+setup_deploy_sudoers() {
+    local php_version="$1"
+    local sudoers_file="/etc/sudoers.d/takussan-deploy"
+
+    if [ -z "${php_version}" ]; then
+        log "WARNING: PHP version unknown, skipping sudoers setup."
+        log "         deploy.sh will not be able to reload php-fpm after deploys."
+        return
+    fi
+
+    log "Writing sudoers entry at ${sudoers_file}..."
+    cat > "${sudoers_file}" <<SUDO
+# Takussan — allow deploy user to reload php-fpm/nginx + restart queue workers
+# without password. Needed by scripts/deploy.sh post-symlink-swap (opcache clear)
+# and by the operator when (re)starting queue services after first deploy.
+Cmnd_Alias TAKUSSAN_RELOAD = /bin/systemctl reload php${php_version}-fpm, /bin/systemctl reload nginx, /bin/systemctl start takussan-queue, /bin/systemctl start takussan-queue-preview, /bin/systemctl restart takussan-queue, /bin/systemctl restart takussan-queue-preview, /bin/systemctl status takussan-queue, /bin/systemctl status takussan-queue-preview
+${DEPLOY_USER} ALL=(root) NOPASSWD: TAKUSSAN_RELOAD
+SUDO
+    chmod 0440 "${sudoers_file}"
+
+    # Validate syntax BEFORE the file is honored (broken sudoers bricks sudo).
+    if ! visudo -c -f "${sudoers_file}" >/dev/null; then
+        log "ERROR: visudo validation failed on ${sudoers_file}, removing."
+        rm -f "${sudoers_file}"
+        return 1
+    fi
+    log "Sudoers entry installed and validated."
+}
+
+setup_laravel_logrotate() {
+    local logrotate_file="/etc/logrotate.d/takussan"
+
+    if [ ! -d /etc/logrotate.d ]; then
+        log "WARNING: /etc/logrotate.d does not exist. Skipping logrotate setup."
+        return
+    fi
+
+    log "Writing logrotate config at ${logrotate_file}..."
+    cat > "${logrotate_file}" <<LOGROTATE
+${APP_DIR}/shared/storage/logs/*.log
+${PREVIEW_DIR}/shared/storage/logs/*.log
+{
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 ${DEPLOY_USER} ${WEB_GROUP}
+    sharedscripts
+    postrotate
+        # Laravel re-opens log handles per request; no signal needed.
+    endscript
+}
+LOGROTATE
+    chmod 644 "${logrotate_file}"
+    log "Logrotate config installed."
+}
+
+print_validation_summary() {
+    local pass=0 fail=0 status label
+    local php_version="${PHP_FPM_VERSION:-}"
+    if [ -z "${php_version}" ] && [ -f /etc/takussan/php-version ]; then
+        php_version=$(cat /etc/takussan/php-version)
+    fi
+
+    _vcheck() {
+        # $1 = label, $2 = command (eval'd). PASS if exit code 0.
+        label="$1"; shift
+        if eval "$@" >/dev/null 2>&1; then
+            log "  PASS  ${label}"
+            pass=$((pass + 1))
+        else
+            log "  FAIL  ${label}"
+            fail=$((fail + 1))
+        fi
+    }
+
+    log ""
+    log "=== Validation summary ==="
+
+    _vcheck "deploy user exists" "id ${DEPLOY_USER}"
+    _vcheck "deploy user in ${WEB_GROUP}" "id -nG ${DEPLOY_USER} | grep -qw ${WEB_GROUP}"
+    _vcheck "${APP_DIR} exists" "[ -d ${APP_DIR} ]"
+    _vcheck "${PREVIEW_DIR} exists" "[ -d ${PREVIEW_DIR} ]"
+    _vcheck "/etc/takussan/php-version present (${php_version:-?})" "[ -s /etc/takussan/php-version ]"
+
+    if [ -n "${php_version}" ]; then
+        _vcheck "php${php_version}-fpm active" "systemctl is-active --quiet php${php_version}-fpm"
+        _vcheck "/etc/php/${php_version}/fpm/pool.d/takussan.conf" "[ -f /etc/php/${php_version}/fpm/pool.d/takussan.conf ]"
+        _vcheck "/etc/php/${php_version}/fpm/pool.d/takussan-preview.conf" "[ -f /etc/php/${php_version}/fpm/pool.d/takussan-preview.conf ]"
+    fi
+
+    _vcheck "/run/php/takussan.sock exists" "[ -S /run/php/takussan.sock ]"
+    _vcheck "/run/php/takussan-preview.sock exists" "[ -S /run/php/takussan-preview.sock ]"
+
+    _vcheck "nginx -t passes" "nginx -t"
+    _vcheck "vhost api.takussan.com enabled" "[ -L /etc/nginx/sites-enabled/api.takussan.com ]"
+    _vcheck "vhost preview.api.takussan.com enabled" "[ -L /etc/nginx/sites-enabled/preview.api.takussan.com ]"
+
+    _vcheck "takussan-queue service enabled" "systemctl is-enabled --quiet takussan-queue"
+    _vcheck "takussan-queue-preview service enabled" "systemctl is-enabled --quiet takussan-queue-preview"
+
+    _vcheck "prod scheduler cron present" "crontab -u ${DEPLOY_USER} -l 2>/dev/null | grep -qF '${APP_DIR}/current'"
+    _vcheck "preview scheduler cron present" "crontab -u ${DEPLOY_USER} -l 2>/dev/null | grep -qF '${PREVIEW_DIR}/current'"
+
+    _vcheck "/etc/sudoers.d/takussan-deploy valid" "[ -f /etc/sudoers.d/takussan-deploy ] && visudo -c -f /etc/sudoers.d/takussan-deploy"
+    _vcheck "/etc/logrotate.d/takussan present" "[ -f /etc/logrotate.d/takussan ]"
+
+    local deploy_home
+    deploy_home=$(getent passwd "${DEPLOY_USER}" | cut -d: -f6)
+    _vcheck "deploy known_hosts contains github.com" "grep -q '^github\\.com ' ${deploy_home}/.ssh/known_hosts"
+
+    log ""
+    log "=== Summary: ${pass} pass, ${fail} fail ==="
+    if [ "${fail}" -gt 0 ]; then
+        log "Some checks failed — review the log above and the FAIL lines."
+    fi
+}
+
 setup_queue_service() {
     local name="$1"
     local app_dir="$2"
@@ -140,6 +437,10 @@ if [ ! -d "${SSH_DIR}" ]; then
     chown -R "${DEPLOY_USER}:${DEPLOY_USER}" "${SSH_DIR}"
 fi
 
+# Pre-populate GitHub host keys so `git clone` and `ssh -T github.com-takussan`
+# don't prompt the deploy user on first run.
+setup_github_known_hosts "${SSH_DIR}"
+
 # ─── Step 5: Setup Laravel scheduler crons ────────────────────────────────────
 CRON_PROD="* * * * * cd ${APP_DIR}/current && php artisan schedule:run >> /dev/null 2>&1"
 CRON_PREVIEW="* * * * * cd ${PREVIEW_DIR}/current && php artisan schedule:run >> /dev/null 2>&1"
@@ -164,9 +465,48 @@ fi
 
 log "Cron jobs installed: schedule:run every minute for production and preview."
 
-# ─── Step 6: Setup Laravel queue worker services ─────────────────────────────
+# ─── Step 6: Setup PHP-FPM pools (production + preview) ──────────────────────
+# Production pool — slightly higher worker count.
+setup_php_fpm_pool "takussan"         "takussan"         10 2 4
+# Preview pool — leaner.
+setup_php_fpm_pool "takussan-preview" "takussan-preview" 5  1 3
+
+if [ "${PHP_FPM_NEEDS_RELOAD:-0}" = "1" ] && [ -n "${PHP_FPM_VERSION:-}" ]; then
+    log "Reloading php${PHP_FPM_VERSION}-fpm to pick up new pools..."
+    systemctl reload "php${PHP_FPM_VERSION}-fpm"
+fi
+
+# ─── Step 7: Setup Nginx vhosts (production + preview) ───────────────────────
+# Vhost filename = server_name (standard nginx convention).
+setup_nginx_vhost "api.takussan.com"         "${APP_DIR}"     "takussan"         "api.takussan.com"
+setup_nginx_vhost "preview.api.takussan.com" "${PREVIEW_DIR}" "takussan-preview" "preview.api.takussan.com"
+
+if [ "${NGINX_NEEDS_RELOAD:-0}" = "1" ]; then
+    log "Validating nginx config..."
+    if nginx -t; then
+        log "Reloading nginx..."
+        systemctl reload nginx
+    else
+        log "ERROR: nginx -t failed — vhosts written but NOT reloaded."
+        log "       Fix the config, then run: sudo nginx -t && sudo systemctl reload nginx"
+        exit 1
+    fi
+fi
+
+# ─── Step 8: Setup Laravel queue worker services ─────────────────────────────
 setup_queue_service "takussan-queue" "${APP_DIR}"
 setup_queue_service "takussan-queue-preview" "${PREVIEW_DIR}"
+
+# ─── Step 9: Sudoers entry for deploy user ────────────────────────────────────
+# Allows deploy.sh to reload php-fpm post-symlink-swap (opcache clear) and
+# lets the operator manage queue workers without typing the deploy password.
+setup_deploy_sudoers "${PHP_FPM_VERSION:-}"
+
+# ─── Step 10: Logrotate for Laravel logs ──────────────────────────────────────
+setup_laravel_logrotate
+
+# ─── Step 11: Validation summary ──────────────────────────────────────────────
+print_validation_summary
 
 # ─── Done ─────────────────────────────────────────────────────────────────────
 log ""
@@ -211,15 +551,12 @@ log "     REPO_URL           — git@github.com:<org>/<repo>.git"
 log "     ENV_FILE           — Production .env contents"
 log "     ENV_FILE_PREVIEW   — Preview .env contents"
 log ""
-log "  6. Configure Nginx vhosts and reload:"
-log "     # Production:  root ${APP_DIR}/current/public;"
-log "     # Preview:     root ${PREVIEW_DIR}/current/public;"
-log "     #              server_name preview.api.takussan.com;"
-log "     sudo nginx -t && sudo systemctl reload nginx"
+log "  6. Add Cloudflare DNS A records (DNS only, gray cloud):"
+log "     api          -> server IP   (prod)"
+log "     preview.api  -> server IP   (preview)"
 log ""
-log "  7. Add Cloudflare DNS A record:"
-log "     preview.api -> server IP (Proxied)"
-log ""
-log "  8. SSL certificates:"
+log "  7. SSL certificates (Certbot updates the vhosts to add 443 + redirect):"
+log "     sudo certbot --nginx -d api.takussan.com"
 log "     sudo certbot --nginx -d preview.api.takussan.com"
+log "     sudo certbot renew --dry-run"
 log ""
