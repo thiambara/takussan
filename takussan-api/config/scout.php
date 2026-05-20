@@ -145,9 +145,18 @@ return [
         'key' => env('MEILISEARCH_KEY'),
         'index-settings' => [
             Property::class => [
-                'searchableAttributes' => ['title', 'description', 'city'],
-                'filterableAttributes' => ['type', 'contract_type', 'rent_period', 'status', 'city'],
-                'sortableAttributes' => ['id'],
+                'searchableAttributes' => [
+                    'title', 'type_label', 'description',
+                    'neighborhood', 'city', 'reference_number',
+                ],
+                'filterableAttributes' => [
+                    'type', 'contract_type', 'rent_period', 'status', 'visibility',
+                    'price', 'bedrooms', 'bathrooms', 'area', 'furnished',
+                    'floor_number', 'featured', 'is_test', 'agency_id', 'user_id',
+                    'available_from', 'published_at', 'city', 'neighborhood',
+                    'tags', '_geo',
+                ],
+                'sortableAttributes' => ['price', 'created_at', 'published_at', 'featured'],
                 'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
             ],
             Message::class => [

@@ -146,19 +146,18 @@ LOG_LEVEL=debug
 
 ### 3.6 Search (Laravel Scout + Meilisearch)
 
-Le driver par défaut est `collection` (recherche en mémoire, aucune infra — utilisé
-en local léger et en CI). **Preview et production tournent sur Meilisearch.**
+Depuis TCK-280, **Meilisearch est le moteur de recherche sur tous les
+environnements** — local, CI, preview et production. Le driver `collection` de
+Scout (recherche en mémoire) n'est plus utilisé : la suite de tests elle-même
+tourne sur un service Meilisearch (cf. `.github/workflows/api-ci.yml`).
 
 ```env
-# Local léger / CI — aucune infra de recherche
-SCOUT_DRIVER=collection
-
-# Preview / Production — Meilisearch
+# Tous les environnements — Meilisearch
 SCOUT_DRIVER=meilisearch
 MEILISEARCH_HOST=http://127.0.0.1:7700
 MEILISEARCH_KEY=<master_key de /etc/meilisearch.toml>
-SCOUT_QUEUE=true            # indexation via la queue (worker requis)
-SCOUT_AFTER_COMMIT=true     # n'indexe qu'après commit de transaction
+SCOUT_QUEUE=true            # preview/prod — indexation via la queue (worker requis)
+SCOUT_AFTER_COMMIT=true     # preview/prod — n'indexe qu'après commit de transaction
 SCOUT_PREFIX=preview_       # PREVIEW UNIQUEMENT — isole les index de la prod
 ```
 

@@ -33,7 +33,9 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
-        <env name="SCOUT_DRIVER" value="collection"/>
+        <env name="SCOUT_DRIVER" value="meilisearch"/>
+        <env name="SCOUT_QUEUE" value="false"/>
+        <env name="SCOUT_AFTER_COMMIT" value="false"/>
         <env name="LARAVEL_PDF_DRIVER" value="dompdf"/>
     </php>
 </phpunit>

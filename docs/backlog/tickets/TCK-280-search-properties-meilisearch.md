@@ -1,7 +1,7 @@
 ---
 id: TCK-280
 title: "Recherche de biens sur Meilisearch (public + dashboard)"
-status: todo
+status: review
 phase: P2
 family: back
 estimate: L
@@ -51,8 +51,10 @@ N/A — ticket backend. La réponse JSON ne change pas ; aucun fichier frontend
   (`shouldBeSearchable()` + filtre de requête).
 - Tri : `relevance` = pertinence Meilisearch ; `price_asc` / `price_desc` /
   `created_desc` = tri explicite dominant sur la pertinence.
-- CI tourne sur le `CollectionEngine`, prod sur Meilisearch — les tests doivent
-  rester verts sur les deux moteurs.
+- Meilisearch est le moteur unique sur tous les environnements (local, preview,
+  prod) **et la CI** — aucun fallback `collection`. `phpunit.xml` ne doit plus
+  épingler `SCOUT_DRIVER=collection` ; le job `api-ci.yml` provisionne un
+  service Meilisearch.
 
 ## Delta à produire
 
@@ -66,18 +68,22 @@ N/A — ticket backend. La réponse JSON ne change pas ; aucun fichier frontend
       filtres Scout natifs (`where`, `whereIn`, range) + recherche géo
       (bounding-box / rayon) via les filtres géo Meilisearch.
 - [ ] Facettes — remplacer les 3 requêtes `GROUP BY` par les facettes natives
-      Meilisearch, avec fallback `CollectionEngine` si nécessaire.
+      Meilisearch (`facetDistribution`).
 - [ ] Rendre le callback `filter[search]` de `HasQueryBuilder` Scout-aware :
       router via le scope `withSearch()` quand le modèle est `Searchable`,
       fallback `LIKE` sinon — bénéficie immédiatement au listing dashboard des
       biens et prépare TCK-281.
-- [ ] Conserver `applySearchFilter` / `orderBySearchRelevance` uniquement comme
-      fallback driver `collection`, ou les retirer si le `CollectionEngine`
-      couvre le besoin.
+- [ ] Supprimer `applySearchFilter` / `orderBySearchRelevance` — Meilisearch est
+      le moteur unique, aucun fallback `collection` à conserver.
+- [ ] CI / tests sur Meilisearch : retirer le pin `SCOUT_DRIVER=collection` de
+      `phpunit.xml`, provisionner un service Meilisearch dans `api-ci.yml`, et
+      ajouter un utilitaire de test qui vide l'index + attend la fin de
+      l'indexation entre chaque test (`RefreshDatabase` ne nettoie pas l'index).
 - [ ] Documenter `php artisan scout:import "App\Models\Property"` pour le
       premier déploiement.
-- [ ] Tests : `PublicPropertySearchTest` (pertinence, facettes, tri, géo,
-      pagination + `total`) verts sur `collection` et `meilisearch`.
+- [ ] Tests : `PropertySearchTest` + `PublicPropertySearchFiltersTest`
+      (pertinence, tolérance aux fautes, facettes, tri, géo, pagination +
+      `total`) verts sur Meilisearch.
 
 ## Critères d'acceptation
 
@@ -93,8 +99,8 @@ N/A — ticket backend. La réponse JSON ne change pas ; aucun fichier frontend
       scopé à l'agence appelante.
 - [ ] AC6 — Le contrat JSON `{data, facets, meta}` est inchangé ; aucun fichier
       frontend n'est modifié.
-- [ ] AC7 — La suite de tests passe sur `CollectionEngine` (CI) et
-      `MeilisearchEngine`.
+- [ ] AC7 — La suite de tests passe sur Meilisearch, CI incluse (service
+      Meilisearch provisionné dans `api-ci.yml`, plus de pin `collection`).
 
 ## Hors périmètre
 
@@ -107,4 +113,29 @@ N/A — ticket backend. La réponse JSON ne change pas ; aucun fichier frontend
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Moteur unique.** Meilisearch sur tous les environnements, CI incluse.
+  `phpunit.xml` épingle `SCOUT_DRIVER=meilisearch` ; `api-ci.yml` provisionne un
+  service `getmeili/meilisearch:v1.16`. Aucun fallback `collection`.
+- **Une seule requête Meilisearch.** `App\Services\Search\PropertySearchService`
+  passe par `Property::search($q, $callback)->raw()`. Scout déballe le
+  `SearchResult` d'un callback via `getRaw()` — `raw()` renvoie donc le tableau
+  brut (`hits` / `totalHits` / `facetDistribution`), pas un objet `SearchResult`.
+  `page` + `hitsPerPage` garantissent un `totalHits` exact.
+- **`HasQueryBuilder` Scout-aware inliné.** Le routage Scout du callback
+  `filter[search]` est codé directement dans `HasQueryBuilder`, pas délégué au
+  scope `BaseModelTrait::withSearch()` : `HasQueryBuilder` sert aussi des
+  modèles sans `BaseModelTrait` (ex. `User`).
+- **Effet de bord `Document`.** Le callback générique route tout modèle
+  `Searchable` vers Scout ; `Document` (déjà `Searchable`, TCK-094) est donc
+  concerné — son `filter[search]` passe désormais par Meilisearch.
+  `ReviewReportAndDocSearchTest` a été adapté.
+- **Limite couverture dashboard.** `shouldBeSearchable()` reste inchangé : les
+  biens `Draft` / non publics ne sont pas indexés, donc le `filter[search]` du
+  listing dashboard ne retrouve en plein-texte que les biens indexés (publics,
+  non-draft). À rouvrir si la recherche des brouillons devient nécessaire.
+- **Alias de type FR.** `appartement → type apartment` préservé via un champ
+  indexé `type_label` (`Property::TYPE_SEARCH_ALIASES`).
+- Premier déploiement : `php artisan scout:import "App\Models\Property"` (la
+  modif de `toSearchableArray()` impose aussi un ré-import en prod existante) —
+  cf. `docs/configuration.md §3.6`.
+- Suite complète verte sur Meilisearch : 2010 passed.

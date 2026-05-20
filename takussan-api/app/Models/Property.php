@@ -131,18 +131,97 @@ class Property extends AbstractModel implements HasMedia
         });
     }
 
+    /**
+     * French search aliases per property type — indexed as `type_label` so a
+     * French type term (e.g. "appartement") matches the English enum value
+     * (`apartment`). Meilisearch typo-tolerance then covers misspellings.
+     *
+     * @var array<string,string>
+     */
+    public const TYPE_SEARCH_ALIASES = [
+        'land' => 'terrain',
+        'house' => 'maison',
+        'apartment' => 'appartement',
+        'villa' => 'villa',
+        'studio' => 'studio',
+        'room' => 'chambre',
+        'office' => 'bureau',
+        'shop' => 'boutique magasin commerce',
+        'warehouse' => 'entrepot',
+        'factory' => 'usine',
+        'farm' => 'ferme',
+        'hotel' => 'hotel',
+        'resort' => 'resort',
+        'garage' => 'garage',
+        'parking' => 'parking',
+        'other' => 'autre',
+    ];
+
+    /**
+     * Statuses excluded from the public search index filter — mirror of
+     * {@see scopePublic()}. A property indexed by {@see shouldBeSearchable()}
+     * but in one of these statuses must not surface on the public endpoint.
+     *
+     * @var array<int,string>
+     */
+    public const NON_PUBLIC_STATUSES = [
+        'draft', 'sold', 'rented', 'archived',
+        'under_maintenance', 'unavailable', 'pending_review', 'rejected',
+    ];
+
     public function toSearchableArray(): array
     {
-        return [
+        $address = $this->address;
+
+        $data = [
             'id' => $this->id,
             'title' => $this->title,
             'description' => $this->description,
+            'reference_number' => $this->reference_number,
+            'type_label' => self::TYPE_SEARCH_ALIASES[$this->type?->value] ?? '',
             'type' => $this->type?->value,
             'contract_type' => $this->contract_type?->value,
             'rent_period' => $this->rent_period?->value,
             'status' => $this->status?->value,
-            'city' => optional($this->address)->city,
+            'visibility' => $this->visibility?->value,
+            'price' => $this->price !== null ? (float) $this->price : null,
+            'bedrooms' => $this->bedrooms,
+            'bathrooms' => $this->bathrooms,
+            'area' => $this->area,
+            'furnished' => (bool) $this->furnished,
+            'floor_number' => $this->floor_number,
+            'featured' => (bool) $this->featured,
+            'is_test' => (bool) $this->is_test,
+            'agency_id' => $this->agency_id,
+            'user_id' => $this->user_id,
+            'available_from' => $this->available_from?->timestamp,
+            'published_at' => $this->published_at?->timestamp,
+            'created_at' => $this->created_at?->timestamp,
+            'city' => $address?->city,
+            'neighborhood' => $address?->neighborhood,
+            'tags' => $this->tags->pluck('name')->all(),
         ];
+
+        if ($address && $address->latitude !== null && $address->longitude !== null) {
+            $data['_geo'] = [
+                'lat' => (float) $address->latitude,
+                'lng' => (float) $address->longitude,
+            ];
+        }
+
+        return $data;
+    }
+
+    /**
+     * Eager-load the relations {@see toSearchableArray()} needs so a
+     * `scout:import` of the whole table avoids an N+1 per document.
+     *
+     * @param  Builder<Property>  $query
+     * @return Builder<Property>
+     */
+    protected function makeAllSearchableUsing(Builder $query): Builder
+    {
+        return $query->with('address', 'tags');
     }
 
     public function shouldBeSearchable(): bool

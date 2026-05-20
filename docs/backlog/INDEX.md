@@ -204,8 +204,9 @@ _(TCK-277 en review)_
 
 > Meilisearch + Scout sont en place (config + index `messages`/`documents`/`properties`, sync au déploiement). Reste à brancher les recherches qui tournent encore sur `LIKE`. Audit du code : la recherche publique de biens utilise du SQL `LIKE` brut alors que `features.md §2.4` la spécifie « (Scout) ». TCK-280 ferme cet écart et rend le callback `filter[search]` Scout-aware ; TCK-281 active 4 modèles internes supplémentaires.
 
-- [TCK-280](tickets/TCK-280-search-properties-meilisearch.md) — Recherche de biens sur Meilisearch (public + dashboard) `L · P2 · back`
 - [TCK-281](tickets/TCK-281-search-internal-entities-meilisearch.md) — Recherche interne sur Meilisearch (clients, maintenance, agences, utilisateurs) `L · P3 · back` **[blocked: TCK-280]**
+
+_(TCK-280 en review — voir section Review)_
 
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
@@ -217,6 +218,7 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 
 ## 👀 Review
 
+- [TCK-280](tickets/TCK-280-search-properties-meilisearch.md) — Recherche de biens sur Meilisearch (public + dashboard) `L · P2 · back` *(branche `feat/tck-280-property-search-meilisearch` — suite complète verte sur Meilisearch)*
 - [TCK-278](tickets/TCK-278-rbac-profile-based-phase-1.md) — RBAC phase 1 : suppression spatie sur User + PlatformProfile + Capability resolver `XL · P1 · technique` *(P1 + P2.A→D + P3 cutover + P3.b tests verts + frontend types + CI guard — branche `feat/tck-278-279-rbac-architecture-spec`)*
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-276](tickets/TCK-276-public-agency-agent-portrait-redesign.md) — Pages publiques agence & agent — itération "Portrait/confiance" `L · P2 · applicatif`

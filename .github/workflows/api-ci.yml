@@ -21,6 +21,16 @@ jobs:
       run:
         working-directory: takussan-api
 
+    # TCK-280 — search runs on Meilisearch on every environment, CI included.
+    services:
+      meilisearch:
+        image: getmeili/meilisearch:v1.16
+        env:
+          MEILI_MASTER_KEY: masterKey
+          MEILI_NO_ANALYTICS: 'true'
+        ports:
+          - 7700:7700
+
     steps:
       - uses: actions/checkout@v4
 
@@ -63,8 +73,28 @@ jobs:
           fi
           echo "OK — no Spatie\\Permission references."
 
+      - name: Wait for Meilisearch
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:7700/health > /dev/null; then
+              echo "Meilisearch is up."; exit 0
+            fi
+            echo "Waiting for Meilisearch ($i)..."; sleep 2
+          done
+          echo "::error::Meilisearch did not become healthy in time."; exit 1
+
+      - name: Sync Meilisearch index settings
+        env:
+          SCOUT_DRIVER: meilisearch
+          MEILISEARCH_HOST: http://127.0.0.1:7700
+          MEILISEARCH_KEY: masterKey
+        run: php artisan scout:sync-index-settings
+
       - name: Run tests
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ':memory:'
+          SCOUT_DRIVER: meilisearch
+          MEILISEARCH_HOST: http://127.0.0.1:7700
+          MEILISEARCH_KEY: masterKey
         run: php artisan test
