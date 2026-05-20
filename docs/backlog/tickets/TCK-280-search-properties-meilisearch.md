@@ -1,7 +1,7 @@
 ---
 id: TCK-280
 title: "Recherche de biens sur Meilisearch (public + dashboard)"
-status: review
+status: done
 phase: P2
 family: back
 estimate: L
