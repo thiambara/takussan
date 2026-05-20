@@ -147,6 +147,21 @@ rm -rf "${RELEASE_DIR}/takussan-api/node_modules"
 log "Running database migrations..."
 php artisan migrate --force
 
+# ─── Step 6b: Sync Meilisearch index settings ────────────────────────────────
+# Pushes searchable/filterable/sortable attributes + ranking rules from
+# config/scout.php to Meilisearch. Idempotent — safe to run on every deploy
+# (Laravel docs recommend making this part of the deploy process).
+# Auto-skipped when the environment is not on the meilisearch driver (e.g.
+# preview on the collection driver). Non-fatal: a transient Meilisearch issue
+# must not roll back an otherwise healthy code deploy.
+if grep -qE '^SCOUT_DRIVER=meilisearch[[:space:]]*$' "${SHARED_DIR}/.env"; then
+    log "Syncing Meilisearch index settings..."
+    php artisan scout:sync-index-settings \
+        || log "WARNING: scout:sync-index-settings failed — search filters/sort may be stale until the next deploy."
+else
+    log "Search: SCOUT_DRIVER is not meilisearch — skipping index settings sync."
+fi
+
 # ─── Step 7: Cache config, routes, views ─────────────────────────────────────
 log "Caching configuration..."
 php artisan config:cache

@@ -1252,7 +1252,7 @@ sudo ls -la /run/php/takussan.sock /run/php/takussan-preview.sock</code></pre>
          § 6 — MYSQL
          ═══════════════════════════════════════════════════════════ -->
     <section id="mysql">
-      <h2><span class="step-num">6</span>MySQL — bases &amp; users</h2>
+      <h2><span class="step-num">6</span>MySQL &amp; Meilisearch — services VPS</h2>
 
       <div class="callout why">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
@@ -1320,6 +1320,75 @@ mysql -u takussan_pre -p takussan_preview -e "SELECT 'preview OK' AS status;"
 
 <span class="comment"># Prod</span>
 mysql -u takussan_pro -p takussan_prod -e "SELECT 'prod OK' AS status;"</code></pre>
+      </div>
+
+      <h3>6.4 Meilisearch — moteur de recherche</h3>
+
+      <div class="callout why">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <div><p><strong>Pourquoi cette étape ?</strong> La recherche plein-texte (biens, messages, documents) tourne sur <strong>Meilisearch</strong> via Laravel Scout. Comme MySQL, c'est un service à installer manuellement — <code>server-setup.sh</code> ne le provisionne pas. Une seule instance sert preview et prod, les index étant isolés par <code>SCOUT_PREFIX</code>.</p></div>
+      </div>
+
+      <p>Installer le binaire (dépôt apt officiel), créer l'utilisateur système et les répertoires de données :</p>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header"><span class="lang">bash — sur le VPS</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code><span class="comment"># Binaire Meilisearch via le dépôt apt officiel</span>
+echo "deb [trusted=yes] https://apt.fury.io/meilisearch/ /" | sudo tee /etc/apt/sources.list.d/meilisearch.list
+sudo apt update &amp;&amp; sudo apt install meilisearch
+
+<span class="comment"># Utilisateur système dédié + répertoires de données</span>
+sudo useradd -d /var/lib/meilisearch -s /bin/false -m -r meilisearch
+sudo mkdir -p /var/lib/meilisearch/data /var/lib/meilisearch/dumps /var/lib/meilisearch/snapshots
+sudo chown -R meilisearch:meilisearch /var/lib/meilisearch</code></pre>
+      </div>
+
+      <p>Générer une master key et écrire la configuration <code>/etc/meilisearch.toml</code> :</p>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header"><span class="lang">bash — sur le VPS</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code><span class="comment"># Master key — garde-la, elle ira dans les secrets ENV_FILE / ENV_FILE_PREVIEW (§7)</span>
+openssl rand -base64 24
+
+sudo tee /etc/meilisearch.toml &gt;/dev/null &lt;&lt;'TOML'
+env          = "production"
+master_key   = "COLLE_LA_MASTER_KEY_ICI"
+db_path      = "/var/lib/meilisearch/data"
+dump_dir     = "/var/lib/meilisearch/dumps"
+snapshot_dir = "/var/lib/meilisearch/snapshots"
+http_addr    = "127.0.0.1:7700"
+TOML
+sudo chown meilisearch:meilisearch /etc/meilisearch.toml
+sudo chmod 640 /etc/meilisearch.toml</code></pre>
+      </div>
+
+      <p>Créer le service systemd, l'activer et vérifier la santé de l'instance :</p>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header"><span class="lang">bash — sur le VPS</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code>sudo tee /etc/systemd/system/meilisearch.service &gt;/dev/null &lt;&lt;'UNIT'
+[Unit]
+Description=Meilisearch
+After=network.target
+
+[Service]
+User=meilisearch
+Group=meilisearch
+ExecStart=/usr/bin/meilisearch --config-file-path /etc/meilisearch.toml
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now meilisearch
+curl http://127.0.0.1:7700/health        <span class="comment"># attendu : {"status":"available"}</span></code></pre>
+      </div>
+
+      <div class="callout warn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div><p><strong>Master key &amp; index partagés.</strong> Reporte la master key dans les secrets <code>ENV_FILE</code> et <code>ENV_FILE_PREVIEW</code> (variable <code>MEILISEARCH_KEY</code>, §7). Une seule instance Meilisearch sert les deux environnements : le <code>.env</code> preview porte <code>SCOUT_PREFIX=preview_</code> pour préfixer ses index et éviter toute collision avec la prod. Après le <strong>premier déploiement</strong> (étape 13), peupler les index une fois sur le serveur — <code>php artisan scout:import "App\Models\Property"</code> (puis <code>Document</code> et <code>Message</code>) ; ensuite le worker de queue les maintient à jour automatiquement.</p></div>
       </div>
     </section>
 
@@ -1437,8 +1506,13 @@ MAIL_MAILER=log
 MAIL_FROM_ADDRESS=noreply@takussan.local
 MAIL_FROM_NAME="${APP_NAME}"
 
-<span class="comment"># ═══════════════════════ Search (Scout collection driver) ═══════════════════════</span>
-SCOUT_DRIVER=collection
+<span class="comment"># ═══════════════════════ Search (Scout — Meilisearch) ═══════════════════════</span>
+SCOUT_DRIVER=meilisearch
+MEILISEARCH_HOST=http://127.0.0.1:7700
+MEILISEARCH_KEY=CLE_MEILISEARCH_DU_6_4
+SCOUT_QUEUE=true
+SCOUT_AFTER_COMMIT=true
+SCOUT_PREFIX=preview_                          <span class="comment"># prod : laisser vide — isole les index preview/prod</span>
 
 <span class="comment"># ═══════════════════════ Media library (Spatie) ═══════════════════════</span>
 MEDIA_DISK=public

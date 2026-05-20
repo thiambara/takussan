@@ -1,5 +1,9 @@
 <?php
 
+use App\Models\Document;
+use App\Models\Message;
+use App\Models\Property;
+
 return [
 
     /*
@@ -55,7 +59,7 @@ return [
     |
     */
 
-    'after_commit' => false,
+    'after_commit' => env('SCOUT_AFTER_COMMIT', false),
 
     /*
     |--------------------------------------------------------------------------
@@ -140,17 +144,23 @@ return [
         'host' => env('MEILISEARCH_HOST', 'http://localhost:7700'),
         'key' => env('MEILISEARCH_KEY'),
         'index-settings' => [
-            'messages' => [
+            Property::class => [
+                'searchableAttributes' => ['title', 'description', 'city'],
+                'filterableAttributes' => ['type', 'contract_type', 'rent_period', 'status', 'city'],
+                'sortableAttributes' => ['id'],
+                'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
+            ],
+            Message::class => [
                 'searchableAttributes' => ['body'],
                 'filterableAttributes' => ['sender_id', 'conversation_id', 'created_at'],
                 'sortableAttributes' => ['created_at'],
-                'rankingRules' => ['words', 'typo', 'proximity', 'attribute', 'sort', 'exactness'],
+                'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
             ],
-            'documents' => [
+            Document::class => [
                 'searchableAttributes' => ['title', 'description'],
                 'filterableAttributes' => ['type', 'documentable_type', 'documentable_id', 'uploaded_by', 'created_at'],
                 'sortableAttributes' => ['created_at'],
-                'rankingRules' => ['words', 'typo', 'proximity', 'attribute', 'sort', 'exactness'],
+                'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
             ],
         ],
     ],

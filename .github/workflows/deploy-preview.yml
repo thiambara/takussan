@@ -1,5 +1,24 @@
 name: Deploy Laravel API (Preview)
 
+# ─── Recherche / Meilisearch ──────────────────────────────────────────────────
+# L'environnement preview utilise Meilisearch (Laravel Scout). Rien de spécifique
+# n'est requis dans CE workflow : scripts/deploy.sh (partagé avec la prod) lance
+# `php artisan scout:sync-index-settings` à chaque déploiement dès que le .env est
+# sur le driver meilisearch (Step 6b de deploy.sh).
+#
+# Prérequis infra, hors de ce workflow — voir docs/infra/deploy-preview.html §6.4
+# et docs/configuration.md §3.6 :
+#   • Meilisearch installé + lancé sur le VPS (service systemd, écoute 127.0.0.1).
+#   • Secret GitHub ENV_FILE_PREVIEW complété avec :
+#       SCOUT_DRIVER=meilisearch
+#       MEILISEARCH_HOST=http://127.0.0.1:7700
+#       MEILISEARCH_KEY=<master_key de /etc/meilisearch.toml>
+#       SCOUT_QUEUE=true
+#       SCOUT_AFTER_COMMIT=true
+#       SCOUT_PREFIX=preview_     # isole les index de la prod (instance partagée)
+#   • Après le 1er déploiement : `php artisan scout:import` une fois sur le serveur.
+# ──────────────────────────────────────────────────────────────────────────────
+
 on:
   push:
     branches:

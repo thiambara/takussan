@@ -147,7 +147,8 @@ class Property extends AbstractModel implements HasMedia
 
     public function shouldBeSearchable(): bool
     {
-        return $this->visibility === PropertyVisibility::Public
+        return ! $this->trashed()
+            && $this->visibility === PropertyVisibility::Public
             && ! in_array($this->status, [
                 PropertyStatus::Draft,
                 PropertyStatus::PendingReview,
