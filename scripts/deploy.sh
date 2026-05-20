@@ -147,19 +147,63 @@ rm -rf "${RELEASE_DIR}/takussan-api/node_modules"
 log "Running database migrations..."
 php artisan migrate --force
 
-# ─── Step 6b: Sync Meilisearch index settings ────────────────────────────────
-# Pushes searchable/filterable/sortable attributes + ranking rules from
-# config/scout.php to Meilisearch. Idempotent — safe to run on every deploy
-# (Laravel docs recommend making this part of the deploy process).
-# Auto-skipped when the environment is not on the meilisearch driver (e.g.
-# preview on the collection driver). Non-fatal: a transient Meilisearch issue
-# must not roll back an otherwise healthy code deploy.
+# ─── Step 6b: Meilisearch — sync index settings + conditional reindex ─────────
+# scout:sync-index-settings pushes searchable/filterable/sortable attributes +
+# ranking rules from config/scout.php to Meilisearch — idempotent, run every
+# deploy (Laravel docs recommend making this part of the deploy process).
+#
+# scout:import re-indexes whole tables; it is only needed when the index *shape*
+# changed (config/scout.php or a model's toSearchableArray()). We diff those
+# files against the live release and skip the reindex on routine deploys. On the
+# first deploy (PREVIOUS_RELEASE empty) the import is forced.
+#
+# The whole block is auto-skipped when the environment is not on the meilisearch
+# driver (e.g. preview on the collection driver). Non-fatal: a transient
+# Meilisearch issue must not roll back an otherwise healthy code deploy.
 if grep -qE '^SCOUT_DRIVER=meilisearch[[:space:]]*$' "${SHARED_DIR}/.env"; then
     log "Syncing Meilisearch index settings..."
     php artisan scout:sync-index-settings \
         || log "WARNING: scout:sync-index-settings failed — search filters/sort may be stale until the next deploy."
+
+    # Searchable models = every app/Models/*.php file defining toSearchableArray().
+    # Assumes models live flat in the App\Models namespace (true today).
+    SEARCHABLE_FILES=()
+    while IFS= read -r f; do
+        [ -n "${f}" ] && SEARCHABLE_FILES+=("${f}")
+    done < <(grep -rl 'toSearchableArray' app/Models 2>/dev/null || true)
+
+    # Files whose change alters the index shape: scout config + each model payload.
+    SEARCH_SHAPE_FILES=("config/scout.php")
+    [ ${#SEARCHABLE_FILES[@]} -gt 0 ] && SEARCH_SHAPE_FILES+=("${SEARCHABLE_FILES[@]}")
+
+    # Decide whether a full reindex is needed.
+    NEEDS_REINDEX=0
+    if [ -z "${PREVIOUS_RELEASE}" ] || [ ! -d "${PREVIOUS_RELEASE}/takussan-api" ]; then
+        NEEDS_REINDEX=1
+        log "Search: first deploy — full Meilisearch import scheduled."
+    else
+        for f in "${SEARCH_SHAPE_FILES[@]}"; do
+            # diff -q exits non-zero when the file differs OR is absent from the
+            # previous release (a brand-new Searchable model) — both mean reindex.
+            if ! diff -q "${f}" "${PREVIOUS_RELEASE}/takussan-api/${f}" >/dev/null 2>&1; then
+                NEEDS_REINDEX=1
+                log "Search: ${f} changed since the live release — Meilisearch import scheduled."
+            fi
+        done
+    fi
+
+    if [ "${NEEDS_REINDEX}" -eq 0 ]; then
+        log "Search: index shape unchanged — skipping Meilisearch import."
+    elif [ ${#SEARCHABLE_FILES[@]} -gt 0 ]; then
+        for f in "${SEARCHABLE_FILES[@]}"; do
+            model="App\\Models\\$(basename "${f}" .php)"
+            log "Importing ${model} into Meilisearch..."
+            php artisan scout:import "${model}" \
+                || log "WARNING: scout:import ${model} failed — index may be stale until the next reindex."
+        done
+    fi
 else
-    log "Search: SCOUT_DRIVER is not meilisearch — skipping index settings sync."
+    log "Search: SCOUT_DRIVER is not meilisearch — skipping Meilisearch sync."
 fi
 
 # ─── Step 7: Cache config, routes, views ─────────────────────────────────────
