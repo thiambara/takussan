@@ -206,6 +206,12 @@ _(TCK-277 en review)_
 
 _(TCK-280 done — voir section Done ; TCK-281 en doing)_
 
+### Vague 36 — Notifications WhatsApp sortant (2026-06-17)
+
+> Canal WhatsApp sortant routé WhatsApp-first → SMS-fallback, miroir du socle SMS (TCK-102/110), mono-provider Meta. OTP/2FA et inbound mise-en-relation = tickets séparés ultérieurs (chacun nécessite d'abord sa propre spec).
+
+_(TCK-282 + TCK-283 en review — voir section Review)_
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
@@ -217,6 +223,8 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 
 ## 👀 Review
 
+- [TCK-282](tickets/TCK-282-whatsapp-outbound-channel.md) — Canal notification WhatsApp sortant (socle + canal + routing WA-first/SMS-fallback + pilote) `L · P3 · applicatif`
+- [TCK-283](tickets/TCK-283-whatsapp-template-registry-webhook.md) — Registre templates Meta + webhook statut WhatsApp (DLR) + opt-out `M · P3 · applicatif`
 - [TCK-278](tickets/TCK-278-rbac-profile-based-phase-1.md) — RBAC phase 1 : suppression spatie sur User + PlatformProfile + Capability resolver `XL · P1 · technique` *(P1 + P2.A→D + P3 cutover + P3.b tests verts + frontend types + CI guard — branche `feat/tck-278-279-rbac-architecture-spec`)*
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-276](tickets/TCK-276-public-agency-agent-portrait-redesign.md) — Pages publiques agence & agent — itération "Portrait/confiance" `L · P2 · applicatif`
@@ -864,6 +872,10 @@ TCK-270 (TCK-209 follow-up : 2FA + devise + branding)
 # Recherche Meilisearch
 TCK-052 ──▶ TCK-280 (Recherche biens sur Meilisearch — public + dashboard)
 TCK-280 ──▶ TCK-281 (Recherche interne sur Meilisearch — clients/maintenance/agences/users)
+
+── Notifications WhatsApp (Vague 36) ──
+TCK-102 + TCK-110 ──▶ TCK-282 (canal WhatsApp sortant)
+TCK-282 ──▶ TCK-283 (registre templates Meta + webhook DLR)
 ```
 
 ---

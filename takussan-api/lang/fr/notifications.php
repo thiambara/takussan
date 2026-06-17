@@ -53,6 +53,7 @@ return [
         'greeting' => 'Bonjour,',
         'intro' => 'Votre réservation #:reference a été créée et est en attente de confirmation.',
         'details' => 'Séjour : du :start au :end.',
+        'sms' => 'Takussan : votre réservation #:reference est en attente de confirmation. Séjour du :start au :end.',
     ],
 
     'digest' => [

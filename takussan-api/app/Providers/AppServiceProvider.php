@@ -54,6 +54,7 @@ use App\Models\Review;
 use App\Models\RoleDelegation;
 use App\Models\User;
 use App\Notifications\Channels\SmsChannel;
+use App\Notifications\Channels\WhatsappChannel;
 use App\Observers\FavoriteObserver;
 use App\Observers\InventoryOnboardingObserver;
 use App\Observers\LeaseObserver;
@@ -96,6 +97,10 @@ use App\Services\Notifications\Sms\OrangeOAuthTokenCache;
 use App\Services\Notifications\Sms\QuietHoursGuard;
 use App\Services\Notifications\Sms\SmsDriverInterface;
 use App\Services\Notifications\Sms\SmsRouterDriver;
+use App\Services\Notifications\Whatsapp\CloudApiWhatsappDriver;
+use App\Services\Notifications\Whatsapp\LogWhatsappDriver;
+use App\Services\Notifications\Whatsapp\ServiceWindow;
+use App\Services\Notifications\Whatsapp\WhatsappDriverInterface;
 use App\Services\Reporting\PlatformReportingService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
@@ -128,6 +133,7 @@ class AppServiceProvider extends ServiceProvider
         $this->registerCurrencyFormatter();
         $this->registerCdnServices();
         $this->registerSmsServices();
+        $this->registerWhatsappServices();
     }
 
     public function boot(Dispatcher $events): void
@@ -221,6 +227,26 @@ class AppServiceProvider extends ServiceProvider
             return match ($default) {
                 'log' => $app->make(LogSmsDriver::class),
                 default => $app->make(SmsRouterDriver::class),
+            };
+        });
+    }
+
+    private function registerWhatsappServices(): void
+    {
+        // TCK-282 — WhatsApp Cloud (Meta) outbound stack. Mono-provider, so
+        // there is no router: the channel talks to the bound driver directly
+        // and falls back to the SMS router on ineligibility / hard failure.
+        $this->app->singleton(ServiceWindow::class);
+        $this->app->singleton(LogWhatsappDriver::class);
+        $this->app->singleton(CloudApiWhatsappDriver::class);
+
+        // `log` in local/testing, `cloud` everywhere else.
+        $this->app->bind(WhatsappDriverInterface::class, function ($app): WhatsappDriverInterface {
+            $default = (string) $app['config']->get('whatsapp.default_driver', 'cloud');
+
+            return match ($default) {
+                'log' => $app->make(LogWhatsappDriver::class),
+                default => $app->make(CloudApiWhatsappDriver::class),
             };
         });
     }
@@ -526,5 +552,8 @@ class AppServiceProvider extends ServiceProvider
         // Notification can list `SmsChannel::class` (or simply `'sms'`
         // via Notifiable::notify) in its via() return.
         $this->app->make(ChannelManager::class)->extend('sms', fn ($app) => $app->make(SmsChannel::class));
+        // TCK-282 — `whatsapp` channel: any Notification can list it (or
+        // route to it via PreferenceResolver::resolveMobileChannel()).
+        $this->app->make(ChannelManager::class)->extend('whatsapp', fn ($app) => $app->make(WhatsappChannel::class));
     }
 }
