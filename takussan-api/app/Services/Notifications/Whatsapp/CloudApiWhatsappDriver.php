@@ -59,7 +59,16 @@ class CloudApiWhatsappDriver implements WhatsappDriverInterface
             $results[$recipient] = $this->sendOne($url, $token, $recipient, $message);
         }
 
-        $integration->forceFill(['last_used_at' => now()])->save();
+        // Only stamp the integration as used when at least one message
+        // actually went out — a fully-failed batch (bad token, all
+        // recipients rejected) is not a "successful use" of the credentials.
+        $anySucceeded = array_filter(
+            $results,
+            fn (WhatsappResult $r): bool => $r->isTerminalSuccess(),
+        ) !== [];
+        if ($anySucceeded) {
+            $integration->forceFill(['last_used_at' => now()])->save();
+        }
 
         return $results;
     }

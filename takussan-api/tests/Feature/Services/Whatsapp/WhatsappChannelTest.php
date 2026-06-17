@@ -4,6 +4,7 @@ namespace Tests\Feature\Services\Whatsapp;
 
 use App\Models\Agency;
 use App\Models\AppNotification;
+use App\Models\Booking;
 use App\Models\Integration;
 use App\Models\NotificationDeliveryAttempt;
 use App\Models\NotificationPreference;
@@ -13,6 +14,7 @@ use App\Models\WhatsappContact;
 use App\Notifications\Channels\WhatsappChannel;
 use App\Notifications\Concerns\SupportsSms;
 use App\Notifications\Concerns\SupportsWhatsapp;
+use App\Notifications\NewBookingNotification;
 use App\Services\Notifications\Whatsapp\WhatsappResult;
 use App\Services\Notifications\Whatsapp\WhatsappTemplateRef;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -231,6 +233,42 @@ class WhatsappChannelTest extends TestCase
         $this->assertNull($channel->send($this->user, $this->makeNotification('2')));
         // Critical bypasses the limit.
         $this->assertIsArray($channel->send($this->user, $this->makeNotification('3', critical: true)));
+    }
+
+    public function test_successful_send_stamps_integration_last_used_at(): void
+    {
+        $this->fakeHttp();
+        $this->contact(now()->subHour());
+        $channel = $this->app->make(WhatsappChannel::class);
+
+        $channel->send($this->user, $this->makeNotification('hi'));
+
+        $integration = Integration::query()->where('provider', 'whatsapp_cloud')->first();
+        $this->assertNotNull($integration->last_used_at);
+    }
+
+    public function test_failed_batch_does_not_stamp_integration_last_used_at(): void
+    {
+        // A fully-failed send (bad credentials / all recipients rejected) is
+        // not a successful use of the integration.
+        $this->fakeHttp(graphStatus: 500, graphBody: ['error' => ['code' => 131026]]);
+        $this->contact(now()->subHour());
+        $channel = $this->app->make(WhatsappChannel::class);
+
+        $channel->send($this->user, $this->makeNotification('hi'));
+
+        $integration = Integration::query()->where('provider', 'whatsapp_cloud')->first();
+        $this->assertNull($integration->last_used_at);
+    }
+
+    public function test_pilot_notification_exposes_app_notification_id(): void
+    {
+        // TCK-282/283 — the pilot honors the appNotificationIdFor() contract
+        // so the mobile channels can log delivery attempts the DLR webhook
+        // can later match.
+        $booking = new Booking;
+        $this->assertSame(42, (new NewBookingNotification($booking, 42))->appNotificationIdFor($this->user));
+        $this->assertNull((new NewBookingNotification($booking))->appNotificationIdFor($this->user));
     }
 
     public function test_unverified_phone_is_skipped(): void

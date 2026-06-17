@@ -2,8 +2,11 @@
 
 namespace App\Notifications;
 
+use App\Models\AppNotification;
 use App\Models\Booking;
+use App\Models\NotificationDeliveryAttempt;
 use App\Models\User;
+use App\Notifications\Channels\WhatsappChannel;
 use App\Notifications\Concerns\SupportsSms;
 use App\Notifications\Concerns\SupportsWhatsapp;
 use App\Services\Admin\NotificationTemplateService;
@@ -28,9 +31,31 @@ class NewBookingNotification extends Notification implements ShouldQueue, Suppor
 {
     use Queueable;
 
-    public function __construct(public Booking $booking) {}
+    /**
+     * @param  int|null  $appNotificationId  The {@see AppNotification}
+     *                                       row this notification is attached to. When set, the mobile
+     *                                       channels ({@see WhatsappChannel} /
+     *                                       SmsChannel) log a {@see NotificationDeliveryAttempt}
+     *                                       against it, which the WhatsApp DLR webhook (TCK-283) later matches
+     *                                       by `(provider, provider_message_id)`. Null → fire-and-forget, no
+     *                                       delivery tracking.
+     */
+    public function __construct(
+        public Booking $booking,
+        public ?int $appNotificationId = null,
+    ) {}
 
     public const EVENT_TYPE = 'booking_request';
+
+    /**
+     * The AppNotification this Laravel notification is attached to, so the
+     * SMS/WhatsApp channels can persist delivery attempts (and the DLR
+     * webhook can match them). See {@see SupportsWhatsapp}.
+     */
+    public function appNotificationIdFor(object $notifiable): ?int
+    {
+        return $this->appNotificationId;
+    }
 
     /**
      * @return list<string>

@@ -130,6 +130,17 @@ class WhatsappStatusWebhookTest extends TestCase
         $response->assertForbidden();
     }
 
+    public function test_missing_secret_in_production_is_rejected(): void
+    {
+        // Fail-closed: an unset app secret in production must not let an
+        // unsigned webhook through (the URL token alone is insufficient).
+        config()->set('whatsapp.webhook_app_secret', '');
+        $this->app['env'] = 'production';
+        $this->attempt('wamid.prod');
+
+        $this->postStatus($this->payload('wamid.prod', 'delivered'))->assertForbidden();
+    }
+
     public function test_valid_signature_is_accepted(): void
     {
         config()->set('whatsapp.webhook_app_secret', 'shhh');

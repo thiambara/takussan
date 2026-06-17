@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\UpdateWhatsappDeliveryStatusJob;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 /**
  * TCK-283 — Inbound delivery-status webhook from WhatsApp Cloud (Meta).
@@ -55,12 +56,20 @@ class WhatsappStatusController extends Controller
 
     /**
      * Verify the `X-Hub-Signature-256` HMAC against the raw request body.
-     * Skipped when no app secret is configured (local/testing).
+     * Skipped when no app secret is configured — but only outside
+     * production. In production an unset secret is a misconfiguration, not a
+     * convenience: we fail closed rather than silently accept unsigned
+     * webhooks (the URL token alone is not sufficient auth there).
      */
     private function verifySignature(Request $request): void
     {
         $secret = (string) config('whatsapp.webhook_app_secret', '');
         if ($secret === '') {
+            if (app()->isProduction()) {
+                Log::error('[whatsapp.webhook] app secret not configured in production — rejecting unsigned status webhook');
+                abort(403, 'Webhook signature verification not configured');
+            }
+
             return;
         }
         $header = (string) $request->header('X-Hub-Signature-256', '');
