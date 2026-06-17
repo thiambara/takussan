@@ -1367,7 +1367,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | Identifiant unique |
-| provider | string | | | Identifiant du fournisseur (`wave`, `orange_money`, `stripe`, `mls`, `twilio`…) |
+| provider | string | | | Identifiant du fournisseur (`wave`, `orange_money`, `stripe`, `mls`, `twilio`, `whatsapp_cloud`…). Pour `whatsapp_cloud` : `credentials` = phone_number_id / access_token / waba_id ; `metadata` = webhook verify token / app secret |
 | agency_id | FK agencies | oui | null | Agence propriétaire (null = intégration globale) (`cascadeOnDelete`) |
 | credentials | text (encrypted) | | | Credentials chiffrés (API keys, secrets, tokens) |
 | is_active | boolean | | true | Intégration activée |
@@ -2132,6 +2132,52 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 **Notes :**
 - La valeur `capability` n'est pas une FK vers une table (le catalogue est code-defined). Une validation applicative refuse une valeur hors enum à l'écriture.
 - Pas de timestamps métier nécessaires ; on garde `created_at` / `updated_at` pour audit.
+
+---
+
+### 54. WhatsappContact 🆕
+
+**Table :** `whatsapp_contacts`
+**Description :** Contact WhatsApp identifié par son numéro E.164. Porte le consentement (opt-in/opt-out) et la base de la **fenêtre de service 24h** de Meta (`last_inbound_at`). Conçue pour servir à la fois le **sortant** (user enregistré → `user_id` renseigné) et, plus tard, l'**inbound** mise-en-relation (locataire anonyme → `user_id` null). Voir `docs/takussan-whatsapp-implementation.md` pour le volet inbound.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant unique |
+| phone | string | | | Numéro E.164 — **unique** |
+| user_id | FK users | oui | null | User associé (null = contact anonyme inbound) (`nullOnDelete`) |
+| display_name | string | oui | null | Nom WhatsApp du contact |
+| opt_in_status | string | | 'pending' | `pending` / `opted_in` / `opted_out` (string + check applicatif, **pas d'enum() MySQL**) |
+| opt_in_source | string | oui | null | Origine du consentement (ex. `account_settings`, `inbound_reply`) |
+| opt_in_at | datetime | oui | null | Horodatage du consentement |
+| last_inbound_at | datetime | oui | null | Dernier message entrant — base de la fenêtre 24h |
+| opted_out_at | datetime | oui | null | Horodatage de l'opt-out |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes :**
+- Unique `phone`.
+- Jamais d'envoi sortant à un contact `opt_in_status = opted_out`.
+- Hors fenêtre 24h (`last_inbound_at` > 24h ou null) → template approuvé obligatoire (contrainte Meta).
+
+**Relations :**
+- `user()` → belongsTo User (via user_id)
+
+---
+
+### 55. NotificationTemplate — extension WhatsApp 🆕
+
+**Table :** `notification_templates` (table existante — TCK-102)
+**Description :** Le registre de templates de notification (`event`, `channel`, `locale`, `subject`, `body`) est étendu avec les colonnes nécessaires au mapping vers les **templates approuvés par Meta** pour le canal `whatsapp` (envoi hors fenêtre 24h). Une ligne `channel = 'whatsapp'` porte le nom du template Meta et sa catégorie/statut d'approbation.
+
+| Colonne ajoutée | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| meta_template_name | string | oui | null | Nom du template tel qu'enregistré chez Meta |
+| meta_category | string | oui | null | `authentication` (OTP) / `utility` (transactionnel, rappels, relances) — **jamais `marketing`** |
+| meta_status | string | oui | null | `pending` / `approved` / `rejected` (statut d'approbation Meta) |
+| meta_variables | json | oui | null | Mapping **ordonné** des variables du template (défaut `[]` côté model, **pas de DEFAULT JSON en migration**) |
+
+**Contraintes :**
+- Hors fenêtre 24h + pas de template `meta_status = approved` pour `event + locale` → canal WhatsApp inéligible → bascule SMS.
 
 ---
 
