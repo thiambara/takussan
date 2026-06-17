@@ -1,0 +1,56 @@
+name: Deploy Laravel API
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "takussan-api/**"
+      - "scripts/deploy.sh"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: takussan-prod-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Contabo
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Copy deploy script to server
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.CONTABO_HOST }}
+          username: ${{ secrets.CONTABO_USER }}
+          key: ${{ secrets.CONTABO_SSH_KEY }}
+          source: "scripts/deploy.sh"
+          target: "/var/www/takussan/"
+          strip_components: 1
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.CONTABO_HOST }}
+          username: ${{ secrets.CONTABO_USER }}
+          key: ${{ secrets.CONTABO_SSH_KEY }}
+          timeout: 10m
+          envs: ENV_FILE
+          script: |
+            chmod +x /var/www/takussan/deploy.sh
+            bash /var/www/takussan/deploy.sh "${{ secrets.REPO_URL }}" master /var/www/takussan
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+
+      - name: Smoke test
+        run: |
+          set -e
+          sleep 3
+          curl -fsS https://api.takussan.com/up \
+            || (echo "API prod DOWN"; exit 1)
+          echo "✓ API prod responds on /up"

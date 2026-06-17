@@ -14,6 +14,7 @@ use App\Models\User;
 use Faker\Factory as FakerFactory;
 use Faker\Generator as FakerGenerator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Http;
 use Spatie\MediaLibrary\HasMedia;
 
 /**
@@ -157,6 +158,10 @@ class SeedingContext
     /**
      * Helper to download media from a URL during seeding, and attach it to a model.
      * Controlled by the SEED_DOWNLOAD_MEDIA environment variable flag.
+     *
+     * Uses a local file cache (`storage/app/seed-media-cache/`) keyed by sha1(url)
+     * so re-seeding (e.g. `migrate:fresh --seed`) reuses already-downloaded files
+     * instead of hitting the network every time.
      */
     public function downloadMedia(HasMedia $model, string $url, string $collection): void
     {
@@ -165,10 +170,53 @@ class SeedingContext
         }
 
         try {
-            $model->addMediaFromUrl($url)->toMediaCollection($collection);
+            $cachedPath = $this->resolveCachedMedia($url);
+            if ($cachedPath === null) {
+                return;
+            }
+
+            $model->addMedia($cachedPath)
+                ->preservingOriginal()
+                ->toMediaCollection($collection);
         } catch (\Throwable $e) {
             // Silently ignore if image download fails (offline, rate limits, timeout)
             // to not break the database seeding process.
         }
+    }
+
+    private function resolveCachedMedia(string $url): ?string
+    {
+        $cacheDir = storage_path('app/seed-media-cache');
+        if (! is_dir($cacheDir)) {
+            mkdir($cacheDir, 0755, true);
+        }
+
+        $key = sha1($url);
+        $existing = glob("{$cacheDir}/{$key}.*");
+        if (! empty($existing)) {
+            return $existing[0];
+        }
+
+        $response = Http::timeout(15)->get($url);
+        if (! $response->successful()) {
+            return null;
+        }
+
+        $ext = $this->guessExtension($response->header('Content-Type'), $url);
+        $path = "{$cacheDir}/{$key}.{$ext}";
+        file_put_contents($path, $response->body());
+
+        return $path;
+    }
+
+    private function guessExtension(?string $contentType, string $url): string
+    {
+        return match (true) {
+            str_contains((string) $contentType, 'jpeg') => 'jpg',
+            str_contains((string) $contentType, 'png') => 'png',
+            str_contains((string) $contentType, 'webp') => 'webp',
+            str_contains((string) $contentType, 'gif') => 'gif',
+            default => pathinfo(parse_url($url, PHP_URL_PATH) ?: '', PATHINFO_EXTENSION) ?: 'jpg',
+        };
     }
 }

@@ -13,17 +13,28 @@ class DocumentSearchService
      */
     public function search(User $user, array $params): LengthAwarePaginator
     {
-        $query = Document::search($params['q'])
-            ->query(function ($builder) use ($user, $params) {
-                // Scoping: non-admin users see only their own uploaded documents
-                if (! $user->isSuperAdmin()) {
-                    $builder->where('uploaded_by', $user->id);
-                }
+        // Scope + equality filters run as native Scout clauses so the search
+        // engine filters and paginates server-side — yielding a correct total.
+        $search = Document::search($params['q']);
 
-                if (! empty($params['filter']['type'])) {
-                    $builder->where('type', $params['filter']['type']);
-                }
+        // Scoping: non-admin users see only their own uploaded documents.
+        if (! $user->isSuperAdmin()) {
+            $search->where('uploaded_by', $user->id);
+        }
 
+        if (! empty($params['filter']['type'])) {
+            $search->where('type', $params['filter']['type']);
+        }
+
+        if (($params['sort'] ?? null) === '-created_at') {
+            $search->orderBy('created_at', 'desc');
+        }
+
+        // Date range stays an Eloquent refinement: created_at is a datetime
+        // column in the DB but an int timestamp in the index, so a native
+        // Scout clause would only be correct against one of the two engines.
+        if (! empty($params['filter']['date_from']) || ! empty($params['filter']['date_to'])) {
+            $search->query(function ($builder) use ($params) {
                 if (! empty($params['filter']['date_from'])) {
                     $builder->whereDate('created_at', '>=', $params['filter']['date_from']);
                 }
@@ -31,15 +42,10 @@ class DocumentSearchService
                 if (! empty($params['filter']['date_to'])) {
                     $builder->whereDate('created_at', '<=', $params['filter']['date_to']);
                 }
-
-                if (($params['sort'] ?? null) === '-created_at') {
-                    $builder->orderByDesc('created_at');
-                }
             });
+        }
 
-        $perPage = (int) ($params['per_page'] ?? 20);
-
-        $paginator = $query->paginate($perPage);
+        $paginator = $search->paginate((int) ($params['per_page'] ?? 20));
         $paginator->getCollection()->loadMissing('media');
 
         return $paginator;

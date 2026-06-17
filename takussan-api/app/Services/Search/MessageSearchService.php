@@ -16,14 +16,25 @@ class MessageSearchService
     {
         $conversationIds = $this->userConversationIds($user);
 
-        $query = Message::search($params['q'])
-            ->query(function ($builder) use ($conversationIds, $params) {
-                $builder->whereIn('conversation_id', $conversationIds);
+        // Scope + equality filters run as native Scout clauses so the search
+        // engine filters and paginates server-side — yielding a correct total.
+        // An empty conversation list resolves to "IN []", which matches nothing.
+        $search = Message::search($params['q'])
+            ->whereIn('conversation_id', $conversationIds);
 
-                if (! empty($params['filter']['conversation'])) {
-                    $builder->where('conversation_id', (int) $params['filter']['conversation']);
-                }
+        if (! empty($params['filter']['conversation'])) {
+            $search->where('conversation_id', (int) $params['filter']['conversation']);
+        }
 
+        if (($params['sort'] ?? null) === '-created_at') {
+            $search->orderBy('created_at', 'desc');
+        }
+
+        // Date range stays an Eloquent refinement: created_at is a datetime
+        // column in the DB but an int timestamp in the index, so a native
+        // Scout clause would only be correct against one of the two engines.
+        if (! empty($params['filter']['date_from']) || ! empty($params['filter']['date_to'])) {
+            $search->query(function ($builder) use ($params) {
                 if (! empty($params['filter']['date_from'])) {
                     $builder->whereDate('created_at', '>=', $params['filter']['date_from']);
                 }
@@ -31,15 +42,10 @@ class MessageSearchService
                 if (! empty($params['filter']['date_to'])) {
                     $builder->whereDate('created_at', '<=', $params['filter']['date_to']);
                 }
-
-                if (($params['sort'] ?? null) === '-created_at') {
-                    $builder->orderByDesc('created_at');
-                }
             });
+        }
 
-        $perPage = (int) ($params['per_page'] ?? 20);
-
-        return $query->paginate($perPage);
+        return $search->paginate((int) ($params['per_page'] ?? 20));
     }
 
     /** @return list<int> */

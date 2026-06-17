@@ -200,6 +200,12 @@ _(TCK-277 en review)_
 
 - [TCK-279](tickets/TCK-279-rbac-custom-roles-phase-2.md) — RBAC phase 2 : rôles personnalisés par agence (HasRoles sur Profils + AgencyRole) `L · P1 · full` **[blocked: TCK-278]**
 
+### Vague 35 — Recherche Meilisearch (2026-05-20)
+
+> Meilisearch + Scout sont en place (config + index `messages`/`documents`/`properties`, sync au déploiement). Reste à brancher les recherches qui tournent encore sur `LIKE`. Audit du code : la recherche publique de biens utilise du SQL `LIKE` brut alors que `features.md §2.4` la spécifie « (Scout) ». TCK-280 ferme cet écart et rend le callback `filter[search]` Scout-aware ; TCK-281 active 4 modèles internes supplémentaires.
+
+_(TCK-280 done — voir section Done ; TCK-281 en doing)_
+
 ### Vague 36 — Notifications WhatsApp sortant (2026-06-17)
 
 > Canal WhatsApp sortant routé WhatsApp-first → SMS-fallback, miroir du socle SMS (TCK-102/110), mono-provider Meta. OTP/2FA et inbound mise-en-relation = tickets séparés ultérieurs (chacun nécessite d'abord sa propre spec).
@@ -214,6 +220,7 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 ## 🚧 Doing
 
 - [TCK-275](tickets/TCK-275-floating-dock-orchestrator.md) — Floating Dock — orchestrateur des éléments UI flottants en bas d'écran `S · P2 · front`
+- [TCK-281](tickets/TCK-281-search-internal-entities-meilisearch.md) — Recherche interne sur Meilisearch (clients, maintenance, agences, utilisateurs) `L · P3 · back`
 
 ## 👀 Review
 
@@ -580,6 +587,10 @@ _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
 
 ## ✅ Done
 
+### Vague 35 — Recherche Meilisearch
+
+- [TCK-280](tickets/TCK-280-search-properties-meilisearch.md) — Recherche de biens sur Meilisearch (public + dashboard) `L · P2 · back`
+
 ### Vague 30 — Messagerie UX flottante
 
 - [TCK-274](tickets/TCK-274-messaging-floating-widget.md) — Messagerie — widget flottant accessible site-wide `M · P2 · front`
@@ -856,6 +867,10 @@ TCK-248 + TCK-267 + TCK-268 ──▶ TCK-269 (Flip Agency.kind + débloquage fe
 
 # Follow-up TCK-209 (déjà done)
 TCK-270 (TCK-209 follow-up : 2FA + devise + branding)
+
+# Recherche Meilisearch
+TCK-052 ──▶ TCK-280 (Recherche biens sur Meilisearch — public + dashboard)
+TCK-280 ──▶ TCK-281 (Recherche interne sur Meilisearch — clients/maintenance/agences/users)
 
 ── Notifications WhatsApp (Vague 36) ──
 TCK-102 + TCK-110 ──▶ TCK-282 (canal WhatsApp sortant)

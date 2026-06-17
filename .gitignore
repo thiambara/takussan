@@ -12,3 +12,6 @@ Thumbs.db
 # at the repo root instead of inside their workspace
 node_modules/
 .vite/
+
+# Reference deployment files from another project (CheckPrint), kept local
+docs/reference-dploiement/

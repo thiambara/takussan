@@ -3,9 +3,13 @@
 use App\Http\Controllers\Public\PublicAgencyController;
 use App\Http\Controllers\Public\PublicAgentController;
 use App\Http\Controllers\Public\PublicPropertyController;
+use App\Http\Controllers\Public\PublicPropertyTypeController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('public')->name('public.')->group(function () {
+    Route::get('property-types', [PublicPropertyTypeController::class, 'index'])
+        ->name('property-types.index');
+
     Route::get('properties', [PublicPropertyController::class, 'index'])
         ->name('properties.index');
 

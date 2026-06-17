@@ -8,10 +8,12 @@ use App\Models\Review;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Tests\Concerns\InteractsWithMeilisearch;
 use Tests\TestCase;
 
 class ReviewReportAndDocSearchTest extends TestCase
 {
+    use InteractsWithMeilisearch;
     use RefreshDatabase;
 
     // --- Review Reporting ---
@@ -80,6 +82,7 @@ class ReviewReportAndDocSearchTest extends TestCase
             'uploaded_by' => $user->id,
             'name' => 'Contrat de bail',
         ]);
+        $this->indexSearchable(Document::class);
 
         Sanctum::actingAs($user);
 

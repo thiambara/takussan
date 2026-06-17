@@ -64,7 +64,7 @@ class ScoutSearchTest extends TestCase
         $this->assertCount(2, $page->items());
     }
 
-    public function test_searchable_array_excludes_sensitive_fields(): void
+    public function test_searchable_array_exposes_filterable_and_searchable_fields(): void
     {
         $property = Property::factory()->published()->create([
             'title' => 'Test listing',
@@ -74,16 +74,16 @@ class ScoutSearchTest extends TestCase
 
         $payload = $property->toSearchableArray();
 
-        // Whitelist of expected public keys; anything else would leak.
-        $allowed = ['id', 'title', 'description', 'type', 'contract_type', 'rent_period', 'status', 'city'];
-        foreach (array_keys($payload) as $key) {
-            $this->assertContains($key, $allowed, "Key [{$key}] should not appear in search payload.");
+        // TCK-280 — the payload carries every field Meilisearch searches,
+        // filters or sorts on (price, agency_id, etc. are public listing data).
+        foreach ([
+            'id', 'title', 'description', 'type', 'contract_type', 'rent_period',
+            'status', 'city', 'price', 'bedrooms', 'agency_id', 'published_at',
+        ] as $key) {
+            $this->assertArrayHasKey($key, $payload);
         }
 
-        // Sensitive business data must never reach the index.
-        $this->assertArrayNotHasKey('price', $payload);
-        $this->assertArrayNotHasKey('user_id', $payload);
-        $this->assertArrayNotHasKey('agency_id', $payload);
+        // Free-form metadata is never indexed.
         $this->assertArrayNotHasKey('metadata', $payload);
     }
 

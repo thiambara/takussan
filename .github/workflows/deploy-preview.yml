@@ -1,0 +1,75 @@
+name: Deploy Laravel API (Preview)
+
+# ─── Recherche / Meilisearch ──────────────────────────────────────────────────
+# L'environnement preview utilise Meilisearch (Laravel Scout). Rien de spécifique
+# n'est requis dans CE workflow : scripts/deploy.sh (partagé avec la prod) lance
+# `php artisan scout:sync-index-settings` à chaque déploiement dès que le .env est
+# sur le driver meilisearch (Step 6b de deploy.sh).
+#
+# Prérequis infra, hors de ce workflow — voir docs/infra/deploy-preview.html §6.4
+# et docs/configuration.md §3.6 :
+#   • Meilisearch installé + lancé sur le VPS (service systemd, écoute 127.0.0.1).
+#   • Secret GitHub ENV_FILE_PREVIEW complété avec :
+#       SCOUT_DRIVER=meilisearch
+#       MEILISEARCH_HOST=http://127.0.0.1:7700
+#       MEILISEARCH_KEY=<master_key de /etc/meilisearch.toml>
+#       SCOUT_QUEUE=true
+#       SCOUT_AFTER_COMMIT=true
+#       SCOUT_PREFIX=preview_     # isole les index de la prod (instance partagée)
+#   • Après le 1er déploiement : `php artisan scout:import` une fois sur le serveur.
+# ──────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches:
+      - preview
+    paths:
+      - "takussan-api/**"
+      - "scripts/deploy.sh"
+      - ".github/workflows/deploy-preview.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: takussan-preview-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy Preview to Contabo
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Copy deploy script to server
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.CONTABO_HOST }}
+          username: ${{ secrets.CONTABO_USER }}
+          key: ${{ secrets.CONTABO_SSH_KEY }}
+          source: "scripts/deploy.sh"
+          target: "/var/www/takussan-preview/"
+          strip_components: 1
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.CONTABO_HOST }}
+          username: ${{ secrets.CONTABO_USER }}
+          key: ${{ secrets.CONTABO_SSH_KEY }}
+          timeout: 10m
+          envs: ENV_FILE
+          script: |
+            chmod +x /var/www/takussan-preview/deploy.sh
+            bash /var/www/takussan-preview/deploy.sh "${{ secrets.REPO_URL }}" preview /var/www/takussan-preview
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE_PREVIEW }}
+
+      - name: Smoke test
+        run: |
+          set -e
+          sleep 3
+          curl -fsS https://preview.api.takussan.com/up \
+            || (echo "API preview DOWN"; exit 1)
+          echo "✓ API preview responds on /up"

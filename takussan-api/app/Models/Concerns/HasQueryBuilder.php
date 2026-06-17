@@ -5,6 +5,7 @@ namespace App\Models\Concerns;
 use App\Http\Filters\RangeFilter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Laravel\Scout\Searchable;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\AllowedInclude;
 use Spatie\QueryBuilder\QueryBuilder;
@@ -109,6 +110,27 @@ trait HasQueryBuilder
         if (! empty(static::$requestSearchFields ?? [])) {
             $fields = static::$requestSearchFields;
             $search[] = AllowedFilter::callback('search', function (Builder $q, string $value) use ($fields) {
+                if (trim($value) === '') {
+                    return;
+                }
+
+                $model = $q->getModel();
+
+                // TCK-280 — Searchable models go through Scout/Meilisearch
+                // (typo-tolerant, relevance-ranked). The resulting whereIn
+                // composes with any access-control scope already applied to
+                // the query, so tenant isolation is preserved. Non-Searchable
+                // models keep the SQL LIKE fallback. Inlined here rather than
+                // delegating to BaseModelTrait::withSearch() because
+                // HasQueryBuilder is also used by models without that trait
+                // (e.g. User).
+                if (in_array(Searchable::class, class_uses_recursive($model), true)) {
+                    $ids = $model::search($value)->take(1000)->keys()->all();
+                    $q->whereIn($model->getQualifiedKeyName(), $ids);
+
+                    return;
+                }
+
                 $q->where(function (Builder $inner) use ($fields, $value) {
                     foreach ($fields as $field) {
                         $inner->orWhere($field, 'like', '%'.$value.'%');
