@@ -52,6 +52,7 @@ return [
         'greeting' => 'Salaam,',
         'intro' => 'Sa reservation #:reference doon na bind ak di xaaru ngir muccal ko.',
         'details' => 'Bërëb : li dale ci :start ba :end.',
+        'sms' => 'Takussan : sa reservation #:reference dafa di xaar muccal. Bërëb li dale ci :start ba :end.',
     ],
 
     'digest' => [

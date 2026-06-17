@@ -4,6 +4,7 @@ namespace App\Services\Notifications;
 
 use App\Models\NotificationPreference;
 use App\Models\User;
+use App\Notifications\Channels\WhatsappChannel;
 
 /**
  * TCK-070 — Central decision point for "should we send this notification?"
@@ -30,8 +31,12 @@ class PreferenceResolver
 
     public const CHANNEL_PUSH = 'push';
 
+    // TCK-282 — WhatsApp outbound channel. Like SMS, gated on a verified
+    // phone and opt-out by default.
+    public const CHANNEL_WHATSAPP = 'whatsapp';
+
     /** @var list<string> */
-    public const CHANNELS = [self::CHANNEL_INAPP, self::CHANNEL_EMAIL, self::CHANNEL_PUSH, self::CHANNEL_SMS];
+    public const CHANNELS = [self::CHANNEL_INAPP, self::CHANNEL_EMAIL, self::CHANNEL_PUSH, self::CHANNEL_SMS, self::CHANNEL_WHATSAPP];
 
     /**
      * Canonical list of event types the UI can toggle. Must stay
@@ -87,6 +92,7 @@ class PreferenceResolver
         self::CHANNEL_EMAIL => true,
         self::CHANNEL_PUSH => true,
         self::CHANNEL_SMS => false,
+        self::CHANNEL_WHATSAPP => false,
     ];
 
     public function shouldSend(User $user, string $eventType, string $channel): bool
@@ -105,8 +111,11 @@ class PreferenceResolver
             return true;
         }
 
-        // SMS requires a verified phone regardless of preferences.
-        if ($channel === self::CHANNEL_SMS && ! $user->phone_verified_at) {
+        // SMS and WhatsApp require a verified phone regardless of preferences.
+        if (
+            in_array($channel, [self::CHANNEL_SMS, self::CHANNEL_WHATSAPP], true)
+            && ! $user->phone_verified_at
+        ) {
             return false;
         }
 
@@ -139,6 +148,27 @@ class PreferenceResolver
     }
 
     /**
+     * TCK-282 — Pick the single mobile channel a dual-capable notification
+     * should use: WhatsApp first (if the user opted in and the phone is
+     * verified), else SMS, else none. Mutually exclusive by construction —
+     * a notification never sends both `whatsapp` and `sms` (AC5). The
+     * runtime WhatsApp-ineligible → SMS fallback (opted-out contact,
+     * out-of-window without template, hard failure) is handled inside
+     * {@see WhatsappChannel}, not here.
+     */
+    public function resolveMobileChannel(User $user, string $eventType): ?string
+    {
+        if ($this->shouldSend($user, $eventType, self::CHANNEL_WHATSAPP)) {
+            return self::CHANNEL_WHATSAPP;
+        }
+        if ($this->shouldSend($user, $eventType, self::CHANNEL_SMS)) {
+            return self::CHANNEL_SMS;
+        }
+
+        return null;
+    }
+
+    /**
      * Return the full matrix for a user (defaulting missing cells).
      *
      * @return list<array{event_type:string,channel:string,enabled:bool,locked:bool,reason?:string}>
@@ -163,7 +193,10 @@ class PreferenceResolver
                     $locked = true;
                     $enabled = true;
                     $reason = 'inapp_always_on';
-                } elseif ($channel === self::CHANNEL_SMS && ! $user->phone_verified_at) {
+                } elseif (
+                    in_array($channel, [self::CHANNEL_SMS, self::CHANNEL_WHATSAPP], true)
+                    && ! $user->phone_verified_at
+                ) {
                     $locked = true;
                     $enabled = false;
                     $reason = 'phone_not_verified';
