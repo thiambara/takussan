@@ -1,5 +1,5 @@
 ---
-id: TCK-281
+id: TCK-283
 title: Registre templates Meta + webhook statut WhatsApp (DLR) + opt-out
 status: todo
 phase: P3
@@ -7,7 +7,7 @@ family: applicatif
 estimate: M
 created: 2026-06-17
 updated: 2026-06-17
-depends_on: [TCK-280]
+depends_on: [TCK-282]
 blocks: []
 spec_refs:
   features:
@@ -29,7 +29,7 @@ Garantir des envois WhatsApp hors fenêtre conformes (templates approuvés Meta)
 
 ## Contraintes strictes (métier)
 
-- Hors fenêtre 24h + pas de template `meta_status = approved` pour `event + locale` → canal WhatsApp inéligible → bascule SMS (logique déjà câblée en TCK-280, désormais alimentée par le registre).
+- Hors fenêtre 24h + pas de template `meta_status = approved` pour `event + locale` → canal WhatsApp inéligible → bascule SMS (logique déjà câblée en TCK-282, désormais alimentée par le registre).
 - Catégories `authentication`/`utility` uniquement ; jamais `marketing`.
 - Webhook : vérifier la signature `X-Hub-Signature-256`, exempter CSRF, **idempotent**, répondre **200 immédiat** + traitement async (job).
 - Opt-out : honorer le flag `opted_out` (toggle préférence pour le sortant ; l'opt-out par mot-clé STOP relève de l'inbound, hors périmètre).
@@ -41,7 +41,7 @@ Garantir des envois WhatsApp hors fenêtre conformes (templates approuvés Meta)
 - [ ] Route: `routes/api/whatsapp-webhooks.php` (miroir `sms-webhooks.php`) — `POST /api/webhooks/whatsapp/status/{token}`, middleware throttle + (option) restrict.ip.
 - [ ] Controller: `app/Http/Controllers/Webhook/WhatsappStatusController.php` — vérif token + signature `X-Hub-Signature-256`, parse statuts delivered/read/failed, dispatch job async, 200 immédiat.
 - [ ] Job: mise à jour de `NotificationDeliveryAttempt` via `DeliveryAttemptUpdater` (lookup O(1) par `(provider='whatsapp_cloud', provider_message_id)`).
-- [ ] Opt-out: honorer `WhatsappContact.opt_in_status = opted_out` côté sortant (déjà checké en TCK-280) + endpoint/toggle préférence.
+- [ ] Opt-out: honorer `WhatsappContact.opt_in_status = opted_out` côté sortant (déjà checké en TCK-282) + endpoint/toggle préférence.
 - [ ] Tests: webhook delivered/read/failed met à jour l'attempt ; signature invalide → 403 ; rejeu idempotent ; résolution template approuvé vs absent → fallback.
 
 ## Critères d'acceptation

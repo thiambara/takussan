@@ -1,5 +1,5 @@
 ---
-id: TCK-280
+id: TCK-282
 title: Canal de notification WhatsApp sortant
 status: todo
 phase: P3
@@ -8,7 +8,7 @@ estimate: L
 created: 2026-06-17
 updated: 2026-06-17
 depends_on: [TCK-102, TCK-110]
-blocks: [TCK-281]
+blocks: [TCK-283]
 spec_refs:
   features:
     - docs/features.md#23-notifications
@@ -69,7 +69,7 @@ Structure miroir du SMS (TCK-102/110), mais **mono-provider** Meta (pas de routa
 
 ## Hors périmètre
 
-- Registre de templates Meta (colonnes `meta_*` sur `notification_templates`) + webhook de statut (DLR) + toggle opt-out → **TCK-281**.
+- Registre de templates Meta (colonnes `meta_*` sur `notification_templates`) + webhook de statut (DLR) + toggle opt-out → **TCK-283**.
 - OTP/2FA sur WhatsApp (flux auth distinct, ticket dédié ultérieur).
 - Inbound mise-en-relation WhatsApp (voir `docs/takussan-whatsapp-implementation.md`).
 
