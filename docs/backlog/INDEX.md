@@ -200,6 +200,13 @@ _(TCK-277 en review)_
 
 - [TCK-279](tickets/TCK-279-rbac-custom-roles-phase-2.md) — RBAC phase 2 : rôles personnalisés par agence (HasRoles sur Profils + AgencyRole) `L · P1 · full` **[blocked: TCK-278]**
 
+### Vague 35 — Notifications WhatsApp sortant (2026-06-17)
+
+> Canal WhatsApp sortant routé WhatsApp-first → SMS-fallback, miroir du socle SMS (TCK-102/110), mono-provider Meta. OTP/2FA et inbound mise-en-relation = tickets séparés ultérieurs (chacun nécessite d'abord sa propre spec).
+
+- [TCK-280](tickets/TCK-280-whatsapp-outbound-channel.md) — Canal notification WhatsApp sortant (socle + canal + routing WA-first/SMS-fallback + pilote) `L · P3 · applicatif`
+- [TCK-281](tickets/TCK-281-whatsapp-template-registry-webhook.md) — Registre templates Meta + webhook statut WhatsApp (DLR) + opt-out `M · P3 · applicatif` **[blocked: TCK-280]**
+
 ## 🔶 Partiellement implémenté (code sur dev, delta résiduel)
 
 _(vide — TCK-038 / TCK-039 absorbés par Vague 3 PR #36)_
@@ -849,6 +856,10 @@ TCK-248 + TCK-267 + TCK-268 ──▶ TCK-269 (Flip Agency.kind + débloquage fe
 
 # Follow-up TCK-209 (déjà done)
 TCK-270 (TCK-209 follow-up : 2FA + devise + branding)
+
+── Notifications WhatsApp (Vague 35) ──
+TCK-102 + TCK-110 ──▶ TCK-280 (canal WhatsApp sortant)
+TCK-280 ──▶ TCK-281 (registre templates Meta + webhook DLR)
 ```
 
 ---
