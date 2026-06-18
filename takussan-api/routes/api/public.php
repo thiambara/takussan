@@ -6,7 +6,7 @@ use App\Http\Controllers\Public\PublicPropertyController;
 use App\Http\Controllers\Public\PublicPropertyTypeController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('public')->name('public.')->group(function () {
+Route::prefix('public')->name('public.')->middleware('throttle:public-read')->group(function () {
     Route::get('property-types', [PublicPropertyTypeController::class, 'index'])
         ->name('property-types.index');
 
@@ -31,7 +31,10 @@ Route::prefix('public')->name('public.')->group(function () {
     Route::get('properties/{slug}', [PublicPropertyController::class, 'show'])
         ->name('properties.show');
 
+    // Reveals the owner's phone number — tighter limit than the group default
+    // to curb bulk phone-number harvesting across enumerable slugs.
     Route::get('properties/{slug}/contact', [PublicPropertyController::class, 'contact'])
+        ->middleware('throttle:20,10')
         ->name('properties.contact');
 
     Route::get('properties/{slug}/similar', [PublicPropertyController::class, 'similar'])

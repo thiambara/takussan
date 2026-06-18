@@ -23,12 +23,14 @@ use Illuminate\Support\Facades\Route;
 
 // Public routes
 Route::prefix('auth')->group(function () {
-    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth-register');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,10');
 
     Route::post('/forgot-password', [PasswordResetController::class, 'forgotPassword'])
+        ->middleware('throttle:auth-password')
         ->name('password.email');
     Route::post('/reset-password', [PasswordResetController::class, 'resetPassword'])
+        ->middleware('throttle:auth-password')
         ->name('password.update');
 });
 

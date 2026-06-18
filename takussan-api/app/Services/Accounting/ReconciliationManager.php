@@ -70,8 +70,10 @@ class ReconciliationManager
         }
 
         $line = DB::transaction(function () use ($line, $payment, $caller) {
-            // Lock the line to prevent concurrent updates
-            $locked = BankStatementLine::query()->lockForUpdate()->find($line->id);
+            // Lock the line to prevent concurrent updates. Use findOrFail: the
+            // row may have been deleted between the initial fetch and the lock,
+            // and the unguarded `find()` would then fatal on `$locked->...`.
+            $locked = BankStatementLine::query()->lockForUpdate()->findOrFail($line->id);
 
             // Re-verify after lock — another concurrent caller may have already
             // confirmed or ignored this line.

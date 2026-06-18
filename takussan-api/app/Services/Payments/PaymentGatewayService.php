@@ -250,6 +250,7 @@ class PaymentGatewayService
 
         switch ($providerStatus) {
             case PaymentDriverStatus::SUCCESS:
+                $this->assertReportedAmountCoversPayment($payment, $metadata);
                 $payment->status = PaymentStatus::Paid;
                 $payment->paid_at ??= now();
                 break;
@@ -272,6 +273,56 @@ class PaymentGatewayService
 
         $payment->metadata = array_merge($existingMeta, $metadata);
         $payment->save();
+    }
+
+    /**
+     * Guard against under-payment: a `paid` webhook must not settle an invoice
+     * for less than it was issued. We only compare when the gateway reported a
+     * numeric amount in the SAME currency/unit as our stored `amount` (true for
+     * Wave/OM in XOF, which report the integer major-unit amount 1:1). When the
+     * basis is unknown (e.g. Lemon Squeezy reports cents/USD) we skip rather
+     * than risk rejecting a legitimate settlement. Over-payment is allowed.
+     *
+     * @param  array<string,mixed>  $metadata
+     */
+    protected function assertReportedAmountCoversPayment(Model $payment, array $metadata): void
+    {
+        $reported = $metadata['amount'] ?? null;
+        $reportedCurrency = isset($metadata['currency']) ? strtoupper((string) $metadata['currency']) : null;
+        if (! is_numeric($reported) || $reportedCurrency === null) {
+            return;
+        }
+
+        $currency = $payment->currency ?? null;
+        $expectedCurrency = is_object($currency) && property_exists($currency, 'value')
+            ? strtoupper((string) $currency->value)
+            : (is_string($currency) ? strtoupper($currency) : null);
+
+        // Only enforce on a same-currency basis — a differing currency means a
+        // different unit we can't safely compare here.
+        if ($expectedCurrency === null || $reportedCurrency !== $expectedCurrency) {
+            return;
+        }
+
+        // Resolve the issued amount per model: BookingPayment/LeasePayment use
+        // `amount`, but Invoice has no `amount` column (it stores `total_amount`).
+        // Reading a bare `$payment->amount` there yields null → 0.0, silently
+        // disabling the guard for invoices. Skip only when no amount is known.
+        $expectedAmount = $payment->amount ?? $payment->getAttribute('total_amount');
+        if (! is_numeric($expectedAmount)) {
+            return;
+        }
+
+        $expected = (float) $expectedAmount;
+        $paid = (float) $reported;
+
+        // 0.01 tolerance absorbs float/rounding noise; anything materially below
+        // the issued amount is an under-payment and must not settle.
+        abort_if(
+            $paid + 0.01 < $expected,
+            422,
+            'Webhook reported amount is less than the expected payment amount.',
+        );
     }
 
     protected function recordInitiation(Model $payment, PaymentProvider $provider, CheckoutSession $session): void

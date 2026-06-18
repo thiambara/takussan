@@ -283,6 +283,21 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('public-report', fn (Request $request) => Limit::perHour(5)->by($this->visitorRateLimitKey($request)));
         RateLimiter::for('public-visit-request', fn (Request $request) => Limit::perHour(10)->by($this->visitorRateLimitKey($request)));
         RateLimiter::for('public-contact-lead', fn (Request $request) => Limit::perMinutes(10, 5)->by($this->visitorRateLimitKey($request)));
+
+        // Public read surface (catalogue browse / search / show). There is no
+        // global `throttle:api` on the api group, so these otherwise-unbounded
+        // endpoints (full-catalogue scraping, heavy search) need an explicit
+        // limiter. Keyed by visitor (authenticated user_id, else IP) so a
+        // logged-in browser keeps a stable bucket and shared-NAT visitors are
+        // not collapsed once authenticated.
+        RateLimiter::for('public-read', fn (Request $request) => Limit::perMinute(90)->by($this->visitorRateLimitKey($request)));
+
+        // Unauthenticated auth surface — registration / password-reset flows.
+        // `/login` is already throttled inline; these mirror it to stop
+        // account-creation spam, reset-email bombing, user enumeration and
+        // reset-token brute force. Keyed by IP (no authenticated user yet).
+        RateLimiter::for('auth-register', fn (Request $request) => Limit::perMinute(10)->by('ip:'.$request->ip()));
+        RateLimiter::for('auth-password', fn (Request $request) => Limit::perMinute(5)->by('ip:'.$request->ip()));
     }
 
     private function visitorRateLimitKey(Request $request): string
