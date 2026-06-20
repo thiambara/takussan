@@ -209,7 +209,7 @@ if [ -n "${HOST_HEADER}" ]; then
     HEALTH_CODE=$(curl -sS -o /dev/null -w "%{http_code}" \
         --resolve "${HOST_HEADER}:443:127.0.0.1" \
         --max-time 10 \
-        "https://${HOST_HEADER}/up" 2>/dev/null || echo "000")
+        "https://${HOST_HEADER}/up" 2>/dev/null) || HEALTH_CODE="000"
 
     # If HTTPS isn't up yet (e.g. Certbot not run on 1st deploy), retry on HTTP.
     if [ "${HEALTH_CODE}" = "000" ] || [ "${HEALTH_CODE}" = "502" ]; then
@@ -217,7 +217,7 @@ if [ -n "${HOST_HEADER}" ]; then
         HEALTH_CODE=$(curl -sS -o /dev/null -w "%{http_code}" \
             -H "Host: ${HOST_HEADER}" \
             --max-time 10 \
-            http://127.0.0.1/up || echo "000")
+            http://127.0.0.1/up 2>/dev/null) || HEALTH_CODE="000"
     fi
 
     if [ "${HEALTH_CODE}" != "200" ]; then
