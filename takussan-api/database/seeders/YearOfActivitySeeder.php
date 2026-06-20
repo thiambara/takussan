@@ -2,6 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\Document;
+use App\Models\Message;
+use App\Models\Property;
 use Database\Seeders\Activity\BookingPaymentSeeder;
 use Database\Seeders\Activity\BookingSeeder;
 use Database\Seeders\Activity\InventorySeeder;
@@ -42,6 +45,7 @@ use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\System\AgencyUpgradeRequestSeeder;
 use Database\Seeders\System\SettingsSeeder;
 use Database\Seeders\System\TagSeeder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -104,7 +108,24 @@ class YearOfActivitySeeder extends Seeder
         PostProcessingSeeder::class,
     ];
 
+    /**
+     * Searchable models that must be (re)pushed to the search engine once the
+     * pipeline is done. Scout syncing is disabled during seeding (see
+     * {@see prepareEnvironment()}) so the bulk inserts never reach the engine
+     * on their own.
+     *
+     * @var array<int, class-string<Model>>
+     */
+    private const SEARCHABLE_MODELS = [
+        Property::class,
+        Document::class,
+        Message::class,
+    ];
+
     private SeedingConfig $config;
+
+    /** Scout driver captured before it's disabled for seeding, restored on reindex. */
+    private ?string $originalScoutDriver = null;
 
     public function run(): void
     {
@@ -131,13 +152,42 @@ class YearOfActivitySeeder extends Seeder
             }
             DB::transaction(fn () => $seeder->run());
         }
+
+        $this->reindexSearchableModels();
     }
 
     private function prepareEnvironment(): void
     {
         Config::set('queue.default', 'sync');
+        // Disable Scout syncing so the bulk inserts below don't push to the
+        // search engine row-by-row. The full index is rebuilt in one shot by
+        // reindexSearchableModels() once seeding completes.
+        $this->originalScoutDriver = config('scout.driver');
         Config::set('scout.driver', null);
         Config::set('database.seed_download_media', $this->config->downloadMedia);
         DB::disableQueryLog();
+    }
+
+    /**
+     * Rebuild the search index for every searchable model. Without this the
+     * Meilisearch-backed endpoints (e.g. GET /public/properties/search) return
+     * nothing after a fresh seed, because Scout was muted during the inserts.
+     *
+     * No-op when no real engine is configured (CI / tests run Scout on the
+     * "database" / null driver) to keep seeding fast and side-effect free.
+     */
+    private function reindexSearchableModels(): void
+    {
+        Config::set('scout.driver', $this->originalScoutDriver);
+
+        if (in_array($this->originalScoutDriver, [null, '', 'null', 'database', 'collection'], true)) {
+            return;
+        }
+
+        foreach (self::SEARCHABLE_MODELS as $model) {
+            $this->command?->getOutput()?->writeln("  > Reindexing {$model}");
+            $model::removeAllFromSearch();
+            $model::makeAllSearchable();
+        }
     }
 }
