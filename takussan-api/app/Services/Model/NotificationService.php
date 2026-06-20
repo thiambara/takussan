@@ -3,13 +3,13 @@
 namespace App\Services\Model;
 
 use App\Events\NewNotification;
+use App\Jobs\SendRawNotificationEmailJob;
 use App\Models\AppNotification;
 use App\Models\Enums\NotificationChannel;
 use App\Models\Enums\NotificationType;
 use App\Models\User;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Mail;
 
 class NotificationService
 {
@@ -91,13 +91,8 @@ class NotificationService
 
     protected function sendEmail(User $user, string $title, string $body): void
     {
-        try {
-            Mail::raw($body, function ($message) use ($user, $title) {
-                $message->to($user->email)
-                    ->subject($title);
-            });
-        } catch (\Throwable) {
-            // Mail not configured in this environment — silently skip.
-        }
+        // Off the request cycle — see SendRawNotificationEmailJob. With the
+        // `sync` queue driver (tests) this still runs inline.
+        SendRawNotificationEmailJob::dispatch($user->email, $title, $body);
     }
 }

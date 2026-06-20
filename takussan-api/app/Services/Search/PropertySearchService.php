@@ -161,7 +161,13 @@ class PropertySearchService
             return [];
         }
 
+        // Re-apply scopePublic() on hydration as defense-in-depth: the engine
+        // filter in buildFilter() already excludes non-public / is_test rows,
+        // but enforcing it again at the DB layer guarantees a draft, sold or
+        // test fixture can never leak even if the index is stale or the Scout
+        // engine ignores the raw filter (e.g. the database driver in tests).
         $properties = Property::query()
+            ->public()
             ->with('address', 'media')
             ->whereIn('id', $ids)
             ->get()

@@ -114,7 +114,10 @@ class PublicAgencyController extends Controller
                         'id' => $u->id,
                         'slug' => $u->username,
                         'full_name' => trim($u->first_name.' '.$u->last_name),
-                        'email' => $u->email,
+                        // Personal email of each team member is PII and was being
+                        // exposed on an unauthenticated, slug-enumerable endpoint —
+                        // a turnkey harvesting vector. Contact happens via the agency
+                        // business email/phone below, not individual agents.
                         'avatar_url' => $u->avatar_url ?? null,
                         'specialty' => $profile?->specialty,
                         'portfolio_count' => (int) ($portfolioCounts[$u->id] ?? 0),

@@ -37,6 +37,10 @@ class BusinessEnumService
             $values = $values->where('is_active', true);
         }
 
+        // Single grouped COUNT for the whole enum instead of one query per
+        // value (the previous N×values fan-out across large tables).
+        $usageCounts = $this->usageCounts($key, $values->pluck('value')->all());
+
         return [
             'key' => $key,
             'name' => $definition['name'],
@@ -44,7 +48,7 @@ class BusinessEnumService
             'values' => $values
                 ->map(fn (array $value) => [
                     ...$value,
-                    'usage_count' => $this->usageCount($key, $value['value']),
+                    'usage_count' => $usageCounts[$value['value']] ?? 0,
                 ])
                 ->values()
                 ->all(),
@@ -199,6 +203,32 @@ class BusinessEnumService
         $model = $usage['model'];
 
         return $model::query()->where($usage['column'], $value)->count();
+    }
+
+    /**
+     * Usage counts for many enum values in a single grouped query.
+     *
+     * @param  array<int,string>  $values
+     * @return array<string,int> value => usage count
+     */
+    private function usageCounts(string $key, array $values): array
+    {
+        if ($values === []) {
+            return [];
+        }
+
+        $usage = EditableBusinessEnums::get($key)['usage'];
+        /** @var class-string<Model> $model */
+        $model = $usage['model'];
+        $column = $usage['column'];
+
+        return $model::query()
+            ->whereIn($column, $values)
+            ->selectRaw("{$column} as enum_value, COUNT(*) as total")
+            ->groupBy($column)
+            ->pluck('total', 'enum_value')
+            ->map(fn ($total) => (int) $total)
+            ->toArray();
     }
 
     /**

@@ -51,6 +51,8 @@ class OrangeMoneyDriver implements PaymentDriverContract
         $response = Http::withToken($accessToken)
             ->acceptJson()
             ->asJson()
+            ->connectTimeout(5)
+            ->timeout(20)
             ->post($this->baseUrl().'/orange-money-webpay/v1/webpayment', $payload);
 
         abort_if(! $response->successful(), 502, 'Orange Money checkout failed: '.$response->body());
@@ -74,6 +76,9 @@ class OrangeMoneyDriver implements PaymentDriverContract
 
         $response = Http::withToken($accessToken)
             ->acceptJson()
+            ->connectTimeout(5)
+            ->timeout(15)
+            ->retry(2, 200, throw: false)
             ->get($this->baseUrl().'/orange-money-webpay/v1/transactionstatus', [
                 'pay_token' => $externalId,
             ]);

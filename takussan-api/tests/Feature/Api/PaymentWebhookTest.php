@@ -140,6 +140,61 @@ class PaymentWebhookTest extends TestCase
         $this->assertNotEmpty($payment->metadata['gateway_late_event'] ?? null, 'Late event should be logged in metadata.');
     }
 
+    public function test_lemon_squeezy_webhook_rejects_missing_signature(): void
+    {
+        // The generic proxy route is NOT covered by the LS package's signature
+        // middleware, so an unsigned forged body must be rejected (401) rather
+        // than marking a payment paid.
+        Integration::factory()->create([
+            'agency_id' => null,
+            'provider' => 'lemon_squeezy',
+            'is_active' => true,
+            'credentials' => ['api_key' => 'k', 'signing_secret' => 'ls_secret', 'store_id' => 's', 'variant_id' => 'v'],
+        ]);
+
+        $payload = ['meta' => ['event_name' => 'order_created'], 'data' => ['id' => 'ord_forged', 'attributes' => []]];
+        $body = json_encode($payload);
+
+        $this->call('POST', '/api/webhooks/payments/lemon_squeezy', $payload, [], [], [
+            'CONTENT_TYPE' => 'application/json',
+        ], $body)->assertStatus(401);
+    }
+
+    public function test_lemon_squeezy_webhook_accepts_valid_signature(): void
+    {
+        Integration::factory()->create([
+            'agency_id' => null,
+            'provider' => 'lemon_squeezy',
+            'is_active' => true,
+            'credentials' => ['api_key' => 'k', 'signing_secret' => 'ls_secret', 'store_id' => 's', 'variant_id' => 'v'],
+        ]);
+
+        $payload = ['meta' => ['event_name' => 'order_created'], 'data' => ['id' => 'ord_ok', 'attributes' => []]];
+        $body = json_encode($payload);
+        $sig = hash_hmac('sha256', $body, 'ls_secret');
+
+        $this->call('POST', '/api/webhooks/payments/lemon_squeezy', $payload, [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_SIGNATURE' => $sig,
+        ], $body)->assertOk();
+    }
+
+    public function test_webhook_rejects_underpaid_amount(): void
+    {
+        $payment = $this->arrangePending();
+        // Gateway reports a paid amount below the 50000 invoiced — must not settle.
+        $payload = ['type' => 'checkout.session.completed', 'data' => ['id' => $payment->transaction_id, 'amount' => '10000', 'currency' => 'XOF']];
+        $body = json_encode($payload);
+        $sig = $this->signWave($body, $this->secret);
+
+        $this->call('POST', '/api/webhooks/payments/wave', $payload, [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_WAVE_SIGNATURE' => $sig,
+        ], $body)->assertStatus(422);
+
+        $this->assertSame(PaymentStatus::Pending, $payment->refresh()->status);
+    }
+
     public function test_credentials_are_never_returned_in_resources(): void
     {
         $integration = Integration::factory()->create([
