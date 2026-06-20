@@ -9,7 +9,7 @@ use Illuminate\Validation\Rule;
 
 /**
  * Validates edition of a draft inventory. Any subset of fields may be provided;
- * `rooms` schema follows InventoryStoreRequest (see ELEMENT_STATES).
+ * `rooms` schema follows InventoryStoreRequest (see InventoryElementState enum).
  */
 class InventoryUpdateRequest extends FormRequest
 {
