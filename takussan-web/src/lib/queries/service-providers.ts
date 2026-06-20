@@ -10,8 +10,8 @@ import type {
  *
  * All reads obey the spatie/laravel-query-builder conventions:
  *  - sparse fieldsets via `fields[service_provider_profiles]=...`
- *  - `include=user,agencyCollaborations` so the listing shows the
- *    email/name and rattachement statut without a second round-trip
+ *  - `include=user` so the listing shows the email/name without a
+ *    second round-trip
  *  - listing endpoint is per-agency (`/api/agencies/{id}/service-providers`)
  *
  * Mutations target the per-agency invitation endpoint introduced by this

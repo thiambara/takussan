@@ -18,8 +18,7 @@ export const REPLY_MAX = 1000;
  * Inline form for agent/owner to post or edit a public reply to a review.
  *
  * Backend surface: `POST /api/reviews/{id}/reply` performs an upsert, so the
- * same form is reused for initial post and edit. Deleting a reply is not
- * supported by the backend yet (see TCK-073 Notes d'implémentation).
+ * same form is reused for initial post and edit.
  */
 export function PropertyReviewReplyForm({
   reviewId,

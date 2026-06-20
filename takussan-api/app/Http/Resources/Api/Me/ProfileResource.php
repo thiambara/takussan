@@ -15,7 +15,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * Wire-format for a profile in the Me-namespace endpoints. The composite
  * `id` (e.g. `agent:5`) is what the client passes back via `X-Profile-Id`
  * or `PATCH /api/me/active-profile` — it disambiguates IDs across the
- * four profile tables.
+ * five profile tables.
  */
 class ProfileResource extends JsonResource
 {

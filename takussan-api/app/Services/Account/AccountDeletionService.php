@@ -41,8 +41,8 @@ use Illuminate\Validation\ValidationException;
 class AccountDeletionService
 {
     /**
-     * Lock duration before the user can resubmit the same request — guards
-     * against duplicate POSTs.
+     * Allowed reason codes a user may attach to a deletion request —
+     * validated as an allow-list via Rule::in().
      */
     public const REASON_CODES = [
         'service_completed',

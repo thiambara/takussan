@@ -70,7 +70,7 @@ export const MAINTENANCE_CATEGORIES: readonly MaintenanceCategory[] = [
 /**
  * Allowed forward transitions — mirrors
  * `App\Services\Model\MaintenanceRequestService::TRANSITIONS`.
- * Terminal states (`closed`, `cancelled`) intentionally absent.
+ * Terminal states (`closed`, `cancelled`) map to an empty transition list.
  */
 export const MAINTENANCE_TRANSITIONS: Readonly<
   Record<MaintenanceStatus, readonly MaintenanceStatus[]>

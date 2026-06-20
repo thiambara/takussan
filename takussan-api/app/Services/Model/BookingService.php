@@ -84,7 +84,7 @@ class BookingService
             'expires_at' => $data['expires_at'] ?? now()->addDays(7),
         ]));
 
-        // Notify landlord and agency members
+        // Notify the landlord (property owner)
         $recipients = collect();
         $owner = $property->owner;
         if ($owner) {

@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Notifications\SendNotificationDigestJob;
 use App\Mail\DailyNotificationDigest;
 use App\Models\AppNotification;
 use App\Models\User;
@@ -17,7 +18,8 @@ use Illuminate\Support\Facades\Mail;
  * Daily digest email (TCK-022 P2) — aggregates unread in-app notifications
  * from the past 24 h into a single email per user who opted in to digest.
  *
- * Scheduled via `routes/console.php` / `Schedule::daily()`.
+ * Not scheduled directly — the live digest path runs hourly via
+ * {@see SendNotificationDigestJob}.
  */
 class SendDailyNotificationDigest implements ShouldQueue
 {

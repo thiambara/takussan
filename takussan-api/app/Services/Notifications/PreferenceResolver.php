@@ -19,7 +19,7 @@ use App\Notifications\Channels\WhatsappChannel;
  *   - `sms` requires a verified phone.
  *
  * When no explicit preference row exists for a (user, event, channel)
- * triple, {@see DEFAULTS} kicks in (inapp + email on, sms/push off).
+ * triple, {@see DEFAULTS} kicks in (inapp + email + push on, sms/whatsapp off).
  */
 class PreferenceResolver
 {

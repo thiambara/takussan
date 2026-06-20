@@ -65,10 +65,10 @@ trait HasProfiles
     }
 
     /**
-     * Unified collection of every profile this user holds, across all four
+     * Unified collection of every profile this user holds, across all five
      * concrete profile classes. Not a real Eloquent relation — eager load
-     * via `$user->load(['ownerProfiles', 'agentProfiles', 'brokerProfile',
-     * 'serviceProviderProfile'])` upstream if needed.
+     * via `$user->load(['ownerProfiles', 'agentProfiles', 'agencyAdminProfiles',
+     * 'brokerProfile', 'serviceProviderProfile'])` upstream if needed.
      */
     public function profiles(): Collection
     {
