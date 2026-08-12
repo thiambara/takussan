@@ -87,7 +87,7 @@ demander plus tard dans l'onboarding (page `/app/settings/profile`).
 - [ ] Tests `AppleOAuthTest` (name only on first consent, state mismatch, client_secret JWT valid)
 - [ ] Boutons UI "Continuer avec Facebook" + "Continuer avec Apple" sur `/login` et `/signup`
 - [ ] Variables `.env.example` : `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`, `FACEBOOK_REDIRECT_URI`, `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY_PATH`, `APPLE_REDIRECT_URI`
-- [ ] Doc courte `docs/oauth-setup.md` (enregistrement app Facebook + Apple Developer)
+- [ ] Doc courte `docs/backlog/tickets/TCK-081-oauth-facebook-apple.md` (enregistrement app Facebook + Apple Developer)
 
 ## Critères d'acceptation
 
@@ -137,4 +137,4 @@ No changes needed. `<OAuthButtons>` + `OAuthProvider = 'google' | 'facebook' | '
 - Provider disconnection UI (`/app/settings/connected-accounts`) — P3.
 - LinkedIn / Microsoft OAuth — P3.
 - Magic link login — P3.
-- `docs/oauth-setup.md` detailed setup guide — skipped to keep PR focused; `.env.example` comments suffice.
+- `docs/backlog/tickets/TCK-081-oauth-facebook-apple.md` detailed setup guide — skipped to keep PR focused; `.env.example` comments suffice.

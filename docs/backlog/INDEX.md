@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**265 tickets** — 6 ouverts, 258 livrés.
+**266 tickets** — 7 ouverts, 258 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 3 |
+| 📋 Todo | 4 |
 | 🚧 Doing | 2 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 1 |
@@ -36,6 +36,7 @@
 - [TCK-246](tickets/TCK-246-empty-error-states-and-cta-buttons-harmonization.md) — Empty / error states + CTA shadcn — harmonisation transverse `M · P2 · front`
 - [TCK-247](tickets/TCK-247-public-homepage-discovery-endpoint.md) — Endpoint unique homepage discovery (4 rangées dédupliquées côté serveur) `M · P2 · back`
 - [TCK-272](tickets/TCK-272-oauth-only-account-deletion-step-up.md) — Suppression de compte — step-up alternative pour comptes OAuth-only `M · P2 · applicatif`
+- [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
 
 ## 🚧 Doing
 

@@ -130,7 +130,7 @@ Le triptyque paiements de Takussan — `BookingPayment` (TCK-028), `LeasePayment
 | `takussan-web/src/components/ui/dialog.tsx` + `combobox` (Base UI) | **Réutilisés** pour modals + autocomplete payment. |
 | `takussan-web/src/messages/{fr,en,wo}.json` | **Étendu** : namespace `admin.reconciliation.*`. |
 | `docs/backlog/INDEX.md` | TCK-109 `todo → review` à l'ouverture de la PR ; **target = `dev`** (mémoire utilisateur). |
-| `docs/finance/reconciliation.md` | **Nouveau** — doc courte (workflow comptable, règles, mapping CSV). |
+| `docs/plans/2026-04-28-tck-109-bank-reconciliation.md` | **Nouveau** — doc courte (workflow comptable, règles, mapping CSV). |
 
 ---
 
@@ -822,7 +822,7 @@ Enregistré dans `bootstrap/app.php` :
 
 ### Documentation
 
-- `docs/finance/reconciliation.md` (court, ~80 lignes) :
+- `docs/plans/2026-04-28-tck-109-bank-reconciliation.md` (court, ~80 lignes) :
   - Workflow comptable end-to-end (import → review → confirm/ignore → finalize).
   - Schéma des règles de scoring (table des seuils 95/80/70/60).
   - Format CSV par défaut + comment customiser via `agencies.bank_csv_mapping`.
@@ -1006,7 +1006,7 @@ Encapsulé dans une fonction `addPartialUnique($table, $column)` réutilisée pa
 
 ### Final
 
-27. **Documentation** `docs/finance/reconciliation.md`.
+27. **Documentation** `docs/plans/2026-04-28-tck-109-bank-reconciliation.md`.
 28. **INDEX.md** : passer TCK-109 `todo → review` à l'ouverture de la PR ; **target = `dev`** (mémoire utilisateur).
 29. **Commit du plan** : `docs(TCK-109): add bank reconciliation implementation plan` (à l'image de TCK-105/106/107/108).
 

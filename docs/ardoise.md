@@ -449,7 +449,29 @@ n'est écrite dans **aucune spec** : sa seule trace est un commentaire de code.
 C'est un piège actif : un nouveau driver de paiement écrit sans elle facture **cent fois trop**, ou
 cent fois trop peu. Classé P0 malgré son apparence documentaire.
 
-### D-23 — La duplication d'autorisation PHP↔TS n'est gardée par rien 🟠
+### D-23 — La duplication d'autorisation PHP↔TS n'était gardée par rien ✅ *gardée le 2026-08-12 — et la garde a trouvé un trou*
+
+> **Gardée** : `scripts/check-pro-routes.mjs` vérifie que toute route de `PRO_ROUTES` est gardée
+> côté serveur, et tourne dans `repo-ci.yml`. Prouvée par mutation, dans les deux sens — écart
+> retiré de l'allowlist → rouge, allowlist devenue périmée → rouge aussi.
+>
+> **Ce qu'elle a trouvé à sa première exécution.** `pro-features.ts` affirmait, dans un
+> commentaire, que *« the pages themselves redirect to `/app` server-side, which is the ultimate
+> gate »*. Mesuré : **vrai pour 5 routes sur 9**. Les quatre routes `/app/*` —
+> `/app/overview/kpis`, `/app/overview/alerts`, `/app/overview/agency`, `/app/owners` — affichaient
+> un cadenas dans la barre latérale **sans aucune garde serveur**. Le cadenas n'empêchait que le
+> clic ; une URL tapée à la main passait.
+>
+> **Le correctif n'a PAS été appliqué, et c'est délibéré.** `ensureStandardAgencyOrRedirect` vise
+> *tout* porteur d'`agency_id` dans une agence `individual`, alors que `isProRouteLocked` ne
+> cadenasse que les `agency_admin` : **les deux règles n'ont pas le même périmètre**. Poser la
+> garde telle quelle redirigerait aussi les agents et les propriétaires, à qui rien n'a jamais été
+> refusé — une régression fonctionnelle déguisée en correctif de sécurité. L'arbitrage est un
+> **choix produit**, et il est écrit dans **TCK-284**.
+>
+> Les quatre écarts sont nommés dans `ECARTS_ASSUMES`. Une allowlist est une **dette datée**, pas
+> une exemption : la garde échoue aussi le jour où une entrée y devient périmée.
+
 
 `src/lib/access/server-guards.ts` porte un jumeau PHP, assumé dans un commentaire (« Backend twin of
 `lib/access/server-guards.ts` »). **Aucun test, aucune garde CI ne vérifie que les deux

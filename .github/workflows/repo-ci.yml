@@ -63,6 +63,14 @@ jobs:
         # l'absence de quelque chose, et l'absence ne déclenche rien.
         run: node scripts/check-queues.mjs --report
 
+      - name: Toute route cadenassée est gardée côté serveur
+        # La règle « réservé aux agences standard » est écrite deux fois, en PHP et en
+        # TypeScript — le docblock PHP se déclare lui-même « backend twin ». Rien ne
+        # vérifiait qu'elles restent d'accord. À sa première exécution, cette garde a
+        # trouvé que 4 des 9 routes cadenassées n'avaient AUCUNE garde serveur, alors
+        # qu'un commentaire affirmait le contraire (TCK-284).
+        run: node scripts/check-pro-routes.mjs --report
+
       - name: INDEX.md est à jour de ses frontmatters
         # `--check` n'écrit rien et sort non nul si l'index est périmé. Sans cette étape, la règle
         # « on régénère après avoir touché un ticket » redeviendrait tenue par la seule discipline
