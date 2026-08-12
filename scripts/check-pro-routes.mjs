@@ -29,6 +29,8 @@ const REPORT = process.argv.includes('--report');
 const WEB = join(ROOT, 'takussan-web', 'src');
 
 const SOURCE = join(WEB, 'lib', 'access', 'pro-features.ts');
+// Le helper partagé : la protection de cinq routes y vit, pas dans leur page.
+const HELPER = join(WEB, 'lib', 'access', 'server-guards.ts');
 
 /**
  * Les DEUX formes de garde serveur, et la seconde a coûté cher.
@@ -132,7 +134,20 @@ for (const route of routes) {
   const src = readFileSync(p, 'utf8');
   const trouvee = GARDES.find((g) => g.motif.test(src));
   if (!trouvee) { nues.push([route, p.slice(ROOT.length + 1), src]); continue; }
-  if (FAIL_OPEN.test(src)) { failOpen.push([route, p.slice(ROOT.length + 1)]); continue; }
+
+  // La page peut DÉLÉGUER sa protection. Ne regarder que le fichier de la page revient alors
+  // à certifier une garde qu'on n'a pas lue — et c'est exactement ce qui est arrivé : les cinq
+  // routes /admin/* étaient déclarées « fail-closed » alors que le helper qu'elles appellent
+  // était lui-même écrit en `if (agency && …)`. On corrigeait les instances et pas la classe.
+  //
+  // On suit donc dans le helper, et on juge les DEUX sources.
+  const aExaminer = [[p.slice(ROOT.length + 1), src]];
+  if (/ensureStandardAgencyOrRedirect\s*\(/.test(src) && existsSync(HELPER)) {
+    aExaminer.push([HELPER.slice(ROOT.length + 1), readFileSync(HELPER, 'utf8')]);
+  }
+
+  const coupable = aExaminer.find(([, s]) => FAIL_OPEN.test(s));
+  if (coupable) { failOpen.push([route, coupable[0]]); continue; }
   gardees.push([route, p.slice(ROOT.length + 1), trouvee.nom]);
 }
 

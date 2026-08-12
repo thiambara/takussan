@@ -55,14 +55,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Ce qui va être déployé
-        # Un premier déploiement de production se regarde avant de se lancer. Cette étape
-        # n'empêche rien — elle écrit dans le journal ce que la suivante va faire, pour qu'un
-        # run raté laisse une trace lisible plutôt qu'un `git clone` silencieux.
+      - name: Ce qui va être déployé — et refus d'une branche non prévue
+        # L'entrée `branch` remplace un `master` codé en dur : elle rend le déclenchement manuel
+        # possible, mais elle ouvre aussi la porte à n'importe quelle branche jusqu'à
+        # `php artisan migrate --force` sur la base de PRODUCTION. Une chaîne libre qui atteint
+        # une migration de production doit être bornée.
+        #
+        # La liste est volontairement courte : les branches d'intégration du dépôt. Déployer
+        # autre chose reste possible — en éditant ce fichier, donc en le disant.
         run: |
           echo "Branche déployée : ${DEPLOY_BRANCH}"
           echo "Cible            : /var/www/takussan (api.takussan.com)"
           echo "Déclencheur      : ${{ github.event_name }}"
+          case "${DEPLOY_BRANCH}" in
+            master|dev|preview) ;;
+            *)
+              echo "::error::Branche '${DEPLOY_BRANCH}' non autorisée en production."
+              echo "Autorisées : master, dev, preview. Un déploiement lance 'migrate --force'"
+              echo "sur la base de production : la branche déployée ne se saisit pas librement."
+              exit 1
+              ;;
+          esac
 
       - name: Copy deploy script to server
         uses: appleboy/scp-action@v1

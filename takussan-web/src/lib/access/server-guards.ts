@@ -18,5 +18,14 @@ export async function ensureStandardAgencyOrRedirect(user: User): Promise<void> 
   const token = await getToken();
   if (!token) return;
   const agency = await fetchAgency(token, user.agency_id).catch(() => null);
-  if (agency && agency.kind !== 'standard') redirect('/app');
+  // FAIL-CLOSED : `!agency` redirige AUSSI.
+  //
+  // `fetchAgency` avale son erreur en `null`. Avec `if (agency && …)`, une API en panne ou
+  // lente laissait donc s'afficher la console Standard-only à une agence `individual` — sur
+  // les CINQ routes /admin/* qui passent par ce helper.
+  //
+  // Le même défaut avait été corrigé dans trois pages qui écrivent le test en ligne, et pas
+  // ici : on avait réparé les instances et pas la classe. C'est le site le plus important des
+  // deux, puisqu'il est partagé.
+  if (!agency || agency.kind !== 'standard') redirect('/app');
 }

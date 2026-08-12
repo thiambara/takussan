@@ -51,14 +51,21 @@ function frontmatter(txt) {
     if (s) {
       cle = s[1];
       const v = s[2].trim();
-      if (v === '') out[cle] = {};
+      // Une clé sans valeur ouvre soit une liste en bloc, soit un objet imbriqué. On pose un
+      // TABLEAU pour les clés dont on sait qu'elles listent, sinon `{}`. Sans ça,
+      // `depends_on:` écrit en style bloc (parfaitement valide en YAML) devenait `{}`, et
+      // TOUTES les vérifications de dépendances le traversaient sans rien voir.
+      if (v === '') out[cle] = ['depends_on', 'blocks', 'tags'].includes(cle) ? [] : {};
       else if (v.startsWith('[') && v.endsWith(']'))
         out[cle] = v.slice(1, -1).split(',').map((x) => x.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
       else out[cle] = v.replace(/^["']|["']$/g, '');
       continue;
     }
     const item = ligne.match(/^\s+-\s+(.*)$/);
-    if (item && cle === 'spec_refs') (out._spec_paths ||= []).push(item[1].trim().replace(/^["']|["']$/g, ''));
+    if (!item) continue;
+    const valeur = item[1].trim().replace(/^["']|["']$/g, '');
+    if (cle === 'spec_refs') (out._spec_paths ||= []).push(valeur);
+    else if (Array.isArray(out[cle])) out[cle].push(valeur);
   }
   return out;
 }

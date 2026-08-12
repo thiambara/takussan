@@ -178,3 +178,29 @@ vérifier si le commentaire de `pro-features.ts` disait vrai. Il ne le disait pa
 
 *Une propriété proclamée dans un commentaire et prouvée par aucun test* — et ici, la forme la plus
 tenace : **une règle rendue à deux endroits et tenue à un seul**.
+
+## Reste sur dev
+
+_Mesuré le 2026-08-12, après trois passes de revue._
+
+**Ce qui EST livré** — la partie frontend, entièrement :
+
+- les 9 routes de `PRO_ROUTES` sont gardées côté serveur **et fail-closed** : les quatre `/app/*`
+  par un test en ligne, les cinq `/admin/*` par `ensureStandardAgencyOrRedirect` ;
+- le helper partagé **et** un sixième site hors de toute liste (`app/overview/page.tsx`) sont
+  passés fail-closed — `fetchAgency` avalant son erreur en `null`, un `if (agency && …)` laissait
+  s'afficher l'écran réservé dès que l'API toussait ;
+- `scripts/check-pro-routes.mjs` reconnaît les deux formes de garde, **suit dans le helper**,
+  refuse la forme fail-open, et refuse de conclure sur une page qu'il ne comprend pas.
+
+**Ce qui RESTE, et c'est un arbitrage produit** : les endpoints d'API qui alimentent ces quatre
+écrans — `KpiConfigController`, `ThresholdAlertController`, `owners`, `DashboardController` — ne
+portent **aucun `AgencyKindGuard`**, alors que les cinq routes `/admin/*` sont gardées des deux
+côtés. La page redirige, l'API répond.
+
+Ce n'est pas une faille : la page est le seul chemin d'accès normal, et l'appel direct exige un
+jeton valide de l'agence concernée. C'est une **asymétrie** entre deux familles de surfaces
+« pro », et elle mérite d'être tranchée plutôt que subie.
+
+> Ce ticket reste `doing` **et non `done`** parce que cette question est ouverte. Il reste ouvert
+> **et non `todo`** parce que tout le travail frontend est livré et mergé.

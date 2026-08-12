@@ -29,15 +29,18 @@ export default async function AgencyDashboardPage() {
   }
 
   if (user.agency_id) {
+    // FAIL-CLOSED de bout en bout, et la forme compte autant que le test.
+    //
+    // `fetchAgency` avale son erreur en `null` : un `if (agency && …)` laissait s'afficher
+    // l'écran réservé dès que l'API toussait. Mais imbriquer le tout sous `if (token)` rouvre
+    // exactement la même porte un cran plus haut — sans jeton, la garde est simplement sautée.
+    // Le jeton descend donc DANS l'expression, comme dans les deux pages sœurs
+    // (`overview/kpis`, `overview/alerts`) : une seule condition, un seul refus.
+    //
+    // Un écran réservé se refuse quand on ne SAIT PAS, pas seulement quand on sait que non.
     const token = await getToken();
-    if (token) {
-      const agency = await fetchAgency(token, user.agency_id).catch(() => null);
-      // FAIL-CLOSED : `!agency` redirige AUSSI. `fetchAgency` avale son erreur en `null`
-      // (`.catch(() => null)`), donc `if (agency && …)` laissait passer une API en panne :
-      // l'écran pro s'affichait pour une agence `individual` dès que la requête échouait.
-      // Un écran réservé se refuse quand on ne SAIT PAS, pas seulement quand on sait que non.
-      if (!agency || agency.kind !== 'standard') redirect('/app');
-    }
+    const agency = token ? await fetchAgency(token, user.agency_id).catch(() => null) : null;
+    if (!agency || agency.kind !== 'standard') redirect('/app');
   }
 
   const payload = await fetchAgencyDashboard();

@@ -15,7 +15,11 @@ export default async function OverviewPage() {
     if (user.agency_id) {
       const token = await getToken();
       const agency = token ? await fetchAgency(token, user.agency_id).catch(() => null) : null;
-      if (agency && agency.kind !== 'standard') redirect('/app/overview/agent');
+      // FAIL-CLOSED, même raison qu'ailleurs : `fetchAgency` avale son erreur en `null`, donc
+      // `if (agency && …)` laissait une agence `individual` sur la vue Standard dès que l'API
+      // toussait. Ce site-ci n'est dans AUCUNE liste — ni PRO_ROUTES, ni les pages gardées —
+      // il a été trouvé en cherchant la CLASSE du défaut plutôt que ses instances connues.
+      if (!agency || agency.kind !== 'standard') redirect('/app/overview/agent');
     }
     redirect('/app/overview/agency');
   }

@@ -41,13 +41,17 @@ const CONSOMMATEURS = [
 ];
 
 /* ── 1. les files que le CODE pousse ─────────────────────────────────────── */
-// On accepte les trois écritures qui existent réellement dans ce dépôt :
-//   ->onQueue('x')            · sur un job dispatché
-//   public $queue = 'x';      · propriété de classe
-//   'queue' => 'x'            · dans une config de dispatch
+// Les QUATRE écritures possibles. Le commentaire d'origine en annonçait trois et le tableau
+// n'en implémentait que deux : une garde qui documente plus qu'elle ne mesure laisse passer
+// exactement ce qu'elle prétend couvrir. `protected $queue` — la forme la plus courante après
+// `onQueue()` — n'était dans ni l'un ni l'autre.
+//   ->onQueue('x')                      · sur un job dispatché
+//   public|protected $queue = 'x';      · propriété de classe
+//   'queue' => 'x'                      · dans une config de dispatch
 const MOTIFS = [
   /->onQueue\(\s*['"]([a-z0-9_-]+)['"]\s*\)/g,
-  /public\s+\$queue\s*=\s*['"]([a-z0-9_-]+)['"]/g,
+  /(?:public|protected|private)\s+(?:readonly\s+)?\$queue\s*=\s*['"]([a-z0-9_-]+)['"]/g,
+  /['"]queue['"]\s*=>\s*['"]([a-z0-9_-]+)['"]/g,
 ];
 
 const poussees = new Map(); // file → [chemins]

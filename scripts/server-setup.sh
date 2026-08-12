@@ -376,9 +376,13 @@ setup_queue_service() {
     # Une file sans consommateur est le défaut le plus silencieux qui soit — il ne se
     # manifeste que par l'absence de quelque chose, et l'absence ne déclenche rien.
     #
-    # Toute nouvelle file nommée doit être AJOUTÉE ICI. Il n'existe aucune garde : le
-    # jour où un `onQueue('…')` apparaît dans le code sans passer par cette ligne, le
-    # défaut se reproduit à l'identique.
+    # Toute nouvelle file nommée doit être AJOUTÉE ICI — `scripts/check-queues.mjs` le
+    # vérifie désormais, sur les deux consommateurs (cette unité et `dev.sh`).
+    #
+    # L'ordre est une PRIORITÉ STRICTE : `default` n'est servi que si `notifications-urgent`
+    # est vide. C'est voulu — un seul site alimente la file urgente, son volume ne peut donc
+    # pas affamer les autres. Si elle devenait volumineuse, la réponse serait de lui donner
+    # son propre worker, pas de la déclasser.
     cat > "${service_file}" <<UNIT
 [Unit]
 Description=Takussan Queue Worker (${name})

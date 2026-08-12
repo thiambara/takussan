@@ -66,7 +66,10 @@ port_libre() {
 
 # ───────────────────────────────────────────────────────────── prérequis
 manquants=0
-for outil in docker php composer node nc; do
+# `lsof` sert à `port_libre` : sans lui, tout port est déclaré libre et l'API se lie
+# dans le vide. `nc` sert aux sondes. Les deux sont des prérequis réels, pas des
+# commodités — leur absence produit un diagnostic FAUX, pas un diagnostic manquant.
+for outil in docker php composer node nc lsof; do
   command -v "$outil" >/dev/null 2>&1 || { ko "$outil est introuvable dans le PATH"; manquants=1; }
 done
 if ! docker info >/dev/null 2>&1; then
@@ -311,6 +314,12 @@ fi
 
 (cd "$API" && exec php artisan serve --host=127.0.0.1 --port="$API_PORT") &
 API_PID=$!
+# L'ordre est une PRIORITÉ STRICTE : Laravel ne sert `default` que si `notifications-urgent`
+# est vide. C'est voulu — la file urgente est alimentée par un seul site
+# (`UrgentMaintenanceCreatedNotification`), donc son volume ne peut pas affamer les autres.
+# Le jour où une file urgente devient volumineuse, la réponse n'est pas de la déclasser mais
+# de lui donner son propre worker.
+#
 # --queue : les MÊMES files que la production, dans le même ordre de priorité. Sans
 # lui, le worker ne consomme que `default` et les jobs poussés sur `media`,
 # `notifications-urgent` et `reconciliation` restent en base sans jamais s'exécuter —

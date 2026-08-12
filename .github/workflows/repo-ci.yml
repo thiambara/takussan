@@ -20,13 +20,18 @@ on:
       - 'takussan-api/.env.docker'
       # Chaque garde doit être déclenchée par les DEUX côtés qu'elle compare, sinon elle
       # ne voit qu'une moitié de l'écart qu'elle existe pour trouver :
-      #   check-queues     → les `onQueue()` de takussan-api/app  ET  scripts/server-setup.sh
+      #   check-queues     → les `onQueue()` de takussan-api/app, scripts/server-setup.sh ET dev.sh
       #   check-pro-routes → PRO_ROUTES et les pages, tous deux sous takussan-web/src
-      # `takussan-web/**` manquait : la garde pro-routes ne tournait donc JAMAIS sur une PR
-      # frontend — c'est-à-dire sur exactement les PR qui peuvent la mettre en défaut.
+      #   check-backlog    → les tickets ET les specs qu'ils citent
+      # Deux entrées manquaient successivement : `takussan-web/**`, puis `dev.sh` — la garde des
+      # files ne tournait donc pas sur son SECOND consommateur, celui qu'on venait de lui
+      # apprendre à lire. Une liste de déclencheurs se re-vérifie à chaque garde ajoutée.
       - 'takussan-api/app/**'
       - 'takussan-web/src/**'
       - 'scripts/**'
+      - 'dev.sh'
+      - 'docs/features.md'
+      - 'docs/models-spec.md'
       - '.github/workflows/repo-ci.yml'
   push:
     branches: [dev, master]
@@ -37,6 +42,9 @@ on:
       - 'takussan-api/app/**'
       - 'takussan-web/src/**'
       - 'scripts/**'
+      - 'dev.sh'
+      - 'docs/features.md'
+      - 'docs/models-spec.md'
       - '.github/workflows/repo-ci.yml'
 
 jobs:
