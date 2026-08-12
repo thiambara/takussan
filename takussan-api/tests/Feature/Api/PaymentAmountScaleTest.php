@@ -6,11 +6,10 @@ use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Enums\Currency;
+use App\Models\Enums\PaymentProvider;
 use App\Models\Integration;
 use App\Models\Property;
 use App\Services\Payments\Drivers\LemonSqueezyDriver;
-use App\Services\Payments\Drivers\OrangeMoneyDriver;
-use App\Services\Payments\Drivers\WaveDriver;
 use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -61,17 +60,22 @@ class PaymentAmountScaleTest extends TestCase
     }
 
     /**
-     * La conversion que fait `PaymentGatewayService` avant d'appeler le driver.
+     * L'intégration active du provider, non rattachée à une agence.
      *
-     * Reproduite ici plutôt qu'appelée : le service exige une `Integration` résolue, un provider
-     * configuré et une URL de retour. Ce qu'on veut éprouver est l'ÉCHELLE, et elle tient dans
-     * cette seule ligne — c'est elle que chaque driver doit défaire.
+     * `PaymentGatewayService::resolveIntegration` accepte l'intégration de l'agence du paiement
+     * **ou** celle de la plateforme (`agency_id` nul) : la seconde résout pour n'importe quel
+     * paiement, ce qui évite de faire remonter l'agence depuis `paiement()`.
      *
-     * @see PaymentGatewayService
+     * @param  array<string,mixed>  $credentials
      */
-    private function centimes(BookingPayment $payment): int
+    private function integration(string $provider, array $credentials): Integration
     {
-        return (int) round(((float) $payment->amount) * 100);
+        return Integration::factory()->create([
+            'provider' => $provider,
+            'agency_id' => null,
+            'is_active' => true,
+            'credentials' => $credentials,
+        ]);
     }
 
     public function test_wave_recoit_le_montant_de_la_base_et_non_cent_fois_plus(): void
@@ -83,19 +87,21 @@ class PaymentAmountScaleTest extends TestCase
             ], 200),
         ]);
 
-        $integration = Integration::factory()->create([
-            'provider' => 'wave',
-            'credentials' => ['api_key' => 'wave_test', 'webhook_secret' => 's'],
-        ]);
+        $this->integration('wave', ['api_key' => 'wave_test', 'webhook_secret' => 's']);
 
         $payment = $this->paiement(1500.00);
-        $centimes = $this->centimes($payment);
-        $this->assertSame(150000, $centimes, 'La frontière du contrat multiplie bien par 100.');
 
-        (new WaveDriver($integration))->initiate(
+        // Le service est APPELÉ, pas reproduit — et c'est tout l'objet du cas.
+        //
+        // Une première version calculait le ×100 dans une méthode privée du test, avec un
+        // commentaire expliquant que le service « exige une intégration résolue ». Elle exigeait
+        // trois lignes de plus, pas davantage. Le coût de ce raccourci : la multiplication vivait
+        // à DEUX endroits, et supprimer celle de `PaymentGatewayService::initiate` laissait ce
+        // fichier — le seul garde de bout en bout de la règle — parfaitement vert pendant que
+        // Wave et Orange étaient facturés cent fois trop peu.
+        app(PaymentGatewayService::class)->initiate(
             $payment,
-            $centimes,
-            'XOF',
+            PaymentProvider::Wave,
             ['return_url' => 'https://example.com/return'],
         );
 
@@ -118,14 +124,19 @@ class PaymentAmountScaleTest extends TestCase
             ], 200),
         ]);
 
-        $integration = Integration::factory()->create([
-            'provider' => 'orange_money',
-            'credentials' => ['access_token' => 'om_token', 'merchant_key' => 'mk', 'webhook_secret' => 's'],
+        $this->integration('orange_money', [
+            'access_token' => 'om_token',
+            'merchant_key' => 'mk',
+            'webhook_secret' => 's',
         ]);
 
         $payment = $this->paiement(1500.00);
 
-        (new OrangeMoneyDriver($integration))->initiate($payment, $this->centimes($payment), 'XOF');
+        app(PaymentGatewayService::class)->initiate(
+            $payment,
+            PaymentProvider::OrangeMoney,
+            ['return_url' => 'https://example.com/return'],
+        );
 
         Http::assertSent(function ($request) {
             $body = json_decode($request->body() ?: '{}', true);

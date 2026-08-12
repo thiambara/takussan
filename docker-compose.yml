@@ -17,10 +17,18 @@
 #                une collection Eloquent : il ne partage ni la tokenisation, ni le
 #                classement, ni le typo-tolerance du moteur réel. Une recherche qui
 #                « marche en local » n'a rien prouvé de celle qui tourne en prod.
-#   redis        `.env.example` pose `CACHE_STORE=redis` sans que rien ne fournisse
-#                Redis : l'application ne démarre pas sur une copie fidèle de son
-#                propre exemple. Le service est ici pour que ce soit vrai — et pour
-#                pouvoir mesurer le jour où la prod bascule (elle est en `database`).
+#   redis        LE SEUL des quatre que le développement n'utilise PAS, et il faut le
+#                dire ici plutôt que de le laisser croire. `.env.example` pose
+#                `CACHE_STORE=redis` sans que rien ne fournisse Redis : l'application
+#                ne démarre pas sur une copie fidèle de son propre exemple. Ce service
+#                rend cette combinaison servable. Mais `.env.docker` s'aligne sur la
+#                PRODUCTION, qui est en `database` — donc rien, dans l'environnement
+#                de dev par défaut, ne s'y connecte.
+#                Une version antérieure de cette note affirmait le contraire par
+#                omission ; `./dev.sh doctor` sonde désormais Redis dès que les
+#                conteneurs sont visés, et nomme le fait qu'aucun driver ne le
+#                consomme. *Un service qu'on démarre sans jamais l'interroger ne prouve
+#                rien : il occupe un port et rassure.*
 #   mailpit      ~24 tâches planifiées envoient du courrier (rappels de paiement,
 #                relances de facture, digests, invitations). En `MAIL_MAILER=log`
 #                elles partent dans un fichier que personne ne relit ; on ne voit

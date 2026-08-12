@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { User } from '@/types/user';
 import { FeatureFlagProvider, useFeatureFlag } from '../FeatureFlagProvider';
@@ -67,10 +67,21 @@ describe('<FeatureFlagProvider>', () => {
     monter();
 
     expect(await screen.findByText('disabled')).toBeInTheDocument();
-    // L'assertion qui compte : la route est `auth:sanctum`, un visiteur anonyme y
-    // récolterait un 401 à chaque montage du provider — donc sur chaque page du site.
-    // Vérifier seulement que le drapeau vaut `false` ne verrait pas cet appel-là,
-    // puisqu'un 401 rend lui aussi un drapeau `false`.
-    await waitFor(() => expect(fetchMock).not.toHaveBeenCalled());
+
+    // L'assertion qui compte : la route est `auth:sanctum`, un visiteur anonyme y récolterait
+    // un 401 à chaque montage du provider — donc sur chaque page du site. Vérifier seulement
+    // que le drapeau vaut `false` ne verrait pas cet appel-là, puisqu'un 401 rend lui aussi un
+    // drapeau `false`.
+    //
+    // ⚠ `waitFor(() => expect(m).not.toHaveBeenCalled())` N'ATTEND RIEN. Le callback ne lève
+    // pas au premier tour, donc `waitFor` rend la main immédiatement : c'est l'assertion
+    // synchrone, déguisée en attente. Une régression qui déclenche l'appel un tick plus tard
+    // — un `useEffect` de préchargement, un `enabled` recalculé après un effet — passait au
+    // vert. *Une assertion négative doit être précédée d'une attente RÉELLE, jamais d'une
+    // attente qui se satisfait d'elle-même.*
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

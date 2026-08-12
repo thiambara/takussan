@@ -71,7 +71,45 @@ const GARDES = [
  *
  * La règle : un écran réservé se refuse quand on ne SAIT PAS, pas seulement quand on sait que non.
  */
-const FAIL_OPEN = /if\s*\(\s*(\w+)\s*&&\s*\1\.kind\s*!==\s*['"]standard['"]/;
+const FAIL_OPEN = [
+  {
+    nom: 'test conditionné à la résolution de l’agence',
+    motif: /if\s*\(\s*(\w+)\s*&&\s*\1\.kind\s*!==\s*['"]standard['"]/,
+    explique: (r, f) =>
+      `\`${r}\` — ${f} porte bien un test sur \`agency.kind\`, mais sous la forme `
+      + `\`if (agency && agency.kind !== 'standard')\` : elle ne redirige que si l'agence a pu être `
+      + `résolue. \`fetchAgency\` avalant son erreur en \`null\`, une API en panne fait AFFICHER `
+      + `l'écran pro à une agence \`individual\`. Écris \`if (!agency || agency.kind !== 'standard')\`.`,
+  },
+  {
+    // TROISIÈME gradation du même défaut, trouvée en quatrième revue. Le helper partagé
+    // écrivait bien `if (!agency || …)` — mais deux lignes plus haut, `if (!token) return;`.
+    // La décision n'était pas prise à l'envers : elle était SAUTÉE. Le motif ci-dessus, qui
+    // ne juge que la forme du test, la déclarait fail-closed — sur les cinq routes /admin/*.
+    //
+    // *Une garde qui sait juger un test ne sait pas encore juger les chemins qui l'évitent.*
+    //
+    // On lit donc la fenêtre entre `await getToken()` et la première redirection qui suit :
+    // aucune sortie anticipée n'a le droit d'y vivre. Le jeton se descend DANS l'expression
+    // (`token ? await fetch… : null`), il ne commande pas un `return`.
+    nom: 'sortie anticipée qui saute la décision',
+    motif: (s) => {
+      const t = s.search(/await\s+getToken\s*\(\)/);
+      if (t === -1) return false;
+      const suite = s.slice(t);
+      const fin = suite.search(/\bredirect\s*\(/);
+      return /\breturn\s*;/.test(fin === -1 ? suite : suite.slice(0, fin));
+    },
+    explique: (r, f) =>
+      `\`${r}\` — ${f} résout un jeton puis SORT (\`return;\`) avant d'avoir décidé. Sans jeton, `
+      + `la garde n'est pas mise en défaut : elle est sautée, et l'écran réservé s'affiche. `
+      + `Descends le jeton dans l'expression — \`const agency = token ? await fetchAgency(…) : null\` `
+      + `— pour qu'un seul \`if\` tranche tous les cas.`,
+  },
+];
+
+/** Un motif est soit une RegExp, soit un prédicat. */
+const declenche = (m, s) => (typeof m === 'function' ? m(s) : m.test(s));
 
 /**
  * Écarts CONNUS et assumés, chacun avec son ticket.
@@ -146,8 +184,12 @@ for (const route of routes) {
     aExaminer.push([HELPER.slice(ROOT.length + 1), readFileSync(HELPER, 'utf8')]);
   }
 
-  const coupable = aExaminer.find(([, s]) => FAIL_OPEN.test(s));
-  if (coupable) { failOpen.push([route, coupable[0]]); continue; }
+  let coupable = null;
+  for (const [chemin, s] of aExaminer) {
+    const forme = FAIL_OPEN.find((f) => declenche(f.motif, s));
+    if (forme) { coupable = [chemin, forme]; break; }
+  }
+  if (coupable) { failOpen.push([route, coupable[0], coupable[1]]); continue; }
   gardees.push([route, p.slice(ROOT.length + 1), trouvee.nom]);
 }
 
@@ -165,13 +207,8 @@ if (REPORT) {
 
 const erreurs = [];
 
-for (const [r, chemin] of failOpen) {
-  erreurs.push(
-    `\`${r}\` — ${chemin} porte bien un test sur \`agency.kind\`, mais sous la forme `
-    + `\`if (agency && agency.kind !== 'standard')\` : elle ne redirige que si l'agence a pu être `
-    + `résolue. \`fetchAgency\` avalant son erreur en \`null\`, une API en panne fait AFFICHER `
-    + `l'écran pro à une agence \`individual\`. Écris \`if (!agency || agency.kind !== 'standard')\`.`,
-  );
+for (const [r, chemin, forme] of failOpen) {
+  erreurs.push(forme.explique(r, chemin));
 }
 for (const r of introuvables) {
   erreurs.push(`\`${r}\` est déclarée dans PRO_ROUTES mais aucune page ne la sert — soit la route a été supprimée sans nettoyer la liste, soit elle a été renommée.`);

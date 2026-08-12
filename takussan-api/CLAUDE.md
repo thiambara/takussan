@@ -62,11 +62,13 @@ tenable côté front.
 
 ## Modèles — `AbstractModel`
 
-`app/Models/Bases/AbstractModel.php` = `Model` + `BaseModelTrait` + `HasQueryBuilder`. **67 modèles
-sur 70 l'étendent.** Les trois exceptions : `User` (extends `Authenticatable`),
-`ConversationParticipant` (extends `Pivot`) — et `NotificationPreference`, qui étend `Model` **sans
-justification** et perd donc tout le pipeline. C'est le seul écart non documenté ; ne pas le prendre
-pour un précédent.
+`app/Models/Bases/AbstractModel.php` = `Model` + `BaseModelTrait` + `HasQueryBuilder`. **68 modèles
+sur 70 l'étendent.** Les deux exceptions sont justifiées par leur classe parente : `User` (extends
+`Authenticatable`) et `ConversationParticipant` (extends `Pivot`).
+
+Il y en avait une troisième — `NotificationPreference` étendait `Model` **sans justification**, et
+perdait donc tout le pipeline. Elle a été ramenée sur `AbstractModel`. Un écart non documenté ne
+reste pas un écart : le suivant le lit comme un précédent.
 
 Les enums vivent dans **`app/Models/Enums/`** (72 fichiers) — il n'existe **pas** de `app/Enums/`.
 
@@ -102,10 +104,10 @@ encore. La Gate dérive l'agence dans l'ordre : 2ᵉ argument de `can()` → `re
 `Gate::before(… isSuperAdmin() ? true : null)` est le bypass global, enregistré une seule fois
 (`AppServiceProvider.php:362`).
 
-> ⚠️ **Des docblocks mentent encore.** `HasProfiles` se décrit comme « Sister trait of HasRoles
-> (spatie) », `LeasePolicy` parle d'une « permission `leases.renew` (Spatie) », et `bootstrap/app.php`
-> présente `ResolveActiveProfile` comme « sole owner of the spatie team context ». Le package n'existe
-> plus. Ne pas croire ces commentaires.
+> ℹ️ **Les trois docblocks qui décrivaient encore spatie ont été corrigés** — `HasProfiles`
+> (« Sister trait of HasRoles »), `LeasePolicy` (« permission `leases.renew` (Spatie) ») et
+> `bootstrap/app.php` (« sole owner of the spatie team context »). Le package n'existe plus depuis
+> TCK-278 ; si un commentaire le mentionne encore ailleurs, il décrit un mécanisme supprimé.
 
 > ⚠️ **`BasePolicy` est partiellement mort par construction** : ses abilities `{resource}.view` et
 > `{resource}.update` ne correspondent à **aucun** cas de `Capability` (il n'existe que
@@ -254,8 +256,11 @@ un incident qui n'arrive qu'en production.
 > `tests/ApiTestCase.php` — sans qu'aucun document ne dise laquelle choisir. Pour un test d'API,
 > `ApiTestCase`.
 
-> ⚠️ Les tests locaux écrivent dans l'index Meilisearch **réel** du développeur : `phpunit.xml` ne
-> définit ni `MEILISEARCH_HOST`, ni `SCOUT_PREFIX`. Aucune isolation (dette D-08).
+> ⚠️ Les tests visent l'instance Meilisearch **réelle** du développeur : `phpunit.xml` ne définit
+> pas `MEILISEARCH_HOST`, donc c'est celui du `.env` qui sert. Ils n'en écrasent plus les index —
+> `SCOUT_PREFIX=testing_` y a été ajouté, et `api-ci.yml` l'aligne sur ses deux étapes Scout — mais
+> l'isolation s'arrête au nom des index : deux suites lancées en parallèle sur la même instance se
+> marchent toujours dessus (dette D-08).
 
 ## Style
 

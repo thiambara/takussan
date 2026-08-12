@@ -41,20 +41,45 @@ const CONSOMMATEURS = [
 ];
 
 /* ── 1. les files que le CODE pousse ─────────────────────────────────────── */
-// Les QUATRE écritures possibles. Le commentaire d'origine en annonçait trois et le tableau
+// Les écritures possibles. Le commentaire d'origine en annonçait trois et le tableau
 // n'en implémentait que deux : une garde qui documente plus qu'elle ne mesure laisse passer
 // exactement ce qu'elle prétend couvrir. `protected $queue` — la forme la plus courante après
 // `onQueue()` — n'était dans ni l'un ni l'autre.
-//   ->onQueue('x')                      · sur un job dispatché
-//   public|protected $queue = 'x';      · propriété de classe
-//   'queue' => 'x'                      · dans une config de dispatch
+//   ->onQueue('x') · Queue::pushOn('x')  · nom littéral au point de dispatch
+//   public|protected $queue = 'x';       · propriété de classe
+//   'queue' => 'x'                       · dans une config de dispatch
 const MOTIFS = [
   /->onQueue\(\s*['"]([a-z0-9_-]+)['"]\s*\)/g,
+  // `Queue::pushOn('x', $job)` / `->pushOn('x', …)` — la façade prend la file en PREMIER.
+  /::pushOn\(\s*['"]([a-z0-9_-]+)['"]/g,
   /(?:public|protected|private)\s+(?:readonly\s+)?\$queue\s*=\s*['"]([a-z0-9_-]+)['"]/g,
-  /['"]queue['"]\s*=>\s*['"]([a-z0-9_-]+)['"]/g,
+  // ⚠ RESSERRÉ. Ce motif balayait tout `app/**.php` : n'importe quel tableau de configuration
+  // portant une clé `queue` — `'queue' => 'sync'` dans un service, un tableau de valeurs par
+  // défaut, un payload de test — était compté comme une file poussée, et faisait rougir Repo CI
+  // jusqu'à ce qu'on ajoute une file FANTÔME aux deux `--queue=`. Une garde qui exige qu'on
+  // consomme une file inexistante enseigne à la contourner.
+  //
+  // On ne le retient donc que sur les lignes où la clé cohabite avec un dispatch — c'est là, et
+  // là seulement, qu'elle désigne une file.
+  { motif: /['"]queue['"]\s*=>\s*['"]([a-z0-9_-]+)['"]/g, ligneDoitContenir: /dispatch|Queue::|->onQueue|Bus::/ },
 ];
 
+/**
+ * Les files nommées par une CONSTANTE ou une variable, que rien ci-dessus ne peut lire.
+ *
+ * `->onQueue(self::QUEUE)` et `->onQueue($file)` sont des dispatchs parfaitement valides dont le
+ * nom de file n'est pas dans l'expression. La version précédente les ignorait en silence : le
+ * défaut même que cette garde existe pour empêcher — une file poussée que personne ne consomme —
+ * se réintroduisait donc en une ligne, la garde restant verte.
+ *
+ * On ne peut pas résoudre la constante sans interpréter du PHP. On refuse donc de conclure : la
+ * garde SIGNALE le site et demande une lecture humaine, au lieu de rendre « rien à déclarer ».
+ * *Une garde qui ne sait pas doit le dire, jamais rendre « non ».*
+ */
+const OPAQUE = /->onQueue\(\s*(?!['"])([^)]+)\)|::pushOn\(\s*(?!['"])([^,)]+)/g;
+
 const poussees = new Map(); // file → [chemins]
+const opaques = []; // [chemin, expression]
 function balayer(dir) {
   for (const entree of readdirSync(dir)) {
     const chemin = join(dir, entree);
@@ -64,12 +89,21 @@ function balayer(dir) {
     }
     if (!entree.endsWith('.php')) continue;
     const txt = readFileSync(chemin, 'utf8');
-    for (const motif of MOTIFS) {
+    const rel = chemin.slice(ROOT.length + 1);
+    for (const brut of MOTIFS) {
+      const motif = brut.motif ?? brut;
       for (const m of txt.matchAll(motif)) {
-        const rel = chemin.slice(ROOT.length + 1);
+        if (brut.ligneDoitContenir) {
+          const debut = txt.lastIndexOf('\n', m.index) + 1;
+          const fin = txt.indexOf('\n', m.index);
+          if (!brut.ligneDoitContenir.test(txt.slice(debut, fin === -1 ? undefined : fin))) continue;
+        }
         if (!poussees.has(m[1])) poussees.set(m[1], []);
         if (!poussees.get(m[1]).includes(rel)) poussees.get(m[1]).push(rel);
       }
+    }
+    for (const m of txt.matchAll(OPAQUE)) {
+      opaques.push([rel, (m[1] ?? m[2]).trim()]);
     }
   }
 }
@@ -122,11 +156,25 @@ if (REPORT) {
     console.log(`\nFiles consommées — ${c.ou} (${c.files.size}, dans l'ordre de priorité) :`);
     console.log(`  ${[...c.files].join(' › ')}`);
   }
+  if (opaques.length) {
+    console.log(`\nFiles nommées par une expression (${opaques.length}) — non lisibles ici :`);
+    for (const [f, expr] of opaques) console.log(`  ${expr.padEnd(28)} ${f}`);
+  }
   console.log();
 }
 
 for (const q of inutiles) {
   console.warn(`⚠ la production consomme la file \`${q}\`, qu'aucun job n'alimente plus.`);
+}
+
+// Les dispatchs dont la file n'est pas un littéral : la garde ne peut pas les résoudre, et le
+// silence serait un « rien à déclarer » mensonger. On les nomme, sans faire échouer — un
+// avertissement qu'on lit vaut mieux qu'une erreur qu'on apprend à contourner.
+for (const [f, expr] of opaques) {
+  console.warn(
+    `⚠ ${f} pousse sur une file nommée par une expression (\`${expr}\`) : cette garde ne peut pas\n`
+    + `  la résoudre. Vérifie À LA MAIN qu'elle figure dans le \`--queue=\` des ${CONSOMMATEURS.length} consommateurs.`
+  );
 }
 
 if (orphelines.length === 0) {

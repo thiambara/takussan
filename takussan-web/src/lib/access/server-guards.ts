@@ -14,18 +14,25 @@ import type { User } from '@/types/user';
  * cross-tenant console regardless of any single agency's kind.
  */
 export async function ensureStandardAgencyOrRedirect(user: User): Promise<void> {
+  // La SEULE sortie sans décision, et elle est délibérée : sans `agency_id`, il n'y a pas
+  // d'agence dont juger le `kind` (super-admin hors contexte de tenant, cf. docblock).
   if (typeof user.agency_id !== 'number') return;
+
+  // FAIL-CLOSED de bout en bout — et il a fallu QUATRE revues pour que ce soit vrai.
+  //
+  // 1. `fetchAgency` avale son erreur en `null` : `if (agency && …)` laissait s'afficher la
+  //    console Standard-only à une agence `individual` dès que l'API toussait.
+  // 2. Corrigé dans les pages qui écrivent le test en ligne, mais pas ici — l'instance, pas la
+  //    classe. Ce site-ci est le plus important : il garde CINQ routes /admin/*.
+  // 3. Corrigé ici aussi… en laissant un `if (!token) return;` juste au-dessus. La même porte,
+  //    un cran plus haut : sans jeton, la décision n'était pas *prise*, elle était *sautée*.
+  //
+  // D'où la forme retenue, la même que dans les quatre pages sœurs : le jeton descend DANS
+  // l'expression, il ne commande pas une sortie anticipée. Une seule condition, un seul refus,
+  // aucun chemin qui contourne le `redirect`.
+  //
+  // *Un écran réservé se refuse quand on ne SAIT PAS, pas seulement quand on sait que non.*
   const token = await getToken();
-  if (!token) return;
-  const agency = await fetchAgency(token, user.agency_id).catch(() => null);
-  // FAIL-CLOSED : `!agency` redirige AUSSI.
-  //
-  // `fetchAgency` avale son erreur en `null`. Avec `if (agency && …)`, une API en panne ou
-  // lente laissait donc s'afficher la console Standard-only à une agence `individual` — sur
-  // les CINQ routes /admin/* qui passent par ce helper.
-  //
-  // Le même défaut avait été corrigé dans trois pages qui écrivent le test en ligne, et pas
-  // ici : on avait réparé les instances et pas la classe. C'est le site le plus important des
-  // deux, puisqu'il est partagé.
+  const agency = token ? await fetchAgency(token, user.agency_id).catch(() => null) : null;
   if (!agency || agency.kind !== 'standard') redirect('/app');
 }

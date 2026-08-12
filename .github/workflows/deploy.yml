@@ -63,16 +63,26 @@ jobs:
         #
         # La liste est volontairement courte : les branches d'intégration du dépôt. Déployer
         # autre chose reste possible — en éditant ce fichier, donc en le disant.
+        #
+        # `preview` en a été RETIRÉE. Elle y figurait par symétrie avec les autres branches
+        # longues, mais tout ce qui suit ici est codé en dur sur la production — le chemin
+        # `/var/www/takussan`, l'hôte `api.takussan.com`, et surtout le `migrate --force` du
+        # script de déploiement. Proposer `preview` dans une liste dont le rôle affiché est de
+        # BORNER le risque revenait à présenter comme vérifié le seul choix qui déploie la
+        # branche d'un environnement sur la base de l'autre. Une allowlist ne se lit pas comme
+        # une contrainte : elle se lit comme une recommandation.
         run: |
           echo "Branche déployée : ${DEPLOY_BRANCH}"
           echo "Cible            : /var/www/takussan (api.takussan.com)"
           echo "Déclencheur      : ${{ github.event_name }}"
           case "${DEPLOY_BRANCH}" in
-            master|dev|preview) ;;
+            master|dev) ;;
             *)
               echo "::error::Branche '${DEPLOY_BRANCH}' non autorisée en production."
-              echo "Autorisées : master, dev, preview. Un déploiement lance 'migrate --force'"
-              echo "sur la base de production : la branche déployée ne se saisit pas librement."
+              echo "Autorisées : master, dev. Un déploiement lance 'migrate --force' sur la base"
+              echo "de PRODUCTION : la branche déployée ne se saisit pas librement, et 'preview'"
+              echo "en particulier vise un autre environnement — la déployer ici migrerait la"
+              echo "base de production avec le schéma de la préproduction."
               exit 1
               ;;
           esac

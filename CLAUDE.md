@@ -26,15 +26,25 @@ Ce qui existe réellement, compté :
 | Code | 769 fichiers PHP · 62 033 lignes dans `app/` | 875 fichiers `.ts`/`.tsx` dans `src/` |
 | Surface | 535 routes sur 43 fichiers · 161 contrôleurs · 70 modèles | 111 pages · 31 route handlers BFF · 20 modules de server actions |
 | Données | 124 migrations · 38 factories · 11 seeders | — |
-| Tests | 307 fichiers · **2052 tests verts** | 142 fichiers · **802 tests verts** |
+| Tests | 307 fichiers · **2056 tests verts** | 143 fichiers · **807 tests verts** |
 
-**Le backlog est vidé, pas en cours.** Sur 265 tickets : **255 `done`**, 3 `doing`, 3 `todo`,
-2 `review`, 1 `blocked`, 1 `obsolete`. Les seuls tickets réellement ouverts sont **TCK-246**
-(composants de feedback), **TCK-247** (discovery homepage) et **TCK-272** (`has_usable_password`) ;
-**TCK-278** (RBAC) et **TCK-281** (recherche interne) vivent sur des branches non mergées.
+**Le backlog est vidé, pas en cours** — l'écrasante majorité des tickets est `done`, et la poignée
+qui reste ouverte tient sur un écran. **Le compte exact ne s'écrit pas ici** :
+
+```bash
+node docs/backlog/check-backlog.mjs --report   # compte par statut + la liste des ouverts
+```
+
+Une version de ce paragraphe donnait les chiffres en toutes lettres. Elle était **fausse dans le
+commit qui l'introduisait** — elle annonçait 265 tickets et 3 `todo` quand la commande ci-dessus en
+comptait 270 et 7, les cinq manquants étant ceux que ce même commit ajoutait. C'est exactement le
+défaut que ce fichier existe pour ne plus commettre, un cran plus bas : *un compte recopié à la main
+est faux dès qu'on ajoute un ticket, et il est faux avec l'autorité d'un document d'entrée.* Un
+agent qui suit la convention « prendre le premier ticket de Todo » sur une liste amputée travaille
+sur la mauvaise tâche sans jamais l'apprendre.
 
 **Ce qui est vert, et depuis quand.** Au 2026-08-12, après le chantier de reprise : backend Pint
-propre et 2052 tests verts ; frontend ESLint 0 erreur, `tsc --noEmit` propre, 802 tests verts. Les
+propre et 2056 tests verts ; frontend ESLint 0 erreur, `tsc --noEmit` propre, 807 tests verts. Les
 trois régressions qui vivaient sur `dev` — une violation Pint qui **bloquait toute la CI depuis le
 2026-06-29** (Pint tourne *avant* les tests : la suite entière n'a pas été exécutée en CI pendant six
 semaines), une erreur TypeScript et une erreur ESLint bloquante côté front — sont corrigées.
@@ -55,7 +65,7 @@ depuis le code. **La lire avant de planifier quoi que ce soit.**
 `takussan-api/` :
 
 ```bash
-php artisan test                    # 2052 tests — exige une instance Meilisearch (cf. D-08)
+php artisan test                    # 2056 tests — exige une instance Meilisearch (cf. D-08)
 php artisan test --filter=Foo
 ./vendor/bin/pint                   # ← AVANT CHAQUE COMMIT. Rien ne l'impose : c'est une
                                     #   violation d'un seul fichier qui a cassé la CI six semaines.
@@ -103,11 +113,21 @@ absent ne produit aucune erreur lisible — l'API démarre, et c'est la premièr
 
 ## Workflow git
 
-**`dev` est la branche d'intégration.** Toutes les PR la ciblent — 7 des 10 dernières PR mergées, et
-plus de 24 au total. `master` est mentionné comme branche principale par la configuration du dépôt,
-mais il est **figé au 2026-05-18, 31 commits derrière `dev`**. Or `deploy.yml` ne déclenche la
-production que sur un push vers `master` : **la production ne reçoit plus rien depuis trois mois**, et
-rien dans le dépôt ne le signale (dette D-04).
+**`dev` est la branche d'intégration**, et c'est désormais aussi la branche par défaut du dépôt.
+Toutes les PR la ciblent — 7 des 10 dernières mergées, plus de 24 au total. `master` est **figé au
+2026-05-18, 31 commits derrière `dev`**, et ne contient même pas la chaîne de déploiement.
+
+**La production n'a jamais été déployée.** Pas « plus depuis trois mois » — *jamais* : `deploy.yml`
+ne se déclenchait que sur un push vers `master`, et `gh run list` montre qu'il n'a **pas tourné une
+seule fois**. `api.takussan.com/up` rend 404 quand `preview.api.takussan.com/up` rend 200, sur le
+même serveur (dette D-04, TCK-288).
+
+> Une version de ce paragraphe écrivait « la production ne reçoit plus rien depuis trois mois ».
+> Elle avait été déduite de la **configuration** du workflow, pas de son historique d'exécution :
+> le YAML dit ce qui *devrait* se produire, `gh run list` dit ce qui *s'est* produit. La différence
+> entre « le déploiement s'est arrêté » et « le déploiement n'a jamais commencé » change tout ce
+> qu'on croit savoir de l'état du serveur. **Ne jamais déduire l'état d'un environnement de la
+> configuration qui le vise.**
 
 Messages de commit en français, préfixés du type conventionnel, citant le ticket quand il y en a un
 (`feat(api): … (TCK-280)`). Ne jamais merger ni pousser sans demande explicite.

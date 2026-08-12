@@ -135,7 +135,16 @@ if [ "$VISE_DOCKER" = "0" ] && [ -n "${TAKUSSAN_DB_PORT:-}" ] && [ -n "$DB_PORT_
   exit 78
 fi
 
-if [ "$VISE_DOCKER" = "1" ] || [ "$MODE" = "services" ]; then
+# `doctor` est EXCLU, et l'oubli n'était pas anodin.
+#
+# L'en-tête et l'usage promettent tous deux « ne lance rien : diagnostique et sort ». Sans cette
+# condition, `doctor` tombait dans la branche ci-dessous, démarrait quatre conteneurs, puis
+# attendait leur santé — et sortait en 75 si l'un d'eux ne venait pas, AVANT d'avoir imprimé la
+# moindre ligne de diagnostic. Le seul mode dont le contrat est de toujours produire une réponse
+# était celui qui pouvait n'en produire aucune, exactement dans le cas où on l'appelle.
+#
+# Un mode « diagnostic » qui modifie l'état qu'il observe n'est pas un diagnostic.
+if [ "$MODE" != "doctor" ] && { [ "$VISE_DOCKER" = "1" ] || [ "$MODE" = "services" ]; }; then
   bold "▸ Services docker (MariaDB, Meilisearch, Redis, Mailpit)"
   docker compose -f "$ROOT/docker-compose.yml" up -d
 
@@ -162,6 +171,23 @@ if [ "$VISE_DOCKER" = "1" ] || [ "$MODE" = "services" ]; then
     echo "     'docker compose logs --tail=40' dira lequel bloque." >&2
     echo "     Une première création du volume MariaDB peut dépasser ce délai : relancer suffit." >&2
     exit 75
+  fi
+elif [ "$MODE" = "doctor" ] && [ "$VISE_DOCKER" = "1" ]; then
+  # Le `.env` vise bien les conteneurs — on REGARDE leur état sans y toucher. Sans cette
+  # branche, `doctor` tombait dans le `else` ci-dessous et affirmait que le `.env` visait des
+  # services externes : un diagnostic qui se trompe est pire qu'un diagnostic absent.
+  bold "▸ Services docker (observés, pas démarrés — 'doctor' ne lance rien)"
+  etats="$(docker compose -f "$ROOT/docker-compose.yml" ps --format '{{.Service}} {{.State}} {{.Health}}' 2>/dev/null || true)"
+  if [ -z "$etats" ]; then
+    ko "aucun conteneur du dépôt n'est démarré — './dev.sh services' les lève"
+  else
+    printf '%s\n' "$etats" | while IFS= read -r ligne; do
+      case "$ligne" in
+        *healthy*) [ "${ligne#*unhealthy}" = "$ligne" ] && ok "$ligne" || ko "$ligne" ;;
+        *running*) avert "$ligne (pas encore healthy)" ;;
+        *) ko "$ligne" ;;
+      esac
+    done
   fi
 else
   bold "▸ Services"
@@ -218,6 +244,16 @@ fi
 
 if [ "$(env_get "$API/.env" CACHE_STORE)" = "redis" ] || [ "$(env_get "$API/.env" QUEUE_CONNECTION)" = "redis" ]; then
   sonde_tcp "Redis" "$(env_get "$API/.env" REDIS_HOST)" "$(env_get "$API/.env" REDIS_PORT)"
+elif [ "$VISE_DOCKER" = "1" ]; then
+  # Le compose démarre Redis, mais `.env.docker` s'aligne sur la production, qui est en
+  # `database`. Aucun driver ne s'y connecte donc — et sans cette branche, personne ne
+  # l'apprenait : le conteneur tournait, la sonde était sautée, et le service passait pour
+  # « en service » parce qu'il était « démarré ». Ce sont deux choses différentes, et c'est
+  # précisément la confusion que ce script existe pour dissiper.
+  sonde_tcp "Redis" "$(env_get "$API/.env" REDIS_HOST)" "$(env_get "$API/.env" REDIS_PORT)"
+  avert "  … mais CACHE_STORE=$(env_get "$API/.env" CACHE_STORE) et QUEUE_CONNECTION=$(env_get "$API/.env" QUEUE_CONNECTION) :"
+  avert "  aucun driver ne consomme Redis. Il est là pour rendre servable le \`CACHE_STORE=redis\`"
+  avert "  de .env.example, et pour le jour où la production bascule."
 fi
 
 if [ "$(env_get "$API/.env" MAIL_MAILER)" = "smtp" ]; then
