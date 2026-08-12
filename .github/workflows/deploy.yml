@@ -55,7 +55,17 @@ jobs:
 
     steps:
       - name: Checkout code
+        # `ref:` EXPLICITE. Sans lui, `checkout` prend la branche d'où le dispatch est parti —
+        # pas celle qu'on déploie. Le `scp` ci-dessous embarque `scripts/deploy.sh` de CETTE
+        # copie, tandis que le `ssh` déploie `$DEPLOY_BRANCH` : un dispatch depuis `dev` avec
+        # `branch: master` (les deux sont dans l'allowlist) faisait tourner le script de
+        # déploiement de `dev` — celui que cette PR vient justement de modifier — contre le code
+        # applicatif de `master`, et réciproquement.
+        #
+        # *Le script qui déploie et le code qu'il déploie doivent venir du même commit.*
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_BRANCH }}
 
       - name: Ce qui va être déployé — et refus d'une branche non prévue
         # L'entrée `branch` remplace un `master` codé en dur : elle rend le déclenchement manuel

@@ -129,23 +129,29 @@ rm -rf "${RELEASE_DIR}/takussan-api/storage"
 ln -sfn "${SHARED_DIR}/storage" "${RELEASE_DIR}/takussan-api/storage"
 
 # ─── Step 4: Composer install ────────────────────────────────────────────────
-log "Installing Composer dependencies..."
 cd "${RELEASE_DIR}/takussan-api"
-composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 
-# Vérifie les prérequis de plateforme contre l'interpréteur RÉELLEMENT présent.
+# Vérifie les prérequis de plateforme contre l'interpréteur RÉELLEMENT présent — AVANT
+# d'installer quoi que ce soit, et l'ordre est tout l'intérêt.
 #
 # `composer.json` pose `config.platform.php = 8.4.1` pour que la résolution vise la version de
 # production, quelle que soit celle du poste où l'on fait un `composer update`. Effet de bord :
 # `composer install` valide alors le lock contre ce PHP *synthétique*, et cesse de regarder
 # celui de la machine. Sur un serveur resté en 8.3, l'installation réussirait donc, écrirait un
-# vendor 8.4-only, et la ligne suivante (`php artisan migrate`) fatalerait sur de la syntaxe
-# 8.4 au milieu d'une dépendance — en plein déploiement, release déjà peuplée.
+# vendor 8.4-only, et `php artisan migrate` fatalerait sur de la syntaxe 8.4 au milieu d'une
+# dépendance — en plein déploiement, release déjà peuplée.
 #
 # `check-platform-reqs` ignore l'override et compare aux extensions et à la version réelles.
-# On récupère ainsi le refus clair et EN AMONT que le `platform` nous avait fait perdre.
+# Il lit le `composer.lock` quand `vendor/` n'existe pas encore : on peut donc le placer AVANT
+# `composer install`, et c'est là qu'il doit être. Une revue a relevé qu'il tournait juste
+# après — le commentaire promettait « le refus EN AMONT » pendant que le vendor 8.4-only était
+# déjà écrit dans la nouvelle release. *Une vérification préalable placée après ce qu'elle
+# prévient n'est plus une vérification préalable : c'est un constat.*
 log "Checking platform requirements against the real PHP..."
 composer check-platform-reqs --no-dev
+
+log "Installing Composer dependencies..."
+composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 
 # ─── Step 5: Build Vite assets (admin views) ────────────────────────────────
 log "Installing npm dependencies..."

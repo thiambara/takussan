@@ -126,7 +126,11 @@ services:
       retries: 10
 
   mailpit:
-    image: axllent/mailpit:latest
+    # ÉPINGLÉ, comme les trois autres. C'était le seul `latest` d'un fichier qui fige MariaDB à
+    # 11.4, Meilisearch à v1.16 et Redis à 8 — et dont l'en-tête soutient qu'une version doit
+    # bouger de concert avec la CI et le lock. Un `latest` qui glisse sous le développeur change
+    # en silence le seul service dont le rôle est de RENDRE VISIBLE ce que le système produit.
+    image: axllent/mailpit:v1.30.3
     ports:
       # 1026/8026 et non 1025/8025 : cf. la note PORTS de l'en-tête.
       - '127.0.0.1:${TAKUSSAN_MAILPIT_SMTP_PORT:-1026}:1025' # SMTP — MAIL_PORT côté Laravel

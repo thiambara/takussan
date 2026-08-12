@@ -90,6 +90,21 @@ if ! docker info >/dev/null 2>&1; then
 fi
 [ "$manquants" -eq 0 ] || exit 69
 
+# ───────────────────────────────────────────────────────────── dépendances PHP
+# AVANT toute commande `artisan`, et c'est l'ordre qui compte.
+#
+# Ce bloc vivait 230 lignes plus bas, après le `key:generate` du premier démarrage. Sur un clone
+# neuf — le cas EXACT pour lequel ce bloc de premier démarrage a été écrit — `vendor/autoload.php`
+# n'existe pas : `artisan` meurt sur un `require` PHP, `set -euo pipefail` tue le script, et
+# `./dev.sh doctor` meurt à la même ligne, sur la checkout la plus fraîche possible.
+#
+# *Le chemin qu'on emprunte une seule fois est celui que personne ne rejoue — et donc celui où
+# un défaut d'ordonnancement vit le plus longtemps.*
+if [ ! -d "$API/vendor" ]; then
+  bold "▸ composer install"
+  (cd "$API" && composer install --no-interaction)
+fi
+
 # ───────────────────────────────────────────────────────────── .env
 if [ ! -f "$API/.env" ]; then
   bold "▸ Premier démarrage — création de takussan-api/.env"
@@ -173,7 +188,15 @@ if [ "$MODE" != "doctor" ] && { [ "$VISE_DOCKER" = "1" ] || [ "$MODE" = "service
   # une base qui pouvait être justement celle qui manquait.
   #
   # *Une garde qui conclut par défaut atteste de ce qu'elle n'a pas vu, pas de ce qu'elle a vu.*
-  ATTENDUS=$(docker compose -f "$ROOT/docker-compose.yml" config --services 2>/dev/null | grep -c . || echo 4)
+  # ⚠ `|| echo 4` ne marche PAS ici, et c'était le correctif de la revue précédente.
+  # `grep -c .` sur une entrée vide imprime `0` **et** sort en 1 : le `||` s'ajoute au lieu de
+  # se substituer, et `ATTENDUS` valait la chaîne de trois caractères "0\n4". Chaque tour de
+  # boucle mourait alors sur « integer expression expected », les 120 s s'écoulaient, et le
+  # script sortait en 75 en annonçant « 0/0\n4 sains ». Le repli ne pouvait jamais s'appliquer.
+  #
+  # *Un `|| valeur-de-repli` ne remplace la sortie que si la commande n'a rien imprimé.*
+  ATTENDUS=$(docker compose -f "$ROOT/docker-compose.yml" config --services 2>/dev/null | grep -c . || true)
+  case "$ATTENDUS" in ''|*[!0-9]*|0) ATTENDUS=4 ;; esac
   printf '  attente de la santé des %s services' "$ATTENDUS"
   SANTE_OK=0
   for _ in $(seq 1 60); do
@@ -327,12 +350,6 @@ if [ "$MODE" = "doctor" ]; then
   exit 0
 fi
 
-# ───────────────────────────────────────────────────────────── dépendances
-if [ ! -d "$API/vendor" ]; then
-  bold "▸ composer install"
-  (cd "$API" && composer install --no-interaction)
-fi
-
 # La condition porte sur l'ÉTAT DE LA BASE, pas sur l'existence du `.env`.
 #
 # Elle portait sur `PREMIER_DEMARRAGE`, qui vaut 1 uniquement quand `.env` n'existait pas — et
@@ -348,9 +365,28 @@ BASE_VIERGE=0
 if ! (cd "$API" && php artisan migrate:status >/dev/null 2>&1); then
   # Pas de table `migrations` du tout : base neuve, ou jamais migrée.
   BASE_VIERGE=1
-elif [ "$(cd "$API" && php artisan tinker --execute='echo \App\Models\User::count();' 2>/dev/null | tr -dc '0-9')" = "0" ]; then
+else
   # Migrée mais sans aucun utilisateur : un `--seed` interrompu laisse exactement cet état.
-  BASE_VIERGE=1
+  #
+  # FAIL-CLOSED, et la version précédente ne l'était pas. Elle comparait
+  # `tinker … | tr -dc '0-9'` à `"0"` : n'importe quel chiffre parasite dans la sortie — une
+  # dépréciation, une bannière PsySH — ou n'importe quel échec de la commande rendait autre
+  # chose que `"0"`, donc « base peuplée », donc pas de seed. Le développeur obtenait une
+  # application qui tourne sur une base vide, sans un mot. C'est le défaut que le commentaire
+  # au-dessus prétendait fermer.
+  #
+  # On isole donc la DERNIÈRE ligne (`tinker` peut préluder), on exige qu'elle soit un entier,
+  # et **on tient l'échec de la commande pour « vierge »** — se tromper vers un `migrate --seed`
+  # de trop coûte des minutes ; se tromper vers l'absence de seed coûte une session de débogage
+  # sur une base vide. Le `2>&1` remplace le `2>/dev/null` : quand ça casse, on veut savoir.
+  compte="$(cd "$API" && php artisan tinker --execute='echo \App\Models\User::count();' 2>&1 | tail -1 | tr -dc '0-9')"
+  # Après `tr -dc '0-9'`, `$compte` ne peut être qu'une suite de chiffres ou la chaîne vide.
+  if [ -z "$compte" ]; then
+    avert "impossible de compter les utilisateurs — on suppose la base vierge et on sème."
+    BASE_VIERGE=1
+  elif [ "$compte" -eq 0 ]; then
+    BASE_VIERGE=1
+  fi
 fi
 
 if [ "$BASE_VIERGE" = "1" ]; then
