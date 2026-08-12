@@ -162,12 +162,9 @@ Règles complètes : `docs/design-guidelines.md`.
 — `staleTime` 5 min, `gcTime` 30 min, **pas de retry sur 4xx** (via `instanceof ApiError`), mutations
 sans retry. `QueryProvider` instancie un client par session via `useState`.
 
-**3 contexts React seulement** — `AuthContext`, `CompareContext`, `NotificationContext`. Le reste de
+**2 contexts React seulement** — `AuthContext` et `CompareContext`. Le reste de
 l'état partagé passe par TanStack Query ou par des stores localStorage maison :
 `favoritesStore.ts`, `recently-viewed.ts`, `wizard-drafts.ts`, `compare.ts`.
-
-> ⚠️ `NotificationContext` est **du code mort** : le provider n'est monté nulle part et
-> `useNotifications()` lève hors provider — 0 site d'appel dans tout le dépôt.
 
 ## Formulaires
 
@@ -222,8 +219,6 @@ Une seule variable applicative : **`NEXT_PUBLIC_API_URL`** (39 lectures), plus `
 
 - `README.md` est resté le **template create-next-app par défaut** (Geist, Vercel, « editing
   app/page.tsx ») — zéro information Takussan.
-- `src/data/mockData.ts` (10 Ko, « mock » dans le nom) est importé par **deux composants de
-  production** : `Navbar` (navLinks, categories) et `Footer` (footerLinks).
-- 4 hooks stubs annoncent « TODO: implement when X API is ready » alors que les modules
-  correspondants sont implémentés : `useLeases.ts`, `useMessages.ts`, `usePayments.ts`,
-  `useMaintenance.ts`.
+- Les constantes de navigation vivent dans `src/data/navigation.ts` — **pas** dans un fichier
+  nommé « mock ». Elles y étaient, mêlées à ~300 lignes d'annonces factices sans usage, et un
+  nom pareil finit par faire supprimer par mégarde des données que la production consomme.

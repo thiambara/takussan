@@ -66,7 +66,7 @@ port_libre() {
 
 # ───────────────────────────────────────────────────────────── prérequis
 manquants=0
-for outil in docker php composer node; do
+for outil in docker php composer node nc; do
   command -v "$outil" >/dev/null 2>&1 || { ko "$outil est introuvable dans le PATH"; manquants=1; }
 done
 if ! docker info >/dev/null 2>&1; then
@@ -114,6 +114,24 @@ MEILI_HOST_ENV="$(env_get "$API/.env" MEILISEARCH_HOST)"
 VISE_DOCKER=0
 if [ "$DB_PORT_ENV" = "${TAKUSSAN_DB_PORT:-3307}" ]; then VISE_DOCKER=1; fi
 
+# Un `.env` de racine qui SURCHARGE un port est une intention explicite de viser les conteneurs.
+# S'il désaccorde avec `takussan-api/.env`, c'est une faute de frappe, pas un choix — et la faire
+# basculer silencieusement en mode « services externes » est le pire des traitements : aucun
+# conteneur n'est démarré, un seul avertissement passe, puis `migrate` meurt sur une connexion
+# refusée sans que le désaccord soit jamais nommé.
+#
+# `takussan-api/.env.docker` et `docker-compose.yml` promettent tous deux que « ./dev.sh le
+# vérifie et refuse de démarrer sur un désaccord ». Cette promesse n'était tenue par rien.
+if [ "$VISE_DOCKER" = "0" ] && [ -n "${TAKUSSAN_DB_PORT:-}" ] && [ -n "$DB_PORT_ENV" ]; then
+  bold "▸ Ports incohérents"
+  ko "le .env de la racine publie MariaDB sur ${TAKUSSAN_DB_PORT}, takussan-api/.env lit DB_PORT=${DB_PORT_ENV}."
+  echo "     Le .env de la racine surcharge un port du compose : c'est une intention de viser" >&2
+  echo "     les conteneurs. Aligne DB_PORT dans takussan-api/.env, ou retire la surcharge." >&2
+  echo "     (Sans ce refus, aucun conteneur n'aurait été démarré et 'migrate' serait mort sur" >&2
+  echo "      une connexion refusée, sans que le désaccord soit jamais nommé.)" >&2
+  exit 78
+fi
+
 if [ "$VISE_DOCKER" = "1" ] || [ "$MODE" = "services" ]; then
   bold "▸ Services docker (MariaDB, Meilisearch, Redis, Mailpit)"
   docker compose -f "$ROOT/docker-compose.yml" up -d
@@ -158,7 +176,12 @@ NB_INJOIGNABLES=0
 sonde_tcp() {
   local libelle="$1" hote="$2" port="$3"
   [ -n "$port" ] || return 0
-  if nc -z -G 2 "$hote" "$port" >/dev/null 2>&1; then
+  # `-w` et non `-G` : `-G conntimeout` est un drapeau BSD/macOS. Sur Linux (netcat-openbsd),
+  # nc rend une erreur d'usage — avalée par le 2>/dev/null — donc CHAQUE sonde échouait et un
+  # environnement parfaitement sain était déclaré injoignable. Le développeur partait déboguer
+  # ce qui marchait : exactement la cause mal imputée que ce bloc existe pour supprimer.
+  # `-w` existe dans les deux implémentations.
+  if nc -z -w 2 "$hote" "$port" >/dev/null 2>&1; then
     ok "$libelle répond sur $hote:$port"
   else
     ko "$libelle NE RÉPOND PAS sur $hote:$port (déclaré dans takussan-api/.env)"

@@ -84,10 +84,16 @@ jobs:
           echo "::error::Meilisearch did not become healthy in time."; exit 1
 
       - name: Sync Meilisearch index settings
+        # SCOUT_PREFIX doit valoir CE QUE LA SUITE UTILISE. `phpunit.xml` force `testing_`, donc
+        # `searchableAs()` rend `testing_properties` en test ; sans ce préfixe ici, cette étape
+        # configurait `properties` — un index qu'aucun test ne lit. La garde poussait des
+        # réglages dans le vide, et le premier test filtrant écrit sans le trait d'amorçage
+        # échouerait sur « Attribute `status` is not filterable », en accusant le code.
         env:
           SCOUT_DRIVER: meilisearch
           MEILISEARCH_HOST: http://127.0.0.1:7700
           MEILISEARCH_KEY: masterKey
+          SCOUT_PREFIX: testing_
         run: php artisan scout:sync-index-settings
 
       - name: Run tests
@@ -97,6 +103,8 @@ jobs:
           SCOUT_DRIVER: meilisearch
           MEILISEARCH_HOST: http://127.0.0.1:7700
           MEILISEARCH_KEY: masterKey
+          # Doit rester ALIGNÉ sur `phpunit.xml` et sur l'étape de synchronisation ci-dessus.
+          SCOUT_PREFIX: testing_
         run: php artisan test
 
   # ────────────────────────────────────────────────────────────────────────────

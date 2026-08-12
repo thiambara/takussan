@@ -94,8 +94,12 @@ services:
     volumes:
       - meili-data:/meili_data
     healthcheck:
-      # L'image ne contient ni curl ni wget : la sonde passe par le binaire lui-même.
-      test: ['CMD', 'meilisearch', '--help']
+      # `curl` EST présent dans l'image — vérifié. La sonde d'origine lançait
+      # `meilisearch --help`, qui sort 0 sans jamais toucher au serveur : elle déclarait donc
+      # le service sain avant qu'il accepte la moindre connexion, et `dev.sh` enchaînait sur
+      # `migrate` contre un moteur pas encore prêt. Une sonde qui n'interroge pas ce qu'elle
+      # prétend surveiller est pire qu'aucune sonde : elle donne une réponse.
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:7700/health']
       interval: 5s
       timeout: 3s
       retries: 10

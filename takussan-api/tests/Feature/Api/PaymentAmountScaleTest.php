@@ -8,6 +8,7 @@ use App\Models\BookingPayment;
 use App\Models\Enums\Currency;
 use App\Models\Integration;
 use App\Models\Property;
+use App\Services\Payments\Drivers\LemonSqueezyDriver;
 use App\Services\Payments\Drivers\OrangeMoneyDriver;
 use App\Services\Payments\Drivers\WaveDriver;
 use App\Services\Payments\PaymentGatewayService;
@@ -138,38 +139,67 @@ class PaymentAmountScaleTest extends TestCase
     }
 
     /**
-     * Le cas ASYMÉTRIQUE, et c'est celui qui rend la garde non triviale.
+     * Le cas ASYMÉTRIQUE — et il appelle un DRIVER, ce qui est tout son objet.
      *
      * Un correctif naïf — « on divise par 100 dans tous les drivers » — passerait les deux cas
      * ci-dessus au vert **et casserait la facturation SaaS**, qui est en USD : une devise à deux
      * décimales dont le fournisseur attend, lui, de vrais centimes.
      *
-     * Sans ce troisième cas, on ne saurait pas distinguer une règle juste d'une règle appliquée
-     * partout.
+     * Une première version de ce cas ne lisait que `Currency::USD->decimalPlaces()`. Elle
+     * n'appelait aucun driver — donc la régression que son docblock annonçait attraper serait
+     * passée au vert. *Un test qui n'exerce pas le chemin qu'il prétend garder ne garde rien*,
+     * et il est plus dangereux qu'aucun test parce qu'il occupe la place.
      */
-    public function test_une_devise_decimale_ne_doit_pas_etre_redivisee(): void
+    public function test_lemon_squeezy_recoit_des_centimes_et_ne_redivise_pas(): void
     {
-        $this->assertSame(
-            0,
-            Currency::XOF->decimalPlaces(),
-            'Le XOF n\'a pas de sous-unité — c\'est toute la raison d\'être de la re-division.',
-        );
+        Http::fake([
+            'api.lemonsqueezy.com/*' => Http::response([
+                'data' => [
+                    'id' => '99',
+                    'attributes' => ['url' => 'https://takussan.lemonsqueezy.com/buy/abc-123'],
+                ],
+            ], 200),
+        ]);
 
-        $usd = Currency::tryFrom('USD');
+        $agency = Agency::factory()->create();
+        $integration = Integration::factory()->create([
+            'provider' => 'lemon_squeezy',
+            'agency_id' => $agency->id,
+            'credentials' => [
+                'api_key' => 'ls_test',
+                'signing_secret' => 'sig',
+                'store_id' => '1',
+                'variant_id' => '42',
+            ],
+        ]);
 
-        if ($usd === null) {
-            $this->markTestSkipped(
-                'Aucune devise à sous-unité n\'est déclarée dans l\'enum Currency : '
-                .'l\'asymétrie ne peut pas encore être éprouvée sur une valeur réelle. '
-                .'Ce skip est visible dans la sortie (`--display-skipped`) et doit être levé le jour '
-                .'où une devise décimale entre dans le domaine.',
-            );
-        }
+        $property = Property::factory()->create(['agency_id' => $agency->id]);
+        $booking = Booking::factory()->create(['property_id' => $property->id, 'agency_id' => $agency->id]);
+        $payment = BookingPayment::factory()->create([
+            'booking_id' => $booking->id,
+            'amount' => 25.00,
+            'currency' => Currency::XOF,
+        ]);
 
-        $this->assertSame(
-            2,
-            $usd->decimalPlaces(),
-            'Une devise décimale garde ses centimes : son driver ne divise pas.',
-        );
+        // 25,00 dans une devise à deux décimales → 2500 centimes à la frontière du contrat.
+        (new LemonSqueezyDriver($integration))->initiate($payment, 2500, 'USD');
+
+        Http::assertSent(function ($request) {
+            if (! str_contains($request->url(), 'lemonsqueezy.com')) {
+                return false;
+            }
+            $body = json_decode($request->body() ?: '{}', true);
+
+            // 2500, PAS 25. Lemon Squeezy facture en centimes : re-diviser ici retirerait
+            // deux zéros à chaque abonnement.
+            return data_get($body, 'data.attributes.custom_price') === 2500;
+        });
+    }
+
+    /** Le fait qui rend toute la règle nécessaire : le XOF n'a pas de sous-unité. */
+    public function test_le_xof_n_a_pas_de_sous_unite_et_l_usd_en_a_une(): void
+    {
+        $this->assertSame(0, Currency::XOF->decimalPlaces());
+        $this->assertSame(2, Currency::tryFrom('USD')?->decimalPlaces());
     }
 }

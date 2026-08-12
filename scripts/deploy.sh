@@ -244,6 +244,26 @@ else
 fi
 
 # ─── Step 10: Restart queue workers ──────────────────────────────────────────
+# L'unité systemd INSTALLÉE porte-t-elle les files nommées ?
+#
+# `--queue=notifications-urgent,default,media,reconciliation` a été ajouté à
+# `scripts/server-setup.sh` — mais ce script est MANUEL : aucun workflow ne le lance, et
+# `deploy.sh` ne fait qu'un `queue:restart`, qui relance le worker depuis l'ExecStart déjà
+# installé. Sur un serveur provisionné avant le correctif, l'unité garde donc son ancienne
+# commande, et `scripts/check-queues.mjs` reste vert : il lit le TEXTE DU SCRIPT, pas l'unité.
+#
+# Ce contrôle-ci lit l'unité réelle. Il n'échoue pas le déploiement — le code est bon, ce sont
+# les jobs de fond qui dorment — mais il refuse de laisser passer ça en silence.
+for unit in /etc/systemd/system/takussan-queue*.service; do
+    [ -f "${unit}" ] || continue
+    if ! grep -q -- '--queue=' "${unit}"; then
+        log "WARNING: ${unit} lance queue:work SANS --queue."
+        log "         Il ne consomme que la file 'default' : les jobs poussés sur media,"
+        log "         notifications-urgent et reconciliation ne s'exécuteront JAMAIS."
+        log "         Correctif : sudo bash scripts/server-setup.sh && sudo systemctl restart $(basename "${unit}" .service)"
+    fi
+done
+
 log "Restarting queue workers..."
 cd "${CURRENT_LINK}"
 php artisan queue:restart 2>/dev/null || log "No queue workers running (ignored)."

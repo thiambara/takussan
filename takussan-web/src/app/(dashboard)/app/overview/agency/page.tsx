@@ -32,7 +32,11 @@ export default async function AgencyDashboardPage() {
     const token = await getToken();
     if (token) {
       const agency = await fetchAgency(token, user.agency_id).catch(() => null);
-      if (agency && agency.kind !== 'standard') redirect('/app');
+      // FAIL-CLOSED : `!agency` redirige AUSSI. `fetchAgency` avale son erreur en `null`
+      // (`.catch(() => null)`), donc `if (agency && …)` laissait passer une API en panne :
+      // l'écran pro s'affichait pour une agence `individual` dès que la requête échouait.
+      // Un écran réservé se refuse quand on ne SAIT PAS, pas seulement quand on sait que non.
+      if (!agency || agency.kind !== 'standard') redirect('/app');
     }
   }
 

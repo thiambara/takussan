@@ -52,9 +52,24 @@ const GARDES = [
   // 1. le helper nommé — les routes /admin/*
   { nom: 'ensureStandardAgencyOrRedirect', motif: /ensureStandardAgencyOrRedirect\s*\(/ },
   // 2. la garde écrite en ligne — les routes /app/*
-  //    ex. `if (agency && agency.kind !== 'standard') redirect('/app')`
   { nom: 'test en ligne sur agency.kind', motif: /kind\s*!==\s*['"]standard['"][\s\S]{0,80}?redirect\s*\(/ },
 ];
+
+/**
+ * La forme FAIL-OPEN, qu'il faut refuser même quand une garde est présente.
+ *
+ * `if (agency && agency.kind !== 'standard') redirect(…)` ne redirige QUE si l'agence a pu être
+ * résolue. Or `fetchAgency(...).catch(() => null)` avale son erreur : sur une API en panne ou
+ * lente, `agency` vaut `null`, le `&&` court-circuite, et **l'écran pro s'affiche pour une agence
+ * `individual`**.
+ *
+ * La deuxième version de cette garde reconnaissait ce motif comme « gardée ». C'était le même
+ * défaut que la première, d'un cran plus fin : elle avait appris à voir la garde, pas à juger si
+ * elle tient. *Une garde présente n'est pas une garde correcte.*
+ *
+ * La règle : un écran réservé se refuse quand on ne SAIT PAS, pas seulement quand on sait que non.
+ */
+const FAIL_OPEN = /if\s*\(\s*(\w+)\s*&&\s*\1\.kind\s*!==\s*['"]standard['"]/;
 
 /**
  * Écarts CONNUS et assumés, chacun avec son ticket.
@@ -64,11 +79,12 @@ const GARDES = [
  * ticket, jamais celui qui fait taire la garde.
  */
 const ECARTS_ASSUMES = new Map([
-  // Vide, et c'est l'état sain : la garde est stricte. Elle l'a été dès sa deuxième journée —
-  // les quatre écarts qu'elle avait trouvés (`/app/overview/{kpis,alerts,agency}`, `/app/owners`)
-  // ont été fermés par TCK-284, non pas en posant la garde manquante mais en constatant que la
-  // restriction n'avait jamais existé nulle part : ces écrans sont ouverts à toutes les agences,
-  // et c'est le cadenas qui était l'erreur.
+  // Vide, et c'est l'état sain : la garde est stricte, sans exception.
+  //
+  // Elle avait un temps porté quatre entrées — `/app/overview/{kpis,alerts,agency}` et
+  // `/app/owners` — sur la foi d'un faux négatif de sa propre première version, qui ne
+  // cherchait qu'une chaîne. Ces quatre pages GARDENT, en ligne. Les entrées ont donc été
+  // retirées non pas parce que l'écart était assumé, mais parce qu'il n'a jamais existé.
 ]);
 
 if (!existsSync(SOURCE)) {
@@ -104,6 +120,7 @@ function page(route) {
 
 const gardees = [];
 const nues = [];
+const failOpen = [];
 const introuvables = [];
 
 for (const route of routes) {
@@ -114,13 +131,15 @@ for (const route of routes) {
   }
   const src = readFileSync(p, 'utf8');
   const trouvee = GARDES.find((g) => g.motif.test(src));
-  if (trouvee) gardees.push([route, p.slice(ROOT.length + 1), trouvee.nom]);
-  else nues.push([route, p.slice(ROOT.length + 1), src]);
+  if (!trouvee) { nues.push([route, p.slice(ROOT.length + 1), src]); continue; }
+  if (FAIL_OPEN.test(src)) { failOpen.push([route, p.slice(ROOT.length + 1)]); continue; }
+  gardees.push([route, p.slice(ROOT.length + 1), trouvee.nom]);
 }
 
 if (REPORT) {
   console.log(`PRO_ROUTES : ${routes.length} routes\n`);
   for (const [r, p, via] of gardees) console.log(`  ✓ gardée      ${r.padEnd(34)} ${via}`);
+  for (const [r, p] of failOpen) console.log(`  ✗ FAIL-OPEN   ${r.padEnd(34)} ${p}`);
   for (const [r] of nues) {
     const t = ECARTS_ASSUMES.get(r);
     console.log(`  ${t ? '~' : '✗'} SANS GARDE  ${r.padEnd(34)} ${t ? `écart assumé (${t})` : ''}`);
@@ -131,6 +150,14 @@ if (REPORT) {
 
 const erreurs = [];
 
+for (const [r, chemin] of failOpen) {
+  erreurs.push(
+    `\`${r}\` — ${chemin} porte bien un test sur \`agency.kind\`, mais sous la forme `
+    + `\`if (agency && agency.kind !== 'standard')\` : elle ne redirige que si l'agence a pu être `
+    + `résolue. \`fetchAgency\` avalant son erreur en \`null\`, une API en panne fait AFFICHER `
+    + `l'écran pro à une agence \`individual\`. Écris \`if (!agency || agency.kind !== 'standard')\`.`,
+  );
+}
 for (const r of introuvables) {
   erreurs.push(`\`${r}\` est déclarée dans PRO_ROUTES mais aucune page ne la sert — soit la route a été supprimée sans nettoyer la liste, soit elle a été renommée.`);
 }
@@ -165,7 +192,7 @@ for (const [r] of nues) {
 }
 
 if (erreurs.length === 0) {
-  console.log(`✓ surfaces pro : ${gardees.length}/${routes.length} routes gardées côté serveur, ${ECARTS_ASSUMES.size} écart(s) assumé(s) et suivi(s).`);
+  console.log(`✓ surfaces pro : ${gardees.length}/${routes.length} routes gardées côté serveur ET fail-closed, ${ECARTS_ASSUMES.size} écart(s) assumé(s).`);
   process.exit(0);
 }
 
