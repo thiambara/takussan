@@ -1,0 +1,64 @@
+# Gardes transverses au dépôt — celles qui n'appartiennent ni au back ni au front.
+#
+# Elles vérifient toutes la même chose sous trois formes : **qu'un document dérivé suit encore sa
+# source, et que la source suit encore la réalité.** C'est la famille de défauts qui a coûté le
+# plus cher à ce dépôt, parce qu'aucun de ses membres ne se signale tout seul :
+#
+#   · `INDEX.md` maintenu à la main → faux sur 213 de ses 266 entrées (80,1 %) ;
+#   · `.env.example` et `.env.docker` qui divergent d'une clé → une intégration qui lit `null` ;
+#   · un `spec_refs` qui pointe un fichier disparu → dix minutes perdues par lecteur, à vie.
+#
+# Aucune de ces gardes ne compile ni ne teste quoi que ce soit. Elles tiennent la documentation au
+# même niveau d'exigence que le code, et c'est tout leur objet.
+name: Repo CI
+
+on:
+  pull_request:
+    paths:
+      - 'docs/backlog/**'
+      - 'takussan-api/.env.example'
+      - 'takussan-api/.env.docker'
+      - 'scripts/*.mjs'
+      - '.github/workflows/repo-ci.yml'
+  push:
+    branches: [dev, master]
+    paths:
+      - 'docs/backlog/**'
+      - 'takussan-api/.env.example'
+      - 'takussan-api/.env.docker'
+      - 'scripts/*.mjs'
+      - '.github/workflows/repo-ci.yml'
+
+jobs:
+  guards:
+    name: Gardes documentaires
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # `check-backlog.mjs` confronte les statuts des tickets à l'historique de `dev` : un
+          # ticket en `review` dont le code est déjà mergé est le défaut qui a produit une colonne
+          # de 177 entrées face à ZÉRO pull request ouverte. Sur un clone superficiel il ne peut
+          # pas, et il le dit en rouge plutôt qu'en silence.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Les deux fichiers d'environnement déclarent les mêmes clés
+        run: node scripts/check-env-parity.mjs
+
+      - name: INDEX.md est à jour de ses frontmatters
+        # `--check` n'écrit rien et sort non nul si l'index est périmé. Sans cette étape, la règle
+        # « on régénère après avoir touché un ticket » redeviendrait tenue par la seule discipline
+        # — celle qu'on vient précisément de retirer.
+        run: node docs/backlog/gen-index.mjs --check
+
+      - name: Les statuts des tickets ne sont pas contredits par git
+        # L'étape précédente garantit que la SORTIE suit la SOURCE. Celle-ci garantit que la
+        # SOURCE suit la RÉALITÉ : pointeur cité qui n'existe plus, dépendance incohérente, date
+        # impossible, statut ouvert sur du code déjà mergé. La première ne peut rien voir de la
+        # seconde — elle compare deux fichiers, elle ne regarde jamais le dépôt.
+        run: node docs/backlog/check-backlog.mjs

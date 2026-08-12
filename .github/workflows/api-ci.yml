@@ -98,3 +98,103 @@ jobs:
           MEILISEARCH_HOST: http://127.0.0.1:7700
           MEILISEARCH_KEY: masterKey
         run: php artisan test
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Les migrations rejouées sur MariaDB — le moteur de la PRODUCTION.
+  #
+  # `CLAUDE.md` documente quatre familles de pièges « qui passent en CI mais cassent en prod » :
+  # DEFAULT sur JSON/TEXT, dropUnique sur une colonne portant une FK, nom d'index auto-généré au-delà
+  # de 64 caractères, et `enum()`. Le job ci-dessus ne peut en voir AUCUN : il tourne sur SQLite,
+  # qui les accepte tous. Et `scripts/deploy.sh:148` lance `php artisan migrate --force` directement
+  # sur la base de production — la première machine à exécuter ce DDL en conditions réelles était
+  # donc le serveur.
+  #
+  # Le dépôt a déjà payé ce défaut DEUX fois, et les correctifs sont dans son propre historique :
+  # `c473081b` (colonne JSON sans DEFAULT) et `9815694f` (nom d'index sous la limite des 64
+  # caractères). Une famille de pièges connue, documentée, rencontrée deux fois, et que rien
+  # n'attrapait : la documentation avait remplacé la garde.
+  #
+  # Ce job ne rejoue PAS la suite de tests — c'est le DDL qu'on éprouve, pas le code. Il tourne en
+  # moins d'une minute, et il tourne sur MariaDB parce que c'est ce que `apt install mariadb-server`
+  # pose sur le serveur.
+  migrations-mysql:
+    name: Migrations sur MariaDB (pièges que SQLite ne voit pas)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: takussan-api
+
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: takussan_ci
+          MARIADB_USER: takussan
+          MARIADB_PASSWORD: takussan
+          MARIADB_ROOT_PASSWORD: takussan
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo, pdo_mysql, mysqli, bcmath, intl, gd, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Install composer dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+
+      - name: Migrate (aller)
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: takussan_ci
+          DB_USERNAME: takussan
+          DB_PASSWORD: takussan
+        run: php artisan migrate --force --no-interaction
+
+      - name: Rollback des migrations réversibles, puis re-migration
+        # Le `down()` d'une migration est le code le moins exécuté du dépôt — **la suite de tests
+        # n'en exécute aucun** — et c'est le seul dont on ait besoin le jour où un déploiement
+        # tourne mal. C'est là que « dropIndex sur une colonne portant une FK » se déclare, et
+        # nulle part ailleurs : ce job a trouvé le cas de `2026_06_18_000001` à sa PREMIÈRE
+        # exécution, sur les trois tables à la fois.
+        #
+        # On ne peut pas faire `migrate:refresh` : `2026_05_18_120000_drop_spatie_permission_tables`
+        # est **délibérément irréversible** (cutover TCK-278, son `down()` lève une RuntimeException
+        # assumée). On roule donc en arrière jusqu'à la marche juste au-dessus d'elle — et on
+        # CALCULE ce nombre plutôt que de l'écrire en dur, pour qu'il suive les migrations à venir
+        # sans que personne ait à y penser.
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: takussan_ci
+          DB_USERNAME: takussan
+          DB_PASSWORD: takussan
+        run: |
+          BORNE=2026_05_18_120000_drop_spatie_permission_tables
+          STEP=$(ls database/migrations | sed 's/\.php$//' | sort | awk -v b="$BORNE" '$0 > b' | wc -l | tr -d ' ')
+          echo "Migrations réversibles au-dessus de $BORNE : $STEP"
+          if [ "$STEP" -gt 0 ]; then
+            php artisan migrate:rollback --step="$STEP" --force --no-interaction
+            php artisan migrate --force --no-interaction
+          else
+            echo "::warning::Aucune migration au-dessus de la borne — aucun down() n'a été éprouvé."
+          fi
