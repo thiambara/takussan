@@ -5,6 +5,7 @@ status: done
 phase: P1
 family: bug
 estimate: M
+wave: 13
 created: 2026-04-29
 updated: 2026-04-29
 depends_on: []

@@ -5,6 +5,7 @@ status: done
 phase: P1
 family: front
 estimate: S
+wave: 22
 created: 2026-05-06
 updated: 2026-05-06
 depends_on: []

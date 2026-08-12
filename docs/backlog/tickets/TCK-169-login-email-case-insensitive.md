@@ -1,12 +1,13 @@
 ---
 id: TCK-169
 title: Login — match email insensible à la casse (cohérence frontend ↔ backend)
-status: doing
+status: done
 phase: P1
 family: bug
 estimate: S
+wave: 19
 created: 2026-05-05
-updated: 2026-05-05
+updated: 2026-08-12
 depends_on: []
 blocks: []
 spec_refs:

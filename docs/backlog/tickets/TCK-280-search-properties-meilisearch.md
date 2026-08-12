@@ -5,6 +5,7 @@ status: done
 phase: P2
 family: back
 estimate: L
+wave: 35
 created: 2026-05-20
 updated: 2026-05-20
 depends_on: [TCK-052]

@@ -5,6 +5,7 @@ status: todo
 phase: P2
 family: back
 estimate: M
+wave: 28
 created: 2026-05-10
 updated: 2026-05-10
 depends_on: []

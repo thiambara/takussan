@@ -5,6 +5,7 @@ status: done
 phase: P1
 family: applicatif
 estimate: M
+wave: 17
 created: 2026-05-04
 updated: 2026-05-05
 depends_on: []

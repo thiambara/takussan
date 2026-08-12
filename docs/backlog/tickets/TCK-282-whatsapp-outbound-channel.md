@@ -1,12 +1,13 @@
 ---
 id: TCK-282
 title: Canal de notification WhatsApp sortant
-status: review
+status: done
 phase: P3
 family: applicatif
 estimate: L
+wave: 36
 created: 2026-06-17
-updated: 2026-06-17
+updated: 2026-08-12
 depends_on: [TCK-102, TCK-110]
 blocks: [TCK-283]
 spec_refs:
