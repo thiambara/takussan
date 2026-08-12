@@ -137,6 +137,17 @@ démarrer**. Sur une installation neuve suivie à la lettre, l'application ne bo
 > **L'infrastructure est prête et attend** : DNS résolu, serveur répondant, et **les cinq secrets**
 > exigés par `deploy.yml` — dont `ENV_FILE`, le `.env` de production — posés le 2026-05-19.
 >
+> **Et elle est BLOQUÉE, mécaniquement.** GitHub : `HTTP 404: workflow deploy.yml not found on the
+> default branch`. La branche par défaut du dépôt est `master`, `deploy.yml` n'y existe pas, et
+> GitHub n'expose `workflow_dispatch` que depuis la branche par défaut. Le blocage est **circulaire**
+> — y pousser `deploy.yml` déclencherait le déploiement automatique, puisque son filtre `paths:`
+> inclut ce fichier même. Ce qui dénoue : faire de `dev` la branche par défaut, ce qui ne déclenche
+> rien et ne fait que rattraper la réalité. Séquence exacte dans TCK-288.
+>
+> **Résidu trouvé au passage** : `deploy-api-preprod.yml` est enregistré **actif** chez GitHub alors
+> qu'il n'existe sur **aucune** branche, et ses deux seuls runs ont échoué en mai. Un workflow
+> supprimé dont l'enregistrement survit — inoffensif, mais il fait croire à un pipeline de plus.
+>
 > Ce n'est donc pas une chaîne cassée à réparer, c'est **une première mise en production à faire**.
 > Et cela change le risque : le workflow de production n'a **jamais été exercé**. Son jumeau de
 > preview, oui, cinq fois — ce qui est rassurant sans être une preuve.

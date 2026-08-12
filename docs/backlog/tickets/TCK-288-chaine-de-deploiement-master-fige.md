@@ -66,6 +66,52 @@ production**, elles ne le sont pas.
 > seule marche arrière — et sur une première mise en production, la base de destination est
 > probablement vide, ce qui rend le point théorique ici mais pas au déploiement suivant.
 
+## ⛔ Le blocage qui conditionne tout — mesuré le 2026-08-12
+
+**Le déclenchement manuel est IMPOSSIBLE en l'état.** GitHub le dit lui-même :
+
+```
+$ gh workflow view deploy.yml
+HTTP 404: workflow deploy.yml not found on the default branch
+```
+
+Enchaînement des faits :
+
+1. La **branche par défaut du dépôt est `master`** (`gh repo view`).
+2. `deploy.yml` **n'existe pas sur `master`** — la branche précède le commit qui l'a créé.
+3. GitHub n'expose `workflow_dispatch` que pour les workflows présents sur la **branche par
+   défaut**. `gh workflow list` ne voit donc que trois workflows, et le déploiement de production
+   n'en fait pas partie.
+
+**C'est circulaire** : pousser `deploy.yml` sur `master` pour le rendre déclenchable à la main
+**déclencherait le déploiement automatique** — son filtre `paths:` inclut
+`.github/workflows/deploy.yml`. On ne peut donc pas obtenir le manuel sans subir l'automatique.
+
+**Ce qui dénoue** : faire de `dev` la branche par défaut. `deploy.yml` y existe, il devient
+dispatchable, et **rien ne se déclenche** — son `on: push:` reste sur `master`. C'est un réglage de
+dépôt, réversible d'un clic, et il ne fait que **rattraper la réalité** : les PR ciblent `dev`
+depuis des mois.
+
+### Séquence exacte pour l'option C
+
+L'ordre compte, et une étape omise déploierait l'état du 2026-05-18 :
+
+1. **Pousser la branche `chore/reprise-outillage-ia-docker` et la merger dans `dev`.** Sans ça,
+   `deploy.yml` sur `dev` n'a pas l'entrée `branch` et un dispatch retomberait sur le `master`
+   codé en dur.
+2. **Basculer la branche par défaut du dépôt sur `dev`** (Settings → Branches). Ne déclenche rien.
+3. `gh workflow run deploy.yml -f branch=dev` — **première exécution du déploiement de production**.
+4. Vérifier : `curl -fsS https://api.takussan.com/up` → 200, puis `migrate:status` sur le serveur
+   (les 3 migrations neuves).
+5. **Seulement alors**, trancher entre A et B, avec un déploiement réussi comme preuve.
+
+### Résidu à nettoyer
+
+`deploy-api-preprod.yml` est enregistré **actif** chez GitHub (id `279002336`, créé le 2026-05-18)
+alors qu'il **n'existe sur aucune branche** — `dev`, `preview` et `master` l'ignorent tous. Ses deux
+seuls runs ont **échoué** (18 et 19 mai). C'est l'enregistrement résiduel d'un workflow supprimé :
+inoffensif, mais il encombre `gh workflow list` et fait croire à un quatrième pipeline.
+
 ## Contraintes strictes (métier)
 
 **Ce ticket est d'abord une décision.** Trois issues, et la troisième n'existait pas dans la
