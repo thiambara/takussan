@@ -489,7 +489,18 @@ cent fois trop peu. Classé P0 malgré son apparence documentaire.
 > un cadenas dans la barre latérale **sans aucune garde serveur**. Le cadenas n'empêchait que le
 > clic ; une URL tapée à la main passait.
 >
-> **Le correctif n'a PAS été appliqué, et c'est délibéré.** `ensureStandardAgencyOrRedirect` vise
+> **RÉSOLU le 2026-08-12 — et pas dans le sens attendu.** La mesure du backend a tranché la
+> question : les endpoints des quatre routes (`KpiConfigController`, `ThresholdAlertController`,
+> `owners`, `DashboardController`) **ne portent aucun `AgencyKindGuard` non plus**. La restriction
+> n'existait donc **nulle part** — ni page, ni API : elle n'avait jamais été un comportement,
+> seulement une promesse d'interface. Arbitré (TCK-284) : **le cadenas était l'erreur**. Les quatre
+> entrées sont sorties de `PRO_ROUTES`, `ECARTS_ASSUMES` est vide, la garde est stricte à 5/5.
+> Aucun accès n'a été retiré à personne.
+>
+> *Ce qui suit est le raisonnement qui avait fait suspendre le correctif — conservé parce qu'il
+> reste juste, et qu'il explique pourquoi la réponse n'était pas mécanique :*
+>
+> **Le correctif n'a PAS été appliqué d'emblée, et c'était délibéré.** `ensureStandardAgencyOrRedirect` vise
 > *tout* porteur d'`agency_id` dans une agence `individual`, alors que `isProRouteLocked` ne
 > cadenasse que les `agency_admin` : **les deux règles n'ont pas le même périmètre**. Poser la
 > garde telle quelle redirigerait aussi les agents et les propriétaires, à qui rien n'a jamais été

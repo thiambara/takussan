@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**270 tickets** — 11 ouverts, 258 livrés.
+**270 tickets** — 10 ouverts, 259 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 8 |
+| 📋 Todo | 7 |
 | 🚧 Doing | 2 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 1 |
-| ✅ Done | 258 |
+| ✅ Done | 259 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -36,7 +36,6 @@
 - [TCK-246](tickets/TCK-246-empty-error-states-and-cta-buttons-harmonization.md) — Empty / error states + CTA shadcn — harmonisation transverse `M · P2 · front`
 - [TCK-247](tickets/TCK-247-public-homepage-discovery-endpoint.md) — Endpoint unique homepage discovery (4 rangées dédupliquées côté serveur) `M · P2 · back`
 - [TCK-272](tickets/TCK-272-oauth-only-account-deletion-step-up.md) — Suppression de compte — step-up alternative pour comptes OAuth-only `M · P2 · applicatif`
-- [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
 - [TCK-285](tickets/TCK-285-couverture-tests-services-policies.md) — Couverture de tests — services metier, policies, observers, webhooks `L · P1 · technique`
 - [TCK-286](tickets/TCK-286-i18n-textes-en-dur.md) — i18n — les libelles produits encore codes en dur `L · P2 · front`
 - [TCK-287](tickets/TCK-287-filament-supprimer-ou-securiser.md) — Filament — supprimer le panel ou le securiser `S · P1 · technique`
@@ -57,7 +56,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 258
+## ✅ Done — 259
 
 <details>
 <summary><strong>Vague 36 — Notifications WhatsApp sortant (2026-06-17)</strong> — 2 tickets</summary>
@@ -473,9 +472,10 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 1 ticket</summary>
+<summary><strong>Sans vague</strong> — 2 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
+- [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
 
 </details>
 

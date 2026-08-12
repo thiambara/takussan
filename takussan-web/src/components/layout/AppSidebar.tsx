@@ -134,22 +134,25 @@ function buildNavItems(user: User): NavItem[] {
     // TCK-032 overview/stats — exports (P2)
     items.push({ href: '/app/overview/exports', label: 'Exports', icon: Download });
   }
-  // Vue agence cross-team — visible to agency_admin so individuals see the
-  // padlock, and to agents/admins. Standard-only via PRO_ROUTES.
+  // Vue agence cross-team — visible aux agency_admin, agents et admins.
+  // PAS de restriction « standard » : elle était promise par un cadenas
+  // (PRO_ROUTES) que rien n'implémentait, ni côté page ni côté API. Arbitré
+  // par TCK-284 — l'écran est ouvert à toutes les agences, le cadenas est parti.
   if (roles.includes('agency_admin') || isAdmin(roles) || isAgent(roles)) {
     items.push({ href: '/app/overview/agency', label: 'Vue agence', icon: BarChart3 });
   }
   if (isAdmin(roles) || roles.includes('agency_admin')) {
-    // TCK-032 overview/stats — KPIs personnalisables (P3). Standard-only
-    // for agency_admin (padlock via PRO_ROUTES on `individual`).
+    // TCK-032 overview/stats — KPIs personnalisables (P3) et alertes (P3).
+    // Ouverts à toutes les agences : le cadenas « standard-only » qui vivait ici
+    // n'était adossé à aucune garde (TCK-284).
     items.push({ href: '/app/overview/kpis', label: 'KPIs', icon: Gauge });
-    // TCK-032 overview/stats — alertes (P3). Standard-only for agency_admin.
     items.push({ href: '/app/overview/alerts', label: 'Alertes', icon: BellRing });
   }
 
   // TCK-256 — owners directory. Visible to agency_admin and global admins.
-  // Standard-only via PRO_ROUTES; on `individual` the page itself redirects
-  // and OwnerProfilePolicy@invite returns 403 in defense in depth.
+  // Ouvert à toutes les agences (TCK-284 : le cadenas « standard-only » ne
+  // reposait sur aucune garde). L'ACTION d'inviter, elle, reste gardée :
+  // OwnerProfilePolicy@invite rend 403.
   if (
     roles.includes('agency_admin') ||
     isAdmin(roles) ||

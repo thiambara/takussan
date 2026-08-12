@@ -39,10 +39,11 @@ const GARDE = 'ensureStandardAgencyOrRedirect';
  * ticket, jamais celui qui fait taire la garde.
  */
 const ECARTS_ASSUMES = new Map([
-  ['/app/overview/kpis', 'TCK-284'],
-  ['/app/overview/alerts', 'TCK-284'],
-  ['/app/overview/agency', 'TCK-284'],
-  ['/app/owners', 'TCK-284'],
+  // Vide, et c'est l'état sain : la garde est stricte. Elle l'a été dès sa deuxième journée —
+  // les quatre écarts qu'elle avait trouvés (`/app/overview/{kpis,alerts,agency}`, `/app/owners`)
+  // ont été fermés par TCK-284, non pas en posant la garde manquante mais en constatant que la
+  // restriction n'avait jamais existé nulle part : ces écrans sont ouverts à toutes les agences,
+  // et c'est le cadenas qui était l'erreur.
 ]);
 
 if (!existsSync(SOURCE)) {

@@ -5,26 +5,29 @@ import type { User } from '@/types/user';
  * plan. Used by the sidebar to render these entries with a padlock for
  * agency_admins still on `individual`.
  *
- * ⚠️ Ce docblock affirmait : « the pages themselves redirect to `/app`
- * server-side, which is the ultimate gate ». **Mesuré le 2026-08-12 : c'est
- * vrai pour 5 de ces 9 routes.** Les quatre routes `/app/*` n'appellent PAS
- * `ensureStandardAgencyOrRedirect` — pour elles, le cadenas n'empêche que le
- * clic, et une URL tapée à la main passe. Suivi par **TCK-284** ; l'arbitrage
- * n'est pas mécanique (la garde SSR vise tout porteur d'`agency_id`, alors que
- * le cadenas ci-dessous ne vise que les `agency_admin` — les deux règles n'ont
- * pas le même périmètre).
+ * **Chaque route listée ici DOIT être gardée côté serveur.** Le cadenas est un
+ * confort d'interface, jamais une autorisation : il n'empêche que le clic, et
+ * une URL tapée à la main passe à travers. `scripts/check-pro-routes.mjs` le
+ * vérifie à chaque CI et refuse toute entrée neuve non gardée.
  *
- * `scripts/check-pro-routes.mjs` mesure l'écart à chaque CI et le refusera dès
- * qu'une route neuve arrive sans garde. Les quatre écarts connus y sont
- * nommés — une allowlist est une dette datée, pas une exemption.
+ * Cette liste en comptait quatre de plus — `/app/overview/{kpis,alerts,agency}`
+ * et `/app/owners` — et le docblock affirmait alors que « the pages themselves
+ * redirect to `/app` server-side, which is the ultimate gate ». Mesuré le
+ * 2026-08-12 : c'était faux pour ces quatre-là. Ni leur page, ni leur API
+ * (`KpiConfigController`, `ThresholdAlertController`, `owners`,
+ * `DashboardController`) ne portait la moindre garde — la restriction n'avait
+ * **jamais** été implémentée nulle part. Le cadenas promettait donc une
+ * limitation qui n'existait pas, aux seuls `agency_admin`, sur des écrans
+ * ouverts à tous.
+ *
+ * Arbitré (TCK-284) : ces écrans ne sont **pas** réservés aux agences
+ * `standard`. Les quatre entrées sont retirées, le comportement réel ne change
+ * pas, et la barre latérale cesse de mentir.
  */
 export const PRO_ROUTES: ReadonlySet<string> = new Set([
-  // /app/... — espace perso agency_admin
-  '/app/overview/kpis',
-  '/app/overview/alerts',
-  '/app/overview/agency',
-  '/app/owners',
-  // /admin/... — console admin agence
+  // /admin/... — console admin agence. Chacune de ces cinq routes est gardée en SSR par
+  // `ensureStandardAgencyOrRedirect`, et son API par `AgencyKindGuard` côté Laravel.
+  // `scripts/check-pro-routes.mjs` le vérifie à chaque CI.
   '/admin',
   '/admin/team',
   '/admin/agency/billing',

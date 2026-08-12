@@ -1,7 +1,7 @@
 ---
 id: TCK-284
 title: "Quatre routes « pro » cadenassées sans garde serveur"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -54,8 +54,36 @@ pages redirigerait aussi les **agents** et les **propriétaires** d'une agence `
 voient aujourd'hui aucun cadenas et à qui rien n'a jamais été refusé. Ce serait une régression
 fonctionnelle déguisée en correctif de sécurité.
 
-La question à trancher est donc : **`/app/overview/*` et `/app/owners` sont-elles réservées aux
-agences `standard` pour TOUS les rôles, ou seulement pour les `agency_admin` ?**
+**Mesure complémentaire du 2026-08-12 — elle change le diagnostic.** `AgencyKindGuard` n'est appelé
+que dans **quatre contrôleurs**, et tous les quatre servent les routes `/admin/*` qui sont déjà
+gardées côté front :
+
+| Contrôleur | Route front correspondante |
+|---|---|
+| `AuditLogController`, `ActivityLogExportController` | `/admin/audit` |
+| `UserAdminController` | `/admin/team` |
+| `Admin/PropertyModerationController` | `/admin/moderation/properties` |
+
+Les endpoints qui alimentent les quatre routes en défaut — `kpi-configs` (`KpiConfigController`),
+`threshold-alerts` (`ThresholdAlertController`), `owners`, `dashboard/agency`
+(`DashboardController`) — **ne portent aucun `AgencyKindGuard`**, ni aucun `authorizeAccess` /
+`authorizeManage`.
+
+**Donc ces quatre surfaces ne sont restreintes NULLE PART.** Ni sur la page, ni sur l'API. Le
+cadenas de la barre latérale est la seule chose qui existe, et il ne bloque rien : il promet une
+restriction qui n'a jamais été implémentée.
+
+Cela réduit le ticket à **une** question, et elle est produit :
+
+> **`/app/overview/kpis`, `/app/overview/alerts`, `/app/overview/agency` et `/app/owners`
+> doivent-elles être réservées aux agences `standard` — oui ou non ?**
+
+- **Si NON** — le cadenas est l'erreur. Le correctif est de **retirer ces quatre entrées de
+  `PRO_ROUTES`** : une ligne, aucun changement d'autorisation, et la barre latérale cesse de mentir
+  à ses utilisateurs.
+- **Si OUI** — la restriction est à **créer**, pas à réparer : `ensureStandardAgencyOrRedirect` sur
+  les quatre pages **et** `AgencyKindGuard` dans les quatre contrôleurs. C'est un retrait d'accès
+  pour des utilisateurs qui en disposent aujourd'hui : à annoncer, pas à déployer en silence.
 
 ## Delta à produire
 
@@ -63,8 +91,9 @@ agences `standard` pour TOUS les rôles, ou seulement pour les `agency_admin` ?*
 - [ ] Selon l'arbitrage : soit ajouter `ensureStandardAgencyOrRedirect` aux quatre pages, soit
       introduire une variante scopée par rôle, soit retirer ces routes de `PRO_ROUTES` si le
       cadenas était l'erreur.
-- [ ] Vérifier que les **endpoints** qui les alimentent portent `AgencyKindGuard` — le SSR n'est
-      qu'une redirection, l'API reste atteignable directement.
+- [ ] ~~Vérifier que les **endpoints** qui les alimentent portent `AgencyKindGuard`~~ — **mesuré,
+      ils ne le portent pas** (voir ci-dessous). Selon l'arbitrage : les y ajouter, ou constater
+      qu'ils n'ont pas à l'être.
 - [ ] Retirer les quatre entrées de `ECARTS_ASSUMES` dans `scripts/check-pro-routes.mjs`. **La
       garde échoue tant qu'une entrée y reste sans être justifiée, et échoue aussi si une entrée y
       reste alors que la route est devenue gardée** — l'allowlist ne peut pas pourrir en silence.
@@ -83,6 +112,28 @@ agences `standard` pour TOUS les rôles, ou seulement pour les `agency_admin` ?*
 
 - La convergence générale PHP ↔ TypeScript des règles d'autorisation (vecteurs de test partagés).
   C'est un chantier à part ; ce ticket ne traite que les quatre routes mesurées.
+
+## Décision et résolution — 2026-08-12
+
+**Tranché : NON.** Ces quatre écrans ne sont pas réservés aux agences `standard`. **Le cadenas était
+l'erreur**, pas la garde manquante.
+
+C'est la mesure du backend qui a permis de trancher : la restriction n'existait **nulle part** — ni
+page, ni API. Elle n'avait donc jamais été un comportement, seulement une promesse d'interface. La
+créer aurait été **retirer un accès** à des utilisateurs qui en disposent depuis toujours ; la
+retirer ne change rien pour personne.
+
+**Appliqué :**
+
+- les quatre entrées sont sorties de `PRO_ROUTES` (9 → 5) ;
+- `ECARTS_ASSUMES` est **vide** dans `scripts/check-pro-routes.mjs` — la garde est stricte, et
+  prouvée par mutation (une route neuve non gardée la fait rougir) ;
+- le docblock de `pro-features.ts` et les trois commentaires d'`AppSidebar` qui affirmaient
+  « Standard-only via PRO_ROUTES » disent désormais ce qui est vrai ;
+- **aucun changement d'autorisation** : `ensureStandardAgencyOrRedirect` et `AgencyKindGuard` ne
+  bougent pas, et les cinq routes `/admin/*` restent gardées des deux côtés.
+
+**Vérifié** : 802 tests front verts, `tsc` propre, ESLint 0 erreur, `check-pro-routes` à 5/5.
 
 ## Notes d'implémentation
 
