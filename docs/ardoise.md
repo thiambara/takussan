@@ -34,10 +34,18 @@ peut les trouver : ils vivent dans l'écart entre ce que le dépôt déclare et 
 > découvre au déploiement. Le guide de déploiement passe en `php8.4-*` et porte un encadré de
 > migration.
 >
-> **⚠️ RESTE À FAIRE SUR LE SERVEUR** : la production tourne encore en 8.3. Aucun changement de
-> documentation ne met à jour une machine. La procédure est dans le guide (§ pré-requis), et elle
-> doit être exécutée **avant** le prochain déploiement — sinon `composer install` échoue et le
-> déploiement s'arrête.
+> **✅ LE SERVEUR EST DÉJÀ EN 8.4 — correction du 2026-08-12, après mesure.** Une première
+> rédaction de cette entrée annonçait une migration serveur à faire. C'était faux, et voici la
+> preuve : le déploiement de **preview du 2026-06-20 a RÉUSSI**, `deploy.sh:134` lance
+> `composer install --no-dev`, et le `composer.lock` de `origin/preview` à cette date exigeait
+> **déjà** `php >=8.4.1` sur 17 paquets `symfony/*`. Un `composer install` ne peut pas réussir sur
+> une version que le lock exclut.
+>
+> Preview et production **partagent le même serveur** (`178.18.247.62` pour les deux domaines).
+> Il n'y a donc rien à migrer : **seule la documentation était en retard**, et elle est corrigée.
+>
+> *La leçon vaut plus que le correctif : « le guide dit 8.3 » ne prouve rien de ce que la machine
+> exécute. Un déploiement réussi, lui, prouve une borne inférieure.*
 
 
 `composer.json` annonce `"php": "^8.3"`. Le guide de déploiement prescrit
@@ -112,7 +120,26 @@ démarrer**. Sur une installation neuve suivie à la lettre, l'application ne bo
 **Preuve** : `docs/infra/deploy-preview.html` (ligne `apt install`) confrontée aux `require` de
 `composer.lock`.
 
-### D-04 — La production ne reçoit plus rien depuis trois mois, et rien ne le dit 🔴 → [TCK-288](backlog/tickets/TCK-288-chaine-de-deploiement-master-fige.md)
+### D-04 — La production n'a **jamais** été déployée 🔴 → [TCK-288](backlog/tickets/TCK-288-chaine-de-deploiement-master-fige.md)
+
+> **DIAGNOSTIC CORRIGÉ le 2026-08-12.** L'entrée d'origine disait *« la production ne reçoit plus
+> rien depuis trois mois »*, ce qui suppose qu'elle en recevait. **Elle n'en a jamais reçu.**
+> Mesuré :
+>
+> - `gh run list` — **`deploy.yml` n'a jamais tourné, pas une seule fois**. Le seul workflow de
+>   déploiement qui se soit exécuté est *Deploy Laravel API (Preview)*, cinq fois, sur `preview`.
+> - `https://api.takussan.com/up` → **404**. `https://preview.api.takussan.com/up` → **200**.
+> - `deploy.yml`, `deploy-preview.yml`, `deploy.sh` et `server-setup.sh` **n'existent pas sur
+>   `master`** : la branche est antérieure au commit `14246ce6` qui a créé toute la chaîne.
+> - `origin/dev..origin/master` = **0** — `master` n'a aucun commit propre, c'est un ancêtre strict
+>   de `dev`. Un merge serait un simple *fast-forward*.
+>
+> **L'infrastructure est prête et attend** : DNS résolu, serveur répondant, et **les cinq secrets**
+> exigés par `deploy.yml` — dont `ENV_FILE`, le `.env` de production — posés le 2026-05-19.
+>
+> Ce n'est donc pas une chaîne cassée à réparer, c'est **une première mise en production à faire**.
+> Et cela change le risque : le workflow de production n'a **jamais été exercé**. Son jumeau de
+> preview, oui, cinq fois — ce qui est rassurant sans être une preuve.
 
 > **Seule dette P0 non soldée par le chantier du 2026-08-12, et c'est délibéré.** Les deux issues
 > cohérentes — amener `dev` sur `master`, ou faire suivre le déclencheur à `dev` — passent par un

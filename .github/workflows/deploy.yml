@@ -1,5 +1,12 @@
 name: Deploy Laravel API
 
+# ⚠️ Ce workflow n'a JAMAIS tourné (mesuré le 2026-08-12 : `gh run list` ne rend aucun run).
+# `https://api.takussan.com/up` répond 404 — la production n'a jamais été déployée. Son jumeau de
+# preview, lui, a tourné cinq fois avec succès sur la même machine.
+#
+# Le premier déploiement de production ne doit donc PAS être l'effet de bord d'un merge : il se
+# déclenche à la main, on regarde ce qu'il fait, et on décide ensuite de la politique de branche
+# (cf. TCK-288). C'est ce que permet l'entrée `branch` ci-dessous.
 on:
   push:
     branches:
@@ -9,6 +16,15 @@ on:
       - "scripts/deploy.sh"
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
+    inputs:
+      branch:
+        description: >-
+          Branche à déployer en PRODUCTION. `master` par défaut, comme le déclencheur automatique.
+          Sans cette entrée, un déclenchement manuel déployait `master` — codé en dur — c'est-à-dire
+          l'état du 2026-05-18, antérieur à cette chaîne de déploiement elle-même.
+        required: true
+        default: master
+        type: string
 
 concurrency:
   group: takussan-prod-deploy
@@ -19,9 +35,22 @@ jobs:
     name: Deploy to Contabo
     runs-on: ubuntu-latest
 
+    # Sur un push c'est toujours `master` ; sur un déclenchement manuel, la branche choisie.
+    env:
+      DEPLOY_BRANCH: ${{ inputs.branch || 'master' }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Ce qui va être déployé
+        # Un premier déploiement de production se regarde avant de se lancer. Cette étape
+        # n'empêche rien — elle écrit dans le journal ce que la suivante va faire, pour qu'un
+        # run raté laisse une trace lisible plutôt qu'un `git clone` silencieux.
+        run: |
+          echo "Branche déployée : ${DEPLOY_BRANCH}"
+          echo "Cible            : /var/www/takussan (api.takussan.com)"
+          echo "Déclencheur      : ${{ github.event_name }}"
 
       - name: Copy deploy script to server
         uses: appleboy/scp-action@v1
@@ -40,12 +69,13 @@ jobs:
           username: ${{ secrets.CONTABO_USER }}
           key: ${{ secrets.CONTABO_SSH_KEY }}
           timeout: 10m
-          envs: ENV_FILE
+          envs: ENV_FILE,DEPLOY_BRANCH
           script: |
             chmod +x /var/www/takussan/deploy.sh
-            bash /var/www/takussan/deploy.sh "${{ secrets.REPO_URL }}" master /var/www/takussan
+            bash /var/www/takussan/deploy.sh "${{ secrets.REPO_URL }}" "$DEPLOY_BRANCH" /var/www/takussan
         env:
           ENV_FILE: ${{ secrets.ENV_FILE }}
+          DEPLOY_BRANCH: ${{ env.DEPLOY_BRANCH }}
 
       - name: Smoke test
         run: |

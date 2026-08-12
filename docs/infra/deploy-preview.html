@@ -1076,10 +1076,10 @@ df -h /var</code></pre>
       <div class="callout troubleshoot">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
         <div>
-          <p><strong>⚠️ MIGRATION REQUISE — PHP 8.3 &rarr; 8.4 (mesuré le 2026-08-12)</strong></p>
+          <p><strong>PHP 8.4 requis — le serveur y est déjà (vérifié le 2026-08-12)</strong></p>
           <p>Le <code>composer.lock</code> du dépôt <strong>ne s'installe pas sur PHP 8.3</strong> : 19 paquets verrouillés exigent 8.4 ou plus — 17 <code>symfony/*</code> en <code>php &gt;=8.4.1</code>, plus <code>lcobucci/clock</code> et <code>spatie/laravel-activitylog</code>. Un <code>composer install --no-dev</code> sur un serveur en 8.3 échoue, et le déploiement s'arrête là.</p>
           <p>Rien ne l'avait signalé parce que <strong>la CI tourne sur PHP 8.4</strong> : la machine qui valide et la machine qui sert ne parlaient pas la même version, et c'est la seconde qui casse. Le dépôt déclare désormais <code>"php": "^8.4"</code> et fige la résolution par <code>config.platform.php = 8.4.1</code>, pour que <code>composer</code> refuse lui-même l'écart au lieu qu'on le découvre au déploiement.</p>
-          <p><strong>Sur un serveur encore en 8.3</strong>, dans cet ordre :</p>
+          <p><strong>Sur CE serveur, rien à faire</strong> : le déploiement de preview du 2026-06-20 a réussi alors que son <code>composer.lock</code> exigeait déjà <code>php &gt;=8.4.1</code> — et <code>deploy.sh</code> lance <code>composer install --no-dev</code>. Un install ne peut pas réussir sur une version que le lock exclut : le serveur est donc en 8.4 ou plus. Preview et production partagent la même machine.</p><p><strong>Sur un serveur NEUF, ou encore en 8.3</strong>, dans cet ordre :</p>
           <ol>
             <li><code>sudo add-apt-repository ppa:ondrej/php &amp;&amp; sudo apt update</code> (Ubuntu ; sur Debian, dépôt Sury).</li>
             <li>Installer 8.4 avec <strong>toutes</strong> les extensions de la ligne ci-dessous — <code>intl</code>, <code>gd</code>, <code>bcmath</code> et <code>redis</code> manquaient à l'ancienne liste, et une extension absente ne dégrade pas une fonction : elle <strong>empêche l'application entière de démarrer</strong>.</li>
