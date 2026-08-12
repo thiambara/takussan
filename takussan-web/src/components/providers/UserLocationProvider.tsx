@@ -70,23 +70,38 @@ export function UserLocationProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const cached = JSON.parse(raw) as Cached;
-        if (cached.data && Date.now() - cached.at < TTL_MS) {
-          setLocation(cached.data);
-          setLoading(false);
-          return;
+    // Le cache et le fetch passent par le MÊME flux asynchrone, et c'est délibéré.
+    //
+    // La version précédente lisait localStorage puis appelait `setLocation` +
+    // `setLoading` directement dans le corps de l'effet : un setState synchrone
+    // pendant la phase de commit, qui force React à re-rendre l'arbre entier avant
+    // même que le navigateur ait peint (`react-hooks/set-state-in-effect`). Sur un
+    // provider monté à la racine, ce re-rendu en cascade touche toute la page — et
+    // c'était le chemin le plus FRÉQUENT, puisque le cache dure 24 h.
+    //
+    // La lecture ne peut pas non plus remonter dans un initialiseur paresseux de
+    // `useState` : le composant est rendu côté serveur, où `window` n'existe pas, et
+    // une valeur lue au premier rendu client ferait diverger l'hydratation.
+    void (async () => {
+      try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const cached = JSON.parse(raw) as Cached;
+          if (cached.data && Date.now() - cached.at < TTL_MS) {
+            if (!cancelled) {
+              setLocation(cached.data);
+              setLoading(false);
+            }
+            return;
+          }
         }
+      } catch {
+        // localStorage indisponible (Safari privé) — on tombe sur le fetch.
       }
-    } catch {
-      // localStorage indisponible (Safari privé) — on tombe sur le fetch.
-    }
 
-    fetch('https://ipapi.co/json/')
-      .then((r) => (r.ok ? (r.json() as Promise<UserLocation>) : null))
-      .then((data) => {
+      try {
+        const r = await fetch('https://ipapi.co/json/');
+        const data = r.ok ? ((await r.json()) as UserLocation) : null;
         if (cancelled || !data) return;
         try {
           window.localStorage.setItem(
@@ -97,13 +112,12 @@ export function UserLocationProvider({ children }: { children: ReactNode }) {
           // ignore quota / private mode errors
         }
         setLocation(data);
-      })
-      .catch(() => {
+      } catch {
         // garde location=null → consommateurs basculent sur leurs fallbacks
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
