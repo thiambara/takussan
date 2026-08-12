@@ -27,7 +27,18 @@
 Ces quatre-là ne se voient pas depuis le code. Aucun test, aucun lint, aucune lecture de `app/` ne
 peut les trouver : ils vivent dans l'écart entre ce que le dépôt déclare et ce que la machine fait.
 
-### D-01 — `composer.lock` est ininstallable sur le PHP documenté pour la production 🔴
+### D-01 — `composer.lock` ininstallable sur le PHP documenté ✅ *soldé côté dépôt le 2026-08-12*
+
+> **Soldé côté dépôt** : `composer.json` déclare `"php": "^8.4"` et fige la résolution par
+> `config.platform.php = 8.4.1`, pour que `composer` refuse lui-même l'écart au lieu qu'on le
+> découvre au déploiement. Le guide de déploiement passe en `php8.4-*` et porte un encadré de
+> migration.
+>
+> **⚠️ RESTE À FAIRE SUR LE SERVEUR** : la production tourne encore en 8.3. Aucun changement de
+> documentation ne met à jour une machine. La procédure est dans le guide (§ pré-requis), et elle
+> doit être exécutée **avant** le prochain déploiement — sinon `composer install` échoue et le
+> déploiement s'arrête.
+
 
 `composer.json` annonce `"php": "^8.3"`. Le guide de déploiement prescrit
 `apt install -y php8.3-fpm php8.3-mysql …`. Mais **19 paquets verrouillés exigent PHP ≥ 8.4** :
@@ -50,7 +61,19 @@ contrainte exclut 8.3 · `.github/workflows/api-ci.yml` → `php-version: '8.4'`
 rétrograde les paquets. Dans les deux cas, poser un `config.platform.php` pour que `composer` refuse
 lui-même l'écart au lieu de le découvrir au déploiement.
 
-### D-02 — Le worker de production ne consomme qu'une file sur quatre 🔴
+### D-02 — Le worker de production ne consommait qu'une file sur quatre ✅ *soldé le 2026-08-12*
+
+> **Soldé** : `scripts/server-setup.sh` pose désormais
+> `--queue=notifications-urgent,default,media,reconciliation` (l'ordre est la priorité).
+>
+> **Et la garde existe** : `scripts/check-queues.mjs` compare les `onQueue()` du code à la
+> commande de production, et tourne dans `repo-ci.yml`. Prouvée par mutation, y compris sur le
+> cas réaliste — « on ajoute une file nommée et on oublie de l'inscrire dans l'unité ».
+>
+> **⚠️ RESTE À FAIRE SUR LE SERVEUR** : rejouer `sudo bash scripts/server-setup.sh` pour réécrire
+> l'unité systemd, puis `sudo systemctl restart takussan-queue`. Les jobs déjà empilés dans la
+> table `jobs` seront alors consommés — vérifier leur volume avant, ils datent de mai.
+
 
 `scripts/server-setup.sh:375` :
 
@@ -71,7 +94,13 @@ n'arrive simplement jamais. *Une file sans consommateur est le défaut le plus s
 
 **Correctif** : `--queue=notifications-urgent,default,media,reconciliation` (l'ordre est la priorité).
 
-### D-03 — La liste d'extensions PHP du guide de déploiement est incomplète 🔴
+### D-03 — La liste d'extensions PHP du guide était incomplète ✅ *soldé le 2026-08-12*
+
+> **Soldé** : la ligne `apt install` du guide porte désormais `php8.4-intl`, `php8.4-gd`,
+> `php8.4-bcmath` et `php8.4-redis`, et `docs/configuration.md` §5.1 a été réécrite — Meilisearch
+> y était classé « optionnel » alors qu'il est obligatoire, et Redis obligatoire alors qu'il est
+> optionnel. Les deux étaient exactement inversés.
+
 
 Le guide prescrit `php8.3-fpm php8.3-mysql php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip`.
 Manquent : **`intl`** (requis par `filament/support`), **`gd`** (`phpspreadsheet`, et les watermarks
@@ -132,7 +161,14 @@ le DDL qu'on éprouve.
 > **la suite de tests n'exécute aucun `down()`**. Le `down()` est le code le moins exécuté du dépôt,
 > et le seul dont on ait besoin le jour où un déploiement tourne mal.
 
-### D-05bis — Il n'existe aucun chemin de rollback au-delà du cutover RBAC 🟠 *découvert le 2026-08-12*
+### D-05bis — Aucun chemin de rollback au-delà du cutover RBAC ✅ *documenté le 2026-08-12*
+
+> **Documenté** (la contrainte, elle, ne se corrige pas) : le guide de déploiement porte un
+> encadré en tête de sa section Rollback. Il dit ce que le rollback ne peut PAS annuler — il
+> restaure le code, jamais le schéma — et impose le dump pré-déploiement comme seule marche
+> arrière réelle, **avec la vérification que le dump est relisible**. Un dump qu'on n'a jamais
+> relu n'est pas une sauvegarde.
+
 
 `2026_05_18_120000_drop_spatie_permission_tables` est **délibérément irréversible** : son `down()`
 lève une `RuntimeException` avec le message *« Restore from a pre-cutover SQL dump if needed »*.
@@ -151,6 +187,37 @@ déploiement — et la procédure de dump pré-déploiement doit exister avant q
 ---
 
 ## 🟠 Environnement, CI et gardes
+
+### D-00 — 26 avis de sécurité sur 5 paquets, dont 8 de sévérité haute ✅ *découvert et soldé le 2026-08-12*
+
+Trouvé **par accident**, en rafraîchissant l'empreinte du `composer.lock` après la correction de
+D-01 : `composer` a signalé *« Found 26 security vulnerability advisories affecting 5 packages »*.
+Personne ne l'avait vu, parce que **`composer audit` n'était lancé nulle part** — ni en CI, ni au
+déploiement.
+
+| Paquet | Avis | Le plus grave |
+|---|---|---|
+| `guzzlehttp/guzzle` | 9 (1 haute) | *Noncanonical host can bypass host-based checks* (CVE-2026-69246) |
+| `league/commonmark` | 6 (4 hautes) | déni de service par XML profondément imbriqué |
+| `dompdf/dompdf` | 6 | fuite d'existence de fichiers via SVG embarqué |
+| `phpoffice/phpspreadsheet` | 3 (3 hautes) | épuisement mémoire sur XLS/OLE forgé |
+| `guzzlehttp/psr7` | 2 | *Host Confusion via Weak URI Host Validation* |
+
+**Soldé** : les cinq paquets mis à jour dans leurs plages de compatibilité — aucune montée de
+version majeure, aucun changement de code applicatif. `guzzle` a demandé un second passage
+(`7.15.2` exige `promises ^2.5.1`, épinglé en `2.5.0`), ce qui explique qu'une première mise à jour
+l'ait laissé vulnérable.
+
+**Vérifié** : `composer audit` → *« No security vulnerability advisories found »*, et **2052 tests
+verts** après la mise à jour.
+
+> **Ce qui reste ouvert, et qui compte plus que les cinq correctifs** : rien ne relancera cet audit.
+> Ces avis se sont accumulés parce qu'aucune étape ne les regardait — trois des cinq paquets sont
+> exposés à des données non fiables (`guzzle` sur les webhooks entrants, `commonmark` sur du texte
+> utilisateur, `phpspreadsheet` sur des fichiers téléversés). Une étape `composer audit` en CI est
+> la garde manquante ; elle n'a pas été ajoutée dans ce chantier parce qu'un avis publié un matin
+> rendrait la CI rouge sur une PR qui n'y est pour rien. **C'est un arbitrage à poser** : audit
+> bloquant sur les sévérités hautes, ou tâche planifiée qui ouvre un ticket.
 
 ### D-06 — Le frontend n'avait aucune CI ✅ *soldé le 2026-08-12*
 
@@ -181,7 +248,12 @@ pas, et que personne ne l'a vu parce que le pipeline était rouge « pour du lin
 **Reste ouvert** : la règle « Pint avant chaque commit » n'est imposée par **aucun mécanisme** — pas
 de hook, pas de `lint-staged`. Elle repose sur la discipline, et la discipline a échoué six semaines.
 
-### D-08 — Les tests écrivent dans l'index Meilisearch réel du développeur 🟠
+### D-08 — Les tests écrivaient dans l'index Meilisearch réel du développeur ✅ *soldé le 2026-08-12*
+
+> **Soldé** : `phpunit.xml` pose `SCOUT_PREFIX=testing_`. La suite n'écrit plus dans les index de
+> travail. Le prérequis d'une instance Meilisearch reste entier — c'est ADR-0008, pas une dette —
+> et `docker-compose.yml` la fournit.
+
 
 `phpunit.xml` force `SCOUT_DRIVER=meilisearch` **sans repli**, et ne définit ni `MEILISEARCH_HOST`,
 ni `MEILISEARCH_KEY`, ni **`SCOUT_PREFIX`**. Conséquence : `php artisan test` indexe et supprime dans
@@ -288,7 +360,12 @@ Trois encodages de statut se contredisaient dans un seul document : la section, 
 **Soldé** : `INDEX.md` est désormais **généré** par `docs/backlog/gen-index.mjs` depuis les
 frontmatters, et `docs/backlog/check-backlog.mjs` garde sa fraîcheur. Les deux tournent en CI.
 
-### D-16 — `docs/backend-gap-report.md` est un piège 🟠
+### D-16 — `docs/backend-gap-report.md` est un piège ✅ *banni le 2026-08-12*
+
+> **Traité** : bandeau de péremption en tête du document, qui nomme trois de ses affirmations
+> fausses avec le chemin qui les contredit. Conservé pour son historique et sa méthode — un audit
+> périmé reste un modèle d'audit.
+
 
 Il se présente comme un audit systématique code-vs-spec (338 lignes, daté du 18/04/2026) et déclare
 **25 fonctionnalités « ❌ non implémenté »**. **20 d'entre elles sont implémentées aujourd'hui** —
@@ -300,7 +377,10 @@ Un agent qui le lit pour prioriser rouvre des chantiers finis.
 
 **Action** : archiver avec un bandeau de péremption, ou re-mesurer.
 
-### D-17 — `docs/plans/routing-layouts-roles.md` prescrit une stack révoquée 🟠
+### D-17 — `docs/plans/routing-layouts-roles.md` prescrit une stack révoquée ✅ *banni le 2026-08-12*
+
+> **Traité** : bandeau de révocation, avec le tableau « il prescrit / le projet est en ».
+
 
 589 lignes qui imposent **Next.js 14**, **Tailwind v3** et la palette « Takussan Heritage »
 (`#022448`, `#7d5630`, `#fff8f5`) avec des « Règles absolues » (« JAMAIS de `border-b` »,
@@ -330,14 +410,27 @@ Dont un cité par **les deux specs sources** : `docs/takussan-whatsapp-implement
 Un pointeur mort dans une source de vérité est une dette que M8 de pharma-rebuild a payée en vrai —
 un chemin cité pendant des semaines qui n'existait pas.
 
-### D-20 — Deux backlogs concurrents, sans arbitrage 🟡
+### D-20 — Deux backlogs concurrents, sans arbitrage ✅ *arbitré le 2026-08-12*
+
+> **Arbitré** : `docs/backlog-mvp/index.md` porte un bandeau qui dit que la stratégie n'a pas été
+> suivie, et ses 12 tickets passent `obsolete`. L'agrégat des `todo` sur `docs/` rend désormais 3,
+> et non 15. Le raisonnement produit — WhatsApp d'abord, entrée sans authentification — est
+> explicitement conservé : ce sont des arbitrages de marché, ils n'ont pas vieilli comme les
+> tickets.
+
 
 `docs/backlog/` (265 tickets) et `docs/backlog-mvp/` (12 tickets, stratégie « vertical slice / zero
 auth / WhatsApp first / 5 weekends »). **Les 12 tickets du second sont tous `status: todo` alors
 qu'ils décrivent des fonctionnalités livrées depuis avril.** Un outil qui agrège les frontmatters
 `todo` sur `docs/` compte **15 tickets ouverts au lieu de 3**.
 
-### D-21 — Des docblocks décrivent un package désinstallé 🟠
+### D-21 — Des docblocks décrivaient un package désinstallé ✅ *soldé le 2026-08-12*
+
+> **Soldé** : cinq docblocks corrigés — `HasProfiles`, `LeasePolicy` (deux), `Invitation`,
+> `bootstrap/app.php`. Chacun dit désormais ce que le code fait, **et** ce qu'il ne fait plus, avec
+> un renvoi vers l'ADR. Les mentions de `Spatie\Media`, `Spatie\Activity` et `Spatie\Image` sont
+> restées : ces paquets-là sont bien installés.
+
 
 `spatie/laravel-permission` a été retiré par TCK-278, mais le code continue de le décrire :
 `HasProfiles` se présente comme « Sister trait of HasRoles (spatie) », `LeasePolicy` parle d'« une

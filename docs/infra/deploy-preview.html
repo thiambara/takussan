@@ -1067,7 +1067,7 @@ df -h /var</code></pre>
 
       <div class="checklist">
         <div class="check"><input type="checkbox" id="ck-deploy"><label for="ck-deploy">User <code>deploy</code> existe et est dans le groupe <code>www-data</code></label></div>
-        <div class="check"><input type="checkbox" id="ck-php"><label for="ck-php">PHP 8.3 + Composer + Node 20 installés (héritage CheckPrint)</label></div>
+        <div class="check"><input type="checkbox" id="ck-php"><label for="ck-php">PHP <strong>8.4</strong> + Composer + Node 20 installés — <strong>voir l'encadré de migration ci-dessous si le serveur est encore en 8.3</strong></label></div>
         <div class="check"><input type="checkbox" id="ck-mysql"><label for="ck-mysql">MySQL/MariaDB en service</label></div>
         <div class="check"><input type="checkbox" id="ck-nginx"><label for="ck-nginx">Nginx + Certbot opérationnels</label></div>
         <div class="check"><input type="checkbox" id="ck-disk"><label for="ck-disk">Au moins 3 Go libres sur <code>/var</code></label></div>
@@ -1076,10 +1076,27 @@ df -h /var</code></pre>
       <div class="callout troubleshoot">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
         <div>
+          <p><strong>⚠️ MIGRATION REQUISE — PHP 8.3 &rarr; 8.4 (mesuré le 2026-08-12)</strong></p>
+          <p>Le <code>composer.lock</code> du dépôt <strong>ne s'installe pas sur PHP 8.3</strong> : 19 paquets verrouillés exigent 8.4 ou plus — 17 <code>symfony/*</code> en <code>php &gt;=8.4.1</code>, plus <code>lcobucci/clock</code> et <code>spatie/laravel-activitylog</code>. Un <code>composer install --no-dev</code> sur un serveur en 8.3 échoue, et le déploiement s'arrête là.</p>
+          <p>Rien ne l'avait signalé parce que <strong>la CI tourne sur PHP 8.4</strong> : la machine qui valide et la machine qui sert ne parlaient pas la même version, et c'est la seconde qui casse. Le dépôt déclare désormais <code>"php": "^8.4"</code> et fige la résolution par <code>config.platform.php = 8.4.1</code>, pour que <code>composer</code> refuse lui-même l'écart au lieu qu'on le découvre au déploiement.</p>
+          <p><strong>Sur un serveur encore en 8.3</strong>, dans cet ordre :</p>
+          <ol>
+            <li><code>sudo add-apt-repository ppa:ondrej/php &amp;&amp; sudo apt update</code> (Ubuntu ; sur Debian, dépôt Sury).</li>
+            <li>Installer 8.4 avec <strong>toutes</strong> les extensions de la ligne ci-dessous — <code>intl</code>, <code>gd</code>, <code>bcmath</code> et <code>redis</code> manquaient à l'ancienne liste, et une extension absente ne dégrade pas une fonction : elle <strong>empêche l'application entière de démarrer</strong>.</li>
+            <li>Recréer le pool FPM : <code>sudo bash scripts/server-setup.sh</code> (il détecte la version de PHP et réécrit <code>/etc/takussan/php-version</code>, que <code>deploy.sh</code> relit pour savoir quel service recharger).</li>
+            <li>Vérifier : <code>php -v</code>, <code>php -m | grep -E 'intl|gd|bcmath|redis'</code>, puis <code>composer check-platform-reqs --no-dev</code> dans la release courante.</li>
+            <li>Ne désinstaller 8.3 qu'<strong>après</strong> un déploiement réussi sur 8.4.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="callout troubleshoot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <div>
           <p><strong>Si une dépendance manque…</strong></p>
           <ul>
             <li><code>id deploy</code> retourne "no such user" → CheckPrint n'a pas été déployé sur ce VPS. Crée-le : <code>sudo adduser --disabled-password --gecos "" deploy &amp;&amp; sudo usermod -aG www-data deploy</code>.</li>
-            <li>PHP/Composer/Node absents → <code>sudo apt update &amp;&amp; sudo apt install -y php8.3-fpm php8.3-mysql php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip composer nodejs npm nginx certbot python3-certbot-nginx</code>.</li>
+            <li>PHP/Composer/Node absents → <code>sudo apt update &amp;&amp; sudo apt install -y php8.4-fpm php8.4-mysql php8.4-mbstring php8.4-xml php8.4-curl php8.4-zip php8.4-intl php8.4-gd php8.4-bcmath php8.4-redis composer nodejs npm nginx certbot python3-certbot-nginx</code>.</li>
             <li>MySQL absent → <code>sudo apt install -y mariadb-server &amp;&amp; sudo mysql_secure_installation</code>.</li>
           </ul>
         </div>
@@ -1151,7 +1168,7 @@ rm /tmp/server-setup.sh</code></pre>
 [setup]   PASS  /var/www/takussan exists
 [setup]   PASS  /var/www/takussan-preview exists
 [setup]   PASS  /etc/takussan/php-version present (8.3)
-[setup]   PASS  php8.3-fpm active
+[setup]   PASS  php8.4-fpm active
 [setup]   PASS  /run/php/takussan.sock exists
 [setup]   PASS  /run/php/takussan-preview.sock exists
 [setup]   PASS  nginx -t passes
@@ -1173,7 +1190,7 @@ rm /tmp/server-setup.sh</code></pre>
         <div>
           <p><strong>Si tu vois des FAIL…</strong></p>
           <ul>
-            <li><code>FAIL php8.3-fpm active</code> → <code>sudo apt install php8.3-fpm</code> puis relance le script.</li>
+            <li><code>FAIL php8.4-fpm active</code> → <code>sudo apt install php8.4-fpm</code> puis relance le script.</li>
             <li><code>FAIL nginx -t passes</code> → un autre vhost a une erreur ; <code>sudo nginx -t</code> pour la voir.</li>
             <li><code>FAIL /etc/sudoers.d/takussan-deploy valid</code> → le script a refusé d'installer un sudoers invalide. Lis le log juste au-dessus du summary.</li>
             <li><code>FAIL deploy known_hosts contains github.com</code> → le serveur n'a pas pu joindre GitHub via ssh-keyscan. Ré-essaie quand la connexion réseau est stable.</li>
@@ -1192,7 +1209,7 @@ rm /tmp/server-setup.sh</code></pre>
 sudo nano /etc/php/8.3/fpm/pool.d/takussan.conf
 
 <span class="comment"># Appliquer (gracieux, ne coupe pas les requêtes en cours) :</span>
-sudo systemctl reload php8.3-fpm
+sudo systemctl reload php8.4-fpm
 
 <span class="comment"># Vérifier que les sockets sont là :</span>
 sudo ls -la /run/php/takussan.sock /run/php/takussan-preview.sock</code></pre>
@@ -1995,6 +2012,21 @@ sudo journalctl -u takussan-queue-preview -f</code></pre>
         <div><p><strong>Pourquoi cette étape ?</strong> Si un deploy casse la prod, tu dois pouvoir revenir à l'ancienne version <strong>immédiatement</strong>. Il y a deux niveaux : automatique (intégré à <code>deploy.sh</code>) et manuel (si tu détectes le problème après coup).</p></div>
       </div>
 
+      <div class="callout troubleshoot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <div>
+          <p><strong>⚠️ Ce que le rollback NE PEUT PAS annuler : les migrations (mesuré le 2026-08-12)</strong></p>
+          <p>Les deux niveaux décrits ci-dessous restaurent le <strong>code</strong> — le symlink <code>current</code> repointe sur la release précédente. Ils ne touchent pas au <strong>schéma</strong> : <code>deploy.sh</code> ne joue jamais <code>migrate:rollback</code>, et c'est délibéré. Une base revenue en arrière pendant qu'un ancien code tourne dessus est plus dangereuse qu'un schéma en avance.</p>
+          <p><strong>Et une migration est irréversible par construction.</strong> <code>2026_05_18_120000_drop_spatie_permission_tables</code> — le cutover RBAC de TCK-278 — lève une exception dans son <code>down()</code> : reconstituer des rôles historiques depuis un seeder n'aurait restauré qu'une approximation, ce qui est pire qu'un refus. <strong>Il n'existe donc aucune marche arrière de schéma au-delà de cette migration</strong>, seulement une restauration de dump.</p>
+          <p><strong>Conséquence opérationnelle, à tenir avant d'en avoir besoin :</strong></p>
+          <ol>
+            <li><strong>Dump avant chaque déploiement qui porte une migration.</strong> C'est la seule marche arrière réelle : <code>mysqldump --single-transaction --routines takussan_prod &gt; /var/backups/takussan/pre-deploy-$(date +%F-%H%M).sql</code></li>
+            <li>Vérifier que le dump est <strong>non vide et relisible</strong> avant de lancer le deploy — un dump qu'on n'a jamais relu n'est pas une sauvegarde.</li>
+            <li>Le job <code>migrations-mysql</code> de la CI rejoue chaque migration <strong>aller ET retour</strong> sur MariaDB avant le merge. Il a trouvé un <code>down()</code> cassé sur trois tables à sa première exécution : la suite de tests n'exécute <em>aucun</em> <code>down()</code>, et SQLite acceptait ce que MySQL refuse.</li>
+          </ol>
+        </div>
+      </div>
+
       <h3>14.1 Rollback automatique pendant le deploy</h3>
 
       <p>Le <code>trap rollback ERR</code> dans <code>deploy.sh</code> restaure le symlink <code>current</code> sur la release précédente <strong>si une étape post-clone échoue</strong> (composer, migrate, healthcheck non-200, etc.). Tu n'as rien à faire.</p>
@@ -2097,7 +2129,7 @@ sudo journalctl -u takussan-queue-preview -n 50 --no-pager
           <div class="code-block" data-lang="bash">
             <div class="code-block-header"><span class="lang">bash</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
             <pre><code><span class="comment"># PHP-FPM tourne-t-il ?</span>
-sudo systemctl status php8.3-fpm
+sudo systemctl status php8.4-fpm
 sudo tail -30 /var/log/nginx/preview.api.takussan.com.error.log
 
 <span class="comment"># Le socket existe-t-il ?</span>

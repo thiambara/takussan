@@ -1,7 +1,7 @@
 ---
 id: POST-MVP-003
 title: "Chat interne (si WhatsApp limitant)"
-status: todo
+status: obsolete
 slice: "Post-MVP Phase 2"
 estimate: 3 weekends
 created: 2026-04-16

@@ -39,7 +39,10 @@ return Application::configure(basePath: dirname(__DIR__))
             SetLocaleMiddleware::class,
             MaintenanceMode::class,
         ]);
-        // TCK-141/142 — sole owner of the spatie team context for api
+        // TCK-141/142 — résout le profil ACTIF de la requête (ADR-0004).
+        // Ce commentaire parlait du « spatie team context » : le package est
+        // désinstallé depuis TCK-278, il n'y a plus de contexte d'équipe à
+        // posséder — seulement un profil actif, lu par `request()->activeProfile()`.
         // requests since `users.agency_id` was dropped. Resolves the active
         // profile via header / query / cookie / auto-single, then locks
         // `setPermissionsTeamId($profile?->agency_id)`. Runs at the end of

@@ -6,7 +6,7 @@ Guide de travail pour Claude Code (claude.ai/code) et tout autre agent sur ce d�
 
 Monorepo **Takussan** — plateforme de gestion immobilière (Sénégal, XOF, français/anglais/wolof).
 
-- `takussan-api/` — Laravel 13, PHP ^8.3 *(voir la dette D-01 : le `composer.lock` exige en réalité 8.4)*
+- `takussan-api/` — Laravel 13, PHP ^8.4 (`config.platform.php` figé à 8.4.1)
 - `takussan-web/` — Next.js 16.2.3, React 19, TypeScript 5, Tailwind CSS 4
 
 ## État courant — mesuré le 2026-08-12

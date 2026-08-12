@@ -18,7 +18,7 @@
  *
  * Usage :
  *   node scripts/check-env-parity.mjs          # sort en 1 sur le moindre écart
- *   node scripts/check-env-parity.mjs --report # liste les clés des deux côtés, sans garder
+ *   node scripts/check-env-parity.mjs --report # liste les clés des deux côtés
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -93,4 +93,7 @@ console.error(
   `\nUne clé ne vit que d'un côté. Ajoute-la à l'autre fichier avec la valeur qui\n` +
     `convient à SON environnement — ou retire-la des deux si elle est morte.`
 );
-process.exit(REPORT ? 0 : 1);
+// `--report` AJOUTE de la sortie, il ne désarme jamais la garde. Une option qui fait
+// sortir un contrôle en 0 quoi qu'il arrive est une garde armée qui ne mord pas — et
+// c'est le défaut le plus difficile à voir, puisque le pipeline reste vert.
+process.exit(1);

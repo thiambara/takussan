@@ -18,9 +18,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
- * Identity-side profiles trait. Lives on User. Sister trait of HasRoles
- * (spatie) — HasRoles describes WHAT a user can do; HasProfiles describes
- * WHO a user is in each agency context.
+ * Identity-side profiles trait. Lives on User.
+ *
+ * Décrit QUI est un utilisateur dans chaque contexte d'agence. Ce qu'il PEUT y
+ * faire est répondu séparément par `Capability` + `MembershipCapabilityResolver`
+ * (ADR-0003), atteignables depuis ici par `canActAt()`.
+ *
+ * Ce docblock se présentait auparavant comme le « trait jumeau de HasRoles
+ * (spatie) ». `spatie/laravel-permission` a été DÉSINSTALLÉ par TCK-278
+ * (ADR-0002) et une garde CI casse sur tout import de son namespace : il n'y a
+ * plus de jumeau. Un commentaire survit au code qu'il décrit, et il y survit
+ * avec la même autorité qu'un commentaire juste.
  */
 trait HasProfiles
 {

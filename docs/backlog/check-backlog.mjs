@@ -15,7 +15,7 @@
  *
  * Usage :
  *   node docs/backlog/check-backlog.mjs            # garde, sort en 1 au moindre écart
- *   node docs/backlog/check-backlog.mjs --report   # + l'état d'avancement, sans garder
+ *   node docs/backlog/check-backlog.mjs --report   # + l'état d'avancement
  *
  * **Ce qu'il NE PEUT PAS faire, et qu'il faut savoir** : il ne devine pas qu'un ticket a été
  * implémenté. Il attrape le pointeur pourri, la dépendance incohérente, la date impossible et le
@@ -248,4 +248,7 @@ if (erreurs.length === 0) {
 
 console.error(`\n✗ ${erreurs.length} incohérence(s) :\n`);
 for (const e of erreurs) console.error(`  · ${e}`);
-process.exit(REPORT ? 0 : 1);
+// `--report` AJOUTE de la sortie, il ne désarme jamais la garde. Une option qui fait
+// sortir un contrôle en 0 quoi qu'il arrive est une garde armée qui ne mord pas — et
+// c'est le défaut le plus difficile à voir, puisque le pipeline reste vert.
+process.exit(1);

@@ -1,7 +1,7 @@
 ---
 id: MVP-007
 title: "Tri résultats basique"
-status: todo
+status: obsolete
 slice: "Weekend 4-5"
 estimate: 0.5 weekend
 created: 2026-04-16

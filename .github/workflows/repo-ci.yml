@@ -18,7 +18,11 @@ on:
       - 'docs/backlog/**'
       - 'takussan-api/.env.example'
       - 'takussan-api/.env.docker'
-      - 'scripts/*.mjs'
+      # `check-queues.mjs` compare les `onQueue()` du code à la commande de production :
+      # les deux côtés doivent déclencher la garde, sinon elle ne verrait qu'une moitié
+      # de l'écart qu'elle existe pour trouver.
+      - 'takussan-api/app/**'
+      - 'scripts/**'
       - '.github/workflows/repo-ci.yml'
   push:
     branches: [dev, master]
@@ -26,7 +30,8 @@ on:
       - 'docs/backlog/**'
       - 'takussan-api/.env.example'
       - 'takussan-api/.env.docker'
-      - 'scripts/*.mjs'
+      - 'takussan-api/app/**'
+      - 'scripts/**'
       - '.github/workflows/repo-ci.yml'
 
 jobs:
@@ -49,6 +54,14 @@ jobs:
 
       - name: Les deux fichiers d'environnement déclarent les mêmes clés
         run: node scripts/check-env-parity.mjs
+
+      - name: Toute file de jobs poussée par le code est consommée en production
+        # L'unité systemd lançait `queue:work` SANS `--queue` : elle ne consommait que
+        # `default`, et les jobs poussés sur `media`, `notifications-urgent` et
+        # `reconciliation` s'empilaient dans la table `jobs` sans jamais s'exécuter.
+        # Rien ne le signalait — une file sans consommateur ne se manifeste que par
+        # l'absence de quelque chose, et l'absence ne déclenche rien.
+        run: node scripts/check-queues.mjs --report
 
       - name: INDEX.md est à jour de ses frontmatters
         # `--check` n'écrit rien et sort non nul si l'index est périmé. Sans cette étape, la règle

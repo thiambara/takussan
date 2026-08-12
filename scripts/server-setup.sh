@@ -363,6 +363,22 @@ setup_queue_service() {
     fi
 
     log "Creating queue worker systemd service ${name}..."
+
+    # `--queue` est OBLIGATOIRE, et son absence a été un défaut réel.
+    #
+    # Sans lui, `queue:work` ne consomme que la file `default`. Or le code pousse
+    # explicitement sur trois files nommées — `onQueue('media')` (2 sites),
+    # `onQueue('notifications-urgent')` (1 site), `onQueue('reconciliation')` (2 sites).
+    # Leurs jobs s'empilaient donc indéfiniment dans la table `jobs` sans jamais être
+    # exécutés : pas d'erreur, pas de timeout, pas d'alerte. L'API répondait 200, la
+    # ligne partait en base, et l'effet attendu n'arrivait simplement jamais.
+    #
+    # Une file sans consommateur est le défaut le plus silencieux qui soit — il ne se
+    # manifeste que par l'absence de quelque chose, et l'absence ne déclenche rien.
+    #
+    # Toute nouvelle file nommée doit être AJOUTÉE ICI. Il n'existe aucune garde : le
+    # jour où un `onQueue('…')` apparaît dans le code sans passer par cette ligne, le
+    # défaut se reproduit à l'identique.
     cat > "${service_file}" <<UNIT
 [Unit]
 Description=Takussan Queue Worker (${name})
@@ -372,7 +388,8 @@ After=network.target mysql.service
 User=${DEPLOY_USER}
 Group=${WEB_GROUP}
 WorkingDirectory=${app_dir}/current
-ExecStart=/usr/bin/php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+# L'ordre des files EST la priorité. Voir le commentaire du script pour le pourquoi.
+ExecStart=/usr/bin/php artisan queue:work --queue=notifications-urgent,default,media,reconciliation --sleep=3 --tries=3 --max-time=3600
 Restart=always
 RestartSec=5
 StandardOutput=append:${app_dir}/shared/storage/logs/queue-worker.log
