@@ -90,4 +90,10 @@ jobs:
         # SOURCE suit la RÉALITÉ : pointeur cité qui n'existe plus, dépendance incohérente, date
         # impossible, statut ouvert sur du code déjà mergé. La première ne peut rien voir de la
         # seconde — elle compare deux fichiers, elle ne regarde jamais le dépôt.
-        run: node docs/backlog/check-backlog.mjs
+        #
+        # `--report` fait ÉCRIRE au script la référence git sur laquelle il a confronté les
+        # statuts. Sans elle, une exécution verte prouve seulement qu'aucune erreur n'a été
+        # levée — il faut alors RAISONNER pour conclure que la confrontation a eu lieu. Avec
+        # elle, le journal le montre. (`--report` ajoute de la sortie, il ne désarme pas la
+        # garde : le script sort toujours en 1 sur une incohérence.)
+        run: node docs/backlog/check-backlog.mjs --report
