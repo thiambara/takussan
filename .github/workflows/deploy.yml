@@ -31,11 +31,13 @@ on:
     inputs:
       branch:
         description: >-
-          Branche à déployer en PRODUCTION. `master` par défaut, comme le déclencheur automatique.
-          Sans cette entrée, un déclenchement manuel déployait `master` — codé en dur — c'est-à-dire
-          l'état du 2026-05-18, antérieur à cette chaîne de déploiement elle-même.
+          Branche à déployer en PRODUCTION — `dev` ou `master`, rien d'autre. Sans cette entrée,
+          un déclenchement manuel déployait `master` codé en dur, c'est-à-dire l'état du
+          2026-05-18, antérieur à cette chaîne de déploiement elle-même. Le défaut est `dev`
+          parce que c'est la branche d'intégration ET la branche par défaut du dépôt : le
+          formulaire propose donc ce que l'opérateur croit déjà être en train de déployer.
         required: true
-        default: master
+        default: dev
         type: string
 
 concurrency:

@@ -15,7 +15,6 @@ name: Repo CI
 on:
   pull_request:
     paths:
-      - 'docs/backlog/**'
       - 'takussan-api/.env.example'
       - 'takussan-api/.env.docker'
       # Chaque garde doit être déclenchée par les DEUX côtés qu'elle compare, sinon elle
@@ -23,28 +22,34 @@ on:
       #   check-queues     → les `onQueue()` de takussan-api/app, scripts/server-setup.sh ET dev.sh
       #   check-pro-routes → PRO_ROUTES et les pages, tous deux sous takussan-web/src
       #   check-backlog    → les tickets ET les specs qu'ils citent
-      # Deux entrées manquaient successivement : `takussan-web/**`, puis `dev.sh` — la garde des
-      # files ne tournait donc pas sur son SECOND consommateur, celui qu'on venait de lui
-      # apprendre à lire. Une liste de déclencheurs se re-vérifie à chaque garde ajoutée.
+      #
+      # TROIS entrées ont manqué successivement : `takussan-web/**`, puis `dev.sh`, puis les
+      # specs. Les deux premières se corrigeaient en ajoutant une ligne ; la troisième a montré
+      # que la liste elle-même était le défaut. `check-backlog` vérifie que CHAQUE `spec_refs`
+      # pointe sur un fichier existant, et les tickets en citent HUIT sous `docs/` —
+      # features-by-actor, ardoise, design-guidelines, configuration, pdf-templates,
+      # spatie-query-builder… — quand cette liste en nommait deux. Supprimer l'un des six autres
+      # ne déclenchait aucune garde : le pointeur cassé arrivait sur `dev`, et l'échec sortait
+      # sur la PR suivante, imputé à quelqu'un qui n'y était pour rien.
+      #
+      # D'où `docs/**` : la garde lit tout `docs/`, le déclencheur couvre tout `docs/`. Une
+      # énumération se re-vérifie à chaque garde ajoutée ; un préfixe, jamais.
       - 'takussan-api/app/**'
       - 'takussan-web/src/**'
       - 'scripts/**'
       - 'dev.sh'
-      - 'docs/features.md'
-      - 'docs/models-spec.md'
+      - 'docs/**'
       - '.github/workflows/repo-ci.yml'
   push:
     branches: [dev, master]
     paths:
-      - 'docs/backlog/**'
       - 'takussan-api/.env.example'
       - 'takussan-api/.env.docker'
       - 'takussan-api/app/**'
       - 'takussan-web/src/**'
       - 'scripts/**'
       - 'dev.sh'
-      - 'docs/features.md'
-      - 'docs/models-spec.md'
+      - 'docs/**'
       - '.github/workflows/repo-ci.yml'
 
 jobs:

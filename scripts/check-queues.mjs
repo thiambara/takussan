@@ -116,7 +116,20 @@ for (const { fichier, ou } of CONSOMMATEURS) {
     console.error(`✗ ${fichier.slice(ROOT.length + 1)} est introuvable — la garde ne peut pas vérifier « ${ou} ».`);
     process.exit(1);
   }
-  const ligne = readFileSync(fichier, 'utf8').split('\n').find((l) => l.includes('artisan queue:work'));
+  // Les COMMENTAIRES sont écartés, et ce n'est pas de la coquetterie.
+  //
+  // `find()` rendait la PREMIÈRE ligne contenant `artisan queue:work`, où qu'elle soit. Or les
+  // deux consommateurs portent désormais de longs blocs d'explication au-dessus de leur
+  // invocation. Le jour où l'un d'eux cite la commande complète — `php artisan queue:work
+  // --queue=notifications-urgent,default,media,reconciliation`, la chose la plus naturelle à
+  // écrire dans un commentaire qui explique ce drapeau — la garde lisait le commentaire, y
+  // trouvait le `--queue=`, et passait au vert pendant que l'`ExecStart` réel l'avait perdu.
+  //
+  // *Une garde qui lit la documentation de la commande au lieu de la commande atteste de
+  // l'intention, pas de l'exécution.* C'est le défaut même qu'elle existe pour attraper.
+  const ligne = readFileSync(fichier, 'utf8')
+    .split('\n')
+    .find((l) => l.includes('artisan queue:work') && !/^\s*#/.test(l));
   if (!ligne) {
     console.error(`✗ aucune ligne \`artisan queue:work\` dans ${fichier.slice(ROOT.length + 1)} (« ${ou} »).`);
     console.error('  La garde le dit plutôt que de passer en silence.');

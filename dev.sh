@@ -45,10 +45,22 @@ avert() { printf '  \033[33m!\033[0m %s\n' "$*"; }
 # Valeur d'une clé dans un fichier .env. Rend la chaîne vide si absente.
 # `head -1` : sur une clé écrite deux fois, phpdotenv retient la PREMIÈRE — on lit
 # donc celle qui fait foi, pas la dernière du fichier.
+#
+# ⚠ `|| true` et `return 0` : le commentaire ci-dessus promettait « la chaîne vide si absente »,
+# et le code rendait la chaîne vide ET UN CODE 1. `grep` sort en 1 quand il ne trouve rien,
+# `pipefail` propage ce 1 à travers le tube, et `set -e` tue le script sur l'AFFECTATION
+# (`DB_PORT_ENV="$(env_get …)"` est une commande comme une autre pour bash).
+#
+# Reproduit avec un `.env` de la forme de `takussan-api/.env.example` — `DB_CONNECTION=sqlite`,
+# `DB_PORT` et `MEILISEARCH_HOST` en commentaire : `./dev.sh` sortait en 1 **sans imprimer une
+# seule ligne**. Il n'atteignait jamais la branche `DB_CONNECTION=sqlite` écrite pour ce cas
+# précis, et `./dev.sh doctor` — dont tout le contrat est de toujours répondre — ne répondait
+# rien. Le mode diagnostic tombait exactement sur la configuration qu'on l'appelle diagnostiquer.
 env_get() {
   local fichier="$1" cle="$2"
   [ -f "$fichier" ] || return 0
-  grep -E "^${cle}=" "$fichier" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'"
+  grep -E "^${cle}=" "$fichier" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" || true
+  return 0
 }
 
 # Premier port TCP libre à partir de $1 (balaye 50 ports).
@@ -151,15 +163,29 @@ if [ "$MODE" != "doctor" ] && { [ "$VISE_DOCKER" = "1" ] || [ "$MODE" = "service
   # On attend la SANTÉ, pas le démarrage : un conteneur « Up » dont MariaDB initialise
   # encore son volume refuse les connexions, et `php artisan migrate` échoue sur une
   # course qu'on rejoue trois fois avant de comprendre.
-  printf '  attente de la santé des services'
+  # On COMPTE les `healthy`, on ne se contente pas de l'absence de mauvaise nouvelle.
+  #
+  # La version précédente décidait par un `*)` attrape-tout : toute chaîne d'états ne contenant
+  # ni `starting` ni `unhealthy` valait succès. Or `docker compose ps` ne liste QUE les
+  # conteneurs démarrés et rend une colonne `Health` VIDE pour un conteneur `created` ou
+  # `restarting` : `"healthy healthy healthy "` — trois services, un absent — tombait dans le
+  # `*)`, et le script annonçait « les quatre services répondent » avant d'aller migrer contre
+  # une base qui pouvait être justement celle qui manquait.
+  #
+  # *Une garde qui conclut par défaut atteste de ce qu'elle n'a pas vu, pas de ce qu'elle a vu.*
+  ATTENDUS=$(docker compose -f "$ROOT/docker-compose.yml" config --services 2>/dev/null | grep -c . || echo 4)
+  printf '  attente de la santé des %s services' "$ATTENDUS"
   SANTE_OK=0
   for _ in $(seq 1 60); do
     etats="$(docker compose -f "$ROOT/docker-compose.yml" ps --format '{{.Health}}' 2>/dev/null | tr '\n' ' ')"
+    sains=$(printf '%s' "$etats" | tr ' ' '\n' | grep -cx 'healthy' || true)
     case "$etats" in
-      *starting* | '') printf '.'; sleep 2 ;;
       *unhealthy*) printf '\n'; ko "un service est unhealthy — 'docker compose ps' pour le détail"; exit 75 ;;
-      *) printf '\n'; ok "les quatre services répondent"; SANTE_OK=1; break ;;
     esac
+    if [ "${sains:-0}" -ge "$ATTENDUS" ]; then
+      printf '\n'; ok "les $ATTENDUS services répondent"; SANTE_OK=1; break
+    fi
+    printf '.'; sleep 2
   done
   # L'épuisement de la boucle est un ÉCHEC, pas une sortie normale. Sans ce test, les 120 s
   # s'écoulaient et le script continuait jusqu'à `migrate` — qui échouait sur un « Connection
@@ -167,7 +193,7 @@ if [ "$MODE" != "doctor" ] && { [ "$VISE_DOCKER" = "1" ] || [ "$MODE" = "service
   # existe pour supprimer : elle la reproduisait en la déplaçant de trois lignes.
   if [ "$SANTE_OK" != "1" ]; then
     printf '\n'
-    ko "les services ne sont pas prêts après 120 s — rien n'a été lancé."
+    ko "les services ne sont pas prêts après 120 s (${sains:-0}/$ATTENDUS sains) — rien n'a été lancé."
     echo "     'docker compose logs --tail=40' dira lequel bloque." >&2
     echo "     Une première création du volume MariaDB peut dépasser ce délai : relancer suffit." >&2
     exit 75
