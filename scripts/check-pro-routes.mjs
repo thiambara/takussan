@@ -29,7 +29,32 @@ const REPORT = process.argv.includes('--report');
 const WEB = join(ROOT, 'takussan-web', 'src');
 
 const SOURCE = join(WEB, 'lib', 'access', 'pro-features.ts');
-const GARDE = 'ensureStandardAgencyOrRedirect';
+
+/**
+ * Les DEUX formes de garde serveur, et la seconde a coûté cher.
+ *
+ * Une première version de ce script ne cherchait que la chaîne
+ * `ensureStandardAgencyOrRedirect`. Il a donc déclaré « aucune garde » sur quatre pages qui
+ * redirigent bel et bien — elles résolvent déjà l'agence pour leur propre affichage et écrivent
+ * le test **en ligne**. Sur la foi de ce faux négatif, les quatre routes ont été retirées de
+ * `PRO_ROUTES` : un cadenas supprimé devant des pages qui gardent.
+ *
+ * *Une garde qui cherche un JETON ne mesure pas la PROPRIÉTÉ.* Elle ne rend pas « je ne sais
+ * pas » — elle rend « non », avec l'autorité d'une mesure. C'est la forme de faux négatif la plus
+ * coûteuse, parce qu'on agit dessus.
+ *
+ * Ce qu'on cherche vraiment : « cette page renvoie-t-elle ailleurs une agence non `standard` ? »
+ * On l'approche par deux motifs. C'est toujours syntaxique, donc toujours faillible — d'où la
+ * troisième règle plus bas, qui refuse une page dont on ne comprend pas la protection plutôt que
+ * de la déclarer nue.
+ */
+const GARDES = [
+  // 1. le helper nommé — les routes /admin/*
+  { nom: 'ensureStandardAgencyOrRedirect', motif: /ensureStandardAgencyOrRedirect\s*\(/ },
+  // 2. la garde écrite en ligne — les routes /app/*
+  //    ex. `if (agency && agency.kind !== 'standard') redirect('/app')`
+  { nom: 'test en ligne sur agency.kind', motif: /kind\s*!==\s*['"]standard['"][\s\S]{0,80}?redirect\s*\(/ },
+];
 
 /**
  * Écarts CONNUS et assumés, chacun avec son ticket.
@@ -87,12 +112,15 @@ for (const route of routes) {
     introuvables.push(route);
     continue;
   }
-  (readFileSync(p, 'utf8').includes(GARDE) ? gardees : nues).push([route, p.slice(ROOT.length + 1)]);
+  const src = readFileSync(p, 'utf8');
+  const trouvee = GARDES.find((g) => g.motif.test(src));
+  if (trouvee) gardees.push([route, p.slice(ROOT.length + 1), trouvee.nom]);
+  else nues.push([route, p.slice(ROOT.length + 1), src]);
 }
 
 if (REPORT) {
   console.log(`PRO_ROUTES : ${routes.length} routes\n`);
-  for (const [r, p] of gardees) console.log(`  ✓ gardée      ${r.padEnd(34)} ${p}`);
+  for (const [r, p, via] of gardees) console.log(`  ✓ gardée      ${r.padEnd(34)} ${via}`);
   for (const [r] of nues) {
     const t = ECARTS_ASSUMES.get(r);
     console.log(`  ${t ? '~' : '✗'} SANS GARDE  ${r.padEnd(34)} ${t ? `écart assumé (${t})` : ''}`);
@@ -106,10 +134,19 @@ const erreurs = [];
 for (const r of introuvables) {
   erreurs.push(`\`${r}\` est déclarée dans PRO_ROUTES mais aucune page ne la sert — soit la route a été supprimée sans nettoyer la liste, soit elle a été renommée.`);
 }
-for (const [r] of nues) {
-  if (!ECARTS_ASSUMES.has(r)) {
-    erreurs.push(`\`${r}\` est cadenassée dans la barre latérale mais sa page n'appelle pas \`${GARDE}\` : le cadenas n'empêche que le clic, une URL tapée à la main passe.`);
-  }
+for (const [r, chemin, src] of nues) {
+  if (ECARTS_ASSUMES.has(r)) continue;
+  // Règle n°3 — le doute ne vaut pas « non ». Si la page mentionne quand même `agency.kind` ou
+  // un `redirect(`, c'est probablement une TROISIÈME forme de garde que les deux motifs
+  // ci-dessus ne savent pas lire. On le dit comme tel : « je ne reconnais pas », jamais
+  // « il n'y en a pas ». C'est ce que la première version de ce script n'a pas su faire, et
+  // c'est ce qui a conduit à retirer un cadenas devant une page protégée.
+  const indice = /agency[\s\S]{0,40}kind|redirect\s*\(/.test(src);
+  erreurs.push(
+    indice
+      ? `\`${r}\` — ${chemin} contient bien une notion d'agence ou une redirection, mais sous une forme que cette garde ne sait pas lire. RELIS-LA À LA MAIN : ne conclus pas qu'elle est nue, et si c'est une garde valide, ajoute son motif à GARDES.`
+      : `\`${r}\` est cadenassée dans la barre latérale mais ${chemin} ne porte aucune garde reconnaissable : le cadenas n'empêche que le clic, une URL tapée à la main passe.`,
+  );
 }
 // L'inverse compte aussi : un écart réparé doit sortir de l'allowlist, sinon la liste devient un
 // cimetière et plus personne ne sait ce qu'elle couvre encore.

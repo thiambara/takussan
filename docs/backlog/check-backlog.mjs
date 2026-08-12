@@ -160,17 +160,39 @@ if (!git) {
   ko('historique git superficiel (shallow) : les statuts n\'ont pas pu être confrontés aux commits. '
     + 'En CI, poser "fetch-depth: 0" sur le checkout.');
 } else {
+  // La référence d'intégration, essayée dans l'ordre. `dev` en premier pour un poste de
+  // développement ; `origin/dev` ensuite, et c'est LUI qui sert en CI.
+  //
+  // Sur un run `pull_request`, actions/checkout extrait `refs/remotes/pull/N/merge` en HEAD
+  // détachée et ne crée AUCUNE branche locale — même avec `fetch-depth: 0`. `git log dev`
+  // échouait donc sur « unknown revision », le catch posait un simple AVERTISSEMENT, et la
+  // garde sortait en 0 sans avoir rien confronté. Elle passait au vert sur chaque PR en ne
+  // vérifiant rien : exactement la vacuité qu'elle existe pour dénoncer ailleurs.
+  const REFS = ['dev', 'origin/dev', 'refs/remotes/origin/dev'];
   let journal = '';
-  try {
-    // Le séparateur est en TÊTE du format, pas en queue. Avec `--name-only`, git émet les chemins
-    // APRÈS le message : un séparateur final rattacherait à chaque bloc les fichiers du commit
-    // PRÉCÉDENT. Le défaut est silencieux — la commande sort en 0, le parsing réussit, et le
-    // résultat est simplement décalé d'un cran.
-    journal = execFileSync('git', ['log', 'dev', '--format=%x01%H%x00%s%x00%b', '--name-only'],
-      { cwd: ROOT, encoding: 'utf8', maxBuffer: 128 * 1024 * 1024 });
-  } catch {
-    warn("la branche `dev` est introuvable : les statuts n'ont pas été confrontés aux commits.");
+  let refUtilisee = null;
+  for (const ref of REFS) {
+    try {
+      // Le séparateur est en TÊTE du format, pas en queue. Avec `--name-only`, git émet les
+      // chemins APRÈS le message : un séparateur final rattacherait à chaque bloc les fichiers
+      // du commit PRÉCÉDENT. Défaut silencieux — la commande sort en 0 et le résultat est
+      // simplement décalé d'un cran.
+      journal = execFileSync('git', ['log', ref, '--format=%x01%H%x00%s%x00%b', '--name-only'],
+        { cwd: ROOT, encoding: 'utf8', maxBuffer: 128 * 1024 * 1024 });
+      refUtilisee = ref;
+      break;
+    } catch { /* on essaie la référence suivante */ }
+  }
+
+  if (!refUtilisee) {
+    // ERREUR, pas avertissement. Une vérification qui n'a pas eu lieu doit faire rougir :
+    // sinon « garde verte » et « garde muette » deviennent indiscernables, et c'est la
+    // seconde qui gagne avec le temps.
+    ko('aucune des références ' + REFS.join(', ') + " n'est résolvable : les statuts n'ont PAS "
+      + 'été confrontés aux commits. En CI, vérifier que le checkout a bien `fetch-depth: 0`.');
     journal = '';
+  } else if (REPORT) {
+    console.log(`(confrontation des statuts faite sur \`${refUtilisee}\`)`);
   }
 
   if (journal) {

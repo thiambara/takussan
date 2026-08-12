@@ -122,14 +122,26 @@ if [ "$VISE_DOCKER" = "1" ] || [ "$MODE" = "services" ]; then
   # encore son volume refuse les connexions, et `php artisan migrate` échoue sur une
   # course qu'on rejoue trois fois avant de comprendre.
   printf '  attente de la santé des services'
+  SANTE_OK=0
   for _ in $(seq 1 60); do
     etats="$(docker compose -f "$ROOT/docker-compose.yml" ps --format '{{.Health}}' 2>/dev/null | tr '\n' ' ')"
     case "$etats" in
       *starting* | '') printf '.'; sleep 2 ;;
       *unhealthy*) printf '\n'; ko "un service est unhealthy — 'docker compose ps' pour le détail"; exit 75 ;;
-      *) printf '\n'; ok "les quatre services répondent"; break ;;
+      *) printf '\n'; ok "les quatre services répondent"; SANTE_OK=1; break ;;
     esac
   done
+  # L'épuisement de la boucle est un ÉCHEC, pas une sortie normale. Sans ce test, les 120 s
+  # s'écoulaient et le script continuait jusqu'à `migrate` — qui échouait sur un « Connection
+  # refused » imputé à la migration. C'est exactement la cause mal attribuée que l'attente
+  # existe pour supprimer : elle la reproduisait en la déplaçant de trois lignes.
+  if [ "$SANTE_OK" != "1" ]; then
+    printf '\n'
+    ko "les services ne sont pas prêts après 120 s — rien n'a été lancé."
+    echo "     'docker compose logs --tail=40' dira lequel bloque." >&2
+    echo "     Une première création du volume MariaDB peut dépasser ce délai : relancer suffit." >&2
+    exit 75
+  fi
 else
   bold "▸ Services"
   ok "takussan-api/.env vise des services HORS de ce docker-compose (DB sur :${DB_PORT_ENV:-?})"
@@ -233,10 +245,36 @@ if [ ! -d "$API/vendor" ]; then
   (cd "$API" && composer install --no-interaction)
 fi
 
-if [ "$PREMIER_DEMARRAGE" = "1" ]; then
+# La condition porte sur l'ÉTAT DE LA BASE, pas sur l'existence du `.env`.
+#
+# Elle portait sur `PREMIER_DEMARRAGE`, qui vaut 1 uniquement quand `.env` n'existait pas — et
+# le `.env` venait d'être créé quelques lignes plus haut. Si ce premier `migrate --seed`
+# échouait (base pas encore prête, téléchargement média coupé, Ctrl-C), le `.env` existait
+# désormais : au relancement, la condition était fausse, le bloc sauté, et le développeur
+# obtenait une application qui démarre sur une base VIDE sans que rien ne le signale. Réparer
+# exigeait de connaître la commande manuelle que ce script existe pour ne pas avoir à connaître.
+#
+# `migrate` est idempotent : le rejouer ne coûte rien. Le `--seed`, lui, ne part que sur une
+# base réellement vierge — on ne veut pas re-semer par-dessus des données de travail.
+BASE_VIERGE=0
+if ! (cd "$API" && php artisan migrate:status >/dev/null 2>&1); then
+  # Pas de table `migrations` du tout : base neuve, ou jamais migrée.
+  BASE_VIERGE=1
+elif [ "$(cd "$API" && php artisan tinker --execute='echo \App\Models\User::count();' 2>/dev/null | tr -dc '0-9')" = "0" ]; then
+  # Migrée mais sans aucun utilisateur : un `--seed` interrompu laisse exactement cet état.
+  BASE_VIERGE=1
+fi
+
+if [ "$BASE_VIERGE" = "1" ]; then
   bold "▸ Migrations + jeu de démonstration"
   echo "  (première fois : quelques minutes — SEED_DOWNLOAD_MEDIA télécharge les photos)"
   (cd "$API" && php artisan migrate --seed --force)
+else
+  # Migrations en attente sur une base déjà peuplée : on les passe, sans re-semer.
+  if (cd "$API" && php artisan migrate:status 2>/dev/null | grep -q Pending); then
+    bold "▸ Migrations en attente"
+    (cd "$API" && php artisan migrate --force)
+  fi
 fi
 
 # ───────────────────────────────────────────────────────────── API + file + scheduler
@@ -250,10 +288,17 @@ fi
 
 (cd "$API" && exec php artisan serve --host=127.0.0.1 --port="$API_PORT") &
 API_PID=$!
+# --queue : les MÊMES files que la production, dans le même ordre de priorité. Sans
+# lui, le worker ne consomme que `default` et les jobs poussés sur `media`,
+# `notifications-urgent` et `reconciliation` restent en base sans jamais s'exécuter —
+# le développeur voit un 200, aucune erreur, et un filigrane qui n'apparaît jamais.
+# C'est le défaut corrigé en production dans `scripts/server-setup.sh` ; il vivait ici
+# aussi. `scripts/check-queues.mjs` surveille désormais les DEUX consommateurs.
+#
 # --tries=1 : chaque job porte son propre `tries`/`backoff`. Laisser le worker
 # retenter par-dessus doublerait silencieusement les tentatives — et un rappel de
 # paiement envoyé deux fois est un défaut visible par l'utilisateur final.
-(cd "$API" && exec php artisan queue:work --tries=1) &
+(cd "$API" && exec php artisan queue:work --queue=notifications-urgent,default,media,reconciliation --tries=1) &
 QUEUE_PID=$!
 (cd "$API" && exec php artisan schedule:work) &
 SCHEDULE_PID=$!
@@ -289,4 +334,12 @@ if [ ! -d "$WEB/node_modules" ]; then
 fi
 
 cd "$WEB"
-exec npx next dev --port "$WEB_PORT"
+# PAS de `exec` : il remplacerait l'image du shell et DÉTRUIRAIT le trap EXIT posé plus haut.
+# Quand le serveur Next s'arrête seul (plantage, erreur fatale), `php artisan serve`,
+# `queue:work` et `schedule:work` survivraient alors, re-parentés à init — et le `./dev.sh`
+# suivant trouverait 8002 occupé, basculerait l'API sur 8003, et le front (dont
+# NEXT_PUBLIC_API_URL est codé sur 8002) parlerait au serveur orphelin périmé.
+#
+# Ctrl-C fonctionnait malgré `exec` parce que SIGINT frappe le groupe de processus entier —
+# pas grâce au trap. La sortie propre du serveur, elle, n'était couverte par rien.
+npx next dev --port "$WEB_PORT"

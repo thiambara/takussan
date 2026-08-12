@@ -527,7 +527,19 @@ cent fois trop peu. Classé P0 malgré son apparence documentaire.
 > un cadenas dans la barre latérale **sans aucune garde serveur**. Le cadenas n'empêchait que le
 > clic ; une URL tapée à la main passait.
 >
-> **RÉSOLU le 2026-08-12 — et pas dans le sens attendu.** La mesure du backend a tranché la
+> **⛔ CORRECTION du 2026-08-12 (soir) — la mesure ci-dessous était FAUSSE.** Une revue de code a
+> établi que les quatre routes `/app/*` **sont** gardées côté serveur : elles écrivent le test
+> **en ligne** (`if (agency.kind !== 'standard') redirect('/app')`) au lieu d'appeler le helper.
+> La garde ne cherchait que la chaîne `ensureStandardAgencyOrRedirect` : elle a rendu un faux
+> négatif avec l'autorité d'une mesure, et le cadenas a été retiré devant des pages qui gardent.
+> **Rétabli** — les 9 routes sont dans `PRO_ROUTES`, la garde reconnaît les deux formes et refuse
+> de conclure au doute. *Une garde qui cherche un JETON ne mesure pas la PROPRIÉTÉ* : c'est
+> l'anti-patron que cette ardoise documente partout, commis par l'ardoise elle-même.
+>
+> *Ce qui suit était le raisonnement d'origine. Conservé : il montre comment un faux négatif se
+> propage en décision.*
+>
+> ~~**RÉSOLU le 2026-08-12 — et pas dans le sens attendu.**~~ La mesure du backend a tranché la
 > question : les endpoints des quatre routes (`KpiConfigController`, `ThresholdAlertController`,
 > `owners`, `DashboardController`) **ne portent aucun `AgencyKindGuard` non plus**. La restriction
 > n'existait donc **nulle part** — ni page, ni API : elle n'avait jamais été un comportement,

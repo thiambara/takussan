@@ -7,6 +7,18 @@ name: Deploy Laravel API
 # Le premier déploiement de production ne doit donc PAS être l'effet de bord d'un merge : il se
 # déclenche à la main, on regarde ce qu'il fait, et on décide ensuite de la politique de branche
 # (cf. TCK-288). C'est ce que permet l'entrée `branch` ci-dessous.
+#
+# ⚠️ DEUX CONDITIONS avant qu'un déclenchement manuel soit possible ET sûr — une revue a montré
+# qu'aucune des deux n'allait de soi :
+#
+#   1. `deploy.yml` doit exister sur la BRANCHE PAR DÉFAUT du dépôt, sinon GitHub n'expose pas
+#      `workflow_dispatch` du tout (`HTTP 404: workflow not found on the default branch`). Fait
+#      le 2026-08-12 : la branche par défaut est passée de `master` — qui ne porte pas ce
+#      fichier — à `dev`, qui le porte. Cette bascule ne déclenche rien : le `on: push:`
+#      ci-dessous reste sur `master`.
+#   2. La version de `deploy.yml` présente sur cette branche doit porter l'entrée `branch`.
+#      Tant que ce n'est pas le cas, un dispatch retombe sur le `master` codé en dur et déploie
+#      un état périmé — le contraire exact de ce qu'on voulait.
 on:
   push:
     branches:

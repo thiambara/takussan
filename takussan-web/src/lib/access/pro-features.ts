@@ -10,24 +10,31 @@ import type { User } from '@/types/user';
  * une URL tapée à la main passe à travers. `scripts/check-pro-routes.mjs` le
  * vérifie à chaque CI et refuse toute entrée neuve non gardée.
  *
- * Cette liste en comptait quatre de plus — `/app/overview/{kpis,alerts,agency}`
- * et `/app/owners` — et le docblock affirmait alors que « the pages themselves
- * redirect to `/app` server-side, which is the ultimate gate ». Mesuré le
- * 2026-08-12 : c'était faux pour ces quatre-là. Ni leur page, ni leur API
- * (`KpiConfigController`, `ThresholdAlertController`, `owners`,
- * `DashboardController`) ne portait la moindre garde — la restriction n'avait
- * **jamais** été implémentée nulle part. Le cadenas promettait donc une
- * limitation qui n'existait pas, aux seuls `agency_admin`, sur des écrans
- * ouverts à tous.
+ * La garde connaît **deux** formes de protection, et il a fallu une revue pour
+ * qu'elle connaisse la seconde :
  *
- * Arbitré (TCK-284) : ces écrans ne sont **pas** réservés aux agences
- * `standard`. Les quatre entrées sont retirées, le comportement réel ne change
- * pas, et la barre latérale cesse de mentir.
+ *  1. l'appel au helper `ensureStandardAgencyOrRedirect(user)` — les cinq
+ *     routes `/admin/*` ;
+ *  2. la garde **écrite en ligne** — `if (agency.kind !== 'standard')
+ *     redirect('/app')` — les quatre routes `/app/*`, qui résolvent déjà
+ *     l'agence pour leur propre affichage et n'avaient pas besoin du helper.
+ *
+ * Une première version de cette garde ne cherchait que la CHAÎNE
+ * `ensureStandardAgencyOrRedirect`. Elle a donc conclu que les quatre routes
+ * `/app/*` n'étaient protégées nulle part, et elles ont été retirées de cette
+ * liste — retirant un cadenas devant des pages qui redirigent réellement.
+ * Elles sont rétablies. *Une garde qui cherche un JETON ne mesure pas la
+ * PROPRIÉTÉ : elle rend un faux négatif avec l'autorité d'une mesure.*
  */
 export const PRO_ROUTES: ReadonlySet<string> = new Set([
-  // /admin/... — console admin agence. Chacune de ces cinq routes est gardée en SSR par
-  // `ensureStandardAgencyOrRedirect`, et son API par `AgencyKindGuard` côté Laravel.
-  // `scripts/check-pro-routes.mjs` le vérifie à chaque CI.
+  // /app/... — espace perso agency_admin. Gardées EN LIGNE dans leur page :
+  //   app/overview/kpis/page.tsx:21 · alerts/page.tsx:21 · agency/page.tsx:35 · owners/page.tsx:47
+  '/app/overview/kpis',
+  '/app/overview/alerts',
+  '/app/overview/agency',
+  '/app/owners',
+  // /admin/... — console admin agence. Gardées par `ensureStandardAgencyOrRedirect` en SSR,
+  // et leur API par `AgencyKindGuard` côté Laravel.
   '/admin',
   '/admin/team',
   '/admin/agency/billing',

@@ -18,10 +18,14 @@ on:
       - 'docs/backlog/**'
       - 'takussan-api/.env.example'
       - 'takussan-api/.env.docker'
-      # `check-queues.mjs` compare les `onQueue()` du code à la commande de production :
-      # les deux côtés doivent déclencher la garde, sinon elle ne verrait qu'une moitié
-      # de l'écart qu'elle existe pour trouver.
+      # Chaque garde doit être déclenchée par les DEUX côtés qu'elle compare, sinon elle
+      # ne voit qu'une moitié de l'écart qu'elle existe pour trouver :
+      #   check-queues     → les `onQueue()` de takussan-api/app  ET  scripts/server-setup.sh
+      #   check-pro-routes → PRO_ROUTES et les pages, tous deux sous takussan-web/src
+      # `takussan-web/**` manquait : la garde pro-routes ne tournait donc JAMAIS sur une PR
+      # frontend — c'est-à-dire sur exactement les PR qui peuvent la mettre en défaut.
       - 'takussan-api/app/**'
+      - 'takussan-web/src/**'
       - 'scripts/**'
       - '.github/workflows/repo-ci.yml'
   push:
@@ -31,6 +35,7 @@ on:
       - 'takussan-api/.env.example'
       - 'takussan-api/.env.docker'
       - 'takussan-api/app/**'
+      - 'takussan-web/src/**'
       - 'scripts/**'
       - '.github/workflows/repo-ci.yml'
 
@@ -66,9 +71,12 @@ jobs:
       - name: Toute route cadenassée est gardée côté serveur
         # La règle « réservé aux agences standard » est écrite deux fois, en PHP et en
         # TypeScript — le docblock PHP se déclare lui-même « backend twin ». Rien ne
-        # vérifiait qu'elles restent d'accord. À sa première exécution, cette garde a
-        # trouvé que 4 des 9 routes cadenassées n'avaient AUCUNE garde serveur, alors
-        # qu'un commentaire affirmait le contraire (TCK-284).
+        # vérifiait qu'elles restent d'accord.
+        #
+        # Sa première version ne cherchait qu'une CHAÎNE (`ensureStandardAgencyOrRedirect`)
+        # et a donc déclaré nues quatre pages qui gardent en ligne. On a agi sur ce faux
+        # négatif. Elle reconnaît désormais les deux formes, et REFUSE DE CONCLURE quand
+        # elle ne comprend pas une page — « je ne sais pas » plutôt que « il n'y en a pas ».
         run: node scripts/check-pro-routes.mjs --report
 
       - name: INDEX.md est à jour de ses frontmatters

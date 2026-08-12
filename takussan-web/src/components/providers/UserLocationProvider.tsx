@@ -45,7 +45,7 @@ export type UserLocation = {
 type UserLocationContextValue = {
   /** Réponse brute ipapi — `null` tant que le fetch n'a pas répondu (ou a échoué). */
   location: UserLocation | null;
-  /** `true` pendant le tout premier fetch (ignore le cache hit, qui est synchrone). */
+  /** `true` jusqu'à la première résolution — cache compris, qui est reporté d'une micro-tâche. */
   loading: boolean;
   /** Raccourci pratique : `location.city` avec fallback Dakar — toujours safe à afficher. */
   city: string;
@@ -72,17 +72,29 @@ export function UserLocationProvider({ children }: { children: ReactNode }) {
 
     // Le cache et le fetch passent par le MÊME flux asynchrone, et c'est délibéré.
     //
-    // La version précédente lisait localStorage puis appelait `setLocation` +
-    // `setLoading` directement dans le corps de l'effet : un setState synchrone
-    // pendant la phase de commit, qui force React à re-rendre l'arbre entier avant
-    // même que le navigateur ait peint (`react-hooks/set-state-in-effect`). Sur un
-    // provider monté à la racine, ce re-rendu en cascade touche toute la page — et
-    // c'était le chemin le plus FRÉQUENT, puisque le cache dure 24 h.
+    // La version d'origine lisait localStorage puis appelait `setLocation` + `setLoading`
+    // directement dans le corps de l'effet : un setState synchrone pendant la phase de commit,
+    // qui force React à re-rendre l'arbre entier avant même que le navigateur ait peint. Sur un
+    // provider monté à la racine, la cascade touche toute la page.
     //
-    // La lecture ne peut pas non plus remonter dans un initialiseur paresseux de
-    // `useState` : le composant est rendu côté serveur, où `window` n'existe pas, et
-    // une valeur lue au premier rendu client ferait diverger l'hydratation.
+    // La lecture ne peut pas remonter dans un initialiseur paresseux de `useState` : le
+    // composant est rendu côté serveur, où `window` n'existe pas, et une valeur lue au premier
+    // rendu client ferait diverger l'hydratation. D'où le report explicite ci-dessous.
     void (async () => {
+      // CE `await` EST LE CORRECTIF, et son absence rendait tout le reste décoratif.
+      //
+      // Le corps d'une fonction `async` s'exécute SYNCHRONIQUEMENT jusqu'au premier `await`.
+      // Sans cette ligne, le chemin du cache — `getItem`, `JSON.parse`, `setLocation`,
+      // `setLoading` — partait donc toujours pendant la phase de commit de l'effet, exactement
+      // la cascade qu'on voulait supprimer. Seule différence : `react-hooks/set-state-in-effect`
+      // ne la voyait plus, l'appel étant dans une fonction imbriquée.
+      //
+      // *Déplacer du code hors de portée d'une règle de lint n'est pas le corriger — c'est
+      // supprimer le témoin.* Ce `await` reporte réellement la suite à la micro-tâche suivante,
+      // après le commit. Et c'est bien le chemin le PLUS fréquent qui en bénéficie : le cache
+      // dure 24 h.
+      await Promise.resolve();
+
       try {
         const raw = window.localStorage.getItem(STORAGE_KEY);
         if (raw) {

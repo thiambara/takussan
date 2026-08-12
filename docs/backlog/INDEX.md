@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**270 tickets** — 10 ouverts, 259 livrés.
+**270 tickets** — 11 ouverts, 258 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 7 |
-| 🚧 Doing | 2 |
+| 🚧 Doing | 3 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 1 |
-| ✅ Done | 259 |
+| ✅ Done | 258 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -45,6 +45,7 @@
 
 - [TCK-278](tickets/TCK-278-rbac-profile-based-phase-1.md) — RBAC refondu — phase 1 : suppression de spatie sur User + PlatformProfile + Capability resolver `XL · P1 · technique`
 - [TCK-281](tickets/TCK-281-search-internal-entities-meilisearch.md) — Recherche interne sur Meilisearch (clients, maintenance, agences, utilisateurs) `L · P3 · back`
+- [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
 
 ## 👀 Review
 
@@ -56,7 +57,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 259
+## ✅ Done — 258
 
 <details>
 <summary><strong>Vague 36 — Notifications WhatsApp sortant (2026-06-17)</strong> — 2 tickets</summary>
@@ -472,10 +473,9 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 2 tickets</summary>
+<summary><strong>Sans vague</strong> — 1 ticket</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
-- [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
 
 </details>
 

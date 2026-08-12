@@ -133,6 +133,20 @@ log "Installing Composer dependencies..."
 cd "${RELEASE_DIR}/takussan-api"
 composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 
+# Vérifie les prérequis de plateforme contre l'interpréteur RÉELLEMENT présent.
+#
+# `composer.json` pose `config.platform.php = 8.4.1` pour que la résolution vise la version de
+# production, quelle que soit celle du poste où l'on fait un `composer update`. Effet de bord :
+# `composer install` valide alors le lock contre ce PHP *synthétique*, et cesse de regarder
+# celui de la machine. Sur un serveur resté en 8.3, l'installation réussirait donc, écrirait un
+# vendor 8.4-only, et la ligne suivante (`php artisan migrate`) fatalerait sur de la syntaxe
+# 8.4 au milieu d'une dépendance — en plein déploiement, release déjà peuplée.
+#
+# `check-platform-reqs` ignore l'override et compare aux extensions et à la version réelles.
+# On récupère ainsi le refus clair et EN AMONT que le `platform` nous avait fait perdre.
+log "Checking platform requirements against the real PHP..."
+composer check-platform-reqs --no-dev
+
 # ─── Step 5: Build Vite assets (admin views) ────────────────────────────────
 log "Installing npm dependencies..."
 npm ci --no-audit --no-fund

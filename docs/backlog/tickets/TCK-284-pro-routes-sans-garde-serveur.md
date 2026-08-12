@@ -1,7 +1,7 @@
 ---
 id: TCK-284
 title: "Quatre routes « pro » cadenassées sans garde serveur"
-status: done
+status: doing
 phase: P1
 family: bug
 estimate: S
@@ -113,7 +113,41 @@ Cela réduit le ticket à **une** question, et elle est produit :
 - La convergence générale PHP ↔ TypeScript des règles d'autorisation (vecteurs de test partagés).
   C'est un chantier à part ; ce ticket ne traite que les quatre routes mesurées.
 
-## Décision et résolution — 2026-08-12
+## ⛔ CORRECTION — la mesure était fausse, la décision a été annulée (2026-08-12, soir)
+
+**Une revue de code a démonté le constat, et elle a eu raison.** Les quatre routes `/app/*`
+**SONT gardées côté serveur**. Elles n'appellent simplement pas le helper : elles écrivent le test
+**en ligne**, parce qu'elles résolvent déjà l'agence pour leur propre affichage.
+
+| Page | Ligne |
+|---|---|
+| `app/overview/kpis/page.tsx` | 21 — `if (agency && agency.kind !== 'standard') redirect('/app')` |
+| `app/overview/alerts/page.tsx` | 21 — idem |
+| `app/overview/agency/page.tsx` | 35 — idem |
+| `app/owners/page.tsx` | 47 — `if (agency.kind !== 'standard') redirect('/app')` |
+
+**La garde `check-pro-routes.mjs` ne cherchait que la CHAÎNE `ensureStandardAgencyOrRedirect`.**
+Elle a donc rendu un faux négatif — et pas un « je ne sais pas », un « non » — avec l'autorité
+d'une mesure. *Une garde qui cherche un jeton ne mesure pas la propriété.* C'est exactement
+l'anti-patron que le reste de ce chantier documente, commis par le chantier lui-même.
+
+**Ce que le faux négatif a produit** : les quatre entrées ont été retirées de `PRO_ROUTES`, donc le
+cadenas a disparu devant des pages qui redirigent réellement. Un `agency_admin` d'agence
+`individual` voyait quatre entrées de menu sans cadenas ni explication, qui le renvoyaient
+silencieusement au tableau de bord.
+
+**Rétabli** : les quatre routes sont de retour dans `PRO_ROUTES`, la garde reconnaît les **deux**
+formes, et une troisième règle lui interdit de conclure « nue » sur une page qu'elle ne comprend
+pas — elle dit « relis à la main » plutôt que « il n'y en a pas ».
+
+**Ce qui reste vrai du constat d'origine** : les endpoints d'API (`KpiConfigController`,
+`ThresholdAlertController`, `owners`, `DashboardController`) ne portent effectivement **aucun**
+`AgencyKindGuard`. La page redirige, l'API répond. Ce n'est pas une faille — la page est le seul
+chemin d'accès normal — mais c'est une asymétrie avec les cinq routes `/admin/*`, gardées des deux
+côtés. **Reste à trancher**, et ce ticket reste ouvert pour ça.
+
+<details>
+<summary>Décision d'origine, conservée — elle montre comment un faux négatif se propage</summary>
 
 **Tranché : NON.** Ces quatre écrans ne sont pas réservés aux agences `standard`. **Le cadenas était
 l'erreur**, pas la garde manquante.
@@ -134,6 +168,8 @@ retirer ne change rien pour personne.
   bougent pas, et les cinq routes `/admin/*` restent gardées des deux côtés.
 
 **Vérifié** : 802 tests front verts, `tsc` propre, ESLint 0 erreur, `check-pro-routes` à 5/5.
+
+</details>
 
 ## Notes d'implémentation
 
