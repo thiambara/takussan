@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { footerLinks } from '@/data/mockData';
+import { footerLinks } from '@/data/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 

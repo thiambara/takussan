@@ -478,7 +478,7 @@ cent fois trop peu. Classé P0 malgré son apparence documentaire.
 implémentations restent d'accord.** Une règle d'autorisation rendue à deux endroits et tenue à un
 seul est le motif le plus tenace de ce genre de duplication.
 
-### D-24 — La règle « le front possède le texte affiché » est une intention 🟠
+### D-24 — La règle « le front possède le texte affiché » est une intention 🟠 → [TCK-286](backlog/tickets/TCK-286-i18n-textes-en-dur.md)
 
 Les trois dictionnaires sont complets (1376 clés `fr`/`en`, 1265 `wo`), mais seuls **82 fichiers sur
 875** utilisent `useTranslations`/`getTranslations`. Des libellés produits sont codés en dur en
@@ -502,6 +502,8 @@ français, **y compris dans la navigation**. Aucune garde ne mesure l'écart.
 ---
 
 ## 🟡 Couverture de tests
+
+> **Les quatre entrées de cette section sont couvertes par [TCK-285](backlog/tickets/TCK-285-couverture-tests-services-policies.md)**, qui les ordonne par coût d'un défaut plutôt que par volume : policies d'abord (isolation multi-agence), puis webhooks (surfaces non authentifiées), puis commandes destructrices, puis services.
 
 2052 tests backend et 802 frontend, tous verts — mais la couverture est très inégale, et les trous
 sont concentrés là où ça compte.
@@ -532,6 +534,18 @@ Concentrées sur la console super-admin (20 routes `/api/admin`) et **les webhoo
 Un webhook est une surface d'entrée non authentifiée pilotée par un tiers : c'est le pire endroit où
 ne pas avoir de test.
 
+### D-30bis — Quatre tests front rougissent sous charge 🟡 *découvert le 2026-08-12*
+
+Mesuré en lançant les suites back et front **simultanément** : quatre tests de la console
+super-admin (`InviteSuperAdminModal`, `AgencyOnboardingDialog`, `FeatureFlags`, `TemplateEditor`)
+sortent en `Test timed out in 5000ms`. Au repos, les **802 tests passent**.
+
+Ces tests ne mesurent donc pas seulement ce qu'ils visent : ils mesurent aussi la machine. Sur un
+runner GitHub partagé, ils rougiront un jour sur une PR qui n'y est pour rien — et *une garde qui
+rougit sous charge accuse le code*. Le correctif n'est pas d'augmenter le délai en aveugle mais de
+mesurer leur marge réelle : un test à 12 % de son plafond n'a pas le même problème qu'un test
+à 90 %.
+
 ### D-30 — Aucune mesure de couverture, aucune parallélisation 🟡
 
 La CI passe explicitement `coverage: none` et le bloc `<source>` de `phpunit.xml` n'alimente aucun
@@ -556,10 +570,10 @@ pour le code neuf** ; l'existant reste à converger.
 | **D-36** | `BaseResource` peu adoptée | 7 ressources sur 44 l'étendent ; 36 refont les conversions à la main | `BaseResource` |
 | **D-37** | Trois classes de base de test | `TestCase`, `BaseTestCase`, `ApiTestCase`, sans règle écrite | `ApiTestCase` pour l'API |
 | **D-38** | Deux préfixes de commandes plateforme | `platform:grant-super-admin` et `takussan:create-super-admin` font le même travail | `platform:` |
-| **D-39** | `NotificationPreference` n'étend pas `AbstractModel` | seul écart non justifié sur 70 modèles — perd `scopeFilter`, `scopeWithSearch`, `buildQuery()` | — *(à corriger)* |
+| **D-39** | ~~`NotificationPreference` n'étend pas `AbstractModel`~~ | ✅ **soldé le 2026-08-12** — il l'étend désormais ; 106 tests notifications verts | ✅ |
 | **D-40** | Namespaces de contrôleurs dédoublés | l'authentification est éclatée entre `Controllers/Auth/` (8) et `Controllers/Api/Auth/` (5) | — |
 
-### D-41 — Filament v4 : scaffold oublié ou décision non assumée 🟠
+### D-41 — Filament v4 : scaffold oublié ou décision non assumée 🟠 → [TCK-287](backlog/tickets/TCK-287-filament-supprimer-ou-securiser.md)
 
 Deux dépendances composer, un panel monté sur `/admin` avec `->login()`, pour **une seule Resource**
 (Property, 6 fichiers) — alors que le back-office réel est en Next.js.
@@ -568,7 +582,23 @@ Deux dépendances composer, un panel monté sur `/admin` avec `->login()`, pour 
 `FilamentUser`.** C'est une surface d'administration exposée dont personne ne réclame la
 responsabilité. Soit on la supprime, soit on la sécurise et on l'assume en ADR.
 
-### D-42 — Code mort et stubs menteurs côté frontend 🟡
+### D-42 — Code mort et stubs menteurs côté frontend ✅ *soldé le 2026-08-12*
+
+> **Soldé** : six fichiers supprimés — `NotificationContext.tsx` (provider monté nulle part), les
+> quatre hooks stubs (tous **vides** : `export {}` sous un TODO qui promettait une API « pas encore
+> prête », alors que les modules correspondants existent depuis des mois dans `lib/queries/`), et
+> `useNotifications.ts` qui réexportait le contexte mort. **Zéro import exact** vérifié avant
+> suppression ; `tsc` propre après.
+>
+> `mockData.ts` a été **scindé** plutôt que supprimé : il portait deux choses très différentes. Ses
+> ~300 lignes d'annonces factices n'avaient aucun usage et sont parties ; ses constantes de
+> navigation, elles, sont consommées **en production** par `Navbar` et `Footer` — elles vivent
+> désormais dans `src/data/navigation.ts`. *Des données de navigation servies depuis un fichier
+> nommé « mock » finissent par être supprimées par quelqu'un qui fait le ménage — ou pire, jamais
+> relues parce que le nom promet qu'elles ne comptent pas.*
+>
+> **Reste ouvert** : `src/lib/api.ts` n'exporte toujours ni `API_URL` ni `API_BASE`, et 23 fichiers
+> redéclarent chacun `.replace(/\/api$/, '')`.
 
 - `src/context/NotificationContext.tsx` : provider monté nulle part, `useNotifications()` lève hors
   provider, **0 site d'appel** dans tout le dépôt.

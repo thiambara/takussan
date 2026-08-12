@@ -9,7 +9,7 @@ import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { navLinks, categories, moreCategories } from '@/data/mockData';
+import { navLinks, categories, moreCategories } from '@/data/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { setPublishIntent } from '@/lib/publish-intent';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
