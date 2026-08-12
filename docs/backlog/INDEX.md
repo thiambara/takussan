@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**269 tickets** — 10 ouverts, 258 livrés.
+**270 tickets** — 11 ouverts, 258 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 7 |
+| 📋 Todo | 8 |
 | 🚧 Doing | 2 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 1 |
@@ -40,6 +40,7 @@
 - [TCK-285](tickets/TCK-285-couverture-tests-services-policies.md) — Couverture de tests — services metier, policies, observers, webhooks `L · P1 · technique`
 - [TCK-286](tickets/TCK-286-i18n-textes-en-dur.md) — i18n — les libelles produits encore codes en dur `L · P2 · front`
 - [TCK-287](tickets/TCK-287-filament-supprimer-ou-securiser.md) — Filament — supprimer le panel ou le securiser `S · P1 · technique`
+- [TCK-288](tickets/TCK-288-chaine-de-deploiement-master-fige.md) — Chaine de deploiement — master fige, la production ne recoit plus rien `M · P0 · technique`
 
 ## 🚧 Doing
 

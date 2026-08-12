@@ -112,7 +112,13 @@ démarrer**. Sur une installation neuve suivie à la lettre, l'application ne bo
 **Preuve** : `docs/infra/deploy-preview.html` (ligne `apt install`) confrontée aux `require` de
 `composer.lock`.
 
-### D-04 — La production ne reçoit plus rien depuis trois mois, et rien ne le dit 🔴
+### D-04 — La production ne reçoit plus rien depuis trois mois, et rien ne le dit 🔴 → [TCK-288](backlog/tickets/TCK-288-chaine-de-deploiement-master-fige.md)
+
+> **Seule dette P0 non soldée par le chantier du 2026-08-12, et c'est délibéré.** Les deux issues
+> cohérentes — amener `dev` sur `master`, ou faire suivre le déclencheur à `dev` — passent par un
+> **déploiement de production**. C'est une action sortante et difficilement réversible : elle
+> appartient à une personne, pas à un agent. Le ticket pose l'arbitrage, ses deux branches, et son
+> prérequis (la migration PHP, D-01).
 
 `origin/master` est figé au **2026-05-18**, **31 commits derrière `dev`**. Or `deploy.yml` ne
 déclenche le déploiement de production que sur un push vers `master`.
@@ -440,7 +446,28 @@ permission `leases.renew` (Spatie) », et `bootstrap/app.php` présente `Resolve
 *Le commentaire survit au code qu'il décrit — et il survit avec la même autorité qu'un commentaire
 juste.*
 
-### D-22 — La règle du montant ×100 ne vit que dans un commentaire 🔴
+### D-22 — La règle du montant ×100 ne vivait que dans un commentaire ✅ *écrite ET gardée le 2026-08-12*
+
+> **Soldé, en deux temps.**
+>
+> **Écrite** : [ADR-0009](adr/0009-montant-decimal-entier-a-la-frontiere.md), et principe non
+> négociable n°3 de `CLAUDE.md`.
+>
+> **Gardée** : `tests/Feature/Api/PaymentAmountScaleTest.php` éprouve la chaîne complète — ce que
+> `PaymentGatewayService` multiplie, chaque driver XOF le redivise, et le fournisseur reçoit
+> exactement le montant de la base. **Prouvé par mutation** : retirer `/ 100` des deux drivers fait
+> rougir les deux cas.
+>
+> **Le troisième cas est celui qui compte le plus.** Un correctif naïf — « on divise partout » —
+> passerait les deux premiers au vert **et casserait la facturation SaaS**, qui est en USD, une
+> devise à deux décimales dont le fournisseur attend de vrais centimes. Sans ce cas, on ne saurait
+> pas distinguer une règle juste d'une règle appliquée partout. Vérifié aussi par mutation : il
+> reste vert quand les deux autres rougissent, ce qui est le comportement attendu.
+>
+> **Ce que la mesure a trouvé au passage** : `PaymentDriverTest::test_orange_money_driver_initiate_calls_api`
+> n'assertait que le `transactionId`. Le montant transmis à Orange Money n'était vérifié **par
+> rien** — seul Wave l'était, et par accident.
+
 
 **XOF n'a pas de sous-unité.** Le montant est décimal en base et devient un entier ×100 à la
 frontière du driver de paiement — chaque driver local doit donc **re-diviser par 100**. Cette règle
