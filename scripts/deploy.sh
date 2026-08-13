@@ -124,15 +124,22 @@ mkdir -p "${RELEASES_DIR}"
 #
 # *Une garantie « même commit » à moitié posée n'est pas à moitié tenue : elle est fausse, et
 # elle est désormais écrite dans un commentaire que l'on croira.*
+#
+# Et le clone reste SUPERFICIEL. La première version de ce bloc laissait tomber `--depth 1` pour
+# pouvoir se détacher sur un commit — ce dépôt porte 319 Mo d'historique, et `KEEP_RELEASES=5`
+# en aurait donc gardé ~1,6 Go sur le VPS, pour un premier déploiement et des rollbacks
+# d'autant plus lents. GitHub autorise `fetch` par SHA : la garantie « même commit » ne coûte
+# donc rien de plus qu'avant. *Une garantie qu'on paie en gigaoctets se fait désinstaller.*
 log "Cloning repository..."
+git clone --depth 1 --branch "${BRANCH}" "${REPO_URL}" "${RELEASE_DIR}"
 if [ -n "${COMMIT_SHA:-}" ]; then
     log "Target commit: ${COMMIT_SHA} (branch ${BRANCH})"
-    git clone --branch "${BRANCH}" "${REPO_URL}" "${RELEASE_DIR}"
-    git -C "${RELEASE_DIR}" checkout --detach "${COMMIT_SHA}"
+    git -C "${RELEASE_DIR}" fetch --depth 1 origin "${COMMIT_SHA}"
+    git -C "${RELEASE_DIR}" checkout --detach FETCH_HEAD
 else
-    log "No COMMIT_SHA given — falling back to the tip of ${BRANCH}."
-    git clone --depth 1 --branch "${BRANCH}" "${REPO_URL}" "${RELEASE_DIR}"
+    log "No COMMIT_SHA given — deploying the tip of ${BRANCH}."
 fi
+log "Deployed commit: $(git -C "${RELEASE_DIR}" rev-parse HEAD)"
 
 # ─── Step 2: Symlink shared .env ─────────────────────────────────────────────
 log "Linking shared .env..."

@@ -234,7 +234,16 @@ fi
 # donc exactement ce rôle, et rien de plus. *La portée d'un fichier de configuration, c'est ce
 # qu'on lui laisse atteindre, pas ce que sa documentation lui assigne.*
 if [ -f "$ROOT/.env" ]; then
-  while IFS= read -r ligne; do
+  # `|| [ -n "$ligne" ]` : sans lui, un fichier dont la DERNIÈRE ligne n'a pas de retour chariot
+  # — ce que produit un `printf`, un here-string, ou certains éditeurs — la perd entièrement.
+  # Mesuré : un `.env` de racine réduit à `TAKUSSAN_DB_PORT=3308` sans newline finale se lit
+  # comme ZÉRO ligne. `TAKUSSAN_DB_PORT` reste alors indéfini, le défaut 3307 s'applique face à
+  # un `DB_PORT=3308`, `VISE_DOCKER` tombe à 0 — et le refus explicite posé plus bas est sauté
+  # lui aussi, puisqu'il exige que la variable soit définie. Aucun conteneur ne démarre, tandis
+  # que `docker compose` lit le MÊME fichier et publierait bien 3308.
+  #
+  # *Le désaccord que ce bloc existe pour nommer devenait invisible faute d'un octet.*
+  while IFS= read -r ligne || [ -n "$ligne" ]; do
     case "$ligne" in
       TAKUSSAN_[A-Z_]*=*) export "${ligne%%=*}=$(printf '%s' "${ligne#*=}" | tr -d '"'"'"'')" ;;
     esac

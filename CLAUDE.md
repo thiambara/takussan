@@ -168,7 +168,8 @@ Messages de commit en français, préfixés du type conventionnel, citant le tic
 
 **Toute nouvelle décision structurelle s'écrit en ADR AVANT l'implémentation.** Le dépôt a vécu
 jusqu'ici sans aucun ADR : 32 décisions structurelles avaient été prises et se retrouvaient
-dispersées entre quatre documents de spec, 265 tickets (dont 255 archivés en `done`), des fichiers de
+dispersées entre quatre documents de spec, les tickets du backlog (dont l'écrasante majorité est
+archivée en `done`), des fichiers de
 CI et des commentaires de code. Une décision qui ne vit que dans un ticket clos est une décision
 perdue — et deux d'entre elles étaient déjà **contredites par la documentation** qui prétendait les
 décrire.

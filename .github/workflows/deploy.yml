@@ -97,12 +97,31 @@ jobs:
         # pré-rempli, cliquer ». Le second champ est VIDE par défaut et doit être retapé à
         # l'identique. *Une valeur pré-remplie n'est pas une décision ; c'est l'absence de
         # décision, présentée comme un accord.*
+        #
+        # ⚠⚠ `CONFIRMER` PASSE PAR `env:`, JAMAIS PAR `${{ }}` DANS LE `run:` — et la première
+        # version de cette garde faisait l'inverse, ce qui la rendait contournable ET dangereuse.
+        #
+        # `${{ inputs.confirmer }}` est substitué TEXTUELLEMENT par GitHub avant que bash ne lise
+        # la ligne. Taper les sept caractères littéraux `${DEPLOY_BRANCH}` dans le champ produisait
+        # donc `[ "${DEPLOY_BRANCH}" != "${DEPLOY_BRANCH}" ]` : la comparaison portait sur la
+        # variable et elle-même, et la confirmation passait sans que le nom ait jamais été retapé.
+        # Reproduit. La seule barrière entre « accepter un formulaire pré-rempli » et
+        # `migrate --force` sur la base de production s'ouvrait avec son propre nom.
+        #
+        # Et au-delà du contournement : n'importe quel métacaractère de shell dans ce champ
+        # s'exécutait sur un runner qui porte `CONTABO_SSH_KEY` et `ENV_FILE`.
+        #
+        # `DEPLOY_BRANCH` était, lui, correctement passé par `env:` — la moitié du réflexe était
+        # là. *Un réflexe appliqué à une variable et pas à sa voisine n'est pas un réflexe : c'est
+        # une coïncidence.* Toute entrée d'opérateur descend par `env:` et se lit `"$VAR"`.
+        env:
+          CONFIRMER: ${{ inputs.confirmer }}
+          EVENEMENT: ${{ github.event_name }}
         run: |
           echo "Branche déployée : ${DEPLOY_BRANCH}"
           echo "Cible            : /var/www/takussan (api.takussan.com)"
-          echo "Déclencheur      : ${{ github.event_name }}"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] \
-             && [ "${{ inputs.confirmer }}" != "${DEPLOY_BRANCH}" ]; then
+          echo "Déclencheur      : ${EVENEMENT}"
+          if [ "${EVENEMENT}" = "workflow_dispatch" ] && [ "${CONFIRMER}" != "${DEPLOY_BRANCH}" ]; then
             echo "::error::Confirmation absente ou différente de la branche."
             echo "Retape exactement '${DEPLOY_BRANCH}' dans le champ « confirmer »."
             echo "Ce déploiement lance 'migrate --force' sur la base de PRODUCTION : il ne doit"
@@ -170,12 +189,18 @@ jobs:
           username: ${{ secrets.CONTABO_USER }}
           key: ${{ secrets.CONTABO_SSH_KEY }}
           timeout: 10m
-          envs: ENV_FILE,DEPLOY_BRANCH,COMMIT_SHA
+          envs: ENV_FILE,DEPLOY_BRANCH,COMMIT_SHA,REPO_URL
+          # `REPO_URL` descend par `envs:` comme les trois autres, et n'est plus interpolé dans
+          # le corps du script. Le correctif de la confirmation ci-dessus portait sur une entrée
+          # d'opérateur ; celui-ci porte sur un secret — moins exposé, même forme. On applique la
+          # règle au CLASSE, pas à l'instance signalée : aucune valeur venant de `${{ }}` ne
+          # traverse un bloc shell.
           script: |
             chmod +x /var/www/takussan/deploy.sh
-            COMMIT_SHA="$COMMIT_SHA" bash /var/www/takussan/deploy.sh "${{ secrets.REPO_URL }}" "$DEPLOY_BRANCH" /var/www/takussan
+            bash /var/www/takussan/deploy.sh "$REPO_URL" "$DEPLOY_BRANCH" /var/www/takussan
         env:
           ENV_FILE: ${{ secrets.ENV_FILE }}
+          REPO_URL: ${{ secrets.REPO_URL }}
           DEPLOY_BRANCH: ${{ env.DEPLOY_BRANCH }}
           # Le commit RÉELLEMENT déployé, transmis au serveur pour qu'il vise le même que le
           # runner. Sur un push c'est `github.sha` ; sur un dispatch manuel, le SHA que le
