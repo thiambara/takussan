@@ -108,8 +108,8 @@ jobs:
         run: php artisan test
 
   # ────────────────────────────────────────────────────────────────────────────
-  # Les migrations rejouées sur MariaDB — le moteur SUPPOSÉ de la production (cf. l'avertissement
-  # en bas de ce bloc : rien dans le dépôt n'installe MariaDB sur le serveur).
+  # Les migrations rejouées sur MySQL 8.0 — le moteur MESURÉ de la production (cf. le bloc
+  # « CE JOB A TOURNÉ SUR LE MAUVAIS MOTEUR » plus bas).
   #
   # `CLAUDE.md` documente quatre familles de pièges « qui passent en CI mais cassent en prod » :
   # DEFAULT sur JSON/TEXT, dropUnique sur une colonne portant une FK, nom d'index auto-généré au-delà
@@ -124,43 +124,59 @@ jobs:
   # n'attrapait : la documentation avait remplacé la garde.
   #
   # Ce job ne rejoue PAS la suite de tests — c'est le DDL qu'on éprouve, pas le code. Il tourne en
-  # moins d'une minute, et il tourne sur MariaDB parce que c'est ce que `apt install mariadb-server`
-  # pose sur le serveur.
+  # moins d'une minute.
   #
-  # ⚠ LA VERSION 11.4 EST UNE HYPOTHÈSE, pas une mesure. `scripts/server-setup.sh` n'installe ni
-  # ne configure MariaDB — sa seule mention est un `After=network.target mysql.service`. La
-  # production tourne donc sur ce que `apt` a posé : sur une Ubuntu LTS, ce serait MariaDB 10.11
-  # avec `utf8mb4_general_ci`, et non 11.4 avec `utf8mb4_unicode_ci`.
+  # ─── CE JOB A TOURNÉ SUR LE MAUVAIS MOTEUR (2026-06-29 → 2026-08-13) ────────────────────────
   #
-  # Conséquence : un DDL accepté par 11.4 et refusé par le moteur réel passerait CE JOB et
-  # casserait quand même `migrate --force` au déploiement — l'échec exact que ce job existe pour
-  # empêcher. Et deux collations différentes ne comparent pas les chaînes de la même façon
-  # (unicité des e-mails, `LIKE` de recherche).
+  # Il tournait sur `mariadb:11.4`, et son commentaire justifiait ce choix par « c'est ce que
+  # `apt install mariadb-server` pose sur le serveur » — une phrase déduite de rien. Personne
+  # n'avait exécuté cette commande. Mesuré sur le serveur le 2026-08-13 :
   #
-  # À mesurer sur le serveur, puis à épingler ici ET dans `server-setup.sh` (TCK-289) :
-  #     mariadb -e "SELECT VERSION(), @@collation_server;"
+  #     $ dpkg -l | grep -Ei 'mysql-server|mariadb-server'
+  #     ii  mysql-server  8.0.46-0ubuntu0.24.04.3
+  #     $ sudo mysql -e "SELECT VERSION(), @@collation_server, @@character_set_server;"
+  #     8.0.46-0ubuntu0.24.04.3 | utf8mb4_0900_ai_ci | utf8mb4
+  #
+  # Ce n'était donc pas un écart de version — c'était le mauvais MOTEUR. MariaDB 11 et MySQL 8
+  # ont divergé pour de bon : collation par défaut, contraintes `CHECK`, colonnes `JSON`
+  # (natives chez MySQL, alias de LONGTEXT chez MariaDB), noms d'index générés. Un DDL accepté
+  # par MariaDB 11.4 et refusé par MySQL 8 passait ce job et cassait quand même
+  # `migrate --force` au déploiement — l'échec exact que ce job existe pour empêcher.
+  #
+  # Et `utf8mb4_unicode_ci` (ce que posait le compose) ne compare pas les chaînes comme
+  # `utf8mb4_0900_ai_ci` (ce que fait la production) : unicité des e-mails, `LIKE` de recherche.
+  #
+  # ⚠ La production n'ayant JAMAIS été déployée, ce job n'a rien cassé — mais il n'a rien
+  # prouvé non plus pendant six semaines, en l'annonçant à chaque exécution.
   #
   # *Un banc d'essai qui reproduit une hypothèse ne prouve rien de la production ; il prouve que
-  # l'hypothèse est cohérente avec elle-même.*
+  # l'hypothèse est cohérente avec elle-même.* Et : **ne jamais déduire l'état d'un environnement
+  # de la configuration qui le vise** — ici, d'une commande d'installation supposée.
+  #
+  # `scripts/check-db-engine.mjs` garde désormais l'accord entre ce job, `docker-compose.yml` et
+  # la valeur mesurée : trois copies d'une version divergent, une garde ne les laisse pas faire.
+  # ────────────────────────────────────────────────────────────────────────────────────────────
   migrations-mysql:
-    name: Migrations sur MariaDB (pièges que SQLite ne voit pas)
+    name: Migrations sur MySQL 8.0 (pièges que SQLite ne voit pas)
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: takussan-api
 
     services:
-      mariadb:
-        image: mariadb:11.4
+      mysql:
+        # Le moteur, la version ET la collation de la production, mesurés le 2026-08-13.
+        # `docker-compose.yml` porte les mêmes ; `scripts/check-db-engine.mjs` le vérifie.
+        image: mysql:8.0
         env:
-          MARIADB_DATABASE: takussan_ci
-          MARIADB_USER: takussan
-          MARIADB_PASSWORD: takussan
-          MARIADB_ROOT_PASSWORD: takussan
+          MYSQL_DATABASE: takussan_ci
+          MYSQL_USER: takussan
+          MYSQL_PASSWORD: takussan
+          MYSQL_ROOT_PASSWORD: takussan
         ports:
           - 3306:3306
         options: >-
-          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -ptakussan"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 20
@@ -183,6 +199,30 @@ jobs:
         run: |
           cp .env.example .env
           php artisan key:generate --force
+
+      - name: Le moteur de CI est-il celui de la production ?
+        # Un conteneur de SERVICE n'accepte pas d'arguments de commande — impossible d'y passer
+        # `--collation-server` comme le fait `docker-compose.yml`. La collation de ce serveur est
+        # donc le DÉFAUT de l'image, et un défaut non vérifié est un défaut qui change sans
+        # qu'on le voie : `utf8mb4_general_ci` jusqu'à MySQL 5.7, `utf8mb4_0900_ai_ci` depuis 8.0.
+        #
+        # On MESURE donc au lieu de prescrire, et on compare à la production (2026-08-13,
+        # `sudo mysql -e "SELECT VERSION(), @@collation_server;"` → 8.0.46, utf8mb4_0900_ai_ci).
+        # Si l'image dérive, ce job le dit ici plutôt que de laisser le DDL passer sur un moteur
+        # qui n'est plus celui qu'on croit éprouver.
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -uroot -ptakussan -N -B \
+            -e "SELECT VERSION(), @@collation_server, @@character_set_server;" > /tmp/moteur.tsv
+          VERSION=$(cut -f1 /tmp/moteur.tsv)
+          COLLATION=$(cut -f2 /tmp/moteur.tsv)
+          CHARSET=$(cut -f3 /tmp/moteur.tsv)
+          echo "CI       : ${VERSION} · ${COLLATION} · ${CHARSET}"
+          echo "Attendu  : 8.0.* · utf8mb4_0900_ai_ci · utf8mb4  (production, mesurée le 2026-08-13)"
+          ecart=0
+          case "${VERSION}" in 8.0.*) ;; *) echo "::error::Version ${VERSION} — la production est en 8.0.x."; ecart=1 ;; esac
+          [ "${COLLATION}" = "utf8mb4_0900_ai_ci" ] || { echo "::error::Collation ${COLLATION} ≠ utf8mb4_0900_ai_ci (production)."; ecart=1; }
+          [ "${CHARSET}" = "utf8mb4" ] || { echo "::error::Jeu de caractères ${CHARSET} ≠ utf8mb4 (production)."; ecart=1; }
+          exit "${ecart}"
 
       - name: Migrate (aller)
         env:

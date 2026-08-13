@@ -178,7 +178,7 @@ seul qui ne soit défendable d'aucune façon.
 `CLAUDE.md` documente quatre familles de pièges « qui passent en CI mais cassent en prod » (DEFAULT
 sur JSON/TEXT, `dropUnique` sous FK, nom d'index > 64 caractères, `enum()`). **Aucun job ne les
 vérifiait** : la CI n'installait que `pdo_sqlite`/`sqlite3` et tournait sur `:memory:`, puis
-`scripts/deploy.sh:148` lance `php artisan migrate --force` directement sur MariaDB. La première
+`scripts/deploy.sh:148` lance `php artisan migrate --force` directement sur la base de production. La première
 machine à exécuter ce DDL en conditions réelles était donc le serveur.
 
 Le dépôt avait déjà payé ce défaut **deux fois**, et les correctifs sont dans son propre historique :
@@ -189,8 +189,13 @@ auto-generated index/FK to stay under MySQL 64-char limit »).
 documentation avait remplacé la garde.*
 
 **Soldé** : `api-ci.yml` porte un job `migrations-mysql` qui rejoue les migrations sur un service
-MariaDB 11.4, puis les **roule en arrière et les rejoue**. Il ne lance pas la suite de tests — c'est
+MySQL 8.0, puis les **roule en arrière et les rejoue**. Il ne lance pas la suite de tests — c'est
 le DDL qu'on éprouve.
+
+> ⚠ **Ce job a tourné sur le mauvais moteur du 2026-06-29 au 2026-08-13** — `mariadb:11.4`, choisi
+> sur la foi d'un `apt install mariadb-server` que personne n'avait exécuté. Le serveur est en
+> **MySQL 8.0.46**, `utf8mb4_0900_ai_ci` (mesuré). Corrigé, et gardé par
+> `scripts/check-db-engine.mjs` (D-43 ci-dessous).
 
 > **Il a trouvé un défaut réel à sa PREMIÈRE exécution**, et c'était exactement le piège n°2.
 > `2026_06_18_000001_add_performance_indexes_to_transactional_tables` posait un index composite
@@ -199,7 +204,8 @@ le DDL qu'on éprouve.
 > seul support de la contrainte** — si bien que le `down()` se voyait refuser sa suppression :
 > `SQLSTATE[HY000] 1553 — Cannot drop index 'bookings_agency_id_status_index': needed in a foreign
 > key constraint`. Sur les trois tables. Corrigé selon le patron documenté (lâcher la FK, retirer
-> l'index, reposer la FK à l'identique), et vérifié sur MariaDB 11.4.
+> l'index, reposer la FK à l'identique), et vérifié sur MariaDB 11.4 — puis rejoué sur MySQL 8.0
+> quand le moteur du banc d'essai a été corrigé.
 >
 > Ce défaut était **invisible par construction** : la CI tournait sur SQLite, qui accepte tout, et
 > **la suite de tests n'exécute aucun `down()`**. Le `down()` est le code le moins exécuté du dépôt,
@@ -226,7 +232,7 @@ C'est une contrainte d'exploitation, pas un défaut de code. Elle doit figurer d
 déploiement — et la procédure de dump pré-déploiement doit exister avant qu'on en ait besoin.
 
 **Preuve** : `database/migrations/2026_05_18_120000_drop_spatie_permission_tables.php:26-32` ·
-`php artisan migrate:refresh` sur MariaDB → échec à cette migration.
+`php artisan migrate:refresh` sur MySQL → échec à cette migration.
 
 ---
 
@@ -315,14 +321,14 @@ Corollaire : un développeur sans Meilisearch **ne peut pas lancer la suite du t
 | Service | Dev (brew) | CI | Production |
 |---|---|---|---|
 | Meilisearch | 1.36.0 | v1.16 | `apt install meilisearch` (latest) |
-| Base | MySQL 9.3.0 | SQLite `:memory:` | `apt install mariadb-server` (non versionné) |
+| Base | MySQL 9.3.0 | SQLite `:memory:` | **MySQL 8.0.46** *(mesuré le 2026-08-13)* |
 | Redis | 8.0.2 | *(absent)* | *(absent)* |
 | PHP | 8.4.6 | 8.4 | 8.3 *(cf. D-01)* |
 | Node | 24.18 | *(aucune CI web avant D-06)* | Vercel (non déclaré) |
 
 Trois environnements, trois piles différentes, aucune épinglée. `docker-compose.yml` fige désormais
-la moitié dev (MariaDB 11.4, Meilisearch v1.16 alignée sur la CI, Redis 8) — **la production reste
-non versionnée**.
+la moitié dev (MySQL 8.0 aligné sur la production **mesurée**, Meilisearch v1.16 alignée sur la CI,
+Redis 8) — la production, elle, reste posée par `apt` sans version épinglée dans le dépôt.
 
 ### D-10 — Le déploiement du frontend est entièrement hors dépôt 🟠
 
@@ -343,7 +349,7 @@ La checklist de production n'a jamais été confrontée aux fichiers qu'elle pr�
 
 ### D-12 — `.env.example` ne reproduit aucun environnement existant ✅ *atténué le 2026-08-12*
 
-Il livrait `DB_CONNECTION=sqlite` (prod : MariaDB), `SCOUT_DRIVER=collection` (CI et prod :
+Il livrait `DB_CONNECTION=sqlite` (prod : MySQL 8), `SCOUT_DRIVER=collection` (CI et prod :
 Meilisearch), et `CACHE_STORE=redis` **sans que rien ne provisionne Redis** — ni la CI, ni
 `server-setup.sh`, et le guide dit explicitement « pas de Redis ». Un développeur qui suivait la
 documentation obtenait une application qui ne démarre pas.
@@ -697,6 +703,48 @@ responsabilité. Soit on la supprime, soit on la sécurise et on l'assume en ADR
 - `src/lib/api.ts` n'exporte ni `API_URL` ni `API_BASE` : **23 fichiers** relisent
   `process.env.NEXT_PUBLIC_API_URL` et redéclarent chacun `.replace(/\/api$/, '')`.
 
+### D-43 — Le banc d'essai des migrations tournait sur le mauvais moteur ✅ *soldé le 2026-08-13*
+
+Le job `migrations-mysql` (posé par D-05) et `docker-compose.yml` tournaient tous deux sur
+`mariadb:11.4`, avec `utf8mb4_unicode_ci`. Le commentaire du job justifiait ce choix ainsi : *« il
+tourne sur MariaDB parce que c'est ce que `apt install mariadb-server` pose sur le serveur »*.
+
+**Personne n'avait exécuté cette commande.** Mesuré sur le serveur le 2026-08-13, en préparant le
+premier déploiement :
+
+```
+$ dpkg -l | grep -Ei 'mysql-server|mariadb-server'
+ii  mysql-server  8.0.46-0ubuntu0.24.04.3
+$ sudo mysql -e "SELECT VERSION(), @@collation_server, @@character_set_server;"
+8.0.46-0ubuntu0.24.04.3 | utf8mb4_0900_ai_ci | utf8mb4
+```
+
+Ce n'était donc pas un écart de version : **c'était le mauvais moteur**. MariaDB 11 et MySQL 8 ont
+divergé pour de bon — collation par défaut, contraintes `CHECK`, colonnes `JSON` (natives chez
+MySQL, alias de `LONGTEXT` chez MariaDB), noms d'index générés. Un DDL accepté par MariaDB 11.4 et
+refusé par MySQL 8 passait le job et aurait cassé `migrate --force` au déploiement : **l'échec exact
+que ce job existe pour empêcher**. Et `utf8mb4_unicode_ci` ne compare pas les chaînes comme
+`utf8mb4_0900_ai_ci` — unicité des e-mails, `LIKE` de recherche.
+
+La production n'ayant jamais été déployée, rien n'a cassé. Mais pendant six semaines le job a
+affirmé une garantie qu'il ne tenait pas, à chaque exécution.
+
+> C'est la sœur exacte de la leçon de D-04 : *ne jamais déduire l'état d'un environnement de la
+> configuration qui le vise* — ici, d'une **commande d'installation supposée**. Le fichier
+> `api-ci.yml` portait pourtant déjà un avertissement disant que 11.4 était « une hypothèse, pas
+> une mesure » (TCK-289). L'avertissement était juste et il n'a rien empêché : *une hypothèse
+> signalée reste une hypothèse exécutée.*
+
+**Soldé** : `docker-compose.yml`, le job `migrations-mysql` et `docker/mysql-init.sql` portent
+`mysql:8.0` et `utf8mb4_0900_ai_ci`. `scripts/check-db-engine.mjs` (Repo CI) garde leur accord :
+toute image de base et toute collation écrites dans le dépôt doivent valoir celles de la production
+mesurée, **et les déclarations exigées doivent être présentes** — la première version restait verte
+quand on supprimait purement et simplement la ligne `--collation-server`. Le job de CI mesure en
+outre `@@collation_server` du conteneur de service, qui n'accepte pas d'arguments de commande.
+Fermé par TCK-289.
+
+---
+
 ---
 
 ## Ce que cet inventaire ne couvre pas
@@ -704,8 +752,9 @@ responsabilité. Soit on la supprime, soit on la sécurise et on l'assume en ADR
 Il est dérivé de ce qu'on peut **mesurer depuis le dépôt** : fichiers, historique git, exécution des
 suites, configuration. Il ne dit rien de :
 
-- **la production réelle** — aucune de ses métriques n'a été consultée. D-01 à D-04 sont déduits de
-  scripts et de guides, pas d'un serveur observé ;
+- **la production réelle** — à une exception près (le moteur de base, mesuré le 2026-08-13, cf.
+  D-43), aucune de ses métriques n'a été consultée. D-01 à D-04 sont déduits de scripts et de
+  guides, pas d'un serveur observé — et D-43 montre ce que cette déduction coûte ;
 - **ce que le produit devrait faire** — la question fonctionnelle appartient à `docs/features.md` ;
 - **l'ergonomie et l'accessibilité** — aucune campagne navigateur n'a été menée dans ce chantier ;
 - **une fiche codée sans le dire** — un ticket implémenté dont le frontmatter n'a jamais bougé reste

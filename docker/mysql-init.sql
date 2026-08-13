@@ -1,13 +1,13 @@
--- Init MariaDB — joué UNIQUEMENT à la première création du volume `mariadb-data`.
+-- Init MySQL — joué UNIQUEMENT à la première création du volume `mysql-data`.
 --
 -- Sur un volume déjà existant, Docker n'exécute pas ce fichier. Pour le rejouer :
---   docker compose exec -T mariadb mariadb -uroot -ptakussan < docker/mariadb-init.sql
+--   docker compose exec -T mysql mysql -uroot -ptakussan < docker/mysql-init.sql
 -- ou repartir de zéro :
 --   docker compose down -v && docker compose up -d
 --
 -- La base `takussan` et l'utilisateur `takussan` sont créés par les variables
--- MARIADB_* du compose. Ce fichier ne pose que ce qu'elles ne savent pas faire :
--- la base de TEST, séparée, pour qu'un passage de la suite sur MariaDB ne
+-- MYSQL_* du compose. Ce fichier ne pose que ce qu'elles ne savent pas faire :
+-- la base de TEST, séparée, pour qu'un passage de la suite sur MySQL ne
 -- détruise jamais les données de développement.
 --
 -- La commande, EXACTEMENT :
@@ -26,9 +26,12 @@
 -- Utile pour éprouver les quatre pièges MySQL que SQLite ne voit pas (cf. CLAUDE.md) ;
 -- la CI le fait sur les migrations via le job `migrations-mysql`.
 
+-- La collation est celle du serveur de PRODUCTION, mesurée le 2026-08-13
+-- (`utf8mb4_0900_ai_ci`, MySQL 8.0.46). Une base de test dans une autre collation
+-- que la prod n'éprouve pas les comparaisons de chaînes de la prod.
 CREATE DATABASE IF NOT EXISTS `takussan_test`
   CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
+  COLLATE utf8mb4_0900_ai_ci;
 
 GRANT ALL PRIVILEGES ON `takussan_test`.* TO 'takussan'@'%';
 

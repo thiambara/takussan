@@ -6,12 +6,25 @@
 # Pourquoi ces quatre-là, et pas un de plus ni un de moins : chacun couvre une
 # divergence dev↔prod qui coûtait cher tant qu'elle n'était pas provisionnée.
 #
-#   mariadb      la prod tourne sur MariaDB (`apt install mariadb-server`), le dev sur
-#                SQLite. Or `CLAUDE.md` documente quatre familles de pièges MySQL que
-#                SQLite ne peut PAS voir (DEFAULT sur JSON/TEXT, dropUnique sous FK,
-#                noms d'index > 64 chars, enum). Une migration qui passe en dev et
-#                casse au déploiement est le régime NORMAL tant que le dev est sur
-#                SQLite — pas un accident.
+#   mysql        la prod tourne sur MySQL 8.0, le dev sur SQLite. Or `CLAUDE.md`
+#                documente quatre familles de pièges MySQL que SQLite ne peut PAS voir
+#                (DEFAULT sur JSON/TEXT, dropUnique sous FK, noms d'index > 64 chars,
+#                enum). Une migration qui passe en dev et casse au déploiement est le
+#                régime NORMAL tant que le dev est sur SQLite — pas un accident.
+#
+#                ⚠ CE SERVICE ÉTAIT `mariadb:11.4` JUSQU'AU 2026-08-13, sur la foi d'un
+#                `apt install mariadb-server` que personne n'avait exécuté. Mesuré sur
+#                le serveur ce jour-là :
+#                    $ sudo mysql -e "SELECT VERSION(), @@collation_server;"
+#                    8.0.46-0ubuntu0.24.04.3 | utf8mb4_0900_ai_ci
+#                Ce n'était donc pas une question de version : c'était le mauvais
+#                MOTEUR. MariaDB 11 et MySQL 8 ont divergé pour de bon — collation par
+#                défaut, `CHECK`, colonnes JSON, noms d'index générés. Le banc d'essai
+#                reproduit la production ; il ne la prescrit pas (TCK-289).
+#
+#                Le volume a changé de nom avec le moteur (`mysql-data`) : les fichiers
+#                de données de MariaDB ne se lisent pas par MySQL. Un environnement
+#                déjà monté repart d'une base vide — `./dev.sh` la remigre.
 #   meilisearch  la CI et la prod indexent sur Meilisearch, `.env.example` propose
 #                `SCOUT_DRIVER=collection`. Le driver `collection` filtre en PHP sur
 #                une collection Eloquent : il ne partage ni la tokenisation, ni le
@@ -61,29 +74,38 @@
 # passe sérieux n'a rien à faire sur l'interface publique d'un portable en wifi.
 
 services:
-  mariadb:
-    image: mariadb:11.4
+  mysql:
+    # Épinglé sur le moteur MESURÉ en production le 2026-08-13 (cf. l'en-tête) : MySQL
+    # 8.0. Le tag `8.0` suit les correctifs de la branche sans changer de branche —
+    # `8.0.46` en production le jour de la mesure.
+    image: mysql:8.0
     environment:
-      MARIADB_DATABASE: takussan
-      MARIADB_USER: takussan
-      MARIADB_PASSWORD: takussan
-      MARIADB_ROOT_PASSWORD: takussan
+      MYSQL_DATABASE: takussan
+      MYSQL_USER: takussan
+      MYSQL_PASSWORD: takussan
+      MYSQL_ROOT_PASSWORD: takussan
     ports:
       - '127.0.0.1:${TAKUSSAN_DB_PORT:-3307}:3306'
     volumes:
-      - mariadb-data:/var/lib/mysql
+      - mysql-data:/var/lib/mysql
       # Joué UNIQUEMENT à la première création du volume. Sur un volume existant,
-      # rejouer le script à la main : voir l'en-tête de docker/mariadb-init.sql.
-      - ./docker/mariadb-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      # rejouer le script à la main : voir l'en-tête de docker/mysql-init.sql.
+      - ./docker/mysql-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     command:
-      # `utf8mb4_unicode_ci` et non le défaut `uca1400_ai_ci` de MariaDB 11.4 : les
-      # migrations Laravel n'imposent pas de collation, elles héritent de celle de
-      # la base — et deux collations différentes entre dev et prod font diverger les
-      # comparaisons de chaînes (recherche insensible à la casse, unicité d'e-mail).
+      # La collation SERVEUR de la production, à l'identique. Les migrations Laravel
+      # n'imposent pas de collation : elles héritent de celle de la base — et deux
+      # collations différentes entre dev et prod font diverger les comparaisons de
+      # chaînes (recherche insensible à la casse, unicité d'e-mail).
+      #
+      # `utf8mb4_0900_ai_ci` est le défaut de MySQL 8 ; on l'écrit quand même, parce
+      # qu'un défaut non écrit est un défaut qu'on ne remarque pas quand il change.
       - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
+      - --collation-server=utf8mb4_0900_ai_ci
     healthcheck:
-      test: ['CMD', 'healthcheck.sh', '--connect', '--innodb_initialized']
+      # `mysqladmin ping` avec des identifiants : sans eux, il rend « mysqld is alive »
+      # et sort en 1 sur un refus d'accès — un service déclaré malade alors qu'il
+      # répond, ou l'inverse selon la version du client.
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uroot', '-ptakussan']
       interval: 5s
       timeout: 3s
       retries: 20
@@ -126,8 +148,8 @@ services:
       retries: 10
 
   mailpit:
-    # ÉPINGLÉ, comme les trois autres. C'était le seul `latest` d'un fichier qui fige MariaDB à
-    # 11.4, Meilisearch à v1.16 et Redis à 8 — et dont l'en-tête soutient qu'une version doit
+    # ÉPINGLÉ, comme les trois autres. C'était le seul `latest` d'un fichier qui fige MySQL à
+    # 8.0, Meilisearch à v1.16 et Redis à 8 — et dont l'en-tête soutient qu'une version doit
     # bouger de concert avec la CI et le lock. Un `latest` qui glisse sous le développeur change
     # en silence le seul service dont le rôle est de RENDRE VISIBLE ce que le système produit.
     image: axllent/mailpit:v1.30.3
@@ -142,6 +164,6 @@ services:
       retries: 10
 
 volumes:
-  mariadb-data:
+  mysql-data:
   meili-data:
   redis-data:

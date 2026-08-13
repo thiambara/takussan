@@ -41,7 +41,9 @@ return new class extends Migration
      *
      * Sans ce détour, MySQL refuse : `SQLSTATE[HY000] 1553 — Cannot drop index
      * 'bookings_agency_id_status_index': needed in a foreign key constraint`. Mesuré le 2026-08-12
-     * sur MariaDB 11.4, sur les trois tables.
+     * sur MariaDB 11.4, sur les trois tables — puis rejoué sur **MySQL 8.0**, le moteur réel de la
+     * production, quand celui du banc d'essai a été corrigé le 2026-08-13 (ardoise D-43).
+     * Le comportement d'InnoDB décrit ci-dessous est le même sur les deux.
      *
      * La raison n'est pas évidente et vaut d'être écrite. La colonne est née
      * `foreignId('agency_id')->nullable()->constrained('agencies')->nullOnDelete()`, ce qui laisse

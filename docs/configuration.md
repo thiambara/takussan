@@ -397,7 +397,7 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:8002
 - **PHP ^8.4** avec extensions : `bcmath`, `ctype`, `curl`, `dom`, `fileinfo`, `gd` (ou `imagick` si Intervention Image), `intl`, `mbstring`, `openssl`, `pdo`, `pdo_sqlite` (ou `pdo_pgsql` / `pdo_mysql`), `redis` (phpredis), `tokenizer`, `xml`, `zip`.
 - **Composer 2.x**
 - **Node.js ≥ 20.x** + **npm** (frontend `engines` non strict, mais types `@types/node ^20`)
-- **Database** : **MariaDB / MySQL**. SQLite ne sert qu'à la suite de tests — c'est un moteur
+- **Database** : **MySQL 8.0** — la version de la production, mesurée le 2026-08-13. SQLite ne sert qu'à la suite de tests — c'est un moteur
   permissif qui **ne peut pas voir** les quatre familles de pièges de migration documentées dans
   [`../CLAUDE.md`](../CLAUDE.md). Développer dessus, c'est n'éprouver aucune migration.
 - **Meilisearch** — **obligatoire, pas optionnel** (ADR-0008). `phpunit.xml` force
@@ -408,7 +408,7 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:8002
 - *(Optionnel)* Gotenberg ou navigateur headless si `LARAVEL_PDF_DRIVER` ∉ {`dompdf`, `cloudflare`}
 
 > **Le plus simple est de ne rien installer de tout cela** : `docker-compose.yml` à la racine sert
-> MariaDB, Meilisearch, Redis et Mailpit, et `./dev.sh` démarre l'ensemble en une commande
+> MySQL 8.0, Meilisearch, Redis et Mailpit, et `./dev.sh` démarre l'ensemble en une commande
 > (ADR-0011). `./dev.sh doctor` dit ce qui répond et ce qui manque.
 
 ### 5.2 Cloner le repo

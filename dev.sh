@@ -293,7 +293,7 @@ if [ "$DB_PORT_ENV" = "${TAKUSSAN_DB_PORT:-3307}" ]; then VISE_DOCKER=1; fi
 # vérifie et refuse de démarrer sur un désaccord ». Cette promesse n'était tenue par rien.
 if [ "$VISE_DOCKER" = "0" ] && [ -n "${TAKUSSAN_DB_PORT:-}" ] && [ -n "$DB_PORT_ENV" ]; then
   bold "▸ Ports incohérents"
-  ko "le .env de la racine publie MariaDB sur ${TAKUSSAN_DB_PORT}, takussan-api/.env lit DB_PORT=${DB_PORT_ENV}."
+  ko "le .env de la racine publie MySQL sur ${TAKUSSAN_DB_PORT}, takussan-api/.env lit DB_PORT=${DB_PORT_ENV}."
   echo "     Le .env de la racine surcharge un port du compose : c'est une intention de viser" >&2
   echo "     les conteneurs. Aligne DB_PORT dans takussan-api/.env, ou retire la surcharge." >&2
   echo "     (Sans ce refus, aucun conteneur n'aurait été démarré et 'migrate' serait mort sur" >&2
@@ -321,7 +321,7 @@ fi
 #
 # Un mode « diagnostic » qui modifie l'état qu'il observe n'est pas un diagnostic.
 if [ "$MODE" != "doctor" ] && { [ "$VISE_DOCKER" = "1" ] || [ "$MODE" = "services" ]; }; then
-  bold "▸ Services docker (MariaDB, Meilisearch, Redis, Mailpit)"
+  bold "▸ Services docker (MySQL, Meilisearch, Redis, Mailpit)"
   # C'est ICI, et seulement ici, que docker est indispensable : on y entre parce que le `.env`
   # vise les conteneurs, ou parce que l'utilisateur les a demandés explicitement.
   if [ "$DOCKER_OK" != "1" ]; then
@@ -332,7 +332,7 @@ if [ "$MODE" != "doctor" ] && { [ "$VISE_DOCKER" = "1" ] || [ "$MODE" = "service
   fi
   docker compose -f "$ROOT/docker-compose.yml" up -d
 
-  # On attend la SANTÉ, pas le démarrage : un conteneur « Up » dont MariaDB initialise
+  # On attend la SANTÉ, pas le démarrage : un conteneur « Up » dont MySQL initialise
   # encore son volume refuse les connexions, et `php artisan migrate` échoue sur une
   # course qu'on rejoue trois fois avant de comprendre.
   # On COMPTE les `healthy`, on ne se contente pas de l'absence de mauvaise nouvelle.
@@ -375,7 +375,7 @@ if [ "$MODE" != "doctor" ] && { [ "$VISE_DOCKER" = "1" ] || [ "$MODE" = "service
     printf '\n'
     ko "les services ne sont pas prêts après 120 s (${sains:-0}/$ATTENDUS sains) — rien n'a été lancé."
     echo "     'docker compose logs --tail=40' dira lequel bloque." >&2
-    echo "     Une première création du volume MariaDB peut dépasser ce délai : relancer suffit." >&2
+    echo "     Une première création du volume MySQL peut dépasser ce délai : relancer suffit." >&2
     exit 75
   fi
 elif [ "$MODE" = "doctor" ] && [ "$VISE_DOCKER" = "1" ] && [ "$DOCKER_OK" != "1" ]; then
@@ -456,7 +456,7 @@ else
 bold "▸ Ce que takussan-api/.env déclare, et qui répond"
 DB_CONNECTION_ENV="$(env_get "$API/.env" DB_CONNECTION)"
 if [ "$DB_CONNECTION_ENV" = "sqlite" ]; then
-  avert "DB_CONNECTION=sqlite — la production tourne sur MariaDB."
+  avert "DB_CONNECTION=sqlite — la production tourne sur MySQL 8.0 (mesuré le 2026-08-13)."
   avert "  Les quatre pièges MySQL documentés dans CLAUDE.md sont INVISIBLES sur SQLite."
 else
   sonde_tcp "Base ($DB_CONNECTION_ENV)" "$(env_get "$API/.env" DB_HOST)" "$DB_PORT_ENV"
@@ -526,7 +526,7 @@ if [ "$MODE" = "services" ]; then
   echo
   lien "Mailpit (courrier de dev)" "http://localhost:${TAKUSSAN_MAILPIT_UI_PORT:-8026}"
   lien "Meilisearch" "http://127.0.0.1:${TAKUSSAN_MEILI_PORT:-7701}"
-  echo "  MariaDB 127.0.0.1:${TAKUSSAN_DB_PORT:-3307} · Redis 127.0.0.1:${TAKUSSAN_REDIS_PORT:-6380}"
+  echo "  MySQL 127.0.0.1:${TAKUSSAN_DB_PORT:-3307} · Redis 127.0.0.1:${TAKUSSAN_REDIS_PORT:-6380}"
   exit 0
 fi
 
@@ -732,7 +732,7 @@ lien "API (Laravel)" "http://127.0.0.1:$API_PORT/api"
 lien "Filament (admin)" "http://127.0.0.1:$API_PORT/admin"
 lien "Mailpit (courrier de dev)" "http://localhost:${TAKUSSAN_MAILPIT_UI_PORT:-8026}"
 lien "Meilisearch" "http://127.0.0.1:${TAKUSSAN_MEILI_PORT:-7701}"
-echo "  MariaDB 127.0.0.1:${TAKUSSAN_DB_PORT:-3307} · Redis 127.0.0.1:${TAKUSSAN_REDIS_PORT:-6380}"
+echo "  MySQL 127.0.0.1:${TAKUSSAN_DB_PORT:-3307} · Redis 127.0.0.1:${TAKUSSAN_REDIS_PORT:-6380}"
 echo "  File de jobs (queue:work) et scheduler (schedule:work) actifs"
 echo
 

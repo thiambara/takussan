@@ -52,6 +52,7 @@ revirement.
 - `routes/api/enums.php` — `GET enums/{key}`, cache 300 s.
 - `app/Http/Controllers/Api/PropertyController.php:76-82` — `Rule::enum()` en usage.
 - `CLAUDE.md` — piège de migration n°4.
-- **La garde** : le job `migrations-mysql` de `api-ci.yml` rejoue les migrations sur MariaDB. Il
+- **La garde** : le job `migrations-mysql` de `api-ci.yml` rejoue les migrations sur MySQL 8.0 —
+  le moteur de la production, mesuré le 2026-08-13 (ardoise D-43). Il
   n'interdit pas un `enum()` explicitement, mais c'est le seul endroit où un écart entre le schéma
   MySQL et le schéma SQLite peut désormais se voir.

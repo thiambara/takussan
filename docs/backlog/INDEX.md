@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**272 tickets** — 13 ouverts, 258 livrés.
+**272 tickets** — 12 ouverts, 259 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 9 |
+| 📋 Todo | 8 |
 | 🚧 Doing | 3 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 1 |
-| ✅ Done | 258 |
+| ✅ Done | 259 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -40,7 +40,6 @@
 - [TCK-286](tickets/TCK-286-i18n-textes-en-dur.md) — i18n — les libelles produits encore codes en dur `L · P2 · front`
 - [TCK-287](tickets/TCK-287-filament-supprimer-ou-securiser.md) — Filament — supprimer le panel ou le securiser `S · P1 · technique`
 - [TCK-288](tickets/TCK-288-chaine-de-deploiement-master-fige.md) — Premiere mise en production — la chaine n'a jamais tourne `M · P0 · technique`
-- [TCK-289](tickets/TCK-289-mariadb-production-non-epinglee.md) — MariaDB de production non épinglée — la CI éprouve une hypothèse `S · P1 · technique`
 - [TCK-290](tickets/TCK-290-upload-logo-agence-403.md) — Upload du logo d'agence — 403 systématique, aucune policy pour Agency `S · P1 · bug`
 
 ## 🚧 Doing
@@ -59,7 +58,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 258
+## ✅ Done — 259
 
 <details>
 <summary><strong>Vague 36 — Notifications WhatsApp sortant (2026-06-17)</strong> — 2 tickets</summary>
@@ -475,9 +474,10 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 1 ticket</summary>
+<summary><strong>Sans vague</strong> — 2 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
+- [TCK-289](tickets/TCK-289-moteur-de-base-production-non-epingle.md) — Moteur de base de production non épinglé — la CI éprouvait une hypothèse, et elle était fausse `S · P1 · technique`
 
 </details>
 

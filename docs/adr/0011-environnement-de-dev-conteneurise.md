@@ -14,7 +14,7 @@ environnement existant** :
 
 | | `.env.example` | CI | Production |
 |---|---|---|---|
-| Base | `sqlite` | SQLite `:memory:` | MariaDB |
+| Base | `sqlite` | SQLite `:memory:` | MySQL 8.0 |
 | Recherche | `collection` | Meilisearch | Meilisearch |
 | Cache | `redis` | *(array)* | `database` |
 
@@ -29,7 +29,8 @@ que SQLite ne peut pas voir, et le dépôt les avait déjà payés deux fois (`c
 ## Décision
 
 **`docker-compose.yml` à la racine sert quatre services, chacun couvrant une divergence dev↔prod
-mesurée** : **MariaDB** (la production tourne dessus), **Meilisearch v1.16** (alignée sur la CI),
+mesurée** : **MySQL 8.0** (la production tourne dessus — *mesuré* le 2026-08-13, cf. la note
+ci-dessous), **Meilisearch v1.16** (alignée sur la CI),
 **Redis** (pour que `.env.example` cesse de décrire un environnement impossible), **Mailpit** (une
 vingtaine de tâches planifiées envoient du courrier que `MAIL_MAILER=log` rend invisible).
 
@@ -57,18 +58,24 @@ se signale pas : l'écran répond 200, la ligne part en base, rien ne la consomm
 des **clés** (jamais des valeurs — deux fichiers aux valeurs identiques n'auraient aucune raison
 d'être deux) et tourne en CI. La garde est prouvée par mutation.
 
-**Ce que ça ne résout pas.** La production reste non versionnée (`apt install mariadb-server`,
-`apt install meilisearch`), et le PHP de production (8.3) ne peut pas installer le `composer.lock`
-actuel (ardoise D-01). Conteneuriser le développement rapproche les deux mondes ; ça ne fige pas
-celui d'en face.
+**Ce que ça ne résout pas.** La production reste posée par `apt` sans version épinglée dans le
+dépôt, et le PHP de production (8.3) ne peut pas installer le `composer.lock` actuel (ardoise
+D-01). Conteneuriser le développement rapproche les deux mondes ; ça ne fige pas celui d'en face.
+
+> ⚠ **Correction du 2026-08-13.** Cet ADR a d'abord écrit « MariaDB » pour la production, et le
+> compose l'a servi pendant six semaines. C'était faux : le serveur tourne sur **MySQL 8.0.46**,
+> `utf8mb4_0900_ai_ci`. La ligne « la production tourne dessus » n'était pas une mesure mais une
+> déduction — d'un `apt install mariadb-server` que personne n'avait exécuté. La divergence que ce
+> compose existe pour supprimer était donc *reproduite* par lui. Corrigé, et gardé par
+> `scripts/check-db-engine.mjs` (ardoise D-43, TCK-289).
 
 ## Application
 
 - `docker-compose.yml` — le raisonnement service par service est dans son en-tête.
-- `docker/mariadb-init.sql` — la base de test, séparée de celle de développement.
+- `docker/mysql-init.sql` — la base de test, séparée de celle de développement.
 - `dev.sh` — modes `all` / `api` / `services` / `doctor`.
 - `takussan-api/.env.docker` · `scripts/check-env-parity.mjs`.
 - `.github/workflows/repo-ci.yml` — la garde de parité.
-- `.github/workflows/api-ci.yml`, job `migrations-mysql` — les migrations rejouées sur MariaDB.
+- `.github/workflows/api-ci.yml`, job `migrations-mysql` — les migrations rejouées sur MySQL 8.0.
   **Il a trouvé un `down()` cassé à sa première exécution** : `dropIndex` sur une colonne portant
   une FK, sur trois tables — exactement le piège n°2 de `CLAUDE.md`.

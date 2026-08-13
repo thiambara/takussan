@@ -101,9 +101,17 @@ node scripts/check-env-parity.mjs   # .env.example et .env.docker déclarent-ils
 
 ## Environnement de développement
 
-`docker-compose.yml` sert **MariaDB, Meilisearch, Redis et Mailpit**. Chaque service couvre une
+`docker-compose.yml` sert **MySQL 8.0, Meilisearch, Redis et Mailpit**. Chaque service couvre une
 divergence dev↔prod qui coûtait cher tant qu'elle n'était pas provisionnée — le raisonnement, service
 par service, est dans l'en-tête du fichier.
+
+> **Le moteur de base a été MESURÉ le 2026-08-13**, et il n'était pas celui qu'on croyait. Le
+> compose et la CI tournaient sur `mariadb:11.4` parce qu'un commentaire affirmait que la prod
+> sortait d'un `apt install mariadb-server` — commande que personne n'avait exécutée. Sur le
+> serveur : `mysql-server 8.0.46`, `utf8mb4_0900_ai_ci`. Pas un écart de version, **le mauvais
+> moteur**. `scripts/check-db-engine.mjs` garde désormais l'accord entre le compose, le job
+> `migrations-mysql` et la valeur mesurée. *Ne jamais déduire l'état d'un environnement de la
+> configuration — ni de la commande d'installation — qui le vise.*
 
 **Les ports sont décalés d'un cran** (3307, 7701, 6380, 1026/8026) : les ports canoniques étaient
 occupés par des installations natives brew et par un projet voisin. Le décalage rend les deux mondes
@@ -111,7 +119,7 @@ simultanés au lieu d'exiger qu'on démonte l'existant.
 
 **`.env.docker` est l'environnement de développement, `.env.example` est le contrat des clés.**
 `.env.example` ne reproduit **aucun** environnement existant : il livre `DB_CONNECTION=sqlite` quand
-la production tourne sur MariaDB, `SCOUT_DRIVER=collection` quand la CI et la production indexent sur
+la production tourne sur MySQL 8, `SCOUT_DRIVER=collection` quand la CI et la production indexent sur
 Meilisearch, et `CACHE_STORE=redis` sans que rien ne fournisse Redis. `.env.docker` aligne chaque
 driver sur celui de la production. `scripts/check-env-parity.mjs` garde la parité des **clés** entre
 les deux (jamais des valeurs — deux fichiers aux valeurs identiques n'auraient aucune raison d'être
@@ -233,8 +241,9 @@ Décidés délibérément. Les violer est une régression, pas un choix de style
    aucune spec — seulement dans un commentaire (dette D-22).*
 
 4. **Une migration se pense pour MySQL, jamais pour SQLite.** La suite de tests tourne sur SQLite
-   (permissif), la production sur MariaDB (strict). Les quatre familles de pièges sont ci-dessous.
-   Le job `migrations-mysql` d'`api-ci.yml` rejoue désormais les migrations sur MariaDB —
+   (permissif), la production sur **MySQL 8.0** (strict) — mesuré, cf. plus haut. Les quatre
+   familles de pièges sont ci-dessous.
+   Le job `migrations-mysql` d'`api-ci.yml` rejoue désormais les migrations sur MySQL 8.0 —
    **l'aller en entier, le retour seulement au-dessus du cutover TCK-278** : le `down()` de la
    migration de cutover est délibérément irréversible, on ne peut donc pas descendre plus bas.
    Concrètement, **3 `down()` sur 124** sont exécutés, et ce sont les plus récents. Le job affiche
