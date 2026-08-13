@@ -149,23 +149,42 @@ for (const { fichier, ou } of CONSOMMATEURS) {
   //
   // *Une garde qui lit la documentation de la commande au lieu de la commande atteste de
   // l'intention, pas de l'exécution.* C'est le défaut même qu'elle existe pour attraper.
-  const ligne = readFileSync(fichier, 'utf8')
+  // TOUTES les lignes `queue:work`, pas la première.
+  //
+  // `.find()` s'arrêtait au premier worker trouvé. Aujourd'hui chaque consommateur n'en déclare
+  // qu'un, donc la garde était juste — mais le commentaire de `server-setup.sh` lui-même
+  // recommande de donner un worker dédié à `notifications-urgent` si elle grossit. Le jour où
+  // une seconde ligne existe, la garde certifie tout le fichier d'après la première et annonce
+  // « les 4 files exigées sont consommées » sans avoir jamais regardé le second worker.
+  //
+  // C'est la TROISIÈME fois que cette garde est corrigée pour n'avoir lu qu'une partie de ce
+  // qu'elle juge — après les commentaires côté consommateurs, puis côté PHP. *Lire le premier
+  // élément d'un ensemble et conclure sur l'ensemble est une erreur qui ne se voit pas tant que
+  // l'ensemble est un singleton.* On la ferme avant qu'elle ne se manifeste.
+  const lignes = readFileSync(fichier, 'utf8')
     .split('\n')
-    .find((l) => l.includes('artisan queue:work') && !/^\s*#/.test(l));
-  if (!ligne) {
+    .filter((l) => l.includes('artisan queue:work') && !/^\s*#/.test(l));
+  if (lignes.length === 0) {
     console.error(`✗ aucune ligne \`artisan queue:work\` dans ${fichier.slice(ROOT.length + 1)} (« ${ou} »).`);
     console.error('  La garde le dit plutôt que de passer en silence.');
     process.exit(1);
   }
-  const m = ligne.match(/--queue=([a-z0-9_,-]+)/);
-  if (!m) {
-    const autres = [...poussees.keys()].filter((q) => q !== 'default');
-    console.error(`✗ le \`queue:work\` de « ${ou} » (${fichier.slice(ROOT.length + 1)}) n'a pas de \`--queue=\`.`);
-    console.error('  Il ne consommera donc QUE la file `default`, et les jobs poussés sur');
-    console.error(`  ${autres.join(', ') || '(aucune autre file)'} ne seront jamais exécutés.`);
-    process.exit(1);
-  }
-  lus.push({ ou, fichier, files: new Set(m[1].split(',')) });
+  // L'UNION des files servies par les workers du fichier : deux workers qui se partagent les
+  // files couvrent le contrat ensemble, et c'est bien ainsi qu'on les déploierait.
+  const files = new Set();
+  lignes.forEach((ligne, i) => {
+    const m = ligne.match(/--queue=([a-z0-9_,-]+)/);
+    if (!m) {
+      const autres = [...poussees.keys()].filter((q) => q !== 'default');
+      const quel = lignes.length > 1 ? ` (worker n°${i + 1} sur ${lignes.length})` : '';
+      console.error(`✗ un \`queue:work\` de « ${ou} »${quel} (${fichier.slice(ROOT.length + 1)}) n'a pas de \`--queue=\`.`);
+      console.error('  Il ne consommera donc QUE la file `default`, et les jobs poussés sur');
+      console.error(`  ${autres.join(', ') || '(aucune autre file)'} ne seront jamais exécutés.`);
+      process.exit(1);
+    }
+    m[1].split(',').forEach((q) => files.add(q));
+  });
+  lus.push({ ou, fichier, files, workers: lignes.length });
 }
 
 // L'union serait indulgente : une file consommée en production mais pas en local resterait

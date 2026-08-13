@@ -209,7 +209,13 @@ jobs:
           DB_PASSWORD: takussan
         run: |
           BORNE=2026_05_18_120000_drop_spatie_permission_tables
-          STEP=$(ls database/migrations | sed 's/\.php$//' | sort | awk -v b="$BORNE" '$0 > b' | wc -l | tr -d ' ')
+          # On compte des MIGRATIONS, pas des entrées de répertoire. `ls database/migrations`
+          # listait tout : un `README.md`, un sous-dossier `archive/`, un `.sql` égaré — dès lors
+          # qu'il trie après la borne — ajoutait 1 à STEP. `migrate:rollback` descendait alors
+          # d'un cran SOUS la borne, jusqu'au cutover TCK-278 dont le `down()` lève
+          # délibérément, et le job échouait en pointant la migration de cutover au lieu du
+          # mauvais compte. Le glob `*.php` ne peut pas se tromper de la même façon.
+          STEP=$(ls database/migrations/*.php | xargs -n1 basename | sed 's/\.php$//' | sort | awk -v b="$BORNE" '$0 > b' | wc -l | tr -d ' ')
           echo "Migrations réversibles au-dessus de $BORNE : $STEP"
           if [ "$STEP" -gt 0 ]; then
             php artisan migrate:rollback --step="$STEP" --force --no-interaction

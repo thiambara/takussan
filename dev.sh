@@ -86,14 +86,28 @@ manquants=0
 # et la sonde imprime « Meilisearch NE RÉPOND PAS » sur une instance parfaitement saine. C'est
 # le mode d'échec exact que le commentaire ci-dessous nomme, et il manquait à la liste qu'il
 # justifie : *un prérequis oublié ne produit pas un diagnostic manquant, il en produit un FAUX.*
-for outil in docker php composer node nc lsof curl; do
+#
+# ⚠ `docker` N'EST PAS dans cette liste, et son absence de la liste est le correctif.
+#
+# Il y figurait, doublé d'un `docker info` qui posait `manquants=1` : le script sortait donc en
+# 69 sans démon docker, quatre-vingts lignes au-dessus de son propre commentaire « Ce script NE
+# FORCE PAS docker. Un poste peut très bien servir MySQL et Meilisearch nativement (brew) —
+# c'était le cas de celui où ce fichier a été écrit ». Toute la branche `VISE_DOCKER=0` existe
+# pour ce poste-là, et elle était inatteignable. Pire : `./dev.sh doctor` mourait à la même
+# ligne, alors que deux blocs de ce fichier défendent longuement l'idée qu'il est « le seul mode
+# dont le contrat est de toujours produire une réponse ».
+#
+# Docker est donc vérifié LÀ OÙ IL SERT — juste avant le `docker compose up` — et jamais ailleurs.
+# *Un prérequis universel qui ne sert qu'à une branche interdit les autres branches.*
+for outil in php composer node nc lsof curl; do
   command -v "$outil" >/dev/null 2>&1 || { ko "$outil est introuvable dans le PATH"; manquants=1; }
 done
-if ! docker info >/dev/null 2>&1; then
-  ko "le démon docker ne répond pas — démarre Docker Desktop"
-  manquants=1
-fi
 [ "$manquants" -eq 0 ] || exit 69
+
+# Docker répond-il ? La réponse ne conditionne rien ici — elle sera consommée plus bas, par les
+# seules branches qui en ont besoin.
+DOCKER_OK=0
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then DOCKER_OK=1; fi
 
 # ───────────────────────────────────────────────────────────── dépendances PHP
 # AVANT toute commande `artisan`, et c'est l'ordre qui compte.
@@ -247,6 +261,14 @@ fi
 # Un mode « diagnostic » qui modifie l'état qu'il observe n'est pas un diagnostic.
 if [ "$MODE" != "doctor" ] && { [ "$VISE_DOCKER" = "1" ] || [ "$MODE" = "services" ]; }; then
   bold "▸ Services docker (MariaDB, Meilisearch, Redis, Mailpit)"
+  # C'est ICI, et seulement ici, que docker est indispensable : on y entre parce que le `.env`
+  # vise les conteneurs, ou parce que l'utilisateur les a demandés explicitement.
+  if [ "$DOCKER_OK" != "1" ]; then
+    ko "le démon docker ne répond pas — démarre Docker Desktop."
+    echo "     (Ce mode a besoin des conteneurs. Un .env visant des services natifs n'en a pas" >&2
+    echo "      besoin : './dev.sh api' fonctionne alors sans docker.)" >&2
+    exit 69
+  fi
   docker compose -f "$ROOT/docker-compose.yml" up -d
 
   # On attend la SANTÉ, pas le démarrage : un conteneur « Up » dont MariaDB initialise
@@ -295,6 +317,12 @@ if [ "$MODE" != "doctor" ] && { [ "$VISE_DOCKER" = "1" ] || [ "$MODE" = "service
     echo "     Une première création du volume MariaDB peut dépasser ce délai : relancer suffit." >&2
     exit 75
   fi
+elif [ "$MODE" = "doctor" ] && [ "$VISE_DOCKER" = "1" ] && [ "$DOCKER_OK" != "1" ]; then
+  # `doctor` CONSTATE l'absence du démon, il ne sort pas dessus : c'est justement le diagnostic
+  # qu'on est venu chercher.
+  bold "▸ Services docker"
+  ko "le .env vise les conteneurs du dépôt, mais le démon docker ne répond pas."
+  echo "     Démarre Docker Desktop, puis './dev.sh services'." >&2
 elif [ "$MODE" = "doctor" ] && [ "$VISE_DOCKER" = "1" ]; then
   # Le `.env` vise bien les conteneurs — on REGARDE leur état sans y toucher. Sans cette
   # branche, `doctor` tombait dans le `else` ci-dessous et affirmait que le `.env` visait des
