@@ -22,7 +22,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     const token = await getToken();
     if (token) {
       const agency = await resolveAgencyOrNull(token, user.agency_id, 'admin/layout (cadenas)');
-      agencyIsStandard = agency?.kind === 'standard';
+      // `undefined` quand on n'a pas pu savoir — le même correctif qu'`app/layout.tsx`, qui
+      // n'avait pas traversé jusqu'ici. `AdminSidebar` conditionne le sondage du compteur de
+      // modération à `agencyIsStandard !== false` : écraser « inconnu » en `false` faisait
+      // disparaître le badge d'un admin d'agence `standard` sur une simple panne passagère.
+      agencyIsStandard = agency ? agency.kind === 'standard' : undefined;
     }
   }
 

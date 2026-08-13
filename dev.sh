@@ -683,9 +683,20 @@ API_PID=$!
 # C'est le défaut corrigé en production dans `scripts/server-setup.sh` ; il vivait ici
 # aussi. `scripts/check-queues.mjs` surveille désormais les DEUX consommateurs.
 #
-# --tries=1 : chaque job porte son propre `tries`/`backoff`. Laisser le worker
-# retenter par-dessus doublerait silencieusement les tentatives — et un rappel de
-# paiement envoyé deux fois est un défaut visible par l'utilisateur final.
+# `--tries=3`, comme la production — et le raisonnement précédent était juste mais incomplet.
+#
+# Il disait : « chaque job porte son propre `tries`/`backoff`, laisser le worker retenter
+# par-dessus doublerait les tentatives ». C'est vrai des jobs qui DÉCLARENT leur `$tries` ; pour
+# tous les autres, le worker est la seule politique de reprise. Le local était donc à 1 quand la
+# production est à 3 : un job qui se rétablit tout seul en production échouait sèchement ici, et
+# un défaut de compteur de reprise restait invisible localement.
+#
+# Or c'est exactement la classe de divergence dev↔prod que ce fichier et ce compose existent
+# pour supprimer. Un job dont le double envoi serait visible par l'utilisateur doit poser son
+# propre `$tries` — et il le fera dans les deux environnements.
+#
+# *Choisir un réglage plus prudent en local qu'en production, c'est cesser de tester la
+# production.*
 # DEUX workers, comme en production — voir le raisonnement dans `scripts/server-setup.sh`.
 # Aucun ordre de files ne convient sur un worker unique : `media` (régénération de filigranes sur
 # tous les biens d'une agence) affame `default`, et `default` (le fourre-tout) affame `media`.
@@ -698,9 +709,9 @@ API_PID=$!
 # pour le front, réintroduit trois lignes plus haut en dupliquant une ligne.
 #
 # *Dupliquer une ligne duplique son effet, pas sa variable.*
-(cd "$API" && exec php artisan queue:work --queue=notifications-urgent,default --tries=1) &
+(cd "$API" && exec php artisan queue:work --queue=notifications-urgent,default --tries=3) &
 QUEUE_DEFAUT_PID=$!
-(cd "$API" && exec php artisan queue:work --queue=media,reconciliation --tries=1) &
+(cd "$API" && exec php artisan queue:work --queue=media,reconciliation --tries=3) &
 QUEUE_FOND_PID=$!
 (cd "$API" && exec php artisan schedule:work) &
 SCHEDULE_PID=$!

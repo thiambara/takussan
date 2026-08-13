@@ -336,7 +336,23 @@ for (const [r] of nues) {
 }
 
 if (erreurs.length === 0) {
-  console.log(`✓ surfaces pro : ${gardees.length}/${routes.length} routes gardées côté serveur ET fail-closed, ${ECARTS_ASSUMES.size} écart(s) assumé(s).`);
+  // ⚠ « côté SSR », et pas « côté serveur » : la nuance est tout ce qui sépare une redirection
+  // d'une autorisation.
+  //
+  // Cette garde lit les PAGES Next. Elle ne dit rien des endpoints qu'elles appellent, et le
+  // dépôt a l'écart mesuré : `AgencyKindGuard` n'est invoqué que dans quatre contrôleurs, tous
+  // sous `/admin/*`. Les APIs derrière les quatre entrées `/app/*` — `KpiConfigController`,
+  // `ThresholdAlertController`, les propriétaires, `DashboardController@agency` — n'ont AUCUNE
+  // restriction de `kind`. Un `agency_admin` d'une agence `individual` est bien renvoyé par le
+  // rendu serveur, et lit quand même tout au `curl`, avec son propre jeton.
+  //
+  // C'est TCK-284, encore `doing`, et ce n'est pas à cette garde de le refermer. Mais une ligne
+  // verte disant « gardées côté serveur » se lit comme la preuve d'une restriction qui s'arrête
+  // au navigateur. *Une garde qui nomme mal ce qu'elle mesure devient la source du malentendu
+  // qu'elle devait dissiper.*
+  console.log(`✓ surfaces pro : ${gardees.length}/${routes.length} routes redirigées côté SSR ET fail-closed, ${ECARTS_ASSUMES.size} écart(s) assumé(s).`);
+  console.log('  ⚠ SSR seulement. Les endpoints derrière /app/* n\'ont pas de garde `kind` côté API');
+  console.log('    (AgencyKindGuard : 4 contrôleurs, tous /admin/*). Un curl passe — cf. TCK-284.');
   process.exit(0);
 }
 

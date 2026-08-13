@@ -108,7 +108,8 @@ jobs:
         run: php artisan test
 
   # ────────────────────────────────────────────────────────────────────────────
-  # Les migrations rejouées sur MariaDB — le moteur de la PRODUCTION.
+  # Les migrations rejouées sur MariaDB — le moteur SUPPOSÉ de la production (cf. l'avertissement
+  # en bas de ce bloc : rien dans le dépôt n'installe MariaDB sur le serveur).
   #
   # `CLAUDE.md` documente quatre familles de pièges « qui passent en CI mais cassent en prod » :
   # DEFAULT sur JSON/TEXT, dropUnique sur une colonne portant une FK, nom d'index auto-généré au-delà
@@ -125,6 +126,22 @@ jobs:
   # Ce job ne rejoue PAS la suite de tests — c'est le DDL qu'on éprouve, pas le code. Il tourne en
   # moins d'une minute, et il tourne sur MariaDB parce que c'est ce que `apt install mariadb-server`
   # pose sur le serveur.
+  #
+  # ⚠ LA VERSION 11.4 EST UNE HYPOTHÈSE, pas une mesure. `scripts/server-setup.sh` n'installe ni
+  # ne configure MariaDB — sa seule mention est un `After=network.target mysql.service`. La
+  # production tourne donc sur ce que `apt` a posé : sur une Ubuntu LTS, ce serait MariaDB 10.11
+  # avec `utf8mb4_general_ci`, et non 11.4 avec `utf8mb4_unicode_ci`.
+  #
+  # Conséquence : un DDL accepté par 11.4 et refusé par le moteur réel passerait CE JOB et
+  # casserait quand même `migrate --force` au déploiement — l'échec exact que ce job existe pour
+  # empêcher. Et deux collations différentes ne comparent pas les chaînes de la même façon
+  # (unicité des e-mails, `LIKE` de recherche).
+  #
+  # À mesurer sur le serveur, puis à épingler ici ET dans `server-setup.sh` (TCK-289) :
+  #     mariadb -e "SELECT VERSION(), @@collation_server;"
+  #
+  # *Un banc d'essai qui reproduit une hypothèse ne prouve rien de la production ; il prouve que
+  # l'hypothèse est cohérente avec elle-même.*
   migrations-mysql:
     name: Migrations sur MariaDB (pièges que SQLite ne voit pas)
     runs-on: ubuntu-latest

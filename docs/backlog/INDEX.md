@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**270 tickets** — 11 ouverts, 258 livrés.
+**271 tickets** — 12 ouverts, 258 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 7 |
+| 📋 Todo | 8 |
 | 🚧 Doing | 3 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 1 |
@@ -40,6 +40,7 @@
 - [TCK-286](tickets/TCK-286-i18n-textes-en-dur.md) — i18n — les libelles produits encore codes en dur `L · P2 · front`
 - [TCK-287](tickets/TCK-287-filament-supprimer-ou-securiser.md) — Filament — supprimer le panel ou le securiser `S · P1 · technique`
 - [TCK-288](tickets/TCK-288-chaine-de-deploiement-master-fige.md) — Premiere mise en production — la chaine n'a jamais tourne `M · P0 · technique`
+- [TCK-289](tickets/TCK-289-mariadb-production-non-epinglee.md) — MariaDB de production non épinglée — la CI éprouve une hypothèse `S · P1 · technique`
 
 ## 🚧 Doing
 
