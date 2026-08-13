@@ -320,8 +320,20 @@ for unit in /etc/systemd/system/takussan-queue*.service; do
         continue
     fi
     # Une unité désactivée ne sert rien : on ne compte que celles qui sont actives.
-    if ! systemctl is-enabled --quiet "$(basename "${unit}" .service)" 2>/dev/null; then
-        log "WARNING: $(basename "${unit}" .service) existe mais n'est pas activée."
+    # ACTIVE, pas seulement « activée ». `is-enabled` dit qu'elle démarrera au boot ; il ne dit
+    # rien de son état actuel. Une unité `enabled` mais en boucle de redémarrage — un mauvais
+    # release, un `WorkingDirectory` absent une seconde — faisait compter ses files comme
+    # servies, et le contrôle annonçait « les quatre files couvertes » pendant que `media` et
+    # `reconciliation` ne se vidaient jamais. C'est la panne silencieuse même que ce bloc existe
+    # pour rendre visible.
+    _u="$(basename "${unit}" .service)"
+    if ! systemctl is-enabled --quiet "${_u}" 2>/dev/null; then
+        log "WARNING: ${_u} existe mais n'est pas activée."
+        continue
+    fi
+    if ! systemctl is-active --quiet "${_u}" 2>/dev/null; then
+        log "WARNING: ${_u} est activée mais NE TOURNE PAS — ses files ne se vident pas."
+        log "         'systemctl status ${_u}' et 'journalctl -u ${_u} -n 50' pour la cause."
         continue
     fi
     ligne=$(grep -m1 -- 'ExecStart=.*--queue=' "${unit}" || true)

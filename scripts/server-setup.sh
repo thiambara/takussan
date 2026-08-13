@@ -316,7 +316,6 @@ ${PREVIEW_DIR}/shared/storage/logs/*.log
     notifempty
     # copytruncate : cf. le commentaire de setup_laravel_logrotate dans scripts/server-setup.sh.
     copytruncate
-    sharedscripts
 }
 LOGROTATE
     chmod 644 "${logrotate_file}"

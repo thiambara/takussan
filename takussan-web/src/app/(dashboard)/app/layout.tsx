@@ -27,7 +27,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         resolveAgencyOrNull(token, user.agency_id, 'app/layout (cadenas)'),
         fetchAgencyUpgradeRequests(token, user.agency_id).catch(() => null),
       ]);
-      agencyIsStandard = agency?.kind === 'standard';
+      // `undefined` quand on N'A PAS PU savoir — et non `false`.
+      //
+      // `agency?.kind === 'standard'` écrasait `null` en `false`, c'est-à-dire « inconnu » en
+      // « agence individuelle ». Le cadenas est identique dans les deux cas (`isProRouteLocked`
+      // rend `agencyIsStandard !== true`, donc fail-closed), mais la CARTE « passez au plan
+      // supérieur » ne s'affiche que sur `=== false`. Résultat, sur
+      // `/app/verification-indisponible` — la page qui dit « ce n'est pas un changement de votre
+      // formule » — la barre latérale affirmait exactement le contraire.
+      //
+      // *Écraser « je ne sais pas » en « non » ne change pas la décision ; cela change ce qu'on
+      // raconte à l'utilisateur, et c'est là que ça se voit.*
+      agencyIsStandard = agency ? agency.kind === 'standard' : undefined;
       hasPendingUpgrade =
         listing?.data.some((request) => request.status === 'pending') ?? false;
     }

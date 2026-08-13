@@ -109,6 +109,24 @@ describe('ensureStandardAgencyOrRedirect', () => {
     expect(await refus(utilisateur(7))).toBe('/app/verification-indisponible');
   });
 
+  it('reconnaît une panne réseau par `cause.code`, pas par des mots du message', async () => {
+    getToken.mockResolvedValue('tok');
+    const e = new TypeError('Failed to fetch') as TypeError & { cause?: { code: string } };
+    e.cause = { code: 'ECONNREFUSED' };
+    fetchAgency.mockRejectedValue(e);
+    expect(await refus(utilisateur(7))).toBe('/app/verification-indisponible');
+  });
+
+  it('un bug dont le message CONTIENT « timeout » reste un bug', async () => {
+    // Le motif précédent cherchait /…|timeout/i dans n'importe quel message : un
+    // `TypeError: Cannot read properties of undefined (reading 'timeout')` — bug ordinaire —
+    // devenait une invitation à réessayer, sans `digest`, sans pile, et sans issue.
+    getToken.mockResolvedValue('tok');
+    const bug = new TypeError("Cannot read properties of undefined (reading 'timeout')");
+    fetchAgency.mockRejectedValue(bug);
+    await expect(ensureStandardAgencyOrRedirect(utilisateur(7))).rejects.toThrow(bug);
+  });
+
   it('explique sur un 400 — un champ invalide ne dit RIEN du forfait', async () => {
     // Le cas concret : `AGENCY_ADMIN_FIELDS` demande `fields[agencies]=…,kind`. Si `kind`
     // quittait `Agency::$queryFields`, spatie lèverait `InvalidFieldQuery` → 400, et la version

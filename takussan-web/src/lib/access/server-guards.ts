@@ -53,11 +53,31 @@ type Verdict = 'refus' | 'explique' | 'bug';
  * *Deux causes qui portent le même type d'erreur ne se séparent que sur autre chose que le
  * type — ici le message, faute de mieux, et on le dit plutôt que de faire comme si.*
  */
-const RESEAU = /fetch failed|network|ECONN|EAI_AGAIN|socket hang up|timeout/i;
+const CAUSES_RESEAU = new Set([
+  'ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ETIMEDOUT', 'EPIPE',
+  'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_SOCKET',
+]);
+
+const estPanneReseau = (e: Error): boolean => {
+  // `fetch` d'undici lève très exactement `TypeError: fetch failed`, et range le détail dans
+  // `cause.code`. On teste CELA, et non une liste de mots dans le message.
+  //
+  // La version précédente cherchait /fetch failed|network|ECONN|…|timeout/i dans `e.message`
+  // de n'importe quelle erreur. Un `TypeError: Cannot read properties of undefined (reading
+  // 'timeout')` — un bug ordinaire — tombait donc dans « explique » et devenait une invitation
+  // à réessayer : l'impasse permanente sous diagnostic rassurant que le verdict « bug » existe
+  // précisément pour empêcher.
+  //
+  // *Reconnaître une panne à des mots de son message, c'est reconnaître tout ce qui en parle.*
+  if (e.name !== 'TypeError') return false;
+  if (e.message === 'fetch failed') return true;
+  const code = (e as { cause?: { code?: unknown } }).cause?.code;
+  return typeof code === 'string' && CAUSES_RESEAU.has(code);
+};
 
 const classer = (e: unknown): Verdict => {
   if (!(e instanceof ApiError)) {
-    return e instanceof Error && RESEAU.test(e.message) ? 'explique' : 'bug';
+    return e instanceof Error && estPanneReseau(e) ? 'explique' : 'bug';
   }
   // 404 est DÉFINITIF ici : `AgencyController::show` fait `abort_unless(canViewAgency(), 404)`,
   // donc « invisible pour vous » — une réponse, pas une panne.

@@ -37,7 +37,37 @@ const REPORT = process.argv.includes('--report');
 /** Tout script shell du dépôt qui écrit des fichiers. */
 const FICHIERS = ['scripts/server-setup.sh', 'scripts/deploy.sh', 'dev.sh'];
 
-const OUVERTURE = /<<-?\s*(['"]?)([A-Za-z_]\w*)\1/;
+/**
+ * L'ouverture d'un heredoc — et le motif est volontairement STRICT sur ce qui la précède.
+ *
+ * Une première version cherchait `<<` n'importe où dans la ligne. Une chaîne contenant
+ * `"usage: foo << BAR"`, ou un décalage arithmétique `$(( 1 << 3 ))`, mettait alors le scanner
+ * en état « dans un heredoc » dont le délimiteur n'arrivait jamais : Repo CI rougissait sur du
+ * shell parfaitement valide, avec un message parlant d'un heredoc inexistant.
+ *
+ * Une redirection de heredoc suit une commande ou une redirection — jamais un guillemet ouvert.
+ * On exige donc que le `<<` soit précédé d'un début de ligne, d'une espace, ou d'un opérateur,
+ * et on ignore les lignes dont le `<<` tombe à l'intérieur d'une chaîne.
+ *
+ * *Une garde qui rougit sur du code juste finit par être désarmée — et c'est le pire résultat
+ * possible pour celle-ci, qui garde du code exécuté en root.*
+ */
+const OUVERTURE = /(?:^|[\s;&|)])<<-?\s*(['"]?)([A-Za-z_]\w*)\1\s*(?:$|[\s;&|<>])/;
+
+/** Le `<<` de cette ligne tombe-t-il à l'intérieur d'une chaîne ? */
+function dansUneChaine(ligne) {
+  const i = ligne.search(/<<-?\s*['"]?[A-Za-z_]/);
+  if (i === -1) return false;
+  let simple = false;
+  let double = false;
+  for (let k = 0; k < i; k += 1) {
+    const c = ligne[k];
+    if (c === '\\') { k += 1; continue; }
+    if (c === "'" && !double) simple = !simple;
+    else if (c === '"' && !simple) double = !double;
+  }
+  return simple || double;
+}
 const SUBSTITUTION = /`[^`]*`|\$\([^)]*\)/;
 
 const erreurs = [];
@@ -57,7 +87,7 @@ for (const rel of FICHIERS) {
   lignes.forEach((ligne, i) => {
     const n = i + 1;
     if (delim === null) {
-      const m = OUVERTURE.exec(ligne);
+      const m = dansUneChaine(ligne) ? null : OUVERTURE.exec(ligne);
       if (m) {
         quote = m[1] !== '';
         delim = m[2];
