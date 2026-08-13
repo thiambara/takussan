@@ -379,7 +379,18 @@ else
   # et **on tient l'échec de la commande pour « vierge »** — se tromper vers un `migrate --seed`
   # de trop coûte des minutes ; se tromper vers l'absence de seed coûte une session de débogage
   # sur une base vide. Le `2>&1` remplace le `2>/dev/null` : quand ça casse, on veut savoir.
-  compte="$(cd "$API" && php artisan tinker --execute='echo \App\Models\User::count();' 2>&1 | tail -1 | tr -dc '0-9')"
+  #
+  # ⚠ Le `|| true` FINAL est ce qui rend la branche de repli ci-dessous atteignable, et sa
+  # première version ne l'avait pas. Sous `set -euo pipefail`, un `tinker` qui sort non nul
+  # (exception dans un provider, PsySH indisponible, install `--no-dev`) propage son code à
+  # travers le tube, la substitution en hérite, et `set -e` tue le script **sur l'affectation
+  # elle-même** : le `if [ -z "$compte" ]` juste en dessous n'était jamais atteint. Et comme le
+  # `2>&1` est capturé DANS la substitution, rien ne s'affichait — `./dev.sh` sortait en 1 en
+  # silence après la bannière des services.
+  #
+  # *Le correctif d'une mort silencieuse en avait réintroduit une, trois lignes plus haut que
+  # celle qu'il fermait.* Un repli n'est un repli que si le chemin qui y mène existe.
+  compte="$( (cd "$API" && php artisan tinker --execute='echo \App\Models\User::count();' 2>&1 | tail -1 | tr -dc '0-9') || true )"
   # Après `tr -dc '0-9'`, `$compte` ne peut être qu'une suite de chiffres ou la chaîne vide.
   if [ -z "$compte" ]; then
     avert "impossible de compter les utilisateurs — on suppose la base vierge et on sème."

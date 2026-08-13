@@ -112,6 +112,33 @@ const FAIL_OPEN = [
 const declenche = (m, s) => (typeof m === 'function' ? m(s) : m.test(s));
 
 /**
+ * Les COMMENTAIRES sont retirés avant toute analyse — et il fallait le faire dans les deux sens.
+ *
+ * Cette garde lisait le texte brut du fichier, sans distinguer le code de la prose. Deux
+ * conséquences opposées, toutes deux mesurées :
+ *
+ *  · **faux positif** — un fichier ne contenant AUCUNE garde mais une phrase du genre
+ *    « réservée aux agences standard : si `kind !== 'standard'` il faut `redirect('/app')` »
+ *    satisfait le motif. Une route pro entièrement nue passait au vert. Vérifié.
+ *  · **faux négatif** — le motif `FAIL_OPEN` frappait les commentaires EXPLICATIFS. Chaque
+ *    commentaire de cette PR qui décrit l'anti-motif a dû l'écrire avec des points de suspension
+ *    Unicode pour l'esquiver. Le prochain contributeur qui l'écrit en toutes lettres obtient un
+ *    build rouge pointant du code juste.
+ *
+ * *Une garde qui lit la prose atteste de ce qu'on a écrit sur le code, pas du code.* C'est la
+ * même erreur que `check-queues` lisant le commentaire au-dessus de son `queue:work`.
+ *
+ * Le retrait est volontairement grossier (pas un parseur) : il suffit que les motifs ne voient
+ * plus que de l'exécutable. Les chaînes contenant `//` — des URL, essentiellement — n'ont pas
+ * cours dans les expressions que l'on cherche.
+ */
+function sansCommentaires(src) {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+}
+
+/**
  * Écarts CONNUS et assumés, chacun avec son ticket.
  *
  * Une allowlist est une dette, pas une exemption : elle rend l'écart visible et datable au lieu
@@ -169,9 +196,13 @@ for (const route of routes) {
     introuvables.push(route);
     continue;
   }
-  const src = readFileSync(p, 'utf8');
+  const brut = readFileSync(p, 'utf8');
+  const src = sansCommentaires(brut);
   const trouvee = GARDES.find((g) => g.motif.test(src));
-  if (!trouvee) { nues.push([route, p.slice(ROOT.length + 1), src]); continue; }
+  // La règle n°3 plus bas relit la page pour décider entre « nue » et « je ne reconnais pas » :
+  // elle reçoit le texte BRUT, parce qu'un commentaire est justement l'indice qu'il existe une
+  // protection qu'on ne sait pas lire. On coupe la prose pour DÉCIDER, on la garde pour DOUTER.
+  if (!trouvee) { nues.push([route, p.slice(ROOT.length + 1), brut]); continue; }
 
   // La page peut DÉLÉGUER sa protection. Ne regarder que le fichier de la page revient alors
   // à certifier une garde qu'on n'a pas lue — et c'est exactement ce qui est arrivé : les cinq
@@ -181,7 +212,7 @@ for (const route of routes) {
   // On suit donc dans le helper, et on juge les DEUX sources.
   const aExaminer = [[p.slice(ROOT.length + 1), src]];
   if (/ensureStandardAgencyOrRedirect\s*\(/.test(src) && existsSync(HELPER)) {
-    aExaminer.push([HELPER.slice(ROOT.length + 1), readFileSync(HELPER, 'utf8')]);
+    aExaminer.push([HELPER.slice(ROOT.length + 1), sansCommentaires(readFileSync(HELPER, 'utf8'))]);
   }
 
   let coupable = null;

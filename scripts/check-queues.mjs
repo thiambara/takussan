@@ -151,8 +151,21 @@ for (const { fichier, ou } of CONSOMMATEURS) {
 const consommees = new Set(lus.flatMap((c) => [...c.files]));
 
 /* ── 3. l'écart ──────────────────────────────────────────────────────────── */
+// `default` est EXIGÉE inconditionnellement, et son absence de `poussees` est précisément la
+// raison pour laquelle elle ne l'était pas.
+//
+// Rien ne la NOMME dans le code : c'est la file où atterrit tout `dispatch()` sans `onQueue()`,
+// donc la grande majorité des jobs du dépôt. Aucun motif ne peut la trouver, elle n'entrait
+// jamais dans `poussees`, et la boucle ci-dessous n'exigeait donc jamais qu'un consommateur la
+// serve. Éditer une unité en `--queue=notifications-urgent,media,reconciliation` laissait la
+// garde au vert pendant que TOUS les jobs ordinaires cessaient de tourner — la panne silencieuse
+// exacte que ce script existe pour empêcher, sur la file qui compte le plus.
+//
+// *Ce qu'une garde déduit de la lecture du code ne contient pas ce que le code ne dit pas.*
+const EXIGEES = new Set([...poussees.keys(), 'default']);
+
 const orphelines = [];
-for (const q of poussees.keys()) {
+for (const q of EXIGEES) {
   const absente = lus.filter((c) => !c.files.has(q));
   if (absente.length) orphelines.push([q, absente.map((c) => c.ou)]);
 }
@@ -191,15 +204,22 @@ for (const [f, expr] of opaques) {
 }
 
 if (orphelines.length === 0) {
-  console.log(`✓ files de jobs : les ${poussees.size} files poussées par le code sont consommées par les ${lus.length} consommateurs.`);
+  console.log(`✓ files de jobs : les ${EXIGEES.size} files exigées (dont \`default\`) sont consommées par les ${lus.length} consommateurs.`);
   process.exit(0);
 }
 
-console.error(`\n✗ ${orphelines.length} file(s) poussée(s) par le code et non consommée(s) quelque part :\n`);
+console.error(`\n✗ ${orphelines.length} file(s) exigée(s) et non consommée(s) quelque part :\n`);
 for (const [q, ou] of orphelines) {
   console.error(`  · \`${q}\` — absente de : ${ou.join(', ')}`);
-  console.error('    poussée depuis :');
-  for (const f of poussees.get(q)) console.error(`      ${f}`);
+  // `default` n'a pas de site de poussée à citer : aucun code ne la nomme, c'est justement ce
+  // qui la rendait invisible à cette garde.
+  const sites = poussees.get(q);
+  if (sites) {
+    console.error('    poussée depuis :');
+    for (const f of sites) console.error(`      ${f}`);
+  } else {
+    console.error('    (file implicite : tout `dispatch()` sans `onQueue()` y atterrit — la majorité des jobs)');
+  }
 }
 console.error(
   `\nLes jobs de ces files s'empilent dans la table \`jobs\` sans jamais s'exécuter, et rien\n` +
