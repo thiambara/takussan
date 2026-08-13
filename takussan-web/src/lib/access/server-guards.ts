@@ -1,7 +1,39 @@
 import { redirect } from 'next/navigation';
 import { fetchAgency } from '@/lib/queries/agencies';
 import { getToken } from '@/lib/session';
+import type { Agency } from '@/types/agency';
 import type { User } from '@/types/user';
+
+/**
+ * Résout l'agence pour une DÉCISION d'accès, ou `null` — en laissant une trace.
+ *
+ * Le `.catch(() => null)` était écrit six fois, à l'identique, dans les deux layouts et les
+ * quatre pages qui décident. Six copies d'un avaleur d'erreur, c'est six endroits où une panne
+ * d'API devient indiscernable d'un déclassement d'agence : l'utilisateur est renvoyé sur `/app`
+ * sans message, et le serveur n'en garde rien.
+ *
+ * Le refus reste inchangé — fail-closed est la bonne règle pour une autorisation. Ce qui change,
+ * c'est qu'on peut désormais répondre à « pourquoi ? ». *Fail-closed décide de l'accès, pas de
+ * ce qu'on a le droit de savoir.*
+ *
+ * `null` garde exactement le sens que chaque appelant lui donnait déjà : « on ne sait pas »,
+ * donc refus côté décision, donc cadenas côté affichage.
+ */
+export async function resolveAgencyOrNull(
+  token: string,
+  agencyId: number,
+  ou: string,
+): Promise<Agency | null> {
+  try {
+    return await fetchAgency(token, agencyId);
+  } catch (e: unknown) {
+    console.error(
+      `[access] ${ou} : fetchAgency(${agencyId}) a échoué — traité comme « non standard ».`,
+      e instanceof Error ? e.message : e,
+    );
+    return null;
+  }
+}
 
 /**
  * SSR guard for Standard-only surfaces (TCK-267 era / agency upgrade flow).
@@ -33,6 +65,8 @@ export async function ensureStandardAgencyOrRedirect(user: User): Promise<void> 
   //
   // *Un écran réservé se refuse quand on ne SAIT PAS, pas seulement quand on sait que non.*
   const token = await getToken();
-  const agency = token ? await fetchAgency(token, user.agency_id).catch(() => null) : null;
+  const agency = token
+    ? await resolveAgencyOrNull(token, user.agency_id, 'ensureStandardAgencyOrRedirect')
+    : null;
   if (!agency || agency.kind !== 'standard') redirect('/app');
 }

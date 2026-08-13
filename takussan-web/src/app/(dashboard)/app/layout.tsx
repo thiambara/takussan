@@ -1,7 +1,7 @@
 import { getMeAction } from '@/app/actions/auth';
 import { AppShell } from '@/components/layout/AppShell';
 import { getToken } from '@/lib/session';
-import { fetchAgency } from '@/lib/queries/agencies';
+import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchAgencyUpgradeRequests } from '@/lib/queries/agency-upgrade';
 
 /**
@@ -24,7 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     const token = await getToken();
     if (token) {
       const [agency, listing] = await Promise.all([
-        fetchAgency(token, user.agency_id).catch(() => null),
+        resolveAgencyOrNull(token, user.agency_id, 'app/layout (cadenas)'),
         fetchAgencyUpgradeRequests(token, user.agency_id).catch(() => null),
       ]);
       agencyIsStandard = agency?.kind === 'standard';

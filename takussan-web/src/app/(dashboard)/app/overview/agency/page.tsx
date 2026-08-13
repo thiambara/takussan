@@ -2,7 +2,7 @@ import { getMeAction } from '@/app/actions/auth';
 import { isAdmin, isAgent, isSuperAdmin } from '@/lib/roles';
 import { redirect } from 'next/navigation';
 import { fetchAgencyDashboard } from '@/lib/queries/dashboard';
-import { fetchAgency } from '@/lib/queries/agencies';
+import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { getToken } from '@/lib/session';
 import { StatCard } from '@/components/charts/StatCard';
 import { LineChart } from '@/components/charts/LineChart';
@@ -39,7 +39,7 @@ export default async function AgencyDashboardPage() {
     //
     // Un écran réservé se refuse quand on ne SAIT PAS, pas seulement quand on sait que non.
     const token = await getToken();
-    const agency = token ? await fetchAgency(token, user.agency_id).catch(() => null) : null;
+    const agency = token ? await resolveAgencyOrNull(token, user.agency_id, 'overview/agency') : null;
     if (!agency || agency.kind !== 'standard') redirect('/app');
   }
 

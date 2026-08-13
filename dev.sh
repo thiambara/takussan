@@ -143,14 +143,19 @@ if [ ! -d "$API/vendor" ]; then
 fi
 
 # ───────────────────────────────────────────────────────────── .env
-PREMIER_DEMARRAGE=0
+# `PREMIER_DEMARRAGE` a été RETIRÉ : il était posé ici et lu nulle part.
+#
+# Il servait autrefois à décider du `--seed`, jusqu'à ce que cette décision soit reportée sur
+# l'ÉTAT DE LA BASE (cf. le commentaire du bloc de migrations). Le drapeau est resté, écrit à
+# deux endroits, lu à aucun. *Une variable qu'on maintient sans la lire finit par être relue* —
+# par quelqu'un qui la croira signifiante et rebranchera dessus la décision qu'on en a
+# justement détachée.
 if [ ! -f "$API/.env" ]; then
   if amorce_possible; then
     bold "▸ Premier démarrage — création de takussan-api/.env"
     cp "$API/.env.docker" "$API/.env"
     (cd "$API" && php artisan key:generate --force >/dev/null)
     ok "takussan-api/.env créé depuis .env.docker, APP_KEY générée"
-    PREMIER_DEMARRAGE=1
   else
     ko "takussan-api/.env absent — './dev.sh' le créera depuis .env.docker."
   fi

@@ -3,7 +3,7 @@ import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { getToken } from '@/lib/session';
-import { fetchAgency } from '@/lib/queries/agencies';
+import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 
 /**
  * Admin dashboard layout — restricted to users with admin-level roles
@@ -21,7 +21,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (typeof user.agency_id === 'number') {
     const token = await getToken();
     if (token) {
-      const agency = await fetchAgency(token, user.agency_id).catch(() => null);
+      const agency = await resolveAgencyOrNull(token, user.agency_id, 'admin/layout (cadenas)');
       agencyIsStandard = agency?.kind === 'standard';
     }
   }

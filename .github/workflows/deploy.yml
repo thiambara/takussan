@@ -104,9 +104,21 @@ jobs:
         # applicatif de `master`, et réciproquement.
         #
         # *Le script qui déploie et le code qu'il déploie doivent venir du même commit.*
+        #
+        # ⚠ `inputs.branch || github.sha`, et PAS `env.DEPLOY_BRANCH`. La première version
+        # écrivait la seconde forme, et elle faisait régresser le déclenchement par push.
+        # `actions/checkout` vise par défaut `github.sha` sur un push — le commit EXACT qui a
+        # déclenché le run. Passer la branche remplaçait ce commit par « ce que `master` pointe
+        # au moment où le runner démarre ». Avec `cancel-in-progress: false`, deux poussées
+        # rapprochées donnaient : le run n°1 récupère une tête contenant déjà le commit n°2, le
+        # déploie, et rapporte un succès en face du commit n°1 — l'association run↔commit
+        # affichée par GitHub ne décrivait plus ce qui tourne sur le serveur.
+        #
+        # Le dispatch manuel garde la branche (c'est tout son objet) ; le push retrouve son
+        # commit. *Corriger un chemin ne dispense pas de vérifier ce qu'on a fait à l'autre.*
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.DEPLOY_BRANCH }}
+          ref: ${{ inputs.branch || github.sha }}
 
       - name: Copy deploy script to server
         uses: appleboy/scp-action@v1
