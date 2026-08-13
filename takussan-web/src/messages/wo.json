@@ -120,7 +120,8 @@
       "agencyTitle": "Mënunu woon a seetlu say yoon",
       "agencyBody": "Mënunu woon a jokkoo ak serwëer bi ngir seetlu yoon yi sa ajaas am. Du benn coppite ci sa formule — jéematal ci ab saa.",
       "reference": "Reference teknik: {digest}",
-      "retry": "Jéematal"
+      "retry": "Jéematal",
+      "backToDashboard": "Dellu ci tablo bi"
     }
   },
   "agency": {

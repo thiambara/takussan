@@ -38,13 +38,14 @@ export default async function Page() {
   if (!agencyId) redirect('/app');
 
   const [agency, listing] = await Promise.all([
-    resolveAgencyOrNull(token, agencyId, 'settings/agency/upgrade', 'decision'),
+    resolveAgencyOrNull(token, agencyId, 'settings/agency/upgrade'),
     fetchAgencyUpgradeRequests(token, agencyId),
   ]);
 
-  // `null` ici ne peut plus être une panne passagère — `resolveAgencyOrNull(..., 'decision')` les
-  // a déjà renvoyées vers `/verification-indisponible`. Il ne reste que 401/403/404 : l'API a
-  // répondu que cette agence n'est pas lisible par cet utilisateur. On refuse, comme ailleurs.
+  // `affichage` : c'est un formulaire de DEMANDE d'évolution, `kind` n'y garde aucun accès — il
+  // décide seulement si l'on affiche « vous y êtes déjà » ou le formulaire. Sur un refus
+  // définitif (401/403/404) on renvoie ; sur une panne, `resolveAgencyOrNull` a déjà rendu la
+  // main sans rediriger, et l'utilisateur voit le formulaire — le backend re-valide.
   if (!agency) redirect('/app');
 
   const t = await getTranslations('agency.upgrade.page');

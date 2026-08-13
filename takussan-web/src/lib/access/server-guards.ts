@@ -156,8 +156,13 @@ export async function resolveAgencyOrNull(
     const digest = (e as { digest?: unknown } | null)?.digest;
     if (typeof digest === 'string' && digest.startsWith('NEXT_REDIRECT')) throw e;
     const verdict = classer(e);
-    console.error(
-      `[access] ${ou} : fetchAgency(${agencyId}) a échoué (${verdict})`,
+    // Le NIVEAU suit le verdict. Un `refus` (401/403/404) est une réponse normale et attendue —
+    // le code le dit lui-même : « il n'y a rien à expliquer ». L'écrire en `error` produisait une
+    // ligne d'erreur à CHAQUE rendu de CHAQUE page `/app/*` et `/admin/*` pour un utilisateur
+    // dont l'agence n'est pas dans `visibleAgencyIds()` — un état que cette PR documente comme
+    // atteignable. *Un journal d'erreurs où le normal figure cesse d'être lu.*
+    (verdict === 'refus' ? console.warn : console.error)(
+      `[access] ${ou} : fetchAgency(${agencyId}) → ${verdict}`,
       e instanceof Error ? e.message : e,
     );
     // Un bug remonte comme un bug — avec sa pile, son `digest`, et sans explication inventée.

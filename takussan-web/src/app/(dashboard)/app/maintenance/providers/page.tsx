@@ -42,19 +42,24 @@ export default async function Page() {
   }
 
   const [agency, providers] = await Promise.all([
-    resolveAgencyOrNull(token, agencyId, 'maintenance/providers', 'decision'),
+    resolveAgencyOrNull(token, agencyId, 'maintenance/providers'),
     fetchServiceProviders(token, { agencyId }),
   ]);
 
-  // `null` ici ne peut plus être une panne passagère — `resolveAgencyOrNull(..., 'decision')` les
-  // a déjà renvoyées vers `/verification-indisponible`. Il ne reste que 401/403/404 : l'API a
-  // répondu que cette agence n'est pas lisible par cet utilisateur. On refuse, comme ailleurs.
-  if (!agency) redirect('/app');
+  // `affichage`, et AUCUNE redirection sur `null` — parce qu'ici `kind` ne garde rien.
+  //
+  // La ligne d'à côté le dit : `individual` est explicitement autorisée. L'agence ne sert qu'à
+  // calculer `canInvite`, un détail d'interface que le backend re-vérifie de toute façon. En
+  // `decision`, un 429 envoyait l'utilisateur sur « Vos accès n'ont pas pu être vérifiés » pour
+  // une page à laquelle il a droit, et un 404 le renvoyait sur `/app`. On lui annonçait un échec
+  // d'autorisation quand c'est un appel d'affichage qui avait échoué.
+  //
+  // Ne pas savoir dégrade donc `canInvite` à `false` — fail-closed sur le bouton, pas sur la page.
 
   // TCK-260 — UI visibility gate. Le backend re-vérifie les deux conditions.
   // `individual` est explicitement autorisé (cf. ticket).
   const canInvite =
-    (agency.kind === 'standard' || agency.kind === 'individual') &&
+    (agency?.kind === 'standard' || agency?.kind === 'individual') &&
     (user.roles.includes('agency_admin') ||
       isAdmin(user.roles) ||
       user.roles.includes('super_admin'));

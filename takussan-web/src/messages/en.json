@@ -246,7 +246,8 @@
       "agencyTitle": "We couldn’t verify your access",
       "agencyBody": "We couldn’t reach the server to confirm your agency’s access. This is not a change to your plan — please try again in a moment.",
       "reference": "Technical reference: {digest}",
-      "retry": "Try again"
+      "retry": "Try again",
+      "backToDashboard": "Back to dashboard"
     }
   },
   "agency": {

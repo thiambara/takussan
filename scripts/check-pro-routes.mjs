@@ -54,7 +54,25 @@ const GARDES = [
   // 1. le helper nommé — les routes /admin/*
   { nom: 'ensureStandardAgencyOrRedirect', motif: /ensureStandardAgencyOrRedirect\s*\(/ },
   // 2. la garde écrite en ligne — les routes /app/*
-  { nom: 'test en ligne sur agency.kind', motif: /kind\s*!==\s*['"]standard['"][\s\S]{0,80}?redirect\s*\(/ },
+  //
+  // ⚠ Le `redirect(` doit être GOUVERNÉ par le test, pas seulement voisin de lui.
+  //
+  // Première version : `kind !== 'standard'` puis n'importe quel `redirect(` dans les
+  // 80 caractères suivants. Une page écrivant `const isIndividual = agency.kind !== 'standard';`
+  // et, soixante caractères plus loin, un `if (!user) redirect('/auth/login')` sans rapport était
+  // déclarée « gardée · test en ligne sur agency.kind » — alors qu'elle n'a AUCUNE porte sur le
+  // `kind`. C'est le miroir exact du faux négatif que ce fichier documente sur quarante lignes :
+  // un faux POSITIF, dans une garde dont l'objet déclaré est d'empêcher la certification abusive
+  // d'un contrôle d'accès.
+  //
+  // On exige donc la forme complète : le test DANS la condition d'un `if`, et le `redirect` comme
+  // corps immédiat de ce `if` — accolades tolérées, rien d'autre entre les deux.
+  //
+  // *Deux jetons proches ne forment pas une structure ; c'est la structure qu'on voulait lire.*
+  {
+    nom: 'test en ligne sur agency.kind',
+    motif: /if\s*\([^)]*kind\s*!==\s*['"]standard['"][^)]*\)\s*\{?\s*redirect\s*\(/,
+  },
 ];
 
 /**

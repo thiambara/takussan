@@ -225,7 +225,8 @@
       "agencyTitle": "Vos accès n’ont pas pu être vérifiés",
       "agencyBody": "Nous n’avons pas réussi à joindre le serveur pour confirmer les accès de votre agence. Ce n’est pas un changement de votre formule — réessayez dans un instant.",
       "reference": "Référence technique : {digest}",
-      "retry": "Réessayer"
+      "retry": "Réessayer",
+      "backToDashboard": "Retour au tableau de bord"
     }
   },
   "agency": {

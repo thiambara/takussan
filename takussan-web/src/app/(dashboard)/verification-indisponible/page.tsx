@@ -28,13 +28,17 @@ import { buttonVariants } from '@/components/ui/button';
  * *Une page de secours qui sollicite la ressource en panne n'est pas un secours.*
  *
  * ⚠ PORTÉE RÉELLE, plus étroite que ce que les commentaires précédents laissaient croire.
- * Cette page vit sous `(dashboard)/app/`, dont le layout appelle `getMeAction()` — qui relance
- * toute erreur autre qu'un 401. Quand c'est l'API ENTIÈRE qui est indisponible, `/api/user`
- * échoue aussi : la page gardée lève avant même d'atteindre la vérification d'agence, et la
- * redirection ici lèverait à son tour. C'est alors `src/app/error.tsx` qui répond — la frontière
- * RACINE, car un `error.tsx` n'attrape pas ce que lève le `layout.tsx` de son propre segment. Son
- * message générique dit « réessayez », donc l'utilisateur ne conclut pas au déclassement, mais
- * il n'obtient pas le message précis.
+ * Le layout `(dashboard)/` appelle `getMeAction()`, qui relance toute erreur autre qu'un 401.
+ * Quand c'est l'API ENTIÈRE qui est indisponible, `/api/user` échoue aussi : la page gardée lève
+ * avant même d'atteindre la vérification d'agence, et la redirection ici lèverait à son tour.
+ * C'est alors `src/app/error.tsx` qui répond — la frontière RACINE, car un `error.tsx` n'attrape
+ * pas ce que lève le `layout.tsx` de son propre segment. Son message générique dit « réessayez »,
+ * donc l'utilisateur ne conclut pas au déclassement, mais il n'obtient pas le message précis.
+ *
+ * (Ce paragraphe affirmait encore « cette page vit sous `(dashboard)/app/` », douze lignes après
+ * celui qui explique qu'elle N'Y VIT PLUS. Il datait de la version d'avant le déplacement, et
+ * quelqu'un l'aurait cru : *une correction qui laisse debout la phrase qu'elle réfute prépare le
+ * retour en arrière.*)
  *
  * Cette route rend donc dans le cas où `/api/user` répond et où `/api/agencies/{id}` SEUL
  * échoue en 429/5xx : une surcharge ciblée, un rate-limit. C'est un cas réel, et c'est celui
@@ -50,8 +54,14 @@ export default async function VerificationIndisponiblePage() {
       <AlertTriangle className="size-10 text-app-accent" aria-hidden />
       <h1 className="text-xl font-semibold text-app-ink">{t('agencyTitle')}</h1>
       <p className="max-w-md text-sm text-app-ink-muted">{t('agencyBody')}</p>
+      {/*
+        PAS « Réessayer » : ce lien ne réessaie rien, il ramène au tableau de bord. Or `/app` est
+        AUSSI la destination du refus — « non, votre agence n'y a pas droit » — c'est-à-dire la
+        seule réponse dont cette page existe pour se distinguer. Deux réponses opposées
+        convergeaient vers le même bouton, sous une étiquette qui promettait une troisième chose.
+      */}
       <Link href="/app" className={buttonVariants()}>
-        {t('retry')}
+        {t('backToDashboard')}
       </Link>
     </div>
   );
