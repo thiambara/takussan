@@ -298,7 +298,17 @@ if [ "$VISE_DOCKER" = "0" ] && [ -n "${TAKUSSAN_DB_PORT:-}" ] && [ -n "$DB_PORT_
   echo "     les conteneurs. Aligne DB_PORT dans takussan-api/.env, ou retire la surcharge." >&2
   echo "     (Sans ce refus, aucun conteneur n'aurait été démarré et 'migrate' serait mort sur" >&2
   echo "      une connexion refusée, sans que le désaccord soit jamais nommé.)" >&2
-  exit 78
+  # `doctor` NOMME le désaccord et poursuit son diagnostic — il n'en meurt pas.
+  #
+  # Ce `exit 78` était inconditionnel, alors que tout le reste du fichier est gardé par
+  # `amorce_possible()` : `./dev.sh doctor`, lancé précisément pour comprendre cet état, imprimait
+  # deux lignes et sortait avant la moindre sonde, avant l'état des migrations, avant la parité
+  # d'environnement. Le seul mode dont le contrat est de toujours répondre s'arrêtait sur le
+  # premier désaccord qu'il était venu constater.
+  #
+  # *Refuser d'agir et refuser de répondre sont deux décisions ; les prendre ensemble par défaut
+  # les confond.*
+  if amorce_possible; then exit 78; fi
 fi
 
 # `doctor` est EXCLU, et l'oubli n'était pas anodin.

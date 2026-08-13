@@ -97,12 +97,29 @@ describe('ensureStandardAgencyOrRedirect', () => {
     expect(await refus(utilisateur(7))).toBe('/app/verification-indisponible');
   });
 
-  it('refuse sur un BUG (TypeError sans rapport) — il ne se déguise pas en panne réseau', async () => {
-    // `estTransitoire` prenait autrefois tout ce qui n'est pas une `ApiError` pour transitoire.
-    // Un `TypeError` dû à un changement de forme dans la réponse était alors présenté à
-    // l'utilisateur comme « nous n'avons pas pu joindre le serveur » — faux, et rassurant à tort.
+  it('explique sur un 400 — un champ invalide ne dit RIEN du forfait', async () => {
+    // Le cas concret : `AGENCY_ADMIN_FIELDS` demande `fields[agencies]=…,kind`. Si `kind`
+    // quittait `Agency::$queryFields`, spatie lèverait `InvalidFieldQuery` → 400, et la version
+    // précédente évinçait TOUS les `agency_admin` des neuf surfaces pro sans un mot —
+    // indiscernablement d'un déclassement. Un 4xx est une réponse, mais seuls 401 et 403 sont
+    // des réponses SUR LE DROIT de cet utilisateur.
+    getToken.mockResolvedValue('tok');
+    fetchAgency.mockRejectedValue(new ApiError(400, { message: 'Invalid field kind' }));
+    expect(await refus(utilisateur(7))).toBe('/app/verification-indisponible');
+  });
+
+  it('explique aussi sur un BUG inattendu — l’accès est refusé, la cause est dite', async () => {
+    // L'accès n'est pas accordé : la page explicative refuse tout autant que `/app`. Ce qui
+    // change est le message. Un `TypeError` de forme n'est pas une réponse sur le forfait, donc
+    // on ne laisse pas l'utilisateur conclure qu'il en a changé.
     getToken.mockResolvedValue('tok');
     fetchAgency.mockRejectedValue(new TypeError("Cannot read properties of undefined (reading 'kind')"));
+    expect(await refus(utilisateur(7))).toBe('/app/verification-indisponible');
+  });
+
+  it('refuse en silence sur 401 — la session, pas le forfait', async () => {
+    getToken.mockResolvedValue('tok');
+    fetchAgency.mockRejectedValue(new ApiError(401, { message: 'Unauthenticated' }));
     expect(await refus(utilisateur(7))).toBe('/app');
   });
 

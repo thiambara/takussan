@@ -21,7 +21,21 @@ import type { User } from '@/types/user';
  * CAUSE.* On refuse toujours l'accès — mais on distingue « non » de « je n'ai pas pu demander ».
  */
 const estTransitoire = (e: unknown): boolean => {
-  if (e instanceof ApiError) return e.status === 429 || e.status >= 500;
+  // On inverse la question : la liste ÉTROITE est celle des réponses qui parlent du PLAN, pas
+  // celle des pannes.
+  //
+  // La version précédente n'envoyait vers la page explicative que les 429/5xx et les erreurs
+  // réseau ; tout le reste retombait dans l'éviction muette — c'est-à-dire dans le défaut que
+  // ce travail existe pour supprimer. Or un 400 n'est pas une réponse sur le forfait : si
+  // `kind` quittait un jour `Agency::$queryFields`, spatie lèverait `InvalidFieldQuery` → 400,
+  // et TOUS les `agency_admin` seraient éjectés des neuf surfaces pro sans un mot,
+  // indiscernablement d'un déclassement. Idem pour un 404, ou un 200 sans `data`.
+  //
+  // Seuls 401 et 403 disent quelque chose de l'utilisateur et de son droit. Tout le reste dit
+  // que la question n'a pas reçu de réponse utilisable — et cela se raconte.
+  //
+  // *Quand on ne sait pas classer, il faut lister ce dont on est sûr, pas ce qui reste.*
+  if (e instanceof ApiError) return e.status !== 401 && e.status !== 403;
   // ⚠ On ne prend PAS « tout ce qui n'est pas une ApiError » pour transitoire — c'était le cas
   // avant, et cela absorbait les vraies erreurs de programmation. Un `TypeError` levé dans
   // `fetchAgency` parce que la forme de `res.data` a changé était alors rapporté à
@@ -32,7 +46,9 @@ const estTransitoire = (e: unknown): boolean => {
   // C'est étroit, et c'est voulu : le reste doit remonter comme un bug, parce que c'en est un.
   //
   // *Traiter l'inconnu comme la panne attendue, c'est se donner une explication pour tout.*
-  return e instanceof TypeError && /fetch|network|ECONN|socket/i.test(e.message);
+  // Hors `ApiError` : tout est inattendu, donc rien n'est une réponse sur le plan. On explique.
+  // (Le refus d'accès, lui, est identique dans les deux cas — c'est le MESSAGE qui diffère.)
+  return true;
 };
 
 /** Où l'on renvoie quand on n'a pas PU vérifier — distinct de `/app`, qui veut dire « non ». */

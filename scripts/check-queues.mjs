@@ -63,6 +63,15 @@ const CONSOMMATEURS = [
   // *Séparer deux sources qu'on confondait ne suffit pas : il faut ensuite vérifier les deux.*
   { fichier: join(ROOT, 'scripts', 'server-setup.sh'), ou: 'préproduction (unité systemd)', cible: 'PREVIEW_DIR' },
   { fichier: join(ROOT, 'dev.sh'), ou: 'développement local' },
+  // `deploy.sh` porte une TROISIÈME copie de la liste, dans `FILES_ATTENDUES` — celle que son
+  // contrôle post-déploiement compare aux unités systemd RÉELLES du serveur. Elle n'était lue
+  // par personne : ajouter une file et la câbler dans les deux consommateurs faisait passer
+  // Repo CI au vert pendant que ce contrôle-là cessait silencieusement de la couvrir.
+  //
+  // C'est exactement le défaut « la garde et son sujet divergent » que cette PR corrige trois
+  // fois ailleurs, sur la garde qui existe pour l'attraper. *La troisième copie d'une liste est
+  // celle que personne ne pense à vérifier, parce qu'on a déjà vérifié les deux autres.*
+  { fichier: join(ROOT, 'scripts', 'deploy.sh'), ou: 'contrôle post-déploiement (FILES_ATTENDUES)', liste: 'FILES_ATTENDUES' },
 ];
 
 /* ── 1. les files que le CODE pousse ─────────────────────────────────────── */
@@ -188,7 +197,7 @@ for (const racine of RACINES) if (existsSync(racine)) balayer(racine);
 
 /* ── 2. les files que CHAQUE consommateur consomme ───────────────────────── */
 const lus = [];
-for (const { fichier, ou, cible } of CONSOMMATEURS) {
+for (const { fichier, ou, cible, liste } of CONSOMMATEURS) {
   if (!existsSync(fichier)) {
     console.error(`✗ ${fichier.slice(ROOT.length + 1)} est introuvable — la garde ne peut pas vérifier « ${ou} ».`);
     process.exit(1);
@@ -217,6 +226,20 @@ for (const { fichier, ou, cible } of CONSOMMATEURS) {
   // élément d'un ensemble et conclure sur l'ensemble est une erreur qui ne se voit pas tant que
   // l'ensemble est un singleton.* On la ferme avant qu'elle ne se manifeste.
   const contenu = readFileSync(fichier, 'utf8');
+
+  // Un consommateur peut déclarer ses files par une LISTE nommée plutôt que par un `queue:work`.
+  // C'est le cas du contrôle post-déploiement, qui ne lance rien mais dit ce qu'il exige.
+  if (liste) {
+    const m = contenu.match(new RegExp(`^\\s*${liste}=["']([a-z0-9_ ,-]+)["']`, 'm'));
+    if (!m) {
+      console.error(`✗ ${fichier.slice(ROOT.length + 1)} : \`${liste}\` est introuvable (« ${ou} »).`);
+      console.error('  La garde le dit plutôt que de passer en silence.');
+      process.exit(1);
+    }
+    lus.push({ ou, fichier, files: new Set(m[1].split(/[\s,]+/).filter(Boolean)), workers: 1 });
+    continue;
+  }
+
   const lignes = contenu
     .split('\n')
     .filter((l) => l.includes('artisan queue:work') && !/^\s*#/.test(l));
