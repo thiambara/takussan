@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 class PropertyModerationService
 {
     /**
-     * Approve a property: transition to `active`, record approver + timestamp,
+     * Approve a property: transition to `available`, record approver + timestamp,
      * emit an activity log entry, notify the property owner.
      */
     public function approve(Property $property, User $admin): Property

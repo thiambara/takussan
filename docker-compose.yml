@@ -1,0 +1,169 @@
+# Environnement de développement Takussan.
+#
+#   docker compose up -d          # démarre les quatre services
+#   ./dev.sh                      # les démarre PUIS lance l'API, la file, le scheduler et le front
+#
+# Pourquoi ces quatre-là, et pas un de plus ni un de moins : chacun couvre une
+# divergence dev↔prod qui coûtait cher tant qu'elle n'était pas provisionnée.
+#
+#   mysql        la prod tourne sur MySQL 8.0, le dev sur SQLite. Or `CLAUDE.md`
+#                documente quatre familles de pièges MySQL que SQLite ne peut PAS voir
+#                (DEFAULT sur JSON/TEXT, dropUnique sous FK, noms d'index > 64 chars,
+#                enum). Une migration qui passe en dev et casse au déploiement est le
+#                régime NORMAL tant que le dev est sur SQLite — pas un accident.
+#
+#                ⚠ CE SERVICE ÉTAIT `mariadb:11.4` JUSQU'AU 2026-08-13, sur la foi d'un
+#                `apt install mariadb-server` que personne n'avait exécuté. Mesuré sur
+#                le serveur ce jour-là :
+#                    $ sudo mysql -e "SELECT VERSION(), @@collation_server;"
+#                    8.0.46-0ubuntu0.24.04.3 | utf8mb4_0900_ai_ci
+#                Ce n'était donc pas une question de version : c'était le mauvais
+#                MOTEUR. MariaDB 11 et MySQL 8 ont divergé pour de bon — collation par
+#                défaut, `CHECK`, colonnes JSON, noms d'index générés. Le banc d'essai
+#                reproduit la production ; il ne la prescrit pas (TCK-289).
+#
+#                Le volume a changé de nom avec le moteur (`mysql-data`) : les fichiers
+#                de données de MariaDB ne se lisent pas par MySQL. Un environnement
+#                déjà monté repart d'une base vide — `./dev.sh` la remigre.
+#   meilisearch  la CI et la prod indexent sur Meilisearch, `.env.example` propose
+#                `SCOUT_DRIVER=collection`. Le driver `collection` filtre en PHP sur
+#                une collection Eloquent : il ne partage ni la tokenisation, ni le
+#                classement, ni le typo-tolerance du moteur réel. Une recherche qui
+#                « marche en local » n'a rien prouvé de celle qui tourne en prod.
+#   redis        LE SEUL des quatre que le développement n'utilise PAS, et il faut le
+#                dire ici plutôt que de le laisser croire. `.env.example` pose
+#                `CACHE_STORE=redis` sans que rien ne fournisse Redis : l'application
+#                ne démarre pas sur une copie fidèle de son propre exemple. Ce service
+#                rend cette combinaison servable. Mais `.env.docker` s'aligne sur la
+#                PRODUCTION, qui est en `database` — donc rien, dans l'environnement
+#                de dev par défaut, ne s'y connecte.
+#                Une version antérieure de cette note affirmait le contraire par
+#                omission ; `./dev.sh doctor` sonde désormais Redis dès que les
+#                conteneurs sont visés, et nomme le fait qu'aucun driver ne le
+#                consomme. *Un service qu'on démarre sans jamais l'interroger ne prouve
+#                rien : il occupe un port et rassure.*
+#   mailpit      ~24 tâches planifiées envoient du courrier (rappels de paiement,
+#                relances de facture, digests, invitations). En `MAIL_MAILER=log`
+#                elles partent dans un fichier que personne ne relit ; on ne voit
+#                jamais le rendu réel d'un e-mail avant la production.
+#
+# Les volumes sont nommés : `docker compose down` garde les données, `down -v` les
+# efface. La bascule complète des variables d'environnement est dans
+# `takussan-api/.env.docker`.
+#
+# PORTS — pourquoi aucun n'est le port canonique. Chaque service est décalé d'un cran
+# (3307, 7701, 6380, 1026/8026 au lieu de 3306, 7700, 6379, 1025/8025). Ce n'est pas
+# une préférence : **les quatre ports canoniques étaient occupés sur la machine où ce
+# fichier a été écrit** — MySQL et Meilisearch installés nativement par brew, Redis et
+# Mailpit tenus par les conteneurs d'un projet voisin. Mesuré, pas supposé.
+#
+# Le coût du conflit n'est pas l'échec : c'est que `docker compose up` échoue APRÈS
+# avoir démarré une partie des services. On se retrouve avec un environnement à moitié
+# levé qui se présente comme un démarrage raté plutôt que comme un conflit de ports, et
+# la commande suivante travaille sur des services dont on croit qu'ils sont absents.
+#
+# Le décalage rend les deux mondes simultanés : l'installation native continue de
+# servir ce qu'elle servait, Takussan tourne à côté, et on ne démonte rien pour
+# reprendre le développement. Chaque port reste surchargeable par une variable dans un
+# `.env` à la RACINE du dépôt (lu automatiquement par docker compose, jamais commité) :
+#   TAKUSSAN_DB_PORT=3308
+# Tout port changé ici doit l'être aussi dans `takussan-api/.env.docker` — c'est la
+# seule chose que ce fichier ne peut pas garantir tout seul, et `./dev.sh` la vérifie.
+#
+# Les services n'écoutent que sur 127.0.0.1 : une base de développement sans mot de
+# passe sérieux n'a rien à faire sur l'interface publique d'un portable en wifi.
+
+services:
+  mysql:
+    # Épinglé sur le moteur MESURÉ en production le 2026-08-13 (cf. l'en-tête) : MySQL
+    # 8.0. Le tag `8.0` suit les correctifs de la branche sans changer de branche —
+    # `8.0.46` en production le jour de la mesure.
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: takussan
+      MYSQL_USER: takussan
+      MYSQL_PASSWORD: takussan
+      MYSQL_ROOT_PASSWORD: takussan
+    ports:
+      - '127.0.0.1:${TAKUSSAN_DB_PORT:-3307}:3306'
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # Joué UNIQUEMENT à la première création du volume. Sur un volume existant,
+      # rejouer le script à la main : voir l'en-tête de docker/mysql-init.sql.
+      - ./docker/mysql-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    command:
+      # La collation SERVEUR de la production, à l'identique. Les migrations Laravel
+      # n'imposent pas de collation : elles héritent de celle de la base — et deux
+      # collations différentes entre dev et prod font diverger les comparaisons de
+      # chaînes (recherche insensible à la casse, unicité d'e-mail).
+      #
+      # `utf8mb4_0900_ai_ci` est le défaut de MySQL 8 ; on l'écrit quand même, parce
+      # qu'un défaut non écrit est un défaut qu'on ne remarque pas quand il change.
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    healthcheck:
+      # `mysqladmin ping` avec des identifiants : sans eux, il rend « mysqld is alive »
+      # et sort en 1 sur un refus d'accès — un service déclaré malade alors qu'il
+      # répond, ou l'inverse selon la version du client.
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uroot', '-ptakussan']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  meilisearch:
+    # Version alignée sur celle de la CI (`.github/workflows/api-ci.yml`) et sur le
+    # contrainte composer `meilisearch/meilisearch-php: ^1.16`. Les trois bougent
+    # ensemble ou pas du tout.
+    image: getmeili/meilisearch:v1.16
+    environment:
+      MEILI_MASTER_KEY: masterKey
+      MEILI_NO_ANALYTICS: 'true'
+      MEILI_ENV: development
+    ports:
+      - '127.0.0.1:${TAKUSSAN_MEILI_PORT:-7701}:7700'
+    volumes:
+      - meili-data:/meili_data
+    healthcheck:
+      # `curl` EST présent dans l'image — vérifié. La sonde d'origine lançait
+      # `meilisearch --help`, qui sort 0 sans jamais toucher au serveur : elle déclarait donc
+      # le service sain avant qu'il accepte la moindre connexion, et `dev.sh` enchaînait sur
+      # `migrate` contre un moteur pas encore prêt. Une sonde qui n'interroge pas ce qu'elle
+      # prétend surveiller est pire qu'aucune sonde : elle donne une réponse.
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:7700/health']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:8-alpine
+    ports:
+      # 6380 et non 6379 : cf. la note PORTS de l'en-tête.
+      - '127.0.0.1:${TAKUSSAN_REDIS_PORT:-6380}:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    # ÉPINGLÉ, comme les trois autres. C'était le seul `latest` d'un fichier qui fige MySQL à
+    # 8.0, Meilisearch à v1.16 et Redis à 8 — et dont l'en-tête soutient qu'une version doit
+    # bouger de concert avec la CI et le lock. Un `latest` qui glisse sous le développeur change
+    # en silence le seul service dont le rôle est de RENDRE VISIBLE ce que le système produit.
+    image: axllent/mailpit:v1.30.3
+    ports:
+      # 1026/8026 et non 1025/8025 : cf. la note PORTS de l'en-tête.
+      - '127.0.0.1:${TAKUSSAN_MAILPIT_SMTP_PORT:-1026}:1025' # SMTP — MAIL_PORT côté Laravel
+      - '127.0.0.1:${TAKUSSAN_MAILPIT_UI_PORT:-8026}:8025'   # UI web — http://localhost:8026
+    healthcheck:
+      test: ['CMD', '/mailpit', 'readyz']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  mysql-data:
+  meili-data:
+  redis-data:

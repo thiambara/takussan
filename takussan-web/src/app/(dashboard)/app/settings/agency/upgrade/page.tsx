@@ -4,7 +4,7 @@ import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
 import { getToken } from '@/lib/session';
-import { fetchAgency } from '@/lib/queries/agencies';
+import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchAgencyUpgradeRequests } from '@/lib/queries/agency-upgrade';
 import { UpgradeRequestForm } from '@/components/agency/UpgradeRequestForm';
 import { UpgradeRequestStatus } from '@/components/agency/UpgradeRequestStatus';
@@ -38,9 +38,25 @@ export default async function Page() {
   if (!agencyId) redirect('/app');
 
   const [agency, listing] = await Promise.all([
-    fetchAgency(token, agencyId),
+    resolveAgencyOrNull(token, agencyId, 'settings/agency/upgrade', 'decision'),
     fetchAgencyUpgradeRequests(token, agencyId),
   ]);
+
+  // `decision`, et cette page est la seule des trois « non gardées » à le mériter.
+  //
+  // Le commentaire précédent affirmait que sur une panne « l'utilisateur voit le formulaire ».
+  // C'était faux : en `affichage`, `resolveAgencyOrNull` rend `null` AUSSI pour le verdict
+  // `explique` (429, 5xx, réseau), et la ligne d'en dessous renvoyait alors vers `/app` — le
+  // déclassement apparent que tout ce travail existe pour supprimer, sur la page où la
+  // distinction compte le plus : celle où l'on vient DEMANDER un changement de formule.
+  //
+  // En `decision`, une panne mène à `/verification-indisponible` (« ce n'est pas un changement
+  // de votre formule ») et seuls 401/403/404 mènent à `/app`. Le `kind` ne garde toujours aucun
+  // accès ici — il choisit le contenu — mais ce qu'on RACONTE à l'utilisateur, si.
+  //
+  // *Quand le commentaire et le code divergent, vérifier lequel des deux avait raison ; ici,
+  // c'était le commentaire.*
+  if (!agency) redirect('/app');
 
   const t = await getTranslations('agency.upgrade.page');
 

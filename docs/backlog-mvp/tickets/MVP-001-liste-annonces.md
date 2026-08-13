@@ -1,7 +1,7 @@
 ---
 id: MVP-001
 title: "Page liste des annonces (publique)"
-status: todo
+status: obsolete
 slice: "Weekend 1-2"
 estimate: 1 weekend
 created: 2026-04-16

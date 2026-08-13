@@ -1,0 +1,144 @@
+# Gardes transverses au dépôt — celles qui n'appartiennent ni au back ni au front.
+#
+# Elles vérifient toutes la même chose sous trois formes : **qu'un document dérivé suit encore sa
+# source, et que la source suit encore la réalité.** C'est la famille de défauts qui a coûté le
+# plus cher à ce dépôt, parce qu'aucun de ses membres ne se signale tout seul :
+#
+#   · `INDEX.md` maintenu à la main → faux sur 213 de ses 266 entrées (80,1 %) ;
+#   · `.env.example` et `.env.docker` qui divergent d'une clé → une intégration qui lit `null` ;
+#   · un `spec_refs` qui pointe un fichier disparu → dix minutes perdues par lecteur, à vie.
+#
+# Aucune de ces gardes ne compile ni ne teste quoi que ce soit. Elles tiennent la documentation au
+# même niveau d'exigence que le code, et c'est tout leur objet.
+name: Repo CI
+
+on:
+  pull_request:
+    paths:
+      - 'takussan-api/.env.example'
+      - 'takussan-api/.env.docker'
+      # Chaque garde doit être déclenchée par les DEUX côtés qu'elle compare, sinon elle
+      # ne voit qu'une moitié de l'écart qu'elle existe pour trouver :
+      #   check-queues     → les `onQueue()` de takussan-api/app, scripts/server-setup.sh ET dev.sh
+      #   check-pro-routes → PRO_ROUTES et les pages, tous deux sous takussan-web/src
+      #   check-backlog    → les tickets ET les specs qu'ils citent
+      #
+      # TROIS entrées ont manqué successivement : `takussan-web/**`, puis `dev.sh`, puis les
+      # specs. Les deux premières se corrigeaient en ajoutant une ligne ; la troisième a montré
+      # que la liste elle-même était le défaut. `check-backlog` vérifie que CHAQUE `spec_refs`
+      # pointe sur un fichier existant, et les tickets en citent HUIT sous `docs/` —
+      # features-by-actor, ardoise, design-guidelines, configuration, pdf-templates,
+      # spatie-query-builder… — quand cette liste en nommait deux. Supprimer l'un des six autres
+      # ne déclenchait aucune garde : le pointeur cassé arrivait sur `dev`, et l'échec sortait
+      # sur la PR suivante, imputé à quelqu'un qui n'y était pour rien.
+      #
+      # D'où `docs/**` : la garde lit tout `docs/`, le déclencheur couvre tout `docs/`. Une
+      # énumération se re-vérifie à chaque garde ajoutée ; un préfixe, jamais.
+      - 'takussan-api/app/**'
+      - 'takussan-api/routes/**'
+      - 'takussan-api/database/**'
+      - 'takussan-web/src/**'
+      - 'scripts/**'
+      - 'dev.sh'
+      - 'docs/**'
+      # `check-db-engine` compare le compose, le job `migrations-mysql` d'`api-ci.yml` et
+      # l'init SQL. Les trois doivent déclencher, sinon la garde ne voit qu'une moitié de
+      # l'écart qu'elle existe pour trouver — la règle posée en haut de ce bloc.
+      - 'docker-compose.yml'
+      - 'docker/**'
+      - '.github/workflows/api-ci.yml'
+      - '.github/workflows/repo-ci.yml'
+  push:
+    branches: [dev, master]
+    paths:
+      - 'takussan-api/.env.example'
+      - 'takussan-api/.env.docker'
+      - 'takussan-api/app/**'
+      - 'takussan-api/routes/**'
+      - 'takussan-api/database/**'
+      - 'takussan-web/src/**'
+      - 'scripts/**'
+      - 'dev.sh'
+      - 'docs/**'
+      # `check-db-engine` compare le compose, le job `migrations-mysql` d'`api-ci.yml` et
+      # l'init SQL. Les trois doivent déclencher, sinon la garde ne voit qu'une moitié de
+      # l'écart qu'elle existe pour trouver — la règle posée en haut de ce bloc.
+      - 'docker-compose.yml'
+      - 'docker/**'
+      - '.github/workflows/api-ci.yml'
+      - '.github/workflows/repo-ci.yml'
+
+jobs:
+  guards:
+    name: Gardes documentaires
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # `check-backlog.mjs` confronte les statuts des tickets à l'historique de `dev` : un
+          # ticket en `review` dont le code est déjà mergé est le défaut qui a produit une colonne
+          # de 177 entrées face à ZÉRO pull request ouverte. Sur un clone superficiel il ne peut
+          # pas, et il le dit en rouge plutôt qu'en silence.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Les deux fichiers d'environnement déclarent les mêmes clés
+        run: node scripts/check-env-parity.mjs
+
+      - name: Aucune substitution involontaire dans un heredoc non quoté
+        # `server-setup.sh` écrit /etc/sudoers.d et /etc/logrotate.d par heredoc, et ces blocs
+        # NE PEUVENT PAS être quotés : ils interpolent ${DEPLOY_USER}, ${APP_DIR}. Bash y
+        # exécute donc aussi les backticks — y compris dans une ligne qui commence par « # ».
+        # Un commentaire écrivant `setup_queue_service` a réellement invoqué la fonction, EN
+        # ROOT, et supprimé le mot du fichier écrit. Reproduit avant correction.
+        run: node scripts/check-heredocs.mjs --report
+
+      - name: Le banc d'essai tourne sur le moteur de base de la production
+        # `docker-compose.yml` et le job `migrations-mysql` tournaient sur `mariadb:11.4`, sur la
+        # foi d'un `apt install mariadb-server` que personne n'avait exécuté. Mesuré le
+        # 2026-08-13 : le serveur est en **MySQL 8.0.46**, `utf8mb4_0900_ai_ci`. Ce n'était pas
+        # un écart de version, c'était le mauvais MOTEUR — et le job d'éprouvage des migrations
+        # validait donc du DDL que la production n'exécuterait jamais (TCK-289).
+        run: node scripts/check-db-engine.mjs --report
+
+      - name: Toute file de jobs poussée par le code est consommée en production
+        # L'unité systemd lançait `queue:work` SANS `--queue` : elle ne consommait que
+        # `default`, et les jobs poussés sur `media`, `notifications-urgent` et
+        # `reconciliation` s'empilaient dans la table `jobs` sans jamais s'exécuter.
+        # Rien ne le signalait — une file sans consommateur ne se manifeste que par
+        # l'absence de quelque chose, et l'absence ne déclenche rien.
+        run: node scripts/check-queues.mjs --report
+
+      - name: Toute route cadenassée est gardée côté serveur
+        # La règle « réservé aux agences standard » est écrite deux fois, en PHP et en
+        # TypeScript — le docblock PHP se déclare lui-même « backend twin ». Rien ne
+        # vérifiait qu'elles restent d'accord.
+        #
+        # Sa première version ne cherchait qu'une CHAÎNE (`ensureStandardAgencyOrRedirect`)
+        # et a donc déclaré nues quatre pages qui gardent en ligne. On a agi sur ce faux
+        # négatif. Elle reconnaît désormais les deux formes, et REFUSE DE CONCLURE quand
+        # elle ne comprend pas une page — « je ne sais pas » plutôt que « il n'y en a pas ».
+        run: node scripts/check-pro-routes.mjs --report
+
+      - name: INDEX.md est à jour de ses frontmatters
+        # `--check` n'écrit rien et sort non nul si l'index est périmé. Sans cette étape, la règle
+        # « on régénère après avoir touché un ticket » redeviendrait tenue par la seule discipline
+        # — celle qu'on vient précisément de retirer.
+        run: node docs/backlog/gen-index.mjs --check
+
+      - name: Les statuts des tickets ne sont pas contredits par git
+        # L'étape précédente garantit que la SORTIE suit la SOURCE. Celle-ci garantit que la
+        # SOURCE suit la RÉALITÉ : pointeur cité qui n'existe plus, dépendance incohérente, date
+        # impossible, statut ouvert sur du code déjà mergé. La première ne peut rien voir de la
+        # seconde — elle compare deux fichiers, elle ne regarde jamais le dépôt.
+        #
+        # `--report` fait ÉCRIRE au script la référence git sur laquelle il a confronté les
+        # statuts. Sans elle, une exécution verte prouve seulement qu'aucune erreur n'a été
+        # levée — il faut alors RAISONNER pour conclure que la confrontation a eu lieu. Avec
+        # elle, le journal le montre. (`--report` ajoute de la sortie, il ne désarme pas la
+        # garde : le script sort toujours en 1 sur une incohérence.)
+        run: node docs/backlog/check-backlog.mjs --report

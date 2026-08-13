@@ -15,10 +15,9 @@ import type {
  * React Query hooks for the Document resource — TCK-062.
  *
  * The backend uses `spatie/laravel-query-builder`, so every call sends
- * sparse fieldsets + filters. Share-link listing is not exposed by the
- * backend yet (TCK-021 only provides store + destroy + public show), so
- * the hook surface omits a "list active links" query and instead keeps
- * the created links in the mutation cache.
+ * sparse fieldsets + filters. The hook surface omits a "list active links"
+ * query (even though the backend now exposes one) and instead keeps the
+ * created links in the mutation cache.
  */
 
 /**

@@ -2,8 +2,8 @@
  * TCK-255 — Host individual onboarding page.
  *
  * Onboards a user into their own agency. Anonymous users bounce to login.
- * Already-onboarded users (anyone with an `agency_admin` role or an `agent`
- * profile attached to an agency) skip the wizard entirely and land on the
+ * Already-onboarded users (anyone with an `owner` or `agent` profile
+ * attached to an agency) skip the wizard entirely and land on the
  * property-creation flow — re-running the wizard would create a duplicate
  * agency, which is never what the user wants.
  */

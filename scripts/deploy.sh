@@ -113,8 +113,45 @@ fi
 mkdir -p "${RELEASES_DIR}"
 
 # ─── Step 1: Clone ───────────────────────────────────────────────────────────
+# On vise le COMMIT quand on nous le donne, et la tête de branche seulement à défaut.
+#
+# `git clone --depth 1 --branch "$BRANCH"` prend ce que la branche pointe AU MOMENT DU CLONE.
+# Le workflow, lui, avait été corrigé pour récupérer `github.sha` — le commit exact du push.
+# Résultat : la moitié « script de déploiement » venait du bon commit, la moitié « code
+# applicatif » venait de la tête. Avec `cancel-in-progress: false`, deux poussées rapprochées
+# faisaient déployer au premier run un arbre contenant déjà le second commit, en rapportant un
+# succès en face du premier.
+#
+# *Une garantie « même commit » à moitié posée n'est pas à moitié tenue : elle est fausse, et
+# elle est désormais écrite dans un commentaire que l'on croira.*
+#
+# Et le clone reste SUPERFICIEL. La première version de ce bloc laissait tomber `--depth 1` pour
+# pouvoir se détacher sur un commit — ce dépôt porte 319 Mo d'historique, et `KEEP_RELEASES=5`
+# en aurait donc gardé ~1,6 Go sur le VPS, pour un premier déploiement et des rollbacks
+# d'autant plus lents. GitHub autorise `fetch` par SHA : la garantie « même commit » ne coûte
+# donc rien de plus qu'avant. *Une garantie qu'on paie en gigaoctets se fait désinstaller.*
 log "Cloning repository..."
 git clone --depth 1 --branch "${BRANCH}" "${REPO_URL}" "${RELEASE_DIR}"
+if [ -n "${COMMIT_SHA:-}" ]; then
+    log "Target commit: ${COMMIT_SHA} (branch ${BRANCH})"
+    # On ne FETCH que si le commit n'est pas déjà là — c'est le cas courant, puisque le clone
+    # vient de récupérer la tête de la branche. Le `fetch` par SHA dépend de
+    # `uploadpack.allowReachableSHA1InWant` côté serveur : GitHub l'autorise, mais `REPO_URL` est
+    # un secret et pourrait viser un miroir ou un remote auto-hébergé qui le refuse. Sous
+    # `set -e` + `trap rollback ERR`, un refus avortait le déploiement et supprimait la release —
+    # sur une chaîne qui n'a encore jamais tourné en production.
+    #
+    # *Une vérification ne doit pas introduire une façon nouvelle d'échouer pour le cas où il n'y
+    # avait rien à vérifier.*
+    if ! git -C "${RELEASE_DIR}" cat-file -e "${COMMIT_SHA}^{commit}" 2>/dev/null; then
+        log "Commit absent du clone superficiel — fetch ciblé."
+        git -C "${RELEASE_DIR}" fetch --depth 1 origin "${COMMIT_SHA}"
+    fi
+    git -C "${RELEASE_DIR}" checkout --detach "${COMMIT_SHA}"
+else
+    log "No COMMIT_SHA given — deploying the tip of ${BRANCH}."
+fi
+log "Deployed commit: $(git -C "${RELEASE_DIR}" rev-parse HEAD)"
 
 # ─── Step 2: Symlink shared .env ─────────────────────────────────────────────
 log "Linking shared .env..."
@@ -129,8 +166,28 @@ rm -rf "${RELEASE_DIR}/takussan-api/storage"
 ln -sfn "${SHARED_DIR}/storage" "${RELEASE_DIR}/takussan-api/storage"
 
 # ─── Step 4: Composer install ────────────────────────────────────────────────
-log "Installing Composer dependencies..."
 cd "${RELEASE_DIR}/takussan-api"
+
+# Vérifie les prérequis de plateforme contre l'interpréteur RÉELLEMENT présent — AVANT
+# d'installer quoi que ce soit, et l'ordre est tout l'intérêt.
+#
+# `composer.json` pose `config.platform.php = 8.4.1` pour que la résolution vise la version de
+# production, quelle que soit celle du poste où l'on fait un `composer update`. Effet de bord :
+# `composer install` valide alors le lock contre ce PHP *synthétique*, et cesse de regarder
+# celui de la machine. Sur un serveur resté en 8.3, l'installation réussirait donc, écrirait un
+# vendor 8.4-only, et `php artisan migrate` fatalerait sur de la syntaxe 8.4 au milieu d'une
+# dépendance — en plein déploiement, release déjà peuplée.
+#
+# `check-platform-reqs` ignore l'override et compare aux extensions et à la version réelles.
+# Il lit le `composer.lock` quand `vendor/` n'existe pas encore : on peut donc le placer AVANT
+# `composer install`, et c'est là qu'il doit être. Une revue a relevé qu'il tournait juste
+# après — le commentaire promettait « le refus EN AMONT » pendant que le vendor 8.4-only était
+# déjà écrit dans la nouvelle release. *Une vérification préalable placée après ce qu'elle
+# prévient n'est plus une vérification préalable : c'est un constat.*
+log "Checking platform requirements against the real PHP..."
+composer check-platform-reqs --no-dev
+
+log "Installing Composer dependencies..."
 composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 
 # ─── Step 5: Build Vite assets (admin views) ────────────────────────────────
@@ -230,6 +287,76 @@ else
 fi
 
 # ─── Step 10: Restart queue workers ──────────────────────────────────────────
+# L'unité systemd INSTALLÉE porte-t-elle les files nommées ?
+#
+# `--queue=notifications-urgent,default,media,reconciliation` a été ajouté à
+# `scripts/server-setup.sh` — mais ce script est MANUEL : aucun workflow ne le lance, et
+# `deploy.sh` ne fait qu'un `queue:restart`, qui relance le worker depuis l'ExecStart déjà
+# installé. Sur un serveur provisionné avant le correctif, l'unité garde donc son ancienne
+# commande, et `scripts/check-queues.mjs` reste vert : il lit le TEXTE DU SCRIPT, pas l'unité.
+#
+# Ce contrôle-ci lit l'unité réelle. Il n'échoue pas le déploiement — le code est bon, ce sont
+# les jobs de fond qui dorment — mais il refuse de laisser passer ça en silence.
+#
+# ⚠ On vérifie la COUVERTURE, pas la présence du drapeau. La première version se contentait de
+# `grep -- '--queue='` sur chaque unité : après le passage à DEUX workers par application, si
+# l'unité de fond échouait à s'installer ou restait désactivée, l'unité survivante satisfaisait
+# quand même le grep, le contrôle se taisait, et `media`/`reconciliation` ne tournaient jamais —
+# la panne silencieuse exacte que ce contrôle existe pour rendre visible.
+#
+# *Vérifier qu'un drapeau est là ne vérifie pas ce qu'il déclare.*
+FILES_ATTENDUES="notifications-urgent default media reconciliation"
+FILES_SERVIES=""
+for unit in /etc/systemd/system/takussan-queue*.service; do
+    [ -f "${unit}" ] || continue
+    # Les unités de PRÉPRODUCTION sont exclues, et l'oubli était le même défaut que celui que
+    # `check-queues.mjs` venait de corriger dans sa propre résolution : le glob attrapait
+    # `takussan-queue-preview*`, et leurs files entraient dans la même union. La production
+    # pouvait donc perdre `media` sans un mot, tant que la préproduction la déclarait.
+    # On distingue par `WorkingDirectory`, que systemd porte déjà.
+    #
+    # *La leçon d'une garde ne traverse pas jusqu'à sa sœur toute seule.*
+    if ! grep -q "^WorkingDirectory=${APP_DIR}/current$" "${unit}"; then
+        continue
+    fi
+    # Une unité désactivée ne sert rien : on ne compte que celles qui sont actives.
+    # ACTIVE, pas seulement « activée ». `is-enabled` dit qu'elle démarrera au boot ; il ne dit
+    # rien de son état actuel. Une unité `enabled` mais en boucle de redémarrage — un mauvais
+    # release, un `WorkingDirectory` absent une seconde — faisait compter ses files comme
+    # servies, et le contrôle annonçait « les quatre files couvertes » pendant que `media` et
+    # `reconciliation` ne se vidaient jamais. C'est la panne silencieuse même que ce bloc existe
+    # pour rendre visible.
+    _u="$(basename "${unit}" .service)"
+    if ! systemctl is-enabled --quiet "${_u}" 2>/dev/null; then
+        log "WARNING: ${_u} existe mais n'est pas activée."
+        continue
+    fi
+    if ! systemctl is-active --quiet "${_u}" 2>/dev/null; then
+        log "WARNING: ${_u} est activée mais NE TOURNE PAS — ses files ne se vident pas."
+        log "         'systemctl status ${_u}' et 'journalctl -u ${_u} -n 50' pour la cause."
+        continue
+    fi
+    ligne=$(grep -m1 -- 'ExecStart=.*--queue=' "${unit}" || true)
+    if [ -z "${ligne}" ]; then
+        log "WARNING: ${unit} lance queue:work SANS --queue — il ne consomme que 'default'."
+        FILES_SERVIES="${FILES_SERVIES} default"
+        continue
+    fi
+    FILES_SERVIES="${FILES_SERVIES} $(echo "${ligne}" | sed -n 's/.*--queue=\([a-z0-9_,-]*\).*/\1/p' | tr ',' ' ')"
+done
+
+for f in ${FILES_ATTENDUES}; do
+    case " ${FILES_SERVIES} " in
+        *" ${f} "*) ;;
+        *)
+            log "WARNING: aucune unité systemd active ne consomme la file '${f}'."
+            log "         Ses jobs s'empileront dans la table 'jobs' sans jamais s'exécuter,"
+            log "         et rien d'autre ne le signalera."
+            log "         Correctif : sudo bash scripts/server-setup.sh"
+            ;;
+    esac
+done
+
 log "Restarting queue workers..."
 cd "${CURRENT_LINK}"
 php artisan queue:restart 2>/dev/null || log "No queue workers running (ignored)."

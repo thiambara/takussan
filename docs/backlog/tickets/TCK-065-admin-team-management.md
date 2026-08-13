@@ -5,6 +5,7 @@ status: done
 phase: P1
 family: front
 estimate: M
+wave: 4
 created: 2026-04-23
 updated: 2026-04-23
 pr: https://github.com/thiambara/takussan/pull/46

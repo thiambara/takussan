@@ -6,7 +6,7 @@ use App\Models\Bases\AbstractModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * TCK-110 — One row per SMS delivery attempt. Replaces the JSON
+ * TCK-110 — One row per SMS/WhatsApp delivery attempt. Replaces the JSON
  * `app_notifications.delivery_attempts` column with a normalised
  * table indexed on `(provider, provider_message_id)` so DLR webhook
  * lookups are O(1).

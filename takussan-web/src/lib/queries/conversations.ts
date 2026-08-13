@@ -52,8 +52,15 @@ export type UseConversationsParams = {
 
 export function useConversations(
   params: UseConversationsParams = {},
-  options: { refetchInterval?: number | false } = {},
+  options: { refetchInterval?: number | false; enabled?: boolean } = {},
 ) {
+  // `/api/conversations` is auth-only (auth:sanctum). Gate at the source so no
+  // caller (e.g. the globally-mounted ChatWidget badge) ever polls it for an
+  // anonymous visitor. In authenticated contexts `user` is always set, so this
+  // is a no-op there.
+  const { user } = useAuth();
+  const enabled = (options.enabled ?? true) && Boolean(user);
+
   const filter: Record<string, string | number> = {};
   if (params.status) filter.status = params.status;
   if (params.property_id) filter.property_id = params.property_id;
@@ -77,6 +84,7 @@ export function useConversations(
     '/api/conversations',
     {
       params: spatieParams,
+      enabled,
       refetchInterval: options.refetchInterval ?? 10_000,
       staleTime: 0,
     },

@@ -9,7 +9,7 @@ import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { navLinks, categories, moreCategories } from '@/data/mockData';
+import { navLinks, categories, moreCategories } from '@/data/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { setPublishIntent } from '@/lib/publish-intent';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
@@ -176,11 +176,11 @@ export function Navbar({ className }: NavbarProps) {
         {/* Center column: Search bar + Categories stacked, left-aligned — desktop */}
         <div className="hidden md:flex flex-col max-w-xl w-full mx-auto gap-0">
           {/* Search Bar */}
-          <div className="flex items-center bg-white border border-gray-300 rounded-full shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+          <div className="flex items-center bg-white border border-gray-300 rounded-full shadow-sm hover:shadow-md transition-shadow">
             <SearchAutocomplete
               variant="hero"
               placeholder={t('searchPlaceholder')}
-              className="flex-1 [&>div]:border-none [&>div]:shadow-none [&>div]:rounded-none [&>div]:bg-transparent"
+              className="flex-1 [&>div:first-child]:border-none [&>div:first-child]:shadow-none [&>div:first-child]:rounded-none [&>div:first-child]:bg-transparent"
               onQueryChange={(v) => setLocation(v)}
             />
             <div className="w-px h-6 bg-gray-200 shrink-0" />

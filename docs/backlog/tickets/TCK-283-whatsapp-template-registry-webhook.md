@@ -1,12 +1,13 @@
 ---
 id: TCK-283
 title: Registre templates Meta + webhook statut WhatsApp (DLR) + opt-out
-status: review
+status: done
 phase: P3
 family: applicatif
 estimate: M
+wave: 36
 created: 2026-06-17
-updated: 2026-06-17
+updated: 2026-08-12
 depends_on: [TCK-282]
 blocks: []
 spec_refs:

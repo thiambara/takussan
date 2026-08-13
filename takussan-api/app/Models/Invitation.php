@@ -20,7 +20,8 @@ use Spatie\Activitylog\Support\LogOptions;
  *  - un token URL-safe unique signé (généré par {@see InvitationService})
  *  - un destinataire (`email`, `invited_user_id` éventuellement résolu)
  *  - un profil cible polymorphe (`invitable_*`) pré-créé en `draft`
- *  - un rôle spatie à assigner à l'acceptation, scopé sur `agency_id`
+ *  - le profil polymorphe à activer à l'acceptation, scopé sur `agency_id`
+ *    (et non plus un rôle spatie : le package est désinstallé, cf. ADR-0002)
  *  - un état (`InvitationStatus`) et une expiration glissante (defaut +7j)
  *
  * Toute la logique métier (envoi, acceptation, expiration, rappel, révocation)

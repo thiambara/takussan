@@ -36,7 +36,7 @@ class AppNotification extends AbstractModel
     ];
 
     /**
-     * Notifications marked is_critical in metadata bypass digest and are
+     * Notifications marked is_critical in data bypass digest and are
      * always sent immediately regardless of email_frequency.
      */
     public function isCritical(): bool

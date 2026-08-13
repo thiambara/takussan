@@ -5,6 +5,7 @@ status: doing
 phase: P3
 family: back
 estimate: L
+wave: 35
 created: 2026-05-20
 updated: 2026-05-20
 depends_on: [TCK-280]

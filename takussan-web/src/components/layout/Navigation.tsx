@@ -114,7 +114,7 @@ export function buildDashboardNavItems(user: User | null): NavigationItem[] {
       icon: PlusCircle,
       emphasized: true,
     });
-    items.push({ href: '/app/crm', label: 'CRM', icon: Users });
+    items.push({ href: '/app/customers', label: 'CRM', icon: Users });
   }
 
   if (isCustomer(roles)) {

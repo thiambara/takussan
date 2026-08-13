@@ -25,11 +25,6 @@ use Illuminate\Validation\Rule;
  */
 class InventoryStoreRequest extends FormRequest
 {
-    /**
-     * @deprecated Use {@see InventoryElementState} enum instead.
-     */
-    public const ELEMENT_STATES = ['bon', 'usé', 'endommagé', 'manquant'];
-
     public function authorize(): bool
     {
         return $this->user() !== null;

@@ -4,7 +4,7 @@
  * Réservations confirmées : bleu.
  * Visites confirmées : violet.
  * Baux / périodes longues : vert.
- * Statuts en attente (`pending` / `scheduled`) : gris — pour distinguer
+ * Statuts en attente (`pending` / `scheduled` / `pending_signature`) : gris — pour distinguer
  * visuellement les demandes non traitées.
  */
 

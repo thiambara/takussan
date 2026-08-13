@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Info, ShieldAlert, X } from 'lucide-react';
 import { useLocale } from 'next-intl';
 import { dismissAnnouncement, fetchActiveAnnouncements, localizedAnnouncementText } from '@/lib/queries/announcements';
+import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { Announcement, AnnouncementsResponse } from '@/types/super-admin';
@@ -25,11 +26,15 @@ const ICONS = {
 export function GlobalAnnouncementBanner() {
   const locale = useLocale();
   const queryClient = useQueryClient();
+  // `/api/announcements/active` is auth-only (auth:sanctum). Don't fetch for
+  // anonymous visitors — the banner simply stays hidden until they log in.
+  const { user } = useAuth();
   const query = useQuery<AnnouncementsResponse>({
     queryKey: ['announcements', 'active'],
     queryFn: fetchActiveAnnouncements,
     staleTime: 60_000,
     retry: false,
+    enabled: Boolean(user),
   });
   const mutation = useMutation({
     mutationFn: dismissAnnouncement,

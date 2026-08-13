@@ -3,7 +3,7 @@ import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { getToken } from '@/lib/session';
-import { fetchAgency } from '@/lib/queries/agencies';
+import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 
 /**
  * Admin dashboard layout — restricted to users with admin-level roles
@@ -21,8 +21,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (typeof user.agency_id === 'number') {
     const token = await getToken();
     if (token) {
-      const agency = await fetchAgency(token, user.agency_id).catch(() => null);
-      agencyIsStandard = agency?.kind === 'standard';
+      const agency = await resolveAgencyOrNull(token, user.agency_id, 'admin/layout (cadenas)');
+      // `undefined` quand on n'a pas pu savoir — le même correctif qu'`app/layout.tsx`, qui
+      // n'avait pas traversé jusqu'ici. `AdminSidebar` conditionne le sondage du compteur de
+      // modération à `agencyIsStandard !== false` : écraser « inconnu » en `false` faisait
+      // disparaître le badge d'un admin d'agence `standard` sur une simple panne passagère.
+      agencyIsStandard = agency ? agency.kind === 'standard' : undefined;
     }
   }
 

@@ -39,11 +39,17 @@ return Application::configure(basePath: dirname(__DIR__))
             SetLocaleMiddleware::class,
             MaintenanceMode::class,
         ]);
-        // TCK-141/142 — sole owner of the spatie team context for api
-        // requests since `users.agency_id` was dropped. Resolves the active
-        // profile via header / query / cookie / auto-single, then locks
-        // `setPermissionsTeamId($profile?->agency_id)`. Runs at the end of
-        // the api group so `$request->user()` is already authenticated.
+        // TCK-141/142 — résout le profil ACTIF de la requête (ADR-0004), devenu la seule
+        // source du scope d'agence depuis que `users.agency_id` a été droppée.
+        // Ordre : header `X-Profile-Id` / `?profile_id` → `X-Active-Profile-Hint` → cookie
+        // `active_profile_id` → auto-bascule si l'utilisateur n'a de profils que dans UNE
+        // agence → rien. Le profil se lit ensuite par `request()->activeProfile()`.
+        // Placé en fin de groupe `api` pour que `$request->user()` soit déjà authentifié.
+        //
+        // Ce commentaire décrivait un verrouillage de `setPermissionsTeamId()` : le package
+        // spatie est désinstallé depuis TCK-278 (ADR-0002), il n'y a plus de contexte
+        // d'équipe à poser. Une première correction n'avait remplacé que sa moitié, laissant
+        // la seconde orpheline — elle décrivait donc toujours une API supprimée.
         $middleware->api(append: [
             ResolveActiveProfile::class,
         ]);

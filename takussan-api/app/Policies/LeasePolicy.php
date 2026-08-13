@@ -8,8 +8,12 @@ use App\Models\User;
 /**
  * TCK-088 — Authorization for custom lease actions. Standard CRUD remains
  * handled inline in `LeaseController` via `authorizeAccess`/`authorizeManage`;
- * this policy is only consulted for actions that need an explicit Spatie
- * permission gate (refund_deposit, …).
+ * this policy is only consulted for actions that need an explicit capability
+ * gate (refund_deposit, …).
+ *
+ * « Spatie » a été retiré de cette phrase, pas du sens : la porte existe
+ * toujours, mais elle passe par l'enum `Capability` et les Gates dérivées
+ * (ADR-0002/0003), plus par `spatie/laravel-permission` qui est désinstallé.
  *
  * The `super_admin` bypass is wired globally via `Gate::before` so it
  * always wins regardless of the rules below.
@@ -45,9 +49,10 @@ class LeasePolicy extends BasePolicy
     /**
      * TCK-089 — Renouveler un bail (créer un avenant chaîné).
      * Réservé à l'agency-side : landlord, membre d'agence, ou admin.
-     * Requiert la permission `leases.renew` (Spatie) afin que les rôles
-     * `tenant` / `customer` ne puissent pas la déclencher même par
-     * accident côté UI.
+     * Requiert la capacité `Capability::LeasesRenew` (`leases.renew`) afin
+     * que les profils locataire / client ne puissent pas la déclencher même
+     * par accident côté UI. Le `$user->can('leases.renew')` ci-dessous passe
+     * par la Gate dérivée de l'enum (ADR-0003), plus par spatie.
      */
     public function renew(User $user, Lease $lease): bool
     {

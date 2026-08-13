@@ -5,6 +5,7 @@ status: done
 phase: P1
 family: front
 estimate: M
+wave: 15
 created: 2026-05-02
 updated: 2026-05-03
 depends_on: [TCK-014, TCK-023, TCK-141, TCK-145, TCK-147]

@@ -12,7 +12,7 @@ Create backlog tickets that describe a **delta** to produce — never a copy of 
 **Announce at start:** "I'm using the writing-specs skill to create ticket TCK-NNN."
 
 **Save tickets to:** `docs/backlog/tickets/TCK-NNN-<slug>.md`
-**Keep index in sync:** `docs/backlog/INDEX.md`
+**Index:** `docs/backlog/INDEX.md` is **GENERATED** — never edit it by hand.
 **Template:** `docs/backlog/_template.md`
 
 ## When to use
@@ -102,6 +102,7 @@ cp docs/backlog/_template.md docs/backlog/tickets/TCK-NNN-<slug>.md
 | `phase` | `P0` · `P1` · `P2` · `P3` · `EF` — derived from `features.md` priority |
 | `family` | `applicatif` · `evolution` · `technique` · `bug` |
 | `estimate` | `S` ≤2j · `M` 3–5j · `L` 6–10j · `XL` >10j |
+| `wave` | **REQUIRED.** Delivery wave number, or `null`. Catalogue: `docs/backlog/waves.json`. `check-backlog.mjs` rejects a ticket without this field, and Repo CI blocks the PR. |
 | `created` / `updated` | Today's date (`YYYY-MM-DD`) |
 | `depends_on` | List of other TCK-NNN that must be `done` before this ticket can start. Must be existing ticket IDs |
 | `blocks` | List of other TCK-NNN that this ticket unblocks |
@@ -124,15 +125,22 @@ Follow `_template.md` sections exactly:
 
 Re-read the ticket. For each paragraph ask: *"Would this be in the spec if I looked? If yes, delete it and add a `spec_refs` link."* The ticket must be incomprehensible without the `spec_refs` — that's the proof they're load-bearing, not decorative.
 
-### 9. Update `INDEX.md`
+### 9. Regenerate `INDEX.md` — do NOT edit it
 
-Add a new bullet line to the correct section (`Todo` or `Blocked`):
+`docs/backlog/INDEX.md` is generated from the ticket frontmatters. Run:
 
-```markdown
-- [TCK-NNN](tickets/TCK-NNN-<slug>.md) — <title> `<estimate> · <phase> · <family>`
+```bash
+node docs/backlog/gen-index.mjs      # rewrites INDEX.md
+node docs/backlog/check-backlog.mjs  # verifies the source still tells the truth
 ```
 
-If the ticket has `blocks`, update the **Graphe de dépendances** code block at the bottom of `INDEX.md`.
+Both run in Repo CI. `gen-index.mjs --check` fails the build if `INDEX.md` is stale, so a
+hand-edit is caught rather than merged.
+
+The **Graphe de dépendances** block no longer exists in the generated output — the dependency
+information lives in each ticket's `depends_on` / `blocks`, and `check-backlog.mjs` verifies
+both directions agree.
+
 
 ### 10. Report to the user
 
@@ -148,7 +156,7 @@ Before considering the ticket done:
 - [ ] `spec_refs.features` OR `spec_refs.models` has at least one entry
 - [ ] `created` and `updated` set to today
 - [ ] No content in "Notes d'implémentation"
-- [ ] `INDEX.md` has the new line
+- [ ] `node docs/backlog/gen-index.mjs` has been run, and `check-backlog.mjs` passes
 
 ## Common rationalizations
 
@@ -156,7 +164,8 @@ Before considering the ticket done:
 |---|---|
 | "Just a quick note in the ticket about the spec" | The ticket is the delta. Notes about the spec belong in the spec. Delete. |
 | "The spec is vague, so I'll clarify in the ticket" | No — open a PR on the spec. The ticket trusts the spec. |
-| "I can skip INDEX.md, the user will see the file" | INDEX is part of the ticket. Update both or don't commit either. |
+| "I can skip regenerating INDEX.md" | Repo CI runs `gen-index.mjs --check` and fails on a stale index. |
+| "I can hand-edit INDEX.md" | It is generated. Your edit is overwritten at the next run, and CI rejects it meanwhile. |
 | "This is a tiny fix, I'll just file a bug in the ticket and skip `spec_refs`" | A bug still touches a behavior described somewhere. Find the anchor or STOP. |
 | "I'll reuse TCK-042, nobody will notice" | IDs are immutable. Use the next unused number. |
 | "Let me quickly also edit `features.md` to add this line" | Out of scope for this skill. STOP and propose a spec PR. |
@@ -178,6 +187,7 @@ status: todo
 phase: P2
 family: technique
 estimate: S
+wave: null
 created: 2026-04-15
 updated: 2026-04-15
 depends_on: []
@@ -215,6 +225,6 @@ _(à remplir par implementing-specs)_
 ## Remember
 
 - Tickets reference specs; they never copy them.
-- `INDEX.md` is part of the deliverable.
+- `INDEX.md` is generated: regenerate it, never edit it.
 - Empty `Notes d'implémentation` at creation — always.
 - `depends_on` is the contract that `implementing-specs` enforces. Get it right.

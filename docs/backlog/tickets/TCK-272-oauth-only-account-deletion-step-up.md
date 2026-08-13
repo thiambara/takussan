@@ -5,6 +5,7 @@ status: todo
 phase: P2
 family: applicatif
 estimate: M
+wave: 25
 created: 2026-05-12
 updated: 2026-05-12
 depends_on: [TCK-080]

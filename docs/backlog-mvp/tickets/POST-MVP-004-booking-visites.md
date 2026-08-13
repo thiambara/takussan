@@ -1,7 +1,7 @@
 ---
 id: POST-MVP-004
 title: "Booking de visites"
-status: todo
+status: obsolete
 slice: "Post-MVP Phase 2"
 estimate: 2 weekends
 created: 2026-04-16

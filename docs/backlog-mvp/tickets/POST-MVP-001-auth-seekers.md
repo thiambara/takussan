@@ -1,7 +1,7 @@
 ---
 id: POST-MVP-001
 title: "Authentification complète seekers"
-status: todo
+status: obsolete
 slice: "Post-MVP Phase 1"
 estimate: 2 weekends
 created: 2026-04-16

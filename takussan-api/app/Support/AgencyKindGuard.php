@@ -10,9 +10,9 @@ use App\Models\User;
  * Backend twin of `lib/access/server-guards.ts` (`ensureStandardAgencyOrRedirect`).
  *
  * Aborts with 403 when a non-global actor's active agency is on
- * `kind=individual`. Super-admins and global `admin`s bypass (cross-tenant
- * scope by design — they may legitimately operate on any agency regardless
- * of kind). Actors without an active agency are passed through (the caller
+ * `kind=individual`. Super-admins bypass (cross-tenant scope by design —
+ * they may legitimately operate on any agency regardless of kind). Actors
+ * without an active agency are passed through (the caller
  * is responsible for the upstream `abort_if($agencyId === null, …)`).
  */
 class AgencyKindGuard

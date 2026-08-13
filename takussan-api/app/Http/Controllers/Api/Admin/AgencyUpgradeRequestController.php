@@ -166,7 +166,7 @@ class AgencyUpgradeRequestController extends Controller
     }
 
     /**
-     * Helper kept private — used by the FE listing filter dropdown via
+     * Helper used by the FE listing filter dropdown via
      * the existing `enums` endpoint pattern. Left as a static accessor in
      * case TCK-269 follow-ups need the same shape.
      *

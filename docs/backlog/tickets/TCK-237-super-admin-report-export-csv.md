@@ -5,6 +5,7 @@ status: done
 phase: P2
 family: bug
 estimate: S
+wave: 26
 created: 2026-05-09
 updated: 2026-05-09
 depends_on: [TCK-227]

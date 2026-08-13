@@ -1,5 +1,26 @@
 # Backlog MVP — Takussan
 
+> ## 🗄️ STRATÉGIE ARCHIVÉE — ces tickets ne sont PAS du travail ouvert
+>
+> **Vérifié le 2026-08-12.** Ce dossier porte une stratégie produit *alternative* — « vertical
+> slice / zero auth / WhatsApp first / 5 weekends », North KPI *10 contacts/semaine après
+> 100 annonces* — qui n'a pas été celle suivie. Le projet a été construit sur le backlog
+> [`../backlog/`](../backlog/) : 265 tickets, dont 258 livrés.
+>
+> **Ses 12 tickets décrivent des fonctionnalités livrées depuis avril 2026** (liste et détail
+> d'annonces, contact WhatsApp, saisie admin, médias, recherche, tri). Ils portaient tous
+> `status: todo` : un outil ou un agent qui agrégeait les frontmatters `todo` sur `docs/` comptait
+> **15 tickets ouverts au lieu de 3**. Ils sont désormais `obsolete`.
+>
+> **Ce qui reste vrai et vaut d'être relu** : le raisonnement produit — la primauté du canal
+> WhatsApp à Dakar, l'entrée sans authentification pour les visiteurs, « do things that don't
+> scale » pour les cent premières annonces. Ce sont des arbitrages de marché, et ils n'ont pas
+> vieilli comme les tickets.
+>
+> Les deux backlogs coexistaient sans qu'aucun document n'arbitre (ardoise D-20). Cet encadré est
+> l'arbitrage.
+
+
 > Approche verticale basée sur les recommandations d'Opus.
 > Focus : "visiteur → annonce → contact WhatsApp" pour valider le marché en 5 weekends.
 >

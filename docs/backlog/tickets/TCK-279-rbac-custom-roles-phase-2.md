@@ -5,6 +5,7 @@ status: blocked
 phase: P1
 family: full
 estimate: L
+wave: 34
 created: 2026-05-17
 updated: 2026-05-17
 depends_on: [TCK-278]
