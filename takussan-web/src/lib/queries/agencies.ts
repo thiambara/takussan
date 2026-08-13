@@ -30,11 +30,32 @@ function buildShowParams(): SpatieQueryParams {
   };
 }
 
-export async function fetchAgency(token: string, agencyId: number): Promise<Agency> {
+/**
+ * `activeProfileId` n'est PAS optionnel par confort : son absence a verrouillé des comptes.
+ *
+ * `apiRequest` ne lit pas le cookie lui-même — il reçoit `activeProfileId` en paramètre et ne
+ * pose l'en-tête `X-Active-Profile-Hint` que s'il l'a. `getMeAction()` le passe ; cet appel-ci ne
+ * le passait pas. Pour un utilisateur MULTI-AGENCES, `ResolveActiveProfile` refuse alors la
+ * bascule automatique, `user.agency_id` vaut `null` côté serveur, l'agence sort de
+ * `visibleAgencyIds()`, et `show()` rend 404.
+ *
+ * Tant que la garde tolérait `null` (`if (agency && …)`), la page s'affichait quand même. Depuis
+ * qu'elle est fail-closed, ce 404 éjecte l'utilisateur des NEUF surfaces pro — en silence, car un
+ * 404 est classé « réponse ». Le durcissement était juste ; c'est cet appel qui posait une
+ * question incomplète.
+ *
+ * *Deux requêtes qui portent la même identité doivent porter le même contexte, sinon elles ne
+ * parlent pas du même utilisateur.*
+ */
+export async function fetchAgency(
+  token: string,
+  agencyId: number,
+  activeProfileId?: string,
+): Promise<Agency> {
   const qs = buildQueryString(buildShowParams());
   const res = await apiRequest<ApiResponse<Agency>>(
     `/api/agencies/${agencyId}${qs ? `?${qs}` : ''}`,
-    { token },
+    { token, activeProfileId },
   );
   return res.data;
 }

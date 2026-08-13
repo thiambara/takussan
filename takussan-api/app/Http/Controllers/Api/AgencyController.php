@@ -282,6 +282,17 @@ class AgencyController extends Controller
             ->merge(Agency::query()->where('primary_admin_id', $user->id)->pluck('id'))
             ->merge($user->agentProfiles()->pluck('agency_id'))
             ->merge($user->ownerProfiles()->pluck('agency_id'))
+            // `agencyAdminProfiles` manquait, et c'est le profil qui donne le plus de droits.
+            //
+            // La liste couvrait agent, owner, broker et service_provider — mais pas l'admin
+            // d'agence. Tant que `user.agency_id` résolvait, l'agence entrait par la première
+            // ligne ; pour un compte MULTI-AGENCES, `ResolveActiveProfile` refuse la bascule
+            // automatique, `agency_id` vaut `null`, et l'agence dont l'utilisateur est
+            // administrateur devenait invisible pour lui : `show()` rendait 404.
+            //
+            // *Une liste de profils qui omet le plus privilégié ne se voit pas tant que l'autre
+            // chemin fonctionne.*
+            ->merge($user->agencyAdminProfiles()->pluck('agency_id'))
             ->merge(DB::table('broker_profiles')
                 ->join('broker_agency_collaborations', 'broker_agency_collaborations.broker_profile_id', '=', 'broker_profiles.id')
                 ->where('broker_profiles.user_id', $user->id)

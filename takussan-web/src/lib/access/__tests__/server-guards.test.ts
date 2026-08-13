@@ -38,9 +38,15 @@ const redirect = vi.fn((url: string) => {
 });
 const getToken = vi.fn<() => Promise<string | undefined>>();
 const fetchAgency = vi.fn();
+const getActiveProfileId = vi.fn<() => Promise<string | undefined>>();
 
 vi.mock('next/navigation', () => ({ redirect: (u: string) => redirect(u) }));
-vi.mock('@/lib/session', () => ({ getToken: () => getToken() }));
+vi.mock('@/lib/session', () => ({
+  getToken: () => getToken(),
+  // `getActiveProfileId` doit être mocké : le helper le transmet désormais à `fetchAgency`.
+  // Sans lui, un compte multi-agences recevait un 404 et se voyait éjecté des neuf surfaces pro.
+  getActiveProfileId: () => getActiveProfileId(),
+}));
 vi.mock('@/lib/queries/agencies', () => ({
   fetchAgency: (...a: unknown[]) => fetchAgency(...a),
 }));
@@ -68,12 +74,25 @@ describe('ensureStandardAgencyOrRedirect', () => {
     redirect.mockClear();
     getToken.mockReset();
     fetchAgency.mockReset();
+    getActiveProfileId.mockReset();
+    getActiveProfileId.mockResolvedValue('profil-7');
   });
 
   it('laisse passer une agence `standard`', async () => {
     getToken.mockResolvedValue('tok');
     fetchAgency.mockResolvedValue({ id: 7, kind: 'standard' });
     expect(await refus(utilisateur(7))).toBeNull();
+  });
+
+  it('transmet le hint de profil actif à `fetchAgency`', async () => {
+    // Sans ce hint, `ResolveActiveProfile` refuse la bascule pour un compte MULTI-AGENCES,
+    // `agency_id` vaut null côté serveur, l'agence sort de `visibleAgencyIds()`, et `show()`
+    // rend 404 — classé « réponse », donc éjection SILENCIEUSE des neuf surfaces pro.
+    getToken.mockResolvedValue('tok');
+    getActiveProfileId.mockResolvedValue('profil-42');
+    fetchAgency.mockResolvedValue({ id: 7, kind: 'standard' });
+    await ensureStandardAgencyOrRedirect(utilisateur(7));
+    expect(fetchAgency).toHaveBeenCalledWith('tok', 7, 'profil-42');
   });
 
   it('refuse une agence `individual`', async () => {

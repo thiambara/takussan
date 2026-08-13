@@ -40,7 +40,19 @@ jobs:
 
     steps:
       - name: Checkout code
+        # `ref: preview` EXPLICITE — ce workflow ne déploie que `preview`, et le `checkout` doit
+        # le dire.
+        #
+        # Sans lui, un `workflow_dispatch` récupère la branche depuis laquelle il est déclenché.
+        # Tant que le serveur clonait `preview` par lui-même, cela n'avait d'effet que sur le
+        # script de déploiement embarqué. Depuis que l'étape suivante lit `git rev-parse HEAD`
+        # pour l'imposer au serveur, un dispatch lancé depuis `dev` déploierait le CODE DE `dev`
+        # sur la préproduction, pendant que chaque ligne de journal annonce « branch preview ».
+        #
+        # *Une valeur qu'on se met à propager doit d'abord être celle qu'on croit.*
         uses: actions/checkout@v4
+        with:
+          ref: preview
 
       - name: Le commit effectivement récupéré
         id: sha

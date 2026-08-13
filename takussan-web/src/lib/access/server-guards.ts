@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
+import { cache } from 'react';
 import { ApiError } from '@/lib/api';
 import { fetchAgency } from '@/lib/queries/agencies';
-import { getToken } from '@/lib/session';
+import { getActiveProfileId, getToken } from '@/lib/session';
 import type { Agency } from '@/types/agency';
 import type { User } from '@/types/user';
 
@@ -84,6 +85,24 @@ const classer = (e: unknown): Verdict => {
   return e.status === 401 || e.status === 403 || e.status === 404 ? 'refus' : 'explique';
 };
 
+/**
+ * UNE requête d'agence par rendu, mémoïsée — le patron déjà employé par `getMeAction`.
+ *
+ * Chaque rendu de `/admin/*` en tirait DEUX : une dans le layout pour le cadenas (`affichage`),
+ * une dans la page pour la décision. Rien ne les dédupliquait — `apiRequest` pose un
+ * `Authorization` et aucune indication de cache. On doublait donc le débit sur le seul endpoint
+ * dont le 429 vient d'être transformé en redirection dure : la requête du cadenas pouvait être
+ * celle qui déclenche la limite qui éjecte la page.
+ *
+ * `cache()` de React est per-requête : deux appels du même rendu partagent la promesse, deux
+ * rendus n'échangent rien. *Une garde qui coûte une requête par écran finit par créer la panne
+ * contre laquelle elle protège.*
+ */
+const agenceDuRendu = cache(
+  async (token: string, agencyId: number, activeProfileId?: string): Promise<Agency> =>
+    fetchAgency(token, agencyId, activeProfileId),
+);
+
 /** Où l'on renvoie quand on n'a pas PU vérifier — distinct de `/app`, qui veut dire « non ». */
 export const ROUTE_VERIF_INDISPONIBLE = '/app/verification-indisponible';
 
@@ -115,7 +134,9 @@ export async function resolveAgencyOrNull(
   usage: 'decision' | 'affichage' = 'affichage',
 ): Promise<Agency | null> {
   try {
-    const agence = await fetchAgency(token, agencyId);
+    // Le hint de profil accompagne la requête — cf. le docblock de `fetchAgency`. Sans lui, un
+    // compte multi-agences reçoit un 404 et se voit éjecté des neuf surfaces pro.
+    const agence = await agenceDuRendu(token, agencyId, await getActiveProfileId());
     // ⚠ `fetchAgency` rend `res.data`, qui vaut `undefined` sur un 200 dont le corps n'a pas de
     // clé `data` — sans lever. Un commentaire antérieur rangeait ce cas parmi ceux qui
     // atteignent la page explicative ; il n'y arrivait pas, il tombait dans le `!agency` muet.
