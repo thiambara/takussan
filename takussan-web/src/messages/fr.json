@@ -218,7 +218,15 @@
     "network": "Impossible de joindre le serveur.",
     "unauthorized": "Vous n'êtes pas autorisé à effectuer cette action.",
     "notFound": "Ressource introuvable.",
-    "validation": "Certains champs sont invalides."
+    "validation": "Certains champs sont invalides.",
+    "boundary": {
+      "title": "Une erreur est survenue",
+      "body": "Cette page n’a pas pu être affichée. Réessayez dans un instant.",
+      "agencyTitle": "Vos accès n’ont pas pu être vérifiés",
+      "agencyBody": "Nous n’avons pas réussi à joindre le serveur pour confirmer les accès de votre agence. Ce n’est pas un changement de votre formule — réessayez dans un instant.",
+      "reference": "Référence technique : {digest}",
+      "retry": "Réessayer"
+    }
   },
   "agency": {
     "currency": {

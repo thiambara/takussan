@@ -239,9 +239,18 @@ for (const { fichier, ou } of CONSOMMATEURS) {
       if (varMatch) {
         // Valeurs littérales assignées à cette variable, ou passées en argument positionnel.
         const nom = varMatch[1];
+        //
+        // ⚠ On ne retient que les appels visant la PRODUCTION (`${APP_DIR}`). La première
+        // version unionnait les littéraux de TOUS les `setup_queue_service` du fichier, donc
+        // ceux de la préproduction aussi : retirer `notifications-urgent` de l'appel de
+        // production laissait la garde verte tant que la préproduction le gardait. Elle
+        // vérifiait alors « une unité quelque part sert cette file », pas « CE consommateur la
+        // sert » — c'est-à-dire autre chose que ce que son propre message d'erreur affirme.
+        //
+        // *Unir les sources d'un contrôle par commodité, c'est en changer le sujet.*
         const litteraux = [
           ...contenu.matchAll(new RegExp(`${nom}=["']?([a-z0-9_,-]+)["']?`, 'g')),
-          ...contenu.matchAll(/^\s*setup_queue_service\s+\S+\s+\S+\s+["']([a-z0-9_,-]+)["']/gm),
+          ...contenu.matchAll(/^\s*setup_queue_service\s+\S+\s+["']?\$\{APP_DIR\}["']?\s+["']([a-z0-9_,-]+)["']/gm),
         ].map((x) => x[1]);
         if (litteraux.length) m = [null, litteraux.join(',')];
       }

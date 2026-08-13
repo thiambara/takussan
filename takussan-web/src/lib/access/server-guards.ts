@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { ApiError } from '@/lib/api';
+import { MARQUEUR_AGENCE } from './errors';
 import { fetchAgency } from '@/lib/queries/agencies';
 import { getToken } from '@/lib/session';
 import type { Agency } from '@/types/agency';
@@ -58,7 +59,13 @@ export async function resolveAgencyOrNull(
       `[access] ${ou} : fetchAgency(${agencyId}) a échoué (${transitoire ? 'transitoire' : 'réponse API'})`,
       e instanceof Error ? e.message : e,
     );
-    if (usage === 'decision' && transitoire) throw e;
+    // On relance une erreur MARQUÉE, pas l'erreur brute : la frontière d'erreur ne reçoit de
+    // Next qu'un `message` et un `digest`, et doit pouvoir distinguer CE cas de tous les autres
+    // qu'elle attrape. Sans marqueur, elle expliquait chaque panne du tableau de bord par les
+    // accès de l'agence.
+    if (usage === 'decision' && transitoire) {
+      throw new Error(`${MARQUEUR_AGENCE} ${e instanceof Error ? e.message : String(e)}`, { cause: e });
+    }
     return null;
   }
 }

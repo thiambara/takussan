@@ -297,14 +297,42 @@ fi
 #
 # Ce contrôle-ci lit l'unité réelle. Il n'échoue pas le déploiement — le code est bon, ce sont
 # les jobs de fond qui dorment — mais il refuse de laisser passer ça en silence.
+#
+# ⚠ On vérifie la COUVERTURE, pas la présence du drapeau. La première version se contentait de
+# `grep -- '--queue='` sur chaque unité : après le passage à DEUX workers par application, si
+# l'unité de fond échouait à s'installer ou restait désactivée, l'unité survivante satisfaisait
+# quand même le grep, le contrôle se taisait, et `media`/`reconciliation` ne tournaient jamais —
+# la panne silencieuse exacte que ce contrôle existe pour rendre visible.
+#
+# *Vérifier qu'un drapeau est là ne vérifie pas ce qu'il déclare.*
+FILES_ATTENDUES="notifications-urgent default media reconciliation"
+FILES_SERVIES=""
 for unit in /etc/systemd/system/takussan-queue*.service; do
     [ -f "${unit}" ] || continue
-    if ! grep -q -- '--queue=' "${unit}"; then
-        log "WARNING: ${unit} lance queue:work SANS --queue."
-        log "         Il ne consomme que la file 'default' : les jobs poussés sur media,"
-        log "         notifications-urgent et reconciliation ne s'exécuteront JAMAIS."
-        log "         Correctif : sudo bash scripts/server-setup.sh && sudo systemctl restart $(basename "${unit}" .service)"
+    # Une unité désactivée ne sert rien : on ne compte que celles qui sont actives.
+    if ! systemctl is-enabled --quiet "$(basename "${unit}" .service)" 2>/dev/null; then
+        log "WARNING: $(basename "${unit}" .service) existe mais n'est pas activée."
+        continue
     fi
+    ligne=$(grep -m1 -- 'ExecStart=.*--queue=' "${unit}" || true)
+    if [ -z "${ligne}" ]; then
+        log "WARNING: ${unit} lance queue:work SANS --queue — il ne consomme que 'default'."
+        FILES_SERVIES="${FILES_SERVIES} default"
+        continue
+    fi
+    FILES_SERVIES="${FILES_SERVIES} $(echo "${ligne}" | sed -n 's/.*--queue=\([a-z0-9_,-]*\).*/\1/p' | tr ',' ' ')"
+done
+
+for f in ${FILES_ATTENDUES}; do
+    case " ${FILES_SERVIES} " in
+        *" ${f} "*) ;;
+        *)
+            log "WARNING: aucune unité systemd active ne consomme la file '${f}'."
+            log "         Ses jobs s'empileront dans la table 'jobs' sans jamais s'exécuter,"
+            log "         et rien d'autre ne le signalera."
+            log "         Correctif : sudo bash scripts/server-setup.sh"
+            ;;
+    esac
 done
 
 log "Restarting queue workers..."

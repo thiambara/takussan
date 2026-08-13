@@ -246,9 +246,13 @@ setup_deploy_sudoers() {
     log "Writing sudoers entry at ${sudoers_file}..."
     cat > "${sudoers_file}" <<SUDO
 # Takussan — allow deploy user to reload php-fpm/nginx + restart queue workers
+# ⚠ LES QUATRE unités, pas deux. sudoers compare les chaînes de commande à l'IDENTIQUE :
+# après le passage à deux workers par application, l'alias n'en listait que la moitié,
+# et l'opérateur se voyait refuser le redémarrage des workers de fond. Toute unité
+# ajoutée par `setup_queue_service` doit apparaître ici.
 # without password. Needed by scripts/deploy.sh post-symlink-swap (opcache clear)
 # and by the operator when (re)starting queue services after first deploy.
-Cmnd_Alias TAKUSSAN_RELOAD = /bin/systemctl reload php${php_version}-fpm, /bin/systemctl reload nginx, /bin/systemctl start takussan-queue, /bin/systemctl start takussan-queue-preview, /bin/systemctl restart takussan-queue, /bin/systemctl restart takussan-queue-preview, /bin/systemctl status takussan-queue, /bin/systemctl status takussan-queue-preview
+Cmnd_Alias TAKUSSAN_RELOAD = /bin/systemctl reload php${php_version}-fpm, /bin/systemctl reload nginx, /bin/systemctl start takussan-queue, /bin/systemctl start takussan-queue-media, /bin/systemctl start takussan-queue-preview, /bin/systemctl start takussan-queue-preview-media, /bin/systemctl restart takussan-queue, /bin/systemctl restart takussan-queue-media, /bin/systemctl restart takussan-queue-preview, /bin/systemctl restart takussan-queue-preview-media, /bin/systemctl status takussan-queue, /bin/systemctl status takussan-queue-media, /bin/systemctl status takussan-queue-preview, /bin/systemctl status takussan-queue-preview-media
 ${DEPLOY_USER} ALL=(root) NOPASSWD: TAKUSSAN_RELOAD
 SUDO
     chmod 0440 "${sudoers_file}"
@@ -281,11 +285,23 @@ ${PREVIEW_DIR}/shared/storage/logs/*.log
     delaycompress
     missingok
     notifempty
-    create 0640 ${DEPLOY_USER} ${WEB_GROUP}
+    # `copytruncate` et NON `create`, et le commentaire précédent expliquait pourquoi il ne
+    # fallait pas s'en soucier — à tort.
+    #
+    # « Laravel re-opens log handles per request » vaut pour PHP-FPM, pas pour les workers de
+    # file : ce sont des processus de LONGUE DURÉE (`--max-time=3600`) qui gardent leur
+    # descripteur ouvert. Avec `create`, logrotate renomme le fichier et en crée un neuf ; les
+    # workers continuent d'écrire dans le fichier renommé, et le journal vivant reste vide
+    # jusqu'au prochain redémarrage. L'endroit où un opérateur regarde en premier est
+    # exactement celui qui cesse d'être écrit.
+    #
+    # `copytruncate` copie puis tronque en place : le descripteur reste valide, aucun signal
+    # n'est nécessaire, et PHP-FPM n'en souffre pas.
+    #
+    # *Un commentaire qui explique pourquoi une précaution est inutile mérite d'être relu quand
+    # le type de processus change.*
+    copytruncate
     sharedscripts
-    postrotate
-        # Laravel re-opens log handles per request; no signal needed.
-    endscript
 }
 LOGROTATE
     chmod 644 "${logrotate_file}"
@@ -333,8 +349,12 @@ print_validation_summary() {
     _vcheck "vhost api.takussan.com enabled" "[ -L /etc/nginx/sites-enabled/api.takussan.com ]"
     _vcheck "vhost preview.api.takussan.com enabled" "[ -L /etc/nginx/sites-enabled/preview.api.takussan.com ]"
 
-    _vcheck "takussan-queue service enabled" "systemctl is-enabled --quiet takussan-queue"
-    _vcheck "takussan-queue-preview service enabled" "systemctl is-enabled --quiet takussan-queue-preview"
+    # Les QUATRE unités. Le résumé n'en validait que deux après le passage à deux workers par
+    # application : un `systemctl enable` raté sur le worker de fond passait « tout vert », et
+    # c'est justement celui qui porte le travail invisible.
+    for _u in takussan-queue takussan-queue-media takussan-queue-preview takussan-queue-preview-media; do
+        _vcheck "${_u} service enabled" "systemctl is-enabled --quiet ${_u}"
+    done
 
     _vcheck "prod scheduler cron present" "crontab -u ${DEPLOY_USER} -l 2>/dev/null | grep -qF '${APP_DIR}/current'"
     _vcheck "preview scheduler cron present" "crontab -u ${DEPLOY_USER} -l 2>/dev/null | grep -qF '${PREVIEW_DIR}/current'"
@@ -422,8 +442,13 @@ WorkingDirectory=${app_dir}/current
 ExecStart=/usr/bin/php artisan queue:work --queue=${files_worker} --sleep=3 --tries=3 --max-time=3600
 Restart=always
 RestartSec=5
-StandardOutput=append:${app_dir}/shared/storage/logs/queue-worker.log
-StandardError=append:${app_dir}/shared/storage/logs/queue-worker.log
+# Un journal PAR UNITÉ. Les deux workers d'une application écrivaient dans le même fichier, et
+# la strophe logrotate utilise \`create\` (renommage + recréation) sans \`copytruncate\` ni
+# redémarrage en postrotate : après la première rotation, les DEUX services de longue durée
+# gardaient leur descripteur sur le fichier renommé et le journal vivant restait vide. Le
+# premier endroit où un opérateur regarde après le split était celui qui cesse d'être écrit.
+StandardOutput=append:${app_dir}/shared/storage/logs/${name}.log
+StandardError=append:${app_dir}/shared/storage/logs/${name}.log
 
 [Install]
 WantedBy=multi-user.target

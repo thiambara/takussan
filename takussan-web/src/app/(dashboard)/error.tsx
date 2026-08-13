@@ -1,8 +1,10 @@
 'use client';
 
 import { AlertTriangle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { MARQUEUR_AGENCE } from '@/lib/access/errors';
 
 /**
  * Frontière d'erreur du tableau de bord — et son absence coûtait cher.
@@ -10,14 +12,14 @@ import { Button } from '@/components/ui/button';
  * Les gardes d'accès Standard-only sont fail-closed : quand l'API ne répond pas, elles refusent.
  * C'est la bonne règle. Mais sans cet écran, le refus prenait la forme d'une redirection muette
  * vers `/app`, tous les accès pro cadenassés : pour un `agency_admin` d'une agence `standard`,
- * une panne de trente secondes était **indiscernable d'un déclassement de forfait**. Il n'y avait
- * aucun `error.tsx` dans toute l'application — rien ne pouvait dire la différence.
+ * une panne de trente secondes était **indiscernable d'un déclassement de forfait**.
  *
- * `resolveAgencyOrNull(..., 'decision')` relance donc les pannes transitoires (429, 5xx, réseau)
- * au lieu de les avaler, et elles atterrissent ici. Les vraies réponses de l'API — 401, 403,
- * 404 — continuent de refuser en silence : elles, elles disent quelque chose.
+ * ⚠ Cette frontière attrape TOUT ce qui remonte du segment `(dashboard)`, pas seulement la
+ * vérification d'agence. Sa première version affirmait pourtant cette cause unique — un bug de
+ * rendu dans `/app/properties/[id]` donnait alors un diagnostic positivement faux. Le message
+ * n'est donc spécifique que si l'erreur porte le marqueur posé par `resolveAgencyOrNull`.
  *
- * *Fail-closed décide de l'accès ; il ne décide pas de ce qu'on a le droit de comprendre.*
+ * *Une frontière large qui affirme une cause étroite se trompe partout sauf à un endroit.*
  */
 export default function DashboardError({
   error,
@@ -26,6 +28,9 @@ export default function DashboardError({
   readonly error: Error & { digest?: string };
   readonly reset: () => void;
 }) {
+  const t = useTranslations('errors.boundary');
+  const verificationAgence = error.message?.includes(MARQUEUR_AGENCE) ?? false;
+
   useEffect(() => {
     console.error('[dashboard] erreur non rattrapée', error);
   }, [error]);
@@ -33,15 +38,16 @@ export default function DashboardError({
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8 text-center">
       <AlertTriangle className="size-10 text-app-accent" aria-hidden />
-      <h1 className="text-xl font-semibold text-app-ink">Cette page n’a pas pu être vérifiée</h1>
+      <h1 className="text-xl font-semibold text-app-ink">
+        {verificationAgence ? t('agencyTitle') : t('title')}
+      </h1>
       <p className="max-w-md text-sm text-app-ink-muted">
-        Nous n’avons pas réussi à joindre le serveur pour confirmer les accès de votre agence.
-        Ce n’est pas un changement de votre formule — réessayez dans un instant.
+        {verificationAgence ? t('agencyBody') : t('body')}
       </p>
       {error.digest && (
-        <p className="text-xs text-app-ink-muted">Référence technique : {error.digest}</p>
+        <p className="text-xs text-app-ink-muted">{t('reference', { digest: error.digest })}</p>
       )}
-      <Button onClick={reset}>Réessayer</Button>
+      <Button onClick={reset}>{t('retry')}</Button>
     </div>
   );
 }

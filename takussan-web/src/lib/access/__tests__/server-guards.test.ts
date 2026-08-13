@@ -35,6 +35,7 @@ vi.mock('@/lib/queries/agencies', () => ({
 
 const { ensureStandardAgencyOrRedirect } = await import('../server-guards');
 const { ApiError } = await import('@/lib/api');
+const { MARQUEUR_AGENCE } = await import('../errors');
 
 const utilisateur = (agencyId: number | null) =>
   ({ id: 1, agency_id: agencyId, roles: ['agency_admin'] }) as never;
@@ -84,14 +85,17 @@ describe('ensureStandardAgencyOrRedirect', () => {
     // déclassement de forfait.
     getToken.mockResolvedValue('tok');
     fetchAgency.mockRejectedValue(new ApiError(503, { message: 'Service Unavailable' }));
-    await expect(ensureStandardAgencyOrRedirect(utilisateur(7))).rejects.toThrow(ApiError);
+    // L'erreur relancée porte le MARQUEUR : c'est lui qui permet à `(dashboard)/error.tsx` de
+    // distinguer ce cas de tous les autres qu'elle attrape, et de ne pas expliquer un bug de
+    // rendu par les accès de l'agence.
+    await expect(ensureStandardAgencyOrRedirect(utilisateur(7))).rejects.toThrow(MARQUEUR_AGENCE);
     expect(redirect).not.toHaveBeenCalled();
   });
 
   it('LÈVE aussi sur une erreur réseau — l’absence de réponse n’est pas une réponse', async () => {
     getToken.mockResolvedValue('tok');
     fetchAgency.mockRejectedValue(new TypeError('fetch failed'));
-    await expect(ensureStandardAgencyOrRedirect(utilisateur(7))).rejects.toThrow(TypeError);
+    await expect(ensureStandardAgencyOrRedirect(utilisateur(7))).rejects.toThrow(MARQUEUR_AGENCE);
     expect(redirect).not.toHaveBeenCalled();
   });
 

@@ -163,7 +163,18 @@ jobs:
         # commit. *Corriger un chemin ne dispense pas de vérifier ce qu'on a fait à l'autre.*
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.branch || github.sha }}
+          # UNE seule source pour cette valeur : `env.DEPLOY_BRANCH` sur un dispatch, `github.sha`
+          # sur un push. Les deux replis étaient auparavant écrits séparément — `inputs.branch ||
+          # 'master'` pour la garde et le déploiement serveur, `inputs.branch || github.sha` ici.
+          # Si `inputs.branch` valait un jour la chaîne vide, la garde validait et confirmait
+          # `master` pendant que le runner récupérait la branche du dispatch, dont le SHA partait
+          # ensuite au serveur : le run affichait `master` et déployait autre chose, en
+          # contredisant la garantie « même commit » établie dix lignes plus haut.
+          #
+          # `DEPLOY_BRANCH` est déjà validé par l'étape précédente ; le push, lui, garde son
+          # commit exact. *Deux replis écrits séparément pour une même valeur finiront par
+          # diverger — c'est leur seule liberté.*
+          ref: ${{ github.event_name == 'workflow_dispatch' && env.DEPLOY_BRANCH || github.sha }}
 
       - name: Le commit effectivement récupéré
         id: sha
