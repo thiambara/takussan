@@ -661,7 +661,7 @@ API_PID=$!
 # --tries=1 : chaque job porte son propre `tries`/`backoff`. Laisser le worker
 # retenter par-dessus doublerait silencieusement les tentatives — et un rappel de
 # paiement envoyé deux fois est un défaut visible par l'utilisateur final.
-(cd "$API" && exec php artisan queue:work --queue=notifications-urgent,default,media,reconciliation --tries=1) &
+(cd "$API" && exec php artisan queue:work --queue=notifications-urgent,media,reconciliation,default --tries=1) &
 QUEUE_PID=$!
 (cd "$API" && exec php artisan schedule:work) &
 SCHEDULE_PID=$!

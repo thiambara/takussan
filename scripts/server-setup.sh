@@ -379,10 +379,25 @@ setup_queue_service() {
     # Toute nouvelle file nommée doit être AJOUTÉE ICI — `scripts/check-queues.mjs` le
     # vérifie désormais, sur les deux consommateurs (cette unité et `dev.sh`).
     #
-    # L'ordre est une PRIORITÉ STRICTE : `default` n'est servi que si `notifications-urgent`
-    # est vide. C'est voulu — un seul site alimente la file urgente, son volume ne peut donc
-    # pas affamer les autres. Si elle devenait volumineuse, la réponse serait de lui donner
-    # son propre worker, pas de la déclasser.
+    # L'ordre est une PRIORITÉ STRICTE, et il a été CORRIGÉ. `Worker::getNextJob()` parcourt
+    # les files dans l'ordre et rend le PREMIER job trouvé : une file n'est servie que si
+    # toutes celles qui la précèdent sont vides à cet instant.
+    #
+    # L'ordre précédent plaçait `default` en deuxième position — devant `media` et
+    # `reconciliation`. Or `default` est le fourre-tout où atterrit tout `dispatch()` sans
+    # `onQueue()`, donc l'essentiel du volume, et il n'y a qu'un worker. Un import massif de
+    # biens ou une salve de digests remplissait `default` pour une heure ; pendant cette heure,
+    # les photos fraîchement téléversées restaient sans filigrane et `MatchBankStatementJob` ne
+    # tournait pas — sans la moindre erreur nulle part.
+    #
+    # Les deux files que ce correctif existe pour servir étaient donc placées DERRIÈRE la plus
+    # chargée. Le fourre-tout passe en dernier : `notifications-urgent` (un seul site, volume
+    # négligeable), puis `media` et `reconciliation` (volumes bornés, latence qui compte), puis
+    # `default`. Si l'une des trois premières devenait volumineuse, la réponse serait de lui
+    # donner son propre worker, pas de la déclasser.
+    #
+    # *Une liste de priorités où le fourre-tout n'est pas dernier n'est pas une priorité :
+    # c'est une file d'attente unique avec des étiquettes.*
     cat > "${service_file}" <<UNIT
 [Unit]
 Description=Takussan Queue Worker (${name})
@@ -393,7 +408,7 @@ User=${DEPLOY_USER}
 Group=${WEB_GROUP}
 WorkingDirectory=${app_dir}/current
 # L'ordre des files EST la priorité. Voir le commentaire du script pour le pourquoi.
-ExecStart=/usr/bin/php artisan queue:work --queue=notifications-urgent,default,media,reconciliation --sleep=3 --tries=3 --max-time=3600
+ExecStart=/usr/bin/php artisan queue:work --queue=notifications-urgent,media,reconciliation,default --sleep=3 --tries=3 --max-time=3600
 Restart=always
 RestartSec=5
 StandardOutput=append:${app_dir}/shared/storage/logs/queue-worker.log
