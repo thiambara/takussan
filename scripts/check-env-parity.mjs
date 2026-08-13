@@ -65,25 +65,56 @@ for (const [nom, chemin] of FICHIERS) {
 
 const [[nomA, a], [nomB, b]] = lus;
 
-const manquantesDansB = [...a.keys()].filter((k) => !b.has(k));
-const manquantesDansA = [...b.keys()].filter((k) => !a.has(k));
+/**
+ * Une clé COMMENTÉE ne compte que si l'autre fichier la connaît aussi.
+ *
+ * L'intention d'origine tient : `# CACHE_PREFIX=` d'un côté et `CACHE_PREFIX=` de l'autre, c'est
+ * la même clé laissée à son défaut, et commenter une clé ne doit pas suffire à la faire sortir
+ * du contrat en silence. Cette lecture-là est préservée : dès que l'autre fichier connaît le
+ * nom, la comparaison a lieu comme avant.
+ *
+ * Ce qui ne tenait pas : une ligne commentée qui n'existe NULLE PART ailleurs devenait une clé
+ * de plein droit. Or les deux fichiers que ce dépôt compare sont abondamment annotés en prose,
+ * et une note aussi banale que `# MEILI_MASTER_KEY=masterKey (cf. docker-compose.yml)` — un nom
+ * qui n'est pas une clé applicative et qui ne figure dans aucun des deux — faisait rougir Repo
+ * CI sur une modification purement documentaire. Le correctif attendu était alors de retirer le
+ * commentaire : la garde enseignait à moins documenter.
+ *
+ * *Un contrat se déduit de ce que les DEUX parties déclarent ; ce qu'une seule mentionne en
+ * passant est une note, pas une clause.*
+ */
+function elaguer(propre, autre) {
+  const out = new Map();
+  for (const [k, v] of propre) {
+    if (v.commentee && !autre.has(k)) continue;
+    out.set(k, v);
+  }
+  return out;
+}
+const A = elaguer(a, b);
+const B = elaguer(b, a);
+
+const manquantesDansB = [...A.keys()].filter((k) => !B.has(k));
+const manquantesDansA = [...B.keys()].filter((k) => !A.has(k));
 
 if (REPORT) {
-  console.log(`${nomA} : ${a.size} clés · ${nomB} : ${b.size} clés`);
-  const commun = [...a.keys()].filter((k) => b.has(k)).length;
+  console.log(`${nomA} : ${A.size} clés · ${nomB} : ${B.size} clés`);
+  const commun = [...A.keys()].filter((k) => B.has(k)).length;
   console.log(`communes : ${commun}`);
+  const notes = (a.size - A.size) + (b.size - B.size);
+  if (notes) console.log(`(${notes} ligne(s) commentée(s) traitée(s) comme note, non comme clé)`);
 }
 
 const erreurs = [];
 for (const k of manquantesDansB) {
-  erreurs.push(`${k} : déclarée dans ${nomA} (ligne ${a.get(k).ligne}), absente de ${nomB}`);
+  erreurs.push(`${k} : déclarée dans ${nomA} (ligne ${A.get(k).ligne}), absente de ${nomB}`);
 }
 for (const k of manquantesDansA) {
-  erreurs.push(`${k} : déclarée dans ${nomB} (ligne ${b.get(k).ligne}), absente de ${nomA}`);
+  erreurs.push(`${k} : déclarée dans ${nomB} (ligne ${B.get(k).ligne}), absente de ${nomA}`);
 }
 
 if (erreurs.length === 0) {
-  console.log(`✓ parité des clés d'environnement : ${a.size} clés des deux côtés.`);
+  console.log(`✓ parité des clés d'environnement : ${A.size} clés des deux côtés.`);
   process.exit(0);
 }
 

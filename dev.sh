@@ -81,7 +81,12 @@ manquants=0
 # `lsof` sert à `port_libre` : sans lui, tout port est déclaré libre et l'API se lie
 # dans le vide. `nc` sert aux sondes. Les deux sont des prérequis réels, pas des
 # commodités — leur absence produit un diagnostic FAUX, pas un diagnostic manquant.
-for outil in docker php composer node nc lsof; do
+# `curl` est dans la liste : il sert aux DEUX sondes Meilisearch (`/health` et `/keys`). Son
+# absence — un conteneur de développement minimal, une image slim — fait sortir `curl` en 127,
+# et la sonde imprime « Meilisearch NE RÉPOND PAS » sur une instance parfaitement saine. C'est
+# le mode d'échec exact que le commentaire ci-dessous nomme, et il manquait à la liste qu'il
+# justifie : *un prérequis oublié ne produit pas un diagnostic manquant, il en produit un FAUX.*
+for outil in docker php composer node nc lsof curl; do
   command -v "$outil" >/dev/null 2>&1 || { ko "$outil est introuvable dans le PATH"; manquants=1; }
 done
 if ! docker info >/dev/null 2>&1; then
@@ -509,16 +514,30 @@ else
   # donc pas de seed, en silence. Vérifié.
   #
   # *Nettoyer une valeur douteuse, c'est fabriquer une valeur sûre à partir de rien.* On lit
-  # donc la ligne telle quelle, et tout ce qui n'est pas `^[0-9]+$` est traité comme « je ne
-  # sais pas » — donc comme « vierge », le côté où l'erreur coûte des minutes et non une
-  # session de débogage sur une base vide.
+  # donc la ligne telle quelle, et tout ce qui n'est pas `^[0-9]+$` est refusé.
+  #
+  # ⚠⚠ MAIS LE DOUTE NE MÈNE PAS AU SEED ICI, et la version précédente l'y menait — en se
+  # réclamant du « fail-closed », ce qui était une erreur de raisonnement, pas de code.
+  #
+  # On n'atteint cette branche QUE si `migrate:status` a réussi : le schéma existe. Semer n'y
+  # est donc pas l'option prudente, c'est l'option DESTRUCTRICE — 38 seeders rejoués sur des
+  # données vivantes dupliquent ~450 biens, ou avortent à mi-course sur l'unicité d'un e-mail
+  # déjà semé, laissant la base à moitié peuplée. Le commentaire précédent chiffrait ce risque
+  # à « quelques minutes » ; c'est faux, et c'est ce chiffrage qui rendait le choix évident
+  # dans le mauvais sens.
+  #
+  # Le fail-closed juste : **schéma absent → semer** (rien à détruire) ; **schéma présent et
+  # compte illisible → NE PAS semer, et le dire fort**. La direction prudente n'est pas la même
+  # des deux côtés de cette condition — c'est précisément pourquoi elle se décide ici, et non
+  # une fois pour toutes.
   sortie="$( (cd "$API" && php artisan tinker --execute='echo \App\Models\User::count();' 2>&1) || true )"
   compte="$(printf '%s' "$sortie" | tail -1 | tr -d '[:space:]')"
   case "$compte" in
     ''|*[!0-9]*)
-      avert "compte d'utilisateurs illisible — on suppose la base vierge et on sème."
-      [ -n "$compte" ] && avert "  (dernière ligne de tinker : ${compte:0:60})"
-      BASE_VIERGE=1 ;;
+      avert "COMPTE D'UTILISATEURS ILLISIBLE sur une base déjà migrée — aucun seed ne sera lancé."
+      avert "  Semer par défaut ici rejouerait 38 seeders sur des données peut-être vivantes."
+      [ -n "$compte" ] && avert "  Dernière ligne de tinker : ${compte:0:70}"
+      avert "  Si la base est bien vide : 'php artisan migrate:fresh --seed' à la main." ;;
     *) [ "$compte" -eq 0 ] && BASE_VIERGE=1 ;;
   esac
 fi
