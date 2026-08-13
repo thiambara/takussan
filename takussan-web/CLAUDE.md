@@ -188,7 +188,7 @@ deep-mergé sur `fr`** pour un repli gracieux. Fuseau figé à `Africa/Dakar`.
 ## Tests & gardes
 
 vitest 4 + jsdom + @testing-library, alias `@` → `./src`, setup global qui polyfille
-`ResizeObserver` et `matchMedia` (`vitest.setup.ts`). **143 fichiers, 807 tests, tous verts.**
+`ResizeObserver` et `matchMedia` (`vitest.setup.ts`). **~143 fichiers, ~810 tests, tous verts** (arrondi : cf. la note du `CLAUDE.md` racine).
 
 ```bash
 npm run lint          # ⚠ `npm run build` ne lance PAS ESLint sous Next 16

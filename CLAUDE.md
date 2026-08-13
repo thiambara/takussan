@@ -19,14 +19,24 @@ qui a lu ce fichier avant d'écrire du code a commencé par une contre-vérité 
 grandeur. *Un document d'entrée qui ment coûte plus cher que l'absence de document : on ne s'en
 méfie pas.*
 
-Ce qui existe réellement, compté :
+Ce qui existe réellement — **ordres de grandeur, mesurés le 2026-08-12**, et non des comptes à
+tenir à jour :
 
 | | `takussan-api/` | `takussan-web/` |
 |---|---|---|
-| Code | 769 fichiers PHP · 62 033 lignes dans `app/` | 875 fichiers `.ts`/`.tsx` dans `src/` |
-| Surface | 535 routes sur 43 fichiers · 161 contrôleurs · 70 modèles | 111 pages · 31 route handlers BFF · 20 modules de server actions |
+| Code | ~770 fichiers PHP · ~62 000 lignes dans `app/` | ~870 fichiers `.ts`/`.tsx` dans `src/` |
+| Surface | ~535 routes · ~160 contrôleurs · 70 modèles | ~110 pages · ~30 route handlers BFF · 20 modules de server actions |
 | Données | 124 migrations · 38 factories · 11 seeders | — |
-| Tests | 307 fichiers · **2056 tests verts** | 143 fichiers · **807 tests verts** |
+| Tests | ~307 fichiers · **~2050 tests verts** | ~143 fichiers · **~810 tests verts** |
+
+> Les chiffres sont **arrondis délibérément**. La version précédente annonçait « 875 fichiers
+> `.ts`/`.tsx` » — faux dans le commit qui l'écrivait, puisque ce même commit en supprimait sept.
+> Ce tableau existe pour établir un ORDRE DE GRANDEUR (« ce dépôt n'est pas un squelette »), et
+> une précision à l'unité sur une valeur qui bouge à chaque commit ne sert pas cet objet : elle
+> ne fait qu'offrir une prise à l'erreur. Le compte exact se prend à la source :
+> `php artisan test`, `npm run test`, `find … | wc -l`.
+>
+> *Une précision qu'on ne peut pas tenir n'est pas de la rigueur, c'est une dette de rigueur.*
 
 **Le backlog est vidé, pas en cours** — l'écrasante majorité des tickets est `done`, et la poignée
 qui reste ouverte tient sur un écran. **Le compte exact ne s'écrit pas ici** :
@@ -44,7 +54,7 @@ agent qui suit la convention « prendre le premier ticket de Todo » sur une lis
 sur la mauvaise tâche sans jamais l'apprendre.
 
 **Ce qui est vert, et depuis quand.** Au 2026-08-12, après le chantier de reprise : backend Pint
-propre et 2056 tests verts ; frontend ESLint 0 erreur, `tsc --noEmit` propre, 807 tests verts. Les
+propre et la suite entière verte ; frontend ESLint 0 erreur, `tsc --noEmit` propre, suite verte. Les
 trois régressions qui vivaient sur `dev` — une violation Pint qui **bloquait toute la CI depuis le
 2026-06-29** (Pint tourne *avant* les tests : la suite entière n'a pas été exécutée en CI pendant six
 semaines), une erreur TypeScript et une erreur ESLint bloquante côté front — sont corrigées.
@@ -65,7 +75,7 @@ depuis le code. **La lire avant de planifier quoi que ce soit.**
 `takussan-api/` :
 
 ```bash
-php artisan test                    # 2056 tests — exige une instance Meilisearch (cf. D-08)
+php artisan test                    # ~2050 tests — exige une instance Meilisearch (cf. D-08)
 php artisan test --filter=Foo
 ./vendor/bin/pint                   # ← AVANT CHAQUE COMMIT. Rien ne l'impose : c'est une
                                     #   violation d'un seul fichier qui a cassé la CI six semaines.

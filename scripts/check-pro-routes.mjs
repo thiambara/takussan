@@ -159,6 +159,29 @@ function sansCommentaires(src) {
 }
 
 /**
+ * NORMALISE les écritures équivalentes avant de chercher un motif.
+ *
+ * Quinze passes de revue ont montré que j'ajoutais une orthographe à la fois : `&&` puis
+ * `return;` puis le helper puis la fenêtre. Chaque correctif fermait UNE façon d'écrire le même
+ * défaut, et la suivante rouvrait la porte. `if (agency !== null && agency.kind !== 'standard')`
+ * est exactement aussi fail-open que `if (agency && …)` — `fetchAgency` avale en `null`, donc
+ * une API en panne affiche l'écran réservé — et n'était pas reconnu.
+ *
+ * On réécrit donc les formes équivalentes vers UNE forme canonique, et les motifs ne travaillent
+ * plus que sur celle-là. Ajouter une écriture se fait ici, une fois, pour tous les motifs.
+ *
+ * *Un détecteur qui énumère les orthographes court après son sujet ; il faut ramener le sujet à
+ * une forme, puis détecter la forme.*
+ */
+function canonique(src) {
+  return src
+    // `x !== null`, `x != null`, `x !== undefined` … sont des tests de véracité déguisés.
+    .replace(/(\w+)\s*!==?\s*(?:null|undefined)\s*&&/g, '$1 &&')
+    // `return` nu, avec ou sans point-virgule, avec ou sans accolade fermante sur la ligne.
+    .replace(/\breturn\s*(?=[};]|$)/gm, 'return;');
+}
+
+/**
  * Écarts CONNUS et assumés, chacun avec son ticket.
  *
  * Une allowlist est une dette, pas une exemption : elle rend l'écart visible et datable au lieu
@@ -217,7 +240,7 @@ for (const route of routes) {
     continue;
   }
   const brut = readFileSync(p, 'utf8');
-  const src = sansCommentaires(brut);
+  const src = canonique(sansCommentaires(brut));
   const trouvee = GARDES.find((g) => g.motif.test(src));
   // La règle n°3 plus bas relit la page pour décider entre « nue » et « je ne reconnais pas » :
   // elle reçoit le texte BRUT, parce qu'un commentaire est justement l'indice qu'il existe une
@@ -232,7 +255,7 @@ for (const route of routes) {
   // On suit donc dans le helper, et on juge les DEUX sources.
   const aExaminer = [[p.slice(ROOT.length + 1), src]];
   if (/ensureStandardAgencyOrRedirect\s*\(/.test(src) && existsSync(HELPER)) {
-    aExaminer.push([HELPER.slice(ROOT.length + 1), sansCommentaires(readFileSync(HELPER, 'utf8'))]);
+    aExaminer.push([HELPER.slice(ROOT.length + 1), canonique(sansCommentaires(readFileSync(HELPER, 'utf8')))]);
   }
 
   let coupable = null;
