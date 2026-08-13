@@ -38,14 +38,24 @@ export default async function Page() {
   if (!agencyId) redirect('/app');
 
   const [agency, listing] = await Promise.all([
-    resolveAgencyOrNull(token, agencyId, 'settings/agency/upgrade'),
+    resolveAgencyOrNull(token, agencyId, 'settings/agency/upgrade', 'decision'),
     fetchAgencyUpgradeRequests(token, agencyId),
   ]);
 
-  // `affichage` : c'est un formulaire de DEMANDE d'évolution, `kind` n'y garde aucun accès — il
-  // décide seulement si l'on affiche « vous y êtes déjà » ou le formulaire. Sur un refus
-  // définitif (401/403/404) on renvoie ; sur une panne, `resolveAgencyOrNull` a déjà rendu la
-  // main sans rediriger, et l'utilisateur voit le formulaire — le backend re-valide.
+  // `decision`, et cette page est la seule des trois « non gardées » à le mériter.
+  //
+  // Le commentaire précédent affirmait que sur une panne « l'utilisateur voit le formulaire ».
+  // C'était faux : en `affichage`, `resolveAgencyOrNull` rend `null` AUSSI pour le verdict
+  // `explique` (429, 5xx, réseau), et la ligne d'en dessous renvoyait alors vers `/app` — le
+  // déclassement apparent que tout ce travail existe pour supprimer, sur la page où la
+  // distinction compte le plus : celle où l'on vient DEMANDER un changement de formule.
+  //
+  // En `decision`, une panne mène à `/verification-indisponible` (« ce n'est pas un changement
+  // de votre formule ») et seuls 401/403/404 mènent à `/app`. Le `kind` ne garde toujours aucun
+  // accès ici — il choisit le contenu — mais ce qu'on RACONTE à l'utilisateur, si.
+  //
+  // *Quand le commentaire et le code divergent, vérifier lequel des deux avait raison ; ici,
+  // c'était le commentaire.*
   if (!agency) redirect('/app');
 
   const t = await getTranslations('agency.upgrade.page');

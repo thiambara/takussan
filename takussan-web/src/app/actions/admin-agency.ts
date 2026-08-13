@@ -68,7 +68,7 @@ export async function updateAgencyAction(
   const auth = await requireToken();
   if (!auth.ok) return auth.result;
   try {
-    const data = await updateAgency(auth.token, agencyId, payload);
+    const data = await updateAgency(auth.token, agencyId, payload, await getActiveProfileId());
     revalidatePath('/admin/agency');
     return { ok: true, data };
   } catch (e) {
