@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
-import { getToken } from '@/lib/session';
+import { getActiveProfileId, getToken } from '@/lib/session';
 import { fetchAgency } from '@/lib/queries/agencies';
 import { fetchOwners } from '@/lib/queries/owners';
 import { OwnersList } from '@/components/owners/OwnersList';
@@ -40,7 +40,7 @@ export default async function Page() {
   }
 
   const [agency, owners] = await Promise.all([
-    fetchAgency(token, agencyId),
+    fetchAgency(token, agencyId, await getActiveProfileId()),
     fetchOwners(token, { agencyId }),
   ]);
 

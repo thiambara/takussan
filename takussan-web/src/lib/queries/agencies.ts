@@ -77,6 +77,7 @@ export async function uploadAgencyLogo(
   token: string,
   agencyId: number,
   file: File,
+  activeProfileId?: string,
 ): Promise<Agency> {
   const form = new FormData();
   form.append('file', file);
@@ -89,6 +90,8 @@ export async function uploadAgencyLogo(
     token,
     formData: true,
   });
-  // Refresh the agency so we get the new logo_url.
-  return fetchAgency(token, agencyId);
+  // Refresh the agency so we get the new logo_url — avec le MÊME contexte de profil que toute
+  // autre lecture d'agence, sans quoi un compte multi-agences relit un 404 après un upload
+  // réussi.
+  return fetchAgency(token, agencyId, activeProfileId);
 }

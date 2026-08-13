@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
-import { getToken } from '@/lib/session';
+import { getActiveProfileId, getToken } from '@/lib/session';
 import { fetchAgency } from '@/lib/queries/agencies';
 import { fetchAgencyUpgradeRequests } from '@/lib/queries/agency-upgrade';
 import { UpgradeRequestForm } from '@/components/agency/UpgradeRequestForm';
@@ -38,7 +38,7 @@ export default async function Page() {
   if (!agencyId) redirect('/app');
 
   const [agency, listing] = await Promise.all([
-    fetchAgency(token, agencyId),
+    fetchAgency(token, agencyId, await getActiveProfileId()),
     fetchAgencyUpgradeRequests(token, agencyId),
   ]);
 

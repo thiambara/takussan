@@ -221,7 +221,16 @@ if (!existsSync(SOURCE)) {
   process.exit(1);
 }
 
-const src = readFileSync(SOURCE, 'utf8');
+// ⚠ `sansCommentaires` s'applique AUSSI à l'entrée de cette garde, et pas seulement aux pages
+// qu'elle juge. Le bloc `PRO_ROUTES` était lu brut : une route mise en commentaire dans le
+// littéral — `// '/app/foo',` — restait collectée comme vivante. Selon que sa page existe
+// encore, la garde échouait sur « aucune page ne la sert », ou certifiait comme gardée une
+// route que plus personne ne cadenasse.
+//
+// C'est le défaut que le docblock de `sansCommentaires` décrit lui-même, appliqué partout sauf
+// à ce que cette garde lit d'abord. *Une leçon qu'on applique à ce qu'on juge et pas à ce qu'on
+// lit ne protège que la moitié du chemin.*
+const src = sansCommentaires(readFileSync(SOURCE, 'utf8'));
 const bloc = src.match(/PRO_ROUTES[^=]*=\s*new Set\(\[([\s\S]*?)\]\)/);
 if (!bloc) {
   console.error(`✗ impossible de lire \`PRO_ROUTES\` dans ${SOURCE.slice(ROOT.length + 1)}.`);

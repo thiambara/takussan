@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 
 import { ApiError } from '@/lib/api';
-import { getToken } from '@/lib/session';
+import { getActiveProfileId, getToken } from '@/lib/session';
 import {
   fetchAgency,
   updateAgency,
@@ -54,7 +54,7 @@ export async function fetchAgencyAction(
   const auth = await requireToken();
   if (!auth.ok) return auth.result;
   try {
-    const data = await fetchAgency(auth.token, agencyId);
+    const data = await fetchAgency(auth.token, agencyId, await getActiveProfileId());
     return { ok: true, data };
   } catch (e) {
     return { ok: false, ...mapError(e) };
@@ -92,7 +92,7 @@ export async function uploadAgencyLogoAction(
     return { ok: false, message: validationError };
   }
   try {
-    const data = await uploadAgencyLogo(auth.token, agencyId, file);
+    const data = await uploadAgencyLogo(auth.token, agencyId, file, await getActiveProfileId());
     revalidatePath('/admin/agency');
     return { ok: true, data };
   } catch (e) {

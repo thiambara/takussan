@@ -40,19 +40,23 @@ jobs:
 
     steps:
       - name: Checkout code
-        # `ref: preview` EXPLICITE — ce workflow ne déploie que `preview`, et le `checkout` doit
-        # le dire.
+        # EXACTEMENT la forme de `deploy.yml`, et il a fallu deux essais pour y arriver.
         #
-        # Sans lui, un `workflow_dispatch` récupère la branche depuis laquelle il est déclenché.
-        # Tant que le serveur clonait `preview` par lui-même, cela n'avait d'effet que sur le
-        # script de déploiement embarqué. Depuis que l'étape suivante lit `git rev-parse HEAD`
-        # pour l'imposer au serveur, un dispatch lancé depuis `dev` déploierait le CODE DE `dev`
-        # sur la préproduction, pendant que chaque ligne de journal annonce « branch preview ».
+        #  · sans `ref`, un `workflow_dispatch` récupère la branche d'où il est lancé — depuis
+        #    que l'étape suivante impose `git rev-parse HEAD` au serveur, un dispatch depuis
+        #    `dev` déploierait le CODE DE `dev` sur la préproduction, en annonçant « preview » ;
+        #  · avec `ref: preview` inconditionnel — le premier correctif — c'est le PUSH qui perd
+        #    son épinglage. `checkout` vise `github.sha` par défaut sur un push, c'est-à-dire le
+        #    commit qui a déclenché le run. Deux poussées rapprochées, `cancel-in-progress:
+        #    false` : le run du commit A récupère une tête contenant déjà B, épingle B, déploie
+        #    B, et GitHub affiche un déploiement vert en face de A.
         #
-        # *Une valeur qu'on se met à propager doit d'abord être celle qu'on croit.*
+        # `deploy.yml` porte cette forme depuis trois revues, avec la même justification. Je l'ai
+        # réintroduite ici sous sa première moitié. *Copier une correction sans copier la raison
+        # qui l'a produite, c'est copier la version qu'on avait avant de comprendre.*
         uses: actions/checkout@v4
         with:
-          ref: preview
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'preview' || github.sha }}
 
       - name: Le commit effectivement récupéré
         id: sha
