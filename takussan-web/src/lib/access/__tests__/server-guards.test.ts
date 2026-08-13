@@ -22,7 +22,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const redirect = vi.fn((url: string) => {
   // `next/navigation` interrompt le rendu en levant : le reproduire évite qu'un `redirect`
   // suivi de code mort passe pour un refus alors qu'il n'en est pas un.
-  throw new Error(`NEXT_REDIRECT:${url}`);
+  //
+  // ⚠ Le `digest` est ESSENTIEL, et il manquait. Next ne marque son erreur de redirection que
+  // par cette propriété — jamais par le message. Sans elle, le laissez-passer de
+  // `server-guards.ts` (`digest.startsWith('NEXT_REDIRECT')`) n'était jamais exercé par la
+  // suite : le cas « corps 200 sans data » ne passait que parce que `classer()` rendait
+  // incidemment « bug » pour l'erreur du mock et la relançait — exactement la coïncidence sur
+  // laquelle le commentaire du code dit ne pas vouloir compter. Élargir `classer()` aurait
+  // avalé la redirection, en laissant ce test vert.
+  //
+  // *Un mock qui ne porte pas le marqueur du vrai laisse le code qui le lit sans témoin.*
+  const e = new Error(`NEXT_REDIRECT:${url}`) as Error & { digest?: string };
+  e.digest = `NEXT_REDIRECT;replace;${url};307;`;
+  throw e;
 });
 const getToken = vi.fn<() => Promise<string | undefined>>();
 const fetchAgency = vi.fn();
@@ -33,7 +45,7 @@ vi.mock('@/lib/queries/agencies', () => ({
   fetchAgency: (...a: unknown[]) => fetchAgency(...a),
 }));
 
-const { ensureStandardAgencyOrRedirect } = await import('../server-guards');
+const { ensureStandardAgencyOrRedirect, resolveAgencyOrNull } = await import('../server-guards');
 const { ApiError } = await import('@/lib/api');
 
 const utilisateur = (agencyId: number | null) =>
@@ -149,6 +161,24 @@ describe('ensureStandardAgencyOrRedirect', () => {
     fetchAgency.mockResolvedValue({ id: 7, kind: 'individual' });
     expect(await refus(utilisateur(7))).toBe('/app');
     expect(fetchAgency).not.toHaveBeenCalled();
+  });
+
+  it('AFFICHAGE : un bug rend `null`, il ne fait pas tomber la page', async () => {
+    // Le contrat du paramètre `usage` : « faire tomber toute la page en erreur pour un cadenas
+    // serait pire que le cadenas ». Le `throw` du verdict « bug » était placé AVANT ce test, si
+    // bien qu'un corps non-JSON — `apiRequest` rend alors `null`, et `res.data` lève un
+    // `TypeError` — faisait rejeter `app/layout.tsx` et `admin/layout.tsx` : toute la coquille
+    // `/app/*` et `/admin/*` basculait sur la frontière d'erreur, là où l'ancien code perdait
+    // seulement un cadenas.
+    fetchAgency.mockRejectedValue(new TypeError("Cannot read properties of null (reading 'data')"));
+    await expect(resolveAgencyOrNull('tok', 7, 'test', 'affichage')).resolves.toBeNull();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('DÉCISION : le même bug remonte — deux contrats, deux sorties', async () => {
+    const bug = new TypeError("Cannot read properties of null (reading 'data')");
+    fetchAgency.mockRejectedValue(bug);
+    await expect(resolveAgencyOrNull('tok', 7, 'test', 'decision')).rejects.toThrow(bug);
   });
 
   it('laisse passer sans `agency_id` — seule sortie sans décision, et elle est voulue', async () => {

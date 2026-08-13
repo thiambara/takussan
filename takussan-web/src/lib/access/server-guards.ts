@@ -120,7 +120,24 @@ export async function resolveAgencyOrNull(
       e instanceof Error ? e.message : e,
     );
     // Un bug remonte comme un bug — avec sa pile, son `digest`, et sans explication inventée.
-    if (verdict === 'bug') throw e;
+    //
+    // ⚠ MAIS SEULEMENT pour un site de DÉCISION. Ce `throw` était placé avant le test sur
+    // `usage`, ce qui contredisait frontalement le contrat écrit deux paragraphes plus haut :
+    // « faire tomber toute la page en erreur pour un cadenas serait pire que le cadenas ».
+    //
+    // Le chemin est concret : `apiRequest` fait `response.json().catch(() => null)`, donc un 204
+    // ou un corps non-JSON — une page d'interstitiel de proxy, une passerelle qui rend du vide —
+    // donne `data === null`, et `fetchAgency` lève un `TypeError` sur `res.data`. Verdict
+    // « bug », relancé depuis `app/layout.tsx` (dans un `Promise.all`, donc tout le layout
+    // rejette) et depuis `admin/layout.tsx`. Toute la coquille `/app/*` et `/admin/*` basculait
+    // sur la frontière d'erreur, là où l'ancien `.catch(() => null)` perdait juste un cadenas.
+    //
+    // *Un paramètre qui distingue deux contrats doit être consulté sur CHAQUE sortie, pas sur
+    // celles auxquelles on pense.*
+    if (verdict === 'bug') {
+      if (usage === 'decision') throw e;
+      return null;
+    }
     // On REDIRIGE vers une page dédiée — on ne relance plus une erreur marquée.
     //
     // La version précédente levait une `Error` portant un marqueur, que `(dashboard)/error.tsx`
