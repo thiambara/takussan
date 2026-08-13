@@ -307,6 +307,20 @@ elif [ "$MODE" = "doctor" ] && [ "$VISE_DOCKER" = "1" ]; then
       esac
     done
   fi
+elif [ ! -f "$API/.env" ]; then
+  # PAS de `ok` ici : il n'y a pas de `.env` à décrire.
+  #
+  # Cette branche affichait un ✓ vert — « takussan-api/.env vise des services HORS de ce
+  # docker-compose (DB sur :?) » — deux lignes sous le ✗ rouge qui venait d'annoncer le fichier
+  # absent. Le `:?` était le seul aveu, au milieu d'une affirmation présentée comme un constat.
+  # Le cas se produit exactement sur `./dev.sh doctor` d'un clone neuf, c'est-à-dire dans le
+  # scénario que plusieurs commentaires de ce fichier citent comme motif d'existence.
+  #
+  # *Une valeur par défaut (`${x:-?}`) suffit à faire passer une phrase, jamais à la rendre
+  # vraie : elle habille l'ignorance en mesure.*
+  bold "▸ Services"
+  ko "aucun takussan-api/.env — rien à sonder, et rien à en déduire."
+  echo "     './dev.sh' le créera depuis .env.docker (et visera alors les conteneurs du dépôt)." >&2
 else
   bold "▸ Services"
   ok "takussan-api/.env vise des services HORS de ce docker-compose (DB sur :${DB_PORT_ENV:-?})"
@@ -337,6 +351,14 @@ sonde_tcp() {
 }
 
 echo
+# Toute cette section lit `takussan-api/.env`. Sans lui, chaque sonde compare des chaînes vides
+# et rend un diagnostic sur un fichier qui n'existe pas — « MAIL_MAILER= » et le reste. On dit
+# donc ce qu'on ne peut pas mesurer, plutôt que de mesurer le vide.
+if [ ! -f "$API/.env" ]; then
+  bold "▸ Ce que takussan-api/.env déclare"
+  ko "fichier absent — aucune sonde n'est possible. Lance './dev.sh' pour le créer."
+  echo
+else
 bold "▸ Ce que takussan-api/.env déclare, et qui répond"
 DB_CONNECTION_ENV="$(env_get "$API/.env" DB_CONNECTION)"
 if [ "$DB_CONNECTION_ENV" = "sqlite" ]; then
@@ -404,6 +426,7 @@ if [ "$NB_INJOIGNABLES" -gt 0 ]; then
   avert "$NB_INJOIGNABLES service(s) déclaré(s) mais injoignable(s) — l'API va démarrer quand même,"
   avert "  et c'est la première requête qui les touche qui échouera."
 fi
+fi  # fin de « takussan-api/.env existe-t-il ? »
 
 if [ "$MODE" = "services" ]; then
   echo

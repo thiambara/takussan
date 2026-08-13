@@ -75,6 +75,28 @@ function frontmatter(txt) {
       else out[cle] = v.replace(/^["']|["']$/g, '');
       continue;
     }
+    // Une sous-clé INLINE — `  features: [docs/features.md#…]` — sous une clé imbriquée.
+    //
+    // Elle ne correspondait à AUCUNE des deux branches : ni au `^([a-z_]+):` du dessus (elle est
+    // indentée), ni au motif de liste en bloc juste en dessous. Elle tombait donc dans le vide,
+    // `_spec_paths` restait vide, et la vérification « chaque `spec_refs` pointe sur un fichier
+    // qui existe » ne vérifiait RIEN pour ces tickets — **26 des 270**. Prouvé par exécution :
+    // un `features: [docs/CE-FICHIER-NEXISTE-PAS.md]` rendait « ✓ backlog cohérent, 270 tickets
+    // vérifiés », sortie 0.
+    //
+    // C'est la garde que joue `repo-ci.yml`, et c'est elle que le filtre `docs/**` de ce même
+    // fichier invoque pour se justifier. Un pointeur mort écrit dans la forme inline arrivait
+    // donc sur `dev` au vert, par les deux chemins à la fois.
+    //
+    // *Un analyseur qui ne connaît qu'une des écritures d'un format ne mesure pas le format :
+    // il mesure l'habitude de celui qui a écrit les exemples.*
+    const sousInline = ligne.match(/^\s+([a-z_]+):\s*\[(.*)\]\s*$/);
+    if (sousInline) {
+      const valeurs = sousInline[2].split(',').map((x) => x.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+      if (cle === 'spec_refs') (out._spec_paths ||= []).push(...valeurs);
+      continue;
+    }
+
     const item = ligne.match(/^\s+-\s+(.*)$/);
     if (!item) continue;
     const valeur = item[1].trim().replace(/^["']|["']$/g, '');
