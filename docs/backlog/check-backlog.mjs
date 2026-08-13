@@ -249,7 +249,6 @@ if (!git) {
     // applicatif. Le second critère écarte les commits qui ne font que déplacer le ticket
     // lui-même d'une colonne à l'autre — sans lui, tout ticket serait déclaré livré par le
     // commit qui l'a écrit.
-    const CHEMIN = /^[\w.-]+\//;
     const surDev = new Set();
     for (const bloc of journal.split('\x01')) {
       if (!bloc.trim()) continue;

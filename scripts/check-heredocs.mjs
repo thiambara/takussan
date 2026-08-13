@@ -27,15 +27,33 @@
  *   node scripts/check-heredocs.mjs            # garde, sort en 1 au moindre écart
  *   node scripts/check-heredocs.mjs --report   # + l'inventaire des heredocs vus
  */
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REPORT = process.argv.includes('--report');
 
-/** Tout script shell du dépôt qui écrit des fichiers. */
-const FICHIERS = ['scripts/server-setup.sh', 'scripts/deploy.sh', 'dev.sh'];
+/**
+ * TOUS les scripts shell du dépôt — découverts, pas énumérés.
+ *
+ * La liste était écrite à la main : trois entrées, alors que `repo-ci.yml` déclenche cette garde
+ * sur `scripts/**`. Mesuré : deux scripts existaient déjà sous `scripts/` qu'elle n'avait jamais
+ * lus. Un heredoc non quoté avec des backticks y aurait déclenché le workflow, et la garde aurait
+ * imprimé sa ligne verte sans les avoir regardés.
+ *
+ * C'est exactement la classe « garde plus étroite que son déclencheur » que `check-queues.mjs`
+ * documente et a corrigée pour elle-même en élargissant ses racines. *Une leçon apprise par une
+ * garde ne traverse pas jusqu'à sa sœur toute seule — et la liste écrite à la main est toujours
+ * celle qui vieillit.*
+ */
+const FICHIERS = [
+  ...readdirSync(join(ROOT, 'scripts'))
+    .filter((f) => f.endsWith('.sh'))
+    .sort()
+    .map((f) => `scripts/${f}`),
+  'dev.sh',
+];
 
 /**
  * L'ouverture d'un heredoc — et le motif est volontairement STRICT sur ce qui la précède.
@@ -126,6 +144,10 @@ for (const rel of FICHIERS) {
 }
 
 if (REPORT) {
+  // Le PÉRIMÈTRE d'abord. Une garde qui annonce son verdict sans dire ce qu'elle a lu laisse
+  // croire qu'elle a tout lu — c'est ainsi qu'une liste de trois fichiers a pu en ignorer deux
+  // pendant toute la durée de cette PR.
+  console.log(`Fichiers balayés (${FICHIERS.length}) : ${FICHIERS.join(', ')}\n`);
   console.log(`Heredocs vus (${vus.length}) :`);
   for (const [f, d, fin, nom, q] of vus) {
     console.log(`  ${q ? 'quoté   ' : 'NON quoté'}  <<${nom.padEnd(12)} ${f}:${d}-${fin}`);

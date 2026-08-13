@@ -92,6 +92,25 @@ function frontmatter(txt, fichier) {
       continue;
     }
     // sous-clé de spec_refs (`  features:` / `    - docs/...`) — on ne garde que les chemins
+    // La sous-clé INLINE — `  features: [docs/features.md#…]`.
+    //
+    // `check-backlog.mjs` a reçu cette branche après qu'on eut mesuré que 26 tickets sur 270
+    // l'utilisent et n'étaient donc PAS vérifiés. Son jumeau ne l'a pas reçue. C'est sans effet
+    // aujourd'hui — `gen-index` ne lit pas `_spec_paths` — mais les deux fichiers portent la
+    // même phrase, « Deux lecteurs d'un même format finissent toujours par en lire deux », et la
+    // divergence s'était rouverte un champ plus loin.
+    //
+    // *Une divergence refermée sur un champ ne l'est pas sur le format.*
+    const sousInline = ligne.match(/^\s+([a-z_]+):\s*\[(.*)\]\s*$/);
+    if (sousInline) {
+      const valeurs = sousInline[2]
+        .split(',')
+        .map((x) => x.trim().replace(/^["']|["']$/g, ''))
+        .filter(Boolean);
+      if (cleCourante === 'spec_refs') (out._spec_paths ||= []).push(...valeurs);
+      continue;
+    }
+
     const item = ligne.match(/^\s+-\s+(.*)$/);
     if (item && cleCourante === 'spec_refs') {
       (out._spec_paths ||= []).push(item[1].trim().replace(/^["']|["']$/g, ''));
