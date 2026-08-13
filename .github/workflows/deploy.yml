@@ -54,19 +54,6 @@ jobs:
       DEPLOY_BRANCH: ${{ inputs.branch || 'master' }}
 
     steps:
-      - name: Checkout code
-        # `ref:` EXPLICITE. Sans lui, `checkout` prend la branche d'où le dispatch est parti —
-        # pas celle qu'on déploie. Le `scp` ci-dessous embarque `scripts/deploy.sh` de CETTE
-        # copie, tandis que le `ssh` déploie `$DEPLOY_BRANCH` : un dispatch depuis `dev` avec
-        # `branch: master` (les deux sont dans l'allowlist) faisait tourner le script de
-        # déploiement de `dev` — celui que cette PR vient justement de modifier — contre le code
-        # applicatif de `master`, et réciproquement.
-        #
-        # *Le script qui déploie et le code qu'il déploie doivent venir du même commit.*
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ env.DEPLOY_BRANCH }}
-
       - name: Ce qui va être déployé — et refus d'une branche non prévue
         # L'entrée `branch` remplace un `master` codé en dur : elle rend le déclenchement manuel
         # possible, mais elle ouvre aussi la porte à n'importe quelle branche jusqu'à
@@ -75,6 +62,15 @@ jobs:
         #
         # La liste est volontairement courte : les branches d'intégration du dépôt. Déployer
         # autre chose reste possible — en éditant ce fichier, donc en le disant.
+        #
+        # ⚠ CETTE ÉTAPE EST LA PREMIÈRE, avant le `checkout`, et c'est nécessaire. Elle se
+        # trouvait juste après lui : `actions/checkout` recevait donc `ref: ${{ env.DEPLOY_BRANCH }}`
+        # — une chaîne saisie par l'opérateur — et allait la chercher AVANT toute validation.
+        # Une faute de frappe rendait un `couldn't find remote ref` brut au lieu du refus
+        # explicite écrit ici, et une référence arbitraire était rapatriée sur le runner.
+        # Cette étape n'a besoin d'aucun fichier du dépôt : elle ne lit qu'une variable.
+        #
+        # *Une garde placée après ce qu'elle garde ne garde rien — elle commente.*
         #
         # `preview` en a été RETIRÉE. Elle y figurait par symétrie avec les autres branches
         # longues, mais tout ce qui suit ici est codé en dur sur la production — le chemin
@@ -98,6 +94,19 @@ jobs:
               exit 1
               ;;
           esac
+
+      - name: Checkout code
+        # `ref:` EXPLICITE. Sans lui, `checkout` prend la branche d'où le dispatch est parti —
+        # pas celle qu'on déploie. Le `scp` ci-dessous embarque `scripts/deploy.sh` de CETTE
+        # copie, tandis que le `ssh` déploie `$DEPLOY_BRANCH` : un dispatch depuis `dev` avec
+        # `branch: master` (les deux sont dans l'allowlist) faisait tourner le script de
+        # déploiement de `dev` — celui que cette PR vient justement de modifier — contre le code
+        # applicatif de `master`, et réciproquement.
+        #
+        # *Le script qui déploie et le code qu'il déploie doivent venir du même commit.*
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_BRANCH }}
 
       - name: Copy deploy script to server
         uses: appleboy/scp-action@v1

@@ -172,13 +172,37 @@ fi
 # ne se signale jamais tout seul — l'API démarre, et c'est la première requête qui
 # meurt, sur une erreur de connexion qu'on impute au mauvais coupable.
 
-# Le `.env` de la racine, s'il existe, surcharge les ports du compose — on le lit
-# comme docker compose le lira.
+# Le `.env` de la racine, s'il existe, surcharge les ports du compose — on n'en lit que
+# les clés `TAKUSSAN_*`, et SEULEMENT elles.
+#
+# La version précédente faisait `set -a; . "$ROOT/.env"; set +a` : elle exportait donc **toute**
+# clé du fichier dans l'environnement du processus, et `php artisan` hérite de cet
+# environnement. Or `Dotenv::createImmutable` de Laravel n'écrase JAMAIS une variable déjà
+# présente : un `.env` de racine définissant `DB_DATABASE` ou `APP_ENV` — ce qui arrive dès que
+# quelqu'un copie un `.env` d'API à la racine du dépôt — prenait silencieusement le pas sur
+# `takussan-api/.env`, et `php artisan migrate --seed --force` partait sur une AUTRE base. Le
+# contrôle de cohérence quelques lignes plus bas ne compare que `TAKUSSAN_DB_PORT` à `DB_PORT` :
+# il n'aurait rien vu.
+#
+# Ce fichier n'a qu'un seul rôle documenté — surcharger les ports publiés par le compose. On lit
+# donc exactement ce rôle, et rien de plus. *La portée d'un fichier de configuration, c'est ce
+# qu'on lui laisse atteindre, pas ce que sa documentation lui assigne.*
 if [ -f "$ROOT/.env" ]; then
-  set -a
-  # shellcheck disable=SC1091
-  . "$ROOT/.env"
-  set +a
+  while IFS= read -r ligne; do
+    case "$ligne" in
+      TAKUSSAN_[A-Z_]*=*) export "${ligne%%=*}=$(printf '%s' "${ligne#*=}" | tr -d '"'"'"'')" ;;
+    esac
+  done < "$ROOT/.env"
+
+  # Ce qui a été IGNORÉ est nommé : un fichier dont la moitié des lignes n'a aucun effet doit
+  # le dire, sinon on l'édite en croyant agir.
+  ignorees="$(grep -cE '^[A-Z_]+=' "$ROOT/.env" 2>/dev/null || true)"
+  retenues="$(grep -cE '^TAKUSSAN_[A-Z_]+=' "$ROOT/.env" 2>/dev/null || true)"
+  if [ "${ignorees:-0}" -gt "${retenues:-0}" ]; then
+    avert ".env de la racine : $((ignorees - retenues)) clé(s) hors TAKUSSAN_* ignorée(s)."
+    avert "  Ce fichier ne sert qu'à surcharger les ports du compose. La configuration de"
+    avert "  l'API se règle dans takussan-api/.env — et elle seule."
+  fi
 fi
 
 DB_PORT_ENV="$(env_get "$API/.env" DB_PORT)"

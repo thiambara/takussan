@@ -89,16 +89,36 @@ const FAIL_OPEN = [
     //
     // *Une garde qui sait juger un test ne sait pas encore juger les chemins qui l'évitent.*
     //
-    // On lit donc la fenêtre entre `await getToken()` et la première redirection qui suit :
-    // aucune sortie anticipée n'a le droit d'y vivre. Le jeton se descend DANS l'expression
+    // On lit donc la fenêtre entre `await getToken()` et LA DÉCISION SUR L'AGENCE : aucune
+    // sortie anticipée n'a le droit d'y vivre. Le jeton se descend DANS l'expression
     // (`token ? await fetch… : null`), il ne commande pas un `return`.
+    //
+    // ⚠ La borne haute est la DÉCISION, pas « la première redirection ». Première version :
+    // `suite.search(/\bredirect\s*\(/)`. Sur `/app/owners`, la première redirection qui suit le
+    // jeton est la bascule d'authentification écrite à la ligne d'après —
+    // `if (!token) redirect('/auth/login?…')` — donc la fenêtre examinée faisait **32
+    // caractères** et ne pouvait par construction contenir aucune décision d'agence. Mesuré.
+    // Toute page qui redirige pour l'authentification juste après avoir résolu son jeton était
+    // exemptée de ce contrôle, en silence, et déclarée fail-closed.
+    //
+    // *Une borne choisie sur un motif syntaxique commode plutôt que sur le fait à mesurer
+    // finit par exclure exactement ce qu'on voulait regarder.* Une redirection dans la fenêtre
+    // n'est d'ailleurs pas un problème : c'est un refus, pas un contournement. Seul un
+    // `return;` en est un.
     nom: 'sortie anticipée qui saute la décision',
     motif: (s) => {
       const t = s.search(/await\s+getToken\s*\(\)/);
       if (t === -1) return false;
       const suite = s.slice(t);
-      const fin = suite.search(/\bredirect\s*\(/);
-      return /\breturn\s*;/.test(fin === -1 ? suite : suite.slice(0, fin));
+      // La décision : l'appel au helper, ou le test en ligne sur `kind`. On prend la première
+      // qui vient ; si aucune n'est là, la page n'est pas gardée et c'est un autre motif qui
+      // le dira — on n'examine alors rien.
+      const bornes = [
+        suite.search(/ensureStandardAgencyOrRedirect\s*\(/),
+        suite.search(/kind\s*!==\s*['"]standard['"]/),
+      ].filter((i) => i !== -1);
+      if (bornes.length === 0) return false;
+      return /\breturn\s*;/.test(suite.slice(0, Math.min(...bornes)));
     },
     explique: (r, f) =>
       `\`${r}\` — ${f} résout un jeton puis SORT (\`return;\`) avant d'avoir décidé. Sans jeton, `

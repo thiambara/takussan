@@ -81,18 +81,24 @@ export function UserLocationProvider({ children }: { children: ReactNode }) {
     // composant est rendu côté serveur, où `window` n'existe pas, et une valeur lue au premier
     // rendu client ferait diverger l'hydratation. D'où le report explicite ci-dessous.
     void (async () => {
-      // CE `await` EST LE CORRECTIF, et son absence rendait tout le reste décoratif.
+      // Ce `await` sort le `setState` du corps synchrone de l'effet — ce que la règle de lint
+      // vise réellement. Ni plus, ni moins.
       //
-      // Le corps d'une fonction `async` s'exécute SYNCHRONIQUEMENT jusqu'au premier `await`.
-      // Sans cette ligne, le chemin du cache — `getItem`, `JSON.parse`, `setLocation`,
-      // `setLoading` — partait donc toujours pendant la phase de commit de l'effet, exactement
-      // la cascade qu'on voulait supprimer. Seule différence : `react-hooks/set-state-in-effect`
-      // ne la voyait plus, l'appel étant dans une fonction imbriquée.
+      // ⚠ Le commentaire qui occupait cette place affirmait que, sans lui, le chemin du cache
+      // partait « pendant la phase de commit de l'effet, avant même que le navigateur ait
+      // peint ». C'est FAUX : `useEffect` est un effet *passif*, il s'exécute déjà après la
+      // peinture (c'est `useLayoutEffect` qui commit de façon bloquante). La cascade décrite
+      // n'existait pas, et le raisonnement qui la décrivait était plus assuré que le fait.
       //
-      // *Déplacer du code hors de portée d'une règle de lint n'est pas le corriger — c'est
-      // supprimer le témoin.* Ce `await` reporte réellement la suite à la micro-tâche suivante,
-      // après le commit. Et c'est bien le chemin le PLUS fréquent qui en bénéficie : le cache
-      // dure 24 h.
+      // Ce que ce `await` fait vraiment : il reporte la suite d'une micro-tâche. Le corps d'une
+      // fonction `async` s'exécute bien synchroniquement jusqu'au premier `await`, donc sans
+      // lui le `setState` du chemin cache resterait dans le corps synchrone de l'effet — ce que
+      // `react-hooks/set-state-in-effect` interdit, à juste titre, parce que cela force un
+      // second rendu immédiat. Le coût : sur un cache chaud, `loading` retombe une micro-tâche
+      // plus tard, donc au minimum un tick de rendu avec le squelette.
+      //
+      // *Un correctif juste assorti d'une explication fausse se propage quand même — et c'est
+      // l'explication qu'on relit, pas le correctif.*
       await Promise.resolve();
 
       try {
