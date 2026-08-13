@@ -21,7 +21,8 @@ import { buttonVariants } from '@/components/ui/button';
  * Cette page vit sous `(dashboard)/app/`, dont le layout appelle `getMeAction()` — qui relance
  * toute erreur autre qu'un 401. Quand c'est l'API ENTIÈRE qui est indisponible, `/api/user`
  * échoue aussi : la page gardée lève avant même d'atteindre la vérification d'agence, et la
- * redirection ici lèverait à son tour. C'est alors `(dashboard)/error.tsx` qui répond — son
+ * redirection ici lèverait à son tour. C'est alors `src/app/error.tsx` qui répond — la frontière
+ * RACINE, car un `error.tsx` n'attrape pas ce que lève le `layout.tsx` de son propre segment. Son
  * message générique dit « réessayez », donc l'utilisateur ne conclut pas au déclassement, mais
  * il n'obtient pas le message précis.
  *

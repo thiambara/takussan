@@ -118,7 +118,19 @@ const FAIL_OPEN = [
         suite.search(/kind\s*!==\s*['"]standard['"]/),
       ].filter((i) => i !== -1);
       if (bornes.length === 0) return false;
-      return /\breturn\s*;/.test(suite.slice(0, Math.min(...bornes)));
+      // N'IMPORTE QUEL `return` dans la fenêtre, pas seulement un `return;` nu.
+      //
+      // Le motif ne cherchait que la sortie nue. Or `return <NoAgencyState />;` saute la
+      // décision tout autant — et cette forme EXISTE déjà dans le dépôt
+      // (`overview/agency/page.tsx`, pour le super-admin sans agence, à un endroit légitime car
+      // situé AVANT la résolution du jeton, donc hors fenêtre). Une sortie anticipée écrite en
+      // JSX aurait été certifiée fail-closed : exactement le défaut « la décision a été sautée,
+      // pas prise » pour lequel ce motif a été ajouté.
+      //
+      // Dans cette fenêtre — entre le jeton et la décision — aucun `return` n'est légitime,
+      // quelle que soit sa valeur. *Restreindre un motif à la FORME qu'avait le dernier défaut,
+      // c'est n'attraper que lui.*
+      return /\breturn\b/.test(suite.slice(0, Math.min(...bornes)));
     },
     explique: (r, f) =>
       `\`${r}\` — ${f} résout un jeton puis SORT (\`return;\`) avant d'avoir décidé. Sans jeton, `

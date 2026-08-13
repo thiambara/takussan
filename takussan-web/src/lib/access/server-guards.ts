@@ -20,35 +20,48 @@ import type { User } from '@/types/user';
  * *Fail-closed est la bonne règle pour la DÉCISION ; ce n'est pas une raison de mentir sur la
  * CAUSE.* On refuse toujours l'accès — mais on distingue « non » de « je n'ai pas pu demander ».
  */
-const estTransitoire = (e: unknown): boolean => {
-  // On inverse la question : la liste ÉTROITE est celle des réponses qui parlent du PLAN, pas
-  // celle des pannes.
-  //
-  // La version précédente n'envoyait vers la page explicative que les 429/5xx et les erreurs
-  // réseau ; tout le reste retombait dans l'éviction muette — c'est-à-dire dans le défaut que
-  // ce travail existe pour supprimer. Or un 400 n'est pas une réponse sur le forfait : si
-  // `kind` quittait un jour `Agency::$queryFields`, spatie lèverait `InvalidFieldQuery` → 400,
-  // et TOUS les `agency_admin` seraient éjectés des neuf surfaces pro sans un mot,
-  // indiscernablement d'un déclassement. Idem pour un 404, ou un 200 sans `data`.
-  //
-  // Seuls 401 et 403 disent quelque chose de l'utilisateur et de son droit. Tout le reste dit
-  // que la question n'a pas reçu de réponse utilisable — et cela se raconte.
-  //
-  // *Quand on ne sait pas classer, il faut lister ce dont on est sûr, pas ce qui reste.*
-  if (e instanceof ApiError) return e.status !== 401 && e.status !== 403;
-  // ⚠ On ne prend PAS « tout ce qui n'est pas une ApiError » pour transitoire — c'était le cas
-  // avant, et cela absorbait les vraies erreurs de programmation. Un `TypeError` levé dans
-  // `fetchAgency` parce que la forme de `res.data` a changé était alors rapporté à
-  // l'utilisateur comme « nous n'avons pas pu joindre le serveur » : un diagnostic
-  // positivement faux, exactement la classe de défaut que la frontière d'erreur dénonce.
-  //
-  // Une panne réseau, chez `fetch`, se présente en `TypeError` dont le message dit `fetch`.
-  // C'est étroit, et c'est voulu : le reste doit remonter comme un bug, parce que c'en est un.
-  //
-  // *Traiter l'inconnu comme la panne attendue, c'est se donner une explication pour tout.*
-  // Hors `ApiError` : tout est inattendu, donc rien n'est une réponse sur le plan. On explique.
-  // (Le refus d'accès, lui, est identique dans les deux cas — c'est le MESSAGE qui diffère.)
-  return true;
+/**
+ * TROIS issues, parce qu'il y a trois situations — et deux passes de revue ont montré qu'en
+ * n'en distinguant que deux, on en déguise toujours une.
+ *
+ *  · `refus`    — l'API a RÉPONDU sur le droit de cet utilisateur : 401, 403, 404. Le refus
+ *                 silencieux vers `/app` est exact ; il n'y a rien à expliquer.
+ *  · `explique` — l'API n'a pas donné de réponse utilisable : 400, 429, 5xx. Le refus est le
+ *                 même, mais dire « vous n'y avez pas droit » serait faux. On envoie vers la
+ *                 page qui dit « je n'ai pas pu demander ».
+ *  · `bug`      — ce n'est pas une `ApiError` du tout. C'est une erreur de programmation, et
+ *                 elle doit remonter COMME TELLE : la frontière d'erreur l'affiche avec un
+ *                 `digest` exploitable. La déguiser en « réessayez dans un instant » produit une
+ *                 impasse permanente sous un diagnostic rassurant et faux — aucun nombre de
+ *                 tentatives n'y change rien, et rien n'en garde trace.
+ *
+ * Les deux versions précédentes ont chacune fondu une de ces trois dans une autre : d'abord les
+ * bugs dans « transitoire », puis les 400 dans « refus ». *Une classification à deux cases pour
+ * trois situations en écrase toujours une — et c'est celle qu'on n'a pas nommée.*
+ */
+type Verdict = 'refus' | 'explique' | 'bug';
+
+/**
+ * Une panne RÉSEAU se présente comme un `TypeError` — c'est ce que lève `fetch` quand la
+ * connexion n'aboutit pas (`TypeError: fetch failed` chez undici). Elle appartient donc à
+ * `explique`, pas à `bug`.
+ *
+ * Le test est étroit, sur la FORME du message, et c'est voulu : un `TypeError` de forme
+ * (« Cannot read properties of undefined ») est un bug, et le router vers « réessayez dans un
+ * instant » créerait une impasse permanente sous un diagnostic faux.
+ *
+ * *Deux causes qui portent le même type d'erreur ne se séparent que sur autre chose que le
+ * type — ici le message, faute de mieux, et on le dit plutôt que de faire comme si.*
+ */
+const RESEAU = /fetch failed|network|ECONN|EAI_AGAIN|socket hang up|timeout/i;
+
+const classer = (e: unknown): Verdict => {
+  if (!(e instanceof ApiError)) {
+    return e instanceof Error && RESEAU.test(e.message) ? 'explique' : 'bug';
+  }
+  // 404 est DÉFINITIF ici : `AgencyController::show` fait `abort_unless(canViewAgency(), 404)`,
+  // donc « invisible pour vous » — une réponse, pas une panne.
+  return e.status === 401 || e.status === 403 || e.status === 404 ? 'refus' : 'explique';
 };
 
 /** Où l'on renvoie quand on n'a pas PU vérifier — distinct de `/app`, qui veut dire « non ». */
@@ -82,13 +95,32 @@ export async function resolveAgencyOrNull(
   usage: 'decision' | 'affichage' = 'affichage',
 ): Promise<Agency | null> {
   try {
-    return await fetchAgency(token, agencyId);
+    const agence = await fetchAgency(token, agencyId);
+    // ⚠ `fetchAgency` rend `res.data`, qui vaut `undefined` sur un 200 dont le corps n'a pas de
+    // clé `data` — sans lever. Un commentaire antérieur rangeait ce cas parmi ceux qui
+    // atteignent la page explicative ; il n'y arrivait pas, il tombait dans le `!agency` muet.
+    // On le traite ici, à l'endroit où on l'observe : un corps illisible n'est pas une réponse
+    // sur le forfait.
+    if (!agence) {
+      console.error(`[access] ${ou} : fetchAgency(${agencyId}) a rendu un corps sans \`data\`.`);
+      if (usage === 'decision') redirect(ROUTE_VERIF_INDISPONIBLE);
+      return null;
+    }
+    return agence;
   } catch (e: unknown) {
-    const transitoire = estTransitoire(e);
+    // `redirect()` lève un NEXT_REDIRECT depuis le `try` ci-dessus : il doit ressortir intact.
+    // Il ressortirait de toute façon — ce n'est pas une `ApiError`, donc `classer()` rend `bug`,
+    // qui relance — mais on le nomme plutôt que de compter sur une coïncidence, et on ne le
+    // journalise pas comme un échec. Next le marque par `digest`, pas par `message`.
+    const digest = (e as { digest?: unknown } | null)?.digest;
+    if (typeof digest === 'string' && digest.startsWith('NEXT_REDIRECT')) throw e;
+    const verdict = classer(e);
     console.error(
-      `[access] ${ou} : fetchAgency(${agencyId}) a échoué (${transitoire ? 'transitoire' : 'réponse API'})`,
+      `[access] ${ou} : fetchAgency(${agencyId}) a échoué (${verdict})`,
       e instanceof Error ? e.message : e,
     );
+    // Un bug remonte comme un bug — avec sa pile, son `digest`, et sans explication inventée.
+    if (verdict === 'bug') throw e;
     // On REDIRIGE vers une page dédiée — on ne relance plus une erreur marquée.
     //
     // La version précédente levait une `Error` portant un marqueur, que `(dashboard)/error.tsx`
@@ -110,7 +142,7 @@ export async function resolveAgencyOrNull(
     // et c'est la frontière d'erreur générique qui répond. Cette redirection couvre le cas où
     // `/api/agencies/{id}` SEUL échoue — rate-limit, surcharge ciblée. Voir le docblock de
     // `app/verification-indisponible/page.tsx`.
-    if (usage === 'decision' && transitoire) redirect(ROUTE_VERIF_INDISPONIBLE);
+    if (usage === 'decision' && verdict === 'explique') redirect(ROUTE_VERIF_INDISPONIBLE);
     return null;
   }
 }

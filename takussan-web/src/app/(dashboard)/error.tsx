@@ -13,7 +13,9 @@ import { Button } from '@/components/ui/button';
  * vers `/app`, tous les accès pro cadenassés : pour un `agency_admin` d'une agence `standard`,
  * une panne de trente secondes était **indiscernable d'un déclassement de forfait**.
  *
- * ⚠ Cette frontière attrape TOUT ce qui remonte du segment `(dashboard)`. Son message est donc
+ * ⚠ Cette frontière attrape ce qui remonte des PAGES du segment `(dashboard)` — mais pas ce que
+ * lève son propre `layout.tsx` : Next confie cela à la frontière du segment PARENT, d'où
+ * `src/app/error.tsx`. Son message est donc
  * GÉNÉRIQUE, et il doit le rester. Deux versions antérieures ont essayé d'y être spécifiques :
  * la première affirmait sans condition que les accès d'agence n'avaient pas pu être vérifiés —
  * un bug de rendu dans `/app/properties/[id]` donnait alors un diagnostic positivement faux ; la

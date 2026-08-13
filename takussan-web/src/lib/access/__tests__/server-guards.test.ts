@@ -108,12 +108,31 @@ describe('ensureStandardAgencyOrRedirect', () => {
     expect(await refus(utilisateur(7))).toBe('/app/verification-indisponible');
   });
 
-  it('explique aussi sur un BUG inattendu — l’accès est refusé, la cause est dite', async () => {
-    // L'accès n'est pas accordé : la page explicative refuse tout autant que `/app`. Ce qui
-    // change est le message. Un `TypeError` de forme n'est pas une réponse sur le forfait, donc
-    // on ne laisse pas l'utilisateur conclure qu'il en a changé.
+  it('RELANCE un bug — il ne se déguise pas en « réessayez dans un instant »', async () => {
+    // Trois issues, pas deux. Une erreur qui n'est pas une `ApiError` est une erreur de
+    // PROGRAMMATION : la router vers la page « nous n'avons pas pu joindre le serveur »
+    // produirait une impasse permanente sous un diagnostic faux — aucune tentative n'y change
+    // rien, et le `digest` qui aurait permis de la diagnostiquer n'existe jamais.
     getToken.mockResolvedValue('tok');
-    fetchAgency.mockRejectedValue(new TypeError("Cannot read properties of undefined (reading 'kind')"));
+    const bug = new TypeError("Cannot read properties of undefined (reading 'kind')");
+    fetchAgency.mockRejectedValue(bug);
+    await expect(ensureStandardAgencyOrRedirect(utilisateur(7))).rejects.toThrow(bug);
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('refuse en silence sur 404 — « invisible pour vous » est une réponse', async () => {
+    // `AgencyController::show` fait `abort_unless(canViewAgency(), 404)`. C'est définitif :
+    // l'envoyer sur la page « je n'ai pas pu demander » ne lui donnerait jamais de réponse.
+    getToken.mockResolvedValue('tok');
+    fetchAgency.mockRejectedValue(new ApiError(404, { message: 'Not Found' }));
+    expect(await refus(utilisateur(7))).toBe('/app');
+  });
+
+  it('explique sur un corps 200 SANS `data` — un corps illisible n’est pas un refus', async () => {
+    // `fetchAgency` rend `res.data`, qui vaut `undefined` sans lever. Le cas tombait dans le
+    // `!agency` muet alors qu'un commentaire le rangeait parmi ceux qui s'expliquent.
+    getToken.mockResolvedValue('tok');
+    fetchAgency.mockResolvedValue(undefined);
     expect(await refus(utilisateur(7))).toBe('/app/verification-indisponible');
   });
 

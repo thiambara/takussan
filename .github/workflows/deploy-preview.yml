@@ -42,6 +42,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Le commit effectivement récupéré
+        id: sha
+        # Symétrique de `deploy.yml`. La préproduction n'avait PAS reçu les correctifs appliqués
+        # à la production : ni le SHA transmis au serveur, ni les secrets sortis du bloc shell.
+        # Le commentaire de `deploy.yml` revendiquait pourtant une correction « au CLASSE, pas à
+        # l'instance signalée ». *Corriger une classe, c'est corriger tous ses membres — sinon
+        # c'est corriger une instance en le disant plus fort.*
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Copy deploy script to server
         uses: appleboy/scp-action@v1
         with:
@@ -59,12 +68,19 @@ jobs:
           username: ${{ secrets.CONTABO_USER }}
           key: ${{ secrets.CONTABO_SSH_KEY }}
           timeout: 10m
-          envs: ENV_FILE
+          envs: ENV_FILE,REPO_URL,COMMIT_SHA
+          # Aucune valeur `${{ }}` ne traverse ce bloc shell : elles descendent toutes par
+          # `envs:`. `REPO_URL` y était interpolé directement.
           script: |
             chmod +x /var/www/takussan-preview/deploy.sh
-            bash /var/www/takussan-preview/deploy.sh "${{ secrets.REPO_URL }}" preview /var/www/takussan-preview
+            bash /var/www/takussan-preview/deploy.sh "$REPO_URL" preview /var/www/takussan-preview
         env:
           ENV_FILE: ${{ secrets.ENV_FILE_PREVIEW }}
+          REPO_URL: ${{ secrets.REPO_URL }}
+          # Le serveur vise le MÊME commit que le runner. Sans lui, `deploy.sh` clonait la tête
+          # de `preview` pendant que le script déployé venait de `github.sha` : la garantie
+          # « même commit » restait à moitié posée, comme elle l'était en production.
+          COMMIT_SHA: ${{ steps.sha.outputs.sha }}
 
       - name: Smoke test
         run: |
