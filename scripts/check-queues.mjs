@@ -69,7 +69,20 @@ const MOTIFS = [
   /->onQueue\(\s*['"]([a-z0-9_-]+)['"]\s*\)/g,
   // `Queue::pushOn('x', $job)` / `->pushOn('x', …)` — la façade prend la file en PREMIER.
   /::pushOn\(\s*['"]([a-z0-9_-]+)['"]/g,
-  /(?:public|protected|private)\s+(?:readonly\s+)?\$queue\s*=\s*['"]([a-z0-9_-]+)['"]/g,
+  // ⚠ Le TYPE de la propriété est facultatif dans le motif, et son absence rendait ce motif
+  // entièrement mort. Il avait été ajouté avec un commentaire triomphant (« `protected $queue`
+  // — la forme la plus courante après `onQueue()` — n'était dans ni l'un ni l'autre ») ; il
+  // acceptait `readonly` mais pas un type. Or la SEULE propriété `$queue` du dépôt est typée —
+  // `public string $queue = 'media';` dans `ApplyWatermarkOnConversionListener` — donc ce motif
+  // n'a jamais rien matché, pas une fois, et rien ne le disait puisque son absence de résultat
+  // ressemble à « il n'y en a pas ».
+  //
+  // On tolère donc n'importe quelle déclaration de type (`?string`, `string|null`, un FQCN),
+  // et l'ordre `readonly`/type dans les deux sens.
+  //
+  // *Un motif ajouté pour fermer un trou et qui ne matche jamais ne se distingue pas d'un trou :
+  // il coûte en plus la certitude qu'on l'a fermé.*
+  /(?:public|protected|private)\s+(?:readonly\s+)?(?:\??[\\\w|]+\s+)?(?:readonly\s+)?\$queue\s*=\s*['"]([a-z0-9_-]+)['"]/g,
   // ⚠ RESSERRÉ. Ce motif balayait tout `app/**.php` : n'importe quel tableau de configuration
   // portant une clé `queue` — `'queue' => 'sync'` dans un service, un tableau de valeurs par
   // défaut, un payload de test — était compté comme une file poussée, et faisait rougir Repo CI
@@ -119,6 +132,22 @@ function sansCommentairesPhp(src) {
 
 const poussees = new Map(); // file → [chemins]
 const opaques = []; // [chemin, expression]
+
+/**
+ * Combien de fois chaque motif a MATCHÉ — parce qu'un motif mort ne se voit pas.
+ *
+ * Le motif `$queue` a vécu plusieurs revues sans jamais matcher une seule ligne : il exigeait
+ * `public $queue` là où la seule occurrence du dépôt écrit `public string $queue`. Son absence
+ * de résultat est indiscernable de « il n'y a rien à trouver », et il portait un commentaire
+ * affirmant qu'il fermait le trou. On croyait la porte fermée parce qu'on l'avait décrite.
+ *
+ * Le compte est affiché sous `--report` et un zéro est NOMMÉ. Il ne fait pas échouer — un dépôt
+ * peut légitimement n'avoir aucune propriété `$queue` — mais il ne se tait plus.
+ *
+ * *Un motif ajouté pour fermer un trou et qui ne matche jamais ne se distingue pas d'un trou :
+ * il coûte en plus la certitude qu'on l'a fermé.*
+ */
+const touches = MOTIFS.map(() => 0);
 function balayer(dir) {
   for (const entree of readdirSync(dir)) {
     const chemin = join(dir, entree);
@@ -129,7 +158,7 @@ function balayer(dir) {
     if (!entree.endsWith('.php')) continue;
     const txt = sansCommentairesPhp(readFileSync(chemin, 'utf8'));
     const rel = chemin.slice(ROOT.length + 1);
-    for (const brut of MOTIFS) {
+    for (const [i, brut] of MOTIFS.entries()) {
       const motif = brut.motif ?? brut;
       for (const m of txt.matchAll(motif)) {
         if (brut.ligneDoitContenir) {
@@ -137,6 +166,7 @@ function balayer(dir) {
           const fin = txt.indexOf('\n', m.index);
           if (!brut.ligneDoitContenir.test(txt.slice(debut, fin === -1 ? undefined : fin))) continue;
         }
+        touches[i] += 1;
         if (!poussees.has(m[1])) poussees.set(m[1], []);
         if (!poussees.get(m[1]).includes(rel)) poussees.get(m[1]).push(rel);
       }
@@ -240,6 +270,11 @@ if (REPORT) {
     console.log(`\nFiles consommées — ${c.ou} (${c.files.size}, dans l'ordre de priorité) :`);
     console.log(`  ${[...c.files].join(' › ')}`);
   }
+  const NOMS = ['->onQueue(\'x\')', '::pushOn(\'x\', …)', 'public|protected $queue = \'x\'', "'queue' => 'x' (ligne de dispatch)"];
+  console.log(`\nMotifs et leur nombre de correspondances :`);
+  MOTIFS.forEach((_, i) => {
+    console.log(`  ${touches[i] === 0 ? '⚠ 0' : String(touches[i]).padStart(3)}  ${NOMS[i] ?? `motif n°${i + 1}`}`);
+  });
   if (opaques.length) {
     console.log(`\nFiles nommées par une expression (${opaques.length}) — non lisibles ici :`);
     for (const [f, expr] of opaques) console.log(`  ${expr.padEnd(28)} ${f}`);
@@ -254,6 +289,17 @@ for (const q of inutiles) {
 // Les dispatchs dont la file n'est pas un littéral : la garde ne peut pas les résoudre, et le
 // silence serait un « rien à déclarer » mensonger. On les nomme, sans faire échouer — un
 // avertissement qu'on lit vaut mieux qu'une erreur qu'on apprend à contourner.
+// Un motif qui n'a jamais matché : on le NOMME, sans faire échouer.
+touches.forEach((n, i) => {
+  if (n === 0) {
+    console.warn(
+      `⚠ le motif n°${i + 1} de MOTIFS n'a matché AUCUNE ligne du dépôt. Soit cette écriture n'y\n`
+      + `  existe pas — c'est légitime — soit il ne sait pas la lire, et il ferme alors un trou\n`
+      + `  en apparence seulement. Vérifie-le avant de lui faire confiance.`
+    );
+  }
+});
+
 for (const [f, expr] of opaques) {
   console.warn(
     `⚠ ${f} pousse sur une file nommée par une expression (\`${expr}\`) : cette garde ne peut pas\n`
