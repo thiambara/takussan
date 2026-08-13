@@ -3,7 +3,7 @@
 Document de référence pour configurer le monorepo **Takussan** de A à Z (dépendances, services externes, variables d'environnement, étapes d'installation).
 
 > Monorepo :
-> - `takussan-api/` — Laravel 13, PHP ^8.3
+> - `takussan-api/` — Laravel 13, PHP ^8.4
 > - `takussan-web/` — Next.js 16.2.3, React 19, TypeScript 5
 
 ---
@@ -14,10 +14,10 @@ Document de référence pour configurer le monorepo **Takussan** de A à Z (dép
 
 | Couche | Techno | Version |
 |---|---|---|
-| Runtime | PHP | ^8.3 |
+| Runtime | PHP | ^8.4 |
 | Framework | Laravel | ^13.0 |
 | Auth API | Laravel Sanctum | ^4.3 (SPA cookie + Personal Access Tokens) |
-| Search | Laravel Scout | ^11.1 (driver `collection` par défaut, Meilisearch / Algolia / Typesense supportés) |
+| Search | Laravel Scout | ^11.1 — **driver `meilisearch` sur TOUS les environnements**, CI comprise (ADR-0008, TCK-280). `collection` est un défaut hérité du framework qui ne prouve rien : il filtre en PHP sur une collection Eloquent. |
 | OAuth social | Laravel Socialite | ^5.26 + providers `apple`, `facebook` (Google natif) |
 | Admin panel | Filament | ^4.0 (+ plugin `spatie-laravel-media-library-plugin`) |
 | Permissions | ~~spatie/laravel-permission~~ — **retiré en TCK-278**, remplacé par les profils polymorphes (cf. Règle 5 de `models-spec.md`) | — |
@@ -394,14 +394,22 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:8002
 
 ### 5.1 Pré-requis système
 
-- **PHP ^8.3** avec extensions : `bcmath`, `ctype`, `curl`, `dom`, `fileinfo`, `gd` (ou `imagick` si Intervention Image), `intl`, `mbstring`, `openssl`, `pdo`, `pdo_sqlite` (ou `pdo_pgsql` / `pdo_mysql`), `redis` (phpredis), `tokenizer`, `xml`, `zip`.
+- **PHP ^8.4** avec extensions : `bcmath`, `ctype`, `curl`, `dom`, `fileinfo`, `gd` (ou `imagick` si Intervention Image), `intl`, `mbstring`, `openssl`, `pdo`, `pdo_sqlite` (ou `pdo_pgsql` / `pdo_mysql`), `redis` (phpredis), `tokenizer`, `xml`, `zip`.
 - **Composer 2.x**
 - **Node.js ≥ 20.x** + **npm** (frontend `engines` non strict, mais types `@types/node ^20`)
-- **Redis** (cache + sessions + queues recommandés)
-- **Database** : SQLite (dev) ou PostgreSQL/MySQL (prod)
+- **Database** : **MariaDB / MySQL**. SQLite ne sert qu'à la suite de tests — c'est un moteur
+  permissif qui **ne peut pas voir** les quatre familles de pièges de migration documentées dans
+  [`../CLAUDE.md`](../CLAUDE.md). Développer dessus, c'est n'éprouver aucune migration.
+- **Meilisearch** — **obligatoire, pas optionnel** (ADR-0008). `phpunit.xml` force
+  `SCOUT_DRIVER=meilisearch` sans repli : **sans instance, `php artisan test` ne démarre pas.**
 - **Git**
-- *(Optionnel)* Meilisearch / Algolia / Typesense pour Scout
-- *(Optionnel)* Gotenberg ou navigateur headless si `LARAVEL_PDF_DRIVER` ≠ `cloudflare`
+- *(Optionnel)* **Redis** — la production tourne en `CACHE_STORE=database` /
+  `QUEUE_CONNECTION=database`. Redis n'est requis que si l'on bascule ces drivers.
+- *(Optionnel)* Gotenberg ou navigateur headless si `LARAVEL_PDF_DRIVER` ∉ {`dompdf`, `cloudflare`}
+
+> **Le plus simple est de ne rien installer de tout cela** : `docker-compose.yml` à la racine sert
+> MariaDB, Meilisearch, Redis et Mailpit, et `./dev.sh` démarre l'ensemble en une commande
+> (ADR-0011). `./dev.sh doctor` dit ce qui répond et ce qui manque.
 
 ### 5.2 Cloner le repo
 

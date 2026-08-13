@@ -379,7 +379,7 @@ Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les fa
 - **Garantie de livraison** : si WhatsApp est inéligible (contact opted-out, hors fenêtre sans template approuvé) ou échoue durement, bascule **automatique vers SMS** (le SMS reste le filet de sécurité).
 - **Statuts** : les accusés Meta (delivered/read/failed) mettent à jour le suivi de livraison.
 
-**Hors périmètre de cette fonctionnalité** (tickets/specs ultérieurs) : OTP/2FA sur WhatsApp (flux d'authentification distinct, SMS reste secours obligatoire) et la **mise-en-relation inbound** WhatsApp (webhook entrant, deep links `wa.me`) — voir `docs/takussan-whatsapp-implementation.md`. Le socle contact + fenêtre 24h (`whatsapp_contacts`) est partagé entre sortant et inbound.
+**Hors périmètre de cette fonctionnalité** (tickets/specs ultérieurs) : OTP/2FA sur WhatsApp (flux d'authentification distinct, SMS reste secours obligatoire) et la **mise-en-relation inbound** WhatsApp (webhook entrant, deep links `wa.me`) — voir `docs/backlog/tickets/TCK-282-whatsapp-outbound-channel.md`. Le socle contact + fenêtre 24h (`whatsapp_contacts`) est partagé entre sortant et inbound.
 
 ### 2.4 Recherche & filtres
 

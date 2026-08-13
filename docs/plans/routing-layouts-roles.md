@@ -1,5 +1,23 @@
 # Takussan — Routing, Layouts & Profils par Rôle
 
+> ## ⛔ PLAN RÉVOQUÉ — la stack qu'il prescrit n'existe plus
+>
+> **Vérifié le 2026-08-12.** Ce document impose, au ton impératif (« Règles absolues »), trois
+> choix qui sont tous faux aujourd'hui :
+>
+> | Il prescrit | Le projet est en |
+> |---|---|
+> | Next.js 14 | **Next.js 16.2.3** (App Router, `proxy.ts`) |
+> | TailwindCSS v3 | **Tailwind v4** (`@theme inline`) |
+> | Palette « Takussan Heritage » (`#022448`, `#7d5630`, `#fff8f5`) | Palette **« Lin »** (`#fcf9f3`, `#a85332`, `#5d6e4f`) depuis TCK-129 |
+>
+> Ses interdits — « JAMAIS de `border-b` », « uniquement `shadow-[0_0_40px_…]` » — appartiennent à
+> une direction artistique abandonnée. **C'est son ton impératif qui le rend dangereux** : il ne se
+> présente pas comme une piste.
+>
+> Le design system en vigueur : [`../design-guidelines.md`](../design-guidelines.md) et
+> [`../../takussan-web/CLAUDE.md`](../../takussan-web/CLAUDE.md).
+
 Refonte complète de la structure des espaces privés : suppression de `/dashboard`, création de layouts différenciés par acteur (`/app/…` + `/admin/…`), page profil composite conditionnelle par rôle, et stubs de toutes les sections métier.
 
 ---

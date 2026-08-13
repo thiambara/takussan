@@ -1,5 +1,13 @@
 # Takussan — Fonctionnalités par acteur
 
+> ## ⚠️ MIROIR DÉSYNCHRONISÉ — gelé au 2026-04-14
+>
+> Ce document se déclare « vue miroir de `features.md` ». Il ne l'est plus : `features.md` a évolué
+> **six fois** depuis, et rien n'a été reporté ici — ni l'onboarding par acteur (2026-05-10), ni la
+> gouvernance SaaS super-admin (2026-05-07), ni le canal WhatsApp (2026-06-17).
+>
+> En cas de désaccord avec [`features.md`](features.md), **c'est `features.md` qui fait foi**.
+
 > Vue miroir de [`features.md`](./features.md) organisée par acteur.
 > Chaque feature est classée par priorité (P0 → P3) et référence son domaine d'origine (§x.y).
 > Les fonctionnalités transverses applicables à tous les utilisateurs authentifiés sont regroupées dans la section **Tous les utilisateurs** pour éviter la duplication.

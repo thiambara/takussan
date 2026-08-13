@@ -5,6 +5,7 @@ status: done
 phase: P1
 family: back
 estimate: M
+wave: 4
 created: 2026-04-16
 updated: 2026-04-22
 depends_on: [TCK-034, TCK-024]

@@ -1,5 +1,13 @@
 # Plan — Seeding « 1 an d'activité » pour Takussan
 
+> ## ⚠️ DOCUMENT ANTÉRIEUR À L'IMPLÉMENTATION
+>
+> Il décrit l'état **d'avant** le chantier de seeding : « le seeding actuel est minimal :
+> `DatabaseSeeder` crée un user de test et appelle 3 seeders », « `DemoSeeder` ~125 lignes ».
+>
+> La réalité au 2026-08-12 : **38 seeders**, ~450 biens. Ce fichier vaut comme **plan d'origine**,
+> pas comme description. La source est `takussan-api/database/seeders/`.
+
 ## Contexte
 
 Le seeding actuel de `takussan-api/` est minimal : `DatabaseSeeder` crée un user de test et appelle 3 seeders (`RolesAndPermissions`, `Tag`, `Property` → 10 propriétés), tandis que `DemoSeeder` (~125 lignes, non appelé par défaut) génère un dataset linéaire sans dimension temporelle : 2 agences, 9 properties, 4 leases avec 3 paiements chacun, 5 bookings. Aucune notion d'historique, pas de cycles mensuels, pas de distribution de statuts, pas de logs d'audit (alors que le trait `Auditable` est câblé sur la plupart des modèles via spatie/activitylog), pas de notifications accumulées.

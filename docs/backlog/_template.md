@@ -3,8 +3,10 @@ id: TCK-XXX
 title: <titre court de la tâche>
 status: todo          # todo | doing | review | done | blocked | obsolete
 phase: P2             # P0 | P1 | P2 | P3 | EF
-family: back          # back | front | applicatif | technique | evolution
+family: back          # back | front | applicatif | technique | bug | full | evolution
 estimate: M           # S (≤2j) | M (3-5j) | L (6-10j) | XL (>10j)
+wave: null            # vague de livraison (numéro) ou `null` — catalogue : waves.json
+                      # OBLIGATOIRE : check-backlog.mjs refuse un ticket sans ce champ
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 depends_on: []        # [TCK-003, TCK-005]

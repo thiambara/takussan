@@ -1,7 +1,7 @@
 ---
 id: MVP-005
 title: "Upload photos et infos de base"
-status: todo
+status: obsolete
 slice: "Weekend 3"
 estimate: 1 weekend
 created: 2026-04-16

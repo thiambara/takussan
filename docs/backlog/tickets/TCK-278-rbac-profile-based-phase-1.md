@@ -5,8 +5,9 @@ status: doing
 phase: P1
 family: technique
 estimate: XL
+wave: 34
 created: 2026-05-17
-updated: 2026-05-17
+updated: 2026-08-12
 execution_strategy: phased-on-branch (P1 foundations coexist with spatie → P2 callsite refactor → P3 cutover/drop)
 depends_on: []
 blocks: [TCK-279]
@@ -115,3 +116,37 @@ Aucun nouvel endpoint exposé. Le contrat API reste stable.
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Reste sur dev
+
+_Mesuré le 2026-08-12, à la reprise du développement._
+
+**Ce qui EST sur `dev`** — le socle backend, entré par la PR #144 (`33ce4f69`), complété par
+`47cbc365` :
+
+- `spatie/laravel-permission` **désinstallé** — absent de `composer.json` et de `composer.lock` ;
+- `app/Models/Enums/Capability.php` (44 cas), `app/Models/Profiles/PlatformProfile.php`,
+  `app/Models/Enums/PlatformProfileLevel.php`, `app/Observers/PlatformProfileObserver.php`,
+  `app/Services/Membership/MembershipCapabilityResolver.php` ;
+- les tests associés (`tests/Feature/Profiles/PlatformProfileTest.php`,
+  `tests/Unit/Services/Membership/MembershipCapabilityResolverTest.php`) et `BasePolicyTest` mis à
+  jour ;
+- la **garde CI** qui casse sur tout import `Spatie\Permission\` (`.github/workflows/api-ci.yml`).
+
+**Ce qui n'y est PAS** — les phases P3.c et P3.d, restées sur la branche
+`feat/tck-278-279-rbac-architecture-spec` (9 commits d'avance, **36 de retard** sur `dev`) :
+
+- la **purge du code mort frontend** dépendant des endpoints spatie retirés — vérifié :
+  `takussan-web/src/types/` ne contient **aucun** type `Capability` ;
+- la **suppression du `/app/team` en double** — vérifié : `(dashboard)/app/team/page.tsx` existe
+  toujours sur `dev` ;
+- le correctif `include=roles`.
+
+**La branche est à re-fonder, pas à merger.** Avec 36 commits de retard, un merge direct rejouerait
+des états dépassés. Le geste est de repartir de `dev` et d'y rapporter les seuls deltas frontend
+ci-dessus.
+
+> Ce ticket reste `doing` **et non `done`** parce qu'un statut vaut pour ce qui est mergé sur `dev`
+> (règle n°3). Il reste ouvert **et non `todo`** parce que les deux tiers du travail sont livrés :
+> le déclarer à faire ferait rouvrir un chantier terminé, exactement le défaut que l'ancien INDEX
+> produisait à 213 entrées.

@@ -1,0 +1,134 @@
+#!/usr/bin/env node
+/**
+ * Garde de PARITÉ des clés d'environnement.
+ *
+ * `takussan-api/.env.example` est le contrat des clés : ce que l'application sait lire.
+ * `takussan-api/.env.docker` est l'environnement de développement réel, servi par le
+ * `docker-compose.yml` de la racine. Les deux décrivent le même logiciel — donc le
+ * même jeu de clés — avec des VALEURS différentes, et c'est tout l'intérêt.
+ *
+ * Le défaut que cette garde attrape est le plus banal et le plus coûteux : une clé
+ * ajoutée d'un seul côté. Elle ne casse rien tout de suite. Elle casse le jour où
+ * quelqu'un reprend le projet, copie le mauvais fichier, et cherche pendant une heure
+ * pourquoi une intégration lit `null`. Rien dans l'exécution ne signale l'absence
+ * d'une clé : `env('TRUC')` rend `null` et le code continue.
+ *
+ * Cette garde ne compare QUE les noms de clés, jamais les valeurs — deux fichiers dont
+ * les valeurs seraient identiques n'auraient aucune raison d'être deux.
+ *
+ * Usage :
+ *   node scripts/check-env-parity.mjs          # sort en 1 sur le moindre écart
+ *   node scripts/check-env-parity.mjs --report # liste les clés des deux côtés
+ */
+import { readFileSync, existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const REPORT = process.argv.includes('--report');
+
+const FICHIERS = [
+  ['.env.example', join(ROOT, 'takussan-api', '.env.example')],
+  ['.env.docker', join(ROOT, 'takussan-api', '.env.docker')],
+];
+
+/**
+ * Les clés DÉCLARÉES d'un fichier .env.
+ *
+ * Une clé commentée (`# CACHE_PREFIX=`) compte comme déclarée : c'est une clé que
+ * l'application connaît, laissée à sa valeur par défaut. La distinguer de l'absence
+ * est justement ce qui rend la garde utile — sinon commenter une clé d'un côté
+ * suffirait à la faire disparaître du contrat sans que rien ne le dise.
+ */
+function clefs(contenu) {
+  const out = new Map(); // nom → { ligne, commentee }
+  contenu.split('\n').forEach((ligne, i) => {
+    const m = ligne.match(/^\s*(#\s*)?([A-Z][A-Z0-9_]*)\s*=/);
+    if (!m) return;
+    // Une ligne commentée n'est une DÉCLARATION que si elle a la forme d'une ligne .env :
+    // `# CLE=`, éventuellement suivie d'une valeur SANS espace, puis éventuellement d'un
+    // commentaire en ligne introduit par `#`. Tout le reste est de la prose.
+    //
+    // C'est ce test-ci, et non une comparaison avec l'autre fichier, qui distingue
+    //   `# CACHE_PREFIX=`                                        → déclaration
+    //   `# SCOUT_QUEUE=true    # recommandé avec Meilisearch`    → déclaration
+    //   `# MAIL_FROM_NAME="Takussan App"`                        → déclaration
+    //   `# MEILI_MASTER_KEY=masterKey (cf. docker-compose.yml)`  → prose
+    //
+    // Une version précédente s'y prenait autrement : elle écartait toute clé commentée que
+    // l'AUTRE fichier ne connaissait pas. C'était rouvrir exactement le trou que le docblock
+    // ci-dessus dénonce — `# WHATSAPP_API_TOKEN=` ajouté au seul contrat des clés, oublié dans
+    // `.env.docker`, disparaissait alors en silence, et c'est le cas le plus courant puisque
+    // les clés optionnelles se déclarent commentées.
+    //
+    // *Quand une règle et son contre-exemple se contredisent, c'est le TEST qu'il faut affiner,
+    // pas la portée de la règle : élargir le contexte déplace l'erreur, il ne la retire pas.*
+    //
+    // ⚠ La valeur peut contenir des ESPACES, et la première version l'ignorait : elle exigeait
+    // `(\S*)`, si bien que `# MAIL_FROM_NAME="Takussan App"` ou `# FOO=bar baz` retombaient en
+    // prose. Deux dégâts opposés — la clé disparaissait en silence du contrat (le cas même que
+    // le docblock cite), ou, si l'autre fichier la déclarait sans commentaire, la garde
+    // inventait une clé manquante et rougissait à tort. On distingue donc la prose par ce
+    // qu'elle est — du texte SÉPARÉ de la valeur par une espace, hors guillemets — et non par
+    // la seule présence d'une espace.
+    //
+    // Valeur = soit une chaîne entre guillemets, soit une suite sans espace. Ce qui suit doit
+    // être vide ou un commentaire en ligne.
+    //
+    // La borne est celle de phpdotenv, et non une convention qu'on se donnerait ici : mesuré
+    // avec `Dotenv::parse()`, `FOO=bar baz` est REFUSÉ (« Encountered unexpected whitespace »)
+    // tandis que `FOO="bar baz"` rend `bar baz`. Une valeur non citée contenant une espace
+    // n'est donc pas une déclaration que l'application saurait lire — la traiter comme de la
+    // prose n'est pas une approximation, c'est le même verdict que le parseur réel.
+    //
+    // *Une garde qui décide de ce qu'est une déclaration doit se régler sur l'analyseur qui la
+    // lira en production, pas sur l'idée qu'on s'en fait.*
+    if (m[1] && !/^\s*#\s*[A-Z][A-Z0-9_]*\s*=\s*("[^"]*"|'[^']*'|\S*)\s*(#.*)?$/.test(ligne)) return;
+    if (!out.has(m[2])) out.set(m[2], { ligne: i + 1, commentee: Boolean(m[1]) });
+  });
+  return out;
+}
+
+const lus = [];
+for (const [nom, chemin] of FICHIERS) {
+  if (!existsSync(chemin)) {
+    console.error(`✗ ${nom} : fichier introuvable (${chemin})`);
+    process.exit(1);
+  }
+  lus.push([nom, clefs(readFileSync(chemin, 'utf8'))]);
+}
+
+const [[nomA, a], [nomB, b]] = lus;
+
+const manquantesDansB = [...a.keys()].filter((k) => !b.has(k));
+const manquantesDansA = [...b.keys()].filter((k) => !a.has(k));
+
+if (REPORT) {
+  console.log(`${nomA} : ${a.size} clés · ${nomB} : ${b.size} clés`);
+  const commun = [...a.keys()].filter((k) => b.has(k)).length;
+  console.log(`communes : ${commun}`);
+}
+
+const erreurs = [];
+for (const k of manquantesDansB) {
+  erreurs.push(`${k} : déclarée dans ${nomA} (ligne ${a.get(k).ligne}), absente de ${nomB}`);
+}
+for (const k of manquantesDansA) {
+  erreurs.push(`${k} : déclarée dans ${nomB} (ligne ${b.get(k).ligne}), absente de ${nomA}`);
+}
+
+if (erreurs.length === 0) {
+  console.log(`✓ parité des clés d'environnement : ${a.size} clés des deux côtés.`);
+  process.exit(0);
+}
+
+console.error(`✗ ${erreurs.length} écart(s) entre ${nomA} et ${nomB} :\n`);
+for (const e of erreurs) console.error(`  · ${e}`);
+console.error(
+  `\nUne clé ne vit que d'un côté. Ajoute-la à l'autre fichier avec la valeur qui\n` +
+    `convient à SON environnement — ou retire-la des deux si elle est morte.`
+);
+// `--report` AJOUTE de la sortie, il ne désarme jamais la garde. Une option qui fait
+// sortir un contrôle en 0 quoi qu'il arrive est une garde armée qui ne mord pas — et
+// c'est le défaut le plus difficile à voir, puisque le pipeline reste vert.
+process.exit(1);

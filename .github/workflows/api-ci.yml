@@ -84,10 +84,16 @@ jobs:
           echo "::error::Meilisearch did not become healthy in time."; exit 1
 
       - name: Sync Meilisearch index settings
+        # SCOUT_PREFIX doit valoir CE QUE LA SUITE UTILISE. `phpunit.xml` force `testing_`, donc
+        # `searchableAs()` rend `testing_properties` en test ; sans ce préfixe ici, cette étape
+        # configurait `properties` — un index qu'aucun test ne lit. La garde poussait des
+        # réglages dans le vide, et le premier test filtrant écrit sans le trait d'amorçage
+        # échouerait sur « Attribute `status` is not filterable », en accusant le code.
         env:
           SCOUT_DRIVER: meilisearch
           MEILISEARCH_HOST: http://127.0.0.1:7700
           MEILISEARCH_KEY: masterKey
+          SCOUT_PREFIX: testing_
         run: php artisan scout:sync-index-settings
 
       - name: Run tests
@@ -97,4 +103,140 @@ jobs:
           SCOUT_DRIVER: meilisearch
           MEILISEARCH_HOST: http://127.0.0.1:7700
           MEILISEARCH_KEY: masterKey
+          # Doit rester ALIGNÉ sur `phpunit.xml` et sur l'étape de synchronisation ci-dessus.
+          SCOUT_PREFIX: testing_
         run: php artisan test
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Les migrations rejouées sur MariaDB — le moteur SUPPOSÉ de la production (cf. l'avertissement
+  # en bas de ce bloc : rien dans le dépôt n'installe MariaDB sur le serveur).
+  #
+  # `CLAUDE.md` documente quatre familles de pièges « qui passent en CI mais cassent en prod » :
+  # DEFAULT sur JSON/TEXT, dropUnique sur une colonne portant une FK, nom d'index auto-généré au-delà
+  # de 64 caractères, et `enum()`. Le job ci-dessus ne peut en voir AUCUN : il tourne sur SQLite,
+  # qui les accepte tous. Et `scripts/deploy.sh:148` lance `php artisan migrate --force` directement
+  # sur la base de production — la première machine à exécuter ce DDL en conditions réelles était
+  # donc le serveur.
+  #
+  # Le dépôt a déjà payé ce défaut DEUX fois, et les correctifs sont dans son propre historique :
+  # `c473081b` (colonne JSON sans DEFAULT) et `9815694f` (nom d'index sous la limite des 64
+  # caractères). Une famille de pièges connue, documentée, rencontrée deux fois, et que rien
+  # n'attrapait : la documentation avait remplacé la garde.
+  #
+  # Ce job ne rejoue PAS la suite de tests — c'est le DDL qu'on éprouve, pas le code. Il tourne en
+  # moins d'une minute, et il tourne sur MariaDB parce que c'est ce que `apt install mariadb-server`
+  # pose sur le serveur.
+  #
+  # ⚠ LA VERSION 11.4 EST UNE HYPOTHÈSE, pas une mesure. `scripts/server-setup.sh` n'installe ni
+  # ne configure MariaDB — sa seule mention est un `After=network.target mysql.service`. La
+  # production tourne donc sur ce que `apt` a posé : sur une Ubuntu LTS, ce serait MariaDB 10.11
+  # avec `utf8mb4_general_ci`, et non 11.4 avec `utf8mb4_unicode_ci`.
+  #
+  # Conséquence : un DDL accepté par 11.4 et refusé par le moteur réel passerait CE JOB et
+  # casserait quand même `migrate --force` au déploiement — l'échec exact que ce job existe pour
+  # empêcher. Et deux collations différentes ne comparent pas les chaînes de la même façon
+  # (unicité des e-mails, `LIKE` de recherche).
+  #
+  # À mesurer sur le serveur, puis à épingler ici ET dans `server-setup.sh` (TCK-289) :
+  #     mariadb -e "SELECT VERSION(), @@collation_server;"
+  #
+  # *Un banc d'essai qui reproduit une hypothèse ne prouve rien de la production ; il prouve que
+  # l'hypothèse est cohérente avec elle-même.*
+  migrations-mysql:
+    name: Migrations sur MariaDB (pièges que SQLite ne voit pas)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: takussan-api
+
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: takussan_ci
+          MARIADB_USER: takussan
+          MARIADB_PASSWORD: takussan
+          MARIADB_ROOT_PASSWORD: takussan
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo, pdo_mysql, mysqli, bcmath, intl, gd, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Install composer dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+
+      - name: Migrate (aller)
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: takussan_ci
+          DB_USERNAME: takussan
+          DB_PASSWORD: takussan
+        run: php artisan migrate --force --no-interaction
+
+      - name: Rollback des migrations AU-DESSUS de la borne TCK-278, puis re-migration (couverture partielle)
+        # Le `down()` d'une migration est le code le moins exécuté du dépôt — **la suite de tests
+        # n'en exécute aucun** — et c'est le seul dont on ait besoin le jour où un déploiement
+        # tourne mal. C'est là que « dropIndex sur une colonne portant une FK » se déclare, et
+        # nulle part ailleurs : ce job a trouvé le cas de `2026_06_18_000001` à sa PREMIÈRE
+        # exécution, sur les trois tables à la fois.
+        #
+        # On ne peut pas faire `migrate:refresh` : `2026_05_18_120000_drop_spatie_permission_tables`
+        # est **délibérément irréversible** (cutover TCK-278, son `down()` lève une RuntimeException
+        # assumée). On roule donc en arrière jusqu'à la marche juste au-dessus d'elle — et on
+        # CALCULE ce nombre plutôt que de l'écrire en dur, pour qu'il suive les migrations à venir
+        # sans que personne ait à y penser.
+        #
+        # ⚠ LA COUVERTURE RÉELLE, puisque le nom de ce job et `CLAUDE.md` disent « aller et
+        # retour » : **3 `down()` sur 124** aujourd'hui. La borne laisse au-dessus d'elle les
+        # seules migrations postérieures au cutover TCK-278. Les 121 autres — dont TOUTES les
+        # créations de tables, celles qu'il faudrait précisément pour dérouler une release
+        # ancienne — ne sont exécutées nulle part, ni ici ni dans la suite de tests.
+        #
+        # Le chiffre est affiché à chaque exécution (`Migrations réversibles au-dessus de …`) :
+        # il grandit d'une unité par migration ajoutée. Ne pas lire ce job comme « les down()
+        # sont couverts » — il couvre les down() RÉCENTS, ce qui est déjà ce dont on a besoin
+        # le jour où un déploiement tourne mal, mais pas davantage.
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: takussan_ci
+          DB_USERNAME: takussan
+          DB_PASSWORD: takussan
+        run: |
+          BORNE=2026_05_18_120000_drop_spatie_permission_tables
+          # On compte des MIGRATIONS, pas des entrées de répertoire. `ls database/migrations`
+          # listait tout : un `README.md`, un sous-dossier `archive/`, un `.sql` égaré — dès lors
+          # qu'il trie après la borne — ajoutait 1 à STEP. `migrate:rollback` descendait alors
+          # d'un cran SOUS la borne, jusqu'au cutover TCK-278 dont le `down()` lève
+          # délibérément, et le job échouait en pointant la migration de cutover au lieu du
+          # mauvais compte. Le glob `*.php` ne peut pas se tromper de la même façon.
+          STEP=$(ls database/migrations/*.php | xargs -n1 basename | sed 's/\.php$//' | sort | awk -v b="$BORNE" '$0 > b' | wc -l | tr -d ' ')
+          echo "Migrations réversibles au-dessus de $BORNE : $STEP"
+          if [ "$STEP" -gt 0 ]; then
+            php artisan migrate:rollback --step="$STEP" --force --no-interaction
+            php artisan migrate --force --no-interaction
+          else
+            echo "::warning::Aucune migration au-dessus de la borne — aucun down() n'a été éprouvé."
+          fi

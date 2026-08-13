@@ -1,7 +1,7 @@
 ---
 id: MVP-006
 title: "Filtres quartier/budget/pièces"
-status: todo
+status: obsolete
 slice: "Weekend 4-5"
 estimate: 1 weekend
 created: 2026-04-16

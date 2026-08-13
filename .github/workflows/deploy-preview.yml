@@ -40,7 +40,32 @@ jobs:
 
     steps:
       - name: Checkout code
+        # EXACTEMENT la forme de `deploy.yml`, et il a fallu deux essais pour y arriver.
+        #
+        #  · sans `ref`, un `workflow_dispatch` récupère la branche d'où il est lancé — depuis
+        #    que l'étape suivante impose `git rev-parse HEAD` au serveur, un dispatch depuis
+        #    `dev` déploierait le CODE DE `dev` sur la préproduction, en annonçant « preview » ;
+        #  · avec `ref: preview` inconditionnel — le premier correctif — c'est le PUSH qui perd
+        #    son épinglage. `checkout` vise `github.sha` par défaut sur un push, c'est-à-dire le
+        #    commit qui a déclenché le run. Deux poussées rapprochées, `cancel-in-progress:
+        #    false` : le run du commit A récupère une tête contenant déjà B, épingle B, déploie
+        #    B, et GitHub affiche un déploiement vert en face de A.
+        #
+        # `deploy.yml` porte cette forme depuis trois revues, avec la même justification. Je l'ai
+        # réintroduite ici sous sa première moitié. *Copier une correction sans copier la raison
+        # qui l'a produite, c'est copier la version qu'on avait avant de comprendre.*
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'preview' || github.sha }}
+
+      - name: Le commit effectivement récupéré
+        id: sha
+        # Symétrique de `deploy.yml`. La préproduction n'avait PAS reçu les correctifs appliqués
+        # à la production : ni le SHA transmis au serveur, ni les secrets sortis du bloc shell.
+        # Le commentaire de `deploy.yml` revendiquait pourtant une correction « au CLASSE, pas à
+        # l'instance signalée ». *Corriger une classe, c'est corriger tous ses membres — sinon
+        # c'est corriger une instance en le disant plus fort.*
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Copy deploy script to server
         uses: appleboy/scp-action@v1
@@ -59,12 +84,19 @@ jobs:
           username: ${{ secrets.CONTABO_USER }}
           key: ${{ secrets.CONTABO_SSH_KEY }}
           timeout: 10m
-          envs: ENV_FILE
+          envs: ENV_FILE,REPO_URL,COMMIT_SHA
+          # Aucune valeur `${{ }}` ne traverse ce bloc shell : elles descendent toutes par
+          # `envs:`. `REPO_URL` y était interpolé directement.
           script: |
             chmod +x /var/www/takussan-preview/deploy.sh
-            bash /var/www/takussan-preview/deploy.sh "${{ secrets.REPO_URL }}" preview /var/www/takussan-preview
+            bash /var/www/takussan-preview/deploy.sh "$REPO_URL" preview /var/www/takussan-preview
         env:
           ENV_FILE: ${{ secrets.ENV_FILE_PREVIEW }}
+          REPO_URL: ${{ secrets.REPO_URL }}
+          # Le serveur vise le MÊME commit que le runner. Sans lui, `deploy.sh` clonait la tête
+          # de `preview` pendant que le script déployé venait de `github.sha` : la garantie
+          # « même commit » restait à moitié posée, comme elle l'était en production.
+          COMMIT_SHA: ${{ steps.sha.outputs.sha }}
 
       - name: Smoke test
         run: |

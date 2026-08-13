@@ -9,7 +9,7 @@
  *   - unmounting a slot recompacts the dock (no phantom gap)
  *   - any third-party component can register without touching siblings (AC6)
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { render, screen, act, cleanup } from '@testing-library/react';
 import React from 'react';
 

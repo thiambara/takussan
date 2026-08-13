@@ -237,8 +237,11 @@ export function HostIndividualWizard() {
   // wizard so `initialData` carries city/currency/dialing-code defaults on
   // the very first render — otherwise `WizardReprenable`'s internal
   // `useState(initialData)` would freeze the empty defaults in place.
-  // For returning visitors the cache hit resolves synchronously, so the
-  // skeleton is virtually invisible.
+  // Even on a cache hit the skeleton shows for at least one render tick:
+  // `UserLocationProvider` defers its state update by a microtask so the
+  // write leaves the effect's synchronous body. Brief, but not "invisible" —
+  // this comment said synchronously, and it stopped being true when that
+  // deferral landed.
   if (locationLoading) {
     return (
       <div

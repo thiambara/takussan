@@ -243,12 +243,27 @@ setup_deploy_sudoers() {
         return
     fi
 
+    # ⚠ LES QUATRE unités, pas deux. sudoers compare les chaînes de commande à l'IDENTIQUE :
+    # après le passage à deux workers par application, l'alias n'en listait que la moitié, et
+    # l'opérateur se voyait refuser le redémarrage des workers de fond. Toute unité ajoutée par
+    # `setup_queue_service` doit apparaître ici.
+    #
+    # ⚠⚠ Cette explication vit DANS LE SCRIPT et non dans le heredoc ci-dessous, et ce n'est pas
+    # une question de goût. Le heredoc n'est pas quoté — il doit l'être, pour interpoler
+    # `${DEPLOY_USER}` et `${php_version}` — donc bash y exécute aussi les backticks. Un
+    # `\`setup_queue_service\`` écrit dans un commentaire du heredoc INVOQUAIT réellement la
+    # fonction, EN ROOT, et supprimait le mot du fichier écrit. Reproduit.
+    #
+    # *Un heredoc non quoté n'est pas un bloc de texte : c'est du code, y compris dans ce qui
+    # ressemble à un commentaire.* `scripts/check-heredocs.mjs` le vérifie désormais.
     log "Writing sudoers entry at ${sudoers_file}..."
     cat > "${sudoers_file}" <<SUDO
 # Takussan — allow deploy user to reload php-fpm/nginx + restart queue workers
+# LES QUATRE unites : sudoers compare les chaines de commande a l'identique.
+# Toute unite ajoutee par setup_queue_service (cf. scripts/server-setup.sh) doit figurer ici.
 # without password. Needed by scripts/deploy.sh post-symlink-swap (opcache clear)
 # and by the operator when (re)starting queue services after first deploy.
-Cmnd_Alias TAKUSSAN_RELOAD = /bin/systemctl reload php${php_version}-fpm, /bin/systemctl reload nginx, /bin/systemctl start takussan-queue, /bin/systemctl start takussan-queue-preview, /bin/systemctl restart takussan-queue, /bin/systemctl restart takussan-queue-preview, /bin/systemctl status takussan-queue, /bin/systemctl status takussan-queue-preview
+Cmnd_Alias TAKUSSAN_RELOAD = /bin/systemctl reload php${php_version}-fpm, /bin/systemctl reload nginx, /bin/systemctl start takussan-queue, /bin/systemctl start takussan-queue-media, /bin/systemctl start takussan-queue-preview, /bin/systemctl start takussan-queue-preview-media, /bin/systemctl restart takussan-queue, /bin/systemctl restart takussan-queue-media, /bin/systemctl restart takussan-queue-preview, /bin/systemctl restart takussan-queue-preview-media, /bin/systemctl status takussan-queue, /bin/systemctl status takussan-queue-media, /bin/systemctl status takussan-queue-preview, /bin/systemctl status takussan-queue-preview-media
 ${DEPLOY_USER} ALL=(root) NOPASSWD: TAKUSSAN_RELOAD
 SUDO
     chmod 0440 "${sudoers_file}"
@@ -270,6 +285,24 @@ setup_laravel_logrotate() {
         return
     fi
 
+    # `copytruncate` et NON `create` — et le commentaire d'origine expliquait pourquoi il ne
+    # fallait pas s'en soucier, à tort.
+    #
+    # « Laravel re-opens log handles per request » vaut pour PHP-FPM, pas pour les workers de
+    # file : ce sont des processus de LONGUE DURÉE (`--max-time=3600`) qui gardent leur
+    # descripteur ouvert. Avec `create`, logrotate renomme le fichier et en crée un neuf ; les
+    # workers continuent d'écrire dans le fichier renommé, et le journal vivant reste vide
+    # jusqu'au prochain redémarrage. L'endroit où un opérateur regarde en premier est
+    # exactement celui qui cesse d'être écrit.
+    #
+    # `copytruncate` copie puis tronque en place : le descripteur reste valide, aucun signal
+    # n'est nécessaire, et PHP-FPM n'en souffre pas.
+    #
+    # *Un commentaire qui explique pourquoi une précaution est inutile mérite d'être relu quand
+    # le type de processus change.*
+    #
+    # (Comme pour sudoers, cette prose reste HORS du heredoc : il n'est pas quoté, donc les
+    # backticks y seraient exécutés.)
     log "Writing logrotate config at ${logrotate_file}..."
     cat > "${logrotate_file}" <<LOGROTATE
 ${APP_DIR}/shared/storage/logs/*.log
@@ -281,11 +314,8 @@ ${PREVIEW_DIR}/shared/storage/logs/*.log
     delaycompress
     missingok
     notifempty
-    create 0640 ${DEPLOY_USER} ${WEB_GROUP}
-    sharedscripts
-    postrotate
-        # Laravel re-opens log handles per request; no signal needed.
-    endscript
+    # copytruncate : cf. le commentaire de setup_laravel_logrotate dans scripts/server-setup.sh.
+    copytruncate
 }
 LOGROTATE
     chmod 644 "${logrotate_file}"
@@ -333,8 +363,12 @@ print_validation_summary() {
     _vcheck "vhost api.takussan.com enabled" "[ -L /etc/nginx/sites-enabled/api.takussan.com ]"
     _vcheck "vhost preview.api.takussan.com enabled" "[ -L /etc/nginx/sites-enabled/preview.api.takussan.com ]"
 
-    _vcheck "takussan-queue service enabled" "systemctl is-enabled --quiet takussan-queue"
-    _vcheck "takussan-queue-preview service enabled" "systemctl is-enabled --quiet takussan-queue-preview"
+    # Les QUATRE unités. Le résumé n'en validait que deux après le passage à deux workers par
+    # application : un `systemctl enable` raté sur le worker de fond passait « tout vert », et
+    # c'est justement celui qui porte le travail invisible.
+    for _u in takussan-queue takussan-queue-media takussan-queue-preview takussan-queue-preview-media; do
+        _vcheck "${_u} service enabled" "systemctl is-enabled --quiet ${_u}"
+    done
 
     _vcheck "prod scheduler cron present" "crontab -u ${DEPLOY_USER} -l 2>/dev/null | grep -qF '${APP_DIR}/current'"
     _vcheck "preview scheduler cron present" "crontab -u ${DEPLOY_USER} -l 2>/dev/null | grep -qF '${PREVIEW_DIR}/current'"
@@ -363,6 +397,52 @@ setup_queue_service() {
     fi
 
     log "Creating queue worker systemd service ${name}..."
+
+    # `--queue` est OBLIGATOIRE, et son absence a été un défaut réel.
+    #
+    # Sans lui, `queue:work` ne consomme que la file `default`. Or le code pousse
+    # explicitement sur trois files nommées — `onQueue('media')` (2 sites),
+    # `onQueue('notifications-urgent')` (1 site), `onQueue('reconciliation')` (2 sites).
+    # Leurs jobs s'empilaient donc indéfiniment dans la table `jobs` sans jamais être
+    # exécutés : pas d'erreur, pas de timeout, pas d'alerte. L'API répondait 200, la
+    # ligne partait en base, et l'effet attendu n'arrivait simplement jamais.
+    #
+    # Une file sans consommateur est le défaut le plus silencieux qui soit — il ne se
+    # manifeste que par l'absence de quelque chose, et l'absence ne déclenche rien.
+    #
+    # Toute nouvelle file nommée doit être AJOUTÉE ICI — `scripts/check-queues.mjs` le
+    # vérifie désormais, sur les deux consommateurs (cette unité et `dev.sh`).
+    #
+    # DEUX workers, et non un ordre de files — parce qu'aucun ordre ne convient.
+    #
+    # `Worker::getNextJob()` parcourt les files dans l'ordre et rend le PREMIER job trouvé :
+    # une file n'est servie que si toutes celles qui la précèdent sont vides à cet instant.
+    # Sur UN seul worker, tout ordre affame donc quelqu'un — et les deux ordres ont été essayés :
+    #
+    #   `…,default,media,reconciliation` → un import massif remplit `default`, et pendant une
+    #     heure les photos restent sans filigrane et la réconciliation bancaire ne tourne pas ;
+    #   `…,media,reconciliation,default` → `RegenerateAgencyWatermarksJob` parcourt TOUS les
+    #     biens d'une agence et pousse deux jobs par média : une seule régénération met des
+    #     milliers de jobs devant `default`, et ce sont les relances de facture, les digests,
+    #     les purges RGPD et les exports qui s'arrêtent.
+    #
+    # Le commentaire de la première correction affirmait que `media` avait un « volume borné ».
+    # C'était l'hypothèse qui rendait l'ordre acceptable, et elle est fausse : mesurée dans
+    # `RegenerateAgencyWatermarksJob`, la file `media` est la plus volumineuse des quatre.
+    #
+    # *Quand deux ordres opposés produisent chacun une famine, ce n'est pas l'ordre qui est
+    # mauvais : c'est l'idée qu'un seul consommateur puisse servir des files concurrentes.*
+    #
+    # D'où DEUX unités par application :
+    #   · `${name}`        → `notifications-urgent,default` — l'interactif et le fourre-tout
+    #   · `${name}-media`  → `media,reconciliation`        — le travail de fond, volumineux
+    #
+    # Aucune ne peut affamer l'autre : elles ne partagent aucune file. `check-queues.mjs` sait
+    # lire plusieurs `queue:work` par consommateur et exige l'UNION — ce qui a été ajouté deux
+    # revues plus tôt, précisément pour ce cas.
+    #
+    # Toute nouvelle file nommée doit être AJOUTÉE à l'une des deux, et la garde le vérifie.
+    local files_worker="$3"   # littéral, passé par les appels en bas de ce fichier
     cat > "${service_file}" <<UNIT
 [Unit]
 Description=Takussan Queue Worker (${name})
@@ -372,11 +452,24 @@ After=network.target mysql.service
 User=${DEPLOY_USER}
 Group=${WEB_GROUP}
 WorkingDirectory=${app_dir}/current
-ExecStart=/usr/bin/php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+# Les files servies par CE worker. Le second en sert d'autres — voir le commentaire du script.
+ExecStart=/usr/bin/php artisan queue:work --queue=${files_worker} --sleep=3 --tries=3 --max-time=3600
 Restart=always
 RestartSec=5
-StandardOutput=append:${app_dir}/shared/storage/logs/queue-worker.log
-StandardError=append:${app_dir}/shared/storage/logs/queue-worker.log
+# Un journal PAR UNITÉ — pour la LISIBILITÉ, la rotation étant traitée ailleurs.
+#
+# Les deux workers d'une application écrivaient dans le même fichier : leurs lignes s'entrelaçaient
+# et « pourquoi ce job n'est-il pas parti ? » exigeait de démêler deux flux. Un fichier par unité
+# rend la question directe.
+#
+# ⚠ Le commentaire précédent invoquait ici la strophe logrotate « qui utilise create sans
+# copytruncate » — alors que le MÊME commit venait de la passer à copytruncate. Il décrivait donc
+# l'état qu'il supprimait, et un lecteur convaincu par lui aurait pu « réparer » la strophe en
+# sens inverse, réintroduisant le journal vivant qui reste vide après rotation.
+#
+# *Un commentaire écrit pendant un changement décrit facilement le monde d'avant.*
+StandardOutput=append:${app_dir}/shared/storage/logs/${name}.log
+StandardError=append:${app_dir}/shared/storage/logs/${name}.log
 
 [Install]
 WantedBy=multi-user.target
@@ -494,8 +587,12 @@ if [ "${NGINX_NEEDS_RELOAD:-0}" = "1" ]; then
 fi
 
 # ─── Step 8: Setup Laravel queue worker services ─────────────────────────────
-setup_queue_service "takussan-queue" "${APP_DIR}"
-setup_queue_service "takussan-queue-preview" "${PREVIEW_DIR}"
+# Deux workers par application : l'interactif + le fourre-tout d'un côté, le travail de fond
+# volumineux de l'autre. Ils ne partagent aucune file, donc aucun ne peut affamer l'autre.
+setup_queue_service "takussan-queue"               "${APP_DIR}"     "notifications-urgent,default"
+setup_queue_service "takussan-queue-media"         "${APP_DIR}"     "media,reconciliation"
+setup_queue_service "takussan-queue-preview"       "${PREVIEW_DIR}" "notifications-urgent,default"
+setup_queue_service "takussan-queue-preview-media" "${PREVIEW_DIR}" "media,reconciliation"
 
 # ─── Step 9: Sudoers entry for deploy user ────────────────────────────────────
 # Allows deploy.sh to reload php-fpm post-symlink-swap (opcache clear) and

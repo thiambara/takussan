@@ -5,6 +5,7 @@ status: done
 phase: P2
 family: technique
 estimate: M
+wave: 11
 created: 2026-04-26
 updated: 2026-04-26
 depends_on: [TCK-102]

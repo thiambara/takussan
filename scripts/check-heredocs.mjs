@@ -1,0 +1,172 @@
+#!/usr/bin/env node
+/**
+ * Garde des HEREDOCS : aucune substitution involontaire dans un heredoc non quoté.
+ *
+ * Le défaut qu'elle attrape a été réel, et il s'exécutait EN ROOT.
+ *
+ * `scripts/server-setup.sh` génère `/etc/sudoers.d/takussan-deploy` et
+ * `/etc/logrotate.d/takussan` par `cat > … <<SUDO`. Le délimiteur n'est pas quoté — il ne PEUT
+ * pas l'être, puisqu'il faut y interpoler `${DEPLOY_USER}`, `${APP_DIR}`, `${php_version}`.
+ * Bash y développe donc aussi les backticks et les `$(…)`, **y compris dans ce qui ressemble à
+ * un commentaire**.
+ *
+ * Un commentaire d'explication écrit `` `setup_queue_service` `` a ainsi réellement INVOQUÉ la
+ * fonction du même nom, sous root, et supprimé le mot du fichier écrit. Elle est morte
+ * immédiatement sur `local name="$1"` avec `set -u` — mais l'appel, lui, a bien eu lieu.
+ * Reproduit en bac à sable. Quatre autres lignes faisaient exécuter `copytruncate`, `create` et
+ * `--max-time=3600` comme des commandes, et arrachaient l'explication du fichier livré.
+ *
+ * *Un heredoc non quoté n'est pas un bloc de texte : c'est du code, y compris dans ce qui
+ * ressemble à un commentaire.*
+ *
+ * La règle appliquée : dans un heredoc NON quoté, `$VAR` et `${VAR}` sont légitimes — c'est la
+ * raison d'être du non-quotage — mais une SUBSTITUTION DE COMMANDE ne l'est jamais. Si un jour
+ * elle l'était, elle s'écrirait hors du heredoc, dans une variable.
+ *
+ * Usage :
+ *   node scripts/check-heredocs.mjs            # garde, sort en 1 au moindre écart
+ *   node scripts/check-heredocs.mjs --report   # + l'inventaire des heredocs vus
+ */
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const REPORT = process.argv.includes('--report');
+
+/**
+ * TOUS les scripts shell du dépôt — découverts, pas énumérés.
+ *
+ * La liste était écrite à la main : trois entrées, alors que `repo-ci.yml` déclenche cette garde
+ * sur `scripts/**`. Mesuré : deux scripts existaient déjà sous `scripts/` qu'elle n'avait jamais
+ * lus. Un heredoc non quoté avec des backticks y aurait déclenché le workflow, et la garde aurait
+ * imprimé sa ligne verte sans les avoir regardés.
+ *
+ * C'est exactement la classe « garde plus étroite que son déclencheur » que `check-queues.mjs`
+ * documente et a corrigée pour elle-même en élargissant ses racines. *Une leçon apprise par une
+ * garde ne traverse pas jusqu'à sa sœur toute seule — et la liste écrite à la main est toujours
+ * celle qui vieillit.*
+ */
+const FICHIERS = [
+  ...readdirSync(join(ROOT, 'scripts'))
+    .filter((f) => f.endsWith('.sh'))
+    .sort()
+    .map((f) => `scripts/${f}`),
+  'dev.sh',
+];
+
+/**
+ * L'ouverture d'un heredoc — et le motif est volontairement STRICT sur ce qui la précède.
+ *
+ * Une première version cherchait `<<` n'importe où dans la ligne. Une chaîne contenant
+ * `"usage: foo << BAR"`, ou un décalage arithmétique `$(( 1 << 3 ))`, mettait alors le scanner
+ * en état « dans un heredoc » dont le délimiteur n'arrivait jamais : Repo CI rougissait sur du
+ * shell parfaitement valide, avec un message parlant d'un heredoc inexistant.
+ *
+ * Une redirection de heredoc suit une commande ou une redirection — jamais un guillemet ouvert.
+ * On exige donc que le `<<` soit précédé d'un début de ligne, d'une espace, ou d'un opérateur,
+ * et on ignore les lignes dont le `<<` tombe à l'intérieur d'une chaîne.
+ *
+ * *Une garde qui rougit sur du code juste finit par être désarmée — et c'est le pire résultat
+ * possible pour celle-ci, qui garde du code exécuté en root.*
+ */
+const OUVERTURE = /(?:^|[\s;&|)])<<-?\s*(['"]?)([A-Za-z_]\w*)\1\s*(?:$|[\s;&|<>])/;
+
+/** Le `<<` de cette ligne tombe-t-il à l'intérieur d'une chaîne ? */
+function dansUneChaine(ligne) {
+  const i = ligne.search(/<<-?\s*['"]?[A-Za-z_]/);
+  if (i === -1) return false;
+  let simple = false;
+  let double = false;
+  for (let k = 0; k < i; k += 1) {
+    const c = ligne[k];
+    if (c === '\\') { k += 1; continue; }
+    if (c === "'" && !double) simple = !simple;
+    else if (c === '"' && !simple) double = !double;
+  }
+  return simple || double;
+}
+const SUBSTITUTION = /`[^`]*`|\$\([^)]*\)/;
+
+const erreurs = [];
+const vus = [];
+
+for (const rel of FICHIERS) {
+  const chemin = join(ROOT, rel);
+  if (!existsSync(chemin)) {
+    console.error(`✗ ${rel} est introuvable — la garde ne peut rien vérifier.`);
+    process.exit(1);
+  }
+  const lignes = readFileSync(chemin, 'utf8').split('\n');
+
+  let delim = null;
+  let quote = false;
+  let tiret = false; // `<<-` : seul lui tolère un terminateur indenté.
+  let debut = 0;
+  lignes.forEach((ligne, i) => {
+    const n = i + 1;
+    if (delim === null) {
+      const m = dansUneChaine(ligne) ? null : OUVERTURE.exec(ligne);
+      if (m) {
+        quote = m[1] !== '';
+        tiret = /<<-/.test(ligne);
+        delim = m[2];
+        debut = n;
+      }
+      return;
+    }
+    // Le terminateur INDENTÉ n'est accepté que par `<<-`. Avec `<<FIN`, bash ne ferme rien sur
+    // une ligne `  FIN`.
+    //
+    // La garde comparait `ligne.trim()`. Si quelqu'un indentait un terminateur, bash laissait le
+    // heredoc OUVERT pendant qu'elle le croyait fermé — et scannait toute la suite du fichier
+    // comme du shell ordinaire, sans plus rien vérifier des backticks. Le danger même qu'elle
+    // existe pour couvrir ; et elle n'aurait pas non plus signalé le heredoc non terminé.
+    //
+    // *Une garde qui ferme un bloc plus tôt que l'interpréteur cesse de regarder là où il
+    // regarde encore.*
+    if (ligne === delim || (tiret && ligne.trim() === delim)) {
+      vus.push([rel, debut, n, delim, quote]);
+      delim = null;
+      return;
+    }
+    if (!quote && SUBSTITUTION.test(ligne)) {
+      erreurs.push(
+        `${rel}:${n} — substitution de commande dans le heredoc \`<<${delim}\` ouvert ligne ${debut}, `
+        + `qui n'est PAS quoté : bash l'exécutera.\n      ${ligne.trim().slice(0, 100)}`,
+      );
+    }
+  });
+
+  if (delim !== null) {
+    erreurs.push(`${rel} — heredoc \`<<${delim}\` ouvert ligne ${debut} et jamais refermé.`);
+  }
+}
+
+if (REPORT) {
+  // Le PÉRIMÈTRE d'abord. Une garde qui annonce son verdict sans dire ce qu'elle a lu laisse
+  // croire qu'elle a tout lu — c'est ainsi qu'une liste de trois fichiers a pu en ignorer deux
+  // pendant toute la durée de cette PR.
+  console.log(`Fichiers balayés (${FICHIERS.length}) : ${FICHIERS.join(', ')}\n`);
+  console.log(`Heredocs vus (${vus.length}) :`);
+  for (const [f, d, fin, nom, q] of vus) {
+    console.log(`  ${q ? 'quoté   ' : 'NON quoté'}  <<${nom.padEnd(12)} ${f}:${d}-${fin}`);
+  }
+  console.log();
+}
+
+if (erreurs.length === 0) {
+  console.log(`✓ heredocs : ${vus.length} bloc(s) vérifié(s), aucune substitution involontaire.`);
+  process.exit(0);
+}
+
+console.error(`\n✗ ${erreurs.length} substitution(s) involontaire(s) dans un heredoc non quoté :\n`);
+for (const e of erreurs) console.error(`  · ${e}`);
+console.error(
+  `\nDans un heredoc non quoté, \`…\` et $(…) sont EXÉCUTÉS — même dans une ligne qui commence\n`
+  + `par « # ». Sur un script lancé en root, cela exécute du code en root, et le mot disparaît\n`
+  + `du fichier écrit. Sors la prose du heredoc, ou quote le délimiteur (<<'FIN') si le bloc\n`
+  + `n'a besoin d'aucune interpolation.`,
+);
+// `--report` AJOUTE de la sortie, il ne désarme jamais la garde.
+process.exit(1);

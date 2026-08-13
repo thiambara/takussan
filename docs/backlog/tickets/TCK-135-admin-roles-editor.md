@@ -5,6 +5,7 @@ status: obsolete
 phase: P1
 family: full
 estimate: M
+wave: 15
 created: 2026-05-02
 updated: 2026-05-17
 superseded_by: TCK-279

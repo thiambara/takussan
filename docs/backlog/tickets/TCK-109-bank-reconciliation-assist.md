@@ -5,6 +5,7 @@ status: done
 phase: P2
 family: applicatif
 estimate: L
+wave: 12
 created: 2026-04-24
 updated: 2026-04-24
 depends_on: [TCK-028, TCK-077, TCK-079]
@@ -187,7 +188,7 @@ state — laissé à l'IA implémenteur.
 - [ ] Hooks fetch/mutation
 - [ ] i18n fr/en/wo (`reconciliation.*`)
 - [ ] Tests Vitest sur composant principal
-- [ ] Documentation comptable courte `docs/finance/reconciliation.md` (workflow, règles)
+- [ ] Documentation comptable courte `docs/plans/2026-04-28-tck-109-bank-reconciliation.md` (workflow, règles)
 
 ## Critères d'acceptation
 

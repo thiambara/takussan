@@ -5,6 +5,7 @@ status: done
 phase: P3
 family: applicatif
 estimate: S
+wave: 23
 created: 2026-05-07
 updated: 2026-05-07
 depends_on: [TCK-216]

@@ -34,6 +34,11 @@
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
         <env name="SCOUT_DRIVER" value="meilisearch"/>
+        <!-- Sans préfixe, la suite indexe et SUPPRIME dans les mêmes index Meilisearch que
+             l'environnement de travail du développeur : `php artisan test` détruisait son jeu de
+             données de recherche à chaque exécution. Le driver est forcé ci-dessus sans repli
+             (ADR-0008), donc l'isolation ne pouvait venir que d'ici. -->
+        <env name="SCOUT_PREFIX" value="testing_"/>
         <env name="SCOUT_QUEUE" value="false"/>
         <env name="SCOUT_AFTER_COMMIT" value="false"/>
         <env name="LARAVEL_PDF_DRIVER" value="dompdf"/>

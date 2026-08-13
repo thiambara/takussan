@@ -31,7 +31,12 @@ Les conversions d'images (thumbnails, responsive) sont configurées dans `regist
 | Document | `file` | Le fichier du document lui-même |
 | Inventory | `photos` | Photos de l'état des lieux |
 
-### `spatie/laravel-permission`
+### ~~`spatie/laravel-permission`~~ — **DÉSINSTALLÉ** (TCK-278)
+
+> 🚫 **Ce paquet n'est plus installé.** Il est absent de `composer.json` et de
+> `composer.lock`, et une garde CI (`api-ci.yml`) casse sur tout import de son namespace.
+> Il reste listé ici, barré, parce qu'il l'a été longtemps et que son absence est une
+> information — pas parce qu'il fait partie de la pile. Décision : [ADR-0002](adr/0002-role-est-un-profil-polymorphe.md).
 
 > ⚠️ **Refonte architecturale TCK-278 → TCK-279.** Le trait `HasRoles` est **retiré du modèle `User`**. Le « rôle » d'un humain dans le système n'est plus un attribut auth-level mais une **propriété dérivée du profil polymorphe** dont il dispose dans un contexte donné (agence ou plateforme). Voir [Règle 5 — Profil = rôle](#règle-5--profil--rôle).
 
@@ -45,7 +50,7 @@ Les conversions d'images (thumbnails, responsive) sont configurées dans `regist
 **Phase 2 (TCK-279) — Réintroduction du trait `HasRoles` + `HasPermissions` sur les Profils.**
 - Les profils polymorphes (`AgentProfile`, `AgencyAdminProfile`, `OwnerProfile`, `ServiceProviderProfile`, `BrokerProfile`) reçoivent le trait `HasRoles`.
 - La table [AgencyRole](#52-agencyrole-) remplace la table spatie `roles` côté agence : rôles par agence (`name`, `base_profile_type`, `is_system`).
-- Un profil pointe vers exactement un `AgencyRole` (`agency_role_id` NOT NULL) — voir [Règle 6 — 1 profil = 1 rôle personnalisé](#règle-6--1-profil--1-rôle-personnalisé).
+- *(Cible, non implémentée)* Un profil pointera vers exactement un `AgencyRole` (`agency_role_id` NOT NULL) — voir [Règle 6](#règle-6--1-profil--1-rôle-personnalisé--non-implémentée), qui dit explicitement ce qui n'existe pas encore.
 - Permissions atomiques (catalogue `Capability`) attachées à un `AgencyRole` via le pivot `agency_role_capabilities`.
 - `MembershipCapabilityResolver` consulte le pivot ; les sites d'appel `$user->canActAt(...)` restent inchangés.
 
@@ -665,7 +670,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 
 ### 12. AppNotification ✏️
 
-**Table :** `app_notifications` ✏️ ancien `notifications` (approche hybride — cf. `docs/claude-code-prompt-notifications.md`)
+**Table :** `app_notifications` ✏️ ancien `notifications` (approche hybride — cf. `docs/claude-code-prompt-notifications.md` *(jamais écrit — pointeur mort)*)
 **Description :** Notification in-app envoyée à un utilisateur suite à un événement (nouvelle réservation, paiement reçu, rappel de loyer, demande de maintenance, etc.). Le modèle s'appelle `AppNotification` pour éviter toute confusion avec `Illuminate\Notifications\Notification`.
 
 | Colonne | Type | Nullable | Défaut | Description | Changement |
@@ -2138,7 +2143,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 ### 54. WhatsappContact 🆕
 
 **Table :** `whatsapp_contacts`
-**Description :** Contact WhatsApp identifié par son numéro E.164. Porte le consentement (opt-in/opt-out) et la base de la **fenêtre de service 24h** de Meta (`last_inbound_at`). Conçue pour servir à la fois le **sortant** (user enregistré → `user_id` renseigné) et, plus tard, l'**inbound** mise-en-relation (locataire anonyme → `user_id` null). Voir `docs/takussan-whatsapp-implementation.md` pour le volet inbound.
+**Description :** Contact WhatsApp identifié par son numéro E.164. Porte le consentement (opt-in/opt-out) et la base de la **fenêtre de service 24h** de Meta (`last_inbound_at`). Conçue pour servir à la fois le **sortant** (user enregistré → `user_id` renseigné) et, plus tard, l'**inbound** mise-en-relation (locataire anonyme → `user_id` null). Voir `docs/backlog/tickets/TCK-282-whatsapp-outbound-channel.md` pour le volet inbound.
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
@@ -2454,11 +2459,24 @@ Loi architecturale : **le rôle d'un humain dans un contexte est l'existence d'u
 - **Suppression d'un profil** = révocation immédiate du rôle correspondant. Aucun héritage résiduel, aucun cache de rôle sur User.
 - **Invariant base de données** : il est **interdit** d'écrire dans `model_has_roles` / `model_has_permissions` après le cutover TCK-278. Ces tables sont supprimées par la migration de refonte.
 
-### Règle 6 — 1 profil = 1 rôle personnalisé
+### Règle 6 — 1 profil = 1 rôle personnalisé — ⏳ **NON IMPLÉMENTÉE**
+
+> ⏳ **Rien de cette règle n'existe dans le code.** Vérifié le 2026-08-12 : le modèle
+> `AgencyRole` n'existe pas, les tables `agency_roles` / `agency_role_capabilities` non
+> plus, la colonne `agency_role_id` non plus, et **TCK-279 est `blocked`**.
+>
+> Cette section était rédigée **au présent de l'indicatif**, comme une loi en vigueur — un
+> lecteur pouvait construire sur une invariance qui n'a jamais existé. Elle décrit une
+> **cible**, pas un état.
+>
+> Ce qui régit réellement l'autorisation aujourd'hui : l'enum `Capability` (44 cas) résolue
+> par `MembershipCapabilityResolver`, dont la table de vérité est **définie en code** —
+> [ADR-0003](adr/0003-capacites-enum-code-defined.md). Sa signature a justement été gelée
+> pour que cette Règle 6 puisse la remplacer plus tard sans toucher un seul site d'appel.
 
 > 🆕 TCK-279 (rôles personnalisés). Préalable : Règle 5 + tables `agency_roles` / `agency_role_capabilities`.
 
-Chaque profil métier (`AgentProfile`, `AgencyAdminProfile`, `OwnerProfile`, `ServiceProviderProfile`) pointe vers **exactement un** `AgencyRole` via `agency_role_id NOT NULL`. Pas de M:N, pas de fallback : la capacité d'un user à agir s'obtient en lisant un seul rôle.
+**Au futur, donc.** Chaque profil métier (`AgentProfile`, `AgencyAdminProfile`, `OwnerProfile`, `ServiceProviderProfile`) pointera vers **exactement un** `AgencyRole` via `agency_role_id NOT NULL`. Pas de M:N, pas de fallback : la capacité d'un user à agir s'obtient en lisant un seul rôle.
 
 - **Seed agence** : à la création d'une agence, un job/observer seed quatre `AgencyRole` `is_system=true` (un par base_profile_type). Tout profil créé reçoit par défaut le `AgencyRole` système de son type.
 - **Personnalisation** : pour modifier les permissions d'un type, l'agency_admin **clone** le rôle système (`is_system=false`), édite le pivot capabilities, puis ré-affecte les profils concernés via `PATCH /api/profiles/{id}/agency-role`.

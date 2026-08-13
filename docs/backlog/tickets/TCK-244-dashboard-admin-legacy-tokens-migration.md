@@ -5,6 +5,7 @@ status: done
 phase: P2
 family: front
 estimate: L
+wave: 27
 created: 2026-05-09
 updated: 2026-05-09
 depends_on: [TCK-129]

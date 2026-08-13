@@ -25,7 +25,6 @@ use Illuminate\Validation\Rule;
  */
 class InventoryStoreRequest extends FormRequest
 {
-
     public function authorize(): bool
     {
         return $this->user() !== null;

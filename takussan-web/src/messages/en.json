@@ -239,7 +239,16 @@
     "network": "Cannot reach the server.",
     "unauthorized": "You are not allowed to perform this action.",
     "notFound": "Resource not found.",
-    "validation": "Some fields are invalid."
+    "validation": "Some fields are invalid.",
+    "boundary": {
+      "title": "Something went wrong",
+      "body": "This page could not be displayed. Please try again in a moment.",
+      "agencyTitle": "We couldn’t verify your access",
+      "agencyBody": "We couldn’t reach the server to confirm your agency’s access. This is not a change to your plan — please try again in a moment.",
+      "reference": "Technical reference: {digest}",
+      "retry": "Try again",
+      "backToDashboard": "Back to dashboard"
+    }
   },
   "agency": {
     "currency": {
