@@ -89,6 +89,11 @@ export async function resolveAgencyOrNull(
     //
     // *Une distinction qui repose sur ce qu'un framework veut bien transporter n'est pas une
     // distinction : c'est un pari sur son mode de build.*
+    //
+    // Portée réelle : quand l'API entière est à terre, `getMeAction()` du layout échoue d'abord
+    // et c'est la frontière d'erreur générique qui répond. Cette redirection couvre le cas où
+    // `/api/agencies/{id}` SEUL échoue — rate-limit, surcharge ciblée. Voir le docblock de
+    // `app/verification-indisponible/page.tsx`.
     if (usage === 'decision' && transitoire) redirect(ROUTE_VERIF_INDISPONIBLE);
     return null;
   }

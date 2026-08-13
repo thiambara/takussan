@@ -16,6 +16,20 @@ import { buttonVariants } from '@/components/ui/button';
  *
  * `/app` veut dire « non » ; cette route dit « je n'ai pas pu demander ». Deux réponses
  * différentes à deux questions différentes.
+ *
+ * ⚠ PORTÉE RÉELLE, plus étroite que ce que les commentaires précédents laissaient croire.
+ * Cette page vit sous `(dashboard)/app/`, dont le layout appelle `getMeAction()` — qui relance
+ * toute erreur autre qu'un 401. Quand c'est l'API ENTIÈRE qui est indisponible, `/api/user`
+ * échoue aussi : la page gardée lève avant même d'atteindre la vérification d'agence, et la
+ * redirection ici lèverait à son tour. C'est alors `(dashboard)/error.tsx` qui répond — son
+ * message générique dit « réessayez », donc l'utilisateur ne conclut pas au déclassement, mais
+ * il n'obtient pas le message précis.
+ *
+ * Cette route rend donc dans le cas où `/api/user` répond et où `/api/agencies/{id}` SEUL
+ * échoue en 429/5xx : une surcharge ciblée, un rate-limit. C'est un cas réel, et c'est celui
+ * qui motivait le correctif — mais ce n'est pas « toute panne d'API ».
+ *
+ * *Une garantie se décrit par ce qui l'atteint, pas par ce qu'on voulait qu'elle couvre.*
  */
 export default async function VerificationIndisponiblePage() {
   const t = await getTranslations('errors.boundary');

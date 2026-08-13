@@ -77,6 +77,14 @@ jobs:
       - name: Les deux fichiers d'environnement déclarent les mêmes clés
         run: node scripts/check-env-parity.mjs
 
+      - name: Aucune substitution involontaire dans un heredoc non quoté
+        # `server-setup.sh` écrit /etc/sudoers.d et /etc/logrotate.d par heredoc, et ces blocs
+        # NE PEUVENT PAS être quotés : ils interpolent ${DEPLOY_USER}, ${APP_DIR}. Bash y
+        # exécute donc aussi les backticks — y compris dans une ligne qui commence par « # ».
+        # Un commentaire écrivant `setup_queue_service` a réellement invoqué la fonction, EN
+        # ROOT, et supprimé le mot du fichier écrit. Reproduit avant correction.
+        run: node scripts/check-heredocs.mjs --report
+
       - name: Toute file de jobs poussée par le code est consommée en production
         # L'unité systemd lançait `queue:work` SANS `--queue` : elle ne consommait que
         # `default`, et les jobs poussés sur `media`, `notifications-urgent` et

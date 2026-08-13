@@ -243,13 +243,24 @@ setup_deploy_sudoers() {
         return
     fi
 
+    # ⚠ LES QUATRE unités, pas deux. sudoers compare les chaînes de commande à l'IDENTIQUE :
+    # après le passage à deux workers par application, l'alias n'en listait que la moitié, et
+    # l'opérateur se voyait refuser le redémarrage des workers de fond. Toute unité ajoutée par
+    # `setup_queue_service` doit apparaître ici.
+    #
+    # ⚠⚠ Cette explication vit DANS LE SCRIPT et non dans le heredoc ci-dessous, et ce n'est pas
+    # une question de goût. Le heredoc n'est pas quoté — il doit l'être, pour interpoler
+    # `${DEPLOY_USER}` et `${php_version}` — donc bash y exécute aussi les backticks. Un
+    # `\`setup_queue_service\`` écrit dans un commentaire du heredoc INVOQUAIT réellement la
+    # fonction, EN ROOT, et supprimait le mot du fichier écrit. Reproduit.
+    #
+    # *Un heredoc non quoté n'est pas un bloc de texte : c'est du code, y compris dans ce qui
+    # ressemble à un commentaire.* `scripts/check-heredocs.mjs` le vérifie désormais.
     log "Writing sudoers entry at ${sudoers_file}..."
     cat > "${sudoers_file}" <<SUDO
 # Takussan — allow deploy user to reload php-fpm/nginx + restart queue workers
-# ⚠ LES QUATRE unités, pas deux. sudoers compare les chaînes de commande à l'IDENTIQUE :
-# après le passage à deux workers par application, l'alias n'en listait que la moitié,
-# et l'opérateur se voyait refuser le redémarrage des workers de fond. Toute unité
-# ajoutée par `setup_queue_service` doit apparaître ici.
+# LES QUATRE unites : sudoers compare les chaines de commande a l'identique.
+# Toute unite ajoutee par setup_queue_service (cf. scripts/server-setup.sh) doit figurer ici.
 # without password. Needed by scripts/deploy.sh post-symlink-swap (opcache clear)
 # and by the operator when (re)starting queue services after first deploy.
 Cmnd_Alias TAKUSSAN_RELOAD = /bin/systemctl reload php${php_version}-fpm, /bin/systemctl reload nginx, /bin/systemctl start takussan-queue, /bin/systemctl start takussan-queue-media, /bin/systemctl start takussan-queue-preview, /bin/systemctl start takussan-queue-preview-media, /bin/systemctl restart takussan-queue, /bin/systemctl restart takussan-queue-media, /bin/systemctl restart takussan-queue-preview, /bin/systemctl restart takussan-queue-preview-media, /bin/systemctl status takussan-queue, /bin/systemctl status takussan-queue-media, /bin/systemctl status takussan-queue-preview, /bin/systemctl status takussan-queue-preview-media
@@ -274,19 +285,8 @@ setup_laravel_logrotate() {
         return
     fi
 
-    log "Writing logrotate config at ${logrotate_file}..."
-    cat > "${logrotate_file}" <<LOGROTATE
-${APP_DIR}/shared/storage/logs/*.log
-${PREVIEW_DIR}/shared/storage/logs/*.log
-{
-    daily
-    rotate 14
-    compress
-    delaycompress
-    missingok
-    notifempty
-    # `copytruncate` et NON `create`, et le commentaire précédent expliquait pourquoi il ne
-    # fallait pas s'en soucier — à tort.
+    # `copytruncate` et NON `create` — et le commentaire d'origine expliquait pourquoi il ne
+    # fallait pas s'en soucier, à tort.
     #
     # « Laravel re-opens log handles per request » vaut pour PHP-FPM, pas pour les workers de
     # file : ce sont des processus de LONGUE DURÉE (`--max-time=3600`) qui gardent leur
@@ -300,6 +300,21 @@ ${PREVIEW_DIR}/shared/storage/logs/*.log
     #
     # *Un commentaire qui explique pourquoi une précaution est inutile mérite d'être relu quand
     # le type de processus change.*
+    #
+    # (Comme pour sudoers, cette prose reste HORS du heredoc : il n'est pas quoté, donc les
+    # backticks y seraient exécutés.)
+    log "Writing logrotate config at ${logrotate_file}..."
+    cat > "${logrotate_file}" <<LOGROTATE
+${APP_DIR}/shared/storage/logs/*.log
+${PREVIEW_DIR}/shared/storage/logs/*.log
+{
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    # copytruncate : cf. le commentaire de setup_laravel_logrotate dans scripts/server-setup.sh.
     copytruncate
     sharedscripts
 }
