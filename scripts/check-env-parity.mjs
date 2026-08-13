@@ -52,6 +52,7 @@ function clefs(contenu) {
     // C'est ce test-ci, et non une comparaison avec l'autre fichier, qui distingue
     //   `# CACHE_PREFIX=`                                        → déclaration
     //   `# SCOUT_QUEUE=true    # recommandé avec Meilisearch`    → déclaration
+    //   `# MAIL_FROM_NAME="Takussan App"`                        → déclaration
     //   `# MEILI_MASTER_KEY=masterKey (cf. docker-compose.yml)`  → prose
     //
     // Une version précédente s'y prenait autrement : elle écartait toute clé commentée que
@@ -62,7 +63,27 @@ function clefs(contenu) {
     //
     // *Quand une règle et son contre-exemple se contredisent, c'est le TEST qu'il faut affiner,
     // pas la portée de la règle : élargir le contexte déplace l'erreur, il ne la retire pas.*
-    if (m[1] && !/^\s*#\s*[A-Z][A-Z0-9_]*\s*=\s*(\S*)\s*(#.*)?$/.test(ligne)) return;
+    //
+    // ⚠ La valeur peut contenir des ESPACES, et la première version l'ignorait : elle exigeait
+    // `(\S*)`, si bien que `# MAIL_FROM_NAME="Takussan App"` ou `# FOO=bar baz` retombaient en
+    // prose. Deux dégâts opposés — la clé disparaissait en silence du contrat (le cas même que
+    // le docblock cite), ou, si l'autre fichier la déclarait sans commentaire, la garde
+    // inventait une clé manquante et rougissait à tort. On distingue donc la prose par ce
+    // qu'elle est — du texte SÉPARÉ de la valeur par une espace, hors guillemets — et non par
+    // la seule présence d'une espace.
+    //
+    // Valeur = soit une chaîne entre guillemets, soit une suite sans espace. Ce qui suit doit
+    // être vide ou un commentaire en ligne.
+    //
+    // La borne est celle de phpdotenv, et non une convention qu'on se donnerait ici : mesuré
+    // avec `Dotenv::parse()`, `FOO=bar baz` est REFUSÉ (« Encountered unexpected whitespace »)
+    // tandis que `FOO="bar baz"` rend `bar baz`. Une valeur non citée contenant une espace
+    // n'est donc pas une déclaration que l'application saurait lire — la traiter comme de la
+    // prose n'est pas une approximation, c'est le même verdict que le parseur réel.
+    //
+    // *Une garde qui décide de ce qu'est une déclaration doit se régler sur l'analyseur qui la
+    // lira en production, pas sur l'idée qu'on s'en fait.*
+    if (m[1] && !/^\s*#\s*[A-Z][A-Z0-9_]*\s*=\s*("[^"]*"|'[^']*'|\S*)\s*(#.*)?$/.test(ligne)) return;
     if (!out.has(m[2])) out.set(m[2], { ligne: i + 1, commentee: Boolean(m[1]) });
   });
   return out;

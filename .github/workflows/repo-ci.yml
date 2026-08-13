@@ -35,6 +35,8 @@ on:
       # D'où `docs/**` : la garde lit tout `docs/`, le déclencheur couvre tout `docs/`. Une
       # énumération se re-vérifie à chaque garde ajoutée ; un préfixe, jamais.
       - 'takussan-api/app/**'
+      - 'takussan-api/routes/**'
+      - 'takussan-api/database/**'
       - 'takussan-web/src/**'
       - 'scripts/**'
       - 'dev.sh'
@@ -46,6 +48,8 @@ on:
       - 'takussan-api/.env.example'
       - 'takussan-api/.env.docker'
       - 'takussan-api/app/**'
+      - 'takussan-api/routes/**'
+      - 'takussan-api/database/**'
       - 'takussan-web/src/**'
       - 'scripts/**'
       - 'dev.sh'

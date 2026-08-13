@@ -56,10 +56,32 @@ avert() { printf '  \033[33m!\033[0m %s\n' "$*"; }
 # seule ligne**. Il n'atteignait jamais la branche `DB_CONNECTION=sqlite` écrite pour ce cas
 # précis, et `./dev.sh doctor` — dont tout le contrat est de toujours répondre — ne répondait
 # rien. Le mode diagnostic tombait exactement sur la configuration qu'on l'appelle diagnostiquer.
+#
+# ⚠ Le COMMENTAIRE EN LIGNE et les espaces sont retirés — phpdotenv les retire, ce script ne le
+# faisait pas, et l'écart se payait cher.
+#
+# `DB_PORT=3307  # conteneur du dépôt` est un `.env` parfaitement valide : Laravel lit `3307`.
+# Ce script lisait `3307  # conteneur du dépôt`, l'égalité avec `TAKUSSAN_DB_PORT` échouait,
+# `VISE_DOCKER` tombait à 0, aucun conteneur n'était démarré, et `php artisan migrate` mourait
+# sur un « Connection refused » — la panne mal imputée que tout ce fichier existe pour
+# supprimer, déclenchée par un commentaire que rien n'interdit d'écrire.
+#
+# Même exposition pour `MEILISEARCH_HOST` (injecté dans une URL `curl`), `MAIL_PORT`, et
+# `MEILISEARCH_KEY` (injectée dans un en-tête `Authorization`).
+#
+# *Un lecteur de configuration doit lire ce que lit le programme, pas ce qui est écrit.*
 env_get() {
-  local fichier="$1" cle="$2"
+  local fichier="$1" cle="$2" brut
   [ -f "$fichier" ] || return 0
-  grep -E "^${cle}=" "$fichier" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" || true
+  brut="$(grep -E "^${cle}=" "$fichier" 2>/dev/null | head -1 | cut -d= -f2- || true)"
+  # Valeur citée : on rend l'intérieur des guillemets tel quel (une espace y est légitime).
+  case "$brut" in
+    '"'*'"'*) brut="${brut#\"}"; brut="${brut%%\"*}"; printf '%s' "$brut"; return 0 ;;
+    "'"*"'"*) brut="${brut#\'}"; brut="${brut%%\'*}"; printf '%s' "$brut"; return 0 ;;
+  esac
+  # Valeur non citée : elle s'arrête à la première espace — comme chez phpdotenv, pour qui une
+  # espace non citée est une erreur de syntaxe et non une partie de la valeur.
+  printf '%s' "${brut%%[[:space:]]*}"
   return 0
 }
 
@@ -585,6 +607,22 @@ else
     bold "▸ Migrations en attente"
     (cd "$API" && php artisan migrate --force)
   fi
+fi
+
+# ─────────────────────────────────────── réglages Meilisearch, INDEX DE TEST COMPRIS
+# `phpunit.xml` pose `SCOUT_PREFIX=testing_` : la suite écrit donc dans `testing_properties`,
+# pas dans `properties`. `api-ci.yml` synchronise bien les réglages sous ce préfixe — mais rien
+# ne le faisait sur le poste du développeur. Conséquence : un test qui filtre sur un attribut
+# Meilisearch sans le trait `InteractsWithMeilisearch` PASSE en CI et ÉCHOUE en local, sur
+# « Attribute `status` is not filterable ». Le développeur cherche alors dans son code un
+# défaut qui est dans son environnement, avec une CI verte pour le contredire.
+#
+# Les deux préfixes sont synchronisés : celui du travail, et celui des tests.
+#
+# *Une divergence CI↔local n'est pas une nuisance : c'est une garde qui rend deux verdicts
+# opposés sur le même code, et c'est toujours celui qu'on a sous les yeux qu'on croit.*
+if [ "$(env_get "$API/.env" SCOUT_DRIVER)" = "meilisearch" ]; then
+  (cd "$API" && php artisan scout:sync-index-settings >/dev/null 2>&1)     && (cd "$API" && SCOUT_PREFIX=testing_ php artisan scout:sync-index-settings >/dev/null 2>&1)     && ok "réglages Meilisearch synchronisés (index de travail ET testing_*)"     || avert "scout:sync-index-settings a échoué — les tests filtrant sur Meilisearch échoueront."
 fi
 
 # ───────────────────────────────────────────────────────────── API + file + scheduler

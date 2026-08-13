@@ -39,6 +39,13 @@ on:
         required: true
         default: dev
         type: string
+      confirmer:
+        description: >-
+          Retape ici le nom EXACT de la branche ci-dessus pour confirmer. Ce champ est vide par
+          défaut et il n'a pas de valeur juste : c'est tout son objet.
+        required: true
+        default: ''
+        type: string
 
 concurrency:
   group: takussan-prod-deploy
@@ -79,10 +86,29 @@ jobs:
         # BORNER le risque revenait à présenter comme vérifié le seul choix qui déploie la
         # branche d'un environnement sur la base de l'autre. Une allowlist ne se lit pas comme
         # une contrainte : elle se lit comme une recommandation.
+        #
+        # ⚠ La CONFIRMATION TYPÉE ci-dessous existe parce que `default: dev` reste, lui, un choix
+        # discutable : `dev` est la branche d'intégration, et ce workflow lance
+        # `migrate --force` sur la base de PRODUCTION. Revenir à `default: master` recréerait le
+        # défaut inverse — déployer en silence l'état du 2026-05-18 — donc ni l'un ni l'autre des
+        # deux défauts ne se règle par le choix du défaut.
+        #
+        # Ce qu'on ferme, c'est le geste : « ouvrir le formulaire, accepter ce qui est
+        # pré-rempli, cliquer ». Le second champ est VIDE par défaut et doit être retapé à
+        # l'identique. *Une valeur pré-remplie n'est pas une décision ; c'est l'absence de
+        # décision, présentée comme un accord.*
         run: |
           echo "Branche déployée : ${DEPLOY_BRANCH}"
           echo "Cible            : /var/www/takussan (api.takussan.com)"
           echo "Déclencheur      : ${{ github.event_name }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] \
+             && [ "${{ inputs.confirmer }}" != "${DEPLOY_BRANCH}" ]; then
+            echo "::error::Confirmation absente ou différente de la branche."
+            echo "Retape exactement '${DEPLOY_BRANCH}' dans le champ « confirmer »."
+            echo "Ce déploiement lance 'migrate --force' sur la base de PRODUCTION : il ne doit"
+            echo "pas pouvoir se déclencher en acceptant un formulaire pré-rempli."
+            exit 1
+          fi
           case "${DEPLOY_BRANCH}" in
             master|dev) ;;
             *)
@@ -120,6 +146,13 @@ jobs:
         with:
           ref: ${{ inputs.branch || github.sha }}
 
+      - name: Le commit effectivement récupéré
+        id: sha
+        # On LIT le SHA obtenu, on ne le déduit pas de l'entrée : sur un dispatch, `ref` est un
+        # nom de branche, et c'est justement la résolution nom → commit qu'on veut figer une
+        # seule fois, ici, plutôt que de la laisser se rejouer sur le serveur.
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Copy deploy script to server
         uses: appleboy/scp-action@v1
         with:
@@ -137,13 +170,18 @@ jobs:
           username: ${{ secrets.CONTABO_USER }}
           key: ${{ secrets.CONTABO_SSH_KEY }}
           timeout: 10m
-          envs: ENV_FILE,DEPLOY_BRANCH
+          envs: ENV_FILE,DEPLOY_BRANCH,COMMIT_SHA
           script: |
             chmod +x /var/www/takussan/deploy.sh
-            bash /var/www/takussan/deploy.sh "${{ secrets.REPO_URL }}" "$DEPLOY_BRANCH" /var/www/takussan
+            COMMIT_SHA="$COMMIT_SHA" bash /var/www/takussan/deploy.sh "${{ secrets.REPO_URL }}" "$DEPLOY_BRANCH" /var/www/takussan
         env:
           ENV_FILE: ${{ secrets.ENV_FILE }}
           DEPLOY_BRANCH: ${{ env.DEPLOY_BRANCH }}
+          # Le commit RÉELLEMENT déployé, transmis au serveur pour qu'il vise le même que le
+          # runner. Sur un push c'est `github.sha` ; sur un dispatch manuel, le SHA que le
+          # `checkout` de la branche demandée a effectivement obtenu — relu du dépôt local
+          # plutôt que supposé.
+          COMMIT_SHA: ${{ steps.sha.outputs.sha }}
 
       - name: Smoke test
         run: |

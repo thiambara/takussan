@@ -24,7 +24,24 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REPORT = process.argv.includes('--report');
-const APP = join(ROOT, 'takussan-api', 'app');
+/**
+ * Les racines BALAYÉES — trois, et pas seulement `app/`.
+ *
+ * Le balayage s'arrêtait à `app/`. C'est complet aujourd'hui (les 5 sites `onQueue()` y sont
+ * tous), mais `routes/console.php` porte la vingtaine de tâches planifiées du projet : un
+ * `->onQueue('exports')` écrit là aurait été invisible à cette garde — ET n'aurait même pas
+ * déclenché `repo-ci.yml`, dont le filtre `paths:` ne nommait lui aussi que `takussan-api/app/**`.
+ * La panne silencieuse que ce script existe pour empêcher revenait donc par la seule porte
+ * qu'il ne surveillait pas, avec la CI muette en prime.
+ *
+ * *Une garde et son déclencheur doivent couvrir le même périmètre ; sinon c'est le plus étroit
+ * des deux qui définit ce qui est réellement gardé.*
+ */
+const RACINES = [
+  join(ROOT, 'takussan-api', 'app'),
+  join(ROOT, 'takussan-api', 'routes'),
+  join(ROOT, 'takussan-api', 'database'),
+];
 
 /**
  * TOUS les consommateurs, pas seulement celui de production.
@@ -129,7 +146,7 @@ function balayer(dir) {
     }
   }
 }
-balayer(APP);
+for (const racine of RACINES) if (existsSync(racine)) balayer(racine);
 
 /* ── 2. les files que CHAQUE consommateur consomme ───────────────────────── */
 const lus = [];

@@ -113,8 +113,26 @@ fi
 mkdir -p "${RELEASES_DIR}"
 
 # ─── Step 1: Clone ───────────────────────────────────────────────────────────
+# On vise le COMMIT quand on nous le donne, et la tête de branche seulement à défaut.
+#
+# `git clone --depth 1 --branch "$BRANCH"` prend ce que la branche pointe AU MOMENT DU CLONE.
+# Le workflow, lui, avait été corrigé pour récupérer `github.sha` — le commit exact du push.
+# Résultat : la moitié « script de déploiement » venait du bon commit, la moitié « code
+# applicatif » venait de la tête. Avec `cancel-in-progress: false`, deux poussées rapprochées
+# faisaient déployer au premier run un arbre contenant déjà le second commit, en rapportant un
+# succès en face du premier.
+#
+# *Une garantie « même commit » à moitié posée n'est pas à moitié tenue : elle est fausse, et
+# elle est désormais écrite dans un commentaire que l'on croira.*
 log "Cloning repository..."
-git clone --depth 1 --branch "${BRANCH}" "${REPO_URL}" "${RELEASE_DIR}"
+if [ -n "${COMMIT_SHA:-}" ]; then
+    log "Target commit: ${COMMIT_SHA} (branch ${BRANCH})"
+    git clone --branch "${BRANCH}" "${REPO_URL}" "${RELEASE_DIR}"
+    git -C "${RELEASE_DIR}" checkout --detach "${COMMIT_SHA}"
+else
+    log "No COMMIT_SHA given — falling back to the tip of ${BRANCH}."
+    git clone --depth 1 --branch "${BRANCH}" "${REPO_URL}" "${RELEASE_DIR}"
+fi
 
 # ─── Step 2: Symlink shared .env ─────────────────────────────────────────────
 log "Linking shared .env..."
