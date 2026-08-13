@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
-import { getActiveProfileId, getToken } from '@/lib/session';
-import { fetchAgency } from '@/lib/queries/agencies';
+import { getToken } from '@/lib/session';
+import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchServiceProviders } from '@/lib/queries/service-providers';
 import { ServiceProvidersList } from '@/components/service-providers/ServiceProvidersList';
 import { isAdmin } from '@/lib/roles';
@@ -42,9 +42,14 @@ export default async function Page() {
   }
 
   const [agency, providers] = await Promise.all([
-    fetchAgency(token, agencyId, await getActiveProfileId()),
+    resolveAgencyOrNull(token, agencyId, 'maintenance/providers', 'decision'),
     fetchServiceProviders(token, { agencyId }),
   ]);
+
+  // `null` ici ne peut plus être une panne passagère — `resolveAgencyOrNull(..., 'decision')` les
+  // a déjà renvoyées vers `/verification-indisponible`. Il ne reste que 401/403/404 : l'API a
+  // répondu que cette agence n'est pas lisible par cet utilisateur. On refuse, comme ailleurs.
+  if (!agency) redirect('/app');
 
   // TCK-260 — UI visibility gate. Le backend re-vérifie les deux conditions.
   // `individual` est explicitement autorisé (cf. ticket).

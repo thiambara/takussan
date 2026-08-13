@@ -33,7 +33,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       // « agence individuelle ». Le cadenas est identique dans les deux cas (`isProRouteLocked`
       // rend `agencyIsStandard !== true`, donc fail-closed), mais la CARTE « passez au plan
       // supérieur » ne s'affiche que sur `=== false`. Résultat, sur
-      // `/app/verification-indisponible` — la page qui dit « ce n'est pas un changement de votre
+      // `/verification-indisponible` — la page qui dit « ce n'est pas un changement de votre
       // formule » — la barre latérale affirmait exactement le contraire.
       //
       // *Écraser « je ne sais pas » en « non » ne change pas la décision ; cela change ce qu'on

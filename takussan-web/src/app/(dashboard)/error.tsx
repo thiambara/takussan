@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/button';
  * puisque Next y expurge les messages des Server Components.
  *
  * Le cas « vérification d'agence indisponible » a désormais sa propre ROUTE
- * (`/app/verification-indisponible`), atteinte par redirection. Une redirection ne dépend
+ * (`/verification-indisponible`), atteinte par redirection. Une redirection ne dépend
  * d'aucune sérialisation.
  *
  * *Une frontière large qui affirme une cause étroite se trompe partout sauf à un endroit.*

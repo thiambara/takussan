@@ -119,13 +119,13 @@ describe('ensureStandardAgencyOrRedirect', () => {
     // demander ». La distinction ne repose sur aucune sérialisation d'erreur — Next expurge les
     // messages des Server Components en production, ce qui avait rendu la version précédente
     // (un marqueur dans `error.message`) inopérante là où elle comptait.
-    expect(await refus(utilisateur(7))).toBe('/app/verification-indisponible');
+    expect(await refus(utilisateur(7))).toBe('/verification-indisponible');
   });
 
   it('renvoie aussi sur une panne RÉSEAU — l’absence de réponse n’est pas une réponse', async () => {
     getToken.mockResolvedValue('tok');
     fetchAgency.mockRejectedValue(new TypeError('fetch failed'));
-    expect(await refus(utilisateur(7))).toBe('/app/verification-indisponible');
+    expect(await refus(utilisateur(7))).toBe('/verification-indisponible');
   });
 
   it('reconnaît une panne réseau par `cause.code`, pas par des mots du message', async () => {
@@ -133,7 +133,7 @@ describe('ensureStandardAgencyOrRedirect', () => {
     const e = new TypeError('Failed to fetch') as TypeError & { cause?: { code: string } };
     e.cause = { code: 'ECONNREFUSED' };
     fetchAgency.mockRejectedValue(e);
-    expect(await refus(utilisateur(7))).toBe('/app/verification-indisponible');
+    expect(await refus(utilisateur(7))).toBe('/verification-indisponible');
   });
 
   it('un bug dont le message CONTIENT « timeout » reste un bug', async () => {
@@ -154,7 +154,7 @@ describe('ensureStandardAgencyOrRedirect', () => {
     // des réponses SUR LE DROIT de cet utilisateur.
     getToken.mockResolvedValue('tok');
     fetchAgency.mockRejectedValue(new ApiError(400, { message: 'Invalid field kind' }));
-    expect(await refus(utilisateur(7))).toBe('/app/verification-indisponible');
+    expect(await refus(utilisateur(7))).toBe('/verification-indisponible');
   });
 
   it('RELANCE un bug — il ne se déguise pas en « réessayez dans un instant »', async () => {
@@ -182,7 +182,7 @@ describe('ensureStandardAgencyOrRedirect', () => {
     // `!agency` muet alors qu'un commentaire le rangeait parmi ceux qui s'expliquent.
     getToken.mockResolvedValue('tok');
     fetchAgency.mockResolvedValue(undefined);
-    expect(await refus(utilisateur(7))).toBe('/app/verification-indisponible');
+    expect(await refus(utilisateur(7))).toBe('/verification-indisponible');
   });
 
   it('refuse en silence sur 401 — la session, pas le forfait', async () => {

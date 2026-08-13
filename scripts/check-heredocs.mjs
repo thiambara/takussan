@@ -83,6 +83,7 @@ for (const rel of FICHIERS) {
 
   let delim = null;
   let quote = false;
+  let tiret = false; // `<<-` : seul lui tolère un terminateur indenté.
   let debut = 0;
   lignes.forEach((ligne, i) => {
     const n = i + 1;
@@ -90,12 +91,23 @@ for (const rel of FICHIERS) {
       const m = dansUneChaine(ligne) ? null : OUVERTURE.exec(ligne);
       if (m) {
         quote = m[1] !== '';
+        tiret = /<<-/.test(ligne);
         delim = m[2];
         debut = n;
       }
       return;
     }
-    if (ligne.trim() === delim) {
+    // Le terminateur INDENTÉ n'est accepté que par `<<-`. Avec `<<FIN`, bash ne ferme rien sur
+    // une ligne `  FIN`.
+    //
+    // La garde comparait `ligne.trim()`. Si quelqu'un indentait un terminateur, bash laissait le
+    // heredoc OUVERT pendant qu'elle le croyait fermé — et scannait toute la suite du fichier
+    // comme du shell ordinaire, sans plus rien vérifier des backticks. Le danger même qu'elle
+    // existe pour couvrir ; et elle n'aurait pas non plus signalé le heredoc non terminé.
+    //
+    // *Une garde qui ferme un bloc plus tôt que l'interpréteur cesse de regarder là où il
+    // regarde encore.*
+    if (ligne === delim || (tiret && ligne.trim() === delim)) {
       vus.push([rel, debut, n, delim, quote]);
       delim = null;
       return;

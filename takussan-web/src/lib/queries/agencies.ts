@@ -46,6 +46,13 @@ function buildShowParams(): SpatieQueryParams {
  *
  * *Deux requêtes qui portent la même identité doivent porter le même contexte, sinon elles ne
  * parlent pas du même utilisateur.*
+ *
+ * ⚠ Ce hint est SOUPLE côté serveur : `ResolveActiveProfile` ignore silencieusement un
+ * `active_profile_id` invalide plutôt que de rendre 403. Un cookie périmé ne peut donc pas
+ * transformer un appel qui marchait en refus — et cette propriété est désormais PORTEUSE :
+ * depuis que les gardes sont fail-closed, un 403 se traduirait par un `redirect('/app')`
+ * silencieux. Durcir ce hint vers la sémantique de `X-Profile-Id` exigerait de reprendre
+ * `classer()` d'abord.
  */
 export async function fetchAgency(
   token: string,

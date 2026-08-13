@@ -104,7 +104,7 @@ const agenceDuRendu = cache(
 );
 
 /** Où l'on renvoie quand on n'a pas PU vérifier — distinct de `/app`, qui veut dire « non ». */
-export const ROUTE_VERIF_INDISPONIBLE = '/app/verification-indisponible';
+export const ROUTE_VERIF_INDISPONIBLE = '/verification-indisponible';
 
 /**
  * Résout l'agence pour une DÉCISION d'accès, ou `null` — en laissant une trace.
@@ -199,7 +199,7 @@ export async function resolveAgencyOrNull(
     // Portée réelle : quand l'API entière est à terre, `getMeAction()` du layout échoue d'abord
     // et c'est la frontière d'erreur générique qui répond. Cette redirection couvre le cas où
     // `/api/agencies/{id}` SEUL échoue — rate-limit, surcharge ciblée. Voir le docblock de
-    // `app/verification-indisponible/page.tsx`.
+    // `verification-indisponible/page.tsx`.
     if (usage === 'decision' && verdict === 'explique') redirect(ROUTE_VERIF_INDISPONIBLE);
     return null;
   }

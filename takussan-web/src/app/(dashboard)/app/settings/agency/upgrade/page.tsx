@@ -3,8 +3,8 @@ import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
-import { getActiveProfileId, getToken } from '@/lib/session';
-import { fetchAgency } from '@/lib/queries/agencies';
+import { getToken } from '@/lib/session';
+import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchAgencyUpgradeRequests } from '@/lib/queries/agency-upgrade';
 import { UpgradeRequestForm } from '@/components/agency/UpgradeRequestForm';
 import { UpgradeRequestStatus } from '@/components/agency/UpgradeRequestStatus';
@@ -38,9 +38,14 @@ export default async function Page() {
   if (!agencyId) redirect('/app');
 
   const [agency, listing] = await Promise.all([
-    fetchAgency(token, agencyId, await getActiveProfileId()),
+    resolveAgencyOrNull(token, agencyId, 'settings/agency/upgrade', 'decision'),
     fetchAgencyUpgradeRequests(token, agencyId),
   ]);
+
+  // `null` ici ne peut plus être une panne passagère — `resolveAgencyOrNull(..., 'decision')` les
+  // a déjà renvoyées vers `/verification-indisponible`. Il ne reste que 401/403/404 : l'API a
+  // répondu que cette agence n'est pas lisible par cet utilisateur. On refuse, comme ailleurs.
+  if (!agency) redirect('/app');
 
   const t = await getTranslations('agency.upgrade.page');
 

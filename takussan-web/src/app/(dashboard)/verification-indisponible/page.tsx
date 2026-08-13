@@ -17,6 +17,16 @@ import { buttonVariants } from '@/components/ui/button';
  * `/app` veut dire « non » ; cette route dit « je n'ai pas pu demander ». Deux réponses
  * différentes à deux questions différentes.
  *
+ * ⚠ Cette page vit sous `(dashboard)/` et NON sous `(dashboard)/app/`, délibérément.
+ *
+ * Le layout `app/` interroge `/api/agencies/{id}` pour poser les cadenas. Or on arrive ici
+ * précisément parce que cet endpoint est saturé : la page de secours ajoutait donc une requête
+ * à la ressource limitée qui l'a fait apparaître — et affichait, autour d'un texte disant « ce
+ * n'est pas un changement de votre formule », une barre latérale dont chaque entrée pro était
+ * cadenassée.
+ *
+ * *Une page de secours qui sollicite la ressource en panne n'est pas un secours.*
+ *
  * ⚠ PORTÉE RÉELLE, plus étroite que ce que les commentaires précédents laissaient croire.
  * Cette page vit sous `(dashboard)/app/`, dont le layout appelle `getMeAction()` — qui relance
  * toute erreur autre qu'un 401. Quand c'est l'API ENTIÈRE qui est indisponible, `/api/user`
