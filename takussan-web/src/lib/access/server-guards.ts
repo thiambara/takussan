@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
 import { ApiError } from '@/lib/api';
-import { MARQUEUR_AGENCE } from './errors';
 import { fetchAgency } from '@/lib/queries/agencies';
 import { getToken } from '@/lib/session';
 import type { Agency } from '@/types/agency';
@@ -21,8 +20,23 @@ import type { User } from '@/types/user';
  * *Fail-closed est la bonne règle pour la DÉCISION ; ce n'est pas une raison de mentir sur la
  * CAUSE.* On refuse toujours l'accès — mais on distingue « non » de « je n'ai pas pu demander ».
  */
-const estTransitoire = (e: unknown): boolean =>
-  !(e instanceof ApiError) || e.status === 429 || e.status >= 500;
+const estTransitoire = (e: unknown): boolean => {
+  if (e instanceof ApiError) return e.status === 429 || e.status >= 500;
+  // ⚠ On ne prend PAS « tout ce qui n'est pas une ApiError » pour transitoire — c'était le cas
+  // avant, et cela absorbait les vraies erreurs de programmation. Un `TypeError` levé dans
+  // `fetchAgency` parce que la forme de `res.data` a changé était alors rapporté à
+  // l'utilisateur comme « nous n'avons pas pu joindre le serveur » : un diagnostic
+  // positivement faux, exactement la classe de défaut que la frontière d'erreur dénonce.
+  //
+  // Une panne réseau, chez `fetch`, se présente en `TypeError` dont le message dit `fetch`.
+  // C'est étroit, et c'est voulu : le reste doit remonter comme un bug, parce que c'en est un.
+  //
+  // *Traiter l'inconnu comme la panne attendue, c'est se donner une explication pour tout.*
+  return e instanceof TypeError && /fetch|network|ECONN|socket/i.test(e.message);
+};
+
+/** Où l'on renvoie quand on n'a pas PU vérifier — distinct de `/app`, qui veut dire « non ». */
+export const ROUTE_VERIF_INDISPONIBLE = '/app/verification-indisponible';
 
 /**
  * Résout l'agence pour une DÉCISION d'accès, ou `null` — en laissant une trace.
@@ -59,13 +73,23 @@ export async function resolveAgencyOrNull(
       `[access] ${ou} : fetchAgency(${agencyId}) a échoué (${transitoire ? 'transitoire' : 'réponse API'})`,
       e instanceof Error ? e.message : e,
     );
-    // On relance une erreur MARQUÉE, pas l'erreur brute : la frontière d'erreur ne reçoit de
-    // Next qu'un `message` et un `digest`, et doit pouvoir distinguer CE cas de tous les autres
-    // qu'elle attrape. Sans marqueur, elle expliquait chaque panne du tableau de bord par les
-    // accès de l'agence.
-    if (usage === 'decision' && transitoire) {
-      throw new Error(`${MARQUEUR_AGENCE} ${e instanceof Error ? e.message : String(e)}`, { cause: e });
-    }
+    // On REDIRIGE vers une page dédiée — on ne relance plus une erreur marquée.
+    //
+    // La version précédente levait une `Error` portant un marqueur, que `(dashboard)/error.tsx`
+    // reconnaissait dans `error.message` pour afficher « nous n'avons pas pu vérifier vos accès »
+    // au lieu du message générique. **Ce mécanisme est inopérant en production** : Next expurge
+    // les messages d'erreur des Server Components dans un build de production — il ne transmet
+    // qu'un `digest` — donc le test sur le message était toujours faux là où il comptait. Le
+    // test unitaire, lui, restait vert : il vérifiait que la fonction LÈVE avec le marqueur,
+    // ce qui est vrai des deux côtés.
+    //
+    // Une redirection ne dépend d'aucune sérialisation. `/app` continue de vouloir dire « non,
+    // cette agence n'y a pas droit » ; cette route-ci dit « je n'ai pas pu demander » — deux
+    // réponses différentes à deux questions différentes, et l'utilisateur voit laquelle.
+    //
+    // *Une distinction qui repose sur ce qu'un framework veut bien transporter n'est pas une
+    // distinction : c'est un pari sur son mode de build.*
+    if (usage === 'decision' && transitoire) redirect(ROUTE_VERIF_INDISPONIBLE);
     return null;
   }
 }

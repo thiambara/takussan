@@ -35,7 +35,6 @@ vi.mock('@/lib/queries/agencies', () => ({
 
 const { ensureStandardAgencyOrRedirect } = await import('../server-guards');
 const { ApiError } = await import('@/lib/api');
-const { MARQUEUR_AGENCE } = await import('../errors');
 
 const utilisateur = (agencyId: number | null) =>
   ({ id: 1, agency_id: agencyId, roles: ['agency_admin'] }) as never;
@@ -85,18 +84,26 @@ describe('ensureStandardAgencyOrRedirect', () => {
     // déclassement de forfait.
     getToken.mockResolvedValue('tok');
     fetchAgency.mockRejectedValue(new ApiError(503, { message: 'Service Unavailable' }));
-    // L'erreur relancée porte le MARQUEUR : c'est lui qui permet à `(dashboard)/error.tsx` de
-    // distinguer ce cas de tous les autres qu'elle attrape, et de ne pas expliquer un bug de
-    // rendu par les accès de l'agence.
-    await expect(ensureStandardAgencyOrRedirect(utilisateur(7))).rejects.toThrow(MARQUEUR_AGENCE);
-    expect(redirect).not.toHaveBeenCalled();
+    // Une ROUTE distincte, pas `/app` : `/app` veut dire « non », celle-ci dit « je n'ai pas pu
+    // demander ». La distinction ne repose sur aucune sérialisation d'erreur — Next expurge les
+    // messages des Server Components en production, ce qui avait rendu la version précédente
+    // (un marqueur dans `error.message`) inopérante là où elle comptait.
+    expect(await refus(utilisateur(7))).toBe('/app/verification-indisponible');
   });
 
-  it('LÈVE aussi sur une erreur réseau — l’absence de réponse n’est pas une réponse', async () => {
+  it('renvoie aussi sur une panne RÉSEAU — l’absence de réponse n’est pas une réponse', async () => {
     getToken.mockResolvedValue('tok');
     fetchAgency.mockRejectedValue(new TypeError('fetch failed'));
-    await expect(ensureStandardAgencyOrRedirect(utilisateur(7))).rejects.toThrow(MARQUEUR_AGENCE);
-    expect(redirect).not.toHaveBeenCalled();
+    expect(await refus(utilisateur(7))).toBe('/app/verification-indisponible');
+  });
+
+  it('refuse sur un BUG (TypeError sans rapport) — il ne se déguise pas en panne réseau', async () => {
+    // `estTransitoire` prenait autrefois tout ce qui n'est pas une `ApiError` pour transitoire.
+    // Un `TypeError` dû à un changement de forme dans la réponse était alors présenté à
+    // l'utilisateur comme « nous n'avons pas pu joindre le serveur » — faux, et rassurant à tort.
+    getToken.mockResolvedValue('tok');
+    fetchAgency.mockRejectedValue(new TypeError("Cannot read properties of undefined (reading 'kind')"));
+    expect(await refus(utilisateur(7))).toBe('/app');
   });
 
   it('refuse quand le jeton est absent — la décision ne se saute pas', async () => {

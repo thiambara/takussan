@@ -53,7 +53,15 @@ const RACINES = [
  * supprimer.*
  */
 const CONSOMMATEURS = [
-  { fichier: join(ROOT, 'scripts', 'server-setup.sh'), ou: 'production (unité systemd)' },
+  { fichier: join(ROOT, 'scripts', 'server-setup.sh'), ou: 'production (unité systemd)', cible: 'APP_DIR' },
+  // La PRÉPRODUCTION est un consommateur à part entière. Restreindre la résolution à `APP_DIR`
+  // avait bien séparé production et préproduction — mais en laissant la seconde SANS AUCUNE
+  // vérification. Retirer `media` de son unité laissait la garde verte pendant que ses jobs
+  // s'empilaient pour toujours : la panne silencieuse exacte que ce script existe pour
+  // empêcher, sur l'environnement que personne ne regarde.
+  //
+  // *Séparer deux sources qu'on confondait ne suffit pas : il faut ensuite vérifier les deux.*
+  { fichier: join(ROOT, 'scripts', 'server-setup.sh'), ou: 'préproduction (unité systemd)', cible: 'PREVIEW_DIR' },
   { fichier: join(ROOT, 'dev.sh'), ou: 'développement local' },
 ];
 
@@ -180,7 +188,7 @@ for (const racine of RACINES) if (existsSync(racine)) balayer(racine);
 
 /* ── 2. les files que CHAQUE consommateur consomme ───────────────────────── */
 const lus = [];
-for (const { fichier, ou } of CONSOMMATEURS) {
+for (const { fichier, ou, cible } of CONSOMMATEURS) {
   if (!existsSync(fichier)) {
     console.error(`✗ ${fichier.slice(ROOT.length + 1)} est introuvable — la garde ne peut pas vérifier « ${ou} ».`);
     process.exit(1);
@@ -250,7 +258,9 @@ for (const { fichier, ou } of CONSOMMATEURS) {
         // *Unir les sources d'un contrôle par commodité, c'est en changer le sujet.*
         const litteraux = [
           ...contenu.matchAll(new RegExp(`${nom}=["']?([a-z0-9_,-]+)["']?`, 'g')),
-          ...contenu.matchAll(/^\s*setup_queue_service\s+\S+\s+["']?\$\{APP_DIR\}["']?\s+["']([a-z0-9_,-]+)["']/gm),
+          ...contenu.matchAll(
+            new RegExp(`^\\s*setup_queue_service\\s+\\S+\\s+["']?\\$\\{${cible ?? 'APP_DIR'}\\}["']?\\s+["']([a-z0-9_,-]+)["']`, 'gm'),
+          ),
         ].map((x) => x[1]);
         if (litteraux.length) m = [null, litteraux.join(',')];
       }

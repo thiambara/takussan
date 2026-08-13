@@ -309,6 +309,16 @@ FILES_ATTENDUES="notifications-urgent default media reconciliation"
 FILES_SERVIES=""
 for unit in /etc/systemd/system/takussan-queue*.service; do
     [ -f "${unit}" ] || continue
+    # Les unités de PRÉPRODUCTION sont exclues, et l'oubli était le même défaut que celui que
+    # `check-queues.mjs` venait de corriger dans sa propre résolution : le glob attrapait
+    # `takussan-queue-preview*`, et leurs files entraient dans la même union. La production
+    # pouvait donc perdre `media` sans un mot, tant que la préproduction la déclarait.
+    # On distingue par `WorkingDirectory`, que systemd porte déjà.
+    #
+    # *La leçon d'une garde ne traverse pas jusqu'à sa sœur toute seule.*
+    if ! grep -q "^WorkingDirectory=${APP_DIR}/current$" "${unit}"; then
+        continue
+    fi
     # Une unité désactivée ne sert rien : on ne compte que celles qui sont actives.
     if ! systemctl is-enabled --quiet "$(basename "${unit}" .service)" 2>/dev/null; then
         log "WARNING: $(basename "${unit}" .service) existe mais n'est pas activée."

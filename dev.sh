@@ -70,18 +70,26 @@ avert() { printf '  \033[33m!\033[0m %s\n' "$*"; }
 # `MEILISEARCH_KEY` (injectée dans un en-tête `Authorization`).
 #
 # *Un lecteur de configuration doit lire ce que lit le programme, pas ce qui est écrit.*
-env_get() {
-  local fichier="$1" cle="$2" brut
-  [ -f "$fichier" ] || return 0
-  brut="$(grep -E "^${cle}=" "$fichier" 2>/dev/null | head -1 | cut -d= -f2- || true)"
-  # Valeur citée : on rend l'intérieur des guillemets tel quel (une espace y est légitime).
+# Le nettoyage d'UNE valeur, extrait pour être partagé : `env_get` et la lecture du `.env` de la
+# racine appliquent désormais exactement la même règle. Elles ne le faisaient pas, et le second
+# lisait les commentaires en ligne comme faisant partie de la valeur.
+valeur_env() {
+  local brut="$1"
   case "$brut" in
-    '"'*'"'*) brut="${brut#\"}"; brut="${brut%%\"*}"; printf '%s' "$brut"; return 0 ;;
-    "'"*"'"*) brut="${brut#\'}"; brut="${brut%%\'*}"; printf '%s' "$brut"; return 0 ;;
+    '"'*'"'*) brut="${brut#\"}"; printf '%s' "${brut%%\"*}"; return 0 ;;
+    "'"*"'"*) brut="${brut#\'}"; printf '%s' "${brut%%\'*}"; return 0 ;;
   esac
   # Valeur non citée : elle s'arrête à la première espace — comme chez phpdotenv, pour qui une
   # espace non citée est une erreur de syntaxe et non une partie de la valeur.
   printf '%s' "${brut%%[[:space:]]*}"
+  return 0
+}
+
+env_get() {
+  local fichier="$1" cle="$2" brut
+  [ -f "$fichier" ] || return 0
+  brut="$(grep -E "^${cle}=" "$fichier" 2>/dev/null | head -1 | cut -d= -f2- || true)"
+  valeur_env "$brut"
   return 0
 }
 
@@ -245,7 +253,14 @@ if [ -f "$ROOT/.env" ]; then
   # *Le désaccord que ce bloc existe pour nommer devenait invisible faute d'un octet.*
   while IFS= read -r ligne || [ -n "$ligne" ]; do
     case "$ligne" in
-      TAKUSSAN_[A-Z_]*=*) export "${ligne%%=*}=$(printf '%s' "${ligne#*=}" | tr -d '"'"'"'')" ;;
+      # La valeur passe par le MÊME nettoyage que `env_get` — commentaire en ligne compris.
+      # Elle ne l'était pas : `TAKUSSAN_DB_PORT=3308  # conteneur` exportait la chaîne entière,
+      # la comparaison avec `DB_PORT=3308` échouait, et le script sortait en 78 sur
+      # « Ports incohérents » pour une configuration parfaitement cohérente — pendant que
+      # `docker compose`, lisant le même fichier, résolvait bien 3308.
+      #
+      # *Une règle de lecture corrigée à un endroit n'est corrigée qu'à cet endroit.*
+      TAKUSSAN_[A-Z_]*=*) export "${ligne%%=*}=$(valeur_env "${ligne#*=}")" ;;
     esac
   done < "$ROOT/.env"
 

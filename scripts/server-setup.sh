@@ -442,11 +442,18 @@ WorkingDirectory=${app_dir}/current
 ExecStart=/usr/bin/php artisan queue:work --queue=${files_worker} --sleep=3 --tries=3 --max-time=3600
 Restart=always
 RestartSec=5
-# Un journal PAR UNITÉ. Les deux workers d'une application écrivaient dans le même fichier, et
-# la strophe logrotate utilise \`create\` (renommage + recréation) sans \`copytruncate\` ni
-# redémarrage en postrotate : après la première rotation, les DEUX services de longue durée
-# gardaient leur descripteur sur le fichier renommé et le journal vivant restait vide. Le
-# premier endroit où un opérateur regarde après le split était celui qui cesse d'être écrit.
+# Un journal PAR UNITÉ — pour la LISIBILITÉ, la rotation étant traitée ailleurs.
+#
+# Les deux workers d'une application écrivaient dans le même fichier : leurs lignes s'entrelaçaient
+# et « pourquoi ce job n'est-il pas parti ? » exigeait de démêler deux flux. Un fichier par unité
+# rend la question directe.
+#
+# ⚠ Le commentaire précédent invoquait ici la strophe logrotate « qui utilise create sans
+# copytruncate » — alors que le MÊME commit venait de la passer à copytruncate. Il décrivait donc
+# l'état qu'il supprimait, et un lecteur convaincu par lui aurait pu « réparer » la strophe en
+# sens inverse, réintroduisant le journal vivant qui reste vide après rotation.
+#
+# *Un commentaire écrit pendant un changement décrit facilement le monde d'avant.*
 StandardOutput=append:${app_dir}/shared/storage/logs/${name}.log
 StandardError=append:${app_dir}/shared/storage/logs/${name}.log
 

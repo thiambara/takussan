@@ -178,7 +178,13 @@ function canonique(src) {
     // `x !== null`, `x != null`, `x !== undefined` … sont des tests de véracité déguisés.
     .replace(/(\w+)\s*!==?\s*(?:null|undefined)\s*&&/g, '$1 &&')
     // `return` nu, avec ou sans point-virgule, avec ou sans accolade fermante sur la ligne.
-    .replace(/\breturn\s*(?=[};]|$)/gm, 'return;');
+    // Le `;?` rend la réécriture IDEMPOTENTE : sans lui, `return;` devenait `return;;`. Sans
+    // conséquence sur les motifs, mais une transformation non idempotente se raisonne mal, et
+    // c'est précisément ce qu'on demande à une forme canonique d'être.
+    //
+    // (Le faux positif rapporté sur `return {` n'existe pas : la classe `[};]` ne contient pas
+    // `{` — vérifié — donc un objet littéral retourné n'est jamais réécrit.)
+    .replace(/\breturn\s*;?(?=[};]|$)/gm, 'return;');
 }
 
 /**
