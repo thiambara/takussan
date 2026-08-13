@@ -100,21 +100,66 @@ fi
 #
 # *Le chemin qu'on emprunte une seule fois est celui que personne ne rejoue — et donc celui où
 # un défaut d'ordonnancement vit le plus longtemps.*
+# `doctor` CONSTATE, il n'amorce pas — les trois blocs qui suivent le respectent.
+#
+# Le contrat annoncé deux fois en tête de fichier est « ne lance rien : diagnostique et sort ».
+# Une revue avait déjà relevé que `doctor` démarrait les conteneurs ; le même défaut se
+# reformait ici, plus discrètement : un `composer install` de plusieurs minutes et la création
+# de deux `.env` sont des ACTIONS, même si elles ne démarrent aucun serveur. Sur un clone neuf,
+# `./dev.sh doctor` — la première commande qu'on tape pour comprendre où l'on en est —
+# provisionnait le dépôt avant de répondre.
+#
+# *« Ne lance rien » ne veut pas dire « ne lance aucun serveur » : cela veut dire ne rien
+# changer à l'état qu'on est venu observer.*
+amorce_possible() { [ "$MODE" != "doctor" ]; }
+
 if [ ! -d "$API/vendor" ]; then
-  bold "▸ composer install"
-  (cd "$API" && composer install --no-interaction)
+  if amorce_possible; then
+    bold "▸ composer install"
+    (cd "$API" && composer install --no-interaction)
+  else
+    ko "takussan-api/vendor absent — 'composer install' n'a jamais tourné."
+    echo "     Le diagnostic qui suit sera partiel : aucune commande artisan ne peut s'exécuter." >&2
+  fi
 fi
 
 # ───────────────────────────────────────────────────────────── .env
+PREMIER_DEMARRAGE=0
 if [ ! -f "$API/.env" ]; then
-  bold "▸ Premier démarrage — création de takussan-api/.env"
-  cp "$API/.env.docker" "$API/.env"
-  (cd "$API" && php artisan key:generate --force >/dev/null)
-  ok "takussan-api/.env créé depuis .env.docker, APP_KEY générée"
-  PREMIER_DEMARRAGE=1
-else
-  PREMIER_DEMARRAGE=0
+  if amorce_possible; then
+    bold "▸ Premier démarrage — création de takussan-api/.env"
+    cp "$API/.env.docker" "$API/.env"
+    (cd "$API" && php artisan key:generate --force >/dev/null)
+    ok "takussan-api/.env créé depuis .env.docker, APP_KEY générée"
+    PREMIER_DEMARRAGE=1
+  else
+    ko "takussan-api/.env absent — './dev.sh' le créera depuis .env.docker."
+  fi
 fi
+
+# Le `.env.local` du front est provisionné ICI, symétriquement au `.env` de l'API.
+#
+# Le provisionnement de premier démarrage était asymétrique : le script créait
+# `takussan-api/.env` depuis `.env.docker` et lançait `npm install`, mais ne créait jamais
+# `takussan-web/.env.local` — qui est gitignoré, seul `.env.example` étant versionné. Sur un
+# clone neuf, le front retombait donc sur le défaut codé en dur de `src/lib/api.ts`,
+# `http://localhost:8002`, pendant que ce script lie l'API à `127.0.0.1:8002`. Deux origines
+# distinctes pour le navigateur. Et l'avertissement de collision de port, plus haut, renvoyait
+# l'utilisateur à « règle takussan-web/.env.local » — un fichier qui n'existait pas sur le
+# chemin même que cet avertissement vise.
+#
+# *Un environnement reproductible qui n'amorce qu'une de ses deux moitiés n'est pas
+# reproductible : il est reproductible pour celui qui a déjà l'autre.*
+if [ ! -f "$WEB/.env.local" ] && [ -f "$WEB/.env.example" ]; then
+  if amorce_possible; then
+    bold "▸ Premier démarrage — création de takussan-web/.env.local"
+    cp "$WEB/.env.example" "$WEB/.env.local"
+    ok "takussan-web/.env.local créé depuis .env.example"
+  else
+    ko "takussan-web/.env.local absent — le front retomberait sur son défaut codé en dur."
+  fi
+fi
+
 
 # ───────────────────────────────────────────────────────────── quel backing store ?
 # Ce script NE FORCE PAS docker. Un poste peut très bien servir MySQL et Meilisearch
@@ -279,11 +324,29 @@ fi
 
 SCOUT_ENV="$(env_get "$API/.env" SCOUT_DRIVER)"
 if [ "$SCOUT_ENV" = "meilisearch" ] && [ -n "$MEILI_HOST_ENV" ]; then
-  if curl -fsS -m 3 -H "Authorization: Bearer $(env_get "$API/.env" MEILISEARCH_KEY)" \
-      "$MEILI_HOST_ENV/health" >/dev/null 2>&1; then
-    ok "Meilisearch répond sur $MEILI_HOST_ENV et accepte la clé"
+  # DEUX sondes, parce que « répond » et « accepte la clé » sont deux faits distincts et que
+  # la version précédente n'en mesurait qu'un tout en annonçant les deux.
+  #
+  # `GET /health` de Meilisearch est **non authentifié** : le header `Authorization` était donc
+  # simplement ignoré par le serveur. Vérifié sur l'instance qui tourne — `/health` rend 200 avec
+  # une clé délibérément fausse, et 200 sans aucune clé. `./dev.sh doctor` imprimait « accepte la
+  # clé » en vert sur une `MEILISEARCH_KEY` erronée, et le développeur partait déboguer des 403
+  # de Scout contre un diagnostic qui venait de certifier son identifiant.
+  #
+  # `GET /keys` discrimine : 200 avec la vraie clé, 403 sinon. C'est lui qui atteste.
+  #
+  # *Une sonde qui n'exerce pas l'autorisation ne dit rien de l'autorisation — et le dire quand
+  # même est pire que se taire, parce qu'on écarte une piste juste.*
+  if ! curl -fsS -m 3 "$MEILI_HOST_ENV/health" >/dev/null 2>&1; then
+    ko "Meilisearch NE RÉPOND PAS sur $MEILI_HOST_ENV"
+    NB_INJOIGNABLES=$((NB_INJOIGNABLES + 1))
+  elif curl -fsS -m 3 -H "Authorization: Bearer $(env_get "$API/.env" MEILISEARCH_KEY)" \
+      "$MEILI_HOST_ENV/keys" >/dev/null 2>&1; then
+    ok "Meilisearch répond sur $MEILI_HOST_ENV et accepte MEILISEARCH_KEY"
   else
-    ko "Meilisearch NE RÉPOND PAS sur $MEILI_HOST_ENV, ou refuse MEILISEARCH_KEY"
+    ko "Meilisearch répond sur $MEILI_HOST_ENV mais REFUSE MEILISEARCH_KEY (403 sur /keys)"
+    echo "     Scout rendra des 403 à l'indexation comme à la recherche. La clé est celle du" >&2
+    echo "     conteneur : MEILI_MASTER_KEY dans docker-compose.yml." >&2
     NB_INJOIGNABLES=$((NB_INJOIGNABLES + 1))
   fi
 elif [ "$SCOUT_ENV" = "collection" ]; then
@@ -390,14 +453,27 @@ else
   #
   # *Le correctif d'une mort silencieuse en avait réintroduit une, trois lignes plus haut que
   # celle qu'il fermait.* Un repli n'est un repli que si le chemin qui y mène existe.
-  compte="$( (cd "$API" && php artisan tinker --execute='echo \App\Models\User::count();' 2>&1 | tail -1 | tr -dc '0-9') || true )"
-  # Après `tr -dc '0-9'`, `$compte` ne peut être qu'une suite de chiffres ou la chaîne vide.
-  if [ -z "$compte" ]; then
-    avert "impossible de compter les utilisateurs — on suppose la base vierge et on sème."
-    BASE_VIERGE=1
-  elif [ "$compte" -eq 0 ]; then
-    BASE_VIERGE=1
-  fi
+  # ⚠ On EXIGE une ligne qui soit exactement un entier — on ne la NETTOIE pas.
+  #
+  # La version précédente passait la dernière ligne à `tr -dc '0-9'`, qui *retire* ce qui n'est
+  # pas un chiffre au lieu de *refuser* la ligne. Or `echo` n'émet pas de retour à la ligne :
+  # tout ce que PHP écrit ensuite se colle au compte, sur la même ligne. `0` suivi de
+  # `PHP Deprecated: … on line 42` devient `042` — qui n'est pas `-eq 0`, donc « base peuplée »,
+  # donc pas de seed, en silence. Vérifié.
+  #
+  # *Nettoyer une valeur douteuse, c'est fabriquer une valeur sûre à partir de rien.* On lit
+  # donc la ligne telle quelle, et tout ce qui n'est pas `^[0-9]+$` est traité comme « je ne
+  # sais pas » — donc comme « vierge », le côté où l'erreur coûte des minutes et non une
+  # session de débogage sur une base vide.
+  sortie="$( (cd "$API" && php artisan tinker --execute='echo \App\Models\User::count();' 2>&1) || true )"
+  compte="$(printf '%s' "$sortie" | tail -1 | tr -d '[:space:]')"
+  case "$compte" in
+    ''|*[!0-9]*)
+      avert "compte d'utilisateurs illisible — on suppose la base vierge et on sème."
+      [ -n "$compte" ] && avert "  (dernière ligne de tinker : ${compte:0:60})"
+      BASE_VIERGE=1 ;;
+    *) [ "$compte" -eq 0 ] && BASE_VIERGE=1 ;;
+  esac
 fi
 
 if [ "$BASE_VIERGE" = "1" ]; then

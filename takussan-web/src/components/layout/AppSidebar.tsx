@@ -136,20 +136,20 @@ function buildNavItems(user: User): NavItem[] {
   }
   // Vue agence cross-team — visible to agency_admin so individuals see the
   // padlock, and to agents/admins. Standard-only : la page redirige elle-même
-  // (`overview/agency/page.tsx:35`, test en ligne sur `agency.kind`).
+  // (`overview/agency/page.tsx`, test en ligne sur `agency.kind`).
   if (roles.includes('agency_admin') || isAdmin(roles) || isAgent(roles)) {
     items.push({ href: '/app/overview/agency', label: 'Vue agence', icon: BarChart3 });
   }
   if (isAdmin(roles) || roles.includes('agency_admin')) {
     // TCK-032 overview/stats — KPIs personnalisables (P3) et alertes (P3).
     // Standard-only pour agency_admin : chaque page redirige elle-même
-    // (`kpis/page.tsx:21`, `alerts/page.tsx:21`).
+    // (`kpis/page.tsx`, `alerts/page.tsx`).
     items.push({ href: '/app/overview/kpis', label: 'KPIs', icon: Gauge });
     items.push({ href: '/app/overview/alerts', label: 'Alertes', icon: BellRing });
   }
 
   // TCK-256 — owners directory. Visible to agency_admin and global admins.
-  // Standard-only : `owners/page.tsx:47` redirige sur `agency.kind !== 'standard'`,
+  // Standard-only : `owners/page.tsx` redirige sur `agency.kind !== 'standard'`,
   // et OwnerProfilePolicy@invite rend 403 en défense en profondeur.
   if (
     roles.includes('agency_admin') ||

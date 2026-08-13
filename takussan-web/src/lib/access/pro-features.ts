@@ -28,7 +28,12 @@ import type { User } from '@/types/user';
  */
 export const PRO_ROUTES: ReadonlySet<string> = new Set([
   // /app/... — espace perso agency_admin. Gardées EN LIGNE dans leur page :
-  //   app/overview/kpis/page.tsx:21 · alerts/page.tsx:21 · agency/page.tsx:35 · owners/page.tsx:47
+  //   app/overview/{kpis,alerts,agency}/page.tsx · app/owners/page.tsx
+  //
+  // Sans numéros de ligne, DÉLIBÉRÉMENT. Ceux qui figuraient ici étaient déjà faux dans le
+  // commit qui les introduisait : les commentaires explicatifs ajoutés par ce même commit
+  // avaient décalé chaque garde de quelques lignes. Un lecteur qui les suivait atterrissait
+  // dans un bloc d'imports. `scripts/check-pro-routes.mjs` vérifie le lien, lui, à chaque CI.
   '/app/overview/kpis',
   '/app/overview/alerts',
   '/app/overview/agency',

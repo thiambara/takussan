@@ -177,7 +177,7 @@ jobs:
           DB_PASSWORD: takussan
         run: php artisan migrate --force --no-interaction
 
-      - name: Rollback des migrations réversibles, puis re-migration
+      - name: Rollback des migrations AU-DESSUS de la borne TCK-278, puis re-migration (couverture partielle)
         # Le `down()` d'une migration est le code le moins exécuté du dépôt — **la suite de tests
         # n'en exécute aucun** — et c'est le seul dont on ait besoin le jour où un déploiement
         # tourne mal. C'est là que « dropIndex sur une colonne portant une FK » se déclare, et
@@ -189,6 +189,17 @@ jobs:
         # assumée). On roule donc en arrière jusqu'à la marche juste au-dessus d'elle — et on
         # CALCULE ce nombre plutôt que de l'écrire en dur, pour qu'il suive les migrations à venir
         # sans que personne ait à y penser.
+        #
+        # ⚠ LA COUVERTURE RÉELLE, puisque le nom de ce job et `CLAUDE.md` disent « aller et
+        # retour » : **3 `down()` sur 124** aujourd'hui. La borne laisse au-dessus d'elle les
+        # seules migrations postérieures au cutover TCK-278. Les 121 autres — dont TOUTES les
+        # créations de tables, celles qu'il faudrait précisément pour dérouler une release
+        # ancienne — ne sont exécutées nulle part, ni ici ni dans la suite de tests.
+        #
+        # Le chiffre est affiché à chaque exécution (`Migrations réversibles au-dessus de …`) :
+        # il grandit d'une unité par migration ajoutée. Ne pas lire ce job comme « les down()
+        # sont couverts » — il couvre les down() RÉCENTS, ce qui est déjà ce dont on a besoin
+        # le jour où un déploiement tourne mal, mais pas davantage.
         env:
           DB_CONNECTION: mysql
           DB_HOST: 127.0.0.1

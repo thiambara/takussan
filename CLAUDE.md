@@ -223,10 +223,15 @@ Décidés délibérément. Les violer est une régression, pas un choix de style
 
 4. **Une migration se pense pour MySQL, jamais pour SQLite.** La suite de tests tourne sur SQLite
    (permissif), la production sur MariaDB (strict). Les quatre familles de pièges sont ci-dessous.
-   Le job `migrations-mysql` d'`api-ci.yml` rejoue désormais les migrations — **aller et retour** —
-   sur MariaDB : il a trouvé un `down()` cassé sur trois tables à sa première exécution (ardoise
-   D-05). Écrire un `down()` juste n'est pas une politesse : c'est le seul code dont on ait besoin
-   le jour où un déploiement tourne mal, et la suite de tests n'en exécute aucun.
+   Le job `migrations-mysql` d'`api-ci.yml` rejoue désormais les migrations sur MariaDB —
+   **l'aller en entier, le retour seulement au-dessus du cutover TCK-278** : le `down()` de la
+   migration de cutover est délibérément irréversible, on ne peut donc pas descendre plus bas.
+   Concrètement, **3 `down()` sur 124** sont exécutés, et ce sont les plus récents. Le job affiche
+   le compte à chaque exécution. Il a suffi à trouver un `down()` cassé sur trois tables dès sa
+   première (ardoise D-05) — mais ne pas le lire comme « les `down()` sont couverts ».
+
+   Écrire un `down()` juste n'est pas une politesse : c'est le seul code dont on ait besoin le jour
+   où un déploiement tourne mal, et **la suite de tests n'en exécute aucun**.
 
 5. **Le front possède le texte affiché.** L'API émet des codes et des données ; les libellés passent
    par next-intl (`fr`/`en`/`wo`). *Tenu à 82 fichiers sur 875 : la règle est une intention, pas un

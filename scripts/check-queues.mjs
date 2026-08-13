@@ -78,6 +78,28 @@ const MOTIFS = [
  */
 const OPAQUE = /->onQueue\(\s*(?!['"])([^)]+)\)|::pushOn\(\s*(?!['"])([^,)]+)/g;
 
+/**
+ * Les COMMENTAIRES PHP sont retirés avant analyse — la garde sœur le fait, celle-ci ne le
+ * faisait pas.
+ *
+ * `check-pro-routes.mjs` a appris à ses dépens qu'un motif appliqué au texte brut atteste de ce
+ * qu'on a ÉCRIT SUR le code, pas du code. La leçon n'avait pas traversé jusqu'ici : n'importe
+ * quel docblock de `takussan-api/app/**` citant `->onQueue('…')` — un commentaire expliquant
+ * une file supprimée, exactement le genre de prose que cette PR ajoute partout — comptait comme
+ * un site de poussée vivant. Repo CI exigeait alors ce nom dans les deux `--queue=`, et le
+ * correctif naturel était d'y ajouter une file FANTÔME : le mode d'échec que le commentaire de
+ * `'queue' =>` dans ce même fichier dénonce en toutes lettres.
+ *
+ * Une garde qui apprend une leçon doit la propager à ses sœurs, sinon elle ne l'a apprise que
+ * pour elle.
+ */
+function sansCommentairesPhp(src) {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1')
+    .replace(/^\s*#(?!\[)[^\n]*/gm, ''); // `#` de shell-style ; `#[` est un attribut PHP 8.
+}
+
 const poussees = new Map(); // file → [chemins]
 const opaques = []; // [chemin, expression]
 function balayer(dir) {
@@ -88,7 +110,7 @@ function balayer(dir) {
       continue;
     }
     if (!entree.endsWith('.php')) continue;
-    const txt = readFileSync(chemin, 'utf8');
+    const txt = sansCommentairesPhp(readFileSync(chemin, 'utf8'));
     const rel = chemin.slice(ROOT.length + 1);
     for (const brut of MOTIFS) {
       const motif = brut.motif ?? brut;

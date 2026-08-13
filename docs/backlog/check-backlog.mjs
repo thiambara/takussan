@@ -29,7 +29,21 @@ import { fileURLToPath } from 'node:url';
 const DIR = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(DIR, '..', '..');
 const REPORT = process.argv.includes('--report');
-const AUJOURDHUI = new Date().toISOString().slice(0, 10);
+/**
+ * La borne « futur », avec UN JOUR de marge — et cette marge n'est pas de la complaisance.
+ *
+ * `toISOString()` rend la date en **UTC**, tandis qu'un `created:`/`updated:` de ticket porte la
+ * date **locale** de son auteur. Un ticket écrit à 23 h depuis UTC+2 — le fuseau de l'auteur du
+ * dépôt en été — porte donc une date que la borne UTC juge « dans le futur », et Repo CI
+ * rougissait sur un ticket parfaitement juste, à une heure de la journée et pas à une autre.
+ *
+ * Un jour de tolérance couvre tous les fuseaux réels (UTC−12 à UTC+14 en tiennent deux, mais une
+ * date en avance de deux jours n'est plus un décalage de fuseau : c'est une faute de frappe, et
+ * c'est ce qu'on veut encore attraper).
+ *
+ * *Une garde qui rougit selon l'heure à laquelle on écrit enseigne à ne plus la lire.*
+ */
+const AUJOURDHUI = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
 
 const erreurs = [];
 const avertissements = [];
