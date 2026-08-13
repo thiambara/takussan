@@ -65,11 +65,17 @@ function frontmatter(txt) {
     if (s) {
       cle = s[1];
       const v = s[2].trim();
-      // Une clé sans valeur ouvre soit une liste en bloc, soit un objet imbriqué. On pose un
-      // TABLEAU pour les clés dont on sait qu'elles listent, sinon `{}`. Sans ça,
+      // Une clé sans valeur ouvre soit une liste en bloc, soit un objet imbriqué, soit elle
+      // vaut NULL. On pose un TABLEAU pour les clés dont on sait qu'elles listent — sans ça,
       // `depends_on:` écrit en style bloc (parfaitement valide en YAML) devenait `{}`, et
-      // TOUTES les vérifications de dépendances le traversaient sans rien voir.
-      if (v === '') out[cle] = ['depends_on', 'blocks', 'tags'].includes(cle) ? [] : {};
+      // toutes les vérifications de dépendances le traversaient sans rien voir.
+      //
+      // Pour les autres, `null` et NON `{}` : `{}` est truthy, donc `wave:` seul sur sa ligne —
+      // du YAML valide pour null — passait le test `t.wave && …` et faisait chercher
+      // `VAGUES["[object Object]"]`. Le même défaut vivait dans `gen-index.mjs`, à la ligne
+      // équivalente : deux analyseurs du même format, écrits séparément, ayant divergé au même
+      // endroit. *Deux lecteurs d'un même format finissent toujours par en lire deux.*
+      if (v === '') out[cle] = ['depends_on', 'blocks', 'tags'].includes(cle) ? [] : null;
       else if (v.startsWith('[') && v.endsWith(']'))
         out[cle] = v.slice(1, -1).split(',').map((x) => x.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
       else out[cle] = v.replace(/^["']|["']$/g, '');
@@ -252,10 +258,23 @@ if (!git) {
       // Les ids ne se cherchent QUE dans la prose. Une ligne de chemin en contient aussi — le
       // fichier du ticket lui-même s'appelle `TCK-105-….md` — et les compter reviendrait à
       // déclarer livré tout ticket dont on a seulement édité la fiche.
-      const prose = [sujet, ...lignes.filter((l) => !CHEMIN.test(l))].join(' ');
       const touche = lignes.some((l) => l.startsWith('takussan-api/') || l.startsWith('takussan-web/'));
       if (!touche) continue;
-      for (const id of prose.match(/TCK-\d+/g) || []) surDev.add(id);
+
+      // On ne retient QUE le ticket que le commit dit implémenter — la convention du dépôt est
+      // `feat(api): … (TCK-280)`, en fin de SUJET.
+      //
+      // La version précédente balayait tout le corps du message. Or citer un autre ticket en
+      // prose est parfaitement normal : « suite de TCK-281 », « prépare TCK-279 ». Un commit
+      // TCK-280 dont le corps mentionne TCK-281 — `doing`, sans section « Reste sur dev » —
+      // faisait alors échouer `repo-ci` sur le push vers `dev` PUIS sur chaque PR suivante, en
+      // accusant quelqu'un qui n'avait jamais touché à TCK-281, jusqu'à ce qu'on édite ce
+      // ticket. Une garde qui rougit chez le suivant n'est plus une garde : c'est un piège.
+      //
+      // *Une référence n'est pas une revendication. Ce qu'un commit déclare implémenter, il
+      // l'écrit à sa place conventionnelle ; le reste est de la conversation.*
+      const revendique = sujet.match(/\((TCK-\d+)\)\s*$/);
+      if (revendique) surDev.add(revendique[1]);
     }
 
     // L'échappatoire, et elle est étroite exprès : un ticket dont une partie est sur `dev` peut

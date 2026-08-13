@@ -39,7 +39,7 @@ export default async function AgencyDashboardPage() {
     //
     // Un écran réservé se refuse quand on ne SAIT PAS, pas seulement quand on sait que non.
     const token = await getToken();
-    const agency = token ? await resolveAgencyOrNull(token, user.agency_id, 'overview/agency') : null;
+    const agency = token ? await resolveAgencyOrNull(token, user.agency_id, 'overview/agency', 'decision') : null;
     if (!agency || agency.kind !== 'standard') redirect('/app');
   }
 

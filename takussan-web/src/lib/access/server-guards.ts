@@ -1,8 +1,27 @@
 import { redirect } from 'next/navigation';
+import { ApiError } from '@/lib/api';
 import { fetchAgency } from '@/lib/queries/agencies';
 import { getToken } from '@/lib/session';
 import type { Agency } from '@/types/agency';
 import type { User } from '@/types/user';
+
+/**
+ * Une panne est-elle TRANSITOIRE, ou une réponse de l'API sur le fond ?
+ *
+ * 401/403/404 sont des réponses : l'agence n'existe pas, ou n'est pas lisible par cet
+ * utilisateur. Refuser est alors la bonne réaction, et silencieuse.
+ *
+ * 429 et 5xx ne disent rien de l'agence — ils disent que l'API n'a pas répondu. Les traiter
+ * comme un refus produit, pour l'utilisateur, quelque chose d'INDISCERNABLE d'un déclassement
+ * de forfait : un `agency_admin` d'une agence `standard` se voit éjecté des cinq routes
+ * `/admin/*`, tous les accès pro cadenassés dans la barre latérale, et pas un mot. Il conclut
+ * qu'on lui a retiré son plan.
+ *
+ * *Fail-closed est la bonne règle pour la DÉCISION ; ce n'est pas une raison de mentir sur la
+ * CAUSE.* On refuse toujours l'accès — mais on distingue « non » de « je n'ai pas pu demander ».
+ */
+const estTransitoire = (e: unknown): boolean =>
+  !(e instanceof ApiError) || e.status === 429 || e.status >= 500;
 
 /**
  * Résout l'agence pour une DÉCISION d'accès, ou `null` — en laissant une trace.
@@ -23,14 +42,23 @@ export async function resolveAgencyOrNull(
   token: string,
   agencyId: number,
   ou: string,
+  /**
+   * `'decision'` — la valeur sert à AUTORISER : une panne transitoire est relancée pour que la
+   * frontière d'erreur de Next affiche « on n'a pas pu vérifier », au lieu d'une éjection muette.
+   * `'affichage'` — la valeur ne sert qu'à peindre (cadenas de la barre latérale) : `null` suffit,
+   * et faire tomber toute la page en erreur pour un cadenas serait pire que le cadenas.
+   */
+  usage: 'decision' | 'affichage' = 'affichage',
 ): Promise<Agency | null> {
   try {
     return await fetchAgency(token, agencyId);
   } catch (e: unknown) {
+    const transitoire = estTransitoire(e);
     console.error(
-      `[access] ${ou} : fetchAgency(${agencyId}) a échoué — traité comme « non standard ».`,
+      `[access] ${ou} : fetchAgency(${agencyId}) a échoué (${transitoire ? 'transitoire' : 'réponse API'})`,
       e instanceof Error ? e.message : e,
     );
+    if (usage === 'decision' && transitoire) throw e;
     return null;
   }
 }
@@ -66,7 +94,7 @@ export async function ensureStandardAgencyOrRedirect(user: User): Promise<void> 
   // *Un écran réservé se refuse quand on ne SAIT PAS, pas seulement quand on sait que non.*
   const token = await getToken();
   const agency = token
-    ? await resolveAgencyOrNull(token, user.agency_id, 'ensureStandardAgencyOrRedirect')
+    ? await resolveAgencyOrNull(token, user.agency_id, 'ensureStandardAgencyOrRedirect', 'decision')
     : null;
   if (!agency || agency.kind !== 'standard') redirect('/app');
 }

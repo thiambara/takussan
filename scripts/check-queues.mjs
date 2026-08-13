@@ -208,7 +208,8 @@ for (const { fichier, ou } of CONSOMMATEURS) {
   // qu'elle juge — après les commentaires côté consommateurs, puis côté PHP. *Lire le premier
   // élément d'un ensemble et conclure sur l'ensemble est une erreur qui ne se voit pas tant que
   // l'ensemble est un singleton.* On la ferme avant qu'elle ne se manifeste.
-  const lignes = readFileSync(fichier, 'utf8')
+  const contenu = readFileSync(fichier, 'utf8');
+  const lignes = contenu
     .split('\n')
     .filter((l) => l.includes('artisan queue:work') && !/^\s*#/.test(l));
   if (lignes.length === 0) {
@@ -220,7 +221,32 @@ for (const { fichier, ou } of CONSOMMATEURS) {
   // files couvrent le contrat ensemble, et c'est bien ainsi qu'on les déploierait.
   const files = new Set();
   lignes.forEach((ligne, i) => {
-    const m = ligne.match(/--queue=([a-z0-9_,-]+)/);
+    let m = ligne.match(/--queue=([a-z0-9_,-]+)/);
+
+    // `--queue=${var}` : on RÉSOUT la variable dans le même fichier plutôt que d'abandonner.
+    //
+    // `server-setup.sh` génère désormais deux unités systemd depuis une seule fonction, et la
+    // liste des files lui arrive en paramètre — l'`ExecStart` du script porte donc
+    // `--queue=${files_worker}`. Une garde qui ne lit que des littéraux aurait ici deux issues,
+    // toutes deux mauvaises : rendre « pas de --queue= » (faux, et elle bloque une refonte
+    // légitime), ou passer en silence (pire). On cherche donc les valeurs littérales que la
+    // variable reçoit — ici les arguments des appels en bas du fichier.
+    //
+    // *Une garde doit suivre l'indirection d'un cran quand le code en pose une ; sinon c'est
+    // elle qui dicte comment le code a le droit d'être écrit.*
+    if (!m) {
+      const varMatch = ligne.match(/--queue=\$\{?(\w+)\}?/);
+      if (varMatch) {
+        // Valeurs littérales assignées à cette variable, ou passées en argument positionnel.
+        const nom = varMatch[1];
+        const litteraux = [
+          ...contenu.matchAll(new RegExp(`${nom}=["']?([a-z0-9_,-]+)["']?`, 'g')),
+          ...contenu.matchAll(/^\s*setup_queue_service\s+\S+\s+\S+\s+["']([a-z0-9_,-]+)["']/gm),
+        ].map((x) => x[1]);
+        if (litteraux.length) m = [null, litteraux.join(',')];
+      }
+    }
+
     if (!m) {
       const autres = [...poussees.keys()].filter((q) => q !== 'default');
       const quel = lignes.length > 1 ? ` (worker n°${i + 1} sur ${lignes.length})` : '';

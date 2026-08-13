@@ -34,6 +34,7 @@ vi.mock('@/lib/queries/agencies', () => ({
 }));
 
 const { ensureStandardAgencyOrRedirect } = await import('../server-guards');
+const { ApiError } = await import('@/lib/api');
 
 const utilisateur = (agencyId: number | null) =>
   ({ id: 1, agency_id: agencyId, roles: ['agency_admin'] }) as never;
@@ -69,11 +70,29 @@ describe('ensureStandardAgencyOrRedirect', () => {
     expect(await refus(utilisateur(7))).toBe('/app');
   });
 
-  it('refuse quand l’API échoue — on ne SAIT pas, donc on refuse', async () => {
+  it('refuse quand l’API RÉPOND non (403) — on sait, donc on refuse en silence', async () => {
     getToken.mockResolvedValue('tok');
-    fetchAgency.mockRejectedValue(new Error('502'));
+    fetchAgency.mockRejectedValue(new ApiError(403, { message: 'Forbidden' }));
     expect(await refus(utilisateur(7))).toBe('/app');
     expect(fetchAgency).toHaveBeenCalledTimes(1);
+  });
+
+  it('LÈVE quand la panne est transitoire (5xx) — l’accès est refusé, mais pas en silence', async () => {
+    // L'accès n'est pas accordé pour autant : lever fait rendre `(dashboard)/error.tsx`, qui dit
+    // « on n'a pas pu vérifier ». Sans cela, un `agency_admin` d'une agence `standard` frappé par
+    // une panne de trente secondes voyait la console disparaître sans un mot — indiscernable d'un
+    // déclassement de forfait.
+    getToken.mockResolvedValue('tok');
+    fetchAgency.mockRejectedValue(new ApiError(503, { message: 'Service Unavailable' }));
+    await expect(ensureStandardAgencyOrRedirect(utilisateur(7))).rejects.toThrow(ApiError);
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('LÈVE aussi sur une erreur réseau — l’absence de réponse n’est pas une réponse', async () => {
+    getToken.mockResolvedValue('tok');
+    fetchAgency.mockRejectedValue(new TypeError('fetch failed'));
+    await expect(ensureStandardAgencyOrRedirect(utilisateur(7))).rejects.toThrow(TypeError);
+    expect(redirect).not.toHaveBeenCalled();
   });
 
   it('refuse quand le jeton est absent — la décision ne se saute pas', async () => {

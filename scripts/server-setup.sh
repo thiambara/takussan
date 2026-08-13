@@ -379,25 +379,36 @@ setup_queue_service() {
     # Toute nouvelle file nommée doit être AJOUTÉE ICI — `scripts/check-queues.mjs` le
     # vérifie désormais, sur les deux consommateurs (cette unité et `dev.sh`).
     #
-    # L'ordre est une PRIORITÉ STRICTE, et il a été CORRIGÉ. `Worker::getNextJob()` parcourt
-    # les files dans l'ordre et rend le PREMIER job trouvé : une file n'est servie que si
-    # toutes celles qui la précèdent sont vides à cet instant.
+    # DEUX workers, et non un ordre de files — parce qu'aucun ordre ne convient.
     #
-    # L'ordre précédent plaçait `default` en deuxième position — devant `media` et
-    # `reconciliation`. Or `default` est le fourre-tout où atterrit tout `dispatch()` sans
-    # `onQueue()`, donc l'essentiel du volume, et il n'y a qu'un worker. Un import massif de
-    # biens ou une salve de digests remplissait `default` pour une heure ; pendant cette heure,
-    # les photos fraîchement téléversées restaient sans filigrane et `MatchBankStatementJob` ne
-    # tournait pas — sans la moindre erreur nulle part.
+    # `Worker::getNextJob()` parcourt les files dans l'ordre et rend le PREMIER job trouvé :
+    # une file n'est servie que si toutes celles qui la précèdent sont vides à cet instant.
+    # Sur UN seul worker, tout ordre affame donc quelqu'un — et les deux ordres ont été essayés :
     #
-    # Les deux files que ce correctif existe pour servir étaient donc placées DERRIÈRE la plus
-    # chargée. Le fourre-tout passe en dernier : `notifications-urgent` (un seul site, volume
-    # négligeable), puis `media` et `reconciliation` (volumes bornés, latence qui compte), puis
-    # `default`. Si l'une des trois premières devenait volumineuse, la réponse serait de lui
-    # donner son propre worker, pas de la déclasser.
+    #   `…,default,media,reconciliation` → un import massif remplit `default`, et pendant une
+    #     heure les photos restent sans filigrane et la réconciliation bancaire ne tourne pas ;
+    #   `…,media,reconciliation,default` → `RegenerateAgencyWatermarksJob` parcourt TOUS les
+    #     biens d'une agence et pousse deux jobs par média : une seule régénération met des
+    #     milliers de jobs devant `default`, et ce sont les relances de facture, les digests,
+    #     les purges RGPD et les exports qui s'arrêtent.
     #
-    # *Une liste de priorités où le fourre-tout n'est pas dernier n'est pas une priorité :
-    # c'est une file d'attente unique avec des étiquettes.*
+    # Le commentaire de la première correction affirmait que `media` avait un « volume borné ».
+    # C'était l'hypothèse qui rendait l'ordre acceptable, et elle est fausse : mesurée dans
+    # `RegenerateAgencyWatermarksJob`, la file `media` est la plus volumineuse des quatre.
+    #
+    # *Quand deux ordres opposés produisent chacun une famine, ce n'est pas l'ordre qui est
+    # mauvais : c'est l'idée qu'un seul consommateur puisse servir des files concurrentes.*
+    #
+    # D'où DEUX unités par application :
+    #   · `${name}`        → `notifications-urgent,default` — l'interactif et le fourre-tout
+    #   · `${name}-media`  → `media,reconciliation`        — le travail de fond, volumineux
+    #
+    # Aucune ne peut affamer l'autre : elles ne partagent aucune file. `check-queues.mjs` sait
+    # lire plusieurs `queue:work` par consommateur et exige l'UNION — ce qui a été ajouté deux
+    # revues plus tôt, précisément pour ce cas.
+    #
+    # Toute nouvelle file nommée doit être AJOUTÉE à l'une des deux, et la garde le vérifie.
+    local files_worker="$3"   # littéral, passé par les appels en bas de ce fichier
     cat > "${service_file}" <<UNIT
 [Unit]
 Description=Takussan Queue Worker (${name})
@@ -407,8 +418,8 @@ After=network.target mysql.service
 User=${DEPLOY_USER}
 Group=${WEB_GROUP}
 WorkingDirectory=${app_dir}/current
-# L'ordre des files EST la priorité. Voir le commentaire du script pour le pourquoi.
-ExecStart=/usr/bin/php artisan queue:work --queue=notifications-urgent,media,reconciliation,default --sleep=3 --tries=3 --max-time=3600
+# Les files servies par CE worker. Le second en sert d'autres — voir le commentaire du script.
+ExecStart=/usr/bin/php artisan queue:work --queue=${files_worker} --sleep=3 --tries=3 --max-time=3600
 Restart=always
 RestartSec=5
 StandardOutput=append:${app_dir}/shared/storage/logs/queue-worker.log
@@ -530,8 +541,12 @@ if [ "${NGINX_NEEDS_RELOAD:-0}" = "1" ]; then
 fi
 
 # ─── Step 8: Setup Laravel queue worker services ─────────────────────────────
-setup_queue_service "takussan-queue" "${APP_DIR}"
-setup_queue_service "takussan-queue-preview" "${PREVIEW_DIR}"
+# Deux workers par application : l'interactif + le fourre-tout d'un côté, le travail de fond
+# volumineux de l'autre. Ils ne partagent aucune file, donc aucun ne peut affamer l'autre.
+setup_queue_service "takussan-queue"               "${APP_DIR}"     "notifications-urgent,default"
+setup_queue_service "takussan-queue-media"         "${APP_DIR}"     "media,reconciliation"
+setup_queue_service "takussan-queue-preview"       "${PREVIEW_DIR}" "notifications-urgent,default"
+setup_queue_service "takussan-queue-preview-media" "${PREVIEW_DIR}" "media,reconciliation"
 
 # ─── Step 9: Sudoers entry for deploy user ────────────────────────────────────
 # Allows deploy.sh to reload php-fpm post-symlink-swap (opcache clear) and

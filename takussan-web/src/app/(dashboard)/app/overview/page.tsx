@@ -14,7 +14,7 @@ export default async function OverviewPage() {
     // of letting /app/overview/agency bounce them back to /app.
     if (user.agency_id) {
       const token = await getToken();
-      const agency = token ? await resolveAgencyOrNull(token, user.agency_id, 'overview (aiguillage)') : null;
+      const agency = token ? await resolveAgencyOrNull(token, user.agency_id, 'overview (aiguillage)', 'decision') : null;
       // FAIL-CLOSED, même raison qu'ailleurs : `fetchAgency` avale son erreur en `null`, donc
       // `if (agency && …)` laissait une agence `individual` sur la vue Standard dès que l'API
       // toussait. Ce site-ci n'est dans AUCUNE liste — ni PRO_ROUTES, ni les pages gardées —

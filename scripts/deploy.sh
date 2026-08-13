@@ -134,8 +134,20 @@ log "Cloning repository..."
 git clone --depth 1 --branch "${BRANCH}" "${REPO_URL}" "${RELEASE_DIR}"
 if [ -n "${COMMIT_SHA:-}" ]; then
     log "Target commit: ${COMMIT_SHA} (branch ${BRANCH})"
-    git -C "${RELEASE_DIR}" fetch --depth 1 origin "${COMMIT_SHA}"
-    git -C "${RELEASE_DIR}" checkout --detach FETCH_HEAD
+    # On ne FETCH que si le commit n'est pas déjà là — c'est le cas courant, puisque le clone
+    # vient de récupérer la tête de la branche. Le `fetch` par SHA dépend de
+    # `uploadpack.allowReachableSHA1InWant` côté serveur : GitHub l'autorise, mais `REPO_URL` est
+    # un secret et pourrait viser un miroir ou un remote auto-hébergé qui le refuse. Sous
+    # `set -e` + `trap rollback ERR`, un refus avortait le déploiement et supprimait la release —
+    # sur une chaîne qui n'a encore jamais tourné en production.
+    #
+    # *Une vérification ne doit pas introduire une façon nouvelle d'échouer pour le cas où il n'y
+    # avait rien à vérifier.*
+    if ! git -C "${RELEASE_DIR}" cat-file -e "${COMMIT_SHA}^{commit}" 2>/dev/null; then
+        log "Commit absent du clone superficiel — fetch ciblé."
+        git -C "${RELEASE_DIR}" fetch --depth 1 origin "${COMMIT_SHA}"
+    fi
+    git -C "${RELEASE_DIR}" checkout --detach "${COMMIT_SHA}"
 else
     log "No COMMIT_SHA given — deploying the tip of ${BRANCH}."
 fi

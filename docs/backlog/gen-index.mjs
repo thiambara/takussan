@@ -65,7 +65,19 @@ function frontmatter(txt, fichier) {
       cleCourante = scalaire[1];
       let v = scalaire[2].trim();
       if (v === '') {
-        out[cleCourante] = {};
+        // Une clé sans valeur ouvre une liste en bloc, un objet imbriqué… ou vaut NULL.
+        //
+        // `{}` pour tout le monde était faux dans le dernier cas : `wave:` seul sur sa ligne est
+        // du YAML valide pour `null`, et `{}` est TRUTHY. Le test `t.wave && …` passait donc, et
+        // la recherche portait sur `VAGUES["[object Object]"]` — la génération s'interrompait sur
+        // « vague [object Object] absente de waves.json », un message qui ne désigne rien. Et
+        // comme `gen-index --check` est une étape obligatoire de la CI, un ticket écrit `wave:`
+        // au lieu de `wave: null` bloquait tout le pipeline.
+        //
+        // `check-backlog.mjs` traitait déjà ce cas correctement pour ses clés de liste : les deux
+        // analyseurs du même format avaient divergé. *Deux lecteurs d'un même format finissent
+        // toujours par en lire deux — il faut soit les fusionner, soit les confronter.*
+        out[cleCourante] = ['depends_on', 'blocks', 'tags'].includes(cleCourante) ? [] : null;
         continue;
       }
       if (v.startsWith('[') && v.endsWith(']')) {

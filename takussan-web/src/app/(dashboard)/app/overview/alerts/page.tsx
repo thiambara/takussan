@@ -17,7 +17,7 @@ export default async function AlertsPage() {
   // have no `agency_id` and are passed through.
   if (user.agency_id) {
     const token = await getToken();
-    const agency = token ? await resolveAgencyOrNull(token, user.agency_id, 'overview/alerts') : null;
+    const agency = token ? await resolveAgencyOrNull(token, user.agency_id, 'overview/alerts', 'decision') : null;
     // FAIL-CLOSED : `!agency` redirige AUSSI. `fetchAgency` avale son erreur en `null`
     // (`.catch(() => null)`), donc `if (agency && …)` laissait passer une API en panne :
     // l'écran pro s'affichait pour une agence `individual` dès que la requête échouait.

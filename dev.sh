@@ -661,12 +661,26 @@ API_PID=$!
 # --tries=1 : chaque job porte son propre `tries`/`backoff`. Laisser le worker
 # retenter par-dessus doublerait silencieusement les tentatives — et un rappel de
 # paiement envoyé deux fois est un défaut visible par l'utilisateur final.
-(cd "$API" && exec php artisan queue:work --queue=notifications-urgent,media,reconciliation,default --tries=1) &
-QUEUE_PID=$!
+# DEUX workers, comme en production — voir le raisonnement dans `scripts/server-setup.sh`.
+# Aucun ordre de files ne convient sur un worker unique : `media` (régénération de filigranes sur
+# tous les biens d'une agence) affame `default`, et `default` (le fourre-tout) affame `media`.
+# Les deux consommateurs ne partagent aucune file, donc aucun ne peut affamer l'autre.
+#
+# ⚠ DEUX variables de PID, pas une. En ajoutant le second worker, `QUEUE_PID=$!` a d'abord été
+# écrit deux fois : la seconde affectation écrasait la première, le trap ne connaissait plus que
+# le worker `media`, et celui de `default` survivait à un Ctrl-C — re-parenté à init, tenant la
+# base ouverte, invisible. C'est le défaut exact que le commentaire du `exec` plus bas décrit
+# pour le front, réintroduit trois lignes plus haut en dupliquant une ligne.
+#
+# *Dupliquer une ligne duplique son effet, pas sa variable.*
+(cd "$API" && exec php artisan queue:work --queue=notifications-urgent,default --tries=1) &
+QUEUE_DEFAUT_PID=$!
+(cd "$API" && exec php artisan queue:work --queue=media,reconciliation --tries=1) &
+QUEUE_FOND_PID=$!
 (cd "$API" && exec php artisan schedule:work) &
 SCHEDULE_PID=$!
 
-trap 'kill "$API_PID" "$QUEUE_PID" "$SCHEDULE_PID" 2>/dev/null || true' EXIT INT TERM
+trap 'kill "$API_PID" "$QUEUE_DEFAUT_PID" "$QUEUE_FOND_PID" "$SCHEDULE_PID" 2>/dev/null || true' EXIT INT TERM
 sleep 1
 
 WEB_PORT=""
