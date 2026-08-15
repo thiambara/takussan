@@ -83,19 +83,19 @@ jobs:
           done
           echo "::error::Meilisearch did not become healthy in time."; exit 1
 
-      - name: Sync Meilisearch index settings
-        # SCOUT_PREFIX doit valoir CE QUE LA SUITE UTILISE. `phpunit.xml` force `testing_`, donc
-        # `searchableAs()` rend `testing_properties` en test ; sans ce préfixe ici, cette étape
-        # configurait `properties` — un index qu'aucun test ne lit. La garde poussait des
-        # réglages dans le vide, et le premier test filtrant écrit sans le trait d'amorçage
-        # échouerait sur « Attribute `status` is not filterable », en accusant le code.
-        env:
-          SCOUT_DRIVER: meilisearch
-          MEILISEARCH_HOST: http://127.0.0.1:7700
-          MEILISEARCH_KEY: masterKey
-          SCOUT_PREFIX: testing_
-        run: php artisan scout:sync-index-settings
-
+      # ⚠ L'ÉTAPE « Sync Meilisearch index settings » A ÉTÉ SUPPRIMÉE, et c'est une conséquence
+      # directe du préfixe d'index rendu unique par processus de test.
+      #
+      # Elle exportait `SCOUT_PREFIX: testing_` pour viser exactement les index que la suite
+      # allait lire. Ce préfixe est désormais engendré à l'amorçage de PHPUnit
+      # (`tests/bootstrap.php` → `Tests\Support\TestSearchIndex`) et n'est donc PAS connaissable
+      # depuis un step antérieur : maintenue, cette étape serait redevenue ce qu'elle avait déjà
+      # été une fois — une garde qui pousse des réglages dans le vide, sur un index qu'aucun test
+      # ne lit. Un step qui ne peut plus faire son travail et reste vert est pire qu'absent.
+      #
+      # La synchronisation n'est pas perdue : `InteractsWithMeilisearch` appelle
+      # `scout:sync-index-settings` une fois par processus, DANS le processus, donc sur le bon
+      # préfixe par construction. C'est la seule place où l'accord est structurellement garanti.
       - name: Run tests
         env:
           DB_CONNECTION: sqlite
@@ -103,8 +103,8 @@ jobs:
           SCOUT_DRIVER: meilisearch
           MEILISEARCH_HOST: http://127.0.0.1:7700
           MEILISEARCH_KEY: masterKey
-          # Doit rester ALIGNÉ sur `phpunit.xml` et sur l'étape de synchronisation ci-dessus.
-          SCOUT_PREFIX: testing_
+          # ⚠ Ne PAS réintroduire `SCOUT_PREFIX` ici : `tests/bootstrap.php` l'écrase de toute
+          # façon, et le déclarer laisserait croire qu'il pilote encore quelque chose.
         run: php artisan test
 
   # ────────────────────────────────────────────────────────────────────────────

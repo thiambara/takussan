@@ -76,16 +76,17 @@ class AgencyController extends Controller
 
     public function update(AgencyUpdateRequest $request, Agency $agency): JsonResponse
     {
-        $user = $request->user();
-        abort_unless(
-            $user->isSuperAdmin()
-            || $agency->primary_admin_id === $user->id
-            || (
-                $request->activeProfile()?->agency_id === $agency->id
-                && $user->isAgencyAdminAt((int) $agency->id)
-            ),
-            403
-        );
+        // TCK-290 — la règle vit désormais dans `AgencyPolicy::update`, une
+        // seule fois, partagée avec `MediaController::authorizeAttach` (upload
+        // du logo). Elle était écrite ici et dans `authorizeAdmin()`, et nulle
+        // part où une policy pouvait la lire.
+        //
+        // `abort_unless(can(), 403)` plutôt que `Gate::authorize()` : ce
+        // dernier remplacerait le corps `{"message":""}` par
+        // `{"message":"This action is unauthorized."}` — une phrase ANGLAISE
+        // que le front affiche telle quelle (`ApiError::displayMessage`) dans
+        // une UI française. Dédupliquer ne doit rien changer d'observable.
+        abort_unless($request->user()->can('update', $agency), 403);
 
         $data = $request->validated();
 
@@ -109,9 +110,14 @@ class AgencyController extends Controller
     }
 
     /**
-     * List members of an agency. Supports spatie filters (role, search) and
-     * sparse fieldsets. The `role` filter is honoured post-query because
-     * spatie roles live on a separate pivot.
+     * List members of an agency. Supports spatie/laravel-query-builder
+     * filters (role, search) and sparse fieldsets.
+     *
+     * TCK-278 — the `role` filter is honoured post-query because a role is a
+     * polymorphic PROFILE (`OwnerProfile` / `AgentProfile` / …), not a column
+     * on `users`. It used to read « because spatie roles live on a separate
+     * pivot » — that pivot was dropped with `spatie/laravel-permission`
+     * (ADR-0002); the post-query step survived it for a different reason.
      */
     public function listMembers(Request $request, Agency $agency): JsonResponse
     {
@@ -233,21 +239,15 @@ class AgencyController extends Controller
         return $this->json(['data' => ['user_id' => $user->id, 'removed' => true]]);
     }
 
+    /**
+     * TCK-290 — troisième copie de la même expression, supprimée. La règle
+     * (dont la correspondance STRICTE du profil actif, qui empêche un
+     * `agency_admin` de Y d'administrer X au motif qu'il y est membre) est
+     * dans `AgencyPolicy::update`.
+     */
     protected function authorizeAdmin(Request $request, Agency $agency): void
     {
-        $user = $request->user();
-        // Strict active-profile match prevents an actor who is agency_admin
-        // at agency Y (active) from administering agency X just because they
-        // hold a member profile there — they must switch profile first.
-        abort_unless(
-            $user->isSuperAdmin()
-            || $agency->primary_admin_id === $user->id
-            || (
-                $request->activeProfile()?->agency_id === $agency->id
-                && $user->isAgencyAdminAt((int) $agency->id)
-            ),
-            403,
-        );
+        abort_unless($request->user()->can('update', $agency), 403);
     }
 
     private function visibleAgencyQuery(User $user): Builder

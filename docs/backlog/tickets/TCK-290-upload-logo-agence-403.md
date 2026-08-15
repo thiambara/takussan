@@ -1,13 +1,13 @@
 ---
 id: TCK-290
 title: Upload du logo d'agence — 403 systématique, aucune policy pour Agency
-status: todo
+status: review
 phase: P1
 family: bug
 estimate: S
 wave: null
 created: 2026-08-13
-updated: 2026-08-13
+updated: 2026-08-15
 depends_on: []
 blocks: []
 spec_refs:
@@ -49,16 +49,16 @@ deux définitions divergentes de « qui administre cette agence ».
 
 ## Delta à produire
 
-- [ ] Policy: `App\Policies\AgencyPolicy` avec `update()`, alignée sur `AgencyController::update`.
-- [ ] Enregistrement: `Gate::policy(Agency::class, AgencyPolicy::class)` dans `AppServiceProvider`.
-- [ ] Tests: upload du logo accepté pour l'admin de l'agence, refusé pour un tiers, refusé pour
+- [x] Policy: `App\Policies\AgencyPolicy` avec `update()`, alignée sur `AgencyController::update`.
+- [x] Enregistrement: `Gate::policy(Agency::class, AgencyPolicy::class)` dans `AppServiceProvider`.
+- [x] Tests: upload du logo accepté pour l'admin de l'agence, refusé pour un tiers, refusé pour
       un admin d'une AUTRE agence.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — un `agency_admin` de l'agence téléverse le logo et reçoit 201.
-- [ ] AC2 — un `agency_admin` d'une autre agence reçoit 403.
-- [ ] AC3 — la règle est écrite UNE fois et partagée avec `AgencyController::update`.
+- [x] AC1 — un `agency_admin` de l'agence téléverse le logo et reçoit 201.
+- [x] AC2 — un `agency_admin` d'une autre agence reçoit 403.
+- [x] AC3 — la règle est écrite UNE fois et partagée avec `AgencyController::update`.
 
 ## Hors périmètre
 

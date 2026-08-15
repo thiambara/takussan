@@ -136,21 +136,29 @@ function buildNavItems(user: User): NavItem[] {
   }
   // Vue agence cross-team — visible to agency_admin so individuals see the
   // padlock, and to agents/admins. Standard-only : la page redirige elle-même
-  // (`overview/agency/page.tsx`, test en ligne sur `agency.kind`).
+  // (`overview/agency/page.tsx`, test en ligne sur `agency.kind`) et l'API
+  // rend 403 (`DashboardAgencyController`). Le cadenas couvre les DEUX rôles
+  // servis ici — `isProRouteLocked` inclut `agent` depuis TCK-284, sans quoi
+  // un agent d'agence `individual` cliquait une entrée d'apparence normale
+  // pour se faire renvoyer en silence.
   if (roles.includes('agency_admin') || isAdmin(roles) || isAgent(roles)) {
     items.push({ href: '/app/overview/agency', label: 'Vue agence', icon: BarChart3 });
   }
   if (isAdmin(roles) || roles.includes('agency_admin')) {
     // TCK-032 overview/stats — KPIs personnalisables (P3) et alertes (P3).
-    // Standard-only pour agency_admin : chaque page redirige elle-même
-    // (`kpis/page.tsx`, `alerts/page.tsx`).
+    // TCK-284 — PAS standard-only : les deux pages ne portent plus aucun test
+    // sur `agency.kind`, et ne sont plus dans `PRO_ROUTES`. La spec ne les
+    // restreint pas (`docs/features.md` §1.12, liste fermée + clause
+    // résiduelle) et l'API ne les a jamais restreintes.
     items.push({ href: '/app/overview/kpis', label: 'KPIs', icon: Gauge });
     items.push({ href: '/app/overview/alerts', label: 'Alertes', icon: BellRing });
   }
 
   // TCK-256 — owners directory. Visible to agency_admin and global admins.
   // Standard-only : `owners/page.tsx` redirige sur `agency.kind !== 'standard'`,
-  // et OwnerProfilePolicy@invite rend 403 en défense en profondeur.
+  // et l'API rend 403 des deux côtés — sur l'invitation
+  // (`OwnerProfilePolicy@invite`) comme sur la LECTURE de la liste
+  // (`OwnerProfileController::index` + `AgencyKindGuard`, TCK-284).
   if (
     roles.includes('agency_admin') ||
     isAdmin(roles) ||

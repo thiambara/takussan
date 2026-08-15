@@ -20,7 +20,9 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  * standard {@see InvitationService} row scoped to `role = super_admin` /
  * `agency_id = null`, with a `requires_2fa` metadata flag so the post-
  * acceptance flow knows to detour through the mandatory TOTP enrollment
- * page before the spatie role is actually attached.
+ * page before the `PlatformProfile` is actually granted (TCK-278 — it used
+ * to read « before the spatie role is attached »; `spatie/laravel-permission`
+ * is uninstalled, ADR-0002).
  *
  * Mirrors the per-role specialised invitation services (Owner / Agent /
  * Service Provider): the generic InvitationService stays role-agnostic,

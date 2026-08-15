@@ -19,7 +19,7 @@ Document de référence pour configurer le monorepo **Takussan** de A à Z (dép
 | Auth API | Laravel Sanctum | ^4.3 (SPA cookie + Personal Access Tokens) |
 | Search | Laravel Scout | ^11.1 — **driver `meilisearch` sur TOUS les environnements**, CI comprise (ADR-0008, TCK-280). `collection` est un défaut hérité du framework qui ne prouve rien : il filtre en PHP sur une collection Eloquent. |
 | OAuth social | Laravel Socialite | ^5.26 + providers `apple`, `facebook` (Google natif) |
-| Admin panel | Filament | ^4.0 (+ plugin `spatie-laravel-media-library-plugin`) |
+| Admin panel | ~~Filament~~ — **supprimé le 2026-08-15** (TCK-287, ardoise D-41). L'administration est en Next.js : `/admin/*` pour l'admin d'agence, `/super-admin/*` pour la plateforme. | — |
 | Permissions | ~~spatie/laravel-permission~~ — **retiré en TCK-278**, remplacé par les profils polymorphes (cf. Règle 5 de `models-spec.md`) | — |
 | Audit log | spatie/laravel-activitylog | ^5.0 |
 | Médias | spatie/laravel-medialibrary | ^11.0 |
@@ -371,7 +371,7 @@ SEED_FILTER_COVERAGE=true
 SEED_DEMO_USERS=true
 ```
 
-### 3.16 Vite (assets backend Filament)
+### 3.16 Vite (assets backend)
 
 ```env
 VITE_APP_NAME="${APP_NAME}"

@@ -372,6 +372,97 @@ Et `LARAVEL_PDF_DRIVER=cloudflare` avec les deux identifiants vides : la génér
 par défaut en développement. Le seul driver disponible en local est `dompdf`, et il n'est déclaré que
 dans `phpunit.xml`. *(Corrigé dans `.env.docker`.)*
 
+### D-47 — TCK-289 a corrigé le dépôt, pas la machine : le conteneur de base tourne toujours MariaDB 11.4 🟠 *mesuré le 2026-08-15*
+
+Le commit `8bba28bc` (TCK-289, 2026-08-13) a basculé `docker-compose.yml` de `mariadb:11.4` vers
+`mysql:8.0` — c'est le correctif de D-43. **Le conteneur, lui, n'a jamais été recréé.** Deux jours
+plus tard :
+
+```
+$ docker ps --format '{{.Names}}\t{{.Image}}\t{{.Ports}}'
+takussan-mariadb-1   mariadb:11.4   127.0.0.1:3307->3306/tcp
+$ docker exec takussan-mariadb-1 mariadb --version
+mariadb from 11.4.12-MariaDB, client 15.2
+$ docker inspect takussan-mariadb-1 --format '{{.Created}}'
+2026-08-12T16:52:02Z
+```
+
+**Et c'est pire qu'un conteneur périmé : c'est un orphelin qui squatte le port de son remplaçant.**
+Le service a été *renommé* en même temps que l'image — le conteneur qui tourne porte le label
+`com.docker.compose.service=mariadb`, et `docker compose config --services` rend aujourd'hui
+`mailpit, meilisearch, mysql, redis`. Le service `mariadb` **n'existe plus**. Docker Compose ne
+reconnaît donc pas ce conteneur comme la version périmée du service `mysql` : il le voit comme un
+orphelin sans rapport, qu'il ne remplacera pas — pendant qu'il tient `127.0.0.1:3307`, le port exact
+que le nouveau service `mysql` réclame.
+
+Sans effet sur la suite de tests, qui tourne sur SQLite. Mais `./dev.sh`, `php artisan migrate` et
+toute inspection manuelle de la base de développement parlent au **mauvais moteur** — celui-là même
+dont D-43 a démontré qu'il accepte des DDL que la production refuse. La garde
+`scripts/check-db-engine.mjs` n'attrape rien : elle compare des **fichiers du dépôt** entre eux, et
+ils sont tous d'accord. *C'est la leçon de D-04 et D-43 servie une troisième fois, cette fois-ci à
+un cran encore plus près : ne jamais déduire l'état d'un environnement de la configuration qui le
+vise — pas même quand cette configuration vient d'être corrigée, et pas même quand une garde CI la
+surveille.*
+
+**Résidu de TCK-289 trouvé au passage** : `takussan-api/.env.docker:8` justifie encore son existence
+par *« il pose `DB_CONNECTION=sqlite` quand la production tourne sur MariaDB »* — dans le fichier
+dont tout le propos est d'aligner les drivers sur la production **mesurée**, qui est MySQL 8.0.
+
+**Preuve** : `docker ps` · `docker inspect takussan-mariadb-1` (label `com.docker.compose.service=mariadb`,
+créé le 2026-08-12, soit la veille du correctif) · `docker compose config --services` → pas de
+`mariadb` · `docker-compose.yml:77-81` (`mysql:` / `image: mysql:8.0`) · `takussan-api/.env.docker:8`.
+
+**Correctif** : `docker compose down --remove-orphans && docker compose up -d` — et comme le volume
+`mysql-data` a été initialisé par MariaDB, il faut **le supprimer** pour que
+`docker/mysql-init.sql` rejoue et que la collation `utf8mb4_0900_ai_ci` soit réellement posée
+(l'en-tête du script le dit : il n'est joué qu'à la première création du volume). Une note dans
+`./dev.sh doctor`, qui compare déjà le déclaré au vivant, éviterait la prochaine occurrence : *un
+correctif de configuration n'est pas déployé tant qu'aucune machine ne l'exécute.*
+
+### D-48 — Le `.env` de développement vise les services natifs, jamais les conteneurs du dépôt 🟠 *dette d'ONBOARDING, pas de dépôt — mesurée le 2026-08-15*
+
+`takussan-api/.env` est **ignoré par git**. Cette entrée ne décrit donc pas un fichier du dépôt à
+corriger, mais **l'écart entre ce que le dépôt provisionne et ce que la machine de développement
+utilise réellement** — un écart qu'aucune garde ne peut voir, par construction.
+
+| Ce que le dépôt sert | Ce que le `.env` local vise |
+|---|---|
+| Meilisearch v1.16 en conteneur, `127.0.0.1:7701` | `MEILISEARCH_HOST=http://localhost:7700` — l'instance **brew native** |
+| MySQL 8.0 en conteneur, `127.0.0.1:3307` | `DB_PORT=3306` — le **MySQL natif** |
+
+**Conséquence mesurée sur Meilisearch, et elle est nette :**
+
+```
+$ curl -s 127.0.0.1:7701/indexes        # le conteneur du dépôt
+{"results":[],"offset":0,"limit":20,"total":0}
+$ curl -s 127.0.0.1:7700/health         # l'instance brew native
+{"status":"available"}
+```
+
+**Zéro index dans le conteneur.** Ni la suite de tests, ni l'application de développement n'ont
+jamais touché le service que `docker-compose.yml` prétend fournir. Le conteneur tourne depuis le
+2026-08-12 et n'a rien fait d'autre que tourner.
+
+Ce que cela coûte : tout ce que l'environnement conteneurisé était censé garantir
+([ADR-0011](adr/0011-environnement-de-dev-conteneurise.md), D-09, D-43) — versions épinglées,
+moteur aligné sur la production mesurée, isolation du poste — **ne s'applique à personne**. Les
+ports décalés (3307, 7701, 6380) avaient été choisis pour rendre les deux mondes simultanés plutôt
+que d'exiger qu'on démonte l'existant ; le résultat est qu'ils sont bien simultanés, et que c'est
+**l'ancien** qui sert. Et la mesure de D-44 — 3308 tâches d'indexation, barrière à 10 s — a été
+prise sur l'instance brew, pas sur la v1.16 épinglée : les deux ne se comportent pas nécessairement
+pareil sous charge.
+
+**Preuve** : `grep -n MEILISEARCH takussan-api/.env` → `http://localhost:7700` ·
+`grep -n DB_PORT takussan-api/.env` → `3306` · `GET 127.0.0.1:7701/indexes` → `"total":0` ·
+`GET 127.0.0.1:7700/health` → `available` · `.gitignore` — `.env` non suivi.
+
+**Correctif** : `cp takussan-api/.env.docker takussan-api/.env && php artisan key:generate`, qui est
+exactement ce que l'en-tête de `.env.docker` prescrit. **Et une garde qui le rende visible** :
+`./dev.sh doctor` sonde déjà ce que le `.env` déclare, mais il ne dit pas que ce que le `.env`
+déclare **n'est pas ce que le dépôt sert**. C'est la seule famille de dettes de ce document
+qu'aucune CI ne pourra jamais attraper — elle vit dans un fichier ignoré — donc la seule réponse
+possible est de l'afficher au démarrage.
+
 ---
 
 ## 🟠 Documentation qui ment
@@ -474,12 +565,40 @@ auth / WhatsApp first / 5 weekends »). **Les 12 tickets du second sont tous `st
 qu'ils décrivent des fonctionnalités livrées depuis avril.** Un outil qui agrège les frontmatters
 `todo` sur `docs/` compte **15 tickets ouverts au lieu de 3**.
 
-### D-21 — Des docblocks décrivaient un package désinstallé ✅ *soldé le 2026-08-12*
+### D-21 — Des docblocks décrivaient un package désinstallé ✅ *soldé le 2026-08-15*
 
-> **Soldé** : cinq docblocks corrigés — `HasProfiles`, `LeasePolicy` (deux), `Invitation`,
-> `bootstrap/app.php`. Chacun dit désormais ce que le code fait, **et** ce qu'il ne fait plus, avec
-> un renvoi vers l'ADR. Les mentions de `Spatie\Media`, `Spatie\Activity` et `Spatie\Image` sont
-> restées : ces paquets-là sont bien installés.
+> **Déclaré soldé le 2026-08-12 sur cinq corrections. Il en restait au moins quatorze.**
+>
+> C'est la partie instructive de cette dette : *une dette de documentation ne se solde pas en
+> corrigeant les occurrences qu'on a sous les yeux.* Les cinq premières avaient été trouvées en
+> lisant le code du cutover ; les quatorze suivantes vivaient dans des fichiers que le cutover ne
+> touchait pas — services d'invitation, onboarding, notifications, bootstrap super-admin. Aucune
+> n'était visible depuis le diff de TCK-278, et c'est précisément pour ça qu'elles ont survécu.
+>
+> **Solde réel (2026-08-15, TCK-278)** — corrigés : `HostOnboardingController`,
+> `Api/Agency/TeamController`, `Api/AgencyController`, `Api/LeaseDepositRefundController`,
+> `Public/InvitationAcceptController`, `Notifications/SuperAdminAcceptedBroadcast`,
+> `Models/Concerns/HasProfiles` (3ᵉ occurrence), `Services/Agency/AgencyUpgradeRequestService`,
+> `Services/Auth/SuperAdminBootstrapService`, `Services/Auth/SuperAdminCooptationService`,
+> `Services/Invitation/{Agent,Owner,ServiceProvider}InvitationService`,
+> `Services/Invitation/InvitationService`, `Services/Lease/RentReviewService`,
+> `Services/Onboarding/HostIndividualOnboardingService` (2 occurrences),
+> `Api/UserAdminController` (formulation ambiguë : c'était le query-builder).
+>
+> **Le pire était `HostOnboardingController.php:61`** : « the spatie role attachment **is still the
+> source of truth** for permission checks ». Pas une tournure au passé mal relue — une affirmation
+> au présent, sur le mécanisme d'autorisation, dans un contrôleur d'onboarding. Un agent qui la lit
+> avant d'écrire du code raisonne sur un package désinstallé.
+>
+> **Un cas de forme à connaître** : `AgencyUpgradeRequestService` portait deux docblocks EMPILÉS —
+> le mensonge spatie détaillé, puis le correctif TCK-278 en une ligne juste dessous. PHP n'associe
+> que le dernier à la méthode ; un humain lit les deux et croit le plus détaillé. Corriger en
+> ajoutant un bloc, sans retirer l'ancien, ne corrige rien.
+>
+> Les mentions de `laravel-query-builder`, `laravel-medialibrary`, `laravel-activitylog`,
+> `Spatie\Image` et `laravel-pdf` sont restées : ces paquets-là sont bien installés. Le tri s'est
+> fait à la lecture, occurrence par occurrence — le seul mot « spatie » ne distingue pas un paquet
+> vivant d'un paquet mort.
 
 
 `spatie/laravel-permission` a été retiré par TCK-278, mais le code continue de le décrire :
@@ -526,6 +645,27 @@ cent fois trop peu. Classé P0 malgré son apparence documentaire.
 > côté serveur, et tourne dans `repo-ci.yml`. Prouvée par mutation, dans les deux sens — écart
 > retiré de l'allowlist → rouge, allowlist devenue périmée → rouge aussi.
 >
+> **⛔ CORRECTION du 2026-08-15 — deux affirmations de cette entrée étaient fausses, et la seconde
+> l'était depuis trois mois.**
+>
+> 1. « `DashboardController` ne porte aucun `AgencyKindGuard` » — **faux depuis le 2026-05-12**.
+>    Le contrôleur qui sert `/api/dashboard/agency` s'appelle `DashboardAgencyController`
+>    (`routes/api/dashboard.php`), et il abort en 403 sur `kind !== Standard`, avec un test qui le
+>    prouve (`DashboardAgencyTest::test_individual_agency_admin_receives_403`). L'affirmation
+>    venait d'un grep sur la chaîne `AgencyKindGuard` — **le faux négatif par recherche de jeton
+>    que cette même entrée passe dix lignes à documenter, commis un étage plus bas.** Une garde
+>    écrite en ligne ne porte pas le nom du helper.
+> 2. « Les quatre écarts sont nommés dans `ECARTS_ASSUMES` » — la map est **vide**, et c'est
+>    l'état sain revendiqué par le script lui-même.
+>
+> **Refermé par TCK-284, le 2026-08-15** : la décision produit a été prise (le carnet de
+> propriétaires est réservé aux agences `standard` — TCK-256 confirmé, et la règle est désormais
+> écrite dans `docs/features.md` §1.12, ce qu'elle n'avait jamais été) ; `GET /api/owners` porte
+> `AgencyKindGuard`, prouvé par `OwnerProfileListingTest` ; les KPI et les alertes de seuil, que
+> **aucune** spec ni aucun ticket ne réserve, sont sortis de `PRO_ROUTES` et de leurs pages. Il
+> reste 7 routes, gardées 7/7. Le message vert du script n'énumère plus un état de l'API qu'il ne
+> mesure pas : il annonce sa portée.
+>
 > **Ce qu'elle a trouvé à sa première exécution.** `pro-features.ts` affirmait, dans un
 > commentaire, que *« the pages themselves redirect to `/app` server-side, which is the ultimate
 > gate »*. Mesuré : **vrai pour 5 routes sur 9**. Les quatre routes `/app/*` —
@@ -563,7 +703,8 @@ cent fois trop peu. Classé P0 malgré son apparence documentaire.
 > refusé — une régression fonctionnelle déguisée en correctif de sécurité. L'arbitrage est un
 > **choix produit**, et il est écrit dans **TCK-284**.
 >
-> Les quatre écarts sont nommés dans `ECARTS_ASSUMES`. Une allowlist est une **dette datée**, pas
+> ~~Les quatre écarts sont nommés dans `ECARTS_ASSUMES`.~~ — **faux, cf. la correction du
+> 2026-08-15 en tête d'entrée : la map est vide.** Une allowlist est une **dette datée**, pas
 > une exemption : la garde échoue aussi le jour où une entrée y devient périmée.
 
 
@@ -593,14 +734,111 @@ français, **y compris dans la navigation**. Aucune garde ne mesure l'écart.
 - `docs/image.png` (2,99 Mo) et `docs/image copy.png` (1,19 Mo) sont versionnés — **53 % du poids de
   `docs/`** — pour des captures commitées accidentellement.
 
+### D-45 — La compétence d'implémentation décrivait **un autre projet** ✅ *soldé le 2026-08-15*
+
+`.agent/skills/implementing-specs/SKILL.md` est le fichier que tout agent lit **avant d'écrire la
+première ligne de code d'un ticket** — c'est lui qu'invoquent `/implement-spec` côté `.claude/commands/`
+comme côté `.windsurf/workflows/`. Sa Phase 4, « Respect the architecture », prescrivait ceci
+(version `HEAD` avant correctif, lignes 112-114) :
+
+```
+- **Backend**: … Permissions use `spatie/laravel-permission`. …
+- **Frontend**: Standalone components (no NgModules). Services in `core/services/http/`.
+  PrimeNG 21 + Tailwind 4. Template control flow uses `@if` / `@for` / `@switch`.
+  Auth token in `AuthService.authToken` (static).
+- **API base URL (dev)**: `http://127.0.0.1:8002`. Frontend runs on port 4201.
+```
+
+**Ce n'est pas une documentation périmée, c'est la documentation d'un projet différent.** Composants
+standalone, `NgModules`, contrôle de flux `@if`/`@for`/`@switch`, PrimeNG, un service HTTP dans
+`core/services/http/`, un `AuthService.authToken` statique, le port 4201 : c'est **Angular**. Le
+frontend de ce dépôt est **Next.js 16 / React 19**, App Router, primitives shadcn `base-nova` sur
+`@base-ui/react`, sur le port 3000. Il n'existe dans ce dépôt ni Angular, ni PrimeNG, ni Radix. Et
+`spatie/laravel-permission` est **désinstallé** depuis TCK-278, avec une garde CI qui casse sur ses
+imports — le fichier prescrivait donc d'écrire du code que la CI refuse.
+
+**Et il portait la deuxième faute par-dessus la première** : ses étapes 7 et 19 (lignes 92 et 165)
+disaient *« Move the ticket bullet from the `📋 Todo` section to `🚧 Doing` »* et *« Move the ticket
+from `🚧 Doing` to `👀 Review` »* — **le déplacement à la main de puces dans `INDEX.md`, qui est
+généré**. C'est mot pour mot la pratique qui a rendu l'index faux sur 213 de ses 266 entrées (D-15),
+prescrite par le document qu'on lit pour bien faire.
+
+*Une documentation périmée fait perdre du temps. Une documentation d'un autre projet fait écrire du
+code faux avec confiance* — et celle-ci se lisait au moment exact où l'agent cherche quoi respecter.
+On ne peut pas la dater comme D-14 : elle n'a jamais été juste pour ce dépôt.
+
+**Preuve** : `git show HEAD:.agent/skills/implementing-specs/SKILL.md` lignes 92, 112-114, 165 ·
+`.claude/commands/implement-spec.md:5` et `.windsurf/workflows/implement-spec.md:5` désignent tous
+deux ce fichier · absence de toute dépendance Angular/PrimeNG dans `takussan-web/package.json`.
+
+**Soldé** : la Phase 4 est réécrite sur le backend et le frontend **réels** (profils polymorphes et
+`MembershipCapabilityResolver`, App Router, `base-nova`, le piège du préfixe `/api`, ports 8002/3000),
+les étapes 7 et 19 prescrivent `node docs/backlog/gen-index.mjs`, et le fichier porte désormais un
+encadré qui **date sa propre erreur** et tranche le conflit à l'avance : *« si cette section
+contredit le code, le code gagne et ce fichier est le bug ».*
+
+### D-46 — Deux répertoires de compétences concurrents, `.agent/` et `.agents/`, qui divergent **en croix** 🟠 *mesuré le 2026-08-15*
+
+Les deux sont suivis par git — **646 fichiers** dans `.agent/`, **602** dans `.agents/` — et
+personne n'a jamais arbitré lequel fait foi.
+
+**Deux fichiers diffèrent, et c'est un cas d'école : chacun a raison là où l'autre a tort.**
+
+| Fichier | `.agent/` (celui que le dépôt utilise) | `.agents/` (celui que personne ne lit) |
+|---|---|---|
+| `skills/implementing-specs/SKILL.md` | ❌ *« Permissions use `spatie/laravel-permission` »* | ✅ *« Permissions sont résolues par `MembershipCapabilityResolver` à partir des profils polymorphes (TCK-278, Règle 5) »* |
+| `skills/writing-specs/SKILL.md` | ✅ *« `INDEX.md` is **GENERATED** — never edit it by hand »* + champ `wave` requis | ❌ *« Add a new bullet line to the correct section »*, *« `INDEX.md` is part of the deliverable »* |
+
+Autrement dit : **la bonne ligne sur le RBAC vit dans le répertoire mort, et la bonne ligne sur
+l'INDEX vit dans le répertoire vivant.** Quelqu'un a corrigé le RBAC dans `.agents/` — donc quelqu'un
+a su, et a écrit juste — et la correction n'a jamais atteint le fichier que les outils chargent. La
+connaissance existait dans le dépôt et n'était pas branchée.
+
+**Et rien ne désigne `.agents/`.** Les quatre points d'entrée pointent tous vers `.agent/` :
+
+```
+.claude/commands/implement-spec.md   → .agent/skills/implementing-specs
+.claude/commands/write-spec.md       → .agent/skills/writing-specs
+.windsurf/workflows/implement-spec.md → .agent/skills/implementing-specs
+.windsurf/workflows/write-spec.md    → .agent/skills/writing-specs
+```
+
+Un `grep -rn '\.agents/'` sur tout le dépôt, `.agents/` exclu, ne rend que **deux** occurrences, et
+ce sont des **faux positifs** : une phrase générique sur la découverte de compétences, dans un
+document de référence livré par le greffon `bmad-distillator`, présente à l'identique sous
+`.claude/skills/` et `.windsurf/skills/`. **Aucun fichier de ce dépôt ne référence `.agents/`.**
+
+`.agent/` porte par ailleurs 15 compétences que `.agents/` n'a pas (`test-driven-development`,
+`systematic-debugging`, `verification-before-completion`, `using-git-worktrees`…), plus `AGENTS.md`,
+`INSTALL.md`, `agents/`, `tests/` et `workflows/` ; `.agents/` en porte une que `.agent/` n'a pas
+(`source-command-sync-specs`).
+
+**Le coût n'est pas les 602 fichiers dupliqués, c'est le doute.** Un contributeur qui corrige une
+compétence a une chance sur deux de la corriger dans le répertoire que personne ne charge — et
+aucune erreur, aucun lint, aucune CI ne le lui dira. C'est déjà arrivé, une fois au moins, sur la
+ligne d'autorisation : la meilleure preuve qu'un répertoire mort n'est pas inerte.
+
+**Preuve** : `git ls-files .agent | wc -l` → 646 · `git ls-files .agents | wc -l` → 602 ·
+`diff -rq .agent .agents` → 2 fichiers différant, le reste en écarts de présence ·
+`grep -rn '\.agents/' --exclude-dir=.agents .` → 2 hits, tous deux dans
+`skills/bmad-distillator/resources/distillate-format-reference.md:188`.
+
+**Trancher** : `.agent/` est le répertoire vivant — c'est celui que quatre points d'entrée
+désignent. Reste à porter dans `.agents/`… ou plutôt à **supprimer `.agents/`** après avoir vérifié
+que sa seule compétence propre (`source-command-sync-specs`) et sa bonne ligne RBAC sont bien
+arrivées dans `.agent/` — la ligne RBAC l'est depuis le 2026-08-15 (cf. D-45). Deux répertoires de
+compétences à la racine, c'est le même défaut que deux fichiers d'instructions divergents (D-14) :
+*un mensonge qui attend son lecteur.*
+
 ---
 
 ## 🟡 Couverture de tests
 
 > **Les quatre entrées de cette section sont couvertes par [TCK-285](backlog/tickets/TCK-285-couverture-tests-services-policies.md)**, qui les ordonne par coût d'un défaut plutôt que par volume : policies d'abord (isolation multi-agence), puis webhooks (surfaces non authentifiées), puis commandes destructrices, puis services.
 
-2052 tests backend et 802 frontend, tous verts — mais la couverture est très inégale, et les trous
-sont concentrés là où ça compte.
+2052 tests backend et 802 frontend, tous verts **au repos** (cf. D-44 et D-30bis : les deux suites
+rougissent sous charge, et « au repos » n'était écrit nulle part) — mais la couverture est très
+inégale, et les trous sont concentrés là où ça compte.
 
 ### D-26 — La couche services est le trou principal 🟠
 
@@ -640,6 +878,78 @@ rougit sous charge accuse le code*. Le correctif n'est pas d'augmenter le délai
 mesurer leur marge réelle : un test à 12 % de son plafond n'a pas le même problème qu'un test
 à 90 %.
 
+### D-44 — La suite backend est instable sous charge, et rouge sur un ensemble différent à chaque fois 🟠 *mesuré le 2026-08-15*
+
+C'est le jumeau backend de D-30bis, en beaucoup plus grave — et il invalide le mot « verts » partout
+où il est écrit dans ce dépôt sans le qualificatif « au repos ».
+
+**Trois exécutions, aucun fichier changé entre elles :**
+
+| Exécution | Conditions | Résultat |
+|---|---|---|
+| 1 | suite **seule**, machine au repos | **2056 passés, 0 échec**, sortie 0, **313 s** |
+| 2 | pendant qu'une autre exécution tournait | **12 échecs** |
+| 3 | idem, juste après | **4 échecs — sur un ensemble DIFFÉRENT** |
+
+Union des exécutions 2 et 3 : **14 tests distincts**, **tous** des tests de recherche Meilisearch.
+Relancés seuls, ces mêmes tests passent **22/22**.
+
+**Ce profil de panne est le pire qui soit.** Un test qui rougit toujours est un défaut ; un test qui
+rougit une fois sur deux **sur une cible qui change** n'accuse personne en particulier, donc il
+accuse tout le monde. Il n'existe aucun moyen, depuis le rapport d'échec, de distinguer « ma PR a
+cassé la recherche » de « le runner était chargé ». La réponse humaine à ce signal est connue et
+elle est toujours la même : on relance jusqu'au vert, et à partir de ce moment la suite ne garde
+plus rien.
+
+**Deux causes, et la première est de loin la plus coûteuse :**
+
+1. **`waitForMeilisearch()` abandonnait EN SILENCE.**
+   `takussan-api/tests/Concerns/InteractsWithMeilisearch.php:68-84` — une boucle qui sonde la file de
+   tâches Meilisearch pendant 10 s, puis **sort par le bas et `return`** : pas d'exception, pas
+   d'assertion, pas une ligne de log. Le test enchaînait donc sur un index **à moitié construit** et
+   rougissait deux lignes plus loin, sur une assertion métier parfaitement juste, en désignant le
+   code applicatif. *Une barrière de synchronisation qui renonce sans le dire ne retarde pas
+   l'échec : elle le déguise en un autre échec, à un autre endroit.*
+
+2. **La suite s'infligeait elle-même le backlog qui faisait expirer cette barrière.** `phpunit.xml`
+   force `SCOUT_DRIVER=meilisearch` avec `SCOUT_QUEUE=false` : **chaque `save()`** d'un modèle
+   indexable, dans **n'importe** quel test — y compris les ~2030 qui n'ont rien à voir avec la
+   recherche — poussait un document synchrone dans Meilisearch. Mesuré sur une exécution :
+   **3308 tâches d'indexation**, dont 2628 sur le seul index des biens, pour **une vingtaine** de
+   tests qui en avaient réellement besoin. Et le préfixe d'index était le littéral `testing_`
+   (posé par D-08) : il isolait la suite **du développeur**, mais pas **d'elle-même** — deux
+   exécutions simultanées écrivaient dans les mêmes index et se détruisaient mutuellement.
+
+**La CI est verte par chance de tempo.** Elle lance la même commande, avec le même plafond de 10 s,
+sur un runner simplement assez rapide pour rester sous la barre. Ce n'est pas une garantie, c'est une
+**marge que personne n'a jamais mesurée** — exactement la situation que D-30bis décrit côté front,
+et exactement le raisonnement que D-43 condamne : *une hypothèse signalée reste une hypothèse
+exécutée.* Le jour où la marge bascule — un runner plus lent, dix tests de recherche de plus — la CI
+deviendra rouge par intermittence sur des PR qui n'y sont pour rien.
+
+**Preuve** : trois exécutions horodatées le 2026-08-15 (2056/0/313 s au repos ; 12 puis 4 échecs sous
+charge, intersection non vide mais ensembles distincts) · `tests/Concerns/InteractsWithMeilisearch.php:68-84`
+(boucle sans levée) · `phpunit.xml` bloc `<php>` (`SCOUT_DRIVER=meilisearch`, `SCOUT_QUEUE=false`,
+`SCOUT_PREFIX=testing_`) · comptage de la file Meilisearch en fin d'exécution → 3308 tâches.
+
+> **État au 2026-08-15, 20 h — un correctif est dans l'ARBRE DE TRAVAIL et n'est PAS mergé.**
+> Il pose un préfixe d'index **par processus** (`tests/bootstrap.php` + `Tests\Support\TestSearchIndex`,
+> avec suppression des index en fin d'exécution), une barrière qui **lève** au lieu de renoncer
+> (`Tests\Support\MeilisearchBarrier` / `MeilisearchNotIdleException`), filtrée sur les index du
+> processus, et coupe la synchronisation Scout **par défaut pour toute la suite**
+> (`Tests\TestCase::setUp()`), le concern la rallumant pour les seuls tests de recherche. La liste
+> des modèles indexables devient **dérivée** (`Tests\Support\SearchableModels`) au lieu d'être
+> recopiée — la version manuelle avait oublié `Message`.
+>
+> **Mesuré à cet instant**, et c'est tout ce qui est mesuré : `php artisan test --filter='Testing'`
+> → **25 passés, 80 assertions, 2,48 s**. Le harnais a des tests ; la propriété qu'il vise —
+> « deux exécutions simultanées ne se détruisent plus » — n'a **pas** été re-mesurée en conditions
+> réelles au moment où ces lignes s'écrivent.
+>
+> **Cette entrée reste donc OUVERTE.** Règle maison : *le statut vaut pour ce qui est mergé sur
+> `dev`*. Un correctif dans un arbre de travail n'a jamais tenu personne au chaud, et c'est
+> précisément le genre de promesse que ce document existe pour ne pas prendre pour un fait.
+
 ### D-30 — Aucune mesure de couverture, aucune parallélisation 🟡
 
 La CI passe explicitement `coverage: none` et le bloc `<source>` de `phpunit.xml` n'alimente aucun
@@ -667,14 +977,94 @@ pour le code neuf** ; l'existant reste à converger.
 | **D-39** | ~~`NotificationPreference` n'étend pas `AbstractModel`~~ | ✅ **soldé le 2026-08-12** — il l'étend désormais ; 106 tests notifications verts | ✅ |
 | **D-40** | Namespaces de contrôleurs dédoublés | l'authentification est éclatée entre `Controllers/Auth/` (8) et `Controllers/Api/Auth/` (5) | — |
 
-### D-41 — Filament v4 : scaffold oublié ou décision non assumée 🟠 → [TCK-287](backlog/tickets/TCK-287-filament-supprimer-ou-securiser.md)
+### D-41 — Filament v4 : scaffold oublié ou décision non assumée ✅ *soldé le 2026-08-15 — supprimé* → [TCK-287](backlog/tickets/TCK-287-filament-supprimer-ou-securiser.md)
 
-Deux dépendances composer, un panel monté sur `/admin` avec `->login()`, pour **une seule Resource**
-(Property, 6 fichiers) — alors que le back-office réel est en Next.js.
+> **Soldé le 2026-08-15 : le panel a été SUPPRIMÉ**, sur décision explicite, après que le diagnostic
+> corrigé ci-dessous eut établi qu'il ne s'agissait pas d'un trou de sécurité mais d'un coût porté
+> sans contrepartie. Ce qui est parti : les 7 fichiers de code (`app/Filament/` + le
+> `AdminPanelProvider`), les 2 racines composer et leurs **29 paquets exclusifs**, les **37 fichiers
+> d'assets** (4,12 Mo) suivis par git, l'entrée de `bootstrap/providers.php`, et
+> `@php artisan filament:upgrade` du `post-autoload-dump` de `composer.json`.
+>
+> **Cette dernière ligne était le vrai piège de la suppression** : elle s'exécute à *chaque*
+> `composer install`, donc en CI et pendant le déploiement. Retirer le paquet sans la retirer aurait
+> fait échouer toute installation ultérieure sur une commande introuvable — une panne qui ne se
+> serait pas vue en local, où `vendor/` était déjà peuplé.
+>
+> Vérifié avant de supprimer, parce que trois des 29 paquets transitifs *ressemblaient* à des
+> dépendances de fonctionnalités vivantes : le **2FA** passe par `pragmarx/google2fa` et
+> `bacon/bacon-qr-code`, tous deux déclarés *directement* en `require` — le paquet emporté est
+> `pragmarx/google2fa-qrcode`, un homonyme jamais importé ; les **exports** passent par
+> `maatwebsite/excel`, et `openspout` avait 0 usage. Les 28 autres : 0 import dans `app/`, `config/`,
+> `database/`, `tests/`, `routes/`. La chaîne npm/Vite de l'API ne servait pas Filament — elle
+> construit `resources/css/app.css` pour `welcome.blade.php` — et reste en place.
 
-**Le panel n'est protégé par aucun middleware `super-admin`, et `User` n'implémente pas
-`FilamentUser`.** C'est une surface d'administration exposée dont personne ne réclame la
-responsabilité. Soit on la supprime, soit on la sécurise et on l'assume en ADR.
+> **⛔ DIAGNOSTIC CORRIGÉ le 2026-08-15 — l'entrée d'origine se trompait de dette, et dans le sens
+> le plus coûteux : elle annonçait un trou de sécurité qui n'existe pas.** Elle concluait « surface
+> d'administration exposée » **à partir de l'absence** d'un middleware et de l'absence de
+> l'interface `FilamentUser`. Les deux absences sont réelles ; la conclusion tirée d'elles est
+> fausse, parce qu'elle n'était pas mesurée — personne n'avait lu ce que Filament fait quand
+> `FilamentUser` manque.
+>
+> **Ce que Filament fait quand `FilamentUser` n'est pas implémenté : il refuse l'accès partout sauf
+> en local.** `vendor/filament/filament/src/Http/Middleware/Authenticate.php:32-39` :
+>
+> ```php
+> // Security: If the user model does not implement `FilamentUser`,
+> // access is only allowed in local environments.
+> abort_if(
+>     $user instanceof FilamentUser
+>         ? (! $user->canAccessPanel($panel))
+>         : (config('app.env') !== 'local'),
+>     403,
+> );
+> ```
+>
+> `App\Models\User` n'implémente **pas** `FilamentUser` (`class User extends Authenticatable
+> implements HasLocalePreference, HasMedia, MustVerifyEmail` — `app/Models/User.php:36`, et
+> `grep -rn 'FilamentUser' app/` ne rend rien). Le panel est donc **fail-closed** : 403 pour tout
+> utilisateur authentifié dès que `APP_ENV` vaut autre chose que `local`, `staging` et `production`
+> comprises. Le middleware manquant n'ouvrait rien — c'est l'interface manquante qui ferme.
+>
+> **La leçon est celle que cette ardoise documente déjà en D-23 : une garde qui cherche un JETON ne
+> mesure pas la PROPRIÉTÉ.** Ici le jeton cherché était `->middleware(...)` dans le provider du
+> panel, et la propriété voulue « un inconnu peut-il administrer ». La dépendance répondait déjà
+> non. *Une dette dont le diagnostic est faux est pire qu'une dette non écrite : elle fait
+> travailler quelqu'un sur un danger imaginaire, et elle use la crédibilité de toutes les autres
+> entrées du document.*
+>
+> **Gravité ramenée de 🟠 à 🟡** : ce n'est plus une question de sécurité, c'est une question de
+> coût porté sans contrepartie. ⚠️ **[TCK-287](backlog/tickets/TCK-287-filament-supprimer-ou-securiser.md)
+> porte encore la prémisse fausse dans son intitulé même (« supprimer ou sécuriser ») ; il reste à
+> recadrer — l'arbitrage réel est « supprimer ou assumer », pas « supprimer ou sécuriser ».**
+
+Deux dépendances composer (`filament/filament`, `filament/spatie-laravel-media-library-plugin`), un
+panel monté sur `/admin` avec `->login()`, pour **une seule Resource** (Property, 6 fichiers) — alors
+que le back-office réel est en Next.js.
+
+**Le coût, lui, est réel, et il n'avait jamais été chiffré** — mesuré le 2026-08-15 :
+
+- **29 paquets exclusifs** en `require`, c'est-à-dire atteignables depuis `filament/*` et depuis
+  **aucune** autre racine du `composer.json` : tout `livewire/livewire`, `blade-ui-kit/blade-icons`,
+  `nette/php-generator`, `openspout/openspout`, `ueberdosis/tiptap-php`, `scrivo/highlight.php`,
+  `chillerlan/php-qrcode`, `kirschbaum-development/eloquent-power-joins`… Le sous-arbre complet en
+  compte 66, mais 37 seraient là de toute façon ; ce sont les 29 qui partiraient avec Filament.
+- **4,12 Mo d'assets compilés suivis par git**, sur 37 fichiers (`public/js/filament/`,
+  `public/css/filament/`, et les 8 fontes Inter en `.woff2`) — pour un panel que personne n'ouvre.
+
+Chacun de ces 29 paquets est une surface de mise à jour, une ligne dans `composer audit` (cf. D-00,
+où cinq paquets ont accumulé 26 avis sans que personne ne regarde), et une contrainte de version sur
+les montées de PHP.
+
+**Preuve** : `vendor/filament/filament/src/Http/Middleware/Authenticate.php:32-39` ·
+`app/Models/User.php:36` · résolution du graphe de `composer.lock` depuis les racines `filament/*`
+moins les autres racines → 29 · `git ls-files 'takussan-api/public/*filament*'` → 37 fichiers,
+4 319 468 octets.
+
+**Trancher** : soit on supprime (une Resource de 6 fichiers, 29 paquets, 4,12 Mo), soit on assume en
+ADR — et « assumer » veut alors dire implémenter `FilamentUser::canAccessPanel()`, **ce qui ouvrirait
+le panel hors local**, aujourd'hui fermé. C'est le seul chemin par lequel ce panel peut devenir une
+surface exposée : le sécuriser à moitié serait strictement pire que de ne rien faire.
 
 ### D-42 — Code mort et stubs menteurs côté frontend ✅ *soldé le 2026-08-12*
 

@@ -40,8 +40,11 @@ class UserAdminController extends Controller
             });
         }
 
-        // `filter[role]` is delegated to a Spatie callback on User
-        // (TCK-147) so it's whitelisted and applies even with sparse fields.
+        // `filter[role]` is delegated to a spatie/laravel-QUERY-BUILDER
+        // callback on User (TCK-147) so it's whitelisted and applies even with
+        // sparse fields. TCK-278 — that callback resolves the role against the
+        // polymorphic profiles, not against any spatie/laravel-permission
+        // table: only the query-builder package is still installed.
         $paginator = User::buildQuery($base, $request)
             ->defaultSort('-created_at')
             ->paginate();

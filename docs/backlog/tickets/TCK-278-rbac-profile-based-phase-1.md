@@ -1,13 +1,13 @@
 ---
 id: TCK-278
 title: "RBAC refondu — phase 1 : suppression de spatie sur User + PlatformProfile + Capability resolver"
-status: doing
+status: review
 phase: P1
 family: technique
 estimate: XL
 wave: 34
 created: 2026-05-17
-updated: 2026-08-12
+updated: 2026-08-15
 execution_strategy: phased-on-branch (P1 foundations coexist with spatie → P2 callsite refactor → P3 cutover/drop)
 depends_on: []
 blocks: [TCK-279]
@@ -119,34 +119,77 @@ _(à remplir par implementing-specs)_
 
 ## Reste sur dev
 
-_Mesuré le 2026-08-12, à la reprise du développement._
+_Réécrit le 2026-08-15. **La version précédente de cette section était fausse sur ses trois
+affirmations frontend** — elle listait comme « restant à faire » des fichiers que la PR #144
+(`33ce4f69`) avait elle-même supprimés. Un agent qui l'aurait appliquée à la lettre serait allé
+rapporter ces deltas depuis la branche `feat/tck-278-279-rbac-architecture-spec` et aurait
+**ressuscité du code mort**. Elle avait été déduite de la branche, pas mesurée sur `dev`._
 
 **Ce qui EST sur `dev`** — le socle backend, entré par la PR #144 (`33ce4f69`), complété par
 `47cbc365` :
 
-- `spatie/laravel-permission` **désinstallé** — absent de `composer.json` et de `composer.lock` ;
+- `spatie/laravel-permission` **désinstallé** — absent de `composer.json`, de `composer.lock` et de
+  `vendor/` ; zéro import `Spatie\Permission\`, zéro `hasRole()/assignRole()/syncRoles()/removeRole()`
+  dans `app/` ; les 5 tables droppées ;
 - `app/Models/Enums/Capability.php` (44 cas), `app/Models/Profiles/PlatformProfile.php`,
   `app/Models/Enums/PlatformProfileLevel.php`, `app/Observers/PlatformProfileObserver.php`,
   `app/Services/Membership/MembershipCapabilityResolver.php` ;
-- les tests associés (`tests/Feature/Profiles/PlatformProfileTest.php`,
-  `tests/Unit/Services/Membership/MembershipCapabilityResolverTest.php`) et `BasePolicyTest` mis à
-  jour ;
+- le resolver est **réellement dans le chemin d'autorisation de production** : une `Gate::define()`
+  par capacité (`AppServiceProvider.php:415-442`), atteinte par 6 sites d'appel (LeasePolicy ×5,
+  RentReviewService ×1) ;
+- les tests associés et `BasePolicyTest` mis à jour ;
 - la **garde CI** qui casse sur tout import `Spatie\Permission\` (`.github/workflows/api-ci.yml`).
 
-**Ce qui n'y est PAS** — les phases P3.c et P3.d, restées sur la branche
-`feat/tck-278-279-rbac-architecture-spec` (9 commits d'avance, **36 de retard** sur `dev`) :
+**Ce qui a été corrigé le 2026-08-15** — quatre deltas RÉELS, qu'aucune des trois affirmations
+précédentes ne mentionnait, et que la suite verte ne pouvait pas voir :
 
-- la **purge du code mort frontend** dépendant des endpoints spatie retirés — vérifié :
-  `takussan-web/src/types/` ne contient **aucun** type `Capability` ;
-- la **suppression du `/app/team` en double** — vérifié : `(dashboard)/app/team/page.tsx` existe
-  toujours sur `dev` ;
-- le correctif `include=roles`.
+1. **Régression d'autorisation en production.** `MediaPolicy::viewRaw` testait
+   `$user->can('properties.update')` — une chaîne qui n'est **aucun** cas de `Capability` (il n'y a
+   que `update_any` et `update_own`). Aucune Gate n'était définie pour elle, et une ability non
+   définie ne lève pas : elle refuse. Tout `agency_admin` qui n'est pas le `primary_admin_id` de son
+   agence avait perdu l'accès au média original non-filigrané, alors que le rôle spatie
+   `agency_admin` portait bien `properties.update` avant le cutover. Corrigé en
+   `canActAt(Capability::PropertiesUpdateAny, $agency)` ; le test manquant est posé.
+2. **400 mesuré côté front.** `fetchAdminAgencyTeam` envoyait `include=roles` sur un endpoint monté
+   sur `buildQuery` → `InvalidIncludeQuery`, HTTP 400, panneau équipe super-admin vide. Le payload
+   contenait déjà `roles`. Retiré, ici et sur `fetchAdminUserDetail` (mort mais inoffensif), avec
+   une garde côté appelant.
+3. **Écart avec le mapping spatie, documenté ET rendu exécutable.** La contrainte stricte disait
+   « la table de vérité phase 1 reproduit le mapping rôle spatie → permissions ». Elle ne le
+   reproduit pas : `owner` perd 7 capacités sous nom identique, `agent` en gagne 5, `agency_admin`
+   en gagne 7 et fonctionne par liste NOIRE de 2 là où le rôle spatie était une liste blanche. Le
+   diff sourcé est en commentaire dans le resolver, et chaque capacité retirée ou ajoutée a son cas
+   de test. **C'est le point le plus important pour TCK-279**, qui va seeder cette table en base
+   pour chaque agence : un élargissement gravé en donnée ne se rattrape pas par un correctif de code.
+4. **Trois valeurs mortes dans le sélecteur de rôle frontend** (`tenant`, `customer`,
+   `service_provider`) : acceptées en validation, puis no-op silencieux côté backend (200, aucune
+   mutation). Retirées.
 
-**La branche est à re-fonder, pas à merger.** Avec 36 commits de retard, un merge direct rejouerait
-des états dépassés. Le geste est de repartir de `dev` et d'y rapporter les seuls deltas frontend
-ci-dessus.
+Sont également soldés : le docblock de la migration de cutover (il annonçait en pré-requis une
+commande `platform:backfill-from-spatie` qui n'a jamais existé), les 14+ docblocks de la dette D-21,
+et l'enum `UserRole` marquée `@deprecated`.
 
-> Ce ticket reste `doing` **et non `done`** parce qu'un statut vaut pour ce qui est mergé sur `dev`
-> (règle n°3). Il reste ouvert **et non `todo`** parce que les deux tiers du travail sont livrés :
-> le déclarer à faire ferait rouvrir un chantier terminé, exactement le défaut que l'ancien INDEX
-> produisait à 213 entrées.
+**AC6 est sans objet, pas non tenu.** Le backfill visait des données spatie de production ; la
+production n'a jamais été déployée (D-04 / TCK-288). Il n'y a rien à reprendre.
+
+**La branche `feat/tck-278-279-rbac-architecture-spec` est abandonnée.** 9 commits d'avance,
+**85 de retard** sur `dev`, et ses trois deltas frontend annoncés sont déjà sur `dev` — supprimés
+par la PR #144 elle-même. Elle n'a plus rien à apporter ; la re-fonder coûterait plus que de
+repartir de `dev`, ce qui est ce qui a été fait.
+
+> Ce ticket passe `review` **et non `done`** parce qu'un statut vaut pour ce qui est mergé sur `dev`
+> (règle n°3) et que les correctifs ci-dessus ne le sont pas encore. Il passe `done` — et débloque
+> TCK-279 — à leur merge.
+
+## Ce que ce ticket a appris
+
+**2056 tests verts ne prouvent pas l'absence de régression d'autorisation.** La suite entière était
+verte alors que trois défauts vivaient sur `dev` : un retrait d'accès silencieux, un 400 sur un
+panneau admin, et un no-op qui affichait un succès. Elle n'a rien vu pour deux raisons qui se
+ressemblent — le test backend d'`AgencyDetailTest` avait été « corrigé » en **retirant**
+`include=roles` de la requête (désarmer la garde plutôt que la poser), et `MediaPolicyTest`
+couvrait le super_admin, le `primary_admin` et un admin d'une autre agence, c'est-à-dire tout sauf
+le seul cas qui dépendait de la capacité.
+
+*Une suite verte mesure ce qu'on a pensé à lui demander. Sur une refonte d'autorisation, ce qu'on
+n'a pas pensé à demander est exactement ce qui casse.*

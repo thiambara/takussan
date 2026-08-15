@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
-         bootstrap="vendor/autoload.php"
+         bootstrap="tests/bootstrap.php"
          colors="true"
 >
     <testsuites>
@@ -34,11 +34,17 @@
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
         <env name="SCOUT_DRIVER" value="meilisearch"/>
-        <!-- Sans préfixe, la suite indexe et SUPPRIME dans les mêmes index Meilisearch que
+        <!-- ⚠ `SCOUT_PREFIX` N'EST PLUS DÉCLARÉ ICI, et c'est délibéré.
+             Sans préfixe, la suite indexe et SUPPRIME dans les mêmes index Meilisearch que
              l'environnement de travail du développeur : `php artisan test` détruisait son jeu de
              données de recherche à chaque exécution. Le driver est forcé ci-dessus sans repli
-             (ADR-0008), donc l'isolation ne pouvait venir que d'ici. -->
-        <env name="SCOUT_PREFIX" value="testing_"/>
+             (ADR-0008), donc l'isolation ne pouvait venir que d'un préfixe.
+             Mais le littéral `testing_` qui vivait ici n'isolait la suite QUE du développeur :
+             deux exécutions simultanées de la suite écrivaient dans les mêmes index et se
+             détruisaient mutuellement (mesuré : 10 puis 8 tests rouges sur des ensembles
+             DIFFÉRENTS, sans qu'un fichier n'ait changé). Le préfixe est désormais engendré par
+             PROCESSUS dans `tests/bootstrap.php` — cf. `Tests\Support\TestSearchIndex`, qui
+             programme aussi la suppression des index en fin d'exécution. -->
         <env name="SCOUT_QUEUE" value="false"/>
         <env name="SCOUT_AFTER_COMMIT" value="false"/>
         <env name="LARAVEL_PDF_DRIVER" value="dompdf"/>

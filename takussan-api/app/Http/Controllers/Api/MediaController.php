@@ -102,8 +102,18 @@ class MediaController extends Controller
      *
      * Strategy:
      *   1. If the target has a policy with an `update` method registered,
-     *      delegate to it (super_admin bypass still applies via Gate::before).
+     *      delegate to it — this is the ONLY branch that consults the Gate,
+     *      so it is the only one where the super_admin `Gate::before` bypass
+     *      applies.
      *   2. Otherwise, fall back to user_id ownership or self-targeting.
+     *
+     * ⚠ TCK-290 — this docblock used to claim the super_admin bypass applied
+     * to the method as a whole. It does not. The fallback never touches the
+     * Gate, so for any `model_type` without a policy whose instance is neither
+     * the calling `User` nor carries a `user_id`, it denies EVERYONE — super
+     * admins included. That is exactly what made the agency-logo upload
+     * impossible before `AgencyPolicy` existed, and only 16 of 70 models have
+     * a policy, so the defect survives for the rest.
      */
     protected function authorizeAttach(MediaUploadRequest $request, $target): void
     {

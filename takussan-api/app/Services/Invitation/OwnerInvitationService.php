@@ -23,9 +23,10 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  *
  *  - `Agency.kind === standard` gate (TCK-248). `individual` agencies
  *    don't have a portfolio of distinct owners and cannot invite.
- *  - `invite_owner` spatie permission scoped to the agency team_id
- *    (delegated automatically to `agency_admin`, optionally to `agent`
- *    via {@see RoleDelegation}).
+ *  - `invite_owner` gate, scoped to the agency (TCK-278 — a profile-based
+ *    check, not a spatie permission on a team_id: the package is
+ *    uninstalled, ADR-0002). Held by `agency_admin`, optionally delegated
+ *    to an `agent` via {@see RoleDelegation}.
  *  - Pre-creates an `OwnerProfile` in `OwnerProfileStatus::Draft` linked
  *    to the agency. The first/last/phone/owner_type payload lands in
  *    `metadata` until acceptance promotes it onto a real `User` row.
@@ -132,10 +133,14 @@ class OwnerInvitationService
     }
 
     /**
-     * Throws 403 unless the inviter holds `invite_owner` *in the agency
-     * team context*. We pin the spatie team_id to the agency before the
-     * probe so a user with the permission elsewhere doesn't accidentally
-     * pass the check on a different agency.
+     * Throws 403 unless the inviter may invite owners **in this agency**.
+     *
+     * TCK-278 — the check is profile-based and the agency id is passed
+     * explicitly to `isAgencyAdminAt()`. It used to read « we pin the spatie
+     * team_id to the agency before the probe »; there is no team_id and no
+     * spatie any more (ADR-0002). The intent survives the mechanism: an
+     * `agency_admin` of a DIFFERENT agency must not pass this gate — which is
+     * exactly what the explicit `$agency->id` argument enforces.
      *
      * super_admin bypasses via the global Gate::before hook (handled by
      * `$user->can(...)` callers) — this service is reachable from the

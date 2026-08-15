@@ -5,6 +5,7 @@ namespace Tests\Unit\Media;
 use App\Models\Enums\WatermarkPosition;
 use App\Services\Media\AgencyWatermarkContext;
 use App\Services\Media\WatermarkService;
+use Tests\Support\TestProcessToken;
 use Tests\TestCase;
 
 class WatermarkServiceTest extends TestCase
@@ -17,7 +18,13 @@ class WatermarkServiceTest extends TestCase
     {
         parent::setUp();
         $this->service = new WatermarkService;
-        $this->fixtureDir = sys_get_temp_dir().'/watermark_tests_'.uniqid();
+        // `sys_get_temp_dir()` est partagé par machine, et `uniqid()` ne porte ni pid ni aléa :
+        // deux exécutions simultanées de la suite tiraient le même nom (mesuré : 4 collisions sur
+        // 40 entre processus concurrents) et se détruisaient mutuellement — `mkdir(): File exists`
+        // quand les deux `setUp` se croisaient, `DecoderException` quand le `tearDown` de l'une
+        // effaçait le fixture de l'autre en pleine lecture. Le jeton de processus lève l'ambiguïté
+        // entre exécutions, `uniqid()` la lève entre les tests d'une même exécution.
+        $this->fixtureDir = sys_get_temp_dir().'/watermark_tests_'.TestProcessToken::value().'_'.uniqid();
         mkdir($this->fixtureDir, 0755, true);
     }
 

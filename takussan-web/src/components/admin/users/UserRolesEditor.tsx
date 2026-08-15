@@ -16,13 +16,23 @@ import type { AdminAgencyUserRow } from '@/types/admin-users';
 import type { UserRole } from '@/types/user';
 import { ApiError } from '@/lib/api';
 
-const ROLE_CHOICES: { value: UserRole; label: string }[] = [
+/**
+ * TCK-278 — seuls les rôles qui matérialisent réellement un profil
+ * agence-scopé sont proposés.
+ *
+ * `tenant`, `customer` et `service_provider` ont été retirés : le backend les
+ * accepte en validation puis retombe sur `default => null` dans
+ * `UserRoleController::mutateProfileForRole()`. L'API répond 200, l'écran
+ * affiche un succès, et **aucune mutation n'a lieu** — un no-op silencieux est
+ * pire qu'un refus, parce que l'opérateur croit avoir agi.
+ *
+ * Ces trois qualités s'obtiennent par leurs flux dédiés : invitation
+ * prestataire, booking, bail.
+ */
+export const ROLE_CHOICES: { value: UserRole; label: string }[] = [
   { value: 'agency_admin', label: 'Administrateur' },
   { value: 'agent', label: 'Agent' },
   { value: 'owner', label: 'Bailleur' },
-  { value: 'tenant', label: 'Locataire' },
-  { value: 'customer', label: 'Client' },
-  { value: 'service_provider', label: 'Prestataire' },
 ];
 
 interface UserRolesEditorProps {
@@ -31,9 +41,13 @@ interface UserRolesEditorProps {
 
 /**
  * TCK-133 — single-role editor used inside `UserDetailDrawer`. Backed by
- * `PUT /api/users/{user}/role` (TCK-014, syncRoles). No additive
- * `assign role` flow on this page — a user holds exactly one effective
- * role per agency context (see CLAUDE.md role model).
+ * `PUT /api/users/{user}/role`.
+ *
+ * TCK-278 — the endpoint no longer syncs spatie roles (the package is
+ * uninstalled): it creates/archives the matching polymorphic profile in a
+ * transaction, wiping the competing agency-scoped profiles. The wording
+ * "one effective role per agency context" still holds — it is now an
+ * invariant of the profile mutation, not of a role table.
  */
 export function UserRolesEditor({ user }: UserRolesEditorProps) {
   const queryClient = useQueryClient();

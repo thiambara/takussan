@@ -68,6 +68,7 @@ use App\Observers\PropertyVisitObserver;
 use App\Observers\ReviewObserver;
 use App\Observers\UserObserver;
 use App\Policies\ActivityLogPolicy;
+use App\Policies\AgencyPolicy;
 use App\Policies\AgencyUpgradeRequestPolicy;
 use App\Policies\AgentProfilePolicy;
 use App\Policies\ConversationPolicy;
@@ -369,6 +370,14 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-074 — explicit bind so `$user->can('duplicate', $property)` resolves.
         Gate::policy(Property::class, PropertyPolicy::class);
+
+        // TCK-290 — `AgencyPolicy::update` porte la règle « qui administre
+        // cette agence », partagée par `AgencyController` et par
+        // `MediaController::authorizeAttach` (upload du logo). L'auto-discovery
+        // `App\Models\Agency → App\Policies\AgencyPolicy` la trouverait aussi ;
+        // la liaison est écrite ici parce que c'est où ce fichier rend les
+        // policies lisibles d'un coup d'œil.
+        Gate::policy(Agency::class, AgencyPolicy::class);
 
         // TCK-085 — group conversation gates (admin-only mutations + system-message immutability).
         Gate::policy(Conversation::class, ConversationPolicy::class);

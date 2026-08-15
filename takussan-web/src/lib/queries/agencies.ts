@@ -107,12 +107,12 @@ export async function uploadAgencyLogo(
   // Le hint va sur l'ÉCRITURE aussi, et c'est elle qui en a le plus besoin.
   //
   // Le paramètre avait été ajouté à cette fonction… puis transmis uniquement à la relecture
-  // ci-dessous. Le POST partait donc toujours sans `X-Active-Profile-Hint`. Aujourd'hui c'est
-  // sans effet visible — `MediaController::authorizeAttach` refuse tout le monde faute de
-  // policy pour `Agency` (TCK-290) — mais ce ticket exige que la future `AgencyPolicy` s'aligne
-  // sur `AgencyController::update`, donc sur `activeProfile()`. Le jour où il est livré, cet
-  // appel se mettrait à rendre 403 pour EXACTEMENT les comptes multi-agences que ce travail a
-  // débloqués : l'upload paraîtrait réparé partout sauf là où ça compte.
+  // ci-dessous. Le POST partait donc toujours sans `X-Active-Profile-Hint`. C'était sans effet
+  // visible tant que `MediaController::authorizeAttach` refusait tout le monde faute de policy
+  // pour `Agency` — TCK-290 a livré `AgencyPolicy::update`, alignée sur
+  // `AgencyController::update` et donc sur `activeProfile()`. Ce hint est maintenant CHARGÉ :
+  // sans lui, un compte multi-agences (pas d'auto-bascule, par sécurité) n'a aucun profil actif
+  // résolu et se reprend un 403 — l'upload paraîtrait réparé partout sauf là où ça compte.
   //
   // *Un paramètre ajouté à une signature n'est pas transmis ; on croit l'avoir fait parce qu'on
   // l'a écrit dans l'en-tête.*

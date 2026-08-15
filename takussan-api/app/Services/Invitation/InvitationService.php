@@ -156,9 +156,11 @@ class InvitationService
      * Two flows depending on whether the email already maps to a User:
      *
      *  A. New user: create the User row (random password — they'll set
-     *     one via the post-acceptance wizard / password reset), attach the
-     *     spatie role under the invitation's `agency_id` team, flip the
-     *     polymorphic profile to `active` if it carries a status enum,
+     *     one via the post-acceptance wizard / password reset), then flip
+     *     the polymorphic profile carried by the invitation to `active` if
+     *     it has a status enum (TCK-278 — there is no spatie role to attach
+     *     under an `agency_id` team any more: the profile IS the role,
+     *     ADR-0002),
      *     flip Invitation → `accepted`. All in one transaction — any
      *     failure rolls the whole thing back, leaving the invitation in
      *     `sent` so the inviter can resend / the recipient can retry.

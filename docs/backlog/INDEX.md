@@ -10,9 +10,9 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 8 |
-| 🚧 Doing | 3 |
-| 👀 Review | 0 |
+| 📋 Todo | 6 |
+| 🚧 Doing | 1 |
+| 👀 Review | 4 |
 | ⛔ Blocked | 1 |
 | ✅ Done | 259 |
 | 🗑️ Obsolete | 1 |
@@ -38,19 +38,18 @@
 - [TCK-272](tickets/TCK-272-oauth-only-account-deletion-step-up.md) — Suppression de compte — step-up alternative pour comptes OAuth-only `M · P2 · applicatif`
 - [TCK-285](tickets/TCK-285-couverture-tests-services-policies.md) — Couverture de tests — services metier, policies, observers, webhooks `L · P1 · technique`
 - [TCK-286](tickets/TCK-286-i18n-textes-en-dur.md) — i18n — les libelles produits encore codes en dur `L · P2 · front`
-- [TCK-287](tickets/TCK-287-filament-supprimer-ou-securiser.md) — Filament — supprimer le panel ou le securiser `S · P1 · technique`
 - [TCK-288](tickets/TCK-288-chaine-de-deploiement-master-fige.md) — Premiere mise en production — la chaine n'a jamais tourne `M · P0 · technique`
-- [TCK-290](tickets/TCK-290-upload-logo-agence-403.md) — Upload du logo d'agence — 403 systématique, aucune policy pour Agency `S · P1 · bug`
 
 ## 🚧 Doing
 
-- [TCK-278](tickets/TCK-278-rbac-profile-based-phase-1.md) — RBAC refondu — phase 1 : suppression de spatie sur User + PlatformProfile + Capability resolver `XL · P1 · technique`
 - [TCK-281](tickets/TCK-281-search-internal-entities-meilisearch.md) — Recherche interne sur Meilisearch (clients, maintenance, agences, utilisateurs) `L · P3 · back`
-- [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
 
 ## 👀 Review
 
-_(aucun)_
+- [TCK-278](tickets/TCK-278-rbac-profile-based-phase-1.md) — RBAC refondu — phase 1 : suppression de spatie sur User + PlatformProfile + Capability resolver `XL · P1 · technique`
+- [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
+- [TCK-287](tickets/TCK-287-filament-supprimer-ou-securiser.md) — Filament — supprimer le panel ou le securiser `S · P1 · technique`
+- [TCK-290](tickets/TCK-290-upload-logo-agence-403.md) — Upload du logo d'agence — 403 systématique, aucune policy pour Agency `S · P1 · bug`
 
 ## ⛔ Blocked
 

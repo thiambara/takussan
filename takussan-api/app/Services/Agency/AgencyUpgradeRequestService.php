@@ -13,7 +13,6 @@ use App\Models\User;
 use App\Notifications\AgencyUpgradeRequestSubmittedNotification;
 use App\Policies\AgencyUpgradeRequestPolicy;
 use App\Services\Auth\SuperAdminCooptationService;
-use App\Services\Invitation\OwnerInvitationService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -163,14 +162,14 @@ class AgencyUpgradeRequestService
     }
 
     /**
-     * Throws 403 unless `$submitter` carries the `agency_admin` role under
-     * the agency's team_id context. We pin the spatie team_id explicitly
-     * for the same reason as {@see OwnerInvitationService}:
-     * a user who is `agency_admin` of *another* agency must not pass the
-     * gate here.
-     */
-    /**
-     * TCK-278 — Profile-based check (cf. policy).
+     * Throws 403 unless `$submitter` is `agency_admin` **of this agency** —
+     * un `agency_admin` d'une AUTRE agence ne doit pas franchir cette porte.
+     *
+     * TCK-278 — check profile-based (cf. policy). Ce docblock était
+     * précédemment DOUBLÉ : un premier bloc décrivait un `setPermissionsTeamId`
+     * spatie, immédiatement suivi d'un second qui le corrigeait. PHP n'associe
+     * que le dernier à la méthode ; un humain lit les deux et croit le premier,
+     * qui est le plus détaillé. Les deux sont fusionnés ici.
      */
     protected function assertSubmitterIsAgencyAdmin(User $submitter, Agency $agency): void
     {
