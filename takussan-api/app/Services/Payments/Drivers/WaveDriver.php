@@ -48,6 +48,8 @@ class WaveDriver implements PaymentDriverContract
         $response = Http::withToken($apiKey)
             ->acceptJson()
             ->asJson()
+            ->connectTimeout(5)
+            ->timeout(20)
             ->post($this->baseUrl().'/v1/checkout/sessions', $payload);
 
         abort_if(! $response->successful(), 502, 'Wave checkout failed: '.$response->body());
@@ -71,6 +73,9 @@ class WaveDriver implements PaymentDriverContract
 
         $response = Http::withToken($apiKey)
             ->acceptJson()
+            ->connectTimeout(5)
+            ->timeout(15)
+            ->retry(2, 200, throw: false)
             ->get($this->baseUrl().'/v1/checkout/sessions/'.$externalId);
 
         abort_if(! $response->successful(), 502, 'Wave verify failed: '.$response->body());

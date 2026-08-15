@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('service_provider_agency_collaborations', function (Blueprint $table) {
             $table->id();
             $table->foreignId('service_provider_profile_id')
-                ->constrained('service_provider_profiles')
+                ->constrained('service_provider_profiles', 'id', 'sp_agency_collab_spp_fk')
                 ->cascadeOnDelete();
             $table->foreignId('agency_id')->constrained('agencies')->cascadeOnDelete();
             $table->string('status')->default('active');

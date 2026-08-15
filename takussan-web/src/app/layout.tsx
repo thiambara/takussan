@@ -14,6 +14,7 @@ import { GlobalAnnouncementBanner } from '@/components/announcements/GlobalAnnou
 import { ChatWidget } from '@/components/chat-widget/ChatWidget';
 import { FloatingDockProvider } from '@/components/floating-dock';
 import { TIMEZONE } from '@/i18n/config';
+import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist' });
@@ -57,6 +58,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                     <GlobalAnnouncementBanner />
                     <ChatWidget />
                     {children}
+                    <Analytics />
                   </FloatingDockProvider>
                 </UserLocationProvider>
               </FeatureFlagProvider>

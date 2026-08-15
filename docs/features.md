@@ -369,6 +369,18 @@ Cartographie complète des parcours d'entrée dans le système (référence : `d
 | P2 | Tous | Digest quotidien / hebdomadaire |
 | P3 | Tous | Notifications WhatsApp |
 
+#### Canal WhatsApp sortant (P3)
+
+Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les familles proactives (transactionnel, rappels d'échéance, relances impayés), routé **WhatsApp d'abord → SMS en secours** :
+
+- **Sélection mutuellement exclusive** : pour une notification supportant les deux, un seul canal mobile part — `whatsapp` s'il est éligible, sinon `sms`. Jamais les deux (pas de double-envoi).
+- **Consentement** : `phone_verified_at` + préférence par événement ; le flag d'opt-out est honoré ; jamais d'envoi à un contact `opted_out`.
+- **Conformité Meta** : en fenêtre de service 24h (un message entrant récent du contact) → texte libre autorisé ; hors fenêtre → **template approuvé obligatoire**. Catégories `authentication` (OTP) / `utility` (transactionnel, rappels, relances) uniquement — **jamais `marketing`**.
+- **Garantie de livraison** : si WhatsApp est inéligible (contact opted-out, hors fenêtre sans template approuvé) ou échoue durement, bascule **automatique vers SMS** (le SMS reste le filet de sécurité).
+- **Statuts** : les accusés Meta (delivered/read/failed) mettent à jour le suivi de livraison.
+
+**Hors périmètre de cette fonctionnalité** (tickets/specs ultérieurs) : OTP/2FA sur WhatsApp (flux d'authentification distinct, SMS reste secours obligatoire) et la **mise-en-relation inbound** WhatsApp (webhook entrant, deep links `wa.me`) — voir `docs/backlog/tickets/TCK-282-whatsapp-outbound-channel.md`. Le socle contact + fenêtre 24h (`whatsapp_contacts`) est partagé entre sortant et inbound.
+
 ### 2.4 Recherche & filtres
 
 | Prio | Acteurs | Fonctionnalité |

@@ -5,6 +5,7 @@ status: done
 phase: P0
 family: applicatif
 estimate: M
+wave: 29
 created: 2026-05-10
 updated: 2026-05-10
 depends_on: [TCK-248, TCK-250, TCK-254]

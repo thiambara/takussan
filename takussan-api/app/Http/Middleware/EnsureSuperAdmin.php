@@ -9,17 +9,17 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Gate for the `/api/admin/*` namespace (TCK-144). Requires a Sanctum-
- * authenticated user holding the `super_admin` role under `team_id = null`
- * (global). Returns:
+ * authenticated user holding an active super_admin `PlatformProfile`
+ * (TCK-278). Returns:
  *
  *   - 401 if no authenticated user
  *   - 403 if authenticated but not super_admin
  *   - next() otherwise
  *
- * The team-null probe lives on `User::isSuperAdmin()` so every consumer
- * gets the same correct semantic — `ResolveActiveProfile` can pin team_id
- * to an agency for a super_admin who also holds an agency-scoped profile,
- * and the global role assignment is always at `team_id = null`.
+ * The probe lives on `User::isSuperAdmin()` (backed by
+ * `hasActiveSuperAdminProfile()`) so every consumer gets the same correct
+ * semantic — `ResolveActiveProfile` can still pin an active agency profile
+ * for a super_admin who also holds an agency-scoped profile.
  */
 class EnsureSuperAdmin
 {

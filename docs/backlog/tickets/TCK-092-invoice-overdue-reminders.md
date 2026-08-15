@@ -5,6 +5,7 @@ status: done
 phase: P2
 family: applicatif
 estimate: S
+wave: 11
 created: 2026-04-24
 updated: 2026-04-25
 depends_on: [TCK-028]

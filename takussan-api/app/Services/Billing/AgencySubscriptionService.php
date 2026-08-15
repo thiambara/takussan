@@ -85,19 +85,25 @@ class AgencySubscriptionService
 
     public function processTrialExpirations(): int
     {
-        $count = 0;
-
-        AgencySubscription::query()
+        // Snapshot the IDs first: chunkById while mutating the `status` filter
+        // column is a known footgun that skips rows as the result set shifts.
+        // Updating by frozen ID set (and re-checking state) avoids that while
+        // preserving per-model update events.
+        $ids = AgencySubscription::query()
             ->where('status', AgencySubscriptionStatus::Trialing)
             ->whereNull('ended_at')
             ->whereNotNull('trial_ends_at')
             ->where('trial_ends_at', '<=', now())
-            ->chunkById(100, function ($subscriptions) use (&$count): void {
-                foreach ($subscriptions as $subscription) {
-                    $subscription->update(['status' => AgencySubscriptionStatus::Active]);
-                    $count++;
-                }
-            });
+            ->pluck('id');
+
+        $count = 0;
+        foreach ($ids as $id) {
+            $subscription = AgencySubscription::find($id);
+            if ($subscription && $subscription->status === AgencySubscriptionStatus::Trialing) {
+                $subscription->update(['status' => AgencySubscriptionStatus::Active]);
+                $count++;
+            }
+        }
 
         return $count;
     }

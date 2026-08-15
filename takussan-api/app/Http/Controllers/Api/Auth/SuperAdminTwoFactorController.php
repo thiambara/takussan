@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Notification;
  * 2FA enrollment for any user. Super-admin cooptation has two extra
  * requirements that justify a dedicated controller:
  *
- *  1. The spatie `super_admin` role is **deferred** until the factor is
+ *  1. The `PlatformProfile` super_admin level is **deferred** until the factor is
  *     confirmed — `confirm()` is the place that finally attaches it.
  *  2. Recovery codes are generated and **hashed** in storage (mirror of
  *     {@see SuperAdminBootstrapService}) so they
@@ -30,8 +30,8 @@ use Illuminate\Support\Facades\Notification;
  *     access.
  *
  * The endpoints are gated by `auth:sanctum` only — the user is the
- * freshly-created invitee, who at this stage holds **no** spatie role
- * yet. We probe `force_2fa_at_first_login` to authorise.
+ * freshly-created invitee, who at this stage holds **no** super_admin
+ * PlatformProfile yet. We probe `force_2fa_at_first_login` to authorise.
  */
 class SuperAdminTwoFactorController extends Controller
 {
@@ -82,7 +82,7 @@ class SuperAdminTwoFactorController extends Controller
      * POST /api/auth/super-admin/2fa/confirm
      *
      * Confirm the TOTP setup with a fresh 6-digit code, attach the
-     * spatie `super_admin` role at `team_id = null`, flip
+     * super_admin `PlatformProfile`, flip
      * `force_2fa_at_first_login = false`, and broadcast the news to
      * every other super-admin.
      *

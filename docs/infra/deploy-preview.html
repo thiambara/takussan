@@ -1,0 +1,2332 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Takussan — Guide de déploiement (Vercel + Contabo)</title>
+<style>
+  /* ───────────────────────────────────────────────────────────
+     Design tokens
+     ─────────────────────────────────────────────────────────── */
+  :root {
+    --bg:           #faf8f3;
+    --bg-elev:      #ffffff;
+    --bg-soft:      #f3f1ea;
+    --text:         #1a1a1a;
+    --text-muted:   #6b6356;
+    --accent:       #2d5016;
+    --accent-soft:  #e8efe1;
+    --accent-ink:   #1a3009;
+    --warn:         #b8541a;
+    --warn-soft:    #fcefe5;
+    --info:         #1e5b8c;
+    --info-soft:    #e5f0fa;
+    --ok:           #2d7a3e;
+    --ok-soft:      #eaf3ec;
+    --code-bg:      #1e1e1e;
+    --code-bg-2:    #2d2d2d;
+    --code-text:    #e8e8e8;
+    --code-comment: #8c8c8c;
+    --border:       #e7e3d8;
+    --border-soft:  #efece4;
+    --shadow:       0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    --shadow-lg:    0 10px 30px rgba(0,0,0,.15);
+    --radius:       6px;
+    --radius-lg:    10px;
+    --mono:         "SF Mono", Monaco, Menlo, "Cascadia Code", Consolas, monospace;
+    --sans:         -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --sidebar-w:    280px;
+  }
+
+  /* ───────────────────────────────────────────────────────────
+     Reset & base
+     ─────────────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; transition: color .15s; }
+  a:hover { color: var(--accent-ink); text-decoration: underline; }
+
+  /* ───────────────────────────────────────────────────────────
+     Layout grid: sidebar + content
+     ─────────────────────────────────────────────────────────── */
+  .layout {
+    display: grid;
+    grid-template-columns: var(--sidebar-w) 1fr;
+    min-height: 100vh;
+  }
+
+  /* ───────────────────────────────────────────────────────────
+     Sidebar
+     ─────────────────────────────────────────────────────────── */
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    background: var(--bg-elev);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 28px 0 32px;
+    z-index: 50;
+  }
+  .sidebar-header {
+    padding: 0 24px 20px;
+    border-bottom: 1px solid var(--border-soft);
+    margin-bottom: 16px;
+  }
+  .sidebar-header .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .sidebar-header .logo-mark {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: -.02em;
+  }
+  .sidebar-header .subtitle {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin: 4px 0 0;
+  }
+  .sidebar-header .badges {
+    display: flex;
+    gap: 6px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+
+  .toc { padding: 0 12px; }
+  .toc ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    counter-reset: toc;
+  }
+  .toc > ol > li { counter-increment: toc; }
+  .toc a {
+    display: block;
+    padding: 7px 12px 7px 36px;
+    color: var(--text);
+    font-size: 13.5px;
+    border-radius: var(--radius);
+    position: relative;
+    line-height: 1.4;
+  }
+  .toc > ol > li > a::before {
+    content: counter(toc);
+    position: absolute;
+    left: 10px;
+    top: 7px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--border-soft);
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .15s;
+  }
+  .toc a:hover {
+    background: var(--bg-soft);
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .toc a.active {
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+  .toc > ol > li > a.active::before {
+    background: var(--accent);
+    color: #fff;
+  }
+  .toc-overview a {
+    padding-left: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+  .toc-overview a::before { display: none; }
+
+  /* ───────────────────────────────────────────────────────────
+     Mobile menu toggle
+     ─────────────────────────────────────────────────────────── */
+  .menu-toggle {
+    display: none;
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 100;
+    width: 42px;
+    height: 42px;
+    border: 1px solid var(--border);
+    background: var(--bg-elev);
+    border-radius: var(--radius);
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow);
+  }
+  .menu-toggle svg { width: 20px; height: 20px; }
+  .backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.4);
+    z-index: 40;
+  }
+
+  /* ───────────────────────────────────────────────────────────
+     Main content
+     ─────────────────────────────────────────────────────────── */
+  .content {
+    padding: 56px 64px 120px;
+    max-width: 920px;
+    width: 100%;
+  }
+  .page-header {
+    padding-bottom: 28px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .page-header h1 {
+    font-size: 36px;
+    margin: 0 0 12px;
+    letter-spacing: -.02em;
+    line-height: 1.15;
+  }
+  .page-header .lede {
+    color: var(--text-muted);
+    font-size: 16px;
+    margin: 0;
+    max-width: 720px;
+  }
+
+  section { padding-top: 48px; margin-top: -1px; }
+  section:first-of-type { padding-top: 32px; }
+
+  h2 {
+    font-size: 26px;
+    margin: 0 0 16px;
+    letter-spacing: -.01em;
+    line-height: 1.25;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .step-num.zero { background: var(--info); }
+  h3 {
+    font-size: 17px;
+    margin: 28px 0 12px;
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+  h4 {
+    font-size: 14px;
+    margin: 18px 0 8px;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  p { margin: 0 0 14px; }
+
+  /* ───────────────────────────────────────────────────────────
+     Inline code & pills
+     ─────────────────────────────────────────────────────────── */
+  :not(pre) > code {
+    font-family: var(--mono);
+    font-size: 13.5px;
+    background: var(--border-soft);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--accent-ink);
+  }
+
+  .pill {
+    display: inline-block;
+    padding: 2px 9px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+  }
+  .pill.vercel { background: #000; }
+  .pill.contabo { background: var(--info); }
+  .pill.muted { background: var(--text-muted); }
+
+  .tag-preview, .tag-prod {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    font-family: var(--mono);
+  }
+  .tag-preview { background: var(--info-soft); color: var(--info); }
+  .tag-prod    { background: var(--warn-soft); color: var(--warn); }
+
+  /* ───────────────────────────────────────────────────────────
+     Callouts (why, troubleshoot, ok, warn, info)
+     ─────────────────────────────────────────────────────────── */
+  .callout {
+    display: flex;
+    gap: 14px;
+    padding: 16px 20px;
+    border-radius: var(--radius);
+    margin: 16px 0;
+    font-size: 14.5px;
+    line-height: 1.55;
+  }
+  .callout svg {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+  }
+  .callout > div { min-width: 0; flex: 1; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout ul, .callout ol { margin: 8px 0 0; padding-left: 22px; }
+  .callout strong { font-weight: 600; }
+
+  .callout.why         { background: var(--info-soft);   color: var(--info); }
+  .callout.why p, .callout.why li { color: #173e5e; }
+  .callout.troubleshoot { background: var(--warn-soft); color: var(--warn); }
+  .callout.troubleshoot p, .callout.troubleshoot li { color: #7a3611; }
+  .callout.ok          { background: var(--ok-soft);    color: var(--ok); }
+  .callout.ok p, .callout.ok li { color: #1d5828; }
+  .callout.warn        { background: var(--warn-soft);  color: var(--warn); }
+  .callout.warn p, .callout.warn li { color: #7a3611; }
+  .callout.info        { background: var(--info-soft);  color: var(--info); }
+  .callout.info p, .callout.info li { color: #173e5e; }
+
+  /* ───────────────────────────────────────────────────────────
+     Code blocks with copy button
+     ─────────────────────────────────────────────────────────── */
+  .code-block {
+    position: relative;
+    margin: 16px 0;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--code-bg);
+    box-shadow: var(--shadow);
+  }
+  .code-block-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    background: var(--code-bg-2);
+    color: #aaa;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    border-bottom: 1px solid #444;
+  }
+  .code-block-header .lang {
+    text-transform: lowercase;
+    letter-spacing: .05em;
+  }
+  .code-block pre {
+    margin: 0;
+    padding: 16px 20px;
+    overflow-x: auto;
+    background: var(--code-bg);
+    color: var(--code-text);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .code-block code {
+    background: none;
+    padding: 0;
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+  }
+  .copy-btn {
+    background: transparent;
+    border: none;
+    color: #aaa;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--sans);
+    font-size: 12px;
+    transition: all .15s;
+  }
+  .copy-btn:hover {
+    background: rgba(255,255,255,.08);
+    color: #fff;
+  }
+  .copy-btn svg { width: 14px; height: 14px; }
+  .copy-btn.copied { color: #6cc26c; }
+  .copy-btn.copied .icon-copy { display: none; }
+  .copy-btn .icon-check { display: none; }
+  .copy-btn.copied .icon-check { display: inline; }
+  .copy-btn .label-copy { display: inline; }
+  .copy-btn .label-copied { display: none; }
+  .copy-btn.copied .label-copy { display: none; }
+  .copy-btn.copied .label-copied { display: inline; }
+
+  /* highlight shell comments inside <code> via .comment class */
+  .code-block .comment { color: var(--code-comment); font-style: italic; }
+  .code-block .tag-preview { background: rgba(94,165,217,.18); color: #6fb5e6; }
+  .code-block .tag-prod    { background: rgba(217,128,75,.18); color: #f0a16d; }
+
+  /* ───────────────────────────────────────────────────────────
+     Tables
+     ─────────────────────────────────────────────────────────── */
+  .table-wrap { overflow-x: auto; margin: 16px 0; border-radius: var(--radius); border: 1px solid var(--border); }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    background: var(--bg-elev);
+  }
+  th, td {
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: top;
+  }
+  thead th {
+    background: var(--bg-soft);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-muted);
+    letter-spacing: .02em;
+    text-transform: uppercase;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--bg-soft); }
+  td code { font-size: 12.5px; }
+
+  .env-matrix th:nth-child(2) { color: var(--info); }
+  .env-matrix th:nth-child(3) { color: var(--warn); }
+
+  /* ───────────────────────────────────────────────────────────
+     Checklist
+     ─────────────────────────────────────────────────────────── */
+  .checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 16px 0;
+    padding: 16px 20px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .check {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 14.5px;
+  }
+  .check input[type="checkbox"] {
+    margin-top: 4px;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .check label { cursor: pointer; line-height: 1.55; }
+
+  /* ───────────────────────────────────────────────────────────
+     Details/summary
+     ─────────────────────────────────────────────────────────── */
+  details {
+    margin: 14px 0;
+    padding: 0;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: box-shadow .15s;
+  }
+  details[open] { box-shadow: var(--shadow); }
+  details summary {
+    cursor: pointer;
+    padding: 12px 16px;
+    font-weight: 500;
+    font-size: 14.5px;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    user-select: none;
+  }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::before {
+    content: "▶";
+    color: var(--text-muted);
+    font-size: 10px;
+    transition: transform .15s;
+  }
+  details[open] summary::before { transform: rotate(90deg); }
+  details summary:hover { background: var(--bg-soft); }
+  details .details-body {
+    padding: 0 16px 16px;
+    border-top: 1px solid var(--border-soft);
+    padding-top: 14px;
+  }
+
+  /* ───────────────────────────────────────────────────────────
+     ASCII diagram
+     ─────────────────────────────────────────────────────────── */
+  .ascii {
+    background: var(--code-bg);
+    color: var(--code-text);
+    padding: 20px 24px;
+    font-family: var(--mono);
+    font-size: 12px;
+    white-space: pre;
+    overflow-x: auto;
+    line-height: 1.45;
+    border-radius: var(--radius);
+    margin: 16px 0;
+    box-shadow: var(--shadow);
+  }
+
+  /* ───────────────────────────────────────────────────────────
+     Glossary
+     ─────────────────────────────────────────────────────────── */
+  .glossary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+    margin: 20px 0;
+  }
+  .glossary-item {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+  .glossary-item dt {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent-ink);
+    margin-bottom: 4px;
+  }
+  .glossary-item dd {
+    margin: 0;
+    font-size: 13.5px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  /* ───────────────────────────────────────────────────────────
+     Hr
+     ─────────────────────────────────────────────────────────── */
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 60px 0 30px;
+  }
+  .footer-note {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-top: 24px;
+    padding-bottom: 40px;
+  }
+
+  /* ───────────────────────────────────────────────────────────
+     Responsive — < 900px
+     ─────────────────────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 280px;
+      transform: translateX(-100%);
+      transition: transform .25s ease;
+      box-shadow: var(--shadow-lg);
+    }
+    .sidebar.open { transform: translateX(0); }
+    .backdrop.open { display: block; }
+    .menu-toggle { display: inline-flex; }
+    .content { padding: 64px 24px 100px; }
+    .page-header h1 { font-size: 28px; }
+    h2 { font-size: 22px; }
+    .step-num { width: 32px; height: 32px; font-size: 14px; }
+  }
+  @media (max-width: 500px) {
+    .content { padding: 64px 16px 80px; }
+    .code-block pre { font-size: 12px; padding: 12px 14px; }
+    h2 { font-size: 20px; flex-wrap: wrap; }
+    .page-header h1 { font-size: 24px; }
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; }
+  }
+
+  /* Sidebar custom scrollbar */
+  .sidebar::-webkit-scrollbar { width: 8px; }
+  .sidebar::-webkit-scrollbar-track { background: transparent; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .sidebar::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<button class="menu-toggle" aria-label="Ouvrir le sommaire">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+</button>
+<div class="backdrop" id="backdrop"></div>
+
+<div class="layout">
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SIDEBAR
+       ═══════════════════════════════════════════════════════════ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <span class="logo-mark">T</span>
+        <span>Takussan</span>
+      </div>
+      <p class="subtitle">Guide de déploiement</p>
+      <div class="badges">
+        <span class="pill vercel">Vercel</span>
+        <span class="pill contabo">Contabo</span>
+        <span class="pill">Preview + Prod</span>
+      </div>
+    </div>
+
+    <nav class="toc" aria-label="Sommaire">
+      <ol class="toc-overview">
+        <li><a href="#vue">Vue d'ensemble</a></li>
+      </ol>
+      <ol>
+        <li><a href="#archi">Architecture &amp; matrice d'env</a></li>
+        <li><a href="#dns">DNS Cloudflare</a></li>
+        <li><a href="#vercel">Frontend Vercel</a></li>
+        <li><a href="#preflight">Audit du VPS</a></li>
+        <li><a href="#server-setup">Bootstrap serveur</a></li>
+        <li><a href="#mysql">MySQL : bases &amp; users</a></li>
+        <li><a href="#env">Secrets <code>.env</code></a></li>
+        <li><a href="#cors">CORS &amp; Sanctum</a></li>
+        <li><a href="#deploy-key">SSH GitHub Deploy Key</a></li>
+        <li><a href="#gh-secrets">Secrets GitHub Actions</a></li>
+        <li><a href="#ssl">SSL Let's Encrypt</a></li>
+        <li><a href="#deploy-script"><code>deploy.sh</code> &amp; workflows</a></li>
+        <li><a href="#first-deploy">Premier déploiement</a></li>
+        <li><a href="#rollback">Rollback</a></li>
+        <li><a href="#troubleshoot">Dépannage</a></li>
+        <li><a href="#golive">Check-list go-live</a></li>
+      </ol>
+    </nav>
+  </aside>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       MAIN CONTENT
+       ═══════════════════════════════════════════════════════════ -->
+  <main class="content">
+
+    <header class="page-header">
+      <h1>Déployer Takussan de A à Z</h1>
+      <p class="lede">
+        Frontend Next.js sur <strong>Vercel</strong>. Backend Laravel sur <strong>VPS Contabo</strong>
+        via <code>deploy.sh</code> orchestré depuis GitHub Actions. Ce guide te fait passer
+        d'un VPS vierge à une preview + prod opérationnelles, en t'expliquant chaque étape.
+      </p>
+    </header>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         § 0 — VUE D'ENSEMBLE
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="vue">
+      <h2><span class="step-num zero">0</span>Vue d'ensemble</h2>
+
+      <div class="callout why">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/><circle cx="12" cy="12" r="5"/></svg>
+        <div>
+          <p><strong>À qui s'adresse ce guide ?</strong> À toute personne qui doit déployer
+          Takussan en preview ou en prod, même sans expérience préalable d'un VPS.
+          Chaque section commence par un <em>Pourquoi</em>, chaque commande est accompagnée
+          d'un commentaire en français, et des encadrés <em>Si ça échoue…</em> couvrent les
+          pièges classiques.</p>
+        </div>
+      </div>
+
+      <h3>Ce que tu vas obtenir à la fin</h3>
+      <ul>
+        <li>Un site Next.js public en <span class="tag-preview">preview</span> (<code>preview.takussan.com</code>) et en <span class="tag-prod">prod</span> (<code>takussan.com</code>) servis par Vercel.</li>
+        <li>Une API Laravel publique sur le même VPS Contabo, isolée par environnement : <code>preview.api.takussan.com</code> et <code>api.takussan.com</code>.</li>
+        <li>Des déploiements <strong>automatisés</strong> à chaque push : push <code>preview</code> → preview API redéployée ; push <code>master</code> → prod API redéployée. Vercel gère le front de son côté.</li>
+        <li>Un <strong>rollback automatique</strong> si un deploy casse (symlink atomique).</li>
+      </ul>
+
+      <h3>Prérequis</h3>
+      <ul>
+        <li>Un compte <strong>GitHub</strong> avec accès au repo <code>takussan</code> en owner ou collaborateur (besoin d'ajouter des secrets).</li>
+        <li>Un compte <strong>Vercel</strong> connecté à GitHub.</li>
+        <li>Un compte <strong>Cloudflare</strong> avec la zone DNS <code>takussan.com</code>.</li>
+        <li>Un accès SSH <strong>admin (sudo)</strong> au VPS Contabo (l'IP + un user qui peut faire <code>sudo</code>).</li>
+        <li>Un client local : <code>git</code>, <code>ssh</code>, <code>scp</code>, <code>curl</code>, <code>php</code> 8.3+.</li>
+      </ul>
+
+      <h3>Glossaire — vocabulaire que tu vas rencontrer</h3>
+      <dl class="glossary">
+        <div class="glossary-item">
+          <dt>VPS</dt>
+          <dd>Virtual Private Server. Une machine Linux à toi, ici chez Contabo, accessible en SSH.</dd>
+        </div>
+        <div class="glossary-item">
+          <dt>vhost</dt>
+          <dd>Virtual Host. Un fichier de config Nginx qui dit "le trafic pour <em>tel domaine</em> doit aller vers <em>telle app</em>".</dd>
+        </div>
+        <div class="glossary-item">
+          <dt>PHP-FPM</dt>
+          <dd>FastCGI Process Manager. Le service qui exécute le code PHP appelé par Nginx via un <em>socket</em>.</dd>
+        </div>
+        <div class="glossary-item">
+          <dt>opcache</dt>
+          <dd>Cache PHP qui garde le bytecode compilé en RAM. Doit être reloadé après chaque deploy.</dd>
+        </div>
+        <div class="glossary-item">
+          <dt>deploy key</dt>
+          <dd>Clé SSH read-only liée à <strong>un seul repo</strong> GitHub. Permet au VPS de cloner sans password.</dd>
+        </div>
+        <div class="glossary-item">
+          <dt>symlink swap</dt>
+          <dd>Bascule atomique entre deux versions du code via un lien symbolique <code>current</code> renommé d'un coup.</dd>
+        </div>
+        <div class="glossary-item">
+          <dt>DNS only (gray cloud)</dt>
+          <dd>Mode Cloudflare où CF ne proxifie pas — le trafic va directement au VPS. Indispensable pour Vercel et pour Certbot.</dd>
+        </div>
+        <div class="glossary-item">
+          <dt>Sanctum</dt>
+          <dd>Le système d'authentification Laravel à base de cookies SPA, utilisé entre le front Vercel et l'API Contabo.</dd>
+        </div>
+        <div class="glossary-item">
+          <dt>sudoers</dt>
+          <dd>Fichier <code>/etc/sudoers.d/...</code> qui autorise un user à exécuter certaines commandes sans password.</dd>
+        </div>
+        <div class="glossary-item">
+          <dt>certbot</dt>
+          <dd>Outil qui obtient et renouvelle gratuitement les certificats SSL Let's Encrypt pour Nginx.</dd>
+        </div>
+      </dl>
+
+      <div class="callout info">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <div><p><strong>Ordre de lecture recommandé :</strong> suis les sections dans l'ordre. Le sommaire à gauche reflète l'enchaînement réel des étapes. Chaque section te dit clairement quand elle s'applique à <span class="tag-preview">preview</span>, à <span class="tag-prod">prod</span>, ou aux deux.</p></div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         § 1 — ARCHITECTURE & MATRICE
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="archi">
+      <h2><span class="step-num">1</span>Architecture &amp; matrice d'environnements</h2>
+
+      <div class="callout why">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+        <div><p><strong>Pourquoi commencer ici ?</strong> Avoir une carte mentale claire de qui parle à qui te permet de comprendre pourquoi chaque étape suivante existe. Le schéma ci-dessous montre le chemin d'une requête utilisateur de bout en bout.</p></div>
+      </div>
+
+      <div class="ascii">              ┌─────────────────────────┐
+   Utilisateur │      Vercel             │
+        │      │  Next.js (front)        │  ◀── git push master  → prod
+        ├─────▶│  branches:              │      git push preview → preview
+        │      │  • master  → takussan.com
+        │      │  • preview → preview.takussan.com
+        │      └────────────┬────────────┘
+        │                   │ fetch (credentials: include)
+        │                   ▼
+        │      ┌─────────────────────────────────────────────────┐
+        │      │  VPS Contabo  —  user deploy (partagé)          │
+        │      │                                                  │
+        │      │   api.takussan.com         preview.api.takussan.com
+        │      │        │                            │            │
+        │      │        ▼                            ▼            │
+        │      │   ┌──────────┐                ┌──────────┐       │
+        │      │   │ Nginx    │                │ Nginx    │       │
+        │      │   │ vhost    │                │ vhost    │       │
+        │      │   │ (prod)   │                │(preview) │       │
+        │      │   └────┬─────┘                └────┬─────┘       │
+        │      │        ▼                           ▼             │
+        │      │   ┌─────────┐                ┌─────────┐         │
+        │      │   │ PHP-FPM │                │ PHP-FPM │         │
+        │      │   │ pool:   │                │ pool:   │         │
+        │      │   │takussan │                │takussan-│         │
+        │      │   │         │                │ preview │         │
+        │      │   └────┬────┘                └────┬────┘         │
+        │      │        ▼                           ▼             │
+        │      │   ┌──────────┐                ┌──────────┐       │
+        │      │   │ MySQL    │                │ MySQL    │       │
+        │      │   │takussan_ │                │takussan_ │       │
+        │      │   │  prod    │                │  preview │       │
+        │      │   └──────────┘                └──────────┘       │
+        │      │                                                  │
+        │      │   /var/www/takussan/         /var/www/takussan-preview/
+        │      │     ├── current  ──┐           ├── current  ──┐    │
+        │      │     ├── releases/  │           ├── releases/  │    │
+        │      │     └── shared/    │           └── shared/    │    │
+        │      │         (.env,     │               (.env,     │    │
+        │      │          storage)  │                storage)  │    │
+        │      │                                                  │
+        │      │  + systemd : takussan-queue / -preview          │
+        │      │  + cron    : schedule:run chaque minute         │
+        │      │                                                  │
+        │      └──────────────────────────────────────────────────┘
+</div>
+
+      <p>Tout le déploiement reproduit ce schéma. Si à un moment tu te demandes "à quoi sert cette étape ?", reviens ici.</p>
+
+      <h3>1.1 Matrice preview vs prod</h3>
+
+      <p>Voici la table de correspondance complète entre les deux environnements. Garde cet onglet ouvert — tu y reviendras à chaque section où prod et preview diffèrent.</p>
+
+      <div class="table-wrap">
+        <table class="env-matrix">
+          <thead>
+            <tr>
+              <th>Élément</th>
+              <th>Preview</th>
+              <th>Prod</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Branche Git</td>                <td><code>preview</code></td>                       <td><code>master</code></td></tr>
+            <tr><td>Domaine front (Vercel)</td>     <td><code>preview.takussan.com</code></td>          <td><code>takussan.com</code> (+ <code>www</code>)</td></tr>
+            <tr><td>Domaine API (VPS)</td>          <td><code>preview.api.takussan.com</code></td>      <td><code>api.takussan.com</code></td></tr>
+            <tr><td>App dir (sur le VPS)</td>       <td><code>/var/www/takussan-preview</code></td>     <td><code>/var/www/takussan</code></td></tr>
+            <tr><td>Base MySQL</td>                 <td><code>takussan_preview</code></td>              <td><code>takussan_prod</code></td></tr>
+            <tr><td>User MySQL</td>                 <td><code>takussan_pre</code></td>                  <td><code>takussan_pro</code></td></tr>
+            <tr><td>Pool PHP-FPM</td>               <td><code>takussan-preview</code></td>              <td><code>takussan</code></td></tr>
+            <tr><td>Socket PHP-FPM</td>             <td><code>/run/php/takussan-preview.sock</code></td><td><code>/run/php/takussan.sock</code></td></tr>
+            <tr><td>Cookie de session</td>          <td><code>takussan_session_preview</code></td>      <td><code>takussan_session</code></td></tr>
+            <tr><td>Queue (systemd)</td>            <td><code>takussan-queue-preview</code></td>        <td><code>takussan-queue</code></td></tr>
+            <tr><td>Workflow GitHub</td>            <td><code>deploy-preview.yml</code></td>            <td><code>deploy.yml</code></td></tr>
+            <tr><td>Secret GitHub</td>              <td><code>ENV_FILE_PREVIEW</code></td>              <td><code>ENV_FILE</code></td></tr>
+            <tr><td>Smoke test</td>                 <td><code>preview.api.takussan.com/up</code></td>   <td><code>api.takussan.com/up</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout ok">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <div><p>L'infrastructure CheckPrint est déjà en place sur le même VPS (user <code>deploy</code>, Nginx, PHP-FPM, MySQL, Certbot). On la réutilise et on ne crée que ce qui est spécifique à Takussan, isolé par dossier, pool, base et service.</p></div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         § 2 — DNS CLOUDFLARE
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="dns">
+      <h2><span class="step-num">2</span>DNS Cloudflare</h2>
+
+      <div class="callout why">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/><circle cx="12" cy="12" r="5"/></svg>
+        <div><p><strong>Pourquoi cette étape ?</strong> Pour que tes domaines pointent vers les bons serveurs : Vercel pour le front, ton VPS Contabo pour l'API. Sans ces DNS records, rien ne marche.</p></div>
+      </div>
+
+      <p>Connecte-toi à <a href="https://dash.cloudflare.com">dash.cloudflare.com</a> → zone <code>takussan.com</code> → <em>DNS → Records</em>. Tu vas créer <strong>4 records</strong>, deux pour le front Vercel et deux pour l'API VPS.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Type</th><th>Nom</th><th>Valeur</th><th>Mode CF</th><th>Pour</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>CNAME</td><td><code>@</code> ou <code>www</code></td><td><code>cname.vercel-dns.com</code></td><td>DNS only (gris)</td><td>Front Vercel <span class="tag-prod">prod</span></td></tr>
+            <tr><td>CNAME</td><td><code>preview</code></td><td><code>cname.vercel-dns.com</code></td><td>DNS only (gris)</td><td>Front Vercel <span class="tag-preview">preview</span></td></tr>
+            <tr><td>A</td><td><code>api</code></td><td><code>&lt;IP_VPS&gt;</code></td><td>DNS only (gris)</td><td>API VPS <span class="tag-prod">prod</span></td></tr>
+            <tr><td>A</td><td><code>preview.api</code></td><td><code>&lt;IP_VPS&gt;</code></td><td>DNS only (gris)</td><td>API VPS <span class="tag-preview">preview</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div>
+          <p><strong>Le mode "DNS only" (nuage gris) est obligatoire</strong>, pour deux raisons :</p>
+          <ul>
+            <li><strong>Vercel</strong> : ne jamais proxifier via Cloudflare. Sinon double-CDN, conflits TLS, et Vercel ne reçoit pas la vraie IP visiteur.</li>
+            <li><strong>API VPS</strong> : Certbot Let's Encrypt fonctionne directement, sans gymnastique TLS. Si tu passes en "Proxied" plus tard, tu devras ajuster <code>TRUSTED_PROXIES</code> (CIDR Cloudflare) et basculer SSL CF en "Full (strict)".</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>2.1 Vérifier que les DNS sont propagés</h3>
+
+      <p>Depuis ton poste local, dans un terminal :</p>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header">
+          <span class="lang">bash</span>
+          <button class="copy-btn" type="button" aria-label="Copier">
+            <svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span class="label-copy">Copier</span>
+            <span class="label-copied">Copié !</span>
+          </button>
+        </div>
+        <pre><code><span class="comment"># Doit retourner l'IP du VPS pour les sous-domaines API</span>
+dig +short api.takussan.com
+dig +short preview.api.takussan.com
+
+<span class="comment"># Doit retourner une IP Vercel pour les sous-domaines front</span>
+dig +short takussan.com
+dig +short preview.takussan.com</code></pre>
+      </div>
+
+      <div class="callout troubleshoot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <div>
+          <p><strong>Si <code>dig</code> ne retourne rien…</strong></p>
+          <ul>
+            <li>Attends quelques minutes — la propagation peut prendre 1 à 10 min.</li>
+            <li>Vérifie que le record est bien créé dans Cloudflare et que le nuage est <strong>gris</strong>.</li>
+            <li>Force un refresh : <code>dig @1.1.1.1 +short api.takussan.com</code> (passe par les DNS Cloudflare directement).</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         § 3 — VERCEL FRONTEND
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="vercel">
+      <h2><span class="step-num">3</span>Frontend sur Vercel</h2>
+
+      <div class="callout why">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <div><p><strong>Pourquoi Vercel ?</strong> Vercel build et sert le frontend Next.js automatiquement à chaque push GitHub. Pas de serveur à gérer, pas de build à orchestrer côté VPS — Vercel le fait pour toi. C'est l'option la plus simple pour Next.js.</p></div>
+      </div>
+
+      <h3>3.1 Importer le repo</h3>
+      <ol>
+        <li>Va sur <a href="https://vercel.com/new" target="_blank">vercel.com/new</a> → GitHub → choisis le repo <code>takussan</code>.</li>
+        <li>Dans <em>Root Directory</em>, sélectionne <code>takussan-web</code> (c'est là que vit le code Next.js dans le monorepo).</li>
+        <li>Framework Preset : Next.js (détecté automatiquement).</li>
+        <li><strong>Configure les variables d'environnement ci-dessous AVANT de cliquer Deploy</strong>, sinon le premier build sera cassé.</li>
+      </ol>
+
+      <h3>3.2 Variables d'environnement Vercel</h3>
+
+      <p>Audit du code (<code>grep "process.env" takussan-web/src/</code>) : <strong>seule <code>NEXT_PUBLIC_API_URL</code> est utilisée</strong>. Pas besoin d'en déclarer d'autre.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Variable</th><th>Production</th><th>Preview</th><th>Development</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>NEXT_PUBLIC_API_URL</code></td><td><code>https://api.takussan.com</code></td><td><code>https://preview.api.takussan.com</code></td><td><code>http://localhost:8002</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout info">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <div><p>Vercel injecte automatiquement <code>VERCEL_ENV</code>, <code>VERCEL_URL</code>, <code>VERCEL_GIT_COMMIT_*</code> et autres — accessibles côté serveur uniquement. Si tu as besoin d'un jour distinguer preview/prod dans le code, lis <code>process.env.VERCEL_ENV</code> dans un Server Component plutôt que de dupliquer en <code>NEXT_PUBLIC_*</code>.</p></div>
+      </div>
+
+      <h3>3.3 Branche de production + domaines custom</h3>
+
+      <ol>
+        <li><em>Settings → Git → Production Branch</em> : <code>master</code>.</li>
+        <li><em>Settings → Domains</em> :
+          <ul>
+            <li>Ajoute <code>takussan.com</code> (et/ou <code>www.takussan.com</code>) → laisse sur <strong>Production</strong> (= branche <code>master</code>).</li>
+            <li>Ajoute <code>preview.takussan.com</code> → <em>Edit</em> → <strong>Git Branch</strong> = <code>preview</code>.</li>
+          </ul>
+        </li>
+      </ol>
+
+      <div class="callout ok">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <div><p>Vercel utilise les enregistrements DNS configurés au §2 (<code>cname.vercel-dns.com</code>) pour valider et émettre les certificats TLS automatiquement. <strong>Aucune action côté Contabo</strong> pour ces domaines.</p></div>
+      </div>
+
+      <h3>3.4 Configurer <code>next.config.ts</code> pour les images de l'API</h3>
+
+      <p>Next.js refuse par défaut de servir les images dont le hostname n'est pas autorisé. Comme l'API héberge les médias (avatars, photos de propriétés…), il faut whitelister ses domaines.</p>
+
+      <div class="code-block" data-lang="typescript">
+        <div class="code-block-header">
+          <span class="lang">typescript — takussan-web/next.config.ts</span>
+          <button class="copy-btn" type="button" aria-label="Copier">
+            <svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span class="label-copy">Copier</span>
+            <span class="label-copied">Copié !</span>
+          </button>
+        </div>
+        <pre><code>const nextConfig = {
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'api.takussan.com' },
+      { protocol: 'https', hostname: 'preview.api.takussan.com' },
+    ],
+  },
+};
+export default nextConfig;</code></pre>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         § 4 — AUDIT VPS
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="preflight">
+      <h2><span class="step-num">4</span>Audit du VPS — prérequis</h2>
+
+      <div class="callout why">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <div><p><strong>Pourquoi cette étape ?</strong> Le VPS Contabo héberge déjà CheckPrint. On vérifie ce qui est en place pour éviter de réinstaller ou d'écraser des configs. Le script <code>server-setup.sh</code> (§5) suppose que la baseline Linux est OK.</p></div>
+      </div>
+
+      <p>Connecte-toi en SSH avec un user admin (pas <code>deploy</code>), puis exécute les vérifications :</p>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header">
+          <span class="lang">bash — sur le VPS</span>
+          <button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button>
+        </div>
+        <pre><code><span class="comment"># 1. L'infra CheckPrint est-elle là ?</span>
+ls -la /var/www/
+<span class="comment">#   → tu dois voir check-print-plus/ et check-print-plus-preview/</span>
+
+<span class="comment"># 2. Le user `deploy` existe ?</span>
+id deploy
+<span class="comment">#   → uid=... groups=...,www-data</span>
+
+<span class="comment"># 3. Pools PHP-FPM déjà présents (à ne pas écraser)</span>
+ls /etc/php/*/fpm/pool.d/
+
+<span class="comment"># 4. Vhosts nginx déjà présents</span>
+ls /etc/nginx/sites-enabled/
+
+<span class="comment"># 5. Services queue déjà actifs</span>
+sudo systemctl list-units 'checkprint-*' --no-pager
+
+<span class="comment"># 6. Versions runtime</span>
+php -v               <span class="comment"># attendu : 8.3+</span>
+node -v && npm -v    <span class="comment"># attendu : 20+ (pour Vite build sur serveur)</span>
+composer -V
+mysql --version
+
+<span class="comment"># 7. Espace disque</span>
+df -h /var</code></pre>
+      </div>
+
+      <div class="checklist">
+        <div class="check"><input type="checkbox" id="ck-deploy"><label for="ck-deploy">User <code>deploy</code> existe et est dans le groupe <code>www-data</code></label></div>
+        <div class="check"><input type="checkbox" id="ck-php"><label for="ck-php">PHP <strong>8.4</strong> + Composer + Node 20 installés — <strong>voir l'encadré de migration ci-dessous si le serveur est encore en 8.3</strong></label></div>
+        <div class="check"><input type="checkbox" id="ck-mysql"><label for="ck-mysql">MySQL/MariaDB en service</label></div>
+        <div class="check"><input type="checkbox" id="ck-nginx"><label for="ck-nginx">Nginx + Certbot opérationnels</label></div>
+        <div class="check"><input type="checkbox" id="ck-disk"><label for="ck-disk">Au moins 3 Go libres sur <code>/var</code></label></div>
+      </div>
+
+      <div class="callout troubleshoot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <div>
+          <p><strong>PHP 8.4 requis — le serveur y est déjà (vérifié le 2026-08-12)</strong></p>
+          <p>Le <code>composer.lock</code> du dépôt <strong>ne s'installe pas sur PHP 8.3</strong> : 19 paquets verrouillés exigent 8.4 ou plus — 17 <code>symfony/*</code> en <code>php &gt;=8.4.1</code>, plus <code>lcobucci/clock</code> et <code>spatie/laravel-activitylog</code>. Un <code>composer install --no-dev</code> sur un serveur en 8.3 échoue, et le déploiement s'arrête là.</p>
+          <p>Rien ne l'avait signalé parce que <strong>la CI tourne sur PHP 8.4</strong> : la machine qui valide et la machine qui sert ne parlaient pas la même version, et c'est la seconde qui casse. Le dépôt déclare désormais <code>"php": "^8.4"</code> et fige la résolution par <code>config.platform.php = 8.4.1</code>, pour que <code>composer</code> refuse lui-même l'écart au lieu qu'on le découvre au déploiement.</p>
+          <p><strong>Sur CE serveur, rien à faire</strong> : le déploiement de preview du 2026-06-20 a réussi alors que son <code>composer.lock</code> exigeait déjà <code>php &gt;=8.4.1</code> — et <code>deploy.sh</code> lance <code>composer install --no-dev</code>. Un install ne peut pas réussir sur une version que le lock exclut : le serveur est donc en 8.4 ou plus. Preview et production partagent la même machine.</p><p><strong>Sur un serveur NEUF, ou encore en 8.3</strong>, dans cet ordre :</p>
+          <ol>
+            <li><code>sudo add-apt-repository ppa:ondrej/php &amp;&amp; sudo apt update</code> (Ubuntu ; sur Debian, dépôt Sury).</li>
+            <li>Installer 8.4 avec <strong>toutes</strong> les extensions de la ligne ci-dessous — <code>intl</code>, <code>gd</code>, <code>bcmath</code> et <code>redis</code> manquaient à l'ancienne liste, et une extension absente ne dégrade pas une fonction : elle <strong>empêche l'application entière de démarrer</strong>.</li>
+            <li>Recréer le pool FPM : <code>sudo bash scripts/server-setup.sh</code> (il détecte la version de PHP et réécrit <code>/etc/takussan/php-version</code>, que <code>deploy.sh</code> relit pour savoir quel service recharger).</li>
+            <li>Vérifier : <code>php -v</code>, <code>php -m | grep -E 'intl|gd|bcmath|redis'</code>, puis <code>composer check-platform-reqs --no-dev</code> dans la release courante.</li>
+            <li>Ne désinstaller 8.3 qu'<strong>après</strong> un déploiement réussi sur 8.4.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="callout troubleshoot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <div>
+          <p><strong>Si une dépendance manque…</strong></p>
+          <ul>
+            <li><code>id deploy</code> retourne "no such user" → CheckPrint n'a pas été déployé sur ce VPS. Crée-le : <code>sudo adduser --disabled-password --gecos "" deploy &amp;&amp; sudo usermod -aG www-data deploy</code>.</li>
+            <li>PHP/Composer/Node absents → <code>sudo apt update &amp;&amp; sudo apt install -y php8.4-fpm php8.4-mysql php8.4-mbstring php8.4-xml php8.4-curl php8.4-zip php8.4-intl php8.4-gd php8.4-bcmath php8.4-redis composer nodejs npm nginx certbot python3-certbot-nginx</code>.</li>
+            <li>MySQL absent → <code>sudo apt install -y mariadb-server &amp;&amp; sudo mysql_secure_installation</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         § 5 — SERVER-SETUP.SH
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="server-setup">
+      <h2><span class="step-num">5</span>Bootstrap serveur avec <code>server-setup.sh</code></h2>
+
+      <div class="callout why">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        <div><p><strong>Pourquoi cette étape ?</strong> Cette étape installe sur ton VPS toute la plomberie dont Laravel a besoin : un user dédié <code>deploy</code>, les dossiers où les releases vont vivre, les pools PHP-FPM, les vhosts Nginx, les services systemd pour les queues, le cron pour le scheduler Laravel, les sudoers pour les reloads, et le logrotate. Un seul script — il fait <strong>preview ET prod en parallèle</strong>.</p></div>
+      </div>
+
+      <h3>5.1 Lancer le script</h3>
+
+      <p>Depuis ton poste local (le repo Takussan checkouté en local) :</p>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header">
+          <span class="lang">bash — depuis ton poste local</span>
+          <button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button>
+        </div>
+        <pre><code><span class="comment"># 1. Copier le script sur le VPS</span>
+scp scripts/server-setup.sh admin@&lt;IP_VPS&gt;:/tmp/
+
+<span class="comment"># 2. Se connecter au VPS et l'exécuter en root</span>
+ssh admin@&lt;IP_VPS&gt;
+sudo bash /tmp/server-setup.sh
+rm /tmp/server-setup.sh</code></pre>
+      </div>
+
+      <h3>5.2 Ce que le script fait — et tu n'as donc pas à faire à la main</h3>
+
+      <ul>
+        <li>Crée le user <code>deploy</code> (s'il n'existe pas déjà) et l'ajoute à <code>www-data</code>.</li>
+        <li>Crée les dossiers <code>/var/www/takussan/</code> et <code>/var/www/takussan-preview/</code> avec leurs sous-dossiers <code>releases/</code> et <code>shared/storage/</code>.</li>
+        <li>Pré-remplit <code>~deploy/.ssh/known_hosts</code> avec les host keys GitHub (fingerprint ED25519 vérifié contre une valeur hardcodée pour éviter MITM).</li>
+        <li>Crée les deux pools PHP-FPM (<code>takussan</code>, 10 workers / <code>takussan-preview</code>, 5 workers) avec sockets dédiés.</li>
+        <li>Pin la version PHP détectée dans <code>/etc/takussan/php-version</code> (utilisé par <code>deploy.sh</code> pour reloader le bon FPM).</li>
+        <li>Crée les deux vhosts Nginx en HTTP (Certbot ajoutera le 443 ensuite) et valide avec <code>nginx -t</code> avant de reload.</li>
+        <li>Crée les deux services systemd <code>takussan-queue</code> et <code>takussan-queue-preview</code>.</li>
+        <li>Ajoute le cron Laravel scheduler pour les deux envs (<code>schedule:run</code> chaque minute).</li>
+        <li>Écrit <code>/etc/sudoers.d/takussan-deploy</code> (NOPASSWD reload php-fpm / nginx, start/restart queues) validé via <code>visudo -c</code>.</li>
+        <li>Écrit <code>/etc/logrotate.d/takussan</code> (rotation 14j sur les logs Laravel des deux envs).</li>
+        <li>Affiche en fin de run un <strong>validation summary</strong> avec PASS/FAIL pour chaque composant.</li>
+      </ul>
+
+      <div class="callout ok">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <div><p>Le script est <strong>idempotent</strong> : tu peux le relancer autant de fois que tu veux. Il détecte ce qui est déjà en place et ne casse rien.</p></div>
+      </div>
+
+      <h3>5.3 Lire le validation summary</h3>
+
+      <p>À la fin de l'exécution, le script affiche un récap. Tout doit être en <code>PASS</code> :</p>
+
+      <div class="code-block" data-lang="text">
+        <div class="code-block-header">
+          <span class="lang">sortie attendue</span>
+          <button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button>
+        </div>
+        <pre><code>[setup] === Validation summary ===
+[setup]   PASS  deploy user exists
+[setup]   PASS  deploy user in www-data
+[setup]   PASS  /var/www/takussan exists
+[setup]   PASS  /var/www/takussan-preview exists
+[setup]   PASS  /etc/takussan/php-version present (8.3)
+[setup]   PASS  php8.4-fpm active
+[setup]   PASS  /run/php/takussan.sock exists
+[setup]   PASS  /run/php/takussan-preview.sock exists
+[setup]   PASS  nginx -t passes
+[setup]   PASS  vhost api.takussan.com enabled
+[setup]   PASS  vhost preview.api.takussan.com enabled
+[setup]   PASS  takussan-queue service enabled
+[setup]   PASS  takussan-queue-preview service enabled
+[setup]   PASS  prod scheduler cron present
+[setup]   PASS  preview scheduler cron present
+[setup]   PASS  /etc/sudoers.d/takussan-deploy valid
+[setup]   PASS  /etc/logrotate.d/takussan present
+[setup]   PASS  deploy known_hosts contains github.com
+[setup]
+[setup] === Summary: 18 pass, 0 fail ===</code></pre>
+      </div>
+
+      <div class="callout troubleshoot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <div>
+          <p><strong>Si tu vois des FAIL…</strong></p>
+          <ul>
+            <li><code>FAIL php8.4-fpm active</code> → <code>sudo apt install php8.4-fpm</code> puis relance le script.</li>
+            <li><code>FAIL nginx -t passes</code> → un autre vhost a une erreur ; <code>sudo nginx -t</code> pour la voir.</li>
+            <li><code>FAIL /etc/sudoers.d/takussan-deploy valid</code> → le script a refusé d'installer un sudoers invalide. Lis le log juste au-dessus du summary.</li>
+            <li><code>FAIL deploy known_hosts contains github.com</code> → le serveur n'a pas pu joindre GitHub via ssh-keyscan. Ré-essaie quand la connexion réseau est stable.</li>
+          </ul>
+        </div>
+      </div>
+
+      <details>
+        <summary>Édition manuelle d'un pool PHP-FPM (pour retuner après coup)</summary>
+        <div class="details-body">
+          <p>Si tu veux changer <code>pm.max_children</code> ou la mémoire d'un pool sans relancer tout le script, édite le fichier directement (les chemins ci-dessous sont pour PHP 8.3 — adapte avec <code>php -v</code>) :</p>
+          <div class="code-block" data-lang="bash">
+            <div class="code-block-header"><span class="lang">bash</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+            <pre><code><span class="comment"># Pool preview (chemin) : /etc/php/8.3/fpm/pool.d/takussan-preview.conf</span>
+<span class="comment"># Pool prod    (chemin) : /etc/php/8.3/fpm/pool.d/takussan.conf</span>
+sudo nano /etc/php/8.3/fpm/pool.d/takussan.conf
+
+<span class="comment"># Appliquer (gracieux, ne coupe pas les requêtes en cours) :</span>
+sudo systemctl reload php8.4-fpm
+
+<span class="comment"># Vérifier que les sockets sont là :</span>
+sudo ls -la /run/php/takussan.sock /run/php/takussan-preview.sock</code></pre>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>Édition manuelle d'un vhost Nginx (pour customiser cache, rewrite, etc.)</summary>
+        <div class="details-body">
+          <p>Les vhosts sont à <code>/etc/nginx/sites-available/api.takussan.com</code> et <code>/etc/nginx/sites-available/preview.api.takussan.com</code>. Modèle complet du vhost preview :</p>
+          <div class="code-block" data-lang="nginx">
+            <div class="code-block-header"><span class="lang">nginx — /etc/nginx/sites-available/preview.api.takussan.com</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+            <pre><code>server {
+    listen 80;
+    listen [::]:80;
+    server_name preview.api.takussan.com;
+    <span class="comment"># Pour prod : server_name api.takussan.com; et adapter les chemins ci-dessous.</span>
+
+    root /var/www/takussan-preview/current/public;
+    index index.php;
+    client_max_body_size 25M;
+
+    access_log /var/log/nginx/preview.api.takussan.com.access.log;
+    error_log  /var/log/nginx/preview.api.takussan.com.error.log;
+
+    location /storage/ {
+        alias /var/www/takussan-preview/shared/storage/app/public/;
+        expires 7d;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/takussan-preview.sock;
+        <span class="comment"># Pour prod : fastcgi_pass unix:/run/php/takussan.sock;</span>
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_read_timeout 60;
+    }
+
+    location ~ /\.(?!well-known) { deny all; }
+}</code></pre>
+          </div>
+          <p>Appliquer après édition :</p>
+          <div class="code-block" data-lang="bash">
+            <div class="code-block-header"><span class="lang">bash</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+            <pre><code>sudo nginx -t && sudo systemctl reload nginx</code></pre>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         § 6 — MYSQL
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="mysql">
+      <h2><span class="step-num">6</span>MySQL &amp; Meilisearch — services VPS</h2>
+
+      <div class="callout why">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        <div><p><strong>Pourquoi cette étape ?</strong> Laravel a besoin d'une base MySQL pour stocker ses données. On crée <strong>deux bases isolées</strong> (preview et prod) avec deux users distincts. Comme ça si une migration casse la base preview, la prod est en sécurité.</p></div>
+      </div>
+
+      <p>Cette étape est <strong>manuelle</strong> car le script <code>server-setup.sh</code> n'a pas accès au password root de MySQL.</p>
+
+      <div class="table-wrap">
+        <table class="env-matrix">
+          <thead>
+            <tr><th>Élément</th><th>Preview</th><th>Prod</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Nom de la base</td><td><code>takussan_preview</code></td><td><code>takussan_prod</code></td></tr>
+            <tr><td>User MySQL</td><td><code>takussan_pre</code></td><td><code>takussan_pro</code></td></tr>
+            <tr><td>Password</td><td><em>généré au §6.1</em></td><td><em>généré au §6.1, différent du preview</em></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>6.1 Générer deux passwords forts</h3>
+
+      <p>Toujours sur le VPS, génère deux passwords différents (un par environnement) :</p>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header"><span class="lang">bash — sur le VPS</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code><span class="comment"># Password preview — copie-le dans un coin pour le §7</span>
+openssl rand -base64 24
+
+<span class="comment"># Password prod — différent du preview</span>
+openssl rand -base64 24</code></pre>
+      </div>
+
+      <h3>6.2 Créer les deux bases et les deux users</h3>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header"><span class="lang">bash — sur le VPS</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code>sudo mysql &lt;&lt;'SQL'
+<span class="comment">-- ═══════ PREVIEW ═══════</span>
+CREATE DATABASE takussan_preview CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'takussan_pre'@'localhost' IDENTIFIED BY 'PASSWORD_PREVIEW_DU_6_1';
+GRANT ALL PRIVILEGES ON takussan_preview.* TO 'takussan_pre'@'localhost';
+
+<span class="comment">-- ═══════ PROD ═══════</span>
+CREATE DATABASE takussan_prod CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'takussan_pro'@'localhost' IDENTIFIED BY 'PASSWORD_PROD_DU_6_1';
+GRANT ALL PRIVILEGES ON takussan_prod.* TO 'takussan_pro'@'localhost';
+
+FLUSH PRIVILEGES;
+SQL</code></pre>
+      </div>
+
+      <div class="callout warn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div><p><strong>Garde les deux passwords précieusement</strong> — tu vas les coller dans les secrets GitHub <code>ENV_FILE</code> et <code>ENV_FILE_PREVIEW</code> à la section suivante. Si tu les perds, tu devras les régénérer avec <code>ALTER USER ... IDENTIFIED BY '...'</code>.</p></div>
+      </div>
+
+      <h3>6.3 Vérifier que les users se connectent</h3>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header"><span class="lang">bash — sur le VPS</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code><span class="comment"># Preview</span>
+mysql -u takussan_pre -p takussan_preview -e "SELECT 'preview OK' AS status;"
+
+<span class="comment"># Prod</span>
+mysql -u takussan_pro -p takussan_prod -e "SELECT 'prod OK' AS status;"</code></pre>
+      </div>
+
+      <h3>6.4 Meilisearch — moteur de recherche</h3>
+
+      <div class="callout why">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <div><p><strong>Pourquoi cette étape ?</strong> La recherche plein-texte (biens, messages, documents) tourne sur <strong>Meilisearch</strong> via Laravel Scout. Comme MySQL, c'est un service à installer manuellement — <code>server-setup.sh</code> ne le provisionne pas. Une seule instance sert preview et prod, les index étant isolés par <code>SCOUT_PREFIX</code>.</p></div>
+      </div>
+
+      <p>Installer le binaire (dépôt apt officiel), créer l'utilisateur système et les répertoires de données :</p>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header"><span class="lang">bash — sur le VPS</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code><span class="comment"># Binaire Meilisearch via le dépôt apt officiel</span>
+echo "deb [trusted=yes] https://apt.fury.io/meilisearch/ /" | sudo tee /etc/apt/sources.list.d/meilisearch.list
+sudo apt update &amp;&amp; sudo apt install meilisearch
+
+<span class="comment"># Utilisateur système dédié + répertoires de données</span>
+sudo useradd -d /var/lib/meilisearch -s /bin/false -m -r meilisearch
+sudo mkdir -p /var/lib/meilisearch/data /var/lib/meilisearch/dumps /var/lib/meilisearch/snapshots
+sudo chown -R meilisearch:meilisearch /var/lib/meilisearch</code></pre>
+      </div>
+
+      <p>Générer une master key et écrire la configuration <code>/etc/meilisearch.toml</code> :</p>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header"><span class="lang">bash — sur le VPS</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code><span class="comment"># Master key — garde-la, elle ira dans les secrets ENV_FILE / ENV_FILE_PREVIEW (§7)</span>
+openssl rand -base64 24
+
+sudo tee /etc/meilisearch.toml &gt;/dev/null &lt;&lt;'TOML'
+env          = "production"
+master_key   = "COLLE_LA_MASTER_KEY_ICI"
+db_path      = "/var/lib/meilisearch/data"
+dump_dir     = "/var/lib/meilisearch/dumps"
+snapshot_dir = "/var/lib/meilisearch/snapshots"
+http_addr    = "127.0.0.1:7700"
+TOML
+sudo chown meilisearch:meilisearch /etc/meilisearch.toml
+sudo chmod 640 /etc/meilisearch.toml</code></pre>
+      </div>
+
+      <p>Créer le service systemd, l'activer et vérifier la santé de l'instance :</p>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header"><span class="lang">bash — sur le VPS</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code>sudo tee /etc/systemd/system/meilisearch.service &gt;/dev/null &lt;&lt;'UNIT'
+[Unit]
+Description=Meilisearch
+After=network.target
+
+[Service]
+User=meilisearch
+Group=meilisearch
+ExecStart=/usr/bin/meilisearch --config-file-path /etc/meilisearch.toml
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now meilisearch
+curl http://127.0.0.1:7700/health        <span class="comment"># attendu : {"status":"available"}</span></code></pre>
+      </div>
+
+      <div class="callout warn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div><p><strong>Master key &amp; index partagés.</strong> Reporte la master key dans les secrets <code>ENV_FILE</code> et <code>ENV_FILE_PREVIEW</code> (variable <code>MEILISEARCH_KEY</code>, §7). Une seule instance Meilisearch sert les deux environnements : le <code>.env</code> preview porte <code>SCOUT_PREFIX=preview_</code> pour préfixer ses index et éviter toute collision avec la prod. Après le <strong>premier déploiement</strong> (étape 13), peupler les index une fois sur le serveur — <code>php artisan scout:import "App\Models\Property"</code> (puis <code>Document</code> et <code>Message</code>) ; ensuite le worker de queue les maintient à jour automatiquement.</p></div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         § 7 — SECRETS .ENV
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="env">
+      <h2><span class="step-num">7</span>Préparer les secrets <code>.env</code></h2>
+
+      <div class="callout why">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <div><p><strong>Pourquoi cette étape ?</strong> Le fichier <code>.env</code> contient toutes les valeurs sensibles (passwords DB, clé d'encryption, URLs). On ne le stocke <strong>jamais en clair sur le VPS</strong> ni dans le repo. Il est injecté à chaque déploiement via un secret GitHub.</p></div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="env-matrix">
+          <thead>
+            <tr><th>Élément</th><th>Preview</th><th>Prod</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Nom du secret GH</td><td><code>ENV_FILE_PREVIEW</code></td><td><code>ENV_FILE</code></td></tr>
+            <tr><td><code>APP_ENV</code></td><td><code>preview</code></td><td><code>production</code></td></tr>
+            <tr><td><code>APP_KEY</code></td><td><em>généré au §7.2</em></td><td><em>généré au §7.2, différent</em></td></tr>
+            <tr><td><code>APP_URL</code></td><td><code>https://preview.api.takussan.com</code></td><td><code>https://api.takussan.com</code></td></tr>
+            <tr><td><code>FRONTEND_URL</code></td><td><code>https://preview.takussan.com</code></td><td><code>https://takussan.com</code></td></tr>
+            <tr><td><code>SANCTUM_STATEFUL_DOMAINS</code></td><td><code>preview.takussan.com</code></td><td><code>takussan.com,www.takussan.com</code></td></tr>
+            <tr><td><code>DB_DATABASE</code></td><td><code>takussan_preview</code></td><td><code>takussan_prod</code></td></tr>
+            <tr><td><code>DB_USERNAME</code></td><td><code>takussan_pre</code></td><td><code>takussan_pro</code></td></tr>
+            <tr><td><code>DB_PASSWORD</code></td><td><em>password preview du §6</em></td><td><em>password prod du §6</em></td></tr>
+            <tr><td><code>SESSION_COOKIE</code></td><td><code>takussan_session_preview</code></td><td><code>takussan_session</code></td></tr>
+            <tr><td><code>LOG_LEVEL</code></td><td><code>info</code></td><td><code>warning</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>7.1 Audit méthode</h3>
+      <p>Toutes les variables ci-dessous proviennent de l'audit <code>grep -rh "env(['\"]" takussan-api/config takussan-api/app | sort -u</code>. Les variables Laravel standard non listées (Memcached, Pusher, Algolia, Postmark, AWS, etc.) ne sont pas activées et n'ont pas besoin d'être déclarées.</p>
+
+      <h3>7.2 Générer les deux <code>APP_KEY</code> en local</h3>
+      <p><strong>APP_KEY</strong> est la clé qui chiffre les cookies et les sessions. <strong>Elle doit être différente entre preview et prod</strong>, sinon une session preview ouvre une session prod (et inversement).</p>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header"><span class="lang">bash — sur ton poste local</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code>cd takussan-api
+
+<span class="comment"># APP_KEY pour preview</span>
+php artisan key:generate --show
+<span class="comment"># → base64:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx= (preview)</span>
+
+<span class="comment"># APP_KEY pour prod (relancer pour une nouvelle valeur)</span>
+php artisan key:generate --show
+<span class="comment"># → base64:yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy= (prod)</span></code></pre>
+      </div>
+
+      <h3>7.3 Template du <code>.env</code></h3>
+
+      <p>Voici le template complet. <strong>Une seule version, avec les valeurs preview par défaut.</strong> Pour la prod, tu reprends le même contenu et tu écrases <em>uniquement</em> les lignes listées dans la matrice ci-dessus.</p>
+
+      <div class="code-block" data-lang="env">
+        <div class="code-block-header"><span class="lang">env — template (preview par défaut)</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code><span class="comment"># ═══════════════════════ App ═══════════════════════</span>
+APP_NAME=Takussan
+APP_ENV=preview                                <span class="comment"># prod : production</span>
+APP_KEY=base64:VALEUR_DU_7_2                   <span class="comment"># prod : valeur DIFFÉRENTE</span>
+APP_DEBUG=false
+APP_URL=https://preview.api.takussan.com       <span class="comment"># prod : https://api.takussan.com</span>
+APP_LOCALE=fr
+APP_FALLBACK_LOCALE=en
+APP_FAKER_LOCALE=fr_FR
+APP_MAINTENANCE_DRIVER=file
+BCRYPT_ROUNDS=12
+
+<span class="comment"># ═══════════════════════ Frontend &amp; Sanctum ═══════════════════════</span>
+FRONTEND_URL=https://preview.takussan.com      <span class="comment"># prod : https://takussan.com</span>
+SANCTUM_STATEFUL_DOMAINS=preview.takussan.com  <span class="comment"># prod : takussan.com,www.takussan.com</span>
+
+<span class="comment"># Cloudflare est en DNS only — loopback suffit. Si tu passes en Proxied,</span>
+<span class="comment"># remplace par les CIDR Cloudflare (cf. cloudflare.com/ips/).</span>
+TRUSTED_PROXIES=127.0.0.1,::1
+
+<span class="comment"># ═══════════════════════ Database ═══════════════════════</span>
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=takussan_preview                   <span class="comment"># prod : takussan_prod</span>
+DB_USERNAME=takussan_pre                       <span class="comment"># prod : takussan_pro</span>
+DB_PASSWORD=PASSWORD_DU_6_1                    <span class="comment"># prod : autre password</span>
+
+<span class="comment"># ═══════════════════════ Session ═══════════════════════</span>
+SESSION_DRIVER=database
+SESSION_LIFETIME=120
+<span class="comment"># .takussan.com couvre les 2 sous-domaines. L'isolation entre envs se fait via</span>
+<span class="comment"># SESSION_COOKIE distinct ci-dessous.</span>
+SESSION_DOMAIN=.takussan.com
+SESSION_COOKIE=takussan_session_preview        <span class="comment"># prod : takussan_session</span>
+SESSION_SECURE_COOKIE=true
+SESSION_SAME_SITE=lax
+SESSION_HTTP_ONLY=true
+
+<span class="comment"># ═══════════════════════ Cache / Queue / Filesystem ═══════════════════════</span>
+<span class="comment"># (override du default Redis du .env.example — pas de Redis en préprod)</span>
+CACHE_STORE=database
+QUEUE_CONNECTION=database
+BROADCAST_CONNECTION=log
+FILESYSTEM_DISK=local
+
+<span class="comment"># ═══════════════════════ Logging ═══════════════════════</span>
+LOG_CHANNEL=stack
+LOG_STACK=single
+LOG_LEVEL=info                                 <span class="comment"># prod : warning (plus strict)</span>
+LOG_DEPRECATIONS_CHANNEL=null
+
+<span class="comment"># ═══════════════════════ Mail (log driver tant qu'aucun SMTP) ═══════════════════════</span>
+MAIL_MAILER=log
+MAIL_FROM_ADDRESS=noreply@takussan.local
+MAIL_FROM_NAME="${APP_NAME}"
+
+<span class="comment"># ═══════════════════════ Search (Scout — Meilisearch) ═══════════════════════</span>
+SCOUT_DRIVER=meilisearch
+MEILISEARCH_HOST=http://127.0.0.1:7700
+MEILISEARCH_KEY=CLE_MEILISEARCH_DU_6_4
+SCOUT_QUEUE=true
+SCOUT_AFTER_COMMIT=true
+SCOUT_PREFIX=preview_                          <span class="comment"># prod : laisser vide — isole les index preview/prod</span>
+
+<span class="comment"># ═══════════════════════ Media library (Spatie) ═══════════════════════</span>
+MEDIA_DISK=public
+SEED_DOWNLOAD_MEDIA=false
+
+<span class="comment"># ═══════════════════════ Spatie Laravel PDF (dompdf, pas de Chromium) ═══════════════════════</span>
+LARAVEL_PDF_DRIVER=dompdf
+
+<span class="comment"># ═══════════════════════ CDN (TCK-105) ═══════════════════════</span>
+CDN_ENABLED=false
+
+<span class="comment"># ═══════════════════════ Activity log (Spatie) ═══════════════════════</span>
+ACTIVITYLOG_ENABLED=true
+ACTIVITYLOG_BUFFER_ENABLED=false
+
+<span class="comment"># ═══════════════════════ Account deletion (custom) ═══════════════════════</span>
+ACCOUNT_DELETION_GRACE_DAYS=30
+ACCOUNT_DELETION_REMINDER_DAYS=7
+
+<span class="comment"># ═══════════════════════ Visits (custom) ═══════════════════════</span>
+VISITS_FEEDBACK_WINDOW_HOURS=24
+
+<span class="comment"># ═══════════════════════ SMS (router driver = no-op) ═══════════════════════</span>
+SMS_DEFAULT_DRIVER=router
+
+<span class="comment"># ═══════════════════════ OAuth (vide = boutons masqués côté front) ═══════════════════════</span>
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+FACEBOOK_CLIENT_ID=
+FACEBOOK_CLIENT_SECRET=
+APPLE_CLIENT_ID=
+APPLE_TEAM_ID=
+APPLE_KEY_ID=
+APPLE_PRIVATE_KEY_PATH=</code></pre>
+      </div>
+
+      <h3>7.4 Variables à activer plus tard (hors périmètre initial)</h3>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Variable</th><th>Quand l'activer</th></tr></thead>
+          <tbody>
+            <tr><td><code>REDIS_HOST</code> + <code>CACHE_STORE=redis</code> + <code>QUEUE_CONNECTION=redis</code></td><td>Quand Redis est installé sur le VPS et qu'on veut perf cache/queue.</td></tr>
+            <tr><td><code>MAIL_MAILER=smtp</code> + <code>MAIL_HOST/PORT/USERNAME/PASSWORD</code></td><td>Dès qu'un provider SMTP (Resend, Postmark…) est configuré.</td></tr>
+            <tr><td><code>FILESYSTEM_DISK=s3</code> + <code>AWS_*</code></td><td>Si on veut déporter le storage public sur S3/Bunny.</td></tr>
+            <tr><td><code>CDN_ENABLED=true</code> + <code>CDN_BASE_URL</code> + <code>BUNNY_*</code> ou <code>CLOUDFLARE_*</code></td><td>Quand la pull-zone CDN est provisionnée (cf. TCK-105).</td></tr>
+            <tr><td><code>GOOGLE_*</code> / <code>FACEBOOK_*</code> / <code>APPLE_*</code></td><td>Quand les apps OAuth sont créées chez chaque provider.</td></tr>
+            <tr><td><code>SMS_*</code> (LAM, MTARGET, ORANGE)</td><td>Quand un provider SMS est wiré (cf. TCK-102).</td></tr>
+            <tr><td><code>LEMON_SQUEEZY_*</code></td><td>Si la facturation passe par LemonSqueezy.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div><p>Quand tu ajoutes une de ces variables, tu <strong>recolles le secret entier</strong> dans GitHub (les secrets sont opaques — pas d'édition partielle). Puis re-push <code>preview</code> ou <code>master</code> (ou clique <em>Run workflow</em>) pour redéployer avec le nouveau <code>.env</code>.</p></div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         § 8 — CORS & SANCTUM
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="cors">
+      <h2><span class="step-num">8</span>CORS &amp; Sanctum cross-domain</h2>
+
+      <div class="callout why">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <div><p><strong>Pourquoi cette étape ?</strong> Le front (sur <code>takussan.com</code>) et l'API (sur <code>api.takussan.com</code>) sont sur deux sous-domaines différents. Sans config CORS, le navigateur refuse les requêtes croisées. Sans cookies cross-subdomain, l'authentification Sanctum ne marche pas.</p></div>
+      </div>
+
+      <h3>8.1 Configurer CORS côté Laravel</h3>
+
+      <div class="code-block" data-lang="php">
+        <div class="code-block-header"><span class="lang">php — takussan-api/config/cors.php</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code>return [
+    'paths' =&gt; ['api/*', 'sanctum/csrf-cookie', 'login', 'logout', 'storage/*'],
+    'allowed_methods' =&gt; ['*'],
+    'allowed_origins' =&gt; [
+        env('FRONTEND_URL', 'http://localhost:3000'),
+    ],
+    'allowed_origins_patterns' =&gt; [
+        <span class="comment">// Preview builds Vercel : takussan-&lt;hash&gt;.vercel.app</span>
+        '#^https://takussan-[a-z0-9-]+\.vercel\.app$#',
+    ],
+    'allowed_headers' =&gt; ['*'],
+    'exposed_headers' =&gt; [],
+    'max_age' =&gt; 0,
+    'supports_credentials' =&gt; true,   <span class="comment">// OBLIGATOIRE pour Sanctum cookies</span>
+];</code></pre>
+      </div>
+
+      <h3>8.2 Côté Next.js — toujours envoyer les cookies</h3>
+
+      <div class="code-block" data-lang="typescript">
+        <div class="code-block-header"><span class="lang">typescript</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code><span class="comment">// Toutes les requêtes authentifiées doivent inclure les cookies</span>
+fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/...`, { credentials: 'include' });
+
+<span class="comment">// Avant un login Sanctum, demander le cookie CSRF</span>
+await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sanctum/csrf-cookie`, {
+  credentials: 'include',
+});</code></pre>
+      </div>
+
+      <div class="callout warn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div><p><strong>Le point devant <code>SESSION_DOMAIN</code> est essentiel.</strong> <code>.takussan.com</code> couvre tous les sous-domaines (<code>preview.takussan.com</code>, <code>preview.api.takussan.com</code>, etc.). Sans le point, le cookie posé par l'API n'est pas lisible par le front. L'isolation entre envs se fait via <code>SESSION_COOKIE</code> distinct (cf. §7).</p></div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         § 9 — SSH DEPLOY KEY
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="deploy-key">
+      <h2><span class="step-num">9</span>SSH GitHub Deploy Key</h2>
+
+      <div class="callout why">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        <div><p><strong>Pourquoi cette étape ?</strong> Le script <code>deploy.sh</code> sur le VPS doit cloner le repo Takussan depuis GitHub à chaque déploiement. Il a donc besoin d'une clé SSH qui prouve à GitHub que le VPS est autorisé à lire le repo.</p></div>
+      </div>
+
+      <p>Une <strong>deploy key</strong> est une clé SSH liée à <strong>un seul repo</strong> GitHub (≠ d'une clé user qui peut accéder à tous tes repos). Read-only suffit pour un deploy.</p>
+
+      <h3>9.1 Générer la clé sur le VPS, en tant que <code>deploy</code></h3>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header"><span class="lang">bash — sur le VPS</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code>ssh admin@&lt;IP_VPS&gt;
+sudo -iu deploy
+
+<span class="comment"># Générer une clé ed25519 dédiée Takussan, sans passphrase</span>
+ssh-keygen -t ed25519 -C "takussan-deploy-key" -f ~/.ssh/takussan_deploy -N ""
+
+<span class="comment"># Afficher la clé publique</span>
+cat ~/.ssh/takussan_deploy.pub</code></pre>
+      </div>
+
+      <h3>9.2 Ajouter la clé publique dans GitHub</h3>
+
+      <ol>
+        <li>Copie la clé publique affichée (commence par <code>ssh-ed25519 ...</code>).</li>
+        <li>Va dans GitHub → repo <code>takussan</code> → <em>Settings → Deploy keys → Add deploy key</em>.</li>
+        <li>Titre : <code>Contabo deploy</code>. Colle la clé.</li>
+        <li><strong>Ne coche PAS</strong> "Allow write access" — le deploy a juste besoin de lire.</li>
+        <li>Clique <em>Add key</em>.</li>
+      </ol>
+
+      <h3>9.3 Configurer l'alias SSH côté VPS</h3>
+
+      <p>On crée un alias <code>github.com-takussan</code> qui force SSH à utiliser <strong>cette clé spécifique</strong> pour ce repo. Sans ça, SSH essaierait toutes tes clés et pourrait s'identifier sur le mauvais repo.</p>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header"><span class="lang">bash — toujours en tant que deploy</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code>cat &gt;&gt; ~/.ssh/config &lt;&lt;'CFG'
+Host github.com-takussan
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/takussan_deploy
+    IdentitiesOnly yes
+CFG
+chmod 600 ~/.ssh/config
+
+<span class="comment"># Tester</span>
+ssh -T github.com-takussan
+<span class="comment"># Attendu : "Hi &lt;owner&gt;/takussan! You've successfully authenticated, but GitHub does not provide shell access."</span></code></pre>
+      </div>
+
+      <div class="callout troubleshoot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <div>
+          <p><strong>Si ssh -T affiche…</strong></p>
+          <ul>
+            <li><code>Hi &lt;owner&gt;/&lt;autre-repo&gt;!</code> → la clé est enregistrée sur le mauvais repo dans GitHub. GitHub n'autorise une même clé qu'à un seul repo en deploy key. Génère une nouvelle clé dédiée Takussan (étape 9.1).</li>
+            <li><code>Permission denied (publickey)</code> → la clé publique n'a pas été ajoutée au repo Takussan. Reprends l'étape 9.2.</li>
+            <li><code>Could not resolve hostname github.com-takussan</code> → le bloc <code>Host github.com-takussan</code> n'est pas dans <code>~/.ssh/config</code>. Vérifie avec <code>cat ~/.ssh/config</code>.</li>
+          </ul>
+        </div>
+      </div>
+
+      <p>Tu utiliseras cet alias dans le <code>REPO_URL</code> du secret GitHub (§10) : <code>git@github.com-takussan:&lt;owner&gt;/takussan.git</code>.</p>
+
+      <h3>9.4 SSH key pour GitHub Actions ↔ VPS</h3>
+
+      <p>GitHub Actions doit pouvoir se connecter au VPS pour y déclencher <code>deploy.sh</code>. Le secret <code>CONTABO_SSH_KEY</code> contient cette clé privée. <strong>Si CheckPrint est déjà déployé sur ce VPS, sa clé existe déjà</strong> — tu peux la réutiliser telle quelle, c'est le même user <code>deploy</code>.</p>
+
+      <details>
+        <summary>Si tu préfères créer une clé séparée pour Takussan</summary>
+        <div class="details-body">
+          <div class="code-block" data-lang="bash">
+            <div class="code-block-header"><span class="lang">bash — sur ton poste local</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+            <pre><code>ssh-keygen -t ed25519 -C "gh-actions-takussan" -f ~/.ssh/takussan_gh_actions -N ""
+ssh-copy-id -i ~/.ssh/takussan_gh_actions.pub deploy@&lt;IP_VPS&gt;
+
+<span class="comment"># La clé privée à coller dans CONTABO_SSH_KEY :</span>
+cat ~/.ssh/takussan_gh_actions</code></pre>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         § 10 — GITHUB ACTIONS SECRETS & ENVIRONMENT
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="gh-secrets">
+      <h2><span class="step-num">10</span>Secrets GitHub Actions</h2>
+
+      <div class="callout why">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s-8-4-8-12V5l8-3 8 3v5c0 8-8 12-8 12z"/></svg>
+        <div><p><strong>Pourquoi cette étape ?</strong> Les workflows GitHub Actions ont besoin de connaître l'IP du VPS, la clé SSH, l'URL du repo et le contenu du <code>.env</code>. Tout ça est stocké en secrets GitHub — chiffrés, jamais loggés.</p></div>
+      </div>
+
+      <h3>10.1 Secrets au niveau du repo</h3>
+
+      <p>Va dans GitHub → repo <code>takussan</code> → <em>Settings → Secrets and variables → Actions → New repository secret</em>. Ajoute ces 5 secrets :</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Nom</th><th>Valeur</th></tr></thead>
+          <tbody>
+            <tr><td><code>CONTABO_HOST</code></td><td>IP publique du VPS Contabo</td></tr>
+            <tr><td><code>CONTABO_USER</code></td><td><code>deploy</code></td></tr>
+            <tr><td><code>CONTABO_SSH_KEY</code></td><td>Clé privée GitHub Actions ↔ <code>deploy@VPS</code> (entête <code>-----BEGIN ... PRIVATE KEY-----</code> incluse)</td></tr>
+            <tr><td><code>REPO_URL</code></td><td><code>git@github.com-takussan:&lt;owner&gt;/takussan.git</code> (alias du §9.3)</td></tr>
+            <tr><td><code>ENV_FILE_PREVIEW</code></td><td>Contenu complet du <code>.env</code> preview préparé au §7 (avec APP_KEY et DB_PASSWORD remplis)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div><p>Le <code>REPO_URL</code> DOIT utiliser l'alias <code>github.com-takussan</code> (avec le tiret), pas <code>github.com:</code> classique. Sinon SSH ne sait pas quelle clé utiliser et peut tomber sur la mauvaise.</p></div>
+      </div>
+
+      <h3>10.2 Environment <code>production</code> + secret <code>ENV_FILE</code></h3>
+
+      <p>Pour la prod, on utilise un <strong>GitHub Environment</strong> qui isole le secret prod et ajoute une étape d'approbation manuelle avant chaque deploy. Sans ça, n'importe quel merge sur <code>master</code> déclencherait une prod déploy sans contrôle.</p>
+
+      <ol>
+        <li>GitHub → repo <code>takussan</code> → <em>Settings → Environments → New environment</em> → nom : <code>production</code>.</li>
+        <li>Coche <strong>Required reviewers</strong> → ajoute-toi (et/ou un co-mainteneur). Sans approbation manuelle, le workflow attend.</li>
+        <li>Dans <em>Environment secrets</em>, ajoute <code>ENV_FILE</code> (contenu prod préparé au §7).</li>
+      </ol>
+
+      <p>Le workflow <code>deploy.yml</code> référence déjà <code>environment: production</code> dans le job, donc le secret est lisible uniquement par ce job.</p>
+
+      <div class="code-block" data-lang="yaml">
+        <div class="code-block-header"><span class="lang">yaml — .github/workflows/deploy.yml (extrait)</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code>jobs:
+  deploy:
+    name: Deploy to Contabo
+    runs-on: ubuntu-latest
+    environment: production          <span class="comment"># ← gate l'accès à ENV_FILE</span>
+    steps:
+      ...</code></pre>
+      </div>
+
+      <div class="callout info">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <div><p>Si tu préfères ne pas avoir d'approval gate (deploys prod automatiques au merge), retire la ligne <code>environment: production</code> du workflow et stocke <code>ENV_FILE</code> au niveau repo. À éviter en début de prod — l'approval gate t'évite des merges accidentels.</p></div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         § 11 — SSL LET'S ENCRYPT
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="ssl">
+      <h2><span class="step-num">11</span>SSL Let's Encrypt</h2>
+
+      <div class="callout why">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <div><p><strong>Pourquoi cette étape ?</strong> Pour servir l'API en HTTPS. Sans certificat, le navigateur bloque les cookies cross-domain (cookies "Secure" obligatoires en cross-site), et Sanctum ne marche pas.</p></div>
+      </div>
+
+      <p><strong>Prérequis</strong> : les DNS du §2 doivent être propagés (les A records <code>api</code> et <code>preview.api</code> doivent résoudre vers l'IP du VPS). Certbot a besoin de joindre <code>/.well-known/acme-challenge/</code> sur le domaine pour valider que tu en es propriétaire.</p>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header"><span class="lang">bash — sur le VPS</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code><span class="comment"># Certificat preview</span>
+sudo certbot --nginx \
+  -d preview.api.takussan.com \
+  --redirect --agree-tos -m mouhamadoulaminethiam97@gmail.com --no-eff-email
+
+<span class="comment"># Certificat prod</span>
+sudo certbot --nginx \
+  -d api.takussan.com \
+  --redirect --agree-tos -m mouhamadoulaminethiam97@gmail.com --no-eff-email
+
+<span class="comment"># Tester le renouvellement automatique (ne renouvelle pas vraiment, juste un dry-run)</span>
+sudo certbot renew --dry-run</code></pre>
+      </div>
+
+      <p>Certbot modifie les vhosts Nginx pour ajouter le bloc <code>listen 443 ssl</code> + un 301 redirect HTTP → HTTPS. Pas besoin d'y toucher après.</p>
+
+      <div class="callout ok">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <div><p>Le renouvellement automatique est installé en cron par le paquet <code>certbot</code> (<code>/etc/cron.d/certbot</code>). Tu n'as plus rien à faire — les certs se renouvellent tout seuls 30 jours avant expiration. Le <code>--dry-run</code> ci-dessus vérifie juste que le mécanisme marche.</p></div>
+      </div>
+
+      <div class="callout troubleshoot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <div>
+          <p><strong>Si certbot timeout sur l'API…</strong></p>
+          <ul>
+            <li>Vérifie que le record A correspondant dans Cloudflare est bien en <strong>DNS only (gris)</strong> et propagé (<code>dig +short api.takussan.com</code>).</li>
+            <li>Si tu utilises Cloudflare en Proxied (orange), Certbot HTTP-01 fonctionne quand même tant que CF n'intercepte pas <code>/.well-known/acme-challenge/</code>. Alternative robuste : <code>certbot --dns-cloudflare</code> avec un API token CF.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         § 12 — DEPLOY.SH & WORKFLOWS
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="deploy-script">
+      <h2><span class="step-num">12</span><code>deploy.sh</code> &amp; workflows GitHub Actions</h2>
+
+      <div class="callout why">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        <div><p><strong>Pourquoi cette étape ?</strong> C'est le cœur du système. <code>deploy.sh</code> orchestre chaque déploiement (clone, build, migrate, swap atomique, healthcheck). Les workflows GitHub Actions le déclenchent automatiquement à chaque push sur <code>preview</code> ou <code>master</code>.</p></div>
+      </div>
+
+      <h3>12.1 Comment <code>deploy.sh</code> fonctionne</h3>
+
+      <p>Le script est versionné à <code>scripts/deploy.sh</code> dans le repo et poussé sur le VPS par GitHub Actions à chaque run (la version sur le VPS est donc toujours celle du commit en cours). Étapes :</p>
+
+      <ol>
+        <li><strong>Pré-flight</strong> : écrit le <code>.env</code> depuis le secret GH, valide qu'<code>APP_KEY=base64:...</code> est bien présent (FATAL sinon).</li>
+        <li><strong>Clone</strong> de la branche dans <code>releases/&lt;timestamp&gt;/</code>.</li>
+        <li><strong>Symlinks</strong> du <code>.env</code> et de <code>storage/</code> partagés (depuis <code>shared/</code>) dans la nouvelle release.</li>
+        <li><strong>Composer install</strong> + <strong>npm ci + npm run build</strong> + <strong>rm node_modules</strong> (économise ~500 MB par release).</li>
+        <li><strong>Migrations</strong> (<code>php artisan migrate --force</code>).</li>
+        <li><strong>Caches</strong> (config, route, view).</li>
+        <li><strong>Swap atomique</strong> : <code>current</code> pointe vers la nouvelle release.</li>
+        <li><strong>Reload PHP-FPM</strong> pour vider opcache (sinon le code reste le précédent !).</li>
+        <li><strong>Healthcheck</strong> : <code>curl 127.0.0.1/up</code> ; non-200 → rollback automatique.</li>
+        <li><strong>Restart queue workers</strong>.</li>
+        <li><strong>Cleanup</strong> : garde les 5 dernières releases.</li>
+      </ol>
+
+      <div class="callout ok">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <div><p>Si une étape échoue (composer, migrate, healthcheck…), le <code>trap rollback ERR</code> restaure le symlink <code>current</code> sur la release précédente et supprime la release fautive. <strong>Aucune intervention manuelle requise pour les ratés courants.</strong></p></div>
+      </div>
+
+      <h3>12.2 Les deux workflows GitHub Actions</h3>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Fichier</th><th>Branche</th><th>App dir</th><th>Secret env</th><th>Smoke test</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>deploy-preview.yml</code></td><td><code>preview</code></td><td><code>/var/www/takussan-preview</code></td><td><code>ENV_FILE_PREVIEW</code></td><td><code>preview.api.takussan.com/up</code></td></tr>
+            <tr><td><code>deploy.yml</code></td><td><code>master</code></td><td><code>/var/www/takussan</code></td><td><code>ENV_FILE</code></td><td><code>api.takussan.com/up</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Les deux suivent la même structure :</p>
+
+      <ol>
+        <li><code>actions/checkout@v4</code></li>
+        <li><code>appleboy/scp-action@v1</code> → pousse <code>scripts/deploy.sh</code> sur <code>${APP_DIR}/</code></li>
+        <li><code>appleboy/ssh-action@v1</code> → exécute <code>deploy.sh &lt;REPO_URL&gt; &lt;branch&gt; ${APP_DIR}</code> avec injection de <code>$ENV_FILE</code></li>
+        <li>Step <strong>Smoke test</strong> → <code>curl -fsS https://&lt;host&gt;/up</code> qui fail le run si l'API ne répond pas</li>
+      </ol>
+
+      <div class="code-block" data-lang="yaml">
+        <div class="code-block-header"><span class="lang">yaml — .github/workflows/deploy-preview.yml (extrait clé)</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code>on:
+  push:
+    branches: [preview]
+    paths:
+      - "takussan-api/**"
+      - "scripts/deploy.sh"
+      - ".github/workflows/deploy-preview.yml"
+  workflow_dispatch:                       <span class="comment"># bouton "Run workflow" manuel</span>
+
+concurrency:
+  group: takussan-preview-deploy
+  cancel-in-progress: false                <span class="comment"># 2 pushes rapprochés se sérialisent</span></code></pre>
+      </div>
+
+      <h3>12.3 Créer les branches dans le repo</h3>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header"><span class="lang">bash — sur ton poste local</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code><span class="comment"># Si la branche preview n'existe pas encore</span>
+git checkout -b preview
+git push -u origin preview</code></pre>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         § 13 — PREMIER DÉPLOIEMENT
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="first-deploy">
+      <h2><span class="step-num">13</span>Premier déploiement (preview → prod)</h2>
+
+      <div class="callout why">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <div><p><strong>Pourquoi cette stratégie ?</strong> On déploie d'abord en preview pour valider que tout marche bout-en-bout, puis seulement après on merge sur <code>master</code> pour déployer en prod. Cette validation intermédiaire évite 90% des incidents prod.</p></div>
+      </div>
+
+      <h3>13.1 Lancer le premier deploy <span class="tag-preview">preview</span></h3>
+
+      <p>Deux options : pousser un commit sur <code>preview</code>, ou déclencher manuellement le workflow.</p>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header"><span class="lang">bash — option 1 : push</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code>git checkout preview
+git push origin preview</code></pre>
+      </div>
+
+      <p>Ou option 2 : GitHub → <em>Actions</em> → <em>Deploy Laravel API (Preview)</em> → <em>Run workflow</em> sur <code>preview</code>.</p>
+
+      <h3>13.2 Démarrer la queue (une fois <code>current/</code> créé)</h3>
+
+      <p>Le service queue est <em>enabled</em> par <code>server-setup.sh</code> mais pas <em>started</em> tant que <code>current/</code> n'existe pas (sinon systemd échoue en boucle). Au premier deploy réussi, démarre-le :</p>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header"><span class="lang">bash — sur le VPS, en tant que deploy</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code>ssh deploy@&lt;IP_VPS&gt;
+
+<span class="comment"># Preview</span>
+sudo /bin/systemctl start takussan-queue-preview
+sudo systemctl status takussan-queue-preview --no-pager
+
+<span class="comment"># Plus tard, idem pour prod après le premier deploy master :</span>
+<span class="comment"># sudo /bin/systemctl start takussan-queue</span></code></pre>
+      </div>
+
+      <h3>13.3 Checklist de validation preview</h3>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header"><span class="lang">bash — checks depuis ton poste local + VPS</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code><span class="comment"># API healthcheck</span>
+curl https://preview.api.takussan.com/up
+
+<span class="comment"># Front</span>
+curl -I https://preview.takussan.com/
+
+<span class="comment"># Logs sur le VPS</span>
+sudo tail -f /var/www/takussan-preview/shared/storage/logs/laravel.log
+sudo tail -f /var/www/takussan-preview/shared/storage/logs/queue-worker.log
+sudo tail -f /var/log/nginx/preview.api.takussan.com.error.log
+sudo journalctl -u takussan-queue-preview -f</code></pre>
+      </div>
+
+      <div class="checklist">
+        <div class="check"><input type="checkbox" id="ck-front-prev"><label for="ck-front-prev">Front charge sur <code>preview.takussan.com</code></label></div>
+        <div class="check"><input type="checkbox" id="ck-api-prev"><label for="ck-api-prev">API <code>/up</code> répond 200</label></div>
+        <div class="check"><input type="checkbox" id="ck-csrf-prev"><label for="ck-csrf-prev"><code>/sanctum/csrf-cookie</code> → 204 + Set-Cookie</label></div>
+        <div class="check"><input type="checkbox" id="ck-login-prev"><label for="ck-login-prev">Login OK + session conservée</label></div>
+        <div class="check"><input type="checkbox" id="ck-mig-prev"><label for="ck-mig-prev">Migrations passées</label></div>
+        <div class="check"><input type="checkbox" id="ck-queue-prev"><label for="ck-queue-prev">Queue worker actif</label></div>
+        <div class="check"><input type="checkbox" id="ck-cron-prev"><label for="ck-cron-prev">Cron scheduler tourne (<code>sudo grep CRON /var/log/syslog | grep deploy</code>)</label></div>
+      </div>
+
+      <h3>13.4 Passer en prod <span class="tag-prod">prod</span></h3>
+
+      <p>Quand preview est validée :</p>
+
+      <ol>
+        <li>Merge <code>preview</code> → <code>master</code> via PR (ou fast-forward).</li>
+        <li>GitHub → <em>Actions</em> → <em>Deploy Laravel API</em> → si l'Environment <code>production</code> est activé, <strong>approuve manuellement</strong> le run en attente.</li>
+        <li>Une fois <code>/var/www/takussan/current/</code> créé, démarre la queue prod (cf. 13.2 avec <code>takussan-queue</code>).</li>
+        <li>Refait les checks du §13.3 sur <code>takussan.com</code> et <code>api.takussan.com</code>.</li>
+      </ol>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         § 14 — ROLLBACK
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="rollback">
+      <h2><span class="step-num">14</span>Rollback</h2>
+
+      <div class="callout why">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        <div><p><strong>Pourquoi cette étape ?</strong> Si un deploy casse la prod, tu dois pouvoir revenir à l'ancienne version <strong>immédiatement</strong>. Il y a deux niveaux : automatique (intégré à <code>deploy.sh</code>) et manuel (si tu détectes le problème après coup).</p></div>
+      </div>
+
+      <div class="callout troubleshoot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <div>
+          <p><strong>⚠️ Ce que le rollback NE PEUT PAS annuler : les migrations (mesuré le 2026-08-12)</strong></p>
+          <p>Les deux niveaux décrits ci-dessous restaurent le <strong>code</strong> — le symlink <code>current</code> repointe sur la release précédente. Ils ne touchent pas au <strong>schéma</strong> : <code>deploy.sh</code> ne joue jamais <code>migrate:rollback</code>, et c'est délibéré. Une base revenue en arrière pendant qu'un ancien code tourne dessus est plus dangereuse qu'un schéma en avance.</p>
+          <p><strong>Et une migration est irréversible par construction.</strong> <code>2026_05_18_120000_drop_spatie_permission_tables</code> — le cutover RBAC de TCK-278 — lève une exception dans son <code>down()</code> : reconstituer des rôles historiques depuis un seeder n'aurait restauré qu'une approximation, ce qui est pire qu'un refus. <strong>Il n'existe donc aucune marche arrière de schéma au-delà de cette migration</strong>, seulement une restauration de dump.</p>
+          <p><strong>Conséquence opérationnelle, à tenir avant d'en avoir besoin :</strong></p>
+          <ol>
+            <li><strong>Dump avant chaque déploiement qui porte une migration.</strong> C'est la seule marche arrière réelle : <code>mysqldump --single-transaction --routines takussan_prod &gt; /var/backups/takussan/pre-deploy-$(date +%F-%H%M).sql</code></li>
+            <li>Vérifier que le dump est <strong>non vide et relisible</strong> avant de lancer le deploy — un dump qu'on n'a jamais relu n'est pas une sauvegarde.</li>
+            <li>Le job <code>migrations-mysql</code> de la CI rejoue chaque migration <strong>aller ET retour</strong> sur MariaDB avant le merge. Il a trouvé un <code>down()</code> cassé sur trois tables à sa première exécution : la suite de tests n'exécute <em>aucun</em> <code>down()</code>, et SQLite acceptait ce que MySQL refuse.</li>
+          </ol>
+        </div>
+      </div>
+
+      <h3>14.1 Rollback automatique pendant le deploy</h3>
+
+      <p>Le <code>trap rollback ERR</code> dans <code>deploy.sh</code> restaure le symlink <code>current</code> sur la release précédente <strong>si une étape post-clone échoue</strong> (composer, migrate, healthcheck non-200, etc.). Tu n'as rien à faire.</p>
+
+      <h3>14.2 Rollback manuel (après coup)</h3>
+
+      <p>Si un deploy est passé sans erreur mais que tu réalises qu'il a introduit un bug, tu peux pointer <code>current</code> sur une release antérieure :</p>
+
+      <div class="code-block" data-lang="bash">
+        <div class="code-block-header"><span class="lang">bash — sur le VPS</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+        <pre><code>ssh deploy@&lt;IP_VPS&gt;
+
+<span class="comment"># Adapter le chemin selon l'env : /var/www/takussan-preview/ ou /var/www/takussan/</span>
+cd /var/www/takussan/releases
+ls -1t                                    <span class="comment"># lister les releases par date décroissante</span>
+
+<span class="comment"># Pointer current vers la release précédente</span>
+ln -sfn /var/www/takussan/releases/&lt;ID_PRECEDENT&gt;/takussan-api \
+       /var/www/takussan/current
+
+<span class="comment"># Reload PHP-FPM pour purger opcache</span>
+sudo -n /bin/systemctl reload php$(cat /etc/takussan/php-version)-fpm
+
+<span class="comment"># Signaler la queue pour qu'elle reload</span>
+cd /var/www/takussan/current && php artisan queue:restart</code></pre>
+      </div>
+
+      <h3>14.3 Rollback front (Vercel)</h3>
+
+      <p>Pour le front : dashboard Vercel → <em>Deployments</em> → trouve le deploy précédent stable → menu <em>···</em> → <em>Promote</em>.</p>
+
+      <div class="callout warn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div><p><strong>Attention DB</strong> : le rollback restaure le <em>code</em> mais pas le <em>schéma DB</em>. Si la release fautive a tourné <code>migrate --force</code>, les tables/colonnes ajoutées sont toujours là. Écris toujours des migrations <strong>rétrocompatibles</strong> (ajouter des colonnes nullable, jamais drop sans 2 deploys séparés).</p></div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         § 15 — DÉPANNAGE
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="troubleshoot">
+      <h2><span class="step-num">15</span>Dépannage</h2>
+
+      <div class="callout info">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <div><p>Erreurs classiques rencontrées en première mise en place. Cherche celle qui ressemble à ton symptôme.</p></div>
+      </div>
+
+      <details>
+        <summary>CORS error côté Next.js</summary>
+        <div class="details-body">
+          <ul>
+            <li><strong>"No 'Access-Control-Allow-Origin' header"</strong> → <code>FRONTEND_URL</code> dans le secret <code>ENV_FILE_PREVIEW</code> ne match pas l'origin. Corrige et redéploie.</li>
+            <li><strong>"…Access-Control-Allow-Credentials is not 'true'"</strong> → <code>supports_credentials =&gt; true</code> dans <code>config/cors.php</code>. Le prochain deploy re-cache automatiquement avec <code>php artisan config:cache</code>.</li>
+          </ul>
+        </div>
+      </details>
+
+      <details>
+        <summary>Login passe mais requêtes suivantes 401</summary>
+        <div class="details-body">
+          <ul>
+            <li><code>credentials: 'include'</code> oublié côté Next.</li>
+            <li><code>SESSION_DOMAIN</code> sans point devant.</li>
+            <li><code>SESSION_SAME_SITE=strict</code> au lieu de <code>lax</code>.</li>
+            <li>HTTPS manquant d'un côté (l'un en HTTPS, l'autre en HTTP).</li>
+          </ul>
+        </div>
+      </details>
+
+      <details>
+        <summary>deploy.sh : "Permission denied (publickey)" lors du git clone</summary>
+        <div class="details-body">
+          <p>La Deploy Key (§9) n'est pas en place ou l'alias SSH n'est pas utilisé.</p>
+          <div class="code-block" data-lang="bash">
+            <div class="code-block-header"><span class="lang">bash — sur le VPS, en tant que deploy</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+            <pre><code>ssh -T github.com-takussan
+<span class="comment"># Doit dire "Hi &lt;owner&gt;/takussan!"</span>
+<span class="comment"># Si non : revoir ~/.ssh/config et la deploy key dans GitHub</span></code></pre>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>Queue worker ne consomme pas les jobs après deploy</summary>
+        <div class="details-body">
+          <p><code>php artisan queue:restart</code> envoie juste un signal — le worker en cours finit son job puis exit. <code>Restart=always</code> dans systemd le redémarre automatiquement. Vérifier :</p>
+          <div class="code-block" data-lang="bash">
+            <div class="code-block-header"><span class="lang">bash</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+            <pre><code>sudo systemctl status takussan-queue-preview --no-pager
+sudo journalctl -u takussan-queue-preview -n 50 --no-pager
+<span class="comment"># Si DOWN : sudo systemctl start takussan-queue-preview</span></code></pre>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>502 Bad Gateway sur l'API</summary>
+        <div class="details-body">
+          <div class="code-block" data-lang="bash">
+            <div class="code-block-header"><span class="lang">bash</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+            <pre><code><span class="comment"># PHP-FPM tourne-t-il ?</span>
+sudo systemctl status php8.4-fpm
+sudo tail -30 /var/log/nginx/preview.api.takussan.com.error.log
+
+<span class="comment"># Le socket existe-t-il ?</span>
+sudo ls -la /run/php/takussan.sock /run/php/takussan-preview.sock
+
+<span class="comment"># Tester la config FPM</span>
+sudo php-fpm8.3 -tt 2>&amp;1 | grep -i takussan</code></pre>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>Le secret ENV_FILE n'arrive pas dans deploy.sh</summary>
+        <div class="details-body">
+          <p>Vérifie dans le workflow que <code>envs: ENV_FILE</code> ET <code>env: ENV_FILE: ${{ secrets.ENV_FILE_PREVIEW }}</code> sont bien tous les deux présents dans le step <code>appleboy/ssh-action</code>.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Cron scheduler ne se déclenche pas</summary>
+        <div class="details-body">
+          <div class="code-block" data-lang="bash">
+            <div class="code-block-header"><span class="lang">bash</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+            <pre><code>sudo crontab -u deploy -l | grep takussan
+<span class="comment"># Si absent : relancer server-setup.sh</span>
+sudo grep CRON /var/log/syslog | tail -20</code></pre>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>deploy.sh : "cd: takussan-api: No such file or directory"</summary>
+        <div class="details-body">
+          <p>Le clone complet du repo doit contenir <code>takussan-api/</code> à la racine. Si le sous-dossier est renommé ou déplacé, <code>deploy.sh</code> casse. Vérifier :</p>
+          <div class="code-block" data-lang="bash">
+            <div class="code-block-header"><span class="lang">bash</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+            <pre><code>ls /var/www/takussan-preview/releases/&lt;ts&gt;/
+<span class="comment"># → doit contenir takussan-api/ takussan-web/ docs/ ...</span></code></pre>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>"sudo: a password is required" dans deploy.sh</summary>
+        <div class="details-body">
+          <p>Le sudoers entry du §5 n'est pas en place. Vérifier :</p>
+          <div class="code-block" data-lang="bash">
+            <div class="code-block-header"><span class="lang">bash — sur le VPS</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
+            <pre><code>sudo cat /etc/sudoers.d/takussan-deploy
+sudo visudo -c -f /etc/sudoers.d/takussan-deploy
+
+<span class="comment"># Si absent ou invalide : relancer server-setup.sh</span></code></pre>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         § 16 — GO-LIVE CHECKLIST
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="golive">
+      <h2><span class="step-num">16</span>Check-list go-live</h2>
+
+      <div class="callout why">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <div><p><strong>Pourquoi cette étape ?</strong> Avant d'ouvrir <code>takussan.com</code> au public, parcours cette checklist. Chaque case décochée est un risque d'incident en prod.</p></div>
+      </div>
+
+      <div class="checklist">
+        <div class="check"><input type="checkbox" id="g1"><label for="g1">Front charge sur <code>takussan.com</code></label></div>
+        <div class="check"><input type="checkbox" id="g2"><label for="g2">API <code>https://api.takussan.com/up</code> → 200</label></div>
+        <div class="check"><input type="checkbox" id="g3"><label for="g3"><code>/sanctum/csrf-cookie</code> → 204 + Set-Cookie sur <code>.takussan.com</code></label></div>
+        <div class="check"><input type="checkbox" id="g4"><label for="g4">Login OK + session conservée entre <code>takussan.com</code> et <code>api.takussan.com</code></label></div>
+        <div class="check"><input type="checkbox" id="g5"><label for="g5">Cookie front porte bien <code>takussan_session</code> (et <strong>pas</strong> <code>takussan_session_preview</code> → confirme l'isolation env)</label></div>
+        <div class="check"><input type="checkbox" id="g6"><label for="g6">Migrations prod passées</label></div>
+        <div class="check"><input type="checkbox" id="g7"><label for="g7"><code>sudo systemctl status takussan-queue</code> → active (running)</label></div>
+        <div class="check"><input type="checkbox" id="g8"><label for="g8">Cron scheduler prod tourne (<code>sudo crontab -u deploy -l | grep /var/www/takussan/current</code>)</label></div>
+        <div class="check"><input type="checkbox" id="g9"><label for="g9"><code>APP_DEBUG=false</code> + <code>APP_ENV=production</code> confirmés (<code>php artisan about</code> sur le serveur)</label></div>
+        <div class="check"><input type="checkbox" id="g10"><label for="g10">Backup MySQL cron en place (<code>mysqldump</code> + copie offsite — S3/Bunny/rclone)</label></div>
+        <div class="check"><input type="checkbox" id="g11"><label for="g11">Monitoring uptime externe sur <code>/up</code> (UptimeRobot, BetterStack…)</label></div>
+        <div class="check"><input type="checkbox" id="g12"><label for="g12">Sentry (ou équivalent) capturant les erreurs Laravel + front</label></div>
+        <div class="check"><input type="checkbox" id="g13"><label for="g13">Vercel Analytics actif sur la prod</label></div>
+        <div class="check"><input type="checkbox" id="g14"><label for="g14">Certbot renew testé (<code>sudo certbot renew --dry-run</code>)</label></div>
+      </div>
+
+      <hr>
+
+      <p class="footer-note">
+        Guide aligné sur le pattern de déploiement CheckPrint Plus déjà en place sur le même VPS Contabo. User <code>deploy</code> partagé, infrastructure runtime mutualisée, isolation applicative via dossiers, pools, bases et services systemd dédiés.
+      </p>
+    </section>
+
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCRIPTS
+     ═══════════════════════════════════════════════════════════ -->
+<script>
+(function() {
+  'use strict';
+
+  // ─── Module 1 — Copy buttons ────────────────────────────────
+  document.querySelectorAll('.code-block').forEach(function(block) {
+    var btn  = block.querySelector('.copy-btn');
+    var code = block.querySelector('code');
+    if (!btn || !code) return;
+
+    btn.addEventListener('click', function() {
+      var text = code.textContent.replace(/^\s+|\s+$/g, '');
+      var done = function() {
+        btn.classList.add('copied');
+        setTimeout(function() { btn.classList.remove('copied'); }, 1500);
+      };
+
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(done).catch(fallback);
+      } else {
+        fallback();
+      }
+
+      function fallback() {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); done(); }
+        catch (e) { console.warn('Copy failed:', e); }
+        document.body.removeChild(ta);
+      }
+    });
+  });
+
+  // ─── Module 2 — Active TOC via IntersectionObserver ─────────
+  var tocLinks = new Map();
+  document.querySelectorAll('.toc a').forEach(function(a) {
+    var href = a.getAttribute('href');
+    if (href && href.startsWith('#')) tocLinks.set(href.slice(1), a);
+  });
+
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function(entries) {
+      // Use the first intersecting entry that's closest to the top
+      var visible = entries.filter(function(e) { return e.isIntersecting; });
+      if (visible.length === 0) return;
+      // Pick the topmost visible
+      visible.sort(function(a, b) { return a.boundingClientRect.top - b.boundingClientRect.top; });
+      var id = visible[0].target.id;
+      document.querySelectorAll('.toc a.active').forEach(function(a) { a.classList.remove('active'); });
+      var link = tocLinks.get(id);
+      if (link) {
+        link.classList.add('active');
+        // Scroll the active link into view in the sidebar if needed
+        var sb = document.querySelector('.sidebar');
+        if (sb) {
+          var r = link.getBoundingClientRect();
+          var sr = sb.getBoundingClientRect();
+          if (r.top < sr.top || r.bottom > sr.bottom) {
+            link.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          }
+        }
+      }
+    }, { rootMargin: '-30% 0px -60% 0px', threshold: 0 });
+
+    document.querySelectorAll('section[id]').forEach(function(s) { io.observe(s); });
+  }
+
+  // ─── Module 3 — Mobile menu toggle ──────────────────────────
+  var toggle  = document.querySelector('.menu-toggle');
+  var sidebar = document.getElementById('sidebar');
+  var backdrop = document.getElementById('backdrop');
+
+  function closeSidebar() {
+    sidebar.classList.remove('open');
+    backdrop.classList.remove('open');
+  }
+  function openSidebar() {
+    sidebar.classList.add('open');
+    backdrop.classList.add('open');
+  }
+
+  if (toggle && sidebar && backdrop) {
+    toggle.addEventListener('click', function() {
+      if (sidebar.classList.contains('open')) closeSidebar();
+      else openSidebar();
+    });
+    backdrop.addEventListener('click', closeSidebar);
+    sidebar.querySelectorAll('a[href^="#"]').forEach(function(a) {
+      a.addEventListener('click', function() {
+        if (window.innerWidth < 900) closeSidebar();
+      });
+    });
+  }
+})();
+</script>
+
+</body>
+</html>

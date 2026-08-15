@@ -45,7 +45,7 @@ export type UserLocation = {
 type UserLocationContextValue = {
   /** Réponse brute ipapi — `null` tant que le fetch n'a pas répondu (ou a échoué). */
   location: UserLocation | null;
-  /** `true` pendant le tout premier fetch (ignore le cache hit, qui est synchrone). */
+  /** `true` jusqu'à la première résolution — cache compris, qui est reporté d'une micro-tâche. */
   loading: boolean;
   /** Raccourci pratique : `location.city` avec fallback Dakar — toujours safe à afficher. */
   city: string;
@@ -70,23 +70,56 @@ export function UserLocationProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const cached = JSON.parse(raw) as Cached;
-        if (cached.data && Date.now() - cached.at < TTL_MS) {
-          setLocation(cached.data);
-          setLoading(false);
-          return;
-        }
-      }
-    } catch {
-      // localStorage indisponible (Safari privé) — on tombe sur le fetch.
-    }
+    // Le cache et le fetch passent par le MÊME flux asynchrone, et c'est délibéré.
+    //
+    // La version d'origine lisait localStorage puis appelait `setLocation` + `setLoading`
+    // directement dans le corps de l'effet : un setState synchrone pendant la phase de commit,
+    // qui force React à re-rendre l'arbre entier avant même que le navigateur ait peint. Sur un
+    // provider monté à la racine, la cascade touche toute la page.
+    //
+    // La lecture ne peut pas remonter dans un initialiseur paresseux de `useState` : le
+    // composant est rendu côté serveur, où `window` n'existe pas, et une valeur lue au premier
+    // rendu client ferait diverger l'hydratation. D'où le report explicite ci-dessous.
+    void (async () => {
+      // Ce `await` sort le `setState` du corps synchrone de l'effet — ce que la règle de lint
+      // vise réellement. Ni plus, ni moins.
+      //
+      // ⚠ Le commentaire qui occupait cette place affirmait que, sans lui, le chemin du cache
+      // partait « pendant la phase de commit de l'effet, avant même que le navigateur ait
+      // peint ». C'est FAUX : `useEffect` est un effet *passif*, il s'exécute déjà après la
+      // peinture (c'est `useLayoutEffect` qui commit de façon bloquante). La cascade décrite
+      // n'existait pas, et le raisonnement qui la décrivait était plus assuré que le fait.
+      //
+      // Ce que ce `await` fait vraiment : il reporte la suite d'une micro-tâche. Le corps d'une
+      // fonction `async` s'exécute bien synchroniquement jusqu'au premier `await`, donc sans
+      // lui le `setState` du chemin cache resterait dans le corps synchrone de l'effet — ce que
+      // `react-hooks/set-state-in-effect` interdit, à juste titre, parce que cela force un
+      // second rendu immédiat. Le coût : sur un cache chaud, `loading` retombe une micro-tâche
+      // plus tard, donc au minimum un tick de rendu avec le squelette.
+      //
+      // *Un correctif juste assorti d'une explication fausse se propage quand même — et c'est
+      // l'explication qu'on relit, pas le correctif.*
+      await Promise.resolve();
 
-    fetch('https://ipapi.co/json/')
-      .then((r) => (r.ok ? (r.json() as Promise<UserLocation>) : null))
-      .then((data) => {
+      try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const cached = JSON.parse(raw) as Cached;
+          if (cached.data && Date.now() - cached.at < TTL_MS) {
+            if (!cancelled) {
+              setLocation(cached.data);
+              setLoading(false);
+            }
+            return;
+          }
+        }
+      } catch {
+        // localStorage indisponible (Safari privé) — on tombe sur le fetch.
+      }
+
+      try {
+        const r = await fetch('https://ipapi.co/json/');
+        const data = r.ok ? ((await r.json()) as UserLocation) : null;
         if (cancelled || !data) return;
         try {
           window.localStorage.setItem(
@@ -97,13 +130,12 @@ export function UserLocationProvider({ children }: { children: ReactNode }) {
           // ignore quota / private mode errors
         }
         setLocation(data);
-      })
-      .catch(() => {
+      } catch {
         // garde location=null → consommateurs basculent sur leurs fallbacks
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;

@@ -1,5 +1,22 @@
 # Rapport d'analyse — Backend vs `features.md`
 
+> ## ⛔ DOCUMENT PÉRIMÉ — ne pas s'en servir pour prioriser
+>
+> **Audit code-vs-spec daté du 2026-04-18. Re-mesuré le 2026-08-12 : il est faux.**
+>
+> Il déclare **25 fonctionnalités « ❌ non implémenté »**. **20 d'entre elles sont implémentées
+> aujourd'hui** — « Aucun endpoint `unpublish` n'existe » alors que `routes/api/properties.php:42`
+> le définit ; « Dupliquer un bien ❌ » alors que la route et `PropertyPolicy::duplicate()`
+> existent ; « Aucun job de rappel de visite » alors que `SendPropertyVisitReminders` est planifié
+> toutes les cinq minutes.
+>
+> **Un agent qui le lit pour prioriser rouvre des chantiers finis.** C'est le piège le plus coûteux
+> de `docs/` : il ne se présente pas comme une opinion mais comme une mesure, et sa forme
+> (tableaux, ✅/❌) inspire une confiance que son contenu ne mérite plus.
+>
+> Conservé pour son historique et sa méthode. L'état réel du projet est dans
+> [`../CLAUDE.md`](../CLAUDE.md) ; les manquements mesurés sont dans [`ardoise.md`](ardoise.md).
+
 > Audit du 18/04/2026.
 > Comparaison systématique de chaque fonctionnalité **P0** et **P1** du [catalogue fonctionnel](./features.md) avec le code backend existant (`takussan-api`).
 

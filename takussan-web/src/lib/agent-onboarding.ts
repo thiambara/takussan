@@ -4,7 +4,7 @@ import { apiRequest } from './api';
  * TCK-259 — wire types & helpers for the post-acceptance Agent
  * onboarding wizard.
  *
- * The wizard talks to four backend endpoints:
+ * The wizard talks to five backend endpoints:
  *  1. POST  /api/me/agent-profiles/{id}/kyc/upload         — multipart license/cni/photo
  *  2. POST  /api/me/agent-profiles/{id}/kyc/submit         — flips KYC to pending_review
  *  3. PATCH /api/me/agent-profiles/{id}/specialization     — specialty + zones + license_number

@@ -21,6 +21,22 @@ class TestPropertiesPolicy extends BasePolicy
     }
 }
 
+/**
+ * BasePolicy maps each CRUD method to a `{resource}.{action}` ability and
+ * defers to the Gate. Since TCK-278 those abilities resolve through
+ * `MembershipCapabilityResolver`, so a method only grants access when a
+ * matching `Capability` case exists *and* one of the user's profiles grants
+ * it. The `properties` resource is a useful probe because its capability map
+ * is deliberately partial:
+ *
+ *   - `properties.create` / `properties.delete` → real Capability cases.
+ *   - `properties.view`                         → no atomic case (denied).
+ *   - `properties.update`                       → only `update_own`/`update_any`
+ *                                                  exist, so the generic ability
+ *                                                  is undefined (denied).
+ *
+ * `super_admin` short-circuits everything via the global `Gate::before` hook.
+ */
 class BasePolicyTest extends TestCase
 {
     use RefreshDatabase;
@@ -36,27 +52,67 @@ class BasePolicyTest extends TestCase
         $this->agency = Agency::factory()->create();
     }
 
-    public function test_user_with_view_permission_can_view_any_and_view(): void
+    public function test_view_abilities_have_no_atomic_capability_and_are_denied(): void
     {
-        // TCK-278 — `properties.view` / `properties.create` n'existent plus
-        // comme capacités atomiques : la nouvelle table de vérité du
-        // `MembershipCapabilityResolver` ne définit pas de CRUD générique.
-        // La vue/création d'une Property passe désormais par `PropertyPolicy`
-        // (auto-discovered) qui applique des règles métier explicites.
-        $this->markTestSkipped('Obsolète depuis TCK-278 — la sémantique CRUD générique est remplacée par des policies métier.');
-    }
-
-    public function test_user_with_create_permission_can_create(): void
-    {
-        $this->markTestSkipped('Obsolète depuis TCK-278 — voir test_user_with_view_permission_can_view_any_and_view.');
-    }
-
-    public function test_user_without_delete_permission_cannot_delete(): void
-    {
-        $user = $this->userWithRole('agent');
+        // TCK-278 — `properties.view` is not a Capability case: the generic
+        // "read" CRUD ability no longer exists. Even an agency_admin, who
+        // otherwise holds the full agency scope, is denied viewAny/view here.
+        $admin = $this->userWithRole('agency_admin');
         $property = new Property;
 
-        $this->assertFalse($this->policy->delete($user, $property));
+        $this->assertFalse($this->policy->viewAny($admin));
+        $this->assertFalse($this->policy->view($admin, $property));
+    }
+
+    public function test_generic_update_ability_has_no_atomic_capability_and_is_denied(): void
+    {
+        // TCK-278 — only `properties.update_own` / `properties.update_any`
+        // exist; the generic `properties.update` ability BasePolicy emits is
+        // undefined, so the Gate denies it even for an agency_admin.
+        $admin = $this->userWithRole('agency_admin');
+        $property = new Property;
+
+        $this->assertFalse($this->policy->update($admin, $property));
+    }
+
+    public function test_agent_can_create_via_resolved_capability(): void
+    {
+        // `properties.create` IS a Capability case and `agent` profiles grant
+        // it, so BasePolicy::create resolves to true.
+        $agent = $this->userWithRole('agent');
+
+        $this->assertTrue($this->policy->create($agent));
+    }
+
+    public function test_agency_admin_can_create_and_delete(): void
+    {
+        // The agency_admin profile grants the full agency operational scope,
+        // covering both `properties.create` and `properties.delete`.
+        $admin = $this->userWithRole('agency_admin');
+        $property = new Property;
+
+        $this->assertTrue($this->policy->create($admin));
+        $this->assertTrue($this->policy->delete($admin, $property));
+    }
+
+    public function test_agent_without_delete_capability_cannot_delete(): void
+    {
+        // `agent` profiles are not granted `properties.delete`.
+        $agent = $this->userWithRole('agent');
+        $property = new Property;
+
+        $this->assertFalse($this->policy->delete($agent, $property));
+    }
+
+    public function test_owner_cannot_create_or_delete_properties(): void
+    {
+        // `owner` profiles only carry `properties.update_own`; neither the
+        // generic create nor delete abilities resolve for them.
+        $owner = $this->userWithRole('owner');
+        $property = new Property;
+
+        $this->assertFalse($this->policy->create($owner));
+        $this->assertFalse($this->policy->delete($owner, $property));
     }
 
     public function test_customer_cannot_update_or_delete_properties(): void
@@ -85,6 +141,7 @@ class BasePolicyTest extends TestCase
 
         $this->assertFalse($this->policy->viewAny($user));
         $this->assertFalse($this->policy->create($user));
+        $this->assertFalse($this->policy->delete($user, new Property));
     }
 
     protected function userWithRole(string $role): User

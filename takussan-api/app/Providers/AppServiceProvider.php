@@ -54,6 +54,7 @@ use App\Models\Review;
 use App\Models\RoleDelegation;
 use App\Models\User;
 use App\Notifications\Channels\SmsChannel;
+use App\Notifications\Channels\WhatsappChannel;
 use App\Observers\FavoriteObserver;
 use App\Observers\InventoryOnboardingObserver;
 use App\Observers\LeaseObserver;
@@ -96,6 +97,10 @@ use App\Services\Notifications\Sms\OrangeOAuthTokenCache;
 use App\Services\Notifications\Sms\QuietHoursGuard;
 use App\Services\Notifications\Sms\SmsDriverInterface;
 use App\Services\Notifications\Sms\SmsRouterDriver;
+use App\Services\Notifications\Whatsapp\CloudApiWhatsappDriver;
+use App\Services\Notifications\Whatsapp\LogWhatsappDriver;
+use App\Services\Notifications\Whatsapp\ServiceWindow;
+use App\Services\Notifications\Whatsapp\WhatsappDriverInterface;
 use App\Services\Reporting\PlatformReportingService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
@@ -128,6 +133,7 @@ class AppServiceProvider extends ServiceProvider
         $this->registerCurrencyFormatter();
         $this->registerCdnServices();
         $this->registerSmsServices();
+        $this->registerWhatsappServices();
     }
 
     public function boot(Dispatcher $events): void
@@ -225,6 +231,26 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 
+    private function registerWhatsappServices(): void
+    {
+        // TCK-282 — WhatsApp Cloud (Meta) outbound stack. Mono-provider, so
+        // there is no router: the channel talks to the bound driver directly
+        // and falls back to the SMS router on ineligibility / hard failure.
+        $this->app->singleton(ServiceWindow::class);
+        $this->app->singleton(LogWhatsappDriver::class);
+        $this->app->singleton(CloudApiWhatsappDriver::class);
+
+        // `log` in local/testing, `cloud` everywhere else.
+        $this->app->bind(WhatsappDriverInterface::class, function ($app): WhatsappDriverInterface {
+            $default = (string) $app['config']->get('whatsapp.default_driver', 'cloud');
+
+            return match ($default) {
+                'log' => $app->make(LogWhatsappDriver::class),
+                default => $app->make(CloudApiWhatsappDriver::class),
+            };
+        });
+    }
+
     // -----------------------------------------------------------------
     // boot() helpers
     // -----------------------------------------------------------------
@@ -257,6 +283,21 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('public-report', fn (Request $request) => Limit::perHour(5)->by($this->visitorRateLimitKey($request)));
         RateLimiter::for('public-visit-request', fn (Request $request) => Limit::perHour(10)->by($this->visitorRateLimitKey($request)));
         RateLimiter::for('public-contact-lead', fn (Request $request) => Limit::perMinutes(10, 5)->by($this->visitorRateLimitKey($request)));
+
+        // Public read surface (catalogue browse / search / show). There is no
+        // global `throttle:api` on the api group, so these otherwise-unbounded
+        // endpoints (full-catalogue scraping, heavy search) need an explicit
+        // limiter. Keyed by visitor (authenticated user_id, else IP) so a
+        // logged-in browser keeps a stable bucket and shared-NAT visitors are
+        // not collapsed once authenticated.
+        RateLimiter::for('public-read', fn (Request $request) => Limit::perMinute(90)->by($this->visitorRateLimitKey($request)));
+
+        // Unauthenticated auth surface — registration / password-reset flows.
+        // `/login` is already throttled inline; these mirror it to stop
+        // account-creation spam, reset-email bombing, user enumeration and
+        // reset-token brute force. Keyed by IP (no authenticated user yet).
+        RateLimiter::for('auth-register', fn (Request $request) => Limit::perMinute(10)->by('ip:'.$request->ip()));
+        RateLimiter::for('auth-password', fn (Request $request) => Limit::perMinute(5)->by('ip:'.$request->ip()));
     }
 
     private function visitorRateLimitKey(Request $request): string
@@ -526,5 +567,8 @@ class AppServiceProvider extends ServiceProvider
         // Notification can list `SmsChannel::class` (or simply `'sms'`
         // via Notifiable::notify) in its via() return.
         $this->app->make(ChannelManager::class)->extend('sms', fn ($app) => $app->make(SmsChannel::class));
+        // TCK-282 — `whatsapp` channel: any Notification can list it (or
+        // route to it via PreferenceResolver::resolveMobileChannel()).
+        $this->app->make(ChannelManager::class)->extend('whatsapp', fn ($app) => $app->make(WhatsappChannel::class));
     }
 }

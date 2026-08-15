@@ -10,6 +10,7 @@ use App\Services\Accounting\StatementParser\ParserContext;
 use App\Services\Accounting\StatementParser\StatementParserFactory;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ParseBankStatementJob implements ShouldQueue
@@ -31,9 +32,11 @@ class ParseBankStatementJob implements ShouldQueue
             return;
         }
 
-        // Idempotence guard — a re-dispatched job (e.g. queue retry, replay)
-        // must not append a second copy of the lines to the same statement.
-        if ($statement->lines()->exists()) {
+        // Idempotence guard keyed on STATUS, not `lines()->exists()`. With the
+        // atomic transaction below, lines + the ReadyForReview status commit
+        // together, so a statement that has moved past Processing is already
+        // parsed; anything still Processing is safe to (re)parse from scratch.
+        if ($statement->status !== BankStatementStatus::Processing) {
             return;
         }
 
@@ -77,23 +80,24 @@ class ParseBankStatementJob implements ShouldQueue
                 $dates[] = $parsed->postedAt;
             }
 
-            // Chunk insert for performance
-            foreach (array_chunk($lines, 500) as $chunk) {
-                BankStatementLine::insert($chunk);
-            }
+            // Line inserts + status flip must commit together: a crash between
+            // them previously left lines present but status stuck on Processing,
+            // which the old `lines()->exists()` guard then made unrecoverable.
+            DB::transaction(function () use ($lines, $dates, $statement): void {
+                foreach (array_chunk($lines, 500) as $chunk) {
+                    BankStatementLine::insert($chunk);
+                }
 
-            // Update statement metadata
-            $statement->update([
-                'lines_count' => count($lines),
-                'period_start' => ! empty($dates) ? min($dates)->toDateString() : null,
-                'period_end' => ! empty($dates) ? max($dates)->toDateString() : null,
-                'status' => BankStatementStatus::ReadyForReview,
-            ]);
+                $statement->update([
+                    'lines_count' => count($lines),
+                    'period_start' => ! empty($dates) ? min($dates)->toDateString() : null,
+                    'period_end' => ! empty($dates) ? max($dates)->toDateString() : null,
+                    'status' => BankStatementStatus::ReadyForReview,
+                ]);
+            });
 
-            // Chain matching job
+            // Chain matching + notify only after the parse has durably committed.
             MatchBankStatementJob::dispatch($this->statementId);
-
-            // Notify the uploader
             event(new BankStatementImported($statement->refresh()));
         } catch (\Throwable $e) {
             Log::error("ParseBankStatementJob: failed for statement #{$this->statementId}", [

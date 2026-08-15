@@ -99,7 +99,10 @@ class PropertyResource extends JsonResource
                             'id' => $collaborator->user->id,
                             'name' => trim($collaborator->user->first_name.' '.$collaborator->user->last_name)
                                 ?: $collaborator->user->username,
-                            'email' => $collaborator->user->email,
+                            // Collaborator email is private team data — only surface it to
+                            // authenticated viewers (agent dashboard), never on the public
+                            // property page which eager-loads `collaborators.user`.
+                            'email' => $request->user() ? $collaborator->user->email : null,
                         ]
                         : null,
                 ])->values()->all()

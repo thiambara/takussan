@@ -1,7 +1,7 @@
 ---
 id: MVP-003
 title: "Bouton Contacter → WhatsApp"
-status: todo
+status: obsolete
 slice: "Weekend 1-2"
 estimate: 0.5 weekend
 created: 2026-04-16

@@ -7,21 +7,24 @@ return [
     | Cross-Origin Resource Sharing (CORS) Configuration
     |--------------------------------------------------------------------------
     |
-    | Here you may configure your settings for cross-origin resource sharing
-    | or "CORS". This determines what cross-origin operations may execute
-    | in web browsers. You are free to adjust these settings as needed.
+    | Cross-domain front (Vercel) ↔ API (Contabo) requires:
+    |  - `supports_credentials = true` so Sanctum session cookies traverse
+    |  - the front origin allowed explicitly (FRONTEND_URL)
+    |  - Vercel preview deploy URLs allowed via regex
     |
-    | To learn more: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
+    | See docs/infra/deploy-preview.html for the full deployment context.
     |
     */
 
-    'paths' => ['api/*', 'sanctum/csrf-cookie'],
+    'paths' => ['api/*', 'sanctum/csrf-cookie', 'login', 'logout', 'storage/*'],
 
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [env('FRONTEND_URL', 'http://localhost:3000')],
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '#^https://takussan-[a-z0-9-]+\.vercel\.app$#',
+    ],
 
     'allowed_headers' => ['*'],
 
@@ -29,6 +32,6 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => false,
+    'supports_credentials' => true,
 
 ];

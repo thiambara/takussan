@@ -125,4 +125,31 @@ class TaskTest extends TestCase
     {
         $this->postJson('/api/tasks', ['title' => 'Test'])->assertUnauthorized();
     }
+
+    public function test_user_cannot_attach_task_to_another_users_record(): void
+    {
+        $user = User::factory()->create();
+        $stranger = User::factory()->create();
+        $customer = Customer::factory()->create(['added_by_id' => $stranger->id]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/tasks', [
+            'title' => 'Sneaky cross-tenant task',
+            'taskable_id' => $customer->id,
+            'taskable_type' => Customer::class,
+        ])->assertForbidden();
+    }
+
+    public function test_create_rejects_taskable_type_outside_allowlist(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/tasks', [
+            'title' => 'Bad morph type',
+            'taskable_id' => $user->id,
+            'taskable_type' => User::class,
+        ])->assertStatus(422)->assertJsonValidationErrors(['taskable_type']);
+    }
 }

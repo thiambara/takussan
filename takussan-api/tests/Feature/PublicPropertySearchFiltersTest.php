@@ -7,12 +7,14 @@ use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\ApiTestCase;
+use Tests\Concerns\InteractsWithMeilisearch;
 
 /**
  * TCK-128 — floor_number and available_from filters on /public/properties/search.
  */
 class PublicPropertySearchFiltersTest extends ApiTestCase
 {
+    use InteractsWithMeilisearch;
     use RefreshDatabase;
 
     // ─────────────────────────────────────────────────────────────────────
@@ -35,6 +37,7 @@ class PublicPropertySearchFiltersTest extends ApiTestCase
             'title' => 'On floor 5',
             'published_at' => now(),
         ]);
+        $this->indexProperties();
 
         $response = $this->getJson('/api/public/properties/search?floor_number=2');
 
@@ -53,6 +56,7 @@ class PublicPropertySearchFiltersTest extends ApiTestCase
             'title' => 'No floor',
             'published_at' => now(),
         ]);
+        $this->indexProperties();
 
         $response = $this->getJson('/api/public/properties/search?floor_number=1');
 
@@ -73,6 +77,7 @@ class PublicPropertySearchFiltersTest extends ApiTestCase
             'title' => 'Already available',
             'published_at' => now(),
         ]);
+        $this->indexProperties();
 
         $response = $this->getJson('/api/public/properties/search?available_from='.now()->addDays(30)->toDateString());
 
@@ -89,6 +94,7 @@ class PublicPropertySearchFiltersTest extends ApiTestCase
             'title' => 'Always available',
             'published_at' => now(),
         ]);
+        $this->indexProperties();
 
         $response = $this->getJson('/api/public/properties/search?available_from='.now()->addDays(30)->toDateString());
 
@@ -105,6 +111,7 @@ class PublicPropertySearchFiltersTest extends ApiTestCase
             'title' => 'Not yet available',
             'published_at' => now(),
         ]);
+        $this->indexProperties();
 
         $response = $this->getJson('/api/public/properties/search?available_from='.now()->addDays(30)->toDateString());
 

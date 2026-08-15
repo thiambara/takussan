@@ -1,0 +1,59 @@
+# CI du frontend Next.js.
+#
+# Ce workflow n'existait pas. `api-ci.yml` est filtré sur `paths: takussan-api/**`, et aucun autre
+# workflow ne mentionnait `takussan-web` : **une PR ne touchant que le frontend ne déclenchait
+# rigoureusement rien** — ni les 802 tests vitest, ni ESLint, ni `tsc`, ni le build.
+#
+# Ce n'est pas resté théorique. Mesuré le 2026-08-12 sur la pointe de `dev` (arbre propre) :
+# une erreur ESLint bloquante, une erreur de compilation TypeScript et un test en échec y vivaient
+# depuis 53 à 94 jours. Les trois sont corrigées ; ce fichier est ce qui les empêche de revenir.
+name: Web CI
+
+on:
+  pull_request:
+    paths:
+      - 'takussan-web/**'
+      - '.github/workflows/web-ci.yml'
+  push:
+    branches: [dev, master]
+    paths:
+      - 'takussan-web/**'
+      - '.github/workflows/web-ci.yml'
+
+jobs:
+  quality:
+    name: Web (ESLint + tsc + Vitest + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: takussan-web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: takussan-web/package-lock.json
+
+      - run: npm ci
+
+      - name: ESLint
+        # Étape séparée du build, et ce n'est PAS redondant : sous Next 16, `next build` ne lance
+        # plus ESLint. C'est exactement pourquoi `react-hooks/set-state-in-effect` a survécu sur
+        # `dev` — il n'existait aucun chemin automatisé où cette erreur bloquait quoi que ce soit.
+        run: npm run lint
+
+      - name: Types (tsc --noEmit)
+        # `package.json` n'a pas de script `typecheck` : la commande est écrite ici, en toutes
+        # lettres, plutôt que tenue par une convention que personne ne lance. `next build` fait
+        # bien une vérification de types, mais il s'arrête à la première erreur et ne voit pas les
+        # fichiers de test — or l'erreur trouvée sur `dev` était précisément dans un test.
+        run: npx tsc --noEmit
+
+      - name: Tests (Vitest)
+        run: npm run test
+
+      - name: Build
+        run: npm run build

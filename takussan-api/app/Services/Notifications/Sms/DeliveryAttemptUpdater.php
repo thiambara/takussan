@@ -15,6 +15,12 @@ use Illuminate\Support\Facades\DB;
 class DeliveryAttemptUpdater
 {
     /**
+     * @param  list<string>|null  $statusPrecedence  Optional low→high status
+     *                                               ordering. When given, an incoming status whose rank is lower than the
+     *                                               attempt's current status is ignored (no regression). Used by WhatsApp,
+     *                                               whose DLRs progress `sent → delivered` and can arrive out of order or
+     *                                               be replayed by Meta; SMS/payment callers omit it and keep last-write
+     *                                               semantics.
      * @return bool true if a row was actually updated, false if the
      *              webhook payload didn't match any tracked attempt.
      */
@@ -25,13 +31,14 @@ class DeliveryAttemptUpdater
         ?int $hintNotificationId = null,
         ?string $failureReason = null,
         ?\DateTimeInterface $deliveredAt = null,
+        ?array $statusPrecedence = null,
     ): bool {
         if ($providerMessageId === '') {
             return false;
         }
 
         return DB::transaction(function () use (
-            $provider, $providerMessageId, $newStatus, $hintNotificationId, $failureReason, $deliveredAt
+            $provider, $providerMessageId, $newStatus, $hintNotificationId, $failureReason, $deliveredAt, $statusPrecedence
         ): bool {
             $query = NotificationDeliveryAttempt::query()
                 ->where('provider', $provider)
@@ -48,6 +55,16 @@ class DeliveryAttemptUpdater
             }
             if ($attempt->status === $newStatus) {
                 return true;
+            }
+            // Monotonic guard: never let a lower-ranked status overwrite a
+            // higher one (e.g. a late/replayed WhatsApp `sent` clobbering an
+            // already-`delivered` attempt and wiping `delivered_at`).
+            if ($statusPrecedence !== null) {
+                $currentRank = array_search($attempt->status, $statusPrecedence, true);
+                $newRank = array_search($newStatus, $statusPrecedence, true);
+                if ($currentRank !== false && $newRank !== false && $newRank < $currentRank) {
+                    return true;
+                }
             }
             $attempt->forceFill([
                 'status' => $newStatus,

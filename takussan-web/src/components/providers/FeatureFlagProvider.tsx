@@ -2,6 +2,7 @@
 
 import { createContext, useContext } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/context/AuthContext';
 import type { FeatureFlagsMeResponse } from '@/types/super-admin';
 
 type FeatureFlagContextValue = {
@@ -17,10 +18,14 @@ async function fetchFlags(): Promise<FeatureFlagsMeResponse> {
 }
 
 export function FeatureFlagProvider({ children }: { children: React.ReactNode }) {
+  // `/api/feature-flags/me` is auth-only (auth:sanctum). Skip the request for
+  // anonymous visitors — flags default to {} (every `useFeatureFlag` → false).
+  const { user } = useAuth();
   const query = useQuery({
     queryKey: ['feature-flags', 'me'],
     queryFn: fetchFlags,
     staleTime: 60_000,
+    enabled: Boolean(user),
   });
 
   return (

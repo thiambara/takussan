@@ -1,7 +1,7 @@
 ---
 id: MVP-004
 title: "Admin simple pour saisir 100 annonces"
-status: todo
+status: obsolete
 slice: "Weekend 3"
 estimate: 1 weekend
 created: 2026-04-16

@@ -206,7 +206,7 @@ POST /api/agencies/{id}/regenerate-watermarks (NEW endpoint)
 
 ### Documentation
 
-- `docs/infra/watermark.md` (court) :
+- `docs/plans/2026-04-26-tck-106-watermark.md` (court) :
   - Schéma settings (`agencies.settings.watermark_*`) avec valeurs par défaut
   - Procédure régénération en lot (curl exemple ou artisan)
   - Procédure changement de logo (réuploader sur la collection `logo` de l'agence puis appeler `/regenerate-watermarks`)
@@ -310,7 +310,7 @@ Aucune nouvelle variable. Le watermark est piloté entièrement par `agencies.se
 8. **Endpoint** `POST /api/agencies/{id}/regenerate-watermarks` + route + auth inline + tests `RegenerateWatermarksEndpointTest`.
 9. **Validation** — étendre `AgencyUpdateRequest` avec règles imbriquées + un test sur la validation (3 cas : valid, opacity hors range, position invalide).
 10. **PropertyResource / MediaResource** — `?raw=1` + auth dans `PropertyController::show` + tests `PropertyResourceRawFlagTest` (AC7).
-11. **Documentation** — `docs/infra/watermark.md`.
+11. **Documentation** — `docs/plans/2026-04-26-tck-106-watermark.md`.
 12. **Lint** — `./vendor/bin/pint` (mémoire utilisateur — obligatoire avant commit).
 13. **INDEX.md** — passer TCK-106 `todo → review` à l'ouverture de la PR ; **target = `dev`** (mémoire utilisateur).
 

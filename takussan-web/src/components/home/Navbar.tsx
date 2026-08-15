@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Home, MapPin, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle, Search } from 'lucide-react';
@@ -9,11 +9,16 @@ import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { navLinks, categories, moreCategories } from '@/data/mockData';
+import { navLinks, categories, moreCategories } from '@/data/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { setPublishIntent } from '@/lib/publish-intent';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import { FavoritesPopover } from '@/components/favorites/FavoritesPopover';
+import { apiFetch } from '@/lib/api';
+
+type PropertyTypeCountsResponse = {
+  data: Array<{ value: string; count: number }>;
+};
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   apartment: Building2,
@@ -51,10 +56,37 @@ export function Navbar({ className }: NavbarProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [location, setLocation] = useState('');
   const [transaction, setTransaction] = useState('');
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [typeCounts, setTypeCounts] = useState<Record<string, number> | null>(null);
   const moreRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Derive selection from URL — single source of truth, stays in sync with
+  // the FilterSidebar on /properties. activeCategory only highlights when
+  // exactly one type is selected; multi-select from the sidebar leaves all
+  // navbar chips neutral by design.
+  const selectedTypes = useMemo(() => {
+    const raw = searchParams.get('type');
+    return raw ? raw.split(',').map((t) => t.trim()).filter(Boolean) : [];
+  }, [searchParams]);
+  const activeCategory = selectedTypes.length === 1 ? selectedTypes[0] : null;
+  const moreHasActive = activeCategory !== null && moreCategories.some((c) => c.type === activeCategory);
+
+  // Fetch real property counts for the "+ More" dropdown.
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch<PropertyTypeCountsResponse>('/public/property-types')
+      .then((res) => {
+        if (cancelled) return;
+        const map: Record<string, number> = {};
+        for (const entry of res.data) map[entry.value] = entry.count;
+        setTypeCounts(map);
+      })
+      .catch(() => {
+        // Silent fallback: dropdown renders without counts.
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   // Close more dropdown when clicking outside
   useEffect(() => {
@@ -116,18 +148,20 @@ export function Navbar({ className }: NavbarProps) {
     router.push(buildSearchUrl());
   }, [router, buildSearchUrl]);
 
-  const handleCategoryClick = useCallback((type: string | null, currentActive: string | null) => {
-    // toggle off if same, else navigate with new type
-    const newType = currentActive === type ? null : type;
-    setActiveCategory(newType);
+  const handleCategoryClick = useCallback((type: string | null) => {
+    if (!type) return;
+    // Clicking a chip is mono-select: replace ?type= with this single value,
+    // or clear it if the chip was already the only active type. This is
+    // intentional — the multi-select side lives in the FilterSidebar.
+    const isOnlyActive = selectedTypes.length === 1 && selectedTypes[0] === type;
     const params = new URLSearchParams(searchParams.toString());
     if (transaction === 'Acheter') params.set('contract_type', 'sale');
     if (transaction === 'Louer')   params.set('contract_type', 'rent');
     if (location.trim()) params.set('city', location.trim());
-    if (newType) params.set('type', newType); else params.delete('type');
+    if (isOnlyActive) params.delete('type'); else params.set('type', type);
     params.delete('page');
     router.push(`/properties${params.size ? '?' + params.toString() : ''}`);
-  }, [router, searchParams, transaction, location]);
+  }, [router, searchParams, transaction, location, selectedTypes]);
 
   return (
     <nav
@@ -142,11 +176,11 @@ export function Navbar({ className }: NavbarProps) {
         {/* Center column: Search bar + Categories stacked, left-aligned — desktop */}
         <div className="hidden md:flex flex-col max-w-xl w-full mx-auto gap-0">
           {/* Search Bar */}
-          <div className="flex items-center bg-white border border-gray-300 rounded-full shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+          <div className="flex items-center bg-white border border-gray-300 rounded-full shadow-sm hover:shadow-md transition-shadow">
             <SearchAutocomplete
               variant="hero"
               placeholder={t('searchPlaceholder')}
-              className="flex-1 [&>div]:border-none [&>div]:shadow-none [&>div]:rounded-none [&>div]:bg-transparent"
+              className="flex-1 [&>div:first-child]:border-none [&>div:first-child]:shadow-none [&>div:first-child]:rounded-none [&>div:first-child]:bg-transparent"
               onQueryChange={(v) => setLocation(v)}
             />
             <div className="w-px h-6 bg-gray-200 shrink-0" />
@@ -179,7 +213,7 @@ export function Navbar({ className }: NavbarProps) {
               return (
                 <button
                   key={cat.id}
-                  onClick={() => handleCategoryClick(cat.type, activeCategory)}
+                  onClick={() => handleCategoryClick(cat.type)}
                   className={`flex flex-col items-center gap-1 px-3 py-2 border-b-2 transition-all duration-150 ${isActive
                     ? 'border-gray-900 text-gray-900'
                     : 'border-transparent text-gray-500 hover:border-gray-400 hover:text-gray-700'
@@ -195,7 +229,7 @@ export function Navbar({ className }: NavbarProps) {
             <div className="relative" ref={moreRef}>
               <button
                 onClick={() => setMoreOpen((o) => !o)}
-                className={`flex flex-col items-center gap-1 px-3 py-2 border-b-2 transition-all duration-150 ${moreCategories.some((c) => c.type === activeCategory)
+                className={`flex flex-col items-center gap-1 px-3 py-2 border-b-2 transition-all duration-150 ${moreHasActive
                   ? 'border-gray-900 text-gray-900'
                   : 'border-transparent text-gray-500 hover:border-gray-400 hover:text-gray-700'
                   }`}
@@ -210,13 +244,13 @@ export function Navbar({ className }: NavbarProps) {
                   {moreCategories.map((cat) => {
                     const Icon = iconMap[cat.icon] || HelpCircle;
                     const isActive = activeCategory === cat.type;
+                    const count = cat.type ? typeCounts?.[cat.type] : undefined;
                     return (
                       <button
                         key={cat.id}
                         onClick={() => {
-                          setActiveCategory(isActive ? null : cat.type);
                           setMoreOpen(false);
-                          handleCategoryClick(cat.type, activeCategory);
+                          handleCategoryClick(cat.type);
                         }}
                         className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-colors ${isActive
                           ? 'bg-primary/10 text-primary font-semibold'
@@ -226,7 +260,9 @@ export function Navbar({ className }: NavbarProps) {
                         <Icon className="w-[18px] h-[18px] shrink-0" />
                         <div className="min-w-0">
                           <p className="text-[12px] font-semibold leading-none truncate">{cat.name}</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">{t('propertiesCount', { count: cat.count })}</p>
+                          {count !== undefined && (
+                            <p className="text-[10px] text-gray-400 mt-0.5">{t('propertiesCount', { count })}</p>
+                          )}
                         </div>
                       </button>
                     );
@@ -383,7 +419,7 @@ export function Navbar({ className }: NavbarProps) {
                       key={cat.id}
                       onClick={() => {
                         setMenuOpen(false);
-                        handleCategoryClick(cat.type, activeCategory);
+                        handleCategoryClick(cat.type);
                       }}
                       className={`flex flex-col items-center gap-1 shrink-0 px-4 py-2.5 rounded-xl transition-colors ${isActive
                         ? 'bg-primary/10 text-primary'

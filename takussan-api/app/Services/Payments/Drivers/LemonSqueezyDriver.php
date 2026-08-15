@@ -78,11 +78,15 @@ class LemonSqueezyDriver implements PaymentDriverContract
 
     public function handleWebhook(Request $request): PaymentEvent
     {
-        // The lemonsqueezy/laravel package handles the public webhook
-        // endpoint and signature verification. Our generic webhook proxy
-        // route still exists as a fallback; if it ever receives an LS
-        // payload, we can extract the order id but signature has already
-        // been verified upstream.
+        // SECURITY: the lemonsqueezy/laravel package only verifies signatures
+        // on its OWN dedicated route (`webhooks/lemon-squeezy`). This generic
+        // proxy route (`webhooks/payments/lemon_squeezy`) is NOT covered by it,
+        // so without the check below an unauthenticated attacker could POST a
+        // forged `order_created` body and have a payment marked paid. Verify
+        // the HMAC-SHA256 `X-Signature` against the integration's signing
+        // secret over the raw body, exactly as the package does upstream.
+        $this->verifySignature($request->getContent(), (string) $request->header('X-Signature', ''));
+
         $payload = $request->all();
         $event = (string) ($payload['meta']['event_name'] ?? '');
         $attributes = $payload['data']['attributes'] ?? [];
@@ -97,6 +101,18 @@ class LemonSqueezyDriver implements PaymentDriverContract
         };
 
         return new PaymentEvent(self::PROVIDER, $type, $transactionId, $this->extractFees($attributes));
+    }
+
+    /**
+     * Verify the Lemon Squeezy `X-Signature` HMAC-SHA256 of the raw request
+     * body against the integration's signing secret. Fails closed.
+     */
+    protected function verifySignature(string $rawBody, string $signature): void
+    {
+        abort_if($signature === '', 401, 'Lemon Squeezy webhook signature missing.');
+
+        $expected = hash_hmac('sha256', $rawBody, $this->credential('signing_secret'));
+        abort_unless(hash_equals($expected, $signature), 401, 'Lemon Squeezy webhook signature mismatch.');
     }
 
     /**

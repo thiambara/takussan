@@ -1,7 +1,7 @@
 ---
 id: POST-MVP-005
 title: "Système d'avis et réputation"
-status: todo
+status: obsolete
 slice: "Post-MVP Phase 2"
 estimate: 2 weekends
 created: 2026-04-16

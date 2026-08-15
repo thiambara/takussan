@@ -25,7 +25,7 @@ export function useSuggest(
 
   return useApiQuery<SuggestResponse>(
     ['search', 'suggest', locale, debouncedQ],
-    '/search/suggest',
+    '/api/search/suggest',
     {
       params: { extra: { q: debouncedQ, limit: 10 } },
       enabled,

@@ -27,7 +27,7 @@ return new class extends Migration
             $table->foreignId('confirmed_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
             $table->index(['bank_statement_id', 'match_status']);
-            $table->index(['matched_payment_type', 'matched_payment_id']);
+            $table->index(['matched_payment_type', 'matched_payment_id'], 'bsl_matched_payment_idx');
             $table->index(['posted_at', 'amount']);
         });
     }

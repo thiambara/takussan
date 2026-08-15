@@ -21,7 +21,8 @@ import {
 /**
  * Completion workflow — captures the resolution notes, optional actual
  * cost, and post-resolution photos. Photos travel through the dedicated
- * `/photos?collection=completion_photos` endpoint after the transition.
+ * `/photos` endpoint (with `collection=completion_photos` in the form data)
+ * after the transition.
  */
 export function MaintenanceCompleteForm({
   id,

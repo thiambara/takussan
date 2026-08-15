@@ -71,6 +71,46 @@ class StatementParserTest extends TestCase
         $this->assertEquals('Unknown', $last->counterparty);
     }
 
+    public function test_csv_amount_parsing_handles_thousands_and_decimal_separators(): void
+    {
+        $driver = new CsvDriver;
+
+        // "1,234.56" (US thousands), "1.234,56" (EU thousands), "7500,50"
+        // (comma decimal). The old str_replace turned every comma into a
+        // decimal point, corrupting the first two by 1000×.
+        $csv = "date,amount,label,reference,counterparty\n"
+            ."01/04/2026,\"1,234.56\",A,R1,C1\n"
+            ."02/04/2026,\"1.234,56\",B,R2,C2\n"
+            ."03/04/2026,\"7500,50\",C,R3,C3\n";
+
+        $path = tempnam(sys_get_temp_dir(), 'stmt').'.csv';
+        file_put_contents($path, $csv);
+
+        $context = new ParserContext(
+            agency: $this->agencyStub(),
+            format: BankStatementSourceFormat::Csv,
+            csvMapping: [
+                'delimiter' => ',',
+                'has_header' => true,
+                'date_column' => 'date',
+                'date_format' => 'd/m/Y',
+                'amount_column' => 'amount',
+                'label_column' => 'label',
+                'reference_column' => 'reference',
+                'counterparty_column' => 'counterparty',
+                'sign_convention' => 'amount_signed',
+            ],
+        );
+
+        $lines = iterator_to_array($driver->parse($path, $context));
+        @unlink($path);
+
+        $this->assertCount(3, $lines);
+        $this->assertEqualsWithDelta(1234.56, $lines[0]->amount, 0.001);
+        $this->assertEqualsWithDelta(1234.56, $lines[1]->amount, 0.001);
+        $this->assertEqualsWithDelta(7500.50, $lines[2]->amount, 0.001);
+    }
+
     // ─── OFX Tests ───────────────────────────────────────────────
 
     public function test_ofx_driver_parses_sample_file(): void

@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * Resolves the composite "<type>:<id>" profile identifier into a concrete
  * profile model. The composite form is necessary because a single numeric
- * id is ambiguous across the four profile tables (e.g. owner #5 ≠ agent #5).
+ * id is ambiguous across the five profile tables (e.g. owner #5 ≠ agent #5).
  */
 class ActiveProfileResolver
 {

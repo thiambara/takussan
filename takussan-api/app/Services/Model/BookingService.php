@@ -10,6 +10,7 @@ use App\Models\Enums\NotificationType;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 class BookingService
 {
@@ -83,7 +84,7 @@ class BookingService
             'expires_at' => $data['expires_at'] ?? now()->addDays(7),
         ]));
 
-        // Notify landlord and agency members
+        // Notify the landlord (property owner)
         $recipients = collect();
         $owner = $property->owner;
         if ($owner) {
@@ -111,14 +112,30 @@ class BookingService
             'Only pending bookings can be confirmed.'
         );
 
-        $this->assertNoOverlap($booking);
+        // Serialize confirmations on the same property: without a lock two
+        // concurrent confirmations of overlapping ranges can both pass the
+        // existence check and both commit Confirmed → a double-booking. We take
+        // a row lock on the parent property so confirmations queue, then
+        // re-assert state under the lock.
+        $booking = DB::transaction(function () use ($booking) {
+            Property::query()->whereKey($booking->property_id)->lockForUpdate()->first();
 
-        $booking->update([
-            'status' => BookingStatus::Confirmed,
-            'confirmed_at' => now(),
-        ]);
+            $booking->refresh();
+            abort_unless(
+                $booking->status === BookingStatus::Pending,
+                422,
+                'Only pending bookings can be confirmed.'
+            );
 
-        $booking->refresh();
+            $this->assertNoOverlap($booking);
+
+            $booking->update([
+                'status' => BookingStatus::Confirmed,
+                'confirmed_at' => now(),
+            ]);
+
+            return $booking->refresh();
+        });
 
         $customer = $booking->customer?->user;
         if ($customer) {

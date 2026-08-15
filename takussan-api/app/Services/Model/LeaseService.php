@@ -13,6 +13,7 @@ use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class LeaseService
 {
@@ -74,7 +75,6 @@ class LeaseService
         $frequency = $lease->payment_frequency ?? PaymentFrequency::Monthly;
         $amount = (float) ($lease->monthly_rent ?? 0);
         $paymentDay = $lease->payment_day ?? 1;
-        $count = 0;
 
         $current = $start->copy()->day(min($paymentDay, $start->daysInMonth));
 
@@ -82,30 +82,37 @@ class LeaseService
             $current = $this->advancePeriod($current, $frequency);
         }
 
-        while ($end === null || $current->lte($end)) {
-            LeasePayment::create([
-                'lease_id' => $lease->id,
-                'reference_number' => ReferenceNumberGenerator::leasePayment(),
-                'payer_id' => $lease->tenant_id,
-                'payment_type' => LeasePaymentType::Rent->value,
-                'amount' => $amount,
-                'currency' => $lease->currency?->value ?? 'XOF',
-                'status' => PaymentStatus::Pending,
-                'due_date' => $current->toDateString(),
-                'period_start' => $current->copy()->startOfMonth()->toDateString(),
-                'period_end' => $current->copy()->endOfMonth()->toDateString(),
-            ]);
+        // Wrap the whole schedule in a transaction: a mid-loop failure must not
+        // leave a partial schedule, which the `$existing > 0` guard above would
+        // then make permanently unrecoverable on retry.
+        return DB::transaction(function () use ($lease, $current, $end, $frequency, $amount): int {
+            $count = 0;
 
-            $count++;
-            $current = $this->advancePeriod($current, $frequency);
+            while ($end === null || $current->lte($end)) {
+                LeasePayment::create([
+                    'lease_id' => $lease->id,
+                    'reference_number' => ReferenceNumberGenerator::leasePayment(),
+                    'payer_id' => $lease->tenant_id,
+                    'payment_type' => LeasePaymentType::Rent->value,
+                    'amount' => $amount,
+                    'currency' => $lease->currency?->value ?? 'XOF',
+                    'status' => PaymentStatus::Pending,
+                    'due_date' => $current->toDateString(),
+                    'period_start' => $current->copy()->startOfMonth()->toDateString(),
+                    'period_end' => $current->copy()->endOfMonth()->toDateString(),
+                ]);
 
-            // Safety cap to avoid infinite loop when end_date is null
-            if ($end === null && $count >= 12) {
-                break;
+                $count++;
+                $current = $this->advancePeriod($current, $frequency);
+
+                // Safety cap to avoid infinite loop when end_date is null
+                if ($end === null && $count >= 12) {
+                    break;
+                }
             }
-        }
 
-        return $count;
+            return $count;
+        });
     }
 
     private function advancePeriod(Carbon $date, PaymentFrequency $frequency): Carbon
@@ -131,27 +138,33 @@ class LeaseService
             $penaltyAmount = min($remainingMonths, 3) * ($lease->monthly_rent ?? 0);
         }
 
-        $lease->update([
-            'status' => LeaseStatus::Terminated,
-            'terminated_at' => now(),
-            'terminated_by_id' => $user->id,
-            'termination_reason' => $reason,
-        ]);
-
-        if ($penaltyAmount && $penaltyAmount > 0) {
-            LeasePayment::create([
-                'lease_id' => $lease->id,
-                'reference_number' => ReferenceNumberGenerator::leasePayment(),
-                'payer_id' => $lease->tenant_id,
-                'payment_type' => LeasePaymentType::Penalty->value,
-                'amount' => $penaltyAmount,
-                'currency' => $lease->currency?->value ?? 'XOF',
-                'status' => PaymentStatus::Pending,
-                'due_date' => now()->addDays(30)->toDateString(),
-                'period_start' => now()->toDateString(),
-                'period_end' => now()->addDays(30)->toDateString(),
+        // The status flip and the penalty charge must commit together: if the
+        // penalty insert failed after the status update, the lease would be
+        // Terminated with no penalty and the charge could never be re-applied
+        // (it's no longer Active).
+        DB::transaction(function () use ($lease, $user, $reason, $penaltyAmount): void {
+            $lease->update([
+                'status' => LeaseStatus::Terminated,
+                'terminated_at' => now(),
+                'terminated_by_id' => $user->id,
+                'termination_reason' => $reason,
             ]);
-        }
+
+            if ($penaltyAmount && $penaltyAmount > 0) {
+                LeasePayment::create([
+                    'lease_id' => $lease->id,
+                    'reference_number' => ReferenceNumberGenerator::leasePayment(),
+                    'payer_id' => $lease->tenant_id,
+                    'payment_type' => LeasePaymentType::Penalty->value,
+                    'amount' => $penaltyAmount,
+                    'currency' => $lease->currency?->value ?? 'XOF',
+                    'status' => PaymentStatus::Pending,
+                    'due_date' => now()->addDays(30)->toDateString(),
+                    'period_start' => now()->toDateString(),
+                    'period_end' => now()->addDays(30)->toDateString(),
+                ]);
+            }
+        });
 
         return $lease->refresh();
     }

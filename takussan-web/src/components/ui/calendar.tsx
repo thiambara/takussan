@@ -12,8 +12,8 @@ export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
 /**
  * shadcn-style Calendar built on top of `react-day-picker` v10. Tokens
- * are mapped to the project's design system (terracotta primary, Manrope
- * headlines via parent inheritance).
+ * are mapped to the project's design system (terracotta primary, Bricolage
+ * Grotesque headlines via parent inheritance).
  *
  * Usage:
  *   <Calendar mode="single" selected={date} onSelect={setDate} />

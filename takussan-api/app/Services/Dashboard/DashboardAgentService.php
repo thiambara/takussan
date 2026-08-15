@@ -47,9 +47,17 @@ class DashboardAgentService
             $pipelineScope->where('added_by_id', $agent->id);
         }
 
+        // Single grouped COUNT instead of one query per pipeline stage
+        // (mirrors PipelineStatsService::stageCounts).
+        $stageCounts = (clone $pipelineScope)
+            ->selectRaw('pipeline_stage, COUNT(*) as total')
+            ->groupBy('pipeline_stage')
+            ->pluck('total', 'pipeline_stage')
+            ->toArray();
+
         $pipeline = [];
         foreach (CustomerPipelineStage::cases() as $stage) {
-            $pipeline[$stage->value] = (clone $pipelineScope)->where('pipeline_stage', $stage)->count();
+            $pipeline[$stage->value] = (int) ($stageCounts[$stage->value] ?? 0);
         }
 
         // Bookings pipeline

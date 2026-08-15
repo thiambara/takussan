@@ -1,8 +1,14 @@
 *.log
 .DS_Store
 .env
-.env.backup
-.env.production
+.env.*
+!.env.example
+# `.env.docker` est un GABARIT, pas un secret : il ne contient que les identifiants du
+# `docker-compose.yml` de la racine (takussan/takussan), et c'est lui que `./dev.sh` copie vers
+# `.env` au premier démarrage. Sans cette exception, `.env.*` l'avale — il vit sur la machine où
+# on l'a écrit et n'atteint jamais un clone neuf, où `./dev.sh` échouerait sur un fichier absent
+# et où la garde `check-env-parity.mjs` rougirait en CI pour la même raison.
+!.env.docker
 .phpactor.json
 .phpunit.result.cache
 /.claude/
@@ -25,3 +31,4 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 /storage/media-library/temp/*
+/storage/app/seed-media-cache/

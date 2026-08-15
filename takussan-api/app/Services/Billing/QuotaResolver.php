@@ -22,6 +22,10 @@ class QuotaResolver
             ->with('plan')
             ->where('agency_id', $agencyId)
             ->whereNull('ended_at')
+            // Deterministic pick if more than one open subscription exists —
+            // the freshest period wins so commission %/limits are stable.
+            ->orderByDesc('current_period_start')
+            ->orderByDesc('id')
             ->first();
     }
 

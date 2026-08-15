@@ -282,6 +282,27 @@ class AgencyController extends Controller
             ->merge(Agency::query()->where('primary_admin_id', $user->id)->pluck('id'))
             ->merge($user->agentProfiles()->pluck('agency_id'))
             ->merge($user->ownerProfiles()->pluck('agency_id'))
+            // `agencyAdminProfiles` manquait, et c'est le profil qui donne le plus de droits.
+            //
+            // La liste couvrait agent, owner, broker et service_provider — mais pas l'admin
+            // d'agence. Tant que `user.agency_id` résolvait, l'agence entrait par la première
+            // ligne ; pour un compte MULTI-AGENCES, `ResolveActiveProfile` refuse la bascule
+            // automatique, `agency_id` vaut `null`, et l'agence dont l'utilisateur est
+            // administrateur devenait invisible pour lui : `show()` rendait 404.
+            //
+            // *Une liste de profils qui omet le plus privilégié ne se voit pas tant que l'autre
+            // chemin fonctionne.*
+            //
+            // ⚠ PAS de filtre sur `status`, et c'est une décision, pas un oubli. La colonne
+            // existe (`active`/`suspended`/`archived`), mais `HasProfiles::isAgencyAdminAt()` —
+            // qui accorde les DROITS d'admin — ne la filtre pas non plus. Filtrer ici seulement
+            // produirait l'état le plus déroutant qui soit : un administrateur suspendu qui peut
+            // agir sur l'agence sans pouvoir la lire. Les deux se décideront ensemble, dans
+            // TCK-278 (RBAC), pas à moitié dans un correctif de visibilité.
+            //
+            // *Resserrer une moitié d'une paire incohérente ne la rend pas cohérente ; cela
+            // déplace l'incohérence là où personne ne l'attend.*
+            ->merge($user->agencyAdminProfiles()->pluck('agency_id'))
             ->merge(DB::table('broker_profiles')
                 ->join('broker_agency_collaborations', 'broker_agency_collaborations.broker_profile_id', '=', 'broker_profiles.id')
                 ->where('broker_profiles.user_id', $user->id)

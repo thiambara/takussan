@@ -59,10 +59,10 @@ interface DocumentShareDialogProps {
 /**
  * Share-link modal — generates a temporary link for the current document.
  *
- * Note: the backend currently only exposes `store` + `destroy` for share
- * links (no listing endpoint), so this component keeps freshly-created
- * links in local state for the session. Revocation hits `DELETE` and
- * removes them from the list.
+ * Note: this component does not consume the share-link listing endpoint;
+ * it keeps freshly-created links in local state for the session. Creation
+ * hits `store` and revocation hits `destroy` (`DELETE`), removing the link
+ * from the local list.
  */
 export function DocumentShareDialog({
   open,

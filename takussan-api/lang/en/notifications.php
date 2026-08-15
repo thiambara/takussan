@@ -52,6 +52,7 @@ return [
         'greeting' => 'Hello,',
         'intro' => 'Your booking #:reference has been created and is now pending confirmation.',
         'details' => 'Stay: from :start to :end.',
+        'sms' => 'Takussan: your booking #:reference is pending confirmation. Stay from :start to :end.',
     ],
 
     'digest' => [

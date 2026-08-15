@@ -1,7 +1,7 @@
 ---
 id: MVP-002
 title: "Page détail annonce"
-status: todo
+status: obsolete
 slice: "Weekend 1-2"
 estimate: 1 weekend
 created: 2026-04-16

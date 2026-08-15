@@ -3,7 +3,7 @@
 Document de référence pour configurer le monorepo **Takussan** de A à Z (dépendances, services externes, variables d'environnement, étapes d'installation).
 
 > Monorepo :
-> - `takussan-api/` — Laravel 13, PHP ^8.3
+> - `takussan-api/` — Laravel 13, PHP ^8.4
 > - `takussan-web/` — Next.js 16.2.3, React 19, TypeScript 5
 
 ---
@@ -14,10 +14,10 @@ Document de référence pour configurer le monorepo **Takussan** de A à Z (dép
 
 | Couche | Techno | Version |
 |---|---|---|
-| Runtime | PHP | ^8.3 |
+| Runtime | PHP | ^8.4 |
 | Framework | Laravel | ^13.0 |
 | Auth API | Laravel Sanctum | ^4.3 (SPA cookie + Personal Access Tokens) |
-| Search | Laravel Scout | ^11.1 (driver `collection` par défaut, Meilisearch / Algolia / Typesense supportés) |
+| Search | Laravel Scout | ^11.1 — **driver `meilisearch` sur TOUS les environnements**, CI comprise (ADR-0008, TCK-280). `collection` est un défaut hérité du framework qui ne prouve rien : il filtre en PHP sur une collection Eloquent. |
 | OAuth social | Laravel Socialite | ^5.26 + providers `apple`, `facebook` (Google natif) |
 | Admin panel | Filament | ^4.0 (+ plugin `spatie-laravel-media-library-plugin`) |
 | Permissions | ~~spatie/laravel-permission~~ — **retiré en TCK-278**, remplacé par les profils polymorphes (cf. Règle 5 de `models-spec.md`) | — |
@@ -60,7 +60,7 @@ Document de référence pour configurer le monorepo **Takussan** de A à Z (dép
 | **Queue** | Database / Redis / SQS / Beanstalkd | ✅ | `QUEUE_CONNECTION` |
 | **Storage** | Local / S3 (AWS) | ✅ | `FILESYSTEM_DISK`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_BUCKET`, `AWS_DEFAULT_REGION` |
 | **Mail** | SMTP / Postmark / Resend / SES | ✅ (prod) | `MAIL_MAILER`, `POSTMARK_API_KEY` ou `RESEND_API_KEY` ou `AWS_*` |
-| **Search** | Meilisearch / Algolia / Typesense | ⚠️ (option) | `SCOUT_DRIVER` + (`MEILISEARCH_HOST` & `MEILISEARCH_KEY`) ou (`ALGOLIA_APP_ID` & `ALGOLIA_SECRET`) ou (`TYPESENSE_*`) |
+| **Search** | Meilisearch (Algolia / Typesense supportés) | ✅ (preview + prod) | `SCOUT_DRIVER` + (`MEILISEARCH_HOST` & `MEILISEARCH_KEY`) ou (`ALGOLIA_APP_ID` & `ALGOLIA_SECRET`) ou (`TYPESENSE_*`) |
 | **OAuth Google** | Google Cloud Console | ⚠️ (si SSO Google) | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` |
 | **OAuth Facebook** | Meta for Developers | ⚠️ (si SSO Facebook) | `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`, `FACEBOOK_REDIRECT_URI` |
 | **OAuth Apple** | Apple Developer (Services ID + .p8) | ⚠️ (si SSO Apple) | `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY_PATH`, `APPLE_REDIRECT_URI` |
@@ -144,13 +144,109 @@ LOG_DEPRECATIONS_CHANNEL=null
 LOG_LEVEL=debug
 ```
 
-### 3.6 Search (Laravel Scout)
+### 3.6 Search (Laravel Scout + Meilisearch)
+
+Depuis TCK-280, **Meilisearch est le moteur de recherche sur tous les
+environnements** — local, CI, preview et production. Le driver `collection` de
+Scout (recherche en mémoire) n'est plus utilisé : la suite de tests elle-même
+tourne sur un service Meilisearch (cf. `.github/workflows/api-ci.yml`).
 
 ```env
-SCOUT_DRIVER=collection     # collection (DB) | meilisearch | algolia | typesense
-# MEILISEARCH_HOST=http://localhost:7700
-# MEILISEARCH_KEY=
+# Tous les environnements — Meilisearch
+SCOUT_DRIVER=meilisearch
+MEILISEARCH_HOST=http://127.0.0.1:7700
+MEILISEARCH_KEY=<master_key de /etc/meilisearch.toml>
+SCOUT_QUEUE=true            # preview/prod — indexation via la queue (worker requis)
+SCOUT_AFTER_COMMIT=true     # preview/prod — n'indexe qu'après commit de transaction
+SCOUT_PREFIX=preview_       # PREVIEW UNIQUEMENT — isole les index de la prod
 ```
+
+> ⚠️ `SCOUT_PREFIX=preview_` est **obligatoire sur preview** quand preview et prod
+> partagent la même instance Meilisearch (même VPS) : sans lui, les index
+> `properties` / `messages` / `documents` des deux environnements entrent en
+> collision. La prod laisse `SCOUT_PREFIX` vide.
+
+#### Installer Meilisearch en local (macOS)
+
+```bash
+brew install meilisearch
+brew services start meilisearch        # service en arrière-plan, port 7700
+```
+
+Master key locale — créer `/opt/homebrew/var/config.toml` (chargé automatiquement,
+le service brew tourne avec ce répertoire de travail) :
+
+```toml
+master_key = "<32+ caractères>"
+env = "development"
+```
+
+#### Installer Meilisearch en production (VPS Ubuntu)
+
+```bash
+# 1. Binaire via le dépôt apt officiel Meilisearch
+echo "deb [trusted=yes] https://apt.fury.io/meilisearch/ /" | sudo tee /etc/apt/sources.list.d/meilisearch.list
+sudo apt update && sudo apt install meilisearch
+
+# 2. Utilisateur système dédié + répertoires de données
+sudo useradd -d /var/lib/meilisearch -s /bin/false -m -r meilisearch
+sudo mkdir -p /var/lib/meilisearch/data /var/lib/meilisearch/dumps /var/lib/meilisearch/snapshots
+sudo chown -R meilisearch:meilisearch /var/lib/meilisearch
+```
+
+Configuration `/etc/meilisearch.toml` (master key : `openssl rand -base64 24`) :
+
+```toml
+env          = "production"
+master_key   = "<master key générée>"
+db_path      = "/var/lib/meilisearch/data"
+dump_dir     = "/var/lib/meilisearch/dumps"
+snapshot_dir = "/var/lib/meilisearch/snapshots"
+http_addr    = "127.0.0.1:7700"   # localhost uniquement — jamais exposé publiquement
+```
+
+Service systemd `/etc/systemd/system/meilisearch.service`, puis activation :
+
+```ini
+[Unit]
+Description=Meilisearch
+After=network.target
+
+[Service]
+User=meilisearch
+Group=meilisearch
+ExecStart=/usr/bin/meilisearch --config-file-path /etc/meilisearch.toml
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now meilisearch
+curl http://127.0.0.1:7700/health      # → {"status":"available"}
+```
+
+#### Côté Laravel / Scout
+
+Les modèles `Property`, `Document` et `Message` portent le trait `Searchable` ; les
+réglages d'index (`searchableAttributes`, `filterableAttributes`,
+`sortableAttributes`, `rankingRules`) sont définis dans `config/scout.php`.
+
+```bash
+php artisan scout:sync-index-settings           # pousse les réglages d'index
+php artisan scout:import "App\Models\Property"  # peuple un index (1ère fois)
+php artisan scout:import "App\Models\Document"
+php artisan scout:import "App\Models\Message"
+```
+
+- `scout:sync-index-settings` est exécuté **automatiquement à chaque déploiement**
+  par `scripts/deploy.sh` (Step 6b) quand `SCOUT_DRIVER=meilisearch`.
+- `scout:import` est une opération **ponctuelle** — 1er déploiement, ou après modif
+  d'un `toSearchableArray()`. À lancer manuellement sur le serveur.
+- `SCOUT_QUEUE=true` exige un worker de queue actif (`takussan-queue.service`) pour
+  traiter les jobs `Laravel\Scout\Jobs\MakeSearchable`.
 
 ### 3.7 Mail
 
@@ -298,14 +394,22 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:8002
 
 ### 5.1 Pré-requis système
 
-- **PHP ^8.3** avec extensions : `bcmath`, `ctype`, `curl`, `dom`, `fileinfo`, `gd` (ou `imagick` si Intervention Image), `intl`, `mbstring`, `openssl`, `pdo`, `pdo_sqlite` (ou `pdo_pgsql` / `pdo_mysql`), `redis` (phpredis), `tokenizer`, `xml`, `zip`.
+- **PHP ^8.4** avec extensions : `bcmath`, `ctype`, `curl`, `dom`, `fileinfo`, `gd` (ou `imagick` si Intervention Image), `intl`, `mbstring`, `openssl`, `pdo`, `pdo_sqlite` (ou `pdo_pgsql` / `pdo_mysql`), `redis` (phpredis), `tokenizer`, `xml`, `zip`.
 - **Composer 2.x**
 - **Node.js ≥ 20.x** + **npm** (frontend `engines` non strict, mais types `@types/node ^20`)
-- **Redis** (cache + sessions + queues recommandés)
-- **Database** : SQLite (dev) ou PostgreSQL/MySQL (prod)
+- **Database** : **MySQL 8.0** — la version de la production, mesurée le 2026-08-13. SQLite ne sert qu'à la suite de tests — c'est un moteur
+  permissif qui **ne peut pas voir** les quatre familles de pièges de migration documentées dans
+  [`../CLAUDE.md`](../CLAUDE.md). Développer dessus, c'est n'éprouver aucune migration.
+- **Meilisearch** — **obligatoire, pas optionnel** (ADR-0008). `phpunit.xml` force
+  `SCOUT_DRIVER=meilisearch` sans repli : **sans instance, `php artisan test` ne démarre pas.**
 - **Git**
-- *(Optionnel)* Meilisearch / Algolia / Typesense pour Scout
-- *(Optionnel)* Gotenberg ou navigateur headless si `LARAVEL_PDF_DRIVER` ≠ `cloudflare`
+- *(Optionnel)* **Redis** — la production tourne en `CACHE_STORE=database` /
+  `QUEUE_CONNECTION=database`. Redis n'est requis que si l'on bascule ces drivers.
+- *(Optionnel)* Gotenberg ou navigateur headless si `LARAVEL_PDF_DRIVER` ∉ {`dompdf`, `cloudflare`}
+
+> **Le plus simple est de ne rien installer de tout cela** : `docker-compose.yml` à la racine sert
+> MySQL 8.0, Meilisearch, Redis et Mailpit, et `./dev.sh` démarre l'ensemble en une commande
+> (ADR-0011). `./dev.sh doctor` dit ce qui répond et ce qui manque.
 
 ### 5.2 Cloner le repo
 

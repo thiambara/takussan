@@ -18,7 +18,7 @@ use PragmaRX\Google2FA\Google2FA;
  *   enable()  -> generates a fresh secret (stored encrypted) but leaves
  *                two_factor_enabled=false until the user confirms possession.
  *   confirm() -> verifies a 6-digit TOTP code, flips two_factor_enabled=true,
- *                generates & returns 8 recovery codes (stored encrypted-hashed).
+ *                generates & returns 8 recovery codes (stored as plain JSON).
  *   disable() -> requires password OR a valid TOTP code, wipes state.
  *
  * Recovery codes are single-use: verifyRecoveryCode() pops the matching

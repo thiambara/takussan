@@ -1,0 +1,228 @@
+name: Deploy Laravel API
+
+# ⚠️ Ce workflow n'a JAMAIS tourné (mesuré le 2026-08-12 : `gh run list` ne rend aucun run).
+# `https://api.takussan.com/up` répond 404 — la production n'a jamais été déployée. Son jumeau de
+# preview, lui, a tourné cinq fois avec succès sur la même machine.
+#
+# Le premier déploiement de production ne doit donc PAS être l'effet de bord d'un merge : il se
+# déclenche à la main, on regarde ce qu'il fait, et on décide ensuite de la politique de branche
+# (cf. TCK-288). C'est ce que permet l'entrée `branch` ci-dessous.
+#
+# ⚠️ DEUX CONDITIONS avant qu'un déclenchement manuel soit possible ET sûr — une revue a montré
+# qu'aucune des deux n'allait de soi :
+#
+#   1. `deploy.yml` doit exister sur la BRANCHE PAR DÉFAUT du dépôt, sinon GitHub n'expose pas
+#      `workflow_dispatch` du tout (`HTTP 404: workflow not found on the default branch`). Fait
+#      le 2026-08-12 : la branche par défaut est passée de `master` — qui ne porte pas ce
+#      fichier — à `dev`, qui le porte. Cette bascule ne déclenche rien : le `on: push:`
+#      ci-dessous reste sur `master`.
+#   2. La version de `deploy.yml` présente sur cette branche doit porter l'entrée `branch`.
+#      Tant que ce n'est pas le cas, un dispatch retombe sur le `master` codé en dur et déploie
+#      un état périmé — le contraire exact de ce qu'on voulait.
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "takussan-api/**"
+      - "scripts/deploy.sh"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: >-
+          Branche à déployer en PRODUCTION — `dev` ou `master`, rien d'autre. Sans cette entrée,
+          un déclenchement manuel déployait `master` codé en dur, c'est-à-dire l'état du
+          2026-05-18, antérieur à cette chaîne de déploiement elle-même. Le défaut est `dev`
+          parce que c'est la branche d'intégration ET la branche par défaut du dépôt : le
+          formulaire propose donc ce que l'opérateur croit déjà être en train de déployer.
+        required: true
+        default: dev
+        type: string
+      confirmer:
+        description: >-
+          Retape ici le nom EXACT de la branche ci-dessus pour confirmer. Ce champ est vide par
+          défaut et il n'a pas de valeur juste : c'est tout son objet.
+        required: true
+        default: ''
+        type: string
+
+concurrency:
+  group: takussan-prod-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Contabo
+    runs-on: ubuntu-latest
+
+    # Sur un push c'est toujours `master` ; sur un déclenchement manuel, la branche choisie.
+    env:
+      DEPLOY_BRANCH: ${{ inputs.branch || 'master' }}
+
+    steps:
+      - name: Ce qui va être déployé — et refus d'une branche non prévue
+        # L'entrée `branch` remplace un `master` codé en dur : elle rend le déclenchement manuel
+        # possible, mais elle ouvre aussi la porte à n'importe quelle branche jusqu'à
+        # `php artisan migrate --force` sur la base de PRODUCTION. Une chaîne libre qui atteint
+        # une migration de production doit être bornée.
+        #
+        # La liste est volontairement courte : les branches d'intégration du dépôt. Déployer
+        # autre chose reste possible — en éditant ce fichier, donc en le disant.
+        #
+        # ⚠ CETTE ÉTAPE EST LA PREMIÈRE, avant le `checkout`, et c'est nécessaire. Elle se
+        # trouvait juste après lui : `actions/checkout` recevait donc `ref: ${{ env.DEPLOY_BRANCH }}`
+        # — une chaîne saisie par l'opérateur — et allait la chercher AVANT toute validation.
+        # Une faute de frappe rendait un `couldn't find remote ref` brut au lieu du refus
+        # explicite écrit ici, et une référence arbitraire était rapatriée sur le runner.
+        # Cette étape n'a besoin d'aucun fichier du dépôt : elle ne lit qu'une variable.
+        #
+        # *Une garde placée après ce qu'elle garde ne garde rien — elle commente.*
+        #
+        # `preview` en a été RETIRÉE. Elle y figurait par symétrie avec les autres branches
+        # longues, mais tout ce qui suit ici est codé en dur sur la production — le chemin
+        # `/var/www/takussan`, l'hôte `api.takussan.com`, et surtout le `migrate --force` du
+        # script de déploiement. Proposer `preview` dans une liste dont le rôle affiché est de
+        # BORNER le risque revenait à présenter comme vérifié le seul choix qui déploie la
+        # branche d'un environnement sur la base de l'autre. Une allowlist ne se lit pas comme
+        # une contrainte : elle se lit comme une recommandation.
+        #
+        # ⚠ La CONFIRMATION TYPÉE ci-dessous existe parce que `default: dev` reste, lui, un choix
+        # discutable : `dev` est la branche d'intégration, et ce workflow lance
+        # `migrate --force` sur la base de PRODUCTION. Revenir à `default: master` recréerait le
+        # défaut inverse — déployer en silence l'état du 2026-05-18 — donc ni l'un ni l'autre des
+        # deux défauts ne se règle par le choix du défaut.
+        #
+        # Ce qu'on ferme, c'est le geste : « ouvrir le formulaire, accepter ce qui est
+        # pré-rempli, cliquer ». Le second champ est VIDE par défaut et doit être retapé à
+        # l'identique. *Une valeur pré-remplie n'est pas une décision ; c'est l'absence de
+        # décision, présentée comme un accord.*
+        #
+        # ⚠⚠ `CONFIRMER` PASSE PAR `env:`, JAMAIS PAR `${{ }}` DANS LE `run:` — et la première
+        # version de cette garde faisait l'inverse, ce qui la rendait contournable ET dangereuse.
+        #
+        # `${{ inputs.confirmer }}` est substitué TEXTUELLEMENT par GitHub avant que bash ne lise
+        # la ligne. Taper les sept caractères littéraux `${DEPLOY_BRANCH}` dans le champ produisait
+        # donc `[ "${DEPLOY_BRANCH}" != "${DEPLOY_BRANCH}" ]` : la comparaison portait sur la
+        # variable et elle-même, et la confirmation passait sans que le nom ait jamais été retapé.
+        # Reproduit. La seule barrière entre « accepter un formulaire pré-rempli » et
+        # `migrate --force` sur la base de production s'ouvrait avec son propre nom.
+        #
+        # Et au-delà du contournement : n'importe quel métacaractère de shell dans ce champ
+        # s'exécutait sur un runner qui porte `CONTABO_SSH_KEY` et `ENV_FILE`.
+        #
+        # `DEPLOY_BRANCH` était, lui, correctement passé par `env:` — la moitié du réflexe était
+        # là. *Un réflexe appliqué à une variable et pas à sa voisine n'est pas un réflexe : c'est
+        # une coïncidence.* Toute entrée d'opérateur descend par `env:` et se lit `"$VAR"`.
+        env:
+          CONFIRMER: ${{ inputs.confirmer }}
+          EVENEMENT: ${{ github.event_name }}
+        run: |
+          echo "Branche déployée : ${DEPLOY_BRANCH}"
+          echo "Cible            : /var/www/takussan (api.takussan.com)"
+          echo "Déclencheur      : ${EVENEMENT}"
+          if [ "${EVENEMENT}" = "workflow_dispatch" ] && [ "${CONFIRMER}" != "${DEPLOY_BRANCH}" ]; then
+            echo "::error::Confirmation absente ou différente de la branche."
+            echo "Retape exactement '${DEPLOY_BRANCH}' dans le champ « confirmer »."
+            echo "Ce déploiement lance 'migrate --force' sur la base de PRODUCTION : il ne doit"
+            echo "pas pouvoir se déclencher en acceptant un formulaire pré-rempli."
+            exit 1
+          fi
+          case "${DEPLOY_BRANCH}" in
+            master|dev) ;;
+            *)
+              echo "::error::Branche '${DEPLOY_BRANCH}' non autorisée en production."
+              echo "Autorisées : master, dev. Un déploiement lance 'migrate --force' sur la base"
+              echo "de PRODUCTION : la branche déployée ne se saisit pas librement, et 'preview'"
+              echo "en particulier vise un autre environnement — la déployer ici migrerait la"
+              echo "base de production avec le schéma de la préproduction."
+              exit 1
+              ;;
+          esac
+
+      - name: Checkout code
+        # `ref:` EXPLICITE. Sans lui, `checkout` prend la branche d'où le dispatch est parti —
+        # pas celle qu'on déploie. Le `scp` ci-dessous embarque `scripts/deploy.sh` de CETTE
+        # copie, tandis que le `ssh` déploie `$DEPLOY_BRANCH` : un dispatch depuis `dev` avec
+        # `branch: master` (les deux sont dans l'allowlist) faisait tourner le script de
+        # déploiement de `dev` — celui que cette PR vient justement de modifier — contre le code
+        # applicatif de `master`, et réciproquement.
+        #
+        # *Le script qui déploie et le code qu'il déploie doivent venir du même commit.*
+        #
+        # ⚠ `inputs.branch || github.sha`, et PAS `env.DEPLOY_BRANCH`. La première version
+        # écrivait la seconde forme, et elle faisait régresser le déclenchement par push.
+        # `actions/checkout` vise par défaut `github.sha` sur un push — le commit EXACT qui a
+        # déclenché le run. Passer la branche remplaçait ce commit par « ce que `master` pointe
+        # au moment où le runner démarre ». Avec `cancel-in-progress: false`, deux poussées
+        # rapprochées donnaient : le run n°1 récupère une tête contenant déjà le commit n°2, le
+        # déploie, et rapporte un succès en face du commit n°1 — l'association run↔commit
+        # affichée par GitHub ne décrivait plus ce qui tourne sur le serveur.
+        #
+        # Le dispatch manuel garde la branche (c'est tout son objet) ; le push retrouve son
+        # commit. *Corriger un chemin ne dispense pas de vérifier ce qu'on a fait à l'autre.*
+        uses: actions/checkout@v4
+        with:
+          # UNE seule source pour cette valeur : `env.DEPLOY_BRANCH` sur un dispatch, `github.sha`
+          # sur un push. Les deux replis étaient auparavant écrits séparément — `inputs.branch ||
+          # 'master'` pour la garde et le déploiement serveur, `inputs.branch || github.sha` ici.
+          # Si `inputs.branch` valait un jour la chaîne vide, la garde validait et confirmait
+          # `master` pendant que le runner récupérait la branche du dispatch, dont le SHA partait
+          # ensuite au serveur : le run affichait `master` et déployait autre chose, en
+          # contredisant la garantie « même commit » établie dix lignes plus haut.
+          #
+          # `DEPLOY_BRANCH` est déjà validé par l'étape précédente ; le push, lui, garde son
+          # commit exact. *Deux replis écrits séparément pour une même valeur finiront par
+          # diverger — c'est leur seule liberté.*
+          ref: ${{ github.event_name == 'workflow_dispatch' && env.DEPLOY_BRANCH || github.sha }}
+
+      - name: Le commit effectivement récupéré
+        id: sha
+        # On LIT le SHA obtenu, on ne le déduit pas de l'entrée : sur un dispatch, `ref` est un
+        # nom de branche, et c'est justement la résolution nom → commit qu'on veut figer une
+        # seule fois, ici, plutôt que de la laisser se rejouer sur le serveur.
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Copy deploy script to server
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.CONTABO_HOST }}
+          username: ${{ secrets.CONTABO_USER }}
+          key: ${{ secrets.CONTABO_SSH_KEY }}
+          source: "scripts/deploy.sh"
+          target: "/var/www/takussan/"
+          strip_components: 1
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.CONTABO_HOST }}
+          username: ${{ secrets.CONTABO_USER }}
+          key: ${{ secrets.CONTABO_SSH_KEY }}
+          timeout: 10m
+          envs: ENV_FILE,DEPLOY_BRANCH,COMMIT_SHA,REPO_URL
+          # `REPO_URL` descend par `envs:` comme les trois autres, et n'est plus interpolé dans
+          # le corps du script. Le correctif de la confirmation ci-dessus portait sur une entrée
+          # d'opérateur ; celui-ci porte sur un secret — moins exposé, même forme. On applique la
+          # règle au CLASSE, pas à l'instance signalée : aucune valeur venant de `${{ }}` ne
+          # traverse un bloc shell.
+          script: |
+            chmod +x /var/www/takussan/deploy.sh
+            bash /var/www/takussan/deploy.sh "$REPO_URL" "$DEPLOY_BRANCH" /var/www/takussan
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+          REPO_URL: ${{ secrets.REPO_URL }}
+          DEPLOY_BRANCH: ${{ env.DEPLOY_BRANCH }}
+          # Le commit RÉELLEMENT déployé, transmis au serveur pour qu'il vise le même que le
+          # runner. Sur un push c'est `github.sha` ; sur un dispatch manuel, le SHA que le
+          # `checkout` de la branche demandée a effectivement obtenu — relu du dépôt local
+          # plutôt que supposé.
+          COMMIT_SHA: ${{ steps.sha.outputs.sha }}
+
+      - name: Smoke test
+        run: |
+          set -e
+          sleep 3
+          curl -fsS https://api.takussan.com/up \
+            || (echo "API prod DOWN"; exit 1)
+          echo "✓ API prod responds on /up"

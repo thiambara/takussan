@@ -73,7 +73,7 @@ class OfxDriver implements StatementParserInterface
             throw new \RuntimeException("Invalid OFX date: {$dtPosted}");
         }
 
-        $amount = (float) str_replace([' ', ','], ['', '.'], $trnAmt);
+        $amount = $this->parseAmount($trnAmt);
         $direction = $amount >= 0
             ? BankStatementLineDirection::Credit
             : BankStatementLineDirection::Debit;
@@ -109,5 +109,32 @@ class OfxDriver implements StatementParserInterface
         }
 
         return null;
+    }
+
+    /**
+     * Parse a monetary string into a float, correctly handling both decimal
+     * conventions. The previous `str_replace([' ', ','], ['', '.'])` turned
+     * EVERY comma into a decimal point, so "1,234.56" became "1.234.56" →
+     * (float) 1.234 — a silent 1000× data-loss bug.
+     */
+    private function parseAmount(string $raw): float
+    {
+        $s = str_replace(' ', '', trim($raw));
+        $hasComma = str_contains($s, ',');
+        $hasDot = str_contains($s, '.');
+
+        if ($hasComma && $hasDot) {
+            // The right-most separator is the decimal one; the other groups thousands.
+            if (strrpos($s, ',') > strrpos($s, '.')) {
+                $s = str_replace(['.', ','], ['', '.'], $s);
+            } else {
+                $s = str_replace(',', '', $s);
+            }
+        } elseif ($hasComma) {
+            // Only a comma present → it is the decimal separator.
+            $s = str_replace(',', '.', $s);
+        }
+
+        return (float) $s;
     }
 }
