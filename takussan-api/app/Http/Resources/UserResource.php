@@ -21,6 +21,11 @@ class UserResource extends JsonResource
             'email_verified_at' => $this->email_verified_at?->toIso8601String(),
             'phone_verified_at' => $this->phone_verified_at?->toIso8601String(),
             'two_factor_enabled' => (bool) $this->two_factor_enabled,
+            // TCK-272 — le front ne DEVINE pas le mode de step-up : le
+            // backend le dit. `false` = le hash en base est une valeur
+            // machine (OAuth / invitation / provisioning), donc la
+            // suppression de compte passe par un code e-mail.
+            'has_usable_password' => $this->resource->hasUsablePassword(),
             // TCK-263 / TCK-264 — surfaced so the frontend can detect a
             // pending super-admin onboarding state and redirect to
             // /onboarding/super-admin before serving any super-admin route.

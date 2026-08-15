@@ -25,8 +25,12 @@ class AgencyController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $paginator = Agency::buildQuery($this->visibleAgencyQuery($request->user()), $request)
-            ->defaultSort('-created_at')
+        // TCK-281 — `defaultSortsWithRelevance()` doit être évalué APRÈS
+        // `buildQuery()`, qui est ce qui interroge Meilisearch.
+        $query = Agency::buildQuery($this->visibleAgencyQuery($request->user()), $request);
+
+        $paginator = $query
+            ->defaultSorts(...Agency::defaultSortsWithRelevance('-created_at'))
             ->paginate();
 
         return $this->json([
@@ -130,8 +134,11 @@ class AgencyController extends Controller
             $q->whereHas('agentProfiles', fn ($qq) => $qq->where('agency_id', $agency->id))
                 ->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agency->id));
         });
-        $query = User::buildQuery($base, $request)
-            ->defaultSort('-created_at');
+        $query = User::buildQuery($base, $request);
+        // TCK-281 — la recherche des membres bascule sur Meilisearch avec ce
+        // ticket (le front lui envoie déjà `filter[search]`) : elle hérite
+        // donc du classement par pertinence, comme la liste des agences.
+        $query->defaultSorts(...User::defaultSortsWithRelevance('-created_at'));
 
         // TCK-278 — Filtre `?filter[role]=...` désormais résolu via les
         // profils polymorphes plutôt que la table spatie `roles`.

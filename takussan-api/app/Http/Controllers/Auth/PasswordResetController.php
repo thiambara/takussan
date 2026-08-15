@@ -35,7 +35,15 @@ class PasswordResetController extends Controller
         $status = Password::reset(
             $data,
             function ($user, string $password) {
-                $user->forceFill(['password' => Hash::make($password)])->save();
+                // TCK-272 — `password_set_at` marque un mot de passe CHOISI.
+                // C'est le seul chemin par lequel un compte provisionné
+                // (OAuth, invitation, plateforme) acquiert un mot de passe
+                // qu'il connaît : il repasse donc sur le step-up par mot de
+                // passe dès ce reset.
+                $user->forceFill([
+                    'password' => Hash::make($password),
+                    'password_set_at' => now(),
+                ])->save();
                 // Revoke all tokens on password reset
                 $user->tokens()->delete();
             }

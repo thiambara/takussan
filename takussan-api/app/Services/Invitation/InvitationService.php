@@ -395,6 +395,15 @@ class InvitationService
                 'email_verified_at' => now(),
             ]);
 
+            // TCK-272 — n'estampiller que la branche où l'invité a CHOISI
+            // son mot de passe. Sur la branche `Str::random(40)`, le champ
+            // reste NULL : ces comptes ne pouvaient pas supprimer leur
+            // compte (« Mot de passe incorrect. » quoi qu'ils tapent) et
+            // passent désormais par le code e-mail.
+            if (isset($payload['password'])) {
+                $user->markPasswordAsSet();
+            }
+
             return $this->finalizeAccept($invitation, $user);
         });
     }

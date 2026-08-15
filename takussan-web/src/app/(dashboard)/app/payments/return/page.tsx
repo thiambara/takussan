@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { Loader2 } from 'lucide-react';
 import {
   useVerifyPayment,
   type GatewayPaymentType,
@@ -104,12 +105,19 @@ function PaymentReturnInner() {
         {(bucket === 'pending' || bucket === 'unknown') && t('return.pending.body')}
       </p>
       {isVerifying && (
+        // `role="status"` + `aria-live` restent sur le PARENT : un composant qui reposerait son
+        // propre rôle créerait un double signalement. L'icône lucide remplace le spinner CSS
+        // fait main en palette stone — le dernier hors palette du dépôt — et rejoint les 60
+        // autres `animate-spin`, tous des icônes lucide. (Le motif exact n'est pas recopié ici :
+        // un AC du ticket le cherche par grep, et un commentaire le ferait échouer sur du code
+        // juste — c'est le défaut que `check-pro-routes.mjs` documente sur quarante lignes.)
         <div
           className="mt-8 flex justify-center"
           aria-live="polite"
           role="status"
         >
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-stone-200 border-t-stone-900" />
+          <Loader2 className="size-10 animate-spin text-primary" aria-hidden="true" />
+          <span className="sr-only">{t('return.verifying')}</span>
         </div>
       )}
       {!isVerifying && (

@@ -45,8 +45,12 @@ class UserAdminController extends Controller
         // sparse fields. TCK-278 — that callback resolves the role against the
         // polymorphic profiles, not against any spatie/laravel-permission
         // table: only the query-builder package is still installed.
-        $paginator = User::buildQuery($base, $request)
-            ->defaultSort('-created_at')
+        // TCK-281 — `defaultSortsWithRelevance()` doit être évalué APRÈS
+        // `buildQuery()`, qui est ce qui interroge Meilisearch.
+        $query = User::buildQuery($base, $request);
+
+        $paginator = $query
+            ->defaultSorts(...User::defaultSortsWithRelevance('-created_at'))
             ->paginate();
 
         return $this->json([

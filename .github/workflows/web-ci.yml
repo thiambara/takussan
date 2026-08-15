@@ -52,6 +52,16 @@ jobs:
         # fichiers de test — or l'erreur trouvée sur `dev` était précisément dans un test.
         run: npx tsc --noEmit
 
+      - name: i18n (parité des locales + cliquet sur le texte en dur)
+        # Cette garde vit dans `takussan-web/scripts/` et NON dans `scripts/` à la racine, où sont
+        # les sept autres. Ce n'est pas un oubli : `repo-ci.yml` n'exécute aucun `npm ci` — ses
+        # gardes n'importent que des modules `node:` natifs — et celle-ci parse le TypeScript avec
+        # le compilateur `typescript`. La brancher là-bas obligerait soit à installer les
+        # dépendances dans un workflow documentaire qui existe pour être léger, soit à retomber sur
+        # une analyse par regex, moins précise sur exactement le point qui compte (distinguer un
+        # libellé affiché d'une chaîne technique). Elle est donc ici, où `npm ci` a déjà tourné.
+        run: npm run check:i18n
+
       - name: Tests (Vitest)
         run: npm run test
 

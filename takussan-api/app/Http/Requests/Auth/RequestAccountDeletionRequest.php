@@ -4,6 +4,7 @@ namespace App\Http\Requests\Auth;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Services\Account\AccountDeletionService;
+use App\Services\Account\DeletionStepUpService;
 use App\Services\Auth\TwoFactorService;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Support\Facades\Hash;
@@ -11,27 +12,70 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
- * TCK-080 — payload + step-up auth for `POST /auth/me/deletion-request`.
+ * TCK-080 / TCK-272 — payload + step-up auth for `POST /auth/me/deletion-request`.
  *
- * - Re-verifies the password server-side (defense in depth: even an
- *   already-authenticated user must re-prove possession).
+ * - Re-verifies possession server-side (defense in depth: even an
+ *   already-authenticated user must re-prove it).
+ * - **Two mutually exclusive step-up modes, and the SERVER picks.** A user
+ *   with a usable password re-types it (historical TCK-080 path). A user
+ *   whose stored hash is a machine value — OAuth signup, invitation
+ *   accepted without a password, platform-provisioned admin — gets a
+ *   6-digit code by e-mail instead (TCK-272). Before TCK-272 the second
+ *   population was told « Mot de passe incorrect. » forever: a right
+ *   denied behind a message blaming them for a typo.
  * - When the user has 2FA enabled, requires either a `two_factor_code`
- *   (TOTP) or a `recovery_code` and validates it via {@see TwoFactorService}.
- *   Mirrors the `disable 2FA` UX so users have one consistent step-up flow.
+ *   (TOTP) or a `recovery_code`, **on both paths**.
  * - Surfaces obligations as a 422 before reaching the service — the service
  *   re-checks defensively.
+ *
+ * ⚠️ SÉCURITÉ — la branche est calculée à partir de
+ * `$this->user()->hasUsablePassword()` et de RIEN d'autre. La faire
+ * dépendre d'une valeur du payload (`required_if:mode,…`) rendrait la
+ * suppression exécutable sans aucune preuve : il suffirait au client
+ * d'annoncer le mode le plus faible.
  */
 class RequestAccountDeletionRequest extends BaseFormRequest
 {
+    public const STEP_UP_PASSWORD = 'password';
+
+    public const STEP_UP_EMAIL_CODE = 'email_code';
+
+    /** Renseigné par {@see withValidator()} une fois la preuve acceptée. */
+    private ?string $stepUpMode = null;
+
     public function authorize(): bool
     {
         return $this->user() !== null;
     }
 
+    /**
+     * Le mode de step-up effectivement utilisé — journalisé par
+     * {@see AccountDeletionService::requestDeletion()} (AC7).
+     */
+    public function stepUpMode(): string
+    {
+        return $this->stepUpMode ?? self::STEP_UP_PASSWORD;
+    }
+
+    /** Le compte a-t-il un mot de passe que son propriétaire connaît ? */
+    private function usesPasswordStepUp(): bool
+    {
+        return $this->user()?->hasUsablePassword() ?? true;
+    }
+
     public function rules(): array
     {
+        $withPassword = $this->usesPasswordStepUp();
+
         return [
-            'password' => ['required', 'string'],
+            // `prohibited` sur la voie inverse : on n'ouvre pas deux portes
+            // à la fois, et un `password` envoyé sur un compte sans mot de
+            // passe utilisable doit produire un message qui ORIENTE, pas
+            // « Mot de passe incorrect. ».
+            'password' => $withPassword ? ['required', 'string'] : ['prohibited'],
+            'step_up_code' => $withPassword
+                ? ['prohibited']
+                : ['required', 'string', 'size:6'],
             'reason' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'reason_code' => [
                 'sometimes', 'nullable', 'string',
@@ -42,10 +86,22 @@ class RequestAccountDeletionRequest extends BaseFormRequest
         ];
     }
 
+    /** @return array<string,string> */
+    public function messages(): array
+    {
+        return [
+            'password.prohibited' => __('account.deletion.errors.password_not_applicable'),
+            'step_up_code.prohibited' => __('account.deletion.errors.step_up_not_applicable'),
+            'step_up_code.required' => __('account.deletion.errors.step_up_code_required'),
+            'step_up_code.size' => __('account.deletion.errors.step_up_code_invalid'),
+        ];
+    }
+
     /**
      * Stack our auth checks on top of base validation. Runs once base
-     * rules pass — failures translate to 422 (`password`, `two_factor_code`)
-     * or 422 (`obligations`) consistent with the rest of the auth surface.
+     * rules pass — failures translate to 422 (`password`, `step_up_code`,
+     * `two_factor_code`) or 422 (`obligations`) consistent with the rest of
+     * the auth surface.
      */
     public function withValidator(Validator $validator): void
     {
@@ -55,12 +111,28 @@ class RequestAccountDeletionRequest extends BaseFormRequest
                 return;
             }
 
-            if (! Hash::check((string) $this->input('password'), $user->password)) {
-                $validator->errors()->add('password', __('account.deletion.errors.password_invalid'));
+            $stepUp = app(DeletionStepUpService::class);
+            $usesPassword = $this->usesPasswordStepUp();
 
-                return;
+            if ($usesPassword) {
+                if (! Hash::check((string) $this->input('password'), $user->password)) {
+                    $validator->errors()->add('password', __('account.deletion.errors.password_invalid'));
+
+                    return;
+                }
+                $this->stepUpMode = self::STEP_UP_PASSWORD;
+            } else {
+                if (! $stepUp->verifyCode($user, (string) $this->input('step_up_code'))) {
+                    $validator->errors()->add('step_up_code', __('account.deletion.errors.step_up_code_invalid'));
+
+                    return;
+                }
+                $this->stepUpMode = self::STEP_UP_EMAIL_CODE;
             }
 
+            // Le 2FA reste obligatoire sur LES DEUX voies. Il est exécuté
+            // après la preuve de possession dans les deux branches — ne pas
+            // laisser un chemin où la branche alternative réussit sans lui.
             if ($user->two_factor_enabled) {
                 /** @var TwoFactorService $tfa */
                 $tfa = app(TwoFactorService::class);
@@ -88,6 +160,18 @@ class RequestAccountDeletionRequest extends BaseFormRequest
             if ($obligations !== []) {
                 $validator->errors()->add('obligations', __('account.deletion.errors.has_obligations'));
                 $this->merge(['_obligations' => $obligations]);
+
+                return;
+            }
+
+            // TCK-272 — le code e-mail n'est consommé QU'ICI, une fois tous
+            // les contrôles passés. Le brûler plus tôt ferait perdre son
+            // code à quelqu'un dont le TOTP a glissé d'un pas ou dont un
+            // bail est encore ouvert, et le pousserait à en réémettre en
+            // boucle. La consommation reste dans la même requête que la
+            // suppression : pas de fenêtre de rejeu exploitable.
+            if ($this->stepUpMode === self::STEP_UP_EMAIL_CODE) {
+                $stepUp->consumeCode($user);
             }
         });
     }

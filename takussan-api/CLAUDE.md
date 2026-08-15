@@ -223,13 +223,38 @@ pas dans `Model/`.**
 
 ## Recherche
 
-Seuls **3 modèles** sont `Searchable` : `Property`, `Document`, `Message`. Le driver est
-`SCOUT_DRIVER` (`meilisearch` en développement docker, en CI et en production ; `collection` est un
-défaut historique qui ne prouve rien — il filtre en PHP sur une collection Eloquent).
+**7 modèles** sont `Searchable` : `Property`, `Document`, `Message`, et — depuis TCK-281 —
+`Customer`, `MaintenanceRequest`, `Agency`, `User`. **Ne pas recopier cette liste ailleurs** : elle
+se dérive du code (`Tests\Support\SearchableModels`, et `grep -rl 'use Laravel\Scout\Searchable'
+app/Models`). Le driver est `SCOUT_DRIVER` (`meilisearch` en développement docker, en CI et en
+production ; `collection` est un défaut historique qui ne prouve rien — il filtre en PHP sur une
+collection Eloquent).
 
-`BaseModelTrait::scopeWithSearch()` compose Scout et Eloquent par un `whereIn` sur les ids : **l'ordre
-de pertinence de Scout n'est pas préservé**, et le docblock le dit (lignes 52-60). Ne pas promettre
-un classement par pertinence sur ce chemin.
+**Deux chemins composent Scout et Eloquent, et ils ne se valent PAS :**
+
+| Chemin | Ordre de pertinence |
+|---|---|
+| `BaseModelTrait::scopeWithSearch()` — le DSL maison, usages internes | **perdu** (`whereIn`, docblock lignes 52-60) |
+| `HasQueryBuilder` `filter[search]` — toute surface d'API | **restitué** (TCK-281) |
+
+Sur le second chemin, le callback mémorise l'ordre des ids rendus par Meilisearch
+(`HasQueryBuilder::$searchRelevanceIds`) et le contrôleur le rejoue via
+`Model::defaultSortsWithRelevance('-created_at')` → `App\Sorts\SearchRelevanceSort`, un `CASE`
+portable SQLite/MySQL (`FIELD()` n'existe pas en SQLite). **Le résultat se passe à `defaultSorts()`,
+jamais à `allowedSorts()`** : un `sort=` explicite du client reste souverain, la pertinence n'agit
+qu'à défaut.
+
+⚠️ **Un contrôleur qui écrit `->defaultSort(…)` en dur sur un modèle `Searchable` reprend la
+recherche tolérante aux fautes et jette le classement.** C'était l'état d'avant TCK-281, et il
+cochait un AC sans le tenir.
+
+⚠️ **Le cap `HasQueryBuilder::SEARCH_ID_CAP` (5000) échoue en silence** : Meilisearch rend au plus
+5000 ids **globaux** *avant* l'intersection avec le scope tenant. Une correspondance de l'agence de
+l'appelant classée au-delà de ce rang global disparaît sans message ni compteur tronqué.
+
+⚠️ **Les consoles super-admin (`/api/admin/agencies`, `/api/admin/users`) n'empruntent aucun des deux
+chemins** : elles écrivent leur propre `LIKE` SQL. Elles restent strictes, par choix (TCK-281,
+« Hors périmètre ») — pas par oubli.
 
 ## Tâches planifiées
 

@@ -1,18 +1,42 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Navbar } from '@/components/home/Navbar';
 import { Footer } from '@/components/home/Footer';
 import { PropertyRow } from '@/components/property/cards/PropertyRow';
 import { BogolanPattern } from '@/components/property/cards/BogolanPattern';
 import { RecentlyViewedCarousel } from '@/components/property/RecentlyViewedCarousel';
-import { useProperties } from '@/hooks/useProperties';
+import { useHomepageDiscovery } from '@/hooks/useHomepageDiscovery';
 import { useUserLocation } from '@/components/providers/UserLocationProvider';
-import { dedupeAcross } from '@/lib/dedupeBy';
+
+const NO_ITEMS = [] as const;
 
 /**
- * Homepage publique — TCK-129.
+ * Deadline on the geo-IP provider.
+ *
+ * Waiting for it is what keeps the page at ONE request (TCK-247 AC1): fetching
+ * before the city is known, then again once it resolves, is two. But the
+ * provider calls a third party (ipapi.co) with no timeout of its own, and a
+ * request that stalls without ever rejecting would leave the homepage in
+ * skeletons forever. So the wait is bounded: past this, we ask without a city
+ * and the backend serves its reference market.
+ */
+const GEO_DEADLINE_MS = 1200;
+
+function useGeoSettled(geoLoading: boolean): boolean {
+  const [deadlinePassed, setDeadlinePassed] = useState(false);
+
+  useEffect(() => {
+    const id = setTimeout(() => setDeadlinePassed(true), GEO_DEADLINE_MS);
+    return () => clearTimeout(id);
+  }, []);
+
+  return !geoLoading || deadlinePassed;
+}
+
+/**
+ * Homepage publique — TCK-129, câblée sur l'endpoint unique de TCK-247.
  * Quatre rangées scrollables, une variante de carte par section :
  *  - Standard 4:3   → « Près de toi · À découvrir à Dakar »
  *  - Listing wide   → « À louer · Pour ton prochain logement »
@@ -22,34 +46,43 @@ import { dedupeAcross } from '@/lib/dedupeBy';
  * Pas de hero marketing — l'intention de l'utilisateur est pré-formée. La
  * navbar porte search + catégories ; cette page démarre directement par la
  * découverte.
+ *
+ * Les quatre rangées viennent d'UN appel, et la déduplication entre « Près de
+ * toi » / « À louer » / « Nouveau » est faite par le serveur, qui pioche dans
+ * un pool plus large pour recompléter les rangées au lieu de les laisser
+ * maigrir. « Coup de cœur » reste exempte : une rangée curée a le droit de
+ * chevaucher les autres.
  */
 export function HomepageDiscovery() {
   const t = useTranslations('homepage.row');
-  const { city: nearCity } = useUserLocation();
+  const { location, loading: geoLoading, city: guessedCity } = useUserLocation();
+  const geoSettled = useGeoSettled(geoLoading);
 
-  // Slight over-fetch so the dedup pass can drop crossover IDs without
-  // leaving a section visibly thin (each row still aims for ~6–8 visible).
-  const near = useProperties({ city: nearCity, perPage: 10 });
-  const rent = useProperties({ transaction: 'rent', perPage: 12 });
-  const featured = useProperties({ featured: true, perPage: 12 });
-  const latest = useProperties({ sort: 'latest', perPage: 14 });
+  // `location.city` brut, pas le raccourci `city` du provider : celui-ci
+  // retombe déjà sur Dakar, ce qui ferait passer « on ne sait pas où est le
+  // visiteur » pour « le visiteur est à Dakar ». Le backend distingue les deux
+  // et ne rebaptise la rangée que dans le second cas.
+  const guessed = location?.city?.trim();
+
+  const { rows, loading, failed } = useHomepageDiscovery({
+    nearCity: guessed || undefined,
+    enabled: geoSettled,
+  });
 
   const viewAll = t('viewAll');
+  const error = failed ? t('error') : null;
 
-  // Featured est une rangée curée : ses items réapparaissent intentionnellement
-  // dans les autres rangées (un coup de cœur en location à Dakar *est* aussi
-  // un bien Dakar et un bien à louer). On dédupe donc uniquement entre les
-  // trois rangées de découverte par filtre, où voir le même bien deux fois
-  // côte à côte serait gênant.
-  const [nearUnique, rentUnique, latestUnique] = useMemo(
-    () =>
-      dedupeAcross(
-        [near.properties, rent.properties, latest.properties],
-        (p) => p.id,
-      ),
-    [near.properties, rent.properties, latest.properties],
-  );
-  const featuredUnique = featured.properties;
+  // Le titre de la rangée locale est DÉRIVÉ de la réponse, jamais deviné :
+  // quand la ville du visiteur ne porte pas assez d'annonces, le serveur
+  // bascule la rangée entière sur sa ville de référence et le dit. Titrer
+  // « À découvrir à Ziguinchor » au-dessus de biens dakarois serait faux.
+  const near = rows?.near;
+  const nearCity = near?.city ?? guessedCity;
+  const replacedCity = near?.fallback ? near.requested_city : null;
+  const nearEyebrow = replacedCity ? t('near.fallbackEyebrow') : t('near.eyebrow');
+  const nearTitle = replacedCity
+    ? t('near.fallbackTitle', { city: nearCity, requestedCity: replacedCity })
+    : t('near.title', { city: nearCity });
 
   return (
     <div className="min-h-screen bg-background">
@@ -65,13 +98,13 @@ export function HomepageDiscovery() {
         >
           <PropertyRow
             variant="standard"
-            eyebrow={t('near.eyebrow')}
-            title={t('near.title', { city: nearCity })}
+            eyebrow={nearEyebrow}
+            title={nearTitle}
             viewAllHref={`/properties?city=${encodeURIComponent(nearCity)}`}
             viewAllLabel={viewAll}
-            properties={nearUnique}
-            loading={near.loading}
-            error={near.error}
+            properties={near?.items ?? NO_ITEMS}
+            loading={loading}
+            error={error}
             priorityCount={2}
           />
         </div>
@@ -86,9 +119,9 @@ export function HomepageDiscovery() {
             title={t('rent.title')}
             viewAllHref="/properties?contract_type=rent"
             viewAllLabel={viewAll}
-            properties={rentUnique}
-            loading={rent.loading}
-            error={rent.error}
+            properties={rows?.rent.items ?? NO_ITEMS}
+            loading={loading}
+            error={error}
           />
         </div>
 
@@ -109,9 +142,9 @@ export function HomepageDiscovery() {
             title={t('featured.title')}
             viewAllHref="/properties?featured=true"
             viewAllLabel={viewAll}
-            properties={featuredUnique}
-            loading={featured.loading}
-            error={featured.error}
+            properties={rows?.featured.items ?? NO_ITEMS}
+            loading={loading}
+            error={error}
           />
         </section>
 
@@ -125,9 +158,9 @@ export function HomepageDiscovery() {
             title={t('latest.title')}
             viewAllHref="/properties?sort=created_desc"
             viewAllLabel={viewAll}
-            properties={latestUnique}
-            loading={latest.loading}
-            error={latest.error}
+            properties={rows?.latest.items ?? NO_ITEMS}
+            loading={loading}
+            error={error}
           />
         </div>
 

@@ -230,7 +230,8 @@ curl http://127.0.0.1:7700/health      # → {"status":"available"}
 
 #### Côté Laravel / Scout
 
-Les modèles `Property`, `Document` et `Message` portent le trait `Searchable` ; les
+Sept modèles portent le trait `Searchable` — `Property`, `Document`, `Message`, et
+depuis TCK-281 `Customer`, `MaintenanceRequest`, `Agency`, `User` ; les
 réglages d'index (`searchableAttributes`, `filterableAttributes`,
 `sortableAttributes`, `rankingRules`) sont définis dans `config/scout.php`.
 
@@ -239,12 +240,27 @@ php artisan scout:sync-index-settings           # pousse les réglages d'index
 php artisan scout:import "App\Models\Property"  # peuple un index (1ère fois)
 php artisan scout:import "App\Models\Document"
 php artisan scout:import "App\Models\Message"
+# TCK-281 — quatre index de plus, à peupler au même titre :
+php artisan scout:import "App\Models\Customer"
+php artisan scout:import "App\Models\MaintenanceRequest"
+php artisan scout:import "App\Models\Agency"
+php artisan scout:import "App\Models\User"
 ```
 
 - `scout:sync-index-settings` est exécuté **automatiquement à chaque déploiement**
   par `scripts/deploy.sh` (Step 6b) quand `SCOUT_DRIVER=meilisearch`.
 - `scout:import` est une opération **ponctuelle** — 1er déploiement, ou après modif
   d'un `toSearchableArray()`. À lancer manuellement sur le serveur.
+
+> ⚠️ **`scripts/deploy.sh` ne lance AUCUN `scout:import`.** Un déploiement crée les
+> index et les paramètre correctement — et les laisse **VIDES**. La recherche rend
+> alors zéro résultat *sans lever la moindre exception* : rien dans les journaux, rien
+> dans le monitoring, un écran de liste qui répond « aucun résultat » à toutes les
+> requêtes. C'est la forme la plus coûteuse de panne, celle qui ne se signale pas.
+> Cette page ne suffit donc pas : la commande est **aussi** inscrite dans le runbook
+> de première mise en production (`docs/backlog/tickets/TCK-288-…`), parce que c'est
+> là qu'on la lira le jour où elle sert. *(L'automatisation dort sur la branche non
+> mergée `chore/deploy-meilisearch-reindex`.)*
 - `SCOUT_QUEUE=true` exige un worker de queue actif (`takussan-queue.service`) pour
   traiter les jobs `Laravel\Scout\Jobs\MakeSearchable`.
 

@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { Wrench } from 'lucide-react';
 
+import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { buttonVariants } from '@/components/ui/button';
 import {
@@ -42,6 +44,7 @@ import {
  */
 export function MaintenanceList() {
   const locale = useLocale() as Locale;
+  const t = useTranslations('maintenance.list');
   const [status, setStatus] = useState<'' | MaintenanceStatus>('');
   const [priority, setPriority] = useState<'' | MaintenancePriority>('');
 
@@ -109,12 +112,16 @@ export function MaintenanceList() {
         {(data) => {
           if (data.data.length === 0) {
             return (
-              <div className="rounded-2xl bg-app-surface-1 p-10 text-center">
-                <p className="text-sm font-semibold text-app-ink">Aucune demande</p>
-                <p className="mt-1 text-xs text-app-ink-muted">
-                  Aucune demande de maintenance ne correspond à ces filtres.
-                </p>
-              </div>
+              <EmptyState
+                icon={<Wrench className="size-8" aria-hidden="true" />}
+                title={t('empty_title')}
+                description={t('empty_description')}
+                action={
+                  <Link href="/app/maintenance/new" className={buttonVariants()}>
+                    {t('empty_cta')}
+                  </Link>
+                }
+              />
             );
           }
 

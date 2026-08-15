@@ -31,6 +31,12 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'phone' => '+221'.fake()->numerify('7########'),
             'password' => static::$password ??= Hash::make('password'),
+            // TCK-272 — la fabrique produit par défaut un compte dont le mot
+            // de passe est CONNU ('password'), donc utilisable pour le
+            // step-up. Les comptes à mot de passe machine (OAuth,
+            // invitation, provisioning) se demandent explicitement via
+            // `withoutUsablePassword()`.
+            'password_set_at' => now(),
             'remember_token' => Str::random(10),
             'preferred_language' => 'fr',
             'timezone' => 'Africa/Dakar',
@@ -101,6 +107,20 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
+        ]);
+    }
+
+    /**
+     * TCK-272 — un compte dont le hash de mot de passe est une valeur
+     * machine que personne ne connaît : provisionné par OAuth, issu d'une
+     * invitation acceptée sans mot de passe, ou créé par la plateforme.
+     * `Hash::check` y échoue quoi qu'on tape.
+     */
+    public function withoutUsablePassword(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'password' => Hash::make(Str::random(32)),
+            'password_set_at' => null,
         ]);
     }
 

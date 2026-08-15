@@ -22,8 +22,16 @@ export type AccountDeletionObligation = {
   label: string;
 };
 
+/**
+ * TCK-272 — deux modes de step-up mutuellement exclusifs, et c'est le
+ * SERVEUR qui tranche : `password` pour les comptes qui en ont un,
+ * `step_up_code` (6 chiffres reçus par e-mail) pour ceux dont le hash
+ * stocké est une valeur machine. Envoyer le mauvais champ produit un 422
+ * qui oriente vers l'autre voie — pas un « Mot de passe incorrect. ».
+ */
 export type RequestAccountDeletionPayload = {
-  password: string;
+  password?: string;
+  step_up_code?: string;
   reason?: string;
   reason_code?: 'service_completed' | 'quality_issue' | 'privacy' | 'other';
   two_factor_code?: string;
@@ -49,6 +57,18 @@ export async function requestAccountDeletion(
     { method: 'POST', token, body: payload },
   );
   return res.data;
+}
+
+/**
+ * TCK-272 — demande l'envoi du code de step-up par e-mail. Le préfixe
+ * `/api` est écrit ici : `apiRequest` ne l'ajoute pas (contrairement à
+ * `apiFetch`), et l'oublier produit un `net::ERR_FAILED` par CORS.
+ */
+export async function sendAccountDeletionStepUpCode(token: string): Promise<void> {
+  await apiRequest('/api/auth/me/deletion-request/step-up', {
+    method: 'POST',
+    token,
+  });
 }
 
 export async function cancelAccountDeletion(token: string): Promise<void> {

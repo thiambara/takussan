@@ -29,6 +29,12 @@ class AuthController extends Controller
             'password' => $request->password,
         ]);
 
+        // TCK-272 — ce mot de passe a été CHOISI par l'utilisateur, il le
+        // connaît : le step-up de suppression de compte peut le lui
+        // redemander. Les mots de passe machine (OAuth, invitation sans mot
+        // de passe, provisioning) laissent volontairement ce champ à NULL.
+        $user->markPasswordAsSet();
+
         event(new Registered($user));
 
         return $this->json([

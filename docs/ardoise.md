@@ -24,8 +24,14 @@
 
 ## 🔴 Production — ce qui est cassé ou dangereux maintenant
 
-Ces quatre-là ne se voient pas depuis le code. Aucun test, aucun lint, aucune lecture de `app/` ne
+**D-01 à D-04 ne se voient pas depuis le code.** Aucun test, aucun lint, aucune lecture de `app/` ne
 peut les trouver : ils vivent dans l'écart entre ce que le dépôt déclare et ce que la machine fait.
+
+**D-49 à D-52, ajoutés le 2026-08-15, sont l'exact inverse** : ils étaient dans `app/`, lisibles,
+depuis des mois — et personne ne les avait vus parce qu'aucun test ne passait par là. Ils ont tous
+les quatre été trouvés **en écrivant les tests de [TCK-285](backlog/tickets/TCK-285-couverture-tests-services-policies.md)**,
+pas en les lisant. *Un chemin que rien n'exécute n'est pas du code peu testé : c'est du code dont
+personne ne sait s'il marche.*
 
 ### D-01 — `composer.lock` ininstallable sur le PHP documenté ✅ *soldé côté dépôt le 2026-08-12*
 
@@ -233,6 +239,137 @@ déploiement — et la procédure de dump pré-déploiement doit exister avant q
 
 **Preuve** : `database/migrations/2026_05_18_120000_drop_spatie_permission_tables.php:26-32` ·
 `php artisan migrate:refresh` sur MySQL → échec à cette migration.
+
+---
+
+### D-49 — Deux webhooks entrants sur cinq ne vérifient AUCUNE signature 🔴 *mesuré le 2026-08-15 — décision produit requise*
+
+**Orange SMS et Mtarget SMS** ne sont protégés que par un **jeton dans l'URL** (comparé par
+`hash_equals`) et une **allowlist d'IP**. Les trois autres webhooks entrants exigent en plus une
+empreinte cryptographique : Wave HMAC-SHA256 sur `t.body`, Orange Money HMAC-SHA256 sur le corps,
+Lemon Squeezy `X-Signature`, WhatsApp `X-Hub-Signature-256`, LAfricaMobile route signée Laravel.
+
+**Ce que ça coûte concrètement.** Le jeton d'URL n'est pas un secret qui se garde : il circule dans
+le tableau de bord de l'opérateur, dans les journaux d'accès (c'est un composant d'URL, donc il est
+journalisé partout où l'URL l'est), et dans les échanges d'intégration par courriel. Qui l'obtient
+peut nous faire croire qu'un SMS a été livré alors qu'il ne l'a pas été, ou l'inverse — fausser nos
+statistiques de livraison et déclencher des renvois facturés. **Cela ne touche ni les paiements ni
+les données clients** : le périmètre est borné.
+
+**Ce qui n'est PAS mesuré, et qui décide de la suite** : nous n'avons pas vérifié si Orange et
+Mtarget **proposent** une signature. Le constat porte sur notre code, pas sur leur offre. Y répondre
+exige de lire leur documentation d'API.
+
+> **La question posée à l'équipe** — et le motif pour lequel cette entrée existe plutôt qu'un
+> correctif : *accepte-t-on ce niveau pour ces deux opérateurs, ou va-t-on leur réclamer une
+> signature avant la mise en production ?* **Ajouter une vérification de signature à l'aveugle
+> serait le pire des deux mondes** : si l'opérateur n'en émet pas, on casse la réception des accusés
+> de livraison, et le diagnostic partira du mauvais côté.
+
+**Un docblock décrivait une garde absente — corrigé.** `OrangeSmsStatusController` annonçait une
+« signed Laravel route (`signed` middleware) ». **La route Orange ne porte pas ce middleware** ;
+seule la route LAfricaMobile l'a (`routes/api/sms-webhooks.php`). C'était le schéma D-21 un cran
+plus bas : un commentaire qui décrit une protection qui n'existe pas est pire que pas de commentaire,
+parce qu'il dispense le lecteur de vérifier.
+
+**Et les 6 clés d'environnement de ces gardes ne sont déclarées NULLE PART** —
+`SMS_WEBHOOK_URL_TOKEN`, `SMS_{ORANGE,MTARGET,LAM}_WEBHOOK_IPS`, `WHATSAPP_WEBHOOK_URL_TOKEN`,
+`WHATSAPP_WEBHOOK_APP_SECRET` sont absentes de `.env.example`, `.env.docker`, `.env.preview` et
+`.env.prod`. `check-env-parity.mjs` ne peut rien garder ici : il compare deux fichiers, et la clé
+manque **des deux côtés**. Les gardes échouant fermé (jeton vide → 404, allowlist vide → 403), les
+webhooks SMS et WhatsApp seront simplement **muets** au premier déploiement, sans erreur bruyante.
+À traiter avec [TCK-288](backlog/tickets/TCK-288-chaine-de-deploiement-master-fige.md).
+
+**Preuve** : `app/Http/Controllers/Webhook/OrangeSmsStatusController.php:35-38` ·
+`MtargetSmsStatusController.php:22-25` · `routes/api/sms-webhooks.php:20-30` ·
+`grep -c '^SMS_' .env.example .env.docker .env.preview .env.prod` → 0 partout.
+
+---
+
+### D-50 — Le webhook de paiement accepte le secret de N'IMPORTE QUELLE agence 🔴 *mesuré le 2026-08-15*
+
+**Le comportement est inversé, dans les deux sens à la fois.** `PaymentGatewayService::handleWebhook`
+(lignes 132-137) résout l'`Integration` **sans aucun scope d'agence** — la première active du
+fournisseur — alors que `::initiate` la scope correctement (ligne 70, via
+`resolveIntegration($provider, $agencyId)`). C'est le secret de cette intégration arbitraire, et lui
+seul, qui valide les signatures de **toute la plateforme**.
+
+**Mesuré** avec deux agences ayant chacune leur intégration Wave active et leur propre
+`webhook_secret` :
+
+| Webhook visant le paiement de l'agence A | Attendu | **Mesuré** |
+|---|---|---|
+| signé avec le secret de l'agence **B** | 401 | **HTTP 200 — et le paiement de A passe à `paid`** |
+| signé avec le secret de l'agence **A** | 200 | **HTTP 401** |
+
+**Une agence connaît forcément son propre secret.** Elle peut donc marquer « payé » n'importe quel
+encaissement de n'importe quelle autre agence — et, symétriquement, ses propres webhooks légitimes
+sont rejetés dès qu'une autre intégration la précède dans l'ordre de résolution. La faille est
+ouverte **et** la fonction est cassée.
+
+**Pourquoi ce n'est pas corrigé dans TCK-285.** Le correctif n'est pas d'une ligne. Pour connaître
+l'agence il faut connaître le paiement ; pour connaître le paiement il faut analyser la charge
+utile ; et l'analyse est aujourd'hui faite par le driver **derrière** la vérification de signature.
+Sortir de cette boucle change le contrat de `PaymentDriverContract` — **c'est une décision
+d'architecture (ADR), pas une correction de test.**
+
+Les deux tests qui l'établissent existent, dans
+`tests/Feature/Api/PaymentWebhookMultiTenantTest.php`. Ils sont **suspendus par une sonde qui
+interroge la cause** (la résolution est-elle scopée ?) et non le symptôme : ils se rallument seuls
+le jour du correctif et en deviennent la garde. Les écrire à l'endroit du comportement mesuré aurait
+figé le défaut en contrat ; les laisser rouges aurait cassé la CI de tout le monde.
+
+**Preuve** : `app/Services/Payments/PaymentGatewayService.php:132-137` contre `:70` ·
+`php artisan test --filter=PaymentWebhookMultiTenantTest` (sonde retirée) → 2 échecs, statuts
+ci-dessus.
+
+---
+
+### D-51 — La branche `invoices` de la passerelle de paiement est morte par schéma 🟠 *mesuré le 2026-08-15*
+
+Les routes acceptent explicitement `invoices` (`routes/api/payments.php:20,24`), mais **une facture
+ne peut être ni payée ni vérifiée**, pour deux raisons indépendantes :
+
+1. **`invoices` n'a aucune colonne `transaction_id`** (colonnes réelles vérifiées par
+   `Schema::getColumnListing`). Or `recordInitiation` (ligne 333) la remplit et `verify` (ligne 103)
+   la lit : la lecture rend toujours vide, donc `verify` sort en `null` **avant même** d'interroger
+   le fournisseur. Le webhook ne peut pas davantage rapprocher un événement d'une facture.
+2. **`initiate` calcule `(float) $payment->amount`** (ligne 81), là où une `Invoice` porte son
+   montant dans **`total_amount`**. Le montant vaut donc 0 et la route rend
+   **422 « Cannot initiate a checkout for a non-positive amount »** — mesuré.
+
+Le correctif demande une migration **et** une décision sur `amount` vs `total_amount` : hors
+périmètre d'un ticket de tests. Le test correspondant est suspendu par une sonde sur la colonne
+(`tests/Feature/Api/PaymentGatewayVerifyTest.php`) et se rallume à la migration.
+
+**Preuve** : `php artisan tinker --execute="echo implode(', ', Schema::getColumnListing('invoices'));"`
+→ pas de `transaction_id` · `POST /api/invoices/{id}/initiate` → 422.
+
+---
+
+### D-52 — `GET /api/share/{token}/download` rend 404 en toutes circonstances 🟠 *mesuré le 2026-08-15*
+
+`DocumentShareLinkController` lit la collection média **`'files'`** (pluriel, lignes 77 et 91). Tout
+le reste du dépôt écrit et lit **`'file'`** (singulier) — `DocumentController::store()` ligne 92,
+`DocumentPdfService` ligne 108, `DocumentResource` ligne 15, `PropertyResource` ligne 263. **Rien
+n'alimente jamais `'files'`** : le téléchargement d'un document partagé est cassé depuis toujours.
+
+C'est la cause exacte du `DocumentShareLinkService::recordDownload` à **0/2 lignes** relevé par la
+mesure de couverture : la ligne n'est pas peu exécutée, elle est **inatteignable**. Le plafond
+`max_downloads` n'a donc jamais été franchi une seule fois en production.
+
+Le même typo frappe `show()` ligne 77, où `'size'` est par conséquent toujours `null` dans la
+réponse de `GET /api/share/{token}` — un symptôme silencieux, jamais remonté.
+
+**Correctif d'un caractère**, délibérément non appliqué dans TCK-285 : il fait passer une route de
+« 404 systématique » à « sert un fichier », ce qui est un changement de comportement en production
+et non une correction de test. Mesuré : la sonde `'files'` → `'file'` fait passer
+`DocumentShareLinkDownloadTest` de 6/11 à **11/11** sans toucher aux tests. Les 5 cas de succès sont
+suspendus par une sonde sur le nom de collection et se rallument au correctif.
+
+**Preuve** : `app/Http/Controllers/Api/DocumentShareLinkController.php:77,91` contre
+`grep -rn "'file'" app/Http/Controllers/Api/DocumentController.php` ·
+`php artisan test --filter=DocumentShareLinkDownloadTest`.
 
 ---
 
@@ -713,11 +850,30 @@ cent fois trop peu. Classé P0 malgré son apparence documentaire.
 implémentations restent d'accord.** Une règle d'autorisation rendue à deux endroits et tenue à un
 seul est le motif le plus tenace de ce genre de duplication.
 
-### D-24 — La règle « le front possède le texte affiché » est une intention 🟠 → [TCK-286](backlog/tickets/TCK-286-i18n-textes-en-dur.md)
+### D-24 — La règle « le front possède le texte affiché » est une intention 🟠 → [TCK-286](backlog/tickets/TCK-286-i18n-textes-en-dur.md) · [TCK-292](backlog/tickets/TCK-292-i18n-reste-du-parc.md)
 
-Les trois dictionnaires sont complets (1376 clés `fr`/`en`, 1265 `wo`), mais seuls **82 fichiers sur
-875** utilisent `useTranslations`/`getTranslations`. Des libellés produits sont codés en dur en
-français, **y compris dans la navigation**. Aucune garde ne mesure l'écart.
+**Mesuré par AST le 2026-08-15 : 431 fichiers portaient 3 735 occurrences de texte affiché en dur.**
+
+> Les chiffres qu'affichait cette dette — « 1376 clés `fr`/`en`, 1265 `wo` », « 82 fichiers sur
+> 875 » — étaient **faux, et recopiés de TCK-286 sans être vérifiés**. Le premier comptait les
+> NŒUDS de l'arbre JSON (feuilles + objets intermédiaires) et non les clés traduisibles : il y en
+> avait 1 072 en `fr`/`en` et 976 en `wo`. Le second mêlait les fichiers de test. Surtout,
+> « les trois dictionnaires sont complets » était faux : **`wo` accusait 96 clés de retard**,
+> masquées par le deep-merge de `src/i18n/request.ts:95-101`, et personne ne l'avait jamais vu.
+
+**Ce qui est fait (TCK-286).** Une garde mesure désormais l'écart : `takussan-web/scripts/check-i18n.mjs`,
+branchée dans `web-ci.yml` — parité EXACTE des clés entre les trois locales (`en` tenu à 0 clé
+manquante, `wo` sous cliquet décroissant) et cliquet PAR FICHIER sur le texte en dur. Un premier lot
+a vidé les 22 fichiers les plus vus : coquille de navigation, états d'erreur, tunnel
+d'authentification — 193 occurrences déplacées, en `fr`, `en` ET `wo`.
+
+**Ce qui reste (TCK-292).** 409 fichiers, 3 542 occurrences, découpées en douze lots chiffrés, plus
+88 clés wolof manquantes. Le compte se prend à la source, jamais ici :
+`cd takussan-web && node scripts/check-i18n.mjs --report`.
+
+**Ce que la garde ne voit pas**, et qu'elle écrit dans sa propre sortie : les gabarits interpolés
+(`` `Bonjour ${nom}` ``) et les props de composants maison hors whitelist. Son total est un
+**plancher**, jamais un inventaire.
 
 ### D-25 — Divers documents périmés 🟡
 
@@ -836,30 +992,108 @@ compétences à la racine, c'est le même défaut que deux fichiers d'instructio
 
 > **Les quatre entrées de cette section sont couvertes par [TCK-285](backlog/tickets/TCK-285-couverture-tests-services-policies.md)**, qui les ordonne par coût d'un défaut plutôt que par volume : policies d'abord (isolation multi-agence), puis webhooks (surfaces non authentifiées), puis commandes destructrices, puis services.
 
+> ### ⚠ D-26 à D-29 étaient FAUX — mesurés le 2026-08-15, corrigés ci-dessous
+>
+> Les quatre entrées annonçaient des trous comptés par **grep de nom de classe dans `tests/`**. Ce
+> n'est pas une mesure de couverture, et ce n'en est même pas une approximation : *une policy
+> s'exerce par `$this->authorize()` dans un test HTTP, jamais par son nom ; un contrôleur s'exerce
+> par son URI.* La métrique choisie ne pouvait pas voir ce qu'elle prétendait compter.
+>
+> **La mesure réelle**, suite entière relancée sous xdebug le 2026-08-15 :
+>
+> ```bash
+> XDEBUG_MODE=coverage php -d xdebug.mode=coverage vendor/bin/phpunit --coverage-text
+> ```
+>
+> **2056 tests, 6497 assertions, OK en 9 min 09 s — et 83,16 % des lignes de `app/` sont
+> exécutées** (20384/24512 ; méthodes 64,45 %, classes 41,05 %).
+>
+> L'erreur allait **dans les deux sens**, ce qui est le pire cas : elle annonçait absents des tests
+> dédiés qui existaient depuis avril, et comptait pour couverts des chemins jamais exécutés. Le
+> détail par entrée est dans chacune ci-dessous.
+>
+> **Ce que la couverture de lignes ne dit toujours pas** : qu'une assertion existe. Une méthode à
+> 100 % de lignes peut n'être exercée que comme effet de bord d'un autre test. Les conclusions du
+> type « X est couvert » signifient « X est **exécuté** ». C'est pourquoi TCK-285 exige que chaque
+> test livré soit **prouvé par ablation** — casser le code sous test et vérifier que le test rougit.
+> Cette exigence a trouvé, le jour même, deux gardes redondantes dont aucune ablation simple ne
+> faisait rougir quoi que ce soit : *un test vert ne prouve rien tant qu'on n'a pas vu ce qui le
+> rend rouge.*
+
 2052 tests backend et 802 frontend, tous verts **au repos** (cf. D-44 et D-30bis : les deux suites
 rougissent sous charge, et « au repos » n'était écrit nulle part) — mais la couverture est très
 inégale, et les trous sont concentrés là où ça compte.
 
-### D-26 — La couche services est le trou principal 🟠
+### D-26 — La couche services est le trou principal 🟠 ❌ *chiffre faux, corrigé le 2026-08-15*
+
+> **Le trou annoncé n'existe pas là où il était annoncé.** La couche services est à **~83 % de
+> lignes exécutées**. Le « 81 des 148 services jamais nommés » venait d'un grep de nom de classe :
+> un service s'exécute par injection dans un contrôleur, pas en étant cité.
+>
+> **`PropertyService`, cité ici comme cœur métier à tester, est du CODE MORT** : zéro appelant dans
+> `app/`, 0/19 lignes. Il fallait le supprimer, pas le tester.
+>
+> **Ce qui était réellement muet, et que TCK-285 a livré** : le pipeline de rapprochement bancaire
+> (`ParseBankStatementJob::handle` 0/52, `MatchBankStatementJob::handle` 0/18,
+> `ReconciliationMatcher` 0/85 — **155 lignes de logique d'argent** neutralisées par un
+> `Queue::fake()`), `PaymentSearchService` (0/62), `ReconciliationManager::unmatch` (0/26),
+> `ExportDataService::scopeToActor` (14/31) et `RoleDelegationService::activate`/`::expire` (0/12
+> chacun).
 
 **81 des 148 services ne sont jamais nommés dans `tests/`** ; seuls 28 ont un test dédié. Cela inclut
 le cœur métier : `BookingService`, `PropertyService`, `LeasePaymentService`, `InvoiceService`,
 `PayoutService`, `InventoryService`.
 
-### D-27 — L'autorisation est très peu testée directement 🟠
+### D-27 — L'autorisation est très peu testée directement 🟠 ❌ *chiffre faux, corrigé le 2026-08-15*
+
+> **Les 16 policies sont exécutées, sauf une.** Mesuré : seule `WizardDraftPolicy` est à 0 — et
+> parce que `WizardDraftController` ne l'appelle **jamais** (il filtre par
+> `where('user_id', …)`). C'est une policy morte enregistrée par auto-discovery, pas une policy non
+> testée : lui écrire un test serait écrire un test qui ne garde rien.
+>
+> **Ce qui manquait vraiment, ce sont les CHEMINS DE REFUS**, et ils sont invisibles à un grep de
+> nom : une douzaine de méthodes — `InvitationPolicy::viewAny`/`::view`,
+> `OwnerProfilePolicy::viewAny`/`::view`, `ServiceProviderProfilePolicy::view`,
+> `RoleDelegationPolicy::view`, `AgencyUpgradeRequestPolicy::view`/`::approve`/`::reject`,
+> `ConversationPolicy::toggleMute`/`::modifyMessage`, `BankStatementLinePolicy::unmatch` — n'étaient
+> jamais atteintes. Livré par TCK-285 avec, pour chacune, un cas passant **et** un cas refusé.
 
 **12 des 16 policies ne sont jamais nommées dans `tests/`** — dont `LeasePolicy`,
 `ConversationPolicy`, `InvitationPolicy`, `BankStatementPolicy`, `RoleDelegationPolicy`,
 `PropertyModerationPolicy`. Sur un produit multi-tenant où l'agence est la frontière d'isolation,
 c'est la couche dont un défaut est le plus coûteux et le moins visible.
 
-### D-28 — Les effets asynchrones et planifiés sont quasi non testés 🟠
+### D-28 — Les effets asynchrones et planifiés sont quasi non testés 🟠 ❌ *chiffre faux, corrigé le 2026-08-15*
+
+> **Les 12 observers sur 12 sont exécutés**, et les **trois commandes citées comme irréversibles
+> non testées le sont toutes les trois** : `MediaCleanupTest` existe depuis le 2026-04-21,
+> `PurgeOldWizardDraftsTest` depuis le 2026-05-10 (avec `--dry-run` et `--days` invalide), et
+> `account:execute-deletions` est invoquée dans 4 cas pour **100 % de ses lignes**. L'entrée
+> déclarait absent ce qui existait depuis quatre mois.
+>
+> **Le vrai trou asynchrone était ailleurs** : `ProcessRoleDelegationsJob` — qui **accorde et retire
+> des privilèges toutes les 5 minutes** (`routes/console.php:62`) — était à 0 %, avec ses deux
+> services. Livré par TCK-285.
 
 **10/12 observers, 9/30 jobs et 13/14 commandes artisan** ne sont jamais nommés dans `tests/`. Parmi
 les commandes non testées : des opérations **destructrices ou irréversibles**
 (`ExecuteScheduledAccountDeletions`, `PurgeOldWizardDrafts`, `MediaCleanup`).
 
-### D-29 — 78 routes sur 517 n'ont aucun littéral d'URI dans les tests 🟡
+### D-29 — 78 routes sur 517 n'ont aucun littéral d'URI dans les tests 🟡 ❌ *chiffre faux, corrigé le 2026-08-15*
+
+> **Le trou est de ~20 routes applicatives, pas de 78.** Recompté en croisant
+> `php artisan route:list --json` avec l'ensemble des sources de `tests/` : sur 517 routes, 36
+> n'ont ni littéral d'URI ni nom de route, dont 15 sont des routes de framework et au moins une est
+> un faux négatif (URI construite par concaténation). Ce chiffre reste un **plafond**, pas un compte.
+>
+> **Et la phrase sur les webhooks est fausse : les 5 webhooks entrants ont chacun un test HTTP**,
+> depuis le 2026-04-26 (Orange/Mtarget/LAM) et le 2026-06-17 (WhatsApp, paiements) — donc **avant**
+> l'audit qui les a déclarés absents. `AC2` du ticket était déjà tenu à son écriture.
+>
+> Les routes réellement dépourvues de test et coûteuses ont été livrées par TCK-285 :
+> `GET /api/kyc/documents/{media}` (pièces d'identité), `GET /api/share/{token}/download`,
+> `GET /api/agencies/{agency}/bank-statements/payment-search`,
+> `DELETE /api/bank-statement-lines/{line}/match`, `GET /api/{paymentType}/{paymentId}/verify`.
 
 Concentrées sur la console super-admin (20 routes `/api/admin`) et **les webhooks entrants**
 (5 routes `/api/webhooks` : paiements, statuts SMS Orange/Mtarget/LAfricaMobile, statut WhatsApp).

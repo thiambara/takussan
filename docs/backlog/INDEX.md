@@ -6,13 +6,13 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**272 tickets** — 12 ouverts, 259 livrés.
+**274 tickets** — 14 ouverts, 259 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 6 |
-| 🚧 Doing | 1 |
-| 👀 Review | 4 |
+| 📋 Todo | 3 |
+| 🚧 Doing | 0 |
+| 👀 Review | 10 |
 | ⛔ Blocked | 1 |
 | ✅ Done | 259 |
 | 🗑️ Obsolete | 1 |
@@ -33,21 +33,24 @@
 
 ## 📋 Todo
 
-- [TCK-246](tickets/TCK-246-empty-error-states-and-cta-buttons-harmonization.md) — Empty / error states + CTA shadcn — harmonisation transverse `M · P2 · front`
-- [TCK-247](tickets/TCK-247-public-homepage-discovery-endpoint.md) — Endpoint unique homepage discovery (4 rangées dédupliquées côté serveur) `M · P2 · back`
-- [TCK-272](tickets/TCK-272-oauth-only-account-deletion-step-up.md) — Suppression de compte — step-up alternative pour comptes OAuth-only `M · P2 · applicatif`
-- [TCK-285](tickets/TCK-285-couverture-tests-services-policies.md) — Couverture de tests — services metier, policies, observers, webhooks `L · P1 · technique`
-- [TCK-286](tickets/TCK-286-i18n-textes-en-dur.md) — i18n — les libelles produits encore codes en dur `L · P2 · front`
 - [TCK-288](tickets/TCK-288-chaine-de-deploiement-master-fige.md) — Premiere mise en production — la chaine n'a jamais tourne `M · P0 · technique`
+- [TCK-291](tickets/TCK-291-etats-vides-erreurs-reste-du-parc.md) — États vides / erreurs — le reste du parc (super-admin, admin, tables) `M · P2 · front`
+- [TCK-292](tickets/TCK-292-i18n-reste-du-parc.md) — i18n — le reste du parc : 409 fichiers, 3 542 libellés, en 12 lots `XL · P2 · front`
 
 ## 🚧 Doing
 
-- [TCK-281](tickets/TCK-281-search-internal-entities-meilisearch.md) — Recherche interne sur Meilisearch (clients, maintenance, agences, utilisateurs) `L · P3 · back`
+_(aucun)_
 
 ## 👀 Review
 
+- [TCK-246](tickets/TCK-246-empty-error-states-and-cta-buttons-harmonization.md) — Empty / error states + CTA shadcn — harmonisation transverse `M · P2 · front`
+- [TCK-247](tickets/TCK-247-public-homepage-discovery-endpoint.md) — Endpoint unique homepage discovery (4 rangées dédupliquées côté serveur) `M · P2 · back`
+- [TCK-272](tickets/TCK-272-oauth-only-account-deletion-step-up.md) — Suppression de compte — step-up alternatif pour les comptes sans mot de passe utilisable `M · P2 · applicatif`
 - [TCK-278](tickets/TCK-278-rbac-profile-based-phase-1.md) — RBAC refondu — phase 1 : suppression de spatie sur User + PlatformProfile + Capability resolver `XL · P1 · technique`
+- [TCK-281](tickets/TCK-281-search-internal-entities-meilisearch.md) — Recherche interne sur Meilisearch (clients, maintenance, agences, utilisateurs) `L · P3 · back`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
+- [TCK-285](tickets/TCK-285-couverture-tests-services-policies.md) — Couverture de tests — services metier, policies, observers, webhooks `L · P1 · technique`
+- [TCK-286](tickets/TCK-286-i18n-textes-en-dur.md) — i18n — les libelles produits encore codes en dur `L · P2 · front`
 - [TCK-287](tickets/TCK-287-filament-supprimer-ou-securiser.md) — Filament — supprimer le panel ou le securiser `S · P1 · technique`
 - [TCK-290](tickets/TCK-290-upload-logo-agence-403.md) — Upload du logo d'agence — 403 systématique, aucune policy pour Agency `S · P1 · bug`
 

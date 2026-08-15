@@ -6,8 +6,10 @@ import { useState } from 'react';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { useTranslations } from 'next-intl';
 
 export default function ForgotPasswordPage() {
+  const t = useTranslations('auth.forgotPassword');
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -33,17 +35,19 @@ export default function ForgotPasswordPage() {
           <CheckCircle2 className="size-7" />
         </div>
         <h1 className="font-headline text-3xl font-bold tracking-tight mb-2">
-          Vérifiez votre boîte mail
+          {t('sentTitle')}
         </h1>
         <p className="text-muted-foreground text-sm mb-6">
-          Si un compte existe pour <strong className="text-foreground">{email}</strong>, un lien de
-          réinitialisation vient de vous être envoyé. Il est valable 60 minutes.
+          {t.rich('sentBody', {
+            email,
+            b: (chunks) => <strong className="text-foreground">{chunks}</strong>,
+          })}
         </p>
         <Link
           href="/auth/login"
           className="inline-block text-sm text-primary font-semibold hover:underline"
         >
-          ← Retour à la connexion
+          {t('backToLogin')}
         </Link>
       </div>
     );
@@ -52,17 +56,14 @@ export default function ForgotPasswordPage() {
   return (
     <div>
       <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-2">
-        Mot de passe oublié
+        {t('title')}
       </h1>
-      <p className="text-muted-foreground text-sm mb-8">
-        Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de
-        passe.
-      </p>
+      <p className="text-muted-foreground text-sm mb-8">{t('subtitle')}</p>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label htmlFor="email" className="block text-sm font-medium mb-1.5">
-            Adresse email
+            {t('email')}
           </label>
           <Input
             id="email"
@@ -71,7 +72,7 @@ export default function ForgotPasswordPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="vous@exemple.com"
+            placeholder={t('emailPlaceholder')}
             className="h-11"
           />
         </div>
@@ -84,17 +85,17 @@ export default function ForgotPasswordPage() {
           {loading ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              Envoi en cours…
+              {t('submitting')}
             </>
           ) : (
-            'Envoyer le lien'
+            t('submit')
           )}
         </Button>
       </form>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         <Link href="/auth/login" className="text-primary font-semibold hover:underline">
-          ← Retour à la connexion
+          {t('backToLogin')}
         </Link>
       </p>
     </div>

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
+use Laravel\Scout\Searchable;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\QueryBuilder\AllowedSort;
@@ -21,7 +22,7 @@ use Spatie\QueryBuilder\QueryBuilder;
 
 class MaintenanceRequest extends AbstractModel implements HasMedia
 {
-    use HasFactory, InteractsWithMedia, SoftDeletes;
+    use HasFactory, InteractsWithMedia, Searchable, SoftDeletes;
 
     protected $fillable = [
         'property_id', 'lease_id', 'requester_id', 'assigned_to',
@@ -87,6 +88,25 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
         $this->addMediaCollection('photos');
         $this->addMediaCollection('completion_photos');
         $this->addMediaCollection('quotes');
+    }
+
+    /**
+     * TCK-281 — n'indexe que l'id et les champs de `$requestSearchFields`.
+     *
+     * @return array<string,mixed>
+     */
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'title' => $this->title,
+            'description' => $this->description,
+        ];
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->trashed();
     }
 
     public function property(): BelongsTo

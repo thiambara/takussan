@@ -34,8 +34,13 @@ class CustomerController extends Controller
             }
         }
 
-        $paginator = Customer::buildQuery($base, $request)
-            ->defaultSort('-created_at')
+        // TCK-281 — `defaultSortsWithRelevance()` doit être évalué APRÈS
+        // `buildQuery()`, qui est ce qui interroge Meilisearch : d'où les deux
+        // instructions plutôt qu'une chaîne.
+        $query = Customer::buildQuery($base, $request);
+
+        $paginator = $query
+            ->defaultSorts(...Customer::defaultSortsWithRelevance('-created_at'))
             ->paginate();
 
         return $this->json([

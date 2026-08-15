@@ -10,10 +10,13 @@ use Illuminate\Http\Request;
 use Spatie\QueryBuilder\Exceptions\InvalidFilterQuery;
 use Spatie\QueryBuilder\Exceptions\InvalidIncludeQuery;
 use Spatie\QueryBuilder\Exceptions\InvalidSortQuery;
+use Tests\Concerns\InteractsWithMeilisearch;
 use Tests\TestCase;
 
 class HasQueryBuilderTest extends TestCase
 {
+    // TCK-281 — `User` est desormais `Searchable` : cf. AgencyTest.
+    use InteractsWithMeilisearch;
     use RefreshDatabase;
 
     public function test_whitelisted_exact_filter_applies(): void
@@ -32,6 +35,9 @@ class HasQueryBuilderTest extends TestCase
     {
         User::factory()->create(['first_name' => 'Aminata', 'email' => 'aminata@example.com']);
         User::factory()->create(['first_name' => 'Moussa', 'email' => 'moussa@example.com']);
+        // TCK-281 — `User` est desormais `Searchable` : `filter[search]` passe
+        // par Meilisearch, les fixtures doivent donc etre indexees d'abord.
+        $this->indexSearchable(User::class);
 
         $request = Request::create('/', 'GET', ['filter' => ['search' => 'aminat']]);
 
