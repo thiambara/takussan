@@ -494,13 +494,13 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P1 | §2.5 | Dashboard agence (biens, vues, revenus, impayés) |
+| P1 | §2.5 | Dashboard agence (biens, vues, revenus, impayés) — **agences `standard` uniquement** : c'est le « reporting cross-équipe » restreint en [§1.12](#112-agence--équipe), sous un autre nom (TCK-295) |
 | P2 | §2.5 | Export CSV / Excel (paiements, baux, clients) |
 | P2 | §2.5 | Export PDF (quittances, factures, rapports) |
 | P2 | §2.5 | Graphiques temporels (revenus, occupation) |
 | P2 | §2.5 | Reporting plateforme cross-tenant (croissance agences/users/listings, MRR/ARR, cohortes de rétention, funnel) — strictement super_admin |
-| P3 | §2.5 | KPI personnalisables par agence |
-| P3 | §2.5 | Alertes sur seuils (taux d'impayés, vacance) |
+| P3 | §2.5 | KPI personnalisables par agence — **disponibles aussi en agence `individual`** (arbitrage TCK-284, écrit en [§1.12](#112-agence--équipe)) |
+| P3 | §2.5 | Alertes sur seuils (taux d'impayés, vacance) — **disponibles aussi en agence `individual`** (arbitrage TCK-284, écrit en [§1.12](#112-agence--équipe)) |
 
 ### §2.6 Audit & traçabilité
 
