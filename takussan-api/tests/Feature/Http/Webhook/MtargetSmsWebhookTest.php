@@ -158,4 +158,36 @@ class MtargetSmsWebhookTest extends TestCase
         $this->assertSame(SmsResult::STATUS_FAILED, $attempt->status);
         $this->assertSame('ABSENT_SUBSCRIBER', $attempt->failure_reason);
     }
+
+    // ─── TCK-294 ─────────────────────────────────────────────────
+    //
+    // This route is scheduled for retirement in favour of
+    // `sms:pull-mtarget-dlr`, which inverts the flow and removes the
+    // question of authenticating the caller. Until the overlap period
+    // documented in TCK-294 has run, it stays ON — the two paths coexist
+    // and the retirement is one config flip, reversible in seconds.
+
+    public function test_the_webhook_answers_by_default_during_the_overlap_period(): void
+    {
+        $this->assertTrue((bool) config('sms.mtarget.webhook_enabled'));
+    }
+
+    public function test_the_kill_switch_retires_the_webhook_without_a_deploy(): void
+    {
+        config()->set('sms.mtarget.webhook_enabled', false);
+        $this->makeNotificationWithAttempt('mtg-8');
+
+        $this->post('/api/webhooks/sms/mtarget/status/tck-102-token', [
+            'MsgId' => 'mtg-8',
+            'Status' => 3,
+            'StatusText' => 'OK',
+            'DestinationAdress' => '221771111111',
+        ])->assertNotFound();
+
+        // Retired means inert, not lenient: nothing was written.
+        $this->assertSame(
+            SmsResult::STATUS_SENT,
+            NotificationDeliveryAttempt::query()->where('provider_message_id', 'mtg-8')->first()->status,
+        );
+    }
 }

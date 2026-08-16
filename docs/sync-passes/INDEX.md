@@ -18,7 +18,7 @@
 | 007 | 2026-04-14 | [`pass-007-2026-04-14-2052`](./pass-007-2026-04-14-2052/00-summary.md) | **Convergence confirmée** — 2e passe sans recommandation actionnable |
 | 008 | 2026-04-14 | [`pass-008-2026-04-14-2102`](./pass-008-2026-04-14-2102/00-summary.md) | Stabilité post-convergence — 3e passe consécutive sans changement |
 | 009 | 2026-05-04 | [`pass-009-2026-05-04-0153`](./pass-009-2026-05-04-0153/00-summary.md) | Convergence rompue — profils polymorphes + BankStatement/BankStatementLine absents de la spec |
-| 010 | 2026-05-04 | [`pass-010-2026-05-04-0918`](./pass-010-2026-05-04-0918/00-summary.md) | Stabilité post-009 — sources inchangées, R1–R7 toujours non appliquées |
+| 010 | 2026-05-04 | [`pass-010-2026-05-04-0918`](./pass-010-2026-05-04-0918/00-summary.md) | Stabilité post-009 — sources inchangées, R1–R7 toujours non appliquées *(vrai le 2026-05-04, périmé depuis — cf. la re-mesure du 2026-08-16 plus bas)* |
 
 ## Tableau d'évolution
 
@@ -37,8 +37,49 @@
 
 ## Statut de convergence
 
-**Convergence rompue depuis la passe 009.** La passe 010 confirme l'absence d'évolution : `docs/features.md` (sha1 `b6902e37`) et `docs/models-spec.md` (sha1 `7a7cdd31`) sont strictement identiques à pass-009.
+> ⚠️ **Ce bloc a menti pendant plus de trois mois, et il faut d'abord dire en quoi.** Il annonçait
+> « **R1–R7 toujours non appliquées** » — état figé au 2026-05-04, jamais rouvert. **Re-mesuré le
+> 2026-08-16 (TCK-310) : six des sept l'étaient déjà, dont les deux ❌ qui motivaient à elles seules
+> la rupture de convergence.** Un lecteur qui prenait cette ligne pour argent comptant refaisait un
+> travail livré depuis trois mois, ou classait la spec bien plus fausse qu'elle ne l'était.
+>
+> *Un statut daté d'une passe et jamais re-mesuré n'est pas un statut : c'est un souvenir.* La
+> passe 010 était honnête **le jour où elle a été écrite** ; c'est de l'avoir laissée parler au
+> présent qui a coûté.
 
-Les 2 ❌ concernent **BankStatement** et **BankStatementLine** — ces modèles existent dans le code (`app/Models/`) avec controllers et migrations, mais sont absents de `models-spec.md`. Les 15 ⚠️ sont tous justifiés (P3/futur, applicatif pur, hors périmètre MVP).
+### Re-mesure du 2026-08-16 (TCK-310)
 
-Les 7 recommandations (R1–R7) de la passe 009 sont reconduites à l'identique en passe 010. Une fois appliquées : 0 ❌, 0 ⚠️ non justifiés.
+**Portée, dite explicitement : ce n'est PAS une passe 011.** Aucune nouvelle matrice de corrélation
+n'a été produite ; les compteurs ✅/⚠️/❌ du tableau ci-dessus s'arrêtent donc à la passe 010, et il
+serait faux d'en publier de nouveaux sans avoir refait l'analyse croisée. Ce qui a été re-mesuré,
+c'est **le sort des sept recommandations R1–R7**, une par une, contre le code et contre
+`models-spec.md`.
+
+| ID | Action de pass-009 | État mesuré le 2026-08-16 |
+|----|--------------------|---------------------------|
+| R1 | Ajouter `BankStatement` (§40) | ✅ **appliqué** — `models-spec.md` §40 |
+| R2 | Ajouter `BankStatementLine` (§41) | ✅ **appliqué** — `models-spec.md` §41 |
+| R3 | Ajouter les 4 enums bancaires | ✅ **appliqué**, et avec les **vraies** valeurs du code — pass-009 les avait *déduites* (`pdf`, `manual`, `draft`, `imported`, `matched`, `partial`…) ; aucune de ces valeurs n'existe dans `app/Models/Enums/` |
+| R4 | Unicité `bank_statements.reference_number` | ⛔ **sans objet** — la colonne `reference_number` **n'existe pas** sur `bank_statements`. La recommandation portait sur un schéma déduit du nom du modèle. L'unicité réelle est `(agency_id, file_hash)`, et elle est documentée |
+| R5 | Index `bank_statements` + `bank_statement_lines` | ✅ **appliqué** — les cinq index documentés correspondent à ceux des migrations `2026_04_28_000001` / `000002` |
+| R6 | Documenter le morph `matched_payment_*` | ✅ **appliqué** — §41. La *justification* de R6 était fausse : ce morph est un `morphTo()` **standard**, pas le morph manuel d'`AppNotification` ; il ne relève donc pas de la Règle 3 |
+| R7 | Aligner l'enum `ConversationType` | ✅ **appliqué le 2026-08-16** — c'était la **seule** recommandation encore vivante. Le cas `support` manquait dans la spec ; ajouté d'après `app/Models/Enums/ConversationType.php` |
+
+**Ce que cette re-mesure apprend au-delà du décompte :** quatre des sept recommandations décrivaient
+un schéma que pass-009 avait **déduit du nom des modèles**, sans lire les migrations —
+`reference_number`, `transaction_date`, `statement_date`, et huit valeurs d'enum inventées. Elles ont
+été « appliquées » en documentant le schéma réel, qui ne leur ressemble pas. *Une recommandation
+produite par déduction se solde en la mesurant, pas en l'exécutant.*
+
+### Ce qui reste ouvert
+
+La rupture de convergence signalée en pass-009 portait sur deux modèles absents. Le **même défaut, à
+une autre échelle**, a été mesuré le 2026-08-16 : **seize** modèles de premier niveau sur 62
+n'étaient mentionnés nulle part dans `models-spec.md` (dette D-18, TCK-310). Ils y sont désormais,
+décrits d'après le code et les migrations.
+
+La garde `scripts/check-models-spec.mjs` (Repo CI) casse désormais le build si un modèle de premier
+niveau n'est mentionné nulle part dans `models-spec.md`. **C'est ce qui remplace une passe manuelle
+sur cet axe précis** : une divergence de ce type ne peut plus attendre trois mois qu'on relance
+`/sync-specs`. Les autres axes — features → modèles, ⚠️ justifiés — restent, eux, du ressort d'une
+passe.

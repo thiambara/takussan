@@ -75,3 +75,32 @@ Schedule::command('wizard-drafts:purge')->dailyAt('03:30')->withoutOverlapping()
 // TCK-266 — Hourly J+7 reminder for tenants whose move-in inventory is
 // still unsigned. Idempotent via `tenant_onboarding_checklists.reminders_sent`.
 Schedule::command('tenant-onboarding:remind')->hourly()->withoutOverlapping();
+
+// TCK-294 — Pull Mtarget delivery reports instead of receiving them on an
+// unauthenticatable webhook (ardoise D-49).
+//
+// Idempotence. Mtarget's pulling read is DESTRUCTIVE — a successful call
+// empties the queue it returns — so a re-run never re-reads the same
+// reports, and safety cannot come from the read side. It comes from the
+// write side: a report only ever UPDATEs the delivery attempt matched on
+// `(provider, provider_message_id)`, never inserts one; writing the same
+// status twice is a no-op; and a status precedence blocks any regression
+// (a report drained out of order cannot walk `delivered` backwards). The
+// command is therefore safe to replay at any moment, and a failed call
+// stops the drain instead of consuming reports our side cannot store.
+//
+// Cadence — every five minutes, arbitrated rather than guessed:
+//  · nothing user-facing waits on a DLR (they feed reporting and the
+//    delivery status of a notification), so sub-minute freshness buys
+//    nothing;
+//  · Mtarget keeps reports for one month, so the cadence carries no risk
+//    of loss — only of latency;
+//  · the operator's own advice is to poll while results come back and to
+//    space out the calls when the queue is empty, which is exactly the
+//    shape here: one tick drains up to `max_per_call × max_batches`
+//    reports in a loop, then waits five minutes;
+//  · the floor cost is 288 calls a day per account when nothing is
+//    pending — negligible against any plausible quota.
+// `withoutOverlapping()` keeps two drains off the same queue; the run is
+// a no-op while `sms.dlr_pulling.enabled` is false (its default).
+Schedule::command('sms:pull-mtarget-dlr')->everyFiveMinutes()->withoutOverlapping();
