@@ -1266,8 +1266,8 @@ fichiers seulement différaient, et `.agent/` gagnait sur les deux, sur tous les
 
 | Fichier | `.agent/` (chargé) | `.agents/` (mort) |
 |---|---|---|
-| `skills/implementing-specs/SKILL.md` | ✅ RBAC juste (`MembershipCapabilityResolver`, garde CI, dette D-21) · ✅ INDEX généré · ✅ pile front juste (Next 16, `base-nova`) | ✅ RBAC juste · ❌ INDEX *« Move the ticket bullet »* · ❌ **front d'un autre projet** : *« Standalone components (no NgModules) »*, *« PrimeNG 21 »*, port 4201 |
-| `skills/writing-specs/SKILL.md` | ✅ *« `INDEX.md` is **GENERATED** »* + champ `wave` requis | ❌ *« Add a new bullet line to the correct section »* |
+| `.agent/skills/implementing-specs/SKILL.md` | ✅ RBAC juste (`MembershipCapabilityResolver`, garde CI, dette D-21) · ✅ INDEX généré · ✅ pile front juste (Next 16, `base-nova`) | ✅ RBAC juste · ❌ INDEX *« Move the ticket bullet »* · ❌ **front d'un autre projet** : *« Standalone components (no NgModules) »*, *« PrimeNG 21 »*, port 4201 |
+| `.agent/skills/writing-specs/SKILL.md` | ✅ *« `INDEX.md` is **GENERATED** »* + champ `wave` requis | ❌ *« Add a new bullet line to the correct section »* |
 
 **La divergence en croix a bien existé — elle a duré trois mois, et elle était soldée depuis la
 veille.** L'histoire se lit dans `git log` :
