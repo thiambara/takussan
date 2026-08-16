@@ -1,7 +1,7 @@
 ---
 id: TCK-301
 title: "Les pièges muets de l'environnement de développement : seeding, PDF, et un `.env` qui vise le natif"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -81,7 +81,7 @@ sur les conteneurs du dépôt.
 - [x] AC4 — `./dev.sh doctor` signale un `.env` qui vise `localhost:7700` quand le dépôt sert
       Meilisearch sur `127.0.0.1:7701`, et la même chose pour MySQL et Redis *(+ Mailpit ; mesuré
       sur un `.env` réel, ablation : 5 lignes avec, 0 sans, 0 faux positif)*
-- [ ] AC5 — la suite de tests reste verte **en CI** après modification de `.env.example`
+- [x] AC5 — la suite de tests reste verte **en CI** après modification de `.env.example` — vérifié : `lint-and-test` vert sur la PR #176, run 31960654162.
       *(38 tests concernés verts avec `.env` = `.env.example` en local ; la CI reste à exercer)*
 
 ## Hors périmètre

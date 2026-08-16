@@ -120,19 +120,59 @@ aucun trait tiers n'est nécessaire.** Le trait maison à écrire s'appelle `Has
 
 ## Critères d'acceptation
 
-- [ ] AC1 — À la création d'une agence, 4 `AgencyRole` `is_system=true` sont seedés automatiquement (Agent, Administrateur, Propriétaire, Prestataire) avec les capacités issues de la table de vérité phase 1.
-- [ ] AC2 — `GET /api/agencies/{id}/roles` retourne la liste avec leur `base_profile_type`, `is_system` et `capabilities[]`.
-- [ ] AC3 — `POST /api/agencies/{id}/roles` avec `{name, base_profile_type, clone_from?}` crée un rôle custom (avec capacités vides ou copiées du rôle source).
-- [ ] AC4 — Tenter d'éditer un rôle `is_system=true` → 403.
-- [ ] AC5 — `DELETE` d'un rôle utilisé → 409 avec liste des profils en cause.
-- [ ] AC6 — `PUT /api/agencies/{id}/roles/{r}/capabilities` remplace l'ensemble des capacités du rôle ; valeurs hors enum → 422.
-- [ ] AC7 — `PATCH /api/profiles/{p}/agency-role` réaffecte un profil ; refusé si la cible n'est pas du même `base_profile_type`.
-- [ ] AC8 — Un user dont l'`AgencyRole` n'a pas la capacité `Capability::PropertiesPublish` voit son action « publier » refusée (403) ; un user dont le rôle l'a peut publier.
-- [ ] AC9 — `MembershipCapabilityResolver` met bien en cache et invalide à : édition de rôle, sync capabilities, réaffectation de profil.
-- [ ] AC10 — Le dernier `agency_admin` ne peut pas être réaffecté à un rôle sans `team.assign_role` (422 + message dédié).
+- [x] AC1 — À la création d'une agence, 4 `AgencyRole` `is_system=true` sont seedés automatiquement (Agent, Administrateur, Propriétaire, Prestataire) avec les capacités issues de la table de vérité phase 1.
+- [x] AC2 — `GET /api/agencies/{id}/roles` retourne la liste avec leur `base_profile_type`, `is_system` et `capabilities[]`.
+- [x] AC3 — `POST /api/agencies/{id}/roles` avec `{name, base_profile_type, clone_from?}` crée un rôle custom (avec capacités vides ou copiées du rôle source).
+- [x] AC4 — Tenter d'éditer un rôle `is_system=true` → 403.
+- [x] AC5 — `DELETE` d'un rôle utilisé → 409 avec liste des profils en cause.
+- [x] AC6 — `PUT /api/agencies/{id}/roles/{r}/capabilities` remplace l'ensemble des capacités du rôle ; valeurs hors enum → 422.
+- [x] AC7 — `PATCH /api/profiles/{p}/agency-role` réaffecte un profil ; refusé si la cible n'est pas du même `base_profile_type`.
+- [x] AC8 — Un user dont l'`AgencyRole` n'a pas la capacité `Capability::PropertiesPublish` voit son action « publier » refusée (403) ; un user dont le rôle l'a peut publier.
+- [x] AC9 — `MembershipCapabilityResolver` met bien en cache et invalide à : édition de rôle, sync capabilities, réaffectation de profil.
+- [x] AC10 — Le dernier `agency_admin` ne peut pas être réaffecté à un rôle sans `team.assign_role` (422 + message dédié).
 - [ ] AC11 — UI `/admin/roles` : un agency_admin peut créer un rôle « Agent senior » avec une matrice de capacités, et l'assigner à un membre depuis la console Équipe.
 - [ ] AC12 — Tous les checks UI granulaires (boutons, sections) passent par `useCan(Capability)` plutôt que `isAgencyAdmin`.
-- [ ] AC13 — TCK-135 marqué `obsolete` dans l'INDEX avec lien vers TCK-279.
+- [x] AC13 — TCK-135 marqué `obsolete` dans l'INDEX avec lien vers TCK-279.
+
+## Reste sur dev
+
+**Le backend est mergé sur `dev` (PR #176) ; le frontend ne l'est pas.** Le ticket
+reste `doing` pour cette raison, et non par oubli de le clore : le basculer `done`
+laisserait croire qu'`/admin/roles` existe, alors que la surface d'API est
+consommable et l'UI absente.
+
+Fait et mergé — AC1 à AC10 et AC13, adossés à 138 tests verts (`AgencyRoleControllerTest`,
+`AgencyRoleCapabilitiesTest`, `AgencyRoleAssignmentTest`, `LastAdminGuardTest`,
+`MembershipCapabilityResolverCacheTest`, `AgencySeedSystemRolesTest`) :
+
+- les 5 migrations, `AgencyRole` / `AgencyRoleCapability`, le trait `HasAgencyRole` ;
+- `MembershipCapabilityResolver` bascule sur le pivot, avec cache par rôle ;
+- `RoleController`, `Api\Profile\AgencyRoleController`, `CapabilityController` ;
+- `AgencyRolePolicy`, les 4 FormRequests, `AgencyRoleResource` ;
+- le seed des rôles système par `AgencyObserver::created` et par la migration de backfill.
+
+Reste à produire — **AC11 et AC12, entièrement frontend** :
+
+- page `/admin/roles` (liste + éditeur) et les composants `AgencyRolesList`,
+  `AgencyRoleEditor`, `CapabilityMatrix` ;
+- `src/lib/queries/agency-roles.ts` et `src/lib/queries/capabilities.ts` ;
+- la colonne « Rôle » de la TeamConsole (TCK-277) et son `Select` filtré par
+  `base_profile_type` ;
+- le hook `useCan(Capability)` et le remplacement des gates `isAgencyAdmin(user.roles)`
+  qui contrôlent une feature granulaire.
+
+⚠️ Deux points que le frontend doit reprendre du backend, et non redécouvrir :
+
+1. `GET /api/capabilities` publie désormais `data.platform_reserved` à côté de
+   `data.domains`. La matrice doit **griser** ces capacités : l'API les refuse en 422,
+   et une case cochable qui rend 422 est un défaut d'UI. Cf. le correctif d'escalade
+   de privilège (`Capability::platformReserved()`).
+2. `PATCH /profiles/{p}/agency-role` exige `profile_type` dans le CORPS — un id nu ne
+   désigne pas un profil polymorphe.
+
+Une décision reste ouverte et ne bloque pas le frontend : où vit le rôle d'agence d'un
+prestataire (`service_provider_profiles` n'a pas de `agency_role_id`). Elle est
+ticketée à part — **TCK-315**.
 
 ## Hors périmètre
 
