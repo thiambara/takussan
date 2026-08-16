@@ -1,14 +1,25 @@
 # Plan — Seeding « 1 an d'activité » pour Takussan
 
-> ## ⚠️ DOCUMENT ANTÉRIEUR À L'IMPLÉMENTATION
+> ## ✅ PLAN EXÉCUTÉ — 2026-04-18. Document d'archive, pas de documentation.
 >
-> Il décrit l'état **d'avant** le chantier de seeding : « le seeding actuel est minimal :
-> `DatabaseSeeder` crée un user de test et appelle 3 seeders », « `DemoSeeder` ~125 lignes ».
+> Ce fichier est le **plan d'origine**, rédigé et livré le même jour (`17d69934`). Il décrit
+> l'état **d'avant** le chantier ; sa section « Contexte » ci-dessous parle donc au présent d'un
+> passé révolu — « le seeding actuel est minimal… 3 seeders », « `DemoSeeder` ~125 lignes ».
+> **Ces phrases décrivent avril 2026, pas aujourd'hui.**
 >
-> La réalité au 2026-08-12 : **38 seeders**, ~450 biens. Ce fichier vaut comme **plan d'origine**,
-> pas comme description. La source est `takussan-api/database/seeders/`.
+> **Mesuré le 2026-08-16** : `takussan-api/database/seeders/` porte **42 classes `extends Seeder`**
+> réparties dans les huit dossiers prévus ci-dessous (`System/`, `Core/`, `Catalog/`, `Crm/`,
+> `Activity/`, `Operations/`, `Engagement/`, `Support/`), plus l'orchestrateur
+> `YearOfActivitySeeder`. Le plan a été suivi. *(Une version précédente de ce bandeau annonçait
+> « 38 seeders » — un compte recopié à la main, faux comme tous les comptes recopiés à la main.)*
+>
+> **La source de vérité est le code** : `takussan-api/database/seeders/`. Ce document conserve le
+> **raisonnement** — volumétries cibles, pondérations de statuts, stratégie de backfill de
+> l'`activity_log` — qui n'est écrit nulle part ailleurs. Il ne se met pas à jour : on le lit pour
+> comprendre *pourquoi*, jamais pour savoir *ce qui est*. Déplacé de `docs/` vers `docs/plans/`
+> le 2026-08-16 (TCK-311), où CLAUDE.md range les plans d'implémentation.
 
-## Contexte
+## Contexte *(état d'avril 2026 — conservé tel quel, voir le bandeau)*
 
 Le seeding actuel de `takussan-api/` est minimal : `DatabaseSeeder` crée un user de test et appelle 3 seeders (`RolesAndPermissions`, `Tag`, `Property` → 10 propriétés), tandis que `DemoSeeder` (~125 lignes, non appelé par défaut) génère un dataset linéaire sans dimension temporelle : 2 agences, 9 properties, 4 leases avec 3 paiements chacun, 5 bookings. Aucune notion d'historique, pas de cycles mensuels, pas de distribution de statuts, pas de logs d'audit (alors que le trait `Auditable` est câblé sur la plupart des modèles via spatie/activitylog), pas de notifications accumulées.
 

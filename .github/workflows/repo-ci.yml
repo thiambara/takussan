@@ -42,6 +42,14 @@ on:
       - 'scripts/**'
       - 'dev.sh'
       - 'docs/**'
+      # `check-doc-links` lit aussi les documents normatifs hors `docs/`. Même règle qu'en haut de
+      # ce bloc : la garde les lit, le déclencheur doit les couvrir — sinon un lien cassé dans
+      # `takussan-web/README.md` arrive sur `dev` et sort sur la PR de quelqu'un d'autre.
+      - 'CLAUDE.md'
+      - 'AGENTS.md'
+      - 'takussan-api/CLAUDE.md'
+      - 'takussan-web/CLAUDE.md'
+      - 'takussan-web/README.md'
       # `check-db-engine` compare le compose, le job `migrations-mysql` d'`api-ci.yml` et
       # l'init SQL. Les trois doivent déclencher, sinon la garde ne voit qu'une moitié de
       # l'écart qu'elle existe pour trouver — la règle posée en haut de ce bloc.
@@ -73,6 +81,14 @@ on:
       - 'scripts/**'
       - 'dev.sh'
       - 'docs/**'
+      # `check-doc-links` lit aussi les documents normatifs hors `docs/`. Même règle qu'en haut de
+      # ce bloc : la garde les lit, le déclencheur doit les couvrir — sinon un lien cassé dans
+      # `takussan-web/README.md` arrive sur `dev` et sort sur la PR de quelqu'un d'autre.
+      - 'CLAUDE.md'
+      - 'AGENTS.md'
+      - 'takussan-api/CLAUDE.md'
+      - 'takussan-web/CLAUDE.md'
+      - 'takussan-web/README.md'
       # `check-db-engine` compare le compose, le job `migrations-mysql` d'`api-ci.yml` et
       # l'init SQL. Les trois doivent déclencher, sinon la garde ne voit qu'une moitié de
       # l'écart qu'elle existe pour trouver — la règle posée en haut de ce bloc.
@@ -194,6 +210,26 @@ jobs:
         # qu'il est bien décrit. C'est un cliquet contre la régression franche, pas une mesure de
         # qualité (dette D-23 : chercher un jeton ne mesure pas une propriété).
         run: node scripts/check-models-spec.mjs --report
+      - name: Aucun document normatif ne cite un chemin markdown mort
+        # `models-spec.md` a cité `docs/claude-code-prompt-notifications.md` — JAMAIS ÉCRIT — assez
+        # longtemps pour qu'on finisse par annoter la citation « *(jamais écrit — pointeur mort)* »
+        # au lieu de la retirer. L'ardoise (D-19) en dénombrait cinq ; la re-mesure du 2026-08-16
+        # n'en a trouvé qu'un : la dette avait fondu de 5 à 1 sans que personne ne l'écrive, faute
+        # de quoi que ce soit qui la mesure. Un pointeur mort ne se signale jamais tout seul.
+        #
+        # ⚠ La garde est HONNÊTE SUR SON PÉRIMÈTRE et l'imprime : les documents NORMATIFS, pas tout
+        # `docs/`. Les 269 chemins morts de `_archive/INDEX-manuel-2026-08-12.md` et ceux des
+        # `sync-passes/` sont des FAITS D'HISTOIRE dans des archives gelées à dessein — les
+        # « corriger » falsifierait la pièce. Une garde qu'on ne peut pas rendre verte n'est pas
+        # une garde, c'est un bandeau d'avertissement de plus.
+        run: node scripts/check-doc-links.mjs --report
+
+      - name: features-by-actor.md est à jour de features.md
+        # Ce fichier se déclarait « vue miroir de features.md » et était maintenu À LA MAIN : il a
+        # gelé au 2026-04-14 pendant que sa source évoluait six fois. C'est D-15 à l'identique,
+        # celui qui a rendu INDEX.md faux sur 213 de ses 266 entrées. Il est désormais DÉRIVÉ, et
+        # `--check` échoue s'il ne suit plus sa source (TCK-311).
+        run: node docs/gen-features-by-actor.mjs --check
 
       - name: INDEX.md est à jour de ses frontmatters
         # `--check` n'écrit rien et sort non nul si l'index est périmé. Sans cette étape, la règle

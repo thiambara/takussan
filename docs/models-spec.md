@@ -716,7 +716,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 
 ### 12. AppNotification ✏️
 
-**Table :** `app_notifications` ✏️ ancien `notifications` (approche hybride — cf. `docs/claude-code-prompt-notifications.md` *(jamais écrit — pointeur mort)*)
+**Table :** `app_notifications` ✏️ ancien `notifications` (approche hybride : table applicative propre, distincte de la table `notifications` de Laravel)
 **Description :** Notification in-app envoyée à un utilisateur suite à un événement (nouvelle réservation, paiement reçu, rappel de loyer, demande de maintenance, etc.). Le modèle s'appelle `AppNotification` pour éviter toute confusion avec `Illuminate\Notifications\Notification`.
 
 | Colonne | Type | Nullable | Défaut | Description | Changement |
