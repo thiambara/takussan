@@ -213,6 +213,19 @@ pour les composants serveur. `vitest.setup.ts` ne monte **aucun** provider, et u
 vitest 4 + jsdom + @testing-library, alias `@` → `./src`, setup global qui polyfille
 `ResizeObserver` et `matchMedia` (`vitest.setup.ts`). **~143 fichiers, ~810 tests, tous verts** (arrondi : cf. la note du `CLAUDE.md` racine).
 
+> **Le plafond par test est de 20 s, et c'est une valeur mesurée** (`vitest.config.ts`, TCK-312).
+> Les 5000 ms précédents étaient le *défaut de vitest*, jamais choisi pour cette suite : quatre
+> tests de la console super-admin en sortaient dès que la suite backend tournait en même temps.
+> Aucun test ne dépasse **1000 ms au repos**, mais les tests d'interaction `userEvent` ralentissent
+> d'un facteur **12 à 17× sous contention CPU** — le coût est en O(frappes), ~4,5 ms par caractère.
+> **Ne pas rabaisser ce plafond sans refaire la mesure**, et ne pas le lire comme une licence à
+> écrire des tests lents : un test qui s'en approche au repos est un test à revoir.
+>
+> Ce plafond ne masque rien : les assertions asynchrones passent par `waitFor`/`findBy*`, dont le
+> délai propre reste à **1000 ms**. Une vraie régression échoue toujours en ~1 s, avec son message
+> — vérifié par ablation. Ce délai-là est cependant lui aussi un défaut de framework jamais mesuré
+> ici : il tient sous la charge visée, mais pas à ~4× celle-ci (TCK-313).
+
 ```bash
 npm run lint          # ⚠ `npm run build` ne lance PAS ESLint sous Next 16
 npx tsc --noEmit      # ⚠ aucun script `typecheck` dans package.json

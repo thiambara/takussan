@@ -109,6 +109,38 @@ class WhatsappStatusWebhookTest extends TestCase
         $this->postStatus($this->payload('wamid.x', 'delivered'), token: 'wrong')->assertNotFound();
     }
 
+    /**
+     * TCK-296 — le jeton NON CONFIGURÉ, et non le jeton faux.
+     *
+     * `WHATSAPP_WEBHOOK_URL_TOKEN` n'était déclarée dans aucun fichier
+     * d'environnement : ni `.env.example`, ni `.env.docker`, ni les `.env` de
+     * déploiement. `config/whatsapp.php` la lit avec un défaut à la chaîne vide, et
+     * la garde échoue FERMÉ — donc au premier déploiement le webhook aurait rendu
+     * 404 sur **chaque** accusé de livraison, sans erreur, sans alerte, sans trace.
+     * Un canal muet, et rien à diagnostiquer. Le pendant SMS de ce cas est couvert
+     * depuis TCK-283 ; celui-ci ne l'était pas.
+     *
+     * ⚠ **Ce que ce test prouve, et ce qu'il ne prouve PAS.** Vérifié par ablation :
+     * retirer la clause `$token === ''` du contrôleur ne le fait **pas** rougir. Ce
+     * n'est pas elle qui tient la porte — `hash_equals('', $candidat)` rend déjà
+     * `false` pour tout candidat non vide, et un jeton vide ne peut pas satisfaire le
+     * paramètre de route. La clause est une ceinture par-dessus une bretelle.
+     *
+     * Ce qui est affirmé ici est le fait opérationnel, et il est vrai : **avec la clé
+     * absente, même un appelant qui connaît le vrai jeton est refusé.** C'est la
+     * justification de TCK-296, et c'est ce qui doit rester vrai. La garde
+     * `scripts/check-webhook-env-keys.mjs` empêche la clé de disparaître ; ce test dit
+     * ce qui arriverait si elle disparaissait quand même.
+     */
+    public function test_unconfigured_url_token_rejects_even_the_right_token(): void
+    {
+        config()->set('whatsapp.webhook_url_token', '');
+        $this->attempt('wamid.unset');
+
+        $this->postStatus($this->payload('wamid.unset', 'delivered'), token: $this->token)
+            ->assertNotFound();
+    }
+
     public function test_unknown_message_id_is_ignored_with_200(): void
     {
         // No matching attempt — the webhook still 200s (Meta must not retry).

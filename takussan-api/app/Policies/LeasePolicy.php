@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\Enums\Capability;
 use App\Models\Lease;
 use App\Models\User;
 
@@ -20,9 +21,19 @@ use App\Models\User;
  */
 class LeasePolicy extends BasePolicy
 {
-    protected function resource(): string
+    /**
+     * TCK-297 — seul `leases.create` existe dans `Capability` parmi les cinq
+     * abilities CRUD. `leases.view`, `leases.update` et `leases.delete` n'ont
+     * jamais existé : la concaténation les fabriquait, la Gate ne les
+     * définissait pas, et elles refusaient tout le monde sauf le super-admin.
+     *
+     * Le cycle de vie réel d'un bail passe par les abilities explicites plus
+     * bas (`refundDeposit`, `renew`, `requestEarlyTermination`, `reviewRent`),
+     * chacune adossée à une capacité qui, elle, existe.
+     */
+    protected function createCapability(): ?Capability
     {
-        return 'leases';
+        return Capability::LeasesCreate;
     }
 
     /**

@@ -161,7 +161,7 @@ jobs:
         #
         # Le dispatch manuel garde la branche (c'est tout son objet) ; le push retrouve son
         # commit. *Corriger un chemin ne dispense pas de vérifier ce qu'on a fait à l'autre.*
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # UNE seule source pour cette valeur : `env.DEPLOY_BRANCH` sur un dispatch, `github.sha`
           # sur un push. Les deux replis étaient auparavant écrits séparément — `inputs.branch ||

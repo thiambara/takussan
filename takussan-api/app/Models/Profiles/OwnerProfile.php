@@ -4,6 +4,7 @@ namespace App\Models\Profiles;
 
 use App\Models\Agency;
 use App\Models\Bases\AbstractModel;
+use App\Models\Concerns\HasAgencyRole;
 use App\Models\Enums\IdType;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Invitation;
@@ -18,10 +19,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class OwnerProfile extends AbstractModel
 {
     /** @use HasFactory<OwnerProfileFactory> */
-    use HasFactory, SoftDeletes;
+    use HasAgencyRole, HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'user_id', 'agency_id', 'status',
+        'user_id', 'agency_id', 'agency_role_id', 'status',
         'rib', 'tax_id',
         'id_document_type', 'id_document_number',
         'monthly_income', 'employer',
@@ -41,16 +42,16 @@ class OwnerProfile extends AbstractModel
      * filtres + sparse fieldsets côté front — voir CLAUDE.md "API —
      * conventions frontend".
      */
-    protected static array $requestFilterable = ['status', 'agency_id', 'user_id'];
+    protected static array $requestFilterable = ['status', 'agency_id', 'user_id', 'agency_role_id'];
 
     protected static array $requestSortable = ['id', 'created_at', 'status'];
 
-    protected static array $requestLoadable = ['user', 'agency', 'invitations'];
+    protected static array $requestLoadable = ['user', 'agency', 'invitations', 'agencyRole'];
 
     protected static array $requestSearchFields = ['rib', 'tax_id', 'employer'];
 
     protected static array $queryFields = [
-        'id', 'user_id', 'agency_id', 'status',
+        'id', 'user_id', 'agency_id', 'agency_role_id', 'status',
         'rib', 'tax_id', 'id_document_type', 'id_document_number',
         'monthly_income', 'employer', 'guarantor_user_id',
         'metadata', 'created_at', 'updated_at',

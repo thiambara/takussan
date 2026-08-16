@@ -419,8 +419,15 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:8002
 - **Meilisearch** — **obligatoire, pas optionnel** (ADR-0008). `phpunit.xml` force
   `SCOUT_DRIVER=meilisearch` sans repli : **sans instance, `php artisan test` ne démarre pas.**
 - **Git**
-- *(Optionnel)* **Redis** — la production tourne en `CACHE_STORE=database` /
-  `QUEUE_CONNECTION=database`. Redis n'est requis que si l'on bascule ces drivers.
+- **Redis** — ⚠️ **cette ligne affirmait « la production tourne en `CACHE_STORE=database` », et
+  c'était faux.** Mesuré le 2026-08-16 : `.env.preview` **et** `.env.prod` déclarent tous deux
+  `CACHE_STORE=redis`, `SESSION_DRIVER=redis` et `REDIS_HOST=127.0.0.1:6379`. Seule la file de jobs
+  tourne en `database`. Le relevé fait foi et vit dans
+  [`infra/prod-drivers.json`](infra/prod-drivers.json) — ne pas le recopier ici (TCK-300).
+
+  **Ce que personne n'a vérifié** : que Redis écoute réellement sur le serveur. `server-setup.sh`
+  ne l'installe pas, et la production n'ayant *jamais* été déployée (D-04), le premier démarrage est
+  aussi le premier essai. À lever au tout début de TCK-288, par `redis-cli ping`, avant tout le reste.
 - *(Optionnel)* Gotenberg ou navigateur headless si `LARAVEL_PDF_DRIVER` ∉ {`dompdf`, `cloudflare`}
 
 > **Le plus simple est de ne rien installer de tout cela** : `docker-compose.yml` à la racine sert
@@ -559,12 +566,23 @@ npm run build
 
 - [ ] `APP_ENV=production`, `APP_DEBUG=false`
 - [ ] `APP_KEY` défini et sauvegardé (rotation via `APP_PREVIOUS_KEYS`)
-- [ ] `CACHE_STORE=redis`, `SESSION_DRIVER=redis` (ou `database`), `QUEUE_CONNECTION=redis`
+- [ ] `CACHE_STORE=redis`, `SESSION_DRIVER=redis`, `QUEUE_CONNECTION=database` — **valeurs
+      relevées dans les `.env` livrés**, pas prescrites de mémoire. Cette ligne demandait
+      `QUEUE_CONNECTION=redis` quand les deux fichiers déclarent `database` ; le relevé fait foi
+      ([`infra/prod-drivers.json`](infra/prod-drivers.json)), et `check-prod-drivers.mjs` casse si
+      cette ligne s'en écarte de nouveau
 - [ ] `php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan event:cache`
 - [ ] Worker queue : `php artisan queue:work` via supervisor / systemd
 - [ ] Scheduler cron : `* * * * * php artisan schedule:run >> /dev/null 2>&1`
 - [ ] HTTPS obligatoire (cookie `Secure` + Sanctum domain)
-- [ ] `SESSION_SECURE_COOKIE=true`, `SESSION_SAME_SITE=lax`
+- [ ] `SESSION_SECURE_COOKIE=true` — 🔴 **absente des `.env` livrés, et c'est le seul manque qui
+      coûte.** `config/session.php:172` la lit **sans défaut** : `env('SESSION_SECURE_COOKIE')` rend
+      `null`, qui est faux, donc le cookie de session n'est **pas** marqué `Secure`. Sur un
+      déploiement HTTPS, un repli en clair suffit à le faire émettre en clair.
+- [ ] `SESSION_SAME_SITE=lax` — également absente des `.env` livrés, mais **sans conséquence** :
+      `config/session.php:202` la lit avec le défaut `'lax'`, exactement la valeur prescrite.
+      *Deux clés absentes du même fichier n'ont pas le même coût — c'est le défaut du code qui
+      décide, pas l'absence.* L'ardoise D-11 les mettait dans le même sac.
 - [ ] CDN actif (`CDN_ENABLED=true`) et `secure_collections` correctement listées
 - [ ] Backups DB + storage automatisés
 - [ ] Frontend déployé avec `NEXT_PUBLIC_API_URL` pointant vers l'API HTTPS
@@ -579,6 +597,7 @@ npm run build
 - `docs/models-spec.md` — spec data/modèles
 - `docs/spatie-query-builder.md` — conventions API
 - `docs/design-guidelines.md` — UI / UX
-- `docs/seeding-plan.md` — stratégie de seeding démo
+- `docs/plans/2026-04-18-seeding-annee-activite.md` — plan d'origine du seeding démo (archive : le
+  raisonnement, pas l'état ; la source est `takussan-api/database/seeders/`)
 - `docs/backlog/INDEX.md` — kanban des tickets
 - `CLAUDE.md` — règles agent / monorepo
