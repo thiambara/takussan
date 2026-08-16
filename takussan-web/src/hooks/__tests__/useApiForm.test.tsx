@@ -218,10 +218,23 @@ describe('useApiForm', () => {
     });
     // Global errors also land on RHF's `root.serverError` slot so consumers
     // observing `formState.errors.root` see them.
+    // ⚠ `getFieldState` et NON `formState.errors.root` — essayé, et faux ici.
+    // `formState` est un Proxy qui n'observe que ce qui a été LU PENDANT UN
+    // RENDU ; dans un `renderHook` sans composant qui lise `errors`, rien ne
+    // s'abonne et `errors.root` reste `undefined` alors que l'erreur est bien
+    // posée. `getFieldState` lit l'état directement, sans passer par
+    // l'abonnement — c'est ce qui rend l'assertion vraie.
+    //
+    // Le `as never` portait sur le NOM (react-hook-form 7.85 en dérive alors
+    // un type d'erreur `never`, et `.error?.message` ne compile plus) ; il
+    // porte désormais sur le RÉSULTAT. `root.serverError` n'est pas un
+    // `FieldPath` des valeurs du formulaire — c'est le slot d'erreur globale
+    // de react-hook-form — donc aucun typage exact n'existe côté nom.
     await waitFor(() => {
-      expect(
-        result.current.form.getFieldState('root.serverError' as never).error?.message,
-      ).toBe('Captcha incorrect.');
+      const state = result.current.form.getFieldState('root.serverError' as never) as {
+        error?: { message?: string };
+      };
+      expect(state.error?.message).toBe('Captcha incorrect.');
     });
   });
 

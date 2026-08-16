@@ -217,8 +217,24 @@ export function useApiForm<
     [defaultValues, form, onSubmit, onSuccess, onError],
   );
 
+  // ⚠ `await` puis rien : le retour est délibérément JETÉ, et ce n'est pas
+  // une écriture maladroite. react-hook-form 7.85 a rendu `handleSubmit`
+  // générique sur le retour du handler —
+  // `<TResult>(onValid) => (e?) => Promise<Awaited<TResult> | undefined>` —
+  // et `TResult` ne s'infère pas depuis un handler qui rend `Promise<void>`
+  // (il retombe sur `unknown`), ce qui ne s'assigne plus à la signature
+  // `Promise<void>` publiée par `UseApiFormReturn`.
+  //
+  // Fixer le générique à la main (`handleSubmit<void>(…)`) marcherait ici et
+  // casserait à la prochaine évolution de cette signature. Envelopper dans
+  // une fonction `async` rend `Promise<void>` quelle que soit la forme
+  // interne — le contrat de CE hook cesse de dépendre de l'inférence de
+  // celui d'en dessous. Aucun appelant ne lit ce retour : `handleSubmit` est
+  // branché sur `onSubmit` d'un `<form>`.
   const handleSubmit = useCallback(
-    (e?: React.BaseSyntheticEvent) => form.handleSubmit(submit)(e),
+    async (e?: React.BaseSyntheticEvent): Promise<void> => {
+      await form.handleSubmit(submit)(e);
+    },
     [form, submit],
   );
 
