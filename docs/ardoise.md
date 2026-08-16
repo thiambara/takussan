@@ -1447,7 +1447,7 @@ charge, intersection non vide mais ensembles distincts) · `tests/Concerns/Inter
 > pour ce qui est mergé sur `dev` » est juste ; elle n'a de valeur que si l'on va **regarder** ce
 > qui est mergé sur `dev`.
 
-### D-30 — Aucune mesure de couverture, aucune parallélisation 🟡 → [TCK-302](backlog/tickets/TCK-302-couverture-non-mesuree-suite-non-parallelisee.md)
+### D-30 — Aucune mesure de couverture, aucune parallélisation 🟡 *couverture SOLDÉE le 2026-08-16 ; parallélisation mesurée puis REFUSÉE, sur un défaut qu'elle a révélé* → [TCK-302](backlog/tickets/TCK-302-couverture-non-mesuree-suite-non-parallelisee.md)
 
 > **Confirmé le 2026-08-16** : `coverage: none` apparaît **deux fois** dans `api-ci.yml` (lignes 42
 > et 192), et `--parallel` n'est configuré nulle part. Le temps de référence à retenir est
@@ -1457,6 +1457,116 @@ charge, intersection non vide mais ensembles distincts) · `tests/Concerns/Inter
 La CI passe explicitement `coverage: none` et le bloc `<source>` de `phpunit.xml` n'alimente aucun
 rapport : ni seuil, ni tendance, ni garde-fou contre l'érosion. Et la suite n'est pas parallélisée
 (`--parallel` n'est configuré nulle part) — 616 s en local sous contention.
+
+**Volet couverture — soldé le 2026-08-16.** La couverture d'`app/` a été mesurée pour la première
+fois, sur la suite complète (2313 tests, 7136 assertions, 0 échec), PCOV 1.0.12, périmètre `app/`
+(768 fichiers) :
+
+| | Couvert / total | % |
+|---|---|---|
+| **Lignes** | 21 148 / 24 544 | **86,16 %** ← ce que `--min` compare |
+| Méthodes | 1 821 / 2 723 | 66,87 % |
+| Classes | 301 / 687 | 43,81 % |
+
+Les chiffres du clover et ceux du rapport texte de PHPUnit concordent — vérifié, ce n'est pas une
+seule source lue deux fois. **L'écart entre 86 % de lignes et 44 % de classes n'est pas une
+contradiction** : une classe ne compte « couverte » que si *toutes* ses lignes le sont. C'est
+l'indicateur le plus sévère des trois, et le seul des trois qui dise quelque chose sur les branches
+d'erreur rarement traversées.
+
+La mesure est **reproductible** : rejouée une seconde fois, elle rend 21 147 lignes couvertes au lieu
+de 21 148 — un écart d'**une** ligne, soit 0,004 point.
+
+Le seuil `--min=85` est posé **au niveau mesuré des lignes, arrondi vers le bas** avec ~1,2 point de
+marge (un fichier de ~100 lignes ajouté sans test coûte ~0,35 point ; la marge en absorbe trois). Un
+cliquet contre l'érosion, pas un objectif.
+
+**Surcoût mesuré : +36 %** (83 s → 113 s, comparaison appariée sur la suite entière, machine quasi au
+repos, Xdebug coupé des deux côtés pour ne pas mesurer Xdebug à la place de PCOV). Sous la limite de
+50 % que le ticket s'était fixée. Le step de CI **affiche sa durée** à chaque exécution : une mesure
+prise une fois vieillit, l'historique du job dira si ce chiffre dérive.
+
+Le rapport est publié en **deux** artefacts, parce qu'ils n'ont ni le même usage ni le même prix :
+`clover.xml` (1,9 Mo) à **chaque** exécution — une tendance a besoin de tous ses points, y compris
+ceux des builds rouges — et le HTML (**150 Mo décompressés, mesuré**) **seulement `if: failure()`**,
+puisque c'est le jour où le cliquet saute qu'on veut le détail à la ligne. Le publier partout, ce
+serait payer 150 Mo par build pour un rapport ouvert quelques fois par an.
+
+Le second `coverage: none`, celui du job `migrations-mysql`, a été **conservé** : ce job n'exécute
+aucun test, un pilote de couverture y coûterait son installation pour ne rien mesurer. Les deux
+occurrences n'étaient pas le même défaut.
+
+> ⚠️ **Ce que le seuil ne garde pas.** Une méthode traversée sans assertion compte pour couverte.
+> [TCK-285](backlog/tickets/TCK-285-couverture-tests-services-policies.md) a trouvé quatre défauts en
+> **écrivant** les tests, aucun en mesurant leur couverture. Le cliquet empêche la descente ; il ne
+> monte rien et ne prouve rien.
+
+**Volet parallélisation — MESURÉ, et REFUSÉ pour l'instant. Le gain est réel ; le prix n'est pas payé.**
+
+Les six exécutions ci-dessous se sont enchaînées le 2026-08-16 entre 15 h 36 et 15 h 45, `load
+average` relevé au départ de chacune (8 cœurs, contention résiduelle d'agents voisins — ce qui
+**sous-estime** le gain de `--parallel`, puisque les cœurs qu'il veut utiliser étaient en partie
+déjà pris) :
+
+| Exécution | Durée | Sortie | Échecs |
+|---|---|---|---|
+| séquentielle | **204 s** | 0 | **0** sur 2313 |
+| `--parallel` n°1 | 77 s | 1 | 3 |
+| `--parallel` n°2 | 83 s | 1 | 2 |
+| `--parallel` n°3 | 73 s | 1 | 3 |
+| `--parallel` n°4 | 71 s | 1 | 2 |
+| `--parallel` n°5 | **66 s** | 1 | 3 |
+
+**Le gain est net — ~2,6× (204 s → 66-83 s).** Ce n'est pas la raison du refus.
+
+La raison est la colonne de droite : **5 exécutions sur 5 rouges**, et les rouges se répartissent en
+deux familles qui n'appellent pas le même travail.
+
+1. **Deux échecs déterministes, par construction** — `Tests\Unit\Testing\FakeDiskIsolationTest`
+   échoue aux 5 exécutions sur ses deux tests. Ce sont des **gardes** posées par le correctif D-44,
+   et elles affirment exactement ce que `--parallel` rend faux : que la racine des disques
+   `Storage::fake()` porte le jeton de `TestProcessToken`, et que `LARAVEL_PARALLEL_TESTING` est
+   **absent** de `$_SERVER`. En mode parallèle, Laravel pose son propre jeton
+   (`public_test_5`, `public_test_3`… au lieu de `public_test_<pid+aléa>`) et **supplante** le
+   mécanisme du dépôt. L'isolation reste assurée — par Laravel, plus par nous — mais le quatrième
+   mécanisme de D-44 est alors court-circuité en silence. Ce n'est donc pas un basculement de
+   drapeau : il faut d'abord **décider** lequel des deux jetons gouverne, et réécrire les deux
+   gardes en conséquence.
+2. **Un échec INTERMITTENT, 3 fois sur 5** — `PropertyIsTestExclusionTest::test_public_search_excludes_is_test_properties`.
+   Relancé **seul**, comme l'exige la règle du dépôt, il échoue **de façon déterministe**… alors
+   qu'il **passe** dans la suite complète séquentielle (deux exécutions indépendantes). Ce test ne
+   passe donc que grâce à l'**ordre** de la suite, et ParaTest, en redistribuant les tests entre
+   workers, casse cet ordre accidentel. Le trou est réel et préexiste :
+   [TCK-313](backlog/tickets/TCK-313-test-recherche-dependant-de-l-ordre.md).
+
+> *Le rouge n'a rien coûté : il a payé.* Éprouver `--parallel` a mis au jour un test vert qui ne
+> prouvait rien, sur une règle métier — « un bien `is_test` n'atteint jamais la surface publique » —
+> que personne ne vérifiait plus. C'est le second cas, après D-44, où **la course révèle un défaut
+> que le déterminisme masquait**.
+
+**Décision : `--parallel` n'est PAS activé**, et `brianium/paratest` n'est **pas** ajouté à
+`composer.json` — une dépendance installée pour une option non retenue est une décision prise en
+silence. Condition de réouverture : **TCK-313 soldé**, puis la question des deux gardes de
+`FakeDiskIsolationTest` tranchée. Le gain de 2,6× justifie largement d'y revenir.
+
+Rejeu, une fois ces deux points traités :
+
+```bash
+composer require --dev brianium/paratest
+for i in 1 2 3 4 5; do /usr/bin/time -p php artisan test --parallel; done
+uptime; sysctl -n hw.ncpu     # à relever À CÔTÉ du chiffre, sinon il ne dit rien
+```
+
+**Critère, les deux conditions ensemble** : gain de temps net, **et** cinq exécutions à **0 échec**.
+Une seule rouge sur cinq refuse — c'est le profil de panne de D-44, où l'ensemble des rouges changeait
+d'une exécution à l'autre. Un rouge Meilisearch se relance **seul** avant d'être compté.
+
+> **Le risque qui n'est PAS survenu, et qu'il faudra revérifier** : N workers indexant dans **une
+> seule** instance Meilisearch, qui traite ses tâches en série, face à une barrière
+> `MeilisearchBarrier::await()` plafonnée à **10 s d'horloge**. Éprouvé à part — les 15 classes
+> portant `InteractsWithMeilisearch`, jouées sur **4 processus, 5 fois de suite** : **106 tests,
+> 319 assertions, 0 échec à chaque fois** (28-36 s par exécution). La barrière tient. Le blocage est
+> ailleurs, et c'est utile de savoir où il n'est pas.
 
 ---
 

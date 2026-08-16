@@ -27,7 +27,7 @@ tenir à jour :
 | Code | ~770 fichiers PHP · ~62 000 lignes dans `app/` | ~870 fichiers `.ts`/`.tsx` dans `src/` |
 | Surface | ~535 routes · ~160 contrôleurs · 70 modèles | ~110 pages · ~30 route handlers BFF · 20 modules de server actions |
 | Données | 124 migrations · 38 factories · 11 seeders | — |
-| Tests | ~307 fichiers · **~2050 tests, verts _au repos_** | ~143 fichiers · **~810 tests, verts _au repos_** |
+| Tests | ~307 fichiers · **~2050 tests, verts _au repos_** *(~2300 au 2026-08-16)* | ~143 fichiers · **~810 tests, verts _au repos_** |
 
 > Les chiffres sont **arrondis délibérément**. La version précédente annonçait « 875 fichiers
 > `.ts`/`.tsx` » — faux dans le commit qui l'écrivait, puisque ce même commit en supprimait sept.
@@ -79,6 +79,38 @@ Ce que cela change pour qui travaille ici : **ne jamais conclure d'un rouge Meil
 relancé seul**, et ne pas lancer la suite entière pendant qu'un autre agent la lance. Détail complet,
 chiffres et état du correctif : ardoise **D-44**.
 
+**Le temps de référence de la suite backend — 204 à 235 s, machine au repos, mesuré le 2026-08-16**
+sur ~2320 tests, **0 échec, sortie 0** (deux mesures indépendantes le même jour : 235 s, puis 204 s à
+`load average` 8-29). C'est cet ordre de grandeur qu'on compare désormais, et non les 313 s
+ci-dessus : celles-ci ont été prises le 2026-08-15, sur 2056 tests, **avant** le correctif D-44. Les
+deux chiffres décrivent des suites différentes à des dates différentes — ils ne se soustraient pas.
+
+⚠️ **« Au repos » est une condition de la mesure, pas une formule de style — et le facteur mesuré est
+d'environ 11.** Le 2026-08-16, sur cette même machine à 8 cœurs, **la même commande** (PHPUnit sous
+PCOV, à la virgule près) a rendu **1240 s** sous `load average` 200-258 — vitest et ESLint d'agents
+voisins, plus le langage server PHP de l'IDE à ~230 % de CPU — et **113 s** deux heures plus tard à
+load 4-8. Un test individuel passait de ~0,1 s à 2-3 s. Un temps de suite mesuré sous charge ne dit
+rien du dépôt : il dit ce que la machine faisait d'autre. **Relever `uptime` et `sysctl -n hw.ncpu` à
+côté du chiffre** — sans eux, il ne veut plus rien dire six mois plus tard.
+
+**La bonne nouvelle de cette contention, elle, est solide** : c'est justement l'exécution à load
+200-258 qui a rendu **2313 tests, 7136 assertions, 2 ignorés, 0 échec**. Le correctif D-44 tient donc
+là où l'ancienne version rougissait, et c'est une preuve *plus forte* qu'une exécution au repos, pas
+une preuve dégradée : au repos, l'ancienne version passait aussi.
+
+**La couverture est mesurée et gardée depuis le 2026-08-16** — elle ne l'avait jamais été. Sur `app/`
+(768 fichiers) : **lignes 86,16 %** (21 148 / 24 544), **méthodes 66,87 %**, **classes 43,81 %**. La CI
+pose un **cliquet** à `--min=85`, pour un surcoût mesuré de **+36 %** (83 s → 113 s), et publie le
+clover en artefact à chaque exécution. Le seuil garde contre l'**érosion** ; il ne dit pas que 85 %
+suffit, et une méthode traversée sans assertion y compte pour couverte.
+
+**`--parallel` a été mesuré, puis REFUSÉ** : le gain est réel (~2,6×, 204 s → 66-83 s) mais les
+**cinq** exécutions d'épreuve sont rouges. Deux gardes de D-44 tombent *par construction* — en mode
+parallèle Laravel pose son propre jeton d'isolation et supplante celui du dépôt — et un test de
+recherche publique rougit 3 fois sur 5 parce qu'il ne passait que grâce à l'**ordre** de la suite
+(TCK-313). Ne pas activer `--parallel` avant que ces deux points soient tranchés. Détail et
+raisonnement : ardoise **D-30**, tickets **TCK-302** et **TCK-313**.
+
 **L'ardoise est ouverte et écrite.** `docs/ardoise.md` porte l'inventaire des manquements mesurés,
 chacun sourcé, classé et priorisé — dont quatre qui touchent la **production** et ne se voient pas
 depuis le code. **La lire avant de planifier quoi que ce soit.**
@@ -95,12 +127,23 @@ depuis le code. **La lire avant de planifier quoi que ce soit.**
 `takussan-api/` :
 
 ```bash
-php artisan test                    # ~2050 tests — exige une instance Meilisearch (cf. D-08), et se
-                                    #   mesure MACHINE AU REPOS : sous charge, les tests de recherche
-                                    #   rougissent au hasard, sur un ensemble différent à chaque
-                                    #   exécution (cf. D-44). Un rouge Meilisearch se relance seul
-                                    #   AVANT d'accuser le code.
+php artisan test                    # ~2300 tests, 204-235 s MACHINE AU REPOS (2026-08-16, deux
+                                    #   mesures) — exige une instance Meilisearch (cf. D-08).
+                                    #   Le temps ne se mesure QUE machine au repos : à load 200-258
+                                    #   sur 8 cœurs, la même commande met ×11 plus longtemps.
+                                    #   Un rouge Meilisearch se relance seul AVANT d'accuser le code
+                                    #   (cf. D-44) — mais depuis le correctif, la suite entière rend
+                                    #   0 échec même sous cette charge.
 php artisan test --filter=Foo
+XDEBUG_MODE=coverage php artisan test --coverage --min=85
+                                    # couverture de lignes de app/ — le CLIQUET de la CI (TCK-302).
+                                    #   Exige un pilote de couverture : PCOV en CI, Xdebug en local.
+                                    #   ⚠ La VARIABLE D'ENVIRONNEMENT, pas `-d xdebug.mode=…` :
+                                    #   `artisan test` relance PHPUnit dans un SOUS-PROCESSUS, où
+                                    #   un `-d` posé sur l'artisan ne se propage pas — la commande
+                                    #   sortirait alors sur « Code coverage driver not available ».
+                                    #   Le seuil est posé au niveau MESURÉ ; il ne dit pas
+                                    #   « 85 % suffit », il dit « on ne redescend pas ».
 ./vendor/bin/pint                   # ← AVANT CHAQUE COMMIT. Rien ne l'impose : c'est une
                                     #   violation d'un seul fichier qui a cassé la CI six semaines.
 php artisan migrate
