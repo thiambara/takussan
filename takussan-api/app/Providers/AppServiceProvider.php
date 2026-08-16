@@ -34,6 +34,7 @@ use App\Listeners\Permissions\NotifyDelegationActivated;
 use App\Listeners\Permissions\NotifyDelegationExpired;
 use App\Listeners\Permissions\NotifyDelegationRevoked;
 use App\Models\Agency;
+use App\Models\AgencyRole;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\BookingPayment;
 use App\Models\Conversation;
@@ -55,6 +56,7 @@ use App\Models\RoleDelegation;
 use App\Models\User;
 use App\Notifications\Channels\SmsChannel;
 use App\Notifications\Channels\WhatsappChannel;
+use App\Observers\AgencyObserver;
 use App\Observers\FavoriteObserver;
 use App\Observers\InventoryOnboardingObserver;
 use App\Observers\LeaseObserver;
@@ -69,6 +71,7 @@ use App\Observers\ReviewObserver;
 use App\Observers\UserObserver;
 use App\Policies\ActivityLogPolicy;
 use App\Policies\AgencyPolicy;
+use App\Policies\AgencyRolePolicy;
 use App\Policies\AgencyUpgradeRequestPolicy;
 use App\Policies\AgentProfilePolicy;
 use App\Policies\ConversationPolicy;
@@ -339,6 +342,10 @@ class AppServiceProvider extends ServiceProvider
 
     private function bootObservers(): void
     {
+        // TCK-279 — AC1 : seed synchrone des 4 AgencyRole système à la
+        // création d'une agence. Doit précéder toute création de profil
+        // dans cette agence : `agency_role_id` est NOT NULL.
+        Agency::observe(AgencyObserver::class);
         Property::observe(PropertyObserver::class);
         Message::observe(MessageObserver::class);
         Favorite::observe(FavoriteObserver::class);
@@ -429,6 +436,11 @@ class AppServiceProvider extends ServiceProvider
         // policy lives in App\Policies\Profiles (auto-discovery only
         // probes App\Policies for `App\Models\Profiles\X` → `App\Policies\XPolicy`).
         Gate::policy(ServiceProviderProfile::class, ServiceProviderProfilePolicy::class);
+
+        // TCK-279 — rôles d'agence. `viewAny`, `create` et `assign` prennent
+        // l'Agency en second argument (comme AgentProfilePolicy@invite), ce
+        // que l'auto-discovery ne devine pas : on lie explicitement.
+        Gate::policy(AgencyRole::class, AgencyRolePolicy::class);
 
         // TCK-098 — property moderation gates (approve, reject, resubmit).
         // Named gates avoid collision with the existing PropertyPolicy.

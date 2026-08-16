@@ -10,8 +10,8 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 7 |
-| 🚧 Doing | 0 |
+| 📋 Todo | 6 |
+| 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 269 |
@@ -33,7 +33,6 @@
 
 ## 📋 Todo
 
-- [TCK-279](tickets/TCK-279-rbac-custom-roles-phase-2.md) — RBAC refondu — phase 2 : rôles personnalisés par agence (HasRoles sur Profils + AgencyRole) `L · P1 · full`
 - [TCK-288](tickets/TCK-288-chaine-de-deploiement-master-fige.md) — Premiere mise en production — la chaine n'a jamais tourne `M · P0 · technique`
 - [TCK-291](tickets/TCK-291-etats-vides-erreurs-reste-du-parc.md) — États vides / erreurs — le reste du parc (super-admin, admin, tables) `M · P2 · front`
 - [TCK-292](tickets/TCK-292-i18n-reste-du-parc.md) — i18n — le reste du parc : 409 fichiers, 3 542 libellés, en 12 lots `XL · P2 · front`
@@ -43,7 +42,7 @@
 
 ## 🚧 Doing
 
-_(aucun)_
+- [TCK-279](tickets/TCK-279-rbac-custom-roles-phase-2.md) — RBAC refondu — phase 2 : rôles personnalisés par agence (HasRoles sur Profils + AgencyRole) `L · P1 · full`
 
 ## 👀 Review
 
