@@ -697,6 +697,59 @@ créé le 2026-08-12, soit la veille du correctif) · `docker compose config --s
 `./dev.sh doctor`, qui compare déjà le déclaré au vivant, éviterait la prochaine occurrence : *un
 correctif de configuration n'est pas déployé tant qu'aucune machine ne l'exécute.*
 
+### D-54 — La CI utilise `.env.example` comme environnement de TEST : toute valeur qu'on y ajoute devient de la configuration de suite ✅ *mesuré et soldé le 2026-08-16*
+
+**Le symptôme, mesuré :** la suite backend verte en local — **2311 passés, 0 échec** — et
+**14 échecs en CI** sur le même commit, sur `SmsChannelTest`, `SmsRouterDriverTest`,
+`OrangeOAuthLockTest` et `WhatsappChannelTest`. Tous avec le même message,
+« *An expected request was not recorded* », qui accuse le code applicatif.
+
+**La cause n'est dans aucun de ces quatre fichiers** — la branche n'en touchait aucun. Elle est
+dans `api-ci.yml:58` : `cp .env.example .env`. **La CI n'a pas d'environnement de test à elle : elle
+prend le fichier d'exemple.** Toute clé ajoutée à `.env.example` devient donc, sans que personne
+ne le décide, de la configuration de la suite.
+
+La branche y avait ajouté quatre clés à VIDE :
+
+```
+SMS_ORANGE_OAUTH_URL=
+SMS_ORANGE_SEND_URL=
+SMS_MTARGET_SEND_URL=
+SMS_LAM_SEND_URL=
+```
+
+Or `config/sms.php` leur donne un défaut réel — `env('SMS_ORANGE_SEND_URL', 'https://api.orange…')`.
+**Une clé déclarée à vide n'est pas une clé absente** : `env()` rend `''`, et le défaut ne
+s'applique jamais. Les drivers se retrouvent sans URL, n'émettent aucune requête HTTP, et
+`Http::assertSent()` échoue.
+
+**Le poste de travail ne pouvait pas le voir**, et c'est le cœur du problème : le `.env` local ne
+porte pas ces clés, donc les défauts de `config/sms.php` s'appliquent et la suite est verte. *Deux
+environnements qui lisent deux fichiers différents ne mesurent pas la même chose — et c'est celui
+qu'on ne regarde pas qui décide du rouge.* C'est le pendant exact de D-44 (« vert au repos »),
+retourné : ici, vert en local et rouge en CI.
+
+**Correctif** : les quatre URLs sont épinglées dans `phpunit.xml`, aux valeurs exactes des défauts
+de `config/sms.php`, avec la même justification que `DB_CONNECTION`, `CACHE_STORE` ou
+`SCOUT_DRIVER` — *une suite qui dépend du `.env` ne mesure pas le code, elle mesure la machine*.
+Les entrées `<env>` de PHPUnit sont posées avant l'amorçage de Laravel, et Dotenv ne les écrase
+pas : elles priment donc sur le fichier `.env`, quel qu'il soit.
+
+**Vérifié dans les deux conditions**, et pas seulement dans celle qui arrangeait : `.env` local
+inchangé → 36 passés ; `.env` local AUGMENTÉ des quatre clés à vide, c'est-à-dire la condition CI
+exacte → **36 passés** aussi. Avant le correctif, cette seconde condition rendait 14 échecs, le
+même ensemble et aux mêmes lignes qu'en CI.
+
+> **Ce qui RESTE ouvert** : la cause racine n'est pas corrigée. `.env.example` reste l'environnement
+> de test de la CI, donc le prochain qui y ajoutera une clé à vide dont la config a un défaut réel
+> rouvrira la même panne, sur d'autres tests. Deux sorties possibles — un `.env.ci` dédié, ou une
+> garde qui refuse dans `.env.example` toute clé vide dont `config/` porte un défaut non vide. Ni
+> l'une ni l'autre n'est tranchée ici.
+
+**Preuve** : `.github/workflows/api-ci.yml:58` · `config/sms.php:143,144,151,156` ·
+`gh run list --branch dev --workflow "API CI"` → succès au 2026-08-15 (le rouge vient bien de la
+branche) · exécution de la suite avec et sans les quatre clés dans `.env`.
+
 ### D-48 — Le `.env` de développement vise les services natifs, jamais les conteneurs du dépôt 🟠 *dette d'ONBOARDING, pas de dépôt — mesurée le 2026-08-15*
 
 `takussan-api/.env` est **ignoré par git**. Cette entrée ne décrit donc pas un fichier du dépôt à
