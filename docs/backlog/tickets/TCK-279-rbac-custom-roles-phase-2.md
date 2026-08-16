@@ -1,6 +1,6 @@
 ---
 id: TCK-279
-title: "RBAC refondu — phase 2 : rôles personnalisés par agence (HasRoles sur Profils + AgencyRole)"
+title: "RBAC refondu — phase 2 : rôles personnalisés par agence (AgencyRole + pivot de capacités)"
 status: todo
 phase: P1
 family: full
@@ -29,6 +29,22 @@ Un `agency_admin` accède à `/admin/roles` pour consulter les rôles métier di
 
 **Supersede TCK-135** (admin-roles-editor) : la version spatie+teams est abandonnée au profit du modèle Profile + AgencyRole établi en TCK-278.
 
+## ⚠️ Correction avant implémentation — le trait `HasRoles` n'existe pas
+
+Le titre et le corps de ce ticket parlaient d'un « trait `HasRoles` sur les Profils », repris de
+`models-spec.md` qui décrivait la phase 2 comme une « réintroduction de `HasRoles` + `HasPermissions` ».
+
+**C'est impossible, et il vaut mieux le lire ici que le découvrir en codant** : ces deux traits
+appartiennent à `spatie/laravel-permission`, **désinstallé** par TCK-278, et une garde d'`api-ci.yml`
+casse sur tout import `Spatie\Permission\`. La spec a été corrigée le 2026-08-16 par TCK-310 ; ce
+ticket l'est ici.
+
+Ce que la phase 2 décrit réellement est un mécanisme **maison** : `AgencyRole`, le pivot
+`agency_role_capabilities`, et un pointeur `agency_role_id` sur chaque profil. **Le pointeur suffit —
+aucun trait tiers n'est nécessaire.** Le trait maison à écrire s'appelle `HasAgencyRole`.
+
+*Un ticket qui cite le nom d'un mécanisme supprimé envoie son implémenteur l'installer.*
+
 ## Contrat de données
 
 **Modèles ajoutés** (cf. spec §52-§53) :
@@ -36,7 +52,7 @@ Un `agency_admin` accède à `/admin/roles` pour consulter les rôles métier di
 - `AgencyRoleCapability` (`agency_role_capabilities` — pivot)
 
 **Modèles retouchés** :
-- `AgentProfile`, `AgencyAdminProfile`, `OwnerProfile`, `ServiceProviderProfile` : ajout colonne `agency_role_id` (FK NOT NULL, restrictOnDelete), trait `HasRoles` (variante dérivée pointant vers `agency_roles` et `agency_role_capabilities`), méthodes `capabilities(): Collection<Capability>`, `hasCapability(Capability): bool`.
+- `AgentProfile`, `AgencyAdminProfile`, `OwnerProfile`, `ServiceProviderProfile` : ajout colonne `agency_role_id` (FK NOT NULL, restrictOnDelete), trait maison `HasAgencyRole` (**pas** `HasRoles` — voir l'encadré ci-dessous), méthodes `capabilities(): Collection<Capability>`, `hasCapability(Capability): bool`.
 - `Agency` : observer / job qui seed les 4 `AgencyRole` système (`is_system=true`) à la création.
 
 **Endpoints** :
