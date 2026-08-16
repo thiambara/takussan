@@ -30,6 +30,10 @@
     "33": "Fusion console admin Équipe & Utilisateurs (2026-05-17)",
     "34": "Refonte RBAC : profil = rôle (2026-05-17)",
     "35": "Recherche Meilisearch (2026-05-20)",
-    "36": "Notifications WhatsApp sortant (2026-06-17)"
+    "36": "Notifications WhatsApp sortant (2026-06-17)",
+    "37": "Évacuation dette — back sécurité : gardes webhook et policies (2026-08-16)",
+    "38": "Évacuation dette — infra du dépôt : versions, déploiement front, environnement (2026-08-16)",
+    "39": "Évacuation dette — convergence des conventions backend (2026-08-16)",
+    "40": "Évacuation dette — documentation : specs et documents périmés (2026-08-16)"
   }
 }

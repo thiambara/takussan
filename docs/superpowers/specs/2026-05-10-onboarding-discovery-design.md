@@ -1,7 +1,8 @@
 ---
 title: Onboarding — Discovery (tous les acteurs)
 date: 2026-05-10
-status: draft
+status: implemented
+status_verified: 2026-08-16
 type: discovery
 spec_refs:
   - docs/features.md §2.1 (Authentification & comptes)
@@ -19,6 +20,19 @@ related_tickets:
 ---
 
 # Onboarding — Discovery (tous les acteurs)
+
+> ## ✅ LIVRÉ — document de découverte daté, pas une description du système
+>
+> Ce document a porté `status: draft` jusqu'au 2026-08-16 alors que **les dix tickets qu'il pilote
+> étaient tous `done`** — vérifié un par un : TCK-013, TCK-060, TCK-081, TCK-138 → TCK-142,
+> TCK-209, TCK-234. Statut corrigé en `implemented` (TCK-311).
+>
+> ⚠️ **Son corps décrit mai 2026 et n'est pas mis à jour.** En particulier, le §2.1 écrit que « les
+> permissions spatie sont scopées par `team_id` » : `spatie/laravel-permission` a été **désinstallé**
+> depuis (TCK-278). Les droits sont l'enum `Capability` résolue par `MembershipCapabilityResolver`
+> pour un couple *(utilisateur, agence)*. Le raisonnement de cadrage — les neuf parcours, la machine
+> à états des profils, la matrice acteur × capacité — reste valable ; les détails de mécanisme, non.
+> La source de vérité est `docs/features.md` et le code.
 
 ## 1. Contexte & objectif
 

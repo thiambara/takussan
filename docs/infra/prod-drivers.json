@@ -1,0 +1,95 @@
+{
+  "_lisez_moi": "Catalogue des DRIVERS effectivement déclarés par les environnements déployés. Pendant de `versions.json` (TCK-298) pour les drivers plutôt que pour les versions, et même discipline : chaque valeur porte son `etat`, `mesure` ou `non_mesure`, et une valeur `mesure` cite la commande et la date qui l'ont produite. Ce fichier dit ce que les FICHIERS `.env` DÉCLARENT — jamais ce que la machine exécute, qui est un autre fait et qui appartient à TCK-288.",
+  "_pourquoi_ce_fichier": "`docs/configuration.md` se contredisait lui-même : sa ligne 422 affirmait « la production tourne en CACHE_STORE=database » quand sa checklist §5.7 prescrivait `CACHE_STORE=redis`, et les deux `.env` livrés déclarent `redis`. Trois réponses, un seul sujet. Le défaut n'est pas qu'une des trois soit fausse — c'est qu'il y en ait trois : une valeur recopiée dans trois documents diverge au premier changement, et rien ne le signale.",
+  "_ce_que_ce_fichier_ne_dit_pas": "Que ces drivers FONCTIONNENT. `.env.prod` déclare `CACHE_STORE=redis` et `REDIS_HOST=127.0.0.1`, mais `scripts/server-setup.sh` n'installe rien et aucune mesure du dépôt ne prouve qu'un Redis écoute sur le serveur. La production n'ayant JAMAIS été déployée (D-04, re-vérifié le 2026-08-16 : `api.takussan.com/up` → 404 quand `preview.api.takussan.com/up` → 200), personne ne l'a découvert. C'est le premier risque à lever dans TCK-288, et il ne se lève qu'en se connectant.",
+  "_mesure": {
+    "commande_locale": "grep -E '^(CACHE_STORE|SESSION_DRIVER|QUEUE_CONNECTION|MAIL_MAILER|SESSION_SECURE_COOKIE|SESSION_SAME_SITE)=' takussan-api/.env.preview takussan-api/.env.prod",
+    "commande_serveur": "ssh <serveur> \"grep -E '^(CACHE_STORE|SESSION_DRIVER|QUEUE_CONNECTION)=' /var/www/takussan/.env; redis-cli ping; php -v\"",
+    "pourquoi_pas_en_ci": "`.env.preview` et `.env.prod` sont ignorés par git (`takussan-api/.gitignore` n'excepte que `.env.example` et `.env.docker`). Ils n'existent pas sur le runner. La garde les lit quand ils sont là et se tait quand ils n'y sont pas — elle ne peut pas garantir ce que le dépôt ne contient pas."
+  },
+  "environnements": {
+    "preview": {
+      "fichier": "takussan-api/.env.preview",
+      "hors_depot": true,
+      "deploye": {
+        "etat": "mesure",
+        "valeur": true,
+        "date": "2026-08-16",
+        "commande": "curl -s -o /dev/null -w '%{http_code}' https://preview.api.takussan.com/up",
+        "resultat": "200"
+      },
+      "drivers": {
+        "CACHE_STORE": {
+          "valeur": "redis",
+          "etat": "mesure",
+          "date": "2026-08-16"
+        },
+        "SESSION_DRIVER": {
+          "valeur": "redis",
+          "etat": "mesure",
+          "date": "2026-08-16"
+        },
+        "QUEUE_CONNECTION": {
+          "valeur": "database",
+          "etat": "mesure",
+          "date": "2026-08-16"
+        },
+        "MAIL_MAILER": {
+          "valeur": "resend",
+          "etat": "mesure",
+          "date": "2026-08-16"
+        }
+      }
+    },
+    "production": {
+      "fichier": "takussan-api/.env.prod",
+      "hors_depot": true,
+      "deploye": {
+        "etat": "mesure",
+        "valeur": false,
+        "date": "2026-08-16",
+        "commande": "curl -s -o /dev/null -w '%{http_code}' https://api.takussan.com/up",
+        "resultat": "404",
+        "note": "D-04 / TCK-288 — la chaîne de déploiement n'a jamais tourné. Le fichier existe, l'environnement non."
+      },
+      "drivers": {
+        "CACHE_STORE": {
+          "valeur": "redis",
+          "etat": "mesure",
+          "date": "2026-08-16"
+        },
+        "SESSION_DRIVER": {
+          "valeur": "redis",
+          "etat": "mesure",
+          "date": "2026-08-16"
+        },
+        "QUEUE_CONNECTION": {
+          "valeur": "database",
+          "etat": "mesure",
+          "date": "2026-08-16"
+        },
+        "MAIL_MAILER": {
+          "valeur": "resend",
+          "etat": "mesure",
+          "date": "2026-08-16"
+        }
+      }
+    }
+  },
+  "manques": [
+    {
+      "cle": "SESSION_SECURE_COOKIE",
+      "gravite": "reelle",
+      "constat": "ABSENTE de `.env.preview` ET de `.env.prod`. `config/session.php:172` la lit SANS DÉFAUT : `env('SESSION_SECURE_COOKIE')` rend `null`, qui est faux, et le cookie de session n'est donc PAS marqué `Secure`.",
+      "consequence": "Sur un déploiement HTTPS, un repli en clair suffit à faire émettre le cookie de session en clair. `docs/configuration.md` §5.7 le prescrit depuis toujours ; aucun `.env` livré ne l'applique.",
+      "corrige_par": "TCK-288 — le fichier est hors dépôt, aucune garde ne peut l'y écrire."
+    },
+    {
+      "cle": "SESSION_SAME_SITE",
+      "gravite": "aucune",
+      "constat": "Également absente des deux fichiers — mais `config/session.php:202` la lit AVEC le défaut `'lax'`, exactement la valeur que §5.7 prescrit.",
+      "consequence": "Aucune. L'ardoise D-11 mettait cette clé et la précédente dans le même sac ; mesurées, une seule est un trou. *Deux clés absentes du même fichier n'ont pas le même coût : c'est le DÉFAUT du code qui décide, pas l'absence.*",
+      "corrige_par": null
+    }
+  ]
+}
