@@ -1492,3 +1492,59 @@ suites, configuration. Il ne dit rien de :
 - **une fiche codée sans le dire** — un ticket implémenté dont le frontmatter n'a jamais bougé reste
   invisible ici comme dans le backlog. `check-backlog.mjs` attrape le pointeur pourri, la dépendance
   incohérente et le statut contredit par git ; il ne peut pas deviner qu'on a codé sans le dire.
+
+---
+
+### D-53 — Le tableau de bord de sécurité montrait 3 vulnérabilités sur 23 ✅ *mesuré et soldé le 2026-08-16*
+
+**D-00 avait solidement traité le côté PHP** — `composer audit` rend toujours *« No security
+vulnerability advisories found »*. Le côté **npm n'avait jamais été audité du tout**, et il portait
+23 vulnérabilités.
+
+| Source | Ce qu'elle annonçait |
+|---|---|
+| Tableau de bord GitHub / Dependabot | **3** (1 haute, 2 modérées), toutes sur `vite` |
+| `npm audit` dans `takussan-api` | **5** — dont **2 CRITIQUES** : `shell-quote`, `concurrently` |
+| `npm audit` dans `takussan-web` | **18** — dont **11 hautes**, `next` lui-même en tête |
+
+**Un écart de 3 contre 23 n'est pas un retard d'indexation, c'est un angle mort — et il a une
+cause précise.** Les trois alertes visibles portaient `manifest_path: "package.json"`, un chemin
+**nu**. Or aucun `package.json` n'a jamais existé à la racine (`git log --all -- package.json` ne
+rend rien) : les manifestes réels sont `takussan-api/package.json` et `takussan-web/package.json`.
+Les alertes étaient donc ancrées sur un fichier **inexistant** — Dependabot ne pouvait ni les
+réévaluer, ni les fermer, ni surtout en produire d'autres pour les deux vrais manifestes. Créées les
+2026-04-07 et 2026-06-20, elles n'avaient jamais bougé depuis.
+
+> **⚠️ Le piège de lecture, et il a failli fonctionner.** L'avis Dependabot affichait une plage
+> `vite <= 6.4.2` alors que le dépôt tourne sur vite 8 : la conclusion évidente était « faux positif,
+> rien à faire », et elle a été écrite avant d'être vérifiée. `npm audit` a montré qu'il existe une
+> plage **parallèle**, `8.0.0 - 8.0.15`, et que la version installée y tombait — la vulnérabilité
+> était bien réelle. *Lire l'avis ne remplace pas mesurer l'arbre de dépendances.* C'est la règle
+> maison « ne jamais déduire l'état d'une chose de la documentation qui la décrit », appliquée cette
+> fois aux avis de sécurité eux-mêmes.
+
+**Ce qui a été corrigé** — `npm audit fix` des deux côtés, plus une montée explicite de `next`
+(épinglé à l'exact `16.2.3`, ce qui empêchait `audit fix` de le toucher) vers **16.3.1**, non-majeure.
+
+| | avant | après |
+|---|---|---|
+| `takussan-api` | 5 (2 critiques, 3 hautes) | **0** |
+| `takussan-web` | 18 (11 hautes, 4 modérées, 3 basses) | **0** |
+
+Vérifié après montée : `npm run build` **exit 0** des deux côtés (le build Next complet, pas
+seulement le typage), `npx tsc --noEmit` propre, **885 tests front**, 0 erreur ESLint.
+
+**La cause structurelle est fermée** : `.github/dependabot.yml` déclare désormais les quatre
+écosystèmes réels à leur emplacement — composer et npm dans `takussan-api`, npm dans `takussan-web`,
+et les actions GitHub. `next`, `eslint-config-next` et `@next/*` y sont groupés, parce que les monter
+séparément produit un état intermédiaire qui ne compile pas.
+
+**Ce que ce fichier ne fait PAS**, et qu'il faut savoir : il ancre les alertes futures sur des
+manifestes qui existent, mais il ne remplace pas une vérification périodique. `npm audit` reste la
+mesure de référence — c'est lui qui a vu les 20 que le tableau de bord n'avait pas vues, et rien ne
+le lance aujourd'hui ni en CI ni au déploiement. **C'est exactement le défaut que D-00 avait relevé
+pour `composer audit`, resté entier du côté npm.**
+
+**Preuve** : `gh api repos/thiambara/takussan/dependabot/alerts` → 3 ouvertes, `manifest_path`
+`package.json` · `git log --all -- package.json` → vide · `npm audit --json` dans les deux projets
+avant/après · `npm run build` exit 0.

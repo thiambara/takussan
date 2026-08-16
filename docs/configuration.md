@@ -4,7 +4,7 @@ Document de référence pour configurer le monorepo **Takussan** de A à Z (dép
 
 > Monorepo :
 > - `takussan-api/` — Laravel 13, PHP ^8.4
-> - `takussan-web/` — Next.js 16.2.3, React 19, TypeScript 5
+> - `takussan-web/` — Next.js 16.3.1, React 19, TypeScript 5
 
 ---
 
@@ -35,7 +35,7 @@ Document de référence pour configurer le monorepo **Takussan** de A à Z (dép
 
 | Couche | Techno | Version |
 |---|---|---|
-| Framework | Next.js | 16.2.3 (App Router, Turbopack par défaut) |
+| Framework | Next.js | 16.3.1 (App Router, Turbopack par défaut) |
 | UI | React / React DOM | 19.2.4 |
 | Langage | TypeScript | ^5 |
 | Styling | Tailwind CSS | ^4 (via `@tailwindcss/postcss`) + `tw-animate-css`, `tailwind-merge` |
