@@ -147,9 +147,58 @@ return [
         'oauth_token_safety_margin_seconds' => 60,
     ],
 
+    /**
+     * TCK-294 — Delivery reports pulled by us instead of pushed to us.
+     *
+     * Mtarget emits no signature on its webhooks (ardoise D-49) and
+     * recommends its "API Pulling DLR / MO" instead: our server calls the
+     * operator with the account credentials, so there is nothing inbound
+     * left to authenticate. The read is destructive on Mtarget's side —
+     * a successful call empties the queue it returns — which is why
+     * idempotence lives on the write side (see DlrReportApplier) and not
+     * on a replayable time window.
+     *
+     * `driver` follows the repo's driver/registry pattern: `log` is the
+     * inert default so a fresh checkout never talks to the operator;
+     * `mtarget` is the real one. `enabled` is the operational off switch,
+     * kept separate from the driver choice so production can stop pulling
+     * without redeploying a different driver.
+     */
+    'dlr_pulling' => [
+        'driver' => env('SMS_DLR_PULL_DRIVER', 'log'),
+        'enabled' => env('SMS_DLR_PULL_ENABLED', false),
+
+        /**
+         * `max` sent to the operator on each call — Mtarget defaults to 50
+         * when the parameter is omitted. `max_batches` bounds one run:
+         * a single scheduled tick drains at most max_per_call × max_batches
+         * reports, so a backlog cannot make one run last forever and trip
+         * `withoutOverlapping()` on the next ticks.
+         */
+        'max_per_call' => (int) env('SMS_DLR_PULL_MAX', 50),
+        'max_batches' => (int) env('SMS_DLR_PULL_MAX_BATCHES', 20),
+    ],
+
     'mtarget' => [
         'send_url' => env('SMS_MTARGET_SEND_URL', 'https://api-public-2.mtarget.fr/messages'),
         'batch_max' => 500,
+
+        /**
+         * TCK-294 — API Pulling DLR/MO endpoint. `?:` rather than an env()
+         * default because a key declared empty in `.env` yields `''`, not
+         * the fallback.
+         */
+        'pull_url' => env('SMS_MTARGET_PULL_URL') ?: 'https://api-public-2.mtarget.fr/notification',
+
+        /**
+         * TCK-294 — Kill switch for the inbound (unauthenticatable) DLR
+         * webhook. It stays ON during the overlap period documented in the
+         * ticket: pulling must be observed to return the same statuses
+         * before the push path is switched off. Flipping this to `false`
+         * makes the route answer 404 — the retirement is a config change,
+         * reversible in seconds, not a deploy.
+         */
+        'webhook_enabled' => env('SMS_MTARGET_WEBHOOK_ENABLED', true),
     ],
 
     'lafricamobile' => [

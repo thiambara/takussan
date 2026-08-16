@@ -109,9 +109,24 @@ encore. La Gate dérive l'agence dans l'ordre : 2ᵉ argument de `can()` → `re
 > `bootstrap/app.php` (« sole owner of the spatie team context »). Le package n'existe plus depuis
 > TCK-278 ; si un commentaire le mentionne encore ailleurs, il décrit un mécanisme supprimé.
 
-> ⚠️ **`BasePolicy` est partiellement mort par construction** : ses abilities `{resource}.view` et
-> `{resource}.update` ne correspondent à **aucun** cas de `Capability` (il n'existe que
-> `properties.update_own`/`update_any`, et aucun `*.view`). Seules 3 policies sur 16 l'étendent.
+> ✅ **`BasePolicy` DÉSIGNE ses capacités, il ne les nomme plus** (TCK-297). Il concaténait
+> `$this->resource().'.view'` — et trois familles de chaînes ainsi produites n'existaient dans
+> aucun cas de `Capability` : `*.view` (l'enum n'en a aucun, sur aucun domaine), `properties.update`
+> et `leases.update|delete` (l'enum sépare `update_any`/`update_own`), et `media.*` en entier.
+> Or **une ability non définie ne lève pas, elle refuse** : ces abilities refusaient tout le monde
+> sauf le super-admin, sans trace.
+>
+> Une policy déclare désormais `viewCapability()` / `createCapability()` / `updateCapability()` /
+> `deleteCapability()`, typées `?Capability` — la faute est devenue **inexprimable**. `null` signifie
+> « pas gardé par capacité », ce qui refuse : **lire n'est pas un privilège catalogué**, c'est le
+> périmètre d'agence qui le porte (principe non négociable n°2).
+>
+> Deux gardes tiennent la propriété : `tests/Unit/Policies/BasePolicyCapabilityTest.php` (la liste
+> des sous-classes est **dérivée** de `app/Policies/`, pas recopiée) et
+> `tests/Unit/Authorization/CapabilityStringLiteralsTest.php`, qui tokenise `app/` et casse sur tout
+> littéral de forme `<domaine>.<verbe>` passé à `can()`/`authorize()` sans cas d'enum correspondant.
+> Le tokenizer n'est pas un raffinement : un `grep` sur la même recherche rend trois faux positifs
+> (un docblock, un commentaire de test, un nom de route Laravel).
 
 > ⚠️ **Deux conventions d'autorisation concurrentes, sans arbitrage** : 16 policies pour 72 modèles,
 > mais **38 contrôleurs redéfinissent chacun leurs `authorizeAccess()`/`authorizeManage()`** (124
