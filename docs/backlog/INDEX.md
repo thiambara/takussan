@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**297 tickets** — 22 ouverts, 274 livrés.
+**298 tickets** — 23 ouverts, 274 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 14 |
+| 📋 Todo | 15 |
 | 🚧 Doing | 1 |
 | 👀 Review | 7 |
 | ⛔ Blocked | 0 |
@@ -47,6 +47,7 @@
 - [TCK-313](tickets/TCK-313-delai-waitfor-rtl-tendu-sous-charge.md) — Le délai propre de waitFor/findBy est un défaut de framework, pas une mesure `S · P2 · front`
 - [TCK-314](tickets/TCK-314-test-recherche-dependant-de-l-ordre.md) — Un test de recherche publique ne passe que grâce à l'ORDRE de la suite — et il rougit 3 fois sur 5 en parallèle `S · P2 · technique`
 - [TCK-315](tickets/TCK-315-role-agence-du-prestataire.md) — Où vit le rôle d'agence d'un prestataire — le profil n'a pas d'agence, la collaboration si `M · P1 · technique`
+- [TCK-316](tickets/TCK-316-regles-react-compiler-inertes-sous-eslint-9.md) — Cinq familles de règles React Compiler sont déclarées bloquantes et ne s'exécutent pas — 23 violations que le bump ESLint 10 révèle `M · P2 · front`
 
 ## 🚧 Doing
 
