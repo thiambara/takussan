@@ -242,7 +242,7 @@ déploiement — et la procédure de dump pré-déploiement doit exister avant q
 
 ---
 
-### D-49 — Deux webhooks entrants sur cinq ne vérifient AUCUNE signature 🟠 *question tranchée le 2026-08-16 — les opérateurs n'en proposent pas*
+### D-49 — Deux webhooks entrants sur cinq ne vérifient AUCUNE signature 🟠 *question tranchée le 2026-08-16 — les opérateurs n'en proposent pas* → [TCK-294](backlog/tickets/TCK-294-mtarget-api-pulling-dlr.md) · [TCK-296](backlog/tickets/TCK-296-cles-env-gardes-webhook.md)
 
 > **RÉPONSE DES OPÉRATEURS, obtenue le 2026-08-16. La question ouverte plus bas est CLOSE :**
 > **ni l'API SMS globale d'Orange ni celle de Mtarget n'émettent de signature.** Le constat n'était
@@ -315,7 +315,13 @@ parce qu'il dispense le lecteur de vérifier.
 `.env.prod`. `check-env-parity.mjs` ne peut rien garder ici : il compare deux fichiers, et la clé
 manque **des deux côtés**. Les gardes échouant fermé (jeton vide → 404, allowlist vide → 403), les
 webhooks SMS et WhatsApp seront simplement **muets** au premier déploiement, sans erreur bruyante.
-À traiter avec [TCK-288](backlog/tickets/TCK-288-chaine-de-deploiement-master-fige.md).
+→ [TCK-296](backlog/tickets/TCK-296-cles-env-gardes-webhook.md), qui **bloque** désormais
+[TCK-288](backlog/tickets/TCK-288-chaine-de-deploiement-master-fige.md).
+
+> **Requalifié le 2026-08-16.** Cette ligne renvoyait le sujet à la mise en production. C'était une
+> erreur de rattachement : les six clés manquent **dans le dépôt**, et rien n'oblige à toucher au
+> serveur pour les y déclarer. Rattacher un travail faisable maintenant à un ticket qui attend une
+> décision, c'est le geler sans le dire.
 
 **Preuve** : `app/Http/Controllers/Webhook/OrangeSmsStatusController.php:35-38` ·
 `MtargetSmsStatusController.php:22-25` · `routes/api/sms-webhooks.php:20-30` ·
@@ -573,7 +579,23 @@ Corollaire : un développeur sans Meilisearch **ne peut pas lancer la suite du t
 
 **Correctif** : poser `SCOUT_PREFIX=testing_` dans `phpunit.xml`.
 
-### D-09 — Aucune version d'infrastructure n'est figée 🟠
+### D-09 — Aucune version d'infrastructure n'est figée 🟠 → [TCK-298](backlog/tickets/TCK-298-versions-infra-production-non-epinglees.md)
+
+> **Périmètre réduit à la production, re-mesuré le 2026-08-16.** Le développement et la CI sont
+> désormais épinglés des deux côtés (`mysql:8.0`, `getmeili/meilisearch:v1.16`, `redis:8-alpine`,
+> `mailpit:v1.30.3` ; php `8.4` en CI). Il reste la colonne « production », et la raison en est plus
+> nette qu'écrit plus bas : `scripts/server-setup.sh` **n'installe rien** — il vérifie la présence de
+> PHP-FPM et de nginx et imprime la commande à lancer à la main. Le provisionnement de production est
+> entièrement manuel, et aucune version n'y est écrite.
+
+> **La source de vérité a déménagé (TCK-298) : [`infra/versions.json`](infra/versions.json)**, gardé
+> par `node scripts/check-infra-versions.mjs` et rejoué par Repo CI. Le tableau ci-dessous reste
+> comme TRACE de la mesure du 2026-08-12 — **ne pas s'en servir comme référence**, et surtout pas de
+> sa case « PHP · Production », qui dit `8.3` là où D-01 démontre au contraire une borne inférieure
+> à **8.4.1**. Les deux ne peuvent pas être vrais ; aucun des deux n'a été relevé sur la machine, et
+> c'est exactement le genre de contradiction qu'un catalogue unique existe pour rendre impossible.
+> Ce qui reste ouvert après TCK-298 : **mesurer** la colonne production (TCK-288) — le catalogue
+> porte, pour chaque case, la commande qui le fait.
 
 | Service | Dev (brew) | CI | Production |
 |---|---|---|---|
@@ -587,7 +609,11 @@ Trois environnements, trois piles différentes, aucune épinglée. `docker-compo
 la moitié dev (MySQL 8.0 aligné sur la production **mesurée**, Meilisearch v1.16 alignée sur la CI,
 Redis 8) — la production, elle, reste posée par `apt` sans version épinglée dans le dépôt.
 
-### D-10 — Le déploiement du frontend est entièrement hors dépôt 🟠
+### D-10 — Le déploiement du frontend est entièrement hors dépôt 🟠 → [TCK-299](backlog/tickets/TCK-299-deploiement-frontend-hors-depot.md)
+
+> **Confirmé le 2026-08-16, et resserré :** `deploy.yml` et `deploy-preview.yml` citent **zéro**
+> fichier de `takussan-web/` — les deux ne déploient que l'API. `web-ci.yml` existe depuis D-06 mais
+> **teste**, il ne déploie pas.
 
 L'application Next.js — 875 fichiers, 111 pages — n'est déployée par **aucun** workflow ni script du
 dépôt. Pas de `vercel.json`, pas de mapping branche→environnement documenté. La seule trace de
@@ -595,7 +621,29 @@ Vercel dans le dépôt est une regex d'origine CORS côté Laravel.
 
 Il est donc **impossible de savoir, depuis le code, quelle branche déploie quel environnement front**.
 
-### D-11 — Le guide de déploiement contredit les `.env` réellement livrés 🟠
+### D-11 — Le guide de déploiement contredit les `.env` réellement livrés ✅ *soldé le 2026-08-16* → [TCK-300](backlog/tickets/TCK-300-guides-deploiement-contredisent-env-livres.md)
+
+> **Re-mesuré, et le SENS de l'écart était l'inverse.** Cette entrée supposait « les guides
+> prescrivent, les `.env` s'en écartent ». Mesuré : ce sont les **guides** qui décrivent un état
+> révolu — le guide « de A à Z » livre un gabarit d'installation neuve et range redis/resend dans
+> un tableau « à basculer quand… », alors que les deux environnements livrés ont déjà basculé.
+>
+> **`docs/configuration.md` se contredisait LUI-MÊME** — ligne 422 « la production tourne en
+> `CACHE_STORE=database` » contre §5.7 « `CACHE_STORE=redis` ». Le défaut n'était pas qu'une des
+> trois sources soit fausse, c'est qu'il y en ait trois. `docs/infra/prod-drivers.json` est
+> désormais la source unique, gardée par `check-prod-drivers.mjs`.
+>
+> **Et cette entrée confondait deux clés qui ne coûtent pas la même chose.** `SESSION_SAME_SITE` et
+> `SESSION_SECURE_COOKIE` sont bien absentes des deux `.env`, mais `config/session.php:202` lit la
+> première **avec** le défaut `'lax'` — exactement la valeur prescrite, donc aucun coût. La seconde
+> est lue **sans défaut** (`config/session.php:172`) : `null`, faux, **le cookie de session n'est
+> pas marqué `Secure`**. *Deux clés absentes du même fichier n'ont pas le même coût : c'est le
+> défaut du code qui décide, pas l'absence.* Seule la seconde reste ouverte, et elle est hors
+> dépôt → TCK-288.
+
+> ⚠️ **Les écarts ci-dessous datent du 2026-08-12 et n'ont PAS été re-mesurés ligne par ligne.**
+> `docs/configuration.md` a été corrigé depuis (le 2026-08-16) sur sa contradiction Meilisearch : la
+> reprise du ticket part de l'état courant des fichiers, pas de la citation qui suit.
 
 `docs/infra/deploy-preview.html` prescrit `CACHE_STORE=database`, `SESSION_DRIVER=database`,
 `MAIL_MAILER=log` — les `.env.preview` / `.env.prod` livrés utilisent `redis`, `redis`, `resend`.
@@ -619,15 +667,34 @@ fichiers (83 clés de chaque côté), et la garde est **prouvée par mutation**.
 ses *valeurs* décrivent toujours un environnement fictif. Le corriger casserait la CI, qui fait
 `cp .env.example .env` ; c'est un arbitrage à poser, pas un oubli.
 
-### D-13 — Deux pièges du seeding, muets tous les deux 🟡
+### D-13 — Deux pièges du seeding, muets tous les deux ✅ *soldé le 2026-08-16 (TCK-301)*
 
-`SEED_DOWNLOAD_MEDIA=true` dans `.env.example` alors que le défaut du code est `false` : le premier
-`migrate:fresh --seed` d'un nouveau développeur déclenche **1000 à 2700 téléchargements HTTP** vers
+> **Re-mesuré le 2026-08-16, et l'entrée était INCOMPLÈTE sur son point le plus coûteux.** Elle
+> n'incriminait que `.env.example` — mais `.env.docker:81` portait le **même** `SEED_DOWNLOAD_MEDIA=true`,
+> et c'est CE fichier que `./dev.sh` recopie en `takussan-api/.env` au premier démarrage. Le scénario
+> décrit ici — « le premier `migrate:fresh --seed` d'un nouveau développeur » — passait donc par le
+> fichier que l'entrée ne citait pas. Les deux sont désormais à `false`, le défaut du code.
+>
+> Sur le second piège, la mesure a corrigé l'entrée dans l'autre sens : `CloudflareDriver::__construct()`
+> **lève déjà** `CouldNotGeneratePdf::missingCloudflareCredentials()` en nommant les deux clés. Le
+> défaut n'était donc pas muet, seulement inutilisable. `.env.example` livre maintenant `dompdf`, seul
+> driver qui ne dépende d'aucun service externe — et `phpunit.xml` le forçait déjà, ce qui rend le
+> changement inerte pour la suite (vérifié : 38 tests PDF/export/seeding verts avec
+> `.env` = `.env.example`).
+
+`SEED_DOWNLOAD_MEDIA=true` dans `.env.example` **et dans `.env.docker`** alors que le défaut du code
+est `false` (`config/database.php:193`, `SeedingConfig::fromEnv()`) : le premier
+`migrate:fresh --seed` d'un nouveau développeur déclenchait **1000 à 2700 téléchargements HTTP** vers
 picsum.photos (timeout 15 s chacun), **avec tous les échecs avalés en silence**.
 
-Et `LARAVEL_PDF_DRIVER=cloudflare` avec les deux identifiants vides : la génération de PDF est cassée
-par défaut en développement. Le seul driver disponible en local est `dompdf`, et il n'est déclaré que
-dans `phpunit.xml`. *(Corrigé dans `.env.docker`.)*
+Et `LARAVEL_PDF_DRIVER=cloudflare` avec les deux identifiants vides : la génération de PDF était
+cassée par défaut en développement. *(`.env.docker` était déjà sur `dompdf`.)*
+
+**Correctif** : les deux valeurs alignées sur le défaut du code · les échecs de téléchargement
+comptés par raison dans `SeedingContext`, imprimés en fin de seeding par `YearOfActivitySeeder`, et
+**`db:seed` sort en erreur au-delà de 10 % d'échecs** — un jeu de données partiel ne peut plus se
+faire passer pour complet. Couverture : `tests/Feature/Database/Seeders/SeedingMediaFailuresTest.php`
+(6 tests, vérifiés par ablation : les 6 rougissent sur le code d'origine).
 
 ### D-47 — TCK-289 a corrigé le dépôt, pas la machine : le conteneur de base tournait MariaDB 11.4 ✅ *soldé le 2026-08-16 — mesuré sur le démon*
 
@@ -750,7 +817,7 @@ même ensemble et aux mêmes lignes qu'en CI.
 `gh run list --branch dev --workflow "API CI"` → succès au 2026-08-15 (le rouge vient bien de la
 branche) · exécution de la suite avec et sans les quatre clés dans `.env`.
 
-### D-48 — Le `.env` de développement vise les services natifs, jamais les conteneurs du dépôt 🟠 *dette d'ONBOARDING, pas de dépôt — mesurée le 2026-08-15*
+### D-48 — Le `.env` de développement vise les services natifs, jamais les conteneurs du dépôt 🟠 *dette d'ONBOARDING, pas de dépôt — mesurée le 2026-08-15, rendue VISIBLE le 2026-08-16 (TCK-301)* → [TCK-301](backlog/tickets/TCK-301-pieges-muets-environnement-developpement.md)
 
 `takussan-api/.env` est **ignoré par git**. Cette entrée ne décrit donc pas un fichier du dépôt à
 corriger, mais **l'écart entre ce que le dépôt provisionne et ce que la machine de développement
@@ -793,6 +860,22 @@ exactement ce que l'en-tête de `.env.docker` prescrit. **Et une garde qui le re
 déclare **n'est pas ce que le dépôt sert**. C'est la seule famille de dettes de ce document
 qu'aucune CI ne pourra jamais attraper — elle vit dans un fichier ignoré — donc la seule réponse
 possible est de l'afficher au démarrage.
+
+> **Rendu visible le 2026-08-16 (TCK-301) — l'écart reste, il n'est plus muet.**
+> `./dev.sh doctor` compare désormais, service par service, le port que le `.env` déclare au port que
+> le dépôt publie, et nomme le cas exact « port CANONIQUE → instance native » pour MySQL (3306 vs
+> 3307), Meilisearch (7700 vs 7701), Redis (6379 vs 6380) et Mailpit (1025 vs 1026), puis récapitule
+> ce que l'écart coûte. Il ne bascule rien et ne corrige rien : `takussan-api/.env` est ignoré par
+> git, aucun fichier de ce dépôt ne peut l'atteindre.
+>
+> Vérifié par ablation sur un `.env` visant les ports canoniques : **5 lignes de diagnostic avec le
+> correctif, 0 sans**. Et sur un `.env` visant les conteneurs : **0 ligne** — la sonde ne bruite pas
+> le cas nominal.
+>
+> Ce qui rendait ce défaut invisible tient en une phrase : **les services répondent**. `sonde_tcp`
+> imprimait un ✓ vert sur chacun, et le bloc « Services » un second ✓ (« vise des services HORS de
+> ce docker-compose » — vrai, et légitime pour un poste natif). Rien n'était faux ; il manquait
+> seulement la phrase qui relie les deux.
 
 ---
 
@@ -861,22 +944,72 @@ depuis TCK-129.
 
 Le ton impératif est ce qui rend ce document dangereux : il ne se présente pas comme une piste.
 
-### D-18 — `docs/models-spec.md` ignore 16 modèles existants 🟠
+### D-18 — `docs/models-spec.md` ignore 16 modèles existants 🟠 → [TCK-310](backlog/tickets/TCK-310-models-spec-16-modeles-absents.md) *(traité, en review)*
 
-Désigné source de vérité data, il ne mentionne **aucune** fois : `AccountDeletionRequest`,
+> **Soldé le 2026-08-16 par TCK-310, et gardé.** Les 16 modèles sont documentés d'après le code et
+> les migrations, et `scripts/check-models-spec.mjs` casse désormais la Repo CI si un modèle de
+> premier niveau n'est mentionné nulle part dans `models-spec.md` — **prouvé par mutation** (un
+> modèle ajouté sans documentation fait sortir la garde en 1) **et par ablation** (rejouée sur le
+> `models-spec.md` d'avant le correctif, elle nomme exactement les 16). La dette ne pouvait pas
+> rester soldée sans garde : c'est un inventaire, et *aucun inventaire tenu à la main ne reste
+> juste.*
+>
+> Deux constats de la re-mesure valent d'être gardés :
+>
+> · **Le COMPTE tenait à l'unité (16 sur 62), la LISTE avait vieilli.** `BankStatement`,
+>   `BankStatementLine` et `PropertyPriceHistory` figuraient dans la liste ci-dessous et étaient
+>   déjà documentés ; `RoleDelegation`, `WizardDraft`, `ThresholdAlert`, `WelcomeView`,
+>   `PropertyContactLead` et `PropertyReport` manquaient sans y figurer. *Deux inventaires peuvent
+>   donner le même total sans décrire le même trou.*
+>
+> · **Le volet spatie était déjà soldé** au moment d'ouvrir le ticket, qui annonçait « 2 mentions
+>   dans chaque spec ». Les quatre occurrences littérales de `spatie/laravel-permission` étaient
+>   toutes au passé depuis le 2026-08-15. En revanche, un compte fondé sur cette seule chaîne
+>   ratait le vrai défaut : **quatre passages présentaient le mécanisme au présent sans nommer le
+>   paquet** — « rôle spatie à assigner à l'acceptation » (Invitation §48), « attache le rôle spatie
+>   scopé sur `agency_id` », « les permissions par les rôles spatie » (note `UserType`), et une
+>   phase 2 planifiant la « réintroduction du trait `HasRoles` », impossible puisqu'une garde CI
+>   casse sur son namespace. *Compter les occurrences d'un NOM ne mesure pas la présence d'une
+>   IDÉE.*
+
+Désigné source de vérité data, il ne mentionnait **aucune** fois : `AccountDeletionRequest`,
 `AlertRule`, `DataExport`, `FeatureFlag`, `IntegrationWebhookLog`, `KpiConfig`, `MaintenanceWindow`,
-`NotificationDeliveryAttempt`, `PropertyPriceHistory`, `ReportExport`, `ScheduledTaskRun`,
-`BankStatement`, `BankStatementLine`… et documente toujours `spatie/laravel-permission` comme
-« package transversal » alors qu'il est **désinstallé** et qu'une garde CI casse sur ses imports.
+`NotificationDeliveryAttempt`, `PropertyContactLead`, `PropertyReport`, `ReportExport`,
+`RoleDelegation`, `ScheduledTaskRun`, `ThresholdAlert`, `WelcomeView`, `WizardDraft`.
 
-`docs/sync-passes/INDEX.md` affiche par ailleurs un statut de convergence faux (« R1–R7 toujours non
-appliquées » alors que R1 et R2 l'ont été), et la rupture qu'il signale date de **plus de trois
-mois**.
+`docs/sync-passes/INDEX.md` affichait par ailleurs un statut de convergence faux (« R1–R7 toujours
+non appliquées »). **Re-mesuré le 2026-08-16 : six l'étaient déjà** ; la septième (alignement de
+`ConversationType`, cas `support` manquant) a été appliquée, et R4 s'est révélée **sans objet** — elle
+demandait une contrainte sur une colonne `bank_statements.reference_number` qui n'a jamais existé.
 
-### D-19 — Cinq documents cités n'existent pas 🟡
+### D-19 — Cinq documents cités n'existent pas ✅ *soldé le 2026-08-16* → [TCK-311](backlog/tickets/TCK-311-documents-perimes-et-pointeur-mort.md)
 
-Dont un cité par **les deux specs sources** : `docs/takussan-whatsapp-implementation.md`
-(`features.md:382`, `models-spec.md`, TCK-282), `docs/claude-code-prompt-notifications.md`
+> **Soldé, et surtout MESURÉ EN CONTINU désormais.** Le dernier pointeur mort —
+> `docs/claude-code-prompt-notifications.md`, cité par `models-spec.md:673` — a été retiré. Le <!-- lien-mort-assumé -->
+> document n'a pas été écrit : il n'a jamais existé, et l'inventer aurait été fabriquer une source
+> de vérité. La parenthèse conserve l'information utile (« approche hybride ») sans le renvoi.
+>
+> Le fond du problème n'était pas les cinq pointeurs, c'est que **rien ne les comptait** : la dette
+> a fondu de 5 à 1 sans que personne ne l'écrive. `scripts/check-doc-links.mjs` confronte désormais
+> au disque chaque chemin markdown cité par un document **normatif** (les deux specs, les ADR,
+> `docs/*.md` au premier niveau, les quatre `CLAUDE.md`/`AGENTS.md`, `takussan-web/README.md`), et
+> `repo-ci.yml` casse dessus. Il a trouvé son premier défaut réel dans le commit qui l'introduit :
+> le déplacement de `seeding-plan.md` cassait une citation de `configuration.md`.
+>
+> Périmètre assumé : les archives (`docs/backlog/_archive/**`, `docs/sync-passes/**`) en sont
+> exclues — elles portent 269 chemins morts à elles seules, et ce sont des **faits d'histoire**
+> dans des pièces gelées à dessein. Une ligne qui nomme délibérément un fichier absent se déclare
+> par `<!-- lien-mort-assumé -->` ; il y en a 6, toutes dans cette ardoise.
+
+> **Re-mesuré le 2026-08-16 : il n'en reste qu'UN.** Un balayage de tous les chemins `docs/*.md`
+> cités par `features.md` et `models-spec.md` ne trouve plus qu'un seul pointeur mort —
+> `docs/claude-code-prompt-notifications.md`. `docs/takussan-whatsapp-implementation.md` est <!-- lien-mort-assumé -->
+> toujours absent du disque mais n'est **plus cité** par les deux specs. La dette a fondu de 5 à 1
+> sans que personne ne l'écrive : c'est le pendant exact de D-31, qui a grossi sans que personne ne
+> l'écrive non plus.
+
+Dont un cité par **les deux specs sources** : `docs/takussan-whatsapp-implementation.md` <!-- lien-mort-assumé -->
+(`features.md:382`, `models-spec.md`, TCK-282), `docs/claude-code-prompt-notifications.md` <!-- lien-mort-assumé -->
 (`models-spec.md`), et trois autres.
 
 Un pointeur mort dans une source de vérité est une dette que M8 de pharma-rebuild a payée en vrai —
@@ -1069,11 +1202,51 @@ d'authentification — 193 occurrences déplacées, en `fr`, `en` ET `wo`.
 (`` `Bonjour ${nom}` ``) et les props de composants maison hors whitelist. Son total est un
 **plancher**, jamais un inventaire.
 
-### D-25 — Divers documents périmés 🟡
+### D-25 — Divers documents périmés ✅ *soldé le 2026-08-16* → [TCK-311](backlog/tickets/TCK-311-documents-perimes-et-pointeur-mort.md)
+
+> **Soldé — et deux lignes de l'inventaire ci-dessous étaient fausses**, ce qui est le vrai
+> enseignement : *un inventaire se re-mesure avant d'être utilisé, jamais lu.*
+>
+> - `features-by-actor.md` → **dérivé**, plus maintenu à la main. `docs/gen-features-by-actor.mjs`
+>   le régénère depuis `features.md` (231 lignes → 279 placements), et `--check` casse la CI s'il
+>   dérive. Le supprimer était exclu : **quatre tickets `done` le citent en `spec_refs`**, et
+>   `check-backlog.mjs` aurait rougi.
+> - `seeding-plan.md` → déplacé en `docs/plans/2026-04-18-seeding-annee-activite.md`, avec un
+>   bandeau « plan exécuté ». Il porte des volumétries et une stratégie de backfill de
+>   l'`activity_log` **écrites nulle part ailleurs** : le supprimer aurait perdu le raisonnement.
+>   *Son bandeau annonçait « 38 seeders » — faux : il y en a **42** (`extends Seeder`, mesuré).
+>   Un compte recopié à la main, faux comme tous les comptes recopiés à la main.*
+> - `admin-qa.md` → **la portée était plus large que « 2 occurrences de `/admin/roles` »** (il y en
+>   avait 3). Le document faisait tester **quatre surfaces supprimées par TCK-278** : la page
+>   `/admin/roles`, `POST /api/roles`, `POST /api/roles/{role}/permissions` et
+>   `POST /api/users/{user}/roles`. Il annonçait aussi une sidebar admin qui n'existe pas
+>   (« Utilisateurs », « Rôles & Permissions »). Un testeur aurait remonté six ❌ dont aucun n'était
+>   un défaut. §5 réécrite sur le mécanisme réel (profils polymorphes, `PUT users/{user}/role`).
+> - `2026-05-10-onboarding-discovery-design.md` → `status: implemented`, ses dix tickets vérifiés
+>   un par un.
+> - `takussan-web/README.md` → vrai README. Le template promettait la police **Geist** et un
+>   déploiement **Vercel** : ce projet utilise Bricolage/DM Sans et se déploie sur un VPS.
+> - Images → **retirées du HEAD, historique NON réécrit** (décision écrite dans
+>   `design-audit-2026-05-09.md`, avec la commande `git show` qui les restitue). *« Commitées par
+>   accident » était faux : `docs/image.png` était **cité** par `design-audit-2026-05-09.md` et par
+>   TCK-242.* Le vrai défaut n'était pas le poids — retirer du HEAD n'allège aucun `git clone` —
+>   mais que ces captures montrent la **palette bleue révoquée** avant TCK-129 et se lisaient, dans
+>   `docs/`, comme l'état courant de l'interface.
+
+> **Re-mesuré le 2026-08-16 : 7 → 5.** `docs/configuration.md` a été **corrigé** sur sa
+> contradiction Meilisearch (§1 dit désormais « driver `meilisearch` sur TOUS les environnements,
+> CI comprise ») — le retirer de la liste. Les autres tiennent : `admin-qa.md` fait toujours tester
+> `/admin/roles` (2 occurrences), `takussan-web/README.md` est toujours le template
+> `create-next-app`, et les deux images pèsent toujours **4,0 Mo**.
+>
+> ⚠️ **Attention à `features-by-actor.md` et `seeding-plan.md` : ils portent désormais un bandeau
+> d'avertissement, et ce n'est PAS une correction.** Le bandeau a rendu le mensonge honnête, il ne
+> l'a pas retiré — un lecteur pressé qui voit « ⚠️ MIROIR DÉSYNCHRONISÉ » en tête de fichier peut
+> tout aussi bien lire la suite et l'appliquer.
 
 - `docs/features-by-actor.md` se déclare « vue miroir de `features.md` » mais est gelé au
   2026-04-14, alors que `features.md` a évolué six fois depuis.
-- `docs/seeding-plan.md` décrit l'état **antérieur** à l'implémentation (« le seeding actuel est
+- `docs/seeding-plan.md` décrit l'état **antérieur** à l'implémentation (« le seeding actuel est <!-- lien-mort-assumé : déplacé en docs/plans/, cf. le bandeau de solde ci-dessus -->
   minimal… 3 seeders ») alors que 38 seeders sont en place.
 - `docs/configuration.md` **se contredit lui-même** sur Meilisearch : §1 « driver `collection` par
   défaut », §3.6 « Meilisearch sur TOUS les environnements », §5.1 « (Optionnel) ».
@@ -1127,22 +1300,62 @@ les étapes 7 et 19 prescrivent `node docs/backlog/gen-index.mjs`, et le fichier
 encadré qui **date sa propre erreur** et tranche le conflit à l'avance : *« si cette section
 contredit le code, le code gagne et ce fichier est le bug ».*
 
-### D-46 — Deux répertoires de compétences concurrents, `.agent/` et `.agents/`, qui divergent **en croix** 🟠 *mesuré le 2026-08-15*
+### D-46 — Deux répertoires de compétences concurrents, `.agent/` et `.agents/` ✅ *soldé le 2026-08-16* → [TCK-303](backlog/tickets/TCK-303-arbitrer-agent-vs-agents.md)
 
-Les deux sont suivis par git — **646 fichiers** dans `.agent/`, **602** dans `.agents/` — et
-personne n'a jamais arbitré lequel fait foi.
+> **Cette entrée a été RE-MESURÉE le 2026-08-16 avant d'être soldée, et elle se contredisait
+> elle-même.** Son tableau ci-dessous décrivait une divergence « en croix » — chacun juste là où
+> l'autre est faux — pendant que son propre dernier paragraphe écrivait *« la ligne RBAC l'est
+> depuis le 2026-08-15 (cf. D-45) »*. Les deux ne pouvaient pas être vrais ensemble. Le tableau
+> avait cessé d'être exact **la veille**, et personne ne l'avait remonté jusqu'à lui.
+>
+> Le coût ne s'est pas arrêté là : TCK-303 a été rédigé le 2026-08-16 en recopiant le tableau, et
+> **en laissant tomber la phrase qui le corrigeait**. Le ticket a donc prescrit de « corriger
+> l'affirmation `spatie/laravel-permission` dans la compétence qui fait foi » — une correction déjà
+> faite — et surtout d'aller **récupérer dans `.agents/` une ligne qui n'y était plus la meilleure**.
+> *Une entrée d'ardoise qui se contredit ne se lit pas en entier : on en recopie la moitié la plus
+> frappante, et la moitié qui rectifie meurt là.* Le tableau d'origine est conservé plus bas, daté,
+> parce que c'est lui l'objet de la leçon.
 
-**Deux fichiers diffèrent, et c'est un cas d'école : chacun a raison là où l'autre a tort.**
+Les deux étaient suivis par git — **646 fichiers** dans `.agent/`, **602** dans `.agents/` — et
+personne n'avait jamais arbitré lequel fait foi.
+
+**Ce que la re-mesure du 2026-08-16 a établi** (`diff -rq .agent/skills .agents/skills`) : **deux
+fichiers seulement différaient, et `.agent/` gagnait sur les deux, sur tous les points.**
+
+| Fichier | `.agent/` (chargé) | `.agents/` (mort) |
+|---|---|---|
+| `.agent/skills/implementing-specs/SKILL.md` | ✅ RBAC juste (`MembershipCapabilityResolver`, garde CI, dette D-21) · ✅ INDEX généré · ✅ pile front juste (Next 16, `base-nova`) | ✅ RBAC juste · ❌ INDEX *« Move the ticket bullet »* · ❌ **front d'un autre projet** : *« Standalone components (no NgModules) »*, *« PrimeNG 21 »*, port 4201 |
+| `.agent/skills/writing-specs/SKILL.md` | ✅ *« `INDEX.md` is **GENERATED** »* + champ `wave` requis | ❌ *« Add a new bullet line to the correct section »* |
+
+**La divergence en croix a bien existé — elle a duré trois mois, et elle était soldée depuis la
+veille.** L'histoire se lit dans `git log` :
+
+```
+33ce4f69  2026-05-18  la correction RBAC est écrite dans .agents/  ← la copie que personne ne charge
+a9524604  2026-08-15  .agent/ est réécrit : RBAC, INDEX et pile front  ← la croix disparaît (D-45)
+e53ce847  2026-08-16  TCK-303 est rédigé en décrivant l'état d'avant a9524604
+```
+
+C'est le cœur de la dette, et il reste entier : **quelqu'un a su, a écrit juste, et l'a écrit dans
+le répertoire mort.** Pendant trois mois, tout agent qui implémentait un ticket a lu qu'il fallait
+employer `spatie/laravel-permission` — un paquet désinstallé sur lequel `api-ci` casse à l'import.
+Aucune erreur, aucun lint, aucune CI ne l'a signalé. *Un répertoire mort n'est pas inerte : il
+absorbe les corrections.*
+
+<details>
+<summary>Le tableau d'origine, écrit le 2026-08-15 et faux à partir du même jour</summary>
 
 | Fichier | `.agent/` (celui que le dépôt utilise) | `.agents/` (celui que personne ne lit) |
 |---|---|---|
-| `skills/implementing-specs/SKILL.md` | ❌ *« Permissions use `spatie/laravel-permission` »* | ✅ *« Permissions sont résolues par `MembershipCapabilityResolver` à partir des profils polymorphes (TCK-278, Règle 5) »* |
-| `skills/writing-specs/SKILL.md` | ✅ *« `INDEX.md` is **GENERATED** — never edit it by hand »* + champ `wave` requis | ❌ *« Add a new bullet line to the correct section »*, *« `INDEX.md` is part of the deliverable »* |
+| `skills/implementing-specs/SKILL.md` | ❌ *« Permissions use `spatie/laravel-permission` »* | ✅ *« Permissions sont résolues par `MembershipCapabilityResolver` à partir des profils polymorphes (TCK-278, Règle 5) »* | <!-- lien-mort-assumé : suffixe commun aux deux racines de l'en-tête, pas un chemin -->
+| `skills/writing-specs/SKILL.md` | ✅ *« `INDEX.md` is **GENERATED** — never edit it by hand »* + champ `wave` requis | ❌ *« Add a new bullet line to the correct section »*, *« `INDEX.md` is part of the deliverable »* | <!-- lien-mort-assumé : suffixe commun aux deux racines de l'en-tête, pas un chemin -->
 
-Autrement dit : **la bonne ligne sur le RBAC vit dans le répertoire mort, et la bonne ligne sur
-l'INDEX vit dans le répertoire vivant.** Quelqu'un a corrigé le RBAC dans `.agents/` — donc quelqu'un
-a su, et a écrit juste — et la correction n'a jamais atteint le fichier que les outils chargent. La
-connaissance existait dans le dépôt et n'était pas branchée.
+La chaîne *« Permissions use `spatie/laravel-permission` »* a réellement existé, à
+`.agent/skills/implementing-specs/SKILL.md:112`, jusqu'à `a9524604` inclus —
+`git show a9524604^:.agent/skills/implementing-specs/SKILL.md | grep -n permission` la rend encore.
+Elle n'existe plus nulle part dans le dépôt depuis le 2026-08-15.
+
+</details>
 
 **Et rien ne désigne `.agents/`.** Les quatre points d'entrée pointent tous vers `.agent/` :
 
@@ -1158,10 +1371,26 @@ ce sont des **faux positifs** : une phrase générique sur la découverte de com
 document de référence livré par le greffon `bmad-distillator`, présente à l'identique sous
 `.claude/skills/` et `.windsurf/skills/`. **Aucun fichier de ce dépôt ne référence `.agents/`.**
 
-`.agent/` porte par ailleurs 15 compétences que `.agents/` n'a pas (`test-driven-development`,
-`systematic-debugging`, `verification-before-completion`, `using-git-worktrees`…), plus `AGENTS.md`,
-`INSTALL.md`, `agents/`, `tests/` et `workflows/` ; `.agents/` en porte une que `.agent/` n'a pas
-(`source-command-sync-specs`).
+**L'inventaire des présences, recompté le 2026-08-16** — l'entrée annonçait « 15 compétences », le
+ticket « sept » ; le compte est **13**. `.agent/skills/` en porte 27, `.agents/skills/` 15, dont 14
+communes :
+
+| Lot | Compte | Sort |
+|---|---|---|
+| Uniquement dans `.agent/` | **13** (`test-driven-development`, `systematic-debugging`, `verification-before-completion`, `using-git-worktrees`, `brainstorming`, `writing-plans`…) | conservées |
+| Communes, `wds-*` | 12 | identiques ; posées par l'installateur du greffon |
+| Communes, écrites ici | 2 (`implementing-specs`, `writing-specs`) | version `.agent/`, strictement meilleure |
+| Uniquement dans `.agents/` | **1** (`source-command-sync-specs`) | **rien à sauver** — voir ci-dessous |
+
+`source-command-sync-specs` avait l'air d'être le seul contenu propre au répertoire mort. C'est une
+**copie mécanique de `.claude/commands/sync-specs.md`**, corps identique à deux détails près : un
+préambule de conversion (*« Use this skill when the user asks to run the migrated source command »*)
+et un `Co-Authored-By: Codex` là où la source vivante écrit `Claude`. La source est chargée, et hors
+périmètre du ticket. *Le seul fichier qu'une suppression en bloc aurait pu faire perdre était lui
+aussi une copie périmée d'un fichier vivant.*
+
+`.agent/` porte en outre `AGENTS.md`, `INSTALL.md`, `agents/`, `tests/` et `workflows/`, absents de
+`.agents/`.
 
 **Le coût n'est pas les 602 fichiers dupliqués, c'est le doute.** Un contributeur qui corrige une
 compétence a une chance sur deux de la corriger dans le répertoire que personne ne charge — et
@@ -1169,16 +1398,37 @@ aucune erreur, aucun lint, aucune CI ne le lui dira. C'est déjà arrivé, une f
 ligne d'autorisation : la meilleure preuve qu'un répertoire mort n'est pas inerte.
 
 **Preuve** : `git ls-files .agent | wc -l` → 646 · `git ls-files .agents | wc -l` → 602 ·
-`diff -rq .agent .agents` → 2 fichiers différant, le reste en écarts de présence ·
-`grep -rn '\.agents/' --exclude-dir=.agents .` → 2 hits, tous deux dans
+`diff -rq .agent/skills .agents/skills` → 2 fichiers différant, le reste en écarts de présence ·
+`git grep '\.agents/' -- . ':!.agents'` → 2 hits, tous deux dans
 `skills/bmad-distillator/resources/distillate-format-reference.md:188`.
 
-**Trancher** : `.agent/` est le répertoire vivant — c'est celui que quatre points d'entrée
-désignent. Reste à porter dans `.agents/`… ou plutôt à **supprimer `.agents/`** après avoir vérifié
-que sa seule compétence propre (`source-command-sync-specs`) et sa bonne ligne RBAC sont bien
-arrivées dans `.agent/` — la ligne RBAC l'est depuis le 2026-08-15 (cf. D-45). Deux répertoires de
-compétences à la racine, c'est le même défaut que deux fichiers d'instructions divergents (D-14) :
-*un mensonge qui attend son lecteur.*
+**Soldé le 2026-08-16 (TCK-303)**, en trois temps délibérément séparés dans l'historique :
+
+1. **La garde d'abord, rouge.** `scripts/check-skills-dir.mjs`, branché dans `repo-ci.yml`, a été
+   commité *pendant que `.agents/` existait encore* — il sortait en 1 sur ses trois compétences.
+   L'historique montre donc le rouge, puis le vert, et non une garde née verte dont personne ne
+   sait ce qu'elle attrape.
+2. **La suppression ensuite**, en un commit lisible : 602 fichiers, aucun contenu à fusionner —
+   établi fichier par fichier avant d'y toucher, pas déduit du fait que `.agents/` était mort.
+3. **`CLAUDE.md` dit désormais lequel fait foi.** Aucun document d'entrée ne le disait : les quatre
+   points d'entrée le montraient par leurs liens, ce qui n'est lisible qu'après enquête.
+
+La garde ne cherche pas « est-ce que `.agents/` est revenu » — ce serait mesurer une ressemblance
+avec le dernier bug, et le prochain arbre s'appellera `.codex/` ou `.cursor/`. Elle vérifie deux
+propriétés : **unicité** (aucune compétence écrite ici hors de `.agent/skills/`) et **non-vacuité**
+(le canonique porte bien les deux compétences que les points d'entrée citent nommément) — parce
+qu'« aucune copie parasite » n'est pas « la bonne copie ». « Écrite ici » se mesure par l'absence de
+préfixe de fournisseur (`bmad-`, `wds-`), et non par une liste de noms qui serait fausse au prochain
+ajout. **Prouvée par mutation**, quatre fois : réintroduction de `.agents/` → rouge ; création d'un
+`.codex/skills/` que la garde n'avait jamais vu → rouge ; amputation du canonique → rouge ; ajout
+d'un arbre de fournisseur hors canonique → **vert**, le contrôle négatif qui montre qu'elle ne
+rougit pas sur du légitime. Le déclencheur de `repo-ci.yml` n'énumère aucun nom non plus
+(`**/skills/**`, `**/SKILL.md`) : une PR qui n'ajouterait qu'un répertoire inédit ne déclenchait
+aucune des lignes existantes, et la garde serait restée muette sur le seul défaut qu'elle existe
+pour voir.
+
+Deux répertoires de compétences à la racine, c'était le même défaut que deux fichiers d'instructions
+divergents (D-14) : *un mensonge qui attend son lecteur.*
 
 ---
 
@@ -1218,7 +1468,7 @@ compétences à la racine, c'est le même défaut que deux fichiers d'instructio
 rougissent sous charge, et « au repos » n'était écrit nulle part) — mais la couverture est très
 inégale, et les trous sont concentrés là où ça compte.
 
-### D-26 — La couche services est le trou principal 🟠 ❌ *chiffre faux, corrigé le 2026-08-15*
+### D-26 — La couche services est le trou principal ✅ ❌ *chiffre faux, corrigé le 2026-08-15 — le trou réel livré par [TCK-285](backlog/tickets/TCK-285-couverture-tests-services-policies.md), le code mort par [TCK-307](backlog/tickets/TCK-307-supprimer-dsl-scopefilter-mort.md)*
 
 > **Le trou annoncé n'existe pas là où il était annoncé.** La couche services est à **~83 % de
 > lignes exécutées**. Le « 81 des 148 services jamais nommés » venait d'un grep de nom de classe :
@@ -1226,6 +1476,12 @@ inégale, et les trous sont concentrés là où ça compte.
 >
 > **`PropertyService`, cité ici comme cœur métier à tester, est du CODE MORT** : zéro appelant dans
 > `app/`, 0/19 lignes. Il fallait le supprimer, pas le tester.
+>
+> **Et il ne l'a pas été.** Re-vérifié le 2026-08-16 : `app/Services/Model/PropertyService.php`
+> existe toujours, toujours sans appelant. Le constat était juste, la conclusion aussi, et rien ne
+> s'est produit — *une dette nommée dans un document n'est pas une dette prise en charge.* Rattrapé
+> par [TCK-307](backlog/tickets/TCK-307-supprimer-dsl-scopefilter-mort.md), qui supprime le code
+> mort de cette famille.
 >
 > **Ce qui était réellement muet, et que TCK-285 a livré** : le pipeline de rapprochement bancaire
 > (`ParseBankStatementJob::handle` 0/52, `MatchBankStatementJob::handle` 0/18,
@@ -1238,7 +1494,7 @@ inégale, et les trous sont concentrés là où ça compte.
 le cœur métier : `BookingService`, `PropertyService`, `LeasePaymentService`, `InvoiceService`,
 `PayoutService`, `InventoryService`.
 
-### D-27 — L'autorisation est très peu testée directement 🟠 ❌ *chiffre faux, corrigé le 2026-08-15*
+### D-27 — L'autorisation est très peu testée directement ✅ ❌ *chiffre faux, corrigé le 2026-08-15 — chemins de refus livrés par [TCK-285](backlog/tickets/TCK-285-couverture-tests-services-policies.md), `WizardDraftPolicy` morte traitée par [TCK-307](backlog/tickets/TCK-307-supprimer-dsl-scopefilter-mort.md)*
 
 > **Les 16 policies sont exécutées, sauf une.** Mesuré : seule `WizardDraftPolicy` est à 0 — et
 > parce que `WizardDraftController` ne l'appelle **jamais** (il filtre par
@@ -1257,7 +1513,7 @@ le cœur métier : `BookingService`, `PropertyService`, `LeasePaymentService`, `
 `PropertyModerationPolicy`. Sur un produit multi-tenant où l'agence est la frontière d'isolation,
 c'est la couche dont un défaut est le plus coûteux et le moins visible.
 
-### D-28 — Les effets asynchrones et planifiés sont quasi non testés 🟠 ❌ *chiffre faux, corrigé le 2026-08-15*
+### D-28 — Les effets asynchrones et planifiés sont quasi non testés ✅ ❌ *chiffre faux, corrigé le 2026-08-15 — le vrai trou (`ProcessRoleDelegationsJob`) livré par [TCK-285](backlog/tickets/TCK-285-couverture-tests-services-policies.md)*
 
 > **Les 12 observers sur 12 sont exécutés**, et les **trois commandes citées comme irréversibles
 > non testées le sont toutes les trois** : `MediaCleanupTest` existe depuis le 2026-04-21,
@@ -1273,7 +1529,7 @@ c'est la couche dont un défaut est le plus coûteux et le moins visible.
 les commandes non testées : des opérations **destructrices ou irréversibles**
 (`ExecuteScheduledAccountDeletions`, `PurgeOldWizardDrafts`, `MediaCleanup`).
 
-### D-29 — 78 routes sur 517 n'ont aucun littéral d'URI dans les tests 🟡 ❌ *chiffre faux, corrigé le 2026-08-15*
+### D-29 — 78 routes sur 517 n'ont aucun littéral d'URI dans les tests ✅ ❌ *chiffre faux (~20, pas 78), corrigé le 2026-08-15 — routes coûteuses livrées par [TCK-285](backlog/tickets/TCK-285-couverture-tests-services-policies.md)*
 
 > **Le trou est de ~20 routes applicatives, pas de 78.** Recompté en croisant
 > `php artisan route:list --json` avec l'ensemble des sources de `tests/` : sur 517 routes, 36
@@ -1294,7 +1550,7 @@ Concentrées sur la console super-admin (20 routes `/api/admin`) et **les webhoo
 Un webhook est une surface d'entrée non authentifiée pilotée par un tiers : c'est le pire endroit où
 ne pas avoir de test.
 
-### D-30bis — Quatre tests front rougissent sous charge 🟡 *découvert le 2026-08-12*
+### D-30bis — Quatre tests front rougissent sous charge ✅ *découvert le 2026-08-12, mesuré et soldé le 2026-08-16* → [TCK-312](backlog/tickets/TCK-312-tests-front-rougissent-sous-charge.md)
 
 Mesuré en lançant les suites back et front **simultanément** : quatre tests de la console
 super-admin (`InviteSuperAdminModal`, `AgencyOnboardingDialog`, `FeatureFlags`, `TemplateEditor`)
@@ -1306,7 +1562,57 @@ rougit sous charge accuse le code*. Le correctif n'est pas d'augmenter le délai
 mesurer leur marge réelle : un test à 12 % de son plafond n'a pas le même problème qu'un test
 à 90 %.
 
-### D-44 — La suite backend est instable sous charge, et rouge sur un ensemble différent à chaque fois 🟠 *mesuré le 2026-08-15*
+> **Marge mesurée : ils étaient bien dans le cas « 12 % ». Et ce n'est PAS le jumeau de D-44.**
+>
+> Au repos, sur les **882 tests** que compte réellement la suite aujourd'hui (le « 802 » ci-dessus
+> a vieilli) : `AgencyOnboardingDialog` 822 ms (16 % du plafond), `TemplateEditor` 512 ms (10 %),
+> `FeatureFlags` 489 ms (10 %), `InviteSuperAdminModal` 391 ms (8 %). **Aucun test de la suite ne
+> dépasse 1000 ms au repos**, cinq dépassent 500 ms. Ces quatre-là ne sont pas malades, ce sont
+> simplement les plus longs.
+>
+> **La barrière silencieuse cherchée n'existe pas ici.** Découpage instrumenté : le `waitFor` final
+> d'`AgencyOnboardingDialog` se résout en **1,9 ms**. Pas d'attente sans assertion, pas de promesse
+> qui n'aboutit pas, aucun `setTimeout` ni `debounce` dans les quatre composants. ~60 % du temps est
+> dans `user.type`, à **~4,5 ms par frappe** (une macrotâche + un flush `act()` par caractère). Le
+> coût est en O(frappes) et proportionnel à la contention CPU — les **51 fichiers** qui utilisent
+> `userEvent` sont sur la même pente. `Test timed out in 5000ms` était l'épuisement du budget
+> *agrégé* du test, pas l'expiration d'une attente.
+>
+> **La vraie faute était ailleurs : le plafond n'avait jamais été choisi.** `vitest.config.ts` ne
+> déclarait aucun `testTimeout` — les 5000 ms étaient le **défaut de vitest**, à ~6× du test le plus
+> lent, alors que ces tests ralentissent d'un facteur **11,6× à 16,7×** sous contention (mesuré :
+> 11 773 / 6 739 / 6 518 / 5 928 ms sous 64 brûleurs CPU sur 8 cœurs, charge 1-min à 105).
+> *Un défaut de framework n'est pas une mesure.* Plafond porté à **20 s**, avec le calcul en
+> commentaire dans le fichier.
+>
+> Vérifié par ablation dans les deux sens : sans le relèvement, deux des quatre rougissent sous la
+> même charge ; et avec lui, une vraie régression (mock rendu muet) échoue toujours en **1310 ms**
+> par le délai propre de `waitFor` — non touché — au lieu d'attendre le plafond.
+
+### D-30ter — Le délai propre de `waitFor`/`findBy` est le même défaut, un étage plus bas 🟡 *découvert le 2026-08-16* → [TCK-313](backlog/tickets/TCK-313-delai-waitfor-rtl-tendu-sous-charge.md)
+
+Trouvé **en vérifiant D-30bis**, et laissé hors de son périmètre à dessein.
+
+TCK-312 a réglé le plafond **par test**. Il en reste un second de la même nature, sur un autre
+bouton : **`asyncUtilTimeout` de Testing Library, 1000 ms**, qui gouverne tous les `waitFor` et
+`findBy*` — *lui aussi un défaut de framework jamais mesuré pour cette suite*.
+
+Il tient sous la charge que décrit D-30bis (back + front simultanés, charge ~65 sur 8 cœurs) :
+**0 échec**. Mais à ~4× cette charge (charge 1-min **222 à 243**), un cinquième test rougit
+**2 tours sur 3** — `Integrations.test.tsx`, sur `findByPlaceholderText('••••1234')`, avec
+`Unable to find an element with the placeholder text of: ••••1234`.
+
+Le composant n'a rien : le dialogue s'affiche, il met simplement plus de 1000 ms sous saturation.
+*Et le message accuse le code* — il dit « l'élément n'existe pas », pas « je n'ai pas attendu
+assez ». C'est exactement le coût que D-30bis et D-44 décrivent : l'heure passée à chercher un bug
+qui n'existe pas.
+
+Non corrigé ici délibérément : relever ce délai-là n'est **pas** le même arbitrage que relever
+`testTimeout`. Le second ne se déclenche que sur un blocage ; le premier est ce qui fait échouer
+vite une vraie régression (1310 ms, mesuré). Le relever se paie sur les 882 tests, à chaque
+exécution rouge. Cet arbitrage mérite sa propre mesure, et c'est l'objet de TCK-313.
+
+### D-44 — La suite backend est instable sous charge, et rouge sur un ensemble différent à chaque fois ✅ *mesuré le 2026-08-15, soldé le 2026-08-16*
 
 C'est le jumeau backend de D-30bis, en beaucoup plus grave — et il invalide le mot « verts » partout
 où il est écrit dans ce dépôt sans le qualificatif « au repos ».
@@ -1378,11 +1684,140 @@ charge, intersection non vide mais ensembles distincts) · `tests/Concerns/Inter
 > `dev`*. Un correctif dans un arbre de travail n'a jamais tenu personne au chaud, et c'est
 > précisément le genre de promesse que ce document existe pour ne pas prendre pour un fait.
 
-### D-30 — Aucune mesure de couverture, aucune parallélisation 🟡
+> **✅ SOLDÉ — le correctif est mergé sur `dev` depuis `a9524604`** *(« fix: rendre la suite de tests
+> déterministe, et solder trois régressions d'autorisation silencieuses »)*, vérifié le 2026-08-16 :
+> `waitForMeilisearch()` **lève** désormais quand le plafond est atteint, et son docblock nomme la
+> ligne qui a coûté les 14 rouges ; l'attente est filtrée sur les index du processus, chaque
+> processus ayant son préfixe.
+>
+> **Et l'entrée avait vieilli d'un commit.** Elle a continué d'affirmer « le correctif n'est PAS
+> mergé » **après** son merge — sur la seule foi du paragraphe ci-dessus, que personne n'avait
+> re-mesuré. C'est le défaut que ce document existe pour ne plus commettre, appliqué à lui-même :
+> *un inventaire de dettes se re-mesure avant d'être utilisé, jamais lu.* La règle « le statut vaut
+> pour ce qui est mergé sur `dev` » est juste ; elle n'a de valeur que si l'on va **regarder** ce
+> qui est mergé sur `dev`.
+
+### D-30 — Aucune mesure de couverture, aucune parallélisation 🟡 *couverture SOLDÉE le 2026-08-16 ; parallélisation mesurée puis REFUSÉE, sur un défaut qu'elle a révélé* → [TCK-302](backlog/tickets/TCK-302-couverture-non-mesuree-suite-non-parallelisee.md)
+
+> **Confirmé le 2026-08-16** : `coverage: none` apparaît **deux fois** dans `api-ci.yml` (lignes 42
+> et 192), et `--parallel` n'est configuré nulle part. Le temps de référence à retenir est
+> **313 s machine au repos** (2026-08-15) — les 616 s ci-dessous ont été mesurées sous contention,
+> c'est-à-dire dans les conditions qui produisaient D-44.
 
 La CI passe explicitement `coverage: none` et le bloc `<source>` de `phpunit.xml` n'alimente aucun
 rapport : ni seuil, ni tendance, ni garde-fou contre l'érosion. Et la suite n'est pas parallélisée
 (`--parallel` n'est configuré nulle part) — 616 s en local sous contention.
+
+**Volet couverture — soldé le 2026-08-16.** La couverture d'`app/` a été mesurée pour la première
+fois, sur la suite complète (2313 tests, 7136 assertions, 0 échec), PCOV 1.0.12, périmètre `app/`
+(768 fichiers) :
+
+| | Couvert / total | % |
+|---|---|---|
+| **Lignes** | 21 148 / 24 544 | **86,16 %** ← ce que `--min` compare |
+| Méthodes | 1 821 / 2 723 | 66,87 % |
+| Classes | 301 / 687 | 43,81 % |
+
+Les chiffres du clover et ceux du rapport texte de PHPUnit concordent — vérifié, ce n'est pas une
+seule source lue deux fois. **L'écart entre 86 % de lignes et 44 % de classes n'est pas une
+contradiction** : une classe ne compte « couverte » que si *toutes* ses lignes le sont. C'est
+l'indicateur le plus sévère des trois, et le seul des trois qui dise quelque chose sur les branches
+d'erreur rarement traversées.
+
+La mesure est **reproductible** : rejouée une seconde fois, elle rend 21 147 lignes couvertes au lieu
+de 21 148 — un écart d'**une** ligne, soit 0,004 point.
+
+Le seuil `--min=86` est posé **au niveau mesuré des lignes, arrondi vers le bas** — resserré de 85 à
+86 le 2026-08-16 après confirmation en CI à **86,3 %** (PR #176). Il reste ~0,3 point de
+marge (un fichier de ~100 lignes ajouté sans test coûte ~0,35 point ; la marge en absorbe trois). Un
+cliquet contre l'érosion, pas un objectif.
+
+**Surcoût mesuré : +36 %** (83 s → 113 s, comparaison appariée sur la suite entière, machine quasi au
+repos, Xdebug coupé des deux côtés pour ne pas mesurer Xdebug à la place de PCOV). Sous la limite de
+50 % que le ticket s'était fixée. Le step de CI **affiche sa durée** à chaque exécution : une mesure
+prise une fois vieillit, l'historique du job dira si ce chiffre dérive.
+
+Le rapport est publié en **deux** artefacts, parce qu'ils n'ont ni le même usage ni le même prix :
+`clover.xml` (1,9 Mo) à **chaque** exécution — une tendance a besoin de tous ses points, y compris
+ceux des builds rouges — et le HTML (**150 Mo décompressés, mesuré**) **seulement `if: failure()`**,
+puisque c'est le jour où le cliquet saute qu'on veut le détail à la ligne. Le publier partout, ce
+serait payer 150 Mo par build pour un rapport ouvert quelques fois par an.
+
+Le second `coverage: none`, celui du job `migrations-mysql`, a été **conservé** : ce job n'exécute
+aucun test, un pilote de couverture y coûterait son installation pour ne rien mesurer. Les deux
+occurrences n'étaient pas le même défaut.
+
+> ⚠️ **Ce que le seuil ne garde pas.** Une méthode traversée sans assertion compte pour couverte.
+> [TCK-285](backlog/tickets/TCK-285-couverture-tests-services-policies.md) a trouvé quatre défauts en
+> **écrivant** les tests, aucun en mesurant leur couverture. Le cliquet empêche la descente ; il ne
+> monte rien et ne prouve rien.
+
+**Volet parallélisation — MESURÉ, et REFUSÉ pour l'instant. Le gain est réel ; le prix n'est pas payé.**
+
+Les six exécutions ci-dessous se sont enchaînées le 2026-08-16 entre 15 h 36 et 15 h 45, `load
+average` relevé au départ de chacune (8 cœurs, contention résiduelle d'agents voisins — ce qui
+**sous-estime** le gain de `--parallel`, puisque les cœurs qu'il veut utiliser étaient en partie
+déjà pris) :
+
+| Exécution | Durée | Sortie | Échecs |
+|---|---|---|---|
+| séquentielle | **204 s** | 0 | **0** sur 2313 |
+| `--parallel` n°1 | 77 s | 1 | 3 |
+| `--parallel` n°2 | 83 s | 1 | 2 |
+| `--parallel` n°3 | 73 s | 1 | 3 |
+| `--parallel` n°4 | 71 s | 1 | 2 |
+| `--parallel` n°5 | **66 s** | 1 | 3 |
+
+**Le gain est net — ~2,6× (204 s → 66-83 s).** Ce n'est pas la raison du refus.
+
+La raison est la colonne de droite : **5 exécutions sur 5 rouges**, et les rouges se répartissent en
+deux familles qui n'appellent pas le même travail.
+
+1. **Deux échecs déterministes, par construction** — `Tests\Unit\Testing\FakeDiskIsolationTest`
+   échoue aux 5 exécutions sur ses deux tests. Ce sont des **gardes** posées par le correctif D-44,
+   et elles affirment exactement ce que `--parallel` rend faux : que la racine des disques
+   `Storage::fake()` porte le jeton de `TestProcessToken`, et que `LARAVEL_PARALLEL_TESTING` est
+   **absent** de `$_SERVER`. En mode parallèle, Laravel pose son propre jeton
+   (`public_test_5`, `public_test_3`… au lieu de `public_test_<pid+aléa>`) et **supplante** le
+   mécanisme du dépôt. L'isolation reste assurée — par Laravel, plus par nous — mais le quatrième
+   mécanisme de D-44 est alors court-circuité en silence. Ce n'est donc pas un basculement de
+   drapeau : il faut d'abord **décider** lequel des deux jetons gouverne, et réécrire les deux
+   gardes en conséquence.
+2. **Un échec INTERMITTENT, 3 fois sur 5** — `PropertyIsTestExclusionTest::test_public_search_excludes_is_test_properties`.
+   Relancé **seul**, comme l'exige la règle du dépôt, il échoue **de façon déterministe**… alors
+   qu'il **passe** dans la suite complète séquentielle (deux exécutions indépendantes). Ce test ne
+   passe donc que grâce à l'**ordre** de la suite, et ParaTest, en redistribuant les tests entre
+   workers, casse cet ordre accidentel. Le trou est réel et préexiste :
+   [TCK-314](backlog/tickets/TCK-314-test-recherche-dependant-de-l-ordre.md).
+
+> *Le rouge n'a rien coûté : il a payé.* Éprouver `--parallel` a mis au jour un test vert qui ne
+> prouvait rien, sur une règle métier — « un bien `is_test` n'atteint jamais la surface publique » —
+> que personne ne vérifiait plus. C'est le second cas, après D-44, où **la course révèle un défaut
+> que le déterminisme masquait**.
+
+**Décision : `--parallel` n'est PAS activé**, et `brianium/paratest` n'est **pas** ajouté à
+`composer.json` — une dépendance installée pour une option non retenue est une décision prise en
+silence. Condition de réouverture : **TCK-314 soldé**, puis la question des deux gardes de
+`FakeDiskIsolationTest` tranchée. Le gain de 2,6× justifie largement d'y revenir.
+
+Rejeu, une fois ces deux points traités :
+
+```bash
+composer require --dev brianium/paratest
+for i in 1 2 3 4 5; do /usr/bin/time -p php artisan test --parallel; done
+uptime; sysctl -n hw.ncpu     # à relever À CÔTÉ du chiffre, sinon il ne dit rien
+```
+
+**Critère, les deux conditions ensemble** : gain de temps net, **et** cinq exécutions à **0 échec**.
+Une seule rouge sur cinq refuse — c'est le profil de panne de D-44, où l'ensemble des rouges changeait
+d'une exécution à l'autre. Un rouge Meilisearch se relance **seul** avant d'être compté.
+
+> **Le risque qui n'est PAS survenu, et qu'il faudra revérifier** : N workers indexant dans **une
+> seule** instance Meilisearch, qui traite ses tâches en série, face à une barrière
+> `MeilisearchBarrier::await()` plafonnée à **10 s d'horloge**. Éprouvé à part — les 15 classes
+> portant `InteractsWithMeilisearch`, jouées sur **4 processus, 5 fois de suite** : **106 tests,
+> 319 assertions, 0 échec à chaque fois** (28-36 s par exécution). La barrière tient. Le blocage est
+> ailleurs, et c'est utile de savoir où il n'est pas.
 
 ---
 
@@ -1392,18 +1827,24 @@ Aucune n'est un bug. Toutes coûtent une décision à chaque fois qu'on écrit d
 décision est reprise à zéro par chaque contributeur. **`takussan-api/CLAUDE.md` tranche désormais
 pour le code neuf** ; l'existant reste à converger.
 
-| # | Dette | Mesure | Tranché pour le neuf |
-|---|---|---|---|
-| **D-31** | Enveloppe de pagination dupliquée à la main | 44 fichiers, clés incohérentes (`total` 72×, `current_page` 65×, `last_page` 49×, `per_page` 43×, `links`/`from`/`to` sporadiques) | les 4 clés canoniques |
-| **D-32** | Validation inline vs FormRequest | 120 `$request->validate()` vs 69 FormRequest | `BaseFormRequest` |
-| **D-33** | Policy vs helpers de contrôleur | 16 policies pour 72 modèles, mais **38 contrôleurs** redéfinissent `authorizeAccess()`/`authorizeManage()` (124 appels, logique copiée-collée) | policy |
-| **D-34** | Deux mécanismes de filtrage sur les mêmes modèles | DSL maison `scopeFilter` **et** spatie `HasQueryBuilder`, tous deux sur `AbstractModel` | `buildQuery()` pour toute API |
-| **D-35** | `BasePolicy` partiellement morte par construction | ses abilities `{resource}.view`/`.update` ne correspondent à **aucun** cas de `Capability` | — *(à corriger)* |
-| **D-36** | `BaseResource` peu adoptée | 7 ressources sur 44 l'étendent ; 36 refont les conversions à la main | `BaseResource` |
-| **D-37** | Trois classes de base de test | `TestCase`, `BaseTestCase`, `ApiTestCase`, sans règle écrite | `ApiTestCase` pour l'API |
-| **D-38** | Deux préfixes de commandes plateforme | `platform:grant-super-admin` et `takussan:create-super-admin` font le même travail | `platform:` |
-| **D-39** | ~~`NotificationPreference` n'étend pas `AbstractModel`~~ | ✅ **soldé le 2026-08-12** — il l'étend désormais ; 106 tests notifications verts | ✅ |
-| **D-40** | Namespaces de contrôleurs dédoublés | l'authentification est éclatée entre `Controllers/Auth/` (8) et `Controllers/Api/Auth/` (5) | — |
+> **Colonne « Mesure » RE-MESURÉE le 2026-08-16**, et deux entrées sur neuf n'ont pas survécu à la
+> vérification. Les chiffres du 2026-08-12 sont conservés entre parenthèses quand ils diffèrent :
+> ce tableau doit rester lisible comme un historique de mesures, pas comme une vérité intemporelle.
+> **D-34 et D-35 sont requalifiées** — ce n'était pas ce qu'on croyait, et dans les deux cas la
+> nouvelle formulation change ce qu'il faut faire.
+
+| # | Dette | Mesure — **2026-08-16** | Tranché pour le neuf | Ticket |
+|---|---|---|---|---|
+| **D-31** | Enveloppe de pagination dupliquée à la main | **58 fichiers** *(44 le 12/08 — +14 en quatre jours)*, clés incohérentes : `total` 78×, `current_page` 66×, `last_page` 50×, `per_page` 45×, `links`/`from`/`to` sporadiques | les 4 clés canoniques | [TCK-304](backlog/tickets/TCK-304-enveloppe-pagination-dupliquee.md) |
+| **D-32** | Validation inline vs FormRequest | 120 `$request->validate()` vs **65** FormRequest *(69 le 12/08 — méthode de comptage différente)* | `BaseFormRequest` | [TCK-305](backlog/tickets/TCK-305-validation-inline-vers-formrequest.md) |
+| **D-33** | Policy vs helpers de contrôleur | 16 policies, mais **25 contrôleurs** *(38 le 12/08 — **surestimé d'un tiers**)* redéfinissent `authorizeAccess()`/`authorizeManage()`, **88 appels** *(124 le 12/08)* | policy | [TCK-306](backlog/tickets/TCK-306-autorisation-controleurs-vers-policies.md) |
+| **D-34** | ~~Deux mécanismes de filtrage concurrents~~ → **code mort toujours branché** | `scopeFilter` vit dans `BaseModelTrait`, monté sur tous les modèles via `AbstractModel` — mais **0 appelant** contre **46 `buildQuery()`**. Le choix est fait ; reste à supprimer le perdant | `buildQuery()` pour toute API | [TCK-307](backlog/tickets/TCK-307-supprimer-dsl-scopefilter-mort.md) |
+| **D-35** | ~~`BasePolicy` morte par construction~~ → **piège latent, et le mélange est pire** | `properties.create`/`.delete` **existent**, `.view` non ; `leases.view`/`.update`/`.delete` non ; `media.` n'est pas même un préfixe de `Capability`. Les 15 sites d'appel ont été inventoriés : **aucun n'atteint une ability cassée aujourd'hui** — mais le premier `authorize('view', $lease)` refusera tout le monde sauf super-admin, en silence | — *(à corriger + garde)* | [TCK-297](backlog/tickets/TCK-297-basepolicy-capacites-inexistantes.md) |
+| **D-36** | `BaseResource` peu adoptée | **7 ressources sur 44** l'étendent — inchangé depuis le 12/08 | `BaseResource` | [TCK-308](backlog/tickets/TCK-308-baseresource-adoptee-par-7-sur-44.md) |
+| **D-37** | Trois classes de base de test | `TestCase`, `BaseTestCase`, `ApiTestCase`, sans règle écrite — confirmé | `ApiTestCase` pour l'API | [TCK-309](backlog/tickets/TCK-309-conventions-mineures-dedoublees.md) |
+| **D-38** | Deux préfixes de commandes plateforme | `platform:grant-super-admin` et `takussan:create-super-admin` (posée par TCK-263) font le même travail — confirmé | `platform:` | [TCK-309](backlog/tickets/TCK-309-conventions-mineures-dedoublees.md) |
+| **D-39** | ~~`NotificationPreference` n'étend pas `AbstractModel`~~ | ✅ **soldé le 2026-08-12** — il l'étend désormais ; 106 tests notifications verts | ✅ | — |
+| **D-40** | Namespaces de contrôleurs dédoublés | `Controllers/Auth/` (**8**) et `Controllers/Api/Auth/` (**5**) — confirmé | — | [TCK-309](backlog/tickets/TCK-309-conventions-mineures-dedoublees.md) |
 
 ### D-41 — Filament v4 : scaffold oublié ou décision non assumée ✅ *soldé le 2026-08-15 — supprimé* → [TCK-287](backlog/tickets/TCK-287-filament-supprimer-ou-securiser.md)
 
@@ -1582,6 +2023,31 @@ suites, configuration. Il ne dit rien de :
 ---
 
 ### D-53 — Le tableau de bord de sécurité montrait 3 vulnérabilités sur 23 ✅ *mesuré et soldé le 2026-08-16*
+
+> **Re-mesuré le 2026-08-16 au soir, après le correctif — et le tableau de bord est FAUX DANS
+> L'AUTRE SENS.** Il annonce désormais **4 alertes ouvertes** (2 hautes, 2 modérées). Les quatre
+> sont périmées, vérifié une par une :
+>
+> | # | Paquet | Manifeste déclaré | Plage vulnérable | Réalité mesurée |
+> |---|---|---|---|---|
+> | 4 | `nanoid` | `takussan-web/package-lock.json` | `< 3.3.18` | le lock porte **3.3.18** — la version corrigée |
+> | 1-3 | `vite` | **`package.json`** (racine) | `<= 6.4.1` / `<= 6.4.2` | **il n'existe aucun `package.json` à la racine** ; `takussan-api` résout `vite` en **8.2.1** |
+>
+> L'alerte `nanoid` a été ouverte **le jour même**, et le correctif (`ab064b0b`, celui qui solde
+> cette entrée) a atterri le même jour : elle a été créée sur un état déjà dépassé. Les trois
+> `vite` datent d'avril et de juin, et pointent un manifeste qui n'existe pas.
+>
+> **Le défaut est le même que celui décrit plus bas, à l'identique : le tableau de bord ne suit pas
+> les vrais manifestes.** Il en ratait vingt hier, il en invente quatre aujourd'hui — et c'est
+> cohérent, puisque c'est la même cause. *Un tableau de bord qu'on a vu sous-compter et
+> sur-compter n'est pas « à peu près juste » : c'est une source qu'il faut confronter à chaque
+> lecture, comme n'importe quelle autre.*
+>
+> **Rien à corriger dans le code.** Ce qui reste est une configuration Dependabot à faire pointer
+> sur `takussan-api/package.json`, `takussan-web/package.json` et les deux `composer.json` — et
+> quatre alertes à fermer. Commandes de re-mesure :
+> `gh api repos/thiambara/takussan/dependabot/alerts --jq '.[] | select(.state=="open")'`, puis
+> `npm ls <paquet>` dans le manifeste concerné.
 
 **D-00 avait solidement traité le côté PHP** — `composer audit` rend toujours *« No security
 vulnerability advisories found »*. Le côté **npm n'avait jamais été audité du tout**, et il portait
