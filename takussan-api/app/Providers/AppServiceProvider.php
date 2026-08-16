@@ -87,6 +87,9 @@ use App\Services\Media\Cdn\CdnProviderContract;
 use App\Services\Media\Cdn\CloudflareCdnDriver;
 use App\Services\Media\MediaUrlResolver;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Notifications\Sms\Dlr\LogDlrPuller;
+use App\Services\Notifications\Sms\Dlr\MtargetDlrPuller;
+use App\Services\Notifications\Sms\Dlr\SmsDlrPullerInterface;
 use App\Services\Notifications\Sms\Drivers\LAfricaMobileSmsDriver;
 use App\Services\Notifications\Sms\Drivers\LogSmsDriver;
 use App\Services\Notifications\Sms\Drivers\MtargetSmsDriver;
@@ -228,6 +231,19 @@ class AppServiceProvider extends ServiceProvider
             return match ($default) {
                 'log' => $app->make(LogSmsDriver::class),
                 default => $app->make(SmsRouterDriver::class),
+            };
+        });
+
+        // TCK-294 — Inbound DLR, pulled rather than pushed. Same
+        // driver/registry shape as the send side: one interface, N
+        // drivers, one conditional binding on config. `log` is the
+        // default so nothing calls the operator until an env says so.
+        $this->app->singleton(LogDlrPuller::class);
+        $this->app->singleton(MtargetDlrPuller::class);
+        $this->app->bind(SmsDlrPullerInterface::class, function ($app): SmsDlrPullerInterface {
+            return match ((string) $app['config']->get('sms.dlr_pulling.driver', 'log')) {
+                'mtarget' => $app->make(MtargetDlrPuller::class),
+                default => $app->make(LogDlrPuller::class),
             };
         });
     }
