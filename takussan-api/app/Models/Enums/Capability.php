@@ -91,4 +91,53 @@ enum Capability: string
     {
         return explode('.', $this->value, 2)[0];
     }
+
+    /**
+     * Capacités réservées à la PLATEFORME — aucun `AgencyRole` ne peut les
+     * porter, système ou personnalisé.
+     *
+     * ⚠️ Cette liste vivait en trois exemplaires — le docblock de
+     * `MembershipCapabilityResolver`, la liste noire de
+     * `SystemRoleCapabilities::agencyAdmin()`, et un commentaire de
+     * `AgencyRolePolicy` — et n'était appliquée nulle part **à l'écriture**.
+     * Mesuré : un `agency_admin` créait un rôle personnalisé, y posait
+     * `properties.moderate` par `PUT .../capabilities` (la validation
+     * acceptait tout cas de l'enum), s'y réaffectait par
+     * `PATCH /profiles/{p}/agency-role` — toutes opérations couvertes par ses
+     * propres capacités — et `canActAt(PropertiesModerate, $agency)` rendait
+     * alors `true`. Le seed excluait ces deux capacités ; rien n'empêchait de
+     * les rajouter après.
+     *
+     * Aucun site d'appel de production ne les lit encore, l'escalade était
+     * donc latente : c'est le moment de la fermer, avant que le premier
+     * appelant ne la rende réelle.
+     *
+     * @return array<int,self>
+     */
+    public static function platformReserved(): array
+    {
+        return [
+            self::PropertiesModerate,
+            self::ReportsViewGlobal,
+        ];
+    }
+
+    public function isPlatformReserved(): bool
+    {
+        return in_array($this, self::platformReserved(), true);
+    }
+
+    /**
+     * Les capacités qu'un `AgencyRole` peut porter — le catalogue moins les
+     * réservées plateforme.
+     *
+     * @return array<int,self>
+     */
+    public static function agencyAssignable(): array
+    {
+        return array_values(array_filter(
+            self::cases(),
+            static fn (self $c): bool => ! $c->isPlatformReserved(),
+        ));
+    }
 }

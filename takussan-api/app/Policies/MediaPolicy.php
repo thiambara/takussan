@@ -20,11 +20,15 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  */
 class MediaPolicy extends BasePolicy
 {
-    protected function resource(): string
-    {
-        return 'media';
-    }
-
+    /**
+     * TCK-297 — `media` n'est même pas un préfixe de `Capability` : les cinq
+     * abilities CRUD héritées se résolvaient sur des chaînes inexistantes.
+     * Aucune capacité n'est donc déclarée ici, et les abilities réellement
+     * utilisées (`view`, `delete`, `viewRaw`, `sign`) portent leur règle en
+     * propre — propriété du morph target, périmètre d'agence, et pour
+     * `viewRaw` la seule capacité qui existe vraiment :
+     * `Capability::PropertiesUpdateAny`.
+     */
     public function view(User $user, Model $model): bool
     {
         return true;
