@@ -1550,7 +1550,7 @@ Concentrées sur la console super-admin (20 routes `/api/admin`) et **les webhoo
 Un webhook est une surface d'entrée non authentifiée pilotée par un tiers : c'est le pire endroit où
 ne pas avoir de test.
 
-### D-30bis — Quatre tests front rougissent sous charge 🟡 *découvert le 2026-08-12* → [TCK-312](backlog/tickets/TCK-312-tests-front-rougissent-sous-charge.md)
+### D-30bis — Quatre tests front rougissent sous charge ✅ *découvert le 2026-08-12, mesuré et soldé le 2026-08-16* → [TCK-312](backlog/tickets/TCK-312-tests-front-rougissent-sous-charge.md)
 
 Mesuré en lançant les suites back et front **simultanément** : quatre tests de la console
 super-admin (`InviteSuperAdminModal`, `AgencyOnboardingDialog`, `FeatureFlags`, `TemplateEditor`)
@@ -1561,6 +1561,56 @@ runner GitHub partagé, ils rougiront un jour sur une PR qui n'y est pour rien �
 rougit sous charge accuse le code*. Le correctif n'est pas d'augmenter le délai en aveugle mais de
 mesurer leur marge réelle : un test à 12 % de son plafond n'a pas le même problème qu'un test
 à 90 %.
+
+> **Marge mesurée : ils étaient bien dans le cas « 12 % ». Et ce n'est PAS le jumeau de D-44.**
+>
+> Au repos, sur les **882 tests** que compte réellement la suite aujourd'hui (le « 802 » ci-dessus
+> a vieilli) : `AgencyOnboardingDialog` 822 ms (16 % du plafond), `TemplateEditor` 512 ms (10 %),
+> `FeatureFlags` 489 ms (10 %), `InviteSuperAdminModal` 391 ms (8 %). **Aucun test de la suite ne
+> dépasse 1000 ms au repos**, cinq dépassent 500 ms. Ces quatre-là ne sont pas malades, ce sont
+> simplement les plus longs.
+>
+> **La barrière silencieuse cherchée n'existe pas ici.** Découpage instrumenté : le `waitFor` final
+> d'`AgencyOnboardingDialog` se résout en **1,9 ms**. Pas d'attente sans assertion, pas de promesse
+> qui n'aboutit pas, aucun `setTimeout` ni `debounce` dans les quatre composants. ~60 % du temps est
+> dans `user.type`, à **~4,5 ms par frappe** (une macrotâche + un flush `act()` par caractère). Le
+> coût est en O(frappes) et proportionnel à la contention CPU — les **51 fichiers** qui utilisent
+> `userEvent` sont sur la même pente. `Test timed out in 5000ms` était l'épuisement du budget
+> *agrégé* du test, pas l'expiration d'une attente.
+>
+> **La vraie faute était ailleurs : le plafond n'avait jamais été choisi.** `vitest.config.ts` ne
+> déclarait aucun `testTimeout` — les 5000 ms étaient le **défaut de vitest**, à ~6× du test le plus
+> lent, alors que ces tests ralentissent d'un facteur **11,6× à 16,7×** sous contention (mesuré :
+> 11 773 / 6 739 / 6 518 / 5 928 ms sous 64 brûleurs CPU sur 8 cœurs, charge 1-min à 105).
+> *Un défaut de framework n'est pas une mesure.* Plafond porté à **20 s**, avec le calcul en
+> commentaire dans le fichier.
+>
+> Vérifié par ablation dans les deux sens : sans le relèvement, deux des quatre rougissent sous la
+> même charge ; et avec lui, une vraie régression (mock rendu muet) échoue toujours en **1310 ms**
+> par le délai propre de `waitFor` — non touché — au lieu d'attendre le plafond.
+
+### D-30ter — Le délai propre de `waitFor`/`findBy` est le même défaut, un étage plus bas 🟡 *découvert le 2026-08-16* → [TCK-313](backlog/tickets/TCK-313-delai-waitfor-rtl-tendu-sous-charge.md)
+
+Trouvé **en vérifiant D-30bis**, et laissé hors de son périmètre à dessein.
+
+TCK-312 a réglé le plafond **par test**. Il en reste un second de la même nature, sur un autre
+bouton : **`asyncUtilTimeout` de Testing Library, 1000 ms**, qui gouverne tous les `waitFor` et
+`findBy*` — *lui aussi un défaut de framework jamais mesuré pour cette suite*.
+
+Il tient sous la charge que décrit D-30bis (back + front simultanés, charge ~65 sur 8 cœurs) :
+**0 échec**. Mais à ~4× cette charge (charge 1-min **222 à 243**), un cinquième test rougit
+**2 tours sur 3** — `Integrations.test.tsx`, sur `findByPlaceholderText('••••1234')`, avec
+`Unable to find an element with the placeholder text of: ••••1234`.
+
+Le composant n'a rien : le dialogue s'affiche, il met simplement plus de 1000 ms sous saturation.
+*Et le message accuse le code* — il dit « l'élément n'existe pas », pas « je n'ai pas attendu
+assez ». C'est exactement le coût que D-30bis et D-44 décrivent : l'heure passée à chercher un bug
+qui n'existe pas.
+
+Non corrigé ici délibérément : relever ce délai-là n'est **pas** le même arbitrage que relever
+`testTimeout`. Le second ne se déclenche que sur un blocage ; le premier est ce qui fait échouer
+vite une vraie régression (1310 ms, mesuré). Le relever se paie sur les 882 tests, à chaque
+exécution rouge. Cet arbitrage mérite sa propre mesure, et c'est l'objet de TCK-313.
 
 ### D-44 — La suite backend est instable sous charge, et rouge sur un ensemble différent à chaque fois ✅ *mesuré le 2026-08-15, soldé le 2026-08-16*
 
