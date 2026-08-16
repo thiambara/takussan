@@ -245,6 +245,19 @@ jobs:
         # `--check` échoue s'il ne suit plus sa source (TCK-311).
         run: node docs/gen-features-by-actor.mjs --check
 
+      - name: Les guides de déploiement ne contredisent pas les `.env` livrés
+        # `docs/configuration.md` donnait TROIS réponses au même sujet : sa ligne 422 affirmait
+        # « la production tourne en CACHE_STORE=database », sa checklist §5.7 prescrivait
+        # `CACHE_STORE=redis`, et les deux `.env` livrés déclarent `redis`. Le défaut n'est pas
+        # qu'une des trois soit fausse — c'est qu'il y en ait trois : une valeur recopiée dans
+        # trois documents diverge au premier changement, et rien ne le signale.
+        #
+        # `docs/infra/prod-drivers.json` est la source unique. La garde confronte la checklist
+        # §5.7 (dans le dépôt, donc bloquante) et les `.env` livrés (hors dépôt, absents du
+        # runner, donc signalés sans bloquer) — elle ne peut pas garantir ce que le dépôt ne
+        # contient pas (TCK-300).
+        run: node scripts/check-prod-drivers.mjs --report
+
       - name: INDEX.md est à jour de ses frontmatters
         # `--check` n'écrit rien et sort non nul si l'index est périmé. Sans cette étape, la règle
         # « on régénère après avoir touché un ticket » redeviendrait tenue par la seule discipline

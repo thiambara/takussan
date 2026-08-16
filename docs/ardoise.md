@@ -621,7 +621,25 @@ Vercel dans le dépôt est une regex d'origine CORS côté Laravel.
 
 Il est donc **impossible de savoir, depuis le code, quelle branche déploie quel environnement front**.
 
-### D-11 — Le guide de déploiement contredit les `.env` réellement livrés 🟠 → [TCK-300](backlog/tickets/TCK-300-guides-deploiement-contredisent-env-livres.md)
+### D-11 — Le guide de déploiement contredit les `.env` réellement livrés ✅ *soldé le 2026-08-16* → [TCK-300](backlog/tickets/TCK-300-guides-deploiement-contredisent-env-livres.md)
+
+> **Re-mesuré, et le SENS de l'écart était l'inverse.** Cette entrée supposait « les guides
+> prescrivent, les `.env` s'en écartent ». Mesuré : ce sont les **guides** qui décrivent un état
+> révolu — le guide « de A à Z » livre un gabarit d'installation neuve et range redis/resend dans
+> un tableau « à basculer quand… », alors que les deux environnements livrés ont déjà basculé.
+>
+> **`docs/configuration.md` se contredisait LUI-MÊME** — ligne 422 « la production tourne en
+> `CACHE_STORE=database` » contre §5.7 « `CACHE_STORE=redis` ». Le défaut n'était pas qu'une des
+> trois sources soit fausse, c'est qu'il y en ait trois. `docs/infra/prod-drivers.json` est
+> désormais la source unique, gardée par `check-prod-drivers.mjs`.
+>
+> **Et cette entrée confondait deux clés qui ne coûtent pas la même chose.** `SESSION_SAME_SITE` et
+> `SESSION_SECURE_COOKIE` sont bien absentes des deux `.env`, mais `config/session.php:202` lit la
+> première **avec** le défaut `'lax'` — exactement la valeur prescrite, donc aucun coût. La seconde
+> est lue **sans défaut** (`config/session.php:172`) : `null`, faux, **le cookie de session n'est
+> pas marqué `Secure`**. *Deux clés absentes du même fichier n'ont pas le même coût : c'est le
+> défaut du code qui décide, pas l'absence.* Seule la seconde reste ouverte, et elle est hors
+> dépôt → TCK-288.
 
 > ⚠️ **Les écarts ci-dessous datent du 2026-08-12 et n'ont PAS été re-mesurés ligne par ligne.**
 > `docs/configuration.md` a été corrigé depuis (le 2026-08-16) sur sa contradiction Meilisearch : la
