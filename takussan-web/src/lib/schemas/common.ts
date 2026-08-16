@@ -51,13 +51,32 @@ export const phoneSchema = z
   );
 
 /**
- * Optional phone — accepts empty string and returns `undefined`.
+ * Optional phone — accepts empty string, absent key, or `undefined`, and
+ * returns `undefined` for all three.
+ *
+ * ⚠️ Le `.optional()` FINAL n'est pas redondant avec celui de `phoneSchema`
+ * à l'intérieur du `pipe`, et son absence était un défaut : un `pipe` porte
+ * le type de son ENTRÉE, ici `string`. Le champ était donc **obligatoire**
+ * dans tout objet qui l'utilisait — ce que son nom dit exactement l'inverse.
+ *
+ * zod ≤ 4.3.6 masquait la faute : il jugeait l'optionalité d'une clé d'objet
+ * sur le type de SORTIE du pipe (`string | undefined`), et acceptait donc la
+ * clé absente. zod 4.4 la juge sur l'entrée, ce qui est correct, et
+ * `guarantorSchema.safeParse({ first_name, last_name })` s'est mis à rendre
+ * « expected string, received undefined » sur `phone`.
+ *
+ * Ce n'était donc pas une régression de zod : c'est notre schéma qui était
+ * faux, et une mise à jour de dépendance qui l'a rendu visible. Le
+ * `.optional()` de tête court-circuite le pipe sur `undefined` ; l'empilement
+ * des deux couvre les trois entrées, et un numéro réellement invalide
+ * continue de rougir.
  */
 export const optionalPhoneSchema = z
   .string()
   .trim()
   .transform((v) => (v.length === 0 ? undefined : v))
-  .pipe(phoneSchema.optional());
+  .pipe(phoneSchema.optional())
+  .optional();
 
 /**
  * Non-empty string with trim.
