@@ -52,8 +52,9 @@
  *   node scripts/check-skills-dir.mjs            # garde, sort en 1 au moindre écart
  *   node scripts/check-skills-dir.mjs --report   # + l'inventaire de ce qui a été lu
  */
-import { readdirSync, existsSync, statSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -90,34 +91,55 @@ const EXIGEES = ['implementing-specs', 'writing-specs'];
 const estEcriteIci = (nom) => !PREFIXES_FOURNISSEUR.some((p) => nom.startsWith(p));
 
 /**
- * Tout répertoire du dépôt qui porte un `<nom>/SKILL.md`.
+ * Tout répertoire SUIVI PAR GIT qui porte un `<nom>/SKILL.md`.
  *
- * On descend depuis la racine plutôt que d'énumérer les emplacements connus : énumérer, c'est ne
- * voir que les endroits où l'on a déjà été surpris. `node_modules`, `vendor` et `.git` sont
- * écartés — ils portent du code tiers dont ce dépôt ne décide pas.
+ * L'énumération passe par `git ls-files` et non par un parcours du système de fichiers. Ce n'est
+ * pas une optimisation, c'est une correction : la première version descendait depuis la racine avec
+ * une liste noire (`node_modules`, `vendor`, `.git`…) et signalait **105 écarts** sur une machine de
+ * développement — tous situés dans `.claude/worktrees/`, les copies de travail que l'outillage
+ * d'agents crée et que git ignore.
+ *
+ * Ces copies n'existent pas sur le runner : la garde était donc **verte en CI et rouge en local**,
+ * ce qui est le pire des deux états — celui après lequel on cesse de la lancer. Et le défaut est
+ * structurel, pas circonstanciel : une liste noire ne peut écarter que les répertoires qu'on a déjà
+ * rencontrés, et le prochain ne s'appellera pas `.claude/worktrees/`.
+ *
+ * `git ls-files` répond exactement à la question posée — *ce dépôt contient-il une compétence hors
+ * du canonique ?* — puisque « ce dépôt contient » signifie « git suit ». *Quand une garde et son
+ * périmètre divergent, c'est le périmètre qu'il faut dériver, pas la liste d'exceptions qu'il faut
+ * allonger.*
  */
-const IGNORES = new Set(['node_modules', 'vendor', '.git', 'storage', 'dist', '.next', 'build']);
+function trouverCompetences() {
+  const sortie = execFileSync('git', ['ls-files', '--full-name', '*SKILL.md'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  });
 
-function trouverCompetences(dir, trouvees = []) {
-  let entrees;
-  try {
-    entrees = readdirSync(join(ROOT, dir), { withFileTypes: true });
-  } catch {
-    return trouvees;
+  const chemins = sortie
+    .split('\n')
+    .filter(Boolean)
+    .map((fichier) => dirname(fichier))
+    .sort();
+
+  // ⚠ **Une compétence ne contient pas d'autres compétences.** Le parcours d'origine coupait la
+  // descente dès qu'il rencontrait un `SKILL.md` ; le passage à `git ls-files` a perdu cette règle,
+  // et la garde a aussitôt signalé `bmad-module-builder/assets/setup-skill-template/SKILL.md` —
+  // qui est un GABARIT livré à l'intérieur d'une compétence vendue, pas une compétence.
+  //
+  // Le préfixe éditeur est porté par le répertoire de tête (`bmad-module-builder`), pas par la
+  // feuille (`setup-skill-template`) : juger la feuille, c'est déclarer « écrit ici » tout asset
+  // qu'un fournisseur imbrique. On écarte donc ce qui est imbriqué sous une compétence déjà vue —
+  // le tri lexicographique garantit que le parent précède ses enfants.
+  const racines = [];
+  for (const chemin of chemins) {
+    if (racines.some((r) => chemin.startsWith(`${r}/`))) continue;
+    racines.push(chemin);
   }
-  for (const e of entrees) {
-    if (!e.isDirectory() || IGNORES.has(e.name)) continue;
-    const rel = dir ? `${dir}/${e.name}` : e.name;
-    if (existsSync(join(ROOT, rel, 'SKILL.md'))) {
-      trouvees.push({ nom: e.name, chemin: rel });
-      continue; // une compétence ne contient pas d'autres compétences
-    }
-    trouverCompetences(rel, trouvees);
-  }
-  return trouvees;
+
+  return racines.map((chemin) => ({ nom: chemin.split('/').pop(), chemin }));
 }
 
-const toutes = trouverCompetences('');
+const toutes = trouverCompetences();
 const ecritesIci = toutes.filter((c) => estEcriteIci(c.nom));
 const canoniques = ecritesIci.filter((c) => c.chemin.startsWith(`${CANONIQUE}/`));
 const parasites = ecritesIci.filter((c) => !c.chemin.startsWith(`${CANONIQUE}/`));
