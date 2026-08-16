@@ -1,7 +1,7 @@
 ---
 id: TCK-314
 title: "Un test de recherche publique ne passe que grâce à l'ORDRE de la suite — et il rougit 3 fois sur 5 en parallèle"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -62,23 +62,23 @@ manifeste alors 3 fois sur 5. **Il bloque la parallélisation** — pas l'invers
 
 ## Delta à produire
 
-- [ ] **Nommer le mécanisme** : quel état d'un test antérieur rend celui-ci vert ? (piste à
+- [x] **Nommer le mécanisme** : quel état d'un test antérieur rend celui-ci vert ? (piste à
       infirmer ou confirmer : `disableSearchSyncing()` / `enableSearchSyncing()` sont des états
       **statiques** de `Laravel\Scout\ModelObserver`, et `Tests\Support\SearchableModels::all()`
       est la liste sur laquelle `TestCase::setUp()` boucle)
-- [ ] Rendre le test **autoportant** — il indexe ce qu'il interroge, donc il porte
+- [x] Rendre le test **autoportant** — il indexe ce qu'il interroge, donc il porte
       `InteractsWithMeilisearch` et appelle `indexProperties()` avant d'interroger l'endpoint
-- [ ] Chercher les **autres** tests qui interrogent une surface de recherche sans porter le concern :
+- [x] Chercher les **autres** tests qui interrogent une surface de recherche sans porter le concern :
       le même trou peut exister ailleurs et se voir aussi peu
-- [ ] Prouver la correction par **ablation** : le test corrigé doit passer SEUL, et échouer si l'on
+- [x] Prouver la correction par **ablation** : le test corrigé doit passer SEUL, et échouer si l'on
       retire l'indexation qu'on vient d'ajouter
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `php artisan test --filter=PropertyIsTestExclusionTest` passe, lancé seul
-- [ ] AC2 — la suite complète séquentielle reste à 0 échec
-- [ ] AC3 — le mécanisme de la dépendance à l'ordre est écrit, pas seulement contourné
-- [ ] AC4 — si d'autres tests présentent le même trou, ils sont listés (corrigés ici ou ticketés)
+- [x] AC1 — `php artisan test --filter=PropertyIsTestExclusionTest` passe, lancé seul
+- [x] AC2 — la suite complète séquentielle reste à 0 échec
+- [x] AC3 — le mécanisme de la dépendance à l'ordre est écrit, pas seulement contourné
+- [x] AC4 — si d'autres tests présentent le même trou, ils sont listés (corrigés ici ou ticketés)
 
 ## Hors périmètre
 
@@ -88,3 +88,29 @@ manifeste alors 3 fois sur 5. **Il bloque la parallélisation** — pas l'invers
 ## Notes d'implémentation
 
 _(Rempli pendant le travail par spec-coder.)_
+
+## Résultat — mesuré le 2026-08-16
+
+**Le mécanisme, nommé (AC3).** Ce n'était pas « l'ordre rallume la synchronisation ». Mesuré :
+`ModelObserver::syncingDisabledFor(new Property)` rend `true` dans une classe sans
+`InteractsWithMeilisearch` — les biens du test n'étaient donc **jamais** indexés, ni seul ni en
+suite. Le test passait par un tout autre chemin :
+
+| | |
+|---|---|
+| l'index gardait les documents **périmés** du test précédent | ids `1, 2` |
+| `RefreshDatabase` rembobine la base, les ids repartent à 1 | ids `1, 2` |
+| `PropertySearchService::hydrate()` recharge les hits **depuis la base, par id** | → rend les lignes du test COURANT |
+
+Sonde : `DBids=1,2  INDEXids=1|2`, et le titre attendu ressortait. **Le test croyait interroger
+Meilisearch ; il faisait de l'arithmétique d'identifiants.** Le `is_test` filtré côté moteur portait
+même la valeur de l'ancien document — juste par coïncidence.
+
+**AC1** — `PropertyIsTestExclusionTest` lancé seul : 4 passés. Avant : 1 échec.
+**AC2** — suite complète séquentielle : **2395 passés, 2 ignorés, 0 échec**, sortie 0, 307 s
+(8 cœurs, `load average` 2,6–3,5 — donc pas au repos strict).
+**AC4** — les **neuf** autres tests du dépôt touchant une surface de recherche ont été relancés
+SEULS : tous passent. Le trou n'existait qu'ici, il n'y a rien à ticketer.
+
+**Ablation** — retirer `indexProperties()` en gardant le concern : `Failed asserting that an array
+contains 'Searchable Real'`. Le correctif est porteur.
