@@ -90,6 +90,13 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     // Creating a request revokes ALL Sanctum tokens, so the throttle on POST
     // is generous; DELETE/GET stay on the default API throttle.
     Route::get('/me/deletion-request', [AccountDeletionController::class, 'show']);
+    // TCK-272 — émission du code e-mail de step-up pour les comptes sans mot
+    // de passe utilisable. Déclarée AVANT `/me/deletion-request` par respect
+    // de la convention du fichier (littéral d'abord) même si aucune des deux
+    // n'est paramétrée. Limiteur NOMMÉ : il n'y a pas de `throttle:api`
+    // global, et un envoi d'e-mail non borné est un canal d'abus.
+    Route::post('/me/deletion-request/step-up', [AccountDeletionController::class, 'sendStepUpCode'])
+        ->middleware('throttle:account-deletion-step-up');
     Route::post('/me/deletion-request', [AccountDeletionController::class, 'store'])
         ->middleware('throttle:5,10');
     Route::delete('/me/deletion-request', [AccountDeletionController::class, 'destroy']);

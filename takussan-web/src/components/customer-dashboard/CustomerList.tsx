@@ -1,8 +1,11 @@
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { UserPlus } from 'lucide-react';
 
 import { CustomerTagChips } from '@/components/customer-dashboard/CustomerTagPicker';
+import { EmptyState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { PaginatedResponse } from '@/types/api';
 import type { CustomerListItem } from '@/types/customer';
@@ -18,7 +21,7 @@ interface CustomerListProps {
 
 export function CustomerList({ page, onTagClick }: CustomerListProps) {
   const { data: customers, meta } = page;
-  if (!customers || customers.length === 0) return <EmptyState />;
+  if (!customers || customers.length === 0) return <CustomersEmpty />;
 
   return (
     <div className="space-y-4">
@@ -154,23 +157,23 @@ function StatusBadge({ status }: { status: CustomerListItem['status'] }) {
   );
 }
 
-function EmptyState() {
+/**
+ * `useTranslations` (et non `getTranslations`) : ce fichier n'a pas de `'use client'` et il est
+ * rendu depuis `app/customers/page.tsx`, un server component. next-intl expose le hook dans les
+ * deux mondes tant que le composant n'est pas `async` — ce qui est le cas ici.
+ */
+function CustomersEmpty() {
+  const t = useTranslations('crm.list');
   return (
-    <div className="flex flex-col items-center justify-center gap-4 rounded-xl bg-app-surface-1 px-6 py-16 text-center">
-      <div className="rounded-full bg-app-surface-2 p-4 text-app-accent">
-        <UserPlus className="size-8" aria-hidden="true" />
-      </div>
-      <p className="text-lg font-semibold text-app-ink">Votre CRM est vide</p>
-      <p className="max-w-md text-sm text-app-ink-muted">
-        Ajoutez vos premiers contacts pour suivre leurs interactions et
-        qualifier leurs intérêts.
-      </p>
-      <Link
-        href="/app/customers/new"
-        className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
-      >
-        Ajouter un client
-      </Link>
-    </div>
+    <EmptyState
+      icon={<UserPlus className="size-8" aria-hidden="true" />}
+      title={t('empty_title')}
+      description={t('empty_description')}
+      action={
+        <Link href="/app/customers/new" className={buttonVariants()}>
+          {t('empty_cta')}
+        </Link>
+      }
+    />
   );
 }

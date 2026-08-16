@@ -112,7 +112,10 @@ export async function fetchAdminAgencyHealth(agencyId: number): Promise<AdminAge
 
 export async function fetchAdminAgencyTeam(agencyId: number): Promise<AdminAgencyTeamResponse> {
   const qs = new URLSearchParams();
-  qs.set('include', 'roles');
+  // TCK-278 — PAS d'`include=roles` : `roles` n'est plus une relation Eloquent
+  // (spatie/laravel-permission est désinstallé) et cet endpoint est monté sur
+  // `User::buildQuery()`, qui répond `400 InvalidIncludeQuery` sur un include
+  // non déclaré. Le backend renvoie déjà `roles` dans le payload.
   qs.set('fields[users]', 'id,first_name,last_name,email,status,last_login_at');
   qs.set('per_page', '10');
   const res = await fetch(`/api/super-admin/agencies/${agencyId}/team?${qs.toString()}`, {
@@ -322,7 +325,9 @@ export async function postImpersonate(targetUserId: number): Promise<Impersonati
 export async function fetchAdminUserDetail(userId: number): Promise<AdminUserDetailResponse> {
   const qs = new URLSearchParams();
   qs.set('fields[users]', 'id,username,first_name,last_name,email,phone,status,preferred_language,timezone,last_login_at,created_at');
-  qs.set('include', 'roles');
+  // TCK-278 — include mort : `roles` n'existe plus comme relation. Inoffensif
+  // ici (l'endpoint n'utilise pas `buildQuery`), mais c'est le même paramètre
+  // qui produit un 400 sur `/team` — on ne le laisse pas traîner comme modèle.
   const res = await fetch(`/api/super-admin/users/${userId}?${qs.toString()}`, {
     credentials: 'include',
   });

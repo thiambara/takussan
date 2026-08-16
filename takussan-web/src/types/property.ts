@@ -176,3 +176,43 @@ export interface PropertyCompareResponse {
     returned_ids: number[];
   };
 }
+
+/**
+ * Response shape for `GET /api/public/properties/discovery` (TCK-247) — the
+ * four homepage rows in a single round-trip, already deduplicated server-side
+ * (`featured` excepted: it is a curated row and may overlap the others).
+ */
+export interface HomepageDiscoveryRow {
+  items: PropertyListItem[];
+}
+
+export interface HomepageDiscoveryNearRow extends HomepageDiscoveryRow {
+  /**
+   * The city the row actually contains, spelled as the catalogue spells it —
+   * NOT as the visitor's geolocation spelled it. This is what the row title
+   * prints.
+   */
+  city: string;
+  /** The city guessed for the visitor, `null` when we had no idea where they are. */
+  requested_city: string | null;
+  /**
+   * `true` when the visitor's city held too few listings and the row switched
+   * wholesale to `city`. The title must say so — a row headed « Près de toi ·
+   * à Ziguinchor » full of Dakar listings is simply false. Never `true` when
+   * `requested_city` is `null`: not knowing is the nominal default, not a
+   * fallback.
+   */
+  fallback: boolean;
+}
+
+export interface HomepageDiscoveryData {
+  near: HomepageDiscoveryNearRow;
+  rent: HomepageDiscoveryRow;
+  featured: HomepageDiscoveryRow;
+  latest: HomepageDiscoveryRow;
+}
+
+export interface HomepageDiscoveryResponse {
+  data: HomepageDiscoveryData;
+  meta: { per_row: number };
+}

@@ -44,9 +44,13 @@ class DashboardAgencyController extends Controller
             403,
         );
 
-        // Reporting cross-équipe réservé aux agences `standard` (cf.
-        // features.md §2.2). Les autres dashboards (agent/owner/tenant)
-        // restent ouverts car ils ne sont pas cross-team.
+        // Reporting cross-équipe réservé aux agences `standard` — cf.
+        // features.md **§1.12** (« Agence & équipe », la liste des restrictions
+        // d'une agence `individual` : « pas de reporting cross-équipe »). La
+        // référence à §2.2 qui figurait ici renvoyait à « Rôles & permissions »,
+        // qui ne dit rien du `kind` : corrigée par TCK-284. Les autres
+        // dashboards (agent/owner/tenant) restent ouverts car ils ne sont pas
+        // cross-team.
         abort_unless(
             $agency->kind === AgencyKind::Standard,
             403,

@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   FileText,
   Share2,
@@ -17,6 +17,7 @@ import {
   FileCheck2,
 } from 'lucide-react';
 
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ApiError } from '@/lib/api';
@@ -173,18 +174,14 @@ export function DocumentsLibrary() {
             {error instanceof ApiError ? error.displayMessage : 'Impossible de charger les documents.'}
           </p>
         ) : grouped.length === 0 ? (
-          <EmptyState
+          <DocumentsEmpty
             onUpload={() => setUploadOpen(true)}
             dragOver={dragOver}
             owner={ownerEmptyState}
           />
         ) : (
           <div className="space-y-5">
-            {deleteError ? (
-              <p role="alert" className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
-                {deleteError}
-              </p>
-            ) : null}
+            {deleteError ? <ErrorState message={deleteError} /> : null}
             {grouped.map(([category, docs]) => (
               <section key={category}>
                 <header className="mb-2 flex items-center gap-2">
@@ -227,7 +224,13 @@ export function DocumentsLibrary() {
   );
 }
 
-function EmptyState({
+/**
+ * ⚠ Ce cas n'est PAS mécanique. La branche `owner && !dragOver` délègue à `OwnerEmptyState`, qui
+ * rend une grille d'exemples et de cibles de rattachement : la faire entrer dans la signature
+ * `{icon, title, description, action}` détruirait de la fonctionnalité. Seule la branche simple
+ * passe par le composant partagé ; `OwnerEmptyState` reste tel quel, et part au ticket de suite.
+ */
+function DocumentsEmpty({
   onUpload,
   dragOver,
   owner,
@@ -236,23 +239,26 @@ function EmptyState({
   readonly dragOver: boolean;
   readonly owner: boolean;
 }) {
+  const t = useTranslations('documents.library');
+
   if (owner && !dragOver) {
     return <OwnerEmptyState onUpload={onUpload} />;
   }
 
   return (
-    <div className="flex flex-col items-center justify-center gap-3 rounded-xl bg-app-surface-1 px-6 py-12 text-center text-sm text-app-ink-muted">
-      <UploadCloud className="size-8 text-app-accent" aria-hidden="true" />
-      <p className="max-w-md">
-        {dragOver
-          ? 'Relâchez pour téléverser ce fichier.'
-          : 'Aucun document pour le moment. Glissez-déposez un fichier ou utilisez le bouton ci-dessous.'}
-      </p>
-      <Button type="button" variant="outline" onClick={onUpload}>
-        <Plus className="mr-1 size-4" aria-hidden="true" />
-        Téléverser un document
-      </Button>
-    </div>
+    <EmptyState
+      icon={<UploadCloud className="size-8" aria-hidden="true" />}
+      title={dragOver ? t('drop_title') : t('empty_title')}
+      description={dragOver ? t('drop_description') : t('empty_description')}
+      action={
+        dragOver ? undefined : (
+          <Button type="button" variant="outline" onClick={onUpload}>
+            <Plus className="mr-1 size-4" aria-hidden="true" />
+            {t('upload_cta')}
+          </Button>
+        )
+      }
+    />
   );
 }
 

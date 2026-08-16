@@ -41,12 +41,12 @@ export function Footer({ className }: FooterProps) {
             <h4 className="font-bold text-lg mb-4">{t('discoverHeading')}</h4>
             <ul className="space-y-3">
               {footerLinks.discover.map((link) => (
-                <li key={link.label}>
+                <li key={link.labelKey}>
                   <a
                     href={link.href}
                     className="text-slate-400 hover:text-white transition-colors"
                   >
-                    {link.label}
+                    {t(`discover.${link.labelKey}`)}
                   </a>
                 </li>
               ))}

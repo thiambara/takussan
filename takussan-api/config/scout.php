@@ -1,8 +1,12 @@
 <?php
 
+use App\Models\Agency;
+use App\Models\Customer;
 use App\Models\Document;
+use App\Models\MaintenanceRequest;
 use App\Models\Message;
 use App\Models\Property;
+use App\Models\User;
 
 return [
 
@@ -169,6 +173,28 @@ return [
                 'searchableAttributes' => ['title', 'description'],
                 'filterableAttributes' => ['type', 'documentable_type', 'documentable_id', 'uploaded_by', 'created_at'],
                 'sortableAttributes' => ['created_at'],
+                'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
+            ],
+            // TCK-281 — entites internes. Le callback `filter[search]` ne fait
+            // que `::search()->keys()` : aucun attribut filtrable ni triable
+            // n'est necessaire cote moteur, l'isolation tenant reste entiere-
+            // ment cote Eloquent (intersection `$base ∩ whereIn(ids)`).
+            // L'ordre de `searchableAttributes` EST une regle de classement
+            // (regle `attribute`) : le champ le plus discriminant d'abord.
+            Customer::class => [
+                'searchableAttributes' => ['first_name', 'last_name', 'email', 'phone'],
+                'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
+            ],
+            MaintenanceRequest::class => [
+                'searchableAttributes' => ['title', 'description'],
+                'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
+            ],
+            Agency::class => [
+                'searchableAttributes' => ['name', 'email', 'license_number'],
+                'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
+            ],
+            User::class => [
+                'searchableAttributes' => ['first_name', 'last_name', 'email', 'username', 'phone'],
                 'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
             ],
         ],

@@ -48,6 +48,8 @@ export function Navbar({ className }: NavbarProps) {
   const searchParams = useSearchParams();
   const { user, isLoading, setUser } = useAuth();
   const t = useTranslations('nav');
+  const tCategories = useTranslations('nav.categories');
+  const tLinks = useTranslations('nav.links');
   const TRANSACTION_OPTIONS = [
     { value: 'Acheter', label: t('buy') },
     { value: 'Louer', label: t('rent') },
@@ -220,7 +222,7 @@ export function Navbar({ className }: NavbarProps) {
                     }`}
                 >
                   <Icon className="w-[18px] h-[18px]" />
-                  <span className="text-[11px] font-semibold whitespace-nowrap">{cat.name}</span>
+                  <span className="text-[11px] font-semibold whitespace-nowrap">{tCategories(cat.nameKey)}</span>
                 </button>
               );
             })}
@@ -259,7 +261,7 @@ export function Navbar({ className }: NavbarProps) {
                       >
                         <Icon className="w-[18px] h-[18px] shrink-0" />
                         <div className="min-w-0">
-                          <p className="text-[12px] font-semibold leading-none truncate">{cat.name}</p>
+                          <p className="text-[12px] font-semibold leading-none truncate">{tCategories(cat.nameKey)}</p>
                           {count !== undefined && (
                             <p className="text-[10px] text-gray-400 mt-0.5">{t('propertiesCount', { count })}</p>
                           )}
@@ -427,7 +429,7 @@ export function Navbar({ className }: NavbarProps) {
                         }`}
                     >
                       <Icon className="w-5 h-5" />
-                      <span className="text-xs font-semibold whitespace-nowrap">{cat.name}</span>
+                      <span className="text-xs font-semibold whitespace-nowrap">{tCategories(cat.nameKey)}</span>
                     </button>
                   );
                 })}
@@ -438,13 +440,13 @@ export function Navbar({ className }: NavbarProps) {
           <div className="flex flex-col px-6 py-3 gap-4 border-t border-gray-100">
             {navLinks.map((link) => (
               <a
-                key={link.label}
+                key={link.labelKey}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
                 className={`font-semibold text-base transition-colors ${link.active ? 'text-primary' : 'text-slate-700 hover:text-primary'
                   }`}
               >
-                {link.label}
+                {tLinks(link.labelKey)}
               </a>
             ))}
           </div>

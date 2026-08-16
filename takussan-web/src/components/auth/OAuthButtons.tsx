@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { oauthProviders, oauthRedirect, type OAuthProvider } from '@/lib/auth';
+import { useTranslations } from 'next-intl';
 
 type Provider = {
   id: OAuthProvider;
-  label: string;
+  /** Nom propre du fournisseur — il ne se traduit pas ; c'est la phrase autour qui se traduit. */
+  name: string;
   Icon: () => React.ReactElement;
 };
 
@@ -54,12 +56,13 @@ function FacebookIcon() {
 }
 
 const PROVIDERS: Provider[] = [
-  { id: 'google', label: 'Continuer avec Google', Icon: GoogleIcon },
-  { id: 'apple', label: 'Continuer avec Apple', Icon: AppleIcon },
-  { id: 'facebook', label: 'Continuer avec Facebook', Icon: FacebookIcon },
+  { id: 'google', name: 'Google', Icon: GoogleIcon },
+  { id: 'apple', name: 'Apple', Icon: AppleIcon },
+  { id: 'facebook', name: 'Facebook', Icon: FacebookIcon },
 ];
 
 export function OAuthButtons() {
+  const t = useTranslations('auth.oauth');
   const [pending, setPending] = useState<OAuthProvider | null>(null);
   const [error, setError] = useState('');
   const [availableProviders, setAvailableProviders] = useState<Set<OAuthProvider> | null>(null);
@@ -81,14 +84,14 @@ export function OAuthButtons() {
       .catch(() => {
         if (!cancelled) {
           setAvailableProviders(new Set());
-          setError("Impossible de charger les fournisseurs d'authentification.");
+          setError(t('loadFailed'));
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   async function handleClick(provider: OAuthProvider) {
     setError('');
@@ -97,7 +100,7 @@ export function OAuthButtons() {
       const { redirect_url } = await oauthRedirect(provider);
       window.location.assign(redirect_url);
     } catch {
-      setError("Impossible d'initier la connexion. Réessayez dans quelques instants.");
+      setError(t('startFailed'));
       setPending(null);
     }
   }
@@ -105,9 +108,9 @@ export function OAuthButtons() {
   return (
     <div className="space-y-3">
       {availableProviders === null ? (
-        <p className="text-center text-xs text-muted-foreground">Chargement des fournisseurs…</p>
+        <p className="text-center text-xs text-muted-foreground">{t('loading')}</p>
       ) : null}
-      {PROVIDERS.filter(({ id }) => availableProviders?.has(id)).map(({ id, label, Icon }) => (
+      {PROVIDERS.filter(({ id }) => availableProviders?.has(id)).map(({ id, name, Icon }) => (
         <Button
           key={id}
           type="button"
@@ -121,13 +124,11 @@ export function OAuthButtons() {
           ) : (
             <Icon />
           )}
-          <span>{label}</span>
+          <span>{t('continueWith', { provider: name })}</span>
         </Button>
       ))}
       {availableProviders?.size === 0 && !error ? (
-        <p className="text-center text-xs text-muted-foreground">
-          Aucun fournisseur OAuth n&apos;est configuré sur cet environnement.
-        </p>
+        <p className="text-center text-xs text-muted-foreground">{t('noneConfigured')}</p>
       ) : null}
       {error && (
         <p className="text-xs text-destructive text-center" role="alert">
@@ -138,7 +139,11 @@ export function OAuthButtons() {
   );
 }
 
-export function OAuthSeparator({ label = 'ou continuer avec email' }: { readonly label?: string }) {
+export function OAuthSeparator({ label }: { readonly label?: string }) {
+  // Le défaut ne peut plus être une valeur de paramètre : `t()` n'est appelable que dans le corps.
+  const t = useTranslations('auth.oauth');
+  const texte = label ?? t('separator');
+
   return (
     <div className="relative my-6">
       <div className="absolute inset-0 flex items-center" aria-hidden="true">
@@ -146,7 +151,7 @@ export function OAuthSeparator({ label = 'ou continuer avec email' }: { readonly
       </div>
       <div className="relative flex justify-center text-xs">
         <span className="bg-background px-3 text-muted-foreground uppercase tracking-wider">
-          {label}
+          {texte}
         </span>
       </div>
     </div>

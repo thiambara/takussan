@@ -8,9 +8,15 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\ApiTestCase;
+use Tests\Concerns\InteractsWithMeilisearch;
 
 class AgencyTest extends ApiTestCase
 {
+    // TCK-281 — `Agency` est desormais `Searchable` : `filter[search]` passe
+    // par Meilisearch, et la synchronisation Scout est coupee par defaut pour
+    // toute la suite (cf. Tests\TestCase). Sans ce concern, rien n'est indexe
+    // et la recherche cherche dans le vide.
+    use InteractsWithMeilisearch;
     use RefreshDatabase;
 
     public function test_creates_and_lists_agencies(): void
@@ -34,6 +40,7 @@ class AgencyTest extends ApiTestCase
         $this->apiActingAsRole('super_admin');
         $agencyA = Agency::factory()->create(['name' => 'Alpha Scope']);
         $agencyB = Agency::factory()->create(['name' => 'Beta Scope']);
+        $this->indexSearchable(Agency::class);
 
         $names = collect($this->getJson('/api/agencies?fields[agencies]=id,name,slug&filter[search]=Scope&sort=name&per_page=50')
             ->assertOk()

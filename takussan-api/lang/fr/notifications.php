@@ -123,6 +123,17 @@ return [
         'ignore' => 'Si vous n\'êtes pas à l\'origine de cette demande, annulez-la immédiatement et changez votre mot de passe.',
     ],
 
+    // TCK-272 — code de step-up pour les comptes sans mot de passe
+    // utilisable (OAuth, invitation, provisioning). Pas de lien cliquable :
+    // c'est la confirmation d'un acte destructif, pas une invitation à agir.
+    'account_deletion_step_up' => [
+        'subject' => 'Votre code de confirmation de suppression de compte',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Voici le code à saisir pour confirmer la suppression de votre compte :',
+        'expires' => 'Ce code est valable :minutes minutes et ne peut servir qu\'une seule fois.',
+        'ignore' => 'Si vous n\'êtes pas à l\'origine de cette demande, ignorez cet e-mail : sans ce code, rien ne sera supprimé.',
+    ],
+
     'account_deletion_reminder' => [
         'subject' => 'Rappel : suppression de compte dans :days jours',
         'greeting' => 'Bonjour,',

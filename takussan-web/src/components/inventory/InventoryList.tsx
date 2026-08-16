@@ -2,10 +2,12 @@
 
 import Link from 'next/link';
 import { useMemo, useState, useCallback } from 'react';
-import { useLocale } from 'next-intl';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
+import { ChevronLeft, ChevronRight, ClipboardList } from 'lucide-react';
 
+import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
+import { buttonVariants } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -34,6 +36,7 @@ import { InventoryStatusBadge, InventoryTypeBadge } from './InventoryBadges';
 
 export function InventoryList() {
   const locale = useLocale() as Locale;
+  const t = useTranslations('inventory.list');
   const [type, setType] = useState<'' | InventoryType>('');
   const [status, setStatus] = useState<'' | InventoryStatus>('');
   const [page, setPage] = useState(1);
@@ -98,14 +101,16 @@ export function InventoryList() {
         {(data) => {
           if (data.data.length === 0) {
             return (
-              <div className="rounded-2xl bg-app-surface-1 p-10 text-center">
-                <p className="text-sm font-semibold text-app-ink">
-                  Aucun état des lieux
-                </p>
-                <p className="mt-1 text-xs text-app-ink-muted">
-                  Créez un état des lieux depuis un bail actif.
-                </p>
-              </div>
+              <EmptyState
+                icon={<ClipboardList className="size-8" aria-hidden="true" />}
+                title={t('empty_title')}
+                description={t('empty_description')}
+                action={
+                  <Link href="/app/leases" className={buttonVariants()}>
+                    {t('empty_cta')}
+                  </Link>
+                }
+              />
             );
           }
           return (

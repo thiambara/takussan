@@ -13,6 +13,13 @@ import type { AccountDeletionRequest } from '@/lib/account-deletion';
 
 interface Props {
   twoFactorEnabled: boolean;
+  /**
+   * TCK-272 — vient de `/api/auth/me`. Le défaut de l'appelant est `true`
+   * (parcours mot de passe) : `useAuth()` ne lève pas hors provider et rend
+   * `user === null`, or un défaut `false` afficherait le parcours par code
+   * — le plus faible — à tout le monde le temps d'un chargement.
+   */
+  hasUsablePassword: boolean;
 }
 
 /**
@@ -22,7 +29,7 @@ interface Props {
  *  - Pending request: shows the scheduled date + a cancel button (the
  *    full-page banner is rendered separately in the layout).
  */
-export function AccountDeletionSection({ twoFactorEnabled }: Props) {
+export function AccountDeletionSection({ twoFactorEnabled, hasUsablePassword }: Props) {
   const t = useTranslations('account.deletion.section');
   const tDialog = useTranslations('account.deletion.dialog');
   const tBanner = useTranslations('account.deletion.banner');
@@ -100,6 +107,7 @@ export function AccountDeletionSection({ twoFactorEnabled }: Props) {
         open={open}
         onOpenChange={setOpen}
         twoFactorEnabled={twoFactorEnabled}
+        hasUsablePassword={hasUsablePassword}
         onScheduled={handleScheduled}
       />
     </div>

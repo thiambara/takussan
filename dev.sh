@@ -729,7 +729,10 @@ echo
 bold "▸ Takussan — environnement de développement"
 [ -n "$WEB_PORT" ] && lien "Front (Next.js)" "http://localhost:$WEB_PORT"
 lien "API (Laravel)" "http://127.0.0.1:$API_PORT/api"
-lien "Filament (admin)" "http://127.0.0.1:$API_PORT/admin"
+# Pas de lien « Filament (admin) » : le panel monté sur `/admin` du domaine de
+# l'API a été supprimé (TCK-287, ADR-0013) — il n'y a qu'un back-office, et il
+# est en Next.js. Le laisser affiché envoyait le développeur sur un 404 en lui
+# faisant chercher une panne dans un panel qui n'existe plus.
 lien "Mailpit (courrier de dev)" "http://localhost:${TAKUSSAN_MAILPIT_UI_PORT:-8026}"
 lien "Meilisearch" "http://127.0.0.1:${TAKUSSAN_MEILI_PORT:-7701}"
 echo "  MySQL 127.0.0.1:${TAKUSSAN_DB_PORT:-3307} · Redis 127.0.0.1:${TAKUSSAN_REDIS_PORT:-6380}"

@@ -5,6 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppTopbar } from '../AppTopbar';
 import { NotificationBell } from '../NotificationBell';
 import type { User } from '@/types/user';
+// TCK-286 — `AppTopbar` et `NotificationBell` passent par next-intl : sans provider, le rendu
+// lève. Les assertions ci-dessous sont INCHANGÉES, le dictionnaire fr rend les mêmes libellés.
+import { withIntl } from '@/test/intl';
 
 const getNotificationsMock = vi.fn();
 const markReadMock = vi.fn();
@@ -82,7 +85,7 @@ function wrap(ui: React.ReactElement) {
     defaultOptions: { queries: { retry: false } },
   });
 
-  return <QueryClientProvider client={client}>{ui}</QueryClientProvider>;
+  return withIntl(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
 describe('<NotificationBell>', () => {

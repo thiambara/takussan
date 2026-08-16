@@ -223,13 +223,38 @@ pas dans `Model/`.**
 
 ## Recherche
 
-Seuls **3 modèles** sont `Searchable` : `Property`, `Document`, `Message`. Le driver est
-`SCOUT_DRIVER` (`meilisearch` en développement docker, en CI et en production ; `collection` est un
-défaut historique qui ne prouve rien — il filtre en PHP sur une collection Eloquent).
+**7 modèles** sont `Searchable` : `Property`, `Document`, `Message`, et — depuis TCK-281 —
+`Customer`, `MaintenanceRequest`, `Agency`, `User`. **Ne pas recopier cette liste ailleurs** : elle
+se dérive du code (`Tests\Support\SearchableModels`, et `grep -rl 'use Laravel\Scout\Searchable'
+app/Models`). Le driver est `SCOUT_DRIVER` (`meilisearch` en développement docker, en CI et en
+production ; `collection` est un défaut historique qui ne prouve rien — il filtre en PHP sur une
+collection Eloquent).
 
-`BaseModelTrait::scopeWithSearch()` compose Scout et Eloquent par un `whereIn` sur les ids : **l'ordre
-de pertinence de Scout n'est pas préservé**, et le docblock le dit (lignes 52-60). Ne pas promettre
-un classement par pertinence sur ce chemin.
+**Deux chemins composent Scout et Eloquent, et ils ne se valent PAS :**
+
+| Chemin | Ordre de pertinence |
+|---|---|
+| `BaseModelTrait::scopeWithSearch()` — le DSL maison, usages internes | **perdu** (`whereIn`, docblock lignes 52-60) |
+| `HasQueryBuilder` `filter[search]` — toute surface d'API | **restitué** (TCK-281) |
+
+Sur le second chemin, le callback mémorise l'ordre des ids rendus par Meilisearch
+(`HasQueryBuilder::$searchRelevanceIds`) et le contrôleur le rejoue via
+`Model::defaultSortsWithRelevance('-created_at')` → `App\Sorts\SearchRelevanceSort`, un `CASE`
+portable SQLite/MySQL (`FIELD()` n'existe pas en SQLite). **Le résultat se passe à `defaultSorts()`,
+jamais à `allowedSorts()`** : un `sort=` explicite du client reste souverain, la pertinence n'agit
+qu'à défaut.
+
+⚠️ **Un contrôleur qui écrit `->defaultSort(…)` en dur sur un modèle `Searchable` reprend la
+recherche tolérante aux fautes et jette le classement.** C'était l'état d'avant TCK-281, et il
+cochait un AC sans le tenir.
+
+⚠️ **Le cap `HasQueryBuilder::SEARCH_ID_CAP` (5000) échoue en silence** : Meilisearch rend au plus
+5000 ids **globaux** *avant* l'intersection avec le scope tenant. Une correspondance de l'agence de
+l'appelant classée au-delà de ce rang global disparaît sans message ni compteur tronqué.
+
+⚠️ **Les consoles super-admin (`/api/admin/agencies`, `/api/admin/users`) n'empruntent aucun des deux
+chemins** : elles écrivent leur propre `LIKE` SQL. Elles restent strictes, par choix (TCK-281,
+« Hors périmètre ») — pas par oubli.
 
 ## Tâches planifiées
 
@@ -257,10 +282,34 @@ un incident qui n'arrive qu'en production.
 > `ApiTestCase`.
 
 > ⚠️ Les tests visent l'instance Meilisearch **réelle** du développeur : `phpunit.xml` ne définit
-> pas `MEILISEARCH_HOST`, donc c'est celui du `.env` qui sert. Ils n'en écrasent plus les index —
-> `SCOUT_PREFIX=testing_` y a été ajouté, et `api-ci.yml` l'aligne sur ses deux étapes Scout — mais
-> l'isolation s'arrête au nom des index : deux suites lancées en parallèle sur la même instance se
-> marchent toujours dessus (dette D-08).
+> pas `MEILISEARCH_HOST`, donc c'est celui du `.env` qui sert.
+
+### Déterminisme du harnais — ce qui a été payé, et ce qu'il ne faut pas défaire
+
+La suite **basculait**. Lancée seule : 2056 verts. Lancée pendant qu'une autre tournait : 12 échecs,
+puis 4 sur un ensemble **différent**, sans qu'un fichier n'ait changé. Un test rouge y était
+indiscernable d'une régression. Quatre mécanismes, tous dans `tests/`, l'ont fermé — **les défaire
+rouvre la panne, et elle ne se voit qu'au hasard du tempo** :
+
+1. **`waitForMeilisearch()` LÈVE sur expiration.** Elle retournait normalement quand les 10 s
+   s'écoulaient — sans exception, sans assertion, sans trace — et le test enchaînait sur un index à
+   moitié construit. C'est la ligne qui a coûté le plus cher : *une barrière de synchronisation qui
+   abandonne en silence transforme une course en test rouge aléatoire.* La logique est extraite dans
+   `tests/Support/MeilisearchBarrier.php`, testable sans moteur, et son message dit combien de
+   tâches restaient, sur quels index, et depuis quand.
+2. **La liste des modèles indexés est DÉRIVÉE** (`tests/Support/SearchableModels.php`), plus
+   recopiée. La version manuelle valait `[Property, Document]` et avait oublié `Message` : ses
+   documents n'étaient jamais purgés entre deux tests.
+3. **La synchronisation Scout est coupée par défaut** dans `Tests\TestCase::setUp()`, et rallumée
+   par le seul `InteractsWithMeilisearch`. Avant, `SCOUT_DRIVER=meilisearch` + `SCOUT_QUEUE=false`
+   faisaient qu'un `save()` de n'importe quel test poussait un document : 3308 tâches par exécution,
+   dont 2628 sur l'index des biens. **Un test de recherche neuf doit porter le concern** — sans lui,
+   il n'indexe plus. La suite y a gagné 45 % de durée (313 s → 173 s).
+4. **Tout ce qui est partagé par machine est préfixé par processus** (`tests/bootstrap.php`) : les
+   index Meilisearch (`testing_<token>_`, cf. `TestSearchIndex`) et la racine des disques
+   `Storage::fake()` (via `TEST_TOKEN`, cf. `TestFilesystemIsolation`). Les deux se nettoient à
+   l'extinction du processus. `SCOUT_PREFIX` n'est **plus** déclaré dans `phpunit.xml` ni dans
+   `api-ci.yml` : le réintroduire re-figerait le préfixe et re-casserait l'isolation.
 
 ## Style
 
@@ -269,9 +318,19 @@ défaut. Rien n'impose la règle — pas de hook, pas de script — et c'est une
 fichier qui a bloqué toute la CI du 2026-06-29 au 2026-08-12, tests compris (Pint s'exécute *avant*
 `Run tests`).
 
-## Filament — statut ambigu
+## Il n'y a pas de back-office PHP — et « admin » désigne trois choses
 
-Le panel est monté sur `/admin` avec `->login()`, pour **une seule Resource** (Property, 6 fichiers),
-alors que le back-office réel est en Next.js. Il n'est protégé par **aucun** middleware `super-admin`
-et `User` n'implémente pas `FilamentUser`. C'est soit une dette à supprimer, soit une décision à
-assumer — voir l'ardoise (D-41). **Ne pas construire dessus sans trancher.**
+**Filament a été supprimé le 2026-08-15** (TCK-287, ardoise D-41) : 7 fichiers de code, 2 racines
+composer, 29 paquets transitifs et 37 fichiers d'assets. Il montait un panel sur `/admin` pour une
+**seule** Resource, alors que l'administration réelle vit en Next.js. Ne pas le réintroduire sans
+ADR.
+
+Le mot « admin » recouvre trois surfaces distinctes dans ce produit, et les confondre coûte cher :
+
+| Surface | Où | Qui |
+|---|---|---|
+| **Admin d'agence** | front, `/admin/*` — 10 pages | le patron d'une agence, sur **son** agence |
+| **Super-admin** | front, `/super-admin/*` — 26 pages | l'équipe Takussan, sur **la plateforme** |
+| **`/api/admin/*`** | back, gardé par le middleware alias `super-admin` | l'API qui sert la console super-admin |
+
+Le disparu s'appelait `/admin` **sur le domaine de l'API** — d'où la confusion. Il n'en reste rien.

@@ -22,6 +22,10 @@ class Invoice extends AbstractModel
         'reference_number', 'status',
         'issue_date', 'due_date',
         'subtotal', 'tax_rate', 'tax_amount', 'total_amount', 'currency',
+        // TCK-285 / D-51 — `PaymentGatewayService::recordInitiation()` les écrit par `fill()`,
+        // qui respecte cette liste : hors de `$fillable`, l'identifiant de transaction serait
+        // silencieusement ignoré et le webhook ne retrouverait jamais la facture.
+        'transaction_id', 'payment_method',
         'notes', 'metadata',
         'last_reminder_sent_at', 'reminders_sent_count',
         'bank_reconciled_at', 'bank_statement_line_id',

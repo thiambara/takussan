@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 /**
  * Auth layout — centered form panel with a visual panel on desktop.
@@ -13,22 +15,30 @@ import Link from 'next/link';
  *
  * SEO: noindex for all auth pages — these are transactional.
  */
-export const metadata: Metadata = {
-  title: {
-    template: '%s — Takussan',
-    default: 'Authentification — Takussan',
-  },
-  robots: { index: false, follow: false },
-};
+// `metadata` est une constante figée à la compilation : elle ne peut pas voir la locale de la
+// requête. `generateMetadata` le peut, et c'est la seule primitive qui traduise un titre d'onglet.
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('auth.meta');
+  return {
+    title: {
+      template: t('template'),
+      default: t('default'),
+    },
+    robots: { index: false, follow: false },
+  };
+}
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
+  const t = useTranslations('auth.layout');
+  const tCommon = useTranslations('common');
+
   return (
     <div className="min-h-screen grid lg:grid-cols-[45%_55%]">
       {/* Visual panel — desktop left */}
       <div className="relative hidden lg:block">
         <Image
           src="https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1600&auto=format&fit=crop"
-          alt="Villa contemporaine au Sénégal"
+          alt={t('visualAlt')}
           fill
           priority
           className="object-cover"
@@ -40,15 +50,13 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             href="/"
             className="font-headline font-bold text-2xl tracking-tight hover:opacity-90 transition-opacity"
           >
-            Takussan
+            {tCommon('appName')}
           </Link>
           <div>
             <h2 className="font-headline text-4xl font-bold mb-3 leading-tight">
-              Votre porte d&apos;entrée vers l&apos;immobilier du Sénégal.
+              {t('headline')}
             </h2>
-            <p className="text-white/85 max-w-md text-base">
-              Des milliers de biens, une expérience soignée, des partenaires de confiance.
-            </p>
+            <p className="text-white/85 max-w-md text-base">{t('subheadline')}</p>
           </div>
         </div>
       </div>
@@ -69,7 +77,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             href="/"
             className="absolute top-6 left-6 font-headline font-bold text-xl tracking-tight text-white"
           >
-            Takussan
+            {tCommon('appName')}
           </Link>
         </div>
 
