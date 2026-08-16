@@ -204,6 +204,27 @@ rm -rf "${RELEASE_DIR}/takussan-api/node_modules"
 log "Running database migrations..."
 php artisan migrate --force
 
+# ─── Step 6a-bis: Reconcile agency system roles (TCK-317, ADR-0014) ──────────
+# The capability catalogue is defined in code (`Capability` +
+# `SystemRoleCapabilities`) but MATERIALISED as rows in
+# `agency_role_capabilities`, seeded once per agency. Without this step, a
+# capability added to the enum reaches every agency created AFTER the deploy
+# and none of those created BEFORE — silently, because nothing compares the
+# two. Measured 2026-08-16: re-running the seeder on an existing agency was a
+# no-op (42 rows → 41 after deleting one, not restored).
+#
+# Idempotent and ADDITIVE: it never removes a capability, and never touches a
+# custom role — diverging from the catalogue is exactly what a custom role is
+# for. A no-op run costs one query per system role.
+#
+# Non-fatal by design: a stale role grants FEWER rights than intended, which
+# is the safe direction. It must not roll back an otherwise healthy deploy —
+# but it is logged loudly, and the CI guard
+# (`SystemRoleDriftTest::test_guard_…`) fails on any divergence.
+log "Reconciling agency system roles with the capability catalogue..."
+php artisan membership:reconcile-system-roles \
+    || log "WARNING: membership:reconcile-system-roles failed — system roles may lag the catalogue until the next deploy."
+
 # ─── Step 6b: Sync Meilisearch index settings ────────────────────────────────
 # Pushes searchable/filterable/sortable attributes + ranking rules from
 # config/scout.php to Meilisearch. Idempotent — safe to run on every deploy
