@@ -24,6 +24,15 @@ export type User = {
   phone_verified_at: string | null;
   two_factor_enabled: boolean;
   /**
+   * TCK-272 — `false` quand le hash stocké côté API est une valeur machine
+   * (inscription OAuth, invitation acceptée sans mot de passe, compte
+   * provisionné par la plateforme). Le step-up de suppression de compte
+   * passe alors par un code à 6 chiffres envoyé par e-mail. **Le backend
+   * est seul arbitre** : ce champ ne sert qu'à afficher le bon parcours,
+   * jamais à décider ce qui est accepté.
+   */
+  has_usable_password?: boolean;
+  /**
    * TCK-263 / TCK-264 — set to true on bootstrap or super-admin coopt
    * acceptance, flipped back to false once the freshly-onboarded user
    * has confirmed their TOTP factor. Frontend gates the super-admin

@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OAuthButtons } from '../OAuthButtons';
+// TCK-286 — le composant passe par next-intl ; seules les enveloppes de rendu changent.
+import { withIntl } from '@/test/intl';
 
 const oauthProvidersMock = vi.fn();
 const oauthRedirectMock = vi.fn();
@@ -31,7 +33,7 @@ describe('OAuthButtons', () => {
       { provider: 'apple', configured: false, missing: ['client_id'] },
     ]);
 
-    render(<OAuthButtons />);
+    render(withIntl(<OAuthButtons />));
 
     expect(screen.getByText('Chargement des fournisseurs…')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Continuer avec Google' })).toBeInTheDocument();
@@ -48,7 +50,7 @@ describe('OAuthButtons', () => {
     ]);
     oauthRedirectMock.mockResolvedValue({ redirect_url: 'https://accounts.google.com/oauth' });
 
-    render(<OAuthButtons />);
+    render(withIntl(<OAuthButtons />));
 
     await user.click(await screen.findByRole('button', { name: 'Continuer avec Google' }));
 

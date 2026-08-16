@@ -2,10 +2,13 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { FileText } from 'lucide-react';
 import { useLeasePropertyOptions, useLeases } from '@/lib/queries/leases';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -46,10 +49,12 @@ export function statusFilterLabel(value: string): string {
 
 export function LeasesList() {
   const locale = useLocale() as Locale;
+  const t = useTranslations('lease.list');
+  const tCommon = useTranslations('common');
   const [status, setStatus] = useState<string>('all');
   const [propertyId, setPropertyId] = useState<string>('all');
   const propertiesQuery = useLeasePropertyOptions();
-  const { data, isLoading, isError } = useLeases({
+  const { data, isLoading, isError, refetch } = useLeases({
     status: status === 'all' ? undefined : status,
     property_id: propertyId === 'all' ? undefined : Number(propertyId),
     per_page: 30,
@@ -68,13 +73,19 @@ export function LeasesList() {
 
   if (isError) {
     return (
-      <p className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
-        Impossible de charger les baux.
-      </p>
+      <ErrorState
+        message={t('error')}
+        onRetry={() => void refetch()}
+        retryLabel={tCommon('actions.retry')}
+      />
     );
   }
 
   const leases = data?.data ?? [];
+  // Le parc distinguait déjà « vraiment vide » de « rien qui corresponde aux filtres ». Un
+  // état vide unique qui perdrait cette nuance ferait régresser l'UX : le message
+  // d'encouragement + CTA de `design-guidelines.md:83` n'a de sens que pour le premier cas.
+  const hasActiveFilters = status !== 'all' || propertyId !== 'all';
 
   return (
     <div className="space-y-4">
@@ -113,9 +124,24 @@ export function LeasesList() {
       </div>
 
       {leases.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-stone-200 bg-white p-8 text-center text-sm text-stone-500">
-          Aucun bail ne correspond à ces filtres.
-        </div>
+        hasActiveFilters ? (
+          <EmptyState
+            icon={<FileText className="size-8" aria-hidden="true" />}
+            title={t('empty_filtered_title')}
+            description={t('empty_filtered_description')}
+          />
+        ) : (
+          <EmptyState
+            icon={<FileText className="size-8" aria-hidden="true" />}
+            title={t('empty_title')}
+            description={t('empty_description')}
+            action={
+              <Link href="/app/leases/new" className={buttonVariants()}>
+                {t('empty_cta')}
+              </Link>
+            }
+          />
+        )
       ) : (
         <ul className="space-y-3">
           {leases.map((lease) => (

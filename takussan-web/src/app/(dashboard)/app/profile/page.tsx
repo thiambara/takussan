@@ -13,6 +13,9 @@ import { ProfileOwnerSection } from '@/components/profile/ProfileOwnerSection';
 import { ProfileAdminSection } from '@/components/profile/ProfileAdminSection';
 import { ProfileSecuritySection } from '@/components/profile/ProfileSecuritySection';
 import { MyProfilesSection } from '@/components/profile/MyProfilesSection';
+// `buttonVariants()` sur un `<Link>`, et non le wrapper polymorphe de shadcn/Radix que le ticket
+// prescrivait : ce dépôt n'a aucune dépendance Radix, cette API n'existe pas ici.
+import { buttonVariants } from '@/components/ui/button';
 
 export default async function ProfilePage() {
   const user = await getMeAction();
@@ -37,7 +40,7 @@ export default async function ProfilePage() {
           </div>
           <Link
             href="/app/profile/notifications"
-            className="rounded-md border border-border bg-white px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
+            className={buttonVariants({ variant: 'outline' })}
           >
             Gérer les préférences
           </Link>
@@ -55,7 +58,7 @@ export default async function ProfilePage() {
             </div>
             <Link
               href="/app/profile/reviews"
-              className="rounded-md border border-border bg-white px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
+              className={buttonVariants({ variant: 'outline' })}
             >
               Voir mes avis
             </Link>

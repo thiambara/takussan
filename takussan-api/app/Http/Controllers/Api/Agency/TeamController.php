@@ -15,8 +15,13 @@ use Illuminate\Http\Request;
  *
  * Returns the AgentProfiles attached to the agency (active members +
  * pending drafts), plus — via the optional `include=user` — the user
- * row that carries display name, email and current spatie role
- * assignment. Soft-deleted (removed) profiles are excluded by default.
+ * row that carries display name and email. Soft-deleted (removed)
+ * profiles are excluded by default.
+ *
+ * TCK-278 — the user row no longer carries a "role assignment": the
+ * membership IS the `AgentProfile` returned here. `spatie/laravel-permission`
+ * is uninstalled (ADR-0002). Only `spatie/laravel-query-builder` remains,
+ * and it is what the next paragraph is about.
  *
  * Spatie/laravel-query-builder takes care of:
  *  - sparse fieldsets (`fields[agent_profiles]=...`)

@@ -38,6 +38,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0010](0010-auth-token-sanctum-en-cookie.md) | Auth par token Sanctum porté par un cookie httpOnly, pas le mode SPA stateful | Accepté |
 | [0011](0011-environnement-de-dev-conteneurise.md) | L'environnement de développement est conteneurisé et calqué sur la production | Accepté |
 | [0012](0012-index-du-backlog-genere.md) | L'index du backlog est généré, jamais maintenu à la main | Accepté |
+| [0013](0013-un-seul-back-office-en-nextjs.md) | Il n'y a qu'un back-office, et il est en Next.js — Filament supprimé | Accepté |
 
 ## Décisions recensées, pas encore rédigées
 
@@ -60,7 +61,6 @@ ouvert.
 | Flux de branches `dev` → `preview` → `master` | les seuls déclencheurs de workflows — cf. ardoise D-04 |
 | Trilingue fr/en/wo propagé par `Accept-Language` | `docs/configuration.md` §3, partiellement |
 | Design system : shadcn style `base-nova` sur `@base-ui/react`, **aucun Radix**, palette « Lin » | `docs/design-guidelines.md` |
-| Filament v4 conservé pour une seule ressource, sans middleware de garde | nulle part — cf. ardoise D-41 |
 
 ## Format
 

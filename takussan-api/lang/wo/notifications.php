@@ -98,6 +98,15 @@ return [
         'ignore' => 'Bu yaa ko sàppal-li, aju ko leegi te soppi sa baatu jubaale.',
     ],
 
+    // TCK-272 — kod bu step-up ngir kont yu amul baatu jubaale bu baax.
+    'account_deletion_step_up' => [
+        'subject' => 'Sa kod bu dëggal suufeelu kont bi',
+        'greeting' => 'Salaam,',
+        'intro' => 'Kod bii ngay bind ngir dëggal suufeelu sa kont :',
+        'expires' => 'Kod bii dina dox :minutes simili te benn yoon rekk lañu ko mëna jëfandikoo.',
+        'ignore' => 'Bu yaa ko sàppal-li, bàyyil e-mail bii : su amul kod bii, dara du suufeel.',
+    ],
+
     'account_deletion_reminder' => [
         'subject' => 'Faalewu : suufeel kont ci :days fan',
         'greeting' => 'Salaam,',

@@ -40,10 +40,17 @@ class UserAdminController extends Controller
             });
         }
 
-        // `filter[role]` is delegated to a Spatie callback on User
-        // (TCK-147) so it's whitelisted and applies even with sparse fields.
-        $paginator = User::buildQuery($base, $request)
-            ->defaultSort('-created_at')
+        // `filter[role]` is delegated to a spatie/laravel-QUERY-BUILDER
+        // callback on User (TCK-147) so it's whitelisted and applies even with
+        // sparse fields. TCK-278 — that callback resolves the role against the
+        // polymorphic profiles, not against any spatie/laravel-permission
+        // table: only the query-builder package is still installed.
+        // TCK-281 — `defaultSortsWithRelevance()` doit être évalué APRÈS
+        // `buildQuery()`, qui est ce qui interroge Meilisearch.
+        $query = User::buildQuery($base, $request);
+
+        $paginator = $query
+            ->defaultSorts(...User::defaultSortsWithRelevance('-created_at'))
             ->paginate();
 
         return $this->json([

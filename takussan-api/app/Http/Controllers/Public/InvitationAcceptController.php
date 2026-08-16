@@ -18,7 +18,9 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  *
  * Two flows:
  *  - Email maps to no User → service creates the User in a transaction,
- *    attaches the spatie role, flips the profile, returns 200.
+ *    materializes the polymorphic profile carried by the invitation
+ *    (TCK-278 — there is no spatie role to attach any more, ADR-0002),
+ *    flips it to active, returns 200.
  *  - Email maps to an existing User → service throws 401 with custom
  *    headers (`X-Invitation-Email`, `X-Invitation-Requires-Login`). The
  *    frontend catches this, prompts the user to log in, then re-hits

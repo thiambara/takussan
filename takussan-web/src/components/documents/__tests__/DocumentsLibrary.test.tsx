@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { DocumentsLibrary } from '../DocumentsLibrary';
+import fr from '@/messages/fr.json';
 import type { Document } from '@/types/document';
 import type { User } from '@/lib/auth';
 
@@ -58,10 +59,9 @@ vi.mock('@/lib/queries/documents', async () => {
 
 function wrap(ui: React.ReactElement) {
   return (
-    <NextIntlClientProvider
-      locale="fr"
-      messages={{ common: { actions: { close: 'Fermer' } } }}
-    >
+    // Dictionnaire RÉEL depuis TCK-246 : l'état vide générique passe désormais par
+    // `documents.library.*`, et un jeu de messages stub laisserait passer un chemin de clé faux.
+    <NextIntlClientProvider locale="fr" messages={fr} timeZone="Africa/Dakar">
       {ui}
     </NextIntlClientProvider>
   );
@@ -130,6 +130,11 @@ describe('<DocumentsLibrary>', () => {
     render(wrap(<DocumentsLibrary />));
 
     expect(screen.queryByText('Aucun document propriétaire')).not.toBeInTheDocument();
-    expect(screen.getByText(/Aucun document pour le moment/i)).toBeInTheDocument();
+    // Depuis TCK-246, l'état vide générique est le composant partagé : le message unique est
+    // devenu un titre de section + une description, tous deux traduits.
+    expect(
+      screen.getByRole('heading', { level: 2, name: fr.documents.library.empty_title }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(fr.documents.library.empty_description)).toBeInTheDocument();
   });
 });

@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
+use Laravel\Scout\Searchable;
 use LemonSqueezy\Laravel\Billable as LemonSqueezyBillable;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
@@ -23,7 +24,7 @@ class Agency extends AbstractModel implements HasMedia
 {
     // TCK-079: Lemon Squeezy `Billable` makes Agency the scope used to
     // create checkouts (`$agency->checkout(...)->withCustomPrice(...)`).
-    use HasFactory, InteractsWithMedia, LemonSqueezyBillable, SoftDeletes;
+    use HasFactory, InteractsWithMedia, LemonSqueezyBillable, Searchable, SoftDeletes;
 
     protected $fillable = [
         'name', 'slug', 'kind', 'license_number', 'description',
@@ -80,6 +81,26 @@ class Agency extends AbstractModel implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('logo')->singleFile();
+    }
+
+    /**
+     * TCK-281 — n'indexe que l'id et les champs de `$requestSearchFields`.
+     *
+     * @return array<string,mixed>
+     */
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'email' => $this->email,
+            'license_number' => $this->license_number,
+        ];
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->trashed();
     }
 
     public function primaryAdmin(): BelongsTo

@@ -32,11 +32,20 @@ import { isAgent, isOwner, isCustomer, isAdmin, isServiceProvider } from '@/lib/
 import { isProRouteLocked } from '@/lib/access/pro-features';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProUpgradeCard } from './ProUpgradeCard';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
+/**
+ * Une entrée porte une CLÉ de libellé, pas un libellé.
+ *
+ * `buildNavItems` est une fonction pure appelée hors composant : `useTranslations` n'y est pas
+ * appelable, et l'y rendre appelable voudrait dire la transformer en hook — donc la rendre
+ * intestable et non mémoïsable. Le patron retenu est celui que TCK-286 applique partout où le
+ * texte naît loin de l'écran : **la donnée transporte la clé, le rendu la résout**.
+ */
 interface NavItem {
   href: string;
-  label: string;
+  labelKey: string;
   icon: LucideIcon;
   emphasized?: boolean;
   locked?: boolean;
@@ -60,25 +69,25 @@ function buildNavItems(user: User): NavItem[] {
   const items: NavItem[] = [];
   const roles = user.roles;
 
-  items.push({ href: '/app', label: 'Tableau de bord', icon: LayoutDashboard });
+  items.push({ href: '/app', labelKey: 'dashboard', icon: LayoutDashboard });
 
   if (isOwner(roles) || isAgent(roles) || isAdmin(roles)) {
-    items.push({ href: '/app/properties', label: 'Mes biens', icon: Building2 });
+    items.push({ href: '/app/properties', labelKey: 'myProperties', icon: Building2 });
   }
   if (isAgent(roles) || isAdmin(roles)) {
     items.push({
       href: '/app/properties/new',
-      label: 'Publier un bien',
+      labelKey: 'publishProperty',
       icon: PlusCircle,
       emphasized: true,
     });
   }
 
   // Discovery shortcuts (Wave 3 / TCK-047) — visible for every signed-in user.
-  items.push({ href: '/app/favorites', label: 'Mes favoris', icon: Heart });
+  items.push({ href: '/app/favorites', labelKey: 'myFavorites', icon: Heart });
   items.push({
     href: '/app/saved-searches',
-    label: 'Recherches sauvegardées',
+    labelKey: 'savedSearches',
     icon: BookmarkCheck,
   });
 
@@ -87,25 +96,25 @@ function buildNavItems(user: User): NavItem[] {
     // discovery (favorites/saved searches above) →
     // requests (visits, bookings, maintenance) →
     // engagements (leases, payments, inventories).
-    items.push({ href: '/app/visits', label: 'Mes visites', icon: CalendarClock });
-    items.push({ href: '/app/bookings', label: 'Mes réservations', icon: CalendarCheck });
-    items.push({ href: '/app/maintenance', label: 'Maintenance', icon: Wrench });
-    items.push({ href: '/app/leases', label: 'Mes baux', icon: FileText });
-    items.push({ href: '/app/payments', label: 'Paiements', icon: CreditCard });
-    items.push({ href: '/app/inventories', label: 'États des lieux', icon: ClipboardList });
-    items.push({ href: '/app/profile/reviews', label: 'Mes avis', icon: BookmarkCheck });
+    items.push({ href: '/app/visits', labelKey: 'myVisits', icon: CalendarClock });
+    items.push({ href: '/app/bookings', labelKey: 'myBookings', icon: CalendarCheck });
+    items.push({ href: '/app/maintenance', labelKey: 'maintenance', icon: Wrench });
+    items.push({ href: '/app/leases', labelKey: 'myLeases', icon: FileText });
+    items.push({ href: '/app/payments', labelKey: 'payments', icon: CreditCard });
+    items.push({ href: '/app/inventories', labelKey: 'inventories', icon: ClipboardList });
+    items.push({ href: '/app/profile/reviews', labelKey: 'myReviews', icon: BookmarkCheck });
   } else if (isOwner(roles)) {
-    items.push({ href: '/app/bookings', label: 'Réservations', icon: CalendarCheck });
-    items.push({ href: '/app/maintenance', label: 'Maintenance', icon: Wrench });
-    items.push({ href: '/app/leases', label: 'Baux', icon: FileText });
-    items.push({ href: '/app/payments', label: 'Finances', icon: CreditCard });
+    items.push({ href: '/app/bookings', labelKey: 'bookings', icon: CalendarCheck });
+    items.push({ href: '/app/maintenance', labelKey: 'maintenance', icon: Wrench });
+    items.push({ href: '/app/leases', labelKey: 'leases', icon: FileText });
+    items.push({ href: '/app/payments', labelKey: 'finances', icon: CreditCard });
   } else if (isAgent(roles) || isAdmin(roles)) {
-    items.push({ href: '/app/bookings', label: 'Réservations', icon: CalendarCheck });
-    items.push({ href: '/app/leases', label: 'Baux', icon: FileText });
+    items.push({ href: '/app/bookings', labelKey: 'bookings', icon: CalendarCheck });
+    items.push({ href: '/app/leases', labelKey: 'leases', icon: FileText });
   }
 
   if (isAgent(roles) || isAdmin(roles) || isServiceProvider(roles)) {
-    items.push({ href: '/app/maintenance', label: isServiceProvider(roles) ? 'Interventions' : 'Maintenance', icon: Wrench });
+    items.push({ href: '/app/maintenance', labelKey: isServiceProvider(roles) ? 'interventions' : 'maintenance', icon: Wrench });
   }
 
   // TCK-260 — Carnet prestataires. Visible pour agency_admin (et global
@@ -120,43 +129,51 @@ function buildNavItems(user: User): NavItem[] {
   ) {
     items.push({
       href: '/app/maintenance/providers',
-      label: 'Carnet prestataires',
+      labelKey: 'providerBook',
       icon: Wrench,
     });
   }
 
-  items.push({ href: '/app/messages', label: 'Messagerie', icon: MessageSquare });
-  items.push({ href: '/app/documents', label: 'Documents', icon: FolderOpen });
+  items.push({ href: '/app/messages', labelKey: 'messaging', icon: MessageSquare });
+  items.push({ href: '/app/documents', labelKey: 'documents', icon: FolderOpen });
 
   // TCK-032 overview/stats
-  items.push({ href: '/app/overview', label: 'Statistiques', icon: BarChart3 });
+  items.push({ href: '/app/overview', labelKey: 'statistics', icon: BarChart3 });
   if (isAdmin(roles) || isAgent(roles) || isOwner(roles)) {
     // TCK-032 overview/stats — exports (P2)
-    items.push({ href: '/app/overview/exports', label: 'Exports', icon: Download });
+    items.push({ href: '/app/overview/exports', labelKey: 'exports', icon: Download });
   }
   // Vue agence cross-team — visible to agency_admin so individuals see the
   // padlock, and to agents/admins. Standard-only : la page redirige elle-même
-  // (`overview/agency/page.tsx`, test en ligne sur `agency.kind`).
+  // (`overview/agency/page.tsx`, test en ligne sur `agency.kind`) et l'API
+  // rend 403 (`DashboardAgencyController`). Le cadenas couvre les DEUX rôles
+  // servis ici — `isProRouteLocked` inclut `agent` depuis TCK-284, sans quoi
+  // un agent d'agence `individual` cliquait une entrée d'apparence normale
+  // pour se faire renvoyer en silence.
   if (roles.includes('agency_admin') || isAdmin(roles) || isAgent(roles)) {
-    items.push({ href: '/app/overview/agency', label: 'Vue agence', icon: BarChart3 });
+    items.push({ href: '/app/overview/agency', labelKey: 'agencyView', icon: BarChart3 });
   }
   if (isAdmin(roles) || roles.includes('agency_admin')) {
     // TCK-032 overview/stats — KPIs personnalisables (P3) et alertes (P3).
-    // Standard-only pour agency_admin : chaque page redirige elle-même
-    // (`kpis/page.tsx`, `alerts/page.tsx`).
-    items.push({ href: '/app/overview/kpis', label: 'KPIs', icon: Gauge });
-    items.push({ href: '/app/overview/alerts', label: 'Alertes', icon: BellRing });
+    // TCK-284 — PAS standard-only : les deux pages ne portent plus aucun test
+    // sur `agency.kind`, et ne sont plus dans `PRO_ROUTES`. La spec ne les
+    // restreint pas (`docs/features.md` §1.12, liste fermée + clause
+    // résiduelle) et l'API ne les a jamais restreintes.
+    items.push({ href: '/app/overview/kpis', labelKey: 'kpis', icon: Gauge });
+    items.push({ href: '/app/overview/alerts', labelKey: 'alerts', icon: BellRing });
   }
 
   // TCK-256 — owners directory. Visible to agency_admin and global admins.
   // Standard-only : `owners/page.tsx` redirige sur `agency.kind !== 'standard'`,
-  // et OwnerProfilePolicy@invite rend 403 en défense en profondeur.
+  // et l'API rend 403 des deux côtés — sur l'invitation
+  // (`OwnerProfilePolicy@invite`) comme sur la LECTURE de la liste
+  // (`OwnerProfileController::index` + `AgencyKindGuard`, TCK-284).
   if (
     roles.includes('agency_admin') ||
     isAdmin(roles) ||
     roles.includes('super_admin')
   ) {
-    items.push({ href: '/app/owners', label: 'Propriétaires', icon: Users });
+    items.push({ href: '/app/owners', labelKey: 'owners', icon: Users });
   }
 
   // TCK-267 — "Passer en pro" CTA is rendered as a pinned card at the
@@ -170,40 +187,40 @@ function buildNavItems(user: User): NavItem[] {
   // agent CRUD). The dedup filter at the bottom keeps first occurrences.
   // TCK-042 dashboard agent — CRM
   if (isAgent(roles) || isAdmin(roles) || isOwner(roles)) {
-    items.push({ href: '/app/customers', label: 'Clients (CRM)', icon: Users });
+    items.push({ href: '/app/customers', labelKey: 'crm', icon: Users });
   }
   // TCK-030 maintenance — entry already pushed above for agent/admin/service_provider.
   // TCK-031 inventories — agency-side workflow (entrée/sortie par bail).
   if (isAgent(roles) || isAdmin(roles) || isOwner(roles)) {
-    items.push({ href: '/app/inventories', label: 'États des lieux', icon: ClipboardList });
+    items.push({ href: '/app/inventories', labelKey: 'inventories', icon: ClipboardList });
   }
   // --- Wave 3 Ops Frontend nav entries (dedup below preserves first occurrence) ---
   // TCK-043 bookings
-  items.push({ href: '/app/bookings', label: isCustomer(roles) ? 'Mes réservations' : 'Réservations', icon: CalendarCheck });
+  items.push({ href: '/app/bookings', labelKey: isCustomer(roles) ? 'myBookings' : 'bookings', icon: CalendarCheck });
   // TCK-075 visits — customers see their requests, agents see what to manage.
-  items.push({ href: '/app/visits', label: isCustomer(roles) ? 'Mes visites' : 'Visites', icon: CalendarClock });
+  items.push({ href: '/app/visits', labelKey: isCustomer(roles) ? 'myVisits' : 'visits', icon: CalendarClock });
   // TCK-072 — calendrier agrégé (visible pour agent/owner/admin qui gèrent un catalogue)
   if (isAgent(roles) || isOwner(roles) || isAdmin(roles)) {
-    items.push({ href: '/app/calendar', label: 'Calendrier', icon: CalendarDays });
+    items.push({ href: '/app/calendar', labelKey: 'calendar', icon: CalendarDays });
   }
   // TCK-044 leases
-  items.push({ href: '/app/leases', label: isCustomer(roles) ? 'Mes baux' : 'Baux', icon: FileText });
+  items.push({ href: '/app/leases', labelKey: isCustomer(roles) ? 'myLeases' : 'leases', icon: FileText });
   // TCK-266 — sub-entry for the agency console: tenants whose move-in
   // inventory has been pending for more than 7 days. Visible to
   // agency_admin and agent (admin gate covers super_admin too).
   if (isAgent(roles) || isAdmin(roles)) {
     items.push({
       href: '/app/leases/onboarding-pending',
-      label: 'Onboardings en attente',
+      labelKey: 'onboardingPending',
       icon: ClipboardCheck,
     });
   }
   // TCK-045 messages
-  items.push({ href: '/app/messages', label: 'Messagerie', icon: MessageSquare });
+  items.push({ href: '/app/messages', labelKey: 'messaging', icon: MessageSquare });
 
   // Administration — pinned last in the nav for admins / super_admins.
   if (isAdmin(roles)) {
-    items.push({ href: '/admin', label: 'Administration', icon: ShieldCheck, emphasized: true });
+    items.push({ href: '/admin', labelKey: 'administration', icon: ShieldCheck, emphasized: true });
   }
 
   // Dedup by href while preserving first occurrence
@@ -217,19 +234,22 @@ function buildNavItems(user: User): NavItem[] {
 
 function SidebarItem({
   href,
-  label,
+  labelKey,
   icon: Icon,
   active,
   emphasized,
   locked,
   onNavigate,
 }: NavItem & { active: boolean; onNavigate?: () => void }) {
+  const t = useTranslations('nav.sidebar');
+  const label = t(labelKey);
+
   if (locked) {
     return (
       <span
         role="link"
         aria-disabled="true"
-        title="Réservé aux comptes pro"
+        title={t('proLocked')}
         className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-app-ink-muted opacity-60"
       >
         <Icon className="size-4 shrink-0" />
@@ -257,6 +277,7 @@ function SidebarItem({
 }
 
 function SidebarUserFooter({ user, onNavigate }: { user: User; onNavigate?: () => void }) {
+  const t = useTranslations('nav');
   const initials = `${user.first_name[0] ?? ''}${user.last_name[0] ?? ''}`.toUpperCase();
   return (
     <Link
@@ -270,7 +291,7 @@ function SidebarUserFooter({ user, onNavigate }: { user: User; onNavigate?: () =
       </Avatar>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-app-ink">{user.full_name}</p>
-        <p className="truncate text-xs text-app-ink-muted">Mon profil</p>
+        <p className="truncate text-xs text-app-ink-muted">{t('myProfile')}</p>
       </div>
     </Link>
   );
@@ -284,6 +305,7 @@ export function AppSidebar({
   hasPendingUpgrade,
 }: AppSidebarProps) {
   const pathname = usePathname();
+  const tCommon = useTranslations('common');
   const navItems = buildNavItems(user).map((item) => ({
     ...item,
     locked: isProRouteLocked(user, agencyIsStandard, item.href),
@@ -301,7 +323,7 @@ export function AppSidebar({
           onClick={onNavigate}
           className="text-xl font-bold tracking-tighter text-app-topbar"
         >
-          Takussan
+          {tCommon('appName')}
         </Link>
       </div>
       <nav className="flex-1 overflow-y-auto space-y-1 px-3">

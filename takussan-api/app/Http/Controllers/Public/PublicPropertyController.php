@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\ListSimilarPropertiesRequest;
+use App\Http\Requests\Public\HomepageDiscoveryRequest;
 use App\Http\Resources\BookingResource;
 use App\Http\Resources\PropertyMapGeoJsonResource;
 use App\Http\Resources\PropertyResource;
@@ -29,12 +30,14 @@ use App\Models\PropertyVisit;
 use App\Models\Review;
 use App\Services\Model\CustomerService;
 use App\Services\Model\NotificationService;
+use App\Services\Property\HomepageDiscoveryService;
 use App\Services\Property\SimilarPropertiesService;
 use App\Services\Search\PropertySearchService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
@@ -80,6 +83,44 @@ class PublicPropertyController extends Controller
         $properties = $query->paginate((int) $request->input('per_page', 20));
 
         return PropertyResource::collection($properties);
+    }
+
+    /**
+     * TCK-247 — the four homepage discovery rows in a single round-trip.
+     *
+     * GET /api/public/properties/discovery?near_city=…&per_row=…
+     *
+     * `near` carries the city it actually used plus a `fallback` flag: when the
+     * visitor's geolocated city is too thin to fill a row, the row switches
+     * wholesale to the reference city and the frontend retitles it from that
+     * data rather than guessing. The API emits codes and data, never labels
+     * (root CLAUDE.md, non-negotiable #5).
+     */
+    public function discovery(HomepageDiscoveryRequest $request, HomepageDiscoveryService $service): JsonResponse
+    {
+        $rows = $service->discover($request->nearCity(), $request->perRow());
+
+        $items = fn (Collection $properties) => PropertyResource::collection($properties)->toArray($request);
+
+        return $this->json([
+            'data' => [
+                'near' => [
+                    'items' => $items($rows['near']['items']),
+                    'city' => $rows['near']['city'],
+                    'requested_city' => $rows['near']['requested_city'],
+                    'fallback' => $rows['near']['fallback'],
+                ],
+                'rent' => ['items' => $items($rows['rent']['items'])],
+                'featured' => ['items' => $items($rows['featured']['items'])],
+                'latest' => ['items' => $items($rows['latest']['items'])],
+            ],
+            'meta' => ['per_row' => $request->perRow()],
+        ], 200, [
+            // Safe to share: the list shape of PropertyResource pins its labels
+            // to `fr` and reads nothing off `$request->user()`. Keep it that way
+            // — see the warning in HomepageDiscoveryService::baseQuery().
+            'Cache-Control' => 'public, max-age=60, s-maxage=300',
+        ]);
     }
 
     public function search(Request $request, PropertySearchService $service): array

@@ -16,13 +16,25 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   requestAccountDeletionAction,
+  sendAccountDeletionStepUpCodeAction,
 } from '@/app/actions/account-deletion';
 import type { AccountDeletionObligation, AccountDeletionRequest } from '@/lib/account-deletion';
 
 /**
- * TCK-080 — two-step modal:
+ * TCK-080 / TCK-272 — two-step modal:
  *  Step 1: pick a reason (radio group + optional free-form note)
- *  Step 2: re-authenticate with password (+ TOTP if 2FA enabled)
+ *  Step 2: re-authenticate (+ TOTP if 2FA enabled)
+ *
+ * L'étape 2 a DEUX visages, et l'utilisateur n'a pas à comprendre
+ * pourquoi : soit son mot de passe, soit un code à 6 chiffres qu'il se
+ * fait envoyer par e-mail. Les comptes créés par OAuth, par invitation
+ * sans mot de passe ou par la plateforme portent un hash machine que
+ * personne ne connaît — avant TCK-272 l'écran leur répondait « Mot de
+ * passe incorrect. » indéfiniment, ce qui les accusait d'une faute de
+ * frappe pour leur refuser un droit.
+ *
+ * `hasUsablePassword` vient du backend (`/api/auth/me`), qui reste seul
+ * arbitre : ce drapeau ne fait que choisir le formulaire à montrer.
  *
  * The "Supprimer définitivement" button stays disabled until both steps
  * are validated. On 422 with `obligations` we surface the list inline so
@@ -37,11 +49,22 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   /** Whether the user has 2FA active — drives the extra TOTP input. */
   twoFactorEnabled: boolean;
+  /**
+   * TCK-272 — false = compte à mot de passe machine : l'étape 2 propose
+   * l'envoi d'un code par e-mail au lieu du champ mot de passe.
+   */
+  hasUsablePassword: boolean;
   /** Called when the deletion is successfully scheduled. */
   onScheduled: (request: AccountDeletionRequest) => void;
 }
 
-export function AccountDeletionDialog({ open, onOpenChange, twoFactorEnabled, onScheduled }: Props) {
+export function AccountDeletionDialog({
+  open,
+  onOpenChange,
+  twoFactorEnabled,
+  hasUsablePassword,
+  onScheduled,
+}: Props) {
   const t = useTranslations('account.deletion.dialog');
   const tErr = useTranslations('account.deletion.errors');
 
@@ -49,6 +72,9 @@ export function AccountDeletionDialog({ open, onOpenChange, twoFactorEnabled, on
   const [reasonCode, setReasonCode] = useState<Reason | null>(null);
   const [reasonText, setReasonText] = useState('');
   const [password, setPassword] = useState('');
+  const [stepUpCode, setStepUpCode] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
   const [twoFactorCode, setTwoFactorCode] = useState('');
 
   const [error, setError] = useState<string | null>(null);
@@ -60,9 +86,24 @@ export function AccountDeletionDialog({ open, onOpenChange, twoFactorEnabled, on
     setReasonCode(null);
     setReasonText('');
     setPassword('');
+    setStepUpCode('');
+    setCodeSent(false);
+    setSendingCode(false);
     setTwoFactorCode('');
     setError(null);
     setObligations(null);
+  }
+
+  async function handleSendCode() {
+    setSendingCode(true);
+    setError(null);
+    const result = await sendAccountDeletionStepUpCodeAction();
+    setSendingCode(false);
+    if (!result.ok) {
+      setError(result.message || tErr('generic'));
+      return;
+    }
+    setCodeSent(true);
   }
 
   function handleClose() {
@@ -71,12 +112,15 @@ export function AccountDeletionDialog({ open, onOpenChange, twoFactorEnabled, on
   }
 
   function handleSubmit() {
-    if (!reasonCode || !password) return;
+    if (!canSubmit) return;
     setError(null);
     setObligations(null);
     startTransition(async () => {
       const result = await requestAccountDeletionAction({
-        password,
+        // Une seule des deux preuves part sur le fil : le backend refuse
+        // (422) celle qui ne correspond pas au mode qu'il a décidé.
+        password: hasUsablePassword ? password : undefined,
+        step_up_code: hasUsablePassword ? undefined : stepUpCode,
         reason: reasonText || undefined,
         reason_code: reasonCode,
         two_factor_code: twoFactorEnabled ? twoFactorCode : undefined,
@@ -93,7 +137,8 @@ export function AccountDeletionDialog({ open, onOpenChange, twoFactorEnabled, on
     });
   }
 
-  const canSubmit = step === 2 && !!reasonCode && password.length > 0
+  const proofProvided = hasUsablePassword ? password.length > 0 : stepUpCode.length === 6;
+  const canSubmit = step === 2 && !!reasonCode && proofProvided
     && (!twoFactorEnabled || twoFactorCode.length === 6);
 
   return (
@@ -102,7 +147,11 @@ export function AccountDeletionDialog({ open, onOpenChange, twoFactorEnabled, on
         <DialogHeader>
           <DialogTitle>{t('title')}</DialogTitle>
           <DialogDescription>
-            {step === 1 ? t('step1Description') : t('step2Description')}
+            {step === 1
+              ? t('step1Description')
+              : hasUsablePassword
+                ? t('step2Description')
+                : t('step2CodeDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -140,18 +189,49 @@ export function AccountDeletionDialog({ open, onOpenChange, twoFactorEnabled, on
           </div>
         ) : (
           <div className="space-y-4">
-            <p className="font-semibold text-app-ink">{t('step2Title')}</p>
-            <div className="space-y-2">
-              <Label htmlFor="account-deletion-password">{t('passwordLabel')}</Label>
-              <Input
-                id="account-deletion-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                required
-              />
-            </div>
+            <p className="font-semibold text-app-ink">
+              {hasUsablePassword ? t('step2Title') : t('step2CodeTitle')}
+            </p>
+            {hasUsablePassword ? (
+              <div className="space-y-2">
+                <Label htmlFor="account-deletion-password">{t('passwordLabel')}</Label>
+                <Input
+                  id="account-deletion-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  required
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSendCode}
+                  disabled={sendingCode || pending}
+                >
+                  {codeSent ? t('resendCodeCta') : t('sendCodeCta')}
+                </Button>
+                {codeSent ? (
+                  <p className="text-sm text-app-ink-muted" role="status">
+                    {t('codeSentHint')}
+                  </p>
+                ) : null}
+                <Label htmlFor="account-deletion-code">{t('codeLabel')}</Label>
+                <Input
+                  id="account-deletion-code"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="\d{6}"
+                  maxLength={6}
+                  autoComplete="one-time-code"
+                  value={stepUpCode}
+                  onChange={(e) => setStepUpCode(e.target.value.replace(/\D/g, ''))}
+                />
+              </div>
+            )}
             {twoFactorEnabled ? (
               <div className="space-y-2">
                 <Label htmlFor="account-deletion-2fa">{t('twoFactorLabel')}</Label>

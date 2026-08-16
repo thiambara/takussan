@@ -68,6 +68,7 @@ use App\Observers\PropertyVisitObserver;
 use App\Observers\ReviewObserver;
 use App\Observers\UserObserver;
 use App\Policies\ActivityLogPolicy;
+use App\Policies\AgencyPolicy;
 use App\Policies\AgencyUpgradeRequestPolicy;
 use App\Policies\AgentProfilePolicy;
 use App\Policies\ConversationPolicy;
@@ -298,6 +299,21 @@ class AppServiceProvider extends ServiceProvider
         // reset-token brute force. Keyed by IP (no authenticated user yet).
         RateLimiter::for('auth-register', fn (Request $request) => Limit::perMinute(10)->by('ip:'.$request->ip()));
         RateLimiter::for('auth-password', fn (Request $request) => Limit::perMinute(5)->by('ip:'.$request->ip()));
+
+        // TCK-272 — émission du code e-mail de step-up pour la suppression
+        // de compte. Route authentifiée : la clé est l'utilisateur, pas
+        // l'IP, pour qu'un NAT partagé ne collabe pas plusieurs comptes.
+        // Deux bornes : 3/min contre le martèlement, 10/h contre le
+        // mail-bombing sur une adresse dont on détient le jeton. Le service
+        // pose en plus un cooldown de 60 s côté cache — le limiteur borne
+        // les REQUÊTES, le cooldown borne les E-MAILS.
+        RateLimiter::for('account-deletion-step-up', function (Request $request) {
+            $key = $request->user() !== null
+                ? 'user:'.$request->user()->id
+                : 'ip:'.$request->ip();
+
+            return [Limit::perMinute(3)->by($key), Limit::perHour(10)->by($key)];
+        });
     }
 
     private function visitorRateLimitKey(Request $request): string
@@ -369,6 +385,14 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-074 — explicit bind so `$user->can('duplicate', $property)` resolves.
         Gate::policy(Property::class, PropertyPolicy::class);
+
+        // TCK-290 — `AgencyPolicy::update` porte la règle « qui administre
+        // cette agence », partagée par `AgencyController` et par
+        // `MediaController::authorizeAttach` (upload du logo). L'auto-discovery
+        // `App\Models\Agency → App\Policies\AgencyPolicy` la trouverait aussi ;
+        // la liaison est écrite ici parce que c'est où ce fichier rend les
+        // policies lisibles d'un coup d'œil.
+        Gate::policy(Agency::class, AgencyPolicy::class);
 
         // TCK-085 — group conversation gates (admin-only mutations + system-message immutability).
         Gate::policy(Conversation::class, ConversationPolicy::class);

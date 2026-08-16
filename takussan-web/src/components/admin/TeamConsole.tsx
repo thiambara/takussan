@@ -3,8 +3,10 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { UserPlus } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { UserPlus, Users } from 'lucide-react';
 
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AdminUsersFilters } from '@/components/admin/users/AdminUsersFilters';
@@ -56,6 +58,8 @@ interface TeamConsoleProps {
  * targeting the same query param.
  */
 export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
+  const t = useTranslations('team.page');
+  const tCommon = useTranslations('common');
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -84,6 +88,10 @@ export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
     }),
     [searchParams],
   );
+
+  // Un état vide qui dit « invitez votre premier agent » alors que l'utilisateur a simplement
+  // tapé un nom dans la recherche serait faux. On sépare donc les deux cas.
+  const hasActiveFilters = Boolean(params.search || params.status || params.role);
 
   const usersQuery = useQuery<AdminAgencyUsersResponse, ApiError>({
     queryKey: ['admin-users', 'list', params],
@@ -153,14 +161,7 @@ export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
 
       <AdminUsersFilters hideRoleFilter />
 
-      {actionError ? (
-        <div
-          className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-2 text-sm text-destructive"
-          role="alert"
-        >
-          {actionError}
-        </div>
-      ) : null}
+      {actionError ? <ErrorState message={actionError} /> : null}
 
       {usersQuery.isLoading ? (
         <div className="space-y-2" data-testid="team-console-loading">
@@ -173,16 +174,32 @@ export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
           ))}
         </div>
       ) : usersQuery.isError ? (
-        <div className="rounded-xl bg-red-50 p-4 text-sm text-red-900" role="alert">
-          Erreur de chargement. {usersQuery.error?.displayMessage}
-        </div>
+        <ErrorState
+          message={usersQuery.error?.displayMessage ?? t('error')}
+          onRetry={() => void usersQuery.refetch()}
+          retryLabel={tCommon('actions.retry')}
+        />
       ) : !usersQuery.data || usersQuery.data.data.length === 0 ? (
-        <p
-          className="rounded-xl bg-card p-6 text-center text-sm text-muted-foreground"
+        // `team.*` était un namespace ORPHELIN : ses clés existaient dans les trois locales et
+        // aucun fichier ne les consommait. Elles portent exactement la copie « encouragement +
+        // CTA » que `design-guidelines.md:83` exige, là où l'écran affichait en dur « Aucun
+        // membre ne correspond aux filtres courants. » — un constat, pas un encouragement.
+        <EmptyState
           data-testid="team-console-empty"
-        >
-          Aucun membre ne correspond aux filtres courants.
-        </p>
+          icon={<Users className="size-8" aria-hidden="true" />}
+          title={hasActiveFilters ? t('empty_filtered_title') : t('empty_title')}
+          description={
+            hasActiveFilters ? t('empty_filtered_description') : t('empty_description')
+          }
+          action={
+            hasActiveFilters ? undefined : (
+              <Button onClick={() => setInviteOpen(true)}>
+                <UserPlus className="mr-1 size-4" aria-hidden="true" />
+                {t('add')}
+              </Button>
+            )
+          }
+        />
       ) : (
         <>
           <AdminUsersTable

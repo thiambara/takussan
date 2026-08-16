@@ -6,9 +6,30 @@ use Illuminate\Support\Facades\Schema;
 /**
  * TCK-278 — Cutover : suppression des tables spatie/laravel-permission.
  *
- * Pré-requis : la commande `platform:backfill-from-spatie` a été exécutée
- * en pre-deploy et tous les super_admins ont un PlatformProfile actif.
- * Aucun chemin de code applicatif n'écrit ni ne lit plus dans ces tables.
+ * **Aucun pré-requis.** Ce docblock a annoncé pendant tout le cutover que la
+ * commande `platform:backfill-from-spatie` devait être exécutée en pre-deploy.
+ * Cette commande **n'a jamais existé** — les 14 signatures de
+ * `app/Console/Commands/` ne la contiennent pas, et `git log -S` ne trouve la
+ * chaîne que dans ce commentaire.
+ *
+ * Elle n'a pas non plus d'objet : la production n'a jamais été déployée
+ * (ardoise D-04 / TCK-288 — `deploy.yml` ne s'est pas exécuté une seule fois),
+ * donc il n'existe aucune donnée spatie à reprendre. Le super_admin initial
+ * est matérialisé par les seeders (`Core/UserSeeder`, `Support/DemoUsersSeeder`,
+ * `TestSeeder`) ou par `php artisan platform:grant-super-admin {email}`.
+ *
+ * Le laisser en l'état faisait pire que rien : un opérateur qui lit une
+ * migration irréversible annonçant une étape pre-deploy introuvable ne peut
+ * que s'arrêter, ou l'exécuter en croyant l'avoir sautée. *Un pré-requis
+ * inexistant coûte plus cher qu'un pré-requis absent : on le cherche.*
+ *
+ * Ce qui est vrai : aucun chemin de code applicatif n'écrit ni ne lit plus
+ * dans ces tables, et une garde CI (`api-ci.yml`) casse sur tout import du
+ * namespace de spatie/laravel-permission.
+ *
+ * NB — ce docblock ne peut pas citer ce namespace littéralement : la garde
+ * grep le cherche dans `database/` aussi, et le citer ferait échouer la CI
+ * sur le fichier même qui la documente.
  */
 return new class extends Migration
 {

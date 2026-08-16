@@ -6,6 +6,7 @@ import {
   cancelAccountDeletion,
   getAccountDeletionRequest,
   requestAccountDeletion,
+  sendAccountDeletionStepUpCode,
   type AccountDeletionObligation,
   type AccountDeletionRequest,
   type RequestAccountDeletionPayload,
@@ -67,6 +68,21 @@ export async function requestAccountDeletionAction(
     return { ok: true, data };
   } catch (err) {
     return failure(err, 'Impossible de soumettre la demande de suppression.');
+  }
+}
+
+/**
+ * TCK-272 — émission du code de step-up par e-mail, pour les comptes sans
+ * mot de passe utilisable.
+ */
+export async function sendAccountDeletionStepUpCodeAction(): Promise<ActionResult<null>> {
+  try {
+    const token = await getToken();
+    requireToken(token);
+    await sendAccountDeletionStepUpCode(token);
+    return { ok: true, data: null };
+  } catch (err) {
+    return failure(err, "Impossible d'envoyer le code de confirmation.");
   }
 }
 

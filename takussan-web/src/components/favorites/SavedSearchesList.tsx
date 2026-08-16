@@ -3,13 +3,15 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { BookmarkCheck, Trash2, Loader2, Search as SearchIcon } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import {
   useSavedSearchesQuery,
   useDeleteSavedSearchMutation,
   type SavedSearch,
 } from '@/lib/queries/saved-searches';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/format/currency';
 
 /**
@@ -123,6 +125,8 @@ function SavedSearchRow({
 }
 
 export function SavedSearchesList() {
+  const t = useTranslations('search.saved');
+  const tCommon = useTranslations('common');
   const query = useSavedSearchesQuery();
   const remove = useDeleteSavedSearchMutation();
   const [pendingId, setPendingId] = useState<number | null>(null);
@@ -139,31 +143,27 @@ export function SavedSearchesList() {
 
   if (query.isError) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-        Impossible de charger vos recherches pour le moment.
-      </div>
+      <ErrorState
+        message={t('error')}
+        onRetry={() => void query.refetch()}
+        retryLabel={tCommon('actions.retry')}
+      />
     );
   }
 
   const searches = query.data?.data ?? [];
   if (searches.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-12 text-center">
-        <BookmarkCheck className="w-10 h-10 text-stone-300 mx-auto mb-3" />
-        <h3 className="font-semibold text-stone-700 mb-1">
-          Aucune recherche sauvegardée
-        </h3>
-        <p className="text-sm text-stone-500 mb-4">
-          Depuis la page résultats, cliquez sur « Sauvegarder la recherche »
-          pour la retrouver ici.
-        </p>
-        <Link
-          href="/properties"
-          className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition"
-        >
-          Lancer une recherche
-        </Link>
-      </div>
+      <EmptyState
+        icon={<BookmarkCheck className="size-8" aria-hidden="true" />}
+        title={t('empty_title')}
+        description={t('empty_description')}
+        action={
+          <Link href="/properties" className={buttonVariants()}>
+            {t('empty_cta')}
+          </Link>
+        }
+      />
     );
   }
 

@@ -10,6 +10,7 @@ use App\Services\Accounting\StatementParser\CsvDriver;
 use App\Services\Accounting\StatementParser\OfxDriver;
 use App\Services\Accounting\StatementParser\ParserContext;
 use App\Services\Accounting\StatementParser\StatementParserFactory;
+use Tests\Support\TestProcessToken;
 use Tests\TestCase;
 
 class StatementParserTest extends TestCase
@@ -83,7 +84,12 @@ class StatementParserTest extends TestCase
             ."02/04/2026,\"1.234,56\",B,R2,C2\n"
             ."03/04/2026,\"7500,50\",C,R3,C3\n";
 
-        $path = tempnam(sys_get_temp_dir(), 'stmt').'.csv';
+        // `tempnam()` réserve un chemin de façon atomique — mais le `.csv` concaténé APRÈS n'est
+        // pas le chemin réservé : la garantie d'unicité est perdue au moment précis où on croit
+        // l'avoir, et le fichier réellement réservé fuit à chaque exécution. Même famille que la
+        // course de `WatermarkServiceTest` ; on construit donc le chemin explicitement, discriminé
+        // par processus (entre exécutions simultanées) et par `uniqid()` (au sein d'une exécution).
+        $path = sys_get_temp_dir().'/stmt_'.TestProcessToken::value().'_'.uniqid().'.csv';
         file_put_contents($path, $csv);
 
         $context = new ParserContext(

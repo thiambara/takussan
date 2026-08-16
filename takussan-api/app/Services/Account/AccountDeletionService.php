@@ -58,14 +58,26 @@ class AccountDeletionService
 
     /**
      * Request deletion: validates obligations, persists the request, revokes
-     * tokens. Caller is responsible for verifying password + 2FA *before*
-     * invoking the service (FormRequest handles that).
+     * tokens.
+     *
+     * Caller is responsible for the step-up proof *before* invoking the
+     * service — `RequestAccountDeletionRequest` handles it. Since TCK-272
+     * that proof is one of TWO modes, and the caller passes which one it
+     * validated so the audit trail records it:
+     * `password` (historical) or `email_code` (accounts whose stored hash is
+     * a machine value and who could not delete their account at all before).
+     *
+     * @param  string  $stepUp  mode de step-up déjà vérifié par l'appelant
      *
      * @throws ValidationException 422 with `obligations` payload listing
      *                             leases/payments still pending
      */
-    public function requestDeletion(User $user, ?string $reason = null, ?string $reasonCode = null): AccountDeletionRequest
-    {
+    public function requestDeletion(
+        User $user,
+        ?string $reason = null,
+        ?string $reasonCode = null,
+        string $stepUp = 'password',
+    ): AccountDeletionRequest {
         $obligations = $this->collectOpenObligations($user);
         if ($obligations !== []) {
             throw ValidationException::withMessages([
@@ -73,7 +85,7 @@ class AccountDeletionService
             ])->status(422);
         }
 
-        return DB::transaction(function () use ($user, $reason, $reasonCode) {
+        return DB::transaction(function () use ($user, $reason, $reasonCode, $stepUp) {
             $now = now();
             $scheduledFor = $now->copy()->addDays($this->graceDays());
 
@@ -101,6 +113,8 @@ class AccountDeletionService
                 ->withProperties([
                     'scheduled_for' => $scheduledFor->toIso8601String(),
                     'reason_code' => $reasonCode,
+                    // TCK-272 — quel step-up a réellement ouvert la porte.
+                    'step_up' => $stepUp,
                 ])
                 ->event('account.deletion.requested')
                 ->log('account.deletion.requested');

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
-         bootstrap="vendor/autoload.php"
+         bootstrap="tests/bootstrap.php"
          colors="true"
 >
     <testsuites>
@@ -34,13 +34,50 @@
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
         <env name="SCOUT_DRIVER" value="meilisearch"/>
-        <!-- Sans préfixe, la suite indexe et SUPPRIME dans les mêmes index Meilisearch que
+        <!-- ⚠ `SCOUT_PREFIX` N'EST PLUS DÉCLARÉ ICI, et c'est délibéré.
+             Sans préfixe, la suite indexe et SUPPRIME dans les mêmes index Meilisearch que
              l'environnement de travail du développeur : `php artisan test` détruisait son jeu de
              données de recherche à chaque exécution. Le driver est forcé ci-dessus sans repli
-             (ADR-0008), donc l'isolation ne pouvait venir que d'ici. -->
-        <env name="SCOUT_PREFIX" value="testing_"/>
+             (ADR-0008), donc l'isolation ne pouvait venir que d'un préfixe.
+             Mais le littéral `testing_` qui vivait ici n'isolait la suite QUE du développeur :
+             deux exécutions simultanées de la suite écrivaient dans les mêmes index et se
+             détruisaient mutuellement (mesuré : 10 puis 8 tests rouges sur des ensembles
+             DIFFÉRENTS, sans qu'un fichier n'ait changé). Le préfixe est désormais engendré par
+             PROCESSUS dans `tests/bootstrap.php` — cf. `Tests\Support\TestSearchIndex`, qui
+             programme aussi la suppression des index en fin d'exécution. -->
         <env name="SCOUT_QUEUE" value="false"/>
         <env name="SCOUT_AFTER_COMMIT" value="false"/>
         <env name="LARAVEL_PDF_DRIVER" value="dompdf"/>
+
+        <!-- ⚠ LES URLS DES FOURNISSEURS SMS SONT ÉPINGLÉES ICI, ET CE N'EST PAS DE LA
+             CONFIGURATION : c'est ce qui rend 14 tests indépendants du `.env` de la machine.
+
+             `config/sms.php` leur donne un défaut réel (`env('SMS_ORANGE_SEND_URL', 'https://…')`).
+             Un `.env` qui déclare la clé À VIDE — `SMS_ORANGE_SEND_URL=` — n'est PAS « clé absente » :
+             `env()` rend la chaîne vide et le défaut ne s'applique jamais. Le driver n'a alors plus
+             d'URL, n'émet aucune requête, et `Http::assertSent()` échoue sur « An expected request
+             was not recorded » — un message qui accuse le code applicatif alors que le défaut est
+             dans l'environnement.
+
+             Mesuré le 2026-08-16 : la CI fait `cp .env.example .env` (api-ci.yml:58). Le jour où
+             `.env.example` a gagné ces quatre clés à vide, la CI est passée de verte à **14 échecs**
+             sur `SmsChannelTest`, `SmsRouterDriverTest`, `OrangeOAuthLockTest` et
+             `WhatsappChannelTest` — pendant que la suite restait verte en local, où le `.env` ne
+             porte pas ces clés. Reproduit à l'identique en local, en vidant les quatre clés dans
+             l'environnement avant `php artisan test` sur ces quatre classes → 14 échecs, le même
+             ensemble, aux mêmes lignes.
+
+             Les valeurs ci-dessous reproduisent EXACTEMENT les défauts de `config/sms.php` — les
+             tests assertent sur des fragments (`oauth/v3/token`, `mtarget`…), donc des URLs
+             inventées les casseraient. Rien ne sort de la machine : `Http::fake()` intercepte tout.
+             Si un défaut change dans `config/sms.php`, il change ici aussi, et le test qui assertait
+             sur l'ancien fragment rougira — ce qui est le comportement voulu.
+
+             *Une suite qui dépend du `.env` ne mesure pas le code : elle mesure la machine.* Même
+             raison que `DB_CONNECTION`, `CACHE_STORE` ou `SCOUT_DRIVER` ci-dessus. -->
+        <env name="SMS_ORANGE_OAUTH_URL" value="https://api.orange.com/oauth/v3/token"/>
+        <env name="SMS_ORANGE_SEND_URL" value="https://api.orange.com/smsmessaging/v1/outbound/{senderAddress}/requests"/>
+        <env name="SMS_MTARGET_SEND_URL" value="https://api-public-2.mtarget.fr/messages"/>
+        <env name="SMS_LAM_SEND_URL" value="https://lampush-tls.lafricamobile.com/api/Send"/>
     </php>
 </phpunit>

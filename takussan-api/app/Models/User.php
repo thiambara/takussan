@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Laravel\Scout\Searchable;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\MediaLibrary\HasMedia;
@@ -36,7 +37,7 @@ use Spatie\QueryBuilder\AllowedFilter;
 class User extends Authenticatable implements HasLocalePreference, HasMedia, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasProfiles, HasQueryBuilder, InteractsWithMedia, LogsActivity, Notifiable, SoftDeletes;
+    use HasApiTokens, HasFactory, HasProfiles, HasQueryBuilder, InteractsWithMedia, LogsActivity, Notifiable, Searchable, SoftDeletes;
 
     use HasMediaConversions {
         HasMediaConversions::registerMediaConversions insteadof InteractsWithMedia;
@@ -85,6 +86,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             'phone_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
             'deletion_requested_at' => 'datetime',
+            'password_set_at' => 'datetime',
             'password' => 'hashed',
             'status' => UserStatus::class,
             'two_factor_enabled' => 'boolean',
@@ -98,6 +100,33 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             'metadata' => 'array',
             'preferences' => 'array',
         ];
+    }
+
+    /**
+     * TCK-272 — le compte a-t-il un mot de passe que son propriétaire
+     * CONNAÎT ? `users.password` est NOT NULL et toujours renseigné, mais
+     * quatre chemins de création y écrivent une valeur machine
+     * (`Str::random()` / `Str::password()`) que personne n'a jamais vue :
+     * OAuth, invitation acceptée sans mot de passe, provisioning d'agence.
+     * Pour ces comptes, `Hash::check` échoue quoi qu'on tape — d'où le
+     * step-up alternatif par code e-mail.
+     *
+     * `password_set_at` est délibérément HORS `$fillable` : il n'est jamais
+     * écrit depuis un payload, seulement par {@see markPasswordAsSet()}.
+     */
+    public function hasUsablePassword(): bool
+    {
+        return $this->password_set_at !== null;
+    }
+
+    /**
+     * TCK-272 — à appeler sur les seuls chemins où l'utilisateur CHOISIT
+     * lui-même son mot de passe (inscription, reset, acceptation
+     * d'invitation avec mot de passe). Jamais sur un mot de passe machine.
+     */
+    public function markPasswordAsSet(): void
+    {
+        $this->forceFill(['password_set_at' => now()])->save();
     }
 
     protected static array $requestFilterable = ['status', 'added_by_id'];
@@ -149,6 +178,30 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     public function getFullNameAttribute(): string
     {
         return trim("{$this->first_name} {$this->last_name}");
+    }
+
+    /**
+     * TCK-281 — n'indexe que l'id et les champs de `$requestSearchFields`.
+     * Le mot de passe, les secrets 2FA, `metadata` et les jetons ne partent
+     * JAMAIS vers Meilisearch : l'index est un second magasin, hors MySQL.
+     *
+     * @return array<string,mixed>
+     */
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'first_name' => $this->first_name,
+            'last_name' => $this->last_name,
+            'email' => $this->email,
+            'username' => $this->username,
+            'phone' => $this->phone,
+        ];
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->trashed();
     }
 
     /**
@@ -274,7 +327,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             ])
             ->logOnlyDirty()
             ->dontLogIfAttributesChangedOnly([
-                'password', 'remember_token',
+                'password', 'password_set_at', 'remember_token',
                 'two_factor_secret', 'two_factor_recovery_codes',
                 'updated_at', 'last_login_at',
             ])

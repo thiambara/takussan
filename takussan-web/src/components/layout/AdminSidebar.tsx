@@ -21,6 +21,7 @@ import type { User } from '@/types/user';
 import { isSuperAdmin } from '@/lib/roles';
 import { isProRouteLocked } from '@/lib/access/pro-features';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { fetchModerationQueue } from '@/lib/queries/reviews-moderation';
@@ -28,7 +29,8 @@ import { fetchPropertyModerationQueue } from '@/lib/queries/property-moderation'
 
 interface NavItem {
   href: string;
-  label: string;
+  /** CLÉ de libellé sous `nav.admin`, pas le libellé : `buildAdminItems` est hors composant. */
+  labelKey: string;
   icon: LucideIcon;
   badge?: number;
   locked?: boolean;
@@ -49,19 +51,19 @@ function buildAdminItems(
   reviewPendingCount: number,
   propertyPendingCount: number,
 ): NavItem[] {
-  const items: NavItem[] = [{ href: '/admin', label: 'Tableau de bord', icon: LayoutDashboard }];
+  const items: NavItem[] = [{ href: '/admin', labelKey: 'dashboard', icon: LayoutDashboard }];
   if (isSuperAdmin(user.roles)) {
-    items.push({ href: '/admin/properties', label: 'Biens', icon: Building2 });
+    items.push({ href: '/admin/properties', labelKey: 'properties', icon: Building2 });
   }
-  items.push({ href: '/admin/team', label: 'Équipe', icon: Users });
-  items.push({ href: '/admin/agency', label: 'Agence', icon: Briefcase });
-  items.push({ href: '/admin/agency/kyc', label: 'KYC agence', icon: ShieldCheck });
-  items.push({ href: '/admin/agency/billing', label: 'Abonnement', icon: CreditCard });
-  items.push({ href: '/admin/finances', label: 'Finances', icon: CreditCard });
+  items.push({ href: '/admin/team', labelKey: 'team', icon: Users });
+  items.push({ href: '/admin/agency', labelKey: 'agency', icon: Briefcase });
+  items.push({ href: '/admin/agency/kyc', labelKey: 'kyc', icon: ShieldCheck });
+  items.push({ href: '/admin/agency/billing', labelKey: 'billing', icon: CreditCard });
+  items.push({ href: '/admin/finances', labelKey: 'finances', icon: CreditCard });
   if (isSuperAdmin(user.roles)) {
     items.push({
       href: '/admin/moderation',
-      label: 'Modération avis',
+      labelKey: 'reviewModeration',
       icon: Shield,
       badge: reviewPendingCount || undefined,
     });
@@ -69,35 +71,38 @@ function buildAdminItems(
   // TCK-098 — property moderation is accessible to agency_admin + super_admin.
   items.push({
     href: '/admin/moderation/properties',
-    label: 'Modération biens',
+    labelKey: 'propertyModeration',
     icon: Building2,
     badge: propertyPendingCount || undefined,
   });
-  items.push({ href: '/admin/audit', label: "Journal d'audit", icon: FileText });
+  items.push({ href: '/admin/audit', labelKey: 'auditLog', icon: FileText });
   // `/api/admin/settings` is super-admin-only at the route middleware level
   // (`routes/api/admin.php` group), so showing this entry to agency_admin
   // only leads to a broken page. Restrict to super_admin.
   if (isSuperAdmin(user.roles)) {
-    items.push({ href: '/admin/settings', label: 'Paramètres', icon: Settings });
+    items.push({ href: '/admin/settings', labelKey: 'settings', icon: Settings });
   }
   return items;
 }
 
 function AdminItem({
   href,
-  label,
+  labelKey,
   icon: Icon,
   badge,
   locked,
   active,
   onNavigate,
 }: NavItem & { active: boolean; onNavigate?: () => void }) {
+  const t = useTranslations('nav.admin');
+  const label = t(labelKey);
+
   if (locked) {
     return (
       <span
         role="link"
         aria-disabled="true"
-        title="Réservé aux comptes pro"
+        title={t('proLocked')}
         className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-white/40 opacity-60"
       >
         <Icon className="size-4 shrink-0" />
@@ -122,7 +127,7 @@ function AdminItem({
       {badge ? (
         <span
           className="inline-flex min-w-5 items-center justify-center rounded-full bg-red-500/80 px-1.5 text-[10px] font-bold text-white"
-          aria-label={`${badge} en attente`}
+          aria-label={t('pendingBadge', { count: badge })}
         >
           {badge}
         </span>
@@ -133,6 +138,9 @@ function AdminItem({
 
 export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: AdminSidebarProps) {
   const pathname = usePathname();
+  const t = useTranslations('nav.admin');
+  const tNav = useTranslations('nav');
+  const tCommon = useTranslations('common');
   const { token } = useAuth();
 
   const { data: modMeta } = useQuery({
@@ -171,9 +179,9 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
           onClick={onNavigate}
           className="text-xl font-bold tracking-tighter text-white"
         >
-          Takussan
+          {tCommon('appName')}
         </Link>
-        <p className="mt-1 text-xs uppercase tracking-wider text-white/60">Administration</p>
+        <p className="mt-1 text-xs uppercase tracking-wider text-white/60">{t('sectionLabel')}</p>
       </div>
       <nav className="flex-1 overflow-y-auto space-y-1 px-3">
         {items.map((item) => {
@@ -200,7 +208,7 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
           className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-white/70 hover:bg-white/5"
         >
           <ArrowLeft className="size-4 shrink-0" />
-          <span>Retour à l&apos;espace perso</span>
+          <span>{t('backToPersonal')}</span>
         </Link>
         <Link
           href="/app/profile"
@@ -213,7 +221,7 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
           </Avatar>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-white">{user.full_name}</p>
-            <p className="truncate text-xs text-white/60">Mon profil</p>
+            <p className="truncate text-xs text-white/60">{tNav('myProfile')}</p>
           </div>
         </Link>
       </div>
