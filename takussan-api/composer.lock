@@ -5927,16 +5927,16 @@
         },
         {
             "name": "spatie/laravel-pdf",
-            "version": "2.12.0",
+            "version": "2.12.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-pdf.git",
-                "reference": "9656389f566fc4e7435d1902b35c9c220e932b2c"
+                "reference": "586e5cd7ec3fa6f39266d225816d464bb240ffb3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-pdf/zipball/9656389f566fc4e7435d1902b35c9c220e932b2c",
-                "reference": "9656389f566fc4e7435d1902b35c9c220e932b2c",
+                "url": "https://api.github.com/repos/spatie/laravel-pdf/zipball/586e5cd7ec3fa6f39266d225816d464bb240ffb3",
+                "reference": "586e5cd7ec3fa6f39266d225816d464bb240ffb3",
                 "shasum": ""
             },
             "require": {
@@ -6016,9 +6016,9 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-pdf/issues",
-                "source": "https://github.com/spatie/laravel-pdf/tree/2.12.0"
+                "source": "https://github.com/spatie/laravel-pdf/tree/2.12.1"
             },
-            "time": "2026-06-11T08:47:03+00:00"
+            "time": "2026-08-12T12:15:13+00:00"
         },
         {
             "name": "spatie/laravel-query-builder",
