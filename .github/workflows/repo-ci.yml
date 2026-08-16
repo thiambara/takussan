@@ -69,6 +69,13 @@ on:
       # arbre ajouté ; un motif, jamais.*
       - '**/skills/**'
       - '**/SKILL.md'
+      # `check-infra-versions` confronte `docs/infra/versions.json` à TOUS les workflows (elle
+      # liste le dossier plutôt que d'énumérer) et à `composer.json`. Le préfixe, pas
+      # l'énumération : les deux lignes ci-dessus sont donc redondantes, et c'est voulu — une
+      # liste écrite cesse de couvrir le fichier qu'on ajoute, un préfixe jamais. C'est la règle
+      # posée en haut de ce bloc, appliquée à elle-même.
+      - '.github/workflows/**'
+      - 'takussan-api/composer.json'
   push:
     branches: [dev, master]
     paths:
@@ -100,6 +107,13 @@ on:
       # déclenchée d'un seul côté ne voit qu'une moitié de l'écart qu'elle cherche.
       - '**/skills/**'
       - '**/SKILL.md'
+      # `check-infra-versions` confronte `docs/infra/versions.json` à TOUS les workflows (elle
+      # liste le dossier plutôt que d'énumérer) et à `composer.json`. Le préfixe, pas
+      # l'énumération : les deux lignes ci-dessus sont donc redondantes, et c'est voulu — une
+      # liste écrite cesse de couvrir le fichier qu'on ajoute, un préfixe jamais. C'est la règle
+      # posée en haut de ce bloc, appliquée à elle-même.
+      - '.github/workflows/**'
+      - 'takussan-api/composer.json'
 
 jobs:
   guards:
@@ -249,3 +263,22 @@ jobs:
         # elle, le journal le montre. (`--report` ajoute de la sortie, il ne désarme pas la
         # garde : le script sort toujours en 1 sur une incohérence.)
         run: node docs/backlog/check-backlog.mjs --report
+
+      - name: Les versions d'infrastructure disent la vérité, y compris sur ce qu'on ignore
+        # Même famille que `check-db-engine`, un cran plus haut : celle-ci garde TOUTES les versions
+        # de service, et surtout la colonne « production ».
+        #
+        # Mesuré le 2026-08-16 (TCK-298) : développement et CI sont épinglés des deux côtés, la
+        # PRODUCTION ne l'est nulle part dans le dépôt. `scripts/server-setup.sh` n'installe rien —
+        # il lit `php -v` et imprime la commande à lancer à la main — et le seul document qui nomme
+        # une installation est un guide (`apt install meilisearch`, sans version) que personne ne
+        # peut dater. C'est la mécanique de D-43 à l'identique : ce qu'un guide prescrit n'est pas
+        # ce qu'une machine exécute.
+        #
+        # La garde refuse donc une valeur de production qui ne cite pas sa mesure, ET refuse de
+        # laisser combler la colonne avec une version plausible. « Non mesuré + la commande qui le
+        # mesurerait » est une réponse valable ; « probablement 8.4 » ne l'est pas.
+        #
+        # `--report` imprime le tableau dev/CI/prod dans le journal : une exécution verte MONTRE
+        # alors ce qui a été confronté, au lieu de le laisser déduire.
+        run: node scripts/check-infra-versions.mjs --report

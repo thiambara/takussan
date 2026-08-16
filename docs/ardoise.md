@@ -588,6 +588,15 @@ Corollaire : un développeur sans Meilisearch **ne peut pas lancer la suite du t
 > PHP-FPM et de nginx et imprime la commande à lancer à la main. Le provisionnement de production est
 > entièrement manuel, et aucune version n'y est écrite.
 
+> **La source de vérité a déménagé (TCK-298) : [`infra/versions.json`](infra/versions.json)**, gardé
+> par `node scripts/check-infra-versions.mjs` et rejoué par Repo CI. Le tableau ci-dessous reste
+> comme TRACE de la mesure du 2026-08-12 — **ne pas s'en servir comme référence**, et surtout pas de
+> sa case « PHP · Production », qui dit `8.3` là où D-01 démontre au contraire une borne inférieure
+> à **8.4.1**. Les deux ne peuvent pas être vrais ; aucun des deux n'a été relevé sur la machine, et
+> c'est exactement le genre de contradiction qu'un catalogue unique existe pour rendre impossible.
+> Ce qui reste ouvert après TCK-298 : **mesurer** la colonne production (TCK-288) — le catalogue
+> porte, pour chaque case, la commande qui le fait.
+
 | Service | Dev (brew) | CI | Production |
 |---|---|---|---|
 | Meilisearch | 1.36.0 | v1.16 | `apt install meilisearch` (latest) |
