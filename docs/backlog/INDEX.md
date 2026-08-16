@@ -11,8 +11,8 @@
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 23 |
-| 🚧 Doing | 1 |
-| 👀 Review | 0 |
+| 🚧 Doing | 0 |
+| 👀 Review | 1 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 269 |
 | 🗑️ Obsolete | 1 |
@@ -59,11 +59,11 @@
 
 ## 🚧 Doing
 
-- [TCK-303](tickets/TCK-303-arbitrer-agent-vs-agents.md) — Deux répertoires de compétences concurrents, `.agent/` et `.agents/`, qui divergent en croix `S · P1 · technique`
+_(aucun)_
 
 ## 👀 Review
 
-_(aucun)_
+- [TCK-303](tickets/TCK-303-arbitrer-agent-vs-agents.md) — Deux répertoires de compétences concurrents, `.agent/` et `.agents/` — arbitrer, supprimer le mort, et garder contre son retour `S · P1 · technique`
 
 ## ⛔ Blocked
 

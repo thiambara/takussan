@@ -46,8 +46,10 @@ Aucune donnée applicative. Re-mesuré le 2026-08-16 :
   `seeding-plan.md` ont été signalés le 2026-08-12 sans être traités. Le bandeau a rendu le mensonge
   honnête, il ne l'a pas retiré. Chacun se termine par une décision : régénérer, ou supprimer.
 - **Lister l'inventaire avant toute suppression.** Un document périmé peut porter un raisonnement
-  qui n'existe nulle part ailleurs — c'est le cas de `.agents/` (TCK-303). Lire avant de supprimer,
-  et déplacer ce qui mérite de survivre.
+  qui n'existe nulle part ailleurs. Lire avant de supprimer, et déplacer ce qui mérite de survivre.
+  *(TCK-303 a appliqué la règle à `.agents/` : l'inventaire a conclu qu'il n'y avait **rien** à
+  sauver — le ticket croyait le contraire. C'est le sens de la règle, pas son démenti : elle sert à
+  transformer « il n'y a rien à sauver » d'un pari en un résultat mesuré.)*
 - Supprimer une image de l'arbre de travail ne la retire pas de l'historique git : décider
   explicitement si le poids doit disparaître de l'historique ou seulement du HEAD, et écrire ce
   choix.
