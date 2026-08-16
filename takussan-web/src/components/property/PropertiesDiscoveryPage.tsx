@@ -1,7 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { List, Map as MapIcon, SearchX } from 'lucide-react';
+import { EmptyState } from '@/components/feedback';
+import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/home/Navbar';
 import { Footer } from '@/components/home/Footer';
 import { FilterSidebar } from '@/components/search/FilterSidebar';
@@ -41,24 +44,22 @@ function CardSkeleton() {
   );
 }
 
-function EmptyState({ onReset }: { onReset: () => void }) {
+function SearchEmpty({ onReset }: { onReset: () => void }) {
+  const t = useTranslations('search.results');
   return (
-    <div className="flex flex-col items-center justify-center py-24 text-center col-span-full">
-      <SearchX className="w-12 h-12 text-gray-300 mb-4" />
-      <h3 className="text-lg font-bold text-gray-700 mb-1">
-        Aucun bien trouvé
-      </h3>
-      <p className="text-sm text-gray-400 mb-6 max-w-xs">
-        Essayez d&apos;élargir vos critères de recherche ou de supprimer
-        certains filtres.
-      </p>
-      <button
-        onClick={onReset}
-        className="text-sm font-semibold text-primary underline underline-offset-4 hover:text-primary/80 transition-colors cursor-pointer"
-      >
-        Effacer tous les filtres
-      </button>
-    </div>
+    // `col-span-full` : ce bloc vit DANS la grille de résultats. C'est la raison pour laquelle
+    // `EmptyState` spread ses props résiduelles et accepte `className`.
+    <EmptyState
+      className="col-span-full"
+      icon={<SearchX className="size-8" aria-hidden="true" />}
+      title={t('empty_title')}
+      description={t('empty_description')}
+      action={
+        <Button type="button" variant="outline" onClick={onReset}>
+          {t('empty_cta')}
+        </Button>
+      }
+    />
   );
 }
 
@@ -208,7 +209,7 @@ export function PropertiesDiscoveryPage() {
                       <CardSkeleton key={i} />
                     ))
                   ) : properties.length === 0 && !loading ? (
-                    <EmptyState onReset={resetFilters} />
+                    <SearchEmpty onReset={resetFilters} />
                   ) : (
                     properties.map((property, i) => (
                       <PropertyCard

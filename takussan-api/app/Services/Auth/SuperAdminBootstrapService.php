@@ -28,11 +28,12 @@ class SuperAdminBootstrapService
     ) {}
 
     /**
-     * Provision a new super-admin user, attach 2FA and the global
-     * `super_admin` spatie role, mark the email as verified and force a
-     * fresh 2FA enrollment at first login. Wrapped in a DB transaction
-     * so a partial failure (role attach, log write, …) does not leave
-     * an orphan User behind.
+     * Provision a new super-admin user, attach 2FA, grant the global
+     * `PlatformProfile` at level `super_admin` (TCK-278 — no spatie role is
+     * attached any more, the package is uninstalled, ADR-0002), mark the
+     * email as verified and force a fresh 2FA enrollment at first login.
+     * Wrapped in a DB transaction so a partial failure (profile grant, log
+     * write, …) does not leave an orphan User behind.
      *
      * @param  array{email:string,password:string,first_name:string,last_name:string,locale?:string}  $data
      * @return array{user:User,recovery_codes:array<int,string>}

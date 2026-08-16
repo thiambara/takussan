@@ -24,9 +24,29 @@ use Illuminate\Http\Request;
  * }
  * ```
  *
- * Auth model: signed Laravel route (`signed` middleware), random URL
- * token in config + IP allowlist via `restrict.ip:orange`. Idempotent:
- * matching `provider_message_id` on `delivery_attempts`.
+ * Auth model — CE QUI EST RÉELLEMENT EN PLACE (mesuré le 2026-08-15,
+ * cf. ardoise D-49) :
+ *
+ *   1. un jeton aléatoire dans l'URL (`config('sms.webhook_url_token')`),
+ *      comparé par `hash_equals` ci-dessous — échec fermé : jeton vide → 404 ;
+ *   2. une allowlist d'IP, via le middleware `restrict.ip:orange` déclaré
+ *      dans `routes/api/sms-webhooks.php` — échec fermé : liste vide → 403.
+ *
+ * ⚠ IL N'Y A **AUCUNE VÉRIFICATION DE SIGNATURE** sur cet endpoint, ni
+ * cryptographique, ni via le middleware `signed` de Laravel. Ce docblock
+ * annonçait « signed Laravel route (`signed` middleware) » : c'était faux —
+ * seule la route LAfricaMobile porte `signed` (sms-webhooks.php:29), parce
+ * que son URL est générée par message. Les webhooks Wave, Orange Money,
+ * Lemon Squeezy et WhatsApp vérifient chacun une empreinte ; celui-ci et
+ * celui de Mtarget, non.
+ *
+ * *Un commentaire qui décrit une protection absente est pire que pas de
+ * commentaire : il dispense le lecteur d'aller vérifier.* Ne pas ajouter de
+ * vérification de signature sans avoir établi qu'Orange en émet une — si ce
+ * n'est pas le cas, on casse la réception des accusés de livraison et le
+ * diagnostic partira du côté de l'opérateur. La décision est ouverte en D-49.
+ *
+ * Idempotent: matching `provider_message_id` on `delivery_attempts`.
  */
 class OrangeSmsStatusController extends Controller
 {

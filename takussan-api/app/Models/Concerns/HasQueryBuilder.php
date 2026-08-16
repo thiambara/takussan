@@ -3,15 +3,44 @@
 namespace App\Models\Concerns;
 
 use App\Http\Filters\RangeFilter;
+use App\Sorts\SearchRelevanceSort;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Laravel\Scout\Searchable;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\AllowedInclude;
+use Spatie\QueryBuilder\AllowedSort;
 use Spatie\QueryBuilder\QueryBuilder;
 
 trait HasQueryBuilder
 {
+    /**
+     * TCK-281 — plafond d'ids ramenés de Scout par `filter[search]`.
+     *
+     * C'EST UN PLAFOND, ET IL ÉCHOUE EN SILENCE : Meilisearch rend au plus
+     * `SEARCH_ID_CAP` ids GLOBAUX, toutes agences confondues, AVANT
+     * l'intersection avec le scope tenant du contrôleur. Une correspondance
+     * appartenant à l'agence de l'appelant mais classée au-delà de ce rang
+     * global disparaît sans message ni compteur tronqué. Le plafond tient à
+     * l'échelle actuelle ; il se dégradera d'abord pour les grosses agences.
+     */
+    protected const SEARCH_ID_CAP = 5000;
+
+    /**
+     * TCK-281 — ids Scout de la dernière recherche `filter[search]`, DANS
+     * L'ORDRE DE PERTINENCE rendu par Meilisearch, indexés par classe.
+     *
+     * Le `whereIn` qui compose Scout et Eloquent perd cet ordre ; le conserver
+     * ici est ce qui permet à {@see self::defaultSortsWithRelevance()} de le
+     * restituer côté SQL. Clé = classe du modèle, parce qu'une propriété
+     * statique de trait appartient à la classe QUI UTILISE le trait :
+     * `AbstractModel` la porte pour ses 68 descendants, qui partagent donc le
+     * même emplacement.
+     *
+     * @var array<class-string, array<int,int|string>>
+     */
+    protected static array $searchRelevanceIds = [];
+
     /**
      * Returns a spatie QueryBuilder pre-configured with the model's allowed
      * filters, sorts, includes and fields. Accepts an optional base query so
@@ -87,9 +116,44 @@ trait HasQueryBuilder
         return array_values(array_unique([...$own, ...$nested]));
     }
 
+    /**
+     * TCK-281 — les tris par défaut d'un endpoint de liste, PERTINENCE EN
+     * TÊTE quand la requête courante porte un `filter[search]` servi par
+     * Meilisearch.
+     *
+     * À appeler APRÈS `buildQuery()`, qui est ce qui interroge Scout et
+     * mémorise l'ordre des ids. Le résultat se passe à `defaultSorts()` et non
+     * à `allowedSorts()` : `defaultSorts()` ne fait rien dès qu'un `sort=`
+     * explicite est présent, donc un tri demandé par le client reste souverain
+     * (AC4) et la pertinence ne s'applique qu'à défaut.
+     *
+     * @param  string  ...$fallback  Les tris à appliquer hors recherche.
+     * @return array<int, AllowedSort|string>
+     */
+    public static function defaultSortsWithRelevance(string ...$fallback): array
+    {
+        $ids = static::$searchRelevanceIds[static::class] ?? null;
+
+        // Moins de deux résultats : il n'y a pas d'ordre à restituer, et on
+        // évite d'écrire un `CASE` inutile dans le SQL.
+        if ($ids === null || count($ids) < 2 || ! SearchRelevanceSort::supports($ids)) {
+            return $fallback;
+        }
+
+        return [
+            AllowedSort::custom('search_relevance', new SearchRelevanceSort($ids)),
+            ...$fallback,
+        ];
+    }
+
     /** @return array<int, AllowedFilter> */
     protected static function getAllowedQueryFilters(): array
     {
+        // L'ordre de pertinence n'appartient qu'à la requête en cours : le
+        // reposer ici évite qu'un `buildQuery()` sans recherche hérite de
+        // l'ordre du précédent (même processus : Octane, jobs, tests).
+        unset(static::$searchRelevanceIds[static::class]);
+
         $exact = array_map(
             fn (string $field) => AllowedFilter::exact($field),
             static::$requestFilterable ?? []
@@ -125,8 +189,16 @@ trait HasQueryBuilder
                 // HasQueryBuilder is also used by models without that trait
                 // (e.g. User).
                 if (in_array(Searchable::class, class_uses_recursive($model), true)) {
-                    $ids = $model::search($value)->take(1000)->keys()->all();
+                    $ids = $model::search($value)->take(static::SEARCH_ID_CAP)->keys()->all();
                     $q->whereIn($model->getQualifiedKeyName(), $ids);
+
+                    // TCK-281 — `whereIn` ne dit rien de l'ordre. On mémorise
+                    // le classement de Meilisearch pour que le contrôleur
+                    // puisse le restituer via `defaultSortsWithRelevance()` —
+                    // sans quoi le `defaultSort('-created_at')` rendrait la
+                    // recherche tolérante aux fautes mais classée par date,
+                    // c'est-à-dire la moitié de ce qu'AC1 promet.
+                    static::$searchRelevanceIds[$model::class] = $ids;
 
                     return;
                 }

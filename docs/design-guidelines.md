@@ -81,6 +81,15 @@ Interdits :
 - **États interactifs** : tous les éléments cliquables ont un état `hover` visible et un état `focus-visible` accessible (`ring-2 ring-ring`).
 - **Transitions** : `transition-all duration-150 ease-in-out` pour hover/focus rapides. `duration-300` à `duration-500` pour ouvertures de panneaux/modales et zooms photo (`cubic-bezier(0.16, 1, 0.3, 1)`).
 - **États vides** : illustrés avec un court message d'encouragement + un CTA. Jamais un simple "Aucun résultat."
+  **Un seul composant les rend tous** : `<EmptyState>` (`@/components/feedback`), props `{icon, title, description, action}`.
+  Ne jamais en écrire un local — `scripts/check-feedback-states.mjs` casse la CI sur toute redéfinition
+  de `*EmptyState` / `*ErrorState` hors de `src/components/feedback/`. *Cette règle a été violée onze
+  fois avant d'être gardée (TCK-246).*
+- **États d'erreur inline** : `<ErrorState message onRetry? retryLabel?>` (`@/components/feedback`),
+  bâti sur `DestructiveBanner` — tokens `--destructive`, `role="alert"` posé une seule fois.
+  Jamais `bg-red-50` / `text-red-700` : la palette Tailwind brute n'est pas la palette du produit.
+  Il n'y a **pas** de `<Alert>` shadcn dans ce dépôt — c'est un composant Radix, et il n'y a aucune
+  dépendance Radix ici.
 - **Loading** : skeleton loaders avec `bg-stone-200` ou `bg-muted`, jamais de spinner centré sur page entière sauf première charge.
 
 ### Bibliothèque de composants — shadcn/ui
@@ -95,7 +104,17 @@ Le projet utilise **shadcn/ui** avec le runtime **`@base-ui/react`** (à la plac
 4. **Surcharger via `className`** en utilisant `cn()` — ne pas modifier les fichiers `ui/` pour un cas ponctuel.
 5. **Ajouter un composant** via `npx shadcn@latest add <composant>` puis vérifier qu'il utilise `@base-ui/react` (et non Radix) dans le fichier généré.
 
-Composants disponibles : `Button`, `Input`, `Badge`, `Select`, `Card`, `Avatar`, `Dialog`, `Skeleton`.
+Primitives `ui/` (20) : `Avatar`, `Badge`, `Button`, `Calendar`, `Card`, `DatePicker`, `DateTimePicker`,
+`DestructiveBanner`, `Dialog`, `DropdownMenu`, `Input`, `Label`, `Popover`, `Select`, `Separator`,
+`Sheet`, `Skeleton`, `Tabs`, `Textarea`, `Toast`.
+
+Composants de feedback (`src/components/feedback/`) : `EmptyState`, `ErrorState` — cf. la règle
+« États vides » plus haut. Ils sont **présentationnels** : ni `'use client'`, ni `useTranslations`,
+pour rester importables depuis un server component. C'est l'appelant qui traduit.
+
+> Cette liste ne comptait que huit entrées et n'avait jamais été tenue à jour : elle omettait
+> `destructive-banner`, `toast`, `tabs`, `sheet`, `popover`… Le compte se reprend à la source —
+> `ls takussan-web/src/components/ui/`.
 
 ## Cartes propriété — variantes
 

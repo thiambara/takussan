@@ -57,9 +57,14 @@ class HostOnboardingController extends Controller
                         // TCK-271 — concrete `AgencyAdminProfile` is now
                         // materialized in the same transaction as the agency
                         // and pinned as the active context cookie below.
-                        // The `role` key is preserved for back-compat with
-                        // earlier wizard payloads — the spatie role attachment
-                        // is still the source of truth for permission checks.
+                        // La clé `role` est conservée pour compatibilité avec
+                        // les payloads du wizard antérieurs. TCK-278 — ce
+                        // n'est plus qu'un LIBELLÉ : la source de vérité des
+                        // autorisations est le profil polymorphe ci-dessous,
+                        // résolu par `MembershipCapabilityResolver`.
+                        // `spatie/laravel-permission` est désinstallé
+                        // (ADR-0002), et ce commentaire affirmait le
+                        // contraire — frontalement — bien après le cutover.
                         'id' => $result['agency_admin_profile']->id,
                         'role' => 'agency_admin',
                         'agency_id' => $result['agency_admin_profile']->agency_id,

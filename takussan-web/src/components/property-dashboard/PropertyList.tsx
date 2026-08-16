@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Archive,
   EyeOff,
@@ -14,8 +15,9 @@ import {
   X,
 } from 'lucide-react';
 
+import { EmptyState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -80,9 +82,9 @@ export function PropertyList({
 
   if (!properties || properties.length === 0) {
     return hasActiveFilters ? (
-      <FilteredEmptyState onReset={() => router.replace('?')} />
+      <PortfolioFilteredEmpty onReset={() => router.replace('?')} />
     ) : (
-      <EmptyState />
+      <PortfolioEmpty />
     );
   }
 
@@ -528,42 +530,35 @@ function VisibilityBadge({ visibility }: { visibility: string | null }) {
   );
 }
 
-function EmptyState() {
+function PortfolioEmpty() {
+  const t = useTranslations('property.portfolio');
   return (
-    <div className="flex flex-col items-center justify-center gap-4 rounded-xl bg-app-surface-1 px-6 py-16 text-center">
-      <div className="rounded-full bg-app-surface-2 p-4 text-app-accent">
-        <Home className="size-8" aria-hidden="true" />
-      </div>
-      <p className="text-lg font-semibold text-app-ink">
-        Aucun bien dans votre portefeuille
-      </p>
-      <p className="max-w-md text-sm text-app-ink-muted">
-        Créez votre première annonce pour la diffuser auprès des locataires et
-        acheteurs Takussan.
-      </p>
-      <Link
-        href="/app/properties/new"
-        className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-      >
-        Publier mon premier bien
-      </Link>
-    </div>
+    <EmptyState
+      icon={<Home className="size-8" aria-hidden="true" />}
+      title={t('empty_title')}
+      description={t('empty_description')}
+      action={
+        <Link href="/app/properties/new" className={buttonVariants()}>
+          {t('empty_cta')}
+        </Link>
+      }
+    />
   );
 }
 
-function FilteredEmptyState({ onReset }: { readonly onReset: () => void }) {
+function PortfolioFilteredEmpty({ onReset }: { readonly onReset: () => void }) {
+  const t = useTranslations('property.portfolio');
   return (
-    <div className="flex flex-col items-center justify-center gap-3 rounded-xl bg-app-surface-1 px-6 py-12 text-center">
-      <p className="text-base font-semibold text-app-ink">
-        Aucun bien ne correspond à vos filtres
-      </p>
-      <p className="max-w-sm text-sm text-app-ink-muted">
-        Essayez d’ajuster ou de retirer certains filtres pour élargir votre recherche.
-      </p>
-      <Button type="button" variant="outline" size="sm" onClick={onReset}>
-        Réinitialiser les filtres
-      </Button>
-    </div>
+    <EmptyState
+      icon={<Home className="size-8" aria-hidden="true" />}
+      title={t('filtered_empty_title')}
+      description={t('filtered_empty_description')}
+      action={
+        <Button type="button" variant="outline" size="sm" onClick={onReset}>
+          {t('filtered_empty_cta')}
+        </Button>
+      }
+    />
   );
 }
 

@@ -51,14 +51,153 @@
     "searchAria": "Lancer la recherche",
     "moreTypes": "Plus de types",
     "more": "Plus",
-    "propertiesCount": "{count} biens"
+    "propertiesCount": "{count} biens",
+    "userMenuFor": "Menu utilisateur — {name}",
+    "administration": "Administration",
+    "links": {
+      "buy": "Acheter",
+      "rent": "Louer",
+      "sell": "Vendre",
+      "services": "Nos Services"
+    },
+    "categories": {
+      "apartment": "Appartement",
+      "house": "Maison",
+      "villa": "Villa",
+      "land": "Terrain",
+      "shop": "Commerce",
+      "office": "Bureau",
+      "studio": "Studio",
+      "room": "Chambre",
+      "warehouse": "Entrepôt",
+      "hotel": "Hôtel",
+      "resort": "Complexe",
+      "garage": "Garage",
+      "parking": "Parking",
+      "farm": "Ferme",
+      "factory": "Usine",
+      "other": "Autre"
+    },
+    "sidebar": {
+      "dashboard": "Tableau de bord",
+      "myProperties": "Mes biens",
+      "publishProperty": "Publier un bien",
+      "myFavorites": "Mes favoris",
+      "savedSearches": "Recherches sauvegardées",
+      "myVisits": "Mes visites",
+      "visits": "Visites",
+      "myBookings": "Mes réservations",
+      "bookings": "Réservations",
+      "maintenance": "Maintenance",
+      "interventions": "Interventions",
+      "myLeases": "Mes baux",
+      "leases": "Baux",
+      "payments": "Paiements",
+      "finances": "Finances",
+      "inventories": "États des lieux",
+      "myReviews": "Mes avis",
+      "providerBook": "Carnet prestataires",
+      "messaging": "Messagerie",
+      "documents": "Documents",
+      "statistics": "Statistiques",
+      "exports": "Exports",
+      "agencyView": "Vue agence",
+      "kpis": "KPIs",
+      "alerts": "Alertes",
+      "owners": "Propriétaires",
+      "crm": "Clients (CRM)",
+      "calendar": "Calendrier",
+      "onboardingPending": "Onboardings en attente",
+      "administration": "Administration",
+      "proLocked": "Réservé aux comptes pro"
+    },
+    "admin": {
+      "dashboard": "Tableau de bord",
+      "properties": "Biens",
+      "team": "Équipe",
+      "agency": "Agence",
+      "kyc": "KYC agence",
+      "billing": "Abonnement",
+      "finances": "Finances",
+      "reviewModeration": "Modération avis",
+      "propertyModeration": "Modération biens",
+      "auditLog": "Journal d'audit",
+      "settings": "Paramètres",
+      "sectionLabel": "Administration",
+      "backToPersonal": "Retour à l'espace perso",
+      "proLocked": "Réservé aux comptes pro",
+      "pendingBadge": "{count} en attente"
+    },
+    "superAdmin": {
+      "eyebrow": "Console Takussan",
+      "title": "Espace plateforme",
+      "ariaNav": "Navigation super-admin",
+      "backToPersonal": "Retour à l'espace perso",
+      "pendingBadge": "{count} en attente",
+      "topbarBrand": "Takussan · Console",
+      "groups": {
+        "overview": "Vue d'ensemble",
+        "operations": "Opérations",
+        "revenue": "Revenus",
+        "content": "Contenu",
+        "platform": "Plateforme"
+      },
+      "items": {
+        "console": "Console",
+        "reports": "Reporting",
+        "agencies": "Agences",
+        "upgradeRequests": "Demandes d'upgrade",
+        "users": "Utilisateurs",
+        "superAdmins": "Super-admins",
+        "properties": "Biens",
+        "kyc": "KYC",
+        "moderation": "Modération",
+        "plans": "Plans",
+        "payouts": "Reversements",
+        "tags": "Tags",
+        "enums": "Enums",
+        "templates": "Templates",
+        "announcements": "Annonces",
+        "settings": "Paramètres",
+        "integrations": "Intégrations",
+        "featureFlags": "Feature flags",
+        "alerts": "Alertes",
+        "audit": "Audit",
+        "system": "Système",
+        "health": "Santé",
+        "maintenance": "Maintenance",
+        "scheduler": "Planificateur"
+      }
+    },
+    "notifications": {
+      "label": "Notifications",
+      "center": "Centre de notifications",
+      "unread": "{count, plural, one {# non lue} other {# non lues}}",
+      "markAllRead": "Tout lire",
+      "loading": "Chargement...",
+      "empty": "Aucune notification.",
+      "markRead": "Marquer lu",
+      "markUnread": "Marquer non lu"
+    },
+    "proUpgrade": {
+      "title": "Passer en pro",
+      "pendingTitle": "Demande en cours",
+      "body": "Équipe, multi-admins et plus d'outils dédiés aux agences pro.",
+      "pendingBody": "Validation par notre équipe sous 48h.",
+      "cta": "En savoir plus",
+      "pendingCta": "Voir le détail"
+    }
   },
   "footer": {
     "tagline": "Votre partenaire de confiance pour trouver le bien immobilier idéal au Sénégal.",
     "newsletterPlaceholder": "Votre email",
     "newsletterSubmit": "S'inscrire",
     "discoverHeading": "Découvrir",
-    "copyright": "© {year} Takussan. Tous droits réservés."
+    "copyright": "© {year} Takussan. Tous droits réservés.",
+    "discover": {
+      "featured": "Biens en vedette",
+      "latest": "Nouveautés"
+    }
   },
   "map": {
     "zoomIn": "Zoomer",
@@ -113,21 +252,42 @@
   },
   "auth": {
     "login": {
-      "title": "Connexion",
+      "title": "Content de vous revoir",
       "submit": "Se connecter",
-      "email": "Adresse e-mail",
+      "email": "Adresse email",
       "password": "Mot de passe",
       "forgotPassword": "Mot de passe oublié ?",
       "noAccount": "Pas encore de compte ?",
-      "register": "Créer un compte"
+      "register": "Créer un compte",
+      "subtitle": "Connectez-vous pour accéder à votre espace Takussan.",
+      "resetSuccess": "Votre mot de passe a été réinitialisé. Vous pouvez maintenant vous connecter.",
+      "emailPlaceholder": "vous@exemple.com",
+      "showPassword": "Afficher le mot de passe",
+      "hidePassword": "Masquer le mot de passe",
+      "submitting": "Connexion…",
+      "registerCta": "S'inscrire"
     },
     "register": {
-      "title": "Créer un compte",
-      "submit": "S'inscrire",
+      "title": "Créez votre compte",
+      "submit": "Créer mon compte",
       "firstName": "Prénom",
       "lastName": "Nom",
       "passwordConfirmation": "Confirmer le mot de passe",
-      "hasAccount": "Déjà un compte ?"
+      "hasAccount": "Déjà un compte ?",
+      "subtitle": "Rejoignez Takussan et gérez vos recherches et vos biens en toute simplicité.",
+      "email": "Adresse email",
+      "emailPlaceholder": "vous@exemple.com",
+      "password": "Mot de passe",
+      "passwordPlaceholder": "Au moins 8 caractères",
+      "passwordConfirmationPlaceholder": "Répétez le mot de passe",
+      "showPassword": "Afficher le mot de passe",
+      "hidePassword": "Masquer le mot de passe",
+      "showConfirmation": "Afficher la confirmation du mot de passe",
+      "hideConfirmation": "Masquer la confirmation du mot de passe",
+      "acceptTerms": "J'accepte les <terms>conditions générales</terms> et la <privacy>politique de confidentialité</privacy>.",
+      "submitting": "Création…",
+      "oauthSeparator": "ou créer un compte avec",
+      "loginCta": "Se connecter"
     },
     "logout": "Se déconnecter",
     "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
@@ -161,6 +321,92 @@
         "fileHeader": "Codes de récupération Takussan — conservez-les en lieu sûr.",
         "fileFooter": "Chaque code n’est utilisable qu’une seule fois."
       }
+    },
+    "meta": {
+      "template": "%s — Takussan",
+      "default": "Authentification — Takussan"
+    },
+    "layout": {
+      "visualAlt": "Villa contemporaine au Sénégal",
+      "headline": "Votre porte d'entrée vers l'immobilier du Sénégal.",
+      "subheadline": "Des milliers de biens, une expérience soignée, des partenaires de confiance."
+    },
+    "twoFactorChallenge": {
+      "title": "Authentification à deux facteurs",
+      "appIntro": "Entrez le code à 6 chiffres généré par votre application d’authentification.",
+      "recoveryIntro": "Entrez un de vos codes de récupération à usage unique.",
+      "codeLabel": "Code à 6 chiffres",
+      "recoveryLabel": "Code de récupération",
+      "codePlaceholder": "123456",
+      "recoveryPlaceholder": "XXXXX-XXXXX",
+      "verify": "Vérifier",
+      "verifying": "Vérification…",
+      "useApp": "Utiliser mon application",
+      "useRecovery": "Utiliser un code de récupération",
+      "cancel": "Annuler",
+      "invalidCode": "Code invalide."
+    },
+    "forgotPassword": {
+      "title": "Mot de passe oublié",
+      "subtitle": "Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de passe.",
+      "email": "Adresse email",
+      "emailPlaceholder": "vous@exemple.com",
+      "submit": "Envoyer le lien",
+      "submitting": "Envoi en cours…",
+      "sentTitle": "Vérifiez votre boîte mail",
+      "sentBody": "Si un compte existe pour <b>{email}</b>, un lien de réinitialisation vient de vous être envoyé. Il est valable 60 minutes.",
+      "backToLogin": "← Retour à la connexion"
+    },
+    "resetPassword": {
+      "title": "Nouveau mot de passe",
+      "subtitle": "Choisissez un nouveau mot de passe pour <b>{email}</b>.",
+      "invalidTitle": "Lien invalide",
+      "invalidBody": "Ce lien de réinitialisation est invalide ou a expiré. Demandez-en un nouveau.",
+      "requestNewLink": "Demander un nouveau lien",
+      "passwordLabel": "Nouveau mot de passe",
+      "passwordPlaceholder": "Au moins 8 caractères",
+      "confirmationLabel": "Confirmer le mot de passe",
+      "confirmationPlaceholder": "Répétez le mot de passe",
+      "showPassword": "Afficher le mot de passe",
+      "hidePassword": "Masquer le mot de passe",
+      "showConfirmation": "Afficher la confirmation du mot de passe",
+      "hideConfirmation": "Masquer la confirmation du mot de passe",
+      "submit": "Définir le nouveau mot de passe",
+      "submitting": "Réinitialisation…",
+      "failed": "La réinitialisation a échoué.",
+      "networkFailed": "La connexion au serveur a échoué. Vérifiez votre connexion internet et réessayez.",
+      "backToLogin": "← Retour à la connexion"
+    },
+    "verifyEmail": {
+      "title": "Vérifiez votre adresse email",
+      "body": "Nous avons envoyé un lien de vérification à votre adresse email. Cliquez sur le lien dans le message pour activer votre compte.",
+      "resent": "Email de vérification renvoyé. Pensez à vérifier votre dossier spam.",
+      "resendFailed": "Impossible de renvoyer l'email. Réessayez dans quelques instants.",
+      "resend": "Renvoyer l'email de vérification",
+      "sending": "Envoi en cours…",
+      "continue": "Continuer vers le tableau de bord"
+    },
+    "verifyEmailLink": {
+      "successTitle": "Adresse email vérifiée",
+      "successBody": "Votre adresse est confirmée. Vous pouvez maintenant accéder à l'ensemble des fonctionnalités de Takussan.",
+      "successCta": "Accéder au tableau de bord",
+      "failureTitle": "Vérification impossible",
+      "failureBody": "Ce lien est invalide ou a expiré. Demandez un nouvel email de vérification depuis votre espace.",
+      "failureCta": "Demander un nouveau lien"
+    },
+    "oauthCallback": {
+      "title": "Connexion en cours…",
+      "body": "Nous finalisons votre authentification. Merci de patienter quelques instants.",
+      "unknownProvider": "Fournisseur inconnu",
+      "unknownProviderBody": "Ce fournisseur d'authentification n'est pas pris en charge."
+    },
+    "oauth": {
+      "continueWith": "Continuer avec {provider}",
+      "loading": "Chargement des fournisseurs…",
+      "loadFailed": "Impossible de charger les fournisseurs d'authentification.",
+      "startFailed": "Impossible d'initier la connexion. Réessayez dans quelques instants.",
+      "noneConfigured": "Aucun fournisseur OAuth n'est configuré sur cet environnement.",
+      "separator": "ou continuer avec email"
     }
   },
   "property": {
@@ -204,6 +450,14 @@
     "contractTypes": {
       "sale": "Vente",
       "rent": "Location"
+    },
+    "portfolio": {
+      "empty_title": "Aucun bien dans votre portefeuille",
+      "empty_description": "Créez votre première annonce pour la diffuser auprès des locataires et acheteurs Takussan.",
+      "empty_cta": "Publier mon premier bien",
+      "filtered_empty_title": "Aucun bien ne correspond à vos filtres",
+      "filtered_empty_description": "Ajustez ou retirez certains filtres pour élargir votre recherche.",
+      "filtered_empty_cta": "Réinitialiser les filtres"
     }
   },
   "dashboard": {
@@ -227,6 +481,26 @@
       "reference": "Référence technique : {digest}",
       "retry": "Réessayer",
       "backToDashboard": "Retour au tableau de bord"
+    },
+    "propertyNotFound": {
+      "title": "Bien introuvable",
+      "body": "Ce bien n'est plus disponible ou a été retiré. Consultez nos autres annonces pour découvrir des biens similaires.",
+      "browseListings": "Voir les annonces",
+      "startSearch": "Lancer une recherche"
+    },
+    "maintenance": {
+      "eyebrow": "Maintenance",
+      "title": "Service temporairement indisponible",
+      "defaultMessage": "Takussan est temporairement en maintenance.",
+      "backAt": "Retour prévu le {date}."
+    },
+    "noAgency": {
+      "title": "Aucune agence rattachée à votre compte",
+      "body": "En tant que super-administrateur sans agence, vous n'avez pas encore accès à cette section. Rattachez-vous à une agence depuis le panneau d'administration.",
+      "cta": "Aller à l'administration"
+    },
+    "stub": {
+      "title": "En cours de développement"
     }
   },
   "agency": {
@@ -362,6 +636,11 @@
           "error": "Erreur lors de la révocation."
         }
       }
+    },
+    "config": {
+      "no_agency_title": "Aucune agence rattachée",
+      "no_agency_description": "Contactez un super-administrateur pour être rattaché à une agence avant de configurer ses paramètres.",
+      "not_found": "Agence introuvable. Vérifiez le rattachement de votre compte, puis réessayez."
     }
   },
   "compare": {
@@ -473,6 +752,11 @@
       "errors": {
         "moveFailed": "Impossible de déplacer la carte. Réessayez."
       }
+    },
+    "list": {
+      "empty_title": "Votre CRM est vide",
+      "empty_description": "Ajoutez vos premiers contacts pour suivre leurs interactions et qualifier leurs intérêts.",
+      "empty_cta": "Ajouter un client"
     }
   },
   "account": {
@@ -503,7 +787,13 @@
         "obligationsTitle": "Vous avez des obligations en cours",
         "obligationsHint": "Vous devez d'abord les terminer pour pouvoir supprimer votre compte.",
         "successTitle": "Demande enregistrée",
-        "successBody": "Votre compte sera supprimé dans {days} jours. Vous pouvez encore annuler à tout moment depuis cette page."
+        "successBody": "Votre compte sera supprimé dans {days} jours. Vous pouvez encore annuler à tout moment depuis cette page.",
+        "step2CodeTitle": "Confirmer avec le code reçu par e-mail",
+        "step2CodeDescription": "Votre compte n'a pas de mot de passe : nous vous envoyons un code à 6 chiffres par e-mail pour confirmer.",
+        "sendCodeCta": "M'envoyer un code par e-mail",
+        "resendCodeCta": "Renvoyer un code",
+        "codeSentHint": "Code envoyé. Il est valable 5 minutes et ne sert qu'une fois.",
+        "codeLabel": "Code reçu par e-mail (6 chiffres)"
       },
       "banner": {
         "title": "Suppression programmée",
@@ -516,7 +806,8 @@
         "generic": "Une erreur est survenue, veuillez réessayer.",
         "passwordInvalid": "Mot de passe incorrect.",
         "twoFactorInvalid": "Code 2FA invalide.",
-        "obligations": "Vous avez des obligations en cours qui empêchent la suppression."
+        "obligations": "Vous avez des obligations en cours qui empêchent la suppression.",
+        "stepUpCodeInvalid": "Code de confirmation invalide ou expiré."
       }
     }
   },
@@ -636,7 +927,8 @@
         "actions": {
           "backToPayments": "Retour aux paiements",
           "refresh": "Actualiser"
-        }
+        },
+        "verifying": "Vérification du paiement…"
       },
       "error": {
         "generic": "Une erreur est survenue, réessayez."
@@ -729,7 +1021,15 @@
       "cancelled_toast_body": "Le bail revient à l'état actif.",
       "cancel_failed_title": "L'annulation a échoué"
     },
-    "error_generic": "Action impossible."
+    "error_generic": "Action impossible.",
+    "list": {
+      "empty_title": "Aucun bail pour le moment",
+      "empty_description": "Créez votre premier bail pour suivre les loyers, les quittances et les échéances au même endroit.",
+      "empty_cta": "Nouveau bail",
+      "empty_filtered_title": "Aucun bail ne correspond à ces filtres",
+      "empty_filtered_description": "Élargissez la sélection de statut ou de bien pour retrouver vos baux.",
+      "error": "Impossible de charger les baux. Vérifiez votre connexion, puis réessayez."
+    }
   },
   "maintenance": {
     "priority": {
@@ -737,14 +1037,22 @@
       "high": "Élevée",
       "normal": "Normale",
       "low": "Faible"
+    },
+    "list": {
+      "empty_title": "Aucune demande de maintenance",
+      "empty_description": "Aucune demande ne correspond à ces filtres. Créez-en une pour signaler un problème sur un bien.",
+      "empty_cta": "Nouvelle demande"
     }
   },
   "homepage": {
     "row": {
       "viewAll": "Tout voir",
+      "error": "Impossible de charger les annonces pour le moment.",
       "near": {
         "eyebrow": "Près de toi",
-        "title": "À découvrir à {city}"
+        "title": "À découvrir à {city}",
+        "fallbackEyebrow": "Ailleurs au Sénégal",
+        "fallbackTitle": "Peu d'annonces à {requestedCity} — à découvrir à {city}"
       },
       "rent": {
         "eyebrow": "À louer",
@@ -806,6 +1114,17 @@
         "all_types": "Tous les types"
       },
       "loading": "Chargement…"
+    },
+    "saved": {
+      "empty_title": "Aucune recherche sauvegardée",
+      "empty_description": "Depuis la page de résultats, cliquez sur « Sauvegarder la recherche » pour la retrouver ici.",
+      "empty_cta": "Lancer une recherche",
+      "error": "Impossible de charger vos recherches. Vérifiez votre connexion, puis réessayez."
+    },
+    "results": {
+      "empty_title": "Aucun bien trouvé",
+      "empty_description": "Élargissez vos critères ou retirez quelques filtres — il y a sûrement un bien pour vous.",
+      "empty_cta": "Effacer tous les filtres"
     }
   },
   "wizardDrafts": {
@@ -1276,7 +1595,13 @@
         "suspend": "Suspendre",
         "reactivate": "Réactiver",
         "remove": "Retirer"
-      }
+      },
+      "empty_filtered_title": "Aucun membre ne correspond aux filtres",
+      "empty_filtered_description": "Effacez la recherche ou changez d'onglet pour revoir toute l'équipe.",
+      "error": "Impossible de charger l'équipe. Vérifiez votre connexion, puis réessayez.",
+      "no_agency_title": "Aucune agence rattachée",
+      "no_agency_description": "Rattachez votre compte à une agence depuis la configuration pour gérer une équipe.",
+      "no_agency_cta": "Configuration de l'agence"
     },
     "invite": {
       "title": "Inviter un agent",
@@ -1695,6 +2020,39 @@
           }
         }
       }
+    }
+  },
+  "inventory": {
+    "list": {
+      "empty_title": "Aucun état des lieux",
+      "empty_description": "Un état des lieux part toujours d'un bail actif. Ouvrez le bail concerné pour en démarrer un.",
+      "empty_cta": "Voir mes baux"
+    },
+    "new": {
+      "no_lease_title": "Aucun bail sélectionné",
+      "no_lease_description": "Le bail détermine le bien et le locataire. Ouvrez un état des lieux depuis la page d'un bail pour démarrer.",
+      "no_lease_cta": "Choisir un bail"
+    }
+  },
+  "admin": {
+    "moderation": {
+      "reviews": {
+        "empty_title": "Aucun avis à modérer",
+        "empty_description": "Aucun avis n'est en attente ou signalé pour le moment. Revenez plus tard."
+      },
+      "properties": {
+        "empty_title": "Aucun bien à valider",
+        "empty_description": "Aucun bien n'est en attente de validation pour le moment. Revenez plus tard."
+      }
+    }
+  },
+  "documents": {
+    "library": {
+      "empty_title": "Aucun document",
+      "empty_description": "Glissez-déposez un fichier ou utilisez le bouton ci-dessous pour téléverser votre premier document.",
+      "drop_title": "Déposez votre fichier",
+      "drop_description": "Relâchez pour téléverser ce fichier.",
+      "upload_cta": "Téléverser un document"
     }
   }
 }

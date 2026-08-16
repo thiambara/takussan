@@ -21,6 +21,7 @@ use App\Services\Payments\Dto\PaymentStatus as PaymentDriverStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\InputBag;
 
 /**
@@ -78,7 +79,16 @@ class PaymentGatewayService
             abort(422, $msg);
         }
 
-        $amountCents = (int) round(((float) $payment->amount) * 100);
+        $amount = $this->paymentAmount($payment);
+        abort_if(
+            $amount === null,
+            422,
+            'Cannot initiate a checkout: no amount could be resolved on '.$payment::class.'.',
+        );
+
+        // Règle n°3 du CLAUDE.md : le montant est décimal en base et entier ×100 à la
+        // frontière du driver. XOF n'a pas de sous-unité — chaque driver local re-divise.
+        $amountCents = (int) round($amount * 100);
         abort_if($amountCents <= 0, 422, 'Cannot initiate a checkout for a non-positive amount.');
 
         $driver = $this->driverFor($integration);
@@ -237,7 +247,7 @@ class PaymentGatewayService
     {
         $existingMeta = is_array($payment->metadata ?? null) ? $payment->metadata : [];
 
-        $current = $payment->status instanceof PaymentStatus ? $payment->status : PaymentStatus::tryFrom((string) $payment->status);
+        $current = $this->currentPaymentStatus($payment);
 
         // Already paid / refunded — never regress to pending. We still log
         // the late event in metadata for traceability.
@@ -251,23 +261,28 @@ class PaymentGatewayService
         switch ($providerStatus) {
             case PaymentDriverStatus::SUCCESS:
                 $this->assertReportedAmountCoversPayment($payment, $metadata);
-                $payment->status = PaymentStatus::Paid;
-                $payment->paid_at ??= now();
+                $this->writeStatus($payment, PaymentStatus::Paid);
+                // `invoices` n'a pas de colonne `paid_at` : l'écrire y ajouterait un attribut
+                // inconnu et ferait échouer le `save()` sur MySQL (SQLite l'accepterait, et
+                // c'est exactement le genre d'écart que D-51 a coûté).
+                if ($this->hasColumn($payment, 'paid_at')) {
+                    $payment->paid_at ??= now();
+                }
                 break;
             case PaymentDriverStatus::FAILED:
                 if ($current !== PaymentStatus::Paid && $current !== PaymentStatus::Refunded) {
-                    $payment->status = PaymentStatus::Failed;
+                    $this->writeStatus($payment, PaymentStatus::Failed);
                 }
                 break;
             case PaymentDriverStatus::REFUNDED:
                 if ($current === PaymentStatus::Paid) {
-                    $payment->status = PaymentStatus::Refunded;
+                    $this->writeStatus($payment, PaymentStatus::Refunded);
                 }
                 break;
             case PaymentDriverStatus::PENDING:
             default:
                 if ($current === null || $current === PaymentStatus::Pending) {
-                    $payment->status = PaymentStatus::Pending;
+                    $this->writeStatus($payment, PaymentStatus::Pending);
                 }
         }
 
@@ -304,16 +319,11 @@ class PaymentGatewayService
             return;
         }
 
-        // Resolve the issued amount per model: BookingPayment/LeasePayment use
-        // `amount`, but Invoice has no `amount` column (it stores `total_amount`).
-        // Reading a bare `$payment->amount` there yields null → 0.0, silently
-        // disabling the guard for invoices. Skip only when no amount is known.
-        $expectedAmount = $payment->amount ?? $payment->getAttribute('total_amount');
-        if (! is_numeric($expectedAmount)) {
+        $expected = $this->paymentAmount($payment);
+        if ($expected === null) {
             return;
         }
 
-        $expected = (float) $expectedAmount;
         $paid = (float) $reported;
 
         // 0.01 tolerance absorbs float/rounding noise; anything materially below
@@ -447,6 +457,98 @@ class PaymentGatewayService
         }
 
         return null;
+    }
+
+    /**
+     * Le statut courant d'un payable, ramené au vocabulaire `PaymentStatus`.
+     *
+     * `BookingPayment` et `LeasePayment` castent leur `status` en `PaymentStatus` ;
+     * `Invoice` le caste en `InvoiceStatus`. Le code d'origine faisait
+     * `PaymentStatus::tryFrom((string) $payment->status)` — et `(string)` sur un objet enum
+     * lève `Object of class InvoiceStatus could not be converted to string`. Mesuré : 500 sur
+     * `GET /api/invoices/{id}/verify` (D-51).
+     */
+    protected function currentPaymentStatus(Model $payment): ?PaymentStatus
+    {
+        $status = $payment->status;
+
+        if ($status instanceof PaymentStatus) {
+            return $status;
+        }
+
+        if ($status instanceof \BackedEnum) {
+            return PaymentStatus::tryFrom((string) $status->value);
+        }
+
+        return is_scalar($status) ? PaymentStatus::tryFrom((string) $status) : null;
+    }
+
+    /**
+     * Écrit un statut de domaine sur le payable, dans l'enum que CE payable sait porter.
+     *
+     * `InvoiceStatus` et `PaymentStatus` ne se recouvrent que sur `paid` : une facture n'a ni
+     * `pending`, ni `failed`, ni `refunded` (elle a `draft`, `sent`, `overdue`, `cancelled`,
+     * `void`). **Quand il n'existe pas d'équivalent, on n'écrit RIEN** — l'événement reste
+     * tracé dans `metadata` par l'appelant.
+     *
+     * Ce n'est pas de la prudence gratuite : décider qu'un paiement Wave échoué laisse la
+     * facture en `sent` ou la bascule en `overdue`, ou qu'un remboursement la rend `void`,
+     * est un arbitrage MÉTIER. Écrire un statut inventé serait pire que de n'en écrire aucun,
+     * parce qu'il aurait l'autorité d'une donnée. Question ouverte consignée en ardoise D-51.
+     */
+    protected function writeStatus(Model $payment, PaymentStatus $status): void
+    {
+        $cast = $payment->getCasts()['status'] ?? null;
+
+        // Le payable parle déjà `PaymentStatus` : rien à traduire.
+        if (! is_string($cast) || ! enum_exists($cast) || $cast === PaymentStatus::class) {
+            $payment->status = $status;
+
+            return;
+        }
+
+        // Traduction par VALEUR : `paid` existe des deux côtés, et c'est le seul cas qui
+        // compte pour la passerelle. `tryFrom` rend null pour tout le reste — on n'écrit pas.
+        $equivalent = $cast::tryFrom($status->value);
+        if ($equivalent !== null) {
+            $payment->status = $equivalent;
+        }
+    }
+
+    /**
+     * Ce payable porte-t-il réellement cette colonne ?
+     *
+     * Écrire un attribut inexistant est silencieux jusqu'au `save()`, où MySQL lève et SQLite
+     * pardonne — l'asymétrie exacte qui a caché D-51 pendant tout ce temps.
+     */
+    protected function hasColumn(Model $payment, string $column): bool
+    {
+        return in_array($column, $payment->getFillable(), true)
+            || Schema::hasColumn($payment->getTable(), $column);
+    }
+
+    /**
+     * Le montant dû par ce payable, quelle que soit la colonne qui le porte.
+     *
+     * `BookingPayment` et `LeasePayment` le stockent dans `amount`, `Invoice` dans
+     * `total_amount`. Lire un `$payment->amount` nu sur une facture rend `null`, que
+     * `(float)` transforme en `0.0` — un zéro qui n'a pas l'air d'une erreur.
+     *
+     * Cette divergence était connue et corrigée dans la garde de sous-paiement, avec un
+     * commentaire qui la décrivait ; `initiate()`, dix lignes plus haut, la reproduisait
+     * quand même et rendait 422 sur toute facture. **Une règle corrigée à un endroit et
+     * violée à l'autre n'est pas une règle : c'est un piège documenté.** D'où cette
+     * méthode — une seule définition de « combien est dû », comme `AgencyPolicy::update()`
+     * est la seule définition de « qui administre cette agence » (TCK-290).
+     *
+     * Rend `null` — et jamais `0.0` — quand aucun montant n'est lisible : l'appelant doit
+     * pouvoir distinguer « rien à payer » de « je ne sais pas ».
+     */
+    protected function paymentAmount(Model $payment): ?float
+    {
+        $amount = $payment->amount ?? $payment->getAttribute('total_amount');
+
+        return is_numeric($amount) ? (float) $amount : null;
     }
 
     protected function paymentCurrency(Model $payment): string

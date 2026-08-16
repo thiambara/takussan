@@ -7,7 +7,7 @@ Guide de travail pour Claude Code (claude.ai/code) et tout autre agent sur ce d�
 Monorepo **Takussan** — plateforme de gestion immobilière (Sénégal, XOF, français/anglais/wolof).
 
 - `takussan-api/` — Laravel 13, PHP ^8.4 (`config.platform.php` figé à 8.4.1)
-- `takussan-web/` — Next.js 16.2.3, React 19, TypeScript 5, Tailwind CSS 4
+- `takussan-web/` — Next.js 16.3.1, React 19, TypeScript 5, Tailwind CSS 4
 
 ## État courant — mesuré le 2026-08-12
 
@@ -27,7 +27,7 @@ tenir à jour :
 | Code | ~770 fichiers PHP · ~62 000 lignes dans `app/` | ~870 fichiers `.ts`/`.tsx` dans `src/` |
 | Surface | ~535 routes · ~160 contrôleurs · 70 modèles | ~110 pages · ~30 route handlers BFF · 20 modules de server actions |
 | Données | 124 migrations · 38 factories · 11 seeders | — |
-| Tests | ~307 fichiers · **~2050 tests verts** | ~143 fichiers · **~810 tests verts** |
+| Tests | ~307 fichiers · **~2050 tests, verts _au repos_** | ~143 fichiers · **~810 tests, verts _au repos_** |
 
 > Les chiffres sont **arrondis délibérément**. La version précédente annonçait « 875 fichiers
 > `.ts`/`.tsx` » — faux dans le commit qui l'écrivait, puisque ce même commit en supprimait sept.
@@ -59,6 +59,26 @@ trois régressions qui vivaient sur `dev` — une violation Pint qui **bloquait 
 2026-06-29** (Pint tourne *avant* les tests : la suite entière n'a pas été exécutée en CI pendant six
 semaines), une erreur TypeScript et une erreur ESLint bloquante côté front — sont corrigées.
 
+**« Vert » voulait dire « vert au repos », et personne ne l'avait écrit — mesuré le 2026-08-15.**
+La suite backend lancée **seule**, machine au repos, rend **2056 passés, 0 échec, sortie 0, en
+313 s**. La même suite lancée pendant qu'une autre exécution tournait a rendu **12 échecs** ; relancée
+aussitôt, **4 échecs sur un ensemble DIFFÉRENT**, sans qu'un seul fichier n'ait changé entre les deux.
+Union des deux exécutions : **14 tests distincts, tous des tests de recherche Meilisearch** — et
+ces 14-là, relancés seuls, passent **22/22**.
+
+Ce n'est pas « la machine était chargée ». `waitForMeilisearch()` **abandonnait en silence** au bout
+de 10 s — une boucle qui `return` sans lever, sans assertion, sans trace
+(`takussan-api/tests/Concerns/InteractsWithMeilisearch.php:68-84`) — pendant que la suite s'infligeait
+elle-même un backlog de **3308 tâches d'indexation**. Le test enchaînait donc sur un index à moitié
+construit et rougissait sur une assertion métier parfaitement juste, en accusant le code applicatif.
+
+**La CI est verte par chance de tempo** : même commande, même plafond de 10 s, runner simplement assez
+rapide pour rester sous la barre. Ce n'est pas une garantie, c'est une marge que personne n'a mesurée.
+
+Ce que cela change pour qui travaille ici : **ne jamais conclure d'un rouge Meilisearch sans l'avoir
+relancé seul**, et ne pas lancer la suite entière pendant qu'un autre agent la lance. Détail complet,
+chiffres et état du correctif : ardoise **D-44**.
+
 **L'ardoise est ouverte et écrite.** `docs/ardoise.md` porte l'inventaire des manquements mesurés,
 chacun sourcé, classé et priorisé — dont quatre qui touchent la **production** et ne se voient pas
 depuis le code. **La lire avant de planifier quoi que ce soit.**
@@ -75,7 +95,11 @@ depuis le code. **La lire avant de planifier quoi que ce soit.**
 `takussan-api/` :
 
 ```bash
-php artisan test                    # ~2050 tests — exige une instance Meilisearch (cf. D-08)
+php artisan test                    # ~2050 tests — exige une instance Meilisearch (cf. D-08), et se
+                                    #   mesure MACHINE AU REPOS : sous charge, les tests de recherche
+                                    #   rougissent au hasard, sur un ensemble différent à chaque
+                                    #   exécution (cf. D-44). Un rouge Meilisearch se relance seul
+                                    #   AVANT d'accuser le code.
 php artisan test --filter=Foo
 ./vendor/bin/pint                   # ← AVANT CHAQUE COMMIT. Rien ne l'impose : c'est une
                                     #   violation d'un seul fichier qui a cassé la CI six semaines.

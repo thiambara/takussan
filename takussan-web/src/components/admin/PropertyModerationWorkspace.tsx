@@ -2,7 +2,10 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { Loader2, ShieldCheck } from 'lucide-react';
+
+import { EmptyState } from '@/components/feedback';
 
 import { useAuth } from '@/context/AuthContext';
 import { fetchPropertyModerationQueue } from '@/lib/queries/property-moderation';
@@ -62,7 +65,7 @@ export function PropertyModerationWorkspace() {
           {error instanceof ApiError ? error.displayMessage : 'Impossible de charger la file.'}
         </div>
       ) : properties.length === 0 ? (
-        <EmptyState />
+        <PropertyModerationEmpty />
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
           <PropertyModerationQueueList
@@ -79,14 +82,13 @@ export function PropertyModerationWorkspace() {
   );
 }
 
-function EmptyState() {
+function PropertyModerationEmpty() {
+  const t = useTranslations('admin.moderation.properties');
   return (
-    <div className="flex flex-col items-center gap-3 rounded-xl bg-app-surface-1 p-12 text-center">
-      <ShieldCheck className="size-8 text-emerald-500" />
-      <p className="text-sm font-semibold text-app-ink">File vide</p>
-      <p className="max-w-md text-xs text-app-ink-muted">
-        Aucun bien n&apos;est en attente de validation pour le moment.
-      </p>
-    </div>
+    <EmptyState
+      icon={<ShieldCheck className="size-8" aria-hidden="true" />}
+      title={t('empty_title')}
+      description={t('empty_description')}
+    />
   );
 }

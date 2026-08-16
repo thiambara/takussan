@@ -8,8 +8,6 @@
     "require": {
         "php": "^8.4",
         "bacon/bacon-qr-code": "^3.1",
-        "filament/filament": "^4.0",
-        "filament/spatie-laravel-media-library-plugin": "^4.0",
         "intervention/image": "^3.7",
         "laravel/framework": "^13.0",
         "laravel/sanctum": "^4.3",
@@ -68,8 +66,7 @@
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@php artisan package:discover --ansi",
-            "@php artisan filament:upgrade"
+            "@php artisan package:discover --ansi"
         ],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"

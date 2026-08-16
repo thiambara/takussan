@@ -42,8 +42,12 @@ class MaintenanceRequestController extends Controller
             });
         }
 
-        $paginator = MaintenanceRequest::buildQuery($base, $request)
-            ->defaultSort('-priority', '-created_at')
+        // TCK-281 — `defaultSortsWithRelevance()` doit être évalué APRÈS
+        // `buildQuery()`, qui est ce qui interroge Meilisearch.
+        $query = MaintenanceRequest::buildQuery($base, $request);
+
+        $paginator = $query
+            ->defaultSorts(...MaintenanceRequest::defaultSortsWithRelevance('-priority', '-created_at'))
             ->paginate();
 
         return $this->json([
@@ -61,8 +65,10 @@ class MaintenanceRequestController extends Controller
 
         $base = MaintenanceRequest::query()->where('property_id', $property->id);
 
-        $paginator = MaintenanceRequest::buildQuery($base, $request)
-            ->defaultSort('-priority', '-created_at')
+        $query = MaintenanceRequest::buildQuery($base, $request);
+
+        $paginator = $query
+            ->defaultSorts(...MaintenanceRequest::defaultSortsWithRelevance('-priority', '-created_at'))
             ->paginate();
 
         return $this->json([

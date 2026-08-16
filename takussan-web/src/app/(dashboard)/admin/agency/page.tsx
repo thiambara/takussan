@@ -1,9 +1,12 @@
 import { redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
+import { Building2 } from 'lucide-react';
 
 import { getMeAction } from '@/app/actions/auth';
 import { fetchAgencyAction } from '@/app/actions/admin-agency';
 import { isAdmin } from '@/lib/roles';
 import { AgencyConfigForm } from '@/components/admin-agency/AgencyConfigForm';
+import { EmptyState, ErrorState } from '@/components/feedback';
 
 /**
  * Admin — agency configuration page (TCK-064).
@@ -20,6 +23,8 @@ export default async function Page() {
   if (!isAdmin(user.roles)) {
     redirect('/admin');
   }
+  const t = await getTranslations('agency.config');
+
   if (!user.agency_id) {
     return (
       <div className="space-y-6">
@@ -29,10 +34,11 @@ export default async function Page() {
             Aucune agence n&apos;est rattachée à votre compte.
           </p>
         </header>
-        <div className="rounded-xl border border-dashed border-input bg-card p-8 text-sm text-muted-foreground">
-          Contactez un super-administrateur pour être rattaché à une agence avant de
-          configurer ses paramètres.
-        </div>
+        <EmptyState
+          icon={<Building2 className="size-8" aria-hidden="true" />}
+          title={t('no_agency_title')}
+          description={t('no_agency_description')}
+        />
       </div>
     );
   }
@@ -47,9 +53,8 @@ export default async function Page() {
             Impossible de charger les informations de l&apos;agence.
           </p>
         </header>
-        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">
-          {result.ok ? 'Agence introuvable.' : result.message}
-        </div>
+        {/* Pas d'`onRetry` : server component, aucun gestionnaire d'événement possible ici. */}
+        <ErrorState message={result.ok ? t('not_found') : result.message} />
       </div>
     );
   }

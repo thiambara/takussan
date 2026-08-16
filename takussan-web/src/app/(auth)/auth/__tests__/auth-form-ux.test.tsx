@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import RegisterPage from '../register/page';
 import ResetPasswordPage from '../reset-password/page';
+// TCK-286 — les deux pages passent par next-intl ; seules les enveloppes de rendu changent.
+import { withIntl } from '@/test/intl';
 
 const registerMock = vi.fn();
 const resetPasswordMock = vi.fn();
@@ -40,7 +42,7 @@ describe('auth form UX', () => {
   });
 
   it('renders the register form before the OAuth section', () => {
-    render(<RegisterPage />);
+    render(withIntl(<RegisterPage />));
 
     const submit = screen.getByRole('button', { name: 'Créer mon compte' });
     const oauth = screen.getByRole('button', { name: 'Continuer avec Google' });
@@ -51,7 +53,7 @@ describe('auth form UX', () => {
 
   it('keeps register password toggles independent and validates in French', async () => {
     const user = userEvent.setup();
-    render(<RegisterPage />);
+    render(withIntl(<RegisterPage />));
 
     const password = screen.getByLabelText('Mot de passe*');
     const confirmation = screen.getByLabelText('Confirmer le mot de passe*');
@@ -79,7 +81,7 @@ describe('auth form UX', () => {
     const user = userEvent.setup();
     searchParams = new URLSearchParams('token=reset-token&email=agent1%40dakarimmo.sn');
 
-    render(<ResetPasswordPage />);
+    render(withIntl(<ResetPasswordPage />));
 
     const password = screen.getByLabelText('Nouveau mot de passe');
     const confirmation = screen.getByLabelText('Confirmer le mot de passe');

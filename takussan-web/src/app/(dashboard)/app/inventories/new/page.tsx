@@ -1,5 +1,11 @@
+import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
+import { FileSearch } from 'lucide-react';
+
 import { getMeAction } from '@/app/actions/auth';
+import { EmptyState } from '@/components/feedback';
 import { InventoryForm } from '@/components/inventory';
+import { buttonVariants } from '@/components/ui/button';
 
 interface PageProps {
   readonly searchParams: Promise<{ lease?: string }>;
@@ -16,6 +22,7 @@ export default async function Page({ searchParams }: PageProps) {
   const leaseId = lease ? Number(lease) : NaN;
 
   if (!Number.isInteger(leaseId) || leaseId <= 0) {
+    const t = await getTranslations('inventory.new');
     return (
       <div className="space-y-6">
         <div>
@@ -24,11 +31,16 @@ export default async function Page({ searchParams }: PageProps) {
             Sélectionnez un bail pour démarrer un état des lieux.
           </p>
         </div>
-        <div className="rounded-2xl bg-card p-8 text-center text-sm text-muted-foreground">
-          Ouvrez un inventaire depuis la page d&apos;un bail ou passez le paramètre
-          <code className="mx-1 rounded bg-muted px-1 py-0.5">?lease=</code>
-          dans l&apos;URL.
-        </div>
+        <EmptyState
+          icon={<FileSearch className="size-8" aria-hidden="true" />}
+          title={t('no_lease_title')}
+          description={t('no_lease_description')}
+          action={
+            <Link href="/app/leases" className={buttonVariants()}>
+              {t('no_lease_cta')}
+            </Link>
+          }
+        />
       </div>
     );
   }

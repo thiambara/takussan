@@ -16,6 +16,11 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     Route::get('properties/search', [PublicPropertyController::class, 'search'])
         ->name('properties.search');
 
+    // TCK-247 — the whole homepage in one call. Literal segment: it MUST stay
+    // above `properties/{slug}` or it is swallowed as a slug.
+    Route::get('properties/discovery', [PublicPropertyController::class, 'discovery'])
+        ->name('properties.discovery');
+
     Route::get('properties/compare', [PublicPropertyController::class, 'compare'])
         ->middleware('throttle:30,1')
         ->name('properties.compare');

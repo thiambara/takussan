@@ -122,6 +122,17 @@ return [
         'ignore' => 'If you did not initiate this request, cancel it immediately and change your password.',
     ],
 
+    // TCK-272 — step-up code for accounts without a usable password
+    // (OAuth, invitation, provisioning). No clickable link on purpose: this
+    // confirms a destructive act, it does not invite one.
+    'account_deletion_step_up' => [
+        'subject' => 'Your account deletion confirmation code',
+        'greeting' => 'Hello,',
+        'intro' => 'Here is the code to enter to confirm the deletion of your account:',
+        'expires' => 'This code is valid for :minutes minutes and can only be used once.',
+        'ignore' => 'If you did not initiate this request, ignore this e-mail: without this code, nothing will be deleted.',
+    ],
+
     'account_deletion_reminder' => [
         'subject' => 'Reminder: account deletion in :days days',
         'greeting' => 'Hello,',
