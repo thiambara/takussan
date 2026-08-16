@@ -60,7 +60,7 @@ leur identifiant : le code existe, la traçabilité est perdue, et elle ne se ra
 **Ce que la génération a coûté.** Les sections rédigées à la main — « Historique » (24 entrées, très
 détaillées) et « Graphe de dépendances » (213 lignes) — ne sont pas reproductibles depuis des
 frontmatters. Elles sont **archivées verbatim** dans
-`_archive/INDEX-manuel-2026-08-12.md`, avec leurs défauts écrits en tête : l'historique s'arrête au
+`docs/backlog/_archive/INDEX-manuel-2026-08-12.md`, avec leurs défauts écrits en tête : l'historique s'arrête au
 2026-04-25 (65 % du backlog absent) et le graphe ne couvre que 158 des 265 tickets.
 
 Une tentative de récupérer automatiquement les notes narratives par vague a été **abandonnée** :

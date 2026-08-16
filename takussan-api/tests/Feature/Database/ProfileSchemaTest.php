@@ -14,17 +14,33 @@ class ProfileSchemaTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * TCK-279 — `agency_role_id` est NOT NULL sur les profils agence-scopés
+     * (Règle 6). Ces tests insèrent en SQL brut, donc hors du hook Eloquent
+     * qui pose le rôle système par défaut : ils doivent le nommer eux-mêmes.
+     * C'est exactement ce que la contrainte est censée forcer.
+     */
+    private function systemRoleId(int $agencyId): ?int
+    {
+        $id = DB::table('agency_roles')
+            ->where('agency_id', $agencyId)
+            ->where('is_system', true)
+            ->value('id');
+
+        return $id === null ? null : (int) $id;
+    }
+
     public function test_profile_tables_exist_with_expected_columns(): void
     {
         $expectations = [
             'owner_profiles' => [
-                'id', 'user_id', 'agency_id', 'status', 'rib', 'tax_id',
+                'id', 'user_id', 'agency_id', 'agency_role_id', 'status', 'rib', 'tax_id',
                 'id_document_type', 'id_document_number', 'monthly_income',
                 'employer', 'guarantor_user_id', 'metadata',
                 'deleted_at', 'created_at', 'updated_at',
             ],
             'agent_profiles' => [
-                'id', 'user_id', 'agency_id', 'status', 'license_number',
+                'id', 'user_id', 'agency_id', 'agency_role_id', 'status', 'license_number',
                 'commission_rate', 'specialty', 'hire_date', 'active_until',
                 'metadata', 'deleted_at', 'created_at', 'updated_at',
             ],
@@ -70,6 +86,7 @@ class ProfileSchemaTest extends TestCase
         DB::table('owner_profiles')->insert([
             'user_id' => $user->id,
             'agency_id' => $agency->id,
+            'agency_role_id' => $this->systemRoleId($agency->id),
             'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),
@@ -80,6 +97,7 @@ class ProfileSchemaTest extends TestCase
         DB::table('owner_profiles')->insert([
             'user_id' => $user->id,
             'agency_id' => $agency->id,
+            'agency_role_id' => $this->systemRoleId($agency->id),
             'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),
@@ -94,6 +112,7 @@ class ProfileSchemaTest extends TestCase
         DB::table('agent_profiles')->insert([
             'user_id' => $user->id,
             'agency_id' => $agency->id,
+            'agency_role_id' => $this->systemRoleId($agency->id),
             'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),
@@ -104,6 +123,7 @@ class ProfileSchemaTest extends TestCase
         DB::table('agent_profiles')->insert([
             'user_id' => $user->id,
             'agency_id' => $agency->id,
+            'agency_role_id' => $this->systemRoleId($agency->id),
             'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),
@@ -260,6 +280,7 @@ class ProfileSchemaTest extends TestCase
         DB::table('owner_profiles')->insert([
             'user_id' => $user->id,
             'agency_id' => $agency->id,
+            'agency_role_id' => $this->systemRoleId($agency->id),
             'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),
@@ -279,6 +300,7 @@ class ProfileSchemaTest extends TestCase
         DB::table('owner_profiles')->insert([
             'user_id' => 999_999,
             'agency_id' => $agency->id,
+            'agency_role_id' => $this->systemRoleId($agency->id),
             'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),
@@ -288,12 +310,16 @@ class ProfileSchemaTest extends TestCase
     public function test_orphan_agent_profile_rejected_by_agency_fk(): void
     {
         $user = User::factory()->create();
+        // Rôle valide d'une agence réelle : ce test doit échouer sur la FK
+        // `agency_id`, pas sur le NOT NULL de `agency_role_id`.
+        $roleId = $this->systemRoleId((int) Agency::factory()->create()->id);
 
         $this->expectException(QueryException::class);
 
         DB::table('agent_profiles')->insert([
             'user_id' => $user->id,
             'agency_id' => 999_999,
+            'agency_role_id' => $roleId,
             'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),
