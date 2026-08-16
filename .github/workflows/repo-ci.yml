@@ -89,6 +89,19 @@ jobs:
       - name: Les deux fichiers d'environnement déclarent les mêmes clés
         run: node scripts/check-env-parity.mjs
 
+      - name: Les clés des gardes webhook sont déclarées, pas seulement lues
+        # `check-env-parity` compare les deux fichiers ENTRE EUX. Il ne peut pas voir
+        # qu'une clé manque des DEUX — c'est une parité parfaite. Les sept clés des
+        # gardes de webhook entrant (SMS + WhatsApp) manquaient précisément ainsi, et
+        # elles échouent FERMÉ : jeton vide → 404, allowlist vide → 403, secret vide →
+        # rejet. Un déploiement sans elles ne produit aucune erreur, seulement un canal
+        # muet — pas d'accusé de livraison, pas d'alerte, rien à diagnostiquer.
+        #
+        # La liste des clés est DÉRIVÉE de `config/sms.php` et `config/whatsapp.php` à
+        # chaque exécution, pas recopiée : une clé fail-closed ajoutée demain est gardée
+        # sans que personne ne pense à cette garde (TCK-296).
+        run: node scripts/check-webhook-env-keys.mjs --report
+
       - name: Aucune substitution involontaire dans un heredoc non quoté
         # `server-setup.sh` écrit /etc/sudoers.d et /etc/logrotate.d par heredoc, et ces blocs
         # NE PEUVENT PAS être quotés : ils interpolent ${DEPLOY_USER}, ${APP_DIR}. Bash y
