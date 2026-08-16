@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**277 tickets** — 7 ouverts, 269 livrés.
+**294 tickets** — 24 ouverts, 269 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 7 |
+| 📋 Todo | 24 |
 | 🚧 Doing | 0 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -40,6 +40,23 @@
 - [TCK-293](tickets/TCK-293-webhook-paiement-scope-agence.md) — Webhook de paiement — le secret de n'importe quelle agence valide celui des autres `M · P0 · bug`
 - [TCK-294](tickets/TCK-294-mtarget-api-pulling-dlr.md) — Mtarget — basculer les accusés de livraison sur l'API Pulling plutôt qu'un webhook non signé `M · P2 · technique`
 - [TCK-295](tickets/TCK-295-kpi-alertes-restriction-agence-individual.md) — §1.12 — rendre EXPLICITE que les KPI et alertes de seuil ne sont pas réservés aux agences `standard` `S · P3 · technique`
+- [TCK-296](tickets/TCK-296-cles-env-gardes-webhook.md) — Les 6 clés d'environnement des gardes webhook ne sont déclarées nulle part `S · P1 · technique`
+- [TCK-297](tickets/TCK-297-basepolicy-capacites-inexistantes.md) — BasePolicy résout des capacités qui n'existent pas — refus silencieux pour tous sauf super-admin `S · P1 · bug`
+- [TCK-298](tickets/TCK-298-versions-infra-production-non-epinglees.md) — Les versions d'infrastructure de production ne sont épinglées nulle part dans le dépôt `S · P2 · technique`
+- [TCK-299](tickets/TCK-299-deploiement-frontend-hors-depot.md) — Le déploiement du frontend n'existe dans aucun workflow ni script du dépôt `M · P1 · technique`
+- [TCK-300](tickets/TCK-300-guides-deploiement-contredisent-env-livres.md) — Les guides de déploiement prescrivent des drivers que les `.env` livrés contredisent `S · P2 · technique`
+- [TCK-301](tickets/TCK-301-pieges-muets-environnement-developpement.md) — Les pièges muets de l'environnement de développement : seeding, PDF, et un `.env` qui vise le natif `S · P2 · technique`
+- [TCK-302](tickets/TCK-302-couverture-non-mesuree-suite-non-parallelisee.md) — Aucune mesure de couverture, aucune parallélisation — ~2050 tests en 313 s et pas de garde-fou `M · P2 · technique`
+- [TCK-303](tickets/TCK-303-arbitrer-agent-vs-agents.md) — Deux répertoires de compétences concurrents, `.agent/` et `.agents/`, qui divergent en croix `S · P1 · technique`
+- [TCK-304](tickets/TCK-304-enveloppe-pagination-dupliquee.md) — Enveloppe de pagination dupliquée à la main sur 58 fichiers, avec des clés incohérentes `L · P2 · technique`
+- [TCK-305](tickets/TCK-305-validation-inline-vers-formrequest.md) — 120 validations inline contre 65 FormRequest — deux conventions sur le même geste `L · P2 · technique`
+- [TCK-306](tickets/TCK-306-autorisation-controleurs-vers-policies.md) — 25 contrôleurs redéfinissent l'autorisation que 16 policies portent déjà `L · P2 · technique`
+- [TCK-307](tickets/TCK-307-supprimer-dsl-scopefilter-mort.md) — Supprimer le DSL `scopeFilter` — mort mais toujours branché sur tous les modèles `S · P2 · technique`
+- [TCK-308](tickets/TCK-308-baseresource-adoptee-par-7-sur-44.md) — `BaseResource` adoptée par 7 ressources sur 44 — 37 refont les conversions à la main `M · P2 · technique`
+- [TCK-309](tickets/TCK-309-conventions-mineures-dedoublees.md) — Trois conventions dédoublées : classes de base de test, préfixes de commandes, namespaces d'auth `M · P3 · technique`
+- [TCK-310](tickets/TCK-310-models-spec-16-modeles-absents.md) — `docs/models-spec.md` ignore 16 modèles et documente encore un package désinstallé `M · P1 · technique`
+- [TCK-311](tickets/TCK-311-documents-perimes-et-pointeur-mort.md) — Cinq documents périmés, un pointeur mort dans les deux specs, et 4 Mo d'images commitées `S · P3 · technique`
+- [TCK-312](tickets/TCK-312-tests-front-rougissent-sous-charge.md) — Quatre tests front rougissent sous charge — le pendant frontend de D-44 `S · P2 · front`
 
 ## 🚧 Doing
 
