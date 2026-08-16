@@ -43,7 +43,7 @@ jobs:
           tools: composer:v2
 
       - name: Cache composer dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: takussan-api/vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('takussan-api/composer.lock') }}
