@@ -3,6 +3,7 @@
 namespace Tests\Feature\Authorization;
 
 use App\Models\Agency;
+use App\Models\Enums\Capability;
 use App\Models\Property;
 use App\Models\User;
 use App\Policies\BasePolicy;
@@ -12,12 +13,24 @@ use Tests\TestCase;
 /**
  * Test-only policy exercising BasePolicy behavior against the `properties`
  * resource — mirrors how a real PropertyPolicy would declare itself.
+ *
+ * TCK-297 — déclarait `resource(): string` et laissait `BasePolicy`
+ * concaténer. Les capacités sont désormais DÉSIGNÉES. Le comportement testé
+ * plus bas est inchangé : `create` et `delete` existent dans l'enum, `view` et
+ * `update` génériques n'y existent pas. La différence est qu'ils sont
+ * maintenant **absents parce qu'on ne les déclare pas**, au lieu d'être
+ * **fabriqués puis introuvables** — la même issue, atteinte volontairement.
  */
 class TestPropertiesPolicy extends BasePolicy
 {
-    protected function resource(): string
+    protected function createCapability(): ?Capability
     {
-        return 'properties';
+        return Capability::PropertiesCreate;
+    }
+
+    protected function deleteCapability(): ?Capability
+    {
+        return Capability::PropertiesDelete;
     }
 }
 
