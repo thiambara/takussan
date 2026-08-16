@@ -1,7 +1,7 @@
 ---
 id: TCK-303
 title: "Deux répertoires de compétences concurrents, `.agent/` et `.agents/`, qui divergent en croix"
-status: todo
+status: doing
 phase: P1
 family: technique
 estimate: S
