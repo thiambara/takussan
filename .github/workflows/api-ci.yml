@@ -123,8 +123,8 @@ jobs:
       # `php -d pcov.directory=app vendor/phpunit/phpunit/phpunit --coverage-text=-`.
       # Les trois chiffres du clover et ceux du rapport texte de PHPUnit concordent — vérifié.
       #
-      # `--min=85` est le seuil, c'est-à-dire la mesure de LIGNES arrondie vers le bas avec
-      # ~1,2 point de marge. Un seuil au-dessus de la mesure casse la CI sans rien améliorer ;
+      # `--min=86` est le seuil, c'est-à-dire la mesure de LIGNES **en CI** arrondie vers le bas.
+      # Un seuil au-dessus de la mesure casse la CI sans rien améliorer ;
       # un seuil en dessous ne garde rien. Ce nombre dit « on ne redescend pas ». Il ne dit
       # **pas** « 85 % suffit », et il ne dit pas non plus que les 66,87 % de méthodes ou les
       # 43,81 % de classes seraient acceptables — ils ne sont simplement pas ce que ce cliquet
@@ -135,11 +135,18 @@ jobs:
       # méthode traversée sans assertion compte pour couverte. Le cliquet garde contre
       # l'ÉROSION ; il ne remplace ni la revue ni l'écriture de tests.
       #
-      # À quoi sert la marge de 1,2 point : un fichier de ~100 lignes ajouté sans test coûte
-      # ~0,35 point, la marge en absorbe donc trois avant de rougir. Elle couvre aussi l'écart
-      # possible entre le PCOV compilé à la main qui a servi à mesurer et celui que pose
-      # `shivammathur/setup-php`. **Si la première exécution en CI confirme 86,x, RESSERRER à
-      # 86** — un cliquet trop lâche ne cliquette pas.
+      # À quoi sert la marge : un fichier de ~100 lignes ajouté sans test coûte ~0,35 point.
+      #
+      # ✅ **RESSERRÉ À 86 LE 2026-08-16, comme prévu.** La consigne écrite ici était « si la
+      # première exécution en CI confirme 86,x, resserrer à 86 » — elle a rendu **86,3 %**
+      # (run 31959304170, PR #176), ce qui confirme la mesure locale de 86,16 % et lève le doute
+      # sur l'écart entre le PCOV compilé à la main et celui de `shivammathur/setup-php`.
+      #
+      # Marge restante : **0,3 point**, soit ~74 lignes non testées avant de rougir. C'est serré
+      # DÉLIBÉRÉMENT — un cliquet trop lâche ne cliquette pas, et c'est tout ce qu'on lui demande.
+      # Un refactor légitime qui le fait rougir se traite en re-mesurant puis en reposant le
+      # seuil sur la nouvelle valeur, avec sa date : **jamais en desserrant pour faire passer**.
+      # Desserrer sans re-mesurer, c'est transformer le cliquet en décoration.
       - name: Run tests (avec couverture — cliquet TCK-302)
         env:
           DB_CONNECTION: sqlite
@@ -165,7 +172,7 @@ jobs:
           set +e
           php artisan test \
             --coverage \
-            --min=85 \
+            --min=86 \
             --coverage-clover=storage/coverage/clover.xml \
             --coverage-html=storage/coverage/html
           code=$?

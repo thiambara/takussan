@@ -100,8 +100,11 @@ une preuve dégradée : au repos, l'ancienne version passait aussi.
 
 **La couverture est mesurée et gardée depuis le 2026-08-16** — elle ne l'avait jamais été. Sur `app/`
 (768 fichiers) : **lignes 86,16 %** (21 148 / 24 544), **méthodes 66,87 %**, **classes 43,81 %**. La CI
-pose un **cliquet** à `--min=85`, pour un surcoût mesuré de **+36 %** (83 s → 113 s), et publie le
-clover en artefact à chaque exécution. Le seuil garde contre l'**érosion** ; il ne dit pas que 85 %
+pose un **cliquet** à `--min=86`, pour un surcoût mesuré de **+36 %** (83 s → 113 s), et publie le
+clover en artefact à chaque exécution. Le seuil a été **resserré de 85 à 86 le 2026-08-16**, la CI ayant confirmé **86,3 %** au premier
+passage (PR #176) — la marge de 85 couvrait un doute sur le PCOV du runner, ce doute est levé. Il
+reste 0,3 point, soit ~74 lignes non testées : c'est serré délibérément. Le seuil garde contre
+l'**érosion** ; il ne dit pas que 86 %
 suffit, et une méthode traversée sans assertion y compte pour couverte.
 
 **`--parallel` a été mesuré, puis REFUSÉ** : le gain est réel (~2,6×, 204 s → 66-83 s) mais les
@@ -135,7 +138,7 @@ php artisan test                    # ~2300 tests, 204-235 s MACHINE AU REPOS (2
                                     #   (cf. D-44) — mais depuis le correctif, la suite entière rend
                                     #   0 échec même sous cette charge.
 php artisan test --filter=Foo
-XDEBUG_MODE=coverage php artisan test --coverage --min=85
+XDEBUG_MODE=coverage php artisan test --coverage --min=86
                                     # couverture de lignes de app/ — le CLIQUET de la CI (TCK-302).
                                     #   Exige un pilote de couverture : PCOV en CI, Xdebug en local.
                                     #   ⚠ La VARIABLE D'ENVIRONNEMENT, pas `-d xdebug.mode=…` :

@@ -68,7 +68,7 @@ Aucune donnée applicative. Mesuré le 2026-08-16 :
       seuil a été **éprouvé localement** : `--min` au-dessus de la couverture rend
       `FAIL Code coverage below expected` et **sort en 1**
 - [x] AC2 — le seuil est justifié par une mesure datée, pas par une valeur ronde choisie a priori
-      → 86,16 % de lignes mesurés le 2026-08-16 sur la suite complète ; seuil à 85
+      → 86,16 % de lignes mesurés en local le 2026-08-16, **86,3 % confirmés en CI** (PR #176) ; seuil resserré de 85 à **86**
 - [x] AC3 — si la parallélisation est activée, cinq exécutions consécutives rendent 0 échec ; sinon
       la décision de ne pas paralléliser est écrite avec sa raison → **elle n'est pas activée** :
       **5 exécutions sur 5 rouges**, dont un intermittent (3/5) qui a révélé [TCK-314](TCK-314-test-recherche-dependant-de-l-ordre.md)
@@ -102,7 +102,10 @@ en prose parce que ce fichier n'était pas encore sur `dev` au moment du travail
 | Suite complète, `--parallel` ×5 | 66-83 s, **5/5 rouges** | `mesure` | load 11-27, Xdebug chargé |
 | Surcoût de PCOV | **+36 %** (83 s → 113 s) | `mesure` | comparaison appariée, Xdebug coupé des deux côtés |
 
-Le seuil `--min=85` est la couverture de **lignes** arrondie vers le bas, ~1,2 point de marge.
+Le seuil `--min=86` est la couverture de **lignes** arrondie vers le bas. Il valait 85 à la
+livraison, avec une marge qui couvrait le doute sur l'écart entre le PCOV compilé à la main et celui
+de `setup-php` ; la CI ayant rendu **86,3 %**, ce doute est levé et le seuil est resserré comme
+prévu.
 C'est ce nombre-là que `collision` compare (`Coverage::report()` rend
 `percentageOfExecutedLines()`) — vérifié dans `vendor/nunomaduro/collision/src/Coverage.php:105`.
 Les chiffres du clover et ceux du rapport texte de PHPUnit concordent : ce n'est pas une source lue
@@ -217,7 +220,7 @@ aussi.
 
 ```bash
 # couverture (le chiffre du cliquet)
-XDEBUG_MODE=coverage php artisan test --coverage --min=85
+XDEBUG_MODE=coverage php artisan test --coverage --min=86
 
 # parallélisation — À NE REJOUER QU'APRÈS TCK-314 et l'arbitrage des gardes de FakeDiskIsolationTest
 composer require --dev brianium/paratest

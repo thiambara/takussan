@@ -1727,7 +1727,8 @@ d'erreur rarement traversées.
 La mesure est **reproductible** : rejouée une seconde fois, elle rend 21 147 lignes couvertes au lieu
 de 21 148 — un écart d'**une** ligne, soit 0,004 point.
 
-Le seuil `--min=85` est posé **au niveau mesuré des lignes, arrondi vers le bas** avec ~1,2 point de
+Le seuil `--min=86` est posé **au niveau mesuré des lignes, arrondi vers le bas** — resserré de 85 à
+86 le 2026-08-16 après confirmation en CI à **86,3 %** (PR #176). Il reste ~0,3 point de
 marge (un fichier de ~100 lignes ajouté sans test coûte ~0,35 point ; la marge en absorbe trois). Un
 cliquet contre l'érosion, pas un objectif.
 
