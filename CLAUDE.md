@@ -329,6 +329,20 @@ Deux voies équivalentes — `.windsurf/workflows/` ou `.claude/commands/` :
 Si l'utilisateur demande « crée un ticket » ou « implémente TCK-NNN » sans slash command, lire
 directement le workflow correspondant.
 
+**Les compétences vivent sous `.agent/skills/`, et nulle part ailleurs.** Les deux voies ci-dessus
+n'en sont que des relais : elles pointent toutes deux vers `.agent/workflows/`, qui pointe vers
+`.agent/skills/`. Une compétence se corrige donc là, une seule fois.
+
+> Un second répertoire, `.agents/` — 602 fichiers, suivi par git, référencé par aucun fichier du
+> dépôt — a coexisté avec lui pendant trois mois (TCK-303, ardoise D-46). Le coût n'a pas été la
+> duplication, mais le doute : le 2026-05-18, la correction « `spatie/laravel-permission` a été
+> retiré, les capacités sont résolues par `MembershipCapabilityResolver` » y a été écrite. Elle
+> était **juste**, et elle est tombée dans la copie que personne ne charge. Pendant trois mois,
+> tout agent qui implémentait un ticket a lu qu'il fallait employer un paquet désinstallé sur
+> lequel la CI casse à l'import. *Un répertoire mort n'est pas inerte : il absorbe les
+> corrections.* `scripts/check-skills-dir.mjs` refuse désormais toute compétence de ce dépôt
+> hors du canonique — quel que soit le nom du répertoire qui la porte.
+
 ## Où vont les fichiers
 
 Tout document de conception va sous `docs/`, **jamais à la racine**. `docs/adr/` pour les décisions,

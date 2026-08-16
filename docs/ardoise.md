@@ -1177,22 +1177,62 @@ les étapes 7 et 19 prescrivent `node docs/backlog/gen-index.mjs`, et le fichier
 encadré qui **date sa propre erreur** et tranche le conflit à l'avance : *« si cette section
 contredit le code, le code gagne et ce fichier est le bug ».*
 
-### D-46 — Deux répertoires de compétences concurrents, `.agent/` et `.agents/`, qui divergent **en croix** 🟠 *mesuré le 2026-08-15, confirmé le 2026-08-16* → [TCK-303](backlog/tickets/TCK-303-arbitrer-agent-vs-agents.md)
+### D-46 — Deux répertoires de compétences concurrents, `.agent/` et `.agents/` ✅ *soldé le 2026-08-16* → [TCK-303](backlog/tickets/TCK-303-arbitrer-agent-vs-agents.md)
 
-Les deux sont suivis par git — **646 fichiers** dans `.agent/`, **602** dans `.agents/` — et
-personne n'a jamais arbitré lequel fait foi.
+> **Cette entrée a été RE-MESURÉE le 2026-08-16 avant d'être soldée, et elle se contredisait
+> elle-même.** Son tableau ci-dessous décrivait une divergence « en croix » — chacun juste là où
+> l'autre est faux — pendant que son propre dernier paragraphe écrivait *« la ligne RBAC l'est
+> depuis le 2026-08-15 (cf. D-45) »*. Les deux ne pouvaient pas être vrais ensemble. Le tableau
+> avait cessé d'être exact **la veille**, et personne ne l'avait remonté jusqu'à lui.
+>
+> Le coût ne s'est pas arrêté là : TCK-303 a été rédigé le 2026-08-16 en recopiant le tableau, et
+> **en laissant tomber la phrase qui le corrigeait**. Le ticket a donc prescrit de « corriger
+> l'affirmation `spatie/laravel-permission` dans la compétence qui fait foi » — une correction déjà
+> faite — et surtout d'aller **récupérer dans `.agents/` une ligne qui n'y était plus la meilleure**.
+> *Une entrée d'ardoise qui se contredit ne se lit pas en entier : on en recopie la moitié la plus
+> frappante, et la moitié qui rectifie meurt là.* Le tableau d'origine est conservé plus bas, daté,
+> parce que c'est lui l'objet de la leçon.
 
-**Deux fichiers diffèrent, et c'est un cas d'école : chacun a raison là où l'autre a tort.**
+Les deux étaient suivis par git — **646 fichiers** dans `.agent/`, **602** dans `.agents/` — et
+personne n'avait jamais arbitré lequel fait foi.
+
+**Ce que la re-mesure du 2026-08-16 a établi** (`diff -rq .agent/skills .agents/skills`) : **deux
+fichiers seulement différaient, et `.agent/` gagnait sur les deux, sur tous les points.**
+
+| Fichier | `.agent/` (chargé) | `.agents/` (mort) |
+|---|---|---|
+| `skills/implementing-specs/SKILL.md` | ✅ RBAC juste (`MembershipCapabilityResolver`, garde CI, dette D-21) · ✅ INDEX généré · ✅ pile front juste (Next 16, `base-nova`) | ✅ RBAC juste · ❌ INDEX *« Move the ticket bullet »* · ❌ **front d'un autre projet** : *« Standalone components (no NgModules) »*, *« PrimeNG 21 »*, port 4201 |
+| `skills/writing-specs/SKILL.md` | ✅ *« `INDEX.md` is **GENERATED** »* + champ `wave` requis | ❌ *« Add a new bullet line to the correct section »* |
+
+**La divergence en croix a bien existé — elle a duré trois mois, et elle était soldée depuis la
+veille.** L'histoire se lit dans `git log` :
+
+```
+33ce4f69  2026-05-18  la correction RBAC est écrite dans .agents/  ← la copie que personne ne charge
+a9524604  2026-08-15  .agent/ est réécrit : RBAC, INDEX et pile front  ← la croix disparaît (D-45)
+e53ce847  2026-08-16  TCK-303 est rédigé en décrivant l'état d'avant a9524604
+```
+
+C'est le cœur de la dette, et il reste entier : **quelqu'un a su, a écrit juste, et l'a écrit dans
+le répertoire mort.** Pendant trois mois, tout agent qui implémentait un ticket a lu qu'il fallait
+employer `spatie/laravel-permission` — un paquet désinstallé sur lequel `api-ci` casse à l'import.
+Aucune erreur, aucun lint, aucune CI ne l'a signalé. *Un répertoire mort n'est pas inerte : il
+absorbe les corrections.*
+
+<details>
+<summary>Le tableau d'origine, écrit le 2026-08-15 et faux à partir du même jour</summary>
 
 | Fichier | `.agent/` (celui que le dépôt utilise) | `.agents/` (celui que personne ne lit) |
 |---|---|---|
 | `skills/implementing-specs/SKILL.md` | ❌ *« Permissions use `spatie/laravel-permission` »* | ✅ *« Permissions sont résolues par `MembershipCapabilityResolver` à partir des profils polymorphes (TCK-278, Règle 5) »* |
 | `skills/writing-specs/SKILL.md` | ✅ *« `INDEX.md` is **GENERATED** — never edit it by hand »* + champ `wave` requis | ❌ *« Add a new bullet line to the correct section »*, *« `INDEX.md` is part of the deliverable »* |
 
-Autrement dit : **la bonne ligne sur le RBAC vit dans le répertoire mort, et la bonne ligne sur
-l'INDEX vit dans le répertoire vivant.** Quelqu'un a corrigé le RBAC dans `.agents/` — donc quelqu'un
-a su, et a écrit juste — et la correction n'a jamais atteint le fichier que les outils chargent. La
-connaissance existait dans le dépôt et n'était pas branchée.
+La chaîne *« Permissions use `spatie/laravel-permission` »* a réellement existé, à
+`.agent/skills/implementing-specs/SKILL.md:112`, jusqu'à `a9524604` inclus —
+`git show a9524604^:.agent/skills/implementing-specs/SKILL.md | grep -n permission` la rend encore.
+Elle n'existe plus nulle part dans le dépôt depuis le 2026-08-15.
+
+</details>
 
 **Et rien ne désigne `.agents/`.** Les quatre points d'entrée pointent tous vers `.agent/` :
 
@@ -1208,10 +1248,26 @@ ce sont des **faux positifs** : une phrase générique sur la découverte de com
 document de référence livré par le greffon `bmad-distillator`, présente à l'identique sous
 `.claude/skills/` et `.windsurf/skills/`. **Aucun fichier de ce dépôt ne référence `.agents/`.**
 
-`.agent/` porte par ailleurs 15 compétences que `.agents/` n'a pas (`test-driven-development`,
-`systematic-debugging`, `verification-before-completion`, `using-git-worktrees`…), plus `AGENTS.md`,
-`INSTALL.md`, `agents/`, `tests/` et `workflows/` ; `.agents/` en porte une que `.agent/` n'a pas
-(`source-command-sync-specs`).
+**L'inventaire des présences, recompté le 2026-08-16** — l'entrée annonçait « 15 compétences », le
+ticket « sept » ; le compte est **13**. `.agent/skills/` en porte 27, `.agents/skills/` 15, dont 14
+communes :
+
+| Lot | Compte | Sort |
+|---|---|---|
+| Uniquement dans `.agent/` | **13** (`test-driven-development`, `systematic-debugging`, `verification-before-completion`, `using-git-worktrees`, `brainstorming`, `writing-plans`…) | conservées |
+| Communes, `wds-*` | 12 | identiques ; posées par l'installateur du greffon |
+| Communes, écrites ici | 2 (`implementing-specs`, `writing-specs`) | version `.agent/`, strictement meilleure |
+| Uniquement dans `.agents/` | **1** (`source-command-sync-specs`) | **rien à sauver** — voir ci-dessous |
+
+`source-command-sync-specs` avait l'air d'être le seul contenu propre au répertoire mort. C'est une
+**copie mécanique de `.claude/commands/sync-specs.md`**, corps identique à deux détails près : un
+préambule de conversion (*« Use this skill when the user asks to run the migrated source command »*)
+et un `Co-Authored-By: Codex` là où la source vivante écrit `Claude`. La source est chargée, et hors
+périmètre du ticket. *Le seul fichier qu'une suppression en bloc aurait pu faire perdre était lui
+aussi une copie périmée d'un fichier vivant.*
+
+`.agent/` porte en outre `AGENTS.md`, `INSTALL.md`, `agents/`, `tests/` et `workflows/`, absents de
+`.agents/`.
 
 **Le coût n'est pas les 602 fichiers dupliqués, c'est le doute.** Un contributeur qui corrige une
 compétence a une chance sur deux de la corriger dans le répertoire que personne ne charge — et
@@ -1219,16 +1275,37 @@ aucune erreur, aucun lint, aucune CI ne le lui dira. C'est déjà arrivé, une f
 ligne d'autorisation : la meilleure preuve qu'un répertoire mort n'est pas inerte.
 
 **Preuve** : `git ls-files .agent | wc -l` → 646 · `git ls-files .agents | wc -l` → 602 ·
-`diff -rq .agent .agents` → 2 fichiers différant, le reste en écarts de présence ·
-`grep -rn '\.agents/' --exclude-dir=.agents .` → 2 hits, tous deux dans
+`diff -rq .agent/skills .agents/skills` → 2 fichiers différant, le reste en écarts de présence ·
+`git grep '\.agents/' -- . ':!.agents'` → 2 hits, tous deux dans
 `skills/bmad-distillator/resources/distillate-format-reference.md:188`.
 
-**Trancher** : `.agent/` est le répertoire vivant — c'est celui que quatre points d'entrée
-désignent. Reste à porter dans `.agents/`… ou plutôt à **supprimer `.agents/`** après avoir vérifié
-que sa seule compétence propre (`source-command-sync-specs`) et sa bonne ligne RBAC sont bien
-arrivées dans `.agent/` — la ligne RBAC l'est depuis le 2026-08-15 (cf. D-45). Deux répertoires de
-compétences à la racine, c'est le même défaut que deux fichiers d'instructions divergents (D-14) :
-*un mensonge qui attend son lecteur.*
+**Soldé le 2026-08-16 (TCK-303)**, en trois temps délibérément séparés dans l'historique :
+
+1. **La garde d'abord, rouge.** `scripts/check-skills-dir.mjs`, branché dans `repo-ci.yml`, a été
+   commité *pendant que `.agents/` existait encore* — il sortait en 1 sur ses trois compétences.
+   L'historique montre donc le rouge, puis le vert, et non une garde née verte dont personne ne
+   sait ce qu'elle attrape.
+2. **La suppression ensuite**, en un commit lisible : 602 fichiers, aucun contenu à fusionner —
+   établi fichier par fichier avant d'y toucher, pas déduit du fait que `.agents/` était mort.
+3. **`CLAUDE.md` dit désormais lequel fait foi.** Aucun document d'entrée ne le disait : les quatre
+   points d'entrée le montraient par leurs liens, ce qui n'est lisible qu'après enquête.
+
+La garde ne cherche pas « est-ce que `.agents/` est revenu » — ce serait mesurer une ressemblance
+avec le dernier bug, et le prochain arbre s'appellera `.codex/` ou `.cursor/`. Elle vérifie deux
+propriétés : **unicité** (aucune compétence écrite ici hors de `.agent/skills/`) et **non-vacuité**
+(le canonique porte bien les deux compétences que les points d'entrée citent nommément) — parce
+qu'« aucune copie parasite » n'est pas « la bonne copie ». « Écrite ici » se mesure par l'absence de
+préfixe de fournisseur (`bmad-`, `wds-`), et non par une liste de noms qui serait fausse au prochain
+ajout. **Prouvée par mutation**, quatre fois : réintroduction de `.agents/` → rouge ; création d'un
+`.codex/skills/` que la garde n'avait jamais vu → rouge ; amputation du canonique → rouge ; ajout
+d'un arbre de fournisseur hors canonique → **vert**, le contrôle négatif qui montre qu'elle ne
+rougit pas sur du légitime. Le déclencheur de `repo-ci.yml` n'énumère aucun nom non plus
+(`**/skills/**`, `**/SKILL.md`) : une PR qui n'ajouterait qu'un répertoire inédit ne déclenchait
+aucune des lignes existantes, et la garde serait restée muette sur le seul défaut qu'elle existe
+pour voir.
+
+Deux répertoires de compétences à la racine, c'était le même défaut que deux fichiers d'instructions
+divergents (D-14) : *un mensonge qui attend son lecteur.*
 
 ---
 

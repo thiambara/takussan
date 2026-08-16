@@ -48,6 +48,18 @@ on:
       - 'docker/**'
       - '.github/workflows/api-ci.yml'
       - '.github/workflows/repo-ci.yml'
+      # `check-skills-dir` cherche un SECOND répertoire de compétences. Le nommer ici serait la
+      # faute que ce bloc documente déjà : on n'énumère que les endroits où l'on a DÉJÀ été
+      # surpris, et le prochain arbre ne s'appellera pas `.agents/` — il s'appellera `.codex/`,
+      # `.cursor/` ou `agent-skills/`. Une PR qui n'ajouterait QUE ce répertoire ne déclencherait
+      # aucune des lignes ci-dessus, et la garde resterait muette sur le seul défaut qu'elle
+      # existe pour voir.
+      #
+      # D'où deux motifs, et aucun nom : tout ce qui touche un dossier `skills/` à n'importe quelle
+      # profondeur, et tout `SKILL.md` où qu'il soit. *Une énumération se re-vérifie à chaque
+      # arbre ajouté ; un motif, jamais.*
+      - '**/skills/**'
+      - '**/SKILL.md'
   push:
     branches: [dev, master]
     paths:
@@ -67,6 +79,10 @@ on:
       - 'docker/**'
       - '.github/workflows/api-ci.yml'
       - '.github/workflows/repo-ci.yml'
+      # Mêmes motifs qu'au déclencheur `pull_request` — et pour la même raison : une garde
+      # déclenchée d'un seul côté ne voit qu'une moitié de l'écart qu'elle cherche.
+      - '**/skills/**'
+      - '**/SKILL.md'
 
 jobs:
   guards:
@@ -149,6 +165,19 @@ jobs:
         # Chercher un jeton ne mesure pas une propriété (dette D-23) ; plutôt que de laisser
         # croire le contraire, cette garde écrit ce qu'elle ne couvre pas.
         run: node scripts/check-feedback-states.mjs --report
+
+      - name: Les compétences des agents vivent dans un seul répertoire
+        # `.agent/` (646 fichiers) et `.agents/` (602) coexistaient, et les quatre points d'entrée
+        # du dépôt désignaient `.agent/`. Le 2026-05-18, la correction « `spatie/laravel-permission`
+        # a été retiré » a été écrite dans `.agents/` — la copie que personne ne charge. Elle était
+        # juste, et elle n'a atteint `.agent/` que le 2026-08-15 : pendant trois mois, chaque agent
+        # a lu qu'il fallait utiliser un paquet désinstallé sur lequel `api-ci` casse à l'import.
+        #
+        # Rien ne pouvait le signaler — un répertoire mort ne produit aucune erreur, il absorbe.
+        # La garde vérifie l'UNICITÉ (aucune compétence non préfixée hors de `.agent/skills/`) et
+        # la NON-VACUITÉ (le canonique porte bien les deux compétences que les points d'entrée
+        # citent), parce qu'« aucune copie parasite » n'est pas « la bonne copie » (TCK-303, D-46).
+        run: node scripts/check-skills-dir.mjs --report
 
       - name: INDEX.md est à jour de ses frontmatters
         # `--check` n'écrit rien et sort non nul si l'index est périmé. Sans cette étape, la règle
