@@ -1,7 +1,7 @@
 ---
 id: TCK-295
 title: "§1.12 — rendre EXPLICITE que les KPI et alertes de seuil ne sont pas réservés aux agences `standard`"
-status: todo
+status: review
 phase: P3
 family: technique
 estimate: S
@@ -51,21 +51,21 @@ avait précisément été ajouté par un commit (`5d40dd31`) qu'aucun ticket ne 
 
 ## Delta à produire
 
-- [ ] `docs/features.md` §1.12 : après la liste fermée des restrictions `individual`, nommer
-      explicitement les KPI personnalisables et les alertes de seuil comme **disponibles**, en
-      citant TCK-284 comme l'arbitrage qui l'a tranché.
-- [ ] Vérifier qu'aucune autre capacité de §2.5 ne se trouve dans le même angle mort (lecture de
-      la table §2.5 ligne à ligne contre la liste §1.12).
+- [x] `docs/features.md` §1.12 — encadré nommant les KPI et les alertes de seuil comme
+      **disponibles**, citant TCK-284, et rappelant les deux précédents qui rendent le silence
+      insuffisant (`5d40dd31` et TCK-256)
+- [x] §2.5 relue ligne à ligne contre §1.12 — **un second angle mort trouvé**, et il n'était pas
+      un silence mais un problème de VOCABULAIRE (voir les notes)
+- [x] Les trois lignes concernées de §2.5 portent désormais leur statut à l'endroit où on les lit
 
 ## Critères d'acceptation
 
-- [ ] AC1 — un lecteur de `docs/features.md` §1.12 trouve la réponse sur les KPI et les alertes
-      de seuil **sans avoir à raisonner par clause résiduelle**.
-- [ ] AC2 — la spec, `PRO_ROUTES` (`takussan-web/src/lib/access/pro-features.ts`) et les deux
-      contrôleurs restent d'accord : aucune des trois sources ne peut être lue sans retrouver la
-      même réponse. `node scripts/check-pro-routes.mjs` reste vert à 7/7.
-- [ ] AC3 — aucune ligne de code ne change. Un diff qui touche `app/` ou `src/` sort du périmètre
-      de ce ticket.
+- [x] AC1 — la réponse est écrite en §1.12 **et** sur la ligne §2.5 elle-même, dans les deux sens
+      de lecture
+- [x] AC2 — `node scripts/check-pro-routes.mjs` vert ; `PRO_ROUTES` inchangé (7 entrées, ni KPI ni
+      alertes) ; `gen-features-by-actor --check` vert après régénération
+- [x] AC3 — vérifié par `git diff --name-only` : **aucun fichier de `takussan-api/app/` ni de
+      `takussan-web/src/`** n'apparaît dans le diff
 
 ## Hors périmètre
 
@@ -77,4 +77,25 @@ avait précisément été ajouté par un commit (`5d40dd31`) qu'aucun ticket ne 
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Le second angle mort n'était pas un silence, c'était un problème de vocabulaire — et c'est pire.**
+La relecture ligne à ligne de §2.5 contre §1.12 a trouvé « Dashboard agence (biens, vues, revenus,
+impayés) », listé **P1 sans aucune mention de restriction**. Il est pourtant bien restreint :
+`/app/overview/agency` figure dans `PRO_ROUTES`, et le docblock de sa page dit mot pour mot *« le
+reporting cross-équipe n'est pas disponible pour les agences `individual` »*.
+
+Les deux sections désignent donc le même écran sous deux noms — « reporting cross-équipe » en §1.12,
+« Dashboard agence » en §2.5 — sans que rien ne le dise. La spec n'était pas fausse : elle exigeait
+du lecteur qu'il sache **déjà** que ces deux expressions sont synonymes, c'est-à-dire précisément ce
+qu'il vient chercher. *Un silence se remarque ; deux noms pour la même chose ne se remarquent pas —
+on croit avoir lu la réponse.*
+
+**La correction va donc dans les deux sens de lecture.** L'encadré de §1.12 nomme les capacités
+disponibles et l'identité des deux termes ; les trois lignes concernées de §2.5 portent leur statut
+**là où on les lit**. Un lecteur qui n'ouvre qu'une des deux sections a désormais la réponse
+complète — c'est le seul critère qui compte, puisque personne ne lit une spec de bout en bout.
+
+**Aucune garde ajoutée, et c'est délibéré.** `scripts/check-pro-routes.mjs` tient déjà l'accord entre
+`PRO_ROUTES` et les pages ; ce ticket ne change ni l'un ni l'autre. Ajouter une garde qui vérifierait
+qu'une *phrase* de spec dit la même chose qu'une *constante* demanderait d'ancrer la garde sur une
+formulation, donc d'interdire de la reformuler. Le risque réel est couvert : si quelqu'un remet
+`/app/overview/kpis` dans `PRO_ROUTES`, `check-pro-routes` casse.

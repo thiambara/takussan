@@ -4,6 +4,7 @@ namespace App\Models\Profiles;
 
 use App\Models\Agency;
 use App\Models\Bases\AbstractModel;
+use App\Models\Concerns\HasAgencyRole;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Invitation;
 use App\Models\User;
@@ -17,10 +18,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class AgentProfile extends AbstractModel
 {
     /** @use HasFactory<AgentProfileFactory> */
-    use HasFactory, SoftDeletes;
+    use HasAgencyRole, HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'user_id', 'agency_id', 'status',
+        'user_id', 'agency_id', 'agency_role_id', 'status',
         'license_number', 'commission_rate',
         'specialty', 'hire_date', 'active_until',
         'metadata',
@@ -39,16 +40,16 @@ class AgentProfile extends AbstractModel
      * consume these filters + sparse fieldsets côté front — voir CLAUDE.md
      * "API — conventions frontend".
      */
-    protected static array $requestFilterable = ['status', 'agency_id', 'user_id'];
+    protected static array $requestFilterable = ['status', 'agency_id', 'user_id', 'agency_role_id'];
 
     protected static array $requestSortable = ['id', 'created_at', 'status'];
 
-    protected static array $requestLoadable = ['user', 'agency', 'invitations'];
+    protected static array $requestLoadable = ['user', 'agency', 'invitations', 'agencyRole'];
 
     protected static array $requestSearchFields = ['license_number', 'specialty'];
 
     protected static array $queryFields = [
-        'id', 'user_id', 'agency_id', 'status',
+        'id', 'user_id', 'agency_id', 'agency_role_id', 'status',
         'license_number', 'commission_rate', 'specialty',
         'hire_date', 'active_until', 'metadata',
         'created_at', 'updated_at', 'deleted_at',

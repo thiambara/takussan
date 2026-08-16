@@ -4,6 +4,7 @@ namespace App\Models\Profiles;
 
 use App\Models\Agency;
 use App\Models\Bases\AbstractModel;
+use App\Models\Concerns\HasAgencyRole;
 use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\User;
 use Database\Factories\Profiles\AgencyAdminProfileFactory;
@@ -23,10 +24,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class AgencyAdminProfile extends AbstractModel
 {
     /** @use HasFactory<AgencyAdminProfileFactory> */
-    use HasFactory, SoftDeletes;
+    use HasAgencyRole, HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'user_id', 'agency_id', 'status', 'metadata',
+        'user_id', 'agency_id', 'agency_role_id', 'status', 'metadata',
     ];
 
     protected $casts = [
@@ -39,16 +40,16 @@ class AgencyAdminProfile extends AbstractModel
      * console — TCK-211) consume these filters + sparse fieldsets côté
      * front — voir CLAUDE.md "API — conventions frontend".
      */
-    protected static array $requestFilterable = ['status', 'agency_id', 'user_id'];
+    protected static array $requestFilterable = ['status', 'agency_id', 'user_id', 'agency_role_id'];
 
     protected static array $requestSortable = ['id', 'created_at', 'status'];
 
-    protected static array $requestLoadable = ['user', 'agency'];
+    protected static array $requestLoadable = ['user', 'agency', 'agencyRole'];
 
     protected static array $requestSearchFields = [];
 
     protected static array $queryFields = [
-        'id', 'user_id', 'agency_id', 'status', 'metadata',
+        'id', 'user_id', 'agency_id', 'agency_role_id', 'status', 'metadata',
         'created_at', 'updated_at', 'deleted_at',
     ];
 
