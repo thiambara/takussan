@@ -2023,6 +2023,31 @@ suites, configuration. Il ne dit rien de :
 
 ### D-53 — Le tableau de bord de sécurité montrait 3 vulnérabilités sur 23 ✅ *mesuré et soldé le 2026-08-16*
 
+> **Re-mesuré le 2026-08-16 au soir, après le correctif — et le tableau de bord est FAUX DANS
+> L'AUTRE SENS.** Il annonce désormais **4 alertes ouvertes** (2 hautes, 2 modérées). Les quatre
+> sont périmées, vérifié une par une :
+>
+> | # | Paquet | Manifeste déclaré | Plage vulnérable | Réalité mesurée |
+> |---|---|---|---|---|
+> | 4 | `nanoid` | `takussan-web/package-lock.json` | `< 3.3.18` | le lock porte **3.3.18** — la version corrigée |
+> | 1-3 | `vite` | **`package.json`** (racine) | `<= 6.4.1` / `<= 6.4.2` | **il n'existe aucun `package.json` à la racine** ; `takussan-api` résout `vite` en **8.2.1** |
+>
+> L'alerte `nanoid` a été ouverte **le jour même**, et le correctif (`ab064b0b`, celui qui solde
+> cette entrée) a atterri le même jour : elle a été créée sur un état déjà dépassé. Les trois
+> `vite` datent d'avril et de juin, et pointent un manifeste qui n'existe pas.
+>
+> **Le défaut est le même que celui décrit plus bas, à l'identique : le tableau de bord ne suit pas
+> les vrais manifestes.** Il en ratait vingt hier, il en invente quatre aujourd'hui — et c'est
+> cohérent, puisque c'est la même cause. *Un tableau de bord qu'on a vu sous-compter et
+> sur-compter n'est pas « à peu près juste » : c'est une source qu'il faut confronter à chaque
+> lecture, comme n'importe quelle autre.*
+>
+> **Rien à corriger dans le code.** Ce qui reste est une configuration Dependabot à faire pointer
+> sur `takussan-api/package.json`, `takussan-web/package.json` et les deux `composer.json` — et
+> quatre alertes à fermer. Commandes de re-mesure :
+> `gh api repos/thiambara/takussan/dependabot/alerts --jq '.[] | select(.state=="open")'`, puis
+> `npm ls <paquet>` dans le manifeste concerné.
+
 **D-00 avait solidement traité le côté PHP** — `composer audit` rend toujours *« No security
 vulnerability advisories found »*. Le côté **npm n'avait jamais été audité du tout**, et il portait
 23 vulnérabilités.
