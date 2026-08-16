@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**296 tickets** — 26 ouverts, 269 livrés.
+**297 tickets** — 27 ouverts, 269 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 13 |
+| 📋 Todo | 14 |
 | 🚧 Doing | 1 |
 | 👀 Review | 12 |
 | ⛔ Blocked | 0 |
@@ -46,6 +46,7 @@
 - [TCK-309](tickets/TCK-309-conventions-mineures-dedoublees.md) — Trois conventions dédoublées : classes de base de test, préfixes de commandes, namespaces d'auth `M · P3 · technique`
 - [TCK-313](tickets/TCK-313-delai-waitfor-rtl-tendu-sous-charge.md) — Le délai propre de waitFor/findBy est un défaut de framework, pas une mesure `S · P2 · front`
 - [TCK-314](tickets/TCK-314-test-recherche-dependant-de-l-ordre.md) — Un test de recherche publique ne passe que grâce à l'ORDRE de la suite — et il rougit 3 fois sur 5 en parallèle `S · P2 · technique`
+- [TCK-315](tickets/TCK-315-role-agence-du-prestataire.md) — Où vit le rôle d'agence d'un prestataire — le profil n'a pas d'agence, la collaboration si `M · P1 · technique`
 
 ## 🚧 Doing
 
