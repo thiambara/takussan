@@ -1,7 +1,7 @@
 ---
 id: TCK-310
 title: "`docs/models-spec.md` ignore 16 modèles et documente encore un package désinstallé"
-status: review
+status: done
 phase: P1
 family: technique
 estimate: M

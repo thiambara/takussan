@@ -1,7 +1,7 @@
 ---
 id: TCK-295
 title: "§1.12 — rendre EXPLICITE que les KPI et alertes de seuil ne sont pas réservés aux agences `standard`"
-status: review
+status: done
 phase: P3
 family: technique
 estimate: S

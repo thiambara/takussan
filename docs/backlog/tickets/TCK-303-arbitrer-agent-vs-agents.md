@@ -1,7 +1,7 @@
 ---
 id: TCK-303
 title: "Deux répertoires de compétences concurrents, `.agent/` et `.agents/` — arbitrer, supprimer le mort, et garder contre son retour"
-status: review
+status: done
 phase: P1
 family: technique
 estimate: S

@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**299 tickets** — 24 ouverts, 274 livrés.
+**299 tickets** — 17 ouverts, 281 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 16 |
 | 🚧 Doing | 1 |
-| 👀 Review | 7 |
+| 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 274 |
+| ✅ Done | 281 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -56,13 +56,7 @@
 
 ## 👀 Review
 
-- [TCK-295](tickets/TCK-295-kpi-alertes-restriction-agence-individual.md) — §1.12 — rendre EXPLICITE que les KPI et alertes de seuil ne sont pas réservés aux agences `standard` `S · P3 · technique`
-- [TCK-296](tickets/TCK-296-cles-env-gardes-webhook.md) — Les 7 clés d'environnement des gardes webhook ne sont pas toutes déclarées `S · P1 · technique`
-- [TCK-297](tickets/TCK-297-basepolicy-capacites-inexistantes.md) — BasePolicy résout des capacités qui n'existent pas — refus silencieux pour tous sauf super-admin `S · P1 · bug`
-- [TCK-298](tickets/TCK-298-versions-infra-production-non-epinglees.md) — Les versions d'infrastructure de production ne sont épinglées nulle part dans le dépôt `S · P2 · technique`
-- [TCK-300](tickets/TCK-300-guides-deploiement-contredisent-env-livres.md) — Les guides de déploiement prescrivent des drivers que les `.env` livrés contredisent `S · P2 · technique`
-- [TCK-303](tickets/TCK-303-arbitrer-agent-vs-agents.md) — Deux répertoires de compétences concurrents, `.agent/` et `.agents/` — arbitrer, supprimer le mort, et garder contre son retour `S · P1 · technique`
-- [TCK-310](tickets/TCK-310-models-spec-16-modeles-absents.md) — `docs/models-spec.md` ignore 16 modèles et documente encore un package désinstallé `M · P1 · technique`
+_(aucun)_
 
 ## ⛔ Blocked
 
@@ -70,21 +64,33 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 274
+## ✅ Done — 281
 
 <details>
-<summary><strong>Vague 40 — Évacuation dette — documentation : specs et documents périmés (2026-08-16)</strong> — 1 ticket</summary>
+<summary><strong>Vague 40 — Évacuation dette — documentation : specs et documents périmés (2026-08-16)</strong> — 2 tickets</summary>
 
+- [TCK-310](tickets/TCK-310-models-spec-16-modeles-absents.md) — `docs/models-spec.md` ignore 16 modèles et documente encore un package désinstallé `M · P1 · technique`
 - [TCK-311](tickets/TCK-311-documents-perimes-et-pointeur-mort.md) — Cinq documents périmés, un pointeur mort dans les deux specs, et 4 Mo d'images commitées `S · P3 · technique`
 
 </details>
 
 <details>
-<summary><strong>Vague 38 — Évacuation dette — infra du dépôt : versions, déploiement front, environnement (2026-08-16)</strong> — 3 tickets</summary>
+<summary><strong>Vague 38 — Évacuation dette — infra du dépôt : versions, déploiement front, environnement (2026-08-16)</strong> — 6 tickets</summary>
 
+- [TCK-298](tickets/TCK-298-versions-infra-production-non-epinglees.md) — Les versions d'infrastructure de production ne sont épinglées nulle part dans le dépôt `S · P2 · technique`
+- [TCK-300](tickets/TCK-300-guides-deploiement-contredisent-env-livres.md) — Les guides de déploiement prescrivent des drivers que les `.env` livrés contredisent `S · P2 · technique`
 - [TCK-301](tickets/TCK-301-pieges-muets-environnement-developpement.md) — Les pièges muets de l'environnement de développement : seeding, PDF, et un `.env` qui vise le natif `S · P2 · technique`
 - [TCK-302](tickets/TCK-302-couverture-non-mesuree-suite-non-parallelisee.md) — Aucune mesure de couverture, aucune parallélisation — ~2050 tests en 313 s et pas de garde-fou `M · P2 · technique`
+- [TCK-303](tickets/TCK-303-arbitrer-agent-vs-agents.md) — Deux répertoires de compétences concurrents, `.agent/` et `.agents/` — arbitrer, supprimer le mort, et garder contre son retour `S · P1 · technique`
 - [TCK-312](tickets/TCK-312-tests-front-rougissent-sous-charge.md) — Quatre tests front rougissent sous charge — le pendant frontend de D-44 `S · P2 · front`
+
+</details>
+
+<details>
+<summary><strong>Vague 37 — Évacuation dette — back sécurité : gardes webhook et policies (2026-08-16)</strong> — 2 tickets</summary>
+
+- [TCK-296](tickets/TCK-296-cles-env-gardes-webhook.md) — Les 7 clés d'environnement des gardes webhook ne sont pas toutes déclarées `S · P1 · technique`
+- [TCK-297](tickets/TCK-297-basepolicy-capacites-inexistantes.md) — BasePolicy résout des capacités qui n'existent pas — refus silencieux pour tous sauf super-admin `S · P1 · bug`
 
 </details>
 
@@ -519,7 +525,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 8 tickets</summary>
+<summary><strong>Sans vague</strong> — 9 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
@@ -529,6 +535,7 @@ _(aucun)_
 - [TCK-289](tickets/TCK-289-moteur-de-base-production-non-epingle.md) — Moteur de base de production non épinglé — la CI éprouvait une hypothèse, et elle était fausse `S · P1 · technique`
 - [TCK-290](tickets/TCK-290-upload-logo-agence-403.md) — Upload du logo d'agence — 403 systématique, aucune policy pour Agency `S · P1 · bug`
 - [TCK-294](tickets/TCK-294-mtarget-api-pulling-dlr.md) — Mtarget — basculer les accusés de livraison sur l'API Pulling plutôt qu'un webhook non signé `M · P2 · technique`
+- [TCK-295](tickets/TCK-295-kpi-alertes-restriction-agence-individual.md) — §1.12 — rendre EXPLICITE que les KPI et alertes de seuil ne sont pas réservés aux agences `standard` `S · P3 · technique`
 
 </details>
 

@@ -1,7 +1,7 @@
 ---
 id: TCK-296
 title: "Les 7 clés d'environnement des gardes webhook ne sont pas toutes déclarées"
-status: review
+status: done
 phase: P1
 family: technique
 estimate: S

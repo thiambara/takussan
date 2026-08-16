@@ -1,7 +1,7 @@
 ---
 id: TCK-297
 title: "BasePolicy résout des capacités qui n'existent pas — refus silencieux pour tous sauf super-admin"
-status: review
+status: done
 phase: P1
 family: bug
 estimate: S
