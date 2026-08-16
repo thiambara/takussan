@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { logoutAction } from '@/app/actions/auth';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
 export interface UserMenuProps {
@@ -34,6 +35,7 @@ export interface UserMenuProps {
  */
 export function UserMenu({ user, className, variant = 'dark' }: UserMenuProps) {
   const router = useRouter();
+  const t = useTranslations('nav');
   // Use `Array.from` so names starting with an emoji or astral character
   // (surrogate pair) don't produce a broken half-glyph in the avatar.
   const firstInitial = Array.from(user.first_name ?? '')[0] ?? '';
@@ -44,7 +46,7 @@ export function UserMenu({ user, className, variant = 'dark' }: UserMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label={`Menu utilisateur — ${user.full_name}`}
+        aria-label={t('userMenuFor', { name: user.full_name })}
         className={cn(
           'inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50',
           isDark ? 'text-white hover:bg-white/10' : 'text-foreground hover:bg-muted',
@@ -69,12 +71,12 @@ export function UserMenu({ user, className, variant = 'dark' }: UserMenuProps) {
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => router.push('/app/profile')}>
           <UserCircle className="size-4" aria-hidden="true" />
-          <span>Mon profil</span>
+          <span>{t('myProfile')}</span>
         </DropdownMenuItem>
         {isAdmin(user.roles) && (
           <DropdownMenuItem onClick={() => router.push('/admin')}>
             <ShieldCheck className="size-4" aria-hidden="true" />
-            <span>Administration</span>
+            <span>{t('administration')}</span>
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
@@ -84,7 +86,7 @@ export function UserMenu({ user, className, variant = 'dark' }: UserMenuProps) {
           }}
         >
           <LogOut className="size-4" aria-hidden="true" />
-          <span>Déconnexion</span>
+          <span>{t('logout')}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

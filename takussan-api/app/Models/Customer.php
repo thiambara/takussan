@@ -14,12 +14,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Laravel\Scout\Searchable;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\QueryBuilder\AllowedFilter;
 
 class Customer extends AbstractModel
 {
-    use Auditable, HasFactory, SoftDeletes;
+    use Auditable, HasFactory, Searchable, SoftDeletes;
 
     /**
      * Override the default Auditable whitelist to exclude the `id_number`
@@ -104,6 +105,30 @@ class Customer extends AbstractModel
     public function getFullNameAttribute(): string
     {
         return trim("{$this->first_name} {$this->last_name}");
+    }
+
+    /**
+     * TCK-281 — n'indexe que l'id et les champs de `$requestSearchFields`.
+     * Les colonnes sensibles (`id_number`, `metadata`, `emergency_contact_*`)
+     * ne partent JAMAIS vers Meilisearch : l'index est un second magasin, hors
+     * MySQL, et tout ce qu'on y pousse en sort du périmètre de la base.
+     *
+     * @return array<string,mixed>
+     */
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'first_name' => $this->first_name,
+            'last_name' => $this->last_name,
+            'email' => $this->email,
+            'phone' => $this->phone,
+        ];
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->trashed();
     }
 
     public function user(): BelongsTo

@@ -1,15 +1,15 @@
 ---
 id: TCK-279
 title: "RBAC refondu — phase 2 : rôles personnalisés par agence (HasRoles sur Profils + AgencyRole)"
-status: blocked
+status: todo
 phase: P1
 family: full
 estimate: L
 wave: 34
 created: 2026-05-17
-updated: 2026-05-17
+updated: 2026-08-16
 depends_on: [TCK-278]
-blocks: []
+blocks: [TCK-304, TCK-305, TCK-306, TCK-307, TCK-308, TCK-309]
 spec_refs:
   features:
     - docs/features.md#22-rôles--permissions

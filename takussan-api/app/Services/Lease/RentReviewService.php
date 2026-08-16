@@ -20,8 +20,11 @@ use Illuminate\Validation\ValidationException;
  * rows. Already-issued rent payments are NOT amended retroactively.
  *
  * Variations above the configured threshold (default 20 %) require the
- * `force=true` flag AND the `leases.rent_review_force` Spatie permission;
- * a tenant-facing notification fires on every successful review.
+ * `force=true` flag AND `Capability::LeasesRentReviewForce`, resolved by
+ * `MembershipCapabilityResolver` through the Gate derived from the enum
+ * (TCK-278 / ADR-0003 — it is no longer a Spatie permission, the package is
+ * uninstalled, ADR-0002). A tenant-facing notification fires on every
+ * successful review.
  */
 class RentReviewService
 {

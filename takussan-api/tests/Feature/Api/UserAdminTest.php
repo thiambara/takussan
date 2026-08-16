@@ -9,10 +9,13 @@ use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Tests\Concerns\InteractsWithMeilisearch;
 use Tests\TestCase;
 
 class UserAdminTest extends TestCase
 {
+    // TCK-281 — `User` est desormais `Searchable` : cf. AgencyTest.
+    use InteractsWithMeilisearch;
     use RefreshDatabase;
 
     protected function createAdmin(): User
@@ -41,6 +44,7 @@ class UserAdminTest extends TestCase
         $admin = $this->createAdmin();
         User::factory()->create(['first_name' => 'Amadou', 'last_name' => 'Diop']);
         User::factory()->create(['first_name' => 'Fatou', 'last_name' => 'Sall']);
+        $this->indexSearchable(User::class);
 
         Sanctum::actingAs($admin);
 

@@ -6,10 +6,12 @@ import { Loader2 } from 'lucide-react';
 import { oauthCallback, type OAuthProvider } from '@/lib/auth';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
+import { useTranslations } from 'next-intl';
 
 const SUPPORTED_PROVIDERS: OAuthProvider[] = ['google', 'facebook', 'apple'];
 
 function CallbackInner({ provider }: { provider: OAuthProvider }) {
+  const t = useTranslations('auth.oauthCallback');
   const router = useRouter();
   const { refreshUser, setUser } = useAuth();
   const params = useSearchParams();
@@ -46,10 +48,8 @@ function CallbackInner({ provider }: { provider: OAuthProvider }) {
   return (
     <div className="flex flex-col items-center gap-4 py-12 text-center">
       <Loader2 className="size-10 animate-spin text-primary" />
-      <h1 className="font-headline text-2xl font-bold tracking-tight">Connexion en cours…</h1>
-      <p className="text-muted-foreground text-sm max-w-xs">
-        Nous finalisons votre authentification. Merci de patienter quelques instants.
-      </p>
+      <h1 className="font-headline text-2xl font-bold tracking-tight">{t('title')}</h1>
+      <p className="text-muted-foreground text-sm max-w-xs">{t('body')}</p>
     </div>
   );
 }
@@ -59,6 +59,7 @@ export default function OAuthCallbackPage({
 }: {
   params: Promise<{ provider: string }>;
 }) {
+  const t = useTranslations('auth.oauthCallback');
   const { provider: providerParam } = use(params);
   const provider = SUPPORTED_PROVIDERS.includes(providerParam as OAuthProvider)
     ? (providerParam as OAuthProvider)
@@ -67,17 +68,15 @@ export default function OAuthCallbackPage({
   const fallback = (
     <div className="flex flex-col items-center gap-4 py-12 text-center">
       <Loader2 className="size-10 animate-spin text-primary" />
-      <p className="text-muted-foreground text-sm">Connexion en cours…</p>
+      <p className="text-muted-foreground text-sm">{t('title')}</p>
     </div>
   );
 
   if (!provider) {
     return (
       <div className="flex flex-col items-center gap-4 py-12 text-center">
-        <h1 className="font-headline text-2xl font-bold tracking-tight">Fournisseur inconnu</h1>
-        <p className="text-muted-foreground text-sm max-w-xs">
-          Ce fournisseur d&apos;authentification n&apos;est pas pris en charge.
-        </p>
+        <h1 className="font-headline text-2xl font-bold tracking-tight">{t('unknownProvider')}</h1>
+        <p className="text-muted-foreground text-sm max-w-xs">{t('unknownProviderBody')}</p>
       </div>
     );
   }

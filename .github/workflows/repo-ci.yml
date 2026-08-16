@@ -124,6 +124,19 @@ jobs:
         # elle ne comprend pas une page — « je ne sais pas » plutôt que « il n'y en a pas ».
         run: node scripts/check-pro-routes.mjs --report
 
+      - name: Aucun écran ne réinvente son état vide ni son bloc d'erreur
+        # `docs/design-guidelines.md:13` demande « une seule façon d'afficher un état vide ».
+        # Mesuré avant TCK-246 : le nom `EmptyState` était pris ONZE fois, chaque fois comme
+        # fonction privée locale jamais exportée. Une convention que rien ne mesure a été
+        # violée onze fois — c'est la seule preuve dont on avait besoin qu'il fallait une garde.
+        #
+        # ⚠ Elle est HONNÊTE SUR SA PORTÉE, et le dit dans sa propre sortie : seul son contrôle
+        # A (« le nom n'est pas repris hors de `components/feedback/` ») prouve une propriété.
+        # Les deux autres sont des CLIQUETS heuristiques — des planchers, pas des inventaires.
+        # Chercher un jeton ne mesure pas une propriété (dette D-23) ; plutôt que de laisser
+        # croire le contraire, cette garde écrit ce qu'elle ne couvre pas.
+        run: node scripts/check-feedback-states.mjs --report
+
       - name: INDEX.md est à jour de ses frontmatters
         # `--check` n'écrit rien et sort non nul si l'index est périmé. Sans cette étape, la règle
         # « on régénère après avoir touché un ticket » redeviendrait tenue par la seule discipline

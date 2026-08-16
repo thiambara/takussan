@@ -8,7 +8,7 @@ estimate: M
 wave: null
 created: 2026-08-12
 updated: 2026-08-12
-depends_on: []
+depends_on: [TCK-296, TCK-299, TCK-300]
 blocks: []
 spec_refs:
   features: []
@@ -103,7 +103,28 @@ L'ordre compte, et une étape omise déploierait l'état du 2026-05-18 :
 3. `gh workflow run deploy.yml -f branch=dev` — **première exécution du déploiement de production**.
 4. Vérifier : `curl -fsS https://api.takussan.com/up` → 200, puis `migrate:status` sur le serveur
    (les 3 migrations neuves).
-5. **Seulement alors**, trancher entre A et B, avec un déploiement réussi comme preuve.
+5. **Peupler les index Meilisearch** — `deploy.sh` ne le fait PAS (Step 6b ne lance que
+   `scout:sync-index-settings`). Sur une première mise en production, les **sept** index sont créés,
+   correctement paramétrés, et **vides** : la recherche rendrait zéro résultat *sans lever la moindre
+   exception*. Sur le serveur, dans le répertoire de la release :
+
+   ```bash
+   php artisan scout:import "App\Models\Property"
+   php artisan scout:import "App\Models\Document"
+   php artisan scout:import "App\Models\Message"
+   php artisan scout:import "App\Models\Customer"           # TCK-281
+   php artisan scout:import "App\Models\MaintenanceRequest"  # TCK-281
+   php artisan scout:import "App\Models\Agency"              # TCK-281
+   php artisan scout:import "App\Models\User"                # TCK-281
+   ```
+
+   Puis vérifier que chaque index n'est pas vide :
+   `curl -H "Authorization: Bearer $MEILISEARCH_KEY" http://127.0.0.1:7700/indexes/<uid>/stats`.
+
+   *(Détail dans `docs/configuration.md §3.6`. L'automatisation dort sur la branche non mergée
+   `chore/deploy-meilisearch-reindex` — tant qu'elle n'est pas mergée, cette étape est manuelle et
+   ne se rattrape pas toute seule.)*
+6. **Seulement alors**, trancher entre A et B, avec un déploiement réussi comme preuve.
 
 ### Résidu à nettoyer
 
@@ -143,6 +164,9 @@ fait déployer en production **chaque merge de PR**.
 - [ ] **Écrire le flux de branches** dans `CLAUDE.md` et le guide. Aujourd'hui il ne se déduit que
       des `on: push: branches:` des workflows.
 - [ ] Aligner la branche par défaut du dépôt sur la décision.
+- [ ] **Peupler les sept index Meilisearch** après le premier déploiement (`scout:import` par
+      modèle, cf. étape 5 ci-dessus). `deploy.sh` ne le fait pas, et un index vide ne lève aucune
+      erreur : la recherche répond « aucun résultat » en silence.
 - [ ] Poser la garde contre la récidive : une divergence prolongée entre branche de production et
       `dev` doit **se voir**. Un écart de quelques commits pendant quelques heures est normal ;
       31 commits pendant trois mois est une panne silencieuse — et ici, une absence totale.
@@ -154,6 +178,9 @@ fait déployer en production **chaque merge de PR**.
       workflows (vérifiable en lisant les deux côte à côte).
 - [ ] AC3 — une garde signale une divergence anormale entre la branche de production et `dev`.
 - [ ] AC4 — l'entrée D-04 de `docs/ardoise.md` est fermée en citant ce ticket.
+- [ ] AC5 — les sept index Meilisearch de production sont **peuplés**, vérifié par
+      `/indexes/<uid>/stats` (`numberOfDocuments > 0`) et non par la seule absence d'erreur au
+      déploiement.
 
 ## Hors périmètre
 

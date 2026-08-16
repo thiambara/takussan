@@ -2,7 +2,10 @@
 
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { Loader2, ShieldAlert } from 'lucide-react';
+
+import { EmptyState } from '@/components/feedback';
 
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -126,7 +129,7 @@ export function ModerationWorkspace() {
           {error instanceof ApiError ? error.displayMessage : 'Impossible de charger la file.'}
         </div>
       ) : reviews.length === 0 ? (
-        <EmptyState />
+        <ModerationEmpty />
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
           <ModerationQueueList
@@ -143,14 +146,13 @@ export function ModerationWorkspace() {
   );
 }
 
-function EmptyState() {
+function ModerationEmpty() {
+  const t = useTranslations('admin.moderation.reviews');
   return (
-    <div className="flex flex-col items-center gap-3 rounded-xl bg-app-surface-1 p-12 text-center">
-      <ShieldAlert className="size-8 text-app-accent" />
-      <p className="text-sm font-semibold text-app-ink">File vide</p>
-      <p className="max-w-md text-xs text-app-ink-muted">
-        Aucun avis n&apos;est en attente ou signalé pour le moment.
-      </p>
-    </div>
+    <EmptyState
+      icon={<ShieldAlert className="size-8" aria-hidden="true" />}
+      title={t('empty_title')}
+      description={t('empty_description')}
+    />
   );
 }

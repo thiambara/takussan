@@ -1,29 +1,21 @@
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { redirect } from 'next/navigation';
-import { getToken } from '@/lib/session';
-import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchThresholdAlerts } from '@/lib/queries/alerts';
 import { AlertList } from './AlertList';
 
 /**
  * TCK-032 P3 — threshold alerts admin page.
+ *
+ * TCK-284 — **pas de restriction `kind`**, pour la même raison que
+ * `overview/kpis/page.tsx` : les alertes de seuil ne figurent dans aucune des
+ * deux listes de restrictions des agences `individual` (`docs/features.md`
+ * §1.12, `docs/models-spec.md`), et `ThresholdAlertController` ne les a
+ * jamais restreintes côté API.
  */
 export default async function AlertsPage() {
   const user = await getMeAction();
   if (!isAdmin(user.roles)) redirect('/app/overview');
-
-  // Pro-only — bounce individual agencies back to dashboard. Super-admins
-  // have no `agency_id` and are passed through.
-  if (user.agency_id) {
-    const token = await getToken();
-    const agency = token ? await resolveAgencyOrNull(token, user.agency_id, 'overview/alerts', 'decision') : null;
-    // FAIL-CLOSED : `!agency` redirige AUSSI. `fetchAgency` avale son erreur en `null`
-    // (`.catch(() => null)`), donc `if (agency && …)` laissait passer une API en panne :
-    // l'écran pro s'affichait pour une agence `individual` dès que la requête échouait.
-    // Un écran réservé se refuse quand on ne SAIT PAS, pas seulement quand on sait que non.
-    if (!agency || agency.kind !== 'standard') redirect('/app');
-  }
 
   const alerts = await fetchThresholdAlerts();
 

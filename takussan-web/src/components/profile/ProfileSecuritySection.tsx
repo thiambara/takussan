@@ -60,7 +60,12 @@ export function ProfileSecuritySection() {
 
       <ActiveSessionsSection />
 
-      <AccountDeletionSection twoFactorEnabled={Boolean(user?.two_factor_enabled)} />
+      <AccountDeletionSection
+        twoFactorEnabled={Boolean(user?.two_factor_enabled)}
+        // TCK-272 — défaut `true` : tant que `user` n'est pas chargé on
+        // montre le parcours mot de passe, jamais la voie de secours.
+        hasUsablePassword={user?.has_usable_password ?? true}
+      />
     </section>
   );
 }

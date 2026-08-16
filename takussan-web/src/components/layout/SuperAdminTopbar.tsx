@@ -5,6 +5,7 @@ import { Menu } from 'lucide-react';
 import type { User } from '@/types/user';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import { UserMenu } from './UserMenu';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
 interface SuperAdminTopbarProps {
@@ -17,6 +18,8 @@ interface SuperAdminTopbarProps {
  * from the agency-side `AppTopbar` so the operator never confuses contexts.
  */
 export function SuperAdminTopbar({ user, onMenuToggle }: SuperAdminTopbarProps) {
+  const t = useTranslations('nav');
+
   return (
     <header
       className={cn(
@@ -26,13 +29,13 @@ export function SuperAdminTopbar({ user, onMenuToggle }: SuperAdminTopbarProps) 
       <button
         type="button"
         onClick={onMenuToggle}
-        aria-label="Ouvrir le menu"
+        aria-label={t('openMenu')}
         className="inline-flex size-9 items-center justify-center rounded-md text-stone-200 hover:bg-stone-800 md:hidden"
       >
         <Menu className="size-5" />
       </button>
       <Link href="/super-admin" className="text-lg font-bold tracking-tighter text-amber-200">
-        Takussan · Console
+        {t('superAdmin.topbarBrand')}
       </Link>
       <div className="ml-auto flex items-center gap-2">
         <LanguageSwitcher

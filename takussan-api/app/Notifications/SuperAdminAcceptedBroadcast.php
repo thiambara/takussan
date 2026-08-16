@@ -10,7 +10,9 @@ use Illuminate\Notifications\Notification;
 
 /**
  * TCK-264 — Broadcast to *all* super-admins when a freshly-coopted
- * peer finishes 2FA enrollment and the spatie role is attached.
+ * peer finishes 2FA enrollment and the `PlatformProfile` (level
+ * `super_admin`) is granted. TCK-278 — this used to say « the spatie role
+ * is attached »; `spatie/laravel-permission` is uninstalled (ADR-0002).
  *
  * Closes the loop opened by {@see SuperAdminInvitedBroadcast}: peers
  * see when an invitation has actually graduated into a fully-formed

@@ -4,7 +4,7 @@ Document de référence pour configurer le monorepo **Takussan** de A à Z (dép
 
 > Monorepo :
 > - `takussan-api/` — Laravel 13, PHP ^8.4
-> - `takussan-web/` — Next.js 16.2.3, React 19, TypeScript 5
+> - `takussan-web/` — Next.js 16.3.1, React 19, TypeScript 5
 
 ---
 
@@ -19,7 +19,7 @@ Document de référence pour configurer le monorepo **Takussan** de A à Z (dép
 | Auth API | Laravel Sanctum | ^4.3 (SPA cookie + Personal Access Tokens) |
 | Search | Laravel Scout | ^11.1 — **driver `meilisearch` sur TOUS les environnements**, CI comprise (ADR-0008, TCK-280). `collection` est un défaut hérité du framework qui ne prouve rien : il filtre en PHP sur une collection Eloquent. |
 | OAuth social | Laravel Socialite | ^5.26 + providers `apple`, `facebook` (Google natif) |
-| Admin panel | Filament | ^4.0 (+ plugin `spatie-laravel-media-library-plugin`) |
+| Admin panel | ~~Filament~~ — **supprimé le 2026-08-15** (TCK-287, ardoise D-41). L'administration est en Next.js : `/admin/*` pour l'admin d'agence, `/super-admin/*` pour la plateforme. | — |
 | Permissions | ~~spatie/laravel-permission~~ — **retiré en TCK-278**, remplacé par les profils polymorphes (cf. Règle 5 de `models-spec.md`) | — |
 | Audit log | spatie/laravel-activitylog | ^5.0 |
 | Médias | spatie/laravel-medialibrary | ^11.0 |
@@ -35,7 +35,7 @@ Document de référence pour configurer le monorepo **Takussan** de A à Z (dép
 
 | Couche | Techno | Version |
 |---|---|---|
-| Framework | Next.js | 16.2.3 (App Router, Turbopack par défaut) |
+| Framework | Next.js | 16.3.1 (App Router, Turbopack par défaut) |
 | UI | React / React DOM | 19.2.4 |
 | Langage | TypeScript | ^5 |
 | Styling | Tailwind CSS | ^4 (via `@tailwindcss/postcss`) + `tw-animate-css`, `tailwind-merge` |
@@ -230,7 +230,8 @@ curl http://127.0.0.1:7700/health      # → {"status":"available"}
 
 #### Côté Laravel / Scout
 
-Les modèles `Property`, `Document` et `Message` portent le trait `Searchable` ; les
+Sept modèles portent le trait `Searchable` — `Property`, `Document`, `Message`, et
+depuis TCK-281 `Customer`, `MaintenanceRequest`, `Agency`, `User` ; les
 réglages d'index (`searchableAttributes`, `filterableAttributes`,
 `sortableAttributes`, `rankingRules`) sont définis dans `config/scout.php`.
 
@@ -239,12 +240,27 @@ php artisan scout:sync-index-settings           # pousse les réglages d'index
 php artisan scout:import "App\Models\Property"  # peuple un index (1ère fois)
 php artisan scout:import "App\Models\Document"
 php artisan scout:import "App\Models\Message"
+# TCK-281 — quatre index de plus, à peupler au même titre :
+php artisan scout:import "App\Models\Customer"
+php artisan scout:import "App\Models\MaintenanceRequest"
+php artisan scout:import "App\Models\Agency"
+php artisan scout:import "App\Models\User"
 ```
 
 - `scout:sync-index-settings` est exécuté **automatiquement à chaque déploiement**
   par `scripts/deploy.sh` (Step 6b) quand `SCOUT_DRIVER=meilisearch`.
 - `scout:import` est une opération **ponctuelle** — 1er déploiement, ou après modif
   d'un `toSearchableArray()`. À lancer manuellement sur le serveur.
+
+> ⚠️ **`scripts/deploy.sh` ne lance AUCUN `scout:import`.** Un déploiement crée les
+> index et les paramètre correctement — et les laisse **VIDES**. La recherche rend
+> alors zéro résultat *sans lever la moindre exception* : rien dans les journaux, rien
+> dans le monitoring, un écran de liste qui répond « aucun résultat » à toutes les
+> requêtes. C'est la forme la plus coûteuse de panne, celle qui ne se signale pas.
+> Cette page ne suffit donc pas : la commande est **aussi** inscrite dans le runbook
+> de première mise en production (`docs/backlog/tickets/TCK-288-…`), parce que c'est
+> là qu'on la lira le jour où elle sert. *(L'automatisation dort sur la branche non
+> mergée `chore/deploy-meilisearch-reindex`.)*
 - `SCOUT_QUEUE=true` exige un worker de queue actif (`takussan-queue.service`) pour
   traiter les jobs `Laravel\Scout\Jobs\MakeSearchable`.
 
@@ -371,7 +387,7 @@ SEED_FILTER_COVERAGE=true
 SEED_DEMO_USERS=true
 ```
 
-### 3.16 Vite (assets backend Filament)
+### 3.16 Vite (assets backend)
 
 ```env
 VITE_APP_NAME="${APP_NAME}"

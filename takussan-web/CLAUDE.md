@@ -177,13 +177,36 @@ remappe les erreurs 422 de Laravel sur les champs RHF — y compris les clés im
 
 **next-intl sans segment `[locale]` dans l'URL.** La locale est résolue côté serveur : cookie
 `NEXT_LOCALE` → `Accept-Language` (avec parsing des q-factors) → `fr`
-(`src/i18n/request.ts:44-99`). 3 locales — `fr` (63 Ko), `en` (59 Ko), `wo` (54 Ko) — et **`wo` est
-deep-mergé sur `fr`** pour un repli gracieux. Fuseau figé à `Africa/Dakar`.
+(`src/i18n/request.ts:44-99`). 3 locales — `fr`, `en`, `wo`. Fuseau figé à `Africa/Dakar`.
 
-> ⚠️ **La règle « le front possède le texte affiché » est une intention, pas un état** : seuls
-> **82 fichiers sur 875** utilisent `useTranslations`/`getTranslations`, alors que les trois
-> dictionnaires sont complets (1376 clés fr/en). Des libellés produits sont en dur en français, y
-> compris dans la navigation. Aucune garde ne le mesure (dette D-24).
+> ⚠️ **Le repli est un deep-merge de `fr` sous TOUTE locale ≠ `fr`** (`src/i18n/request.ts:95-101`)
+> — `en` compris. Une clé sans traduction anglaise s'affiche **en français** à l'utilisateur
+> anglophone : pas d'erreur, pas d'avertissement, pas de test rouge. C'est pourquoi **une clé
+> neuve part avec ses trois traductions**, jamais avec la seule française.
+
+**La garde : `npm run check:i18n`** (`scripts/check-i18n.mjs`, branché dans `web-ci.yml`).
+
+- **Parité des clés `fr`/`en`/`wo`** — contrôle EXACT. `en` est tenu à **0 clé manquante** ; `wo`
+  traîne 88 clés manquantes préexistantes, sous cliquet décroissant.
+- **Cliquet PAR FICHIER sur le texte en dur** — `scripts/i18n-baseline.json`, produit par scan AST.
+  Un compte qui monte échoue ; un fichier neuf portant du texte échoue ; un compte qui descend
+  échoue tant qu'on n'a pas lancé `--update`.
+
+> ⚠️ **La règle « le front possède le texte affiché » reste une intention sur l'essentiel du parc**
+> (dette D-24). Les chiffres ne s'écrivent PAS ici — ils bougent à chaque commit et une version
+> antérieure de ce paragraphe annonçait « 82 fichiers sur 875 » et « 1376 clés fr/en », deux
+> comptes faux (le second comptait les nœuds de l'arbre JSON, pas les clés traduisibles). Le compte
+> se prend à la source : `node scripts/check-i18n.mjs --report`. Le reste à faire est chiffré et
+> découpé en douze lots dans TCK-292.
+>
+> ⚠️ **`useTranslations` dans un fichier n'est PAS un indicateur d'achèvement** : 18 fichiers
+> importent next-intl ET portent encore du texte en dur, jusqu'à 34 occurrences dans un seul
+> (`admin-agency/AgencyConfigForm.tsx`). Un tableau de bord qui compterait les imports mentirait
+> exactement comme l'INDEX maintenu à la main.
+
+**Tests** : `src/test/intl.tsx` — `withIntl(ui)` pour les composants client, `mockTraductionsServeur()`
+pour les composants serveur. `vitest.setup.ts` ne monte **aucun** provider, et un rendu avec
+`messages={{}}` rend la CLÉ, pas le libellé.
 
 ## Tests & gardes
 

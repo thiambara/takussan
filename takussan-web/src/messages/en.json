@@ -51,14 +51,153 @@
     "searchAria": "Run search",
     "moreTypes": "More types",
     "more": "More",
-    "propertiesCount": "{count} listings"
+    "propertiesCount": "{count} listings",
+    "userMenuFor": "User menu — {name}",
+    "administration": "Administration",
+    "links": {
+      "buy": "Buy",
+      "rent": "Rent",
+      "sell": "Sell",
+      "services": "Our services"
+    },
+    "categories": {
+      "apartment": "Apartment",
+      "house": "House",
+      "villa": "Villa",
+      "land": "Land",
+      "shop": "Retail",
+      "office": "Office",
+      "studio": "Studio",
+      "room": "Room",
+      "warehouse": "Warehouse",
+      "hotel": "Hotel",
+      "resort": "Complex",
+      "garage": "Garage",
+      "parking": "Parking",
+      "farm": "Farm",
+      "factory": "Factory",
+      "other": "Other"
+    },
+    "sidebar": {
+      "dashboard": "Dashboard",
+      "myProperties": "My properties",
+      "publishProperty": "Publish a property",
+      "myFavorites": "My favourites",
+      "savedSearches": "Saved searches",
+      "myVisits": "My viewings",
+      "visits": "Viewings",
+      "myBookings": "My bookings",
+      "bookings": "Bookings",
+      "maintenance": "Maintenance",
+      "interventions": "Jobs",
+      "myLeases": "My leases",
+      "leases": "Leases",
+      "payments": "Payments",
+      "finances": "Finances",
+      "inventories": "Condition reports",
+      "myReviews": "My reviews",
+      "providerBook": "Provider directory",
+      "messaging": "Messages",
+      "documents": "Documents",
+      "statistics": "Statistics",
+      "exports": "Exports",
+      "agencyView": "Agency view",
+      "kpis": "KPIs",
+      "alerts": "Alerts",
+      "owners": "Owners",
+      "crm": "Clients (CRM)",
+      "calendar": "Calendar",
+      "onboardingPending": "Pending onboardings",
+      "administration": "Administration",
+      "proLocked": "Pro accounts only"
+    },
+    "admin": {
+      "dashboard": "Dashboard",
+      "properties": "Properties",
+      "team": "Team",
+      "agency": "Agency",
+      "kyc": "Agency KYC",
+      "billing": "Subscription",
+      "finances": "Finances",
+      "reviewModeration": "Review moderation",
+      "propertyModeration": "Property moderation",
+      "auditLog": "Audit log",
+      "settings": "Settings",
+      "sectionLabel": "Administration",
+      "backToPersonal": "Back to my workspace",
+      "proLocked": "Pro accounts only",
+      "pendingBadge": "{count} pending"
+    },
+    "superAdmin": {
+      "eyebrow": "Takussan console",
+      "title": "Platform workspace",
+      "ariaNav": "Super-admin navigation",
+      "backToPersonal": "Back to my workspace",
+      "pendingBadge": "{count} pending",
+      "topbarBrand": "Takussan · Console",
+      "groups": {
+        "overview": "Overview",
+        "operations": "Operations",
+        "revenue": "Revenue",
+        "content": "Content",
+        "platform": "Platform"
+      },
+      "items": {
+        "console": "Console",
+        "reports": "Reporting",
+        "agencies": "Agencies",
+        "upgradeRequests": "Upgrade requests",
+        "users": "Users",
+        "superAdmins": "Super-admins",
+        "properties": "Properties",
+        "kyc": "KYC",
+        "moderation": "Moderation",
+        "plans": "Plans",
+        "payouts": "Payouts",
+        "tags": "Tags",
+        "enums": "Enums",
+        "templates": "Templates",
+        "announcements": "Announcements",
+        "settings": "Settings",
+        "integrations": "Integrations",
+        "featureFlags": "Feature flags",
+        "alerts": "Alerts",
+        "audit": "Audit",
+        "system": "System",
+        "health": "Health",
+        "maintenance": "Maintenance",
+        "scheduler": "Scheduler"
+      }
+    },
+    "notifications": {
+      "label": "Notifications",
+      "center": "Notification centre",
+      "unread": "{count, plural, one {# unread} other {# unread}}",
+      "markAllRead": "Mark all read",
+      "loading": "Loading...",
+      "empty": "No notifications.",
+      "markRead": "Mark as read",
+      "markUnread": "Mark as unread"
+    },
+    "proUpgrade": {
+      "title": "Go pro",
+      "pendingTitle": "Request in progress",
+      "body": "Team, multiple admins and more tools built for pro agencies.",
+      "pendingBody": "Reviewed by our team within 48h.",
+      "cta": "Learn more",
+      "pendingCta": "View details"
+    }
   },
   "footer": {
     "tagline": "Your trusted partner to find the perfect property in Senegal.",
     "newsletterPlaceholder": "Your email",
     "newsletterSubmit": "Subscribe",
     "discoverHeading": "Discover",
-    "copyright": "© {year} Takussan. All rights reserved."
+    "copyright": "© {year} Takussan. All rights reserved.",
+    "discover": {
+      "featured": "Featured properties",
+      "latest": "New listings"
+    }
   },
   "map": {
     "zoomIn": "Zoom in",
@@ -114,9 +253,12 @@
   "homepage": {
     "row": {
       "viewAll": "View all",
+      "error": "Listings could not be loaded right now.",
       "near": {
         "eyebrow": "Near you",
-        "title": "Discover {city}"
+        "title": "Discover {city}",
+        "fallbackEyebrow": "Elsewhere in Senegal",
+        "fallbackTitle": "Few listings in {requestedCity} — discover {city}"
       },
       "rent": {
         "eyebrow": "For rent",
@@ -134,21 +276,42 @@
   },
   "auth": {
     "login": {
-      "title": "Log in",
-      "submit": "Log in",
+      "title": "Good to see you again",
+      "submit": "Sign in",
       "email": "Email address",
       "password": "Password",
-      "forgotPassword": "Forgot password?",
-      "noAccount": "Don't have an account?",
-      "register": "Create account"
+      "forgotPassword": "Forgot your password?",
+      "noAccount": "No account yet?",
+      "register": "Create account",
+      "subtitle": "Sign in to reach your Takussan workspace.",
+      "resetSuccess": "Your password has been reset. You can now sign in.",
+      "emailPlaceholder": "you@example.com",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "submitting": "Signing in…",
+      "registerCta": "Sign up"
     },
     "register": {
-      "title": "Create account",
-      "submit": "Sign up",
+      "title": "Create your account",
+      "submit": "Create my account",
       "firstName": "First name",
       "lastName": "Last name",
       "passwordConfirmation": "Confirm password",
-      "hasAccount": "Already have an account?"
+      "hasAccount": "Already have an account?",
+      "subtitle": "Join Takussan and manage your searches and properties with ease.",
+      "email": "Email address",
+      "emailPlaceholder": "you@example.com",
+      "password": "Password",
+      "passwordPlaceholder": "At least 8 characters",
+      "passwordConfirmationPlaceholder": "Repeat the password",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "showConfirmation": "Show password confirmation",
+      "hideConfirmation": "Hide password confirmation",
+      "acceptTerms": "I accept the <terms>terms and conditions</terms> and the <privacy>privacy policy</privacy>.",
+      "submitting": "Creating…",
+      "oauthSeparator": "or sign up with",
+      "loginCta": "Sign in"
     },
     "logout": "Log out",
     "sessionExpired": "Your session has expired. Please log in again.",
@@ -182,6 +345,92 @@
         "fileHeader": "Takussan recovery codes — keep them safe.",
         "fileFooter": "Each code can only be used once."
       }
+    },
+    "meta": {
+      "template": "%s — Takussan",
+      "default": "Sign in — Takussan"
+    },
+    "layout": {
+      "visualAlt": "Contemporary villa in Senegal",
+      "headline": "Your gateway to real estate in Senegal.",
+      "subheadline": "Thousands of properties, a polished experience, partners you can trust."
+    },
+    "twoFactorChallenge": {
+      "title": "Two-factor authentication",
+      "appIntro": "Enter the 6-digit code generated by your authenticator app.",
+      "recoveryIntro": "Enter one of your single-use recovery codes.",
+      "codeLabel": "6-digit code",
+      "recoveryLabel": "Recovery code",
+      "codePlaceholder": "123456",
+      "recoveryPlaceholder": "XXXXX-XXXXX",
+      "verify": "Verify",
+      "verifying": "Verifying…",
+      "useApp": "Use my app",
+      "useRecovery": "Use a recovery code",
+      "cancel": "Cancel",
+      "invalidCode": "Invalid code."
+    },
+    "forgotPassword": {
+      "title": "Forgot password",
+      "subtitle": "Enter your email address and we will send you a link to reset your password.",
+      "email": "Email address",
+      "emailPlaceholder": "you@example.com",
+      "submit": "Send the link",
+      "submitting": "Sending…",
+      "sentTitle": "Check your inbox",
+      "sentBody": "If an account exists for <b>{email}</b>, a reset link has just been sent to you. It is valid for 60 minutes.",
+      "backToLogin": "← Back to sign in"
+    },
+    "resetPassword": {
+      "title": "New password",
+      "subtitle": "Choose a new password for <b>{email}</b>.",
+      "invalidTitle": "Invalid link",
+      "invalidBody": "This reset link is invalid or has expired. Request a new one.",
+      "requestNewLink": "Request a new link",
+      "passwordLabel": "New password",
+      "passwordPlaceholder": "At least 8 characters",
+      "confirmationLabel": "Confirm password",
+      "confirmationPlaceholder": "Repeat the password",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "showConfirmation": "Show password confirmation",
+      "hideConfirmation": "Hide password confirmation",
+      "submit": "Set the new password",
+      "submitting": "Resetting…",
+      "failed": "The reset failed.",
+      "networkFailed": "The connection to the server failed. Check your internet connection and try again.",
+      "backToLogin": "← Back to sign in"
+    },
+    "verifyEmail": {
+      "title": "Verify your email address",
+      "body": "We sent a verification link to your email address. Click the link in the message to activate your account.",
+      "resent": "Verification email sent again. Remember to check your spam folder.",
+      "resendFailed": "Could not resend the email. Try again in a moment.",
+      "resend": "Resend the verification email",
+      "sending": "Sending…",
+      "continue": "Continue to the dashboard"
+    },
+    "verifyEmailLink": {
+      "successTitle": "Email address verified",
+      "successBody": "Your address is confirmed. You can now reach every Takussan feature.",
+      "successCta": "Go to the dashboard",
+      "failureTitle": "Verification failed",
+      "failureBody": "This link is invalid or has expired. Request a new verification email from your workspace.",
+      "failureCta": "Request a new link"
+    },
+    "oauthCallback": {
+      "title": "Signing you in…",
+      "body": "We are finalising your authentication. Please wait a moment.",
+      "unknownProvider": "Unknown provider",
+      "unknownProviderBody": "This authentication provider is not supported."
+    },
+    "oauth": {
+      "continueWith": "Continue with {provider}",
+      "loading": "Loading providers…",
+      "loadFailed": "Could not load the authentication providers.",
+      "startFailed": "Could not start the sign-in. Try again in a moment.",
+      "noneConfigured": "No OAuth provider is configured on this environment.",
+      "separator": "or continue with email"
     }
   },
   "property": {
@@ -225,6 +474,14 @@
     "contractTypes": {
       "sale": "Sale",
       "rent": "Rent"
+    },
+    "portfolio": {
+      "empty_title": "No property in your portfolio",
+      "empty_description": "Create your first listing to reach Takussan tenants and buyers.",
+      "empty_cta": "Publish my first property",
+      "filtered_empty_title": "No property matches your filters",
+      "filtered_empty_description": "Adjust or remove some filters to widen your search.",
+      "filtered_empty_cta": "Reset filters"
     }
   },
   "dashboard": {
@@ -248,6 +505,26 @@
       "reference": "Technical reference: {digest}",
       "retry": "Try again",
       "backToDashboard": "Back to dashboard"
+    },
+    "propertyNotFound": {
+      "title": "Property not found",
+      "body": "This property is no longer available or has been withdrawn. Browse our other listings to find similar homes.",
+      "browseListings": "Browse listings",
+      "startSearch": "Start a search"
+    },
+    "maintenance": {
+      "eyebrow": "Maintenance",
+      "title": "Service temporarily unavailable",
+      "defaultMessage": "Takussan is temporarily down for maintenance.",
+      "backAt": "Expected back on {date}."
+    },
+    "noAgency": {
+      "title": "No agency linked to your account",
+      "body": "As a super-administrator without an agency, you do not have access to this section yet. Link yourself to an agency from the administration panel.",
+      "cta": "Go to administration"
+    },
+    "stub": {
+      "title": "Under development"
     }
   },
   "agency": {
@@ -383,6 +660,11 @@
           "error": "Could not revoke."
         }
       }
+    },
+    "config": {
+      "no_agency_title": "No agency linked",
+      "no_agency_description": "Ask a super-admin to link you to an agency before configuring its settings.",
+      "not_found": "Agency not found. Check your account link, then try again."
     }
   },
   "compare": {
@@ -494,6 +776,11 @@
       "errors": {
         "moveFailed": "Could not move the card. Please retry."
       }
+    },
+    "list": {
+      "empty_title": "Your CRM is empty",
+      "empty_description": "Add your first contacts to track their interactions and qualify their interest.",
+      "empty_cta": "Add a customer"
     }
   },
   "account": {
@@ -524,7 +811,13 @@
         "obligationsTitle": "You have outstanding obligations",
         "obligationsHint": "Please complete them before deleting your account.",
         "successTitle": "Request received",
-        "successBody": "Your account will be deleted in {days} days. You can still cancel anytime from this page."
+        "successBody": "Your account will be deleted in {days} days. You can still cancel anytime from this page.",
+        "step2CodeTitle": "Confirm with the code sent to your e-mail",
+        "step2CodeDescription": "Your account has no password: we will e-mail you a 6-digit code to confirm.",
+        "sendCodeCta": "E-mail me a code",
+        "resendCodeCta": "Send a new code",
+        "codeSentHint": "Code sent. It is valid for 5 minutes and can only be used once.",
+        "codeLabel": "Code received by e-mail (6 digits)"
       },
       "banner": {
         "title": "Scheduled deletion",
@@ -537,7 +830,8 @@
         "generic": "Something went wrong, please try again.",
         "passwordInvalid": "Incorrect password.",
         "twoFactorInvalid": "Invalid 2FA code.",
-        "obligations": "You have outstanding obligations preventing deletion."
+        "obligations": "You have outstanding obligations preventing deletion.",
+        "stepUpCodeInvalid": "Confirmation code is invalid or has expired."
       }
     }
   },
@@ -657,7 +951,8 @@
         "actions": {
           "backToPayments": "Back to payments",
           "refresh": "Refresh"
-        }
+        },
+        "verifying": "Verifying the payment…"
       },
       "error": {
         "generic": "Something went wrong, please try again."
@@ -750,7 +1045,15 @@
       "cancelled_toast_body": "The lease has been reactivated.",
       "cancel_failed_title": "Failed to cancel"
     },
-    "error_generic": "Action failed."
+    "error_generic": "Action failed.",
+    "list": {
+      "empty_title": "No lease yet",
+      "empty_description": "Create your first lease to track rent, receipts and due dates in one place.",
+      "empty_cta": "New lease",
+      "empty_filtered_title": "No lease matches these filters",
+      "empty_filtered_description": "Widen the status or property selection to find your leases.",
+      "error": "Could not load the leases. Check your connection, then try again."
+    }
   },
   "maintenance": {
     "priority": {
@@ -758,6 +1061,11 @@
       "high": "High",
       "normal": "Normal",
       "low": "Low"
+    },
+    "list": {
+      "empty_title": "No maintenance request",
+      "empty_description": "No request matches these filters. Create one to report an issue on a property.",
+      "empty_cta": "New request"
     }
   },
   "recentlyViewed": {
@@ -806,6 +1114,17 @@
         "all_types": "All types"
       },
       "loading": "Loading…"
+    },
+    "saved": {
+      "empty_title": "No saved search",
+      "empty_description": "From the results page, click “Save this search” to find it back here.",
+      "empty_cta": "Start a search",
+      "error": "Could not load your searches. Check your connection, then try again."
+    },
+    "results": {
+      "empty_title": "No property found",
+      "empty_description": "Widen your criteria or remove a few filters — there is surely a home for you.",
+      "empty_cta": "Clear all filters"
     }
   },
   "wizardDrafts": {
@@ -1276,7 +1595,13 @@
         "suspend": "Suspend",
         "reactivate": "Reactivate",
         "remove": "Remove"
-      }
+      },
+      "empty_filtered_title": "No member matches these filters",
+      "empty_filtered_description": "Clear the search or switch tabs to see the whole team again.",
+      "error": "Could not load the team. Check your connection, then try again.",
+      "no_agency_title": "No agency linked",
+      "no_agency_description": "Link your account to an agency from the settings to manage a team.",
+      "no_agency_cta": "Agency settings"
     },
     "invite": {
       "title": "Invite an agent",
@@ -1695,6 +2020,39 @@
           }
         }
       }
+    }
+  },
+  "inventory": {
+    "list": {
+      "empty_title": "No inventory report yet",
+      "empty_description": "An inventory report always starts from an active lease. Open the lease to begin one.",
+      "empty_cta": "View my leases"
+    },
+    "new": {
+      "no_lease_title": "No lease selected",
+      "no_lease_description": "The lease determines the property and the tenant. Start an inventory report from a lease page.",
+      "no_lease_cta": "Pick a lease"
+    }
+  },
+  "admin": {
+    "moderation": {
+      "reviews": {
+        "empty_title": "No review to moderate",
+        "empty_description": "No review is pending or reported right now. Check back later."
+      },
+      "properties": {
+        "empty_title": "No property to review",
+        "empty_description": "No property is awaiting validation right now. Check back later."
+      }
+    }
+  },
+  "documents": {
+    "library": {
+      "empty_title": "No document",
+      "empty_description": "Drag and drop a file, or use the button below to upload your first document.",
+      "drop_title": "Drop your file",
+      "drop_description": "Release to upload this file.",
+      "upload_cta": "Upload a document"
     }
   }
 }

@@ -147,8 +147,13 @@ APP_KEY=base64:…                 # obligatoire — deploy.sh refuse de démarr
 DB_CONNECTION=mysql              # .env.example livre sqlite : il n'est PAS un modèle de prod
 SCOUT_DRIVER=meilisearch         # TCK-280
 MEILISEARCH_HOST=http://127.0.0.1:7700
-MEILISEARCH_KEY=…
-SCOUT_PREFIX=prod_               # DOIT différer de preview_ — sinon index partagés
+MEILISEARCH_KEY=…                # LA MÊME que preview : une seule instance sert les deux
+                                 # (`sudo grep -i master_key /etc/meilisearch.toml`)
+# SCOUT_PREFIX                   # PAS de préfixe en production — c'est la convention de
+                                 # docs/configuration.md : preview porte `preview_`, la prod
+                                 # rien. Seule la DIFFÉRENCE compte, mais deux préfixes
+                                 # identiques feraient écrire les deux environnements dans
+                                 # les mêmes index, et un scout:import écraserait l'autre.
 QUEUE_CONNECTION=database
 ```
 
