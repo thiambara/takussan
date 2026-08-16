@@ -82,7 +82,7 @@ jobs:
           # pas, et il le dit en rouge plutôt qu'en silence.
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
 
