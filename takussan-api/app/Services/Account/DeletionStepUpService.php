@@ -2,6 +2,7 @@
 
 namespace App\Services\Account;
 
+use App\Http\Requests\Auth\RequestAccountDeletionRequest;
 use App\Models\User;
 use App\Notifications\AccountDeletionStepUpCodeNotification;
 use App\Services\Auth\PhoneVerificationService;
@@ -78,7 +79,28 @@ class DeletionStepUpService
         return is_string($stored) && $stored !== '' && hash_equals($stored, trim($code));
     }
 
-    /** Consomme le code : l'usage unique tient à cet appel. */
+    /**
+     * Consomme le code : l'usage unique tient à cet appel.
+     *
+     * Il efface AUSSI le cooldown, ce qui a l'air d'annuler la borne « 1 e-mail
+     * / 60 s » annoncée en tête de classe. Ce n'en est pas une brèche, et la
+     * raison mérite d'être écrite plutôt que redécouverte :
+     *
+     *  1. `consumeCode()` n'est atteint que depuis
+     *     {@see RequestAccountDeletionRequest}, une fois
+     *     TOUS les contrôles passés — donc dans la requête qui appelle
+     *     `AccountDeletionService::requestDeletion()`, laquelle **révoque
+     *     immédiatement tous les jetons Sanctum** de l'utilisateur. À la
+     *     milliseconde suivante, l'appelant n'a plus de quoi redemander un code.
+     *  2. Le plafond d'e-mails ne repose de toute façon pas sur ce cooldown
+     *     seul : la route porte `throttle:account-deletion-step-up`, borné à
+     *     3/min ET 10/h par utilisateur.
+     *
+     * Le cooldown est là pour espacer les DEMANDES d'un utilisateur qui attend
+     * son code, pas pour survivre à un parcours mené à son terme : le garder
+     * ferait patienter jusqu'à 60 s quelqu'un qui annule sa suppression et la
+     * relance, sans rien protéger de plus.
+     */
     public function consumeCode(User $user): void
     {
         $this->cache->forget($this->codeKey($user));

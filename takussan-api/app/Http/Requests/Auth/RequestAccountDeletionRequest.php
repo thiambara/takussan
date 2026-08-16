@@ -98,14 +98,30 @@ class RequestAccountDeletionRequest extends BaseFormRequest
     }
 
     /**
-     * Stack our auth checks on top of base validation. Runs once base
-     * rules pass — failures translate to 422 (`password`, `step_up_code`,
-     * `two_factor_code`) or 422 (`obligations`) consistent with the rest of
-     * the auth surface.
+     * Stack our auth checks on top of base validation — failures translate to
+     * 422 (`password`, `step_up_code`, `two_factor_code`) or 422
+     * (`obligations`) consistent with the rest of the auth surface.
+     *
+     * ⚠️ Un `after()` NE s'exécute PAS « une fois les règles de base passées » :
+     * `Validator::passes()` déroule les règles PUIS appelle inconditionnellement
+     * tous les `after`, que le premier passage ait échoué ou non. Ce docblock
+     * affirmait le contraire, et la garde ci-dessous est ce qui le rend vrai.
+     *
+     * Sans elle, un `reason` de 2500 caractères (règle `max:2000`) faisait
+     * échouer la requête en 422 APRÈS que ce bloc ait vérifié — et surtout
+     * CONSOMMÉ — le code e-mail à usage unique : l'utilisateur perdait son code
+     * sans que rien ne soit supprimé, exactement ce que la scission
+     * `verifyCode()` / `consumeCode()` existe pour empêcher.
      */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
+            // Une preuve de possession ne se vérifie — et ne se consomme —
+            // que sur une requête par ailleurs valide.
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
             $user = $this->user();
             if ($user === null) {
                 return;

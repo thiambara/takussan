@@ -2,7 +2,6 @@ import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { DestructiveBanner } from '@/components/ui/destructive-banner';
-import { cn } from '@/lib/utils';
 
 type ErrorStateBase = Omit<ComponentPropsWithoutRef<'div'>, 'children'> & {
   /** Le message affiché. Déjà traduit — cf. le docblock d'`EmptyState`. */
@@ -50,7 +49,10 @@ export function ErrorState({
   ...props
 }: ErrorStateProps) {
   return (
-    <DestructiveBanner icon={icon} className={cn(className)} {...props}>
+    // `className` part tel quel : `DestructiveBanner` le passe déjà à `cn()`
+    // avec ses propres classes. L'envelopper ici une seconde fois ne fusionnait
+    // rien de plus et faisait croire à une intention.
+    <DestructiveBanner icon={icon} className={className} {...props}>
       <p className="font-medium">{message}</p>
       {onRetry ? (
         <div className="mt-3">

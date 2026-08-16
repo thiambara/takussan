@@ -25,7 +25,25 @@ class UserResource extends JsonResource
             // backend le dit. `false` = le hash en base est une valeur
             // machine (OAuth / invitation / provisioning), donc la
             // suppression de compte passe par un code e-mail.
-            'has_usable_password' => $this->resource->hasUsablePassword(),
+            //
+            // ⚠ `whenHas`, et surtout PAS un appel nu. `hasUsablePassword()` se
+            // réduit à `password_set_at !== null`, et cette colonne n'est
+            // sélectionnée que quand la requête ramène le modèle entier.
+            // `AgencyController::listMembers` passe un sparse fieldset
+            // (`fields[users]=id,first_name,…`) : l'attribut est alors ABSENT,
+            // Eloquent rend `null`, et un appel nu émettrait `false` pour
+            // chaque membre — c'est-à-dire « ce compte n'a pas de mot de passe »
+            // affirmé sur des comptes dont on n'a rien lu.
+            //
+            // `whenHas` omet la clé au lieu d'inventer sa valeur. Le typage
+            // front la déclare optionnelle (`has_usable_password?: boolean`), et
+            // le seul consommateur — `/api/auth/me` — ramène le modèle complet,
+            // donc la reçoit toujours. *Un champ absent se remarque ; un champ
+            // faux se croit.*
+            'has_usable_password' => $this->whenHas(
+                'password_set_at',
+                fn () => $this->resource->hasUsablePassword(),
+            ),
             // TCK-263 / TCK-264 — surfaced so the frontend can detect a
             // pending super-admin onboarding state and redirect to
             // /onboarding/super-admin before serving any super-admin route.

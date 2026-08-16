@@ -26,24 +26,31 @@ use Tests\ApiTestCase;
  * `downloads_count >= max_downloads` ne peut pas se déclencher. Un plafond
  * qu'aucun test ne fait atteindre est un plafond qu'on croit avoir.
  *
- * ⚠ DÉFAUT TROUVÉ EN ÉCRIVANT CES TESTS — la route est MORTE en production.
- * `DocumentShareLinkController` lit la collection média `'files'` (pluriel)
- * aux lignes 77 et 91, alors que tout le reste du dépôt écrit et lit
- * `'file'` (singulier) : `DocumentController::store()` ligne 92,
- * `DocumentPdfService` ligne 108, `DocumentResource` ligne 15,
- * `PropertyResource` ligne 263. Aucun code n'alimente jamais `'files'`.
- * Conséquence : `GET /api/share/{token}/download` rend **404
+ * ⚠ DÉFAUT TROUVÉ EN ÉCRIVANT CES TESTS, ET CORRIGÉ DEPUIS (ardoise D-52) —
+ * la route était MORTE en production. `DocumentShareLinkController` lisait la
+ * collection média `'files'` (pluriel) aux lignes 77 et 91, alors que tout le
+ * reste du dépôt écrit et lit `'file'` (singulier) : `DocumentController::store()`
+ * ligne 92, `DocumentPdfService` ligne 108, `DocumentResource` ligne 15,
+ * `PropertyResource` ligne 263. Aucun code n'alimentait jamais `'files'`.
+ * Conséquence : `GET /api/share/{token}/download` rendait **404
  * inconditionnellement**, quel que soit le document — et `recordDownload`
- * n'est jamais atteint, ce qui explique exactement son 0/2 de couverture.
- * Mesuré : la sonde `'files'` → `'file'` fait passer ce fichier de 6 verts
- * sur 11 à 11 sur 11, sans toucher aux tests.
+ * n'était jamais atteint, ce qui explique exactement son 0/2 de couverture.
  *
- * Les cas de REFUS (410/401/404) s'exercent avant ce point et sont donc
- * actifs : ce sont eux qui portent le risque de sécurité. Les cas de SUCCÈS
- * sont suspendus tant que le défaut est là — ils se rallument TOUT SEULS dès
- * que la collection est corrigée, et deviennent alors la garde anti-régression
- * du correctif. Ils ne sont PAS réécrits autour du 404 : figer le défaut dans
- * une assertion en ferait le comportement attendu.
+ * Le correctif d'un caractère est appliqué. Les 11 cas sont actifs, dont les 5
+ * cas de SUCCÈS qui étaient suspendus le temps que le défaut vive : ils sont
+ * désormais la garde anti-régression du correctif. Ils n'ont jamais été
+ * réécrits autour du 404 — figer le défaut dans une assertion en aurait fait le
+ * comportement attendu.
+ *
+ * ⚠ **La sonde qui les suspendait a été retirée avec le correctif, et c'est
+ * délibéré.** Elle lisait le source du contrôleur et faisait `markTestSkipped`
+ * sur `getFirstMedia('files')`. Juste tant que le défaut était ouvert ; inversée
+ * une fois refermé — quiconque réécrirait `'files'` ne ferait plus rougir ces 5
+ * tests, il les ferait passer en SKIP, et la CI resterait verte sur une route
+ * redevenue morte. Aujourd'hui la régression rend un 404 et les cas de succès
+ * échouent, ce qui est exactement ce qu'on attend d'eux. *Une garde
+ * anti-régression qui se désarme sur la régression qu'elle garde est pire que
+ * son absence : elle occupe la place.*
  */
 class DocumentShareLinkDownloadTest extends ApiTestCase
 {
@@ -61,8 +68,6 @@ class DocumentShareLinkDownloadTest extends ApiTestCase
 
     public function test_a_valid_link_streams_the_file_and_counts_the_download(): void
     {
-        $this->skipWhileTheDownloadRouteReadsTheWrongCollection();
-
         $link = $this->link();
 
         $response = $this->get("/api/share/{$link->token}/download");
@@ -79,8 +84,6 @@ class DocumentShareLinkDownloadTest extends ApiTestCase
 
     public function test_each_download_increments_the_counter(): void
     {
-        $this->skipWhileTheDownloadRouteReadsTheWrongCollection();
-
         $link = $this->link();
 
         $this->get("/api/share/{$link->token}/download")->assertOk();
@@ -94,8 +97,6 @@ class DocumentShareLinkDownloadTest extends ApiTestCase
 
     public function test_the_ceiling_is_reached_by_actually_downloading_and_then_closes(): void
     {
-        $this->skipWhileTheDownloadRouteReadsTheWrongCollection();
-
         // Le cas décisif : on télécharge JUSQU'À la limite par la vraie route,
         // sans jamais écrire `downloads_count` à la main, puis une fois de
         // trop. C'est le seul montage qui prouve que le compteur incrémenté
@@ -122,8 +123,6 @@ class DocumentShareLinkDownloadTest extends ApiTestCase
 
     public function test_a_link_without_ceiling_never_closes_on_the_count(): void
     {
-        $this->skipWhileTheDownloadRouteReadsTheWrongCollection();
-
         // Le témoin : `max_downloads` null veut dire illimité, pas zéro.
         $link = $this->link(['max_downloads' => null]);
 
@@ -178,8 +177,6 @@ class DocumentShareLinkDownloadTest extends ApiTestCase
 
     public function test_a_password_protected_link_streams_with_the_right_password(): void
     {
-        $this->skipWhileTheDownloadRouteReadsTheWrongCollection();
-
         $link = $this->link(['password_hash' => bcrypt('secret1234')]);
 
         $this->get("/api/share/{$link->token}/download?password=secret1234")
@@ -188,31 +185,6 @@ class DocumentShareLinkDownloadTest extends ApiTestCase
     }
 
     // ─── Helpers ─────────────────────────────────────────────────
-
-    /**
-     * Suspend un cas de SUCCÈS tant que `DocumentShareLinkController` lit la
-     * collection média `'files'`, qui n'est jamais alimentée (cf. l'en-tête de
-     * classe). La sonde porte sur la CAUSE — le nom de collection dans le
-     * contrôleur — et non sur le symptôme (un 404), pour que ces cas se
-     * rallument le jour du correctif et rougissent normalement si une VRAIE
-     * régression survenait ensuite.
-     */
-    private function skipWhileTheDownloadRouteReadsTheWrongCollection(): void
-    {
-        $source = file_get_contents(
-            app_path('Http/Controllers/Api/DocumentShareLinkController.php')
-        );
-
-        if (str_contains((string) $source, "getFirstMedia('files')")) {
-            $this->markTestSkipped(
-                'DÉFAUT OUVERT — DocumentShareLinkController lit la collection '
-                ."média 'files', que rien n'écrit (le dépôt entier utilise "
-                ."'file'). GET /api/share/{token}/download rend donc 404 en "
-                .'toutes circonstances. Corriger le nom de collection rallume '
-                .'ce test automatiquement.'
-            );
-        }
-    }
 
     /** @param array<string,mixed> $attributes */
     private function link(array $attributes = []): DocumentShareLink

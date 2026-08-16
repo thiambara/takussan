@@ -455,7 +455,7 @@ périmètre d'un ticket de tests. Le test correspondant est suspendu par une son
 
 ---
 
-### D-52 — `GET /api/share/{token}/download` rend 404 en toutes circonstances 🟠 *mesuré le 2026-08-15*
+### D-52 — `GET /api/share/{token}/download` rendait 404 en toutes circonstances ✅ *mesuré le 2026-08-15, soldé le 2026-08-16*
 
 `DocumentShareLinkController` lit la collection média **`'files'`** (pluriel, lignes 77 et 91). Tout
 le reste du dépôt écrit et lit **`'file'`** (singulier) — `DocumentController::store()` ligne 92,
@@ -469,15 +469,27 @@ mesure de couverture : la ligne n'est pas peu exécutée, elle est **inatteignab
 Le même typo frappe `show()` ligne 77, où `'size'` est par conséquent toujours `null` dans la
 réponse de `GET /api/share/{token}` — un symptôme silencieux, jamais remonté.
 
-**Correctif d'un caractère**, délibérément non appliqué dans TCK-285 : il fait passer une route de
-« 404 systématique » à « sert un fichier », ce qui est un changement de comportement en production
-et non une correction de test. Mesuré : la sonde `'files'` → `'file'` fait passer
-`DocumentShareLinkDownloadTest` de 6/11 à **11/11** sans toucher aux tests. Les 5 cas de succès sont
-suspendus par une sonde sur le nom de collection et se rallument au correctif.
+**Correctif d'un caractère** : il fait passer une route de « 404 systématique » à « sert un
+fichier », ce qui est un changement de comportement en production et non une correction de test.
+Mesuré avant application : la sonde `'files'` → `'file'` fait passer
+`DocumentShareLinkDownloadTest` de 6/11 à **11/11** sans toucher aux tests. Les 5 cas de succès
+étaient suspendus par une sonde sur le nom de collection et se rallumaient au correctif.
 
 **Preuve** : `app/Http/Controllers/Api/DocumentShareLinkController.php:77,91` contre
 `grep -rn "'file'" app/Http/Controllers/Api/DocumentController.php` ·
 `php artisan test --filter=DocumentShareLinkDownloadTest`.
+
+> **Appliqué le 2026-08-16.** `getFirstMedia('files')` → `getFirstMedia('file')` aux deux points
+> d'appel. Mesuré après application : `php artisan test --filter=DocumentShareLinkDownloadTest` →
+> **11 passés, 28 assertions**, plus aucun test suspendu. `recordDownload()` est atteignable pour
+> la première fois, donc le plafond `max_downloads` est réellement exercé.
+>
+> **La sonde de suspension a été retirée dans le même geste, et ce n'est pas du ménage.** Tant que
+> le défaut vivait, `markTestSkipped` était juste : il refusait de figer le 404 dans une assertion.
+> Le correctif appliqué, la même sonde s'inverse — quelqu'un qui réécrirait `'files'` ne ferait plus
+> rougir ces 5 tests, il les ferait **passer en SKIP**, et la CI resterait verte sur une route
+> redevenue morte. *Une garde anti-régression qui se désarme sur la régression qu'elle garde est
+> pire que son absence : elle occupe la place.*
 
 ---
 
@@ -617,7 +629,26 @@ Et `LARAVEL_PDF_DRIVER=cloudflare` avec les deux identifiants vides : la génér
 par défaut en développement. Le seul driver disponible en local est `dompdf`, et il n'est déclaré que
 dans `phpunit.xml`. *(Corrigé dans `.env.docker`.)*
 
-### D-47 — TCK-289 a corrigé le dépôt, pas la machine : le conteneur de base tourne toujours MariaDB 11.4 🟠 *mesuré le 2026-08-15*
+### D-47 — TCK-289 a corrigé le dépôt, pas la machine : le conteneur de base tournait MariaDB 11.4 ✅ *soldé le 2026-08-16 — mesuré sur le démon*
+
+> **État au 2026-08-16 — le conteneur a été recréé, et c'est mesuré sur la machine, pas déduit
+> du compose.** L'orphelin `takussan-mariadb-1` a disparu ; `docker ps` ne rend plus qu'un
+> `takussan-mysql-1` sur `mysql:8.0`, et le démon interrogé directement répond
+> `mysql Ver 8.0.46 for Linux on aarch64 (MySQL Community Server - GPL)`. C'est le moteur exact
+> de la production, mesuré des deux côtés. `scripts/check-db-engine.mjs` reste vert.
+>
+> Le **résidu** de TCK-289 signalé plus bas est corrigé lui aussi : `takussan-api/.env.docker`
+> ne dit plus « la production tourne sur MariaDB » (ligne 8), et son en-tête de section base
+> nomme le service `mysql` du compose et non un service `mariadb` qui n'existe plus (ligne 65).
+> *C'était la dernière phrase du dépôt qui affirmait encore le mauvais moteur — et elle vivait
+> dans le fichier dont tout le propos est de refléter la production mesurée.*
+>
+> **Preuve** : `docker ps --format '{{.Names}}\t{{.Image}}'` → `takussan-mysql-1  mysql:8.0` ·
+> `docker exec … mysql --version` → `8.0.46` · `node scripts/check-db-engine.mjs` → vert.
+>
+> Ce qui suit est conservé tel quel : c'est le constat du 2026-08-15, et l'effacer ferait perdre
+> la leçon — *un correctif de configuration n'est pas déployé tant qu'aucune machine ne
+> l'exécute.*
 
 Le commit `8bba28bc` (TCK-289, 2026-08-13) a basculé `docker-compose.yml` de `mariadb:11.4` vers
 `mysql:8.0` — c'est le correctif de D-43. **Le conteneur, lui, n'a jamais été recréé.** Deux jours
@@ -649,9 +680,11 @@ un cran encore plus près : ne jamais déduire l'état d'un environnement de la 
 vise — pas même quand cette configuration vient d'être corrigée, et pas même quand une garde CI la
 surveille.*
 
-**Résidu de TCK-289 trouvé au passage** : `takussan-api/.env.docker:8` justifie encore son existence
-par *« il pose `DB_CONNECTION=sqlite` quand la production tourne sur MariaDB »* — dans le fichier
-dont tout le propos est d'aligner les drivers sur la production **mesurée**, qui est MySQL 8.0.
+**Résidu de TCK-289 trouvé au passage** *(corrigé le 2026-08-16, cf. l'encadré en tête d'entrée)* :
+`takussan-api/.env.docker:8` justifiait encore son existence par *« il pose `DB_CONNECTION=sqlite`
+quand la production tourne sur MariaDB »* — dans le fichier dont tout le propos est d'aligner les
+drivers sur la production **mesurée**, qui est MySQL 8.0. La ligne 65 du même fichier nommait par
+ailleurs un *« service `mariadb` du compose »* qui n'existe plus depuis TCK-289.
 
 **Preuve** : `docker ps` · `docker inspect takussan-mariadb-1` (label `com.docker.compose.service=mariadb`,
 créé le 2026-08-12, soit la veille du correctif) · `docker compose config --services` → pas de

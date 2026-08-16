@@ -258,6 +258,40 @@ class AccountDeletionStepUpTest extends TestCase
         ])->assertStatus(202);
     }
 
+    /**
+     * Le pendant du test ci-dessus pour l'échec qui survient AVANT le bloc
+     * `after()` — et non dedans.
+     *
+     * `Validator::passes()` déroule les règles PUIS appelle inconditionnellement
+     * tous les `after()`. Un `reason` trop long échoue donc en 422 pendant que le
+     * bloc de step-up s'exécute quand même : sans la garde
+     * `$validator->errors()->isNotEmpty()`, le code à usage unique était vérifié
+     * ET consommé sur une requête qui ne supprimait rien. Le second appel
+     * ci-dessous, avec le MÊME code, est ce qui le prouve — il rendait 422
+     * `step_up_code` avant le correctif.
+     */
+    public function test_step_up_code_is_not_burnt_when_the_payload_fails_base_validation(): void
+    {
+        Notification::fake();
+
+        $user = $this->machinePasswordUser(['google_id' => 'g-124']);
+        Sanctum::actingAs($user);
+
+        $code = app(DeletionStepUpService::class)->sendCode($user);
+
+        $this->postJson('/api/auth/me/deletion-request', [
+            'step_up_code' => $code,
+            'reason_code' => 'privacy',
+            'reason' => str_repeat('a', 2001),
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['reason']);
+
+        $this->postJson('/api/auth/me/deletion-request', [
+            'step_up_code' => $code,
+            'reason_code' => 'privacy',
+        ])->assertStatus(202);
+    }
+
     public function test_mixed_account_keeps_the_password_path(): void
     {
         Notification::fake();

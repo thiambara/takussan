@@ -101,23 +101,39 @@ class MediaController extends Controller
      * Authorize the current user to attach media to the given target.
      *
      * Strategy:
+     *   0. Super admins pass, explicitly and first (see below).
      *   1. If the target has a policy with an `update` method registered,
-     *      delegate to it — this is the ONLY branch that consults the Gate,
-     *      so it is the only one where the super_admin `Gate::before` bypass
-     *      applies.
+     *      delegate to it.
      *   2. Otherwise, fall back to user_id ownership or self-targeting.
      *
      * ⚠ TCK-290 — this docblock used to claim the super_admin bypass applied
-     * to the method as a whole. It does not. The fallback never touches the
-     * Gate, so for any `model_type` without a policy whose instance is neither
-     * the calling `User` nor carries a `user_id`, it denies EVERYONE — super
-     * admins included. That is exactly what made the agency-logo upload
-     * impossible before `AgencyPolicy` existed, and only 16 of 70 models have
-     * a policy, so the defect survives for the rest.
+     * to the method as a whole. It did not, and step 0 is what makes the claim
+     * true instead of deleting it. Only branch 1 consults the Gate, so only
+     * branch 1 reached the `Gate::before` bypass; the fallback never touches
+     * the Gate, so for any `model_type` without a policy whose instance is
+     * neither the calling `User` nor carries a `user_id`, it denied EVERYONE —
+     * super admins included. That is exactly what made the agency-logo upload
+     * impossible before `AgencyPolicy` existed, and **the overwhelming majority
+     * of models have no policy at all** (`ls app/Policies` against the model
+     * classes under `app/Models` — the ratio is roughly one in five, and no
+     * number is written here because it moves with every model added). Fixing
+     * it by adding one policy fixed one model and left all the others broken
+     * the same way, waiting for the next person to trip on it. The bypass
+     * belongs where every branch sees it.
+     *
+     * It changes nothing for the models that DO have a policy — those already
+     * granted super admins through `Gate::before` — so the whole of its effect
+     * is the fallback branch it was always meant to cover.
      */
     protected function authorizeAttach(MediaUploadRequest $request, $target): void
     {
         $user = $request->user();
+
+        // Step 0 — the global `Gate::before` bypass, written out here because
+        // the fallback below never asks the Gate anything.
+        if ($user->isSuperAdmin()) {
+            return;
+        }
 
         // Try policy-based authorization first.
         $policy = Gate::getPolicyFor($target);
