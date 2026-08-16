@@ -122,6 +122,17 @@ class YearOfActivitySeeder extends Seeder
         Message::class,
     ];
 
+    /**
+     * Part d'échecs de téléchargement de médias au-delà de laquelle le seeding sort
+     * en erreur au lieu de se déclarer réussi.
+     *
+     * Un seuil et non zéro : picsum.photos rend un 5xx sporadique sous rafale, et
+     * faire échouer un `migrate:fresh --seed` de vingt minutes sur une photo perdue
+     * apprendrait à ignorer le message. 10 % ne se franchit pas par accident — c'est
+     * la signature d'un réseau coupé, d'un proxy, ou d'un quota.
+     */
+    private const MEDIA_FAILURE_RATIO_THRESHOLD = 0.10;
+
     private SeedingConfig $config;
 
     /** Scout driver captured before it's disabled for seeding, restored on reindex. */
@@ -154,6 +165,70 @@ class YearOfActivitySeeder extends Seeder
         }
 
         $this->reindexSearchableModels();
+
+        // EN DERNIER, et après la réindexation : le bilan des médias peut LEVER, et
+        // il ne doit le faire qu'une fois la base et l'index dans leur état final.
+        // Ce qu'on veut interrompre, c'est le message « seeding réussi », pas le
+        // seeding lui-même.
+        $this->reportMediaDownloads($context);
+    }
+
+    /**
+     * Imprime le bilan des téléchargements de médias, et LÈVE au-delà du seuil.
+     *
+     * Sans ce bilan, `SeedingContext::downloadMedia()` avalait chaque échec dans un
+     * `catch (\Throwable) {}` vide : hors ligne, derrière un proxy, ou simplement
+     * limité par picsum.photos, `migrate:fresh --seed` sortait en 0 sur une base où
+     * aucune photo n'avait été attachée. Le jeu de données était incomplet, et
+     * personne ne pouvait le savoir — ni le développeur, ni la CI.
+     *
+     * *Un échec avalé est pire qu'un échec bruyant : il déplace le coût du moment où
+     * il survient vers le moment où on s'appuie dessus.* (TCK-301)
+     */
+    private function reportMediaDownloads(SeedingContext $context): void
+    {
+        $attempted = $context->mediaDownloadAttempts();
+
+        // Zéro tentative n'est pas un échec : c'est SEED_DOWNLOAD_MEDIA=false, le
+        // défaut. On ne bruite pas un chemin nominal.
+        if ($attempted === 0) {
+            return;
+        }
+
+        $failed = $context->mediaDownloadFailures();
+        $out = $this->command?->getOutput();
+
+        $out?->writeln(sprintf(
+            '  > Médias : %d téléchargement(s) tenté(s), %d réussi(s), %d échec(s)',
+            $attempted,
+            $attempted - $failed,
+            $failed,
+        ));
+
+        foreach ($context->mediaFailureReasons() as $raison => $nombre) {
+            $out?->writeln("    · {$nombre}× {$raison}");
+        }
+
+        if ($failed === 0) {
+            return;
+        }
+
+        $ratio = $failed / $attempted;
+        if ($ratio <= self::MEDIA_FAILURE_RATIO_THRESHOLD) {
+            return;
+        }
+
+        throw new \RuntimeException(sprintf(
+            'Seeding des médias INCOMPLET : %d des %d téléchargements ont échoué (%.1f %%, '
+            .'seuil %.0f %%). La base est semée mais son jeu de médias est partiel. '
+            .'Pose SEED_DOWNLOAD_MEDIA=false pour semer sans médias (c\'est le défaut), '
+            .'ou corrige l\'accès réseau puis relance — le cache '
+            .'storage/app/seed-media-cache/ conserve ce qui a déjà été téléchargé.',
+            $failed,
+            $attempted,
+            $ratio * 100,
+            self::MEDIA_FAILURE_RATIO_THRESHOLD * 100,
+        ));
     }
 
     private function prepareEnvironment(): void

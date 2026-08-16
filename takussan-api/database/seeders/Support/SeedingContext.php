@@ -11,6 +11,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\User;
+use Database\Seeders\YearOfActivitySeeder;
 use Faker\Factory as FakerFactory;
 use Faker\Generator as FakerGenerator;
 use Illuminate\Support\Collection;
@@ -60,6 +61,15 @@ class SeedingContext
 
     /** @var Collection<int, User> super admins and system users */
     public Collection $systemUsers;
+
+    /** Téléchargements de médias tentés — cf. {@see downloadMedia()}. */
+    private int $mediaAttempted = 0;
+
+    /** Téléchargements de médias qui n'ont attaché aucun fichier. */
+    private int $mediaFailed = 0;
+
+    /** @var array<string, int> raison d'échec => nombre d'occurrences */
+    private array $mediaFailureReasons = [];
 
     public function __construct(?SeedingConfig $config = null)
     {
@@ -162,6 +172,14 @@ class SeedingContext
      * Uses a local file cache (`storage/app/seed-media-cache/`) keyed by sha1(url)
      * so re-seeding (e.g. `migrate:fresh --seed`) reuses already-downloaded files
      * instead of hitting the network every time.
+     *
+     * ⚠ Les échecs restent NON BLOQUANTS ici — une photo manquante ne doit pas
+     * interrompre un pipeline de 40 seeders au 38ᵉ. Mais ils ne sont plus MUETS :
+     * chaque tentative et chaque échec est compté, avec sa raison, et
+     * {@see YearOfActivitySeeder} imprime le bilan puis sort en
+     * erreur au-delà du seuil. C'est la différence entre « le seeder a survécu » et
+     * « le jeu de données est complet » — le code précédent affirmait la seconde en
+     * ne mesurant que la première (TCK-301).
      */
     public function downloadMedia(HasMedia $model, string $url, string $collection): void
     {
@@ -169,9 +187,12 @@ class SeedingContext
             return;
         }
 
+        $this->mediaAttempted++;
+
         try {
             $cachedPath = $this->resolveCachedMedia($url);
             if ($cachedPath === null) {
+                // La raison a déjà été enregistrée par resolveCachedMedia().
                 return;
             }
 
@@ -179,9 +200,53 @@ class SeedingContext
                 ->preservingOriginal()
                 ->toMediaCollection($collection);
         } catch (\Throwable $e) {
-            // Silently ignore if image download fails (offline, rate limits, timeout)
-            // to not break the database seeding process.
+            // Hors ligne, DNS, timeout, quota, ou rejet de medialibrary : on ne
+            // casse pas le seeding, on l'inscrit au compte.
+            $this->recordMediaFailure(class_basename($e).' : '.$e->getMessage());
         }
+    }
+
+    /** Nombre de médias dont le téléchargement a été TENTÉ (0 si SEED_DOWNLOAD_MEDIA est faux). */
+    public function mediaDownloadAttempts(): int
+    {
+        return $this->mediaAttempted;
+    }
+
+    /** Nombre de tentatives qui n'ont abouti à aucun média attaché. */
+    public function mediaDownloadFailures(): int
+    {
+        return $this->mediaFailed;
+    }
+
+    /**
+     * Raisons d'échec agrégées, la plus fréquente d'abord.
+     *
+     * @return array<string, int>
+     */
+    public function mediaFailureReasons(): array
+    {
+        $reasons = $this->mediaFailureReasons;
+        arsort($reasons);
+
+        return $reasons;
+    }
+
+    /**
+     * Un échec compte UNE fois par tentative, quelle que soit la profondeur à
+     * laquelle il survient — sans quoi une même URL ratée gonflerait le compte
+     * deux fois (HTTP puis exception) et le taux d'échec dépasserait 100 %.
+     */
+    private function recordMediaFailure(string $reason): void
+    {
+        $this->mediaFailed++;
+
+        // La raison est TRONQUÉE : un message d'exception réseau embarque l'URL
+        // complète, et le bilan de fin de seeding deviendrait une liste de 2700
+        // lignes distinctes au lieu d'un histogramme lisible.
+        $reason = trim(preg_replace('/\s+/', ' ', $reason) ?? $reason);
+        $reason = mb_strimwidth($reason, 0, 120, '…');
+
+        $this->mediaFailureReasons[$reason] = ($this->mediaFailureReasons[$reason] ?? 0) + 1;
     }
 
     private function resolveCachedMedia(string $url): ?string
@@ -199,6 +264,8 @@ class SeedingContext
 
         $response = Http::timeout(15)->get($url);
         if (! $response->successful()) {
+            $this->recordMediaFailure('HTTP '.$response->status());
+
             return null;
         }
 

@@ -667,19 +667,34 @@ fichiers (83 clés de chaque côté), et la garde est **prouvée par mutation**.
 ses *valeurs* décrivent toujours un environnement fictif. Le corriger casserait la CI, qui fait
 `cp .env.example .env` ; c'est un arbitrage à poser, pas un oubli.
 
-### D-13 — Deux pièges du seeding, muets tous les deux 🟡 → [TCK-301](backlog/tickets/TCK-301-pieges-muets-environnement-developpement.md)
+### D-13 — Deux pièges du seeding, muets tous les deux ✅ *soldé le 2026-08-16 (TCK-301)*
 
-> **Confirmé le 2026-08-16** — et **aggravé par D-54** : `.env.example` est l'environnement de TEST
-> de la CI. `SEED_DOWNLOAD_MEDIA=true` n'y est donc pas seulement un piège d'onboarding, c'est de la
-> configuration de suite. Le ticket traite ces deux pièges avec D-48, qui est de la même famille.
+> **Re-mesuré le 2026-08-16, et l'entrée était INCOMPLÈTE sur son point le plus coûteux.** Elle
+> n'incriminait que `.env.example` — mais `.env.docker:81` portait le **même** `SEED_DOWNLOAD_MEDIA=true`,
+> et c'est CE fichier que `./dev.sh` recopie en `takussan-api/.env` au premier démarrage. Le scénario
+> décrit ici — « le premier `migrate:fresh --seed` d'un nouveau développeur » — passait donc par le
+> fichier que l'entrée ne citait pas. Les deux sont désormais à `false`, le défaut du code.
+>
+> Sur le second piège, la mesure a corrigé l'entrée dans l'autre sens : `CloudflareDriver::__construct()`
+> **lève déjà** `CouldNotGeneratePdf::missingCloudflareCredentials()` en nommant les deux clés. Le
+> défaut n'était donc pas muet, seulement inutilisable. `.env.example` livre maintenant `dompdf`, seul
+> driver qui ne dépende d'aucun service externe — et `phpunit.xml` le forçait déjà, ce qui rend le
+> changement inerte pour la suite (vérifié : 38 tests PDF/export/seeding verts avec
+> `.env` = `.env.example`).
 
-`SEED_DOWNLOAD_MEDIA=true` dans `.env.example` alors que le défaut du code est `false` : le premier
-`migrate:fresh --seed` d'un nouveau développeur déclenche **1000 à 2700 téléchargements HTTP** vers
+`SEED_DOWNLOAD_MEDIA=true` dans `.env.example` **et dans `.env.docker`** alors que le défaut du code
+est `false` (`config/database.php:193`, `SeedingConfig::fromEnv()`) : le premier
+`migrate:fresh --seed` d'un nouveau développeur déclenchait **1000 à 2700 téléchargements HTTP** vers
 picsum.photos (timeout 15 s chacun), **avec tous les échecs avalés en silence**.
 
-Et `LARAVEL_PDF_DRIVER=cloudflare` avec les deux identifiants vides : la génération de PDF est cassée
-par défaut en développement. Le seul driver disponible en local est `dompdf`, et il n'est déclaré que
-dans `phpunit.xml`. *(Corrigé dans `.env.docker`.)*
+Et `LARAVEL_PDF_DRIVER=cloudflare` avec les deux identifiants vides : la génération de PDF était
+cassée par défaut en développement. *(`.env.docker` était déjà sur `dompdf`.)*
+
+**Correctif** : les deux valeurs alignées sur le défaut du code · les échecs de téléchargement
+comptés par raison dans `SeedingContext`, imprimés en fin de seeding par `YearOfActivitySeeder`, et
+**`db:seed` sort en erreur au-delà de 10 % d'échecs** — un jeu de données partiel ne peut plus se
+faire passer pour complet. Couverture : `tests/Feature/Database/Seeders/SeedingMediaFailuresTest.php`
+(6 tests, vérifiés par ablation : les 6 rougissent sur le code d'origine).
 
 ### D-47 — TCK-289 a corrigé le dépôt, pas la machine : le conteneur de base tournait MariaDB 11.4 ✅ *soldé le 2026-08-16 — mesuré sur le démon*
 
@@ -802,7 +817,7 @@ même ensemble et aux mêmes lignes qu'en CI.
 `gh run list --branch dev --workflow "API CI"` → succès au 2026-08-15 (le rouge vient bien de la
 branche) · exécution de la suite avec et sans les quatre clés dans `.env`.
 
-### D-48 — Le `.env` de développement vise les services natifs, jamais les conteneurs du dépôt 🟠 *dette d'ONBOARDING, pas de dépôt — mesurée le 2026-08-15* → [TCK-301](backlog/tickets/TCK-301-pieges-muets-environnement-developpement.md)
+### D-48 — Le `.env` de développement vise les services natifs, jamais les conteneurs du dépôt 🟠 *dette d'ONBOARDING, pas de dépôt — mesurée le 2026-08-15, rendue VISIBLE le 2026-08-16 (TCK-301)* → [TCK-301](backlog/tickets/TCK-301-pieges-muets-environnement-developpement.md)
 
 `takussan-api/.env` est **ignoré par git**. Cette entrée ne décrit donc pas un fichier du dépôt à
 corriger, mais **l'écart entre ce que le dépôt provisionne et ce que la machine de développement
@@ -845,6 +860,22 @@ exactement ce que l'en-tête de `.env.docker` prescrit. **Et une garde qui le re
 déclare **n'est pas ce que le dépôt sert**. C'est la seule famille de dettes de ce document
 qu'aucune CI ne pourra jamais attraper — elle vit dans un fichier ignoré — donc la seule réponse
 possible est de l'afficher au démarrage.
+
+> **Rendu visible le 2026-08-16 (TCK-301) — l'écart reste, il n'est plus muet.**
+> `./dev.sh doctor` compare désormais, service par service, le port que le `.env` déclare au port que
+> le dépôt publie, et nomme le cas exact « port CANONIQUE → instance native » pour MySQL (3306 vs
+> 3307), Meilisearch (7700 vs 7701), Redis (6379 vs 6380) et Mailpit (1025 vs 1026), puis récapitule
+> ce que l'écart coûte. Il ne bascule rien et ne corrige rien : `takussan-api/.env` est ignoré par
+> git, aucun fichier de ce dépôt ne peut l'atteindre.
+>
+> Vérifié par ablation sur un `.env` visant les ports canoniques : **5 lignes de diagnostic avec le
+> correctif, 0 sans**. Et sur un `.env` visant les conteneurs : **0 ligne** — la sonde ne bruite pas
+> le cas nominal.
+>
+> Ce qui rendait ce défaut invisible tient en une phrase : **les services répondent**. `sonde_tcp`
+> imprimait un ✓ vert sur chacun, et le bloc « Services » un second ✓ (« vise des services HORS de
+> ce docker-compose » — vrai, et légitime pour un poste natif). Rien n'était faux ; il manquait
+> seulement la phrase qui relie les deux.
 
 ---
 

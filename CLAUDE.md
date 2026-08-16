@@ -104,7 +104,14 @@ php artisan test --filter=Foo
 ./vendor/bin/pint                   # ← AVANT CHAQUE COMMIT. Rien ne l'impose : c'est une
                                     #   violation d'un seul fichier qui a cassé la CI six semaines.
 php artisan migrate
-php artisan migrate:fresh --seed    # 38 seeders, ~450 biens (cf. SEED_DOWNLOAD_MEDIA)
+php artisan migrate:fresh --seed    # 38 seeders, ~450 biens. SANS médias par défaut :
+                                    #   SEED_DOWNLOAD_MEDIA=false des DEUX côtés (.env.example
+                                    #   ET .env.docker) depuis TCK-301 — il valait `true`, et
+                                    #   décidait pour tout nouveau clone de 1000 à 2700 requêtes
+                                    #   HTTP. `true` reste valable, mais c'est un choix : les
+                                    #   échecs sont alors comptés, imprimés, et `db:seed` sort en
+                                    #   erreur au-delà de 10 % — un jeu partiel ne se déclare plus
+                                    #   complet.
 ```
 
 `takussan-web/` :
@@ -153,6 +160,13 @@ deux).
 `./dev.sh` ne force pas docker : il détecte si le `.env` vise les conteneurs du dépôt ou des services
 natifs, **sonde ce que le `.env` déclare**, et nomme ce qui ne répond pas. Un service déclaré et
 absent ne produit aucune erreur lisible — l'API démarre, et c'est la première requête qui meurt.
+
+> **`./dev.sh doctor` nomme aussi le cas inverse, depuis TCK-301** : un `.env` qui vise le port
+> CANONIQUE (3306 / 7700 / 6379 / 1025) alors que le dépôt publie le port décalé. Ce cas-là ne
+> produit *aucun* rouge — les services répondent, ce sont ceux de brew — mais rien de ce que
+> `docker-compose.yml` garantit ne s'applique alors : ni le moteur MySQL 8.0 mesuré en production,
+> ni l'isolation de l'index Meilisearch, ni Mailpit. `takussan-api/.env` est ignoré par git : aucun
+> fichier de ce dépôt ne peut corriger l'écart, seulement l'afficher (dette D-48).
 
 ## Workflow git
 
