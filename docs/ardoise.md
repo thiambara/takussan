@@ -242,7 +242,44 @@ déploiement — et la procédure de dump pré-déploiement doit exister avant q
 
 ---
 
-### D-49 — Deux webhooks entrants sur cinq ne vérifient AUCUNE signature 🔴 *mesuré le 2026-08-15 — décision produit requise*
+### D-49 — Deux webhooks entrants sur cinq ne vérifient AUCUNE signature 🟠 *question tranchée le 2026-08-16 — les opérateurs n'en proposent pas*
+
+> **RÉPONSE DES OPÉRATEURS, obtenue le 2026-08-16. La question ouverte plus bas est CLOSE :**
+> **ni l'API SMS globale d'Orange ni celle de Mtarget n'émettent de signature.** Le constat n'était
+> donc pas un oubli d'implémentation — c'est le plafond de ce que ces fournisseurs offrent. Ce qu'ils
+> proposent à la place :
+>
+> - **Orange** — point de terminaison **HTTPS obligatoire sur le port 443, certificat valide** (les
+>   auto-signés sont rejetés), et Orange **fournit à la configuration une adresse IP officielle** à
+>   mettre en liste blanche pour bloquer tout autre serveur.
+> - **Mtarget** — recommande de **ne pas exposer de webhook public non signé** et de basculer sur son
+>   **API Pulling DLR / MO** : c'est notre serveur qui interroge périodiquement Mtarget en
+>   s'authentifiant avec nos jetons d'API. Le sens du flux s'inverse, et la question de la signature
+>   disparaît avec lui. → [TCK-294](backlog/tickets/TCK-294-mtarget-api-pulling-dlr.md)
+>
+> **Ce que nous faisons déjà, et qui est correct.** `RestrictIpMiddleware` applique la liste blanche,
+> **échoue fermé en production** (`abort(403)` si la liste est vide, pour qu'une variable oubliée ne
+> puisse pas exposer le webhook en silence), et `TRUSTED_PROXIES=127.0.0.1,::1` est bien posé dans
+> `.env.prod` et `.env.preview` — sans quoi n'importe qui pourrait usurper `X-Forwarded-For` et la
+> liste blanche ne vaudrait rien. Pour Orange, nous exploitons donc déjà le maximum disponible ; il
+> ne reste qu'à **renseigner l'IP qu'Orange fournit** au moment de la configuration.
+>
+> **⚠️ Le piège opérationnel du fail-closed, à connaître avant la mise en production.** Laisser
+> `SMS_ORANGE_WEBHOOK_IPS` vide en production ne « désactive » pas le filtre : cela **refuse tous les
+> accusés de livraison en 403**, sans erreur bruyante côté Takussan. Les statuts d'envoi ne
+> remonteraient jamais, et le diagnostic partirait du mauvais côté — on chercherait un défaut d'envoi
+> là où c'est la réception qui est fermée. À porter au runbook de
+> [TCK-288](backlog/tickets/TCK-288-chaine-de-deploiement-master-fige.md).
+>
+> **✅ Les 11 clés d'environnement SMS sont désormais déclarées** dans `.env.example` et
+> `.env.docker` (2026-08-16), avec le motif écrit à côté. Elles ne l'étaient nulle part, et
+> `check-env-parity.mjs` ne pouvait rien y faire : **il compare deux fichiers, et une clé absente des
+> deux est en parité parfaite.** *Une garde qui confronte deux sources ne vérifie jamais qu'elles
+> couvrent la troisième — le code.* Le même trou existe encore pour les deux clés WhatsApp.
+>
+> **Gravité ramenée de 🔴 à 🟠** : ce n'est plus une protection manquante par négligence, c'est le
+> plafond du fournisseur, exploité jusqu'à son maximum et documenté. Le risque résiduel (statistiques
+> de livraison faussées, renvois facturés) est borné et assumé.
 
 **Orange SMS et Mtarget SMS** ne sont protégés que par un **jeton dans l'URL** (comparé par
 `hash_equals`) et une **allowlist d'IP**. Les trois autres webhooks entrants exigent en plus une
@@ -286,7 +323,18 @@ webhooks SMS et WhatsApp seront simplement **muets** au premier déploiement, sa
 
 ---
 
-### D-50 — Le webhook de paiement accepte le secret de N'IMPORTE QUELLE agence 🔴 *mesuré le 2026-08-15*
+### D-50 — Le webhook de paiement accepte le secret de N'IMPORTE QUELLE agence 🔴 *mesuré le 2026-08-15* → [TCK-293](backlog/tickets/TCK-293-webhook-paiement-scope-agence.md)
+
+> **ARBITRAGE DIFFÉRÉ, sciemment, le 2026-08-16.** Le constat est acté et ne bouge pas ; la
+> correction attend une décision qui n'est pas technique. La route `POST webhooks/payments/{provider}`
+> ne porte aucun identifiant d'agence : il faut l'intégration pour vérifier la signature, et la
+> charge utile pour connaître l'agence. Les trois sorties possibles — URL de webhook par agence,
+> essai successif des signatures, ou intégration unique globale par fournisseur — engagent la
+> configuration chez Wave et Orange Money, l'onboarding d'une agence, ou le modèle d'affaires. Elles
+> sont détaillées et chiffrées dans TCK-293.
+>
+> *Différer n'est pas oublier* : le défaut porte son ticket, son ADR à écrire, et un test qui sonde
+> la CAUSE (`PaymentWebhookMultiTenantTest`) et se rallumera seul le jour de la correction.
 
 **Le comportement est inversé, dans les deux sens à la fois.** `PaymentGatewayService::handleWebhook`
 (lignes 132-137) résout l'`Integration` **sans aucun scope d'agence** — la première active du
@@ -325,7 +373,67 @@ ci-dessus.
 
 ---
 
-### D-51 — La branche `invoices` de la passerelle de paiement est morte par schéma 🟠 *mesuré le 2026-08-15*
+### D-51 — La passerelle de paiement était morte EN ENTIER, pas seulement sur les factures ✅ *soldé le 2026-08-16*
+
+> **⛔ LE DIAGNOSTIC D'ORIGINE SOUS-ESTIMAIT SA PROPRE PORTÉE D'UN ORDRE DE GRANDEUR.** Il concluait
+> « la branche `invoices` est morte », donc une fonctionnalité secondaire indisponible. Mesuré le
+> 2026-08-16 : **aucun paiement, d'aucun type, ne pouvait être confirmé en production.**
+>
+> `PaymentGatewayService::paymentsForEvent()` boucle sur les **trois** payables et interroge chacun
+> par `transaction_id` à chaque webhook entrant :
+>
+> ```php
+> foreach ([BookingPayment::class, LeasePayment::class, Invoice::class] as $class) {
+>     $rows = $class::query()->where('transaction_id', $event->transactionId)->lockForUpdate()->get();
+> ```
+>
+> La troisième requête lève `SQLSTATE[42S22] Unknown column` sur MySQL. Or l'appelant,
+> `applyEventToMatchingPayment()`, enveloppe la boucle dans `DB::transaction()` : le paiement de
+> réservation ou de loyer trouvé aux **deux premiers tours** était donc annulé par le rollback, et le
+> webhook rendait 500. Le fournisseur réessaie, échoue encore, indéfiniment.
+>
+> **Et la suite de tests ne pouvait STRUCTURELLEMENT pas le voir.** Mesuré, la même requête :
+>
+> | Moteur | Où | Comportement |
+> |---|---|---|
+> | SQLite | la suite de tests (`phpunit.xml`) | rend **0 ligne, en silence** |
+> | MySQL 8.0.46 | la production (mesuré le 2026-08-13) | **lève `Unknown column`** |
+>
+> C'est la règle n°4 du `CLAUDE.md` — *« une migration se pense pour MySQL, jamais pour SQLite »* —
+> transposée au **REQUÊTAGE**, où rien ne la gardait. Les 2 294 tests étaient verts pendant que la
+> passerelle était morte, et **aucun test supplémentaire du chemin de paiement n'y aurait rien
+> changé** : le défaut n'était pas dans ce que la suite teste, il était dans ce que son moteur
+> *pardonne*. Le job CI `migrations-mysql` ne pouvait pas l'attraper non plus — il rejoue les
+> migrations, pas les requêtes.
+>
+> **Un troisième point de rupture est apparu quand le test s'est rallumé**, preuve que la branche
+> n'avait jamais été exécutée une seule fois : `applyStatusToPayment()` faisait
+> `PaymentStatus::tryFrom((string) $payment->status)`, et `(string)` sur un enum lève
+> `Object of class InvoiceStatus could not be converted to string` — 500 mesuré sur
+> `GET /api/invoices/{id}/verify`. `invoices` n'a pas davantage de colonne `paid_at`.
+>
+> **Correctif livré** : migration `2026_08_16_090000_add_gateway_columns_to_invoices_table`
+> (`transaction_id`, `payment_method`, index nommé ; aller-retour prouvé sur MySQL 8.0.46) ·
+> `paymentAmount()`, une seule définition de « combien est dû » là où la règle était corrigée dans la
+> garde de sous-paiement et violée dix lignes plus haut · `currentPaymentStatus()`, `writeStatus()`
+> et `hasColumn()` pour que chaque payable n'écrive que ce que son enum et sa table savent porter.
+> Preuve directe : `applyEventToMatchingPayment()` exécuté sur MySQL 8.0 passe désormais.
+>
+> **Garde** : `tests/Feature/Api/PaymentGatewaySchemaContractTest.php` vérifie que chaque payable
+> porte les colonnes que la passerelle interroge — sans exiger un second moteur en CI, puisqu'il
+> vérifie l'EXISTENCE des colonnes plutôt que de les requêter. Prouvé par mutation (migration
+> retirée → rouge). ⚠️ Il est honnête sur sa portée : la liste des colonnes est tenue à la main, une
+> requête neuve sur une colonne neuve lui échappera. C'est un cliquet, pas une preuve.
+>
+> **⚠️ UNE QUESTION MÉTIER RESTE OUVERTE, et elle n'a pas été tranchée à la place du produit.**
+> `InvoiceStatus` (`draft`, `sent`, `paid`, `overdue`, `cancelled`, `void`) et `PaymentStatus`
+> (`pending`, `paid`, `late`, `partially_paid`, `failed`, `refunded`) **ne se recouvrent que sur
+> `paid`**. Que devient une facture après un paiement Wave *échoué* — elle reste `sent` ? elle passe
+> `overdue` ? Après un *remboursement* — `void` ? Le code n'écrit RIEN quand il n'existe pas
+> d'équivalent, et trace l'événement dans `metadata` : un statut inventé serait pire qu'aucun, parce
+> qu'il aurait l'autorité d'une donnée. À trancher avant qu'une facture ne soit réglée en ligne.
+
+*Le constat d'origine, conservé — il reste juste, il était seulement trop étroit :*
 
 Les routes acceptent explicitement `invoices` (`routes/api/payments.php:20,24`), mais **une facture
 ne peut être ni payée ni vérifiée**, pour deux raisons indépendantes :

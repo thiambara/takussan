@@ -88,39 +88,30 @@ class PaymentGatewayVerifyTest extends ApiTestCase
     }
 
     /**
-     * SUSPENDU — la branche `invoices` de la passerelle est morte par
-     * SCHÉMA, et de deux façons indépendantes, mesurées le 2026-08-15 :
+     * RALLUMÉ le 2026-08-16 — la sonde a fait exactement ce pour quoi elle avait été écrite.
      *
-     *  1. `invoices` n'a AUCUNE colonne `transaction_id` (colonnes réelles
-     *     vérifiées par `Schema::getColumnListing`). Or `recordInitiation`
-     *     (ligne 333) la remplit et `verify` (ligne 103) la lit : la lecture
-     *     rend toujours vide, donc `verify` sort en `null` avant même
-     *     d'interroger le fournisseur.
-     *  2. `initiate` calcule `(float) $payment->amount` (ligne 81), mais une
-     *     `Invoice` porte son montant dans `total_amount`. Le montant vaut
-     *     donc 0 et la route rend **422 « Cannot initiate a checkout for a
-     *     non-positive amount »** — mesuré.
+     * Ce test était SUSPENDU sur `Schema::hasColumn('invoices', 'transaction_id')`, parce
+     * que la branche `invoices` de la passerelle était morte par schéma de deux façons
+     * indépendantes : la colonne n'existait pas (donc `verify()` sortait en `null` avant
+     * même d'interroger le fournisseur), et `initiate()` lisait `$payment->amount` là où une
+     * facture porte `total_amount` (donc 422 « montant non positif » sur TOUTE facture).
      *
-     * Les routes acceptent pourtant explicitement `invoices`
-     * (`routes/api/payments.php:20,24`). Une facture ne peut aujourd'hui ni
-     * être payée ni être vérifiée par la passerelle. Ce n'est pas un trou de
-     * test : c'est un trou de schéma, et le corriger demande une migration
-     * plus une décision sur `amount` vs `total_amount` — hors périmètre d'un
-     * ticket de tests. Voir ardoise D-51.
+     * La migration `2026_08_16_090000_add_gateway_columns_to_invoices_table` et
+     * `PaymentGatewayService::paymentAmount()` ont fermé les deux. La sonde s'est éteinte
+     * d'elle-même, sans que personne n'ait à se souvenir de venir la retirer — c'est tout
+     * l'intérêt de sonder la CAUSE plutôt que le symptôme.
      *
-     * La sonde porte sur la CAUSE (la colonne), pas sur le symptôme : le test
-     * se rallume seul le jour de la migration.
+     * ⚠️ Le diagnostic d'origine SOUS-ESTIMAIT la portée, et il faut le dire : il concluait
+     * « la branche invoices est morte ». En réalité `paymentsForEvent()` interroge les TROIS
+     * payables par `transaction_id` à chaque webhook — la requête sur `invoices` levait donc
+     * `Unknown column` sur MySQL et, la boucle étant dans une transaction, annulait le
+     * paiement de réservation ou de loyer trouvé aux tours précédents. **Aucun paiement,
+     * d'aucun type, ne pouvait être confirmé en production.** Invisible ici parce que SQLite
+     * rend 0 ligne en silence là où MySQL lève. Voir
+     * `PaymentGatewaySchemaContractTest` et ardoise D-51.
      */
     public function test_a_successful_verification_marks_an_invoice_as_paid(): void
     {
-        if (! Schema::hasColumn('invoices', 'transaction_id')) {
-            $this->markTestSkipped(
-                'TCK-285 / ardoise D-51 — `invoices` n\'a pas de colonne `transaction_id`, '
-                .'et `initiate` lit `amount` là où une facture porte `total_amount` (422 mesuré). '
-                .'La branche `invoices` de la passerelle de paiement est morte par schéma.',
-            );
-        }
-
         $this->fakeWave('succeeded');
         $invoice = $this->invoice();
 
@@ -273,6 +264,11 @@ class PaymentGatewayVerifyTest extends ApiTestCase
             'subtotal' => 50000,
             'total_amount' => 50000,
             'currency' => Currency::XOF,
+            // La COLONNE, comme sur les deux payables voisins : `verify()` lit
+            // `$payment->transaction_id`, jamais l'empreinte dans `metadata`. Cette fixture
+            // ne la posait pas — elle ne le pouvait pas, la colonne n'existait pas avant la
+            // migration du 2026-08-16 (D-51).
+            'transaction_id' => self::TXN,
             'metadata' => ['gateway' => ['provider' => 'wave', 'transaction_id' => self::TXN]],
         ]);
     }

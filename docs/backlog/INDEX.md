@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**274 tickets** — 14 ouverts, 259 livrés.
+**276 tickets** — 16 ouverts, 259 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 3 |
+| 📋 Todo | 5 |
 | 🚧 Doing | 0 |
 | 👀 Review | 10 |
 | ⛔ Blocked | 1 |
@@ -36,6 +36,8 @@
 - [TCK-288](tickets/TCK-288-chaine-de-deploiement-master-fige.md) — Premiere mise en production — la chaine n'a jamais tourne `M · P0 · technique`
 - [TCK-291](tickets/TCK-291-etats-vides-erreurs-reste-du-parc.md) — États vides / erreurs — le reste du parc (super-admin, admin, tables) `M · P2 · front`
 - [TCK-292](tickets/TCK-292-i18n-reste-du-parc.md) — i18n — le reste du parc : 409 fichiers, 3 542 libellés, en 12 lots `XL · P2 · front`
+- [TCK-293](tickets/TCK-293-webhook-paiement-scope-agence.md) — Webhook de paiement — le secret de n'importe quelle agence valide celui des autres `M · P0 · bug`
+- [TCK-294](tickets/TCK-294-mtarget-api-pulling-dlr.md) — Mtarget — basculer les accusés de livraison sur l'API Pulling plutôt qu'un webhook non signé `M · P2 · technique`
 
 ## 🚧 Doing
 
