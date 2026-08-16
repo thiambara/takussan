@@ -1,7 +1,7 @@
 ---
 id: TCK-300
 title: "Les guides de déploiement prescrivent des drivers que les `.env` livrés contredisent"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: S

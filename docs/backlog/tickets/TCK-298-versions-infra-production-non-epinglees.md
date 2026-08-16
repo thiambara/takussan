@@ -1,7 +1,7 @@
 ---
 id: TCK-298
 title: "Les versions d'infrastructure de production ne sont épinglées nulle part dans le dépôt"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: S

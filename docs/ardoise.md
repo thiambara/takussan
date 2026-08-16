@@ -579,7 +579,7 @@ Corollaire : un développeur sans Meilisearch **ne peut pas lancer la suite du t
 
 **Correctif** : poser `SCOUT_PREFIX=testing_` dans `phpunit.xml`.
 
-### D-09 — Aucune version d'infrastructure n'est figée 🟠 → [TCK-298](backlog/tickets/TCK-298-versions-infra-production-non-epinglees.md)
+### D-09 — Aucune version d'infrastructure n'est figée ✅ *soldé le 2026-08-16* → [TCK-298](backlog/tickets/TCK-298-versions-infra-production-non-epinglees.md)
 
 > **Périmètre réduit à la production, re-mesuré le 2026-08-16.** Le développement et la CI sont
 > désormais épinglés des deux côtés (`mysql:8.0`, `getmeili/meilisearch:v1.16`, `redis:8-alpine`,
@@ -944,7 +944,7 @@ depuis TCK-129.
 
 Le ton impératif est ce qui rend ce document dangereux : il ne se présente pas comme une piste.
 
-### D-18 — `docs/models-spec.md` ignore 16 modèles existants 🟠 → [TCK-310](backlog/tickets/TCK-310-models-spec-16-modeles-absents.md) *(traité, en review)*
+### D-18 — `docs/models-spec.md` ignore 16 modèles existants ✅ *soldé le 2026-08-16* → [TCK-310](backlog/tickets/TCK-310-models-spec-16-modeles-absents.md)
 
 > **Soldé le 2026-08-16 par TCK-310, et gardé.** Les 16 modèles sont documentés d'après le code et
 > les migrations, et `scripts/check-models-spec.mjs` casse désormais la Repo CI si un modèle de
