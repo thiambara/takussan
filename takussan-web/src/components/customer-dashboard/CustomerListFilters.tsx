@@ -17,6 +17,7 @@ import {
   PIPELINE_STAGE_OPTIONS,
 } from '@/components/customer-form/options';
 import type { Tag as TagType } from '@/types/tag';
+import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 
 /**
  * CRM filters bar. Same rules as the property filters: every filter is
@@ -40,11 +41,9 @@ export function CustomerListFilters({ crmTags = [] }: Props) {
 
   const activeTags = currentTagsParam ? currentTagsParam.split(',').filter(Boolean) : [];
 
-  const [searchInput, setSearchInput] = useState(currentSearch);
-
-  useEffect(() => {
-    setSearchInput(currentSearch);
-  }, [currentSearch]);
+  // TCK-316 — resynchronisé sur l'URL SANS `useEffect` : l'effet rendait, puis
+  // peignait l'ancienne valeur, puis re-rendait. Cf. `useStateSyncedWith`.
+  const [searchInput, setSearchInput] = useStateSyncedWith(currentSearch);
 
   const updateParam = useCallback(
     (key: string, value: string | null) => {

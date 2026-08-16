@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import {
   Select,
   SelectContent,
@@ -44,11 +45,9 @@ export function SuperAdminPropertiesFilters({ agencies }: SuperAdminPropertiesFi
   const currentVisibility = searchParams.get('filter[visibility]') ?? '';
   const currentAgency = searchParams.get('filter[agency_id]') ?? '';
 
-  const [searchInput, setSearchInput] = useState(currentSearch);
-
-  useEffect(() => {
-    setSearchInput(currentSearch);
-  }, [currentSearch]);
+  // TCK-316 — resynchronisé sur l'URL SANS `useEffect` : l'effet rendait, puis
+  // peignait l'ancienne valeur, puis re-rendait. Cf. `useStateSyncedWith`.
+  const [searchInput, setSearchInput] = useStateSyncedWith(currentSearch);
 
   const updateParam = useCallback(
     (key: string, value: string | null) => {

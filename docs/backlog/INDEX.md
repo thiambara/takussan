@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**299 tickets** — 15 ouverts, 283 livrés.
+**300 tickets** — 15 ouverts, 284 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 283 |
+| ✅ Done | 284 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -46,7 +46,7 @@
 - [TCK-309](tickets/TCK-309-conventions-mineures-dedoublees.md) — Trois conventions dédoublées : classes de base de test, préfixes de commandes, namespaces d'auth `M · P3 · technique`
 - [TCK-313](tickets/TCK-313-delai-waitfor-rtl-tendu-sous-charge.md) — Le délai propre de waitFor/findBy est un défaut de framework, pas une mesure `S · P2 · front`
 - [TCK-315](tickets/TCK-315-role-agence-du-prestataire.md) — Où vit le rôle d'agence d'un prestataire — le profil n'a pas d'agence, la collaboration si `M · P1 · technique`
-- [TCK-316](tickets/TCK-316-regles-react-compiler-inertes-sous-eslint-9.md) — Cinq familles de règles React Compiler sont déclarées bloquantes et ne s'exécutent pas — 23 violations que le bump ESLint 10 révèle `M · P2 · front`
+- [TCK-318](tickets/TCK-318-activer-le-react-compiler.md) — Activer le React Compiler — ou décider de ne pas l'activer, mais le décider `M · P3 · front`
 
 ## 🚧 Doing
 
@@ -62,7 +62,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 283
+## ✅ Done — 284
 
 <details>
 <summary><strong>Vague 40 — Évacuation dette — documentation : specs et documents périmés (2026-08-16)</strong> — 2 tickets</summary>
@@ -73,8 +73,9 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Vague 39 — Évacuation dette — convergence des conventions backend (2026-08-16)</strong> — 1 ticket</summary>
+<summary><strong>Vague 39 — Évacuation dette — convergence des conventions backend (2026-08-16)</strong> — 2 tickets</summary>
 
+- [TCK-316](tickets/TCK-316-regles-react-compiler-inertes-sous-eslint-9.md) — Cinq familles de règles React Compiler sont déclarées bloquantes et ne s'exécutent pas — 23 violations que le bump ESLint 10 révèle `M · P2 · front`
 - [TCK-317](tickets/TCK-317-roles-systeme-derivent-par-date-de-creation.md) — Les rôles système dérivent par date de création d'agence — une capacité ajoutée à l'enum n'atteint jamais les agences existantes `M · P2 · back`
 
 </details>

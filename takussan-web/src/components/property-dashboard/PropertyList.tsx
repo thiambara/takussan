@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Archive,
@@ -462,16 +462,38 @@ function RelativeDate({ value }: { readonly value: string }) {
       }).format(date),
     [date],
   );
-  const [relative, setRelative] = useState<string | null>(null);
-  useEffect(() => {
-    setRelative(formatRelative(date));
+  // TCK-316 — `useSyncExternalStore` est la primitive prévue par React pour
+  // « cette valeur diffère entre le serveur et le client » : instantané serveur
+  // `null` (on peint l'absolu), instantané client calculé après hydratation.
+  // Elle remplace le couple `useState` + `useEffect` sans dérogation à la règle,
+  // et surtout sans le rendu en cascade que celui-ci provoquait pour CHAQUE
+  // ligne de la liste.
+  //
+  // ⚠️ L'instantané est mémoïsé par `date` : `formatRelative` lit l'horloge, et
+  // un `getSnapshot` qui rend une chaîne différente à chaque appel ferait
+  // re-rendre React en boucle. Mémoïsé, il reproduit exactement l'ancien
+  // comportement — recalculé quand `date` change, et seulement alors.
+  const getRelative = useMemo(() => {
+    let cached: string | null = null;
+    return (): string => (cached ??= formatRelative(date));
   }, [date]);
+  const relative = useSyncExternalStore(subscribeToNothing, getRelative, () => null);
 
   return (
     <time dateTime={date.toISOString()} title={absolute}>
       {relative ?? absolute}
     </time>
   );
+}
+
+/**
+ * Abonnement inerte pour `useSyncExternalStore` : la valeur relative ne change
+ * pas d'elle-même après le montage (elle est recalculée quand `date` change,
+ * comme avant). Déclaré au module et NON en ligne : une fonction recréée à
+ * chaque rendu ferait se réabonner React à chaque rendu.
+ */
+function subscribeToNothing(): () => void {
+  return () => {};
 }
 
 function formatRelative(date: Date): string {

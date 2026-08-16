@@ -58,14 +58,19 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Hydrate from server-side draft on first load.
-  useEffect(() => {
-    if (isLoading || hydrated) return;
-    if (draft && draft.data) {
+  // Hydratation depuis le brouillon serveur, au premier chargement.
+  //
+  // TCK-316 — pendant le RENDU, pas dans un effet. L'effet peignait d'abord le
+  // formulaire vide, puis le remplissait au tick suivant : l'utilisateur voyait
+  // ses champs se remplir après coup, et un `onChange` tapé dans cet intervalle
+  // était écrasé par l'hydratation. L'écriture converge (`hydrated` passe à
+  // `true` et n'en revient pas), ce que React autorise explicitement.
+  if (!hydrated && !isLoading) {
+    setHydrated(true);
+    if (draft?.data) {
       setForm({ ...EMPTY_FORM, ...(draft.data as Partial<AgencyUpgradeRequestFormFields>) });
     }
-    setHydrated(true);
-  }, [draft, isLoading, hydrated]);
+  }
 
   // Autosave on every change (debounced inside the hook).
   useEffect(() => {
