@@ -1,7 +1,7 @@
 ---
 id: TCK-312
 title: "Quatre tests front rougissent sous charge — le pendant frontend de D-44"
-status: review
+status: done
 phase: P2
 family: front
 estimate: S

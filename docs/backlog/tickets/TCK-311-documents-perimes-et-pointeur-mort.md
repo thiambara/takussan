@@ -1,7 +1,7 @@
 ---
 id: TCK-311
 title: "Cinq documents périmés, un pointeur mort dans les deux specs, et 4 Mo d'images commitées"
-status: review
+status: done
 phase: P3
 family: technique
 estimate: S

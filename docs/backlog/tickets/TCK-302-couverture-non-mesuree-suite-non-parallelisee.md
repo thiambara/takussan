@@ -1,7 +1,7 @@
 ---
 id: TCK-302
 title: "Aucune mesure de couverture, aucune parallélisation — ~2050 tests en 313 s et pas de garde-fou"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: M

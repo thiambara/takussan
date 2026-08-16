@@ -1,7 +1,7 @@
 ---
 id: TCK-294
 title: "Mtarget — basculer les accusés de livraison sur l'API Pulling plutôt qu'un webhook non signé"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: M
