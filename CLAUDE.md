@@ -124,12 +124,26 @@ npm run test          # vitest
 npm run build
 ```
 
-Racine :
+Racine — **les gardes ne s'énumèrent pas ici, elles se listent** :
 
 ```bash
-node scripts/check-env-parity.mjs   # .env.example et .env.docker déclarent-ils les mêmes clés ?
-node scripts/check-models-spec.mjs --report   # tout modèle de premier niveau est-il dans models-spec.md ?
+ls scripts/check-*.mjs                        # l'inventaire, toujours juste
+for g in scripts/check-*.mjs; do node "$g" || echo "✗ $g"; done   # toutes, d'un coup
+node docs/backlog/gen-index.mjs --check        # + les deux générateurs
+node docs/gen-features-by-actor.mjs --check
 ```
+
+> **Pourquoi une commande et pas une liste.** Ce bloc a cité **deux** gardes sur douze pendant que
+> le dépôt en accumulait dix autres, et il n'y avait aucun moyen de s'en apercevoir : une liste
+> écrite à la main est juste le jour où on l'écrit. C'est exactement le défaut que la moitié de ces
+> gardes existent pour attraper ailleurs (D-15 sur `INDEX.md`, D-44 sur les modèles indexables,
+> D-18 sur `models-spec.md`) — il vivait dans le document qui les présente.
+>
+> Elles vérifient toutes la même chose sous des formes différentes : **qu'un document dérivé suit
+> encore sa source, et que la source suit encore la réalité.** Chacune porte son motif et son
+> histoire dans son propre en-tête ; c'est là qu'il faut lire, pas ici.
+>
+> `.github/workflows/repo-ci.yml` les rejoue toutes à chaque PR.
 
 ## Environnement de développement
 
@@ -152,10 +166,21 @@ simultanés au lieu d'exiger qu'on démonte l'existant.
 **`.env.docker` est l'environnement de développement, `.env.example` est le contrat des clés.**
 `.env.example` ne reproduit **aucun** environnement existant : il livre `DB_CONNECTION=sqlite` quand
 la production tourne sur MySQL 8, `SCOUT_DRIVER=collection` quand la CI et la production indexent sur
-Meilisearch, et `CACHE_STORE=redis` sans que rien ne fournisse Redis. `.env.docker` aligne chaque
+Meilisearch, et `CACHE_STORE=redis` sans que **lui-même** fournisse Redis — un développeur qui suit
+ce seul fichier, hors docker, obtient une application qui ne démarre pas. `.env.docker` aligne chaque
 driver sur celui de la production. `scripts/check-env-parity.mjs` garde la parité des **clés** entre
 les deux (jamais des valeurs — deux fichiers aux valeurs identiques n'auraient aucune raison d'être
-deux).
+deux), et `scripts/check-webhook-env-keys.mjs` garde ce que la parité ne peut pas voir : **une clé
+absente des DEUX fichiers est en parité parfaite** (TCK-296).
+
+> ⚠️ **Nuance mesurée le 2026-08-16 (TCK-300), parce que la phrase ci-dessus vieillit mal sur un
+> point.** `CACHE_STORE=redis` n'est **plus** un écart avec la production : les deux `.env` livrés
+> déclarent `redis` pour le cache et la session. Ce qui reste vrai, c'est que `.env.example` seul ne
+> provisionne rien — `docker-compose.yml` s'en charge, et c'est précisément sa raison d'être.
+>
+> Le relevé des drivers réellement déclarés par les environnements déployés vit dans
+> [`docs/infra/prod-drivers.json`](docs/infra/prod-drivers.json), **et nulle part ailleurs** : il
+> était recopié dans trois documents qui se contredisaient, dont un qui se contredisait lui-même.
 
 `./dev.sh` ne force pas docker : il détecte si le `.env` vise les conteneurs du dépôt ou des services
 natifs, **sonde ce que le `.env` déclare**, et nomme ce qui ne répond pas. Un service déclaré et
