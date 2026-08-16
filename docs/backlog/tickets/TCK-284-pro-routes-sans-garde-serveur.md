@@ -1,15 +1,15 @@
 ---
 id: TCK-284
 title: "Quatre routes « pro » cadenassées sans garde serveur"
-status: review
+status: done
 phase: P1
 family: bug
 estimate: S
 wave: null
 created: 2026-08-12
-updated: 2026-08-15
+updated: 2026-08-16
 depends_on: []
-blocks: []
+blocks: [TCK-295]
 spec_refs:
   features:
     - "docs/features.md#112-agence--équipe"
@@ -88,26 +88,26 @@ Cela réduit le ticket à **une** question, et elle est produit :
 
 ## Delta à produire
 
-- [ ] Trancher le périmètre ci-dessus (produit).
-- [ ] Selon l'arbitrage : soit ajouter `ensureStandardAgencyOrRedirect` aux quatre pages, soit
+- [x] Trancher le périmètre ci-dessus (produit).
+- [x] Selon l'arbitrage : soit ajouter `ensureStandardAgencyOrRedirect` aux quatre pages, soit
       introduire une variante scopée par rôle, soit retirer ces routes de `PRO_ROUTES` si le
       cadenas était l'erreur.
-- [ ] ~~Vérifier que les **endpoints** qui les alimentent portent `AgencyKindGuard`~~ — **mesuré,
+- [x] ~~Vérifier que les **endpoints** qui les alimentent portent `AgencyKindGuard`~~ — **mesuré,
       ils ne le portent pas** (voir ci-dessous). Selon l'arbitrage : les y ajouter, ou constater
       qu'ils n'ont pas à l'être.
-- [ ] Retirer les quatre entrées de `ECARTS_ASSUMES` dans `scripts/check-pro-routes.mjs`. **La
+- [x] Retirer les quatre entrées de `ECARTS_ASSUMES` dans `scripts/check-pro-routes.mjs`. **La
       garde échoue tant qu'une entrée y reste sans être justifiée, et échoue aussi si une entrée y
       reste alors que la route est devenue gardée** — l'allowlist ne peut pas pourrir en silence.
-- [ ] Corriger le commentaire de `pro-features.ts` s'il reste inexact après l'arbitrage.
+- [x] Corriger le commentaire de `pro-features.ts` s'il reste inexact après l'arbitrage.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `node scripts/check-pro-routes.mjs` passe avec `ECARTS_ASSUMES` **vide**.
-- [ ] AC2 — pour chaque route de `PRO_ROUTES`, un test vérifie qu'un utilisateur d'agence
+- [x] AC1 — `node scripts/check-pro-routes.mjs` passe avec `ECARTS_ASSUMES` **vide**.
+- [x] AC2 — pour chaque route de `PRO_ROUTES`, un test vérifie qu'un utilisateur d'agence
       `individual` **dans le périmètre tranché** est refusé, en accès direct par l'URL.
-- [ ] AC3 — le même test vérifie qu'un utilisateur **hors périmètre** n'est PAS refusé : sans ce
+- [x] AC3 — le même test vérifie qu'un utilisateur **hors périmètre** n'est PAS refusé : sans ce
       second cas, on ne saurait pas distinguer une garde juste d'une garde trop large.
-- [ ] AC4 — l'endpoint d'API correspondant rend 403 pour le même acteur.
+- [x] AC4 — l'endpoint d'API correspondant rend 403 pour le même acteur.
 
 ## Hors périmètre
 
@@ -285,3 +285,9 @@ faux. Il annonce désormais sa **portée** (« pages Next seulement ») au lieu 
   utilisateur authentifié le lit. Sans rapport avec le `kind` — à ouvrir en ticket propre.
 - `docs/models-spec.md` répète la liste fermée de §1.12 sans la restriction « propriétaires ».
   Convergence à faire par `/sync-specs`.
+
+> **Soldé le 2026-08-16.** La branche `fix/suite-deterministe-et-tickets-ouverts` est mergée sur
+> `dev` : tout ce que cette section listait comme « pas sur `dev` » y est. Le statut passe donc
+> `done` au titre de la règle n°3 du `CLAUDE.md` — *un statut vaut pour ce qui est mergé sur `dev`*.
+> La section est conservée telle quelle : elle documente l'écart qui a existé, et l'effacer
+> reviendrait à prétendre qu'il n'a jamais fallu le mesurer.

@@ -1,13 +1,13 @@
 ---
 id: TCK-285
 title: "Couverture de tests — services metier, policies, observers, webhooks"
-status: review
+status: done
 phase: P1
 family: technique
 estimate: L
 wave: null
 created: 2026-08-12
-updated: 2026-08-15
+updated: 2026-08-16
 depends_on: []
 blocks: []
 spec_refs:

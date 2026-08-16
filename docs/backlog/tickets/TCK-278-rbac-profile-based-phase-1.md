@@ -1,13 +1,13 @@
 ---
 id: TCK-278
 title: "RBAC refondu — phase 1 : suppression de spatie sur User + PlatformProfile + Capability resolver"
-status: review
+status: done
 phase: P1
 family: technique
 estimate: XL
 wave: 34
 created: 2026-05-17
-updated: 2026-08-15
+updated: 2026-08-16
 execution_strategy: phased-on-branch (P1 foundations coexist with spatie → P2 callsite refactor → P3 cutover/drop)
 depends_on: []
 blocks: [TCK-279]
@@ -55,15 +55,15 @@ Aucun nouvel endpoint exposé. Le contrat API reste stable.
 
 ### Backend
 
-- [ ] Migration : `create_platform_profiles_table` (cf. spec §51).
-- [ ] Migration : `drop_spatie_permission_tables` (à exécuter en dernier, après backfill).
-- [ ] Migration de données : `backfill_platform_profiles_from_spatie_super_admin` (commande artisan idempotente exécutée en pre-deploy).
-- [ ] Model : `App\Models\Profiles\PlatformProfile` (étend `AbstractModel`, enum `PlatformProfileLevel`, scopes `active()`, observer `tokens()->delete()` sur `revoked_at` set).
-- [ ] Enum : `App\Models\Enums\PlatformProfileLevel` (`super_admin`, `support`, `viewer`).
-- [ ] Enum : `App\Models\Enums\Capability` (catalogue initial — démarrer par les capacités effectivement check'ées par les Policies actuelles, étendre au fil de l'eau).
-- [ ] Service : `App\Services\Membership\MembershipCapabilityResolver` (table de vérité phase 1 : `match` exhaustif `(Capability, ProfileType) → bool`).
-- [ ] Trait `HasProfiles` enrichi : `canActAt(Capability, ?Agency): bool`, `isSuperAdmin(): bool`, `isAgencyAdminAt(int): bool` (existe déjà après TCK-277, conserver), `hasProfileAt(int $agencyId, string $profileType): bool`, `platformProfile(): HasOne`.
-- [ ] Refactor systématique :
+- [x] Migration : `create_platform_profiles_table` (cf. spec §51).
+- [x] Migration : `drop_spatie_permission_tables` (à exécuter en dernier, après backfill).
+- [ ] Migration de données : `backfill_platform_profiles_from_spatie_super_admin` (commande artisan idempotente exécutée en pre-deploy). — **SANS OBJET** : la production n'a jamais été déployée (ardoise D-04 / TCK-288), il n'existe aucune donnée spatie à reprendre.
+- [x] Model : `App\Models\Profiles\PlatformProfile` (étend `AbstractModel`, enum `PlatformProfileLevel`, scopes `active()`, observer `tokens()->delete()` sur `revoked_at` set).
+- [x] Enum : `App\Models\Enums\PlatformProfileLevel` (`super_admin`, `support`, `viewer`).
+- [x] Enum : `App\Models\Enums\Capability` (catalogue initial — démarrer par les capacités effectivement check'ées par les Policies actuelles, étendre au fil de l'eau).
+- [x] Service : `App\Services\Membership\MembershipCapabilityResolver` (table de vérité phase 1 : `match` exhaustif `(Capability, ProfileType) → bool`).
+- [x] Trait `HasProfiles` enrichi : `canActAt(Capability, ?Agency): bool`, `isSuperAdmin(): bool`, `isAgencyAdminAt(int): bool` (existe déjà après TCK-277, conserver), `hasProfileAt(int $agencyId, string $profileType): bool`, `platformProfile(): HasOne`.
+- [x] Refactor systématique :
   - Tout `$user->hasRole('xxx')` → `$user->isXxxAt($agency)` ou `$user->canActAt(Capability::Yyy, $agency)`.
   - Tout `$user->assignRole(...)` / `syncRoles(...)` → création/suppression du profil correspondant (transaction).
   - Tout `setPermissionsTeamId(...)` → supprimé.
@@ -73,37 +73,37 @@ Aucun nouvel endpoint exposé. Le contrat API reste stable.
   - `Http/Middleware/ResolveActiveProfile` : retirer l'appel à `setPermissionsTeamId`.
   - `database/seeders/RolesAndPermissionsSeeder.php` : supprimé. Remplacé par `PlatformBootstrapSeeder` qui crée un super_admin initial si aucun n'existe.
   - `BaseTestCase::actingAsRole($role, …)` : refactor pour créer le bon profil au lieu d'assigner un rôle spatie. Cf. fixtures § ci-dessous.
-- [ ] Tests :
+- [x] Tests :
   - Tests existants — adapter les fixtures (`actingAsRole`, factories) au nouveau modèle. Toute la suite doit rester verte sans changement de sémantique fonctionnelle.
   - Nouveau test `PlatformProfileTest` : création / révocation / contrainte unique `user_id` / observer tokens().
   - Nouveau test `MembershipCapabilityResolverTest` : pour chaque (Capability, ProfileType) attendu, vérifier le résultat.
   - Nouveau test `RbacRegressionTest` : pour chaque endpoint sensible (block user, change role, list users, publish property, etc.), vérifier que les acteurs autorisés/refusés restent identiques pré/post refacto.
-- [ ] CI : ajouter un check qui refuse les imports `Spatie\\Permission\\` dans `app/` (regex grep dans `phpstan.neon`, `pint.json` custom rule, ou simple bash script lancé en CI).
+- [x] CI : ajouter un check qui refuse les imports `Spatie\\Permission\\` dans `app/` (regex grep dans `phpstan.neon`, `pint.json` custom rule, ou simple bash script lancé en CI).
 
 ### Frontend
 
-- [ ] `User.roles[]` dans `src/types/user.ts` : remplacer par `User.profile_types[]` (string array dérivée côté backend dans la `UserResource`) ; tous les checks frontend (`isAdmin(user.roles)`, `isAgencyAdmin(user.roles)`, etc.) basculent sur `profile_types`.
-- [ ] Helpers `src/lib/roles.ts` : `isAdmin`, `isAgencyAdmin`, `isSuperAdmin`, `isAgent`, `isOwner` consomment désormais `profile_types` (ou un nouveau champ `User.capabilities` si on expose le résultat du resolver côté API).
-- [ ] Si exposition des capabilities côté frontend : nouveau hook `useCan(Capability)` qui consulte une matrice servie au login (`/api/me/capabilities` ou inclusion dans `/api/me`).
-- [ ] Aucune route frontend déplacée ni renommée.
+- [x] `User.roles[]` dans `src/types/user.ts` : remplacer par `User.profile_types[]` (string array dérivée côté backend dans la `UserResource`) ; tous les checks frontend (`isAdmin(user.roles)`, `isAgencyAdmin(user.roles)`, etc.) basculent sur `profile_types`.
+- [x] Helpers `src/lib/roles.ts` : `isAdmin`, `isAgencyAdmin`, `isSuperAdmin`, `isAgent`, `isOwner` consomment désormais `profile_types` (ou un nouveau champ `User.capabilities` si on expose le résultat du resolver côté API).
+- [x] Si exposition des capabilities côté frontend : nouveau hook `useCan(Capability)` qui consulte une matrice servie au login (`/api/me/capabilities` ou inclusion dans `/api/me`).
+- [x] Aucune route frontend déplacée ni renommée.
 
 ### Hors backend / frontend
 
-- [ ] Mise à jour `CLAUDE.md` (section sur spatie si elle existe) pour acter la suppression.
-- [ ] Mise à jour `README` côté backend si une mention de spatie/permission y apparaît.
+- [x] Mise à jour `CLAUDE.md` (section sur spatie si elle existe) pour acter la suppression.
+- [x] Mise à jour `README` côté backend si une mention de spatie/permission y apparaît.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `grep -r "Spatie\\\\Permission" takussan-api/app` retourne 0 résultat.
-- [ ] AC2 — `grep -r "hasRole(\\|assignRole(\\|syncRoles(\\|removeRole(" takussan-api/app` retourne 0 résultat.
-- [ ] AC3 — Les tables `roles`, `permissions`, `model_has_roles`, `model_has_permissions`, `role_has_permissions` n'existent plus après migration.
-- [ ] AC4 — `php artisan test` : 100 % de la suite verte, sans aucun test désactivé.
-- [ ] AC5 — Le premier `super_admin` peut être créé via `php artisan platform:grant-super-admin {email}` ; le check `User::isSuperAdmin()` renvoie `true` ensuite.
-- [ ] AC6 — Backfill : avant la migration `drop_spatie_permission_tables`, chaque user qui avait le rôle spatie `super_admin` a désormais un `PlatformProfile.level = super_admin` actif.
-- [ ] AC7 — `UserAdminController::index?filter[role]=agency_admin` retourne les users ayant un `AgencyAdminProfile` actif dans l'agence active, sans dépendre des tables spatie.
-- [ ] AC8 — `UserAdminController::block` / `activate` / `change-role` (ex-UserRoleController) restent fonctionnels avec les mêmes garanties de scoping (tests `UserAdminAgencyScopeTest` toujours verts, plus nouveaux tests).
-- [ ] AC9 — Le frontend admin (TeamConsole, sidebar, gates pro-features) continue à fonctionner identiquement.
-- [ ] AC10 — CI bloque toute future réintroduction d'un import `Spatie\\Permission\\` dans `app/`.
+- [x] AC1 — `grep -r "Spatie\\\\Permission" takussan-api/app` retourne 0 résultat.
+- [x] AC2 — `grep -r "hasRole(\\|assignRole(\\|syncRoles(\\|removeRole(" takussan-api/app` retourne 0 résultat.
+- [x] AC3 — Les tables `roles`, `permissions`, `model_has_roles`, `model_has_permissions`, `role_has_permissions` n'existent plus après migration.
+- [x] AC4 — `php artisan test` : 100 % de la suite verte, sans aucun test désactivé.
+- [x] AC5 — Le premier `super_admin` peut être créé via `php artisan platform:grant-super-admin {email}` ; le check `User::isSuperAdmin()` renvoie `true` ensuite.
+- [ ] AC6 — Backfill : avant la migration `drop_spatie_permission_tables`, chaque user qui avait le rôle spatie `super_admin` a désormais un `PlatformProfile.level = super_admin` actif. — **SANS OBJET**, pas « non tenu » : cf. la section « Reste sur dev ».
+- [x] AC7 — `UserAdminController::index?filter[role]=agency_admin` retourne les users ayant un `AgencyAdminProfile` actif dans l'agence active, sans dépendre des tables spatie.
+- [x] AC8 — `UserAdminController::block` / `activate` / `change-role` (ex-UserRoleController) restent fonctionnels avec les mêmes garanties de scoping (tests `UserAdminAgencyScopeTest` toujours verts, plus nouveaux tests).
+- [x] AC9 — Le frontend admin (TeamConsole, sidebar, gates pro-features) continue à fonctionner identiquement.
+- [x] AC10 — CI bloque toute future réintroduction d'un import `Spatie\\Permission\\` dans `app/`.
 
 ## Hors périmètre
 
@@ -193,3 +193,9 @@ le seul cas qui dépendait de la capacité.
 
 *Une suite verte mesure ce qu'on a pensé à lui demander. Sur une refonte d'autorisation, ce qu'on
 n'a pas pensé à demander est exactement ce qui casse.*
+
+> **Soldé le 2026-08-16.** La branche `fix/suite-deterministe-et-tickets-ouverts` est mergée sur
+> `dev` : tout ce que cette section listait comme « pas sur `dev` » y est. Le statut passe donc
+> `done` au titre de la règle n°3 du `CLAUDE.md` — *un statut vaut pour ce qui est mergé sur `dev`*.
+> La section est conservée telle quelle : elle documente l'écart qui a existé, et l'effacer
+> reviendrait à prétendre qu'il n'a jamais fallu le mesurer.

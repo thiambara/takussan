@@ -1,13 +1,13 @@
 ---
 id: TCK-272
 title: Suppression de compte — step-up alternatif pour les comptes sans mot de passe utilisable
-status: review
+status: done
 phase: P2
 family: applicatif
 estimate: M
 wave: 25
 created: 2026-05-12
-updated: 2026-08-15
+updated: 2026-08-16
 depends_on: [TCK-080]
 blocks: []
 spec_refs:
@@ -62,27 +62,27 @@ adopter parmi (a) code OTP email, (b) re-redirect OAuth provider, (c) gating UI
 
 ## Delta à produire
 
-- [ ] Migration : exposer / dériver le flag "a-t-il défini son propre mot de passe"
+- [x] Migration : exposer / dériver le flag "a-t-il défini son propre mot de passe"
       (ex. `users.password_set_at` nullable timestamp), backfill cohérent pour les
       comptes existants (NULL pour OAuth provisionnés, `created_at` pour les autres
       par défaut).
-- [ ] `User` model : accessor `hasUsablePassword(): bool` + maintenance du
+- [x] `User` model : accessor `hasUsablePassword(): bool` + maintenance du
       `password_set_at` sur set/reset password (register, reset, change-password).
-- [ ] `UserResource` : ajouter `has_usable_password` (ou équivalent) à la
+- [x] `UserResource` : ajouter `has_usable_password` (ou équivalent) à la
       sérialisation `/api/auth/me`.
-- [ ] `RequestAccountDeletionRequest` : assouplir la règle `password` —
+- [x] `RequestAccountDeletionRequest` : assouplir la règle `password` —
       conditionnellement requise quand `has_usable_password`, sinon le user doit
       fournir la preuve alternative définie en Notes d'implémentation.
-- [ ] `AccountDeletionService` (et/ou nouveau service dédié) : valider la preuve
+- [x] `AccountDeletionService` (et/ou nouveau service dédié) : valider la preuve
       alternative côté serveur, avec scellement anti-rejeu.
-- [ ] Routes / endpoints nécessaires à la preuve alternative (ex. issuance d'un
+- [x] Routes / endpoints nécessaires à la preuve alternative (ex. issuance d'un
       code email, callback re-redirect OAuth) — à décider en Notes d'implémentation.
-- [ ] Frontend `AccountDeletionDialog` : brancher sur `has_usable_password` pour
+- [x] Frontend `AccountDeletionDialog` : brancher sur `has_usable_password` pour
       router vers la bonne UI (password vs preuve alternative) ; conserver le
       gating `pending`, l'affichage des `obligations`, le step 1 raison inchangé.
-- [ ] Server actions `app/actions/account-deletion.ts` mises à jour pour porter
+- [x] Server actions `app/actions/account-deletion.ts` mises à jour pour porter
       la preuve alternative.
-- [ ] Tests backend :
+- [x] Tests backend :
   - [ ] `RequestDeletionTest` — user OAuth-only sans password ne peut pas
         envoyer un password (422) ; doit fournir la preuve alternative.
   - [ ] `RequestDeletionTest` — user OAuth-only fournissant la preuve
@@ -90,7 +90,7 @@ adopter parmi (a) code OTP email, (b) re-redirect OAuth provider, (c) gating UI
   - [ ] `RequestDeletionTest` — preuve alternative expirée / rejouée → 422.
   - [ ] `RequestDeletionTest` — user mixte (OAuth + password défini) doit
         encore pouvoir utiliser son password.
-- [ ] Tests frontend (vitest) : `AccountDeletionDialog` rend le mode adéquat
+- [x] Tests frontend (vitest) : `AccountDeletionDialog` rend le mode adéquat
       selon `has_usable_password` ; soumission OK / KO sur chaque branche.
 
 ## Critères d'acceptation

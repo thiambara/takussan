@@ -1,13 +1,13 @@
 ---
 id: TCK-246
 title: "Empty / error states + CTA shadcn — harmonisation transverse"
-status: review
+status: done
 phase: P2
 family: front
 estimate: M
 wave: 27
 created: 2026-05-09
-updated: 2026-08-15
+updated: 2026-08-16
 depends_on: [TCK-129]
 blocks: [TCK-291]
 spec_refs:

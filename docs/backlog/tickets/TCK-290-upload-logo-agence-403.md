@@ -1,13 +1,13 @@
 ---
 id: TCK-290
 title: Upload du logo d'agence — 403 systématique, aucune policy pour Agency
-status: review
+status: done
 phase: P1
 family: bug
 estimate: S
 wave: null
 created: 2026-08-13
-updated: 2026-08-15
+updated: 2026-08-16
 depends_on: []
 blocks: []
 spec_refs:

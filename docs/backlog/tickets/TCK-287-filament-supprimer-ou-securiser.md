@@ -1,13 +1,13 @@
 ---
 id: TCK-287
 title: "Filament — supprimer le panel ou le securiser"
-status: review
+status: done
 phase: P1
 family: technique
 estimate: S
 wave: null
 created: 2026-08-12
-updated: 2026-08-15
+updated: 2026-08-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -53,7 +53,7 @@ back-offices coexistent.
 - [x] AC1 — branche A : `grep -ri filament` ne rend plus rien sur `composer.json`, `app/`, `config/`,
       `bootstrap/`, `tests/`, `routes/`, `.github/` ni `scripts/`. Les 6 routes `filament.admin.*` ont
       disparu de `php artisan route:list`.
-- [ ] AC2 — sans objet : branche B non retenue.
+- [x] AC2 — sans objet : branche B non retenue.
 - [x] AC3 — `docs/ardoise.md` D-41 est fermée en citant ce ticket, après correction de son diagnostic.
 
 ## Hors périmètre

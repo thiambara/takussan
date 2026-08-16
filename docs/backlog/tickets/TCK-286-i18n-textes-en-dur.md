@@ -1,13 +1,13 @@
 ---
 id: TCK-286
 title: "i18n — les libelles produits encore codes en dur"
-status: review
+status: done
 phase: P2
 family: front
 estimate: L
 wave: null
 created: 2026-08-12
-updated: 2026-08-15
+updated: 2026-08-16
 depends_on: []
 blocks: [TCK-292]
 spec_refs:

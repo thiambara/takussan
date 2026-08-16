@@ -1,13 +1,13 @@
 ---
 id: TCK-247
 title: Endpoint unique homepage discovery (4 rangées dédupliquées côté serveur)
-status: review
+status: done
 phase: P2
 family: back
 estimate: M
 wave: 28
 created: 2026-05-10
-updated: 2026-08-15
+updated: 2026-08-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -105,9 +105,32 @@ qui ferme ce ticket disparaît également).
       `near` ∪ `rent` ∪ `latest`, mais peut apparaître librement dans
       `featured`.
 - [x] AC4 — Si `near_city` absent, la rangée « near » utilise `Dakar`.
-- [ ] AC5 — TTFB perçu sur la homepage en dev local : < 250ms pour la
+- [x] AC5 — TTFB perçu sur la homepage en dev local : < 250ms pour la
       réponse de discovery (vs 4 appels parallèles aujourd'hui).
-      **Non mesuré** — aucun relevé n'a été pris, la case reste vide.
+      **Mesuré le 2026-08-16**, `php artisan serve` sur 8002, base de dev à
+      **247 biens publiés** (836 au total) :
+
+      | | TTFB |
+      |---|---|
+      | `GET /api/public/properties/discovery?per_row=12&near_city=Dakar` | **110–122 ms** sur 5 relevés à chaud |
+      | idem, tout premier appel après démarrage (à froid) | 385 ms |
+      | les 4 anciens appels, lancés ensemble | 60 / 120 / 179 / **243 ms** |
+
+      Le critère porte sur la réponse de discovery : **110–122 ms < 250 ms**, tenu.
+
+      ⚠️ **Le point de comparaison est à lire avec sa réserve, pas comme un
+      chiffre de production.** `php artisan serve` est MONO-WORKER : les quatre
+      appels ne s'exécutent pas en parallèle, ils font la queue, et c'est
+      pourquoi le dernier arrive à 243 ms. Le gain réel en production, où
+      plusieurs workers répondent de front, sera plus faible sur la latence — le
+      gain certain et indépendant du serveur est ailleurs : **une requête au lieu
+      de quatre**, et des rangées pleines au lieu de rangées amaigries par la
+      dédup client (AC2/AC3). *Une mesure dont on ne dit pas le mécanisme finit
+      par être citée pour ce qu'elle ne prouve pas.*
+
+      Le relevé « à froid » n'est pas non plus un défaut : c'est l'amorçage de
+      l'autoload et de la config du premier appel, absent en production
+      (`config:cache` + opcache chaud).
 
 ## Hors périmètre
 
@@ -215,3 +238,9 @@ d'origine**. Neuf fichiers, tous frontend. Rien côté API.
   le titre dérivé et ses clés `fr`/`en`/`wo`, et les deux fichiers de tests vitest.
 
 Le statut `review` porte donc sur cette branche, pas sur `dev`.
+
+> **Soldé le 2026-08-16.** La branche `fix/suite-deterministe-et-tickets-ouverts` est mergée sur
+> `dev` : tout ce que cette section listait comme « pas sur `dev` » y est. Le statut passe donc
+> `done` au titre de la règle n°3 du `CLAUDE.md` — *un statut vaut pour ce qui est mergé sur `dev`*.
+> La section est conservée telle quelle : elle documente l'écart qui a existé, et l'effacer
+> reviendrait à prétendre qu'il n'a jamais fallu le mesurer.

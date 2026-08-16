@@ -1,13 +1,13 @@
 ---
 id: TCK-281
 title: "Recherche interne sur Meilisearch (clients, maintenance, agences, utilisateurs)"
-status: review
+status: done
 phase: P3
 family: back
 estimate: L
 wave: 35
 created: 2026-05-20
-updated: 2026-08-15
+updated: 2026-08-16
 depends_on: [TCK-280]
 blocks: []
 spec_refs:
