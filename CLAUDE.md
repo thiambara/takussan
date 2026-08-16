@@ -121,6 +121,7 @@ Racine :
 
 ```bash
 node scripts/check-env-parity.mjs   # .env.example et .env.docker déclarent-ils les mêmes clés ?
+node scripts/check-models-spec.mjs --report   # tout modèle de premier niveau est-il dans models-spec.md ?
 ```
 
 ## Environnement de développement
@@ -179,7 +180,10 @@ Messages de commit en français, préfixés du type conventionnel, citant le tic
 **Sources de vérité fonctionnelles** (ne jamais dupliquer dans un ticket) :
 
 - `docs/features.md` — spec fonctionnelle
-- `docs/models-spec.md` — spec data/modèles *(périmée sur 16 modèles, cf. ardoise D-18)*
+- `docs/models-spec.md` — spec data/modèles. **Les 62 modèles de premier niveau y sont désormais
+  mentionnés, et `scripts/check-models-spec.mjs` (Repo CI) casse si un nouveau ne l'est pas**
+  (TCK-310, ex-dette D-18 : 16 modèles y manquaient). ⚠ La garde vérifie qu'un **nom** apparaît,
+  jamais qu'il est bien décrit — c'est un plancher, pas une preuve de justesse.
 
 **Backlog** : `docs/backlog/` → `INDEX.md` + `tickets/TCK-NNN-<slug>.md`.
 

@@ -886,24 +886,43 @@ depuis TCK-129.
 
 Le ton impératif est ce qui rend ce document dangereux : il ne se présente pas comme une piste.
 
-### D-18 — `docs/models-spec.md` ignore 16 modèles existants 🟠 → [TCK-310](backlog/tickets/TCK-310-models-spec-16-modeles-absents.md)
+### D-18 — `docs/models-spec.md` ignore 16 modèles existants 🟠 → [TCK-310](backlog/tickets/TCK-310-models-spec-16-modeles-absents.md) *(traité, en review)*
 
-> **Re-mesuré le 2026-08-16 : le COMPTE tient à l'unité (16 sur 62 modèles de premier niveau), la
-> LISTE a vieilli.** `BankStatement`, `BankStatementLine` et `PropertyPriceHistory` figurent dans la
-> liste ci-dessous et sont désormais documentés ; `RoleDelegation`, `WizardDraft`, `ThresholdAlert`,
-> `WelcomeView`, `PropertyContactLead` et `PropertyReport` manquent et n'y figuraient pas. Deux
-> inventaires peuvent donner le même total sans décrire le même trou — *un inventaire de dettes se
-> re-mesure avant d'être utilisé, jamais lu.* Liste courante : voir le ticket.
+> **Soldé le 2026-08-16 par TCK-310, et gardé.** Les 16 modèles sont documentés d'après le code et
+> les migrations, et `scripts/check-models-spec.mjs` casse désormais la Repo CI si un modèle de
+> premier niveau n'est mentionné nulle part dans `models-spec.md` — **prouvé par mutation** (un
+> modèle ajouté sans documentation fait sortir la garde en 1) **et par ablation** (rejouée sur le
+> `models-spec.md` d'avant le correctif, elle nomme exactement les 16). La dette ne pouvait pas
+> rester soldée sans garde : c'est un inventaire, et *aucun inventaire tenu à la main ne reste
+> juste.*
+>
+> Deux constats de la re-mesure valent d'être gardés :
+>
+> · **Le COMPTE tenait à l'unité (16 sur 62), la LISTE avait vieilli.** `BankStatement`,
+>   `BankStatementLine` et `PropertyPriceHistory` figuraient dans la liste ci-dessous et étaient
+>   déjà documentés ; `RoleDelegation`, `WizardDraft`, `ThresholdAlert`, `WelcomeView`,
+>   `PropertyContactLead` et `PropertyReport` manquaient sans y figurer. *Deux inventaires peuvent
+>   donner le même total sans décrire le même trou.*
+>
+> · **Le volet spatie était déjà soldé** au moment d'ouvrir le ticket, qui annonçait « 2 mentions
+>   dans chaque spec ». Les quatre occurrences littérales de `spatie/laravel-permission` étaient
+>   toutes au passé depuis le 2026-08-15. En revanche, un compte fondé sur cette seule chaîne
+>   ratait le vrai défaut : **quatre passages présentaient le mécanisme au présent sans nommer le
+>   paquet** — « rôle spatie à assigner à l'acceptation » (Invitation §48), « attache le rôle spatie
+>   scopé sur `agency_id` », « les permissions par les rôles spatie » (note `UserType`), et une
+>   phase 2 planifiant la « réintroduction du trait `HasRoles` », impossible puisqu'une garde CI
+>   casse sur son namespace. *Compter les occurrences d'un NOM ne mesure pas la présence d'une
+>   IDÉE.*
 
-Désigné source de vérité data, il ne mentionne **aucune** fois : `AccountDeletionRequest`,
+Désigné source de vérité data, il ne mentionnait **aucune** fois : `AccountDeletionRequest`,
 `AlertRule`, `DataExport`, `FeatureFlag`, `IntegrationWebhookLog`, `KpiConfig`, `MaintenanceWindow`,
-`NotificationDeliveryAttempt`, `PropertyPriceHistory`, `ReportExport`, `ScheduledTaskRun`,
-`BankStatement`, `BankStatementLine`… et documente toujours `spatie/laravel-permission` comme
-« package transversal » alors qu'il est **désinstallé** et qu'une garde CI casse sur ses imports.
+`NotificationDeliveryAttempt`, `PropertyContactLead`, `PropertyReport`, `ReportExport`,
+`RoleDelegation`, `ScheduledTaskRun`, `ThresholdAlert`, `WelcomeView`, `WizardDraft`.
 
-`docs/sync-passes/INDEX.md` affiche par ailleurs un statut de convergence faux (« R1–R7 toujours non
-appliquées » alors que R1 et R2 l'ont été), et la rupture qu'il signale date de **plus de trois
-mois**.
+`docs/sync-passes/INDEX.md` affichait par ailleurs un statut de convergence faux (« R1–R7 toujours
+non appliquées »). **Re-mesuré le 2026-08-16 : six l'étaient déjà** ; la septième (alignement de
+`ConversationType`, cas `support` manquant) a été appliquée, et R4 s'est révélée **sans objet** — elle
+demandait une contrainte sur une colonne `bank_statements.reference_number` qui n'a jamais existé.
 
 ### D-19 — Cinq documents cités n'existent pas 🟡 → [TCK-311](backlog/tickets/TCK-311-documents-perimes-et-pointeur-mort.md)
 

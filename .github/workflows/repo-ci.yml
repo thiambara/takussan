@@ -19,9 +19,10 @@ on:
       - 'takussan-api/.env.docker'
       # Chaque garde doit être déclenchée par les DEUX côtés qu'elle compare, sinon elle
       # ne voit qu'une moitié de l'écart qu'elle existe pour trouver :
-      #   check-queues     → les `onQueue()` de takussan-api/app, scripts/server-setup.sh ET dev.sh
-      #   check-pro-routes → PRO_ROUTES et les pages, tous deux sous takussan-web/src
-      #   check-backlog    → les tickets ET les specs qu'ils citent
+      #   check-queues       → les `onQueue()` de takussan-api/app, scripts/server-setup.sh ET dev.sh
+      #   check-pro-routes   → PRO_ROUTES et les pages, tous deux sous takussan-web/src
+      #   check-backlog      → les tickets ET les specs qu'ils citent
+      #   check-models-spec  → takussan-api/app/Models ET docs/models-spec.md
       #
       # TROIS entrées ont manqué successivement : `takussan-web/**`, puis `dev.sh`, puis les
       # specs. Les deux premières se corrigeaient en ajoutant une ligne ; la troisième a montré
@@ -178,6 +179,21 @@ jobs:
         # la NON-VACUITÉ (le canonique porte bien les deux compétences que les points d'entrée
         # citent), parce qu'« aucune copie parasite » n'est pas « la bonne copie » (TCK-303, D-46).
         run: node scripts/check-skills-dir.mjs --report
+      - name: Tout modèle de premier niveau est mentionné dans models-spec.md
+        # `docs/models-spec.md` est DÉSIGNÉ source de vérité data. Mesuré le 2026-08-16 : 16 de
+        # ses 62 modèles n'y étaient mentionnés nulle part — RoleDelegation, WizardDraft,
+        # ThresholdAlert, WelcomeView… tous en base et en code depuis des mois.
+        #
+        # Ce n'est pas un trou de documentation, c'est une NÉGATION : dans un document qui prétend
+        # couvrir le domaine, l'absence d'un modèle se lit « à créer », pas « non documenté ». La
+        # passe de synchronisation 009 en a d'ailleurs fait la démonstration en 2026-05, en
+        # recommandant d'ajouter deux modèles avec des colonnes qu'elle avait DÉDUITES de leur nom
+        # — aucune n'existait dans la migration.
+        #
+        # ⚠ La garde écrit sa propre portée dans sa sortie : elle vérifie qu'un NOM apparaît, pas
+        # qu'il est bien décrit. C'est un cliquet contre la régression franche, pas une mesure de
+        # qualité (dette D-23 : chercher un jeton ne mesure pas une propriété).
+        run: node scripts/check-models-spec.mjs --report
 
       - name: INDEX.md est à jour de ses frontmatters
         # `--check` n'écrit rien et sort non nul si l'index est périmé. Sans cette étape, la règle

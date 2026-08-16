@@ -47,9 +47,17 @@ Les conversions d'images (thumbnails, responsive) sont configurées dans `regist
 - L'enum `Capability` (code-defined) catalogue toutes les capacités atomiques de l'application (≈ 30–50 entrées groupées par domaine). Un résolveur `MembershipCapabilityResolver` mappe `(Capability, ProfileType) → bool`.
 - Les tables spatie (`roles`, `permissions`, `model_has_roles`, `model_has_permissions`, `role_has_permissions`) **disparaissent**.
 
-**Phase 2 (TCK-279) — Réintroduction du trait `HasRoles` + `HasPermissions` sur les Profils.**
-- Les profils polymorphes (`AgentProfile`, `AgencyAdminProfile`, `OwnerProfile`, `ServiceProviderProfile`, `BrokerProfile`) reçoivent le trait `HasRoles`.
-- La table [AgencyRole](#52-agencyrole-) remplace la table spatie `roles` côté agence : rôles par agence (`name`, `base_profile_type`, `is_system`).
+**Phase 2 (TCK-279, `todo` — rien n'en est livré) — rôles personnalisés par agence.**
+
+> ⚠️ Cette phase était décrite comme une « **réintroduction du trait `HasRoles` + `HasPermissions`
+> sur les Profils** ». C'est impossible en l'état et il faut le dire ici plutôt que de le laisser
+> découvrir à l'implémentation : les deux traits appartiennent à `spatie/laravel-permission`, qui
+> n'est plus installé et sur lequel une garde CI casse. Ce que la phase 2 décrit réellement est un
+> mécanisme **maison** — `AgencyRole` + `agency_role_capabilities` — dont ni les tables ni le code
+> n'existent aujourd'hui.
+
+- Les profils polymorphes (`AgentProfile`, `AgencyAdminProfile`, `OwnerProfile`, `ServiceProviderProfile`, `BrokerProfile`) porteraient un rôle d'agence, **sans trait spatie** : le pointeur `agency_role_id` suffit.
+- La table [AgencyRole](#52-agencyrole--tck-279) tient le rôle côté agence (`name`, `base_profile_type`, `is_system`) — la place que tenait la table `roles` avant TCK-278.
 - *(Cible, non implémentée)* Un profil pointera vers exactement un `AgencyRole` (`agency_role_id` NOT NULL) — voir [Règle 6](#règle-6--1-profil--1-rôle-personnalisé--non-implémentée), qui dit explicitement ce qui n'existe pas encore.
 - Permissions atomiques (catalogue `Capability`) attachées à un `AgencyRole` via le pivot `agency_role_capabilities`.
 - `MembershipCapabilityResolver` consulte le pivot ; les sites d'appel `$user->canActAt(...)` restent inchangés.
@@ -145,6 +153,44 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 51. [PlatformProfile](#51-platformprofile-) 🆕
 52. [AgencyRole](#52-agencyrole--tck-279) 🆕
 53. [AgencyRoleCapability](#53-agencyrolecapability--tck-279) 🆕
+
+### Messagerie WhatsApp 🆕
+54. [WhatsappContact](#54-whatsappcontact-) 🆕
+55. [NotificationTemplate — extension WhatsApp](#55-notificationtemplate--extension-whatsapp-) 🆕
+
+### Modèles documentés a posteriori ✅ (TCK-310)
+
+> Ces seize modèles **existent en base et en code depuis des mois** ; ils n'avaient jamais été
+> écrits ici. Voir l'avertissement en tête de la section — ils sont décrits **d'après le code et
+> les migrations**, pas d'après une intention.
+
+#### Confidentialité & RGPD
+56. [AccountDeletionRequest](#56-accountdeletionrequest-) ✅
+57. [DataExport](#57-dataexport-) ✅
+
+#### Exploitation de la plateforme
+58. [FeatureFlag](#58-featureflag-) ✅
+59. [AlertRule](#59-alertrule-) ✅
+60. [MaintenanceWindow](#60-maintenancewindow-) ✅
+61. [ScheduledTaskRun](#61-scheduledtaskrun-) ✅
+62. [ReportExport](#62-reportexport-) ✅
+63. [IntegrationWebhookLog](#63-integrationwebhooklog-) ✅
+
+#### Pilotage agence
+64. [KpiConfig](#64-kpiconfig-) ✅
+65. [ThresholdAlert](#65-thresholdalert-) ✅
+66. [RoleDelegation](#66-roledelegation-) ✅
+
+#### Diffusion publique & modération
+67. [PropertyContactLead](#67-propertycontactlead-) ✅
+68. [PropertyReport](#68-propertyreport-) ✅
+
+#### Notifications
+69. [NotificationDeliveryAttempt](#69-notificationdeliveryattempt-) ✅
+
+#### Parcours utilisateur
+70. [WizardDraft](#70-wizarddraft-) ✅
+71. [WelcomeView](#71-welcomeview-) ✅
 
 ### Enums
 
@@ -698,7 +744,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 - ✏️ `reference_id` → `referenceable_id` / `reference_type` → `referenceable_type` (convention standard Laravel pour les morphs)
 - ✏️ `type` et `delivery_channel` passent de `string` à enum typé
 
-**Note :** La relation `referenceable()` est intentionnellement manuelle (morph non standard pour éviter les tables `model_has_...` de spatie). Le canal `app_database` est enregistré dans `AppServiceProvider` via `ChannelManager::extend()`.
+**Note :** La relation `referenceable()` est intentionnellement manuelle (morph non standard) — voir [Règle 3](#règle-3--morph-referenceable-dans-appnotification) pour le motif. Le canal `app_database` est enregistré dans `AppServiceProvider` via `ChannelManager::extend()`.
 
 **Scopes :**
 - `unread()` → `where('is_read', false)`
@@ -1928,7 +1974,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | invitable_type | string | oui | null | Type morph du profil cible (ex. `OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`, `AgencyAdminProfile`) |
 | invitable_id | bigint | oui | null | ID du profil cible créé en `draft` |
 | agency_id | FK agencies | oui | null | Agence d'accueil (null pour cooptation super-admin) |
-| role | string | | | Rôle spatie à assigner à l'acceptation (ex. `owner`, `agent`, `agency_admin`, `service_provider`, `super_admin`) |
+| role | string | | | Rôle visé par l'invitation (ex. `owner`, `agent`, `agency_admin`, `service_provider`, `super_admin`) — **simple discriminant de parcours**, pas une permission : il choisit le type de profil à activer et les branches d'acceptation. Aucun rôle n'est « assigné » à partir de cette valeur. |
 | status | InvitationStatus | | 'sent' | sent, accepted, expired, revoked |
 | expires_at | datetime | | | Expiration du token (par défaut now+7j) |
 | accepted_at | datetime | oui | null | |
@@ -1953,7 +1999,15 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 **Notes :**
 - Conflit email : si l'email correspond à un User existant, l'acceptation passe par login + accept (pas par signup).
 - Cron quotidien `invitations:expire` flippe `sent` → `expired` quand `expires_at < now`.
-- À l'acceptation : transaction qui crée le User si besoin, flippe `Invitation.status = accepted`, flippe `<Profile>.status = active`, attache le rôle spatie scopé sur `agency_id`.
+- À l'acceptation : transaction qui crée le User si besoin, flippe `Invitation.status = accepted`,
+  flippe `<Profile>.status = active` et rattache le User au profil `draft` quand celui-ci avait été
+  créé sans lui. **Aucun rôle n'est attaché** : depuis TCK-278, le profil *est* le rôle
+  (cf. [Règle 5](#règle-5--profil--rôle)), et `InvitationService::finalizeAccept()` le dit dans son
+  propre code. Une version antérieure de cette ligne annonçait « attache le rôle spatie scopé sur
+  `agency_id` » — un mécanisme supprimé, sur lequel une garde CI casse.
+- Exception `super_admin` (TCK-264) : l'acceptation n'active rien. Elle pose
+  `force_2fa_at_first_login = true` ; seul `/api/auth/super-admin/2fa/confirm`, après enrôlement
+  d'un facteur TOTP, ouvre les surfaces super-admin.
 
 ---
 
@@ -2077,7 +2131,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 ### 52. AgencyRole 🆕 (TCK-279)
 
 **Table :** `agency_roles`
-**Description :** **Rôles personnalisés** par agence (remplace l'usage de la table `roles` de spatie côté agence). Chaque agence reçoit au seed des rôles **système** (`is_system=true`) — un par type de profil métier — et peut en créer/cloner d'autres (`is_system=false`). Un profil métier pointe **toujours** vers exactement un `AgencyRole` via `agency_role_id`.
+**Description :** **Rôles personnalisés** par agence — la place que tenait la table `roles` de spatie côté agence avant sa suppression en TCK-278. Chaque agence reçoit au seed des rôles **système** (`is_system=true`) — un par type de profil métier — et peut en créer/cloner d'autres (`is_system=false`). Un profil métier pointe **toujours** vers exactement un `AgencyRole` via `agency_role_id`.
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
@@ -2186,6 +2240,603 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 
 ---
 
+## Modèles documentés a posteriori (TCK-310)
+
+> ✅ **Ces seize modèles existent — ils ne sont pas à créer.** Ils vivaient en base et en code
+> depuis des mois sans être mentionnés une seule fois dans ce document. Un lecteur qui cherchait
+> `WizardDraft` ou `RoleDelegation` ici concluait de leur absence qu'ils restaient à concevoir :
+> c'est exactement l'inverse de ce que cette page est censée servir.
+>
+> **Ils sont décrits d'après le code et les migrations, mesurés le 2026-08-16** — colonnes, types,
+> défauts, nullabilité, index, contraintes, comportements FK et relations Eloquent réellement
+> déclarées. Aucune colonne « souhaitable » n'y figure. Quand le code et son propre commentaire se
+> contredisent, c'est le code qui est écrit ici, et la contradiction est signalée par un ⚠️.
+>
+> Conséquence de méthode : ces sections n'ont **pas** de rubrique « Règles métier » spéculative.
+> Ce qui n'est pas dans le schéma ou dans une méthode du modèle n'est pas écrit.
+
+---
+
+### 56. AccountDeletionRequest ✅
+
+**Table :** `account_deletion_requests`
+**Description :** Demande de suppression de compte RGPD en attente (TCK-080). La ligne vit entre la
+demande (`requested_at`, plus une échéance `scheduled_for` = `requested_at` + délai de grâce) et son
+exécution (`executed_at` posé, anonymisation lancée). **L'annulation supprime la ligne** — il n'y a
+pas d'état « annulé ». Le délai de grâce est de configuration, pas de schéma :
+`config('auth.account_deletion.grace_days')`, alimenté par `ACCOUNT_DELETION_GRACE_DAYS` (défaut 30).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | | | **Unique** — au plus une demande en cours par user (`cascadeOnDelete`) |
+| requested_at | timestamp | | | Date de la demande |
+| scheduled_for | timestamp | | | Échéance d'exécution — **indexé** (balayage du job planifié) |
+| reason | text | oui | null | Motif libre saisi par l'utilisateur |
+| reason_code | string(64) | oui | null | Motif catégorisé |
+| executed_at | timestamp | oui | null | Date d'exécution — `null` = demande encore en attente |
+| reminder_sent_at | timestamp | oui | null | Date du rappel envoyé avant échéance |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes d'unicité :**
+- `user_id` unique
+
+**Index :**
+- `scheduled_for`
+
+**Traits :** `HasFactory`
+
+**Relations :**
+- `user()` → belongsTo User
+
+**Méthodes :**
+- `isPending()` → `executed_at === null`
+- `daysRemaining()` → jours restants avant `scheduled_for`, plancher à 0
+
+> ⚠️ Le docblock de la migration annonce que « la FK devient nullable » à l'exécution pour garder
+> la ligne comme trace d'audit. **Elle ne l'est pas** : `user_id` est NOT NULL et `cascadeOnDelete`
+> — la suppression du user emporte la demande. Mesuré sur la migration
+> `2026_04_24_224304_create_account_deletion_requests_table.php`, qui porte le commentaire ET le
+> code contraire.
+
+---
+
+### 57. DataExport ✅
+
+**Table :** `data_exports`
+**Description :** Export RGPD des données personnelles d'un utilisateur (portabilité). La ligne
+porte le cycle de vie de la génération d'archive, son emplacement et sa péremption. Le fichier lui-même
+est écrit sur le disque `local` et purgé par un job planifié à l'expiration.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | | | Utilisateur dont les données sont exportées (`cascadeOnDelete`) |
+| requested_by | FK users | oui | null | Demandeur, s'il diffère du sujet (support, admin) (`nullOnDelete`) |
+| reason | string | oui | null | Motif de la demande |
+| status | DataExportStatus | | 'queued' | queued, processing, ready, expired, failed |
+| archive_path | text | oui | null | Chemin de l'archive sur le disque `local` — **casté `encrypted`** |
+| size_bytes | unsignedBigInteger | oui | null | Taille de l'archive |
+| requested_at | timestamp | | | Date de la demande |
+| ready_at | timestamp | oui | null | Date de disponibilité |
+| expires_at | timestamp | oui | null | Date de péremption (purge de l'archive) |
+| last_downloaded_at | timestamp | oui | null | Dernier téléchargement |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- `(user_id, requested_at)`
+- `(status, expires_at)` — balayage de purge
+
+**Traits :** `Auditable`
+
+**Relations :**
+- `user()` → belongsTo User (via `user_id`)
+- `requester()` → belongsTo User (via `requested_by`)
+
+---
+
+### 58. FeatureFlag ✅
+
+**Table :** `feature_flags`
+**Description :** Drapeau de fonctionnalité piloté depuis le back-office plateforme. Le catalogue
+des drapeaux connus est défini **en code** (`app/Domain/Features/Flag`) ; cette table porte leur
+état et leur ciblage.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| key | string | | | Identifiant du drapeau — **unique** |
+| label | string | | | Libellé affiché au back-office |
+| description | text | oui | null | Description fonctionnelle |
+| enabled | boolean | | false | État global du drapeau |
+| segments_json | json | oui | null | Ciblage (segments d'utilisateurs) — casté `array` |
+| updated_by_id | FK users | oui | null | Dernier opérateur ayant modifié le drapeau (`nullOnDelete`) |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes d'unicité :**
+- `key` unique
+
+**Relations :**
+- `updatedBy()` → belongsTo User (via `updated_by_id`)
+
+---
+
+### 59. AlertRule ✅
+
+**Table :** `alert_rules`
+**Description :** Règle d'alerte d'exploitation : un événement plateforme (`event`) déclenche une
+notification vers des canaux et des destinataires configurés. Le catalogue des événements alertables
+est défini en code (`app/Domain/Alerts/AlertableEvents`) ; cette table ne porte que le routage.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| event | string | | | Identifiant de l'événement surveillé |
+| channels_json | json | | | Canaux de diffusion — casté `array`, **NOT NULL sans DEFAULT** (règle MySQL : pas de `DEFAULT` sur `JSON`) |
+| recipients_json | json | | | Destinataires — casté `array`, mêmes contraintes |
+| is_active | boolean | | true | Règle active |
+| last_triggered_at | timestamp | oui | null | Dernier déclenchement |
+| failure_count | unsignedInteger | | 0 | Compteur d'échecs de diffusion |
+| updated_by_id | FK users | oui | null | Dernier opérateur ayant modifié la règle (`nullOnDelete`) |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- `(event, is_active)`
+
+**Relations :** aucune n'est déclarée sur le modèle. `updated_by_id` est une FK en base **sans
+méthode de relation Eloquent** — contrairement à `FeatureFlag`, qui porte la même colonne et expose
+`updatedBy()`.
+
+---
+
+### 60. MaintenanceWindow ✅
+
+**Table :** `maintenance_windows`
+**Description :** Fenêtre de maintenance planifiée, annoncée aux utilisateurs par une bannière puis,
+selon le `mode`, dégradant ou coupant le service. Une fenêtre annulée n'est pas supprimée : elle est
+horodatée (`cancelled_at`, `cancelled_by_id`).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| starts_at | timestamp | | | Début de la fenêtre |
+| ends_at | timestamp | | | Fin de la fenêtre |
+| mode | string | | | `banner` / `read_only` / `down` — **string + contrôle applicatif**, pas d'`enum()` MySQL ni d'enum PHP ; les valeurs sont validées par `Rule::in()` dans `Api/Admin/MaintenanceController` |
+| severity | string | | | `info` / `scheduled` / `interruption` — même mécanisme |
+| messages | json | | | Messages localisés — casté `array` ; le contrôleur exige `messages.fr` et accepte `messages.en` / `messages.wo` (≤ 500 caractères) |
+| banner_lead_minutes | unsignedInteger | | 30 | Avance d'affichage de la bannière avant `starts_at` |
+| created_by_id | FK users | oui | null | Opérateur ayant planifié (`nullOnDelete`) |
+| cancelled_by_id | FK users | oui | null | Opérateur ayant annulé (`nullOnDelete`) |
+| cancelled_at | timestamp | oui | null | Date d'annulation — `null` = fenêtre toujours planifiée |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- `(starts_at, ends_at, cancelled_at)` — recherche de la fenêtre courante
+
+**Relations :**
+- `createdBy()` → belongsTo User (via `created_by_id`)
+- `cancelledBy()` → belongsTo User (via `cancelled_by_id`)
+
+---
+
+### 61. ScheduledTaskRun ✅
+
+**Table :** `scheduled_task_runs`
+**Description :** Trace d'exécution des tâches planifiées, exposée au tableau de bord d'exploitation.
+Une ligne par tâche et par exécution enregistrée.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| task | string | | | Identifiant de la tâche — **indexé** |
+| last_run_at | timestamp | | | Date de l'exécution |
+| duration_ms | unsignedInteger | oui | null | Durée en millisecondes |
+| status | string | | 'finished' | Issue de l'exécution |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- `task`
+
+**Relations :** aucune.
+
+---
+
+### 62. ReportExport ✅
+
+**Table :** `report_exports`
+**Description :** Export d'un rapport de pilotage plateforme (croissance, revenus, cohortes, tunnel)
+au format CSV ou XLSX, généré en tâche de fond puis mis à disposition au téléchargement jusqu'à
+péremption.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| requested_by | FK users | | | Demandeur (`cascadeOnDelete`) |
+| report | string | | | Rapport demandé — `growth` / `revenue` / `cohorts` / `funnel` (contrôle applicatif) |
+| format | string | | | `csv` / `xlsx` |
+| parameters | json | oui | null | Paramètres du rapport (période, filtres) — casté `array` |
+| status | string | | 'queued' | `queued` / `processing` / `ready` / `failed` — **string simple, sans enum PHP**, contrairement à `DataExport.status` qui utilise `DataExportStatus` |
+| archive_path | string | oui | null | Chemin du fichier sur le disque `local` — **casté `encrypted`** |
+| row_count | unsignedBigInteger | oui | null | Nombre de lignes produites |
+| size_bytes | unsignedBigInteger | oui | null | Taille du fichier |
+| ready_at | timestamp | oui | null | Date de disponibilité |
+| expires_at | timestamp | oui | null | Date de péremption |
+| failure_reason | text | oui | null | Motif d'échec |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- `requested_by`
+- `status`
+
+**Traits :** `Auditable`
+
+**Relations :**
+- `requester()` → belongsTo User (via `requested_by`)
+
+> ⚠️ **`archive_path` est `string` ici et `text` dans `data_exports`, pour la même donnée chiffrée.**
+> Un `cast` `encrypted` gonfle la valeur : mesuré, un chemin de 32 à 47 caractères en clair produit
+> **256 caractères** chiffrés — au-delà du `VARCHAR(255)` que Laravel génère pour `string()` sur
+> MySQL. Les chemins réellement écrits aujourd'hui (`reports/{report}-{id}.csv`, ≤ 27 caractères)
+> tiennent en 228 caractères, donc la colonne suffit — **par marge, pas par construction**. La
+> divergence est documentée telle qu'elle est, pas corrigée : ce document décrit le schéma, il ne
+> le décide pas.
+
+---
+
+### 63. IntegrationWebhookLog ✅
+
+**Table :** `integration_webhook_logs`
+**Description :** Journal des webhooks échangés avec un fournisseur d'intégration
+(cf. [31. Integration](#31-integration-)). Une ligne par webhook reçu ou émis, payload brut conservé
+pour rejeu et diagnostic.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| integration_id | FK integrations | oui | null | Intégration concernée — `null` si le webhook n'a pu être rattaché (`nullOnDelete`) |
+| provider | string | | | Fournisseur émetteur/destinataire |
+| direction | string | | 'incoming' | Sens du webhook |
+| status | string | | 'received' | État de traitement |
+| event_type | string | oui | null | Type d'événement annoncé par le fournisseur |
+| payload | json | | | Payload brut — casté `array`, **NOT NULL sans DEFAULT** (règle MySQL) |
+| processed_at | timestamp | oui | null | Date de traitement — `null` = non traité |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- `(integration_id, created_at)`
+- `(provider, created_at)`
+
+**Relations :**
+- `integration()` → belongsTo Integration
+
+---
+
+### 64. KpiConfig ✅
+
+**Table :** `kpi_configs`
+**Description :** Personnalisation par agence des indicateurs affichés sur son tableau de bord
+(TCK-032 P3). Une ligne = un KPI que l'agence veut suivre, avec son libellé, son format et son rang
+d'affichage.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | Agence propriétaire (`cascadeOnDelete`) |
+| metric | string | | | Clé de métrique — **liste blanche en code**, `KpiConfig::allowedMetrics()` (14 valeurs) |
+| label | string | | | Libellé affiché sur la carte |
+| format | string | | 'number' | `number` / `percent` / `currency` |
+| sort_order | unsignedSmallInteger | | 0 | Rang d'affichage |
+| is_enabled | boolean | | true | KPI affiché |
+| settings | json | oui | null | Réglages additionnels (objectif, seuil visuel…) — casté `array` |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes d'unicité :**
+- `(agency_id, metric)` — un KPI au plus une fois par agence
+
+**Index :**
+- `(agency_id, sort_order)`
+
+**Relations :**
+- `agency()` → belongsTo Agency
+
+**Exposition API** (`HasQueryBuilder`) :
+- `$requestFilterable` : `agency_id`, `metric`, `is_enabled`
+- `$requestSortable` : `id`, `sort_order`, `created_at`
+- `$requestLoadable` : `agency`
+- `$queryFields` : `id`, `agency_id`, `metric`, `label`, `format`, `sort_order`, `is_enabled`, `created_at`, `updated_at`
+
+**Liste blanche `allowedMetrics()`** — la colonne `metric` alimente des requêtes construites côté
+service ; la liste blanche est ce qui l'en protège : `properties_total`, `properties_rented`,
+`properties_available`, `leases_active`, `customers_count`, `members_count`, `bookings_pending`,
+`maintenance_open`, `revenue_month`, `commission_month`, `overdue_count`, `overdue_amount`,
+`unpaid_rate_percent`, `occupancy_rate_percent`.
+
+---
+
+### 65. ThresholdAlert ✅
+
+**Table :** `threshold_alerts`
+**Description :** Alerte de seuil par agence sur une métrique de tableau de bord (TCK-032 P3).
+L'alerte se déclenche quand la valeur franchit `threshold` dans le sens de `operator`, sous réserve
+du délai de refroidissement `cooldown_hours` depuis `last_triggered_at`.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | Agence propriétaire (`cascadeOnDelete`) |
+| metric | string | | | Clé de métrique — liste blanche `ThresholdAlert::allowedMetrics()` (6 valeurs) |
+| operator | string(3) | | | Comparateur — `>` / `<` / `>=` / `<=` (`allowedOperators()`) |
+| threshold | decimal(14,4) | | | Seuil — casté `decimal:4` |
+| severity | string | | 'warning' | `info` / `warning` / `critical` (`allowedSeverities()`) |
+| is_enabled | boolean | | true | Alerte active |
+| last_triggered_at | timestamp | oui | null | Dernier déclenchement — base du refroidissement |
+| last_value | decimal(14,4) | oui | null | Dernière valeur observée — casté `decimal:4` |
+| cooldown_hours | unsignedSmallInteger | | 24 | Délai minimal entre deux déclenchements |
+| settings | json | oui | null | Réglages additionnels — casté `array` |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- `(agency_id, is_enabled)`
+
+**Relations :**
+- `agency()` → belongsTo Agency
+
+**Méthodes :**
+- `shouldTrigger(float $value, ?DateTimeInterface $now = null): bool` — franchissement selon
+  `operator` **et** respect du refroidissement (`true` d'office si `last_triggered_at` est `null`)
+
+**Exposition API** (`HasQueryBuilder`) :
+- `$requestFilterable` : `agency_id`, `metric`, `severity`, `is_enabled`
+- `$requestSortable` : `id`, `metric`, `severity`, `created_at`
+- `$requestLoadable` : `agency`
+- `$queryFields` : `id`, `agency_id`, `metric`, `operator`, `threshold`, `severity`, `is_enabled`,
+  `last_triggered_at`, `last_value`, `cooldown_hours`, `created_at`, `updated_at`
+
+**Liste blanche `allowedMetrics()`** : `unpaid_rate_percent`, `occupancy_rate_percent`,
+`overdue_count`, `overdue_amount`, `bookings_pending`, `maintenance_open`.
+
+> ⚠️ Le docblock de la migration écrit que `operator` vaut « `>` ou `<` ». Le modèle en accepte
+> **quatre** (`allowedOperators()` : `>`, `<`, `>=`, `<=`), et `shouldTrigger()` les évalue tous les
+> quatre. C'est le modèle qui fait foi ; la colonne `string(3)` a la place pour les deux formes.
+
+---
+
+### 66. RoleDelegation ✅
+
+**Table :** `role_delegations`
+**Description :** Délégation **temporaire** d'un rôle à un utilisateur dans une agence, bornée dans
+le temps (`starts_at` → `ends_at`) et révocable. Une délégation programmée devient active à son
+échéance de début, expire à `ends_at`, ou est révoquée manuellement.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | | | Bénéficiaire de la délégation (`cascadeOnDelete`) |
+| delegator_id | FK users | | | Auteur de la délégation (`restrictOnDelete` — on ne perd pas la traçabilité) |
+| agency_id | FK agencies | | | Agence de portée (`cascadeOnDelete`) |
+| role | string | | | Rôle délégué (ex. `agency_admin`) |
+| starts_at | dateTime | oui | null | Début — `null` = effet immédiat |
+| ends_at | dateTime | | | Fin — **obligatoire**, une délégation est bornée par construction |
+| status | RoleDelegationStatus | | 'scheduled' | scheduled, active, revoked, expired |
+| reason | text | oui | null | Motif |
+| user_native_roles_snapshot | json | | | Instantané des **types de profils** que le bénéficiaire détenait déjà dans l'agence — casté `array`, **NOT NULL sans DEFAULT** (règle MySQL) |
+| activated_at | dateTime | oui | null | Date d'activation effective |
+| expired_at | dateTime | oui | null | Date d'expiration constatée |
+| revoked_at | dateTime | oui | null | Date de révocation |
+| revoked_by | FK users | oui | null | Auteur de la révocation (`nullOnDelete`) |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- `(user_id, status)`
+- `(agency_id, status)`
+- `ends_at` — balayage d'expiration
+- `(status, starts_at)` — balayage d'activation
+
+**Traits :** `Auditable`, `HasFactory`
+
+**Relations :**
+- `user()` → belongsTo User (via `user_id`)
+- `delegator()` → belongsTo User (via `delegator_id`)
+- `agency()` → belongsTo Agency
+- `revokedBy()` → belongsTo User (via `revoked_by`)
+
+**Scopes :** `active()`, `scheduled()`, `readyToActivate()`, `readyToExpire()`, `forAgency($id)`
+
+**Méthodes :** `markActive()`, `markExpired()`, `markRevoked(User $by)`
+
+> ⚠️ **Le nom `user_native_roles_snapshot` est un vestige lexical de l'ère spatie.** Ce que le
+> service y écrit (`RoleDelegationService`, TCK-278) est la liste des **types de profils
+> polymorphes** déjà détenus dans l'agence, et le commentaire du code le précise :
+> *« Audit-only ; ne change pas la résolution d'autorisation (toujours profile-based) ».* La colonne
+> n'a jamais contenu de rôles spatie depuis le cutover, et rien ne la lit pour autoriser.
+
+---
+
+### 67. PropertyContactLead ✅
+
+**Table :** `property_contact_leads`
+**Description :** Demande de contact déposée depuis la fiche publique d'un bien, par un visiteur
+éventuellement **non authentifié**. Elle est routée vers un destinataire (`recipient_user_id`) et
+marquée traitée par `handled_at`.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| property_id | FK properties | | | Bien concerné (`cascadeOnDelete`) |
+| recipient_user_id | FK users | oui | null | Destinataire du lead (`nullOnDelete`) |
+| name | string | | | Nom déclaré par le visiteur |
+| email | string | | | Email déclaré |
+| phone | string | oui | null | Téléphone déclaré |
+| message | text | | | Message |
+| ip | string(45) | oui | null | IP source (45 = longueur d'une IPv6 textuelle) |
+| user_agent | string | oui | null | User-agent source |
+| handled_at | timestamp | oui | null | Date de prise en charge — `null` = non traité |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- `(property_id, created_at)`
+- `(recipient_user_id, handled_at)` — file « à traiter » par destinataire
+
+**Relations :**
+- `property()` → belongsTo Property
+- `recipient()` → belongsTo User (via `recipient_user_id`)
+
+**Note :** l'endpoint public est protégé par le limiteur nommé `public-contact-lead`
+(5 requêtes / 10 min), défini dans `AppServiceProvider::bootRateLimiters()` — il n'y a **pas** de
+`throttle:api` global sur ce dépôt.
+
+---
+
+### 68. PropertyReport ✅
+
+**Table :** `property_reports`
+**Description :** Signalement d'une annonce par un visiteur ou un utilisateur connecté (contenu
+trompeur, arnaque, doublon…). Le traitement est matérialisé par `resolved_at` ; il n'y a pas de
+statut ni de décision stockée.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| property_id | FK properties | | | Bien signalé (`cascadeOnDelete`) |
+| reporter_user_id | FK users | oui | null | Auteur si authentifié (`nullOnDelete`) |
+| reporter_ip | string(45) | oui | null | IP de l'auteur anonyme |
+| reason | string | | | Motif du signalement |
+| details | text | oui | null | Précisions libres |
+| resolved_at | timestamp | oui | null | Date de traitement — `null` = en attente |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :**
+- `(property_id, created_at)`
+
+**Traits :** `HasFactory`
+
+**Relations :**
+- `property()` → belongsTo Property
+- `reporter()` → belongsTo User (via `reporter_user_id`)
+
+**Note :** l'endpoint public est protégé par le limiteur nommé `public-report` (5 requêtes / heure).
+
+---
+
+### 69. NotificationDeliveryAttempt ✅
+
+**Table :** `notification_delivery_attempts` *(déclarée explicitement par `$table` sur le modèle)*
+**Description :** Une ligne par **tentative** d'acheminement SMS/WhatsApp d'une notification
+(TCK-110). Remplace la colonne JSON `app_notifications.delivery_attempts` : l'unicité
+`(provider, provider_message_id)` rend la résolution d'un accusé de réception (DLR) en O(1) et
+supprime l'ambiguïté de sous-chaîne qu'avait la recherche `LIKE` sur le JSON.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| app_notification_id | FK app_notifications | | | Notification acheminée (`cascadeOnDelete`) |
+| attempt | unsignedSmallInteger | | | Rang de la tentative |
+| provider | string | | | Identifiant du driver, tel que rendu par sa méthode `id()` : `orange`, `mtarget`, `lafricamobile`, `log` (SMS) ou `whatsapp_cloud` |
+| provider_message_id | string | oui | null | Identifiant de message côté fournisseur |
+| to | string | oui | null | Destinataire (numéro) |
+| status | string | | | État de la tentative |
+| failure_reason | string | oui | null | Motif d'échec renvoyé par le fournisseur |
+| cost_estimate | decimal(10,4) | oui | null | Coût estimé — casté `float` |
+| segments_count | unsignedSmallInteger | oui | null | Nombre de segments SMS |
+| sent_at | dateTime | oui | null | Date d'émission |
+| delivered_at | dateTime | oui | null | Date d'accusé de réception |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes d'unicité :**
+- `(provider, provider_message_id)` — index nommé `ndo_provider_message_unique` (nom explicite : la
+  concaténation automatique aurait dépassé les 64 caractères de MySQL)
+
+**Index :**
+- `(app_notification_id, attempt)`
+
+**Relations :**
+- `appNotification()` → belongsTo AppNotification
+
+> ⚠️ La colonne `app_notifications.delivery_attempts` **existe toujours** en base et reste
+> `$fillable` + castée `array` sur le modèle `AppNotification`. Elle n'est **plus écrite** :
+> `SmsRouterDriver` insère dans cette table-ci. Une lecture de l'ancienne colonne renvoie donc les
+> données figées d'avant TCK-110, pas l'état courant.
+
+---
+
+### 70. WizardDraft ✅
+
+**Table :** `wizard_drafts`
+**Description :** Brouillon reprenable d'un parcours multi-étapes (TCK-250) — onboarding hôte
+particulier, KYC propriétaire, KYC agent, onboarding client. Sac JSON générique strictement scopé
+par `(user_id, key)` ; **la forme de `data` appartient au parcours consommateur, pas à ce modèle.**
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | | | Propriétaire du brouillon (`cascadeOnDelete`) |
+| key | string | | | Identifiant du parcours |
+| step | unsignedSmallInteger | | 0 | Étape courante — casté `integer` |
+| data | json | oui | null | État du parcours — casté `array` |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes d'unicité :**
+- `(user_id, key)` — un brouillon au plus par parcours et par utilisateur ; les brouillons ne sont
+  jamais partagés entre utilisateurs
+
+**Index :**
+- `updated_at` — purge des brouillons dormants
+
+**Traits :** `HasFactory`
+
+**Relations :**
+- `user()` → belongsTo User
+
+**Contrainte métier (TCK-250) :** un brouillon ne doit **jamais** contenir de donnée sensible
+(mot de passe, jeton).
+
+---
+
+### 71. WelcomeView ✅
+
+**Table :** `welcome_views`
+**Description :** Trace qu'une modale de bienvenue (`key`) a été vue par un utilisateur (TCK-251).
+L'unicité `(user_id, key)` garantit qu'une modale se déclenche **au plus une fois** par utilisateur,
+même sur des appels « vue » concurrents. Le jeu de clés valides appartient au **front** ; le backend
+traite `key` comme un identifiant court opaque.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | | | Utilisateur (`cascadeOnDelete`) |
+| key | string(64) | | | Identifiant de la modale (ex. `customer-welcome`, `host-welcome`) |
+| seen_at | timestamp | | | Date de la première vue |
+
+**Contraintes d'unicité :**
+- `(user_id, key)`
+
+**Traits :** `HasFactory`
+
+**Relations :**
+- `user()` → belongsTo User
+
+> ⚠️ **Pas de `created_at` / `updated_at`** — `$timestamps = false` sur le modèle et aucune colonne
+> de timestamps dans la migration. Seul `seen_at` a un sens ici. Ce n'est pas un oubli : avec
+> [26. PropertyPriceHistory](#26-propertypricehistory-), ce sont les **deux seuls** modèles du dépôt
+> à couper les timestamps (mesuré le 2026-08-16).
+
+---
+
 ## Enums
 
 ### Enums existants (à renommer / ajuster)
@@ -2199,7 +2850,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | UserRole | UserRole | ~~customer, agency_admin, super_admin, agent, owner, service_provider~~ — **@deprecated TCK-278** (le rôle est désormais dérivé du profil ; voir [Règle 5](#règle-5--profil--rôle)) |
 | CustomerStatus | CustomerStatus | active, inactive, blocked, deleted |
 
-> **`UserType` — déprécié (TCK-138 → TCK-142).** L'enum `UserType` est conservé en lecture pendant la phase de migration mais **disparaît** au cutover (TCK-142, suppression de `users.type` + des deux fichiers `app/Models/Enums/UserType.php` et `app/Models/Bases/Enums/UserType.php`). La nature métier d'un user est désormais portée par ses **profils polymorphes** (OwnerProfile / AgentProfile / BrokerProfile / ServiceProviderProfile) ; les permissions par les rôles spatie scopés via le profil actif. Aucun nouveau code ne doit lire `users.type`.
+> **`UserType` — déprécié (TCK-138 → TCK-142).** L'enum `UserType` est conservé en lecture pendant la phase de migration mais **disparaît** au cutover (TCK-142, suppression de `users.type` + des deux fichiers `app/Models/Enums/UserType.php` et `app/Models/Bases/Enums/UserType.php`). La nature métier d'un user est désormais portée par ses **profils polymorphes** (OwnerProfile / AgentProfile / BrokerProfile / ServiceProviderProfile) ; les permissions par l'enum `Capability`, résolue par `MembershipCapabilityResolver` pour un couple *(utilisateur, agence)* et lue via `canActAt()`. Aucun nouveau code ne doit lire `users.type`.
 
 ### Nouveaux enums
 
@@ -2235,7 +2886,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | **AgencyStatus** | active, inactive, suspended | Agency.status |
 | **VisitType** | in_person, virtual, **self_guided**, **hybrid** | PropertyVisit.type |
 | **VisitStatus** | scheduled, confirmed, completed, cancelled, no_show | PropertyVisit.status |
-| **ConversationType** | direct, group, booking, lease, property | Conversation.type |
+| **ConversationType** | direct, group, booking, lease, property, **support** | Conversation.type — *aligné sur `app/Models/Enums/ConversationType.php`, mesuré le 2026-08-16 (R7 de la passe 009)* |
 | **ConversationStatus** | active, archived, closed | Conversation.status |
 | **MessageType** | text, image, document, system | Message.type |
 | **MaintenanceCategory** | plumbing, electrical, structural, appliance, painting, cleaning, pest_control, locksmith, other | MaintenanceRequest.category |
@@ -2262,6 +2913,8 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | **PlatformProfileLevel** 🆕 (TCK-278) | super_admin, support, viewer | PlatformProfile.level |
 | **AgencyRoleBaseType** 🆕 (TCK-279) | agent, agency_admin, owner, service_provider | AgencyRole.base_profile_type |
 | **Capability** 🆕 (TCK-278) | catalogue code-defined ≈ 30–50 entrées groupées par domaine — voir « Catalogue Capability » ci-dessous | `MembershipCapabilityResolver`, `AgencyRoleCapability.capability` |
+| **DataExportStatus** ✅ (TCK-310) | queued, processing, ready, expired, failed | [DataExport.status](#57-dataexport-) |
+| **RoleDelegationStatus** ✅ (TCK-310) | scheduled, active, revoked, expired | [RoleDelegation.status](#66-roledelegation-) |
 
 #### Catalogue `Capability` (TCK-278 → TCK-279)
 
@@ -2352,6 +3005,28 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 - **BankStatement** — Relevés bancaires (rapprochement) 🆕
 - **BankStatementLine** — Lignes d'un relevé bancaire 🆕
 
+### Modèles documentés a posteriori (16) ✅ — TCK-310
+
+**Ils ne sont pas nouveaux : ils existaient déjà et ce document les ignorait.** Détail complet en
+[Modèles documentés a posteriori](#modèles-documentés-a-posteriori-tck-310).
+
+- **AccountDeletionRequest** — demandes de suppression RGPD
+- **DataExport** — exports RGPD de données personnelles
+- **FeatureFlag** — drapeaux de fonctionnalité
+- **AlertRule** — règles d'alerte d'exploitation
+- **MaintenanceWindow** — fenêtres de maintenance planifiées
+- **ScheduledTaskRun** — traces d'exécution des tâches planifiées
+- **ReportExport** — exports de rapports de pilotage
+- **IntegrationWebhookLog** — journal des webhooks d'intégration
+- **KpiConfig** — KPI de tableau de bord par agence
+- **ThresholdAlert** — alertes de seuil par agence
+- **RoleDelegation** — délégations de rôle temporaires
+- **PropertyContactLead** — demandes de contact depuis une fiche publique
+- **PropertyReport** — signalements d'annonce
+- **NotificationDeliveryAttempt** — tentatives d'acheminement SMS/WhatsApp
+- **WizardDraft** — brouillons de parcours multi-étapes
+- **WelcomeView** — modales de bienvenue déjà vues
+
 ### Enums renommés (2)
 
 - ProprietyStatus → **PropertyStatus**
@@ -2370,6 +3045,9 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 - **Documents / Inventaires :** DocumentType, InventoryType, InventoryStatus, InventoryCondition
 - **CRM / Plateforme :** CustomerPipelineStage 🆕, TaskStatus 🆕, TaskPriority 🆕, SettingScope 🆕
 - **Comptabilité bancaire 🆕 :** BankStatementSourceFormat, BankStatementStatus, BankStatementLineDirection, BankStatementLineMatchStatus
+- **Documentés a posteriori ✅ (TCK-310) :** DataExportStatus, RoleDelegationStatus — les deux seuls
+  enums PHP portés par les seize modèles ajoutés ; les autres colonnes de statut de ces modèles sont
+  des `string` contrôlées applicativement, et c'est écrit modèle par modèle.
 
 ---
 
@@ -2415,6 +3093,11 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 | bank_statement_lines | `(matched_payment_type, matched_payment_id)` | Recherche inverse depuis un paiement 🆕 |
 | bank_statement_lines | `(posted_at, amount)` | Recherche d'appariement par date / montant 🆕 |
 
+> ✅ **Les seize tables documentées a posteriori (TCK-310) ne sont pas reprises ici, délibérément.**
+> Ce tableau porte des index *recommandés* — une prescription. Leurs index, eux, sont **mesurés
+> dans les migrations** et écrits section par section. Les recopier ici transformerait une mesure en
+> prescription et créerait un second endroit à tenir à jour, donc un second endroit à faire mentir.
+
 ---
 
 ## Règles d'invariance
@@ -2439,7 +3122,12 @@ Les colonnes `*_count` et `average_rating` ne doivent **jamais** être mises à 
 
 ### Règle 3 — Morph `referenceable` dans AppNotification
 
-La relation `referenceable()` de `AppNotification` est intentionnellement **non standard** (morph manuel via `referenceable_id`/`referenceable_type` sans utiliser Eloquent `morphTo` standard). Cela évite la création des tables `model_has_...` de spatie et permet un contrôle fin des types autorisés : Booking, Lease, LeasePayment, MaintenanceRequest.
+La relation `referenceable()` de `AppNotification` est intentionnellement **non standard** (morph manuel via `referenceable_id`/`referenceable_type` sans utiliser Eloquent `morphTo` standard). Le motif qui tient encore : un **contrôle fin des types autorisés** — Booking, Lease, LeasePayment, MaintenanceRequest.
+
+> ℹ️ Cette règle invoquait aussi « éviter la création des tables `model_has_...` de spatie ». Ce
+> motif est **caduc depuis TCK-278** : le paquet est désinstallé et ces tables n'existent plus. Il
+> est retiré ici plutôt que conservé, parce qu'une justification périmée se relit comme une
+> justification vivante.
 
 ### Règle 5 — Profil = rôle
 

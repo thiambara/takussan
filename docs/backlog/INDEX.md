@@ -10,9 +10,9 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 21 |
+| 📋 Todo | 20 |
 | 🚧 Doing | 0 |
-| 👀 Review | 3 |
+| 👀 Review | 4 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 269 |
 | 🗑️ Obsolete | 1 |
@@ -51,7 +51,6 @@
 - [TCK-307](tickets/TCK-307-supprimer-dsl-scopefilter-mort.md) — Supprimer le DSL `scopeFilter` — mort mais toujours branché sur tous les modèles `S · P2 · technique`
 - [TCK-308](tickets/TCK-308-baseresource-adoptee-par-7-sur-44.md) — `BaseResource` adoptée par 7 ressources sur 44 — 37 refont les conversions à la main `M · P2 · technique`
 - [TCK-309](tickets/TCK-309-conventions-mineures-dedoublees.md) — Trois conventions dédoublées : classes de base de test, préfixes de commandes, namespaces d'auth `M · P3 · technique`
-- [TCK-310](tickets/TCK-310-models-spec-16-modeles-absents.md) — `docs/models-spec.md` ignore 16 modèles et documente encore un package désinstallé `M · P1 · technique`
 - [TCK-311](tickets/TCK-311-documents-perimes-et-pointeur-mort.md) — Cinq documents périmés, un pointeur mort dans les deux specs, et 4 Mo d'images commitées `S · P3 · technique`
 - [TCK-312](tickets/TCK-312-tests-front-rougissent-sous-charge.md) — Quatre tests front rougissent sous charge — le pendant frontend de D-44 `S · P2 · front`
 
@@ -64,6 +63,7 @@ _(aucun)_
 - [TCK-296](tickets/TCK-296-cles-env-gardes-webhook.md) — Les 7 clés d'environnement des gardes webhook ne sont pas toutes déclarées `S · P1 · technique`
 - [TCK-297](tickets/TCK-297-basepolicy-capacites-inexistantes.md) — BasePolicy résout des capacités qui n'existent pas — refus silencieux pour tous sauf super-admin `S · P1 · bug`
 - [TCK-303](tickets/TCK-303-arbitrer-agent-vs-agents.md) — Deux répertoires de compétences concurrents, `.agent/` et `.agents/` — arbitrer, supprimer le mort, et garder contre son retour `S · P1 · technique`
+- [TCK-310](tickets/TCK-310-models-spec-16-modeles-absents.md) — `docs/models-spec.md` ignore 16 modèles et documente encore un package désinstallé `M · P1 · technique`
 
 ## ⛔ Blocked
 
