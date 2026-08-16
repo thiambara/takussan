@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # `check-backlog.mjs` confronte les statuts des tickets à l'historique de `dev` : un
           # ticket en `review` dont le code est déjà mergé est le défaut qui a produit une colonne
