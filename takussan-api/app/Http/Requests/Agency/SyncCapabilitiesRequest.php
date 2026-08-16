@@ -32,7 +32,28 @@ class SyncCapabilitiesRequest extends BaseFormRequest
     {
         return [
             'capabilities' => ['present', 'array'],
-            'capabilities.*' => ['string', Rule::enum(Capability::class)],
+            'capabilities.*' => [
+                'string',
+                Rule::enum(Capability::class),
+                // `Rule::enum` seul accepte TOUT cas du catalogue, y compris
+                // les deux réservées plateforme — ce par quoi un agency_admin
+                // se les accordait à lui-même (cf. `Capability::platformReserved()`).
+                Rule::notIn(array_map(
+                    static fn (Capability $c): string => $c->value,
+                    Capability::platformReserved(),
+                )),
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    public function messages(): array
+    {
+        return [
+            'capabilities.*.not_in' => 'Cette capacité est réservée à la plateforme : '
+                .'aucun rôle d\'agence ne peut la porter.',
         ];
     }
 }

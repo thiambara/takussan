@@ -37,6 +37,15 @@ class CapabilityController extends Controller
             'data' => [
                 'domains' => $domains,
                 'total' => count(Capability::cases()),
+                // Ajouté à CÔTÉ de `domains`, pas dedans : la forme existante
+                // ne bouge pas. La matrice d'édition d'un rôle doit griser ces
+                // capacités — l'API les refuse désormais en 422 (cf.
+                // `Capability::platformReserved()`), et une case cochable qui
+                // rend 422 est un défaut d'UI, pas une garde.
+                'platform_reserved' => array_map(
+                    static fn (Capability $c): string => $c->value,
+                    Capability::platformReserved(),
+                ),
             ],
         ]);
     }

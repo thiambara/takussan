@@ -48,13 +48,11 @@ class SystemRoleCapabilities
      */
     private function agencyAdmin(): array
     {
-        return array_values(array_filter(
-            Capability::cases(),
-            static fn (Capability $c): bool => ! in_array($c, [
-                Capability::PropertiesModerate,
-                Capability::ReportsViewGlobal,
-            ], true),
-        ));
+        // La liste des réservées plateforme vit sur l'enum et **est appliquée
+        // à l'écriture** (`Capability::agencyAssignable()`), pas seulement au
+        // seed : elle était auparavant recopiée ici, et un rôle personnalisé
+        // pouvait rajouter après coup ce que ce filtre retirait.
+        return Capability::agencyAssignable();
     }
 
     /**

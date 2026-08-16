@@ -81,6 +81,23 @@ class AgencyRoleService
      */
     public function replaceCapabilities(AgencyRole $role, array $capabilities): AgencyRole
     {
+        // Backstop de l'invariant « ces capacités restent à la plateforme ».
+        // `SyncCapabilitiesRequest` le refuse déjà en 422 sur le chemin HTTP ;
+        // ici il couvre AUSSI le clonage et tout appel interne futur — c'est
+        // le seul point que les deux traversent. Une autorisation ne se garde
+        // pas dans une seule couche.
+        $reserved = collect($capabilities)
+            ->filter(static fn (Capability $c): bool => $c->isPlatformReserved())
+            ->map(static fn (Capability $c): string => $c->value)
+            ->values();
+
+        if ($reserved->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'capabilities' => 'Capacité réservée à la plateforme : '.$reserved->implode(', ')
+                    .'. Aucun rôle d\'agence ne peut la porter.',
+            ]);
+        }
+
         $values = collect($capabilities)
             ->map(static fn (Capability $c): string => $c->value)
             ->unique()
