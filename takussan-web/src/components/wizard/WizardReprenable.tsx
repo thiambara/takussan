@@ -99,15 +99,18 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
   const [hydrated, setHydrated] = useState(false);
   const [completing, setCompleting] = useState(false);
 
-  // Hydrate local state once the initial GET resolves.
-  useEffect(() => {
-    if (isLoading || hydrated) return;
-    if (draft && draft.data) {
+  // Hydratation de l'état local dès que le GET initial est résolu.
+  //
+  // TCK-316 — pendant le RENDU, pas dans un effet : l'effet affichait l'étape 0
+  // avec les données initiales, puis sautait à l'étape reprise au tick suivant.
+  // L'écriture converge (`hydrated` passe à `true` définitivement).
+  if (!hydrated && !isLoading) {
+    setHydrated(true);
+    if (draft?.data) {
       setStepIndex(Math.min(draft.step, steps.length - 1));
       setData(mergeDraft(initialData, draft.data as Partial<TData>));
     }
-    setHydrated(true);
-  }, [draft, isLoading, hydrated, initialData, steps.length]);
+  }
 
   // Autosave on every change once we've hydrated. The debounce inside
   // `useWizardDraft` collapses bursts into a single PUT.

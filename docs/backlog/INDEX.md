@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**299 tickets** — 17 ouverts, 281 livrés.
+**300 tickets** — 17 ouverts, 282 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 281 |
+| ✅ Done | 282 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -47,8 +47,8 @@
 - [TCK-313](tickets/TCK-313-delai-waitfor-rtl-tendu-sous-charge.md) — Le délai propre de waitFor/findBy est un défaut de framework, pas une mesure `S · P2 · front`
 - [TCK-314](tickets/TCK-314-test-recherche-dependant-de-l-ordre.md) — Un test de recherche publique ne passe que grâce à l'ORDRE de la suite — et il rougit 3 fois sur 5 en parallèle `S · P2 · technique`
 - [TCK-315](tickets/TCK-315-role-agence-du-prestataire.md) — Où vit le rôle d'agence d'un prestataire — le profil n'a pas d'agence, la collaboration si `M · P1 · technique`
-- [TCK-316](tickets/TCK-316-regles-react-compiler-inertes-sous-eslint-9.md) — Cinq familles de règles React Compiler sont déclarées bloquantes et ne s'exécutent pas — 23 violations que le bump ESLint 10 révèle `M · P2 · front`
 - [TCK-317](tickets/TCK-317-roles-systeme-derivent-par-date-de-creation.md) — Les rôles système dérivent par date de création d'agence — une capacité ajoutée à l'enum n'atteint jamais les agences existantes `M · P2 · back`
+- [TCK-318](tickets/TCK-318-activer-le-react-compiler.md) — Activer le React Compiler — ou décider de ne pas l'activer, mais le décider `M · P3 · front`
 
 ## 🚧 Doing
 
@@ -64,13 +64,20 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 281
+## ✅ Done — 282
 
 <details>
 <summary><strong>Vague 40 — Évacuation dette — documentation : specs et documents périmés (2026-08-16)</strong> — 2 tickets</summary>
 
 - [TCK-310](tickets/TCK-310-models-spec-16-modeles-absents.md) — `docs/models-spec.md` ignore 16 modèles et documente encore un package désinstallé `M · P1 · technique`
 - [TCK-311](tickets/TCK-311-documents-perimes-et-pointeur-mort.md) — Cinq documents périmés, un pointeur mort dans les deux specs, et 4 Mo d'images commitées `S · P3 · technique`
+
+</details>
+
+<details>
+<summary><strong>Vague 39 — Évacuation dette — convergence des conventions backend (2026-08-16)</strong> — 1 ticket</summary>
+
+- [TCK-316](tickets/TCK-316-regles-react-compiler-inertes-sous-eslint-9.md) — Cinq familles de règles React Compiler sont déclarées bloquantes et ne s'exécutent pas — 23 violations que le bump ESLint 10 révèle `M · P2 · front`
 
 </details>
 

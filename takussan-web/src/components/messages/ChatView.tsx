@@ -175,7 +175,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
 
   // IntersectionObserver on the top sentinel triggers older-history fetch.
   const isSentinelVisible = useIntersectionObserver(loadMoreRef, {
-    root: scrollRef.current,
+    root: scrollRef,
     rootMargin: '120px 0px 0px 0px',
     enabled: Boolean(hasNextPage) && !isLoading,
   });
@@ -376,7 +376,11 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
       </div>
 
       <form
-        onSubmit={form.handleSubmit(onSubmit)}
+        // TCK-316 — `handleSubmit(onSubmit)` était APPELÉ pendant le rendu pour
+        // produire le gestionnaire, et `onSubmit` lit `fileInputRef.current` :
+        // le compilateur ne peut pas prouver que la ref n'est pas lue au rendu.
+        // On diffère l'appel dans l'événement, ce que fait déjà le bouton plus bas.
+        onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}
         className="border-t border-stone-200 bg-white p-3"
       >
         {attachmentError && (

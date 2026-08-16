@@ -1,7 +1,7 @@
 'use client';
 
 import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
+import L, { type Map as LeafletMap } from 'leaflet';
 import {
   MapContainer,
   Marker,
@@ -13,7 +13,7 @@ import {
 } from 'react-leaflet';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/utils';
 import { formatPriceShort } from '@/lib/format/currency';
@@ -93,26 +93,35 @@ function BoundsWatcher({
 }: {
   onChange: (bounds: MapBounds) => void;
 }) {
+  // TCK-316 — `emit` était une DÉCLARATION de fonction placée après les
+  // gestionnaires qui l'appellent. Le hoisting de JavaScript rendait ça
+  // fonctionnel, mais la fermeture capturait `map` et `onChange` d'un rendu
+  // antérieur : « accessed before it is declared, which prevents the earlier
+  // access from updating when this value changes over time ». Déclarée AVANT,
+  // et mémoïsée sur ses deux vraies dépendances, elle suit les rendus.
+  const emit = useCallback(
+    (leafletMap: LeafletMap) => {
+      const b = leafletMap.getBounds();
+      onChange({
+        swLat: b.getSouthWest().lat,
+        swLng: b.getSouthWest().lng,
+        neLat: b.getNorthEast().lat,
+        neLng: b.getNorthEast().lng,
+      });
+    },
+    [onChange],
+  );
+
   const map = useMapEvents({
-    moveend: () => emit(),
-    zoomend: () => emit(),
+    moveend: () => emit(map),
+    zoomend: () => emit(map),
   });
 
-  // Emit once on mount.
+  // Une première émission au montage — l'effet est légitime : il synchronise un
+  // système extérieur (Leaflet) avec React, ce que la règle autorise.
   useEffect(() => {
-    emit();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function emit() {
-    const b = map.getBounds();
-    onChange({
-      swLat: b.getSouthWest().lat,
-      swLng: b.getSouthWest().lng,
-      neLat: b.getNorthEast().lat,
-      neLng: b.getNorthEast().lng,
-    });
-  }
+    emit(map);
+  }, [emit, map]);
 
   return null;
 }

@@ -6,11 +6,15 @@ type Options = {
   rootMargin?: string;
   threshold?: number | number[];
   /**
-   * Optional scrollable ancestor. Defaults to the viewport. Pass a ref to an
-   * overflowing container (e.g. the chat scroll area) so the sentinel is only
-   * considered "visible" relative to that container's viewport.
+   * Ancêtre scrollable optionnel. Par défaut le viewport.
+   *
+   * ⚠️ TCK-316 — on prend une **ref**, pas un `Element`. L'appelant écrivait
+   * `root: scrollRef.current`, c'est-à-dire une lecture de ref PENDANT LE
+   * RENDU : `null` au premier rendu, et aucun re-rendu quand la ref se remplit.
+   * L'observateur se construisait donc contre le viewport au lieu du conteneur,
+   * en silence. La ref est déréférencée ici, dans l'effet, où c'est licite.
    */
-  root?: Element | null;
+  root?: RefObject<Element | null> | null;
   enabled?: boolean;
 };
 
@@ -31,7 +35,7 @@ export function useIntersectionObserver(
 
     const observer = new IntersectionObserver(
       ([entry]) => setIsIntersecting(entry.isIntersecting),
-      { root, rootMargin, threshold },
+      { root: root?.current ?? null, rootMargin, threshold },
     );
     observer.observe(node);
     return () => observer.disconnect();

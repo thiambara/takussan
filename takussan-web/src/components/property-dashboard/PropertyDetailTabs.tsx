@@ -10,6 +10,7 @@ import { PropertyOverviewPanel } from '@/components/property-dashboard/PropertyO
 import { formatCurrency } from '@/lib/format';
 import type { PropertyDetail } from '@/types/property';
 import type { Tag } from '@/types/tag';
+import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 
 const TAB_VALUES = ['overview', 'edit', 'media', 'history'] as const;
 type TabKey = (typeof TAB_VALUES)[number];
@@ -25,15 +26,15 @@ interface Props {
 
 export function PropertyDetailTabs({ property, tags }: Props) {
   const searchParams = useSearchParams();
-  const initial = searchParams.get('tab');
-  const [tab, setTab] = useState<TabKey>(isTabKey(initial) ? initial : 'overview');
-
-  // Sync URL ↔ state without triggering a server round-trip.
-  useEffect(() => {
-    const next = searchParams.get('tab');
-    if (isTabKey(next) && next !== tab) setTab(next);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  // TCK-316 — l'onglet suit l'URL sans aller-retour serveur, et SANS effet :
+  // l'ancienne version rendait l'onglet précédent une frame avant de corriger.
+  //
+  // ⚠️ Un `?tab=` absent ou inconnu retombe sur `overview`, jamais sur l'onglet
+  // courant : `useStateSyncedWith` ne resynchronise que lorsque la valeur
+  // externe CHANGE, donc un clic utilisateur (qui écrit l'URL par
+  // `replaceState`, sans notifier le routeur) n'est pas écrasé au rendu suivant.
+  const urlTab = searchParams.get('tab');
+  const [tab, setTab] = useStateSyncedWith<TabKey>(isTabKey(urlTab) ? urlTab : 'overview');
 
   const handleChange = useCallback(
     (value: TabKey) => {
