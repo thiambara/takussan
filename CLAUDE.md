@@ -27,7 +27,7 @@ tenir à jour :
 | Code | ~770 fichiers PHP · ~62 000 lignes dans `app/` | ~870 fichiers `.ts`/`.tsx` dans `src/` |
 | Surface | ~535 routes · ~160 contrôleurs · 70 modèles | ~110 pages · ~30 route handlers BFF · 20 modules de server actions |
 | Données | 124 migrations · 38 factories · 11 seeders | — |
-| Tests | ~307 fichiers · **~2050 tests, verts _au repos_** | ~143 fichiers · **~810 tests, verts _au repos_** |
+| Tests | ~307 fichiers · **~2050 tests, verts _au repos_** *(~2300 au 2026-08-16)* | ~143 fichiers · **~810 tests, verts _au repos_** |
 
 > Les chiffres sont **arrondis délibérément**. La version précédente annonçait « 875 fichiers
 > `.ts`/`.tsx` » — faux dans le commit qui l'écrivait, puisque ce même commit en supprimait sept.
@@ -79,6 +79,41 @@ Ce que cela change pour qui travaille ici : **ne jamais conclure d'un rouge Meil
 relancé seul**, et ne pas lancer la suite entière pendant qu'un autre agent la lance. Détail complet,
 chiffres et état du correctif : ardoise **D-44**.
 
+**Le temps de référence de la suite backend — 204 à 235 s, machine au repos, mesuré le 2026-08-16**
+sur ~2320 tests, **0 échec, sortie 0** (deux mesures indépendantes le même jour : 235 s, puis 204 s à
+`load average` 8-29). C'est cet ordre de grandeur qu'on compare désormais, et non les 313 s
+ci-dessus : celles-ci ont été prises le 2026-08-15, sur 2056 tests, **avant** le correctif D-44. Les
+deux chiffres décrivent des suites différentes à des dates différentes — ils ne se soustraient pas.
+
+⚠️ **« Au repos » est une condition de la mesure, pas une formule de style — et le facteur mesuré est
+d'environ 11.** Le 2026-08-16, sur cette même machine à 8 cœurs, **la même commande** (PHPUnit sous
+PCOV, à la virgule près) a rendu **1240 s** sous `load average` 200-258 — vitest et ESLint d'agents
+voisins, plus le langage server PHP de l'IDE à ~230 % de CPU — et **113 s** deux heures plus tard à
+load 4-8. Un test individuel passait de ~0,1 s à 2-3 s. Un temps de suite mesuré sous charge ne dit
+rien du dépôt : il dit ce que la machine faisait d'autre. **Relever `uptime` et `sysctl -n hw.ncpu` à
+côté du chiffre** — sans eux, il ne veut plus rien dire six mois plus tard.
+
+**La bonne nouvelle de cette contention, elle, est solide** : c'est justement l'exécution à load
+200-258 qui a rendu **2313 tests, 7136 assertions, 2 ignorés, 0 échec**. Le correctif D-44 tient donc
+là où l'ancienne version rougissait, et c'est une preuve *plus forte* qu'une exécution au repos, pas
+une preuve dégradée : au repos, l'ancienne version passait aussi.
+
+**La couverture est mesurée et gardée depuis le 2026-08-16** — elle ne l'avait jamais été. Sur `app/`
+(768 fichiers) : **lignes 86,16 %** (21 148 / 24 544), **méthodes 66,87 %**, **classes 43,81 %**. La CI
+pose un **cliquet** à `--min=86`, pour un surcoût mesuré de **+36 %** (83 s → 113 s), et publie le
+clover en artefact à chaque exécution. Le seuil a été **resserré de 85 à 86 le 2026-08-16**, la CI ayant confirmé **86,3 %** au premier
+passage (PR #176) — la marge de 85 couvrait un doute sur le PCOV du runner, ce doute est levé. Il
+reste 0,3 point, soit ~74 lignes non testées : c'est serré délibérément. Le seuil garde contre
+l'**érosion** ; il ne dit pas que 86 %
+suffit, et une méthode traversée sans assertion y compte pour couverte.
+
+**`--parallel` a été mesuré, puis REFUSÉ** : le gain est réel (~2,6×, 204 s → 66-83 s) mais les
+**cinq** exécutions d'épreuve sont rouges. Deux gardes de D-44 tombent *par construction* — en mode
+parallèle Laravel pose son propre jeton d'isolation et supplante celui du dépôt — et un test de
+recherche publique rougit 3 fois sur 5 parce qu'il ne passait que grâce à l'**ordre** de la suite
+(TCK-314). Ne pas activer `--parallel` avant que ces deux points soient tranchés. Détail et
+raisonnement : ardoise **D-30**, tickets **TCK-302** et **TCK-314**.
+
 **L'ardoise est ouverte et écrite.** `docs/ardoise.md` porte l'inventaire des manquements mesurés,
 chacun sourcé, classé et priorisé — dont quatre qui touchent la **production** et ne se voient pas
 depuis le code. **La lire avant de planifier quoi que ce soit.**
@@ -95,16 +130,34 @@ depuis le code. **La lire avant de planifier quoi que ce soit.**
 `takussan-api/` :
 
 ```bash
-php artisan test                    # ~2050 tests — exige une instance Meilisearch (cf. D-08), et se
-                                    #   mesure MACHINE AU REPOS : sous charge, les tests de recherche
-                                    #   rougissent au hasard, sur un ensemble différent à chaque
-                                    #   exécution (cf. D-44). Un rouge Meilisearch se relance seul
-                                    #   AVANT d'accuser le code.
+php artisan test                    # ~2300 tests, 204-235 s MACHINE AU REPOS (2026-08-16, deux
+                                    #   mesures) — exige une instance Meilisearch (cf. D-08).
+                                    #   Le temps ne se mesure QUE machine au repos : à load 200-258
+                                    #   sur 8 cœurs, la même commande met ×11 plus longtemps.
+                                    #   Un rouge Meilisearch se relance seul AVANT d'accuser le code
+                                    #   (cf. D-44) — mais depuis le correctif, la suite entière rend
+                                    #   0 échec même sous cette charge.
 php artisan test --filter=Foo
+XDEBUG_MODE=coverage php artisan test --coverage --min=86
+                                    # couverture de lignes de app/ — le CLIQUET de la CI (TCK-302).
+                                    #   Exige un pilote de couverture : PCOV en CI, Xdebug en local.
+                                    #   ⚠ La VARIABLE D'ENVIRONNEMENT, pas `-d xdebug.mode=…` :
+                                    #   `artisan test` relance PHPUnit dans un SOUS-PROCESSUS, où
+                                    #   un `-d` posé sur l'artisan ne se propage pas — la commande
+                                    #   sortirait alors sur « Code coverage driver not available ».
+                                    #   Le seuil est posé au niveau MESURÉ ; il ne dit pas
+                                    #   « 85 % suffit », il dit « on ne redescend pas ».
 ./vendor/bin/pint                   # ← AVANT CHAQUE COMMIT. Rien ne l'impose : c'est une
                                     #   violation d'un seul fichier qui a cassé la CI six semaines.
 php artisan migrate
-php artisan migrate:fresh --seed    # 38 seeders, ~450 biens (cf. SEED_DOWNLOAD_MEDIA)
+php artisan migrate:fresh --seed    # 38 seeders, ~450 biens. SANS médias par défaut :
+                                    #   SEED_DOWNLOAD_MEDIA=false des DEUX côtés (.env.example
+                                    #   ET .env.docker) depuis TCK-301 — il valait `true`, et
+                                    #   décidait pour tout nouveau clone de 1000 à 2700 requêtes
+                                    #   HTTP. `true` reste valable, mais c'est un choix : les
+                                    #   échecs sont alors comptés, imprimés, et `db:seed` sort en
+                                    #   erreur au-delà de 10 % — un jeu partiel ne se déclare plus
+                                    #   complet.
 ```
 
 `takussan-web/` :
@@ -117,11 +170,26 @@ npm run test          # vitest
 npm run build
 ```
 
-Racine :
+Racine — **les gardes ne s'énumèrent pas ici, elles se listent** :
 
 ```bash
-node scripts/check-env-parity.mjs   # .env.example et .env.docker déclarent-ils les mêmes clés ?
+ls scripts/check-*.mjs                        # l'inventaire, toujours juste
+for g in scripts/check-*.mjs; do node "$g" || echo "✗ $g"; done   # toutes, d'un coup
+node docs/backlog/gen-index.mjs --check        # + les deux générateurs
+node docs/gen-features-by-actor.mjs --check
 ```
+
+> **Pourquoi une commande et pas une liste.** Ce bloc a cité **deux** gardes sur douze pendant que
+> le dépôt en accumulait dix autres, et il n'y avait aucun moyen de s'en apercevoir : une liste
+> écrite à la main est juste le jour où on l'écrit. C'est exactement le défaut que la moitié de ces
+> gardes existent pour attraper ailleurs (D-15 sur `INDEX.md`, D-44 sur les modèles indexables,
+> D-18 sur `models-spec.md`) — il vivait dans le document qui les présente.
+>
+> Elles vérifient toutes la même chose sous des formes différentes : **qu'un document dérivé suit
+> encore sa source, et que la source suit encore la réalité.** Chacune porte son motif et son
+> histoire dans son propre en-tête ; c'est là qu'il faut lire, pas ici.
+>
+> `.github/workflows/repo-ci.yml` les rejoue toutes à chaque PR.
 
 ## Environnement de développement
 
@@ -144,14 +212,32 @@ simultanés au lieu d'exiger qu'on démonte l'existant.
 **`.env.docker` est l'environnement de développement, `.env.example` est le contrat des clés.**
 `.env.example` ne reproduit **aucun** environnement existant : il livre `DB_CONNECTION=sqlite` quand
 la production tourne sur MySQL 8, `SCOUT_DRIVER=collection` quand la CI et la production indexent sur
-Meilisearch, et `CACHE_STORE=redis` sans que rien ne fournisse Redis. `.env.docker` aligne chaque
+Meilisearch, et `CACHE_STORE=redis` sans que **lui-même** fournisse Redis — un développeur qui suit
+ce seul fichier, hors docker, obtient une application qui ne démarre pas. `.env.docker` aligne chaque
 driver sur celui de la production. `scripts/check-env-parity.mjs` garde la parité des **clés** entre
 les deux (jamais des valeurs — deux fichiers aux valeurs identiques n'auraient aucune raison d'être
-deux).
+deux), et `scripts/check-webhook-env-keys.mjs` garde ce que la parité ne peut pas voir : **une clé
+absente des DEUX fichiers est en parité parfaite** (TCK-296).
+
+> ⚠️ **Nuance mesurée le 2026-08-16 (TCK-300), parce que la phrase ci-dessus vieillit mal sur un
+> point.** `CACHE_STORE=redis` n'est **plus** un écart avec la production : les deux `.env` livrés
+> déclarent `redis` pour le cache et la session. Ce qui reste vrai, c'est que `.env.example` seul ne
+> provisionne rien — `docker-compose.yml` s'en charge, et c'est précisément sa raison d'être.
+>
+> Le relevé des drivers réellement déclarés par les environnements déployés vit dans
+> [`docs/infra/prod-drivers.json`](docs/infra/prod-drivers.json), **et nulle part ailleurs** : il
+> était recopié dans trois documents qui se contredisaient, dont un qui se contredisait lui-même.
 
 `./dev.sh` ne force pas docker : il détecte si le `.env` vise les conteneurs du dépôt ou des services
 natifs, **sonde ce que le `.env` déclare**, et nomme ce qui ne répond pas. Un service déclaré et
 absent ne produit aucune erreur lisible — l'API démarre, et c'est la première requête qui meurt.
+
+> **`./dev.sh doctor` nomme aussi le cas inverse, depuis TCK-301** : un `.env` qui vise le port
+> CANONIQUE (3306 / 7700 / 6379 / 1025) alors que le dépôt publie le port décalé. Ce cas-là ne
+> produit *aucun* rouge — les services répondent, ce sont ceux de brew — mais rien de ce que
+> `docker-compose.yml` garantit ne s'applique alors : ni le moteur MySQL 8.0 mesuré en production,
+> ni l'isolation de l'index Meilisearch, ni Mailpit. `takussan-api/.env` est ignoré par git : aucun
+> fichier de ce dépôt ne peut corriger l'écart, seulement l'afficher (dette D-48).
 
 ## Workflow git
 
@@ -179,7 +265,10 @@ Messages de commit en français, préfixés du type conventionnel, citant le tic
 **Sources de vérité fonctionnelles** (ne jamais dupliquer dans un ticket) :
 
 - `docs/features.md` — spec fonctionnelle
-- `docs/models-spec.md` — spec data/modèles *(périmée sur 16 modèles, cf. ardoise D-18)*
+- `docs/models-spec.md` — spec data/modèles. **Les 62 modèles de premier niveau y sont désormais
+  mentionnés, et `scripts/check-models-spec.mjs` (Repo CI) casse si un nouveau ne l'est pas**
+  (TCK-310, ex-dette D-18 : 16 modèles y manquaient). ⚠ La garde vérifie qu'un **nom** apparaît,
+  jamais qu'il est bien décrit — c'est un plancher, pas une preuve de justesse.
 
 **Backlog** : `docs/backlog/` → `INDEX.md` + `tickets/TCK-NNN-<slug>.md`.
 
@@ -328,6 +417,20 @@ Deux voies équivalentes — `.windsurf/workflows/` ou `.claude/commands/` :
 
 Si l'utilisateur demande « crée un ticket » ou « implémente TCK-NNN » sans slash command, lire
 directement le workflow correspondant.
+
+**Les compétences vivent sous `.agent/skills/`, et nulle part ailleurs.** Les deux voies ci-dessus
+n'en sont que des relais : elles pointent toutes deux vers `.agent/workflows/`, qui pointe vers
+`.agent/skills/`. Une compétence se corrige donc là, une seule fois.
+
+> Un second répertoire, `.agents/` — 602 fichiers, suivi par git, référencé par aucun fichier du
+> dépôt — a coexisté avec lui pendant trois mois (TCK-303, ardoise D-46). Le coût n'a pas été la
+> duplication, mais le doute : le 2026-05-18, la correction « `spatie/laravel-permission` a été
+> retiré, les capacités sont résolues par `MembershipCapabilityResolver` » y a été écrite. Elle
+> était **juste**, et elle est tombée dans la copie que personne ne charge. Pendant trois mois,
+> tout agent qui implémentait un ticket a lu qu'il fallait employer un paquet désinstallé sur
+> lequel la CI casse à l'import. *Un répertoire mort n'est pas inerte : il absorbe les
+> corrections.* `scripts/check-skills-dir.mjs` refuse désormais toute compétence de ce dépôt
+> hors du canonique — quel que soit le nom du répertoire qui la porte.
 
 ## Où vont les fichiers
 
