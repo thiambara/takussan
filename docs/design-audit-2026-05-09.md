@@ -1,6 +1,21 @@
 # Audit design — pages frontend
 
-_Généré le 2026-05-09. Référence visuelle : homepage publique (`docs/image.png`)._
+_Généré le 2026-05-09. Référence visuelle : homepage publique, capturée **avant** la refonte
+TCK-129 — palette bleue, aujourd'hui révoquée._
+
+> Les deux captures (`docs/image.png`, `docs/image copy.png` — 4,0 Mo) ont été **retirées du HEAD**
+> le 2026-08-16 (TCK-311) : elles montrent une direction visuelle abandonnée, et laissées dans
+> `docs/` elles se lisaient comme l'état courant de l'interface. Elles restent dans l'historique
+> git et se récupèrent à l'identique :
+>
+> ```bash
+> git show acec0596:docs/image.png > /tmp/image.png
+> git show 'acec0596:docs/image copy.png' > /tmp/image-copy.png
+> ```
+>
+> L'historique n'a **pas** été réécrit — le poids reste dans les objets git, seul le HEAD est
+> allégé. La direction actuelle est « Ancrage Local Contemporain » (palette Lin), cf.
+> [`design-guidelines.md`](./design-guidelines.md).
 
 ## Méthodologie
 

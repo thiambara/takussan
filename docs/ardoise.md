@@ -905,17 +905,34 @@ Désigné source de vérité data, il ne mentionne **aucune** fois : `AccountDel
 appliquées » alors que R1 et R2 l'ont été), et la rupture qu'il signale date de **plus de trois
 mois**.
 
-### D-19 — Cinq documents cités n'existent pas 🟡 → [TCK-311](backlog/tickets/TCK-311-documents-perimes-et-pointeur-mort.md)
+### D-19 — Cinq documents cités n'existent pas ✅ *soldé le 2026-08-16* → [TCK-311](backlog/tickets/TCK-311-documents-perimes-et-pointeur-mort.md)
+
+> **Soldé, et surtout MESURÉ EN CONTINU désormais.** Le dernier pointeur mort —
+> `docs/claude-code-prompt-notifications.md`, cité par `models-spec.md:673` — a été retiré. Le <!-- lien-mort-assumé -->
+> document n'a pas été écrit : il n'a jamais existé, et l'inventer aurait été fabriquer une source
+> de vérité. La parenthèse conserve l'information utile (« approche hybride ») sans le renvoi.
+>
+> Le fond du problème n'était pas les cinq pointeurs, c'est que **rien ne les comptait** : la dette
+> a fondu de 5 à 1 sans que personne ne l'écrive. `scripts/check-doc-links.mjs` confronte désormais
+> au disque chaque chemin markdown cité par un document **normatif** (les deux specs, les ADR,
+> `docs/*.md` au premier niveau, les quatre `CLAUDE.md`/`AGENTS.md`, `takussan-web/README.md`), et
+> `repo-ci.yml` casse dessus. Il a trouvé son premier défaut réel dans le commit qui l'introduit :
+> le déplacement de `seeding-plan.md` cassait une citation de `configuration.md`.
+>
+> Périmètre assumé : les archives (`docs/backlog/_archive/**`, `docs/sync-passes/**`) en sont
+> exclues — elles portent 269 chemins morts à elles seules, et ce sont des **faits d'histoire**
+> dans des pièces gelées à dessein. Une ligne qui nomme délibérément un fichier absent se déclare
+> par `<!-- lien-mort-assumé -->` ; il y en a 6, toutes dans cette ardoise.
 
 > **Re-mesuré le 2026-08-16 : il n'en reste qu'UN.** Un balayage de tous les chemins `docs/*.md`
 > cités par `features.md` et `models-spec.md` ne trouve plus qu'un seul pointeur mort —
-> `docs/claude-code-prompt-notifications.md`. `docs/takussan-whatsapp-implementation.md` est
+> `docs/claude-code-prompt-notifications.md`. `docs/takussan-whatsapp-implementation.md` est <!-- lien-mort-assumé -->
 > toujours absent du disque mais n'est **plus cité** par les deux specs. La dette a fondu de 5 à 1
 > sans que personne ne l'écrive : c'est le pendant exact de D-31, qui a grossi sans que personne ne
 > l'écrive non plus.
 
-Dont un cité par **les deux specs sources** : `docs/takussan-whatsapp-implementation.md`
-(`features.md:382`, `models-spec.md`, TCK-282), `docs/claude-code-prompt-notifications.md`
+Dont un cité par **les deux specs sources** : `docs/takussan-whatsapp-implementation.md` <!-- lien-mort-assumé -->
+(`features.md:382`, `models-spec.md`, TCK-282), `docs/claude-code-prompt-notifications.md` <!-- lien-mort-assumé -->
 (`models-spec.md`), et trois autres.
 
 Un pointeur mort dans une source de vérité est une dette que M8 de pharma-rebuild a payée en vrai —
@@ -1108,7 +1125,36 @@ d'authentification — 193 occurrences déplacées, en `fr`, `en` ET `wo`.
 (`` `Bonjour ${nom}` ``) et les props de composants maison hors whitelist. Son total est un
 **plancher**, jamais un inventaire.
 
-### D-25 — Divers documents périmés 🟡 → [TCK-311](backlog/tickets/TCK-311-documents-perimes-et-pointeur-mort.md)
+### D-25 — Divers documents périmés ✅ *soldé le 2026-08-16* → [TCK-311](backlog/tickets/TCK-311-documents-perimes-et-pointeur-mort.md)
+
+> **Soldé — et deux lignes de l'inventaire ci-dessous étaient fausses**, ce qui est le vrai
+> enseignement : *un inventaire se re-mesure avant d'être utilisé, jamais lu.*
+>
+> - `features-by-actor.md` → **dérivé**, plus maintenu à la main. `docs/gen-features-by-actor.mjs`
+>   le régénère depuis `features.md` (231 lignes → 279 placements), et `--check` casse la CI s'il
+>   dérive. Le supprimer était exclu : **quatre tickets `done` le citent en `spec_refs`**, et
+>   `check-backlog.mjs` aurait rougi.
+> - `seeding-plan.md` → déplacé en `docs/plans/2026-04-18-seeding-annee-activite.md`, avec un
+>   bandeau « plan exécuté ». Il porte des volumétries et une stratégie de backfill de
+>   l'`activity_log` **écrites nulle part ailleurs** : le supprimer aurait perdu le raisonnement.
+>   *Son bandeau annonçait « 38 seeders » — faux : il y en a **42** (`extends Seeder`, mesuré).
+>   Un compte recopié à la main, faux comme tous les comptes recopiés à la main.*
+> - `admin-qa.md` → **la portée était plus large que « 2 occurrences de `/admin/roles` »** (il y en
+>   avait 3). Le document faisait tester **quatre surfaces supprimées par TCK-278** : la page
+>   `/admin/roles`, `POST /api/roles`, `POST /api/roles/{role}/permissions` et
+>   `POST /api/users/{user}/roles`. Il annonçait aussi une sidebar admin qui n'existe pas
+>   (« Utilisateurs », « Rôles & Permissions »). Un testeur aurait remonté six ❌ dont aucun n'était
+>   un défaut. §5 réécrite sur le mécanisme réel (profils polymorphes, `PUT users/{user}/role`).
+> - `2026-05-10-onboarding-discovery-design.md` → `status: implemented`, ses dix tickets vérifiés
+>   un par un.
+> - `takussan-web/README.md` → vrai README. Le template promettait la police **Geist** et un
+>   déploiement **Vercel** : ce projet utilise Bricolage/DM Sans et se déploie sur un VPS.
+> - Images → **retirées du HEAD, historique NON réécrit** (décision écrite dans
+>   `design-audit-2026-05-09.md`, avec la commande `git show` qui les restitue). *« Commitées par
+>   accident » était faux : `docs/image.png` était **cité** par `design-audit-2026-05-09.md` et par
+>   TCK-242.* Le vrai défaut n'était pas le poids — retirer du HEAD n'allège aucun `git clone` —
+>   mais que ces captures montrent la **palette bleue révoquée** avant TCK-129 et se lisaient, dans
+>   `docs/`, comme l'état courant de l'interface.
 
 > **Re-mesuré le 2026-08-16 : 7 → 5.** `docs/configuration.md` a été **corrigé** sur sa
 > contradiction Meilisearch (§1 dit désormais « driver `meilisearch` sur TOUS les environnements,
@@ -1123,7 +1169,7 @@ d'authentification — 193 occurrences déplacées, en `fr`, `en` ET `wo`.
 
 - `docs/features-by-actor.md` se déclare « vue miroir de `features.md` » mais est gelé au
   2026-04-14, alors que `features.md` a évolué six fois depuis.
-- `docs/seeding-plan.md` décrit l'état **antérieur** à l'implémentation (« le seeding actuel est
+- `docs/seeding-plan.md` décrit l'état **antérieur** à l'implémentation (« le seeding actuel est <!-- lien-mort-assumé : déplacé en docs/plans/, cf. le bandeau de solde ci-dessus -->
   minimal… 3 seeders ») alors que 38 seeders sont en place.
 - `docs/configuration.md` **se contredit lui-même** sur Meilisearch : §1 « driver `collection` par
   défaut », §3.6 « Meilisearch sur TOUS les environnements », §5.1 « (Optionnel) ».
@@ -1186,8 +1232,8 @@ personne n'a jamais arbitré lequel fait foi.
 
 | Fichier | `.agent/` (celui que le dépôt utilise) | `.agents/` (celui que personne ne lit) |
 |---|---|---|
-| `skills/implementing-specs/SKILL.md` | ❌ *« Permissions use `spatie/laravel-permission` »* | ✅ *« Permissions sont résolues par `MembershipCapabilityResolver` à partir des profils polymorphes (TCK-278, Règle 5) »* |
-| `skills/writing-specs/SKILL.md` | ✅ *« `INDEX.md` is **GENERATED** — never edit it by hand »* + champ `wave` requis | ❌ *« Add a new bullet line to the correct section »*, *« `INDEX.md` is part of the deliverable »* |
+| `skills/implementing-specs/SKILL.md` | ❌ *« Permissions use `spatie/laravel-permission` »* | ✅ *« Permissions sont résolues par `MembershipCapabilityResolver` à partir des profils polymorphes (TCK-278, Règle 5) »* | <!-- lien-mort-assumé : suffixe commun aux deux racines de l'en-tête, pas un chemin -->
+| `skills/writing-specs/SKILL.md` | ✅ *« `INDEX.md` is **GENERATED** — never edit it by hand »* + champ `wave` requis | ❌ *« Add a new bullet line to the correct section »*, *« `INDEX.md` is part of the deliverable »* | <!-- lien-mort-assumé : suffixe commun aux deux racines de l'en-tête, pas un chemin -->
 
 Autrement dit : **la bonne ligne sur le RBAC vit dans le répertoire mort, et la bonne ligne sur
 l'INDEX vit dans le répertoire vivant.** Quelqu'un a corrigé le RBAC dans `.agents/` — donc quelqu'un
