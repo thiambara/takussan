@@ -31,6 +31,49 @@
 # Il ne remplace PAS une vérification périodique : `npm audit` reste la mesure de
 # référence, et il voit ce que le tableau de bord n'a pas vu. Cf. ardoise D-00 et D-53.
 
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ⏸️  EN PAUSE DEPUIS LE 2026-08-16 — `open-pull-requests-limit: 0`
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# ## Ce que la pause fait, et ce qu'elle ne fait pas
+#
+# `0` suspend les mises à jour de VERSION. Les mises à jour de SÉCURITÉ
+# continuent d'être ouvertes : Dependabot les traite hors de ce plafond, et
+# c'est exactement le partage qu'on veut — on met en pause le confort, pas la
+# sécurité. Cf. D-00 et D-53 : c'est `npm audit` qui reste la mesure de
+# référence, pas ce fichier.
+#
+# ## Pourquoi, et ce que la limite masquait
+#
+# MESURÉ le 2026-08-16. Après avoir mergé les PR #154 → #176 (22 mergées),
+# Dependabot a ouvert **14 nouvelles PR en 81 secondes** (#177 → #190,
+# 21:12:51 → 21:14:12), et les deux écosystèmes concernés se sont remplis
+# EXACTEMENT à leur plafond :
+#
+#     composer /takussan-api :  5 ouvertes  ← limite 5
+#     npm      /takussan-web : 10 ouvertes  ← limite 10
+#
+# Les mêmes chiffres qu'avant. Autrement dit : la série mergée n'était pas
+# « toutes les mises à jour en attente », c'était **la fenêtre visible**. La
+# limite ne réduit pas la profondeur de la file, elle la CACHE — et rien dans
+# l'interface ne dit combien attendent derrière.
+#
+# *Un plafond qui masque ce qu'il retient se lit comme un compteur à zéro.*
+#
+# ## Ce qui a motivé la pause plutôt qu'un simple élargissement
+#
+# Trois des 14 sont des montées MAJEURES (typescript 5.9→7.0, maatwebsite/excel
+# 3→4, intervention/image 3→4). Une majeure qui ne passe pas bloque la file
+# derrière elle — c'est ce que #172 (eslint 9→10) venait de faire, et il a fallu
+# 13 corrections de code pour la débloquer. Rouvrir le robinet avant d'avoir
+# vidé le bac reproduit la situation.
+#
+# ## Comment reprendre
+#
+# Remettre les valeurs d'origine, conservées en commentaire sous chaque bloc,
+# puis surveiller la file. Ne pas rouvrir tant que des majeures sont en attente.
+
 version: 2
 updates:
   # ── Backend PHP ────────────────────────────────────────────────────────────
@@ -38,7 +81,7 @@ updates:
     directory: /takussan-api
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0   # ⏸️ en pause — valeur d'origine : 5
     commit-message:
       prefix: 'chore(deps)'
 
@@ -50,7 +93,7 @@ updates:
     directory: /takussan-api
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0   # ⏸️ en pause — valeur d'origine : 5
     commit-message:
       prefix: 'chore(deps)'
 
@@ -59,7 +102,7 @@ updates:
     directory: /takussan-web
     schedule:
       interval: weekly
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0   # ⏸️ en pause — valeur d'origine : 10
     commit-message:
       prefix: 'chore(deps)'
     groups:
@@ -78,5 +121,6 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    open-pull-requests-limit: 0   # ⏸️ en pause — pas de limite déclarée à l'origine
     commit-message:
       prefix: 'chore(ci)'
