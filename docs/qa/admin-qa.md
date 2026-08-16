@@ -10,6 +10,19 @@
 > Les fonctionnalités transverses (auth, profil, notifications, i18n, médias, recherche) sont couvertes dans [`utilisateurs-authentifies-qa.md`](./utilisateurs-authentifies-qa.md).
 > Les actions métier (biens, baux, réservations, CRM…) suivent les flux décrits dans [`agent-qa.md`](./agent-qa.md) — le rôle admin a tous les pouvoirs d'un agent + administration.
 
+> ### ⚠️ Un « rôle » n'est pas une permission — lire avant de tester la §5
+>
+> `spatie/laravel-permission` a été **désinstallé** (TCK-278). Il n'y a plus de table de rôles, plus
+> de permissions granulaires, plus de rôles personnalisés, et **plus de page `/admin/roles`**. Le
+> rôle d'un utilisateur est la présence d'un **profil polymorphe** (`OwnerProfile`, `AgentProfile`,
+> `AgencyAdminProfile`, `BrokerProfile`, `ServiceProviderProfile`, `PlatformProfile`) dans une
+> agence donnée ; les droits sont l'enum `Capability` résolue par `MembershipCapabilityResolver`
+> pour un couple *(utilisateur, agence)*.
+>
+> Ce document faisait tester `/admin/roles`, `POST /api/roles`, `POST /api/roles/{role}/permissions`
+> et `POST /api/users/{user}/roles` — **quatre surfaces qui n'existent plus**. Un testeur les aurait
+> toutes remontées en ❌ sans qu'aucune ne soit un défaut. Corrigé le 2026-08-16 (TCK-311).
+
 ---
 
 ## Légende
@@ -36,7 +49,7 @@
 3. **Mon agence** (`/admin/agency`) — config, logo, commission par défaut
 4. **Équipe** (`/admin/team`) — invitations, rôles, retraits
 5. **Utilisateurs** (`/admin/users`) — recherche, blocage, activation, attribution de rôle
-6. **Rôles & permissions** (`/admin/roles`) — rôles prédéfinis, custom, attribution
+6. **Rôle = profil polymorphe** — depuis `/admin/users` (il n'y a **pas** de page `/admin/roles`)
 7. **Modération biens** (`/admin/moderation/properties`)
 8. **Modération avis** (`/admin/moderation`) `[SUPER]`
 9. **Finances** (`/admin/finances`) — paiements, factures, payouts, rapprochement
@@ -72,7 +85,10 @@
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q3 :** La sidebar admin affiche : Tableau de bord, Équipe, Utilisateurs, Agence, Finances, Modération biens, Rôles & Permissions, Journal d'audit, Paramètres ; pour `super_admin` aussi : Biens, Modération avis ?
+**Q3 :** La sidebar admin affiche, dans cet ordre : Tableau de bord, Équipe, Agence, KYC, Facturation, Finances, Modération biens, Journal d'audit, Paramètres ; pour `super_admin` aussi : Biens (en tête) et Modération avis ?
+> Référence : `takussan-web/src/components/layout/AdminSidebar.tsx`. **Il n'y a ni entrée
+> « Utilisateurs » ni entrée « Rôles & Permissions »** — leur absence n'est pas un bug.
+> Certaines entrées sont cadenassées « Pro » selon le plan de l'agence (cf. `isProRouteLocked`).
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
@@ -252,71 +268,68 @@
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-### TC-ADM-15 — Attribuer / retirer un rôle (P1)
+### TC-ADM-15 — Changer le rôle d'un utilisateur (P1)
 
-**Étape 1 :** Sur un utilisateur, ouvrir "Rôles". Ajouter `owner` à un agent existant.
+> Le rôle est **remplacé**, pas cumulé : le PUT matérialise le profil cible dans l'agence et
+> supprime les profils agence-scopés concurrents. Composant : `UserRolesEditor.tsx`.
 
-**Q1 :** Le rôle est ajouté (`POST /api/users/{user}/roles`) ; l'utilisateur a les deux rôles ; la sidebar reflète les nouveaux liens dès le prochain refresh ?
+**Étape 1 :** Sur un utilisateur, ouvrir "Rôle". Choisir `owner` sur un agent existant.
+
+**Q1 :** Le rôle est appliqué (`PUT /api/users/{user}/role`, via le BFF `/api/admin-users/{id}/role`) ; l'`AgentProfile` de l'agence est remplacé par un `OwnerProfile` ; la sidebar reflète les nouveaux liens dès le prochain refresh ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Étape 2 :** Retirer un rôle.
+**Étape 2 :** Sur le même utilisateur, choisir `tenant` (ou `customer`, ou `service_provider`).
 
-**Q2 :** Suppression effective (`DELETE /api/users/{user}/roles/{role}`) ; les permissions sont retirées immédiatement ?
+**Q2 :** Ces trois valeurs sont acceptées par la validation mais **ne créent aucun profil** — elles passent par les flux dédiés (invitation / booking / bail). L'UI l'explique-t-elle au lieu de laisser croire à un échec ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
 ---
 
-## 5. Rôles & permissions (`/admin/roles`)
+## 5. Rôle = profil polymorphe (depuis `/admin/users`)
 
-### TC-ADM-16 — Rôles prédéfinis (P0)
+> **Il n'existe pas de page `/admin/roles`, et c'est voulu** (TCK-278). Les scénarios ci-dessous
+> remplacent les anciens TC-ADM-16/17/18, qui testaient des rôles personnalisés et des permissions
+> granulaires — un mécanisme désinstallé. Ne pas remonter l'absence de `/admin/roles` comme un bug.
 
-**Étape 1 :** Naviguer vers `/admin/roles`.
+### TC-ADM-16 — Les rôles assignables sont un ensemble fermé (P0)
 
-**Q1 :** Les 6 rôles prédéfinis sont présents : `customer`, `agent`, `agency_admin`, `owner`, `service_provider`, `super_admin` ?
+**Étape 1 :** Sur `/admin/users`, ouvrir l'éditeur de rôle d'un utilisateur.
+
+**Q1 :** Les valeurs proposées sont un **ensemble fixe, défini en code** (`UserRoleController::allowedRoles()`) — il n'y a aucun moyen de créer un rôle depuis l'UI ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q2 :** Pour chaque rôle, cliquer pour ouvrir le détail : la liste des permissions accordées est visible ; les permissions sont groupées par ressource (Property, Lease, Booking, etc.) ?
+**Q2 :** Aucune page ni aucun lien de l'espace admin ne mène à une gestion de « permissions » individuelles ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q3 :** La distinction "mes ressources" vs "toutes les ressources" est visible (ex: `lease.view-own` vs `lease.view-any`) ?
+### TC-ADM-17 — Le profil est scopé à l'agence (P0)
+
+**Étape 1 :** En `agency_admin` de l'agence A, changer le rôle d'un utilisateur membre de l'agence A.
+
+**Q1 :** L'opération réussit et n'affecte **que** les profils de l'agence A — les profils que ce même utilisateur porte dans une autre agence sont intacts ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-### TC-ADM-17 — Rôle personnalisé scopé agence (P1)
+**Étape 2 :** Tenter le même `PUT /api/users/{user}/role` sur un utilisateur qui n'appartient pas à l'agence A.
 
-**Étape 1 :** Cliquer "Créer un rôle". Nommer `Comptable`. Sélectionner uniquement les permissions liées aux paiements/factures.
-
-**Q1 :** Le rôle est créé (`POST /api/roles`) ; il apparaît dans la liste avec scope = nom de l'agence ?
+**Q2 :** 403 ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Étape 2 :** Attribuer ce rôle à un user puis vérifier qu'il accède uniquement aux paiements/factures.
+### TC-ADM-18 — `super_admin` ne s'auto-attribue pas (P0)
 
-**Q2 :** Les autres pages (biens, customers) lui retournent 403 ?
+**Étape 1 :** En `agency_admin`, tenter `PUT /api/users/{user}/role` avec `{"role": "super_admin"}`.
+
+**Q1 :** 403 avec le message `messages.only_super_admin_can_grant_super_admin` — seul un `super_admin` peut accorder `super_admin` ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Étape 3 :** Modifier les permissions du rôle Comptable.
+**Étape 2 :** Refaire l'opération avec un compte `super_admin`.
 
-**Q3 :** Les permissions des users portant ce rôle sont mises à jour immédiatement ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-**Étape 4 :** Supprimer le rôle Comptable.
-
-**Q4 :** Une confirmation est demandée ; après suppression les users perdent l'accès. Si des users portent encore ce rôle, soit blocage soit avertissement explicite ?
-> Réponse : _______________________________________________
-> Statut : ✅ ❌ ⚠️ 🔲
-
-### TC-ADM-18 — Permissions granulaires
-
-**Étape 1 :** Sur le détail d'un rôle, ajouter/retirer une permission individuelle.
-
-**Q1 :** Ajout (`POST /api/roles/{role}/permissions`) et retrait (`DELETE /api/roles/{role}/permissions/{permission}`) fonctionnent et sont tracés dans l'audit log ?
+**Q2 :** Un `PlatformProfile` de niveau `super_admin` (cross-tenant) est créé ou réactivé ; l'événement est tracé dans l'audit log ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
@@ -717,7 +730,7 @@
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
-**Q4 :** L'agency_admin ne peut pas s'attribuer le rôle `super_admin` (rôle protégé) ?
+**Q4 :** L'agency_admin ne peut pas s'attribuer le rôle `super_admin` — cf. TC-ADM-18, qui le vérifie au niveau de l'API ?
 > Réponse : _______________________________________________
 > Statut : ✅ ❌ ⚠️ 🔲
 
