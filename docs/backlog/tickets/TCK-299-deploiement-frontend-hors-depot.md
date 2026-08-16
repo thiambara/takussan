@@ -34,6 +34,31 @@ Aucune donnée applicative. Mesuré le 2026-08-16 :
 - `web-ci.yml` existe (D-06, soldé le 2026-08-12) mais **teste** ; il ne déploie pas.
 - La seule trace de Vercel dans le dépôt est une regex d'origine CORS côté Laravel.
 
+## ✅ Première mesure, obtenue le 2026-08-16 — et sans accès à Vercel
+
+**Le front N'EST PAS « déployé par rien ».** Il est déployé par une **intégration Git Vercel**, et
+c'est mesuré : l'ouverture de la PR #176 a fait apparaître deux checks GitHub que le dépôt ne
+déclare nulle part —
+
+```
+Vercel                    pending   « Vercel is deploying your app »
+                          → vercel.com/thiambaras-projects/takussan/6UCsJQJ97xeAeCvUhjzhEPo4NiLF
+Vercel Preview Comments   pass
+```
+
+Le projet est donc `thiambaras-projects/takussan`, et le déclencheur est l'**intégration côté
+Vercel**, pas un workflow. C'est pour cela que `deploy.yml` et `deploy-preview.yml` citent zéro
+fichier de `takussan-web/` : ils n'ont jamais eu à le faire.
+
+> **La leçon est la même que D-04, dans l'autre sens.** D-04 disait *« ne jamais déduire l'état d'un
+> environnement de la configuration qui le vise »* — et ce ticket avait déduit de l'absence de
+> workflow que le déploiement n'existait pas. **Une absence dans le dépôt ne prouve rien : elle
+> prouve seulement que le dépôt ne le fait pas.** Il a suffi d'ouvrir une PR pour que le mécanisme
+> se montre.
+
+**Ce qui reste à mesurer**, et qui exige toujours le tableau de bord Vercel : quelle branche sert la
+production, quelle branche sert la preview, et quelles variables d'environnement le build reçoit.
+
 ## Contraintes strictes (métier)
 
 - **Ne rien déduire de la plateforme.** Comme pour D-04, l'existence d'un fichier de configuration
