@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { DoorOpen } from 'lucide-react';
 
+import { EmptyState } from '@/components/feedback';
 import { MediaDropzone } from '@/components/media';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Button } from '@/components/ui/button';
@@ -41,6 +43,7 @@ export function InventoryDetail({ id }: { readonly id: number }) {
 }
 
 function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
+  const t = useTranslations('inventory.detail');
   const locale = useLocale() as Locale;
   const isDraft = inventory.status === 'draft';
 
@@ -125,9 +128,11 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
           Pièces ({inventory.rooms.length})
         </h3>
         {inventory.rooms.length === 0 ? (
-          <p className="rounded-xl bg-app-surface-1 p-6 text-center text-sm text-app-ink-muted">
-            Aucune pièce n&apos;a été enregistrée dans ce brouillon.
-          </p>
+          <EmptyState
+            icon={<DoorOpen className="size-8" aria-hidden="true" />}
+            title={t('empty_rooms_title')}
+            description={t('empty_rooms_description')}
+          />
         ) : (
           <div className="space-y-3">
             {inventory.rooms.map((room, index) => (

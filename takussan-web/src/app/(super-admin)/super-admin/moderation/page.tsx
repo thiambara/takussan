@@ -1,6 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { ShieldCheck } from 'lucide-react';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -21,6 +24,7 @@ import type {
 import type { ApiError } from '@/lib/api';
 
 export default function SuperAdminModerationPage() {
+  const t = useTranslations('superAdmin.moderation');
   const searchParams = useSearchParams();
   const router = useRouter();
   const [selected, setSelected] = useState<AdminModerationItem | null>(null);
@@ -84,13 +88,13 @@ export default function SuperAdminModerationPage() {
           ))}
         </div>
       ) : queueQuery.isError ? (
-        <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive ring-1 ring-destructive/20" role="alert">
-          Erreur de chargement. {queueQuery.error.displayMessage}
-        </div>
+        <ErrorState message={queueQuery.error.displayMessage ?? t('error')} />
       ) : items.length === 0 ? (
-        <div className="rounded-xl bg-card p-8 text-center text-sm text-muted-foreground ring-1 ring-border">
-          Aucun item de modération ne correspond aux filtres courants.
-        </div>
+        <EmptyState
+          icon={<ShieldCheck className="size-8" aria-hidden="true" />}
+          title={t('empty_title')}
+          description={t('empty_description')}
+        />
       ) : (
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-4">

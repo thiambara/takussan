@@ -1,7 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -72,6 +74,8 @@ export interface CalendarPageProps {
 }
 
 export function CalendarPage({ initialFocus }: CalendarPageProps) {
+  const t = useTranslations('calendar');
+  const tCommon = useTranslations('common');
   const [view, setView] = useState<CalendarView>('month');
   const [focus, setFocus] = useState<Date>(() => startOfDay(initialFocus ?? new Date()));
   const [selectedTypes, setSelectedTypes] = useState<readonly CalendarEventType[]>([
@@ -290,9 +294,11 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
       {query.isLoading ? (
         <div className="h-96 animate-pulse rounded-xl bg-stone-100" />
       ) : query.isError ? (
-        <p className="rounded-xl bg-red-50 p-6 text-sm text-red-700">
-          Impossible de charger le calendrier.
-        </p>
+        <ErrorState
+          message={t('error')}
+          onRetry={() => void query.refetch()}
+          retryLabel={tCommon('actions.retry')}
+        />
       ) : (
         <>
           {view === 'month' && (

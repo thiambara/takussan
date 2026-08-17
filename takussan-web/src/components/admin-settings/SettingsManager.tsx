@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useMemo, useState, useTransition } from 'react';
-import { Loader2, Pencil, Plus, Save, Trash2, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { Loader2, Pencil, Plus, Save, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { EmptyState } from '@/components/feedback';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,6 +59,7 @@ const SCOPE_LABELS: Record<SettingScope, string> = {
 const SENSITIVE_KEYS = new Set(['maintenance_mode', 'feature_flags']);
 
 export function SettingsManager({ initialSettings, canManageGlobal }: SettingsManagerProps) {
+  const t = useTranslations('adminSettings.settings');
   const [settings, setSettings] = useState<Setting[]>(initialSettings);
   const [scopeFilter, setScopeFilter] = useState<'all' | SettingScope>('all');
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -209,8 +212,13 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
           <tbody className="divide-y divide-input">
             {visible.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-app-ink-muted">
-                  Aucun paramètre pour ce filtre.
+                <td colSpan={4} className="p-0">
+                  <EmptyState
+                    className="border-0"
+                    icon={<SlidersHorizontal className="size-8" aria-hidden="true" />}
+                    title={t('empty_title')}
+                    description={t('empty_description')}
+                  />
                 </td>
               </tr>
             ) : (

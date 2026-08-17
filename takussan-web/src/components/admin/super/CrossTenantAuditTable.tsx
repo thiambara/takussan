@@ -2,12 +2,16 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
+import { ScrollText } from 'lucide-react';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { DatePicker } from '@/components/ui/date-picker';
 import { fetchAuditLog } from '@/lib/queries/super-admin';
 import type { AuditLogResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 
 export function CrossTenantAuditTable() {
+  const t = useTranslations('superAdmin.audit');
   const [event, setEvent] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -77,13 +81,13 @@ export function CrossTenantAuditTable() {
           ))}
         </div>
       ) : isError ? (
-        <div className="rounded-xl bg-red-50 p-4 text-sm text-red-900" role="alert">
-          Erreur de chargement. {error?.displayMessage}
-        </div>
+        <ErrorState message={error?.displayMessage ?? t('error')} />
       ) : !data || data.data.length === 0 ? (
-        <p className="rounded-xl bg-white p-6 text-center text-sm text-stone-500 ring-1 ring-stone-200">
-          Aucune entrée pour ces filtres.
-        </p>
+        <EmptyState
+          icon={<ScrollText className="size-8" aria-hidden="true" />}
+          title={t('empty_title')}
+          description={t('empty_description')}
+        />
       ) : (
         <div className="overflow-x-auto rounded-xl bg-white ring-1 ring-stone-200">
           <table className="w-full text-sm">

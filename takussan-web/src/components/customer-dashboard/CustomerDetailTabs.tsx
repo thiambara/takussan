@@ -1,5 +1,8 @@
 'use client';
 
+import { Users } from 'lucide-react';
+
+import { EmptyState } from '@/components/feedback';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CustomerForm } from '@/components/customer-form';
 import type {
@@ -9,7 +12,7 @@ import type {
   CustomerRelationship,
 } from '@/types/customer';
 import { formatDateTime } from '@/lib/format';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import type { Locale } from '@/i18n/config';
 
 import { CustomerNotesTimeline } from './CustomerNotesTimeline';
@@ -33,6 +36,7 @@ export function CustomerDetailTabs({
   relationships,
 }: CustomerDetailTabsProps) {
   const locale = useLocale() as Locale;
+  const t = useTranslations('crm.customerDetail.relationships');
 
   return (
     <Tabs defaultValue="overview" className="space-y-4">
@@ -57,9 +61,11 @@ export function CustomerDetailTabs({
 
       <TabsContent value="relationships">
         {relationships.length === 0 ? (
-          <p className="rounded-xl bg-app-surface-1 px-4 py-6 text-center text-sm text-app-ink-muted">
-            Aucune relation enregistrée pour ce contact.
-          </p>
+          <EmptyState
+            icon={<Users className="size-8" aria-hidden="true" />}
+            title={t('empty_title')}
+            description={t('empty_description')}
+          />
         ) : (
           <ul className="space-y-2">
             {relationships.map((rel) => (

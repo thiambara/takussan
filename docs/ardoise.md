@@ -879,6 +879,42 @@ possible est de l'afficher au démarrage.
 
 ---
 
+### D-55 — Le bump TypeScript 7 reste bloqué EN AMONT par `typescript-eslint` 🟡 *mesuré le 2026-08-16, re-mesuré le 2026-08-17 (TCK-323)* → [TCK-323](backlog/tickets/TCK-323-typescript-7-casse-le-cliquet-i18n.md)
+
+**Ce qui est soldé, et ce qui ne l'est pas.** TCK-323 a rendu la garde i18n indépendante de
+TypeScript : `scripts/i18n-scan.mjs` n'importe plus `typescript`, ses 21 tests passent sous 5 comme
+sous 7, et `npm run check:i18n` rend le même compte au fichier près. **Cela ne débloque pas le
+bump** — la seconde cause est ailleurs, et elle est hors de ce dépôt.
+
+`@typescript-eslint@8.67.0`, tiré par `eslint-config-next@16.3.1`, **refuse TS 7.0 explicitement** :
+
+```
+typescript-eslint does not support TS 7.0.
+See also https://github.com/typescript-eslint/typescript-eslint/issues/10940
+for tracking typescript-eslint's support for TS >=7.1
+```
+
+Sa plage déclarée est `typescript >=4.8.4 <6.1.0`, et `npm ls` marque TS 7 `invalid` dans tout
+l'arbre. Le support est annoncé pour **TS ≥ 7.1, pas 7.0** : rien de ce dépôt ne peut lever ce
+point, il s'attend en amont — suivi sur
+[typescript-eslint#10940](https://github.com/typescript-eslint/typescript-eslint/issues/10940).
+
+**Ce qui rend cette dette instructive tient à ce qui ne l'a PAS vue.** Sous TS 7.0.2, mesuré :
+
+| commande | verdict |
+|---|---|
+| `npx tsc --noEmit` | **exit 0** — TS 7 compile ce code sans une erreur |
+| `npm run build` | **réussi** — 89 pages générées |
+| `npm run lint` | **meurt au chargement** (la cause ci-dessus) |
+| `npm run test` | **18 rouges**, tous sur `src/i18n/__tests__/i18n-scan.test.ts` (avant TCK-323) |
+
+Les deux commandes qu'on lance d'instinct pour juger d'une montée de TypeScript passent toutes les
+deux. *La compilation d'un dépôt ne dit rien de l'outillage qui l'entoure.*
+
+**PR #182 n'est ni recréée ni rebasée toute seule** : Dependabot est en pause depuis #194.
+
+---
+
 ## 🟠 Documentation qui ment
 
 C'est la famille la plus dense, et la plus coûteuse à la reprise : **lire un document faux coûte plus

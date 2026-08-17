@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { AlertTriangle } from 'lucide-react';
 
+import { getTranslations } from 'next-intl/server';
+
 import { getMeAction } from '@/app/actions/auth';
 
 export const metadata: Metadata = { title: 'Fiche client' };
@@ -15,7 +17,9 @@ import {
   fetchDashboardCustomer,
 } from '@/lib/queries/customers';
 import { assertCanReachAgentArea } from '@/lib/auth/guards';
+import { EmptyState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
 import { CustomerDetailTabs } from '@/components/customer-dashboard/CustomerDetailTabs';
 import { CustomerTagPickerSection } from '@/components/customer-dashboard/CustomerTagPickerSection';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
@@ -46,12 +50,15 @@ export default async function Page({ params }: { params: Params }) {
   const token = await getToken();
   if (!token) redirect('/app');
 
+  const t = await getTranslations('crm.customerDetail');
+
   const customerId = Number.parseInt(id, 10);
   if (!Number.isFinite(customerId)) {
     return (
-      <CustomerDetailError
-        title="Fiche client introuvable"
-        message="L'identifiant demandé ne correspond à aucun client exploitable."
+      <CustomerDetailUnavailable
+        title={t('not_found_title')}
+        message={t('invalid_id_message')}
+        backLabel={t('back_cta')}
       />
     );
   }
@@ -70,17 +77,19 @@ export default async function Page({ params }: { params: Params }) {
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) {
       return (
-        <CustomerDetailError
-          title="Fiche client introuvable"
-          message="Ce client n'existe plus ou n'appartient pas à votre périmètre CRM."
+        <CustomerDetailUnavailable
+          title={t('not_found_title')}
+          message={t('not_found_message')}
+          backLabel={t('back_cta')}
         />
       );
     }
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
       return (
-        <CustomerDetailError
-          title="Accès client refusé"
-          message="Votre profil actif ne permet pas d'ouvrir cette fiche client."
+        <CustomerDetailUnavailable
+          title={t('forbidden_title')}
+          message={t('forbidden_message')}
+          backLabel={t('back_cta')}
         />
       );
     }
@@ -135,26 +144,31 @@ export default async function Page({ params }: { params: Params }) {
   );
 }
 
-function CustomerDetailError({
+/**
+ * `CustomerDetailError` était son nom, et il décrivait mal ce qu'il fait : les trois cas qu'il
+ * rend — identifiant invalide, 404, 403 — ne sont pas des erreurs à réessayer mais une fiche
+ * qu'on ne peut pas ouvrir. C'est un état vide, pas un bloc d'erreur : d'où `EmptyState` et non
+ * `ErrorState`, et d'où le nom (TCK-291).
+ */
+function CustomerDetailUnavailable({
   title,
   message,
+  backLabel,
 }: {
   readonly title: string;
   readonly message: string;
+  readonly backLabel: string;
 }) {
   return (
-    <div className="rounded-xl bg-card p-8 text-center">
-      <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted text-primary">
-        <AlertTriangle className="size-6" aria-hidden="true" />
-      </div>
-      <h1 className="mt-4 font-display text-2xl font-bold text-foreground">{title}</h1>
-      <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">{message}</p>
-      <Link
-        href="/app/customers"
-        className="mt-5 inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-      >
-        Revenir au CRM
-      </Link>
-    </div>
+    <EmptyState
+      icon={<AlertTriangle className="size-8" aria-hidden="true" />}
+      title={title}
+      description={message}
+      action={
+        <Link href="/app/customers" className={buttonVariants()}>
+          {backLabel}
+        </Link>
+      }
+    />
   );
 }

@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useMemo, useState, useTransition } from 'react';
-import { Loader2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { Loader2, Pencil, Plus, Search, Tags, Trash2 } from 'lucide-react';
+import { EmptyState } from '@/components/feedback';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,6 +67,7 @@ function emptyFormValues(): TagFormValues {
 }
 
 export function TagsManager({ initialTags }: TagsManagerProps) {
+  const t = useTranslations('adminTags');
   const [tags, setTags] = useState<Tag[]>(initialTags);
   const [activeType, setActiveType] = useState<TagType | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -231,8 +234,13 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
           <tbody className="divide-y divide-input">
             {filteredTags.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-sm text-app-ink-muted">
-                  Aucun tag pour cette recherche.
+                <td colSpan={5} className="p-0">
+                  <EmptyState
+                    className="border-0"
+                    icon={<Tags className="size-8" aria-hidden="true" />}
+                    title={t('empty_title')}
+                    description={t('empty_description')}
+                  />
                 </td>
               </tr>
             ) : (
