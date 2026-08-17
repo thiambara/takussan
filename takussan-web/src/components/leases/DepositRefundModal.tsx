@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -153,11 +154,7 @@ export function DepositRefundModal({
             void handleSubmit(onSubmit)(e);
           }}
         >
-          {globalError && (
-            <div role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-700">
-              {globalError}
-            </div>
-          )}
+          {globalError && <ErrorState message={globalError} />}
 
           <div className="space-y-1">
             <Label htmlFor="deposit-refund-amount">{t('modal.amount_label')}</Label>

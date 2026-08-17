@@ -1,6 +1,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
+import { ErrorState } from '@/components/feedback';
 import { fetchSystemMetrics } from '@/lib/queries/super-admin';
 import type { SystemMetricsResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
@@ -20,6 +22,7 @@ function formatCurrency(n: number, currency: string): string {
 }
 
 export function SystemMetricsGrid() {
+  const t = useTranslations('superAdmin.metrics');
   const { data, isLoading, isError, error } = useQuery<SystemMetricsResponse, ApiError>({
     queryKey: ['super-admin', 'system-metrics'],
     queryFn: fetchSystemMetrics,
@@ -37,11 +40,7 @@ export function SystemMetricsGrid() {
   }
 
   if (isError) {
-    return (
-      <div className="rounded-xl bg-red-50 p-4 text-sm text-red-900" role="alert">
-        Impossible de charger les KPIs plateforme. {error?.displayMessage}
-      </div>
-    );
+    return <ErrorState message={error?.displayMessage ?? t('error')} />;
   }
 
   if (!data) return null;

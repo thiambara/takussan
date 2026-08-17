@@ -250,7 +250,7 @@ export function AccountDeletionDialog({
         )}
 
         {error ? (
-          <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             {error}
             {obligations && obligations.length > 0 ? (
               <div className="mt-2">

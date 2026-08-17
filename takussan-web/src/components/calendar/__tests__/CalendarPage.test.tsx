@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { NextIntlClientProvider } from 'next-intl';
+import { withIntl } from '@/test/intl';
 import { CalendarPage } from '../CalendarPage';
 import type { CalendarEvent } from '@/types/calendar';
 
@@ -39,11 +39,9 @@ vi.mock('@/lib/queries/calendar', () => ({
 
 function wrap(ui: React.ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return (
-    <NextIntlClientProvider locale="fr" messages={{}}>
-      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
-    </NextIntlClientProvider>
-  );
+  // `withIntl` charge le VRAI `fr.json` : depuis TCK-291, le bloc d'erreur et les états vides du
+  // calendrier passent par next-intl, et `messages={{}}` rendrait la CLÉ au lieu du libellé.
+  return withIntl(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
 function mkBooking(overrides: Partial<CalendarEvent> = {}): CalendarEvent {

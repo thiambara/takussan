@@ -1,6 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { Mails } from 'lucide-react';
+import { EmptyState } from '@/components/feedback';
 import { useQuery } from '@tanstack/react-query';
 import {
   NotificationEventList,
@@ -11,6 +14,7 @@ import type { NotificationTemplateChannel, NotificationTemplatesResponse } from 
 import type { ApiError } from '@/lib/api';
 
 export default function SuperAdminTemplatesPage() {
+  const t = useTranslations('superAdmin.templates');
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<NotificationTemplateChannel>('email');
   const query = useQuery<NotificationTemplatesResponse, ApiError>({
@@ -55,9 +59,11 @@ export default function SuperAdminTemplatesPage() {
           />
         </div>
       ) : (
-        <div className="rounded-xl bg-card p-8 text-center text-sm text-muted-foreground ring-1 ring-border">
-          Aucun template éditable.
-        </div>
+        <EmptyState
+          icon={<Mails className="size-8" aria-hidden="true" />}
+          title={t('empty_title')}
+          description={t('empty_description')}
+        />
       )}
     </div>
   );

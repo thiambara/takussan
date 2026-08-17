@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useState, useTransition } from 'react';
+import { useTranslations } from 'next-intl';
 import { CheckCircle2, Loader2, Plug, Plus, Trash2, XCircle } from 'lucide-react';
+import { EmptyState } from '@/components/feedback';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -76,6 +78,7 @@ function emptyForm(): IntegrationFormValues {
 }
 
 export function IntegrationsManager({ initialIntegrations }: IntegrationsManagerProps) {
+  const t = useTranslations('adminSettings.integrations');
   const [integrations, setIntegrations] = useState<Integration[]>(initialIntegrations);
   const [testResults, setTestResults] = useState<
     Record<number, { kind: 'success' | 'error'; message: string } | 'loading' | undefined>
@@ -209,10 +212,11 @@ export function IntegrationsManager({ initialIntegrations }: IntegrationsManager
       </div>
 
       {integrations.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-input bg-app-surface-1 p-8 text-center text-sm text-app-ink-muted">
-          Aucune intégration configurée. Ajoutez-en une pour permettre les paiements
-          Wave, Orange Money, Stripe, etc.
-        </div>
+        <EmptyState
+          icon={<Plug className="size-8" aria-hidden="true" />}
+          title={t('empty_title')}
+          description={t('empty_description')}
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {integrations.map((integration) => {
