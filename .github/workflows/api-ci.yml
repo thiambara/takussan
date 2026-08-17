@@ -353,8 +353,13 @@ jobs:
       # suite entière, et la réparation de péremption ajoute toute classe de test modifiée depuis.
       # La sélection devient plus large et plus lente, jamais plus permissive.
       - name: Régénérer la carte d'impact
-        if: false  # TCK-331
-        if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+        # TCK-331 — condition mise à `false` plutôt qu'une SECONDE clé `if:` ajoutée au-dessus :
+        # deux `if:` sur un même step font rejeter le workflow ENTIER par GitHub, qui n'exécute
+        # alors aucun job. Et `yaml.safe_load` l'accepte sans broncher — une clé dupliquée écrase
+        # silencieusement la précédente — donc la validation locale passe sur un fichier invalide.
+        # La condition d'origine est conservée ci-dessous en commentaire, pour la restauration.
+        #   if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+        if: false
         run: |
           php bin/build-impact-map.php storage/coverage/cov.php tests/impact-map.json
 
