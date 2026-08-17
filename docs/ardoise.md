@@ -1781,8 +1781,10 @@ deux familles qui n'appellent pas le même travail.
    (`public_test_5`, `public_test_3`… au lieu de `public_test_<pid+aléa>`) et **supplante** le
    mécanisme du dépôt. L'isolation reste assurée — par Laravel, plus par nous — mais le quatrième
    mécanisme de D-44 est alors court-circuité en silence. Ce n'est donc pas un basculement de
-   drapeau : il faut d'abord **décider** lequel des deux jetons gouverne, et réécrire les deux
-   gardes en conséquence.
+   drapeau : il faut d'abord **composer** les deux jetons — celui de Laravel isole les workers
+   entre eux, celui du dépôt isole les exécutions simultanées entre elles — et réécrire les deux
+   gardes en conséquence. *(Formulation corrigée le 2026-08-17 : cette phrase disait « décider
+   lequel des deux gouverne », ce qui réintroduisait la panne de D-44 — cf. le bloc ci-dessous.)*
 2. **Un échec INTERMITTENT, 3 fois sur 5** — `PropertyIsTestExclusionTest::test_public_search_excludes_is_test_properties`.
    Relancé **seul**, comme l'exige la règle du dépôt, il échoue **de façon déterministe**… alors
    qu'il **passe** dans la suite complète séquentielle (deux exécutions indépendantes). Ce test ne
