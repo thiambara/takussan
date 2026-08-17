@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\Capability;
 use App\Models\Enums\PlatformProfileLevel;
+use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\User;
 
 /**
@@ -19,6 +20,11 @@ use App\Models\User;
  * ?Agency)` sont intacts, ce que garde
  * `MembershipCapabilityResolverSignatureTest`.
  *
+ * Phase 3 (TCK-315, ADR-0015) : la branche `service_provider` rejoint le
+ * pivot elle aussi, via `service_provider_agency_collaborations.agency_role_id`.
+ * **Plus aucun chemin d'autorisation ne court-circuite le pivot** — cette
+ * classe ne lit plus {@see SystemRoleCapabilities} du tout.
+ *
  * La table de vérité phase 1 n'a pas disparu : elle a été extraite dans
  * {@see SystemRoleCapabilities} et sert désormais de **seed** aux rôles
  * système de chaque agence. Un rôle personnalisé s'en écarte librement.
@@ -30,7 +36,6 @@ class MembershipCapabilityResolver
 {
     public function __construct(
         private readonly AgencyRoleCapabilityCache $cache,
-        private readonly SystemRoleCapabilities $catalog,
     ) {}
 
     /**
@@ -99,15 +104,36 @@ class MembershipCapabilityResolver
             }
         }
 
-        // `ServiceProviderProfile` n'a pas de pointeur `agency_role_id` :
-        // il est user-scopé et collabore avec N agences (cf. migration
-        // 120200 de TCK-279). Tant que la décision n'est pas prise — rôle
-        // porté par la collaboration, ou profil rendu agence-scopé — cette
-        // branche reste sur la table de vérité phase 1, qui est aussi la
-        // source du rôle système `service_provider` seedé par agence : les
-        // deux chemins donnent donc le même résultat par défaut.
-        if ($user->isProviderAt($agencyId)) {
-            return in_array($capability, $this->catalog->for(AgencyRoleBaseType::ServiceProvider), true);
+        return $this->serviceProviderRoleAllows($user, $agencyId, $capability);
+    }
+
+    /**
+     * Branche prestataire — TCK-315 (ADR-0015).
+     *
+     * `ServiceProviderProfile` n'a pas de pointeur `agency_role_id` et n'en
+     * aura pas : il est user-scopé (`user_id` UNIQUE, aucune colonne
+     * `agency_id`) et sert N agences. C'est sa COLLABORATION qui porte le
+     * rôle, une par agence — d'où une requête différente de
+     * {@see self::roleAllows()}, et non un traitement différent.
+     *
+     * Auparavant, cette branche répondait depuis `SystemRoleCapabilities`
+     * pour tout prestataire collaborant avec l'agence. Le verdict était le
+     * même par défaut — le catalogue est la source du rôle système seedé —
+     * mais un rôle PERSONNALISÉ créé pour un prestataire n'avait aucun
+     * effet, et rien ne le disait.
+     */
+    private function serviceProviderRoleAllows(User $user, int $agencyId, Capability $capability): bool
+    {
+        $roleIds = ServiceProviderAgencyCollaboration::query()
+            ->where('agency_id', $agencyId)
+            ->whereNotNull('agency_role_id')
+            ->whereHas('serviceProviderProfile', fn ($query) => $query->where('user_id', $user->id))
+            ->pluck('agency_role_id');
+
+        foreach ($roleIds as $roleId) {
+            if ($this->cache->allows((int) $roleId, $capability)) {
+                return true;
+            }
         }
 
         return false;
