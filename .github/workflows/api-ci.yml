@@ -16,6 +16,14 @@ on:
 
 jobs:
   lint-and-test:
+    # TCK-320 — `contents: write` pour le step « Régénérer la carte d'impact » : il pousse un
+    # commit sur `dev` après coup. `dev` n'est pas protégée (vérifié le 2026-08-17 : `gh api
+    # repos/thiambara/takussan/branches/dev/protection` → 404), le push direct est donc possible.
+    # Déclarer `permissions` sur le job REMPLACE les scopes par défaut du token — le reste du job
+    # (checkout, upload-artifact) ne lit et n'écrit rien d'autre que `contents`, donc rien n'est
+    # perdu qu'on utilisait déjà.
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -174,7 +182,8 @@ jobs:
             --coverage \
             --min=86 \
             --coverage-clover=storage/coverage/clover.xml \
-            --coverage-html=storage/coverage/html
+            --coverage-html=storage/coverage/html \
+            --coverage-php=storage/coverage/cov.php
           code=$?
           set -e
           echo "Durée de la suite AVEC couverture : $(( $(date +%s) - debut )) s"
@@ -219,6 +228,43 @@ jobs:
           path: takussan-api/storage/coverage/html
           retention-days: 14
           if-no-files-found: warn
+
+      # ────────────────────────────────────────────────────────────────────────
+      # La carte d'impact — régénérée sur push vers `dev`, JAMAIS sur une PR.
+      #
+      # Pourquoi pas sur PR : le fichier serait réécrit par chaque branche et
+      # deviendrait un aimant à conflits de merge, pour une donnée que personne ne
+      # relit. Sur `dev`, il n'y a qu'un seul écrivain.
+      #
+      # `[skip ci]` n'est pas une politesse : sans lui, ce push relancerait API CI
+      # (le déclencheur couvre `takussan-api/**`, et la carte vit sous
+      # `takussan-api/tests/`), qui régénérerait la carte, qui repousserait — une
+      # boucle qui ne s'arrête pas toute seule.
+      #
+      # `dev` n'est pas protégée (vérifié le 2026-08-17 : `gh api
+      # repos/thiambara/takussan/branches/dev/protection` → 404). Le jour où elle le
+      # devient, ce step échouera au push et devra passer par une PR.
+      - name: Régénérer la carte d'impact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+        run: |
+          php bin/build-impact-map.php storage/coverage/cov.php tests/impact-map.json
+
+          if git diff --quiet -- tests/impact-map.json; then
+            echo "carte inchangée — rien à pousser"
+            exit 0
+          fi
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/impact-map.json
+          git commit -m "chore(tests): régénérer la carte d'impact [skip ci]"
+
+          # Une seule tentative de rebase : si un autre push est arrivé entretemps, on
+          # se replace dessus. Au-delà, on abandonne SANS faire rougir le job — la
+          # carte est un index, sa fraîcheur n'est pas une garde (cf.
+          # scripts/check-impact-map.mjs).
+          git pull --rebase --quiet origin dev || { echo "⚠ rebase impossible — carte non poussée"; exit 0; }
+          git push origin HEAD:dev || echo "⚠ push refusé — carte non poussée"
 
   # ────────────────────────────────────────────────────────────────────────────
   # Les migrations rejouées sur MySQL 8.0 — le moteur MESURÉ de la production (cf. le bloc
