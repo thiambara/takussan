@@ -147,13 +147,36 @@ abstract class TestCase extends LaravelTestCase
         return $user;
     }
 
+    /**
+     * TCK-304 × TCK-309 — défaut d'INTÉGRATION, réparé ici.
+     *
+     * TCK-304 avait corrigé ce helper dans `Tests\BaseTestCase` ; TCK-309 a fondu
+     * `BaseTestCase` dans cette classe. Les deux branches étaient vertes seules, et la
+     * fusion a réintroduit l'ANCIENNE version — celle qui exige `links`.
+     *
+     * Deux changements, tous deux de TCK-304 :
+     *
+     * 1. **`links` n'est plus exigé.** 52 des 57 contrôleurs ne l'émettaient pas ; l'exiger
+     *    est précisément ce qui faisait qu'aucun test n'appelait ce helper — il aurait rougi
+     *    partout, donc on ne s'en servait pas. Une assertion que personne n'ose invoquer ne
+     *    garde rien.
+     * 2. **Les quatre valeurs de `meta` sont vérifiées ENTIÈRES.** C'est le durcissement qui
+     *    remplace `links` : une enveloppe qui rendrait `"12"` au lieu de `12` satisfaisait
+     *    l'ancienne structure sans que rien ne bronche.
+     */
     protected function assertJsonStructurePaginated(TestResponse $response): void
     {
         $response->assertJsonStructure([
             'data',
-            'meta' => ['current_page', 'last_page', 'per_page', 'total'],
-            'links' => ['first', 'last', 'prev', 'next'],
+            'meta' => ['total', 'per_page', 'current_page', 'last_page'],
         ]);
+
+        foreach (['total', 'per_page', 'current_page', 'last_page'] as $cle) {
+            Assert::assertIsInt(
+                $response->json("meta.$cle"),
+                "meta.$cle doit être un entier — l'enveloppe de pagination canonique (TCK-304)."
+            );
+        }
     }
 
     protected function assertJsonError(TestResponse $response, int $status, ?string $message = null): void
