@@ -1,7 +1,7 @@
 ---
 id: TCK-322
 title: "Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage — une quatrième ressource partagée par machine"
-status: todo
+status: doing
 phase: P2
 family: technique
 estimate: S
@@ -86,6 +86,51 @@ c'est le rituel de fin de branche qui doit rester sériel.
   changement d'outil, comme la troisième garde de TCK-321 l'a montré.
 - **AC5** — `CLAUDE.md` et l'ardoise D-30 sont mis à jour : la restriction « un seul agent à la
   fois » disparaît **le jour où elle cesse d'être vraie**, pas avant.
+
+## Notes d'implémentation
+
+**AC1 — le répertoire, et il n'était pas là où le ticket le cherchait.** Ce n'est pas ParaTest :
+c'est `storage/framework/views/test_<index worker>`, créé par le rappel `setUpProcess` de
+`Illuminate\Testing\Concerns\TestViews::bootTestViews()` (ligne 24-28) via
+`File::ensureDirectoryExists()` — un `is_dir()` **suivi** d'un `mkdir()` sans `force`
+(`Filesystem.php:643` puis `:662`), donc ni atomique ni silencieux. Il tourne dans le processus
+**PARENT** de ParaTest, où `RunsInParallel::forEachProcess()` pose lui-même le jeton `1, 2… N`.
+Deux exécutions demandent les mêmes huit chemins. Trace complète obtenue en rejouant la paire avec
+`-vvv` ; détail et lignes dans l'ardoise D-49.
+
+Deux corollaires que le ticket supposait et qui sont maintenant expliqués : le jeton composé de
+TCK-321 ne pouvait rien y faire (il vit dans `tests/bootstrap.php`, que le parent n'exécute jamais),
+et `--tmp-dir` non plus (le répertoire est celui de l'application). Un **second danger, silencieux**,
+tenait au même chemin : le `tearDownProcess` fait `File::deleteDirectory($path)` — la première
+exécution à finir effaçait les vues compilées de l'autre, en pleine course.
+
+**Le point d'accroche est un trait que rien n'importe.** `Tests\CreatesApplication` est trouvé par
+`trait_exists()` dans `RunsInParallel::createApplication()` (ligne 168) : c'est le seul code du dépôt
+qui s'exécute dans ce processus-là avant les rappels. Le supprimer ne casse **aucun `use`** et
+rouvre la panne en silence — d'où les quatre gardes de
+`tests/Unit/Testing/CompiledViewIsolationTest.php`, dont une qui affirme que **le framework consulte
+encore ce trait** et une autre qui rougira le jour où Laravel corrigera le défaut en amont, pour
+qu'on sache retirer ce contournement plutôt que le traîner.
+
+**AC2/AC3 — cinq paires vertes, mais sur des SOUS-ENSEMBLES.** 8 cœurs, 2026-08-17, `load average`
+au départ : 21,96 · 23,18 · 22,77 · 21,26 · 93,80 — **0 échec des deux côtés, cinq fois sur cinq**,
+et aucun démarrage impossible. Une sixième paire, sur des tests qui compilent réellement du Blade,
+verte à `load average` 215,72. **Ablation** : le correctif retiré, l'une des deux remeurt aussitôt
+sur `mkdir(): File exists`, sortie 1, sans résumé.
+**La paire sur la suite ENTIÈRE n'a pas été jouée** — elle dépasse ce qu'un agent délégué peut
+lancer (cf. `CLAUDE.md`, § « Qui lance quoi »). La panne étant un démarrage impossible, elle ne
+dépend pas des tests choisis ; mais l'AC2 demande « 0 échec des deux côtés » sur la suite entière, et
+tant que ce n'est pas mesuré, `CLAUDE.md` et D-49 gardent la prudence — c'est l'AC5 appliquée à la
+lettre : la restriction ne disparaît pas avant de cesser d'être vraie.
+
+**Hors ticket, mais bloquant, et à corriger dans le worktree, pas ici** : `takussan-api/vendor`
+était un lien symbolique vers celui du worktree principal. `__DIR__` résolvant les liens, `$baseDir`
+de l'autoloader Composer pointait sur le worktree PRINCIPAL : **tout `App\…` et tout `Tests\Support\…`
+était chargé depuis l'autre arbre**, y compris `Application::inferBasePath()` et donc `storage/`.
+Aucune modification de `tests/Support/` n'était exécutable ici. Remplacé par une copie réelle
+(121 Mo, `cp -R`, sans réseau ni `composer install`). Un lien symbolique par entrée ne suffit pas :
+les binaires (`vendor/phpunit/phpunit/phpunit`) chargent l'autoload de leur propre `__DIR__` résolu,
+et deux autoloaders se percutent sur `Cannot redeclare ComposerAutoloaderInit…`.
 
 ## Ce que ce ticket ne fait pas
 

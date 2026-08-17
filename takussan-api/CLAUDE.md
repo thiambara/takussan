@@ -335,12 +335,36 @@ rouvre la panne, et elle ne se voit qu'au hasard du tempo** :
    nettoient à l'extinction du processus. `SCOUT_PREFIX` n'est **plus** déclaré dans `phpunit.xml` ni
    dans `api-ci.yml` : le réintroduire re-figerait le préfixe et re-casserait l'isolation.
 
-   ⚠️ **Un seul agent à la fois peut lancer `--parallel`.** Deux exécutions simultanées se cassent
-   au démarrage sur une **quatrième** ressource partagée par machine, dans ParaTest lui-même, que la
-   composition des jetons ci-dessus ne couvre pas : l'une reste verte, l'autre meurt avant le premier
-   test sur `mkdir(): File exists` (mesuré, TCK-322, ardoise D-49). `--tmp-dir` ne corrige pas.
-   Le mode séquentiel et `php bin/impacted-tests.php` supportent la simultanéité entre agents ;
-   `--parallel` ne la supporte pas.
+5. **Les vues compilées sont enracinées par EXÉCUTION, dans le processus PARENT de ParaTest**
+   (`Tests\Support\TestCompiledViews`, appelé depuis `Tests\CreatesApplication`) — la **quatrième**
+   ressource partagée par machine, et la seule qui ne vit pas dans un worker (TCK-322, ardoise
+   D-49). `Illuminate\Testing\Concerns\TestViews::bootTestViews()` crée
+   `storage/framework/views/test_<ParallelTesting::token()>` — c'est-à-dire `test_1` … `test_8`, le
+   seul index du worker — par un `File::ensureDirectoryExists()` qui est un `is_dir()` **suivi** d'un
+   `mkdir()` sans `force`. Deux exécutions simultanées demandaient les mêmes huit chemins : le
+   perdant de la course mourait sur `mkdir(): File exists`, **avant le premier test**, sans résumé.
+   Le même chemin était en outre **effacé** par le `tearDownProcess` de celle qui finissait la
+   première.
+
+   **Le jeton composé du point 4 ne pouvait rien y faire** : ce rappel-là tourne dans le processus
+   parent de ParaTest, qui n'exécute jamais `tests/bootstrap.php`. D'où le point d'accroche
+   `Tests\CreatesApplication` — un trait que **rien dans ce dépôt n'importe** et que
+   `RunsInParallel::createApplication()` trouve par `trait_exists()`. **Le supprimer ne casse aucun
+   `use` et rouvre la panne en silence** : `tests/Unit/Testing/CompiledViewIsolationTest.php` garde
+   les trois maillons, y compris le fait que le framework consulte encore ce trait.
+
+   `--tmp-dir` ne corrigeait rien, et pour une raison qui valait d'être nommée avant de coder : le
+   répertoire fautif n'est pas celui de ParaTest, c'est celui de l'application.
+
+   ⚠️ **Ce que la mesure couvre, et ce qu'elle ne couvre pas encore.** Le 2026-08-17, 8 cœurs :
+   **cinq paires d'exécutions `--parallel` simultanées, 0 échec des deux côtés à chaque fois**
+   (`load average` 21-94), plus une paire sur des tests qui compilent réellement du Blade, verte à
+   `load average` 215 — et l'ablation du correctif fait immédiatement remourir l'une des deux sur
+   `mkdir(): File exists`. Ces épreuves portent sur des SOUS-ENSEMBLES : la panne étant un démarrage
+   impossible, elle ne dépend pas des tests choisis, mais **la paire sur la suite ENTIÈRE reste à
+   jouer** par la session qui délègue (une commande de ce format ne peut pas l'être).
+   Jusque-là, garder la prudence : un seul agent à la fois sur la suite entière en `--parallel`.
+   Le mode séquentiel et `php bin/impacted-tests.php` supportent la simultanéité depuis D-44.
 
 ## Ne lancer que les tests que le diff touche
 

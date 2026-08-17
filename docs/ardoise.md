@@ -1902,7 +1902,60 @@ n'est pas prise, l'activation en CI reste une option ouverte, pas une décision 
 
 ---
 
-### D-49 — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage 🟡 *mesuré le 2026-08-17* → [TCK-322](backlog/tickets/TCK-322-paratest-deux-executions-simultanees.md)
+### D-49 — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage 🟢 *cause nommée et corrigée le 2026-08-17 ; épreuve sur la suite ENTIÈRE encore à jouer* → [TCK-322](backlog/tickets/TCK-322-paratest-deux-executions-simultanees.md)
+
+> **Mise à jour du 2026-08-17 — le répertoire fautif est nommé, et ce n'était pas ParaTest.**
+>
+> ```
+> TestViews.php:24-28    File::ensureDirectoryExists($this->parallelSafeCompiledViewPath())
+> TestViews.php:47-58    <view.compiled>/test_<ParallelTesting::token()>
+> Filesystem.php:643     ensureDirectoryExists() — is_dir() PUIS makeDirectory()
+> Filesystem.php:662     return mkdir($path, $mode, $recursive);   ← sans @, sans force
+> ```
+>
+> Concrètement : **`storage/framework/views/test_1` … `test_8`** — le seul index du worker.
+> `Illuminate\Testing\Concerns\TestViews::bootTestViews()` enregistre ce rappel `setUpProcess`, et
+> `RunsInParallel::forEachProcess()` l'exécute dans le processus **PARENT** de ParaTest en posant
+> lui-même le jeton `1, 2… N` (`ParallelTesting::resolveTokenUsing()`). Deux exécutions demandent
+> donc exactement les mêmes huit chemins, et `ensureDirectoryExists()` est un `is_dir()` **suivi**
+> d'un `mkdir()` : non atomique, et sans `force`, donc il LÈVE au lieu de rendre `false`.
+>
+> **C'est pourquoi le jeton composé de TCK-321 n'y pouvait rien** : il est posé dans
+> `tests/bootstrap.php`, le bootstrap PHPUnit — que le processus parent n'exécute jamais. Et c'est
+> pourquoi `--tmp-dir` ne corrigeait rien : le répertoire fautif est celui de l'application, pas
+> celui de ParaTest. *La règle de TCK-314 — nommer avant de corriger — a payé une deuxième fois : on
+> aurait déplacé la collision.*
+>
+> Le même chemin portait un **second danger, silencieux** : le rappel `tearDownProcess` fait
+> `File::deleteDirectory($path)`. L'exécution qui finissait la première effaçait les vues compilées
+> de l'autre, en pleine course — un rouge qui n'aurait ressemblé à rien de connu.
+>
+> **Correctif** : les vues compilées sont enracinées dans `<views>/run_<discriminant d'exécution>`
+> (`Tests\Support\TestCompiledViews`), posé dans le parent via `Tests\CreatesApplication` — un trait
+> que **rien dans ce dépôt n'importe**, et que `RunsInParallel::createApplication()` trouve par
+> `trait_exists()`. Le supprimer ne casserait aucun `use` et rouvrirait la panne en silence, d'où
+> `tests/Unit/Testing/CompiledViewIsolationTest.php`, qui garde les trois maillons — le trait, son
+> appel, et **le fait que le framework le consulte encore**.
+>
+> **Mesuré, 8 cœurs, le 2026-08-17** : cinq paires d'exécutions `--parallel` simultanées, **0 échec
+> des deux côtés à chaque fois** (`load average` relevé au départ : 21,96 · 23,18 · 22,77 · 21,26 ·
+> 93,80), plus une paire sur des tests qui compilent réellement du Blade, verte à `load average`
+> 215,72. **Ablation** : le correctif retiré, l'une des deux remeurt aussitôt sur `mkdir(): File
+> exists`, sortie 1, sans résumé.
+>
+> ⚠ **Ce que ces chiffres ne disent pas.** Toutes ces paires portent sur des SOUS-ENSEMBLES. La
+> panne étant un démarrage impossible — elle survient avant le premier test, quels que soient les
+> tests — le correctif est éprouvé là où elle vit ; mais l'AC2 du ticket demande « 0 échec des deux
+> côtés » sur la suite **entière**, et cette paire-là n'a pas été jouée : elle dépasse ce qu'un agent
+> délégué peut lancer. Tant qu'elle ne l'est pas, `CLAUDE.md` garde « un seul agent à la fois » pour
+> la suite entière en `--parallel`.
+>
+> **Le sous-texte de D-49 reste vrai et vaut plus que sa correction** : *chaque outil ajouté au
+> harnais ajoute la question de ce qu'il partage par machine* — et cette quatrième ressource-là ne
+> vivait même pas dans l'outil qu'on soupçonnait.
+
+<details>
+<summary>Le constat d'origine, tel qu'il a été écrit le 2026-08-17</summary>
 
 Trouvé **en éprouvant l'AC5 de TCK-321**, et laissé hors de son périmètre à dessein.
 
@@ -1939,6 +1992,8 @@ TCK-314).
 **Conséquence, écrite dans `CLAUDE.md`** : un seul agent à la fois peut lancer `--parallel`. Le mode
 séquentiel supporte la simultanéité depuis D-44, et `bin/impacted-tests.php` (TCK-320) aussi — la
 boucle quotidienne n'est donc pas bloquée, c'est le rituel de fin de branche qui doit rester sériel.
+
+</details>
 
 ---
 
