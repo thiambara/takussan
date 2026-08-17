@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { Megaphone, PauseCircle, Plus } from 'lucide-react';
+import { EmptyState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +43,7 @@ const EMPTY_FORM = {
 };
 
 export function AnnouncementsConsole() {
+  const t = useTranslations('superAdmin.announcements');
   const queryClient = useQueryClient();
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
@@ -89,8 +92,13 @@ export function AnnouncementsConsole() {
               ))}
               {!query.isLoading && (query.data?.data ?? []).length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-3 py-8 text-center text-sm text-stone-500">
-                    Aucune annonce pour le moment.
+                  <td colSpan={5} className="p-0">
+                    <EmptyState
+                      className="border-0"
+                      icon={<Megaphone className="size-8" aria-hidden="true" />}
+                      title={t('empty_title')}
+                      description={t('empty_description')}
+                    />
                   </td>
                 </tr>
               ) : null}

@@ -64,6 +64,7 @@ function formatFileSize(bytes: number | null): string {
 
 export function DocumentsLibrary() {
   const locale = useLocale() as Locale;
+  const t = useTranslations('documents.library');
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -94,9 +95,10 @@ export function DocumentsLibrary() {
     const list = data?.data ?? [];
     const groups = new Map<DocumentType, Document[]>();
     for (const doc of list) {
-      const t = (doc.type ?? 'other') as DocumentType;
-      if (!groups.has(t)) groups.set(t, []);
-      groups.get(t)!.push(doc);
+      // `type`, et non `t` : `t` est désormais la fonction de traduction du composant.
+      const type = (doc.type ?? 'other') as DocumentType;
+      if (!groups.has(type)) groups.set(type, []);
+      groups.get(type)!.push(doc);
     }
     return Array.from(groups.entries()).sort(
       (a, b) => CATEGORY_ORDER.indexOf(a[0]) - CATEGORY_ORDER.indexOf(b[0]),
@@ -169,10 +171,10 @@ export function DocumentsLibrary() {
             ))}
           </div>
         ) : isError ? (
-          <p className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
-            <AlertCircle className="mr-2 inline size-4" aria-hidden="true" />
-            {error instanceof ApiError ? error.displayMessage : 'Impossible de charger les documents.'}
-          </p>
+          <ErrorState
+            icon={<AlertCircle className="size-4" aria-hidden="true" />}
+            message={error instanceof ApiError ? error.displayMessage : t('error')}
+          />
         ) : grouped.length === 0 ? (
           <DocumentsEmpty
             onUpload={() => setUploadOpen(true)}
@@ -225,10 +227,17 @@ export function DocumentsLibrary() {
 }
 
 /**
- * ⚠ Ce cas n'est PAS mécanique. La branche `owner && !dragOver` délègue à `OwnerEmptyState`, qui
- * rend une grille d'exemples et de cibles de rattachement : la faire entrer dans la signature
- * `{icon, title, description, action}` détruirait de la fonctionnalité. Seule la branche simple
- * passe par le composant partagé ; `OwnerEmptyState` reste tel quel, et part au ticket de suite.
+ * ⚠ Ce cas n'est PAS mécanique, et c'est le NOM qui le disait mal.
+ *
+ * La branche `owner && !dragOver` rend une grille d'exemples de catégories ET une liste de cibles
+ * de rattachement (bien / bail / profil). Ce n'est pas un état vide : c'est un MODE D'EMPLOI qui
+ * s'affiche quand c'est vide. Le forcer dans `{icon, title, description, action}` détruirait de la
+ * fonctionnalité — mais le laisser s'appeler `OwnerEmptyState` faisait passer pour un neuvième
+ * duplicata d'`EmptyState` un composant d'un autre genre, et lui valait une ligne dans
+ * l'allowlist de `scripts/check-feedback-states.mjs`.
+ *
+ * Il s'appelle donc `OwnerDocumentsPrimer` (TCK-291), et l'allowlist est vide. Le geste qui ferme
+ * la ligne est le renommage, pas un `--` sur le plafond de la garde.
  */
 function DocumentsEmpty({
   onUpload,
@@ -242,7 +251,7 @@ function DocumentsEmpty({
   const t = useTranslations('documents.library');
 
   if (owner && !dragOver) {
-    return <OwnerEmptyState onUpload={onUpload} />;
+    return <OwnerDocumentsPrimer onUpload={onUpload} />;
   }
 
   return (
@@ -262,7 +271,7 @@ function DocumentsEmpty({
   );
 }
 
-function OwnerEmptyState({ onUpload }: { readonly onUpload: () => void }) {
+function OwnerDocumentsPrimer({ onUpload }: { readonly onUpload: () => void }) {
   const examples = [
     { label: 'Titre foncier', type: DOCUMENT_TYPE_LABEL.other },
     { label: 'Bail signé', type: DOCUMENT_TYPE_LABEL.lease_contract },

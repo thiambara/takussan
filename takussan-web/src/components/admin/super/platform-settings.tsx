@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, RotateCcw, Save, TriangleAlert } from 'lucide-react';
+import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -107,9 +108,7 @@ export function SettingsSection({
       </div>
 
       {clientError || error ? (
-        <div className="m-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-900 ring-1 ring-red-200" role="alert">
-          {clientError ?? error}
-        </div>
+        <ErrorState className="m-4" message={clientError ?? error ?? ''} />
       ) : mutation.isSuccess ? (
         <div className="m-4 flex items-center gap-2 rounded-md bg-stone-50 px-3 py-2 text-sm text-stone-700 ring-1 ring-stone-200">
           <Check className="size-4 text-accent" aria-hidden="true" />
