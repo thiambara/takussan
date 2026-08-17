@@ -229,10 +229,17 @@ vitest 4 + jsdom + @testing-library, alias `@` → `./src`, setup global qui pol
 > **Ne pas rabaisser ce plafond sans refaire la mesure**, et ne pas le lire comme une licence à
 > écrire des tests lents : un test qui s'en approche au repos est un test à revoir.
 >
-> Ce plafond ne masque rien : les assertions asynchrones passent par `waitFor`/`findBy*`, dont le
-> délai propre reste à **1000 ms**. Une vraie régression échoue toujours en ~1 s, avec son message
-> — vérifié par ablation. Ce délai-là est cependant lui aussi un défaut de framework jamais mesuré
-> ici : il tient sous la charge visée, mais pas à ~4× celle-ci (TCK-313).
+> **Le délai propre des attentes est de 3000 ms, et c'est une seconde valeur mesurée**
+> (`vitest.setup.ts`, TCK-313). Il gouverne chaque `waitFor` / `findBy*`, là où `testTimeout`
+> gouverne le test entier. Les 1000 ms précédents étaient le défaut de Testing Library. Au repos,
+> 95 % des attentes de la suite tiennent en **150 ms** et la pire en **467 ms** — mais cette même
+> attente a été mesurée à **980 ms** quelques minutes plus tard, sur le même code, parce que
+> d'autres agents travaillaient : la marge annoncée valait ce que la machine faisait d'autre.
+> Ablation : à 1000 ms, `Integrations` rougit 2/2 sous charge 287-331 avec un message qui accuse le
+> composant ; à 3000 ms, 38/38 sous la même charge. Le coût est **+2 s par test rouge** (une
+> attente qui ne sera jamais satisfaite brûle son plafond en entier) et **zéro sur une exécution
+> verte**. Le détail des mesures est dans le commentaire de `vitest.setup.ts` — le relever exige
+> de les refaire.
 
 ```bash
 npm run lint          # ⚠ `npm run build` ne lance PAS ESLint sous Next 16

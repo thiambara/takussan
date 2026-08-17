@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**307 tickets** — 18 ouverts, 288 livrés.
+**307 tickets** — 17 ouverts, 289 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 17 |
+| 📋 Todo | 16 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 288 |
+| ✅ Done | 289 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -44,7 +44,6 @@
 - [TCK-307](tickets/TCK-307-supprimer-dsl-scopefilter-mort.md) — Supprimer le DSL `scopeFilter` — mort mais toujours branché sur tous les modèles `S · P2 · technique`
 - [TCK-308](tickets/TCK-308-baseresource-adoptee-par-7-sur-44.md) — `BaseResource` adoptée par 7 ressources sur 44 — 37 refont les conversions à la main `M · P2 · technique`
 - [TCK-309](tickets/TCK-309-conventions-mineures-dedoublees.md) — Trois conventions dédoublées : classes de base de test, préfixes de commandes, namespaces d'auth `M · P3 · technique`
-- [TCK-313](tickets/TCK-313-delai-waitfor-rtl-tendu-sous-charge.md) — Le délai propre de waitFor/findBy est un défaut de framework, pas une mesure `S · P2 · front`
 - [TCK-315](tickets/TCK-315-role-agence-du-prestataire.md) — Où vit le rôle d'agence d'un prestataire — le profil n'a pas d'agence, la collaboration si `M · P1 · technique`
 - [TCK-318](tickets/TCK-318-activer-le-react-compiler.md) — Activer le React Compiler — ou décider de ne pas l'activer, mais le décider `M · P3 · front`
 - [TCK-322](tickets/TCK-322-paratest-deux-executions-simultanees.md) — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage — une quatrième ressource partagée par machine `S · P2 · technique`
@@ -65,7 +64,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 288
+## ✅ Done — 289
 
 <details>
 <summary><strong>Vague 41 — Temps d'exécution de la suite de tests : sélection par impact, puis parallélisation (2026-08-17)</strong> — 2 tickets</summary>
@@ -76,10 +75,11 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Vague 40 — Évacuation dette — documentation : specs et documents périmés (2026-08-16)</strong> — 2 tickets</summary>
+<summary><strong>Vague 40 — Évacuation dette — documentation : specs et documents périmés (2026-08-16)</strong> — 3 tickets</summary>
 
 - [TCK-310](tickets/TCK-310-models-spec-16-modeles-absents.md) — `docs/models-spec.md` ignore 16 modèles et documente encore un package désinstallé `M · P1 · technique`
 - [TCK-311](tickets/TCK-311-documents-perimes-et-pointeur-mort.md) — Cinq documents périmés, un pointeur mort dans les deux specs, et 4 Mo d'images commitées `S · P3 · technique`
+- [TCK-313](tickets/TCK-313-delai-waitfor-rtl-tendu-sous-charge.md) — Le délai propre de waitFor/findBy est un défaut de framework, pas une mesure `S · P2 · front`
 
 </details>
 
