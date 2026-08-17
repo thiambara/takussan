@@ -1,35 +1,37 @@
+import { getTranslations } from 'next-intl/server';
+
 import { getMeAction } from '@/app/actions/auth';
 import { fetchTenantDashboard } from '@/lib/queries/dashboard';
 import { StatCard } from '@/components/charts/StatCard';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
 
-// TCK-179 — display the FR label for raw payment statuses surfaced on
-// the tenant dashboard. Centralised here while a project-wide enum
-// helper is still pending.
-const PAYMENT_STATUS_LABEL: Record<string, string> = {
-  pending: 'À venir',
-  paid: 'Payé',
-  partially_paid: 'Partiellement payé',
-  late: 'En retard',
-  refunded: 'Remboursé',
-  cancelled: 'Annulée',
-};
+// TCK-179 — les statuts de paiement bruts affichés sur le tableau de bord locataire.
+// TCK-292 : la table de libellés est passée au dictionnaire (`dashboard.paymentStatus.*`) ;
+// il ne reste ici que la liste des statuts CONNUS, pour ne pas rendre une clé sur un statut
+// que le backend inventerait.
+const STATUTS_CONNUS = new Set([
+  'pending', 'paid', 'partially_paid', 'late', 'refunded', 'cancelled',
+]);
 
-function paymentStatusLabel(status: string | null | undefined): string {
+function paymentStatusLabel(
+  status: string | null | undefined,
+  t: (cle: string) => string,
+): string {
   if (!status) return '—';
-  return PAYMENT_STATUS_LABEL[status] ?? status;
+  return STATUTS_CONNUS.has(status) ? t(`paymentStatus.${status}`) : status;
 }
 
 /** TCK-032 P1 — tenant dashboard. Any authenticated user can view. */
 export default async function TenantDashboardPage() {
+  const t = await getTranslations('dashboard');
   await getMeAction();
 
   const payload = await fetchTenantDashboard();
   if (!payload) {
     return (
       <div className="space-y-2">
-        <h1 className="font-display text-2xl font-bold text-foreground">Ma situation</h1>
-        <p className="text-sm text-muted-foreground">Impossible de charger les données.</p>
+        <h1 className="font-display text-2xl font-bold text-foreground">{t('tenant.title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('tenant.loadError')}</p>
       </div>
     );
   }
@@ -38,11 +40,8 @@ export default async function TenantDashboardPage() {
   if (!data.has_customer_profile) {
     return (
       <div className="space-y-4">
-        <h1 className="font-display text-2xl font-bold text-foreground">Ma situation</h1>
-        <p className="text-sm text-muted-foreground">
-          Aucun profil locataire n&apos;est associé à votre compte. Contactez votre agence pour
-          activer votre dossier.
-        </p>
+        <h1 className="font-display text-2xl font-bold text-foreground">{t('tenant.title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('tenant.noProfile')}</p>
       </div>
     );
   }
@@ -52,35 +51,33 @@ export default async function TenantDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">Ma situation</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Prochaines échéances, documents et demandes en cours.
-        </p>
+        <h1 className="font-display text-2xl font-bold text-foreground">{t('tenant.title')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t('tenant.subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
-        <StatCard label="Baux actifs" value={formatNumber(data.leases.active, 'fr')} />
+        <StatCard label={t('tenant.activeLeases')} value={formatNumber(data.leases.active, 'fr')} />
         <StatCard
-          label="Prochain loyer"
+          label={t('tenant.nextRent')}
           value={nextDue ? formatCurrency(nextDue.amount, 'fr') : '—'}
           hint={nextDue?.due_date ? formatDate(nextDue.due_date, 'fr') : undefined}
         />
         <StatCard
-          label="Impayés"
+          label={t('tenant.overdue')}
           value={formatNumber(data.payments.overdue_count, 'fr')}
           hint={formatCurrency(data.payments.overdue_amount, 'fr')}
           accent={data.payments.overdue_count > 0 ? 'danger' : 'default'}
         />
         <StatCard
-          label="Réservations en attente"
+          label={t('tenant.pendingBookings')}
           value={formatNumber(data.bookings.pending, 'fr')}
         />
       </div>
 
       <section className="rounded-2xl bg-card p-6">
-        <h2 className="mb-3 text-base font-semibold text-foreground">Échéances des 30 prochains jours</h2>
+        <h2 className="mb-3 text-base font-semibold text-foreground">{t('tenant.upcoming30d')}</h2>
         {data.payments.upcoming_30d.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucune échéance prévue.</p>
+          <p className="text-sm text-muted-foreground">{t('tenant.noUpcoming')}</p>
         ) : (
           <ul className="divide-y divide-app-surface-3">
             {data.payments.upcoming_30d.map((p) => (
@@ -91,7 +88,7 @@ export default async function TenantDashboardPage() {
                 <span className="font-semibold text-foreground">
                   {formatCurrency(p.amount, 'fr')}
                 </span>
-                <span className="text-xs text-muted-foreground">{paymentStatusLabel(p.status)}</span>
+                <span className="text-xs text-muted-foreground">{paymentStatusLabel(p.status, t)}</span>
               </li>
             ))}
           </ul>
@@ -99,9 +96,9 @@ export default async function TenantDashboardPage() {
       </section>
 
       <section className="rounded-2xl bg-card p-6">
-        <h2 className="mb-3 text-base font-semibold text-foreground">Documents récents</h2>
+        <h2 className="mb-3 text-base font-semibold text-foreground">{t('tenant.recentDocs')}</h2>
         {data.documents.recent.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucun document.</p>
+          <p className="text-sm text-muted-foreground">{t('tenant.noDocs')}</p>
         ) : (
           <ul className="divide-y divide-app-surface-3">
             {data.documents.recent.map((d) => (

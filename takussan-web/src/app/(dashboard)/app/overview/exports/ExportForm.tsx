@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/select';
 import { DatePicker } from '@/components/ui/date-picker';
 import { buildExportUrl, type ExportEntity, type ExportFormat } from '@/lib/queries/exports';
+import { useTranslations } from 'next-intl';
 
 type Props = {
   canExportCustomers: boolean;
@@ -29,6 +30,7 @@ const FORMAT_OPTIONS: ReadonlyArray<{ value: ExportFormat; label: string }> = [
 ];
 
 export function ExportForm({ canExportCustomers }: Props) {
+  const t = useTranslations('dashboard.exports');
   const [entity, setEntity] = useState<ExportEntity>('payments');
   const [format, setFormat] = useState<ExportFormat>('csv');
   const [from, setFrom] = useState('');
@@ -59,7 +61,7 @@ export function ExportForm({ canExportCustomers }: Props) {
     <section className="max-w-xl space-y-4 rounded-2xl bg-card p-6">
       <div className="grid gap-4 md:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-foreground">Type de données</span>
+          <span className="font-medium text-foreground">{t('dataType')}</span>
           <Select
             value={entity}
             onValueChange={(value) => setEntity((value ?? 'payments') as ExportEntity)}
@@ -78,7 +80,7 @@ export function ExportForm({ canExportCustomers }: Props) {
           </Select>
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-foreground">Format</span>
+          <span className="font-medium text-foreground">{t('format')}</span>
           <Select
             value={format}
             onValueChange={(value) => setFormat((value ?? 'csv') as ExportFormat)}
@@ -97,11 +99,11 @@ export function ExportForm({ canExportCustomers }: Props) {
           </Select>
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-foreground">Du</span>
+          <span className="font-medium text-foreground">{t('from')}</span>
           <DatePicker value={from} onValueChange={setFrom} />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-foreground">Au</span>
+          <span className="font-medium text-foreground">{t('to')}</span>
           <DatePicker value={to} onValueChange={setTo} />
         </label>
       </div>
@@ -111,12 +113,9 @@ export function ExportForm({ canExportCustomers }: Props) {
         disabled={isPending}
         className="rounded-md bg-app-topbar px-4 py-2 text-sm font-semibold text-white hover:bg-app-topbar/90 disabled:opacity-60"
       >
-        {isPending ? 'Téléchargement…' : 'Télécharger'}
+        {isPending ? t('downloading') : t('download')}
       </button>
-      <p className="text-xs text-muted-foreground">
-        Les exports respectent votre rôle (agence, bailleur, locataire) — aucune donnée hors de
-        votre périmètre n&apos;est incluse.
-      </p>
+      <p className="text-xs text-muted-foreground">{t('scopeNoticeFull')}</p>
     </section>
   );
 }

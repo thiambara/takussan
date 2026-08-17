@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/select';
 import type { KpiConfig } from '@/lib/queries/kpis';
 import { createKpiConfigAction, deleteKpiConfigAction } from '@/app/actions/kpis';
+import { useTranslations } from 'next-intl';
 
 const FORMAT_OPTIONS = [
   { value: 'number', label: 'Nombre' },
@@ -23,6 +24,7 @@ type Props = {
 };
 
 export function KpiConfigList({ initialConfigs, catalog }: Props) {
+  const t = useTranslations('dashboard.kpis');
   const [configs, setConfigs] = useState(initialConfigs);
   const [metric, setMetric] = useState(catalog[0] ?? '');
   const [label, setLabel] = useState('');
@@ -32,14 +34,14 @@ export function KpiConfigList({ initialConfigs, catalog }: Props) {
 
   function addKpi() {
     if (!metric || !label) {
-      setError('Choisissez une métrique et un libellé.');
+      setError(t('validation'));
       return;
     }
     setError(null);
     startTransition(async () => {
       const res = await createKpiConfigAction({ metric, label, format });
       if (!res.ok) {
-        setError(res.message || 'Erreur lors de la création.');
+        setError(res.message || t('createError'));
         return;
       }
       setConfigs((prev) => [...prev, res.data]);
@@ -57,10 +59,10 @@ export function KpiConfigList({ initialConfigs, catalog }: Props) {
   return (
     <div className="space-y-6">
       <section className="max-w-xl space-y-3 rounded-2xl bg-card p-6">
-        <h2 className="text-sm font-semibold text-foreground">Ajouter un KPI</h2>
+        <h2 className="text-sm font-semibold text-foreground">{t('addTitle')}</h2>
         <div className="grid gap-3 md:grid-cols-3">
           <label className="text-sm">
-            <span className="mb-1 block font-medium text-foreground">Métrique</span>
+            <span className="mb-1 block font-medium text-foreground">{t('metric')}</span>
             <Select
               value={metric}
               onValueChange={(value) => setMetric(value ?? '')}
@@ -77,16 +79,16 @@ export function KpiConfigList({ initialConfigs, catalog }: Props) {
             </Select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block font-medium text-foreground">Libellé</span>
+            <span className="mb-1 block font-medium text-foreground">{t('label')}</span>
             <input
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               className="w-full rounded-md border border-border bg-white px-3 py-2"
-              placeholder="Taux d'impayés"
+              placeholder={t('labelPlaceholder')}
             />
           </label>
           <label className="text-sm">
-            <span className="mb-1 block font-medium text-foreground">Format</span>
+            <span className="mb-1 block font-medium text-foreground">{t('format')}</span>
             <Select
               value={format}
               onValueChange={(value) => setFormat((value ?? format) as 'number' | 'percent' | 'currency')}
@@ -109,15 +111,15 @@ export function KpiConfigList({ initialConfigs, catalog }: Props) {
           disabled={isPending}
           className="rounded-md bg-app-topbar px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
         >
-          Ajouter
+          {t('add')}
         </button>
         {error && <p className="text-xs text-rose-600">{error}</p>}
       </section>
 
       <section className="rounded-2xl bg-card p-6">
-        <h2 className="mb-3 text-sm font-semibold text-foreground">KPIs configurés</h2>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">{t('configured')}</h2>
         {configs.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucun KPI configuré.</p>
+          <p className="text-sm text-muted-foreground">{t('empty')}</p>
         ) : (
           <ul className="divide-y divide-app-surface-3">
             {configs.map((c) => (
@@ -131,7 +133,7 @@ export function KpiConfigList({ initialConfigs, catalog }: Props) {
                   onClick={() => removeKpi(c.id)}
                   className="text-xs text-rose-600 hover:underline"
                 >
-                  Supprimer
+                  {t('delete')}
                 </button>
               </li>
             ))}

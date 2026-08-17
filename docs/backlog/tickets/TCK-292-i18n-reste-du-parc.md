@@ -190,7 +190,25 @@ rencontrées ici.
 occurrence (TCK-323), et l'étendre est une décision, pas un geste de passage. Les règles possibles
 sont listées dans le rapport de branche.
 
-### Lots C à L
+### Lot C — tableau de bord + portefeuille : 118 / 387 occurrences
+
+Inventaire re-mesuré à la source : **53 fichiers / 387 occurrences** (le ticket annonçait 53 / 392
+— il a peu dérivé).
+
+**Fait — 7 fichiers à zéro** : les quatre vues d'ensemble (`overview/{tenant,agency,agent,owner}`)
+et les trois panneaux de configuration (`overview/alerts/AlertList`, `overview/kpis/KpiConfigList`,
+`overview/exports/ExportForm`).
+
+**Reste — 46 fichiers, 269 occurrences.** Dont **93 dans les quatre fichiers de
+`property-dashboard/` qui importent `property-form/options.ts`** : `PropertyListFilters` (46),
+`PropertyHeaderActions` (22), `PropertyList` (21), `PropertyStatusBadge` (4). Ceux-là sont
+**volontairement laissés** tant que la question du module partagé n'est pas tranchée (cf. lot B) —
+les convertir sans convertir `options.ts` reviendrait à traduire l'écran en laissant sa table de
+libellés en français.
+
+Les 176 restantes sont des pages `app/(dashboard)/app/**` indépendantes, sans blocage.
+
+### Lots D à L
 
 **Non commencés.** L'ordre du Delta (B → C → D → E → F → G → H → I → J → K → A → L) est inchangé.
 

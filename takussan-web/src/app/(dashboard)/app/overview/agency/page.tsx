@@ -1,3 +1,5 @@
+import { getTranslations } from 'next-intl/server';
+
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin, isAgent, isSuperAdmin } from '@/lib/roles';
 import { redirect } from 'next/navigation';
@@ -17,6 +19,7 @@ import { NoAgencyState } from '@/components/shared/NoAgencyState';
  * collaborateur par construction).
  */
 export default async function AgencyDashboardPage() {
+  const t = await getTranslations('dashboard.agency');
   const user = await getMeAction();
   if (!isAdmin(user.roles) && !isAgent(user.roles)) {
     redirect('/app/overview');
@@ -25,7 +28,7 @@ export default async function AgencyDashboardPage() {
   // TCK-115: super_admin without agency_id gets 403 from /api/dashboard/agency
   // (Spatie team scope). Guard before the API call to avoid the unhandled exception.
   if (isSuperAdmin(user.roles) && !user.agency_id) {
-    return <NoAgencyState title="Vue agence" />;
+    return <NoAgencyState title={t('title')} />;
   }
 
   if (user.agency_id) {
@@ -47,7 +50,7 @@ export default async function AgencyDashboardPage() {
   if (!payload) {
     return (
       <div className="space-y-2">
-        <PageHeader title="Vue agence" subtitle="Impossible de charger les données." />
+        <PageHeader title={t('title')} subtitle={t('loadError')} />
       </div>
     );
   }
@@ -57,53 +60,59 @@ export default async function AgencyDashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Vue agence"
-        subtitle={`Indicateurs clés sur la période — ${data.period.start.slice(0, 10)} au ${data.period.end.slice(0, 10)}`}
+        title={t('title')}
+        subtitle={t('period', {
+          start: data.period.start.slice(0, 10),
+          end: data.period.end.slice(0, 10),
+        })}
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         <StatCard
-          label="Biens actifs"
+          label={t('activeProperties')}
           value={formatNumber(data.properties?.total ?? 0, 'fr')}
-          hint={`${data.properties?.published ?? 0} publiés`}
+          hint={t('publishedHint', { count: data.properties?.published ?? 0 })}
         />
         <StatCard
-          label="Baux actifs"
+          label={t('activeLeases')}
           value={formatNumber(data.leases?.active ?? 0, 'fr')}
-          hint={`${data.properties?.rented ?? 0} biens loués`}
+          hint={t('rentedHint', { count: data.properties?.rented ?? 0 })}
         />
         <StatCard
-          label="Revenus du mois"
+          label={t('revenueMonth')}
           value={formatCurrency(data.finance?.revenue_month ?? 0, 'fr')}
-          hint={`Commissions : ${formatCurrency(data.finance?.commission_month ?? 0, 'fr')}`}
+          hint={t('commissionHint', {
+            amount: formatCurrency(data.finance?.commission_month ?? 0, 'fr'),
+          })}
           accent="success"
         />
         <StatCard
-          label="Impayés"
+          label={t('overdue')}
           value={formatNumber(data.finance?.overdue_count ?? 0, 'fr')}
-          hint={`${formatCurrency(data.finance?.overdue_amount ?? 0, 'fr')} · ${
-            data.finance?.unpaid_rate_percent ?? 0
-          }%`}
+          hint={t('overdueHint', {
+            amount: formatCurrency(data.finance?.overdue_amount ?? 0, 'fr'),
+            rate: data.finance?.unpaid_rate_percent ?? 0,
+          })}
           accent={data.finance && data.finance.unpaid_rate_percent > 15 ? 'danger' : 'warning'}
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         <StatCard
-          label="Clients"
+          label={t('customers')}
           value={formatNumber(data.customers_count ?? 0, 'fr')}
         />
         <StatCard
-          label="Équipe"
+          label={t('team')}
           value={formatNumber(data.members_count ?? 0, 'fr')}
         />
         <StatCard
-          label="Demandes en attente"
+          label={t('pendingRequests')}
           value={formatNumber(data.bookings?.pending ?? 0, 'fr')}
-          hint="Réservations"
+          hint={t('bookingsHint')}
         />
         <StatCard
-          label="Maintenance ouverte"
+          label={t('openMaintenance')}
           value={formatNumber(data.maintenance?.open ?? 0, 'fr')}
           accent={(data.maintenance?.open ?? 0) > 5 ? 'warning' : 'default'}
         />
@@ -112,14 +121,14 @@ export default async function AgencyDashboardPage() {
       {ts && (
         <section className="rounded-2xl bg-card p-6">
           <LineChart
-            title="Revenus et occupation sur 12 mois"
+            title={t('chartTitle')}
             unit=""
             data={{
               labels: ts.months,
               series: [
-                { name: 'Revenus', values: (ts.revenue as number[]) ?? [], color: 'stroke-chart-1' },
+                { name: t('chartRevenue'), values: (ts.revenue as number[]) ?? [], color: 'stroke-chart-1' },
                 {
-                  name: 'Taux d’occupation (%)',
+                  name: t('chartOccupancy'),
                   values: (ts.occupancy as number[]) ?? [],
                   color: 'stroke-chart-2',
                 },

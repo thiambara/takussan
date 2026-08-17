@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 
+import { getTranslations } from 'next-intl/server';
+
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin, isAgent } from '@/lib/roles';
 import { fetchAgentDashboard } from '@/lib/queries/dashboard';
@@ -12,29 +14,24 @@ import { LineChart } from '@/components/charts/LineChart';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 
-export const metadata: Metadata = { title: 'Statistiques' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.agent');
+  return { title: t('metaTitle') };
+}
 
-const PIPELINE_LABELS: Record<string, string> = {
-  lead: 'Leads',
-  prospect: 'Prospects',
-  qualified: 'Qualifiés',
-  negotiating: 'Négociation',
-  converted: 'Convertis',
-  lost: 'Perdus',
-};
+const ETAPES_PIPELINE_CONNUES = new Set([
+  'lead', 'prospect', 'qualified', 'negotiating', 'converted', 'lost',
+]);
 
 const LOCALE: Locale = 'fr';
 
-const TASK_PRIORITY_LABELS: Record<string, string> = {
-  low: 'Faible',
-  normal: 'Normale',
-  medium: 'Normale',
-  high: 'Élevée',
-  urgent: 'Urgente',
-};
+const PRIORITES_CONNUES = new Set(['low', 'normal', 'medium', 'high', 'urgent']);
 
 /** TCK-032 P1 — agent dashboard. */
 export default async function AgentDashboardPage() {
+  const t = await getTranslations('dashboard.agent');
+  const tStages = await getTranslations('dashboard.pipelineStages');
+  const tPriority = await getTranslations('dashboard.taskPriority');
   const user = await getMeAction();
   if (!isAgent(user.roles) && !isAdmin(user.roles)) {
     redirect('/app/overview');
@@ -44,8 +41,8 @@ export default async function AgentDashboardPage() {
   if (!payload) {
     return (
       <div className="space-y-2">
-        <h1 className="font-display text-2xl font-bold text-foreground">Vue agent</h1>
-        <p className="text-sm text-muted-foreground">Impossible de charger les données.</p>
+        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('loadError')}</p>
       </div>
     );
   }
@@ -57,79 +54,81 @@ export default async function AgentDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">Vue agent</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Pipeline CRM et activité — {formatDate(data.period.start, LOCALE)} au{' '}
-          {formatDate(data.period.end, LOCALE)}
+          {t('subtitle', {
+            start: formatDate(data.period.start, LOCALE),
+            end: formatDate(data.period.end, LOCALE),
+          })}
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         <StatCard
-          label="Biens gérés"
+          label={t('managed')}
           value={formatNumber(data.properties_managed ?? 0, LOCALE)}
         />
         <StatCard
-          label="Commissions mois"
+          label={t('commissionsMonth')}
           value={formatCurrency(data.finance?.commissions_month ?? 0, LOCALE)}
           accent="success"
         />
         <StatCard
-          label="Tâches ouvertes"
+          label={t('openTasks')}
           value={formatNumber(data.tasks?.open ?? 0, LOCALE)}
-          hint={`${data.tasks?.overdue ?? 0} en retard`}
+          hint={t('overdueHint', { count: data.tasks?.overdue ?? 0 })}
           accent={(data.tasks?.overdue ?? 0) > 0 ? 'warning' : 'default'}
         />
         <StatCard
-          label="Visites 7j"
+          label={t('visits7d')}
           value={formatNumber(data.visits?.upcoming_7d ?? 0, LOCALE)}
         />
       </div>
 
       <section className="grid gap-4 lg:grid-cols-3">
-        <OperationalWidget title="Priorités pipeline">
+        <OperationalWidget title={t('pipelinePriorities')}>
           <MetricLink
             href="/app/bookings"
-            label="Demandes en attente"
+            label={t('pendingRequests')}
             value={data.pipeline_ops?.pending_bookings ?? data.bookings?.pending ?? 0}
           />
           <MetricLink
             href="/app/leases"
-            label="Baux à signer"
+            label={t('leasesToSign')}
             value={data.pipeline_ops?.leases_to_sign ?? 0}
           />
           <MetricLink
             href="/app/overview/agent"
-            label="Tâches du jour"
+            label={t('tasksToday')}
             value={data.pipeline_ops?.tasks_today ?? data.tasks?.today ?? 0}
           />
         </OperationalWidget>
 
-        <OperationalWidget title="Commissions">
+        <OperationalWidget title={t('commissions')}>
           <p className="text-2xl font-semibold text-foreground">
             {formatCurrency(data.finance?.commissions_month ?? 0, LOCALE)}
           </p>
-          <p className="text-sm text-muted-foreground">Ce mois</p>
+          <p className="text-sm text-muted-foreground">{t('thisMonth')}</p>
           <p className="mt-4 text-sm text-foreground">
-            Cumul annuel :{' '}
+            {t('yearToDate')}{' '}
             <span className="font-semibold">
               {formatCurrency(data.finance?.commissions_year ?? 0, LOCALE)}
             </span>
           </p>
         </OperationalWidget>
 
-        <OperationalWidget title="Visites du jour">
+        <OperationalWidget title={t('todayVisits')}>
           {(data.visits?.today_items ?? []).length === 0 ? (
-            <EmptyWidgetState message="Aucune visite prévue aujourd'hui." />
+            <EmptyWidgetState message={t('noVisitsToday')} />
           ) : (
             <ul className="space-y-3">
               {(data.visits?.today_items ?? []).map((visit) => (
                 <li key={visit.id} className="text-sm">
                   <Link href={`/app/visits/${visit.id}`} className="font-semibold text-foreground hover:text-primary">
-                    {formatTime(visit.scheduled_at)} · {visit.property?.title ?? 'Bien'}
+                    {formatTime(visit.scheduled_at, t('timeUnknown'))} · {visit.property?.title ?? t('propertyFallback')}
                   </Link>
                   <p className="text-xs text-muted-foreground">
-                    {visit.requester?.name ?? 'Demandeur à préciser'}
+                    {visit.requester?.name ?? t('requesterUnknown')}
                   </p>
                 </li>
               ))}
@@ -139,9 +138,9 @@ export default async function AgentDashboardPage() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <OperationalWidget title="Tâches assignées">
+        <OperationalWidget title={t('assignedTasks')}>
           {(data.tasks?.items ?? []).length === 0 ? (
-            <EmptyWidgetState message="Aucune tâche ouverte assignée." />
+            <EmptyWidgetState message={t('noTasks')} />
           ) : (
             <ul className="space-y-3">
               {(data.tasks?.items ?? []).map((task) => (
@@ -150,16 +149,22 @@ export default async function AgentDashboardPage() {
                     <div>
                       <p className="font-semibold text-foreground">{task.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        {task.due_at ? `Échéance ${formatDateTime(task.due_at)}` : 'Sans échéance'}
+                        {task.due_at
+                          ? t('dueAt', { date: formatDateTime(task.due_at, t('dateUnknown')) })
+                          : t('noDueDate')}
                       </p>
                     </div>
                     <span className="rounded-full bg-white px-2 py-1 text-xs text-muted-foreground">
-                      {TASK_PRIORITY_LABELS[task.priority ?? 'normal'] ?? 'Normale'}
+                      {tPriority(
+                        PRIORITES_CONNUES.has(task.priority ?? 'normal')
+                          ? (task.priority ?? 'normal')
+                          : 'normal',
+                      )}
                     </span>
                   </div>
                   {task.customer ? (
                     <Link href={`/app/customers/${task.customer.id}`} className="mt-2 inline-block text-xs font-semibold text-primary">
-                      Ouvrir {task.customer.name}
+                      {t('open')} {task.customer.name}
                     </Link>
                   ) : null}
                 </li>
@@ -168,15 +173,15 @@ export default async function AgentDashboardPage() {
           )}
         </OperationalWidget>
 
-        <OperationalWidget title="Activité récente">
+        <OperationalWidget title={t('recentActivity')}>
           {(data.recent_activity ?? []).length === 0 ? (
-            <EmptyWidgetState message="Aucune activité récente sur vos dossiers." />
+            <EmptyWidgetState message={t('noActivity')} />
           ) : (
             <ul className="space-y-3">
               {(data.recent_activity ?? []).map((activity) => (
                 <li key={`${activity.type}-${activity.id}`} className="text-sm">
                   <p className="font-semibold text-foreground">{activity.label}</p>
-                  <p className="text-xs text-muted-foreground">{formatDateTime(activity.at)}</p>
+                  <p className="text-xs text-muted-foreground">{formatDateTime(activity.at, t('dateUnknown'))}</p>
                 </li>
               ))}
             </ul>
@@ -187,12 +192,12 @@ export default async function AgentDashboardPage() {
       {pipelineEntries.length > 0 && (
         <section className="rounded-2xl bg-card p-6">
           <BarChart
-            title="Pipeline CRM"
+            title={t('pipelineChart')}
             data={{
-              labels: pipelineEntries.map(([k]) => PIPELINE_LABELS[k] ?? k),
+              labels: pipelineEntries.map(([k]) => (ETAPES_PIPELINE_CONNUES.has(k) ? tStages(k) : k)),
               series: [
                 {
-                  name: 'Clients',
+                  name: t('pipelineSeries'),
                   values: pipelineEntries.map(([, v]) => v),
                   color: 'fill-chart-2',
                 },
@@ -205,17 +210,17 @@ export default async function AgentDashboardPage() {
       {ts && (
         <section className="rounded-2xl bg-card p-6">
           <LineChart
-            title="Commissions et baux signés sur 12 mois"
+            title={t('chartTitle')}
             data={{
               labels: ts.months,
               series: [
                 {
-                  name: 'Commissions',
+                  name: t('chartCommissions'),
                   values: (ts.commissions as number[]) ?? [],
                   color: 'stroke-chart-1',
                 },
                 {
-                  name: 'Baux signés',
+                  name: t('chartSignedLeases'),
                   values: (ts.signed_leases as number[]) ?? [],
                   color: 'stroke-chart-2',
                 },
@@ -264,13 +269,13 @@ function EmptyWidgetState({ message }: { readonly message: string }) {
   return <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">{message}</p>;
 }
 
-function formatTime(value: string | null): string {
-  if (!value) return 'Heure à préciser';
+function formatTime(value: string | null, repli: string): string {
+  if (!value) return repli;
   return new Intl.DateTimeFormat('fr-SN', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
 }
 
-function formatDateTime(value: string | null): string {
-  if (!value) return 'Date à préciser';
+function formatDateTime(value: string | null, repli: string): string {
+  if (!value) return repli;
   return new Intl.DateTimeFormat('fr-SN', {
     day: '2-digit',
     month: 'short',
