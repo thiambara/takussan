@@ -318,6 +318,46 @@ jobs:
         # contrôleur, elle ne vérifie pas qu'un endpoint autorise quoi que ce soit (dette D-23).
         run: node scripts/check-controller-authorization.mjs --report
 
+      - name: Le filtrage passe par un seul mécanisme
+        # `BaseModelTrait::scopeFilter(Builder, array)` coexistait avec spatie/laravel-query-builder
+        # sur les MÊMES modèles — `AbstractModel` compose les deux traits, donc les 68 modèles qui
+        # en héritent portaient les deux. Mesuré le 2026-08-17 : ZÉRO appelant dans tout le dépôt,
+        # contre 46 `buildQuery()` dans les seuls contrôleurs. Son unique usage était le test qui
+        # le testait (TCK-307).
+        #
+        # Le coût n'était pas les dix-neuf lignes, c'était l'AMBIGUÏTÉ : deux mécanismes également
+        # disponibles sur le même modèle ne se lisent pas « un vivant et un mort », ils se lisent
+        # « deux conventions, choisis ». Qui prenait le mauvais écrivait du code qui MARCHAIT et
+        # qui sortait du contrat de lecture — pas de sparse fieldsets, pas d'`include=`, pas de
+        # routage Scout, pas de tri déclaré.
+        #
+        # La garde a trois contrôles et le dit dans sa sortie : la non-vacuité (elle rougit si elle
+        # ne trouve plus sa cible — c'est le mode de défaillance qui rend une garde muette), le NOM
+        # (un cliquet, dette D-23), et la FORME — un scope à paramètre `array` qui déroule des
+        # `where()` en boucle, qui survit à un renommage. Elle ne couvre PAS le filtrage ad hoc en
+        # contrôleur : il y en a par choix assumé (TCK-281, « Hors périmètre »), et une garde qu'on
+        # ne peut pas rendre verte n'est pas une garde.
+        run: node scripts/check-filtering-single-mechanism.mjs --report
+      - name: Toute ressource API étend BaseResource
+        # `BaseResource` existe depuis TCK-048 et `takussan-api/CLAUDE.md` tranche pour le code neuf
+        # depuis. Mesuré le 12/08, le 16/08 puis le 17/08 : 7, 7 puis 8 ressources sur 44
+        # l'étendaient. Une dette qui ne bouge pas d'un pouce en quatre jours n'est pas violée par
+        # malveillance — elle est INVISIBLE au moment d'écrire le fichier suivant, parce que
+        # `extends JsonResource` est ce que rendent l'IDE, `artisan make:resource` et les 36 fichiers
+        # voisins. Une convention sans garde ne converge pas, elle stagne (D-36, TCK-308).
+        #
+        # La migration des 36 a été un ÉCHANGE DE PARENT et rien d'autre — 72 insertions, 72
+        # suppressions, deux lignes par fichier, aucun corps de `toArray()` touché. C'est ce qui la
+        # rend sûre sur le point le plus cher du dépôt : `BaseResource` n'offre AUCUN helper de
+        # montant, il ne peut donc pas en changer la représentation (principe n°3 — XOF n'a pas de
+        # sous-unité). `tests/Unit/Http/Resources/AmountRepresentationTest.php` fige ce point pour
+        # l'avenir, et il a été vérifié par ablation.
+        #
+        # ⚠ La garde couvre l'HÉRITAGE, pas l'EMPLOI, et l'écrit dans sa sortie : les dates restent
+        # émises sous trois formats incompatibles dans ces mêmes fichiers (55 `toISOString`, 37
+        # `toIso8601String`, 18 `toDateString`). Les unifier changerait la forme sur le fil, donc le
+        # contrat du front : c'est une décision de produit, pas un nettoyage.
+        run: node scripts/check-resources-extend-base.mjs --report
       - name: Aucun document normatif ne cite un chemin markdown mort
         # `models-spec.md` a cité `docs/claude-code-prompt-notifications.md` — JAMAIS ÉCRIT — assez
         # longtemps pour qu'on finisse par annoter la citation « *(jamais écrit — pointeur mort)* »

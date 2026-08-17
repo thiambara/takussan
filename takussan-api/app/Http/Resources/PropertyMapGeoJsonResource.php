@@ -2,14 +2,14 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * GeoJSON Feature representation of a Property on the public map.
  * The caller wraps a collection of these into a FeatureCollection.
  */
-class PropertyMapGeoJsonResource extends JsonResource
+class PropertyMapGeoJsonResource extends BaseResource
 {
     public static $wrap = null;
 

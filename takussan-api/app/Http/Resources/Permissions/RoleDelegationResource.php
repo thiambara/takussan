@@ -2,11 +2,11 @@
 
 namespace App\Http\Resources\Permissions;
 
+use App\Http\Resources\Bases\BaseResource;
 use App\Models\RoleDelegation;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class RoleDelegationResource extends JsonResource
+class RoleDelegationResource extends BaseResource
 {
     /** @var RoleDelegation */
     public $resource;

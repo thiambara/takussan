@@ -55,10 +55,25 @@ précédent : `app/Models/MaintenanceRequest.php:70-83` avec `app/Sorts/Maintena
 6. Un modèle neuf exposé en liste les déclare — c'est ce qui rend la règle des sparse fieldsets
 tenable côté front.
 
-> ⚠️ **Deux mécanismes de filtrage coexistent sur les mêmes modèles**, tous deux montés sur
-> `AbstractModel` : le DSL maison `scopeFilter()`/`scopeWithSearch()` de `BaseModelTrait`, et spatie
-> via `HasQueryBuilder`. Aucun document n'arbitre. **Pour toute surface d'API, utiliser
-> `buildQuery()`** ; `scopeFilter` reste pour les usages internes (jobs, commandes, services).
+> ✅ **Il n'y a plus qu'un mécanisme de filtrage** (TCK-307). Le DSL maison
+> `BaseModelTrait::scopeFilter(Builder, array)` coexistait avec spatie sur les **mêmes** modèles —
+> `AbstractModel` compose les deux traits — et une version de ce paragraphe le réservait « aux
+> usages internes (jobs, commandes, services) ». Mesuré le 2026-08-17 : **zéro appelant** dans tout
+> le dépôt, contre **46 `buildQuery()`** dans les seuls contrôleurs. Il n'avait pas d'usage interne,
+> il n'avait aucun usage — sauf le test qui le testait. Il est supprimé.
+>
+> Ce qui coûtait n'était pas les dix-neuf lignes, c'était l'**ambiguïté** : deux mécanismes
+> également disponibles sur le même modèle ne se lisent pas « un vivant, un mort », ils se lisent
+> « deux conventions, choisis ». Qui prenait le mauvais écrivait du code qui **marchait** et qui
+> sortait du contrat de lecture — ni sparse fieldsets, ni `include=`, ni routage Scout, ni tri
+> déclaré. `scripts/check-filtering-single-mechanism.mjs` (Repo CI) garde la suppression, **y
+> compris sous un autre nom** : son contrôle C refuse tout scope à paramètre `array` qui déroule
+> des `where()` en boucle. ⚠ Il ne voit **pas** le filtrage ad hoc en contrôleur ; il y en a, et
+> certains sont délibérés (TCK-281, « Hors périmètre »).
+>
+> `scopeWithSearch()` **subsiste** dans `BaseModelTrait` — hors périmètre de TCK-307 — mais ses
+> seuls appelants sont ceux de `tests/Feature/Search/ScoutSearchTest.php`, c'est-à-dire son propre
+> test. C'est le même motif, non traité.
 
 ## Modèles — `AbstractModel`
 
@@ -293,8 +308,31 @@ le paginateur fait foi.
 
 `app/Http/Resources/Bases/BaseResource.php` fournit `iso(?DateTimeInterface)`,
 `enumValue(?BackedEnum)`, `enumLabel(?BackedEnum, $group, $locale)` et `mediaUrl($collection,
-?$conversion)`. **Seules 7 ressources sur 44 l'étendent** ; les 36 autres étendent `JsonResource`
-directement et refont ces conversions à la main. Pour du code neuf : `BaseResource`.
+?$conversion)`.
+
+**Les 44 ressources l'étendent** (TCK-308), et `scripts/check-resources-extend-base.mjs` (Repo CI)
+casse sur la première qui ne le ferait plus. Elles n'étaient que **7, puis 7, puis 8** aux mesures
+des 12, 16 et 17 août — le profil d'une convention écrite que rien ne mesure : elle n'était pas
+violée par malveillance, elle était **invisible** au moment d'écrire le fichier suivant, parce que
+`extends JsonResource` est ce que rendent l'IDE, `artisan make:resource` et les 36 fichiers voisins.
+*Une convention sans garde ne converge pas, elle stagne.*
+
+> ⚠️ **La garde couvre l'HÉRITAGE, pas l'EMPLOI — et l'écart est réel, pas théorique.** Étendre
+> `BaseResource` ne veut pas dire employer ses quatre helpers, et la migration a été un **échange de
+> parent, rien d'autre** : 72 insertions, 72 suppressions, deux lignes par fichier, aucun corps de
+> `toArray()` touché. C'est délibéré, et c'est ce qui rend l'opération sûre sur le point le plus
+> cher du dépôt — `BaseResource` n'offre **aucun helper de montant**, il ne peut donc pas en changer
+> la représentation (principe non négociable n°3 : XOF n'a pas de sous-unité).
+> `tests/Unit/Http/Resources/AmountRepresentationTest.php` fige ce point pour l'avenir, et il a été
+> vérifié par ablation (un `× 100` glissé dans une ressource le fait rougir).
+>
+> **Ce qui reste ouvert** : mesuré le 2026-08-17, les dates sortent de ces mêmes fichiers sous
+> **trois formats incompatibles** — 55 `toISOString()` (`…T12:34:56.000000Z`), 37
+> `toIso8601String()` (`…T12:34:56+00:00`, ce que rend `iso()`) et 18 `toDateString()`. Les unifier
+> **changerait la forme sur le fil**, donc le contrat du front : c'est une décision de produit, pas
+> un nettoyage, et elle n'appartient ni à ce ticket ni à cette garde.
+
+Pour du code neuf : `BaseResource`, et employer ses helpers plutôt que refaire la conversion.
 
 ## Routes
 
@@ -354,7 +392,7 @@ collection Eloquent).
 
 | Chemin | Ordre de pertinence |
 |---|---|
-| `BaseModelTrait::scopeWithSearch()` — le DSL maison, usages internes | **perdu** (`whereIn`, docblock lignes 52-60) |
+| `BaseModelTrait::scopeWithSearch()` — le DSL maison ; **aucun appelant hors de son propre test** (mesuré le 2026-08-17) | **perdu** (`whereIn`, docblock) |
 | `HasQueryBuilder` `filter[search]` — toute surface d'API | **restitué** (TCK-281) |
 
 Sur le second chemin, le callback mémorise l'ordre des ids rendus par Meilisearch
