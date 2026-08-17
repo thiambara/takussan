@@ -116,9 +116,19 @@ parmi les 400 derniers :
 
 Médiane **2 classes**, p75 3, p90 13. **70 des 482 fichiers ne sont couverts par aucun test.**
 
+> **Mesuré de bout en bout une seule fois, le 2026-08-17** (ablation : une ligne vide ajoutée dans
+> `app/Services/Search/PropertySearchService.php`, `load average` 5,2-5,8 sur 8 cœurs) : **4 classes
+> sélectionnées, 26 tests, 16,7 s d'horloge** — soit ×2,8 le plancher « estimé » annoncé ci-dessus
+> pour cette tranche, et un gain réel d'environ **×13** (16,7 s contre 204-235 s pour la suite
+> entière au repos), pas ~120×. Le modèle plancher (amorçage + coût par test) sous-estime le coût
+> réel d'un facteur ~2,8, pour une cause qui n'a pas été instruite. Ce n'est pas fatal — ×13 justifie
+> amplement l'outil — mais ce tableau, comme celui du dessus, est un *estimé*, et une seule mesure de
+> bout en bout ne le remplace pas encore.
+
 **Les deux bornes décrivent deux moments différents du travail, et c'est ce qui rend la méthode
-cohérente** : un agent qui itère modifie un fichier à la fois — c'est la borne basse, ~5 s dans
-81 % des cas, soit ~120×. Un commit mergé empaquette un ticket entier (migration + routes +
+cohérente** : un agent qui itère modifie un fichier à la fois — c'est la borne basse, ~5 s **estimés**
+dans 81 % des cas (mesurés : 16,7 s pour 4 classes, cf. ci-dessus). Un commit mergé empaquette un
+ticket entier (migration + routes +
 contrôleur + service + tests) — c'est la borne haute, et le repli sur la suite entière y tombe
 **au moment précis où le rituel de fin de branche l'exige de toute façon**. Le repli n'est pas un
 échec de la méthode ; il est bien placé.

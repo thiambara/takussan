@@ -1886,7 +1886,9 @@ n'a pas été prise. Le gain de ×3,2 (comme le ×2,6 du 2026-08-16) a été mes
 transporte — le brief de TCK-321 le disait déjà avant l'épreuve. La prendre suppose d'ouvrir une PR
 ajoutant un step temporaire au workflow (`nproc` + un run chronométré, comparé au step de couverture
 existant), ce que cette tâche n'a **pas** été autorisée à faire : `.github/workflows/api-ci.yml`
-**n'est pas modifié** par ce commit. Le cliquet de couverture `--min=86` n'est pas touché non plus,
+**n'est pas modifié par ce commit** — TCK-321 ne le touche pas ; TCK-320, sur la même branche, lui
+ajoute par ailleurs `permissions: contents: write` et un step qui pousse la carte d'impact sur `dev`,
+sans rapport avec `--parallel`. Le cliquet de couverture `--min=86` n'est pas touché non plus,
 et pour une raison qui ne dépend pas de la mesure runner : PCOV agrège mal entre processus, et
 casser une garde existante (la couverture) pour en gagner une autre (la vitesse) n'est pas un gain.
 

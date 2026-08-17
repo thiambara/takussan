@@ -320,11 +320,27 @@ rouvre la panne, et elle ne se voit qu'au hasard du tempo** :
    faisaient qu'un `save()` de n'importe quel test poussait un document : 3308 tâches par exécution,
    dont 2628 sur l'index des biens. **Un test de recherche neuf doit porter le concern** — sans lui,
    il n'indexe plus. La suite y a gagné 45 % de durée (313 s → 173 s).
-4. **Tout ce qui est partagé par machine est préfixé par processus** (`tests/bootstrap.php`) : les
-   index Meilisearch (`testing_<token>_`, cf. `TestSearchIndex`) et la racine des disques
-   `Storage::fake()` (via `TEST_TOKEN`, cf. `TestFilesystemIsolation`). Les deux se nettoient à
-   l'extinction du processus. `SCOUT_PREFIX` n'est **plus** déclaré dans `phpunit.xml` ni dans
-   `api-ci.yml` : le réintroduire re-figerait le préfixe et re-casserait l'isolation.
+4. **Tout ce qui est partagé par machine est préfixé — mais par (EXÉCUTION, WORKER), pas par
+   processus seul depuis TCK-321** (`tests/bootstrap.php`) : les index Meilisearch
+   (`testing_<token>_`, cf. `TestSearchIndex`) et la racine des disques `Storage::fake()` (via
+   `TEST_TOKEN`, cf. `TestFilesystemIsolation`). Le jeton est **composé**
+   (`Tests\Support\TestProcessToken::value()`) : `<pid+aléa>` — le discriminant d'exécution, en tête,
+   c'est lui qui survit — suffixé de `_<index worker>` quand `artisan test --parallel` tourne. Élire
+   un seul des deux jetons ne suffit pas : le jeton posé par Laravel seul (`1`, `2`… `N`) redonnerait
+   `public_test_1` à deux agents qui parallélisent en même temps, soit exactement la panne que D-44 a
+   soldée. `TestFilesystemIsolation::install()` **ne renonce plus** quand `TEST_TOKEN` est déjà posé
+   par ParaTest — il le lit et le compose, au lieu de l'ancien `return` anticipé qui portait le
+   commentaire *« on ne l'écrase pas, sous peine de faire diverger la racine des disques de la base de
+   données du worker »*. **C'est précisément ce `return` qu'il ne faut pas restaurer.** Les deux se
+   nettoient à l'extinction du processus. `SCOUT_PREFIX` n'est **plus** déclaré dans `phpunit.xml` ni
+   dans `api-ci.yml` : le réintroduire re-figerait le préfixe et re-casserait l'isolation.
+
+   ⚠️ **Un seul agent à la fois peut lancer `--parallel`.** Deux exécutions simultanées se cassent
+   au démarrage sur une **quatrième** ressource partagée par machine, dans ParaTest lui-même, que la
+   composition des jetons ci-dessus ne couvre pas : l'une reste verte, l'autre meurt avant le premier
+   test sur `mkdir(): File exists` (mesuré, TCK-322, ardoise D-49). `--tmp-dir` ne corrige pas.
+   Le mode séquentiel et `php bin/impacted-tests.php` supportent la simultanéité entre agents ;
+   `--parallel` ne la supporte pas.
 
 ## Ne lancer que les tests que le diff touche
 

@@ -89,9 +89,14 @@ cas).
   > propriété qu'il ne tient pas — et c'est précisément la famille de mensonge que la vague 41
   > existe pour ne plus commettre. La conséquence tient en une ligne, et elle est documentée dans
   > `CLAUDE.md` : **un seul agent à la fois peut lancer `--parallel`.**
-- **AC6** — La décision CI est prise **sur mesure du runner** (`nproc` + durée), pas par analogie
-  avec les 8 cœurs locaux. **Aucun gain mesuré → pas d'activation en CI, et on le dit.** Le cliquet
-  `--min=86` n'est **pas** touché : PCOV agrège mal entre processus.
+- **AC6** — ❌ **NON TENU.** La décision CI devait se prendre **sur mesure du runner** (`nproc` +
+  durée), pas par analogie avec les 8 cœurs locaux — cette mesure **n'a pas été prise** : ce ticket
+  n'était pas autorisé à modifier `.github/workflows/api-ci.yml` (cf. ardoise D-30). Faute de cette
+  mesure, `--parallel` **n'est pas activé en CI** — ce qui est la bonne décision par défaut, mais ne
+  doit pas se lire comme « la mesure a montré l'absence de gain » : aucune mesure n'a eu lieu. La PR
+  de mesure (step temporaire `nproc` + run chronométré, comparé au step de couverture existant) est
+  décrite en fin de D-30. Le cliquet `--min=86` n'est **pas** touché : PCOV agrège mal entre
+  processus.
 - **AC7** — D-30 est soldée : les cinq durées, les cinq comptes d'échecs, les conditions de mesure,
   la décision et son motif. **Les chiffres de l'épreuve, pas ceux du plan.**
 

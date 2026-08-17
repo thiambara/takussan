@@ -72,7 +72,7 @@ Xdebug (`load average` 2,6 → 9,9) : 95 Mo bruts, **0,12 Mo** réduits à la gr
 **Par fichier modifié** — l'agent qui itère, sur les 482 fichiers `app/` réellement modifiés en
 400 commits :
 
-| Classes sélectionnées | Part | Temps plancher |
+| Classes sélectionnées | Part | Temps plancher estimé |
 |---|---|---|
 | **1-5** | **81 %** | **≈ 5 s** |
 | 6-20 | 10 % | ≈ 5-13 s |
@@ -81,6 +81,13 @@ Xdebug (`load average` 2,6 → 9,9) : 95 Mo bruts, **0,12 Mo** réduits à la gr
 
 Médiane 2 classes, p75 3, p90 13. **70 des 482 fichiers ne sont couverts par aucun test** — pour
 eux, la bonne réponse est « rien à lancer », pas « lance tout ».
+
+> **Mesuré de bout en bout une seule fois, le 2026-08-17** (ablation : une ligne vide ajoutée dans
+> `app/Services/Search/PropertySearchService.php`, `load average` 5,2-5,8 sur 8 cœurs) : **4 classes
+> sélectionnées, 26 tests, 16,7 s d'horloge** — ×2,8 le plancher **estimé** ci-dessus pour cette
+> tranche, et un gain réel d'environ **×13** (contre 204-235 s pour la suite entière au repos), pas
+> ~120×. Détail et raisonnement :
+> [`docs/plans/2026-08-17-temps-d-execution-des-tests.md`](../../plans/2026-08-17-temps-d-execution-des-tests.md).
 
 **Par commit mergé** — fin de ticket, sur 172 commits touchant `takussan-api/` : **97 / 172 (56 %)
 retombent sur la suite entière**. C'est correct, et c'est bien placé : le repli tombe au moment où

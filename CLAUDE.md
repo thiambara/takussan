@@ -154,7 +154,8 @@ php artisan test --parallel          # ×3,2 sur la meilleure mesure (208,80 s s
                                     #   mesuré le 2026-08-17, cf. D-30). ⚠ POUR LE RITUEL DE FIN DE
                                     #   BRANCHE, machine au repos — PAS pour la boucle quotidienne :
                                     #   la suite séquentielle n'occupe que 0,73 cœur sur 8 (mesuré
-                                    #   le 2026-08-17 : user 417,40 s + sys 29,42 s pour 611,4 s), et
+                                    #   le 2026-08-17, load average 5,7 → 21,7 sur 8 cœurs : user
+                                    #   417,40 s + sys 29,42 s pour 611,4 s), et
                                     #   deux agents qui parallélisent en même temps demandent 16
                                     #   cœurs à une machine qui en a 8. NON activé en CI : la
                                     #   décision exige une mesure sur le runner (2 à 4 cœurs), qui
