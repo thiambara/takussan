@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, ArrowUpDown, MoreHorizontal } from 'lucide-react';
+import { ErrorState } from '@/components/feedback';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -178,11 +179,7 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
         </div>
       ) : null}
 
-      {error ? (
-        <div className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-900 ring-1 ring-red-200" role="alert">
-          {error}
-        </div>
-      ) : null}
+      {error ? <ErrorState message={error} /> : null}
 
       <div className="overflow-x-auto rounded-xl bg-white ring-1 ring-stone-200">
         <table className="min-w-full divide-y divide-stone-200 text-sm" data-testid="super-admin-properties-table">

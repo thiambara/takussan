@@ -10,6 +10,9 @@ vi.mock('@/context/AuthContext', () => ({
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'fr',
+  // `QueryBoundary` et l'état vide passent par next-intl depuis TCK-291 : ce mock rend la CLÉ,
+  // ce qui suffit ici — les assertions portent sur les `data-testid`, pas sur les libellés.
+  useTranslations: () => (key: string) => key,
 }));
 
 vi.mock('next/navigation', () => ({

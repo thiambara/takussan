@@ -2,9 +2,12 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { CalendarClock } from 'lucide-react';
 import { useVisits } from '@/lib/queries/visits';
 import { formatDateTime } from '@/lib/format';
+import { EmptyState } from '@/components/feedback';
+import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { PropertyVisit, VisitStatus, VisitType } from '@/types/visit';
@@ -71,11 +74,11 @@ export function VisitsList() {
     per_page: 30,
   });
 
-  const tabs: ReadonlyArray<{ value: TabKey; label: string; query: ReturnType<typeof useVisits>; emptyLabel: string }> = [
-    { value: 'requested', label: 'Demandées', query: requested, emptyLabel: 'Aucune visite demandée.' },
-    { value: 'confirmed', label: 'Confirmées', query: confirmed, emptyLabel: 'Aucune visite confirmée.' },
-    { value: 'past', label: 'Passées', query: past, emptyLabel: 'Aucune visite passée.' },
-    { value: 'cancelled', label: 'Annulées', query: cancelled, emptyLabel: 'Aucune visite annulée.' },
+  const tabs: ReadonlyArray<{ value: TabKey; label: string; query: ReturnType<typeof useVisits> }> = [
+    { value: 'requested', label: 'Demandées', query: requested },
+    { value: 'confirmed', label: 'Confirmées', query: confirmed },
+    { value: 'past', label: 'Passées', query: past },
+    { value: 'cancelled', label: 'Annulées', query: cancelled },
   ];
 
   return (
@@ -93,7 +96,7 @@ export function VisitsList() {
 
       {tabs.map((t) => (
         <TabsContent key={t.value} value={t.value} className="mt-4">
-          <VisitsListBody query={t.query} locale={locale} emptyLabel={t.emptyLabel} />
+          <VisitsListBody query={t.query} locale={locale} tab={t.value} />
         </TabsContent>
       ))}
     </Tabs>
@@ -105,45 +108,42 @@ type QueryLike = ReturnType<typeof useVisits>;
 function VisitsListBody({
   query,
   locale,
-  emptyLabel,
+  tab,
 }: {
   query: QueryLike;
   locale: Locale;
-  emptyLabel: string;
+  tab: TabKey;
 }) {
-  if (query.isLoading) {
-    return (
-      <div className="space-y-3">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="h-20 animate-pulse rounded-xl bg-app-surface-1" />
-        ))}
-      </div>
-    );
-  }
-
-  if (query.isError) {
-    return (
-      <p className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
-        Impossible de charger vos visites.
-      </p>
-    );
-  }
-
-  const visits = query.data?.data ?? [];
-  if (visits.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-stone-200 bg-white p-8 text-center text-sm text-stone-500">
-        {emptyLabel}
-      </div>
-    );
-  }
+  const t = useTranslations('visits.list');
 
   return (
-    <ul className="space-y-3">
-      {visits.map((visit) => (
-        <VisitRow key={visit.id} visit={visit} locale={locale} />
+    <QueryBoundary
+      query={query}
+      loadingFallback={[0, 1, 2].map((i) => (
+        <div key={i} className="h-20 animate-pulse rounded-xl bg-app-surface-1" />
       ))}
-    </ul>
+    >
+      {(data) => {
+        const visits = data.data ?? [];
+        if (visits.length === 0) {
+          return (
+            <EmptyState
+              icon={<CalendarClock className="size-8" aria-hidden="true" />}
+              title={t(`empty.${tab}`)}
+              description={t('empty_description')}
+            />
+          );
+        }
+
+        return (
+          <ul className="space-y-3">
+            {visits.map((visit) => (
+              <VisitRow key={visit.id} visit={visit} locale={locale} />
+            ))}
+          </ul>
+        );
+      }}
+    </QueryBoundary>
   );
 }
 

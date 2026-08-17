@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { Activity, KeyRound, PlugZap, Save, TestTube2, Webhook, X } from 'lucide-react';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -193,6 +195,8 @@ export function WebhookTrailTable({
   error: string | null;
   onClose: () => void;
 }) {
+  const t = useTranslations('superAdmin.integrations.webhooks');
+
   return (
     <section className="rounded-xl bg-white ring-1 ring-stone-200">
       <div className="flex items-center justify-between border-b border-stone-200 p-4">
@@ -207,7 +211,7 @@ export function WebhookTrailTable({
       {loading ? (
         <div className="m-4 h-24 animate-pulse rounded-lg bg-stone-200" />
       ) : error ? (
-        <div className="m-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-900 ring-1 ring-red-200">{error}</div>
+        <ErrorState className="m-4" message={error} />
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-stone-200 text-sm">
@@ -233,10 +237,12 @@ export function WebhookTrailTable({
             </tbody>
           </table>
           {logs.length === 0 ? (
-            <div className="p-8 text-center text-sm text-stone-500">
-              <Activity className="mx-auto mb-2 size-5" aria-hidden="true" />
-              Aucun webhook récent.
-            </div>
+            <EmptyState
+              className="border-0"
+              icon={<Activity className="size-8" aria-hidden="true" />}
+              title={t('empty_title')}
+              description={t('empty_description')}
+            />
           ) : null}
         </div>
       )}
