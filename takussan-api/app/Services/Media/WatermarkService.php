@@ -11,23 +11,23 @@ class WatermarkService
     {
         $manager = new ImageManager(new GdDriver);
 
-        $image = $manager->read($sourcePath);
+        $image = $manager->decodePath($sourcePath);
         $imageWidth = $image->width();
         $imageHeight = $image->height();
 
         $overlayWidth = max(200, (int) ($imageWidth * 0.30));
         $overlayHeight = max(60, (int) ($imageHeight * 0.12));
 
-        $overlayCanvas = $manager->create($overlayWidth, $overlayHeight);
+        $overlayCanvas = $manager->createImage($overlayWidth, $overlayHeight);
         $overlayCanvas->fill('rgba(0, 0, 0, 0)');
 
         $textY = 5;
 
         if ($context->logoPath !== null && file_exists($context->logoPath)) {
-            $logo = $manager->read($context->logoPath);
+            $logo = $manager->decodePath($context->logoPath);
             $maxLogoWidth = (int) ($imageWidth * 0.20);
             $logo->scaleDown(width: $maxLogoWidth);
-            $overlayCanvas->place($logo, 'top-left', 0, 0, $context->opacity);
+            $overlayCanvas->insert($logo, 0, 0, 'top-left', $context->opacity / 100);
             $textY = $logo->height() + 4;
         }
 
@@ -55,12 +55,12 @@ class WatermarkService
             );
         }
 
-        $image->place(
+        $image->insert(
             $overlayCanvas,
+            10,
+            10,
             $context->position->toInterventionPosition(),
-            10,
-            10,
-            $context->opacity,
+            $context->opacity / 100,
         );
 
         $image->save($sourcePath);
