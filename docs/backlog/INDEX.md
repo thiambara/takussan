@@ -11,8 +11,8 @@
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 18 |
-| 🚧 Doing | 1 |
-| 👀 Review | 0 |
+| 🚧 Doing | 0 |
+| 👀 Review | 1 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 287 |
 | 🗑️ Obsolete | 1 |
@@ -54,11 +54,11 @@
 
 ## 🚧 Doing
 
-- [TCK-279](tickets/TCK-279-rbac-custom-roles-phase-2.md) — RBAC refondu — phase 2 : rôles personnalisés par agence (AgencyRole + pivot de capacités) `L · P1 · full`
+_(aucun)_
 
 ## 👀 Review
 
-_(aucun)_
+- [TCK-279](tickets/TCK-279-rbac-custom-roles-phase-2.md) — RBAC refondu — phase 2 : rôles personnalisés par agence (AgencyRole + pivot de capacités) `L · P1 · full`
 
 ## ⛔ Blocked
 
