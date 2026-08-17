@@ -249,14 +249,21 @@ jobs:
         run: |
           php bin/build-impact-map.php storage/coverage/cov.php tests/impact-map.json
 
-          if git diff --quiet -- tests/impact-map.json; then
+          # `git diff` SEUL compare l'arbre de travail à l'INDEX, pour des chemins déjà
+          # suivis — un fichier jamais commité (ou redevenu absent du suivi) n'y apparaît
+          # jamais comme « changé », même s'il vient d'être créé. On stage donc D'ABORD,
+          # puis on compare l'index au dernier commit (`--cached`) : ça couvre la création
+          # ET la modification. Sans ce détour, une carte pas encore trackée se ferait dire
+          # « inchangée » à chaque exécution — le mécanisme censé la créer ne la créerait
+          # jamais, en silence.
+          git add tests/impact-map.json
+          if git diff --cached --quiet -- tests/impact-map.json; then
             echo "carte inchangée — rien à pousser"
             exit 0
           fi
 
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add tests/impact-map.json
           git commit -m "chore(tests): régénérer la carte d'impact [skip ci]"
 
           # Une seule tentative de rebase : si un autre push est arrivé entretemps, on
