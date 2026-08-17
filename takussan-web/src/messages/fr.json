@@ -1229,7 +1229,9 @@
     },
     "stub": {
       "title": "En cours de développement"
-    }
+    },
+    "missingToken": "Votre session a expiré. Reconnectez-vous.",
+    "noPendingInvitation": "Aucune invitation en attente pour ce contact."
   },
   "agency": {
     "currency": {
@@ -2963,7 +2965,15 @@
       "properties": {
         "empty_title": "Aucun bien à valider",
         "empty_description": "Aucun bien n'est en attente de validation pour le moment. Revenez plus tard."
-      }
+      },
+      "status": {
+        "pending": "En attente",
+        "reported": "Signalé",
+        "approved": "Approuvé",
+        "rejected": "Rejeté"
+      },
+      "emptyReview": "Avis sans contenu",
+      "unknownAgent": "Agent inconnu"
     },
     "finances": {
       "overdue": {
@@ -2974,6 +2984,20 @@
       "denied": {
         "title": "Accès aux finances non autorisé",
         "body": "Votre rôle ne dispose pas des permissions financières ({capabilities}). Demandez à un administrateur de votre agence d'ajuster votre rôle."
+      },
+      "tabs": {
+        "payments": "Encaissements",
+        "invoices": "Factures",
+        "payouts": "Reversements",
+        "overdue": "Impayés",
+        "newInvoice": "Générer une facture",
+        "newPayout": "Créer un reversement"
+      },
+      "kpis": {
+        "collections30d": "Encaissements (30 j)",
+        "overdue": "Impayés en cours",
+        "pendingPayouts": "Reversements en attente",
+        "invoicesToIssue": "Factures à émettre"
       }
     },
     "audit": {
@@ -3042,6 +3066,19 @@
         "subtitle": "Providers externes (paiement, SMS, e-mail) et leurs webhooks.",
         "loadError": "Impossible de charger les intégrations : {message}"
       }
+    },
+    "team": {
+      "removeDialog": {
+        "title": "Retirer ce membre ?",
+        "cancel": "Annuler",
+        "confirm": "Retirer"
+      }
+    },
+    "propertyModeration": {
+      "searchPlaceholder": "Rechercher un bien…",
+      "pendingCount": "{count, plural, =1 {# bien en attente} other {# biens en attente}}",
+      "loading": "Chargement de la file de modération…",
+      "loadError": "Impossible de charger la file."
     }
   },
   "documents": {

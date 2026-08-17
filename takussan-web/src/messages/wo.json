@@ -383,7 +383,9 @@
     },
     "stub": {
       "title": "Mi ngi ci defar"
-    }
+    },
+    "missingToken": "Sa sesioŋ jeex na. Duggaatal.",
+    "noPendingInvitation": "Amul woote buy xaar ci ki."
   },
   "agency": {
     "currency": {
@@ -2093,7 +2095,15 @@
       "properties": {
         "empty_title": "Amul kër bu ñu war a dëggal",
         "empty_description": "Amul kër bu xaar dëggal leegi. Ñëwaat ci kanam."
-      }
+      },
+      "status": {
+        "pending": "Muy xaar",
+        "reported": "Ñu ko xamle",
+        "approved": "Nangu nañu ko",
+        "rejected": "Bañ nañu ko"
+      },
+      "emptyReview": "Xalaat bu amul li ci nekk",
+      "unknownAgent": "Ajaŋ bu ñu xamul"
     },
     "finances": {
       "overdue": {
@@ -2104,6 +2114,20 @@
       "denied": {
         "title": "Jotoo ci koppar yi sañuñu ko",
         "body": "Sa wàll amul sañ-sañu koppar ({capabilities}). Ñaanal njiitu sa ajaas mu soppi sa wàll."
+      },
+      "tabs": {
+        "payments": "Pey yi",
+        "invoices": "Fakteer yi",
+        "payouts": "Peymaan yi",
+        "overdue": "Yu ñu feyul",
+        "newInvoice": "Génne benn fakteer",
+        "newPayout": "Sos benn peymaan"
+      },
+      "kpis": {
+        "collections30d": "Pey yi (30 fan)",
+        "overdue": "Pey yu ñu feyul",
+        "pendingPayouts": "Peymaan yuy xaar",
+        "invoicesToIssue": "Fakteer yu ñu war a génne"
       }
     },
     "audit": {
@@ -2172,6 +2196,19 @@
         "subtitle": "Jottalikat yu biti (pey, SMS, imeel) ak seen webhook.",
         "loadError": "Mënuñu yeb jokkale yi : {message}"
       }
+    },
+    "team": {
+      "removeDialog": {
+        "title": "Dindi way-bokk bii ?",
+        "cancel": "Neenal",
+        "confirm": "Dindi"
+      }
+    },
+    "propertyModeration": {
+      "searchPlaceholder": "Seet benn kër…",
+      "pendingCount": "{count, plural, other {# kër yuy xaar}}",
+      "loading": "Mu ngi yeb liiñu moderasioŋ bi…",
+      "loadError": "Mënuñu yeb liiñ bi."
     }
   },
   "property": {

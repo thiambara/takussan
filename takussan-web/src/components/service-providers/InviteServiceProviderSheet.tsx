@@ -100,6 +100,7 @@ export function InviteServiceProviderSheet({
   fromMaintenanceRequestId,
   onInvited,
 }: InviteServiceProviderSheetProps) {
+  const tErr = useTranslations('errors');
   const t = useTranslations('serviceProviders.invite');
   const tCategories = useTranslations('serviceProviders.invite.trades');
   const toast = useToast();
@@ -117,7 +118,7 @@ export function InviteServiceProviderSheet({
   >({
     mutationFn: (payload) => {
       if (!token) {
-        throw new ApiError(401, { message: 'no token' });
+        throw new ApiError(401, { message: tErr('missingToken') });
       }
       return inviteServiceProvider(token, agencyId, payload);
     },

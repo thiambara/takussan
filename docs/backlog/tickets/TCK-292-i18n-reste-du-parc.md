@@ -214,18 +214,27 @@ demi-mesure mais une **régression lisible** : l'écran rendrait des en-têtes a
 d'enum françaises côte à côte. Ils attendent donc ensemble que la question du module partagé soit
 tranchée — la même qu'au lot B, mais qui porte ici sur **115 occurrences au lieu de 8**.
 
-### Lot D — admin agence : 62 / 346 occurrences
+### Lot D — admin agence : 98 / 346 occurrences
 
 Inventaire re-mesuré : **37 fichiers / 346 occurrences** (le ticket annonçait 37 / 354), et
 **aucun n'importe `property-form/options.ts`** — le lot est entièrement débloqué, contrairement
 au reste du lot C.
 
-**Fait — `app/(dashboard)/admin/**` est intégralement à zéro** (14 fichiers, 62 occurrences).
+**Fait — 24 fichiers à zéro** : `app/(dashboard)/admin/**` en entier (14 fichiers), plus
+`owners/`, `service-providers/`, `admin/finances/`, `admin/ConfirmRemoveDialog`,
+`admin/ModerationQueueList`, `admin/PropertyModerationQueueList`,
+`admin/PropertyModerationWorkspace`.
 
-**Reste — 23 fichiers, 284 occurrences**, tous des composants :
-`admin-settings/IntegrationsManager` (45), `admin-agency/AgencyConfigForm` (33),
-`admin-tags/TagsManager` (28), `admin-settings/SettingsManager` (19), `components/admin/**`
-hors `super/` (159 sur 17 fichiers), `owners/` et `service-providers/` (13).
+**Reste — 13 fichiers, 248 occurrences** : `admin-settings/IntegrationsManager` (45),
+`admin-agency/AgencyConfigForm` (33), `admin-tags/TagsManager` (28),
+`admin-settings/SettingsManager` (19), et 8 fichiers de `components/admin/**` hors `super/`
+(`AuditTrail` 29, `ModerationDetail` 19, `users/AdminUsersTable` 15,
+`PropertyModerationDetail` 13, `ModerationWorkspace` 12, `TeamConsole` 11,
+`InviteMemberDialog` 8, `users/UserDetailDrawer` 8, `users/AdminUsersFilters` 7,
+`users/UserRolesEditor` 5).
+
+⚠️ **`TeamConsole` et les fichiers `admin/roles/` restent hors de portée** tant que TCK-279 n'est
+pas mergé — c'était la frontière posée au moment de TCK-291, et je ne l'ai pas franchie.
 
 ### Lots E à L
 

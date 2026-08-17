@@ -1253,7 +1253,9 @@
     },
     "stub": {
       "title": "Under development"
-    }
+    },
+    "missingToken": "Your session has expired. Please sign in again.",
+    "noPendingInvitation": "No pending invitation for this contact."
   },
   "agency": {
     "currency": {
@@ -2963,7 +2965,15 @@
       "properties": {
         "empty_title": "No property to review",
         "empty_description": "No property is awaiting validation right now. Check back later."
-      }
+      },
+      "status": {
+        "pending": "Pending",
+        "reported": "Reported",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "emptyReview": "Review with no content",
+      "unknownAgent": "Unknown agent"
     },
     "finances": {
       "overdue": {
@@ -2974,6 +2984,20 @@
       "denied": {
         "title": "Finance access not allowed",
         "body": "Your role does not hold the finance permissions ({capabilities}). Ask an administrator of your agency to adjust your role."
+      },
+      "tabs": {
+        "payments": "Collections",
+        "invoices": "Invoices",
+        "payouts": "Payouts",
+        "overdue": "Overdue",
+        "newInvoice": "Generate an invoice",
+        "newPayout": "Create a payout"
+      },
+      "kpis": {
+        "collections30d": "Collections (30 d)",
+        "overdue": "Outstanding overdue",
+        "pendingPayouts": "Pending payouts",
+        "invoicesToIssue": "Invoices to issue"
       }
     },
     "audit": {
@@ -3042,6 +3066,19 @@
         "subtitle": "External providers (payment, SMS, email) and their webhooks.",
         "loadError": "The integrations could not be loaded: {message}"
       }
+    },
+    "team": {
+      "removeDialog": {
+        "title": "Remove this member?",
+        "cancel": "Cancel",
+        "confirm": "Remove"
+      }
+    },
+    "propertyModeration": {
+      "searchPlaceholder": "Search a property…",
+      "pendingCount": "{count, plural, =1 {# property pending} other {# properties pending}}",
+      "loading": "Loading the moderation queue…",
+      "loadError": "The queue could not be loaded."
     }
   },
   "documents": {
