@@ -252,6 +252,26 @@ jobs:
         # qu'il est bien décrit. C'est un cliquet contre la régression franche, pas une mesure de
         # qualité (dette D-23 : chercher un jeton ne mesure pas une propriété).
         run: node scripts/check-models-spec.mjs --report
+      - name: Le filtrage passe par un seul mécanisme
+        # `BaseModelTrait::scopeFilter(Builder, array)` coexistait avec spatie/laravel-query-builder
+        # sur les MÊMES modèles — `AbstractModel` compose les deux traits, donc les 68 modèles qui
+        # en héritent portaient les deux. Mesuré le 2026-08-17 : ZÉRO appelant dans tout le dépôt,
+        # contre 46 `buildQuery()` dans les seuls contrôleurs. Son unique usage était le test qui
+        # le testait (TCK-307).
+        #
+        # Le coût n'était pas les dix-neuf lignes, c'était l'AMBIGUÏTÉ : deux mécanismes également
+        # disponibles sur le même modèle ne se lisent pas « un vivant et un mort », ils se lisent
+        # « deux conventions, choisis ». Qui prenait le mauvais écrivait du code qui MARCHAIT et
+        # qui sortait du contrat de lecture — pas de sparse fieldsets, pas d'`include=`, pas de
+        # routage Scout, pas de tri déclaré.
+        #
+        # La garde a trois contrôles et le dit dans sa sortie : la non-vacuité (elle rougit si elle
+        # ne trouve plus sa cible — c'est le mode de défaillance qui rend une garde muette), le NOM
+        # (un cliquet, dette D-23), et la FORME — un scope à paramètre `array` qui déroule des
+        # `where()` en boucle, qui survit à un renommage. Elle ne couvre PAS le filtrage ad hoc en
+        # contrôleur : il y en a par choix assumé (TCK-281, « Hors périmètre »), et une garde qu'on
+        # ne peut pas rendre verte n'est pas une garde.
+        run: node scripts/check-filtering-single-mechanism.mjs --report
       - name: Aucun document normatif ne cite un chemin markdown mort
         # `models-spec.md` a cité `docs/claude-code-prompt-notifications.md` — JAMAIS ÉCRIT — assez
         # longtemps pour qu'on finisse par annoter la citation « *(jamais écrit — pointeur mort)* »

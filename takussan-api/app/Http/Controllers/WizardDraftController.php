@@ -14,6 +14,23 @@ use Illuminate\Http\Request;
  * `key` is a logical identifier owned by each consumer wizard
  * (e.g. `host-individual-wizard`, `owner-onboarding-{invitation_id}`).
  * Records are strictly user-scoped via the unique `(user_id, key)` index.
+ *
+ * TCK-307 — **il n'y a délibérément pas de policy ici, et ce n'est pas un oubli.**
+ * `WizardDraftPolicy` a existé, enregistrée par auto-discovery et appelée par personne :
+ * les quatre méthodes ci-dessous portent le contrôle d'accès dans leur clause
+ * `where('user_id', …)`, jamais dans un `authorize()`. Elle a été supprimée plutôt que
+ * câblée, pour deux raisons mesurées :
+ *
+ *   1. Elle aurait été REDONDANTE — ses trois méthodes rendaient `$draft->user_id === $user->id`,
+ *      exactement ce que fait le scoping, et les routes lient un `{key}` (chaîne) et non un
+ *      modèle : il n'y a aucun brouillon d'autrui à passer à `authorize()`.
+ *   2. Elle aurait AFFAIBLI la règle. `Gate::before(… isSuperAdmin() ? true : null)` est un
+ *      bypass global : un super-admin aurait franchi la policy et lu le brouillon d'un autre
+ *      utilisateur, là où la clause `where` ne le laisse pas passer. Les brouillons sont
+ *      strictement personnels — cf. `Tests\Feature\WizardDraft\WizardDraftCrossUserAccessTest`,
+ *      qui garde les trois verbes.
+ *
+ * Ajouter une policy ici est donc un changement de comportement, pas une mise en conformité.
  */
 class WizardDraftController extends Controller
 {
