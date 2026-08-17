@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**312 tickets** — 11 ouverts, 300 livrés.
+**313 tickets** — 12 ouverts, 300 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 9 |
+| 📋 Todo | 10 |
 | 🚧 Doing | 2 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -42,6 +42,7 @@
 - [TCK-328](tickets/TCK-328-front-servi-sur-127-0-0-1-ne-s-hydrate-pas.md) — Le front servi sur `127.0.0.1` ne s'hydrate pas — Next 16 bloque ses ressources de dev, en silence `S · P2 · technique`
 - [TCK-329](tickets/TCK-329-profiletype-front-ignore-agency-admin.md) — Le type `ProfileType` du front ignore `agency_admin` — la barre supérieure affiche « undefined · <agence> » `S · P2 · front`
 - [TCK-330](tickets/TCK-330-saved-search-frequence-nulle-500.md) — Créer une recherche sauvegardée avec une fréquence d'alerte vide rend 500 `S · P1 · bug`
+- [TCK-331](tickets/TCK-331-coverage-php-en-double-casse-le-cliquet.md) — `--coverage-php` est passé DEUX FOIS — le cliquet sort en 1 sans un mot, et la carte d'impact n'a jamais été régénérée `M · P2 · technique`
 
 ## 🚧 Doing
 
