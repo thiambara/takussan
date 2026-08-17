@@ -2,15 +2,19 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+// `withIntl` charge le VRAI `fr.json` : depuis TCK-292 le message d'accès refusé vient du
+// dictionnaire, et un rendu sans provider LÈVE. Les assertions françaises sont inchangées.
+import { withIntl } from '@/test/intl';
 import { AdminFinancesClient } from '../AdminFinancesClient';
 
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ token: 'test-token' }),
 }));
 
-vi.mock('next-intl', () => ({
-  useLocale: () => 'fr',
-}));
+// Le mock complet de `next-intl` a été RETIRÉ (TCK-292) : il ne fournissait que `useLocale`, et
+// `withIntl` a besoin du vrai `NextIntlClientProvider`. Le provider réel rend `useLocale` ET
+// `useTranslations` corrects — un mock partiel d'un module qu'on utilise vraiment est une dette
+// qui se paie au premier composant traduit.
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(''),
@@ -66,7 +70,7 @@ function renderWith(node: React.ReactElement) {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={queryClient}>{node}</QueryClientProvider>,
+    withIntl(<QueryClientProvider client={queryClient}>{node}</QueryClientProvider>),
   );
 }
 

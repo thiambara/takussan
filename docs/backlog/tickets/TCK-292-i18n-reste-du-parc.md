@@ -214,7 +214,20 @@ demi-mesure mais une **régression lisible** : l'écran rendrait des en-têtes a
 d'enum françaises côte à côte. Ils attendent donc ensemble que la question du module partagé soit
 tranchée — la même qu'au lot B, mais qui porte ici sur **115 occurrences au lieu de 8**.
 
-### Lots D à L
+### Lot D — admin agence : 62 / 346 occurrences
+
+Inventaire re-mesuré : **37 fichiers / 346 occurrences** (le ticket annonçait 37 / 354), et
+**aucun n'importe `property-form/options.ts`** — le lot est entièrement débloqué, contrairement
+au reste du lot C.
+
+**Fait — `app/(dashboard)/admin/**` est intégralement à zéro** (14 fichiers, 62 occurrences).
+
+**Reste — 23 fichiers, 284 occurrences**, tous des composants :
+`admin-settings/IntegrationsManager` (45), `admin-agency/AgencyConfigForm` (33),
+`admin-tags/TagsManager` (28), `admin-settings/SettingsManager` (19), `components/admin/**`
+hors `super/` (159 sur 17 fichiers), `owners/` et `service-providers/` (13).
+
+### Lots E à L
 
 **Non commencés.** L'ordre du Delta (B → C → D → E → F → G → H → I → J → K → A → L) est inchangé.
 

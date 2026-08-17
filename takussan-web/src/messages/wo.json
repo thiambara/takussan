@@ -2100,12 +2100,78 @@
         "empty_title": "Amul benn pey bu ñu feyul",
         "empty_description": "Xibaar bu baax : bes yépp feyees nañu.",
         "count": "{count, plural, =1 {# pey bu ñu feyul} other {# pey yu ñu feyul}}"
+      },
+      "denied": {
+        "title": "Jotoo ci koppar yi sañuñu ko",
+        "body": "Sa wàll amul sañ-sañu koppar ({capabilities}). Ñaanal njiitu sa ajaas mu soppi sa wàll."
       }
     },
     "audit": {
       "empty_title": "Amul benn mbind ci tànneef yii",
       "empty_description": "Yaatalal jamono ji walla dindi benn tànneef ngir gis jëf yu gën a bare.",
       "error": "Mënuñu yeb téereb teraanga bi."
+    },
+    "pages": {
+      "home": {
+        "noAgency": "Tablou ajaas",
+        "title": "Tablou ajaas",
+        "subtitle": "Wonewu ajaas bi"
+      },
+      "team": {
+        "shortTitle": "Ekib bi",
+        "shortSubtitle": "Topptoo way-bokk yu ajaas bi",
+        "title": "Ekib bi",
+        "subtitle": "Topptoo way-bokk yépp yu sa ajaas : ajaŋ, njiit, boroom kër. Woo leen, jox wàll, taxaw walla dindi jot."
+      },
+      "audit": {
+        "title": "Téereb teraanga",
+        "subtitle": "Topptoo jëf yépp yu am solo ci ajaas bi."
+      },
+      "moderation": {
+        "title": "Moderasioŋ",
+        "subtitle": "Liiñu xalaat yuy xaar ak xamle yu ñu war a topptoo."
+      },
+      "propertyModeration": {
+        "title": "Moderasioŋu kër yi",
+        "subtitle": "Liiñu kër yi ajaŋ yu sa ajaas yónnee."
+      },
+      "finances": {
+        "noAgency": "Koppar yi",
+        "title": "Koppar yi",
+        "subtitle": "Pey, fakteer ak peymaan — wonewu koppar yu ajaas bi."
+      },
+      "agencyConfig": {
+        "title": "Tëralinu ajaas bi",
+        "noAgency": "Amul ajaas bu boole ak sa kont.",
+        "loadError": "Mënuñu yeb xibaaru ajaas bi.",
+        "subtitle": "Kollëre, jokkoo, logo ak tëralinu liggéey."
+      },
+      "kyc": {
+        "title": "Dosyeb KYC",
+        "noAgency": "Amul ajaas bu boole ak sa kont.",
+        "contactAdmin": "Jokkoo ak benn super-njiit ngir ñu la boole ak ajaas.",
+        "subtitle": "Kayit yu ndënk ak nekkinu seetlu."
+      },
+      "billing": {
+        "title": "Abonaman",
+        "subtitle": "Plan bi ñuy jëfandikoo, komisioŋu platform ak dig yu liggéey.",
+        "payoutsTitle": "Peymaanu platform",
+        "payoutsBody": "Topptoo yónnee yi platform bi def ginnaaw pey bi.",
+        "payoutsBodyFull": "Topptoo yónnee yi platform bi def ginnaaw bu jële komisioŋ bi."
+      },
+      "settings": {
+        "title": "Tëralin yi",
+        "subtitle": "Tëralin yu mag caabi/njëg, feature flag ak jokkale.",
+        "navAria": "Xaajum tëralin yi",
+        "tabGeneral": "Bu mag",
+        "tabIntegrations": "Jokkale yi",
+        "loadError": "Mënuñu yeb tëralin yi : {message}"
+      },
+      "integrations": {
+        "title": "Jokkale yi",
+        "subtitle": "Jottalikat yu biti (pey, SMS, imeel) ak seen webhook.",
+        "loadError": "Mënuñu yeb jokkale yi : {message}"
+      }
     }
   },
   "property": {

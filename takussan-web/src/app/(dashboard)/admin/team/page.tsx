@@ -20,6 +20,7 @@ import { ensureStandardAgencyOrRedirect } from '@/lib/access/server-guards';
  * bounced to `/app` by `ensureStandardAgencyOrRedirect`.
  */
 export default async function TeamPage() {
+  const tPage = await getTranslations('admin.pages.team');
   const user = await getMeAction();
   if (!isAdmin(user.roles)) redirect('/admin');
   await ensureStandardAgencyOrRedirect(user);
@@ -28,7 +29,7 @@ export default async function TeamPage() {
     const t = await getTranslations('team.page');
     return (
       <div className="space-y-6">
-        <PageHeader title="Équipe" subtitle="Gestion des membres de l'agence" />
+        <PageHeader title={tPage('shortTitle')} subtitle={tPage('shortSubtitle')} />
         <EmptyState
           icon={<Building2 className="size-8" aria-hidden="true" />}
           title={t('no_agency_title')}
@@ -46,8 +47,8 @@ export default async function TeamPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Équipe"
-        subtitle="Gérez tous les membres de votre agence : agents, administrateurs, propriétaires. Invitez, attribuez des rôles, suspendez ou retirez un accès."
+        title={tPage('title')}
+        subtitle={tPage('subtitle')}
       />
       <TeamConsole agencyId={user.agency_id} currentUserId={user.id} />
     </div>

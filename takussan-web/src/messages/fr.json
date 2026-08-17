@@ -2970,12 +2970,78 @@
         "empty_title": "Aucun impayé en cours",
         "empty_description": "Bonne nouvelle : toutes les échéances sont réglées.",
         "count": "{count, plural, =1 {# impayé} other {# impayés}}"
+      },
+      "denied": {
+        "title": "Accès aux finances non autorisé",
+        "body": "Votre rôle ne dispose pas des permissions financières ({capabilities}). Demandez à un administrateur de votre agence d'ajuster votre rôle."
       }
     },
     "audit": {
       "empty_title": "Aucune entrée pour ces filtres",
       "empty_description": "Élargissez la période ou retirez un filtre pour voir plus d'actions.",
       "error": "Impossible de charger le journal d'audit."
+    },
+    "pages": {
+      "home": {
+        "noAgency": "Tableau de bord agence",
+        "title": "Tableau de bord agence",
+        "subtitle": "Vue d'ensemble de l'agence"
+      },
+      "team": {
+        "shortTitle": "Équipe",
+        "shortSubtitle": "Gestion des membres de l'agence",
+        "title": "Équipe",
+        "subtitle": "Gérez tous les membres de votre agence : agents, administrateurs, propriétaires. Invitez, attribuez des rôles, suspendez ou retirez un accès."
+      },
+      "audit": {
+        "title": "Journal d'audit",
+        "subtitle": "Traçabilité de toutes les actions sensibles sur l'agence."
+      },
+      "moderation": {
+        "title": "Modération",
+        "subtitle": "File d'attente des avis en attente et signalements à traiter."
+      },
+      "propertyModeration": {
+        "title": "Modération des biens",
+        "subtitle": "File d'attente des biens soumis par les agents de votre agence."
+      },
+      "finances": {
+        "noAgency": "Finances",
+        "title": "Finances",
+        "subtitle": "Encaissements, factures et reversements — vue commerciale de l'agence."
+      },
+      "agencyConfig": {
+        "title": "Configuration de l'agence",
+        "noAgency": "Aucune agence n'est rattachée à votre compte.",
+        "loadError": "Impossible de charger les informations de l'agence.",
+        "subtitle": "Identité, contact, logo et paramètres métier."
+      },
+      "kyc": {
+        "title": "Dossier KYC",
+        "noAgency": "Aucune agence n'est rattachée à votre compte.",
+        "contactAdmin": "Contactez un super-administrateur pour être rattaché à une agence.",
+        "subtitle": "Pièces administratives et statut de vérification."
+      },
+      "billing": {
+        "title": "Abonnement",
+        "subtitle": "Plan courant, commission plateforme et limites opérationnelles.",
+        "payoutsTitle": "Reversements plateforme",
+        "payoutsBody": "Suivi des virements émis par la plateforme après encaissement.",
+        "payoutsBodyFull": "Suivi des virements émis par la plateforme après retenue de la commission."
+      },
+      "settings": {
+        "title": "Paramètres",
+        "subtitle": "Paramètres globaux clé/valeur, feature flags et intégrations.",
+        "navAria": "Sections des paramètres",
+        "tabGeneral": "Général",
+        "tabIntegrations": "Intégrations",
+        "loadError": "Impossible de charger les paramètres : {message}"
+      },
+      "integrations": {
+        "title": "Intégrations",
+        "subtitle": "Providers externes (paiement, SMS, e-mail) et leurs webhooks.",
+        "loadError": "Impossible de charger les intégrations : {message}"
+      }
     }
   },
   "documents": {

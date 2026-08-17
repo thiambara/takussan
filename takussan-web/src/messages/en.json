@@ -2970,12 +2970,78 @@
         "empty_title": "No outstanding payment",
         "empty_description": "Good news: every instalment has been settled.",
         "count": "{count, plural, =1 {# outstanding payment} other {# outstanding payments}}"
+      },
+      "denied": {
+        "title": "Finance access not allowed",
+        "body": "Your role does not hold the finance permissions ({capabilities}). Ask an administrator of your agency to adjust your role."
       }
     },
     "audit": {
       "empty_title": "No entry for these filters",
       "empty_description": "Widen the period or drop a filter to see more actions.",
       "error": "The audit log could not be loaded."
+    },
+    "pages": {
+      "home": {
+        "noAgency": "Agency dashboard",
+        "title": "Agency dashboard",
+        "subtitle": "Agency overview"
+      },
+      "team": {
+        "shortTitle": "Team",
+        "shortSubtitle": "Manage the agency's members",
+        "title": "Team",
+        "subtitle": "Manage all your agency's members: agents, administrators, landlords. Invite, assign roles, suspend or revoke access."
+      },
+      "audit": {
+        "title": "Audit log",
+        "subtitle": "Traceability of every sensitive action on the agency."
+      },
+      "moderation": {
+        "title": "Moderation",
+        "subtitle": "Queue of pending reviews and reports to handle."
+      },
+      "propertyModeration": {
+        "title": "Property moderation",
+        "subtitle": "Queue of properties submitted by your agency's agents."
+      },
+      "finances": {
+        "noAgency": "Finances",
+        "title": "Finances",
+        "subtitle": "Collections, invoices and payouts — the agency's commercial view."
+      },
+      "agencyConfig": {
+        "title": "Agency configuration",
+        "noAgency": "No agency is linked to your account.",
+        "loadError": "The agency information could not be loaded.",
+        "subtitle": "Identity, contact, logo and business settings."
+      },
+      "kyc": {
+        "title": "KYC file",
+        "noAgency": "No agency is linked to your account.",
+        "contactAdmin": "Contact a super-administrator to be linked to an agency.",
+        "subtitle": "Administrative documents and verification status."
+      },
+      "billing": {
+        "title": "Subscription",
+        "subtitle": "Current plan, platform commission and operational limits.",
+        "payoutsTitle": "Platform payouts",
+        "payoutsBody": "Tracking of transfers issued by the platform after collection.",
+        "payoutsBodyFull": "Tracking of transfers issued by the platform after the commission is withheld."
+      },
+      "settings": {
+        "title": "Settings",
+        "subtitle": "Global key/value settings, feature flags and integrations.",
+        "navAria": "Settings sections",
+        "tabGeneral": "General",
+        "tabIntegrations": "Integrations",
+        "loadError": "The settings could not be loaded: {message}"
+      },
+      "integrations": {
+        "title": "Integrations",
+        "subtitle": "External providers (payment, SMS, email) and their webhooks.",
+        "loadError": "The integrations could not be loaded: {message}"
+      }
     }
   },
   "documents": {
