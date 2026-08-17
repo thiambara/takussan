@@ -13,7 +13,8 @@ use LogicException;
 
 /**
  * TCK-279 — porté par les profils métier agence-scopés
- * (`AgentProfile`, `AgencyAdminProfile`, `OwnerProfile`).
+ * (`AgentProfile`, `AgencyAdminProfile`, `OwnerProfile`), et depuis
+ * TCK-315 (ADR-0016) par `ServiceProviderAgencyCollaboration`.
  *
  * ⚠️ Ce trait **n'est pas** `HasRoles`. `spatie/laravel-permission` a été
  * désinstallé par TCK-278 (ADR-0002) et une garde d'`api-ci.yml` casse sur
@@ -22,8 +23,11 @@ use LogicException;
  * profil porte exactement un rôle** (`agency_role_id` NOT NULL), pas une
  * collection.
  *
- * `ServiceProviderProfile` ne le porte pas : il est user-scopé et
- * collabore avec N agences — voir la migration 120200 de TCK-279.
+ * `ServiceProviderProfile` ne le porte **toujours** pas, et ce n'est pas un
+ * reste : il est user-scopé (`user_id` UNIQUE, aucune colonne `agency_id`)
+ * et collabore avec N agences. C'est sa COLLABORATION qui porte le rôle —
+ * une par agence. La Règle 6 s'y lit « 1 collaboration = 1 rôle ». Voir
+ * ADR-0016 et la migration 090000 de TCK-315.
  */
 trait HasAgencyRole
 {
@@ -51,6 +55,11 @@ trait HasAgencyRole
     /**
      * Type de rôle attendu par ce modèle de profil, dérivé de la table de
      * correspondance de l'enum — il n'y a donc qu'un endroit à tenir à jour.
+     *
+     * Un porteur qui n'est pas un profil surcharge cette méthode :
+     * `ServiceProviderAgencyCollaboration` le fait, parce que
+     * `AgencyRoleBaseType::profileClass()` rend `null` pour son type — à
+     * juste titre, cette table ne connaît que les profils.
      */
     public static function agencyRoleBaseType(): AgencyRoleBaseType
     {

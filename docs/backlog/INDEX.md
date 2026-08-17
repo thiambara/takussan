@@ -10,8 +10,8 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 14 |
-| 🚧 Doing | 1 |
+| 📋 Todo | 13 |
+| 🚧 Doing | 2 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 291 |
@@ -43,7 +43,6 @@
 - [TCK-307](tickets/TCK-307-supprimer-dsl-scopefilter-mort.md) — Supprimer le DSL `scopeFilter` — mort mais toujours branché sur tous les modèles `S · P2 · technique`
 - [TCK-308](tickets/TCK-308-baseresource-adoptee-par-7-sur-44.md) — `BaseResource` adoptée par 7 ressources sur 44 — 37 refont les conversions à la main `M · P2 · technique`
 - [TCK-309](tickets/TCK-309-conventions-mineures-dedoublees.md) — Trois conventions dédoublées : classes de base de test, préfixes de commandes, namespaces d'auth `M · P3 · technique`
-- [TCK-315](tickets/TCK-315-role-agence-du-prestataire.md) — Où vit le rôle d'agence d'un prestataire — le profil n'a pas d'agence, la collaboration si `M · P1 · technique`
 - [TCK-322](tickets/TCK-322-paratest-deux-executions-simultanees.md) — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage — une quatrième ressource partagée par machine `S · P2 · technique`
 - [TCK-324](tickets/TCK-324-mesurer-parallel-sur-le-runner-ci.md) — Mesurer `--parallel` sur le runner CI, puis trancher — la décision actuelle est un défaut, pas un résultat `S · P2 · technique`
 - [TCK-325](tickets/TCK-325-garde-des-declencheurs-durs-du-selecteur.md) — Garder la liste des déclencheurs durs du sélecteur d'impact — elle est recopiée à la main et avait dérivé le jour de son écriture `S · P2 · technique`
@@ -51,6 +50,7 @@
 ## 🚧 Doing
 
 - [TCK-279](tickets/TCK-279-rbac-custom-roles-phase-2.md) — RBAC refondu — phase 2 : rôles personnalisés par agence (AgencyRole + pivot de capacités) `L · P1 · full`
+- [TCK-315](tickets/TCK-315-role-agence-du-prestataire.md) — Où vit le rôle d'agence d'un prestataire — le profil n'a pas d'agence, la collaboration si `M · P1 · technique`
 
 ## 👀 Review
 
