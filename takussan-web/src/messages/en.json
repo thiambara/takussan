@@ -729,6 +729,86 @@
       "resubmitError": "Resubmission failed. Please try again.",
       "approvedTitle": "Property approved and published",
       "approvedOn": "Approved on {date}"
+    },
+    "form": {
+      "missingIdError": "The property was created, but the server identifier is missing.",
+      "created": "Property created. Opening the record…",
+      "updated": "Changes saved.",
+      "close": "Close",
+      "general": {
+        "title": "General information",
+        "hint": "Title, type and contract define the property's public record."
+      },
+      "fields": {
+        "title": "Title",
+        "titlePlaceholder": "Villa with pool in Almadies",
+        "type": "Property type",
+        "contract": "Contract type",
+        "price": "Price",
+        "currency": "Currency",
+        "period": "Frequency",
+        "periodPlaceholder": "Monthly",
+        "city": "City",
+        "cityPlaceholder": "Dakar",
+        "quarter": "Neighbourhood",
+        "quarterPlaceholder": "Almadies",
+        "region": "Region",
+        "regionPlaceholder": "Dakar",
+        "street": "Street / address",
+        "streetPlaceholder": "12 Jacaranda Street",
+        "postalCode": "Postal code",
+        "country": "Country (ISO code)",
+        "countryPlaceholder": "SN",
+        "area": "Area (m²)",
+        "bedrooms": "Bedrooms",
+        "bathrooms": "Bathrooms",
+        "yearBuilt": "Year built",
+        "parking": "Parking spaces",
+        "furnished": "Furnished",
+        "description": "Description",
+        "descriptionPlaceholder": "Describe the property, its surroundings, its strengths."
+      },
+      "price": {
+        "title": "Price",
+        "hintRent": "Recurring rent. Also state the frequency.",
+        "hintSale": "Total sale price."
+      },
+      "location": {
+        "title": "Location",
+        "hint": "The city is required. Click the map to place the property.",
+        "gps": "GPS coordinates",
+        "mapHint": "Click the map or drag the marker to adjust the position.",
+        "hintFull": "The city is required. Click the map to place the GPS marker."
+      },
+      "features": {
+        "title": "Characteristics",
+        "hint": "Optional. Filling in what you know helps your listing stand out.",
+        "hintFull": "Optional. Fill in what tenants and buyers can see."
+      },
+      "description": {
+        "title": "Description",
+        "hint": "Be specific: condition, amenities, neighbourhood.",
+        "counter": "{count} / 10,000 characters"
+      },
+      "amenities": {
+        "title": "Amenities",
+        "hint": "Select the available amenities and facilities."
+      },
+      "photos": {
+        "title": "Photos",
+        "hint": "Drag and drop or select the photos (max {max}).",
+        "counter": "{count} / {max} {count, plural, =1 {photo} other {photos}}"
+      },
+      "footer": {
+        "dirty": "{count, plural, =1 {# field changed · unsaved} other {# fields changed · unsaved}}",
+        "noChanges": "No changes.",
+        "requiredHint": "All required fields are marked with a *.",
+        "cancel": "Cancel",
+        "saveDraft": "Save as draft",
+        "saving": "Saving…",
+        "submit": "Submit for publication",
+        "saveChanges": "Save changes"
+      }
     }
   },
   "dashboard": {
@@ -912,6 +992,20 @@
       "no_agency_title": "No agency linked",
       "no_agency_description": "Ask a super-admin to link you to an agency before configuring its settings.",
       "not_found": "Agency not found. Check your account link, then try again."
+    },
+    "publicPage": {
+      "notFound": "Agency not found",
+      "statsRent": "Properties to rent",
+      "statsSale": "Properties for sale",
+      "statsCities": "Cities",
+      "statsAgents": "Agents",
+      "license": "Licence no. {number}",
+      "teamEyebrow": "The team",
+      "teamHeading": "{count, plural, =1 {# agent to guide you} other {# agents to guide you}}",
+      "portfolioEyebrow": "Portfolio",
+      "portfolioHeading": "Featured properties",
+      "emptyTitle": "No property to show yet",
+      "emptyBody": "This agency is preparing its next listings — come back soon."
     }
   },
   "compare": {
@@ -1948,6 +2042,18 @@
         "title": "Welcome!",
         "body": "Your agent profile is active."
       }
+    },
+    "publicPage": {
+      "notFound": "Agent not found",
+      "agentAt": "Agent at",
+      "propertiesCount": "{count, plural, =1 {# property} other {# properties}}",
+      "forRent": "to rent",
+      "forSale": "for sale",
+      "citiesCount": "{count, plural, =1 {# city} other {# cities}}",
+      "portfolioEyebrow": "Portfolio",
+      "portfolioHeading": "Featured properties",
+      "emptyTitle": "No property to show yet",
+      "emptyBody": "This agent is preparing their next listings — come back soon."
     }
   },
   "agentWelcome": {

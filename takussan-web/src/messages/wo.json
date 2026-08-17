@@ -523,6 +523,20 @@
       "no_agency_title": "Amul agence bu ñu boole",
       "no_agency_description": "Laajal benn super-administrateur ngir mu boole la ak benn agence balaa nga koy configurer.",
       "not_found": "Gisunu agence bi. Xoolal boole bi ci sa kont, ba noppi jéemaat."
+    },
+    "publicPage": {
+      "notFound": "Gisuñu ajaas bi",
+      "statsRent": "Kër yu ñuy luwaa",
+      "statsSale": "Kër yu ñuy jaay",
+      "statsCities": "Dëkk yi",
+      "statsAgents": "Ajaŋ yi",
+      "license": "Lisaas nb. {number}",
+      "teamEyebrow": "Ekib bi",
+      "teamHeading": "{count, plural, other {# ajaŋ ngir ànd ak yaw}}",
+      "portfolioEyebrow": "Portfey bi",
+      "portfolioHeading": "Kër yu ñu wone",
+      "emptyTitle": "Amul kër bu ñu man a wone ba tey",
+      "emptyBody": "Ajaas bii mu ngi waajal ay yégle — ñëwaatal ci lu yàgg."
     }
   },
   "compare": {
@@ -1559,6 +1573,18 @@
         "title": "Dalal jamm!",
         "body": "Sa profil agent active na."
       }
+    },
+    "publicPage": {
+      "notFound": "Gisuñu ajaŋ bi",
+      "agentAt": "Ajaŋ ci",
+      "propertiesCount": "{count, plural, other {# kër}}",
+      "forRent": "ñuy luwaa",
+      "forSale": "ñuy jaay",
+      "citiesCount": "{count, plural, other {# dëkk}}",
+      "portfolioEyebrow": "Portfey bi",
+      "portfolioHeading": "Kër yu ñu wone",
+      "emptyTitle": "Amul kër bu ñu man a wone ba tey",
+      "emptyBody": "Ajaŋ bii mu ngi waajal ay yégle — ñëwaatal ci lu yàgg."
     }
   },
   "agentWelcome": {
@@ -2373,6 +2399,86 @@
       "resubmitError": "Njuumte ci yónneeaat bi. Jéemaatal su la neexee.",
       "approvedTitle": "Nangu nañu kër gi te génne ko",
       "approvedOn": "Nangu nañu ko ci {date}"
+    },
+    "form": {
+      "missingIdError": "Sos nañu kër gi, waaye nomboro serwëer bi amul.",
+      "created": "Sos nañu kër gi. Ñu ngi ubbi fiis bi…",
+      "updated": "Denc nañu coppite yi.",
+      "close": "Tëj",
+      "general": {
+        "title": "Xibaar yu mag",
+        "hint": "Bopp, xeet ak kontaraa ñoo tëral fiis bu kër gi."
+      },
+      "fields": {
+        "title": "Bopp",
+        "titlePlaceholder": "Wiila bu am pisin ci Almadies",
+        "type": "Xeetu kër",
+        "contract": "Xeetu kontaraa",
+        "price": "Njëg",
+        "currency": "Xaalis",
+        "period": "Jamono",
+        "periodPlaceholder": "Weer wu nekk",
+        "city": "Dëkk",
+        "cityPlaceholder": "Ndakaaru",
+        "quarter": "Gox",
+        "quarterPlaceholder": "Almadies",
+        "region": "Diiwaan",
+        "regionPlaceholder": "Ndakaaru",
+        "street": "Mbedd / adres",
+        "streetPlaceholder": "12 Mbeddu Jacaranda",
+        "postalCode": "Kodu poost",
+        "country": "Réew (kodu ISO)",
+        "countryPlaceholder": "SN",
+        "area": "Yaatuwaay (m²)",
+        "bedrooms": "Neeg yi",
+        "bathrooms": "Sanjaan yi",
+        "yearBuilt": "Atum tabax",
+        "parking": "Palaasu parking",
+        "furnished": "Ame na meebal",
+        "description": "Leeral",
+        "descriptionPlaceholder": "Leeralal kër gi, li ko wër, ak li ko gën a rafetal."
+      },
+      "price": {
+        "title": "Njëg",
+        "hintRent": "Luwaas bu dul jeex. Wax it jamono ji.",
+        "hintSale": "Njëgu njaay bépp."
+      },
+      "location": {
+        "title": "Bérébu",
+        "hint": "Dëkk bi fàww. Bësal ci kart bi ngir teg kër gi.",
+        "gps": "Kordone GPS",
+        "mapHint": "Bësal ci kart bi walla wéccee markër bi ngir jubbanti bérébu bi.",
+        "hintFull": "Dëkk bi fàww. Bësal ci kart bi ngir teg markëru GPS bi."
+      },
+      "features": {
+        "title": "Melokaan yi",
+        "hint": "Soo ko bëggee. Bindal li nga xam ngir sa yégle gën a feeñ.",
+        "hintFull": "Soo ko bëggee. Bindal li ñiy luwaa walla ñiy jënd man a gis."
+      },
+      "description": {
+        "title": "Leeral",
+        "hint": "Waxal bu leer : nekkin, jumtukaay, dëkkandoo.",
+        "counter": "{count} / 10 000 araf"
+      },
+      "amenities": {
+        "title": "Jumtukaay yi",
+        "hint": "Tànnal jumtukaay yi jot."
+      },
+      "photos": {
+        "title": "Nataal yi",
+        "hint": "Wéccee walla tànn nataal yi (lu ëpp {max}).",
+        "counter": "{count} / {max} nataal"
+      },
+      "footer": {
+        "dirty": "{count, plural, other {# palanteer la ñu soppi · dencuñu ko}}",
+        "noChanges": "Amul coppite.",
+        "requiredHint": "Palanteer yépp yu fàww ñu leen tàmbalee ak *.",
+        "cancel": "Neenal",
+        "saveDraft": "Denc ci buruyoŋ",
+        "saving": "Mu ngi denc…",
+        "submit": "Yónnee ngir génne",
+        "saveChanges": "Denc coppite yi"
+      }
     }
   },
   "documents": {

@@ -143,31 +143,30 @@ conversion. 7 fichiers de test mockent `next-intl` en entier et devront exposer 
 `wave3/i18n`. Le statut est `doing` parce que le lot B lui-même est **partiel**, pas seulement
 parce que la branche n'est pas mergée.
 
-### Lot B — surface publique : 272 / 363 occurrences
+### Lot B — surface publique : 350 / 363 occurrences
 
 Le ticket annonçait 60 fichiers / 407 occurrences pour ce lot ; l'inventaire repris à la source à
 l'ouverture de la branche en donne **54 / 363** (TCK-291 en avait résorbé une partie, et
 `app/(public)/playground/` relève du lot L).
 
-**Fait — 46 fichiers à zéro**, dont l'intégralité de `components/property/`,
-`components/search/`, `app/(public)/properties/[slug]/components/`, et tout le petit parc
-(`favorites`, `compare`, `map`, `share`, `contact`, `reviews`, `home`).
+**Fait — 49 fichiers à zéro.** Toute la surface publique : `app/(public)/` en entier
+(y compris les deux pages profil `agencies/[slug]` et `agents/[slug]`), `components/property/`,
+`components/search/`, `components/property-form/` sauf `options.ts`, et le petit parc
+(`favorites`, `compare`, `map`, `share`, `contact`, `reviews`, `home`, `agents`).
 
-**Reste — 8 fichiers, 91 occurrences**, et elles ne se valent pas :
+**Reste — 5 fichiers, 13 occurrences, et AUCUNE n'est du travail de traduction ordinaire :**
 
 | Fichier | Occ. | Nature |
 |---|---:|---|
-| `components/property-form/PropertyForm.tsx` | 57 | vrai reste |
-| `app/(public)/agencies/[slug]/page.tsx` | 11 | vrai reste |
-| `app/(public)/agents/[slug]/page.tsx` | 10 | vrai reste |
-| `components/property-form/options.ts` | 8 | **bloqué, cf. ci-dessous** |
-| `components/agents/ZoneMultiSelect.tsx` | 2 | faux positif (noms de lieux) |
-| `…/PropertyLocationMapInner.tsx`, `map/LocationPickerMap.tsx` | 1 + 1 | faux positifs (balisage) |
-| `…/PropertyContactMessageDialog.tsx` | 1 | faux positif (honeypot) |
+| `components/property-form/options.ts` | 8 | **bloqué par le découpage en lots** (cf. ci-dessous) |
+| `components/agents/ZoneMultiSelect.tsx` | 2 | faux positif — « Sicap Liberté », « Thiès » sont des quartiers |
+| `…/PropertyLocationMapInner.tsx`, `map/LocationPickerMap.tsx` | 1 + 1 | faux positifs — SVG inline en data-URI |
+| `…/PropertyContactMessageDialog.tsx` | 1 | faux positif — `<label>` d'un honeypot `aria-hidden` |
 
-**Soit 78 occurrences de vrai reste, et 5 qui ne doivent pas être traduites du tout.**
+**Le lot B ne peut donc pas atteindre 0 sur ses fichiers**, et pas par dette restante : 5 de ses
+occurrences ne doivent pas être traduites, et la sixième est un module partagé entre trois lots.
 
-#### `property-form/options.ts` est bloqué par le découpage en lots, pas par sa difficulté
+#### `property-form/options.ts` est bloqué par le découpage, pas par sa difficulté
 
 Ce module vit dans le lot B, mais ses six tables de libellés sont importées par **une dizaine de
 fichiers des lots C et D** — `property-dashboard/` (4 fichiers), `admin/super/`, `profile/`,
@@ -179,6 +178,17 @@ par fichier, mais le code ne l'est pas par dépendance.* Le cas se reproduira �
 options.ts`, `components/*/labels.ts`, `documents/constants.ts` ont la même forme. Deux issues
 possibles, à trancher : un lot « vocabulaire partagé » traité en premier et hors découpage, ou
 l'acceptation que certains commits croisent les lots quand un module partagé l'impose.
+
+#### Le scanner a un plancher — et aussi un plafond
+
+La garde documente que son total est un **plancher** (elle rate les gabarits interpolés). Ce lot a
+montré l'inverse, qui n'était écrit nulle part : **elle compte aussi des chaînes qu'il ne faut
+surtout pas traduire** — balisage SVG, appât de honeypot, noms propres. Trois familles, toutes
+rencontrées ici.
+
+`scripts/i18n-scan.mjs` n'a pas été touché : il vient d'être réécrit et validé occurrence par
+occurrence (TCK-323), et l'étendre est une décision, pas un geste de passage. Les règles possibles
+sont listées dans le rapport de branche.
 
 ### Lots C à L
 

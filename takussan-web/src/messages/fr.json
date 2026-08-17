@@ -705,6 +705,86 @@
       "resubmitError": "Erreur lors de la resoumission. Veuillez réessayer.",
       "approvedTitle": "Bien approuvé et publié",
       "approvedOn": "Approuvé le {date}"
+    },
+    "form": {
+      "missingIdError": "Le bien a été créé, mais l'identifiant serveur est absent.",
+      "created": "Bien créé. Ouverture de la fiche…",
+      "updated": "Modifications enregistrées.",
+      "close": "Fermer",
+      "general": {
+        "title": "Informations générales",
+        "hint": "Titre, type et contrat définissent la fiche publique du bien."
+      },
+      "fields": {
+        "title": "Titre",
+        "titlePlaceholder": "Villa avec piscine à Almadies",
+        "type": "Type de bien",
+        "contract": "Type de contrat",
+        "price": "Prix",
+        "currency": "Devise",
+        "period": "Fréquence",
+        "periodPlaceholder": "Mensuel",
+        "city": "Ville",
+        "cityPlaceholder": "Dakar",
+        "quarter": "Quartier",
+        "quarterPlaceholder": "Almadies",
+        "region": "Région",
+        "regionPlaceholder": "Dakar",
+        "street": "Rue / adresse",
+        "streetPlaceholder": "12 Rue des Jacarandas",
+        "postalCode": "Code postal",
+        "country": "Pays (code ISO)",
+        "countryPlaceholder": "SN",
+        "area": "Superficie (m²)",
+        "bedrooms": "Chambres",
+        "bathrooms": "Salles de bain",
+        "yearBuilt": "Année de construction",
+        "parking": "Places de parking",
+        "furnished": "Meublé",
+        "description": "Description",
+        "descriptionPlaceholder": "Décrivez le bien, son environnement, ses atouts."
+      },
+      "price": {
+        "title": "Prix",
+        "hintRent": "Loyer périodique. Indiquez aussi la fréquence.",
+        "hintSale": "Prix de vente total."
+      },
+      "location": {
+        "title": "Localisation",
+        "hint": "La ville est obligatoire. Cliquez sur la carte pour placer le bien.",
+        "gps": "Coordonnées GPS",
+        "mapHint": "Cliquez sur la carte ou faites glisser le marqueur pour ajuster la position.",
+        "hintFull": "La ville est obligatoire. Cliquez sur la carte pour placer le marqueur GPS."
+      },
+      "features": {
+        "title": "Caractéristiques",
+        "hint": "Optionnel. Renseigner les informations accessibles vous aide à mieux ressortir.",
+        "hintFull": "Optionnel. Renseigner les informations accessibles aux locataires / acheteurs."
+      },
+      "description": {
+        "title": "Description",
+        "hint": "Soyez concret : état, commodités, voisinage.",
+        "counter": "{count} / 10 000 caractères"
+      },
+      "amenities": {
+        "title": "Équipements",
+        "hint": "Sélectionnez les équipements et commodités disponibles."
+      },
+      "photos": {
+        "title": "Photos",
+        "hint": "Glissez-déposez ou sélectionnez les photos (max {max}).",
+        "counter": "{count} / {max} {count, plural, =1 {photo} other {photos}}"
+      },
+      "footer": {
+        "dirty": "{count, plural, =1 {# champ modifié · non enregistré} other {# champs modifiés · non enregistrés}}",
+        "noChanges": "Aucune modification.",
+        "requiredHint": "Tous les champs requis sont marqués d'un *.",
+        "cancel": "Annuler",
+        "saveDraft": "Enregistrer en brouillon",
+        "saving": "Enregistrement…",
+        "submit": "Soumettre à publication",
+        "saveChanges": "Enregistrer les modifications"
+      }
     }
   },
   "dashboard": {
@@ -888,6 +968,20 @@
       "no_agency_title": "Aucune agence rattachée",
       "no_agency_description": "Contactez un super-administrateur pour être rattaché à une agence avant de configurer ses paramètres.",
       "not_found": "Agence introuvable. Vérifiez le rattachement de votre compte, puis réessayez."
+    },
+    "publicPage": {
+      "notFound": "Agence introuvable",
+      "statsRent": "Biens à louer",
+      "statsSale": "Biens à vendre",
+      "statsCities": "Villes",
+      "statsAgents": "Agents",
+      "license": "Licence n° {number}",
+      "teamEyebrow": "L'équipe",
+      "teamHeading": "{count, plural, =1 {# agent pour t'accompagner} other {# agents pour t'accompagner}}",
+      "portfolioEyebrow": "Portefeuille",
+      "portfolioHeading": "Biens à l'affiche",
+      "emptyTitle": "Pas encore de bien à présenter",
+      "emptyBody": "Cette agence prépare ses prochaines annonces — reviens bientôt."
     }
   },
   "compare": {
@@ -1948,6 +2042,18 @@
         "title": "Bienvenue !",
         "body": "Votre profil agent est actif."
       }
+    },
+    "publicPage": {
+      "notFound": "Agent introuvable",
+      "agentAt": "Agent chez",
+      "propertiesCount": "{count, plural, =1 {# bien} other {# biens}}",
+      "forRent": "à louer",
+      "forSale": "à vendre",
+      "citiesCount": "{count, plural, =1 {# ville} other {# villes}}",
+      "portfolioEyebrow": "Portefeuille",
+      "portfolioHeading": "Biens à l'affiche",
+      "emptyTitle": "Pas encore de bien à présenter",
+      "emptyBody": "Cet agent prépare ses prochaines annonces — reviens bientôt."
     }
   },
   "agentWelcome": {
