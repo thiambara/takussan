@@ -1,5 +1,6 @@
 import { getMeAction } from '@/app/actions/auth';
 import { PaymentsTabs } from '@/components/payments/PaymentsTabs';
+import { getTranslations } from 'next-intl/server';
 
 /**
  * TCK-063 — page principale des paiements. Expose 3 onglets :
@@ -13,15 +14,14 @@ import { PaymentsTabs } from '@/components/payments/PaymentsTabs';
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
+  const t = await getTranslations('dashboard.pages.payments');
   await getMeAction();
 
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">Paiements</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Historique, factures et reversements bailleurs — suivi unifié.
-        </p>
+        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
       </header>
       <PaymentsTabs />
     </div>

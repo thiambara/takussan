@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { PaginationMeta } from '@/types/api';
+import { useTranslations } from 'next-intl';
 
 /**
  * Pagination control for dashboard lists. The current page lives in the URL
@@ -22,6 +23,7 @@ import type { PaginationMeta } from '@/types/api';
 const PER_PAGE_OPTIONS = ['10', '20', '50'] as const;
 
 export function PropertyPagination({ meta }: { meta: PaginationMeta }) {
+  const t = useTranslations('property.dashboard.pagination');
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentPerPage = String(meta.per_page ?? 20);
@@ -58,14 +60,15 @@ export function PropertyPagination({ meta }: { meta: PaginationMeta }) {
   return (
     <nav
       className="flex flex-wrap items-center justify-between gap-3"
-      aria-label="Pagination"
+      aria-label={t('aria')}
     >
       <div className="flex items-center gap-3 text-xs text-app-ink-muted">
         <span>
-          Page <span className="font-semibold text-app-ink">{meta.current_page}</span> sur{' '}
-          {Math.max(meta.last_page, 1)} ·{' '}
-          <span className="font-semibold text-app-ink">{meta.total}</span> résultat
-          {meta.total > 1 ? 's' : ''}
+          {t('pageOf', {
+            current: meta.current_page,
+            total: Math.max(meta.last_page, 1),
+          })}{' '}
+          · {t('results', { count: meta.total })}
         </span>
         <div className="hidden sm:block">
           <Select
@@ -74,7 +77,7 @@ export function PropertyPagination({ meta }: { meta: PaginationMeta }) {
             items={items}
           >
             <SelectTrigger className="h-8 w-[120px]">
-              <SelectValue placeholder="20 / page" />
+              <SelectValue placeholder={t('perPagePlaceholder')} />
             </SelectTrigger>
             <SelectContent>
               {items.map((opt) => (
@@ -95,7 +98,7 @@ export function PropertyPagination({ meta }: { meta: PaginationMeta }) {
           onClick={() => goTo(meta.current_page - 1)}
         >
           <ChevronLeft aria-hidden="true" />
-          Précédent
+          {t('previous')}
         </Button>
         <Button
           type="button"
@@ -104,7 +107,7 @@ export function PropertyPagination({ meta }: { meta: PaginationMeta }) {
           disabled={meta.current_page >= meta.last_page}
           onClick={() => goTo(meta.current_page + 1)}
         >
-          Suivant
+          {t('next')}
           <ChevronRight aria-hidden="true" />
         </Button>
       </div>

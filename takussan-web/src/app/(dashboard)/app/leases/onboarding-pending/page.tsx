@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -7,7 +8,10 @@ import { TenantOnboardingPendingList } from '@/components/leases/TenantOnboardin
 import { isAdmin, isAgent, isSuperAdmin } from '@/lib/roles';
 import { forbidden } from 'next/navigation';
 
-export const metadata: Metadata = { title: 'Onboardings en attente' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.onboardingPending');
+  return { title: t('metaTitle') };
+}
 
 /**
  * TCK-266 — Console agence : liste des locataires dont la checklist
@@ -16,10 +20,11 @@ export const metadata: Metadata = { title: 'Onboardings en attente' };
  * `super_admin`. Les autres tombent en 403 via `forbidden()`.
  */
 export default async function Page() {
+  const t = await getTranslations('dashboard.onboardingPending');
   const user = await getMeAction();
 
   if (isSuperAdmin(user.roles) && !user.agency_id) {
-    return <NoAgencyState title="Onboardings en attente" />;
+    return <NoAgencyState title={t('title')} />;
   }
 
   if (!isAgent(user.roles) && !isAdmin(user.roles)) {
@@ -27,14 +32,14 @@ export default async function Page() {
   }
 
   if (!user.agency_id) {
-    return <NoAgencyState title="Onboardings en attente" />;
+    return <NoAgencyState title={t('title')} />;
   }
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Onboardings en attente"
-        subtitle="Locataires dont la checklist d'onboarding est ouverte depuis plus de 7 jours."
+        title={t('title')}
+        subtitle={t('subtitle')}
       />
       <TenantOnboardingPendingList agencyId={user.agency_id} />
     </div>

@@ -9,7 +9,10 @@ import { fetchAgencyUpgradeRequests } from '@/lib/queries/agency-upgrade';
 import { UpgradeRequestForm } from '@/components/agency/UpgradeRequestForm';
 import { UpgradeRequestStatus } from '@/components/agency/UpgradeRequestStatus';
 
-export const metadata: Metadata = { title: 'Passer en pro' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.upgrade');
+  return { title: t('metaTitle') };
+}
 export const dynamic = 'force-dynamic';
 
 /**

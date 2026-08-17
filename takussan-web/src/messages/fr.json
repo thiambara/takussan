@@ -785,6 +785,60 @@
         "submit": "Soumettre à publication",
         "saveChanges": "Enregistrer les modifications"
       }
+    },
+    "dashboard": {
+      "overview": {
+        "checklist": {
+          "description": "Rédiger une description (≥ 80 caractères)",
+          "gps": "Placer le marqueur GPS",
+          "cover": "Ajouter au moins une photo (couverture)",
+          "titleType": "Renseigner le type de titre foncier"
+        },
+        "views": "Vues",
+        "viewsHint": "Sur la fiche publique",
+        "favorites": "Favoris",
+        "favoritesHint": "Utilisateurs ayant épinglé",
+        "rating": "Note moyenne",
+        "ratingHint": "{count} avis",
+        "address": "Adresse",
+        "addressHint": "Localisation visible sur la fiche publique.",
+        "edit": "Modifier",
+        "addressMissing": "Adresse à compléter",
+        "gpsMissing": "Coordonnées GPS non renseignées",
+        "todo": "À régler",
+        "allDone": "Tout est en ordre.",
+        "remaining": "{count, plural, =1 {# élément à compléter.} other {# éléments à compléter.}}",
+        "complete": "Compléter",
+        "priceHistory": "Historique des prix",
+        "priceHistoryHint": "5 dernières évolutions enregistrées.",
+        "seeAll": "Voir tout",
+        "noPriceHistory": "Aucune évolution de prix enregistrée pour le moment.",
+        "unknownDate": "Date inconnue"
+      },
+      "tabs": {
+        "overview": "Aperçu",
+        "edit": "Édition",
+        "media": "Médias ({count})",
+        "history": "Historique ({count})",
+        "fullPriceHistory": "Historique complet des prix",
+        "fullPriceHistoryHint": "Toutes les évolutions enregistrées pour ce bien.",
+        "noPriceHistory": "Aucune évolution de prix enregistrée pour ce bien.",
+        "unknownDate": "Date inconnue"
+      },
+      "pagination": {
+        "aria": "Pagination",
+        "pageOf": "Page {current} sur {total}",
+        "results": "{count, plural, =1 {# résultat} other {# résultats}}",
+        "perPagePlaceholder": "20 / page",
+        "previous": "Précédent",
+        "next": "Suivant"
+      },
+      "media": {
+        "photos": "Photos",
+        "loading": "Chargement…",
+        "title": "Photos du bien",
+        "hint": "Glissez pour réorganiser — la première photo devient la couverture."
+      }
     }
   },
   "dashboard": {
@@ -955,6 +1009,190 @@
       "download": "Télécharger",
       "scopeNotice": "Les exports respectent votre rôle (agence, bailleur ou agent).",
       "scopeNoticeFull": "Les exports respectent votre rôle (agence, bailleur, locataire) — aucune donnée hors de votre périmètre n'est incluse."
+    },
+    "properties": {
+      "metaTitle": "Mes biens",
+      "title": "Mes biens",
+      "subtitle": "Gérez votre portefeuille immobilier : publication, statut, visibilité.",
+      "publish": "Publier un bien",
+      "published": "Publiés",
+      "soldRented": "Vendus / Loués",
+      "archived": "Archivés"
+    },
+    "profile": {
+      "metaTitle": "Mon profil",
+      "notifications": "Notifications",
+      "notificationsBody": "Choisissez les canaux utilisés pour chaque type d'événement.",
+      "managePrefs": "Gérer les préférences",
+      "reviews": "Avis",
+      "reviewsBody": "Séjours et baux sur lesquels vous pouvez laisser un avis public.",
+      "seeReviews": "Voir mes avis"
+    },
+    "notificationPrefs": {
+      "metaTitle": "Préférences de notifications",
+      "breadcrumbProfile": "Profil",
+      "breadcrumbCurrent": "Notifications",
+      "title": "Préférences de notifications",
+      "subtitle": "Choisissez quels événements vous recevez sur chaque canal."
+    },
+    "inventoryDetail": {
+      "metaTitle": "État des lieux",
+      "notFound": "État des lieux introuvable",
+      "invalidId": "L'identifiant fourni n'est pas valide.",
+      "backToList": "Retour à la liste",
+      "title": "État des lieux #{id}",
+      "subtitle": "Détail de l'inventaire",
+      "back": "Retour"
+    },
+    "maintenanceDetail": {
+      "notFound": "Demande introuvable",
+      "invalidId": "L'identifiant fourni n'est pas valide.",
+      "backToList": "Retour à la liste",
+      "title": "Demande #{id}",
+      "subtitle": "Suivi de l'intervention",
+      "back": "Retour"
+    },
+    "onboardingPending": {
+      "metaTitle": "Onboardings en attente",
+      "title": "Onboardings en attente",
+      "subtitle": "Locataires dont la checklist d'onboarding est ouverte depuis plus de 7 jours."
+    },
+    "pages": {
+      "bookings": {
+        "metaTitle": "Réservations",
+        "title": "Réservations",
+        "subtitle": "Gérez vos demandes de réservation"
+      },
+      "leases": {
+        "metaTitle": "Baux",
+        "title": "Baux",
+        "subtitle": "Consultez et gérez vos contrats",
+        "newLease": "Nouveau bail"
+      },
+      "visits": {
+        "metaTitle": "Mes visites",
+        "title": "Visites",
+        "subtitle": "Planifiez et suivez vos visites."
+      },
+      "favorites": {
+        "metaTitle": "Mes favoris",
+        "title": "Mes favoris",
+        "subtitle": "Les biens que vous avez sauvegardés sont regroupés ici."
+      },
+      "inventories": {
+        "metaTitle": "États des lieux",
+        "title": "États des lieux",
+        "subtitle": "Inventaires d'entrée et de sortie par bail"
+      },
+      "documents": {
+        "metaTitle": "Documents",
+        "title": "Documents",
+        "subtitle": "Centralisez les contrats, pièces d'identité, quittances et justificatifs de vos biens, baux et clients."
+      },
+      "maintenance": {
+        "metaTitle": "Maintenance",
+        "title": "Maintenance",
+        "subtitle": "Demandes et suivi d'interventions"
+      },
+      "payments": {
+        "title": "Paiements",
+        "subtitle": "Historique, factures et reversements bailleurs — suivi unifié."
+      },
+      "calendar": {
+        "metaTitle": "Calendrier",
+        "title": "Calendrier",
+        "subtitle": "Vos réservations et visites planifiées dans une vue unifiée."
+      },
+      "messages": {
+        "metaTitle": "Messagerie",
+        "title": "Messagerie",
+        "subtitle": "Vos conversations"
+      },
+      "savedSearches": {
+        "metaTitle": "Mes recherches sauvegardées",
+        "title": "Mes recherches sauvegardées",
+        "subtitle": "Relancez en un clic les filtres que vous utilisez le plus."
+      },
+      "owners": {
+        "metaTitle": "Propriétaires"
+      },
+      "customers": {
+        "title": "Clients (CRM)",
+        "subtitle": "Suivez vos contacts, leurs étapes de pipeline et leurs documents.",
+        "add": "Ajouter un client"
+      },
+      "customerNew": {
+        "metaTitle": "Ajouter un client",
+        "title": "Ajouter un client",
+        "subtitle": "Indiquez au minimum un prénom et un nom. Un contact peut exister sans compte utilisateur."
+      },
+      "leaseNew": {
+        "metaTitle": "Nouveau bail",
+        "title": "Nouveau bail",
+        "subtitle": "Renseignez les parties, la durée et les conditions financières."
+      },
+      "maintenanceNew": {
+        "metaTitle": "Nouvelle demande de maintenance",
+        "title": "Nouvelle demande",
+        "subtitle": "Décrivez le problème et joignez des photos si nécessaire."
+      },
+      "propertyNew": {
+        "metaTitle": "Publier un bien",
+        "title": "Publier un bien",
+        "subtitle": "Remplissez les informations essentielles. Vous pourrez enrichir la fiche après publication."
+      },
+      "privacy": {
+        "metaTitle": "Confidentialité",
+        "title": "Confidentialité",
+        "subtitle": "Demandes de portabilité et suivi des archives disponibles."
+      },
+      "customerDetail": {
+        "metaTitle": "Fiche client",
+        "eyebrow": "Client · #{id}"
+      },
+      "profileReviews": {
+        "breadcrumbProfile": "Profil",
+        "breadcrumbCurrent": "Avis",
+        "title": "Vos avis",
+        "subtitle": "Retrouvez les avis que vous avez publiés, leurs statuts, et les séjours ou baux encore éligibles à un avis public."
+      },
+      "bookingDetail": {
+        "metaTitle": "Réservation",
+        "notFound": "Réservation introuvable."
+      },
+      "alerts": {
+        "title": "Alertes de seuil",
+        "subtitle": "Configurez les alertes déclenchées lorsque certains indicateurs franchissent un seuil.",
+        "subtitleFull": "Configurez les alertes déclenchées lorsque certains KPIs franchissent un seuil. Évaluées toutes les heures."
+      },
+      "exports": {
+        "metaTitle": "Exports",
+        "title": "Exports",
+        "subtitle": "Téléchargez vos données au format CSV, Excel ou PDF."
+      },
+      "kpis": {
+        "title": "KPIs personnalisés",
+        "subtitle": "Choisissez les indicateurs à mettre en avant sur votre tableau de bord.",
+        "subtitleFull": "Choisissez les indicateurs à mettre en avant sur le tableau de bord de votre agence."
+      },
+      "home": {
+        "noAgency": "Tableau de bord",
+        "greeting": "Bonjour {name}",
+        "subtitle": "Vue d'ensemble de votre activité"
+      },
+      "propertyDetail": {
+        "metaTitle": "Fiche bien",
+        "eyebrow": "Bien · {reference}"
+      },
+      "leaseDetail": {
+        "metaTitleFallback": "Bail introuvable"
+      },
+      "providers": {
+        "metaTitle": "Carnet prestataires"
+      },
+      "upgrade": {
+        "metaTitle": "Passer en pro"
+      }
     }
   },
   "errors": {
@@ -2701,7 +2939,11 @@
     "new": {
       "no_lease_title": "Aucun bail sélectionné",
       "no_lease_description": "Le bail détermine le bien et le locataire. Ouvrez un état des lieux depuis la page d'un bail pour démarrer.",
-      "no_lease_cta": "Choisir un bail"
+      "no_lease_cta": "Choisir un bail",
+      "pickLeaseTitle": "Nouvel état des lieux",
+      "pickLeaseSubtitle": "Sélectionnez un bail pour démarrer un état des lieux.",
+      "formTitle": "Nouvel état des lieux",
+      "formSubtitle": "Pièce par pièce, état et éléments, photos."
     },
     "detail": {
       "empty_rooms_title": "Aucune pièce enregistrée",

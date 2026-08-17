@@ -1,16 +1,21 @@
 import type { Metadata } from 'next';
 import { DataExportsPanel } from '@/components/privacy/DataExportsPanel';
+import { getTranslations } from 'next-intl/server';
+import { useTranslations } from 'next-intl';
 
-export const metadata: Metadata = {
-  title: 'Confidentialité',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.privacy');
+  return { title: t('metaTitle') };
+}
 
 export default function AccountPrivacyPage() {
+  const t = useTranslations('dashboard.pages.privacy');
+
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-bold text-stone-950">Confidentialité</h1>
-        <p className="mt-1 text-sm text-stone-600">Demandes de portabilité et suivi des archives disponibles.</p>
+        <h1 className="font-display text-2xl font-bold text-stone-950">{t('title')}</h1>
+        <p className="mt-1 text-sm text-stone-600">{t('subtitle')}</p>
       </header>
 
       <DataExportsPanel />

@@ -1,9 +1,13 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Plus } from 'lucide-react';
 
-export const metadata: Metadata = { title: 'Mes biens' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.properties');
+  return { title: t('metaTitle') };
+}
 
 import { getMeAction } from '@/app/actions/auth';
 import { getToken } from '@/lib/session';
@@ -49,6 +53,7 @@ export default async function Page({
 }: {
   searchParams: SearchParams;
 }) {
+  const t = await getTranslations('dashboard.properties');
   const user = await getMeAction();
   assertCanReachAgentArea(user.roles);
 
@@ -130,21 +135,21 @@ export default async function Page({
         Object.values(filters).filter(Boolean).length === 0,
     },
     {
-      label: 'Publiés',
+      label: t('published'),
       value: publishedCount,
       href: '/app/properties?visibility=public',
       tone: 'accent' as const,
       active: currentVisibility === 'public',
     },
     {
-      label: 'Vendus / Loués',
+      label: t('soldRented'),
       value: soldRentedCount,
       href: '/app/properties?status=sold',
       tone: 'success' as const,
       active: currentStatus === 'sold' || currentStatus === 'rented',
     },
     {
-      label: 'Archivés',
+      label: t('archived'),
       value: archivedCount,
       href: '/app/properties?include_archived=1&status=archived',
       tone: 'muted' as const,
@@ -155,15 +160,15 @@ export default async function Page({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Mes biens"
-        subtitle="Gérez votre portefeuille immobilier : publication, statut, visibilité."
+        title={t('title')}
+        subtitle={t('subtitle')}
         actions={
           <Link
             href="/app/properties/new"
             className={buttonVariants({ size: 'lg' })}
           >
             <Plus className="size-4" aria-hidden="true" />
-            Publier un bien
+            {t('publish')}
           </Link>
         }
       />

@@ -809,6 +809,60 @@
         "submit": "Submit for publication",
         "saveChanges": "Save changes"
       }
+    },
+    "dashboard": {
+      "overview": {
+        "checklist": {
+          "description": "Write a description (≥ 80 characters)",
+          "gps": "Place the GPS marker",
+          "cover": "Add at least one photo (cover)",
+          "titleType": "Set the title deed type"
+        },
+        "views": "Views",
+        "viewsHint": "On the public record",
+        "favorites": "Favourites",
+        "favoritesHint": "Users who pinned it",
+        "rating": "Average rating",
+        "ratingHint": "{count} reviews",
+        "address": "Address",
+        "addressHint": "Location visible on the public record.",
+        "edit": "Edit",
+        "addressMissing": "Address to complete",
+        "gpsMissing": "GPS coordinates not set",
+        "todo": "To fix",
+        "allDone": "Everything is in order.",
+        "remaining": "{count, plural, =1 {# item to complete.} other {# items to complete.}}",
+        "complete": "Complete",
+        "priceHistory": "Price history",
+        "priceHistoryHint": "Last 5 recorded changes.",
+        "seeAll": "See all",
+        "noPriceHistory": "No price change recorded yet.",
+        "unknownDate": "Unknown date"
+      },
+      "tabs": {
+        "overview": "Overview",
+        "edit": "Edit",
+        "media": "Media ({count})",
+        "history": "History ({count})",
+        "fullPriceHistory": "Full price history",
+        "fullPriceHistoryHint": "All changes recorded for this property.",
+        "noPriceHistory": "No price change recorded for this property.",
+        "unknownDate": "Unknown date"
+      },
+      "pagination": {
+        "aria": "Pagination",
+        "pageOf": "Page {current} of {total}",
+        "results": "{count, plural, =1 {# result} other {# results}}",
+        "perPagePlaceholder": "20 / page",
+        "previous": "Previous",
+        "next": "Next"
+      },
+      "media": {
+        "photos": "Photos",
+        "loading": "Loading…",
+        "title": "Property photos",
+        "hint": "Drag to reorder — the first photo becomes the cover."
+      }
     }
   },
   "dashboard": {
@@ -979,6 +1033,190 @@
       "download": "Download",
       "scopeNotice": "Exports respect your role (agency, landlord or agent).",
       "scopeNoticeFull": "Exports respect your role (agency, landlord, tenant) — no data outside your scope is included."
+    },
+    "properties": {
+      "metaTitle": "My properties",
+      "title": "My properties",
+      "subtitle": "Manage your property portfolio: publication, status, visibility.",
+      "publish": "Publish a property",
+      "published": "Published",
+      "soldRented": "Sold / Rented",
+      "archived": "Archived"
+    },
+    "profile": {
+      "metaTitle": "My profile",
+      "notifications": "Notifications",
+      "notificationsBody": "Choose the channels used for each type of event.",
+      "managePrefs": "Manage preferences",
+      "reviews": "Reviews",
+      "reviewsBody": "Stays and leases you can publicly review.",
+      "seeReviews": "View my reviews"
+    },
+    "notificationPrefs": {
+      "metaTitle": "Notification preferences",
+      "breadcrumbProfile": "Profile",
+      "breadcrumbCurrent": "Notifications",
+      "title": "Notification preferences",
+      "subtitle": "Choose which events you receive on each channel."
+    },
+    "inventoryDetail": {
+      "metaTitle": "Inventory",
+      "notFound": "Inventory not found",
+      "invalidId": "The identifier provided is not valid.",
+      "backToList": "Back to the list",
+      "title": "Inventory #{id}",
+      "subtitle": "Inventory detail",
+      "back": "Back"
+    },
+    "maintenanceDetail": {
+      "notFound": "Request not found",
+      "invalidId": "The identifier provided is not valid.",
+      "backToList": "Back to the list",
+      "title": "Request #{id}",
+      "subtitle": "Intervention tracking",
+      "back": "Back"
+    },
+    "onboardingPending": {
+      "metaTitle": "Pending onboardings",
+      "title": "Pending onboardings",
+      "subtitle": "Tenants whose onboarding checklist has been open for more than 7 days."
+    },
+    "pages": {
+      "bookings": {
+        "metaTitle": "Bookings",
+        "title": "Bookings",
+        "subtitle": "Manage your booking requests"
+      },
+      "leases": {
+        "metaTitle": "Leases",
+        "title": "Leases",
+        "subtitle": "View and manage your contracts",
+        "newLease": "New lease"
+      },
+      "visits": {
+        "metaTitle": "My visits",
+        "title": "Visits",
+        "subtitle": "Plan and track your visits."
+      },
+      "favorites": {
+        "metaTitle": "My favourites",
+        "title": "My favourites",
+        "subtitle": "The properties you saved are gathered here."
+      },
+      "inventories": {
+        "metaTitle": "Inventories",
+        "title": "Inventories",
+        "subtitle": "Move-in and move-out inventories per lease"
+      },
+      "documents": {
+        "metaTitle": "Documents",
+        "title": "Documents",
+        "subtitle": "Centralise the contracts, IDs, receipts and supporting documents of your properties, leases and customers."
+      },
+      "maintenance": {
+        "metaTitle": "Maintenance",
+        "title": "Maintenance",
+        "subtitle": "Requests and intervention tracking"
+      },
+      "payments": {
+        "title": "Payments",
+        "subtitle": "History, invoices and landlord payouts — one unified view."
+      },
+      "calendar": {
+        "metaTitle": "Calendar",
+        "title": "Calendar",
+        "subtitle": "Your bookings and scheduled visits in one unified view."
+      },
+      "messages": {
+        "metaTitle": "Messages",
+        "title": "Messages",
+        "subtitle": "Your conversations"
+      },
+      "savedSearches": {
+        "metaTitle": "My saved searches",
+        "title": "My saved searches",
+        "subtitle": "Re-run the filters you use most in one click."
+      },
+      "owners": {
+        "metaTitle": "Landlords"
+      },
+      "customers": {
+        "title": "Customers (CRM)",
+        "subtitle": "Track your contacts, their pipeline stages and their documents.",
+        "add": "Add a customer"
+      },
+      "customerNew": {
+        "metaTitle": "Add a customer",
+        "title": "Add a customer",
+        "subtitle": "Give at least a first and last name. A contact can exist without a user account."
+      },
+      "leaseNew": {
+        "metaTitle": "New lease",
+        "title": "New lease",
+        "subtitle": "Fill in the parties, the term and the financial terms."
+      },
+      "maintenanceNew": {
+        "metaTitle": "New maintenance request",
+        "title": "New request",
+        "subtitle": "Describe the problem and attach photos if needed."
+      },
+      "propertyNew": {
+        "metaTitle": "Publish a property",
+        "title": "Publish a property",
+        "subtitle": "Fill in the essentials. You can enrich the record after publishing."
+      },
+      "privacy": {
+        "metaTitle": "Privacy",
+        "title": "Privacy",
+        "subtitle": "Portability requests and tracking of available archives."
+      },
+      "customerDetail": {
+        "metaTitle": "Customer record",
+        "eyebrow": "Customer · #{id}"
+      },
+      "profileReviews": {
+        "breadcrumbProfile": "Profile",
+        "breadcrumbCurrent": "Reviews",
+        "title": "Your reviews",
+        "subtitle": "Find the reviews you published, their statuses, and the stays or leases still eligible for a public review."
+      },
+      "bookingDetail": {
+        "metaTitle": "Booking",
+        "notFound": "Booking not found."
+      },
+      "alerts": {
+        "title": "Threshold alerts",
+        "subtitle": "Configure the alerts triggered when indicators cross a threshold.",
+        "subtitleFull": "Configure the alerts triggered when KPIs cross a threshold. Evaluated hourly."
+      },
+      "exports": {
+        "metaTitle": "Exports",
+        "title": "Exports",
+        "subtitle": "Download your data as CSV, Excel or PDF."
+      },
+      "kpis": {
+        "title": "Custom KPIs",
+        "subtitle": "Choose the indicators to highlight on your dashboard.",
+        "subtitleFull": "Choose the indicators to highlight on your agency's dashboard."
+      },
+      "home": {
+        "noAgency": "Dashboard",
+        "greeting": "Hello {name}",
+        "subtitle": "An overview of your activity"
+      },
+      "propertyDetail": {
+        "metaTitle": "Property record",
+        "eyebrow": "Property · {reference}"
+      },
+      "leaseDetail": {
+        "metaTitleFallback": "Lease not found"
+      },
+      "providers": {
+        "metaTitle": "Provider directory"
+      },
+      "upgrade": {
+        "metaTitle": "Upgrade to Pro"
+      }
     }
   },
   "errors": {
@@ -2701,7 +2939,11 @@
     "new": {
       "no_lease_title": "No lease selected",
       "no_lease_description": "The lease determines the property and the tenant. Start an inventory report from a lease page.",
-      "no_lease_cta": "Pick a lease"
+      "no_lease_cta": "Pick a lease",
+      "pickLeaseTitle": "New inventory",
+      "pickLeaseSubtitle": "Select a lease to start an inventory.",
+      "formTitle": "New inventory",
+      "formSubtitle": "Room by room, condition and items, photos."
     },
     "detail": {
       "empty_rooms_title": "No room recorded",

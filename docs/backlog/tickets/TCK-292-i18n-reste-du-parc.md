@@ -190,23 +190,29 @@ rencontrées ici.
 occurrence (TCK-323), et l'étendre est une décision, pas un geste de passage. Les règles possibles
 sont listées dans le rapport de branche.
 
-### Lot C — tableau de bord + portefeuille : 118 / 387 occurrences
+### Lot C — tableau de bord + portefeuille : 271 / 387 occurrences
 
-Inventaire re-mesuré à la source : **53 fichiers / 387 occurrences** (le ticket annonçait 53 / 392
-— il a peu dérivé).
+Inventaire re-mesuré à la source : **53 fichiers / 387 occurrences** (le ticket annonçait 53 / 392).
 
-**Fait — 7 fichiers à zéro** : les quatre vues d'ensemble (`overview/{tenant,agency,agent,owner}`)
-et les trois panneaux de configuration (`overview/alerts/AlertList`, `overview/kpis/KpiConfigList`,
-`overview/exports/ExportForm`).
+**Fait — 47 fichiers à zéro.** `app/(dashboard)/app/**` est **intégralement à zéro** (les quatre
+vues d'ensemble, les trois panneaux de configuration, et les 30 pages de la surface). Côté
+`components/property-dashboard/`, 5 fichiers sur 10 sont à zéro.
 
-**Reste — 46 fichiers, 269 occurrences.** Dont **93 dans les quatre fichiers de
-`property-dashboard/` qui importent `property-form/options.ts`** : `PropertyListFilters` (46),
-`PropertyHeaderActions` (22), `PropertyList` (21), `PropertyStatusBadge` (4). Ceux-là sont
-**volontairement laissés** tant que la question du module partagé n'est pas tranchée (cf. lot B) —
-les convertir sans convertir `options.ts` reviendrait à traduire l'écran en laissant sa table de
-libellés en français.
+**Reste — 6 fichiers, 116 occurrences, et 115 sont BLOQUÉES par le même module partagé** :
 
-Les 176 restantes sont des pages `app/(dashboard)/app/**` indépendantes, sans blocage.
+| Fichier | Occ. | Importe `options.ts` ? |
+|---|---:|---|
+| `PropertyListFilters.tsx` | 46 | oui |
+| `PropertyHeaderActions.tsx` | 22 | oui |
+| `PropertyRowActions.tsx` | 22 | oui |
+| `PropertyList.tsx` | 21 | oui |
+| `PropertyStatusBadge.tsx` | 4 | oui |
+| `PropertyVisibilityBadge.tsx` | 1 | non |
+
+Traduire ces écrans en laissant `property-form/options.ts` en français ne serait pas une
+demi-mesure mais une **régression lisible** : l'écran rendrait des en-têtes anglais et des valeurs
+d'enum françaises côte à côte. Ils attendent donc ensemble que la question du module partagé soit
+tranchée — la même qu'au lot B, mais qui porte ici sur **115 occurrences au lieu de 8**.
 
 ### Lots D à L
 

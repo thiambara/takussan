@@ -14,7 +14,8 @@ export async function generateMetadata({
   const { id } = await params;
   const leaseId = Number(id);
   if (!Number.isFinite(leaseId) || leaseId <= 0) {
-    return { title: 'Bail introuvable' };
+    const t = await getTranslations('dashboard.pages.leaseDetail');
+    return { title: t('metaTitleFallback') };
   }
 
   // Resolve the lease reference best-effort. A 401/404 here just means we

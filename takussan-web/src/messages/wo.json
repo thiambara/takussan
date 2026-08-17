@@ -2069,7 +2069,11 @@
     "new": {
       "no_lease_title": "Tannuñu benn luwé",
       "no_lease_description": "Luwé bi mooy joxe kër gi ak luwékat bi. Tàmbalil état des lieux bi ci xëtu benn luwé.",
-      "no_lease_cta": "Tannal benn luwé"
+      "no_lease_cta": "Tannal benn luwé",
+      "pickLeaseTitle": "Limu kër bu bees",
+      "pickLeaseSubtitle": "Tànnal benn kontaraa ngir tàmbali limu kër.",
+      "formTitle": "Limu kër bu bees",
+      "formSubtitle": "Néeg ci néeg, nekkin ak jumtukaay, nataal."
     },
     "detail": {
       "empty_rooms_title": "Amul néeg bu ñu bind",
@@ -2479,6 +2483,60 @@
         "submit": "Yónnee ngir génne",
         "saveChanges": "Denc coppite yi"
       }
+    },
+    "dashboard": {
+      "overview": {
+        "checklist": {
+          "description": "Bindal leeral (≥ 80 araf)",
+          "gps": "Tegal markëru GPS bi",
+          "cover": "Yokk lu mu néew benn nataal (bopp)",
+          "titleType": "Joxal xeetu kayitu suuf"
+        },
+        "views": "Xool",
+        "viewsHint": "Ci fiis bi ñépp gis",
+        "favorites": "Cofeel",
+        "favoritesHint": "Jëfandikukat yi ko denc",
+        "rating": "Nota bu digg",
+        "ratingHint": "{count} xalaat",
+        "address": "Adres",
+        "addressHint": "Bérébu bi ñépp man a gis ci fiis bi.",
+        "edit": "Soppi",
+        "addressMissing": "Adres bu ñu war a mottali",
+        "gpsMissing": "Joxewuñu kordone GPS",
+        "todo": "Lu war a defar",
+        "allDone": "Lépp jub na.",
+        "remaining": "{count, plural, other {# lu ñu war a mottali.}}",
+        "complete": "Mottali",
+        "priceHistory": "Taariixu njëg yi",
+        "priceHistoryHint": "5 coppite yu mujj yu ñu bind.",
+        "seeAll": "Gis lépp",
+        "noPriceHistory": "Amul coppiteg njëg bu ñu bind ba tey.",
+        "unknownDate": "Bes bu ñu xamul"
+      },
+      "tabs": {
+        "overview": "Wonewu",
+        "edit": "Soppi",
+        "media": "Medya ({count})",
+        "history": "Taariix ({count})",
+        "fullPriceHistory": "Taariixu njëg bu mat",
+        "fullPriceHistoryHint": "Coppite yépp yu ñu bind ci kër gii.",
+        "noPriceHistory": "Amul coppiteg njëg bu ñu bind ci kër gii.",
+        "unknownDate": "Bes bu ñu xamul"
+      },
+      "pagination": {
+        "aria": "Xët yi",
+        "pageOf": "Xët {current} ci {total}",
+        "results": "{count, plural, other {# njeexital}}",
+        "perPagePlaceholder": "20 / xët",
+        "previous": "Bi jiitu",
+        "next": "Bi ci topp"
+      },
+      "media": {
+        "photos": "Nataal yi",
+        "loading": "Mu ngi yeb…",
+        "title": "Nataalu kër gi",
+        "hint": "Wéccee ngir soppi toftal — njëkk nataal bi mooy bopp bi."
+      }
     }
   },
   "documents": {
@@ -2811,6 +2869,190 @@
       "download": "Yebbi",
       "scopeNotice": "Ekspoor yi dinañu topp sa wàll (ajaas, boroom kër walla ajaŋ).",
       "scopeNoticeFull": "Ekspoor yi dinañu topp sa wàll (ajaas, boroom kër, luwaakat) — amul xibaar bu génn sa wàll."
+    },
+    "properties": {
+      "metaTitle": "Samay kër",
+      "title": "Samay kër",
+      "subtitle": "Topptoo sa portfey kër : génne, nekkin, wone.",
+      "publish": "Génne benn kër",
+      "published": "Yu ñu génne",
+      "soldRented": "Yu ñu jaay / luwaa",
+      "archived": "Yu ñu denc"
+    },
+    "profile": {
+      "metaTitle": "Sama profil",
+      "notifications": "Yégle yi",
+      "notificationsBody": "Tànnal yoon yi ñuy jëfandikoo ci xeetu xew-xew bu nekk.",
+      "managePrefs": "Topptoo tànneef yi",
+      "reviews": "Xalaat yi",
+      "reviewsBody": "Dal ak kontaraa yi nga man a bàyyi xalaat ci kanam ñépp.",
+      "seeReviews": "Xool samay xalaat"
+    },
+    "notificationPrefs": {
+      "metaTitle": "Tànneefu yégle",
+      "breadcrumbProfile": "Profil",
+      "breadcrumbCurrent": "Yégle yi",
+      "title": "Tànneefu yégle",
+      "subtitle": "Tànnal xew-xew yi nga bëgg a jot ci yoon wu nekk."
+    },
+    "inventoryDetail": {
+      "metaTitle": "Limu kër",
+      "notFound": "Gisuñu limu kër gi",
+      "invalidId": "Nomboro bi nga jox baaxul.",
+      "backToList": "Dellu ci limu bi",
+      "title": "Limu kër #{id}",
+      "subtitle": "Leeralu limu bi",
+      "back": "Dellu"
+    },
+    "maintenanceDetail": {
+      "notFound": "Gisuñu ñaan bi",
+      "invalidId": "Nomboro bi nga jox baaxul.",
+      "backToList": "Dellu ci limu bi",
+      "title": "Ñaan #{id}",
+      "subtitle": "Topptoo liggéey bi",
+      "back": "Dellu"
+    },
+    "onboardingPending": {
+      "metaTitle": "Dugg yuy xaar",
+      "title": "Dugg yuy xaar",
+      "subtitle": "Luwaakat yi seen limu dugg ubbeeku ba ëpp 7 fan."
+    },
+    "pages": {
+      "bookings": {
+        "metaTitle": "Réservasioŋ yi",
+        "title": "Réservasioŋ yi",
+        "subtitle": "Topptoo say ñaanu réservasioŋ"
+      },
+      "leases": {
+        "metaTitle": "Kontaraa yi",
+        "title": "Kontaraa yi",
+        "subtitle": "Xool te topptoo say kontaraa",
+        "newLease": "Kontaraa bu bees"
+      },
+      "visits": {
+        "metaTitle": "Samay seetlu",
+        "title": "Seetlu yi",
+        "subtitle": "Tëral te topp say seetlu."
+      },
+      "favorites": {
+        "metaTitle": "Samay cofeel",
+        "title": "Samay cofeel",
+        "subtitle": "Kër yi nga denc ñoo booloo fii."
+      },
+      "inventories": {
+        "metaTitle": "Limu kër yi",
+        "title": "Limu kër yi",
+        "subtitle": "Limu dugg ak génn ci kontaraa bu nekk"
+      },
+      "documents": {
+        "metaTitle": "Dokimaa yi",
+        "title": "Dokimaa yi",
+        "subtitle": "Boole kontaraa, kayitu kollëre, kitaas ak firnde yu say kër, kontaraa ak kiliyaan."
+      },
+      "maintenance": {
+        "metaTitle": "Wattu",
+        "title": "Wattu",
+        "subtitle": "Ñaan ak topptoo liggéey yi"
+      },
+      "payments": {
+        "title": "Pey yi",
+        "subtitle": "Taariix, fakteer ak peymaanu boroom kër — benn topptoo."
+      },
+      "calendar": {
+        "metaTitle": "Arminaat",
+        "title": "Arminaat",
+        "subtitle": "Say réservasioŋ ak seetlu yu ñu tëral ci benn wonewu."
+      },
+      "messages": {
+        "metaTitle": "Bataaxal yi",
+        "title": "Bataaxal yi",
+        "subtitle": "Say waxtaan"
+      },
+      "savedSearches": {
+        "metaTitle": "Samay seet yu ñu denc",
+        "title": "Samay seet yu ñu denc",
+        "subtitle": "Jéemaat ci benn bës tànneef yi nga gën a jëfandikoo."
+      },
+      "owners": {
+        "metaTitle": "Boroom kër yi"
+      },
+      "customers": {
+        "title": "Kiliyaan yi (CRM)",
+        "subtitle": "Topp say jokkoo, seen tolluwaay ci pipeline bi ak seen dokimaa.",
+        "add": "Yokk benn kiliyaan"
+      },
+      "customerNew": {
+        "metaTitle": "Yokk benn kiliyaan",
+        "title": "Yokk benn kiliyaan",
+        "subtitle": "Joxal lu mu néew tur ak sant. Benn jokkoo man na am te amul kont."
+      },
+      "leaseNew": {
+        "metaTitle": "Kontaraa bu bees",
+        "title": "Kontaraa bu bees",
+        "subtitle": "Bindal ñi ci bokk, diir bi ak kondisioŋu xaalis."
+      },
+      "maintenanceNew": {
+        "metaTitle": "Ñaanu wattu bu bees",
+        "title": "Ñaan bu bees",
+        "subtitle": "Leeralal jafe-jafe bi te boole ay nataal soo ko soxlaa."
+      },
+      "propertyNew": {
+        "metaTitle": "Génne benn kër",
+        "title": "Génne benn kër",
+        "subtitle": "Bindal li am solo. Dinga man a yokk ci fiis bi ginnaaw génne bi."
+      },
+      "privacy": {
+        "metaTitle": "Sutura",
+        "title": "Sutura",
+        "subtitle": "Ñaanu jëmbat ak topptoo arsiif yi jot."
+      },
+      "customerDetail": {
+        "metaTitle": "Fiisu kiliyaan",
+        "eyebrow": "Kiliyaan · #{id}"
+      },
+      "profileReviews": {
+        "breadcrumbProfile": "Profil",
+        "breadcrumbCurrent": "Xalaat yi",
+        "title": "Say xalaat",
+        "subtitle": "Gis xalaat yi nga génne, seen nekkin, ak dal walla kontaraa yi man a jot xalaat."
+      },
+      "bookingDetail": {
+        "metaTitle": "Réservasioŋ",
+        "notFound": "Gisuñu réservasioŋ bi."
+      },
+      "alerts": {
+        "title": "Yégle yu dig",
+        "subtitle": "Tëralal yégle yiy dox bu màndarga yi weesoo benn dig.",
+        "subtitleFull": "Tëralal yégle yiy dox bu KPI yi weesoo benn dig. Ñu koy natt waxtu wu nekk."
+      },
+      "exports": {
+        "metaTitle": "Ekspoor yi",
+        "title": "Ekspoor yi",
+        "subtitle": "Yebbil say xibaar ci CSV, Excel walla PDF."
+      },
+      "kpis": {
+        "title": "KPI yu ñu tëral",
+        "subtitle": "Tànnal màndarga yi nga bëgg ci sa tablo.",
+        "subtitleFull": "Tànnal màndarga yi nga bëgg ci tablo bu sa ajaas."
+      },
+      "home": {
+        "noAgency": "Tablo bi",
+        "greeting": "Salaam {name}",
+        "subtitle": "Wonewu say jëf"
+      },
+      "propertyDetail": {
+        "metaTitle": "Fiisu kër",
+        "eyebrow": "Kër · {reference}"
+      },
+      "leaseDetail": {
+        "metaTitleFallback": "Gisuñu kontaraa bi"
+      },
+      "providers": {
+        "metaTitle": "Téereb jottalikat yi"
+      },
+      "upgrade": {
+        "metaTitle": "Jóg ci pro"
+      }
     }
   }
 }

@@ -1,8 +1,12 @@
 import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
 
-export const metadata: Metadata = { title: 'Documents' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.documents');
+  return { title: t('metaTitle') };
+}
 import { DocumentsLibrary } from '@/components/documents/DocumentsLibrary';
+import { getTranslations } from 'next-intl/server';
 
 /**
  * TCK-062 — bibliothèque centralisée des documents avec filtres, upload
@@ -11,16 +15,14 @@ import { DocumentsLibrary } from '@/components/documents/DocumentsLibrary';
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
+  const t = await getTranslations('dashboard.pages.documents');
   await getMeAction();
 
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">Documents</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Centralisez les contrats, pièces d&apos;identité, quittances et
-          justificatifs de vos biens, baux et clients.
-        </p>
+        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
       </header>
       <DocumentsLibrary />
     </div>
