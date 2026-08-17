@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search } from 'lucide-react';
+import { Building2, Search } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { fetchAdminAgencies } from '@/lib/queries/super-admin';
 import { AgencyModerationCard } from '@/components/admin/super/AgencyModerationCard';
 import { AgencyOnboardingDialog } from '@/components/admin/super/AgencyOnboardingDialog';
 import { Pagination } from '@/components/super-admin/Pagination';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
@@ -41,6 +42,7 @@ const SORT_OPTIONS = [
 type SortValue = (typeof SORT_OPTIONS)[number]['value'];
 
 export default function SuperAdminAgenciesPage() {
+  const t = useTranslations('superAdmin.agencies');
   const [status, setStatus] = useState(ALL);
   const [search, setSearch] = useState('');
   const [createdFrom, setCreatedFrom] = useState('');
@@ -167,15 +169,13 @@ export default function SuperAdminAgenciesPage() {
           ))}
         </div>
       ) : isError ? (
-        <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive" role="alert">
-          Erreur de chargement. {error?.displayMessage}
-        </div>
+        <ErrorState message={error?.displayMessage ?? t('error')} />
       ) : !data || data.data.length === 0 ? (
-        <Card>
-          <CardContent className="p-6 text-center text-sm text-muted-foreground">
-            Aucune agence à afficher pour les filtres courants.
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={<Building2 className="size-8" aria-hidden="true" />}
+          title={t('empty_title')}
+          description={t('empty_description')}
+        />
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2">

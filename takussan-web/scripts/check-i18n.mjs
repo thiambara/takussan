@@ -2,8 +2,9 @@
 /**
  * Garde de l'INTERNATIONALISATION du frontend (TCK-286).
  *
- * Le principe n°5 du `CLAUDE.md` racine dit « le front possède le texte affiché ». Mesuré par AST
- * (compilateur TypeScript, pas regex) le 2026-08-15 sur `dev` : **431 fichiers portaient 3 595
+ * Le principe n°5 du `CLAUDE.md` racine dit « le front possède le texte affiché ». Mesuré par
+ * analyse lexicale de TS/TSX (pas regex, cf. `i18n-scan.mjs`) le 2026-08-15 sur `dev` :
+ * **431 fichiers portaient 3 595
  * occurrences de texte affiché codé en dur**, pour 85 fichiers seulement branchés sur next-intl.
  * La règle était donc une intention, pas un état — et rien ne mesurait l'écart (dette D-24).
  *

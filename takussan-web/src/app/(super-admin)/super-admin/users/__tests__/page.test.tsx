@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+import { withIntl } from '@/test/intl';
 import SuperAdminUsersPage from '../page';
 
 const mockReplace = vi.fn();
@@ -22,10 +23,14 @@ function renderPage() {
     defaultOptions: { queries: { retry: false } },
   });
 
+  // `withIntl` charge le VRAI `fr.json` : depuis TCK-291, la page rend son état vide et son bloc
+  // d'erreur via next-intl, et sans provider `useTranslations` LÈVE.
   return render(
-    <QueryClientProvider client={queryClient}>
-      <SuperAdminUsersPage />
-    </QueryClientProvider>,
+    withIntl(
+      <QueryClientProvider client={queryClient}>
+        <SuperAdminUsersPage />
+      </QueryClientProvider>,
+    ),
   );
 }
 

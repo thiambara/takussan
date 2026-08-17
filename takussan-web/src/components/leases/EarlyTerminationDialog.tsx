@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Textarea } from '@/components/ui/textarea';
@@ -118,11 +119,7 @@ export function EarlyTerminationDialog({
           <DialogDescription>{t('dialog_subtitle')}</DialogDescription>
         </DialogHeader>
 
-        {error && (
-          <div role="alert" className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        {error && <ErrorState className="mb-3" message={error} />}
 
         <div className="space-y-4">
           <div>

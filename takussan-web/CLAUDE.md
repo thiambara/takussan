@@ -156,6 +156,27 @@ Règles complètes : `docs/design-guidelines.md`.
 > « zéro valeur hex arbitraire » compte 27 hex à 6 chiffres dans 8 `.tsx` plus 27 classes `blue-*`
 > alors que le bleu a été retiré du DS (TCK-129).
 
+## Mémoïsation — le React Compiler est ACTIVÉ
+
+`next.config.ts` déclare `reactCompiler: true` (**[ADR-0015](../docs/adr/0015-react-compiler-active.md)**,
+TCK-318). `babel-plugin-react-compiler` est une `devDependency` et `next build` échoue sans lui.
+
+**Conséquence sur le code neuf : `useMemo` et `useCallback` ne sont plus le réflexe par défaut.**
+Le compilateur mémoïse — et une mémoïsation manuelle qu'il ne peut pas préserver le fait
+**abandonner la compilation du composant entier** (`react-hooks/preserve-manual-memoization`, de
+nouveau bloquante). On paie alors le pire des deux mondes. Ils restent légitimes là où la
+mémoïsation porte une **sémantique** et non une optimisation.
+
+Mesuré sur ce dépôt le 2026-08-17 : 870/870 composants compilés sans abandon · **+3,6 à +6,1 % de
+JS gzippé par page** (et non +27 % — sommer tous les chunks compte le code de toutes les routes,
+pas ce qu'un visiteur télécharge) · re-rendu d'une grille de 200 cartes **≈ 25× plus rapide** ·
+`next build` ×2.
+
+> ⚠️ **La suite de tests n'exerce PAS le code compilé.** `vitest` transforme via
+> `@vitejs/plugin-react@6`, qui utilise **oxc** et n'a **plus** de point d'entrée Babel — le
+> compilateur n'est appliqué que par `next build`. Un vert de `npm run test` ne valide donc pas le
+> build ; c'est `npm run lint` + `npm run build` en CI qui gardent ce flanc.
+
 ## État
 
 **TanStack Query v5 est le store serveur unique.** `createQueryClient()` (`src/lib/query-client.ts:15-32`)
@@ -188,9 +209,17 @@ remappe les erreurs 422 de Laravel sur les champs RHF — y compris les clés im
 
 - **Parité des clés `fr`/`en`/`wo`** — contrôle EXACT. `en` est tenu à **0 clé manquante** ; `wo`
   traîne 88 clés manquantes préexistantes, sous cliquet décroissant.
-- **Cliquet PAR FICHIER sur le texte en dur** — `scripts/i18n-baseline.json`, produit par scan AST.
-  Un compte qui monte échoue ; un fichier neuf portant du texte échoue ; un compte qui descend
-  échoue tant qu'on n'a pas lancé `--update`.
+- **Cliquet PAR FICHIER sur le texte en dur** — `scripts/i18n-baseline.json`, produit par le scan
+  de `scripts/i18n-scan.mjs`. Un compte qui monte échoue ; un fichier neuf portant du texte échoue ;
+  un compte qui descend échoue tant qu'on n'a pas lancé `--update`.
+
+> ⚠️ **Ce scan est un lexeur TS/TSX écrit DANS le dépôt, sans dépendance, et c'est une décision**
+> (TCK-323, ardoise D-55). Il employait l'API compilateur de TypeScript ; `typescript@7` — le
+> portage Go, en `dist-tag: latest` — ne l'exporte plus côté Node, et la garde est morte le jour du
+> bump, **pendant que `tsc --noEmit` et `next build` restaient verts tous les deux**. Rebrancher
+> sur un autre analyseur tiers aurait reproduit la même exposition un nom de paquet plus loin.
+> L'équivalence avec l'ancienne version est **mesurée**, pas déduite : mêmes 3 542 occurrences sur
+> les 409 fichiers concernés, une à une, et les 21 cas de `i18n-scan.test.ts` inchangés.
 
 > ⚠️ **La règle « le front possède le texte affiché » reste une intention sur l'essentiel du parc**
 > (dette D-24). Les chiffres ne s'écrivent PAS ici — ils bougent à chaque commit et une version
@@ -221,10 +250,17 @@ vitest 4 + jsdom + @testing-library, alias `@` → `./src`, setup global qui pol
 > **Ne pas rabaisser ce plafond sans refaire la mesure**, et ne pas le lire comme une licence à
 > écrire des tests lents : un test qui s'en approche au repos est un test à revoir.
 >
-> Ce plafond ne masque rien : les assertions asynchrones passent par `waitFor`/`findBy*`, dont le
-> délai propre reste à **1000 ms**. Une vraie régression échoue toujours en ~1 s, avec son message
-> — vérifié par ablation. Ce délai-là est cependant lui aussi un défaut de framework jamais mesuré
-> ici : il tient sous la charge visée, mais pas à ~4× celle-ci (TCK-313).
+> **Le délai propre des attentes est de 3000 ms, et c'est une seconde valeur mesurée**
+> (`vitest.setup.ts`, TCK-313). Il gouverne chaque `waitFor` / `findBy*`, là où `testTimeout`
+> gouverne le test entier. Les 1000 ms précédents étaient le défaut de Testing Library. Au repos,
+> 95 % des attentes de la suite tiennent en **150 ms** et la pire en **467 ms** — mais cette même
+> attente a été mesurée à **980 ms** quelques minutes plus tard, sur le même code, parce que
+> d'autres agents travaillaient : la marge annoncée valait ce que la machine faisait d'autre.
+> Ablation : à 1000 ms, `Integrations` rougit 2/2 sous charge 287-331 avec un message qui accuse le
+> composant ; à 3000 ms, 38/38 sous la même charge. Le coût est **+2 s par test rouge** (une
+> attente qui ne sera jamais satisfaite brûle son plafond en entier) et **zéro sur une exécution
+> verte**. Le détail des mesures est dans le commentaire de `vitest.setup.ts` — le relever exige
+> de les refaire.
 
 ```bash
 npm run lint          # ⚠ `npm run build` ne lance PAS ESLint sous Next 16

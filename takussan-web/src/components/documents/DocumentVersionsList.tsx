@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   ChevronDown,
   ChevronUp,
@@ -14,6 +15,7 @@ import {
   Clock,
 } from 'lucide-react';
 
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -357,13 +359,14 @@ export function DocumentVersionsList({
   canManage = false,
   defaultOpen = false,
 }: DocumentVersionsListProps) {
+  const t = useTranslations('documents.versions');
+  const tCommon = useTranslations('common');
   const [expanded, setExpanded] = useState(defaultOpen);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [restoreTarget, setRestoreTarget] = useState<DocumentVersion | null>(null);
 
-  const { data, isLoading, isError } = useDocumentVersions(
-    expanded ? documentId : null,
-  );
+  const versionsQuery = useDocumentVersions(expanded ? documentId : null);
+  const { data, isLoading, isError } = versionsQuery;
 
   const versions: DocumentVersion[] = data?.data ?? [];
   const count = versions.length;
@@ -415,22 +418,24 @@ export function DocumentVersionsList({
           {isLoading ? (
             <p className="py-4 text-center text-sm text-app-ink-muted">Chargement…</p>
           ) : isError ? (
-            <p className="py-4 text-center text-sm text-destructive">
-              Impossible de charger les versions.
-            </p>
+            <ErrorState
+              message={t('error')}
+              onRetry={() => void versionsQuery.refetch()}
+              retryLabel={tCommon('actions.retry')}
+            />
           ) : versions.length === 0 ? (
-            <p className="py-4 text-center text-sm text-app-ink-muted">
-              Aucune version uploadée.{' '}
-              {canManage ? (
-                <button
-                  type="button"
-                  className="underline hover:text-app-accent"
-                  onClick={() => setUploadOpen(true)}
-                >
-                  Ajouter la première version
-                </button>
-              ) : null}
-            </p>
+            <EmptyState
+              icon={<History className="size-8" aria-hidden="true" />}
+              title={t('empty_title')}
+              description={t('empty_description')}
+              action={
+                canManage ? (
+                  <Button type="button" variant="outline" onClick={() => setUploadOpen(true)}>
+                    {t('empty_cta')}
+                  </Button>
+                ) : undefined
+              }
+            />
           ) : (
             <ul className="space-y-2 pt-1" aria-label="Liste des versions">
               {versions.map((v) => (

@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { Star } from 'lucide-react';
-import { useLocale } from 'next-intl';
+import { MessageSquareQuote, Star } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { useBookings } from '@/lib/queries/bookings';
 import { useLeases } from '@/lib/queries/leases';
 import {
@@ -170,18 +171,15 @@ function AuthoredReviewsList({
   }
 
   if (reviewsQuery.isError) {
-    return (
-      <p className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
-        {copy.postedError}
-      </p>
-    );
+    return <ErrorState message={copy.postedError} />;
   }
 
   if (reviews.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-stone-200 bg-white p-8 text-center text-sm text-stone-500">
-        {copy.postedEmpty}
-      </div>
+      <EmptyState
+        icon={<MessageSquareQuote className="size-8" aria-hidden="true" />}
+        title={copy.postedEmpty}
+      />
     );
   }
 
@@ -225,18 +223,15 @@ function ReviewOpportunitiesList({ copy }: { readonly copy: ProfileReviewCopy })
   }
 
   if (errored) {
-    return (
-      <p className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
-        {copy.opportunitiesError}
-      </p>
-    );
+    return <ErrorState message={copy.opportunitiesError} />;
   }
 
   if (entries.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-stone-200 bg-white p-8 text-center text-sm text-stone-500">
-        {copy.opportunitiesEmpty}
-      </div>
+      <EmptyState
+        icon={<Star className="size-8" aria-hidden="true" />}
+        title={copy.opportunitiesEmpty}
+      />
     );
   }
 
@@ -323,6 +318,7 @@ function AuthoredReviewCard({
 type ReviewWithProperty = Review & { property: OwnerReviewProperty };
 
 function OwnerReviewsInbox() {
+  const t = useTranslations('profile.reviews');
   const [propertyFilter, setPropertyFilter] = useState('all');
   const [replyFilter, setReplyFilter] = useState('all');
   const propertiesQuery = useOwnerReviewProperties();
@@ -353,11 +349,7 @@ function OwnerReviewsInbox() {
   }
 
   if (errored) {
-    return (
-      <p className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
-        Impossible de charger les avis reçus.
-      </p>
-    );
+    return <ErrorState message={t('error')} />;
   }
 
   return (
@@ -390,9 +382,11 @@ function OwnerReviewsInbox() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-stone-200 bg-white p-8 text-center text-sm text-stone-500">
-          Aucun avis reçu pour ces critères. Les nouveaux avis approuvés apparaîtront ici.
-        </div>
+        <EmptyState
+          icon={<MessageSquareQuote className="size-8" aria-hidden="true" />}
+          title={t('empty_title')}
+          description={t('empty_description')}
+        />
       ) : (
         <ul className="space-y-3">
           {filtered.map((review) => (

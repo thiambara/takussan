@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   useActivateLease,
   useGenerateSchedule,
@@ -11,6 +11,7 @@ import {
   useReviewLeaseRent,
 } from '@/lib/queries/leases';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
@@ -56,11 +57,14 @@ interface LeaseDetailProps {
 
 export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   const locale = useLocale() as Locale;
+  const t = useTranslations('lease.detail');
+  const tCommon = useTranslations('common');
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [renewalOpen, setRenewalOpen] = useState(false);
   const [earlyTerminationOpen, setEarlyTerminationOpen] = useState(false);
   const { user } = useAuth();
-  const { data, isLoading, isError } = useLease(leaseId);
+  const leaseQuery = useLease(leaseId);
+  const { data, isLoading, isError } = leaseQuery;
   const { data: paymentsData } = useLeasePayments(leaseId);
   const generateSchedule = useGenerateSchedule(leaseId);
   const activateLease = useActivateLease(leaseId);
@@ -109,9 +113,11 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   }
   if (isError || !data) {
     return (
-      <p className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
-        Bail introuvable.
-      </p>
+      <ErrorState
+        message={t('error')}
+        onRetry={() => void leaseQuery.refetch()}
+        retryLabel={tCommon('actions.retry')}
+      />
     );
   }
 
@@ -222,7 +228,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
               <Button
                 type="button"
                 variant="outline"
-                className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+                className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
                 onClick={() => setEarlyTerminationOpen(true)}
               >
                 Résilier le bail

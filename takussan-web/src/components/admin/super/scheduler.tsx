@@ -1,9 +1,13 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
+import { Timer } from 'lucide-react';
+import { EmptyState } from '@/components/feedback';
 import { fetchScheduler } from '@/lib/queries/super-admin';
 
 export function ScheduledTaskTable() {
+  const t = useTranslations('superAdmin.scheduler');
   const query = useQuery({
     queryKey: ['super-admin', 'scheduler'],
     queryFn: fetchScheduler,
@@ -35,7 +39,14 @@ export function ScheduledTaskTable() {
             ))}
             {!query.isLoading && (query.data?.data ?? []).length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-3 py-8 text-center text-sm text-stone-500">Aucun run capturé.</td>
+                <td colSpan={3} className="p-0">
+                  <EmptyState
+                    className="border-0"
+                    icon={<Timer className="size-8" aria-hidden="true" />}
+                    title={t('empty_title')}
+                    description={t('empty_description')}
+                  />
+                </td>
               </tr>
             ) : null}
           </tbody>

@@ -1,6 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { ListTree } from 'lucide-react';
+import { EmptyState } from '@/components/feedback';
 import { useQuery } from '@tanstack/react-query';
 import {
   EnumList,
@@ -12,6 +15,7 @@ import type { BusinessEnumsResponse, BusinessEnumValue } from '@/types/super-adm
 import type { ApiError } from '@/lib/api';
 
 export default function SuperAdminEnumsPage() {
+  const t = useTranslations('superAdmin.enums');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [editing, setEditing] = useState<BusinessEnumValue | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -71,9 +75,11 @@ export default function SuperAdminEnumsPage() {
           />
         </div>
       ) : (
-        <div className="rounded-xl bg-card p-8 text-center text-sm text-muted-foreground ring-1 ring-border">
-          Aucun enum métier éditable.
-        </div>
+        <EmptyState
+          icon={<ListTree className="size-8" aria-hidden="true" />}
+          title={t('empty_title')}
+          description={t('empty_description')}
+        />
       )}
     </div>
   );

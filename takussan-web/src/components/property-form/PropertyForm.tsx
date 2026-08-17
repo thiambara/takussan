@@ -257,27 +257,26 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
   const lng = watch('longitude') as number | null | undefined;
   const tagIds = (watch('tag_ids') ?? []) as number[];
 
-  const handleLocationChange = useCallback(
-    (newLat: number, newLng: number) => {
-      setValue('latitude', newLat, { shouldDirty: true });
-      setValue('longitude', newLng, { shouldDirty: true });
-    },
-    [setValue],
-  );
+  // Ces deux gestionnaires sont passés en props à des enfants, et ils ne sont PAS enveloppés dans
+  // un `useCallback` : le React Compiler s'en charge (ADR-0033). Les `useCallback` qui s'y
+  // trouvaient faisaient ABANDONNER la compilation de tout ce composant —
+  // `react-hooks/preserve-manual-memoization` les signalait, et son correctif est de retirer la
+  // mémoïsation manuelle, pas de l'ajuster.
+  const handleLocationChange = (newLat: number, newLng: number) => {
+    setValue('latitude', newLat, { shouldDirty: true });
+    setValue('longitude', newLng, { shouldDirty: true });
+  };
 
-  const toggleTag = useCallback(
-    (tagId: number) => {
-      const current = (form.getValues('tag_ids') ?? []) as number[];
-      setValue(
-        'tag_ids',
-        current.includes(tagId)
-          ? current.filter((id) => id !== tagId)
-          : [...current, tagId],
-        { shouldDirty: true },
-      );
-    },
-    [form, setValue],
-  );
+  const toggleTag = (tagId: number) => {
+    const current = (form.getValues('tag_ids') ?? []) as number[];
+    setValue(
+      'tag_ids',
+      current.includes(tagId)
+        ? current.filter((id) => id !== tagId)
+        : [...current, tagId],
+      { shouldDirty: true },
+    );
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8" noValidate>

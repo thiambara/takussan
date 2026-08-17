@@ -41,36 +41,6 @@ const eslintConfig = defineConfig([
     name: "takussan/react-version-pin",
     settings: { react: { version: reactVersion } },
   },
-  {
-    name: "takussan/react-compiler-rules",
-    rules: {
-      // `react-hooks/preserve-manual-memoization` est COUPÉE, et c'est la seule
-      // des cinq familles du React Compiler à l'être. Les quatre autres —
-      // `set-state-in-effect`, `refs`, `immutability`, `use-memo` — restent en
-      // erreur : elles décrivent des défauts d'exécution, vrais avec ou sans
-      // compilateur, et TCK-316 en a corrigé les treize occurrences.
-      //
-      // ⚠️ MESURÉ AVANT DE COUPER, pas supposé. **Le React Compiler n'est pas
-      // activé dans ce projet** : `next.config.ts` ne déclare pas
-      // `reactCompiler`, et `babel-plugin-react-compiler` n'est pas dans le
-      // lock. Le message de cette règle est pourtant, littéralement,
-      // « React Compiler has skipped optimizing this component » — elle rend
-      // compte d'une compilation qui n'a jamais lieu.
-      //
-      // Et son correctif canonique est de SUPPRIMER le `useCallback`/`useMemo`
-      // signalé, en laissant le compilateur mémoïser à la place. Sans
-      // compilateur, ce serait retirer une mémoïsation sans rien mettre
-      // derrière — une régression de performance réelle, appliquée dix fois,
-      // pour faire taire un avertissement sur une optimisation qui n'existe pas
-      // dans ce build. C'est le contraire du service rendu.
-      //
-      // La question de fond — activer le React Compiler — est structurelle et
-      // n'appartient pas à un ticket de lint : elle est ticketée à part
-      // (TCK-318). Le jour où il sera activé, cette ligne se retire et les dix
-      // signalements redeviennent actionnables, avec leur vrai correctif.
-      "react-hooks/preserve-manual-memoization": "off",
-    },
-  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

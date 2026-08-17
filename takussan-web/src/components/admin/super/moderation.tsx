@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, EyeOff, ShieldCheck, Trash2, XCircle } from 'lucide-react';
+import { ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -257,11 +258,7 @@ export function ModerationDecisionPanel({
         />
       </label>
 
-      {error ? (
-        <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-900 ring-1 ring-red-200" role="alert">
-          {error}
-        </div>
-      ) : null}
+      {error ? <ErrorState className="mt-3" message={error} /> : null}
 
       <div className="mt-4 grid grid-cols-2 gap-2">
         {actions.map((action) => {
