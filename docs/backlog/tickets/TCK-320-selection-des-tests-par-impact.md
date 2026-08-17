@@ -1,7 +1,7 @@
 ---
 id: TCK-320
 title: "Sélection des tests par impact — 42 % de la suite est du plancher de harnais, et rien à optimiser dans les tests"
-status: todo
+status: doing
 phase: P2
 family: technique
 estimate: M
@@ -24,7 +24,8 @@ confondu avec un vert de la suite.
 
 ## Contrat de données
 
-Aucune donnée applicative. Un fichier dérivé, `takussan-api/tests/impact-map.json` (~0,08 Mo) :
+Aucune donnée applicative. Un fichier dérivé, `takussan-api/tests/impact-map.json` — **0,12 Mo
+mesuré le 2026-08-17** sur 346 classes et 667 fichiers couverts sur 796 scannés :
 
 ```json
 { "version": 1, "commit": "…", "generated_at": "…",
@@ -62,12 +63,16 @@ d'environnement que `phpunit.xml` pose délibérément.
 PHPUnit conserve sous `--coverage-php` l'association *ligne de code → test*. **Vérifié, pas déduit** :
 sur `PropertyCrudTest`, 20 tests → 20 identifiants distincts de la forme
 `Tests\Feature\Api\PropertyCrudTest::test_requires_auth`. Carte complète produite en 891,8 s sous
-Xdebug (`load average` 2,6 → 9,9) : 95 Mo bruts, **0,08 Mo** réduits à la granularité classe.
+Xdebug (`load average` 2,6 → 9,9) : 95 Mo bruts, **0,12 Mo** réduits à la granularité classe.
+
+> Le premier jet de ce ticket annonçait 0,08 Mo. C'était une estimation prise sur une carte
+> antérieure ; la carte réellement livrée en fait 0,12. *Un ordre de grandeur estimé n'est pas une
+> mesure, et il vieillit dès qu'on ajoute des tests.*
 
 **Par fichier modifié** — l'agent qui itère, sur les 482 fichiers `app/` réellement modifiés en
 400 commits :
 
-| Classes sélectionnées | Part | Temps plancher |
+| Classes sélectionnées | Part | Temps plancher estimé |
 |---|---|---|
 | **1-5** | **81 %** | **≈ 5 s** |
 | 6-20 | 10 % | ≈ 5-13 s |
@@ -77,8 +82,16 @@ Xdebug (`load average` 2,6 → 9,9) : 95 Mo bruts, **0,08 Mo** réduits à la gr
 Médiane 2 classes, p75 3, p90 13. **70 des 482 fichiers ne sont couverts par aucun test** — pour
 eux, la bonne réponse est « rien à lancer », pas « lance tout ».
 
-**Par commit mergé** — fin de ticket, sur 172 commits touchant `takussan-api/` : **97 / 172 (56 %)
-retombent sur la suite entière**. C'est correct, et c'est bien placé : le repli tombe au moment où
+> **Mesuré de bout en bout une seule fois, le 2026-08-17** (ablation : une ligne vide ajoutée dans
+> `app/Services/Search/PropertySearchService.php`, `load average` 5,2-5,8 sur 8 cœurs) : **4 classes
+> sélectionnées, 26 tests, 16,7 s d'horloge** — ×2,8 le plancher **estimé** ci-dessus pour cette
+> tranche, et un gain réel d'environ **×13** (contre 204-235 s pour la suite entière au repos), pas
+> ~120×. Détail et raisonnement :
+> [`docs/plans/2026-08-17-temps-d-execution-des-tests.md`](../../plans/2026-08-17-temps-d-execution-des-tests.md).
+
+**Par commit mergé** — fin de ticket, sur 172 commits touchant `takussan-api/` : **102 / 172 (59 %)
+retombent sur la suite entière** (97/172 avant le durcissement du sélecteur imposé par la revue
+finale — cinq commits de plus pour fermer un quatrième chemin de faux vert). C'est correct, et c'est bien placé : le repli tombe au moment où
 le rituel de fin de branche exige déjà la suite entière.
 
 ## Critères d'acceptation
@@ -88,8 +101,18 @@ le rituel de fin de branche exige déjà la suite entière.
 - **AC2** — Un fichier `app/` **couvert** sélectionne ses classes ; **scanné mais non couvert**
   sélectionne **rien** ; **absent de la carte** impose la **suite entière**. Ces trois cas sont
   distincts et testés.
-- **AC3** — `database/migrations/`, `bootstrap/`, `composer.lock`, `composer.json`, `phpunit.xml`,
-  `tests/bootstrap.php` et `tests/TestCase.php` imposent la suite entière. Un seul suffit.
+- **AC3** — `database/migrations/`, `database/factories/`, `database/seeders/`, `bootstrap/`,
+  `config/`, `composer.lock`, `composer.json`, `phpunit.xml`, `tests/bootstrap.php` et
+  `tests/TestCase.php` imposent la suite entière. Un seul suffit.
+- **AC3bis** — **Le défaut de la boucle est d'ESCALADER, pas d'ignorer.** Tout chemin sous
+  `takussan-api/` qui n'entre dans aucune règle impose la suite entière, sauf s'il figure dans une
+  liste explicite de chemins inertes. Un fichier de `tests/` qui n'est pas une classe de test
+  (`BaseTestCase`, `ApiTestCase`, les concerns, `tests/Support/`) escalade.
+
+  > `database/factories/` et `database/seeders/` **manquaient à la première rédaction de cet AC**,
+  > et une revue de code l'a trouvé le 2026-08-17 : une factory est consommée par un nombre inconnu
+  > de tests, donc la modifier rendait « rien à lancer » — **un vert sans qu'aucun test n'ait
+  > tourné**. C'est la panne exacte que ce ticket existe pour rendre impossible.
 - **AC4** — Les classes de test ajoutées ou modifiées **depuis le commit de la carte** sont ajoutées
   d'office. Si ce commit est introuvable (clone superficiel), la commande **escalade** au lieu de
   présumer la réparation faite.
@@ -115,3 +138,15 @@ le rituel de fin de branche exige déjà la suite entière.
 
 [`docs/plans/2026-08-17-selection-par-impact-phase-1.md`](../../plans/2026-08-17-selection-par-impact-phase-1.md)
 — sept tâches, TDD, code complet.
+
+## Suites — trouvé à l'exécution, non fait ici
+
+**La liste des déclencheurs durs est recopiée à la main dans `takussan-api/CLAUDE.md`, et rien ne
+la garde.** Elle avait déjà dérivé du code **le jour où elle a été écrite** — `composer.json` y
+manquait — et c'est une revue qui l'a vu, pas une garde. C'est exactement la famille de défaut que
+les douze `scripts/check-*.mjs` de ce dépôt existent pour attraper : *un document dérivé qui cesse
+de suivre sa source.*
+
+Une garde qui compare `ImpactSelector::HARD_PREFIXES` / `::HARD_FILES` à ce que la documentation
+énumère reste à écrire. Elle n'est pas dans le périmètre de ce ticket, et le laisser non dit
+reviendrait à reproduire, un étage plus bas, le défaut que ce ticket corrige.

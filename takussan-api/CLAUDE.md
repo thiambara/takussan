@@ -320,11 +320,75 @@ rouvre la panne, et elle ne se voit qu'au hasard du tempo** :
    faisaient qu'un `save()` de n'importe quel test poussait un document : 3308 tâches par exécution,
    dont 2628 sur l'index des biens. **Un test de recherche neuf doit porter le concern** — sans lui,
    il n'indexe plus. La suite y a gagné 45 % de durée (313 s → 173 s).
-4. **Tout ce qui est partagé par machine est préfixé par processus** (`tests/bootstrap.php`) : les
-   index Meilisearch (`testing_<token>_`, cf. `TestSearchIndex`) et la racine des disques
-   `Storage::fake()` (via `TEST_TOKEN`, cf. `TestFilesystemIsolation`). Les deux se nettoient à
-   l'extinction du processus. `SCOUT_PREFIX` n'est **plus** déclaré dans `phpunit.xml` ni dans
-   `api-ci.yml` : le réintroduire re-figerait le préfixe et re-casserait l'isolation.
+4. **Tout ce qui est partagé par machine est préfixé — mais par (EXÉCUTION, WORKER), pas par
+   processus seul depuis TCK-321** (`tests/bootstrap.php`) : les index Meilisearch
+   (`testing_<token>_`, cf. `TestSearchIndex`) et la racine des disques `Storage::fake()` (via
+   `TEST_TOKEN`, cf. `TestFilesystemIsolation`). Le jeton est **composé**
+   (`Tests\Support\TestProcessToken::value()`) : `<pid+aléa>` — le discriminant d'exécution, en tête,
+   c'est lui qui survit — suffixé de `_<index worker>` quand `artisan test --parallel` tourne. Élire
+   un seul des deux jetons ne suffit pas : le jeton posé par Laravel seul (`1`, `2`… `N`) redonnerait
+   `public_test_1` à deux agents qui parallélisent en même temps, soit exactement la panne que D-44 a
+   soldée. `TestFilesystemIsolation::install()` **ne renonce plus** quand `TEST_TOKEN` est déjà posé
+   par ParaTest — il le lit et le compose, au lieu de l'ancien `return` anticipé qui portait le
+   commentaire *« on ne l'écrase pas, sous peine de faire diverger la racine des disques de la base de
+   données du worker »*. **C'est précisément ce `return` qu'il ne faut pas restaurer.** Les deux se
+   nettoient à l'extinction du processus. `SCOUT_PREFIX` n'est **plus** déclaré dans `phpunit.xml` ni
+   dans `api-ci.yml` : le réintroduire re-figerait le préfixe et re-casserait l'isolation.
+
+   ⚠️ **Un seul agent à la fois peut lancer `--parallel`.** Deux exécutions simultanées se cassent
+   au démarrage sur une **quatrième** ressource partagée par machine, dans ParaTest lui-même, que la
+   composition des jetons ci-dessus ne couvre pas : l'une reste verte, l'autre meurt avant le premier
+   test sur `mkdir(): File exists` (mesuré, TCK-322, ardoise D-49). `--tmp-dir` ne corrige pas.
+   Le mode séquentiel et `php bin/impacted-tests.php` supportent la simultanéité entre agents ;
+   `--parallel` ne la supporte pas.
+
+## Ne lancer que les tests que le diff touche
+
+```bash
+php bin/impacted-tests.php            # affiche la sélection et la commande
+php bin/impacted-tests.php --run      # l'exécute
+php bin/impacted-tests.php --base=dev # + tout ce qui sépare HEAD de dev
+```
+
+**Pourquoi.** La suite ne contient aucun point chaud à optimiser ligne à ligne : il n'y a qu'à en
+lancer moins pour la majorité des diffs. `tests/impact-map.json` associe à chaque fichier de `app/`
+les classes de test qui l'ont réellement couvert, mesuré depuis un rapport de couverture Xdebug sur
+la suite entière (le 2026-08-17 : **346 classes de test, 667 fichiers de `app/` couverts sur 796
+scannés**, carte de 0,12 Mo). `ImpactSelector` la lit avec un diff (`git diff --name-only`) et
+répond soit une liste de classes, soit `SUITE ENTIÈRE` avec son motif quand le fichier touché est
+hors de portée de la carte — une migration, une factory, un seeder, `bootstrap/`, `config/`,
+`composer.json`, `composer.lock` ou un fichier de harnais (`phpunit.xml`, `tests/bootstrap.php`,
+`tests/TestCase.php`) modifient ce que **tous** les tests voient, pas seulement ceux qui les
+référencent explicitement.
+
+**Le défaut de la règle est d'ESCALADER, pas d'ignorer.** Tout chemin sous `takussan-api/` qui
+n'entre dans aucune règle impose la suite entière, sauf s'il figure dans la liste explicite de
+chemins inertes (`docs/`, `storage/`, `vendor/`, `node_modules/`, `public/build/`, `*.md`). C'est une
+correction de la revue finale : le défaut était « ignorer », et modifier `tests/BaseTestCase.php` —
+dont **89** classes héritent — ou `.env.example` — qui **est** l'environnement de test de la CI —
+rendait « rien à lancer » et sortie 0. *Une sélection trop large coûte des secondes ; une sélection
+trop étroite produit un vert qui ne prouve rien.*
+
+> ⚠️ **Cette liste est recopiée à la main depuis `ImpactSelector::HARD_PREFIXES` et
+> `::HARD_FILES`, et rien ne la garde.** Elle avait déjà dérivé le jour où elle a été écrite —
+> `composer.json` y manquait, et c'est une revue qui l'a vu. **La source de vérité est le code** ;
+> si les deux divergent, croire le code. Une garde de plus dans `scripts/check-*.mjs` reste à
+> écrire (cf. TCK-320, « Suites »).
+
+Mesuré par ablation le 2026-08-17 (un ajout de ligne vide dans
+`app/Services/Search/PropertySearchService.php`, machine à `load average` 5,2-5,8 sur 8 cœurs) :
+**4 classes sélectionnées, 26 tests, 16,7 s d'horloge** — contre 204-235 s pour la suite entière au
+repos. Le gain vient de l'évitement, pas d'une suite plus rapide : la carte ne modifie aucun test.
+
+⚠ **Un vert de cette commande ne dit RIEN de la suite.** C'est une boucle de retour rapide, pas une
+garde. La CI et le rituel de fin de branche continuent de jouer la suite entière. Quand la commande
+répond `SUITE ENTIÈRE`, elle a raison — c'est le comportement voulu, pas un repli par prudence.
+
+La carte (`tests/impact-map.json`) est **dérivée, jamais éditée à la main** — même règle que
+`docs/backlog/INDEX.md`. `scripts/check-impact-map.mjs` garde sa cohérence structurelle (Repo CI) ;
+elle se régénère avec `php bin/build-impact-map.php <rapport-de-couverture> tests/impact-map.json`
+à partir d'un rapport `--coverage-php` produit par `php artisan test`.
+Détail : [`docs/plans/2026-08-17-temps-d-execution-des-tests.md`](../docs/plans/2026-08-17-temps-d-execution-des-tests.md).
 
 ## Style
 

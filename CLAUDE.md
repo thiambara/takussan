@@ -107,12 +107,23 @@ reste 0,3 point, soit ~74 lignes non testées : c'est serré délibérément. Le
 l'**érosion** ; il ne dit pas que 86 %
 suffit, et une méthode traversée sans assertion y compte pour couverte.
 
-**`--parallel` a été mesuré, puis REFUSÉ** : le gain est réel (~2,6×, 204 s → 66-83 s) mais les
-**cinq** exécutions d'épreuve sont rouges. Deux gardes de D-44 tombent *par construction* — en mode
-parallèle Laravel pose son propre jeton d'isolation et supplante celui du dépôt — et un test de
-recherche publique rougit 3 fois sur 5 parce qu'il ne passait que grâce à l'**ordre** de la suite
-(TCK-314). Ne pas activer `--parallel` avant que ces deux points soient tranchés. Détail et
-raisonnement : ardoise **D-30**, tickets **TCK-302** et **TCK-314**.
+**`--parallel` a été refusé le 2026-08-16, puis REPRIS et validé le 2026-08-17** (TCK-321). Les
+deux causes du refus sont soldées — le test dépendant de l'ordre (TCK-314) et les gardes d'isolation,
+dont les deux jetons sont désormais **composés** (`<pid+aléa>_<index worker>`) plutôt qu'opposés.
+**Cinq exécutions d'épreuve à 0 échec**, et ×3,2 sur la meilleure paire comparable (208,80 s
+séquentiel à load 3,74 → **64,90 s** à load 6,11, 8 cœurs).
+
+⚠️ **Deux limites, mesurées, et elles gouvernent l'usage :**
+
+1. **UN SEUL AGENT À LA FOIS.** Deux `--parallel` simultanés : l'un passe, **l'autre meurt au
+   démarrage** sur `mkdir(): File exists` — une **quatrième** ressource partagée par machine, dans
+   ParaTest lui-même, que D-44 ne pouvait pas connaître. `--tmp-dir` ne la corrige pas. Isolé dans
+   **TCK-322**. Le mode séquentiel et `bin/impacted-tests.php`, eux, supportent la simultanéité.
+2. **Pas activé en CI**, et c'est une décision, pas un oubli : elle exige une mesure sur le runner
+   (2 à 4 cœurs, contre les 8 d'ici) qui n'a pas été prise. Le cliquet `--min=86` n'est pas touché —
+   PCOV agrège mal entre processus.
+
+Détail et raisonnement : ardoise **D-30**, tickets **TCK-302**, **TCK-314**, **TCK-321**, **TCK-322**.
 
 **L'ardoise est ouverte et écrite.** `docs/ardoise.md` porte l'inventaire des manquements mesurés,
 chacun sourcé, classé et priorisé — dont quatre qui touchent la **production** et ne se voient pas
@@ -138,6 +149,32 @@ php artisan test                    # ~2300 tests, 204-235 s MACHINE AU REPOS (2
                                     #   (cf. D-44) — mais depuis le correctif, la suite entière rend
                                     #   0 échec même sous cette charge.
 php artisan test --filter=Foo
+php artisan test --parallel          # ×3,2 sur la meilleure mesure (208,80 s séquentiel, load 3,74
+                                    #   → 64,90 s en parallèle, load 6,11 au départ ; 8 cœurs,
+                                    #   mesuré le 2026-08-17, cf. D-30). ⚠ POUR LE RITUEL DE FIN DE
+                                    #   BRANCHE, machine au repos — PAS pour la boucle quotidienne :
+                                    #   la suite séquentielle n'occupe que 0,73 cœur sur 8 (mesuré
+                                    #   le 2026-08-17, load average 5,7 → 21,7 sur 8 cœurs : user
+                                    #   417,40 s + sys 29,42 s pour 611,4 s), et
+                                    #   deux agents qui parallélisent en même temps demandent 16
+                                    #   cœurs à une machine qui en a 8. NON activé en CI : la
+                                    #   décision exige une mesure sur le runner (2 à 4 cœurs), qui
+                                    #   n'a pas été prise (cf. D-30).
+                                    #   ⚠⚠ UN SEUL AGENT À LA FOIS : deux --parallel simultanés,
+                                    #   l'un passe et l'AUTRE MEURT AU DÉMARRAGE sur
+                                    #   « mkdir(): File exists » (mesuré, TCK-322). Le séquentiel
+                                    #   et impacted-tests.php supportent la simultanéité, pas
+                                    #   celui-ci. Pour le quotidien :
+                                    #   php bin/impacted-tests.php --run
+php bin/impacted-tests.php --run     # ← LA commande du quotidien : ne lance que les tests que
+                                    #   le diff touche, via tests/impact-map.json (carte dérivée
+                                    #   d'un rapport de couverture, jamais éditée à la main).
+                                    #   Mesuré le 2026-08-17 par ablation : 4 classes, 16,7 s à
+                                    #   load 5,2-5,8/8 cœurs, contre 204-235 s pour la suite
+                                    #   entière au repos.
+                                    #   ⚠ Un vert ici NE DIT RIEN de la suite : c'est une boucle
+                                    #   de retour, pas une garde. La CI et le rituel de fin de
+                                    #   branche jouent la suite entière, toujours.
 XDEBUG_MODE=coverage php artisan test --coverage --min=86
                                     # couverture de lignes de app/ — le CLIQUET de la CI (TCK-302).
                                     #   Exige un pilote de couverture : PCOV en CI, Xdebug en local.

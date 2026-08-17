@@ -1697,7 +1697,7 @@ charge, intersection non vide mais ensembles distincts) · `tests/Concerns/Inter
 > pour ce qui est mergé sur `dev` » est juste ; elle n'a de valeur que si l'on va **regarder** ce
 > qui est mergé sur `dev`.
 
-### D-30 — Aucune mesure de couverture, aucune parallélisation 🟡 *couverture SOLDÉE le 2026-08-16 ; parallélisation mesurée puis REFUSÉE, sur un défaut qu'elle a révélé* → [TCK-302](backlog/tickets/TCK-302-couverture-non-mesuree-suite-non-parallelisee.md)
+### D-30 — Aucune mesure de couverture, aucune parallélisation 🟡 *couverture SOLDÉE le 2026-08-16 ; parallélisation validée en local le 2026-08-17 (critère rempli, troisième défaut révélé) — activation en CI NON tranchée, mesure runner requise* → [TCK-302](backlog/tickets/TCK-302-couverture-non-mesuree-suite-non-parallelisee.md)
 
 > **Confirmé le 2026-08-16** : `coverage: none` apparaît **deux fois** dans `api-ci.yml` (lignes 42
 > et 192), et `--parallel` n'est configuré nulle part. Le temps de référence à retenir est
@@ -1781,8 +1781,10 @@ deux familles qui n'appellent pas le même travail.
    (`public_test_5`, `public_test_3`… au lieu de `public_test_<pid+aléa>`) et **supplante** le
    mécanisme du dépôt. L'isolation reste assurée — par Laravel, plus par nous — mais le quatrième
    mécanisme de D-44 est alors court-circuité en silence. Ce n'est donc pas un basculement de
-   drapeau : il faut d'abord **décider** lequel des deux jetons gouverne, et réécrire les deux
-   gardes en conséquence.
+   drapeau : il faut d'abord **composer** les deux jetons — celui de Laravel isole les workers
+   entre eux, celui du dépôt isole les exécutions simultanées entre elles — et réécrire les deux
+   gardes en conséquence. *(Formulation corrigée le 2026-08-17 : cette phrase disait « décider
+   lequel des deux gouverne », ce qui réintroduisait la panne de D-44 — cf. le bloc ci-dessous.)*
 2. **Un échec INTERMITTENT, 3 fois sur 5** — `PropertyIsTestExclusionTest::test_public_search_excludes_is_test_properties`.
    Relancé **seul**, comme l'exige la règle du dépôt, il échoue **de façon déterministe**… alors
    qu'il **passe** dans la suite complète séquentielle (deux exécutions indépendantes). Ce test ne
@@ -1795,12 +1797,26 @@ deux familles qui n'appellent pas le même travail.
 > que personne ne vérifiait plus. C'est le second cas, après D-44, où **la course révèle un défaut
 > que le déterminisme masquait**.
 
-**Décision : `--parallel` n'est PAS activé**, et `brianium/paratest` n'est **pas** ajouté à
-`composer.json` — une dépendance installée pour une option non retenue est une décision prise en
-silence. Condition de réouverture : **TCK-314 soldé**, puis la question des deux gardes de
-`FakeDiskIsolationTest` tranchée. Le gain de 2,6× justifie largement d'y revenir.
+> **La seconde condition était MAL FORMULÉE, et la corriger change le travail à faire.** « Décider
+> lequel des deux jetons gouverne » suppose qu'ils répondent à la même question. Ils n'y répondent
+> pas : `ParallelTesting::token()` (`1`, `2`… `N`) isole les **workers entre eux** ;
+> `Tests\Support\TestProcessToken` (pid + aléa) isole les **exécutions simultanées entre elles** —
+> le cas de deux agents. Choisir le premier réintroduit exactement la panne que D-44 a soldée :
+> deux agents en `--parallel` obtiennent tous deux `public_test_1`. Il faut les **composer**,
+> pas en élire un.
 
-Rejeu, une fois ces deux points traités :
+**Décision du 2026-08-16 : `--parallel` n'est PAS activé**, et ~~`brianium/paratest` n'est **pas**
+ajouté à `composer.json`~~ — **installé le 2026-08-17** (`^7.20`, TCK-321) une fois les deux
+conditions de réouverture remplies (détail dans la mise à jour ci-dessous) : une dépendance
+installée pour une option non retenue aurait été une décision prise en silence, ce n'est plus le
+cas une fois l'option rouverte. Condition de réouverture : ~~TCK-314 soldé~~ — **fait le
+2026-08-16** (PR #192, `4929df7f`) — puis ~~la question des deux gardes de `FakeDiskIsolationTest`
+tranchée~~ — **faite le 2026-08-17** (les deux jetons composés au lieu qu'un des deux élise l'autre,
+`dd311877`). Le gain de 2,6× justifiait largement d'y revenir ; l'épreuve rejouée ci-dessous le
+confirme, à ×3,2 sur sa meilleure mesure.
+
+Rejeu, une fois ces deux points traités — **exécuté le 2026-08-17**, résultat détaillé dans la mise
+à jour ci-dessous :
 
 ```bash
 composer require --dev brianium/paratest
@@ -1818,6 +1834,111 @@ d'une exécution à l'autre. Un rouge Meilisearch se relance **seul** avant d'ê
 > portant `InteractsWithMeilisearch`, jouées sur **4 processus, 5 fois de suite** : **106 tests,
 > 319 assertions, 0 échec à chaque fois** (28-36 s par exécution). La barrière tient. Le blocage est
 > ailleurs, et c'est utile de savoir où il n'est pas.
+
+**Mise à jour du 2026-08-17 — les deux conditions de réouverture sont remplies, le critère D-30 est
+atteint en local, l'activation en CI reste une question à part.**
+
+Les deux points laissés ouverts par le rejeu ci-dessus ont été traités dans la branche
+`perf/tck-320-321-temps-des-tests` : `Tests\Support\TestProcessToken` compose désormais le jeton de
+Laravel (`ParallelTesting::token()`, qui isole les workers entre eux) et celui du dépôt (pid + aléa,
+qui isole les exécutions simultanées entre elles) au lieu qu'un élise l'autre (`dd311877`), et les
+deux gardes de `FakeDiskIsolationTest` affirment le jeton composé plutôt que l'ancien jeton seul.
+L'épreuve a été rejouée le 2026-08-17, sur la même machine, **8 cœurs** (`sysctl -n hw.ncpu`),
+`load average` relevé au début de chaque run :
+
+| Exécution | `load average` au départ | Durée | Résultat |
+|---|---|---|---|
+| séquentielle (référence du jour) | 3,74 → 4,61 | **208,80 s** | 2430 passés + 2 ignorés, **0 échec** |
+| `--parallel` n°1 | 6,11 | **64,90 s** | 2433 tests, 7523 assertions, 2 ignorés, **0 échec** |
+| `--parallel` n°2 | 12,64 | 113,86 s | **0 échec** |
+| `--parallel` n°3 | 33,59 | 102,94 s | **0 échec** |
+| `--parallel` n°4 | 30,41 | 108,76 s | **0 échec** |
+| `--parallel` n°5 | 43,26 | 116,18 s | **0 échec** |
+
+**Le critère posé ci-dessus — les deux conditions ensemble, gain net et cinq exécutions à 0 échec —
+est rempli : cinq sur cinq.**
+
+**La comparaison honnête est le run 1 contre la séquentielle : 64,90 s à load 6,11 contre 208,80 s à
+load 3,74, soit ×3,2** — pas le rapport à un run 4 ou 5 pris isolément. Les runs 2 à 5 se sont
+enchaînés sous la charge que les runs précédents infligeaient eux-mêmes à la machine (`load` monté à
+43,26 au run 5, sur 8 cœurs) : leurs durées mesurent la machine, pas le dépôt. C'est très exactement
+l'erreur que ce document ouvre en la nommant — un temps de suite rapporté sans son `load average` —
+et ce même paragraphe D-30 la commettait déjà à moitié le 2026-08-16 en additionnant des exécutions
+enchaînées sans le dire aussi explicitement. Le facteur ×11 mesuré ailleurs dans ce document (idle →
+saturé, D-44) rend deux runs `--parallel` consécutifs incomparables entre eux tant que le premier
+n'a pas fini de relâcher ses cœurs.
+
+**L'épreuve a de nouveau payé son rouge : elle a trouvé un troisième défaut.**
+`ScoutTestHarnessTest::test_the_index_prefix_is_unique_per_test_process` figeait la forme de
+l'ancien jeton dans une regex (`/^testing_[0-9a-z]+_$/`) — vraie hors `--parallel`, fausse dès que le
+jeton porte son second étage (`<pid+aléa>_<worker>`). Invisible en séquentiel, puisque hors
+`--parallel` le jeton n'a qu'un seul étage. Corrigé dans `a7ee728d` : le test affirme désormais
+l'égalité avec `TestProcessToken::value()` lui-même plutôt qu'une forme figée, ce qui tient dans les
+deux modes par construction et suit tout étage futur sans qu'il faille retoucher le test. C'est la
+**troisième** fois dans ce dépôt que la course révèle un défaut que le déterminisme masquait, après
+D-44 et TCK-314.
+
+**Décision du 2026-08-17 : `--parallel` reste NON activé en CI — mais pour une raison différente de
+celle du 2026-08-16.** Le critère de fond (gain net, cinq exécutions à 0 échec) est désormais rempli
+**en local**. Ce qui manque n'est plus un défaut à corriger : c'est une **mesure sur le runner**, qui
+n'a pas été prise. Le gain de ×3,2 (comme le ×2,6 du 2026-08-16) a été mesuré sur une machine à
+8 cœurs au repos ; un runner GitHub Actions standard en a 2 à 4, et rien ne garantit que ce gain s'y
+transporte — le brief de TCK-321 le disait déjà avant l'épreuve. La prendre suppose d'ouvrir une PR
+ajoutant un step temporaire au workflow (`nproc` + un run chronométré, comparé au step de couverture
+existant), ce que cette tâche n'a **pas** été autorisée à faire : `.github/workflows/api-ci.yml`
+**n'est pas modifié par ce commit** — TCK-321 ne le touche pas ; TCK-320, sur la même branche, lui
+ajoute par ailleurs `permissions: contents: write` et un step qui pousse la carte d'impact sur `dev`,
+sans rapport avec `--parallel`. Le cliquet de couverture `--min=86` n'est pas touché non plus,
+et pour une raison qui ne dépend pas de la mesure runner : PCOV agrège mal entre processus, et
+casser une garde existante (la couverture) pour en gagner une autre (la vitesse) n'est pas un gain.
+
+`--parallel` est donc documenté dans `CLAUDE.md` comme la commande du **rituel de fin de branche**,
+en local, machine au repos — pas comme une commande du quotidien, que `php bin/impacted-tests.php
+--run` couvre mieux (4 classes, 16,7 s). Ce qui réglerait la question de la CI : ouvrir la PR de
+mesure décrite ci-dessus, relever `nproc` et la durée du step, la comparer au step de couverture, et
+choisir entre les deux issues déjà prévues au plan de TCK-321 — un job `tests-paralleles` distinct si
+le gain net survit au runner, ou l'absence d'activation documentée si non. Tant que cette mesure
+n'est pas prise, l'activation en CI reste une option ouverte, pas une décision prise.
+
+---
+
+### D-49 — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage 🟡 *mesuré le 2026-08-17* → [TCK-322](backlog/tickets/TCK-322-paratest-deux-executions-simultanees.md)
+
+Trouvé **en éprouvant l'AC5 de TCK-321**, et laissé hors de son périmètre à dessein.
+
+TCK-321 a composé les deux jetons d'isolation et fait passer les **cinq** exécutions d'épreuve à
+0 échec. Reste la propriété que cette composition existait précisément pour tenir : **deux agents
+lançant `--parallel` en même temps.** Elle ne tient pas.
+
+Mesuré le 2026-08-17, 8 cœurs, `load average` 4,22 au départ, ParaTest 7.20.0 / PHPUnit 12.5.30 :
+
+| Exécution | Résultat |
+|---|---|
+| A | **verte** — 2433 tests, 7523 assertions, 2 ignorés, 0 échec |
+| B | **morte au démarrage**, sortie 1, avant le moindre test |
+
+```
+In Filesystem.php line 662:
+  mkdir(): File exists
+```
+
+`Illuminate\Filesystem\Filesystem::makeDirectory()`, pendant l'amorçage de ParaTest. B n'imprime
+aucun résumé : ce n'est pas un test rouge, c'est un démarrage impossible.
+
+**Ce n'est PAS la composition des jetons** — A passe, et le jeton composé fonctionne. C'est une
+**quatrième ressource partagée par machine**, après les index Meilisearch, la racine des disques
+`Storage::fake()` et le préfixe Scout que D-44 avait isolés. Elle ne pouvait pas être vue alors :
+**ParaTest n'était pas installé.** *Chaque outil ajouté au harnais ajoute la question de ce qu'il
+partage par machine.*
+
+**`--tmp-dir` ne la corrige pas** — éprouvé, deux exécutions avec des répertoires temporaires
+distincts échouent sur le **même** message. Le répertoire fautif reste à nommer, et c'est la
+première chose à faire : le nommer avant de corriger, sinon on déplace la collision (règle de
+TCK-314).
+
+**Conséquence, écrite dans `CLAUDE.md`** : un seul agent à la fois peut lancer `--parallel`. Le mode
+séquentiel supporte la simultanéité depuis D-44, et `bin/impacted-tests.php` (TCK-320) aussi — la
+boucle quotidienne n'est donc pas bloquée, c'est le rituel de fin de branche qui doit rester sériel.
 
 ---
 

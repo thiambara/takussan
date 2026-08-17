@@ -100,9 +100,26 @@ parmi les 400 derniers :
 
 | | |
 |---|---|
-| Suite entière | **97 / 172 (56 %)** — 54 « dur » (migrations, `composer.lock`, `bootstrap/`, `phpunit.xml`), 36 `routes/` non résolus, 7 fichier inconnu |
+| Suite entière | **102 / 172 (59 %)** — re-mesuré le 2026-08-17 après le durcissement du sélecteur (cf. encadré ci-dessous). Le chiffre initial était 97/172 |
 | Sélection partielle | 75 — médiane **5 classes**, p75 18, **p90 264** |
 | Gain franc (≤ 10 classes) | **49 / 172, soit 28 %** |
+
+> ⚠️ **Re-mesuré après la revue finale : 102/172, et non 97/172.** La revue a trouvé que le
+> sélecteur **ignorait en silence** tout chemin sous `takussan-api/` qu'il ne reconnaissait pas —
+> `tests/BaseTestCase.php` (dont **89** classes héritent), `tests/ApiTestCase.php` (38),
+> `tests/Concerns/InteractsWithMeilisearch.php` (21), les trois fichiers de `tests/Support/` qui
+> portent les mécanismes de D-44, `.env.example` (qui **est** l'environnement de test de la CI),
+> `lang/`, `resources/views/`. Tous rendaient « rien à lancer » et sortie 0 : le **quatrième**
+> chemin de faux vert de ce chantier.
+>
+> Le défaut par défaut de la boucle était « ignorer » ; il est désormais « escalader », avec une
+> liste explicite de chemins inertes (`docs/`, `storage/`, `vendor/`, `node_modules/`,
+> `public/build/`, `*.md`). `config/` a de plus été déplacé de la règle de `routes/` vers les
+> déclencheurs durs : l'arête route → contrôleur borne réellement l'impact, une valeur de
+> configuration se lit globalement.
+>
+> **Le prix de ces deux corrections est de cinq commits sur 172.** Une escalade de plus coûte des
+> secondes ; une sous-sélection produit un vert qui ne prouve rien.
 
 **Borne basse (réaliste) — par fichier**, sur les 482 fichiers `app/` réellement modifiés en
 400 commits :
@@ -116,9 +133,19 @@ parmi les 400 derniers :
 
 Médiane **2 classes**, p75 3, p90 13. **70 des 482 fichiers ne sont couverts par aucun test.**
 
+> **Mesuré de bout en bout une seule fois, le 2026-08-17** (ablation : une ligne vide ajoutée dans
+> `app/Services/Search/PropertySearchService.php`, `load average` 5,2-5,8 sur 8 cœurs) : **4 classes
+> sélectionnées, 26 tests, 16,7 s d'horloge** — soit ×2,8 le plancher « estimé » annoncé ci-dessus
+> pour cette tranche, et un gain réel d'environ **×13** (16,7 s contre 204-235 s pour la suite
+> entière au repos), pas ~120×. Le modèle plancher (amorçage + coût par test) sous-estime le coût
+> réel d'un facteur ~2,8, pour une cause qui n'a pas été instruite. Ce n'est pas fatal — ×13 justifie
+> amplement l'outil — mais ce tableau, comme celui du dessus, est un *estimé*, et une seule mesure de
+> bout en bout ne le remplace pas encore.
+
 **Les deux bornes décrivent deux moments différents du travail, et c'est ce qui rend la méthode
-cohérente** : un agent qui itère modifie un fichier à la fois — c'est la borne basse, ~5 s dans
-81 % des cas, soit ~120×. Un commit mergé empaquette un ticket entier (migration + routes +
+cohérente** : un agent qui itère modifie un fichier à la fois — c'est la borne basse, ~5 s **estimés**
+dans 81 % des cas (mesurés : 16,7 s pour 4 classes, cf. ci-dessus). Un commit mergé empaquette un
+ticket entier (migration + routes +
 contrôleur + service + tests) — c'est la borne haute, et le repli sur la suite entière y tombe
 **au moment précis où le rituel de fin de branche l'exige de toute façon**. Le repli n'est pas un
 échec de la méthode ; il est bien placé.
@@ -173,7 +200,7 @@ Deux choix portent tout le reste :
 | `app/**` présent dans `scanned` mais absent de `files` | **rien** (aucun test ne le couvre) |
 | `app/**` absent de `scanned` | **suite entière** |
 | `routes/**`, `config/**` | classes de contrôleur/service citées dans le diff → leurs tests ; sinon **suite entière** |
-| `database/migrations/**`, `bootstrap/**`, `composer.lock`, `phpunit.xml` | **suite entière** |
+| `database/{migrations,factories,seeders}/**`, `bootstrap/**`, `composer.lock`, `composer.json`, `phpunit.xml`, `tests/bootstrap.php`, `tests/TestCase.php` | **suite entière** |
 | `tests/**` | ces classes-là, telles quelles |
 | `docs/`, `*.md`, `takussan-web/` | rien |
 

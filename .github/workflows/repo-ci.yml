@@ -76,6 +76,12 @@ on:
       # posée en haut de ce bloc, appliquée à elle-même.
       - '.github/workflows/**'
       - 'takussan-api/composer.json'
+      # `check-impact-map` lit la carte. Aucune entrée existante ne la couvre : les
+      # déclencheurs de ce workflow visent `takussan-api/app/**`, `routes/**` et
+      # `database/**`, jamais `tests/`. Sans cette ligne, une carte corrompue arriverait
+      # sur `dev` et sortirait sur la PR de quelqu'un d'autre — la règle posée en haut
+      # de ce bloc.
+      - 'takussan-api/tests/impact-map.json'
   push:
     branches: [dev, master]
     paths:
@@ -114,6 +120,12 @@ on:
       # posée en haut de ce bloc, appliquée à elle-même.
       - '.github/workflows/**'
       - 'takussan-api/composer.json'
+      # `check-impact-map` lit la carte. Aucune entrée existante ne la couvre : les
+      # déclencheurs de ce workflow visent `takussan-api/app/**`, `routes/**` et
+      # `database/**`, jamais `tests/`. Sans cette ligne, une carte corrompue arriverait
+      # sur `dev` et sortirait sur la PR de quelqu'un d'autre — la règle posée en haut
+      # de ce bloc.
+      - 'takussan-api/tests/impact-map.json'
 
 jobs:
   guards:
@@ -295,3 +307,6 @@ jobs:
         # `--report` imprime le tableau dev/CI/prod dans le journal : une exécution verte MONTRE
         # alors ce qui a été confronté, au lieu de le laisser déduire.
         run: node scripts/check-infra-versions.mjs --report
+
+      - name: Carte d'impact — structure et fraîcheur
+        run: node scripts/check-impact-map.mjs --report

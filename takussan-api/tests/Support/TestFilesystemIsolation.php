@@ -39,13 +39,12 @@ final class TestFilesystemIsolation
 
         self::$installed = true;
 
-        // `php artisan test --parallel` (ParaTest) pose son propre jeton par
-        // worker : on ne l'écrase pas, sous peine de faire diverger la racine
-        // des disques de la base de données du worker.
-        if (isset($_SERVER['TEST_TOKEN'])) {
-            return;
-        }
-
+        // ParaTest pose son propre jeton par worker dans TEST_TOKEN. On ne le jette
+        // PAS — il isole les workers entre eux — mais on ne s'en contente pas non
+        // plus : lui seul redonnerait `public_test_1` à deux agents simultanés, soit
+        // exactement la panne que D-44 a soldée. `TestProcessToken::value()` le lit
+        // (il l'a capturé au premier appel) et le compose avec le discriminant
+        // d'exécution. Un seul écrivain, une seule valeur.
         $token = TestProcessToken::value();
 
         putenv("TEST_TOKEN={$token}");

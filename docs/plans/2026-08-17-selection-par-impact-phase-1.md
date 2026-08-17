@@ -3,6 +3,36 @@
 > **Pour un agent :** ce plan s'exécute tâche par tâche. Chaque tâche se termine par un livrable
 > testable indépendamment. Les étapes sont des cases à cocher (`- [ ]`).
 
+> ## ⚠️ Ce que l'exécution a démenti — corrigé le 2026-08-17, après coup
+>
+> Ce plan a été exécuté le 2026-08-17. **Quatre de ses affirmations étaient fausses**, et elles sont
+> corrigées en place plus bas. Elles sont listées ici parce qu'un plan qui se corrige en silence
+> apprend à son lecteur à ne pas se méfier :
+>
+> 1. **`touch` ne produit rien dans `git status --porcelain`.** Git compare des *contenus*, pas des
+>    dates de modification. Les étapes de vérification des tâches 4 et 7 étaient donc inopérantes
+>    telles qu'écrites : il faut une vraie édition de contenu.
+> 2. **`git diff --quiet` ignore les fichiers NON TRACKÉS** (vérifié empiriquement, pas déduit). Le
+>    step de CI de la tâche 6 n'aurait donc jamais pu *créer* la carte ni la restaurer si elle
+>    disparaissait — seulement la mettre à jour — en affichant « carte inchangée » en silence. Il
+>    faut `git add` puis `git diff --cached --quiet`.
+> 3. **Une classe de test couvre ~42 fichiers de `app/`, pas 150-250.** L'estimation de la tâche 3
+>    était trop haute d'un facteur 4. La valeur mesurée est cohérente avec la carte complète
+>    (667 fichiers couverts pour 346 classes) et **meilleure** pour la sélectivité.
+> 4. **La liste des déclencheurs durs était incomplète.** `database/factories/` et
+>    `database/seeders/` n'étaient ni sélectionnés ni escaladés : modifier une factory rendait
+>    « rien à lancer », donc **un vert sans qu'aucun test n'ait tourné**. Ajoutés à
+>    `HARD_PREFIXES`.
+>
+> Et une contrainte structurelle, qui n'est pas une erreur du plan mais de son exécution :
+> **la tâche 7 ne peut pas être déléguée à un sous-agent.** Le passage sous Xdebug dure ~890 s,
+> au-delà du plafond de 600 s d'une commande de sous-agent. Elle se lance depuis la session
+> principale.
+>
+> **L'hypothèse la plus risquée du plan, elle, a tenu** : les quatre sorties de couverture
+> (`--coverage`, `--coverage-clover`, `--coverage-html`, `--coverage-php`) cohabitent dans un seul
+> `artisan test`. Aucun repli n'a été nécessaire.
+
 **Conception :** [`docs/plans/2026-08-17-temps-d-execution-des-tests.md`](2026-08-17-temps-d-execution-des-tests.md)
 — **la lire avant de commencer.** Tous les chiffres cités ici y sont sourcés et datés.
 
@@ -672,7 +702,9 @@ final class ImpactSelector
 
     /** Préfixes dont la modification invalide TOUTE la suite. */
     private const HARD_PREFIXES = [
-        'database/migrations/',
+        'database/migrations/',  // Modifie le schéma sous TOUS les tests.
+        'database/factories/',   // Consommée par un nombre inconnu de tests ; on ne sait pas lesquels.
+        'database/seeders/',     // Idem : modifie la fixture de base de tous les tests.
         'bootstrap/',
     ];
 
@@ -939,7 +971,8 @@ php bin/build-impact-map.php /tmp/cov-probe.php /tmp/impact-probe.json
 ```
 
 Attendu : une ligne `carte écrite : /tmp/impact-probe.json` avec **1 classe de test**,
-un nombre de fichiers couverts de l'ordre de 150-250, et **796 fichiers scannés**
+un nombre de fichiers couverts de l'ordre de **42** (mesuré ; l'estimation « 150-250 » de la
+première rédaction était trop haute d'un facteur 4), et **796 fichiers scannés**
 (le compte exact se prend avec `find app -name '*.php' | wc -l`).
 
 - [ ] **Step 3 : vérifier que la carte se relit**
@@ -1135,8 +1168,10 @@ exit($code);
 cd takussan-api
 # Fabriquer une carte de travail depuis la sonde de la tâche 3 :
 php bin/build-impact-map.php /tmp/cov-probe.php tests/impact-map.json
-# Toucher un fichier couvert, puis demander la sélection :
-touch app/Models/Property.php
+# Modifier un fichier couvert, puis demander la sélection.
+# ⚠ PAS `touch` : git compare des CONTENUS, pas des dates — un fichier seulement touché
+#   n'apparaît jamais dans `git status --porcelain`, et la vérification ne prouverait rien.
+printf '\n' >> app/Models/Property.php
 php bin/impacted-tests.php
 ```
 
@@ -1145,7 +1180,7 @@ Attendu : trois lignes — `carte : …`, `règle : sélection partielle — 1 c
 
 ```bash
 git checkout -- app/Models/Property.php
-touch database/migrations/*create_users_table*.php
+printf '\n' >> database/migrations/0001_01_01_000000_create_users_table.php
 php bin/impacted-tests.php
 ```
 
@@ -1245,7 +1280,18 @@ for (const clef of ['commit', 'generated_at', 'classes', 'scanned', 'files']) {
   if (carte[clef] === undefined) erreurs.push(`clé « ${clef} » absente`);
 }
 
-if (erreurs.length === 0) {
+// ⚠ LES TYPES SE VALIDENT AVANT TOUT ACCÈS, et ce bloc n'est PAS gaté sur
+// `erreurs.length === 0`. Les deux points ont été trouvés par une revue le 2026-08-17,
+// et le premier était un FAUX VERT DANS LA GARDE : `carte.classes.length` sur un
+// non-tableau vaut `undefined`, donc `i >= undefined` est TOUJOURS faux en JS — le
+// contrôle d'indice hors bornes ne se déclenchait jamais, quel que soit l'indice, et
+// la garde validait une carte corrompue avec sortie 0. Le second faisait qu'une erreur
+// de version masquait tous les défauts de contenu : on les découvrait un par un.
+if (!Array.isArray(carte.classes)) erreurs.push(`« classes » n'est pas un tableau (reçu : ${carte.classes === null ? 'null' : typeof carte.classes})`);
+if (!Array.isArray(carte.scanned)) erreurs.push(`« scanned » n'est pas un tableau (reçu : ${carte.scanned === null ? 'null' : typeof carte.scanned})`);
+if (carte.files === null || typeof carte.files !== 'object' || Array.isArray(carte.files)) erreurs.push(`« files » n'est pas un objet (reçu : ${carte.files === null ? 'null' : typeof carte.files})`);
+
+if (Array.isArray(carte.classes) && Array.isArray(carte.scanned) && carte.files && typeof carte.files === 'object' && !Array.isArray(carte.files)) {
   if (carte.classes.length === 0) erreurs.push('aucune classe de test — la carte est vide');
   if (carte.scanned.length === 0) erreurs.push('aucun fichier scanné — la carte est vide');
 
@@ -1450,14 +1496,21 @@ Après le step « Publier la couverture (HTML — seulement quand ça rougit) »
         run: |
           php bin/build-impact-map.php storage/coverage/cov.php tests/impact-map.json
 
-          if git diff --quiet -- tests/impact-map.json; then
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # ⚠ ON COMPARE L'INDEX, PAS L'ARBRE DE TRAVAIL. `git diff --quiet` seul ignore
+          # les fichiers NON TRACKÉS — vérifié empiriquement le 2026-08-17 — et la carte
+          # n'a jamais été committée. Ce step n'aurait donc jamais pu la CRÉER, ni la
+          # restaurer si elle disparaissait : il l'aurait engendrée, déclarée « inchangée »,
+          # et serait sorti en 0 sans rien pousser. En silence, pendant que
+          # `check-impact-map.mjs` fait rougir la CI sur son absence.
+          git add tests/impact-map.json
+          if git diff --cached --quiet -- tests/impact-map.json; then
             echo "carte inchangée — rien à pousser"
             exit 0
           fi
 
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add tests/impact-map.json
           git commit -m "chore(tests): régénérer la carte d'impact [skip ci]"
 
           # Une seule tentative de rebase : si un autre push est arrivé entretemps, on
@@ -1516,7 +1569,7 @@ que `CLAUDE.md` documente en ouverture.
 
 ```bash
 cd takussan-api
-touch app/Services/Search/PropertySearchService.php
+printf '\n' >> app/Services/Search/PropertySearchService.php   # ⚠ pas `touch` : cf. l'encadré en tête
 uptime
 /usr/bin/time -p php bin/impacted-tests.php --run
 uptime
