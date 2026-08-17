@@ -50,14 +50,15 @@ export default defineConfig({
     //
     // Ce plafond ne retarde PAS le signalement d'une vraie régression : chaque assertion
     // asynchrone de la suite passe par `waitFor`/`findBy*` de Testing Library, dont le délai
-    // propre est de 1000 ms et n'est pas touché ici. Vérifié par ablation : un mock rendu muet
-    // fait échouer le test en 1310 ms, avec son message d'assertion. Ce plafond-ci ne se
-    // déclenche que lorsque les interactions elles-mêmes sont lentes — c'est-à-dire exactement
-    // sur le faux positif qu'on veut supprimer.
+    // propre est réglé dans `vitest.setup.ts` et n'est pas touché ici. Vérifié par ablation : un
+    // mock rendu muet fait échouer le test dès ce délai-là, avec son message d'assertion. Ce
+    // plafond-ci ne se déclenche que lorsque les interactions elles-mêmes sont lentes —
+    // c'est-à-dire exactement sur le faux positif qu'on veut supprimer.
     //
-    // ⚠ Ce délai de 1000 ms est, lui aussi, un défaut de framework jamais mesuré pour cette
-    // suite. Il tient sous la charge que vise TCK-312, mais à ~4× celle-ci un test rougit
-    // dessus. Mesuré et ticketé à part : TCK-313. Ne pas le relever sans cette mesure.
+    // ⚠ Ce délai des attentes valait 1000 ms — le défaut de Testing Library, jamais mesuré pour
+    // cette suite. Il est passé à **3000 ms, valeur mesurée** (TCK-313) : voir le commentaire de
+    // `vitest.setup.ts`, qui porte la distribution des 227 attentes de la suite et l'ablation
+    // dans les deux sens. Les deux plafonds se lisent ensemble et ne se remplacent pas.
     testTimeout: 20_000,
   },
 });
