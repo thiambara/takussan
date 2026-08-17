@@ -34,6 +34,7 @@
     "37": "Évacuation dette — back sécurité : gardes webhook et policies (2026-08-16)",
     "38": "Évacuation dette — infra du dépôt : versions, déploiement front, environnement (2026-08-16)",
     "39": "Évacuation dette — convergence des conventions backend (2026-08-16)",
-    "40": "Évacuation dette — documentation : specs et documents périmés (2026-08-16)"
+    "40": "Évacuation dette — documentation : specs et documents périmés (2026-08-16)",
+    "41": "Temps d'exécution de la suite de tests : sélection par impact, puis parallélisation (2026-08-17)"
   }
 }
