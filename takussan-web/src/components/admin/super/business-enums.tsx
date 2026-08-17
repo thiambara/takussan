@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Edit3, Plus, Power } from 'lucide-react';
+import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -77,11 +78,7 @@ export function EnumValueTable({
           Ajouter une valeur
         </Button>
       </div>
-      {error ? (
-        <div className="m-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-900 ring-1 ring-red-200" role="alert">
-          {error}
-        </div>
-      ) : null}
+      {error ? <ErrorState className="m-4" message={error} /> : null}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-stone-200 text-xs sm:text-sm">
           <thead className="bg-stone-50 text-left text-xs font-semibold uppercase text-stone-500">

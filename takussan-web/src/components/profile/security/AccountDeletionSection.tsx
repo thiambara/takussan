@@ -83,7 +83,7 @@ export function AccountDeletionSection({ twoFactorEnabled, hasUsablePassword }: 
           </Button>
         </div>
       ) : (
-        <div className="mt-4 rounded-md border border-red-300 bg-red-50 p-4 text-red-800">
+        <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 p-4 text-destructive">
           <p className="font-semibold">{tBanner('title')}</p>
           <p className="text-sm">
             {tDialog('successBody', { days: String(request.days_remaining) })}
@@ -95,7 +95,7 @@ export function AccountDeletionSection({ twoFactorEnabled, hasUsablePassword }: 
               size="sm"
               onClick={handleCancel}
               disabled={pending}
-              className="border-red-300 text-red-800 hover:bg-red-100"
+              className="border-destructive/40 text-destructive hover:bg-destructive/15"
             >
               {tBanner('cancel')}
             </Button>

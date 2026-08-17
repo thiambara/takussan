@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -160,11 +161,7 @@ export function DocumentShareDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {error ? (
-          <div role="alert" className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
-            {error}
-          </div>
-        ) : null}
+        {error ? <ErrorState message={error} /> : null}
 
         <div className="space-y-3 rounded-xl border border-stone-200 bg-white p-4">
           <div className="grid gap-3 sm:grid-cols-3">
