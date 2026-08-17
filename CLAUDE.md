@@ -228,6 +228,41 @@ node docs/gen-features-by-actor.mjs --check
 >
 > `.github/workflows/repo-ci.yml` les rejoue toutes à chaque PR.
 
+## Qui lance quoi — la règle des tests quand plusieurs agents travaillent
+
+**Un agent délégué lance les tests qu'il juge pertinents pour SON travail. Il ne lance jamais la
+suite entière. C'est la session qui l'a délégué qui la lance, une fois, à la fin.**
+
+La règle vaut pour les deux suites — `php artisan test` et `npm run test`.
+
+| Qui | Quoi | Quand |
+|---|---|---|
+| Agent délégué | la ou les classes qu'il touche, `php artisan test <fichier>` | pendant son travail, autant de fois qu'il veut |
+| Agent délégué | `php bin/impacted-tests.php --run` | s'il ne sait pas quoi lancer |
+| Session déléguante | **`php artisan test` en entier** | **une seule fois, à la fin**, avant de proposer le merge |
+
+**Trois raisons, toutes mesurées, et la troisième est la plus coûteuse :**
+
+1. **Le temps ne s'additionne pas, il se multiplie.** La suite occupe 0,73 cœur sur 8 : dix agents
+   qui la lancent chacun ne se partagent pas la machine, ils la saturent. Mesuré : la même commande
+   met **×11** plus longtemps à `load average` 200-258 qu'au repos. Dix vérifications complètes
+   coûtent bien plus que dix fois une.
+2. **Un temps mesuré sous charge ne dit rien.** Toute mesure prise pendant qu'un autre agent teste
+   décrit la machine, pas le dépôt — et c'est ainsi qu'on écrit dans un document un chiffre qu'on
+   ne pourra plus reproduire.
+3. **Un rouge sous charge accuse le mauvais coupable.** C'est toute l'histoire de D-44 : 14 tests de
+   recherche rougissaient sur un ensemble **différent à chaque exécution**, sans qu'un fichier ait
+   changé. La réponse humaine à ce signal est connue — on relance jusqu'au vert — et à partir de là
+   la suite ne garde plus rien.
+
+**Corollaire opérationnel, payé le 2026-08-17** : une commande de plus de ~10 minutes ne peut pas
+être déléguée du tout — elle est coupée en cours de route, **sans rien produire et sans le dire**.
+Un passage sous couverture (~890 s), une épreuve répétée, un build long : la session principale les
+lance elle-même, puis redonne l'artefact à l'agent.
+
+**Ce que ça ne change pas** : la suite entière reste la seule garde. Un vert de
+`bin/impacted-tests.php` ne dit rien d'elle, et le rituel de fin de branche l'exige toujours.
+
 ## Environnement de développement
 
 `docker-compose.yml` sert **MySQL 8.0, Meilisearch, Redis et Mailpit**. Chaque service couvre une

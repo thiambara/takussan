@@ -156,10 +156,23 @@ Invoke `.agent/skills/test-driven-development/SKILL.md`. Write the failing test 
 
 For each bullet in **Critères d'acceptation**, explicitly confirm green/red. If any AC is red, loop back to Phase 4 or STOP and report.
 
-**15. Run the tests.**
+**15. Run the tests — the ones relevant to YOUR work, never the whole suite.**
 
-- Backend: `php artisan test --filter=<TestClass>`
+- Backend: `php artisan test tests/Path/To/YourTest.php` (file paths are exact; `--filter=<TestClass>`
+  over-matches whenever one class name is a substring of another)
+- Backend, when you are not sure what your change touches: `php bin/impacted-tests.php --run`
 - Frontend: `npm test -- --include='**/<spec>.spec.ts'`
+
+⚠ **Do NOT run `php artisan test` or `npm run test` in full.** The session that delegated to you runs
+it once, at the end. Three measured reasons, in `CLAUDE.md` § *« Qui lance quoi »*: the suite occupies
+0.73 core of 8 so concurrent runs saturate rather than share (×11 measured between idle and
+saturated); a duration measured under load describes the machine, not the repo; and a red under load
+accuses innocent code — that is the whole story of debt D-44, where 14 search tests failed on a
+*different set each time* with no file changed.
+
+⚠ Any command over ~10 minutes cannot be delegated at all: it is cut off mid-run, **producing nothing
+and saying nothing**. Coverage runs, repeated trials, long builds — hand them back to the delegating
+session.
 
 **16. UI ACs require browser verification.**
 

@@ -380,6 +380,12 @@ Mesuré par ablation le 2026-08-17 (un ajout de ligne vide dans
 **4 classes sélectionnées, 26 tests, 16,7 s d'horloge** — contre 204-235 s pour la suite entière au
 repos. Le gain vient de l'évitement, pas d'une suite plus rapide : la carte ne modifie aucun test.
 
+**Qui lance quoi.** Un agent délégué lance les tests pertinents pour **son** travail — cette
+commande, ou les classes qu'il touche. **Il ne lance jamais la suite entière** : c'est la session qui
+l'a délégué qui la lance, une fois, à la fin. Le motif est mesuré et il tient en une ligne : la suite
+occupe 0,73 cœur sur 8, donc N agents qui la lancent ne se partagent pas la machine, ils la saturent
+(×11 entre repos et saturation). Détail : `CLAUDE.md` racine, § *« Qui lance quoi »*.
+
 ⚠ **Un vert de cette commande ne dit RIEN de la suite.** C'est une boucle de retour rapide, pas une
 garde. La CI et le rituel de fin de branche continuent de jouer la suite entière. Quand la commande
 répond `SUITE ENTIÈRE`, elle a raison — c'est le comportement voulu, pas un repli par prudence.
