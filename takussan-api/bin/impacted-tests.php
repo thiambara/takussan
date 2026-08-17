@@ -56,12 +56,25 @@ if (! is_file($mapPath)) {
     exit(1);
 }
 
-$map = ImpactMap::fromJson(file_get_contents($mapPath));
+try {
+    $map = ImpactMap::fromJson(file_get_contents($mapPath));
+} catch (Throwable $e) {
+    fwrite(STDERR, "✗ carte illisible : tests/impact-map.json\n".
+        '  '.$e->getMessage()."\n".
+        "  Écriture interrompue ou conflit de merge non résolu ? Régénérer la carte\n".
+        "  (bin/build-impact-map.php) ou, en attendant, lancer la suite entière :\n".
+        "  php artisan test\n");
+    exit(1);
+}
 
 // ── Les fichiers modifiés ───────────────────────────────────────────────────
 // `git status --porcelain` couvre l'arbre de travail ET les fichiers non suivis —
 // c'est exactement le cas de l'agent qui itère, et le seul qui compte au quotidien.
-[$statusLines] = $git('status --porcelain');
+// Le code de sortie compte autant que la sortie : un échec silencieux (verrou
+// d'index, dépôt invalide) rendrait `$changed` vide, donc « rien à lancer », donc
+// un FAUX VERT — exactement la classe de bug que ce script existe pour éviter.
+[$statusLines, $statusCode] = $git('status --porcelain');
+$statusKnown = $statusCode === 0;
 $changed = [];
 foreach ($statusLines as $line) {
     $path = trim(substr($line, 3));
@@ -87,7 +100,10 @@ if ($base !== null) {
 // ajouter d'office referme le trou « un test neuf couvre mon fichier » pour un coût
 // nul. Si le commit de la carte est introuvable (clone superficiel), on ESCALADE :
 // une réparation qu'on ne peut pas faire ne se présume pas faite.
-[$sinceLines, $sinceCode] = $git('diff --name-only '.escapeshellarg($map->commit()).'..HEAD -- takussan-api/tests');
+// `--diff-filter=ACMR` exclut les suppressions : un test retiré depuis le commit de
+// la carte ne doit pas être passé à `php artisan test`, qui échouerait sur un
+// fichier introuvable — un faux rouge qui n'a rien à voir avec le diff courant.
+[$sinceLines, $sinceCode] = $git('diff --name-only --diff-filter=ACMR '.escapeshellarg($map->commit()).'..HEAD -- takussan-api/tests');
 $stalenessKnown = $sinceCode === 0;
 $testClassesSince = [];
 foreach ($sinceLines as $path) {
@@ -116,7 +132,11 @@ $diffFor = function (string $path) use ($git): string {
     return implode("\n", $lines);
 };
 
-if (! $stalenessKnown) {
+if (! $statusKnown) {
+    fwrite(STDERR, "✗ `git status --porcelain` a échoué (verrou d'index, dépôt invalide ?).\n".
+        "  Impossible de savoir ce qui a changé → suite entière.\n");
+    $command = 'php artisan test';
+} elseif (! $stalenessKnown) {
     fwrite(STDERR, "⚠ le commit de la carte est introuvable dans l'historique (clone superficiel ?).\n".
         "  La réparation de péremption est impossible → suite entière.\n");
     $command = 'php artisan test';
