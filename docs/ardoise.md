@@ -1900,6 +1900,46 @@ n'est pas prise, l'activation en CI reste une option ouverte, pas une décision 
 
 ---
 
+### D-49 — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage 🟡 *mesuré le 2026-08-17* → [TCK-322](backlog/tickets/TCK-322-paratest-deux-executions-simultanees.md)
+
+Trouvé **en éprouvant l'AC5 de TCK-321**, et laissé hors de son périmètre à dessein.
+
+TCK-321 a composé les deux jetons d'isolation et fait passer les **cinq** exécutions d'épreuve à
+0 échec. Reste la propriété que cette composition existait précisément pour tenir : **deux agents
+lançant `--parallel` en même temps.** Elle ne tient pas.
+
+Mesuré le 2026-08-17, 8 cœurs, `load average` 4,22 au départ, ParaTest 7.20.0 / PHPUnit 12.5.30 :
+
+| Exécution | Résultat |
+|---|---|
+| A | **verte** — 2433 tests, 7523 assertions, 2 ignorés, 0 échec |
+| B | **morte au démarrage**, sortie 1, avant le moindre test |
+
+```
+In Filesystem.php line 662:
+  mkdir(): File exists
+```
+
+`Illuminate\Filesystem\Filesystem::makeDirectory()`, pendant l'amorçage de ParaTest. B n'imprime
+aucun résumé : ce n'est pas un test rouge, c'est un démarrage impossible.
+
+**Ce n'est PAS la composition des jetons** — A passe, et le jeton composé fonctionne. C'est une
+**quatrième ressource partagée par machine**, après les index Meilisearch, la racine des disques
+`Storage::fake()` et le préfixe Scout que D-44 avait isolés. Elle ne pouvait pas être vue alors :
+**ParaTest n'était pas installé.** *Chaque outil ajouté au harnais ajoute la question de ce qu'il
+partage par machine.*
+
+**`--tmp-dir` ne la corrige pas** — éprouvé, deux exécutions avec des répertoires temporaires
+distincts échouent sur le **même** message. Le répertoire fautif reste à nommer, et c'est la
+première chose à faire : le nommer avant de corriger, sinon on déplace la collision (règle de
+TCK-314).
+
+**Conséquence, écrite dans `CLAUDE.md`** : un seul agent à la fois peut lancer `--parallel`. Le mode
+séquentiel supporte la simultanéité depuis D-44, et `bin/impacted-tests.php` (TCK-320) aussi — la
+boucle quotidienne n'est donc pas bloquée, c'est le rituel de fin de branche qui doit rester sériel.
+
+---
+
 ## 🟡 Dette de code — conventions concurrentes
 
 Aucune n'est un bug. Toutes coûtent une décision à chaque fois qu'on écrit du code neuf, et cette

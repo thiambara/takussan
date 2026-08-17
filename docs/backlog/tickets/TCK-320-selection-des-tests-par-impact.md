@@ -1,7 +1,7 @@
 ---
 id: TCK-320
 title: "Sélection des tests par impact — 42 % de la suite est du plancher de harnais, et rien à optimiser dans les tests"
-status: todo
+status: doing
 phase: P2
 family: technique
 estimate: M

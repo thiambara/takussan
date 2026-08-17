@@ -6,12 +6,12 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**303 tickets** — 18 ouverts, 284 livrés.
+**304 tickets** — 19 ouverts, 284 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 17 |
-| 🚧 Doing | 1 |
+| 📋 Todo | 16 |
+| 🚧 Doing | 3 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 284 |
@@ -48,12 +48,13 @@
 - [TCK-315](tickets/TCK-315-role-agence-du-prestataire.md) — Où vit le rôle d'agence d'un prestataire — le profil n'a pas d'agence, la collaboration si `M · P1 · technique`
 - [TCK-318](tickets/TCK-318-activer-le-react-compiler.md) — Activer le React Compiler — ou décider de ne pas l'activer, mais le décider `M · P3 · front`
 - [TCK-319](tickets/TCK-319-porter-watermarkservice-sur-intervention-image-4.md) — Porter `WatermarkService` sur intervention/image 4 — `place()` devient `insert()`, et l'opacité change d'unité `S · P3 · back`
-- [TCK-320](tickets/TCK-320-selection-des-tests-par-impact.md) — Sélection des tests par impact — 42 % de la suite est du plancher de harnais, et rien à optimiser dans les tests `M · P2 · technique`
-- [TCK-321](tickets/TCK-321-parallel-en-ci.md) — Rouvrir `--parallel` — un de ses deux verrous était levé depuis six semaines, et l'autre était mal posé `M · P2 · technique`
+- [TCK-322](tickets/TCK-322-paratest-deux-executions-simultanees.md) — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage — une quatrième ressource partagée par machine `S · P2 · technique`
 
 ## 🚧 Doing
 
 - [TCK-279](tickets/TCK-279-rbac-custom-roles-phase-2.md) — RBAC refondu — phase 2 : rôles personnalisés par agence (AgencyRole + pivot de capacités) `L · P1 · full`
+- [TCK-320](tickets/TCK-320-selection-des-tests-par-impact.md) — Sélection des tests par impact — 42 % de la suite est du plancher de harnais, et rien à optimiser dans les tests `M · P2 · technique`
+- [TCK-321](tickets/TCK-321-parallel-en-ci.md) — Rouvrir `--parallel` — un de ses deux verrous était levé depuis six semaines, et l'autre était mal posé `M · P2 · technique`
 
 ## 👀 Review
 

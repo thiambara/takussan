@@ -1,7 +1,7 @@
 ---
 id: TCK-321
 title: "Rouvrir `--parallel` — un de ses deux verrous était levé depuis six semaines, et l'autre était mal posé"
-status: todo
+status: doing
 phase: P2
 family: technique
 estimate: M
@@ -77,9 +77,18 @@ cas).
 - **AC4** — **Cinq exécutions consécutives de `php artisan test --parallel` à 0 échec**, machine au
   repos, `uptime` et `sysctl -n hw.ncpu` relevés à côté de chaque durée. Une seule rouge sur cinq
   refuse. Un rouge Meilisearch se relance **seul** avant d'être compté (D-44).
-- **AC5** — **Deux exécutions simultanées** de `php artisan test --parallel` — le cas de deux
-  agents — rendent 0 échec des deux côtés. C'est la propriété que la composition existe pour tenir ;
-  elle ne se présume pas.
+- **AC5** — ❌ **NON TENU, et mesuré plutôt que présumé.** Deux `php artisan test --parallel`
+  simultanés : A verte (2433 tests, 0 échec), **B morte au démarrage** — `mkdir(): File exists`
+  dans `Illuminate\Filesystem\Filesystem::makeDirectory()`, avant le premier test. Ce n'est **pas**
+  la composition des jetons, qui fonctionne (A passe) : c'est une **quatrième ressource partagée par
+  machine**, dans ParaTest lui-même, que D-44 ne pouvait pas connaître puisque ParaTest n'était pas
+  installé. `--tmp-dir` ne la corrige pas (éprouvé). Isolé dans
+  [TCK-322](TCK-322-paratest-deux-executions-simultanees.md).
+
+  > **Cet AC est laissé en échec, pas retiré.** Le supprimer aurait rendu le ticket vert sur une
+  > propriété qu'il ne tient pas — et c'est précisément la famille de mensonge que la vague 41
+  > existe pour ne plus commettre. La conséquence tient en une ligne, et elle est documentée dans
+  > `CLAUDE.md` : **un seul agent à la fois peut lancer `--parallel`.**
 - **AC6** — La décision CI est prise **sur mesure du runner** (`nproc` + durée), pas par analogie
   avec les 8 cœurs locaux. **Aucun gain mesuré → pas d'activation en CI, et on le dit.** Le cliquet
   `--min=86` n'est **pas** touché : PCOV agrège mal entre processus.
@@ -91,6 +100,7 @@ cas).
 - Il ne fait pas de `--parallel` le défaut local — c'est la conclusion de « 0,73 cœur sur 8 ».
 - Il ne touche pas au cliquet de couverture.
 - Il ne dépend pas de TCK-320, et TCK-320 ne dépend pas de lui.
+- Il ne rend PAS `--parallel` sûr pour deux agents simultanés — cf. AC5 et TCK-322.
 
 ## Plan d'implémentation
 
