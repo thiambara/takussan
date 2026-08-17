@@ -1795,9 +1795,18 @@ deux familles qui n'appellent pas le même travail.
 > que personne ne vérifiait plus. C'est le second cas, après D-44, où **la course révèle un défaut
 > que le déterminisme masquait**.
 
+> **La seconde condition était MAL FORMULÉE, et la corriger change le travail à faire.** « Décider
+> lequel des deux jetons gouverne » suppose qu'ils répondent à la même question. Ils n'y répondent
+> pas : `ParallelTesting::token()` (`1`, `2`… `N`) isole les **workers entre eux** ;
+> `Tests\Support\TestProcessToken` (pid + aléa) isole les **exécutions simultanées entre elles** —
+> le cas de deux agents. Choisir le premier réintroduit exactement la panne que D-44 a soldée :
+> deux agents en `--parallel` obtiennent tous deux `public_test_1`. Il faut les **composer**,
+> pas en élire un.
+
 **Décision : `--parallel` n'est PAS activé**, et `brianium/paratest` n'est **pas** ajouté à
 `composer.json` — une dépendance installée pour une option non retenue est une décision prise en
-silence. Condition de réouverture : **TCK-314 soldé**, puis la question des deux gardes de
+silence. Condition de réouverture : ~~TCK-314 soldé~~ — **fait le 2026-08-16** (PR #192,
+`4929df7f`) — puis la question des deux gardes de
 `FakeDiskIsolationTest` tranchée. Le gain de 2,6× justifie largement d'y revenir.
 
 Rejeu, une fois ces deux points traités :
