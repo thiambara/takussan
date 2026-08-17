@@ -7,21 +7,26 @@ use Tests\Support\TestProcessToken;
 use Tests\TestCase;
 
 /**
- * La SECONDE cause de non-déterminisme, découverte en rejouant l'épreuve des
- * deux suites parallèles une fois la course Meilisearch supprimée.
+ * La SECONDE cause de non-déterminisme, découverte en rejouant l'épreuve des deux
+ * suites parallèles une fois la course Meilisearch supprimée (D-44).
  *
  * `Storage::fake('public')` enracine le disque factice dans
  * `storage/framework/testing/disks/public` — un chemin PARTAGÉ par tous les
  * processus de la machine — et commence par VIDER ce répertoire. Deux suites
- * simultanées s'arrachaient donc les fichiers l'une sous l'autre : mesuré,
- * `MediaDeleteTest` (« Unable to find a file or directory at path
- * [1/pic.jpg] »), `PropertyResourceRawFlagTest` (« Can't write image to path.
- * Directory does not exist. ») et `DataExportTest` rougissaient tandis que
- * plus aucun test de recherche ne bronchait.
+ * simultanées s'arrachaient les fichiers l'une sous l'autre.
  *
- * Laravel sait déjà isoler ce répertoire : `Storage::fake()` suffixe la racine
- * avec `ParallelTesting::token()`, qui se lit dans `$_SERVER['TEST_TOKEN']`.
- * Il suffisait de le poser.
+ * ⚠ CE QUI A CHANGÉ EN PHASE 2, et pourquoi les anciennes assertions ont disparu.
+ * Elles affirmaient que le jeton vaut EXACTEMENT `TestProcessToken::value()` et que
+ * `LARAVEL_PARALLEL_TESTING` est absent — deux affirmations que `--parallel` rend
+ * fausses par construction. Or les deux jetons ne répondent pas à la même question :
+ *
+ *   · `ParallelTesting::token()` (1, 2… N) isole les WORKERS ENTRE EUX ;
+ *   · `TestProcessToken` (pid + aléa) isole les EXÉCUTIONS SIMULTANÉES entre elles.
+ *
+ * Élire le premier, c'est redonner `public_test_1` à deux agents à la fois — la
+ * panne d'origine. Ils sont donc COMPOSÉS, et ce que ces tests gardent désormais est
+ * la propriété qui compte réellement : la racine est unique par (exécution, worker),
+ * dans les DEUX modes.
  */
 class FakeDiskIsolationTest extends TestCase
 {
@@ -35,15 +40,26 @@ class FakeDiskIsolationTest extends TestCase
         );
     }
 
-    /**
-     * ⚠ `TEST_TOKEN` seul ne doit PAS faire croire à Laravel qu'on tourne en
-     * mode `--parallel` : `ParallelTesting::inParallel()` exige EN PLUS
-     * `LARAVEL_PARALLEL_TESTING`. Sans cette garde, les rappels de
-     * `TestDatabases`/`TestCaches` s'activeraient et iraient créer des bases
-     * suffixées par le token — un effet de bord qu'on n'a pas demandé.
-     */
-    public function test_the_token_does_not_switch_laravel_into_parallel_mode(): void
+    public function test_the_token_always_carries_the_per_run_discriminant(): void
     {
-        $this->assertArrayNotHasKey('LARAVEL_PARALLEL_TESTING', $_SERVER);
+        $this->assertStringStartsWith(
+            TestProcessToken::runDiscriminant(),
+            TestProcessToken::value(),
+            'le discriminant PAR EXÉCUTION doit survivre au mode parallèle : sans lui, '
+            .'deux agents obtiennent le même jeton et se détruisent mutuellement',
+        );
+    }
+
+    public function test_the_worker_index_is_appended_only_in_parallel_mode(): void
+    {
+        $inParallel = isset($_SERVER['LARAVEL_PARALLEL_TESTING']);
+
+        $this->assertSame(
+            $inParallel,
+            str_contains(TestProcessToken::value(), '_'),
+            $inParallel
+                ? 'en mode parallèle, l\'index du worker doit être présent'
+                : 'hors mode parallèle, il n\'y a pas de worker à distinguer',
+        );
     }
 }
