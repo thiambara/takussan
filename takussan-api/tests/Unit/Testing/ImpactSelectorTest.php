@@ -83,6 +83,8 @@ class ImpactSelectorTest extends TestCase
             ['takussan-api/phpunit.xml'],
             ['takussan-api/tests/bootstrap.php'],
             ['takussan-api/tests/TestCase.php'],
+            ['takussan-api/database/factories/PropertyFactory.php'],
+            ['takussan-api/database/seeders/UserSeeder.php'],
         ];
     }
 

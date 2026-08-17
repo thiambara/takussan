@@ -28,7 +28,9 @@ final class ImpactSelector
 
     /** Préfixes dont la modification invalide TOUTE la suite. */
     private const HARD_PREFIXES = [
-        'database/migrations/',
+        'database/migrations/',  // Modifie le schéma sous TOUS les tests.
+        'database/factories/',   // Consommée par un nombre inconnu de tests ; on ne sait pas lesquels.
+        'database/seeders/',     // Idem : modifie la fixture de base de tous les tests.
         'bootstrap/',
     ];
 
