@@ -87,6 +87,16 @@ on:
       # sur `dev` et sortirait sur la PR de quelqu'un d'autre — la règle posée en haut
       # de ce bloc.
       - 'takussan-api/tests/impact-map.json'
+      # `check-impact-triggers` compare les trois constantes d'`ImpactSelector` à l'énumération
+      # de `takussan-api/CLAUDE.md`. Le second côté est déjà couvert plus haut ; le premier ne
+      # l'est par AUCUNE entrée — les déclencheurs visent `app/`, `routes/`, `database/` et le
+      # seul fichier `tests/impact-map.json`. Sans cette ligne, un déclencheur ajouté au code
+      # sans être documenté passerait sans que la garde ne s'exécute : la règle posée en haut de
+      # ce bloc, *les DEUX côtés qu'une garde compare doivent la déclencher*.
+      #
+      # Le préfixe plutôt que le nom du fichier : `tests/Support/` porte aussi `ImpactMap`,
+      # `SearchableModels` et `TestProcessToken`, et la prochaine garde de ce genre y vivra.
+      - 'takussan-api/tests/Support/**'
   push:
     branches: [dev, master]
     paths:
@@ -131,6 +141,16 @@ on:
       # sur `dev` et sortirait sur la PR de quelqu'un d'autre — la règle posée en haut
       # de ce bloc.
       - 'takussan-api/tests/impact-map.json'
+      # `check-impact-triggers` compare les trois constantes d'`ImpactSelector` à l'énumération
+      # de `takussan-api/CLAUDE.md`. Le second côté est déjà couvert plus haut ; le premier ne
+      # l'est par AUCUNE entrée — les déclencheurs visent `app/`, `routes/`, `database/` et le
+      # seul fichier `tests/impact-map.json`. Sans cette ligne, un déclencheur ajouté au code
+      # sans être documenté passerait sans que la garde ne s'exécute : la règle posée en haut de
+      # ce bloc, *les DEUX côtés qu'une garde compare doivent la déclencher*.
+      #
+      # Le préfixe plutôt que le nom du fichier : `tests/Support/` porte aussi `ImpactMap`,
+      # `SearchableModels` et `TestProcessToken`, et la prochaine garde de ce genre y vivra.
+      - 'takussan-api/tests/Support/**'
 
 jobs:
   guards:
@@ -326,3 +346,21 @@ jobs:
 
       - name: Carte d'impact — structure et fraîcheur
         run: node scripts/check-impact-map.mjs --report
+
+      - name: Les déclencheurs durs du sélecteur d'impact sont documentés tels qu'ils sont codés
+        # La liste des chemins qui imposent la SUITE ENTIÈRE est définie dans trois constantes
+        # d'`ImpactSelector` et recopiée à la main dans `takussan-api/CLAUDE.md`. Elle avait déjà
+        # dérivé le JOUR OÙ ELLE A ÉTÉ ÉCRITE — `composer.json` manquait à la copie — et c'est une
+        # revue de code qui l'a vu. Le fichier a ensuite porté l'aveu « rien ne la garde » : honnête,
+        # et sans effet sur le déclencheur suivant.
+        #
+        # Les deux sens ne coûtent pas pareil, d'où l'égalité stricte : un déclencheur absent de la
+        # doc fait perdre du temps ; un chemin documenté que le code ne déclenche PAS fait croire à
+        # une escalade qui n'a pas lieu — `impacted-tests.php` rend alors un vert qui ne prouve
+        # rien, la panne exacte que TCK-320 existe pour rendre impossible. `INERT_PREFIXES` est
+        # couverte au même titre : c'est la seule dont un ajout non documenté fabrique ce faux vert.
+        #
+        # ⚠ La garde compare des ENSEMBLES de chemins, jamais la prose qui les entoure, et elle
+        # échoue DUR si une constante devient introuvable — une garde qui passe parce qu'elle ne
+        # trouve plus sa cible est pire qu'aucune garde (TCK-325).
+        run: node scripts/check-impact-triggers.mjs --report

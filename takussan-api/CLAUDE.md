@@ -356,24 +356,36 @@ les classes de test qui l'ont réellement couvert, mesuré depuis un rapport de 
 la suite entière (le 2026-08-17 : **346 classes de test, 667 fichiers de `app/` couverts sur 796
 scannés**, carte de 0,12 Mo). `ImpactSelector` la lit avec un diff (`git diff --name-only`) et
 répond soit une liste de classes, soit `SUITE ENTIÈRE` avec son motif quand le fichier touché est
-hors de portée de la carte — une migration, une factory, un seeder, `bootstrap/`, `config/`,
-`composer.json`, `composer.lock` ou un fichier de harnais (`phpunit.xml`, `tests/bootstrap.php`,
-`tests/TestCase.php`) modifient ce que **tous** les tests voient, pas seulement ceux qui les
-référencent explicitement.
+hors de portée de la carte. Les **déclencheurs durs** — ceux qui imposent la suite entière à eux
+seuls — sont <!-- garde:déclencheurs-durs -->
+`database/migrations/`, `database/factories/`, `database/seeders/`, `bootstrap/`, `config/`,
+`composer.json`, `composer.lock`, `phpunit.xml`, `tests/bootstrap.php`
+et `tests/TestCase.php` <!-- /garde:déclencheurs-durs --> : une migration change le schéma, une
+factory et un seeder changent la fixture, un fichier de harnais change l'environnement — tous
+modifient ce que **tous** les tests voient, pas seulement ceux qui les référencent explicitement.
 
 **Le défaut de la règle est d'ESCALADER, pas d'ignorer.** Tout chemin sous `takussan-api/` qui
 n'entre dans aucune règle impose la suite entière, sauf s'il figure dans la liste explicite de
-chemins inertes (`docs/`, `storage/`, `vendor/`, `node_modules/`, `public/build/`, `*.md`). C'est une
+chemins inertes — <!-- garde:chemins-inertes -->
+`docs/`, `storage/`, `vendor/`, `node_modules/`
+et `public/build/` <!-- /garde:chemins-inertes --> —, les fichiers Markdown étant exclus séparément,
+sous n'importe quel répertoire. C'est une
 correction de la revue finale : le défaut était « ignorer », et modifier `tests/BaseTestCase.php` —
 dont **89** classes héritent — ou `.env.example` — qui **est** l'environnement de test de la CI —
 rendait « rien à lancer » et sortie 0. *Une sélection trop large coûte des secondes ; une sélection
 trop étroite produit un vert qui ne prouve rien.*
 
-> ⚠️ **Cette liste est recopiée à la main depuis `ImpactSelector::HARD_PREFIXES` et
-> `::HARD_FILES`, et rien ne la garde.** Elle avait déjà dérivé le jour où elle a été écrite —
-> `composer.json` y manquait, et c'est une revue qui l'a vu. **La source de vérité est le code** ;
-> si les deux divergent, croire le code. Une garde de plus dans `scripts/check-*.mjs` reste à
-> écrire (cf. TCK-320, « Suites »).
+> ⚠️ **Ces deux listes sont recopiées à la main depuis `ImpactSelector::HARD_PREFIXES`,
+> `::HARD_FILES` et `::INERT_PREFIXES`. `scripts/check-impact-triggers.mjs` les confronte au code
+> dans les deux sens, à chaque PR** (Repo CI, TCK-325) — les marqueurs HTML ci-dessus délimitent ce
+> qu'elle compare ; les déplacer sans la prévenir la fait rougir. Elle existe parce que la liste
+> avait déjà dérivé **le jour où elle a été écrite** — `composer.json` y manquait, et c'est une
+> revue qui l'a vu, pas une garde. **La source de vérité reste le code** : si les deux divergent,
+> croire le code et corriger la prose.
+>
+> ⚠ Ce qu'elle ne prouve pas : elle compare des ENSEMBLES de chemins, jamais la prose qui les
+> entoure, et elle confond délibérément `HARD_PREFIXES` et `HARD_FILES` — pour le lecteur, les deux
+> imposent la suite entière et rien d'autre ne compte.
 
 Mesuré par ablation le 2026-08-17 (un ajout de ligne vide dans
 `app/Services/Search/PropertySearchService.php`, machine à `load average` 5,2-5,8 sur 8 cœurs) :
