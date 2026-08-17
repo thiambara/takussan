@@ -3,19 +3,17 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Auth\ResendPhoneVerificationRequest;
+use App\Http\Requests\Auth\VerifyPhoneVerificationRequest;
 use App\Services\Auth\PhoneVerificationService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class PhoneVerificationController extends Controller
 {
     public function __construct(private readonly PhoneVerificationService $service) {}
 
-    public function verify(Request $request): JsonResponse
+    public function verify(VerifyPhoneVerificationRequest $request): JsonResponse
     {
-        $request->validate([
-            'code' => ['required', 'string', 'size:6'],
-        ]);
 
         $user = $request->user();
         abort_if($user->phone_verified_at !== null, 422, 'Phone already verified.');
@@ -32,11 +30,8 @@ class PhoneVerificationController extends Controller
         return $this->json(['data' => ['verified' => true]]);
     }
 
-    public function resend(Request $request): JsonResponse
+    public function resend(ResendPhoneVerificationRequest $request): JsonResponse
     {
-        $request->validate([
-            'phone' => ['sometimes', 'nullable', 'string', 'max:32'],
-        ]);
 
         $user = $request->user();
 

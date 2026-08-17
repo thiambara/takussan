@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\StoreTaskRequest;
+use App\Http\Requests\Api\UpdateTaskRequest;
 use App\Models\Customer;
 use App\Models\Enums\TaskPriority;
 use App\Models\Enums\TaskStatus;
@@ -23,11 +25,6 @@ class TaskController extends Controller
      *
      * @var list<class-string<Model>>
      */
-    private const TASKABLE_TYPES = [
-        Property::class,
-        Customer::class,
-    ];
-
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -47,20 +44,11 @@ class TaskController extends Controller
         return $this->paginated($paginator, $paginator->getCollection()->map(fn (Task $t) => $this->format($t))->values());
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreTaskRequest $request): JsonResponse
     {
         $user = $request->user();
 
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'taskable_id' => ['required', 'integer'],
-            'taskable_type' => ['required', 'string', Rule::in(self::TASKABLE_TYPES)],
-            'assigned_to_id' => ['nullable', 'exists:users,id'],
-            'due_at' => ['nullable', 'date'],
-            'status' => ['nullable', Rule::enum(TaskStatus::class)],
-            'priority' => ['nullable', Rule::enum(TaskPriority::class)],
-        ]);
+        $data = $request->validated();
 
         // Resolve & authorize the polymorphic parent: a user may only attach a
         // task to a record their agency owns / they created (superadmin bypass).
@@ -133,18 +121,11 @@ class TaskController extends Controller
         return $this->json(['data' => $this->format($task->load(['assignee', 'creator']))]);
     }
 
-    public function update(Request $request, Task $task): JsonResponse
+    public function update(UpdateTaskRequest $request, Task $task): JsonResponse
     {
         $this->authorizeAccess($request, $task);
 
-        $data = $request->validate([
-            'title' => ['sometimes', 'string', 'max:255'],
-            'description' => ['sometimes', 'nullable', 'string'],
-            'assigned_to_id' => ['sometimes', 'nullable', 'exists:users,id'],
-            'due_at' => ['sometimes', 'nullable', 'date'],
-            'status' => ['sometimes', Rule::enum(TaskStatus::class)],
-            'priority' => ['sometimes', Rule::enum(TaskPriority::class)],
-        ]);
+        $data = $request->validated();
 
         if (isset($data['status']) && TaskStatus::from($data['status']) === TaskStatus::Done && $task->completed_at === null) {
             $data['completed_at'] = now();

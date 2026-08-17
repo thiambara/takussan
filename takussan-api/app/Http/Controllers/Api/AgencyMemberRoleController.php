@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\UpdateAgencyMemberRoleRequest;
 use App\Models\Agency;
 use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgentProfileStatus;
@@ -11,9 +12,7 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 
 /**
  * TCK-278 — Agency-scoped member role mutation, profile-based.
@@ -26,7 +25,7 @@ use Illuminate\Validation\Rule;
  */
 class AgencyMemberRoleController extends Controller
 {
-    public function update(Request $request, Agency $agency, User $user): JsonResponse
+    public function update(UpdateAgencyMemberRoleRequest $request, Agency $agency, User $user): JsonResponse
     {
         $actor = $request->user();
 
@@ -48,9 +47,7 @@ class AgencyMemberRoleController extends Controller
             __('messages.user_not_in_agency'),
         );
 
-        $data = $request->validate([
-            'role' => ['required', 'string', Rule::in($this->allowedRoles())],
-        ]);
+        $data = $request->validated();
 
         if ($data['role'] === 'super_admin' && ! $actor->isSuperAdmin()) {
             abort(403, __('messages.only_super_admin_can_grant_super_admin'));
@@ -123,16 +120,4 @@ class AgencyMemberRoleController extends Controller
     /**
      * @return list<string>
      */
-    protected function allowedRoles(): array
-    {
-        return [
-            'super_admin',
-            'agency_admin',
-            'agent',
-            'owner',
-            'tenant',
-            'customer',
-            'service_provider',
-        ];
-    }
 }

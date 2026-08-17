@@ -3,17 +3,16 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Auth\ForgotPasswordPasswordResetRequest;
+use App\Http\Requests\Auth\ResetPasswordPasswordResetRequest;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Validation\Rules;
 
 class PasswordResetController extends Controller
 {
-    public function forgotPassword(Request $request): JsonResponse
+    public function forgotPassword(ForgotPasswordPasswordResetRequest $request): JsonResponse
     {
-        $request->validate(['email' => ['required', 'email']]);
         $request->merge(['email' => strtolower(trim($request->input('email')))]);
 
         Password::sendResetLink($request->only('email'));
@@ -21,13 +20,8 @@ class PasswordResetController extends Controller
         return $this->json(['message' => 'If an account with that email exists, a password reset link has been sent.']);
     }
 
-    public function resetPassword(Request $request): JsonResponse
+    public function resetPassword(ResetPasswordPasswordResetRequest $request): JsonResponse
     {
-        $request->validate([
-            'token' => ['required'],
-            'email' => ['required', 'email'],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
 
         $data = $request->only('email', 'password', 'password_confirmation', 'token');
         $data['email'] = strtolower(trim($data['email']));

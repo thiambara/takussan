@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Api\Me;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Me\UpdateSpecializationAgentProfileRequest;
+use App\Http\Requests\Api\Me\UploadKycAgentProfileRequest;
 use App\Models\Customer;
 use App\Models\Document;
-use App\Models\Enums\DocumentType;
 use App\Models\Profiles\AgentProfile;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 /**
@@ -46,34 +46,21 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 class AgentProfileController extends Controller
 {
     /** Map upload `kind` to `App\Models\Enums\DocumentType`. */
-    private const KYC_KIND_TO_TYPE = [
-        'license' => DocumentType::Other,
-        'cni' => DocumentType::IdCard,
-        'photo' => DocumentType::Photo,
-    ];
-
-    /** Allowed agent specializations (mirror UX wording). */
-    private const ALLOWED_SPECIALIZATIONS = ['residential', 'commercial', 'luxury', 'mixed'];
-
     /**
      * POST /api/me/agent-profiles/{agent_profile}/kyc/upload
      *
      * Multipart : `file` + `kind=license|cni|photo`. Idempotent per (profile, kind).
      */
-    public function uploadKyc(Request $request, AgentProfile $agent_profile): JsonResponse
+    public function uploadKyc(UploadKycAgentProfileRequest $request, AgentProfile $agent_profile): JsonResponse
     {
         $this->assertOwner($request, $agent_profile);
 
-        $validated = $request->validate([
-            // 8 MB max — phone captures (heic, webp), scans, PDFs.
-            'file' => ['required', 'file', 'max:8192'],
-            'kind' => ['required', 'string', Rule::in(array_keys(self::KYC_KIND_TO_TYPE))],
-        ]);
+        $validated = $request->validated();
 
         /** @var UploadedFile $file */
         $file = $validated['file'];
         $kind = (string) $validated['kind'];
-        $type = self::KYC_KIND_TO_TYPE[$kind];
+        $type = UploadKycAgentProfileRequest::KYC_KIND_TO_TYPE[$kind];
 
         // One Document per (profile, kind). Re-uploads replace the media
         // file in-place to keep `Document::activeVersion()` semantics
@@ -183,16 +170,11 @@ class AgentProfileController extends Controller
      * `specialization` lands on the `specialty` column (schema name) ;
      * `intervention_zones` lands on `metadata.intervention_zones`.
      */
-    public function updateSpecialization(Request $request, AgentProfile $agent_profile): JsonResponse
+    public function updateSpecialization(UpdateSpecializationAgentProfileRequest $request, AgentProfile $agent_profile): JsonResponse
     {
         $this->assertOwner($request, $agent_profile);
 
-        $validated = $request->validate([
-            'specialization' => ['required', 'string', Rule::in(self::ALLOWED_SPECIALIZATIONS)],
-            'intervention_zones' => ['nullable', 'array'],
-            'intervention_zones.*' => ['string', 'max:120'],
-            'license_number' => ['nullable', 'string', 'max:60'],
-        ]);
+        $validated = $request->validated();
 
         $zones = $this->normaliseStringList($validated['intervention_zones'] ?? []);
 

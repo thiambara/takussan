@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\StoreSavedSearchRequest;
+use App\Http\Requests\Api\UpdateSavedSearchRequest;
 use App\Http\Resources\SavedSearchResource;
 use App\Models\SavedSearch;
 use Illuminate\Http\JsonResponse;
@@ -19,13 +21,9 @@ class SavedSearchController extends Controller
         ]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreSavedSearchRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'name' => ['required', 'string'],
-            'criteria' => ['required', 'array'],
-            'notification_frequency' => ['nullable', 'in:off,daily,weekly,instant'],
-        ]);
+        $data = $request->validated();
 
         $search = SavedSearch::create(array_merge($data, [
             'user_id' => $request->user()->id,
@@ -37,16 +35,11 @@ class SavedSearchController extends Controller
         ], 201);
     }
 
-    public function update(Request $request, SavedSearch $savedSearch): JsonResponse
+    public function update(UpdateSavedSearchRequest $request, SavedSearch $savedSearch): JsonResponse
     {
         abort_unless($savedSearch->user_id === $request->user()->id, 403);
 
-        $data = $request->validate([
-            'name' => ['sometimes', 'string'],
-            'criteria' => ['sometimes', 'array'],
-            'notification_frequency' => ['sometimes', 'in:off,daily,weekly,instant'],
-            'is_active' => ['sometimes', 'boolean'],
-        ]);
+        $data = $request->validated();
 
         $savedSearch->fill($data)->save();
 

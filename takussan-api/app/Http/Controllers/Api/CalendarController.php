@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\IndexCalendarRequest;
 use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\PropertyVisit;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
 /**
@@ -24,22 +24,11 @@ use Illuminate\Support\Carbon;
  */
 class CalendarController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(IndexCalendarRequest $request): JsonResponse
     {
         $user = $request->user();
 
-        $validated = $request->validate([
-            'start_date' => ['required', 'date'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-            'property_id' => ['sometimes', 'integer', 'exists:properties,id'],
-            // TCK-078 — admin multi-property view supports `property_ids[]`.
-            'property_ids' => ['sometimes', 'array'],
-            'property_ids.*' => ['integer', 'exists:properties,id'],
-            // TCK-078 — admin-only cross-agency view.
-            'agency_id' => ['sometimes', 'integer', 'exists:agencies,id'],
-            'types' => ['sometimes', 'array'],
-            'types.*' => ['string', 'in:booking,visit'],
-        ]);
+        $validated = $request->validated();
 
         $start = Carbon::parse($validated['start_date']);
         $end = Carbon::parse($validated['end_date']);

@@ -3,10 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\ShowExportRequest;
 use App\Services\Export\ExportDataService;
 use App\Services\Export\ExportWriter;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 /**
  * GET /api/export/{entity}?format=csv|xlsx|pdf
@@ -27,17 +26,12 @@ class ExportController extends Controller
         private readonly ExportWriter $writer,
     ) {}
 
-    public function show(Request $request, string $entity)
+    public function show(ShowExportRequest $request, string $entity)
     {
         $user = $request->user();
         abort_unless($user, 401);
 
-        $validated = $request->validate([
-            'format' => ['sometimes', Rule::in(['csv', 'xlsx', 'excel', 'pdf'])],
-            'from' => ['sometimes', 'date'],
-            'to' => ['sometimes', 'date'],
-            'limit' => ['sometimes', 'integer', 'min:1', 'max:50000'],
-        ]);
+        $validated = $request->validated();
 
         $allowed = ['payments', 'leases', 'customers', 'properties'];
         abort_unless(in_array($entity, $allowed, true), 404, "Unknown entity: {$entity}");

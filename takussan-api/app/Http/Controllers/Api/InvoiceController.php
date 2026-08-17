@@ -3,14 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\StoreInvoiceRequest;
 use App\Http\Resources\InvoiceResource;
 use App\Models\Customer;
-use App\Models\Enums\Currency;
 use App\Models\Invoice;
 use App\Services\Model\InvoiceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class InvoiceController extends Controller
 {
@@ -39,19 +38,9 @@ class InvoiceController extends Controller
         return $this->paginated($paginator, InvoiceResource::collection($paginator)->toArray($request));
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreInvoiceRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'customer_id' => ['required', 'exists:customers,id'],
-            'invoiceable_type' => ['nullable', 'string', 'required_with:invoiceable_id'],
-            'invoiceable_id' => ['nullable', 'integer', 'required_with:invoiceable_type'],
-            'issue_date' => ['required', 'date'],
-            'due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
-            'subtotal' => ['required', 'numeric', 'min:0'],
-            'tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'currency' => ['nullable', Rule::enum(Currency::class)],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $customer = Customer::findOrFail($data['customer_id']);
         $invoice = $this->invoices->create($request->user(), $customer, $data);

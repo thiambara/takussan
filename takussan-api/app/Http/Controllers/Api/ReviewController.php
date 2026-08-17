@@ -3,6 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\ModerateReviewRequest;
+use App\Http\Requests\Api\ReplyReviewRequest;
+use App\Http\Requests\Api\ReportReviewRequest;
+use App\Http\Requests\Api\StoreForAgencyReviewRequest;
+use App\Http\Requests\Api\StoreForPropertyReviewRequest;
 use App\Http\Resources\ReviewResource;
 use App\Models\Agency;
 use App\Models\Enums\BookingStatus;
@@ -14,7 +19,6 @@ use App\Models\User;
 use App\Services\Review\ReviewModerationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class ReviewController extends Controller
 {
@@ -112,14 +116,11 @@ class ReviewController extends Controller
      * Unified moderation endpoint — admin queue uses this rather than the
      * split approve/reject/hide legacy routes. Body: `{ decision, reason? }`.
      */
-    public function moderate(Request $request, Review $review): JsonResponse
+    public function moderate(ModerateReviewRequest $request, Review $review): JsonResponse
     {
         abort_unless($request->user()->isSuperAdmin() || ($request->user()->agency_id !== null && $request->user()->isAgencyAdminAt((int) $request->user()->agency_id)), 403);
 
-        $data = $request->validate([
-            'decision' => ['required', Rule::in(['approve', 'hide', 'delete', 'ignore'])],
-            'reason' => ['nullable', 'string', 'max:1000'],
-        ]);
+        $data = $request->validated();
 
         $decision = $data['decision'];
         $reason = $data['reason'] ?? null;
@@ -188,7 +189,7 @@ class ReviewController extends Controller
         ]);
     }
 
-    public function storeForProperty(Request $request, Property $property): JsonResponse
+    public function storeForProperty(StoreForPropertyReviewRequest $request, Property $property): JsonResponse
     {
         $user = $request->user();
 
@@ -209,11 +210,7 @@ class ReviewController extends Controller
         $alreadyReviewed = $property->reviews()->where('author_id', $user->id)->exists();
         abort_if($alreadyReviewed, 422, 'You have already reviewed this property.');
 
-        $data = $request->validate([
-            'rating' => ['required', 'integer', 'min:1', 'max:5'],
-            'title' => ['nullable', 'string'],
-            'content' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $review = $property->reviews()->create(array_merge($data, [
             'author_id' => $user->id,
@@ -252,7 +249,7 @@ class ReviewController extends Controller
         return $this->json(['data' => ReviewResource::make($review->refresh())->toArray($request)]);
     }
 
-    public function reply(Request $request, Review $review): JsonResponse
+    public function reply(ReplyReviewRequest $request, Review $review): JsonResponse
     {
         $user = $request->user();
         $reviewable = $review->reviewable;
@@ -270,9 +267,7 @@ class ReviewController extends Controller
             'Cannot reply to a rejected review.'
         );
 
-        $data = $request->validate([
-            'reply_content' => ['required', 'string'],
-        ]);
+        $data = $request->validated();
 
         $review->update([
             'reply_content' => $data['reply_content'],
@@ -314,7 +309,7 @@ class ReviewController extends Controller
         ]);
     }
 
-    public function storeForAgency(Request $request, Agency $agency): JsonResponse
+    public function storeForAgency(StoreForAgencyReviewRequest $request, Agency $agency): JsonResponse
     {
         $user = $request->user();
 
@@ -330,11 +325,7 @@ class ReviewController extends Controller
         $alreadyReviewed = $agency->reviews()->where('author_id', $user->id)->exists();
         abort_if($alreadyReviewed, 422, 'You have already reviewed this agency.');
 
-        $data = $request->validate([
-            'rating' => ['required', 'integer', 'min:1', 'max:5'],
-            'title' => ['nullable', 'string'],
-            'content' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $review = $agency->reviews()->create(array_merge($data, [
             'author_id' => $user->id,
@@ -345,11 +336,9 @@ class ReviewController extends Controller
         return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
     }
 
-    public function report(Request $request, Review $review): JsonResponse
+    public function report(ReportReviewRequest $request, Review $review): JsonResponse
     {
-        $data = $request->validate([
-            'reason' => ['required', 'string', 'max:500'],
-        ]);
+        $data = $request->validated();
 
         $userId = (int) $request->user()->id;
 

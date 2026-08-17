@@ -3,19 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\StoreDocumentRequest;
 use App\Http\Resources\DocumentResource;
 use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Document;
-use App\Models\Enums\DocumentType;
 use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class DocumentController extends Controller
 {
@@ -50,17 +49,9 @@ class DocumentController extends Controller
         return $this->paginated($paginator, DocumentResource::collection($paginator)->toArray($request));
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreDocumentRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'documentable_type' => ['required', 'string'],
-            'documentable_id' => ['required', 'integer'],
-            'name' => ['required', 'string', 'max:255'],
-            'type' => ['required', Rule::enum(DocumentType::class)],
-            'description' => ['nullable', 'string'],
-            'expiry_date' => ['nullable', 'date'],
-            'file' => ['required', 'file', 'max:10240'],
-        ]);
+        $data = $request->validated();
 
         $fqcn = $this->resolveDocumentableType($data['documentable_type']);
         abort_if($fqcn === null, 422, 'Unsupported documentable_type.');

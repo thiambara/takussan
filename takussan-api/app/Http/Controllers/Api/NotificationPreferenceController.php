@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Me\UpdateNotificationPreferencesRequest;
 use App\Models\User;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Http\JsonResponse;
@@ -25,28 +26,21 @@ class NotificationPreferenceController extends Controller
         return $this->json(['data' => $this->payloadFor($request->user())]);
     }
 
-    public function update(Request $request): JsonResponse
+    public function update(UpdateNotificationPreferencesRequest $request): JsonResponse
     {
         $user = $request->user();
+        $validated = $request->validated();
 
         // New bulk matrix update.
-        if ($request->has('preferences')) {
-            $validated = $request->validate([
-                'preferences' => ['required', 'array'],
-                'preferences.*.event_type' => ['required', 'string'],
-                'preferences.*.channel' => ['required', 'string'],
-                'preferences.*.enabled' => ['required', 'boolean'],
-            ]);
-
+        if (isset($validated['preferences'])) {
             $this->resolver->updateMany($user, $validated['preferences']);
         }
 
         // Legacy path — flat booleans on users.
-        $flat = $request->validate([
-            'notifications_email_enabled' => ['sometimes', 'boolean'],
-            'notifications_push_enabled' => ['sometimes', 'boolean'],
-            'notifications_sms_enabled' => ['sometimes', 'boolean'],
-        ]);
+        $flat = array_intersect_key(
+            $validated,
+            array_flip(UpdateNotificationPreferencesRequest::FLAT_KEYS)
+        );
         if (! empty($flat)) {
             $user->fill($flat)->save();
         }

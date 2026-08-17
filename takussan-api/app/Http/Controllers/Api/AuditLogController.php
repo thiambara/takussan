@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\IndexAuditLogRequest;
 use App\Models\User;
 use App\Support\AgencyKindGuard;
 use Carbon\Carbon;
@@ -56,7 +57,7 @@ class AuditLogController extends Controller
         ]);
     }
 
-    public function index(Request $request): JsonResponse
+    public function index(IndexAuditLogRequest $request): JsonResponse
     {
         $authedUser = $request->user();
         // TCK-104 — `agency_admin` can browse the audit dashboard scoped
@@ -73,18 +74,7 @@ class AuditLogController extends Controller
         // Accept legacy flat params (?log_name=, ?event=, ?from=, ?to=, ?causer_id=…)
         // AND spatie-style nested filters (?filter[log_name]=, ?filter[date_from]=…).
         // Validation covers only the flat params; spatie handles its own parsing.
-        $filters = $request->validate([
-            'log_name' => ['nullable', 'string'],
-            'event' => ['nullable', 'string'],
-            'causer_id' => ['nullable'],
-            'causer_type' => ['nullable', 'string'],
-            'subject_id' => ['nullable'],
-            'subject_type' => ['nullable', 'string'],
-            'from' => ['nullable', 'date'],
-            'to' => ['nullable', 'date', 'after_or_equal:from'],
-            'order' => ['nullable', 'in:asc,desc'],
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:200'],
-        ]);
+        $filters = $request->validated();
 
         // Only eager-load causer (the only relation exposed in the response).
         // `subject` is intentionally not loaded to avoid N+1 on heterogeneous morphs.

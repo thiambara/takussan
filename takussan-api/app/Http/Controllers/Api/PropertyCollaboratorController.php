@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
-use App\Models\Enums\CollaboratorRole;
+use App\Http\Requests\Api\StorePropertyCollaboratorRequest;
+use App\Http\Requests\Api\UpdatePropertyCollaboratorRequest;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class PropertyCollaboratorController extends Controller
@@ -23,15 +23,11 @@ class PropertyCollaboratorController extends Controller
         return $this->json(['data' => $collaborators]);
     }
 
-    public function store(Request $request, Property $property): JsonResponse
+    public function store(StorePropertyCollaboratorRequest $request, Property $property): JsonResponse
     {
         $this->authorizeManage($request, $property);
 
-        $data = $request->validate([
-            'user_id' => ['required', 'exists:users,id'],
-            'role' => ['required', Rule::enum(CollaboratorRole::class)],
-            'commission_share' => ['nullable', 'numeric', 'min:0', 'max:100'],
-        ]);
+        $data = $request->validated();
 
         $exists = $property->collaborators()->where('user_id', $data['user_id'])->exists();
         abort_if($exists, 422, __('messages.collaborator_already_exists'));
@@ -50,15 +46,12 @@ class PropertyCollaboratorController extends Controller
         return $this->json(['data' => $collaborator->load('user')], 201);
     }
 
-    public function update(Request $request, Property $property, PropertyCollaborator $collaborator): JsonResponse
+    public function update(UpdatePropertyCollaboratorRequest $request, Property $property, PropertyCollaborator $collaborator): JsonResponse
     {
         $this->authorizeManage($request, $property);
         abort_if($collaborator->property_id !== $property->id, 404);
 
-        $data = $request->validate([
-            'role' => ['sometimes', Rule::enum(CollaboratorRole::class)],
-            'commission_share' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
-        ]);
+        $data = $request->validated();
 
         DB::transaction(function () use ($property, $collaborator, $data) {
             if (array_key_exists('commission_share', $data)) {

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\UpdateConversationParticipantRequest;
 use App\Http\Requests\Conversation\AddParticipantsRequest;
 use App\Http\Resources\ConversationResource;
 use App\Models\Conversation;
@@ -12,7 +13,6 @@ use App\Policies\ConversationPolicy;
 use App\Services\Messaging\GroupConversationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 /**
  * TCK-085 — Manage the participant set of a group conversation.
@@ -66,14 +66,12 @@ class ConversationParticipantController extends Controller
         ]);
     }
 
-    public function update(Request $request, Conversation $conversation, User $user): JsonResponse
+    public function update(UpdateConversationParticipantRequest $request, Conversation $conversation, User $user): JsonResponse
     {
         $actor = $request->user();
         abort_unless($actor->can('promote', $conversation), 403, __('messaging.errors.admin_only'));
 
-        $data = $request->validate([
-            'role' => ['required', Rule::enum(ParticipantRole::class)],
-        ]);
+        $data = $request->validated();
 
         $role = $data['role'] instanceof ParticipantRole
             ? $data['role']

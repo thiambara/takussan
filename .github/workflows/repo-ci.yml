@@ -276,6 +276,26 @@ jobs:
         # une garde déclenchée d'un seul côté ne voit qu'une moitié de l'écart qu'elle cherche.
         run: node scripts/check-pagination-envelope.mjs --report
 
+      - name: Aucun contrôleur ne valide en ligne
+        # Mesuré le 2026-08-17 avant convergence : **120 `$request->validate()` inline** dans
+        # 58 contrôleurs, **511 champs de règles**, face à 74 classes FormRequest. Deux conventions
+        # pour le même geste, et rien qui arbitre : une contrainte métier ne pouvait pas être revue
+        # sans d'abord chercher laquelle des deux l'endpoint avait retenue.
+        #
+        # `takussan-api/CLAUDE.md` tranchait DÉJÀ pour le code neuf, et le compte a continué de
+        # monter — comme pour l'enveloppe de pagination, deux gardes plus haut. *Une convention qui
+        # n'existe que dans un document est lue une fois, par ceux qui la respectaient déjà.*
+        #
+        # La garde interdit QUATRE orthographes, pas une. La convergence a trouvé une troisième
+        # forme que le compte de 120 ne voyait pas — `validator([...], [...])->validate()` sur un
+        # tableau reconstruit à la main — et c'était exactement l'échappatoire par laquelle on
+        # aurait pu la contourner sans jamais mentir (TCK-305).
+        #
+        # ⚠ La garde écrit sa portée dans sa sortie : elle interdit de valider DANS un contrôleur,
+        # elle ne vérifie pas qu'un endpoint valide quoi que ce soit. Un contrôleur qui ne valide
+        # rien la satisfait — cliquet contre la ré-divergence, pas mesure de couverture (D-23).
+        run: node scripts/check-inline-validation.mjs --report
+
       - name: Aucun document normatif ne cite un chemin markdown mort
         # `models-spec.md` a cité `docs/claude-code-prompt-notifications.md` — JAMAIS ÉCRIT — assez
         # longtemps pour qu'on finisse par annoter la citation « *(jamais écrit — pointeur mort)* »

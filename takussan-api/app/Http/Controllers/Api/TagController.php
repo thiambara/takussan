@@ -3,11 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\StoreTagRequest;
+use App\Http\Requests\Api\UpdateTagRequest;
 use App\Models\Enums\TagType;
 use App\Models\Tag;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class TagController extends Controller
 {
@@ -35,17 +36,11 @@ class TagController extends Controller
         return $this->paginated($paginator, $paginator->getCollection()->map(fn (Tag $t) => $this->format($t, $agencyId))->values());
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreTagRequest $request): JsonResponse
     {
         $this->authorizeWrite($request);
 
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:100'],
-            'type' => ['required', Rule::enum(TagType::class)],
-            'icon' => ['nullable', 'string'],
-            'color' => ['nullable', 'string', 'max:20'],
-            'description' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $tag = Tag::create($data);
 
@@ -64,17 +59,11 @@ class TagController extends Controller
         return $this->json(['data' => $this->format($tag)]);
     }
 
-    public function update(Request $request, Tag $tag): JsonResponse
+    public function update(UpdateTagRequest $request, Tag $tag): JsonResponse
     {
         $this->authorizeWrite($request);
 
-        $data = $request->validate([
-            'name' => ['sometimes', 'string', 'max:100'],
-            'type' => ['sometimes', Rule::enum(TagType::class)],
-            'icon' => ['sometimes', 'nullable', 'string'],
-            'color' => ['sometimes', 'nullable', 'string', 'max:20'],
-            'description' => ['sometimes', 'nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $tag->fill($data)->save();
 

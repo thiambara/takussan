@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\UpdateUserRoleRequest;
 use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\PlatformProfileLevel;
@@ -12,9 +13,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 
 /**
  * TCK-278 — Refactor : ce contrôleur ne mute plus les rôles spatie. Le
@@ -37,7 +36,7 @@ use Illuminate\Validation\Rule;
  */
 class UserRoleController extends Controller
 {
-    public function update(Request $request, User $user): JsonResponse
+    public function update(UpdateUserRoleRequest $request, User $user): JsonResponse
     {
         $actor = $request->user();
         $actorAgencyId = $request->activeProfile()?->agency_id ?? $actor->agency_id;
@@ -48,9 +47,7 @@ class UserRoleController extends Controller
             403,
         );
 
-        $data = $request->validate([
-            'role' => ['required', 'string', Rule::in($this->allowedRoles())],
-        ]);
+        $data = $request->validated();
 
         if ($data['role'] === 'super_admin' && ! $actor->isSuperAdmin()) {
             abort(403, __('messages.only_super_admin_can_grant_super_admin'));
@@ -188,16 +185,4 @@ class UserRoleController extends Controller
     /**
      * @return list<string>
      */
-    protected function allowedRoles(): array
-    {
-        return [
-            'super_admin',
-            'agency_admin',
-            'agent',
-            'owner',
-            'tenant',
-            'customer',
-            'service_provider',
-        ];
-    }
 }

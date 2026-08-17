@@ -1,13 +1,13 @@
 ---
 id: TCK-305
 title: "120 validations inline contre 65 FormRequest — deux conventions sur le même geste"
-status: todo
+status: review
 phase: P2
 family: technique
 estimate: L
 wave: 39
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-17
 depends_on: [TCK-279]
 blocks: []
 spec_refs:
@@ -72,4 +72,70 @@ Aucun modèle nouveau. Mesuré le 2026-08-16, dans `takussan-api/app/` :
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Inventaire réel, mesuré le 2026-08-17** : **120** `$request->validate()` dans **58** contrôleurs —
+les deux chiffres du ticket, à l'unité — pour **511 champs de règles**. Le compte de 65 FormRequest
+était une méthode de comptage différente : `find app/Http/Requests -name '*.php'` en rendait **74**.
+
+Une **121ᵉ** validation en ligne n'entrait dans aucun de ces comptes :
+`ModerationQueueController::index()` écrivait `validator([...], [...])->validate()` sur un tableau
+reconstruit à la main. Même défaut, autre orthographe — et c'était exactement l'échappatoire par
+laquelle la garde aurait pu être contournée sans mentir. Elle interdit donc quatre formes.
+
+**Ordre du travail, et il compte.** Les 30 sites sans aucun test 422 ont été couverts **d'abord**
+(33 tests, commit séparé, joués verts sur le code d'avant, non-vacuité prouvée par 3 ablations),
+puis le déplacement. Écrits après, ces tests n'auraient prouvé que la cohérence du code avec
+lui-même.
+
+**Preuve que rien n'a été perdu sur les 511 règles.** Un script confronte, pour chaque site, le
+tableau de règles d'AVANT (lu par `git show HEAD:<contrôleur>`) au `rules()` d'APRÈS :
+**114 sites comparés automatiquement, 114 identiques, 491 champs**. Les 6 restants ont été
+restructurés à la main et relus (voir plus bas). C'est cette confrontation, et non la couleur de la
+suite, qui couvre les règles qu'aucun test ne touche.
+
+**Six sites restructurés à la main, et pourquoi :**
+
+| Site | Motif |
+|---|---|
+| `AlertRuleController::validated()` | helper **privé** partagé, paramétré par `$partial`. Un FormRequest ne s'injecte que dans une action → une classe abstraite + `StoreAlertRuleRequest`/`UpdateAlertRuleRequest`. *Le drapeau booléen était déjà la forme dégradée de ces deux classes.* |
+| `NotificationPreferenceController::update()` | seul site à porter **deux** `validate()` dans une méthode. La conditionnalité passe dans `rules()`. Effet de bord favorable : deux `validate()` successifs s'arrêtaient au premier échec, le 422 est désormais complet. |
+| `AbstractOAuthController::callback()` | action sur une classe **abstraite** ; l'injection vaut pour les deux sous-classes routées. |
+| `PublicPropertyController::visitRequest()` | règles dépendantes de `$request->user()` (visiteur anonyme vs authentifié). |
+| `PublicPropertyController::bookingRequest()` | règles dépendantes du **bien** (TCK-176 : une vente attend une offre d'achat, pas des dates). |
+| `ModerationQueueController::index()` | la 121ᵉ, en `validator(...)`. |
+
+Pour les deux dernières actions publiques, `PublicPropertySlugRequest` **résout le bien elle-même**
+et le contrôleur le relit par `$request->property()`. Sans cela, le `firstOrFail()` qui précédait la
+validation aurait vu son 404 devenir un 422. La résolution est mémoïsée : il y a une requête de
+**moins** qu'avant, pas une de plus.
+
+### Trois classes de défauts que le déplacement introduit, et qui ne se voient pas à la compilation
+
+1. **Les règles perdent le contexte du contrôleur — 7 cas sur 120.** `$this->allowedRoles()` (×2),
+   `self::KYC_KIND_TO_TYPE` (×3), `self::ALLOWED_SPECIALIZATIONS`, `self::TASKABLE_TYPES` : toutes
+   des `private const` ou des méthodes de contrôleur, devenues hors de portée. **Un seul** a été
+   attrapé par un test ; les six autres l'ont été par un balayage systématique des jetons. Résolu en
+   déplaçant chaque définition dans le FormRequest, le contrôleur la relisant par
+   `XRequest::LA_CONSTANTE`.
+2. **Un `$request` recopié dans les règles** — 1 cas, `StoreLeaseRequest` (`Rule::exists(...)
+   ->where('property_id', $request->input(...))`). Mon premier balayage l'avait manqué : il
+   excluait `$request` de la liste des variables « dynamiques ».
+3. **Une action appelée en interne par une autre** — 1 cas, `PropertyVisitController::destroy()`
+   déléguait à `cancel()` en lui passant son propre `Request` nu. `TypeError` à l'exécution. C'est
+   le typage qui l'a signalé, pas le miroir de routes.
+
+Après correction, un script instancie les **122** classes et évalue `rules()` : **120 sans aucune
+levée**, les 2 autres levant `ModelNotFoundException` — le 404 attendu, hors contexte de route.
+
+### ⚠️ Le changement de comportement à arbitrer : 66 sites autorisaient AVANT de valider
+
+La validation d'un FormRequest court **avant** le corps du contrôleur. Les 66 sites qui appelaient
+`authorizeManage()` / `abort_unless()` en tête de méthode voient donc l'ordre s'inverser : un appel
+**à la fois non autorisé et mal formé** rend désormais **422 là où il rendait 403**.
+
+C'est une conséquence directe de tenir AC1 (« plus aucun `validate()` dans un contrôleur ») **et**
+AC4 (« aucune règle d'autorisation n'a migré vers `authorize()` ») en même temps : les deux
+ensemble imposent que la validation précède l'autorisation. Aucun test de la suite ne l'observe —
+163 fichiers de test assertent 403/401, tous verts — mais un vert n'est pas une autorisation :
+c'est une décision à prendre, et TCK-306 la déplace de nouveau.
+
+Les 54 autres sites n'autorisaient pas avant de valider : pour eux, l'ordre est inchangé.

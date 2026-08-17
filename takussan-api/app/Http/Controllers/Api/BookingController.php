@@ -3,14 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\CancelBookingRequest;
+use App\Http\Requests\Api\RejectBookingRequest;
+use App\Http\Requests\Api\StoreBookingRequest;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
-use App\Models\Enums\Currency;
 use App\Models\Property;
 use App\Services\Model\BookingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class BookingController extends Controller
 {
@@ -40,19 +41,9 @@ class BookingController extends Controller
         return $this->paginated($paginator, BookingResource::collection($paginator)->toArray($request));
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreBookingRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'property_id' => ['required', 'exists:properties,id'],
-            'customer_id' => ['nullable', 'exists:customers,id'],
-            'total_amount' => ['required', 'numeric', 'min:0'],
-            'deposit_amount' => ['nullable', 'numeric', 'min:0'],
-            'currency' => ['nullable', Rule::enum(Currency::class)],
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'notes' => ['nullable', 'string'],
-            'expires_at' => ['nullable', 'date'],
-        ]);
+        $data = $request->validated();
 
         $property = Property::findOrFail($data['property_id']);
         $booking = $this->bookings->create($property, $request->user(), $data);
@@ -81,13 +72,11 @@ class BookingController extends Controller
         ]);
     }
 
-    public function cancel(Request $request, Booking $booking): JsonResponse
+    public function cancel(CancelBookingRequest $request, Booking $booking): JsonResponse
     {
         $this->authorizeAccess($request, $booking);
 
-        $data = $request->validate([
-            'reason' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $booking = $this->bookings->cancel($booking, $request->user(), $data['reason'] ?? null);
 
@@ -96,13 +85,11 @@ class BookingController extends Controller
         ]);
     }
 
-    public function reject(Request $request, Booking $booking): JsonResponse
+    public function reject(RejectBookingRequest $request, Booking $booking): JsonResponse
     {
         $this->authorizeManage($request, $booking);
 
-        $data = $request->validate([
-            'reason' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $booking = $this->bookings->reject($booking, $data['reason'] ?? null);
 

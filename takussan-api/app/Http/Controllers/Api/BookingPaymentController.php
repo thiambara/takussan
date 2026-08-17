@@ -3,18 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\RefundBookingPaymentRequest;
+use App\Http\Requests\Api\StoreBookingPaymentRequest;
 use App\Http\Resources\BookingPaymentResource;
 use App\Models\Booking;
 use App\Models\BookingPayment;
-use App\Models\Enums\BookingPaymentType;
-use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentStatus;
 use App\Services\Model\BookingPaymentService;
 use App\Services\Payments\PaymentReceiptPdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Validation\Rule;
 
 class BookingPaymentController extends Controller
 {
@@ -31,19 +30,11 @@ class BookingPaymentController extends Controller
         return $this->paginated($payments, BookingPaymentResource::collection($payments)->toArray($request));
     }
 
-    public function store(Request $request, Booking $booking): JsonResponse
+    public function store(StoreBookingPaymentRequest $request, Booking $booking): JsonResponse
     {
         $this->authorizeBookingManage($request, $booking);
 
-        $data = $request->validate([
-            'amount' => ['required', 'numeric', 'min:0'],
-            'payment_type' => ['required', Rule::enum(BookingPaymentType::class)],
-            'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
-            'status' => ['nullable', Rule::enum(PaymentStatus::class)],
-            'paid_at' => ['nullable', 'date'],
-            'transaction_id' => ['nullable', 'string'],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         // TCK-172 — when the customer (not staff) posts the payment, force
         // the status to `pending` so the gateway flow can take it from there;
@@ -95,16 +86,13 @@ class BookingPaymentController extends Controller
         ]);
     }
 
-    public function refund(Request $request, BookingPayment $payment): JsonResponse
+    public function refund(RefundBookingPaymentRequest $request, BookingPayment $payment): JsonResponse
     {
         $payment->loadMissing('booking');
         abort_unless($payment->booking, 404);
         $this->authorizeBookingManage($request, $payment->booking);
 
-        $data = $request->validate([
-            'refund_amount' => ['required', 'numeric', 'gt:0'],
-            'refund_reason' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $payment = $this->payments->refund($payment, $data);
 

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\DisputeInventoryRequest;
+use App\Http\Requests\Api\UploadRoomPhotosInventoryRequest;
 use App\Http\Requests\InventorySignRequest;
 use App\Http\Requests\InventoryStoreRequest;
 use App\Http\Requests\InventoryUpdateRequest;
@@ -228,13 +230,11 @@ class InventoryController extends Controller
         return $grouped;
     }
 
-    public function dispute(Request $request, Inventory $inventory): JsonResponse
+    public function dispute(DisputeInventoryRequest $request, Inventory $inventory): JsonResponse
     {
         $this->authorizeAccess($request, $inventory);
 
-        $data = $request->validate([
-            'reason' => ['required', 'string'],
-        ]);
+        $data = $request->validated();
 
         $inventory = $this->inventories->dispute($inventory, $data['reason']);
 
@@ -243,15 +243,9 @@ class InventoryController extends Controller
         ]);
     }
 
-    public function uploadRoomPhotos(Request $request, Inventory $inventory): JsonResponse
+    public function uploadRoomPhotos(UploadRoomPhotosInventoryRequest $request, Inventory $inventory): JsonResponse
     {
         $this->authorizeManage($request, $inventory);
-
-        $request->validate([
-            'photos' => ['required', 'array', 'min:1'],
-            'photos.*' => ['required', 'image', 'max:5120'],
-            'room_name' => ['required', 'string'],
-        ]);
 
         foreach ($request->file('photos') as $photo) {
             $inventory->addMedia($photo)

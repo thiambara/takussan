@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
-use App\Models\Enums\IdType;
+use App\Http\Requests\Api\StoreGuarantorRequest;
+use App\Http\Requests\Api\UpdateGuarantorRequest;
 use App\Models\Guarantor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class GuarantorController extends Controller
 {
@@ -32,22 +32,9 @@ class GuarantorController extends Controller
         return $this->paginated($paginator, $paginator->getCollection()->map(fn (Guarantor $g) => $this->format($g))->values());
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreGuarantorRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'first_name' => ['required', 'string'],
-            'last_name' => ['required', 'string'],
-            'phone' => ['nullable', 'string'],
-            'email' => ['nullable', 'email'],
-            'id_type' => ['nullable', Rule::enum(IdType::class)],
-            'id_number' => ['nullable', 'string'],
-            'occupation' => ['nullable', 'string'],
-            'employer' => ['nullable', 'string'],
-            'monthly_income' => ['nullable', 'numeric', 'min:0'],
-            'relationship_to_tenant' => ['nullable', 'string'],
-            'notes' => ['nullable', 'string'],
-            'metadata' => ['nullable', 'array'],
-        ]);
+        $data = $request->validated();
 
         $guarantor = Guarantor::create(array_merge($data, [
             'added_by_id' => $request->user()->id,
@@ -63,23 +50,11 @@ class GuarantorController extends Controller
         return $this->json(['data' => $this->format($guarantor)]);
     }
 
-    public function update(Request $request, Guarantor $guarantor): JsonResponse
+    public function update(UpdateGuarantorRequest $request, Guarantor $guarantor): JsonResponse
     {
         $this->authorizeAccess($request, $guarantor);
 
-        $data = $request->validate([
-            'first_name' => ['sometimes', 'string'],
-            'last_name' => ['sometimes', 'string'],
-            'phone' => ['sometimes', 'nullable', 'string'],
-            'email' => ['sometimes', 'nullable', 'email'],
-            'id_type' => ['sometimes', 'nullable', Rule::enum(IdType::class)],
-            'id_number' => ['sometimes', 'nullable', 'string'],
-            'occupation' => ['sometimes', 'nullable', 'string'],
-            'employer' => ['sometimes', 'nullable', 'string'],
-            'monthly_income' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            'relationship_to_tenant' => ['sometimes', 'nullable', 'string'],
-            'notes' => ['sometimes', 'nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $guarantor->fill($data)->save();
 

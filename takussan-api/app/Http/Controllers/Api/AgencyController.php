@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\AgencyUpdateRequest;
+use App\Http\Requests\Api\AddAgentAgencyRequest;
+use App\Http\Requests\Api\StoreAgencyRequest;
 use App\Http\Resources\AgencyResource;
 use App\Http\Resources\UserResource;
 use App\Models\Agency;
@@ -19,7 +21,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 
 class AgencyController extends Controller
 {
@@ -36,7 +37,7 @@ class AgencyController extends Controller
         return $this->paginated($paginator, AgencyResource::collection($paginator)->toArray($request));
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreAgencyRequest $request): JsonResponse
     {
         $user = $request->user();
 
@@ -47,17 +48,7 @@ class AgencyController extends Controller
             'You already administer an agency.'
         );
 
-        $data = $request->validate([
-            'name' => ['required', 'string'],
-            'license_number' => ['nullable', 'string'],
-            'description' => ['nullable', 'string'],
-            'email' => ['nullable', 'email'],
-            'phone' => ['nullable', 'string'],
-            'website' => ['nullable', 'url'],
-            'commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'currency' => ['nullable', Rule::enum(Currency::class)],
-            'status' => ['nullable', Rule::enum(AgencyStatus::class)],
-        ]);
+        $data = $request->validated();
 
         $agency = Agency::create(array_merge($data, [
             'primary_admin_id' => $user->id,
@@ -157,16 +148,12 @@ class AgencyController extends Controller
         ]);
     }
 
-    public function addAgent(Request $request, Agency $agency): JsonResponse
+    public function addAgent(AddAgentAgencyRequest $request, Agency $agency): JsonResponse
     {
         $this->authorizeAdmin($request, $agency);
         app(QuotaResolver::class)->assertCanAddAgent($agency);
 
-        $data = $request->validate([
-            'user_id' => ['nullable', 'integer', 'exists:users,id', 'required_without:email'],
-            'email' => ['nullable', 'email', 'required_without:user_id'],
-            'role' => ['nullable', 'string', Rule::in(['agent', 'agency_admin'])],
-        ]);
+        $data = $request->validated();
 
         $target = isset($data['user_id'])
             ? User::findOrFail($data['user_id'])

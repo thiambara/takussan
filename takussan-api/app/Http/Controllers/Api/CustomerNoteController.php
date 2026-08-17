@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\StoreCustomerNoteRequest;
 use App\Models\Customer;
 use App\Models\CustomerNote;
 use Illuminate\Http\JsonResponse;
@@ -23,14 +24,11 @@ class CustomerNoteController extends Controller
         return $this->paginated($notes, $notes->getCollection()->map(fn (CustomerNote $n) => $this->format($n))->values());
     }
 
-    public function store(Request $request, Customer $customer): JsonResponse
+    public function store(StoreCustomerNoteRequest $request, Customer $customer): JsonResponse
     {
         $this->authorizeCustomerAccess($request, $customer);
 
-        $data = $request->validate([
-            'body' => ['required', 'string'],
-            'pinned' => ['nullable', 'boolean'],
-        ]);
+        $data = $request->validated();
 
         $note = $customer->notes()->create(array_merge($data, [
             'author_id' => $request->user()->id,

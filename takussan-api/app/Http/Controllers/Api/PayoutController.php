@@ -3,15 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\MarkFailedPayoutRequest;
+use App\Http\Requests\Api\MarkProcessedPayoutRequest;
+use App\Http\Requests\Api\StorePayoutRequest;
 use App\Http\Resources\PayoutResource;
-use App\Models\Enums\Currency;
-use App\Models\Enums\PaymentMethod;
 use App\Models\Payout;
 use App\Models\User;
 use App\Services\Model\PayoutService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class PayoutController extends Controller
 {
@@ -40,22 +40,9 @@ class PayoutController extends Controller
         return $this->paginated($paginator, PayoutResource::collection($paginator)->toArray($request));
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StorePayoutRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'landlord_id' => ['required', 'exists:users,id'],
-            'lease_id' => ['nullable', 'exists:leases,id'],
-            'booking_id' => ['nullable', 'exists:bookings,id'],
-            'period_start' => ['nullable', 'date'],
-            'period_end' => ['nullable', 'date', 'after_or_equal:period_start'],
-            'gross_amount' => ['required', 'numeric', 'min:0'],
-            'commission_amount' => ['nullable', 'numeric', 'min:0'],
-            'fees_amount' => ['nullable', 'numeric', 'min:0'],
-            'currency' => ['nullable', Rule::enum(Currency::class)],
-            'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
-            'scheduled_at' => ['nullable', 'date'],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $landlord = User::findOrFail($data['landlord_id']);
         $payout = $this->payouts->create($request->user(), $landlord, $data);
@@ -74,14 +61,11 @@ class PayoutController extends Controller
         ]);
     }
 
-    public function markProcessed(Request $request, Payout $payout): JsonResponse
+    public function markProcessed(MarkProcessedPayoutRequest $request, Payout $payout): JsonResponse
     {
         $this->authorizeManage($request, $payout);
 
-        $data = $request->validate([
-            'transaction_id' => ['nullable', 'string'],
-            'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
-        ]);
+        $data = $request->validated();
 
         $payout = $this->payouts->markProcessed($payout, $data);
 
@@ -90,13 +74,11 @@ class PayoutController extends Controller
         ]);
     }
 
-    public function markFailed(Request $request, Payout $payout): JsonResponse
+    public function markFailed(MarkFailedPayoutRequest $request, Payout $payout): JsonResponse
     {
         $this->authorizeManage($request, $payout);
 
-        $data = $request->validate([
-            'failed_reason' => ['required', 'string'],
-        ]);
+        $data = $request->validated();
 
         $payout = $this->payouts->markFailed($payout, $data);
 

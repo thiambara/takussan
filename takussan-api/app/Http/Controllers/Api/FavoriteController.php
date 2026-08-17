@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\StoreFavoriteRequest;
 use App\Http\Resources\FavoriteResource;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Favorite;
@@ -22,12 +23,9 @@ class FavoriteController extends Controller
         return $this->paginated($favorites, FavoriteResource::collection($favorites)->toArray($request));
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreFavoriteRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'property_id' => ['required', 'exists:properties,id'],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $user = $request->user();
         $property = Property::findOrFail($data['property_id']);

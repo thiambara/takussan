@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Auth\CallbackOAuthRequest;
 use App\Http\Resources\UserResource;
 use App\Services\Auth\OAuthProviderConfiguration;
 use App\Services\Auth\OAuthProvisioningService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
@@ -50,15 +50,10 @@ class OAuthController extends Controller
         return $this->json(['data' => ['redirect_url' => $url]]);
     }
 
-    public function callback(string $provider, Request $request): JsonResponse
+    public function callback(string $provider, CallbackOAuthRequest $request): JsonResponse
     {
         abort_unless(in_array($provider, self::ALLOWED_PROVIDERS, true), 404);
         abort_unless($this->configuration->isConfigured($provider), 422, 'OAuth provider is not configured.');
-
-        $request->validate([
-            'code' => ['required', 'string'],
-            'state' => ['required', 'string'],
-        ]);
 
         $cached = Cache::pull('oauth_state:'.$request->input('state'));
         abort_unless($cached && $cached['provider'] === $provider, 422, 'Invalid or expired OAuth state.');

@@ -3,15 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\MarkPaidLeasePaymentRequest;
+use App\Http\Requests\Api\StoreLeasePaymentRequest;
 use App\Http\Resources\LeasePaymentResource;
-use App\Models\Enums\LeasePaymentType;
-use App\Models\Enums\PaymentMethod;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Services\Model\LeasePaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class LeasePaymentController extends Controller
 {
@@ -28,19 +27,11 @@ class LeasePaymentController extends Controller
         return $this->paginated($payments, LeasePaymentResource::collection($payments)->toArray($request));
     }
 
-    public function store(Request $request, Lease $lease): JsonResponse
+    public function store(StoreLeasePaymentRequest $request, Lease $lease): JsonResponse
     {
         $this->authorizeLeaseManage($request, $lease);
 
-        $data = $request->validate([
-            'amount' => ['required', 'numeric', 'min:0'],
-            'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
-            'payment_type' => ['required', Rule::enum(LeasePaymentType::class)],
-            'period_start' => ['required', 'date'],
-            'period_end' => ['required', 'date', 'after_or_equal:period_start'],
-            'due_date' => ['nullable', 'date'],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $payment = $this->payments->create($lease, $request->user(), $data);
 
@@ -49,17 +40,13 @@ class LeasePaymentController extends Controller
         ], 201);
     }
 
-    public function markPaid(Request $request, LeasePayment $payment): JsonResponse
+    public function markPaid(MarkPaidLeasePaymentRequest $request, LeasePayment $payment): JsonResponse
     {
         $payment->loadMissing('lease');
         abort_unless($payment->lease, 404);
         $this->authorizeLeaseManage($request, $payment->lease);
 
-        $data = $request->validate([
-            'paid_at' => ['nullable', 'date'],
-            'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
-            'transaction_id' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $payment = $this->payments->markPaid($payment, $data);
 

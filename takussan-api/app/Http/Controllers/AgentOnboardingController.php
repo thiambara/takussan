@@ -3,11 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\CompleteAgentOnboardingRequest;
 use App\Models\Profiles\AgentProfile;
 use App\Services\Onboarding\AgentOnboardingService;
 use App\Services\Profiles\ActiveProfileResolver;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Cookie;
 
 /**
@@ -28,16 +28,12 @@ class AgentOnboardingController extends Controller
         private readonly ActiveProfileResolver $resolver,
     ) {}
 
-    public function complete(Request $request): JsonResponse
+    public function complete(CompleteAgentOnboardingRequest $request): JsonResponse
     {
         $user = $request->user();
         abort_if($user === null, 401);
 
-        $validated = $request->validate([
-            'agent_profile_id' => ['required', 'integer'],
-            'phone_otp' => ['nullable', 'array'],
-            'phone_otp.code' => ['nullable', 'string', 'size:6'],
-        ]);
+        $validated = $request->validated();
 
         $agent = AgentProfile::query()
             ->whereKey((int) $validated['agent_profile_id'])

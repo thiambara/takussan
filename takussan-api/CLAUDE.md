@@ -147,17 +147,46 @@ auth optionnelle.
 `users.agency_id` **a été droppée** (TCK-142). `User::getAgencyIdAttribute()` est un accesseur de
 compatibilité qui dérive l'agence du profil actif.
 
-## Validation — deux conventions, et laquelle choisir
+## Validation — une seule convention, et une garde qui la tient
 
-**120 `$request->validate()` inline** contre **69 classes FormRequest**. Le choix a été fait au cas
-par cas et rien ne l'arbitre.
+**Toute validation vit dans un `FormRequest` étendant `app/Http/Requests/BaseFormRequest.php`.**
+Il n'y a plus de validation en ligne dans un contrôleur, et `scripts/check-inline-validation.mjs`
+(Repo CI) casse le build si on en réintroduit une — sous **quatre** orthographes :
+`$request->validate(`, `$this->validate(`, `validator(`, `Validator::make(`.
 
-**Pour du code neuf : `FormRequest`, en étendant `app/Http/Requests/BaseFormRequest.php`**, qui
-apporte deux choses qu'on ne veut pas réécrire :
+> **Ce que la convergence a coûté, et pourquoi la garde existe.** Cette section disait « deux
+> conventions, et laquelle choisir », et tranchait déjà pour le code neuf. Elle n'a rien freiné :
+> mesuré le 2026-08-17, **120 `$request->validate()` inline** dans 58 contrôleurs, **511 champs de
+> règles**, contre 74 FormRequest — et une **troisième** forme que le compte ne voyait pas
+> (`validator([...], [...])->validate()`). *Une convention qui n'existe que dans un document est
+> lue une fois, par ceux qui la respectaient déjà.* Détail : TCK-305, ardoise D-32.
 
-- `authorize()` retourne **`false`** par défaut — *fail-closed*, chaque sous-classe doit surcharger
-  (les 27 sous-classes actuelles le font toutes) ;
-- `prepareForValidation()` normalise récursivement : trim de toutes les chaînes, chaîne vide → `null`.
+⚠️ **Deux pièges payés pendant la convergence, à connaître avant d'en déplacer une de plus :**
+
+1. **Les règles perdent le contexte du contrôleur.** Un `$this->allowedRoles()`, un
+   `self::TASKABLE_TYPES` ou un `$request` recopiés tels quels dans un `rules()` produisent une
+   **500 à l'exécution**, pas une erreur de compilation. Sept cas mesurés sur 120 déplacements, et
+   **un seul** a été attrapé par un test — les six autres l'ont été par un balayage systématique
+   des jetons `$this->` / `self::` / `static::` / `$request` dans les classes générées. Déplacer la
+   constante dans le FormRequest et la faire relire par le contrôleur (`XRequest::LA_CONSTANTE`)
+   est la sortie propre : une `private const` de contrôleur n'est pas une source partageable.
+2. **La validation d'un FormRequest court AVANT le corps du contrôleur.** Si l'action vérifiait
+   quelque chose avant de valider — un `firstOrFail()`, un `authorizeManage()` — l'ordre s'inverse
+   et le code de réponse change dans le cas croisé. **66 des 120 sites** autorisaient avant de
+   valider : pour eux, un appel à la fois non autorisé et mal formé rend désormais 422 là où il
+   rendait 403. Quand l'ordre compte vraiment, résoudre dans le FormRequest lui-même — c'est ce que
+   fait `Public\PublicPropertySlugRequest`, qui garde le 404 avant le 422.
+
+`BaseFormRequest` apporte deux choses qu'on ne veut pas réécrire :
+
+- `authorize()` retourne **`false`** par défaut — *fail-closed*, chaque sous-classe doit surcharger.
+  ⚠ **L'autorisation ne migre PAS dans `authorize()` pour autant** : elle appartient au contrôleur
+  puis aux policies (principes non négociables 1 et 2, TCK-306). `authorize()` y retourne `true` ;
+  ce défaut à `false` existe pour qu'un oubli refuse au lieu d'ouvrir ;
+- `prepareForValidation()` normalise récursivement : trim de toutes les chaînes, chaîne vide →
+  `null`. ⚠ **C'est un changement de comportement pour les 120 endpoints convergés** : un champ
+  `nullable` recevant `""` livre désormais `null` là où il livrait `""`. La suite ne l'a pas vu
+  rougir, mais c'est un contrat, pas un détail de forme.
 
 La validation d'enum passe par `Rule::enum(XEnum::class)`. `app/Rules/` contient 4 règles
 réutilisables (`PhoneRule`, `StrongPasswordRule`, `DateRangeRule`, `CurrencyRule`) — peu utilisées,

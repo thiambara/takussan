@@ -3,9 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\CompleteMaintenanceRequestRequest;
+use App\Http\Requests\Api\StoreMaintenanceRequestRequest;
+use App\Http\Requests\Api\UpdateMaintenanceRequestRequest;
+use App\Http\Requests\Api\UpdateStatusMaintenanceRequestRequest;
+use App\Http\Requests\Api\UploadPhotosMaintenanceRequestRequest;
 use App\Http\Resources\MaintenanceRequestResource;
 use App\Models\Enums\LeaseStatus;
-use App\Models\Enums\MaintenanceCategory;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\NotificationType;
@@ -17,7 +21,6 @@ use App\Services\Model\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Validation\Rule;
 
 class MaintenanceRequestController extends Controller
 {
@@ -68,17 +71,9 @@ class MaintenanceRequestController extends Controller
         return $this->paginated($paginator, MaintenanceRequestResource::collection($paginator)->toArray($request));
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreMaintenanceRequestRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'property_id' => ['required', 'exists:properties,id'],
-            'lease_id' => ['nullable', 'exists:leases,id'],
-            'assigned_to' => ['nullable', 'exists:users,id'],
-            'title' => ['required', 'string', 'max:255'],
-            'description' => ['required', 'string'],
-            'category' => ['required', Rule::enum(MaintenanceCategory::class)],
-            'priority' => ['nullable', Rule::enum(MaintenancePriority::class)],
-        ]);
+        $data = $request->validated();
 
         $user = $request->user();
         $property = Property::findOrFail($data['property_id']);
@@ -157,22 +152,11 @@ class MaintenanceRequestController extends Controller
         ]);
     }
 
-    public function update(Request $request, MaintenanceRequest $maintenanceRequest): JsonResponse
+    public function update(UpdateMaintenanceRequestRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
         $this->authorizeManage($request, $maintenanceRequest);
 
-        $data = $request->validate([
-            'assigned_to' => ['sometimes', 'nullable', 'exists:users,id'],
-            'priority' => ['sometimes', Rule::enum(MaintenancePriority::class)],
-            'status' => ['sometimes', Rule::enum(MaintenanceStatus::class)],
-            'estimated_cost' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            'actual_cost' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            'scheduled_at' => ['sometimes', 'nullable', 'date'],
-            'started_at' => ['sometimes', 'nullable', 'date'],
-            'completed_at' => ['sometimes', 'nullable', 'date'],
-            'resolution_notes' => ['sometimes', 'nullable', 'string'],
-            'resolution_report' => ['sometimes', 'nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $maintenanceRequest->fill($data)->save();
 
@@ -181,13 +165,11 @@ class MaintenanceRequestController extends Controller
         ]);
     }
 
-    public function updateStatus(Request $request, MaintenanceRequest $maintenanceRequest): JsonResponse
+    public function updateStatus(UpdateStatusMaintenanceRequestRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
         $this->authorizeManage($request, $maintenanceRequest);
 
-        $data = $request->validate([
-            'status' => ['required', Rule::enum(MaintenanceStatus::class)],
-        ]);
+        $data = $request->validated();
 
         $target = MaintenanceStatus::from($data['status']);
         $maintenanceRequest = $this->service->transition($maintenanceRequest, $target);
@@ -197,17 +179,11 @@ class MaintenanceRequestController extends Controller
         ]);
     }
 
-    public function complete(Request $request, MaintenanceRequest $maintenanceRequest): JsonResponse
+    public function complete(CompleteMaintenanceRequestRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
         $this->authorizeManage($request, $maintenanceRequest);
 
-        $data = $request->validate([
-            'resolution_notes' => ['nullable', 'string'],
-            'cost' => ['nullable', 'numeric', 'min:0'],
-            'actual_cost' => ['nullable', 'numeric', 'min:0'],
-            'photos' => ['nullable', 'array'],
-            'photos.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
-        ]);
+        $data = $request->validated();
 
         // Reject ambiguous payloads rather than silently preferring one field.
         if (array_key_exists('cost', $data) && array_key_exists('actual_cost', $data)
@@ -223,7 +199,7 @@ class MaintenanceRequestController extends Controller
         ]);
     }
 
-    public function uploadPhotos(Request $request, MaintenanceRequest $maintenanceRequest): JsonResponse
+    public function uploadPhotos(UploadPhotosMaintenanceRequestRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
         $this->authorizeAccess($request, $maintenanceRequest);
 
@@ -234,11 +210,7 @@ class MaintenanceRequestController extends Controller
             abort(422, 'Cannot upload photos to a closed or cancelled maintenance request.');
         }
 
-        $data = $request->validate([
-            'photos' => ['required', 'array', 'min:1'],
-            'photos.*' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
-            'collection' => ['nullable', 'string', Rule::in(['photos', 'completion_photos'])],
-        ]);
+        $data = $request->validated();
 
         $collection = $data['collection'] ?? 'photos';
 

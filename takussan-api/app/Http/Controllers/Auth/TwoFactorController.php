@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Auth\ConfirmTwoFactorRequest;
+use App\Http\Requests\Auth\DisableTwoFactorRequest;
 use App\Services\Auth\TwoFactorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -62,15 +64,11 @@ class TwoFactorController extends Controller
         ]);
     }
 
-    public function confirm(Request $request): JsonResponse
+    public function confirm(ConfirmTwoFactorRequest $request): JsonResponse
     {
         $user = $request->user();
         abort_if($user->two_factor_enabled, 422, 'Two-factor authentication is already enabled.');
         abort_unless($user->two_factor_secret !== null, 422, 'Please call /two-factor/enable first.');
-
-        $request->validate([
-            'code' => ['required', 'string', 'size:6'],
-        ]);
 
         abort_unless(
             $this->service->verifyCodeForUser($user, $user->two_factor_secret, $request->input('code')),
@@ -93,15 +91,10 @@ class TwoFactorController extends Controller
         ]);
     }
 
-    public function disable(Request $request): JsonResponse
+    public function disable(DisableTwoFactorRequest $request): JsonResponse
     {
         $user = $request->user();
         abort_unless($user->two_factor_enabled, 422, 'Two-factor authentication is not enabled.');
-
-        $request->validate([
-            'password' => ['sometimes', 'required_without:code', 'string'],
-            'code' => ['sometimes', 'required_without:password', 'string', 'size:6'],
-        ]);
 
         $authorized = false;
         if ($request->filled('password')) {
