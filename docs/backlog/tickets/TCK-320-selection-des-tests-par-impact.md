@@ -1,7 +1,7 @@
 ---
 id: TCK-320
 title: "Sélection des tests par impact — 42 % de la suite est du plancher de harnais, et rien à optimiser dans les tests"
-status: doing
+status: done
 phase: P2
 family: technique
 estimate: M
@@ -150,3 +150,36 @@ de suivre sa source.*
 Une garde qui compare `ImpactSelector::HARD_PREFIXES` / `::HARD_FILES` à ce que la documentation
 énumère reste à écrire. Elle n'est pas dans le périmètre de ce ticket, et le laisser non dit
 reviendrait à reproduire, un étage plus bas, le défaut que ce ticket corrige.
+
+> ✅ **Déposée en [TCK-325](TCK-325-garde-des-declencheurs-durs-du-selecteur.md) le 2026-08-17**, au
+> moment de solder celui-ci. Le paragraphe ci-dessus était la seule trace de cette suite dans tout le
+> dépôt : passer ce ticket `done` sans la déposer l'aurait effacée avec lui — et ce ticket aurait
+> alors commis exactement la faute qu'il décrit. TCK-325 couvre les **trois** constantes, pas deux :
+> `INERT_PREFIXES` est celle dont l'oubli fabrique un faux vert.
+
+---
+
+## Vérifié le 2026-08-17, avant de passer `done`
+
+Aucun AC basculé sur la foi du plan : chacun a été éprouvé sur l'état de `dev`.
+
+| AC | Vérification | Résultat |
+|---|---|---|
+| AC1 | `php bin/impacted-tests.php` | affiche la carte (`eafab606`), son âge, le nombre de commits de retard, le motif, puis la commande |
+| AC2 | `ImpactSelectorTest` | les trois cas sont des tests distincts : *covered → ses classes*, *scanné non couvert → rien*, *absent → escalade* |
+| AC3 | idem | **17 jeux de données** « global files escalate » |
+| AC3bis | idem | `genuinely inert paths still select nothing`, `files outside the api are ignored`, défaut à l'escalade |
+| AC4 | **ablation** : `commit` de la carte remplacé par 40 zéros | escalade, message explicite « le commit de la carte est introuvable […] → suite entière ». Carte restaurée, `git diff` vide |
+| AC5 | `ls tests/Support/` · `grep -rl ImpactSelector app/` | `ImpactMap`, `ImpactSelection`, `ImpactSelector` sous `tests/Support/` · **0** fichier dans `app/` |
+| AC6 | **ablation dans les deux sens**, code de sortie relevé hors tuyau | indice de classe hors bornes → **sortie 1** avec le nom du fichier et la borne ; carte saine → **sortie 0**. La péremption, elle, n'avertit que (`⚠`, sortie 0) |
+| AC7 | `.github/workflows/api-ci.yml:256-297` | `if: push && ref == refs/heads/dev`, `[skip ci]`, validée par celui qui la produit, `git add` avant `git diff --cached` |
+| AC8 | `CLAUDE.md` racine + `takussan-api/CLAUDE.md` | 6 et 4 occurrences, chacune portant la limite : *« un vert ici ne dit RIEN de la suite »* |
+| AC9 | corps de ce ticket | 4 classes, 26 tests, **16,7 s** à `load average` 5,2-5,8 sur **8 cœurs** — mesuré par ablation, avec son contexte de charge |
+
+Tests du sélecteur rejoués : **33 passés, 52 assertions**. Suite entière rejouée le même jour dans le
+cadre de TCK-319 : **2441 passés, 2 ignorés, 7540 assertions, sortie 0**.
+
+> Le code de sortie d'AC6 a d'abord été relevé **à travers un `| tail`**, qui rendait 0 : c'est le
+> code de `tail`, pas celui de la garde. Repris sans tuyau. *Une vérification qui mesure son propre
+> tuyau ne vérifie rien* — et cet AC porte précisément sur la capacité de la garde à faire rougir
+> la CI.

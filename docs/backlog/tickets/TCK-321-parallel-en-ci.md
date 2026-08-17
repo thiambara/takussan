@@ -1,7 +1,7 @@
 ---
 id: TCK-321
 title: "Rouvrir `--parallel` — un de ses deux verrous était levé depuis six semaines, et l'autre était mal posé"
-status: doing
+status: done
 phase: P2
 family: technique
 estimate: M
@@ -111,3 +111,29 @@ cas).
 
 [`docs/plans/2026-08-17-parallel-en-ci-phase-2.md`](../../plans/2026-08-17-parallel-en-ci-phase-2.md)
 — quatre tâches, TDD, code complet.
+
+---
+
+## Vérifié le 2026-08-17, avant de passer `done`
+
+**`done` ici veut dire « le périmètre de ce ticket est livré », pas « `--parallel` est partout ».**
+Deux de ses sept AC sont en échec, et ils le restent **par écrit** : les retirer aurait rendu le
+ticket vert sur des propriétés qu'il ne tient pas. Chacun est désormais porté par un ticket ouvert —
+c'était la condition pour solder celui-ci.
+
+| AC | Vérification | Résultat |
+|---|---|---|
+| AC1 | `TestProcessToken::value()` | `<pid+aléa>` hors parallèle, `<pid+aléa>_<worker>` en parallèle ; le discriminant d'exécution est **en tête** |
+| AC2 | `TestFilesystemIsolation::install()` | ne sort plus par le haut quand `TEST_TOKEN` est posé : il le **lit et le compose** (`putenv` + `$_ENV` + `$_SERVER`) |
+| AC3 | `tests/Unit/Testing/FakeDiskIsolationTest.php` | trois tests, dont `test_the_token_always_carries_the_per_run_discriminant` et `test_the_worker_index_is_appended_only_in_parallel_mode` — la propriété, pas deux affirmations que `--parallel` rend fausses |
+| AC4 | ardoise **D-30**, mise à jour du 2026-08-17 | séquentielle 208,80 s à load 3,74 · `--parallel` 64,90 s à 6,11 · 113,86 s à 12,64 · 102,94 s à 33,59 · **0 échec partout**, 8 cœurs (`sysctl -n hw.ncpu`) relevés |
+| AC5 | ❌ **non tenu** — deux `--parallel` simultanés | inchangé : B meurt sur `mkdir(): File exists` dans ParaTest. → **[TCK-322](TCK-322-paratest-deux-executions-simultanees.md)** (`todo`) |
+| AC6 | ❌ **non tenu** — activation en CI | inchangé : **aucune mesure runner n'a eu lieu**. → **[TCK-324](TCK-324-mesurer-parallel-sur-le-runner-ci.md)** (`todo`), déposé le 2026-08-17 |
+| AC7 | ardoise D-30 | soldée avec les chiffres de l'épreuve, les conditions de mesure, la décision et son motif |
+
+**Pourquoi TCK-324 devait exister avant ce `done`.** AC6 était la **seule trace** dans tout le dépôt
+du fait que « `--parallel` n'est pas activé en CI » est un **défaut faute de mesure**, et non un
+résultat de mesure. Solder ce ticket sans le déposer transformait, en un statut, une décision
+provisoire en décision acquise — et le lecteur de `CLAUDE.md` dans six mois aurait lu « on a mesuré,
+ça ne valait pas le coup ». *Un AC en échec qu'aucun ticket ne reprend n'est plus un AC en échec :
+c'est une propriété abandonnée en silence.*
