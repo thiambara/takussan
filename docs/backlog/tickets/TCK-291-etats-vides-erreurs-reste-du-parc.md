@@ -1,7 +1,7 @@
 ---
 id: TCK-291
 title: "États vides / erreurs — le reste du parc (super-admin, admin, tables)"
-status: review
+status: done
 phase: P2
 family: front
 estimate: M

@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**307 tickets** — 19 ouverts, 287 livrés.
+**307 tickets** — 18 ouverts, 288 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 17 |
 | 🚧 Doing | 1 |
-| 👀 Review | 1 |
+| 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 287 |
+| ✅ Done | 288 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -57,7 +57,7 @@
 
 ## 👀 Review
 
-- [TCK-291](tickets/TCK-291-etats-vides-erreurs-reste-du-parc.md) — États vides / erreurs — le reste du parc (super-admin, admin, tables) `M · P2 · front`
+_(aucun)_
 
 ## ⛔ Blocked
 
@@ -65,7 +65,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 287
+## ✅ Done — 288
 
 <details>
 <summary><strong>Vague 41 — Temps d'exécution de la suite de tests : sélection par impact, puis parallélisation (2026-08-17)</strong> — 2 tickets</summary>
@@ -202,13 +202,14 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Vague 27 — Audit design front (2026-05-09)</strong> — 5 tickets</summary>
+<summary><strong>Vague 27 — Audit design front (2026-05-09)</strong> — 6 tickets</summary>
 
 - [TCK-242](tickets/TCK-242-public-agency-agent-pages-design-refresh.md) — Refonte design fiches publiques agence & agent `M · P1 · front`
 - [TCK-243](tickets/TCK-243-super-admin-native-controls-pagination.md) — Super-admin — éliminer les contrôles HTML natifs et factoriser la pagination `M · P2 · front`
 - [TCK-244](tickets/TCK-244-dashboard-admin-legacy-tokens-migration.md) — Dashboard /app + /admin — migration tokens legacy → tokens DS Lin `L · P2 · front`
 - [TCK-245](tickets/TCK-245-super-admin-stone-palette-to-ds-tokens.md) — Super-admin — passer la palette stone Tailwind sur les tokens DS Lin `M · P2 · front`
 - [TCK-246](tickets/TCK-246-empty-error-states-and-cta-buttons-harmonization.md) — Empty / error states + CTA shadcn — harmonisation transverse `M · P2 · front`
+- [TCK-291](tickets/TCK-291-etats-vides-erreurs-reste-du-parc.md) — États vides / erreurs — le reste du parc (super-admin, admin, tables) `M · P2 · front`
 
 </details>
 
