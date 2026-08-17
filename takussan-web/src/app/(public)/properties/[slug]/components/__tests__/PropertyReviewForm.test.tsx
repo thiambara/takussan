@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ComponentProps } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+// `withIntl` charge le VRAI `fr.json` : depuis TCK-292 ces composants passent par next-intl, et
+// un rendu sans provider LÈVE. Les assertions françaises sont inchangées — c'est le point.
+import { withIntl } from '@/test/intl';
 import { PropertyReviewForm, REVIEW_CONTENT_MIN } from '../PropertyReviewForm';
 
 type ReviewSubmit = ComponentProps<typeof PropertyReviewForm>['onSubmit'];
@@ -15,7 +18,7 @@ describe('<PropertyReviewForm>', () => {
 
   it('blocks submit when no rating is selected', async () => {
     const user = userEvent.setup();
-    render(<PropertyReviewForm onSubmit={submit} />);
+    render(withIntl(<PropertyReviewForm onSubmit={submit} />));
 
     // Submit is disabled until a rating is picked.
     expect(screen.getByRole('button', { name: /publier/i })).toBeDisabled();
@@ -31,7 +34,7 @@ describe('<PropertyReviewForm>', () => {
 
   it('blocks submit when comment is shorter than the minimum', async () => {
     const user = userEvent.setup();
-    render(<PropertyReviewForm onSubmit={submit} />);
+    render(withIntl(<PropertyReviewForm onSubmit={submit} />));
 
     // Pick 5 stars.
     await user.click(screen.getByRole('radio', { name: /5 étoiles/i }));
@@ -49,7 +52,7 @@ describe('<PropertyReviewForm>', () => {
 
   it('submits payload when rating + long-enough comment are provided', async () => {
     const user = userEvent.setup();
-    render(<PropertyReviewForm onSubmit={submit} />);
+    render(withIntl(<PropertyReviewForm onSubmit={submit} />));
 
     await user.click(screen.getByRole('radio', { name: /4 étoiles/i }));
     await user.type(
@@ -70,7 +73,7 @@ describe('<PropertyReviewForm>', () => {
     const user = userEvent.setup();
     const serverMessage = 'Vous avez déjà évalué ce bien.';
     submit = vi.fn<ReviewSubmit>().mockRejectedValue(new Error(serverMessage));
-    render(<PropertyReviewForm onSubmit={submit} />);
+    render(withIntl(<PropertyReviewForm onSubmit={submit} />));
 
     await user.click(screen.getByRole('radio', { name: /3 étoiles/i }));
     await user.type(

@@ -217,6 +217,7 @@ export function PropertyMap({
 }
 
 function MapPopupCard({ feature }: { feature: PropertyMapFeature }) {
+  const t = useTranslations('property.contractTypes');
   const p = feature.properties;
   const isSale = p.contract_type === 'sale';
   return (
@@ -237,7 +238,7 @@ function MapPopupCard({ feature }: { feature: PropertyMapFeature }) {
       </div>
       <div className="p-2">
         <p className="text-xs text-stone-500 mb-0.5">
-          {isSale ? 'En vente' : 'En location'}
+          {t(isSale ? 'saleLong' : 'rentLong')}
         </p>
         <p className="font-semibold text-sm line-clamp-2 leading-snug mb-1">
           {p.title}

@@ -576,6 +576,14 @@
       "cta": "Méengal ({count})",
       "removeAria": "Jëla kër #{id} ci méengal bi",
       "clearAria": "Fommi méengal bi"
+    },
+    "button": {
+      "full": "Dindil benn kër ngir yokk beneen.",
+      "added": "Yokk nañu ko ci mengale bi",
+      "remove": "Dindi ci mengale bi",
+      "add": "Yokk ci mengale bi",
+      "maxTitle": "Lu ëpp {max} kër",
+      "addedBody": "{count} / {max} kër la ñu tànn."
     }
   },
   "crm": {
@@ -986,7 +994,9 @@
   },
   "favorites": {
     "button": {
-      "aria": "Sama bëgg-bëgg"
+      "aria": "Sama bëgg-bëgg",
+      "remove": "Dindi ci say cofeel",
+      "add": "Yokk ci say cofeel"
     },
     "popover": {
       "title": "Sama bëgg-bëgg",
@@ -1026,7 +1036,9 @@
       "empty_title": "Amul seet bu ñu denc",
       "empty_description": "Ci xëtu résultat bi, bësal « Denc seet bi » ngir gis ko fii.",
       "empty_cta": "Tàmbali benn seet",
-      "error": "Mënunu yebal say seet. Xoolal sa konexion, ba noppi jéemaat."
+      "error": "Mënunu yebal say seet. Xoolal sa konexion, ba noppi jéemaat.",
+      "noCriteria": "Amul tànneef",
+      "relaunch": "Jéemaat"
     },
     "results": {
       "empty_title": "Gisunu benn kër",
@@ -1107,6 +1119,24 @@
       "aria": "Xët yi",
       "previous": "Xët wi jiitu",
       "next": "Xët wi ci topp"
+    },
+    "saveSearch": {
+      "defaultName": "Sama seet",
+      "invalidName": "Tur bu baaxul.",
+      "error": "Mënuñu denc seet gi.",
+      "trigger": "Denc seet gi",
+      "dialogTitle": "Denc seet gii",
+      "dialogBody": "Dinga gis tànneef yii ci sa bérébu bopp.",
+      "saved": "Denc nañu seet gi. Dinga ko gis ci sa bérébu.",
+      "viewMine": "Xool samay seet",
+      "nameLabel": "Tur",
+      "namePlaceholder": "Ci misaal : Apartama Plateau bu ñuy luwaa",
+      "cancel": "Neenal",
+      "saving": "Mu ngi denc…",
+      "dialogBodyFull": "Dinga gis tànneef yii ci sa bérébu bopp ngir jéemaat leen ci benn bës.",
+      "savedFull": "Denc nañu seet gi. Dinga ko gis ci say seet yu ñu denc.",
+      "save": "Denc",
+      "bedroomsShort": "{count} neeg"
     }
   },
   "wizardDrafts": {
@@ -2192,6 +2222,157 @@
         "reserve": "Réserwe",
         "apply": "Ñaan"
       }
+    },
+    "reviews": {
+      "title": "Xalaat yi",
+      "countSuffix": "{count} xalaat",
+      "loading": "Xalaat yi ñu ngi leen di yeb…",
+      "empty": "Amul xalaat ba tey.",
+      "notEligible": "Dinga man a bàyyi xalaat ginnaaw benn seetlu bu mat walla bu ñu xaatimee kontaraa ci kër gii.",
+      "alreadyReviewed": "Jërëjëf, bàyyi nga ba noppi xalaat ci kër gii.",
+      "agentReply": "Tontu ajaŋ bi",
+      "edit": "Soppi",
+      "reply": "Tontu",
+      "form": {
+        "ratingRequired": "Tànnal benn nota su la neexee.",
+        "sendError": "Njuumte ci yónnee bi.",
+        "aria": "Bàyyi xalaat",
+        "title": "Bàyyi xalaat",
+        "ratingAria": "Nota ci 5",
+        "titlePlaceholder": "Bopp (soo ko bëggee)",
+        "thanks": "Jërëjëf ci sa xalaat.",
+        "contentTooShort": "Sa xalaat war na am lu mu néew {min} araf.",
+        "contentPlaceholder": "Sa xalaat (lu mu néew {min} araf)",
+        "charsLeft": "{count, plural, other {Des na # araf.}}"
+      },
+      "replyForm": {
+        "editTitle": "Soppi sama tontu",
+        "newTitle": "Tontu xalaat bii",
+        "editSubmit": "Soppi sama tontu",
+        "newSubmit": "Tontu ci kanam ñépp",
+        "placeholder": "Tontul ci pex bu leer te am fulla…",
+        "contentAria": "Li nekk ci tontu bi",
+        "cancel": "Neenal",
+        "publish": "Génne tontu bi",
+        "sending": "Mu ngi yónnee…",
+        "save": "Denc"
+      }
+    },
+    "report": {
+      "reasons": {
+        "misleading": "Yégle bu naxee",
+        "inappropriate": "Li nekk ci jaaduwul",
+        "spam": "Spam",
+        "fraud": "Nax / mbaay",
+        "other": "Beneen"
+      },
+      "trigger": "Xamle yégle bii",
+      "loginTitle": "Fàww nga dugg",
+      "loginBody": "Duggal ngir xamle yégle bii.",
+      "cancel": "Neenal",
+      "signIn": "Dugg",
+      "dialogTitle": "Xamle yégle bii",
+      "dialogBody": "Dimbali nu ngir platform bi wéy ci baax.",
+      "sent": "Yónnee nañu xamle bi. Jërëjëf !",
+      "reasonLabel": "Sabab",
+      "detailsLabel": "Leeral (soo ko bëggee)",
+      "detailsPlaceholder": "Leeralal li am jafe-jafe…",
+      "dialogBodyFull": "Dimbali nu ngir platform bi wéy ci baax. Sunu ekib dina seet sa xamle.",
+      "sending": "Mu ngi yónnee…",
+      "submit": "Xamle"
+    },
+    "visitDialog": {
+      "types": {
+        "in_person": {
+          "label": "Ci sa bopp",
+          "description": "Seetlu ak boroom kër walla ajaŋ bi."
+        },
+        "virtual": {
+          "label": "Ci web",
+          "description": "Woote ak nataal jóge ci sa kër."
+        },
+        "self_guided": {
+          "label": "Sa bopp",
+          "description": "Yaw a jël caabi yi ci bérébu kër gi."
+        },
+        "hybrid": {
+          "label": "Ñaari pex",
+          "description": "Njëkk woote ak nataal, ginnaaw seetlu ci bérébu bi."
+        }
+      },
+      "pickDate": "Tànn benn bés",
+      "loginTitle": "Duggal ngir seetlu",
+      "loginBody": "Fàww nga dugg ngir ñaan seetlu.",
+      "cancel": "Neenal",
+      "signIn": "Dugg",
+      "title": "Ñaan seetlu",
+      "description": "Tànnal benn bés ak benn waxtu — boroom kër gi dina ko dëggal ci lu gaaw.",
+      "dateLabel": "Bés",
+      "timeLabel": "Waxtu",
+      "noSlotsToday": "Amatul waxtu tey — tànnal beneen bés.",
+      "typeLegend": "Xeetu seetlu",
+      "typeSelected": "{label} la ñu tànn",
+      "notesLabel": "Bataaxal",
+      "notesOptional": "(soo ko bëggee)",
+      "notesPlaceholder": "Leeral ngir boroom kër gi…",
+      "sending": "Mu ngi yónnee…",
+      "submit": "Ñaan seetlu bi"
+    },
+    "reservation": {
+      "offer": {
+        "dialogTitle": "Joxe benn njaay",
+        "loginTitle": "Duggal ngir joxe njaay",
+        "loginBody": "Fàww nga dugg ngir yónnee njaay.",
+        "submit": "Yónnee njaay bi"
+      },
+      "reserve": {
+        "dialogTitle": "Réserwe kër gii",
+        "loginTitle": "Duggal ngir réserwe",
+        "loginBody": "Fàww nga dugg ngir ñaan réservasioŋ.",
+        "submit": "Yónnee ñaan bi"
+      },
+      "apply": {
+        "dialogTitle": "Ñaan kër gii",
+        "loginTitle": "Duggal ngir ñaan",
+        "loginBody": "Fàww nga dugg ngir yónnee sa dosyeb luwaas.",
+        "submit": "Yónnee sama ñaan"
+      },
+      "cancel": "Neenal",
+      "signIn": "Dugg",
+      "sending": "Mu ngi yónnee…",
+      "booking": {
+        "description": "Joxel say bés ak limu gan yi. Boroom kër gi dina dëggal sa ñaan.",
+        "checkIn": "Dugg",
+        "checkInPlaceholder": "Bésu dugg",
+        "checkOut": "Génn",
+        "checkOutPlaceholder": "Bésu génn",
+        "guests": "Gan yi",
+        "message": "Bataaxal (soo ko bëggee)",
+        "messagePlaceholder": "Xamlel sa bopp, leeral sa mébét…",
+        "nightsLine": "{price} × {count, plural, other {# guddi}}",
+        "estimatedTotal": "Waññi bu ñu tëral"
+      },
+      "offerForm": {
+        "invalidAmount": "Waññi bu baaxul.",
+        "description": "Njëg gi ñu wone : {price}. Boroom kër gi dina seet sa njaay laata muy jeex.",
+        "amount": "Waññi wi nga jox ({currency})",
+        "validity": "Ba kañ la njaay bi dox",
+        "expiryPlaceholder": "Bés bu muy jeex",
+        "message": "Bataaxal (soo ko bëggee)",
+        "messagePlaceholder": "Leeralal kondisioŋ walla anam bu sa njaay…",
+        "termsBefore": "Jàng naa te nangu naa",
+        "termsLink": "kondisioŋ yépp",
+        "termsAfter": "ci jëfandikoo bi ngir yónnee njaayu njënd."
+      }
+    },
+    "moderation": {
+      "pendingTitle": "Muy xaar nangu",
+      "pendingBody": "Sa kër dañu koy seet ci njiitu sa ajaas. Dinañu ko génne bu ñu ko nanguwee.",
+      "rejectedTitle": "Bañ nañu génne ko",
+      "resubmit": "Defar te yónneeaat",
+      "resubmitError": "Njuumte ci yónneeaat bi. Jéemaatal su la neexee.",
+      "approvedTitle": "Nangu nañu kër gi te génne ko",
+      "approvedOn": "Nangu nañu ko ci {date}"
     }
   },
   "documents": {
@@ -2229,7 +2410,11 @@
       "no_property_description": "Tàmbalil ci tànn kër boo bëgg a réserwe ci katalog bi.",
       "not_found_title": "Gisuñu kër gi",
       "not_found_description": "Kër gi nga ñaan amatul walla jotatul.",
-      "browse_cta": "Xool kër yi"
+      "browse_cta": "Xool kër yi",
+      "metaTitle": "Réserwe benn kër — Takussan",
+      "metaDescription": "Yoonu réservasioŋ bu wóor bu Takussan.",
+      "title": "Réserwe kër gii",
+      "subtitle": "Ay tolluwaay yu gaaw ngir yónnee sa ñaan."
     }
   },
   "visits": {
@@ -2334,6 +2519,27 @@
       "empty_title": "Amul xalaat ci tànneef yii",
       "empty_description": "Xalaat yu bees yu ñu nangu dinañu feeñ fii.",
       "error": "Mënuñu yeb xalaat yi ñu jot."
+    }
+  },
+  "contact": {
+    "whatsapp": {
+      "error": "Mënuñu jël xibaaru jokkoo bi. Jéemaatal su la neexee.",
+      "cta": "Jokkoo ci WhatsApp",
+      "aria": "Jokkoo ak boroom {title} ci WhatsApp",
+      "connecting": "Mu ngi jokkoo…"
+    }
+  },
+  "share": {
+    "linkCopied": "Ñu duplikaat lien bi",
+    "share": "Séddoo"
+  },
+  "reviews": {
+    "cta": {
+      "aria": "Bàyyi xalaat",
+      "title": "Wax nu sa xew-xew",
+      "body": "Sa xalaat dina dimbali ñi ñëw ñu tànn ak kóolute.",
+      "forProperty": "Xalaat ngir",
+      "action": "Bàyyi xalaat"
     }
   }
 }

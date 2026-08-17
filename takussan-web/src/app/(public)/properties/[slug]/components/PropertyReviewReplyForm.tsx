@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -26,6 +27,8 @@ export function PropertyReviewReplyForm({
   onSubmit,
   onCancel,
 }: PropertyReviewReplyFormProps) {
+  const t = useTranslations('property.reviews.replyForm');
+  const tForm = useTranslations('property.reviews.form');
   const [content, setContent] = useState(initialContent ?? '');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -44,7 +47,7 @@ export function PropertyReviewReplyForm({
     try {
       await onSubmit(reviewId, trimmed);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de l’envoi.');
+      setError(err instanceof Error ? err.message : tForm('sendError'));
     } finally {
       setPending(false);
     }
@@ -54,18 +57,18 @@ export function PropertyReviewReplyForm({
     <form
       onSubmit={handleSubmit}
       className="mt-3 ml-2 pl-3 border-l-2 border-stone-300 space-y-2"
-      aria-label={initialContent ? 'Modifier ma réponse' : 'Répondre à cet avis'}
+      aria-label={t(initialContent ? 'editTitle' : 'newTitle')}
     >
       <p className="text-xs font-medium text-stone-500">
-        {initialContent ? 'Modifier ma réponse' : 'Répondre publiquement'}
+        {t(initialContent ? 'editSubmit' : 'newSubmit')}
       </p>
       <Textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
         rows={3}
         maxLength={REPLY_MAX}
-        placeholder="Répondez de manière claire et professionnelle…"
-        aria-label="Contenu de la réponse"
+        placeholder={t('placeholder')}
+        aria-label={t('contentAria')}
       />
       <div className="flex justify-between items-center gap-2 text-xs text-stone-500">
         <span>
@@ -80,11 +83,11 @@ export function PropertyReviewReplyForm({
       <div className="flex justify-end gap-2">
         {onCancel && (
           <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
-            Annuler
+            {t('cancel')}
           </Button>
         )}
         <Button type="submit" disabled={pending || tooShort}>
-          {pending ? 'Envoi…' : initialContent ? 'Enregistrer' : 'Publier la réponse'}
+          {pending ? t('sending') : initialContent ? t('save') : t('publish')}
         </Button>
       </div>
     </form>

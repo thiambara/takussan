@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Star } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface LeaveReviewCtaProps {
   /**
@@ -32,25 +33,26 @@ interface LeaveReviewCtaProps {
  * drift over time. Linking keeps a single source of truth.
  */
 export function LeaveReviewCta({ slug, context, propertyTitle }: LeaveReviewCtaProps) {
+  const t = useTranslations('reviews.cta');
+
   return (
     <section
       className="rounded-xl border border-amber-200 bg-amber-50/60 p-5"
-      aria-label="Laisser un avis"
+      aria-label={t('aria')}
     >
       <div className="flex flex-wrap items-start gap-4 justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <Star className="size-4 fill-amber-400 text-amber-400" aria-hidden />
             <h2 className="text-sm font-semibold text-stone-900">
-              Partagez votre expérience
+              {t('title')}
             </h2>
           </div>
           <p className="mt-1 text-sm text-stone-600">
-            {context ??
-              'Votre retour aide les prochains locataires à choisir en confiance.'}
+            {context ?? t('body')}
             {propertyTitle && (
               <>
-                {' '}Avis pour{' '}
+                {' '}{t('forProperty')}{' '}
                 <span className="font-medium text-stone-800">{propertyTitle}</span>.
               </>
             )}
@@ -61,7 +63,7 @@ export function LeaveReviewCta({ slug, context, propertyTitle }: LeaveReviewCtaP
           className="inline-flex items-center gap-1.5 rounded-md bg-stone-900 px-3 py-2 text-sm font-semibold text-white hover:bg-stone-800"
           data-testid="leave-review-cta"
         >
-          Laisser un avis
+          {t('action')}
         </Link>
       </div>
     </section>

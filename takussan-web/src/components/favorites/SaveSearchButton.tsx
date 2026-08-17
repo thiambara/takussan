@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { savedSearchPayloadSchema } from '@/lib/schemas/search';
+import { useTranslations } from 'next-intl';
 
 /**
  * "Save this search" CTA + naming modal — Wave 3 / TCK-047.
@@ -47,14 +48,22 @@ function filtersToCriteria(filters: SearchFilters): Record<string, unknown> {
   return out;
 }
 
-function suggestName(filters: SearchFilters): string {
+type Traducteur = (cle: string, valeurs?: Record<string, string | number>) => string;
+
+/** Hors composant : les libellés lui sont passés, il ne peut pas appeler de hook. */
+function suggestName(
+  filters: SearchFilters,
+  t: Traducteur,
+  tContract: Traducteur,
+  tTypes: Traducteur,
+): string {
   const parts: string[] = [];
-  if (filters.contract_type === 'sale') parts.push('Vente');
-  if (filters.contract_type === 'rent') parts.push('Location');
+  if (filters.contract_type === 'sale') parts.push(tContract('sale'));
+  if (filters.contract_type === 'rent') parts.push(tContract('rent'));
   if (filters.city) parts.push(filters.city);
-  if (filters.type && filters.type.length > 0) parts.push(filters.type[0]);
-  if (filters.bedrooms != null) parts.push(`${filters.bedrooms} ch`);
-  return parts.length > 0 ? parts.join(' · ') : 'Ma recherche';
+  if (filters.type && filters.type.length > 0) parts.push(tTypes(filters.type[0]));
+  if (filters.bedrooms != null) parts.push(t('bedroomsShort', { count: filters.bedrooms }));
+  return parts.length > 0 ? parts.join(' · ') : t('defaultName');
 }
 
 export function SaveSearchButton({
@@ -62,6 +71,9 @@ export function SaveSearchButton({
   activeCount,
   className = '',
 }: SaveSearchButtonProps) {
+  const t = useTranslations('search.saveSearch');
+  const tContract = useTranslations('property.contractTypes');
+  const tTypes = useTranslations('property.types');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -84,7 +96,7 @@ export function SaveSearchButton({
       router.push(redirectHref);
       return;
     }
-    setName(suggestName(filters));
+    setName(suggestName(filters, t, tContract, tTypes));
     setNameError(null);
     setSavedId(null);
     setOpen(true);
@@ -99,7 +111,7 @@ export function SaveSearchButton({
     };
     const parsed = savedSearchPayloadSchema.safeParse(payload);
     if (!parsed.success) {
-      setNameError(parsed.error.issues[0]?.message ?? 'Nom invalide.');
+      setNameError(parsed.error.issues[0]?.message ?? t('invalidName'));
       return;
     }
     setNameError(null);
@@ -107,7 +119,7 @@ export function SaveSearchButton({
       const res = await create.mutateAsync(parsed.data);
       setSavedId(res.data.id);
     } catch {
-      setNameError('Impossible de sauvegarder la recherche.');
+      setNameError(t('error'));
     }
   }
 
@@ -120,17 +132,14 @@ export function SaveSearchButton({
         className={`inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
       >
         <BookmarkPlus className="w-4 h-4" />
-        <span>Sauvegarder la recherche</span>
+        <span>{t('trigger')}</span>
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Sauvegarder cette recherche</DialogTitle>
-            <DialogDescription>
-              Retrouvez ces filtres dans votre espace personnel pour les
-              relancer en un clic.
-            </DialogDescription>
+            <DialogTitle>{t('dialogTitle')}</DialogTitle>
+            <DialogDescription>{t('dialogBodyFull')}</DialogDescription>
           </DialogHeader>
 
           {savedId ? (
@@ -138,10 +147,7 @@ export function SaveSearchButton({
               <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center mb-3">
                 <Check className="w-5 h-5 text-emerald-600" />
               </div>
-              <p className="text-sm text-stone-700 mb-4">
-                Recherche sauvegardée. Retrouvez-la dans vos recherches
-                sauvegardées.
-              </p>
+              <p className="text-sm text-stone-700 mb-4">{t('savedFull')}</p>
               <Button
                 variant="outline"
                 onClick={() => {
@@ -149,18 +155,18 @@ export function SaveSearchButton({
                   router.push('/app/saved-searches');
                 }}
               >
-                Voir mes recherches
+                {t('viewMine')}
               </Button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="saved-search-name">Nom</Label>
+                <Label htmlFor="saved-search-name">{t('nameLabel')}</Label>
                 <Input
                   id="saved-search-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ex. Appartement Plateau à louer"
+                  placeholder={t('namePlaceholder')}
                   maxLength={100}
                   required
                 />
@@ -176,16 +182,16 @@ export function SaveSearchButton({
                   onClick={() => setOpen(false)}
                   disabled={create.isPending}
                 >
-                  Annuler
+                  {t('cancel')}
                 </Button>
                 <Button type="submit" disabled={create.isPending}>
                   {create.isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                      Enregistrement…
+                      {t('saving')}
                     </>
                   ) : (
-                    'Enregistrer'
+                    t('save')
                   )}
                 </Button>
               </DialogFooter>

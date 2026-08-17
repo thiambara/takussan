@@ -554,6 +554,157 @@
         "reserve": "Réserver",
         "apply": "Postuler"
       }
+    },
+    "reviews": {
+      "title": "Avis",
+      "countSuffix": "{count} avis",
+      "loading": "Chargement des avis…",
+      "empty": "Aucun avis pour l'instant.",
+      "notEligible": "Vous pourrez laisser un avis après une visite finalisée ou la signature d'un bail sur ce bien.",
+      "alreadyReviewed": "Merci, vous avez déjà laissé un avis sur ce bien.",
+      "agentReply": "Réponse de l'agent",
+      "edit": "Modifier",
+      "reply": "Répondre",
+      "form": {
+        "ratingRequired": "Merci de choisir une note.",
+        "sendError": "Erreur lors de l'envoi.",
+        "aria": "Laisser un avis",
+        "title": "Laisser un avis",
+        "ratingAria": "Note sur 5",
+        "titlePlaceholder": "Titre (optionnel)",
+        "thanks": "Merci pour votre retour.",
+        "contentTooShort": "Votre commentaire doit contenir au moins {min} caractères.",
+        "contentPlaceholder": "Votre avis (min. {min} caractères)",
+        "charsLeft": "{count, plural, =1 {Encore # caractère minimum.} other {Encore # caractères minimum.}}"
+      },
+      "replyForm": {
+        "editTitle": "Modifier ma réponse",
+        "newTitle": "Répondre à cet avis",
+        "editSubmit": "Modifier ma réponse",
+        "newSubmit": "Répondre publiquement",
+        "placeholder": "Répondez de manière claire et professionnelle…",
+        "contentAria": "Contenu de la réponse",
+        "cancel": "Annuler",
+        "publish": "Publier la réponse",
+        "sending": "Envoi…",
+        "save": "Enregistrer"
+      }
+    },
+    "report": {
+      "reasons": {
+        "misleading": "Annonce trompeuse",
+        "inappropriate": "Contenu inapproprié",
+        "spam": "Spam",
+        "fraud": "Arnaque / fraude",
+        "other": "Autre"
+      },
+      "trigger": "Signaler cette annonce",
+      "loginTitle": "Connexion requise",
+      "loginBody": "Connectez-vous pour signaler cette annonce.",
+      "cancel": "Annuler",
+      "signIn": "Se connecter",
+      "dialogTitle": "Signaler cette annonce",
+      "dialogBody": "Aidez-nous à maintenir la qualité de la plateforme.",
+      "sent": "Signalement envoyé. Merci !",
+      "reasonLabel": "Motif",
+      "detailsLabel": "Détails (optionnel)",
+      "detailsPlaceholder": "Précisez les éléments problématiques…",
+      "dialogBodyFull": "Aidez-nous à maintenir la qualité de la plateforme. Notre équipe examinera votre signalement.",
+      "sending": "Envoi…",
+      "submit": "Signaler"
+    },
+    "visitDialog": {
+      "types": {
+        "in_person": {
+          "label": "En personne",
+          "description": "Visite accompagnée du propriétaire ou de l'agent."
+        },
+        "virtual": {
+          "label": "Virtuelle",
+          "description": "Visioconférence depuis chez vous."
+        },
+        "self_guided": {
+          "label": "Autonome",
+          "description": "Vous récupérez les clés sur place."
+        },
+        "hybrid": {
+          "label": "Hybride",
+          "description": "Première visio puis visite physique."
+        }
+      },
+      "pickDate": "Choisir une date",
+      "loginTitle": "Connectez-vous pour visiter",
+      "loginBody": "Vous devez être connecté pour demander une visite.",
+      "cancel": "Annuler",
+      "signIn": "Se connecter",
+      "title": "Demander une visite",
+      "description": "Choisissez une date et un créneau — le propriétaire confirmera rapidement.",
+      "dateLabel": "Date",
+      "timeLabel": "Heure",
+      "noSlotsToday": "Plus de créneau disponible aujourd'hui — choisissez une autre date.",
+      "typeLegend": "Type de visite",
+      "typeSelected": "{label} sélectionné",
+      "notesLabel": "Message",
+      "notesOptional": "(optionnel)",
+      "notesPlaceholder": "Précisions pour le propriétaire…",
+      "sending": "Envoi…",
+      "submit": "Demander la visite"
+    },
+    "reservation": {
+      "offer": {
+        "dialogTitle": "Faire une offre",
+        "loginTitle": "Connectez-vous pour faire une offre",
+        "loginBody": "Vous devez être connecté pour soumettre une offre.",
+        "submit": "Envoyer l'offre"
+      },
+      "reserve": {
+        "dialogTitle": "Réserver ce bien",
+        "loginTitle": "Connectez-vous pour réserver",
+        "loginBody": "Vous devez être connecté pour faire une demande de réservation.",
+        "submit": "Envoyer la demande"
+      },
+      "apply": {
+        "dialogTitle": "Postuler à ce bien",
+        "loginTitle": "Connectez-vous pour postuler",
+        "loginBody": "Vous devez être connecté pour soumettre votre dossier de location.",
+        "submit": "Envoyer ma candidature"
+      },
+      "cancel": "Annuler",
+      "signIn": "Se connecter",
+      "sending": "Envoi…",
+      "booking": {
+        "description": "Précisez vos dates et le nombre d'invités. Le propriétaire confirmera votre demande.",
+        "checkIn": "Arrivée",
+        "checkInPlaceholder": "Date d'arrivée",
+        "checkOut": "Départ",
+        "checkOutPlaceholder": "Date de départ",
+        "guests": "Invités",
+        "message": "Message (optionnel)",
+        "messagePlaceholder": "Présentez-vous, expliquez votre projet…",
+        "nightsLine": "{price} × {count, plural, =1 {# nuit} other {# nuits}}",
+        "estimatedTotal": "Total estimé"
+      },
+      "offerForm": {
+        "invalidAmount": "Montant invalide.",
+        "description": "Prix d'affichage : {price}. Le propriétaire examinera votre offre avant son expiration.",
+        "amount": "Montant proposé ({currency})",
+        "validity": "Validité de l'offre",
+        "expiryPlaceholder": "Date d'expiration",
+        "message": "Message (optionnel)",
+        "messagePlaceholder": "Précisez les conditions ou le contexte de votre offre…",
+        "termsBefore": "J'ai lu et j'accepte les",
+        "termsLink": "conditions générales",
+        "termsAfter": "d'utilisation pour la soumission d'une offre d'achat."
+      }
+    },
+    "moderation": {
+      "pendingTitle": "En attente de validation",
+      "pendingBody": "Votre bien est en cours d'examen par l'administrateur de votre agence. Il sera publié dès qu'il sera approuvé.",
+      "rejectedTitle": "Publication refusée",
+      "resubmit": "Corriger et resoumettre",
+      "resubmitError": "Erreur lors de la resoumission. Veuillez réessayer.",
+      "approvedTitle": "Bien approuvé et publié",
+      "approvedOn": "Approuvé le {date}"
     }
   },
   "dashboard": {
@@ -790,6 +941,14 @@
       "cta": "Comparer ({count})",
       "removeAria": "Retirer le bien #{id} du comparateur",
       "clearAria": "Vider le comparateur"
+    },
+    "button": {
+      "full": "Retirez un bien pour en ajouter un autre.",
+      "added": "Ajouté au comparateur",
+      "remove": "Retirer du comparateur",
+      "add": "Ajouter au comparateur",
+      "maxTitle": "Maximum {max} biens",
+      "addedBody": "{count} / {max} biens sélectionnés."
     }
   },
   "crm": {
@@ -1224,7 +1383,9 @@
   },
   "favorites": {
     "button": {
-      "aria": "Mes favoris"
+      "aria": "Mes favoris",
+      "remove": "Retirer des favoris",
+      "add": "Ajouter aux favoris"
     },
     "popover": {
       "title": "Mes favoris",
@@ -1264,7 +1425,9 @@
       "empty_title": "Aucune recherche sauvegardée",
       "empty_description": "Depuis la page de résultats, cliquez sur « Sauvegarder la recherche » pour la retrouver ici.",
       "empty_cta": "Lancer une recherche",
-      "error": "Impossible de charger vos recherches. Vérifiez votre connexion, puis réessayez."
+      "error": "Impossible de charger vos recherches. Vérifiez votre connexion, puis réessayez.",
+      "noCriteria": "Aucun critère",
+      "relaunch": "Relancer"
     },
     "results": {
       "empty_title": "Aucun bien trouvé",
@@ -1345,6 +1508,24 @@
       "aria": "Pagination",
       "previous": "Page précédente",
       "next": "Page suivante"
+    },
+    "saveSearch": {
+      "defaultName": "Ma recherche",
+      "invalidName": "Nom invalide.",
+      "error": "Impossible de sauvegarder la recherche.",
+      "trigger": "Sauvegarder la recherche",
+      "dialogTitle": "Sauvegarder cette recherche",
+      "dialogBody": "Retrouvez ces filtres dans votre espace personnel.",
+      "saved": "Recherche sauvegardée. Retrouvez-la dans votre espace.",
+      "viewMine": "Voir mes recherches",
+      "nameLabel": "Nom",
+      "namePlaceholder": "Ex. Appartement Plateau à louer",
+      "cancel": "Annuler",
+      "saving": "Enregistrement…",
+      "dialogBodyFull": "Retrouvez ces filtres dans votre espace personnel pour les relancer en un clic.",
+      "savedFull": "Recherche sauvegardée. Retrouvez-la dans vos recherches sauvegardées.",
+      "save": "Enregistrer",
+      "bedroomsShort": "{count} ch"
     }
   },
   "wizardDrafts": {
@@ -2321,7 +2502,11 @@
       "no_property_description": "Commencez par choisir un bien à réserver depuis le catalogue.",
       "not_found_title": "Bien introuvable",
       "not_found_description": "Le bien demandé n'existe plus ou n'est plus disponible.",
-      "browse_cta": "Parcourir les biens"
+      "browse_cta": "Parcourir les biens",
+      "metaTitle": "Réserver un bien — Takussan",
+      "metaDescription": "Tunnel de réservation sécurisé Takussan.",
+      "title": "Réserver ce bien",
+      "subtitle": "Quelques étapes rapides pour envoyer votre demande."
     }
   },
   "visits": {
@@ -2426,6 +2611,27 @@
       "empty_title": "Aucun avis reçu pour ces critères",
       "empty_description": "Les nouveaux avis approuvés apparaîtront ici.",
       "error": "Impossible de charger les avis reçus."
+    }
+  },
+  "contact": {
+    "whatsapp": {
+      "error": "Impossible de récupérer les infos de contact. Veuillez réessayer.",
+      "cta": "Contacter via WhatsApp",
+      "aria": "Contacter le propriétaire de {title} via WhatsApp",
+      "connecting": "Connexion..."
+    }
+  },
+  "share": {
+    "linkCopied": "Lien copié",
+    "share": "Partager"
+  },
+  "reviews": {
+    "cta": {
+      "aria": "Laisser un avis",
+      "title": "Partagez votre expérience",
+      "body": "Votre retour aide les prochains locataires à choisir en confiance.",
+      "forProperty": "Avis pour",
+      "action": "Laisser un avis"
     }
   }
 }

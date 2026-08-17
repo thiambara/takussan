@@ -578,6 +578,157 @@
         "reserve": "Book",
         "apply": "Apply"
       }
+    },
+    "reviews": {
+      "title": "Reviews",
+      "countSuffix": "{count} reviews",
+      "loading": "Loading reviews…",
+      "empty": "No reviews yet.",
+      "notEligible": "You will be able to leave a review after a completed visit or a signed lease on this property.",
+      "alreadyReviewed": "Thank you, you have already reviewed this property.",
+      "agentReply": "Agent reply",
+      "edit": "Edit",
+      "reply": "Reply",
+      "form": {
+        "ratingRequired": "Please choose a rating.",
+        "sendError": "Sending failed.",
+        "aria": "Leave a review",
+        "title": "Leave a review",
+        "ratingAria": "Rating out of 5",
+        "titlePlaceholder": "Title (optional)",
+        "thanks": "Thank you for your feedback.",
+        "contentTooShort": "Your comment must be at least {min} characters.",
+        "contentPlaceholder": "Your review (min. {min} characters)",
+        "charsLeft": "{count, plural, =1 {# more character needed.} other {# more characters needed.}}"
+      },
+      "replyForm": {
+        "editTitle": "Edit my reply",
+        "newTitle": "Reply to this review",
+        "editSubmit": "Update my reply",
+        "newSubmit": "Reply publicly",
+        "placeholder": "Reply clearly and professionally…",
+        "contentAria": "Reply content",
+        "cancel": "Cancel",
+        "publish": "Publish reply",
+        "sending": "Sending…",
+        "save": "Save"
+      }
+    },
+    "report": {
+      "reasons": {
+        "misleading": "Misleading listing",
+        "inappropriate": "Inappropriate content",
+        "spam": "Spam",
+        "fraud": "Scam / fraud",
+        "other": "Other"
+      },
+      "trigger": "Report this listing",
+      "loginTitle": "Sign-in required",
+      "loginBody": "Sign in to report this listing.",
+      "cancel": "Cancel",
+      "signIn": "Sign in",
+      "dialogTitle": "Report this listing",
+      "dialogBody": "Help us keep the platform's quality up.",
+      "sent": "Report sent. Thank you!",
+      "reasonLabel": "Reason",
+      "detailsLabel": "Details (optional)",
+      "detailsPlaceholder": "Specify what is problematic…",
+      "dialogBodyFull": "Help us keep the platform's quality up. Our team will review your report.",
+      "sending": "Sending…",
+      "submit": "Report"
+    },
+    "visitDialog": {
+      "types": {
+        "in_person": {
+          "label": "In person",
+          "description": "Guided visit with the owner or the agent."
+        },
+        "virtual": {
+          "label": "Virtual",
+          "description": "Video call from home."
+        },
+        "self_guided": {
+          "label": "Self-guided",
+          "description": "You pick up the keys on site."
+        },
+        "hybrid": {
+          "label": "Hybrid",
+          "description": "First a video call, then an on-site visit."
+        }
+      },
+      "pickDate": "Pick a date",
+      "loginTitle": "Sign in to visit",
+      "loginBody": "You must be signed in to request a visit.",
+      "cancel": "Cancel",
+      "signIn": "Sign in",
+      "title": "Request a visit",
+      "description": "Pick a date and a slot — the owner will confirm shortly.",
+      "dateLabel": "Date",
+      "timeLabel": "Time",
+      "noSlotsToday": "No slot left today — pick another date.",
+      "typeLegend": "Visit type",
+      "typeSelected": "{label} selected",
+      "notesLabel": "Message",
+      "notesOptional": "(optional)",
+      "notesPlaceholder": "Details for the owner…",
+      "sending": "Sending…",
+      "submit": "Request the visit"
+    },
+    "reservation": {
+      "offer": {
+        "dialogTitle": "Make an offer",
+        "loginTitle": "Sign in to make an offer",
+        "loginBody": "You must be signed in to submit an offer.",
+        "submit": "Send the offer"
+      },
+      "reserve": {
+        "dialogTitle": "Book this property",
+        "loginTitle": "Sign in to book",
+        "loginBody": "You must be signed in to request a booking.",
+        "submit": "Send the request"
+      },
+      "apply": {
+        "dialogTitle": "Apply for this property",
+        "loginTitle": "Sign in to apply",
+        "loginBody": "You must be signed in to submit your rental application.",
+        "submit": "Send my application"
+      },
+      "cancel": "Cancel",
+      "signIn": "Sign in",
+      "sending": "Sending…",
+      "booking": {
+        "description": "Give your dates and the number of guests. The owner will confirm your request.",
+        "checkIn": "Check-in",
+        "checkInPlaceholder": "Check-in date",
+        "checkOut": "Check-out",
+        "checkOutPlaceholder": "Check-out date",
+        "guests": "Guests",
+        "message": "Message (optional)",
+        "messagePlaceholder": "Introduce yourself, explain your plans…",
+        "nightsLine": "{price} × {count, plural, =1 {# night} other {# nights}}",
+        "estimatedTotal": "Estimated total"
+      },
+      "offerForm": {
+        "invalidAmount": "Invalid amount.",
+        "description": "Listed price: {price}. The owner will review your offer before it expires.",
+        "amount": "Offer amount ({currency})",
+        "validity": "Offer validity",
+        "expiryPlaceholder": "Expiry date",
+        "message": "Message (optional)",
+        "messagePlaceholder": "Specify the terms or context of your offer…",
+        "termsBefore": "I have read and accept the",
+        "termsLink": "terms and conditions",
+        "termsAfter": "of use for submitting a purchase offer."
+      }
+    },
+    "moderation": {
+      "pendingTitle": "Awaiting approval",
+      "pendingBody": "Your property is being reviewed by your agency's administrator. It will go live as soon as it is approved.",
+      "rejectedTitle": "Publication rejected",
+      "resubmit": "Fix and resubmit",
+      "resubmitError": "Resubmission failed. Please try again.",
+      "approvedTitle": "Property approved and published",
+      "approvedOn": "Approved on {date}"
     }
   },
   "dashboard": {
@@ -814,6 +965,14 @@
       "cta": "Compare ({count})",
       "removeAria": "Remove property #{id} from the comparator",
       "clearAria": "Clear comparator"
+    },
+    "button": {
+      "full": "Remove a property to add another one.",
+      "added": "Added to the comparison",
+      "remove": "Remove from the comparison",
+      "add": "Add to the comparison",
+      "maxTitle": "Maximum {max} properties",
+      "addedBody": "{count} / {max} properties selected."
     }
   },
   "crm": {
@@ -1224,7 +1383,9 @@
   },
   "favorites": {
     "button": {
-      "aria": "My favorites"
+      "aria": "My favorites",
+      "remove": "Remove from favourites",
+      "add": "Add to favourites"
     },
     "popover": {
       "title": "My favorites",
@@ -1264,7 +1425,9 @@
       "empty_title": "No saved search",
       "empty_description": "From the results page, click “Save this search” to find it back here.",
       "empty_cta": "Start a search",
-      "error": "Could not load your searches. Check your connection, then try again."
+      "error": "Could not load your searches. Check your connection, then try again.",
+      "noCriteria": "No criteria",
+      "relaunch": "Run again"
     },
     "results": {
       "empty_title": "No property found",
@@ -1345,6 +1508,24 @@
       "aria": "Pagination",
       "previous": "Previous page",
       "next": "Next page"
+    },
+    "saveSearch": {
+      "defaultName": "My search",
+      "invalidName": "Invalid name.",
+      "error": "The search could not be saved.",
+      "trigger": "Save the search",
+      "dialogTitle": "Save this search",
+      "dialogBody": "Find these filters again in your personal space.",
+      "saved": "Search saved. Find it in your space.",
+      "viewMine": "View my searches",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. Apartment in Plateau to rent",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "dialogBodyFull": "Find these filters in your personal space to run them again in one click.",
+      "savedFull": "Search saved. Find it in your saved searches.",
+      "save": "Save",
+      "bedroomsShort": "{count} bd"
     }
   },
   "wizardDrafts": {
@@ -2321,7 +2502,11 @@
       "no_property_description": "Start by picking a property to book from the catalogue.",
       "not_found_title": "Property not found",
       "not_found_description": "The requested property no longer exists or is no longer available.",
-      "browse_cta": "Browse properties"
+      "browse_cta": "Browse properties",
+      "metaTitle": "Book a property — Takussan",
+      "metaDescription": "Takussan's secure booking flow.",
+      "title": "Book this property",
+      "subtitle": "A few quick steps to send your request."
     }
   },
   "visits": {
@@ -2426,6 +2611,27 @@
       "empty_title": "No review for these criteria",
       "empty_description": "Newly approved reviews will show up here.",
       "error": "The received reviews could not be loaded."
+    }
+  },
+  "contact": {
+    "whatsapp": {
+      "error": "Could not retrieve the contact details. Please try again.",
+      "cta": "Contact on WhatsApp",
+      "aria": "Contact the owner of {title} on WhatsApp",
+      "connecting": "Connecting…"
+    }
+  },
+  "share": {
+    "linkCopied": "Link copied",
+    "share": "Share"
+  },
+  "reviews": {
+    "cta": {
+      "aria": "Leave a review",
+      "title": "Share your experience",
+      "body": "Your feedback helps the next tenants choose with confidence.",
+      "forProperty": "Review for",
+      "action": "Leave a review"
     }
   }
 }

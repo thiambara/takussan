@@ -143,35 +143,42 @@ conversion. 7 fichiers de test mockent `next-intl` en entier et devront exposer 
 `wave3/i18n`. Le statut est `doing` parce que le lot B lui-même est **partiel**, pas seulement
 parce que la branche n'est pas mergée.
 
-### Lot B — surface publique : 132 / 363 occurrences
+### Lot B — surface publique : 272 / 363 occurrences
 
 Le ticket annonçait 60 fichiers / 407 occurrences pour ce lot ; l'inventaire repris à la source à
 l'ouverture de la branche en donne **54 / 363** (TCK-291 en avait résorbé une partie, et
 `app/(public)/playground/` relève du lot L).
 
-**Fait — 28 fichiers à zéro :**
+**Fait — 46 fichiers à zéro**, dont l'intégralité de `components/property/`,
+`components/search/`, `app/(public)/properties/[slug]/components/`, et tout le petit parc
+(`favorites`, `compare`, `map`, `share`, `contact`, `reviews`, `home`).
 
-- `components/property/` et `components/property/cards/` (7 fichiers, 20 occ.)
-- `components/search/` (4 fichiers, 55 occ., dont `SearchFilters.tsx` **supprimé** : aucun
-  importeur dans tout `src`, même raisonnement que les 4 fichiers `layout/` du Delta)
-- `app/(public)/properties/[slug]/components/` (17 fichiers sur 22, 57 occ.)
+**Reste — 8 fichiers, 91 occurrences**, et elles ne se valent pas :
 
-**Reste — 26 fichiers, 231 occurrences :**
+| Fichier | Occ. | Nature |
+|---|---:|---|
+| `components/property-form/PropertyForm.tsx` | 57 | vrai reste |
+| `app/(public)/agencies/[slug]/page.tsx` | 11 | vrai reste |
+| `app/(public)/agents/[slug]/page.tsx` | 10 | vrai reste |
+| `components/property-form/options.ts` | 8 | **bloqué, cf. ci-dessous** |
+| `components/agents/ZoneMultiSelect.tsx` | 2 | faux positif (noms de lieux) |
+| `…/PropertyLocationMapInner.tsx`, `map/LocationPickerMap.tsx` | 1 + 1 | faux positifs (balisage) |
+| `…/PropertyContactMessageDialog.tsx` | 1 | faux positif (honeypot) |
 
-| Fichier | Occ. |
-|---|---:|
-| `components/property-form/PropertyForm.tsx` | 57 |
-| `app/(public)/properties/[slug]/components/PropertyReservationDialog.tsx` | 36 |
-| `app/(public)/properties/[slug]/components/PropertyVisitDialog.tsx` | 22 |
-| `app/(public)/properties/[slug]/components/PropertyReportButton.tsx` | 14 |
-| `components/favorites/SaveSearchButton.tsx` | 12 |
-| `app/(public)/agencies/[slug]/page.tsx` | 11 |
-| `app/(public)/agents/[slug]/page.tsx` | 10 |
-| `…/PropertyReviewReplyForm.tsx`, `…/PropertyReviews.tsx` | 9 + 9 |
-| `components/property-form/options.ts`, `PropertyModerationBanner.tsx` | 8 + 7 |
-| `…/PropertyReviewForm.tsx` | 7 |
-| `components/reviews/LeaveReviewCta.tsx` | 5 |
-| 13 fichiers à 1–4 occurrences | 22 |
+**Soit 78 occurrences de vrai reste, et 5 qui ne doivent pas être traduites du tout.**
+
+#### `property-form/options.ts` est bloqué par le découpage en lots, pas par sa difficulté
+
+Ce module vit dans le lot B, mais ses six tables de libellés sont importées par **une dizaine de
+fichiers des lots C et D** — `property-dashboard/` (4 fichiers), `admin/super/`, `profile/`,
+`customer-form/`. Le convertir au patron « la donnée porte la clé » oblige à toucher tous ses
+consommateurs dans le même commit, donc à mélanger trois lots.
+
+**C'est une limite du découpage, pas un imprévu de ce fichier** : *les douze lots sont disjoints
+par fichier, mais le code ne l'est pas par dépendance.* Le cas se reproduira — `customer-form/
+options.ts`, `components/*/labels.ts`, `documents/constants.ts` ont la même forme. Deux issues
+possibles, à trancher : un lot « vocabulaire partagé » traité en premier et hors découpage, ou
+l'acceptation que certains commits croisent les lots quand un module partagé l'impose.
 
 ### Lots C à L
 

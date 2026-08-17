@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,7 @@ export const REVIEW_CONTENT_MIN = 10;
 export const REVIEW_CONTENT_MAX = 2000;
 
 export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormProps) {
+  const t = useTranslations('property.reviews.form');
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [title, setTitle] = useState('');
@@ -27,11 +29,11 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     if (rating < 1) {
-      setError('Merci de choisir une note.');
+      setError(t('ratingRequired'));
       return;
     }
     if (contentLength < REVIEW_CONTENT_MIN) {
-      setError(`Votre commentaire doit contenir au moins ${REVIEW_CONTENT_MIN} caractères.`);
+      setError(t('contentTooShort', { min: REVIEW_CONTENT_MIN }));
       return;
     }
     setError(null);
@@ -46,7 +48,7 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
       setTitle('');
       setContent('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de l’envoi.');
+      setError(err instanceof Error ? err.message : t('sendError'));
     } finally {
       setPending(false);
     }
@@ -58,12 +60,12 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
     <form
       onSubmit={handleSubmit}
       className="rounded-xl border border-stone-200 bg-white p-4 space-y-3"
-      aria-label="Laisser un avis"
+      aria-label={t('aria')}
     >
-      <p className="font-medium text-stone-900">Laisser un avis</p>
+      <p className="font-medium text-stone-900">{t('title')}</p>
       <div
         role="radiogroup"
-        aria-label="Note sur 5"
+        aria-label={t('ratingAria')}
         className="flex items-center gap-1"
         onMouseLeave={() => setHover(0)}
       >
@@ -89,14 +91,14 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
       </div>
       <Input
         type="text"
-        placeholder="Titre (optionnel)"
+        placeholder={t('titlePlaceholder')}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         maxLength={120}
       />
       <div className="space-y-1">
         <Textarea
-          placeholder={`Votre avis (min. ${REVIEW_CONTENT_MIN} caractères)`}
+          placeholder={t('contentPlaceholder', { min: REVIEW_CONTENT_MIN })}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={3}
@@ -109,10 +111,8 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
         >
           <span>
             {contentLength < REVIEW_CONTENT_MIN
-              ? `Encore ${REVIEW_CONTENT_MIN - contentLength} caractère${
-                  REVIEW_CONTENT_MIN - contentLength > 1 ? 's' : ''
-                } minimum.`
-              : 'Merci pour votre retour.'}
+              ? t('charsLeft', { count: REVIEW_CONTENT_MIN - contentLength })
+              : t('thanks')}
           </span>
           <span>
             {contentLength}/{REVIEW_CONTENT_MAX}

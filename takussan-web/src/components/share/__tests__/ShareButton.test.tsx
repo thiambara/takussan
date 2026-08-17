@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+// `withIntl` charge le VRAI `fr.json` : depuis TCK-292 le libellé par défaut de `ShareButton`
+// vient du dictionnaire (il était codé en dur dans la signature). Assertions inchangées.
+import { withIntl } from '@/test/intl';
 import { ShareButton } from '../ShareButton';
 
 describe('<ShareButton>', () => {
@@ -34,9 +37,7 @@ describe('<ShareButton>', () => {
   });
 
   it('renders a share trigger with the provided label', () => {
-    render(
-      <ShareButton url="https://takussan.sn/properties/foo" title="Villa Dakar" />,
-    );
+    render(withIntl(<ShareButton url="https://takussan.sn/properties/foo" title="Villa Dakar" />));
     expect(
       screen.getByRole('button', { name: /partager/i }),
     ).toBeInTheDocument();
@@ -46,9 +47,7 @@ describe('<ShareButton>', () => {
     const user = userEvent.setup();
     const spy = vi.spyOn(navigator.clipboard, 'writeText');
 
-    render(
-      <ShareButton url="https://takussan.sn/x" title="Villa" />,
-    );
+    render(withIntl(<ShareButton url="https://takussan.sn/x" title="Villa" />));
     await user.click(screen.getByRole('button'));
 
     await waitFor(() => {
@@ -66,13 +65,11 @@ describe('<ShareButton>', () => {
     });
 
     const user = userEvent.setup();
-    render(
-      <ShareButton
+    render(withIntl(<ShareButton
         url="https://takussan.sn/y"
         title="Studio Plateau"
         text="Regarde ce bien"
-      />,
-    );
+      />));
     await user.click(screen.getByRole('button'));
     await waitFor(() => {
       expect(shareSpy).toHaveBeenCalledWith({

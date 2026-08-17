@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { NextIntlClientProvider } from 'next-intl';
+import { withIntl } from '@/test/intl';
 import { FavoriteButton } from '../FavoriteButton';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
@@ -23,11 +23,9 @@ function wrap(ui: React.ReactElement) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return (
-    <NextIntlClientProvider locale="fr" messages={{}}>
-      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
-    </NextIntlClientProvider>
-  );
+  // `withIntl` charge le VRAI `fr.json` : depuis TCK-292 l'aria-label passe par next-intl, et
+  // `messages={{}}` rendrait la CLÉ. Les assertions françaises sont inchangées.
+  return withIntl(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
 describe('<FavoriteButton>', () => {
