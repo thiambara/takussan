@@ -45,7 +45,6 @@ class OwnerProfileController extends Controller
      */
     public function uploadKyc(UploadKycOwnerProfileRequest $request, OwnerProfile $owner_profile): JsonResponse
     {
-        $this->assertOwner($request, $owner_profile);
 
         $validated = $request->validated();
 

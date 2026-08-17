@@ -38,14 +38,10 @@ class UserRoleController extends Controller
 {
     public function update(UpdateUserRoleRequest $request, User $user): JsonResponse
     {
+        // TCK-305 — l'autorisation court dans UpdateUserRoleRequest::authorize(), donc AVANT la
+        // validation : un appel non autorisé ET mal formé doit rendre 403, pas 422.
         $actor = $request->user();
         $actorAgencyId = $request->activeProfile()?->agency_id ?? $actor->agency_id;
-
-        abort_unless(
-            $actor->isSuperAdmin()
-                || ($actorAgencyId !== null && $actor->isAgencyAdminAt((int) $actorAgencyId)),
-            403,
-        );
 
         $data = $request->validated();
 

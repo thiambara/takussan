@@ -30,7 +30,6 @@ class PropertyMediaController extends Controller
 
     public function store(StorePropertyMediaRequest $request, Property $property): JsonResponse
     {
-        $this->authorize('update', $property);
 
         $added = [];
         foreach ($request->file('photos', []) as $photo) {
@@ -66,7 +65,6 @@ class PropertyMediaController extends Controller
 
     public function reorder(ReorderPropertyMediaRequest $request, Property $property): JsonResponse
     {
-        $this->authorize('update', $property);
 
         $data = $request->validated();
 

@@ -232,7 +232,6 @@ class InventoryController extends Controller
 
     public function dispute(DisputeInventoryRequest $request, Inventory $inventory): JsonResponse
     {
-        $this->authorize('view', $inventory);
 
         $data = $request->validated();
 
@@ -245,7 +244,6 @@ class InventoryController extends Controller
 
     public function uploadRoomPhotos(UploadRoomPhotosInventoryRequest $request, Inventory $inventory): JsonResponse
     {
-        $this->authorize('update', $inventory);
 
         foreach ($request->file('photos') as $photo) {
             $inventory->addMedia($photo)

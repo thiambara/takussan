@@ -53,7 +53,6 @@ class AgentProfileController extends Controller
      */
     public function uploadKyc(UploadKycAgentProfileRequest $request, AgentProfile $agent_profile): JsonResponse
     {
-        $this->assertOwner($request, $agent_profile);
 
         $validated = $request->validated();
 
@@ -172,7 +171,6 @@ class AgentProfileController extends Controller
      */
     public function updateSpecialization(UpdateSpecializationAgentProfileRequest $request, AgentProfile $agent_profile): JsonResponse
     {
-        $this->assertOwner($request, $agent_profile);
 
         $validated = $request->validated();
 

@@ -34,7 +34,6 @@ class ThresholdAlertController extends Controller
     public function store(StoreThresholdAlertRequest $request): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user->isSuperAdmin() || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)), 403);
 
         $validated = $request->validated();
 
@@ -52,7 +51,6 @@ class ThresholdAlertController extends Controller
 
     public function update(UpdateThresholdAlertRequest $request, ThresholdAlert $thresholdAlert): JsonResponse
     {
-        $this->authorizeAgency($request->user(), $thresholdAlert);
 
         $validated = $request->validated();
 

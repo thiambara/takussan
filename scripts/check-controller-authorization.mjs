@@ -100,7 +100,7 @@ const EXEMPTIONS_JUSTIFIEES = new Map([
   ],
 
   // ───────────────────────────────────────────────────────────────────────────
-  // HORS PÉRIMÈTRE DE TCK-306 — 19 helpers dans 15 contrôleurs, et c'est une
+  // HORS PÉRIMÈTRE DE TCK-306 — 17 helpers dans 14 contrôleurs, et c'est une
   // DETTE MESURÉE, pas une tolérance.
   //
   // TCK-306 a inventorié « les contrôleurs qui définissent `authorizeAccess()`
@@ -120,13 +120,18 @@ const EXEMPTIONS_JUSTIFIEES = new Map([
   // COMPTABLES : la garde bloque tout helper NOUVEAU, et cette liste dit
   // exactement ce qui reste, à qui reprendra le chantier.
   //
-  // Mesuré le 2026-08-17. Chaque entrée retirée est un helper migré.
+  // Mesuré le 2026-08-17 : 19 helpers. **17 depuis le correctif du 403 (TCK-305)** —
+  // `BookingPaymentController::authorizeBookingManage` et
+  // `LeasePaymentController::authorizeLeaseManage` n'avaient plus d'appelant une fois
+  // l'autorisation portée dans `authorize()`, et ont été supprimés. C'est la garde qui l'a
+  // dit, en refusant deux exemptions devenues mortes.
+  //
+  // Chaque entrée retirée est un helper migré.
   // ───────────────────────────────────────────────────────────────────────────
   ...[
     'Api/Agency/KycController.php::authorizeAgencyAdmin',
     'Api/AgencyController.php::authorizeAdmin',
     'Api/BookingPaymentController.php::authorizeBookingAccess',
-    'Api/BookingPaymentController.php::authorizeBookingManage',
     'Api/CustomerNoteController.php::authorizeCustomerAccess',
     'Api/DocumentPdfController.php::authorizeReceipt',
     'Api/DocumentPdfController.php::authorizeInvoice',
@@ -135,7 +140,6 @@ const EXEMPTIONS_JUSTIFIEES = new Map([
     'Api/KpiConfigController.php::authorizeAgency',
     'Api/KycDocumentController.php::authorizeDocument',
     'Api/LeasePaymentController.php::authorizeLeaseAccess',
-    'Api/LeasePaymentController.php::authorizeLeaseManage',
     'Api/Me/TenantOnboardingChecklistController.php::authorizeTenant',
     'Api/MediaController.php::authorizeAttach',
     'Api/PaymentController.php::authorizeBookingManage',

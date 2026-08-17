@@ -59,12 +59,9 @@ class IntegrationController extends Controller
 
     public function update(UpdateIntegrationRequest $request, Integration $integration): JsonResponse
     {
+        // TCK-305 — l'autorisation court dans UpdateIntegrationRequest::authorize(), donc AVANT la
+        // validation : un appel non autorisé ET mal formé doit rendre 403, pas 422.
         $user = $request->user();
-
-        abort_unless(
-            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $integration->agency_id && $user->isAgencyAdminAt((int) $integration->agency_id)),
-            403
-        );
 
         $data = $request->validated();
 

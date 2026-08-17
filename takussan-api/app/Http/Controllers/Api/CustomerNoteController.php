@@ -26,7 +26,6 @@ class CustomerNoteController extends Controller
 
     public function store(StoreCustomerNoteRequest $request, Customer $customer): JsonResponse
     {
-        $this->authorizeCustomerAccess($request, $customer);
 
         $data = $request->validated();
 

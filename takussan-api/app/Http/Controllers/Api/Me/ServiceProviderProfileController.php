@@ -8,9 +8,7 @@ use App\Http\Requests\Api\Me\UpdateTradesServiceProviderProfileRequest;
 use App\Http\Requests\Api\Me\UploadKycServiceProviderProfileRequest;
 use App\Models\Document;
 use App\Models\Profiles\ServiceProviderProfile;
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 /**
@@ -46,7 +44,6 @@ class ServiceProviderProfileController extends Controller
      */
     public function uploadKyc(UploadKycServiceProviderProfileRequest $request, ServiceProviderProfile $sp_profile): JsonResponse
     {
-        $this->assertOwner($request, $sp_profile);
 
         $validated = $request->validated();
 
@@ -119,7 +116,6 @@ class ServiceProviderProfileController extends Controller
      */
     public function updateTrades(UpdateTradesServiceProviderProfileRequest $request, ServiceProviderProfile $sp_profile): JsonResponse
     {
-        $this->assertOwner($request, $sp_profile);
 
         $validated = $request->validated();
 
@@ -165,7 +161,6 @@ class ServiceProviderProfileController extends Controller
      */
     public function updateAvailability(UpdateAvailabilityServiceProviderProfileRequest $request, ServiceProviderProfile $sp_profile): JsonResponse
     {
-        $this->assertOwner($request, $sp_profile);
 
         $validated = $request->validated();
 
@@ -185,25 +180,6 @@ class ServiceProviderProfileController extends Controller
                 'available_slots' => $slots,
             ],
         ]);
-    }
-
-    /**
-     * Authorize : only the SP profile owner (or super_admin) may write.
-     */
-    protected function assertOwner(Request $request, ServiceProviderProfile $sp_profile): void
-    {
-        $user = $request->user();
-        if ($user === null) {
-            abort(401);
-        }
-
-        if (method_exists($user, 'isSuperAdmin') && $user->isSuperAdmin()) {
-            return;
-        }
-
-        if ((int) $sp_profile->user_id !== (int) $user->id) {
-            throw new AuthorizationException(__('service_providers.onboarding.errors.not_owner'));
-        }
     }
 
     /**

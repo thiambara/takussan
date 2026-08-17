@@ -12,7 +12,6 @@ class PropertyAddressController extends Controller
 {
     public function upsert(UpsertPropertyAddressRequest $request, Property $property): JsonResponse
     {
-        $this->authorize('update', $property);
 
         $data = $request->validated();
 

@@ -154,7 +154,6 @@ class MaintenanceRequestController extends Controller
 
     public function update(UpdateMaintenanceRequestRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
-        $this->authorize('update', $maintenanceRequest);
 
         $data = $request->validated();
 
@@ -167,7 +166,6 @@ class MaintenanceRequestController extends Controller
 
     public function updateStatus(UpdateStatusMaintenanceRequestRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
-        $this->authorize('update', $maintenanceRequest);
 
         $data = $request->validated();
 
@@ -181,7 +179,6 @@ class MaintenanceRequestController extends Controller
 
     public function complete(CompleteMaintenanceRequestRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
-        $this->authorize('update', $maintenanceRequest);
 
         $data = $request->validated();
 
@@ -201,7 +198,6 @@ class MaintenanceRequestController extends Controller
 
     public function uploadPhotos(UploadPhotosMaintenanceRequestRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
-        $this->authorize('view', $maintenanceRequest);
 
         // Block uploads on terminal states — a closed or cancelled request
         // should not accept new photos (prevents abuse and keeps the audit

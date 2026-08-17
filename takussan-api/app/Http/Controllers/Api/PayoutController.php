@@ -63,7 +63,6 @@ class PayoutController extends Controller
 
     public function markProcessed(MarkProcessedPayoutRequest $request, Payout $payout): JsonResponse
     {
-        $this->authorize('update', $payout);
 
         $data = $request->validated();
 
@@ -76,7 +75,6 @@ class PayoutController extends Controller
 
     public function markFailed(MarkFailedPayoutRequest $request, Payout $payout): JsonResponse
     {
-        $this->authorize('update', $payout);
 
         $data = $request->validated();
 

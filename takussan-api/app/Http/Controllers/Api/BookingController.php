@@ -74,7 +74,6 @@ class BookingController extends Controller
 
     public function cancel(CancelBookingRequest $request, Booking $booking): JsonResponse
     {
-        $this->authorize('view', $booking);
 
         $data = $request->validated();
 
@@ -87,7 +86,6 @@ class BookingController extends Controller
 
     public function reject(RejectBookingRequest $request, Booking $booking): JsonResponse
     {
-        $this->authorize('update', $booking);
 
         $data = $request->validated();
 

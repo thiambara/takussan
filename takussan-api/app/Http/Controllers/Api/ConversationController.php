@@ -154,10 +154,8 @@ class ConversationController extends Controller
      */
     public function update(UpdateConversationRequest $request, Conversation $conversation, GroupConversationService $groups): JsonResponse
     {
-        $this->ensureParticipant($request, $conversation);
 
         $user = $request->user();
-        abort_unless($user->can('rename', $conversation), 403, __('messaging.errors.admin_only'));
 
         $data = $request->validated();
 
@@ -178,7 +176,6 @@ class ConversationController extends Controller
      */
     public function toggleMute(ToggleMuteConversationRequest $request, Conversation $conversation, GroupConversationService $groups): JsonResponse
     {
-        $this->ensureParticipant($request, $conversation);
 
         $data = $request->validated();
 
@@ -206,7 +203,6 @@ class ConversationController extends Controller
 
     public function messages(MessagesConversationRequest $request, Conversation $conversation): JsonResponse
     {
-        $this->ensureParticipant($request, $conversation);
 
         // TCK — cursor pagination. The history is paged via `before_id` (load
         // older messages on scroll-up); `after_id` is used by the live-polling
@@ -247,7 +243,6 @@ class ConversationController extends Controller
 
     public function sendMessage(SendMessageConversationRequest $request, Conversation $conversation): JsonResponse
     {
-        $this->ensureParticipant($request, $conversation);
 
         $data = $request->validated();
 

@@ -79,7 +79,6 @@ class CustomerController extends Controller
 
     public function update(UpdateCustomerRequest $request, Customer $customer): JsonResponse
     {
-        $this->authorize('view', $customer);
 
         $data = $request->validated();
 
@@ -121,7 +120,6 @@ class CustomerController extends Controller
 
     public function setPrimaryContact(SetPrimaryContactCustomerRequest $request, Customer $customer): JsonResponse
     {
-        $this->authorize('view', $customer);
 
         $data = $request->validated();
 
@@ -176,7 +174,6 @@ class CustomerController extends Controller
 
     public function updatePipelineStage(UpdatePipelineStageCustomerRequest $request, Customer $customer): JsonResponse
     {
-        $this->authorize('view', $customer);
 
         $data = $request->validated();
 

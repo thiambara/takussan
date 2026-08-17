@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Enums\SettingScope;
 
 /**
  * TCK-305 — extrait de SettingController::update(), où les règles étaient écrites en ligne.
@@ -15,13 +16,32 @@ use App\Http\Requests\BaseFormRequest;
 class UpdateSettingRequest extends BaseFormRequest
 {
     /**
-     * L'autorisation NE migre PAS ici : elle appartient au contrôleur puis aux policies
-     * (principes non négociables 1 et 2, et TCK-306). `BaseFormRequest` refuse par défaut —
-     * *fail-closed* — donc sans cette surcharge l'endpoint rendrait 403 pour tout le monde.
+     * TCK-305 — l'autorisation court ICI, avant la validation.
+     *
+     * Le contrôleur autorisait avant de valider ; un FormRequest valide avant le corps du
+     * contrôleur, ce qui rendait 422 là où l'API rendait 403 pour un appel à la fois non
+     * autorisé et mal formé. `authorize()` rétablit l'ordre d'origine.
+     *
+     * ⚠ **REPRISE, pas délégation** : cette règle n'est pas encore dans une policy — elle fait
+     * partie des 19 helpers relevés hors périmètre de TCK-306. L'expression est reproduite à
+     * l'identique ; son domicile définitif est une policy, et le ticket de suite doit la
+     * convertir en délégation comme les 35 autres.
      */
     public function authorize(): bool
     {
-        return true;
+        $user = $this->user();
+        $setting = $this->route('setting');
+
+        if ($user === null) {
+            return false;
+        }
+
+        if ($setting->scope === SettingScope::Global) {
+            return $user->isSuperAdmin();
+        }
+
+        return $user->isSuperAdmin()
+            || ($user->agency_id !== null && $user->agency_id === $setting->scope_id && $user->isAgencyAdminAt((int) $setting->scope_id));
     }
 
     /** @return array<string, mixed> */

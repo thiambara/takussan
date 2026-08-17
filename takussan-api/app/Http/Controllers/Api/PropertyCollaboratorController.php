@@ -25,7 +25,6 @@ class PropertyCollaboratorController extends Controller
 
     public function store(StorePropertyCollaboratorRequest $request, Property $property): JsonResponse
     {
-        $this->authorize('update', $property);
 
         $data = $request->validated();
 
@@ -48,7 +47,6 @@ class PropertyCollaboratorController extends Controller
 
     public function update(UpdatePropertyCollaboratorRequest $request, Property $property, PropertyCollaborator $collaborator): JsonResponse
     {
-        $this->authorize('update', $property);
         abort_if($collaborator->property_id !== $property->id, 404);
 
         $data = $request->validated();

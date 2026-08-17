@@ -126,16 +126,52 @@ validation aurait vu son 404 devenir un 422. La résolution est mémoïsée : il
 Après correction, un script instancie les **122** classes et évalue `rules()` : **120 sans aucune
 levée**, les 2 autres levant `ModelNotFoundException` — le 404 attendu, hors contexte de route.
 
-### ⚠️ Le changement de comportement à arbitrer : 66 sites autorisaient AVANT de valider
+### Le 403 → 422 : arbitré, corrigé, et épinglé
 
-La validation d'un FormRequest court **avant** le corps du contrôleur. Les 66 sites qui appelaient
-`authorizeManage()` / `abort_unless()` en tête de méthode voient donc l'ordre s'inverser : un appel
-**à la fois non autorisé et mal formé** rend désormais **422 là où il rendait 403**.
+La validation d'un FormRequest court **avant** le corps du contrôleur. **65 méthodes** autorisaient
+d'abord ; elles se sont donc mises à rendre **422 au lieu de 403** pour un appel à la fois non
+autorisé et mal formé. Hors contrat (« mêmes codes de réponse »), fuite d'information (noms de
+champs, contraintes, énumérations livrés à qui n'a aucun droit) et rupture de contrat pour le front,
+qui distingue « je n'ai pas le droit » de « ma saisie est mauvaise ».
 
-C'est une conséquence directe de tenir AC1 (« plus aucun `validate()` dans un contrôleur ») **et**
-AC4 (« aucune règle d'autorisation n'a migré vers `authorize()` ») en même temps : les deux
-ensemble imposent que la validation précède l'autorisation. Aucun test de la suite ne l'observe —
-163 fichiers de test assertent 403/401, tous verts — mais un vert n'est pas une autorisation :
-c'est une décision à prendre, et TCK-306 la déplace de nouveau.
+**Corrigé** : l'autorisation passe dans `authorize()`, qui s'exécute avant la validation.
 
-Les 54 autres sites n'autorisaient pas avant de valider : pour eux, l'ordre est inchangé.
+- **35 des 65 sont de simples DÉLÉGATIONS** — `$this->user()?->can('update', $this->route('x'))` —
+  et la règle reste dans sa policy : **AC4 est tenu à la lettre**, aucune règle ne migre.
+- **30 sont des REPRISES** : leur règle n'est pas encore dans une policy (ce sont les helpers
+  relevés hors périmètre de TCK-306). L'expression est reproduite à l'identique, et les trois
+  partagées entre classes sœurs vivent dans `Concerns\AuthorizesTransitionally`, un trait qui
+  **annonce sa propre péremption** — le ticket de suite doit les convertir en délégations.
+
+**Le vrai défaut n'était pas l'inversion : c'est que RIEN ne l'observait.** 163 fichiers de test
+assertaient 403/401, tous verts, et pas un ne postait un corps invalide en même temps.
+`tests/Feature/Validation/AuthorizationPrecedesValidationTest.php` épingle les quatre mécanismes —
+18 tests, chaque refus doublé de son versant « autorisé → 422 » pour qu'un `authorize()` qui
+refuserait tout le monde ne puisse pas le rendre vert. Non-vacuité prouvée par 4 ablations, toutes
+rouges sur `Expected response status code [403] but received 422`.
+
+### ⚠️ Le défaut que ce correctif a lui-même introduit, et ce qui l'a trouvé
+
+La première passe retirait l'instruction d'autorisation par un `replace(count=1)` sur le **fichier
+entier** : elle a donc retiré la **première occurrence du texte**, pas celle de la méthode visée.
+**24 vérifications d'autorisation** ont ainsi disparu de méthodes que la table ne nommait pas —
+`show()`, `confirm()`, `destroy()`, `publish()`, `activate()`… Le résultat n'était pas un 422 à la
+place d'un 403 : c'était un **200**.
+
+**Deux tests l'ont vu, sur 24.** Les 22 autres étaient des trous muets. Ce qui les a trouvés est un
+script d'audit qui confronte, méthode par méthode, les instructions d'autorisation d'avant et
+d'après, et refuse tout retrait dans une méthode absente de la table. Les contrôleurs ont été
+ramenés à `HEAD` et le retrait rejoué **borné au corps de la méthode**. Second audit : **0
+anomalie**.
+
+*Sur un lot où l'erreur ouvre une porte, un test qui passe ne dit rien de ce qu'on n'a pas testé.
+La preuve doit venir d'un inventaire, pas d'une couleur.*
+
+### Ce qui reste inversé, et qui n'était pas demandé
+
+**25 instructions dans 22 méthodes** rendaient **401, 404 ou 422** avant la validation et se
+trouvent, elles aussi, après. Exemples : `abort_unless(Flag::tryFrom($key), 404)` sur les feature
+flags, `abort_unless($payment->booking, 404)`, la 422 « OAuth provider is not configured ». Un slug
+inconnu accompagné d'un corps fautif rend donc 422 au lieu de 404.
+
+Non corrigé — l'arbitrage portait sur le 403. Relevé ici pour être décidé, pas oublié.

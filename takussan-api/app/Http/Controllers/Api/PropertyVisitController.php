@@ -94,7 +94,6 @@ class PropertyVisitController extends Controller
 
     public function update(UpdatePropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
-        $this->authorize('update', $visit);
         abort_if(
             in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true),
             422,
@@ -147,7 +146,6 @@ class PropertyVisitController extends Controller
 
     public function complete(CompletePropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
-        $this->authorize('update', $visit);
         abort_unless(
             in_array($visit->status, [VisitStatus::Scheduled, VisitStatus::Confirmed], true),
             422,
@@ -166,7 +164,6 @@ class PropertyVisitController extends Controller
 
     public function cancel(CancelPropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
-        $this->authorize('view', $visit);
         abort_if(
             in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true),
             422,
@@ -208,7 +205,6 @@ class PropertyVisitController extends Controller
      */
     public function feedback(FeedbackPropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
-        $this->authorize('view', $visit);
 
         abort_unless(
             $visit->status === VisitStatus::Completed,

@@ -69,7 +69,6 @@ class ConversationParticipantController extends Controller
     public function update(UpdateConversationParticipantRequest $request, Conversation $conversation, User $user): JsonResponse
     {
         $actor = $request->user();
-        abort_unless($actor->can('promote', $conversation), 403, __('messaging.errors.admin_only'));
 
         $data = $request->validated();
 

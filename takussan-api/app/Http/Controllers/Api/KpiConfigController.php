@@ -38,7 +38,6 @@ class KpiConfigController extends Controller
     public function store(StoreKpiConfigRequest $request): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user->isSuperAdmin() || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)), 403);
 
         $validated = $request->validated();
 
@@ -59,7 +58,6 @@ class KpiConfigController extends Controller
     public function update(UpdateKpiConfigRequest $request, KpiConfig $kpiConfig): JsonResponse
     {
         $user = $request->user();
-        $this->authorizeAgency($user, $kpiConfig);
 
         $validated = $request->validated();
 

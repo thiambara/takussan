@@ -37,7 +37,6 @@ class SavedSearchController extends Controller
 
     public function update(UpdateSavedSearchRequest $request, SavedSearch $savedSearch): JsonResponse
     {
-        abort_unless($savedSearch->user_id === $request->user()->id, 403);
 
         $data = $request->validated();
 

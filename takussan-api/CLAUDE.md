@@ -197,18 +197,40 @@ Il n'y a plus de validation en ligne dans un contrôleur, et `scripts/check-inli
    constante dans le FormRequest et la faire relire par le contrôleur (`XRequest::LA_CONSTANTE`)
    est la sortie propre : une `private const` de contrôleur n'est pas une source partageable.
 2. **La validation d'un FormRequest court AVANT le corps du contrôleur.** Si l'action vérifiait
-   quelque chose avant de valider — un `firstOrFail()`, un `authorizeManage()` — l'ordre s'inverse
-   et le code de réponse change dans le cas croisé. **66 des 120 sites** autorisaient avant de
-   valider : pour eux, un appel à la fois non autorisé et mal formé rend désormais 422 là où il
-   rendait 403. Quand l'ordre compte vraiment, résoudre dans le FormRequest lui-même — c'est ce que
-   fait `Public\PublicPropertySlugRequest`, qui garde le 404 avant le 422.
+   quelque chose avant de valider — un `firstOrFail()`, un `authorizeManage()` — l'ordre s'inverse,
+   et le code de réponse change dans le cas croisé.
+
+   **C'est arrivé sur 65 méthodes, et c'est corrigé.** Elles autorisaient avant de valider ; le
+   déplacement leur a fait rendre **422 au lieu de 403** pour un appel à la fois non autorisé et mal
+   formé. Hors contrat (« mêmes codes de réponse »), et un renseignement gratuit — noms de champs,
+   contraintes, énumérations — offert à qui n'a aucun droit sur la ressource.
+
+   **La règle, désormais : si l'action autorisait avant de valider, l'autorisation va dans
+   `authorize()`**, qui s'exécute avant la validation. Pour 35 des 65, c'est une simple
+   **délégation** — `$this->user()?->can('update', $this->route('property')) === true` — et la règle
+   reste dans sa policy. Les 30 autres portent des règles qui ne sont pas encore dans une policy :
+   elles sont **reprises** dans `authorize()`, et les trois qui étaient partagées entre classes
+   sœurs vivent dans `App\Http\Requests\Concerns\AuthorizesTransitionally` — un trait qui annonce
+   sa propre péremption, à convertir en délégations par le ticket qui migrera les 17 helpers hors
+   périmètre de TCK-306.
+
+   ⚠️ **Le vrai défaut n'était pas l'inversion, c'est que RIEN ne l'observait** : 163 fichiers de
+   test assertaient 403 ou 401, tous verts, et pas un ne postait un corps invalide en même temps.
+   `tests/Feature/Validation/AuthorizationPrecedesValidationTest.php` épingle désormais les quatre
+   mécanismes, chaque cas doublé de son versant « autorisé → 422 » pour qu'un `authorize()` qui
+   refuserait tout le monde ne puisse pas le rendre vert.
+
+   Quand c'est un **404** qui doit primer, même principe : résoudre dans le FormRequest — c'est ce
+   que fait `Public\PublicPropertySlugRequest`, qui garde le 404 avant le 422.
 
 `BaseFormRequest` apporte deux choses qu'on ne veut pas réécrire :
 
 - `authorize()` retourne **`false`** par défaut — *fail-closed*, chaque sous-classe doit surcharger.
-  ⚠ **L'autorisation ne migre PAS dans `authorize()` pour autant** : elle appartient au contrôleur
-  puis aux policies (principes non négociables 1 et 2, TCK-306). `authorize()` y retourne `true` ;
-  ce défaut à `false` existe pour qu'un oubli refuse au lieu d'ouvrir ;
+  ⚠ **La RÈGLE d'autorisation ne migre pas ici, son INVOCATION oui** : la règle appartient aux
+  policies (principes non négociables 1 et 2, TCK-306), et `authorize()` ne fait que l'appeler —
+  c'est ce qui rétablit l'ordre autorisation-puis-validation (cf. piège 2 ci-dessus). Un
+  `authorize()` qui retourne `true` sec ne se justifie que sur un endpoint dont le contrôleur
+  n'autorisait rien avant de valider ;
 - `prepareForValidation()` normalise récursivement : trim de toutes les chaînes, chaîne vide →
   `null`. ⚠ **C'est un changement de comportement pour les 120 endpoints convergés** : un champ
   `nullable` recevant `""` livre désormais `null` là où il livrait `""`. La suite ne l'a pas vu

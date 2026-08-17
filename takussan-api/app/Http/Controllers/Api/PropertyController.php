@@ -198,7 +198,6 @@ class PropertyController extends Controller
 
     public function updateStatus(UpdateStatusPropertyRequest $request, Property $property): JsonResponse
     {
-        $this->authorize('update', $property);
 
         $data = $request->validated();
 
@@ -224,7 +223,6 @@ class PropertyController extends Controller
 
     public function updateVisibility(UpdateVisibilityPropertyRequest $request, Property $property): JsonResponse
     {
-        $this->authorize('update', $property);
 
         $data = $request->validated();
 
@@ -238,7 +236,6 @@ class PropertyController extends Controller
 
     public function assignAgent(AssignAgentPropertyRequest $request, Property $property): JsonResponse
     {
-        $this->authorize('update', $property);
 
         $data = $request->validated();
 

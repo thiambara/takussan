@@ -29,7 +29,6 @@ class LeasePaymentController extends Controller
 
     public function store(StoreLeasePaymentRequest $request, Lease $lease): JsonResponse
     {
-        $this->authorizeLeaseManage($request, $lease);
 
         $data = $request->validated();
 
@@ -44,7 +43,6 @@ class LeasePaymentController extends Controller
     {
         $payment->loadMissing('lease');
         abort_unless($payment->lease, 404);
-        $this->authorizeLeaseManage($request, $payment->lease);
 
         $data = $request->validated();
 
@@ -62,16 +60,6 @@ class LeasePaymentController extends Controller
             || $lease->landlord_id === $user->id
             || ($user->agency_id && $user->agency_id === $lease->agency_id)
             || ($lease->tenant && $lease->tenant->user_id === $user->id);
-
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizeLeaseManage(Request $request, Lease $lease): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $lease->landlord_id === $user->id
-            || ($user->agency_id && $user->agency_id === $lease->agency_id);
 
         abort_unless($ok, 403);
     }

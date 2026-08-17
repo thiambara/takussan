@@ -150,7 +150,6 @@ class AgencyController extends Controller
 
     public function addAgent(AddAgentAgencyRequest $request, Agency $agency): JsonResponse
     {
-        $this->authorizeAdmin($request, $agency);
         app(QuotaResolver::class)->assertCanAddAgent($agency);
 
         $data = $request->validated();

@@ -38,7 +38,6 @@ class TagController extends Controller
 
     public function store(StoreTagRequest $request): JsonResponse
     {
-        $this->authorizeWrite($request);
 
         $data = $request->validated();
 
@@ -61,7 +60,6 @@ class TagController extends Controller
 
     public function update(UpdateTagRequest $request, Tag $tag): JsonResponse
     {
-        $this->authorizeWrite($request);
 
         $data = $request->validated();
 

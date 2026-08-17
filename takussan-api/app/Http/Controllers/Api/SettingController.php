@@ -70,17 +70,9 @@ class SettingController extends Controller
 
     public function update(UpdateSettingRequest $request, Setting $setting): JsonResponse
     {
+        // TCK-305 — les deux branches d'autorisation (portée globale vs portée agence) courent
+        // dans UpdateSettingRequest::authorize(), donc AVANT la validation.
         $user = $request->user();
-
-        if ($setting->scope === SettingScope::Global) {
-            abort_unless($user->isSuperAdmin(), 403);
-        } else {
-            abort_unless(
-                $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $setting->scope_id && $user->isAgencyAdminAt((int) $setting->scope_id)),
-                403
-            );
-        }
-
         $data = $request->validated();
 
         $setting->update([

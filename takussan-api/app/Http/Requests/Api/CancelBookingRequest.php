@@ -15,13 +15,18 @@ use App\Http\Requests\BaseFormRequest;
 class CancelBookingRequest extends BaseFormRequest
 {
     /**
-     * L'autorisation NE migre PAS ici : elle appartient au contrôleur puis aux policies
-     * (principes non négociables 1 et 2, et TCK-306). `BaseFormRequest` refuse par défaut —
-     * *fail-closed* — donc sans cette surcharge l'endpoint rendrait 403 pour tout le monde.
+     * TCK-305 — l'autorisation court ICI, avant la validation.
+     *
+     * Le contrôleur autorisait avant de valider ; un FormRequest valide avant le corps du
+     * contrôleur, ce qui rendait 422 là où l'API rendait 403 pour un appel à la fois non
+     * autorisé et mal formé. `authorize()` rétablit l'ordre d'origine.
+     *
+     * **Simple DÉLÉGATION** : la règle vit dans sa policy, cette méthode ne fait que l'invoquer —
+     * aucune règle d'autorisation n'a migré ici (AC4).
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('view', $this->route('booking')) === true;
     }
 
     /** @return array<string, mixed> */

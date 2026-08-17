@@ -32,7 +32,6 @@ class BookingPaymentController extends Controller
 
     public function store(StoreBookingPaymentRequest $request, Booking $booking): JsonResponse
     {
-        $this->authorizeBookingManage($request, $booking);
 
         $data = $request->validated();
 
@@ -90,7 +89,6 @@ class BookingPaymentController extends Controller
     {
         $payment->loadMissing('booking');
         abort_unless($payment->booking, 404);
-        $this->authorizeBookingManage($request, $payment->booking);
 
         $data = $request->validated();
 
@@ -109,20 +107,6 @@ class BookingPaymentController extends Controller
             || $booking->created_by_id === $user->id
             || ($property && $property->user_id === $user->id)
             || ($user->agency_id && $user->agency_id === $booking->agency_id)
-            || ($booking->customer && $booking->customer->user_id === $user->id);
-
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizeBookingManage(Request $request, Booking $booking): void
-    {
-        $user = $request->user();
-        $property = $booking->property;
-        $ok = $user->isSuperAdmin()
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $user->agency_id === $booking->agency_id)
-            // TCK-172 — the customer creates their own pending payment so the
-            // gateway checkout flow can be initiated from /app/bookings/[id].
             || ($booking->customer && $booking->customer->user_id === $user->id);
 
         abort_unless($ok, 403);

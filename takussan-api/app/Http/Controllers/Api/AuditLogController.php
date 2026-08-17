@@ -59,13 +59,11 @@ class AuditLogController extends Controller
 
     public function index(IndexAuditLogRequest $request): JsonResponse
     {
+        // TCK-305 — l'autorisation court dans IndexAuditLogRequest::authorize(), donc AVANT la
+        // validation : un appel non autorisé ET mal formé doit rendre 403, pas 422.
         $authedUser = $request->user();
         // TCK-104 — `agency_admin` can browse the audit dashboard scoped
         // to their own agency. `admin` is preserved for legacy clients.
-        abort_unless(
-            $authedUser->isSuperAdmin() || ($authedUser->agency_id !== null && $authedUser->isAgencyAdminAt((int) $authedUser->agency_id)),
-            403
-        );
         AgencyKindGuard::ensureStandardForNonGlobal(
             $authedUser,
             $request->activeProfile()?->agency_id ?? $authedUser->agency_id,

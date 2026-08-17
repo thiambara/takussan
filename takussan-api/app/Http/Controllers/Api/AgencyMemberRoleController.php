@@ -27,17 +27,9 @@ class AgencyMemberRoleController extends Controller
 {
     public function update(UpdateAgencyMemberRoleRequest $request, Agency $agency, User $user): JsonResponse
     {
+        // TCK-305 — l'autorisation court dans UpdateAgencyMemberRoleRequest::authorize(), donc AVANT la
+        // validation : un appel non autorisé ET mal formé doit rendre 403, pas 422.
         $actor = $request->user();
-
-        abort_unless(
-            $actor->isSuperAdmin()
-                || $agency->primary_admin_id === $actor->id
-                || (
-                    $request->activeProfile()?->agency_id === $agency->id
-                    && $actor->isAgencyAdminAt((int) $agency->id)
-                ),
-            403,
-        );
 
         abort_unless(
             $user->isAgentAt($agency->id)

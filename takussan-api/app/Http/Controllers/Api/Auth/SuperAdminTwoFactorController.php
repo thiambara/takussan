@@ -93,8 +93,9 @@ class SuperAdminTwoFactorController extends Controller
      */
     public function confirm(ConfirmSuperAdminTwoFactorRequest $request): JsonResponse
     {
+        // TCK-305 — l'autorisation court dans ConfirmSuperAdminTwoFactorRequest::authorize(), donc AVANT la
+        // validation : un appel non autorisé ET mal formé doit rendre 403, pas 422.
         $user = $request->user();
-        $this->assertCooptedSuperAdmin($user);
 
         abort_unless(
             $user->two_factor_secret !== null,

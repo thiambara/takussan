@@ -52,7 +52,6 @@ class GuarantorController extends Controller
 
     public function update(UpdateGuarantorRequest $request, Guarantor $guarantor): JsonResponse
     {
-        $this->authorize('view', $guarantor);
 
         $data = $request->validated();
 

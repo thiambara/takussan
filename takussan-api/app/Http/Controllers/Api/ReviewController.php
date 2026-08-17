@@ -10,8 +10,6 @@ use App\Http\Requests\Api\StoreForAgencyReviewRequest;
 use App\Http\Requests\Api\StoreForPropertyReviewRequest;
 use App\Http\Resources\ReviewResource;
 use App\Models\Agency;
-use App\Models\Enums\BookingStatus;
-use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\ReviewStatus;
 use App\Models\Property;
 use App\Models\Review;
@@ -118,7 +116,6 @@ class ReviewController extends Controller
      */
     public function moderate(ModerateReviewRequest $request, Review $review): JsonResponse
     {
-        abort_unless($request->user()->isSuperAdmin() || ($request->user()->agency_id !== null && $request->user()->isAgencyAdminAt((int) $request->user()->agency_id)), 403);
 
         $data = $request->validated();
 
@@ -193,20 +190,10 @@ class ReviewController extends Controller
     {
         $user = $request->user();
 
-        $hasCompletedBooking = $property->bookings()
-            ->whereIn('status', [BookingStatus::Completed, BookingStatus::Confirmed])
-            ->whereHas('customer', fn ($q) => $q->where('user_id', $user->id))
-            ->exists();
-        $hasLease = $property->leases()
-            ->whereIn('status', [LeaseStatus::Active, LeaseStatus::Terminated, LeaseStatus::Expired])
-            ->whereHas('tenant', fn ($q) => $q->where('user_id', $user->id))
-            ->exists();
-        abort_unless(
-            $hasCompletedBooking || $hasLease || $user->isSuperAdmin(),
-            403,
-            'Only customers with a completed booking or lease can review this property.'
-        );
-
+        // TCK-305 — l'éligibilité (réservation honorée ou bail) court dans
+        // StoreForPropertyReviewRequest::authorize(), donc AVANT la validation : un appel non
+        // éligible ET mal formé doit rendre 403, pas 422. Le 422 ci-dessous reste ici — « déjà
+        // noté » n'est pas un refus d'accès mais un état métier.
         $alreadyReviewed = $property->reviews()->where('author_id', $user->id)->exists();
         abort_if($alreadyReviewed, 422, 'You have already reviewed this property.');
 
@@ -256,7 +243,6 @@ class ReviewController extends Controller
         $ok = $user->isSuperAdmin()
             || ($reviewable && isset($reviewable->user_id) && $reviewable->user_id === $user->id)
             || ($user->agency_id && isset($reviewable->agency_id) && $reviewable->agency_id === $user->agency_id);
-        abort_unless($ok, 403);
 
         // Rejected is a terminal state: no public-facing view, no reply.
         // Reply is not a ReviewStatus transition so assertTransition() does
@@ -313,15 +299,7 @@ class ReviewController extends Controller
     {
         $user = $request->user();
 
-        $hasInteraction = $agency->leases()
-            ->whereHas('tenant', fn ($q) => $q->where('user_id', $user->id))
-            ->exists();
-        abort_unless(
-            $hasInteraction || $user->isSuperAdmin(),
-            403,
-            'Only customers with a completed transaction can review this agency.'
-        );
-
+        // TCK-305 — même raison que dans storeForProperty() ci-dessus.
         $alreadyReviewed = $agency->reviews()->where('author_id', $user->id)->exists();
         abort_if($alreadyReviewed, 422, 'You have already reviewed this agency.');
 

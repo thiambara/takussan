@@ -96,7 +96,6 @@ class LeaseController extends Controller
 
     public function terminate(TerminateLeaseRequest $request, Lease $lease): JsonResponse
     {
-        $this->authorize('update', $lease);
 
         $data = $request->validated();
 
@@ -121,7 +120,6 @@ class LeaseController extends Controller
      */
     public function attachGuarantor(AttachGuarantorLeaseRequest $request, Lease $lease): JsonResponse
     {
-        $this->authorize('update', $lease);
 
         $data = $request->validated();
 
