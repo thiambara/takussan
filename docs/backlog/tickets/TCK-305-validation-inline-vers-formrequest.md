@@ -167,6 +167,29 @@ anomalie**.
 *Sur un lot où l'erreur ouvre une porte, un test qui passe ne dit rien de ce qu'on n'a pas testé.
 La preuve doit venir d'un inventaire, pas d'une couleur.*
 
+### Le contrat de normalisation des entrées — épinglé, et une correction à mon compte
+
+`BaseFormRequest::prepareForValidation()` trim les chaînes et transforme `""` en `null`,
+récursivement. TCK-305 ayant fait passer 120 validations en ligne à cette classe, j'avais annoncé
+« un changement de comportement pour les 120 endpoints convergés ».
+
+**C'était faux.** Laravel monte `TrimStrings` et `ConvertEmptyStringsToNull` en middleware
+**global** ; `bootstrap/app.php` ne les retire pas, et tous deux traversent les tableaux imbriqués.
+Les endpoints qui validaient en ligne recevaient donc **déjà** des chaînes trimées et des `""`
+convertis en `null` : **TCK-305 n'a rien changé sur ce point.** J'avais déduit le comportement de
+la lecture de `BaseFormRequest`, sans regarder ce qui court avant elle.
+
+Le contrat est désormais épinglé par
+`tests/Feature/Validation/BaseFormRequestNormalizationTest.php` — 4 tests, dont un cas imbriqué,
+qui visent la **propriété observable** et non l'une des deux implémentations. Trois ablations le
+prouvent : `prepareForValidation()` seul retiré → 4 verts ; middleware global seul retiré →
+4 verts ; **les deux** retirés → **4 rouges**.
+
+Un défaut **préexistant** est figé au passage : `saved_searches.notification_frequency` est
+`NOT NULL` avec défaut, alors que sa règle est `nullable` — envoyer `""` produit un **500**.
+Vérifié identique avant le déplacement ; corriger la colonne ou la règle est une décision produit
+qui n'appartient pas à ce ticket.
+
 ### Ce qui reste inversé, et qui n'était pas demandé
 
 **25 instructions dans 22 méthodes** rendaient **401, 404 ou 422** avant la validation et se

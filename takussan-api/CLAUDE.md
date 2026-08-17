@@ -232,9 +232,22 @@ Il n'y a plus de validation en ligne dans un contrôleur, et `scripts/check-inli
   `authorize()` qui retourne `true` sec ne se justifie que sur un endpoint dont le contrôleur
   n'autorisait rien avant de valider ;
 - `prepareForValidation()` normalise récursivement : trim de toutes les chaînes, chaîne vide →
-  `null`. ⚠ **C'est un changement de comportement pour les 120 endpoints convergés** : un champ
-  `nullable` recevant `""` livre désormais `null` là où il livrait `""`. La suite ne l'a pas vu
-  rougir, mais c'est un contrat, pas un détail de forme.
+  `null`.
+
+  ⚠ **Ce n'est PAS un changement de comportement, et j'avais écrit le contraire ici.** Laravel monte
+  `TrimStrings` et `ConvertEmptyStringsToNull` en middleware **global**
+  (`Illuminate\Foundation\Configuration\Middleware`, lignes 461-462) ; `bootstrap/app.php` ne les
+  retire pas, et tous deux traversent les tableaux imbriqués. Les deux mécanismes sont donc
+  **redondants**, et les endpoints qui validaient en ligne recevaient déjà des chaînes trimées et
+  des `""` convertis en `null`. **TCK-305 n'a rien changé sur ce point.**
+
+  Mesuré par trois ablations, parce que la première ne permettait pas de conclure : retirer
+  `prepareForValidation()` seul → **4 verts** ; retirer le middleware global seul → **4 verts** ;
+  retirer **les deux** → **4 rouges**. *Une ablation qui laisse vert ne prouve pas que le
+  mécanisme est inutile — elle prouve qu'un autre le couvre, et il faut alors chercher lequel.*
+
+  Le contrat est épinglé par `tests/Feature/Validation/BaseFormRequestNormalizationTest.php`, qui
+  vise la **propriété observable** et non l'une des deux implémentations.
 
 La validation d'enum passe par `Rule::enum(XEnum::class)`. `app/Rules/` contient 4 règles
 réutilisables (`PhoneRule`, `StrongPasswordRule`, `DateRangeRule`, `CurrencyRule`) — peu utilisées,
