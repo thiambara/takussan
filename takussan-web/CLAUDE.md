@@ -188,9 +188,17 @@ remappe les erreurs 422 de Laravel sur les champs RHF — y compris les clés im
 
 - **Parité des clés `fr`/`en`/`wo`** — contrôle EXACT. `en` est tenu à **0 clé manquante** ; `wo`
   traîne 88 clés manquantes préexistantes, sous cliquet décroissant.
-- **Cliquet PAR FICHIER sur le texte en dur** — `scripts/i18n-baseline.json`, produit par scan AST.
-  Un compte qui monte échoue ; un fichier neuf portant du texte échoue ; un compte qui descend
-  échoue tant qu'on n'a pas lancé `--update`.
+- **Cliquet PAR FICHIER sur le texte en dur** — `scripts/i18n-baseline.json`, produit par le scan
+  de `scripts/i18n-scan.mjs`. Un compte qui monte échoue ; un fichier neuf portant du texte échoue ;
+  un compte qui descend échoue tant qu'on n'a pas lancé `--update`.
+
+> ⚠️ **Ce scan est un lexeur TS/TSX écrit DANS le dépôt, sans dépendance, et c'est une décision**
+> (TCK-323, ardoise D-55). Il employait l'API compilateur de TypeScript ; `typescript@7` — le
+> portage Go, en `dist-tag: latest` — ne l'exporte plus côté Node, et la garde est morte le jour du
+> bump, **pendant que `tsc --noEmit` et `next build` restaient verts tous les deux**. Rebrancher
+> sur un autre analyseur tiers aurait reproduit la même exposition un nom de paquet plus loin.
+> L'équivalence avec l'ancienne version est **mesurée**, pas déduite : mêmes 3 542 occurrences sur
+> les 409 fichiers concernés, une à une, et les 21 cas de `i18n-scan.test.ts` inchangés.
 
 > ⚠️ **La règle « le front possède le texte affiché » reste une intention sur l'essentiel du parc**
 > (dette D-24). Les chiffres ne s'écrivent PAS ici — ils bougent à chaque commit et une version
