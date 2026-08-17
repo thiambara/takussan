@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Flag } from 'lucide-react';
 import {
@@ -26,15 +27,17 @@ interface PropertyReportButtonProps {
   slug: string;
 }
 
-const REASONS: Array<{ value: ReportPayload['reason']; label: string }> = [
-  { value: 'spam', label: 'Spam' },
-  { value: 'misleading', label: 'Annonce trompeuse' },
-  { value: 'fraud', label: 'Arnaque / fraude' },
-  { value: 'inappropriate_content', label: 'Contenu inapproprié' },
-  { value: 'other', label: 'Autre' },
+const REASON_KEYS: Array<{ value: ReportPayload['reason']; cle: string }> = [
+  { value: 'spam', cle: 'spam' },
+  { value: 'misleading', cle: 'misleading' },
+  { value: 'fraud', cle: 'fraud' },
+  { value: 'inappropriate_content', cle: 'inappropriate' },
+  { value: 'other', cle: 'other' },
 ];
 
 export function PropertyReportButton({ slug }: PropertyReportButtonProps) {
+  const t = useTranslations('property.report');
+  const REASONS = REASON_KEYS.map((r) => ({ value: r.value, label: t(`reasons.${r.cle}`) }));
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [showAuthGate, setShowAuthGate] = useState(false);
@@ -75,27 +78,25 @@ export function PropertyReportButton({ slug }: PropertyReportButtonProps) {
         className="inline-flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-700 transition-colors"
       >
         <Flag className="size-3.5" aria-hidden />
-        Signaler cette annonce
+        {t('trigger')}
       </button>
 
       {/* Auth gate dialog */}
       <Dialog open={showAuthGate} onOpenChange={setShowAuthGate}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Connexion requise</DialogTitle>
-            <DialogDescription>
-              Connectez-vous pour signaler cette annonce.
-            </DialogDescription>
+            <DialogTitle>{t('loginTitle')}</DialogTitle>
+            <DialogDescription>{t('loginBody')}</DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => setShowAuthGate(false)}>
-              Annuler
+              {t('cancel')}
             </Button>
             <Link
               href={`/auth/login?redirect=/properties/${slug}`}
               className="inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground px-3 h-8 text-sm font-medium hover:bg-primary/80 transition-colors"
             >
-              Se connecter
+              {t('signIn')}
             </Link>
           </div>
         </DialogContent>
@@ -105,19 +106,17 @@ export function PropertyReportButton({ slug }: PropertyReportButtonProps) {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Signaler cette annonce</DialogTitle>
-            <DialogDescription>
-              Aidez-nous à maintenir la qualité de la plateforme. Notre équipe examinera votre signalement.
-            </DialogDescription>
+            <DialogTitle>{t('dialogTitle')}</DialogTitle>
+            <DialogDescription>{t('dialogBodyFull')}</DialogDescription>
           </DialogHeader>
           {sent ? (
             <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2">
-              Signalement envoyé. Merci !
+              {t('sent')}
             </p>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <label className="block space-y-1 text-sm">
-                <span className="text-stone-700">Motif</span>
+                <span className="text-stone-700">{t('reasonLabel')}</span>
                 <Select
                   value={reason}
                   onValueChange={(v) => setReason((v as ReportPayload['reason']) ?? 'spam')}
@@ -136,11 +135,11 @@ export function PropertyReportButton({ slug }: PropertyReportButtonProps) {
                 </Select>
               </label>
               <label className="block space-y-1 text-sm">
-                <span className="text-stone-700">Détails (optionnel)</span>
+                <span className="text-stone-700">{t('detailsLabel')}</span>
                 <Textarea
                   value={details}
                   onChange={(e) => setDetails(e.target.value)}
-                  placeholder="Précisez les éléments problématiques…"
+                  placeholder={t('detailsPlaceholder')}
                   rows={3}
                   maxLength={1000}
                 />
@@ -148,10 +147,10 @@ export function PropertyReportButton({ slug }: PropertyReportButtonProps) {
               {error && <p className="text-sm text-red-600">{error}</p>}
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-                  Annuler
+                  {t('cancel')}
                 </Button>
                 <Button type="submit" disabled={submitting}>
-                  {submitting ? 'Envoi…' : 'Signaler'}
+                  {submitting ? t('sending') : t('submit')}
                 </Button>
               </div>
             </form>

@@ -76,6 +76,7 @@ export function InviteOwnerSheet({
   agencyId,
   onInvited,
 }: InviteOwnerSheetProps) {
+  const tErr = useTranslations('errors');
   const t = useTranslations('owners.invite');
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -86,7 +87,7 @@ export function InviteOwnerSheet({
   const mutation = useMutation<ApiResponse<InvitationSummary>, ApiError, InviteOwnerPayload>({
     mutationFn: (payload) => {
       if (!token) {
-        throw new ApiError(401, { message: 'no token' });
+        throw new ApiError(401, { message: tErr('missingToken') });
       }
       return inviteOwner(token, agencyId, payload);
     },

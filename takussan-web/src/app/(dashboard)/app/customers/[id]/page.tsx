@@ -7,7 +7,10 @@ import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
 
-export const metadata: Metadata = { title: 'Fiche client' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.customerDetail');
+  return { title: t('metaTitle') };
+}
 import { getToken } from '@/lib/session';
 import { ApiError } from '@/lib/api';
 import {
@@ -51,6 +54,7 @@ export default async function Page({ params }: { params: Params }) {
   if (!token) redirect('/app');
 
   const t = await getTranslations('crm.customerDetail');
+  const tPage = await getTranslations('dashboard.pages.customerDetail');
 
   const customerId = Number.parseInt(id, 10);
   if (!Number.isFinite(customerId)) {
@@ -109,7 +113,7 @@ export default async function Page({ params }: { params: Params }) {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Client · #{customer.id}
+            {tPage('eyebrow', { id: customer.id })}
           </p>
           <h1 className="font-display text-2xl font-bold text-foreground">
             {customer.first_name} {customer.last_name}

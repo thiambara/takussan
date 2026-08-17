@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import { BedDouble, Bath, Ruler, Layers, Calendar, Car } from 'lucide-react';
 import type { PropertyDetail } from '@/types/property';
 
@@ -8,16 +9,17 @@ interface Spec {
 }
 
 export function PropertySpecsStrip({ property }: { property: PropertyDetail }) {
+  const t = useTranslations('property.detail.specs');
   const specs: Spec[] = [];
-  if (property.bedrooms) specs.push({ icon: BedDouble, value: property.bedrooms, label: 'Chambres' });
-  if (property.bathrooms) specs.push({ icon: Bath, value: property.bathrooms, label: 'SDB' });
-  if (property.area) specs.push({ icon: Ruler, value: `${property.area} m²`, label: 'Surface' });
+  if (property.bedrooms) specs.push({ icon: BedDouble, value: property.bedrooms, label: t('bedrooms') });
+  if (property.bathrooms) specs.push({ icon: Bath, value: property.bathrooms, label: t('bathrooms') });
+  if (property.area) specs.push({ icon: Ruler, value: `${property.area} m²`, label: t('area') });
   if (property.total_floors)
-    specs.push({ icon: Layers, value: property.total_floors, label: 'Étages' });
+    specs.push({ icon: Layers, value: property.total_floors, label: t('floors') });
   if (property.year_built)
-    specs.push({ icon: Calendar, value: property.year_built, label: 'Année' });
+    specs.push({ icon: Calendar, value: property.year_built, label: t('year') });
   if (property.parking_spaces)
-    specs.push({ icon: Car, value: property.parking_spaces, label: 'Parking' });
+    specs.push({ icon: Car, value: property.parking_spaces, label: t('parking') });
 
   if (specs.length === 0) return null;
 

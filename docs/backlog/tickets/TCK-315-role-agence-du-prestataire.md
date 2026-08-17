@@ -1,7 +1,7 @@
 ---
 id: TCK-315
 title: "Où vit le rôle d'agence d'un prestataire — le profil n'a pas d'agence, la collaboration si"
-status: doing
+status: done
 phase: P1
 family: technique
 estimate: M

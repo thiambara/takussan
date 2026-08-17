@@ -1,3 +1,5 @@
+import { getTranslations } from 'next-intl/server';
+
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin, isOwner } from '@/lib/roles';
 import { redirect } from 'next/navigation';
@@ -13,6 +15,7 @@ import type { Payout } from '@/types/invoice';
 
 /** TCK-032 P1 — owner (landlord) dashboard. */
 export default async function OwnerDashboardPage() {
+  const t = await getTranslations('dashboard.owner');
   const user = await getMeAction();
   if (!isOwner(user.roles) && !isAdmin(user.roles)) {
     redirect('/app/overview');
@@ -22,8 +25,8 @@ export default async function OwnerDashboardPage() {
   if (!payload) {
     return (
       <div className="space-y-2">
-        <h1 className="font-display text-2xl font-bold text-foreground">Vue bailleur</h1>
-        <p className="text-sm text-muted-foreground">Impossible de charger les données.</p>
+        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('loadError')}</p>
       </div>
     );
   }
@@ -34,45 +37,51 @@ export default async function OwnerDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">Vue bailleur</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Mon portefeuille — {data.period.start.slice(0, 10)} au {data.period.end.slice(0, 10)}
+          {t('subtitle', {
+            start: data.period.start.slice(0, 10),
+            end: data.period.end.slice(0, 10),
+          })}
         </p>
       </div>
 
       {(data.portfolio?.total ?? 0) === 0 && (
         <section className="rounded-2xl border border-dashed border-stone-200 bg-white p-6">
-          <h2 className="text-base font-semibold text-foreground">Aucun bien dans votre portefeuille</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Ajoutez votre premier bien pour activer les réservations, baux, documents et demandes de maintenance.
-          </p>
+          <h2 className="text-base font-semibold text-foreground">{t('emptyTitle')}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t('emptyBodyFull')}</p>
           <Link
             href="/app/properties/new"
             className="mt-4 inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
           >
-            Ajouter un bien
+            {t('emptyCta')}
           </Link>
         </section>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         <StatCard
-          label="Biens"
+          label={t('properties')}
           value={formatNumber(data.portfolio?.total ?? 0, 'fr')}
-          hint={`${data.portfolio?.rented ?? 0} loués · ${data.portfolio?.available ?? 0} dispo.`}
+          hint={t('propertiesHint', {
+            rented: data.portfolio?.rented ?? 0,
+            available: data.portfolio?.available ?? 0,
+          })}
         />
         <StatCard
-          label="Baux actifs"
+          label={t('activeLeases')}
           value={formatNumber(data.leases?.active ?? 0, 'fr')}
         />
         <StatCard
-          label="Cashflow du mois"
+          label={t('cashflowMonth')}
           value={formatCurrency(data.finance?.cashflow_month ?? 0, 'fr')}
-          hint={`Attendu : ${formatCurrency(data.finance?.expected_monthly ?? 0, 'fr')}`}
+          hint={t('expectedHint', {
+            amount: formatCurrency(data.finance?.expected_monthly ?? 0, 'fr'),
+          })}
           accent="success"
         />
         <StatCard
-          label="Impayés"
+          label={t('overdue')}
           value={formatNumber(data.finance?.overdue_count ?? 0, 'fr')}
           hint={formatCurrency(data.finance?.overdue_amount ?? 0, 'fr')}
           accent={(data.finance?.overdue_count ?? 0) > 0 ? 'warning' : 'default'}
@@ -81,23 +90,23 @@ export default async function OwnerDashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         <StatCard
-          label="Taux d'occupation"
+          label={t('occupancy')}
           value={`${data.occupancy?.rate_percent ?? 0}%`}
         />
         <StatCard
-          label="Réservations en attente"
+          label={t('pendingBookings')}
           value={formatNumber(data.bookings?.pending ?? 0, 'fr')}
         />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="rounded-2xl bg-card p-5">
-          <h2 className="text-sm font-semibold text-foreground">Portefeuille</h2>
+          <h2 className="text-sm font-semibold text-foreground">{t('portfolio')}</h2>
           <dl className="mt-4 space-y-3 text-sm">
-            <DashboardLine label="Disponibles" value={formatNumber(data.portfolio?.available ?? 0, 'fr')} />
-            <DashboardLine label="Loués" value={formatNumber(data.portfolio?.rented ?? 0, 'fr')} />
+            <DashboardLine label={t('available')} value={formatNumber(data.portfolio?.available ?? 0, 'fr')} />
+            <DashboardLine label={t('rented')} value={formatNumber(data.portfolio?.rented ?? 0, 'fr')} />
             <DashboardLine
-              label="Autres statuts"
+              label={t('otherStatuses')}
               value={formatNumber(
                 Math.max((data.portfolio?.total ?? 0) - (data.portfolio?.available ?? 0) - (data.portfolio?.rented ?? 0), 0),
                 'fr',
@@ -107,23 +116,23 @@ export default async function OwnerDashboardPage() {
         </section>
 
         <section className="rounded-2xl bg-card p-5">
-          <h2 className="text-sm font-semibold text-foreground">Demandes en attente</h2>
+          <h2 className="text-sm font-semibold text-foreground">{t('pendingRequests')}</h2>
           <div className="mt-4 space-y-3 text-sm">
             <DashboardLinkLine
               href="/app/bookings?status=pending"
-              label="Réservations à traiter"
+              label={t('bookingsToHandle')}
               value={formatNumber(data.bookings?.pending ?? 0, 'fr')}
             />
             <DashboardLinkLine
               href="/app/maintenance"
-              label="Maintenance et devis"
-              value="Voir le module"
+              label={t('maintenanceQuotes')}
+              value={t('seeModule')}
             />
           </div>
         </section>
 
         <section className="rounded-2xl bg-card p-5">
-          <h2 className="text-sm font-semibold text-foreground">Prochains reversements</h2>
+          <h2 className="text-sm font-semibold text-foreground">{t('nextPayouts')}</h2>
           {pendingPayouts.length > 0 ? (
             <ul className="mt-4 space-y-2 text-sm">
               {pendingPayouts.map((payout) => (
@@ -132,16 +141,16 @@ export default async function OwnerDashboardPage() {
                     {formatCurrency(payout.net_amount, 'fr', { currency: payout.currency ?? 'XOF' })}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {payout.reference_number ?? `Reversement #${payout.id}`}
-                    {payout.scheduled_at ? ` · prévu le ${payout.scheduled_at.slice(0, 10)}` : ''}
+                    {payout.reference_number ?? t('payoutFallback', { id: payout.id })}
+                    {payout.scheduled_at
+                      ? t('payoutScheduled', { date: payout.scheduled_at.slice(0, 10) })
+                      : ''}
                   </p>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="mt-4 text-sm text-muted-foreground">
-              Aucun reversement à venir retourné par l’API.
-            </p>
+            <p className="mt-4 text-sm text-muted-foreground">{t('noPayouts')}</p>
           )}
         </section>
       </div>
@@ -149,17 +158,17 @@ export default async function OwnerDashboardPage() {
       {ts && (
         <section className="rounded-2xl bg-card p-6">
           <LineChart
-            title="Cashflow et occupation sur 12 mois"
+            title={t('chartTitle')}
             data={{
               labels: ts.months,
               series: [
                 {
-                  name: 'Cashflow',
+                  name: t('chartCashflow'),
                   values: (ts.cashflow as number[]) ?? [],
                   color: 'stroke-chart-1',
                 },
                 {
-                  name: 'Occupation (%)',
+                  name: t('chartOccupancy'),
                   values: (ts.occupancy as number[]) ?? [],
                   color: 'stroke-chart-2',
                 },

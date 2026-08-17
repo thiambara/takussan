@@ -13,13 +13,17 @@
  */
 
 /**
- * Une catégorie porte une CLÉ de libellé (`nav.categories.*`), pas un libellé.
+ * Une catégorie porte une CLÉ de libellé (`property.types.*`), pas un libellé.
  *
- * ⚠ Ces clés DOUBLONNENT `property.types.*`, qui traduit le même enum backend — et les deux
- * vocabulaires DIVERGENT déjà : `shop` vaut « Commerce » ici et « Boutique » là, `resort` vaut
- * « Complexe » ici et « Resort » là. TCK-286 déplace le texte sans le changer, donc la divergence
- * est conservée telle quelle ; la trancher est une décision produit, pas un effet de bord d'un
- * chantier i18n. Elle est portée par le ticket de suite.
+ * ⚠ La divergence est TRANCHÉE depuis TCK-292, et elle était plus large que ce que le ticket
+ * annonçait : le même enum backend était traduit par **CINQ** tables — `nav.categories`,
+ * `property.types`, et trois tables locales (`PropertyCard`, `search/SearchToolbar`,
+ * `search/FilterSidebar`), plus une sixième côté formulaire (`property-form/options.ts`).
+ *
+ * `property.types` gagne comme EMPLACEMENT — c'est un vocabulaire de bien, pas de navigation —
+ * mais ce sont les VALEURS de `nav.categories` qui ont été retenues, pour deux raisons mesurées :
+ * c'était le seul des deux dictionnaires à être complet dans les trois langues (`property.types`
+ * n'avait aucun wolof), et le seul à être réellement consommé. `nav.categories` est supprimé.
  */
 export interface Category {
   readonly id: string;

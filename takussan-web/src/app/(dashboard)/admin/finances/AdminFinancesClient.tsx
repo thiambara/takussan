@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useMyProfiles } from '@/hooks/useProfiles';
 import { AdminFinancesTabs } from '@/components/admin/finances/AdminFinancesTabs';
 import { FinanceKpis } from '@/components/admin/finances/FinanceKpis';
+import { useTranslations } from 'next-intl';
 
 interface AdminFinancesClientProps {
   /**
@@ -26,6 +27,7 @@ export function AdminFinancesClient({
   canViewFinances,
   canEmitFinances,
 }: AdminFinancesClientProps) {
+  const t = useTranslations('admin.finances');
   const profilesQuery = useMyProfiles();
   const queryClient = useQueryClient();
   const activeProfileId = profilesQuery.data?.meta.active_profile_id ?? null;
@@ -59,14 +61,12 @@ export function AdminFinancesClient({
         role="alert"
         className="rounded-2xl border border-border bg-card p-8 text-center"
       >
-        <p className="text-sm font-semibold text-foreground">
-          Accès aux finances non autorisé
-        </p>
+        <p className="text-sm font-semibold text-foreground">{t('denied.title')}</p>
         <p className="mt-2 text-xs text-muted-foreground">
-          Votre rôle ne dispose pas des permissions financières
-          (<code>payments.view_in_agency</code>, <code>invoices.view_in_agency</code>,
-          <code>payouts.view_in_agency</code>). Demandez à un administrateur de votre
-          agence d&apos;ajuster votre rôle.
+          {t('denied.body', {
+            capabilities:
+              'payments.view_in_agency, invoices.view_in_agency, payouts.view_in_agency',
+          })}
         </p>
       </div>
     );

@@ -1,7 +1,7 @@
 ---
 id: TCK-309
 title: "Trois conventions dédoublées : classes de base de test, préfixes de commandes, namespaces d'auth"
-status: review
+status: done
 phase: P3
 family: technique
 estimate: M

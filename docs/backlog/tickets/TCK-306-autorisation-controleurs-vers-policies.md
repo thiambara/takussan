@@ -1,7 +1,7 @@
 ---
 id: TCK-306
 title: "25 contrôleurs redéfinissent l'autorisation que 16 policies portent déjà"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: L

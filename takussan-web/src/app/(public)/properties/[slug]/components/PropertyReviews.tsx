@@ -1,6 +1,7 @@
 'use client';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Star, MessageSquareReply, Pencil } from 'lucide-react';
 import { usePropertyReviews } from '@/hooks/usePropertyReviews';
 import { useAuth } from '@/context/AuthContext';
@@ -41,6 +42,7 @@ interface ReviewItemProps {
 }
 
 function ReviewItem({ review, canReply, onReply }: ReviewItemProps) {
+  const t = useTranslations('property.reviews');
   const [editing, setEditing] = useState(false);
   const hasReply = Boolean(review.reply_content);
 
@@ -87,7 +89,7 @@ function ReviewItem({ review, canReply, onReply }: ReviewItemProps) {
             >
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <p className="text-xs font-medium text-stone-500">
-                  Réponse de l’agent
+                  {t('agentReply')}
                   {review.replied_at && (
                     <span className="ml-2 text-stone-400 font-normal">
                       · {formatDate(review.replied_at)}
@@ -100,7 +102,7 @@ function ReviewItem({ review, canReply, onReply }: ReviewItemProps) {
                     onClick={() => setEditing(true)}
                     className="inline-flex items-center gap-1 text-xs text-stone-600 hover:text-stone-900"
                   >
-                    <Pencil className="size-3" aria-hidden /> Modifier
+                    <Pencil className="size-3" aria-hidden /> {t('edit')}
                   </button>
                 )}
               </div>
@@ -116,7 +118,7 @@ function ReviewItem({ review, canReply, onReply }: ReviewItemProps) {
               data-testid="review-reply-trigger"
             >
               <MessageSquareReply className="size-3.5" aria-hidden />
-              Répondre
+              {t('reply')}
             </button>
           )}
 
@@ -202,6 +204,7 @@ export function PropertyReviews({
   ownerId,
   agencyId,
 }: PropertyReviewsProps) {
+  const t = useTranslations('property.reviews');
   const { user } = useAuth();
   const { data, loading, error, submit, reply } = usePropertyReviews(slug, propertyId);
 
@@ -248,7 +251,7 @@ export function PropertyReviews({
     <section id="avis" className="space-y-4 scroll-mt-24">
       <div className="flex items-baseline justify-between gap-2 flex-wrap">
         <h2 className="text-xl font-semibold text-stone-900">
-          Avis {reviewsCount > 0 && <span className="text-stone-500 text-base">({reviewsCount})</span>}
+          {t('title')} {reviewsCount > 0 && <span className="text-stone-500 text-base">({reviewsCount})</span>}
         </h2>
         {averageRating != null && (
           <div className="flex items-center gap-1 text-sm">
@@ -264,13 +267,13 @@ export function PropertyReviews({
             <p className="text-3xl font-bold text-stone-900">
               {(data.meta.average ?? 0).toFixed(1)}
             </p>
-            <p className="text-xs text-stone-500">{data.meta.total} avis</p>
+            <p className="text-xs text-stone-500">{t('countSuffix', { count: data.meta.total })}</p>
           </div>
           <RatingDistribution distribution={data.meta.distribution} total={data.meta.total} />
         </div>
       )}
 
-      {loading && <p className="text-sm text-stone-500">Chargement des avis…</p>}
+      {loading && <p className="text-sm text-stone-500">{t('loading')}</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
       {data && data.data.length > 0 && (
         <ul className="space-y-4">
@@ -280,19 +283,18 @@ export function PropertyReviews({
         </ul>
       )}
       {data && data.data.length === 0 && !loading && (
-        <p className="text-sm text-stone-500">Aucun avis pour l’instant.</p>
+        <p className="text-sm text-stone-500">{t('empty')}</p>
       )}
 
       {showReviewForm && <PropertyReviewForm onSubmit={submit} />}
       {user && activeEligibility && !activeEligibility.eligible && !activeEligibility.alreadyReviewed && (
         <p className="rounded-xl bg-app-surface-1 p-4 text-sm text-app-ink-muted">
-          Vous pourrez laisser un avis après une visite finalisée ou la signature d&apos;un bail
-          sur ce bien.
+          {t('notEligible')}
         </p>
       )}
       {user && activeEligibility?.alreadyReviewed && (
         <p className="rounded-xl bg-app-surface-1 p-4 text-sm text-app-ink-muted">
-          Merci, vous avez déjà laissé un avis sur ce bien.
+          {t('alreadyReviewed')}
         </p>
       )}
     </section>

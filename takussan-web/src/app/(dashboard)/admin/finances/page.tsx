@@ -3,6 +3,7 @@ import { getMeAction } from '@/app/actions/auth';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { isAdmin, isSuperAdmin } from '@/lib/roles';
 import { AdminFinancesClient } from './AdminFinancesClient';
+import { getTranslations } from 'next-intl/server';
 
 /**
  * TCK-134 — `/admin/finances` agency-scoped finance overview. The
@@ -25,6 +26,7 @@ import { AdminFinancesClient } from './AdminFinancesClient';
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
+  const t = await getTranslations('admin.pages.finances');
   const user = await getMeAction();
   if (!isAdmin(user.roles)) redirect('/app/profile');
 
@@ -36,16 +38,14 @@ export default async function Page() {
   }
 
   if (!hasAgencyContext) {
-    return <NoAgencyState title="Finances" />;
+    return <NoAgencyState title={t('noAgency')} />;
   }
 
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">Finances</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Encaissements, factures et reversements — vue comptable de votre agence.
-        </p>
+        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
       </header>
       <AdminFinancesClient canViewFinances canEmitFinances />
     </div>

@@ -7,8 +7,12 @@ import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchOwners } from '@/lib/queries/owners';
 import { OwnersList } from '@/components/owners/OwnersList';
 import { isAdmin } from '@/lib/roles';
+import { getTranslations } from 'next-intl/server';
 
-export const metadata: Metadata = { title: 'Propriétaires' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.owners');
+  return { title: t('metaTitle') };
+}
 export const dynamic = 'force-dynamic';
 
 /**

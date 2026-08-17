@@ -19,6 +19,7 @@ import { EmptyState, ErrorState } from '@/components/feedback';
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
+  const tPage = await getTranslations('admin.pages.agencyConfig');
   const user = await getMeAction();
   if (!isAdmin(user.roles)) {
     redirect('/admin');
@@ -29,10 +30,8 @@ export default async function Page() {
     return (
       <div className="space-y-6">
         <header>
-          <h1 className="font-display text-2xl font-bold text-foreground">Configuration de l&apos;agence</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Aucune agence n&apos;est rattachée à votre compte.
-          </p>
+          <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{tPage('noAgency')}</p>
         </header>
         <EmptyState
           icon={<Building2 className="size-8" aria-hidden="true" />}
@@ -48,10 +47,8 @@ export default async function Page() {
     return (
       <div className="space-y-6">
         <header>
-          <h1 className="font-display text-2xl font-bold text-foreground">Configuration de l&apos;agence</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Impossible de charger les informations de l&apos;agence.
-          </p>
+          <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{tPage('loadError')}</p>
         </header>
         {/* Pas d'`onRetry` : server component, aucun gestionnaire d'événement possible ici. */}
         <ErrorState message={result.ok ? t('not_found') : result.message} />
@@ -62,10 +59,8 @@ export default async function Page() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">Configuration de l&apos;agence</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Identité, contact, logo et paramètres métier.
-        </p>
+        <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{tPage('subtitle')}</p>
       </header>
       <AgencyConfigForm agency={result.data} />
     </div>

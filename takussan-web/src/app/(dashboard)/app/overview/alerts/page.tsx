@@ -3,6 +3,7 @@ import { isAdmin } from '@/lib/roles';
 import { redirect } from 'next/navigation';
 import { fetchThresholdAlerts } from '@/lib/queries/alerts';
 import { AlertList } from './AlertList';
+import { getTranslations } from 'next-intl/server';
 
 /**
  * TCK-032 P3 — threshold alerts admin page.
@@ -14,6 +15,7 @@ import { AlertList } from './AlertList';
  * jamais restreintes côté API.
  */
 export default async function AlertsPage() {
+  const t = await getTranslations('dashboard.pages.alerts');
   const user = await getMeAction();
   if (!isAdmin(user.roles)) redirect('/app/overview');
 
@@ -22,11 +24,8 @@ export default async function AlertsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">Alertes de seuil</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Configurez les alertes déclenchées lorsque certains KPIs franchissent un seuil.
-          Évaluées toutes les heures.
-        </p>
+        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t('subtitleFull')}</p>
       </div>
       <AlertList initialAlerts={alerts?.data ?? []} />
     </div>

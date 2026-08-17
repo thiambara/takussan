@@ -6,6 +6,7 @@ import { StatCard } from '@/components/charts/StatCard';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/format';
 import type { PropertyDetail } from '@/types/property';
+import { useTranslations } from 'next-intl';
 
 type TabKey = 'overview' | 'edit' | 'media' | 'history';
 
@@ -16,7 +17,7 @@ interface Props {
 
 interface ChecklistItem {
   readonly id: string;
-  readonly label: string;
+  readonly labelKey: string;
   readonly done: boolean;
   readonly target: TabKey;
 }
@@ -26,13 +27,13 @@ function buildChecklist(property: PropertyDetail): ChecklistItem[] {
   return [
     {
       id: 'description',
-      label: 'Rédiger une description (≥ 80 caractères)',
+      labelKey: 'checklist.description',
       done: description.length >= 80,
       target: 'edit',
     },
     {
       id: 'gps',
-      label: 'Placer le marqueur GPS',
+      labelKey: 'checklist.gps',
       done:
         property.location?.latitude != null &&
         property.location?.longitude != null,
@@ -40,13 +41,13 @@ function buildChecklist(property: PropertyDetail): ChecklistItem[] {
     },
     {
       id: 'cover',
-      label: 'Ajouter au moins une photo (couverture)',
+      labelKey: 'checklist.cover',
       done: Boolean(property.main_photo_url),
       target: 'media',
     },
     {
       id: 'title-type',
-      label: 'Renseigner le type de titre foncier',
+      labelKey: 'checklist.titleType',
       done: Boolean(property.title_type),
       target: 'edit',
     },
@@ -54,6 +55,7 @@ function buildChecklist(property: PropertyDetail): ChecklistItem[] {
 }
 
 export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
+  const t = useTranslations('property.dashboard.overview');
   const checklist = buildChecklist(property);
   const remaining = checklist.filter((c) => !c.done);
   const recentPrices = property.price_history?.slice(0, 5) ?? [];
@@ -72,23 +74,23 @@ export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard
-          label="Vues"
+          label={t('views')}
           value={property.views_count ?? 0}
-          hint="Sur la fiche publique"
+          hint={t('viewsHint')}
         />
         <StatCard
-          label="Favoris"
+          label={t('favorites')}
           value={property.favorites_count ?? 0}
-          hint="Utilisateurs ayant épinglé"
+          hint={t('favoritesHint')}
         />
         <StatCard
-          label="Note moyenne"
+          label={t('rating')}
           value={
             property.average_rating != null
               ? property.average_rating.toFixed(1)
               : '—'
           }
-          hint={`${property.reviews_count ?? 0} avis`}
+          hint={t('ratingHint', { count: property.reviews_count ?? 0 })}
         />
       </div>
 
@@ -96,10 +98,8 @@ export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
         <section className="rounded-xl bg-app-surface-1 p-6">
           <header className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold text-app-ink">Adresse</h2>
-              <p className="text-xs text-app-ink-muted">
-                Localisation visible sur la fiche publique.
-              </p>
+              <h2 className="text-base font-semibold text-app-ink">{t('address')}</h2>
+              <p className="text-xs text-app-ink-muted">{t('addressHint')}</p>
             </div>
             <Button
               type="button"
@@ -108,7 +108,7 @@ export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
               onClick={() => onJumpTo('edit')}
             >
               <Pencil aria-hidden="true" />
-              Modifier
+              {t('edit')}
             </Button>
           </header>
           <p className="mt-4 flex items-start gap-2 text-sm text-app-ink">
@@ -116,24 +116,24 @@ export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
               className="mt-0.5 size-4 shrink-0 text-app-ink-muted"
               aria-hidden="true"
             />
-            <span>{fullAddress || 'Adresse à compléter'}</span>
+            <span>{fullAddress || t('addressMissing')}</span>
           </p>
           <p className="mt-2 text-xs text-app-ink-muted">
             {property.location?.latitude != null &&
             property.location?.longitude != null
               ? `${property.location.latitude.toFixed(5)}, ${property.location.longitude.toFixed(5)}`
-              : 'Coordonnées GPS non renseignées'}
+              : t('gpsMissing')}
           </p>
         </section>
 
         <section className="rounded-xl bg-app-surface-1 p-6">
           <header className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold text-app-ink">À régler</h2>
+              <h2 className="text-base font-semibold text-app-ink">{t('todo')}</h2>
               <p className="text-xs text-app-ink-muted">
                 {remaining.length === 0
-                  ? 'Tout est en ordre.'
-                  : `${remaining.length} élément${remaining.length > 1 ? 's' : ''} à compléter.`}
+                  ? t('allDone')
+                  : t('remaining', { count: remaining.length })}
               </p>
             </div>
           </header>
@@ -149,7 +149,7 @@ export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
                   }
                 >
                   {item.done ? '✓ ' : '○ '}
-                  {item.label}
+                  {t(item.labelKey)}
                 </span>
                 {!item.done ? (
                   <Button
@@ -158,7 +158,7 @@ export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
                     size="sm"
                     onClick={() => onJumpTo(item.target)}
                   >
-                    Compléter
+                    {t('complete')}
                     <ArrowRight aria-hidden="true" />
                   </Button>
                 ) : null}
@@ -172,11 +172,9 @@ export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
         <header className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold text-app-ink">
-              Historique des prix
+              {t('priceHistory')}
             </h2>
-            <p className="text-xs text-app-ink-muted">
-              5 dernières évolutions enregistrées.
-            </p>
+            <p className="text-xs text-app-ink-muted">{t('priceHistoryHint')}</p>
           </div>
           {property.price_history && property.price_history.length > 5 ? (
             <Button
@@ -185,15 +183,13 @@ export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
               size="sm"
               onClick={() => onJumpTo('history')}
             >
-              Voir tout
+              {t('seeAll')}
               <ArrowRight aria-hidden="true" />
             </Button>
           ) : null}
         </header>
         {recentPrices.length === 0 ? (
-          <p className="mt-4 text-sm text-app-ink-muted">
-            Aucune évolution de prix enregistrée pour le moment.
-          </p>
+          <p className="mt-4 text-sm text-app-ink-muted">{t('noPriceHistory')}</p>
         ) : (
           <ul className="mt-4 divide-y divide-app-surface-2 text-sm">
             {recentPrices.map((entry) => (
@@ -202,7 +198,7 @@ export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
                 className="flex flex-wrap items-center justify-between gap-2 py-3"
               >
                 <span className="text-app-ink-muted">
-                  {entry.changed_at?.slice(0, 10) ?? 'Date inconnue'}
+                  {entry.changed_at?.slice(0, 10) ?? t('unknownDate')}
                 </span>
                 <span className="font-medium text-app-ink">
                   {formatCurrency(entry.old_price, 'fr', { currency: entry.currency })}{' '}

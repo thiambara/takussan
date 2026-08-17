@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import { TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import { formatCurrency } from '@/lib/format/currency';
 import type { PropertyPriceHistoryItem } from '@/types/property';
@@ -20,11 +21,13 @@ function formatDate(iso: string): string {
 }
 
 export function PropertyPriceHistory({ history }: PropertyPriceHistoryProps) {
+  const t = useTranslations('property.detail');
+
   if (history.length === 0) return null;
 
   return (
     <section className="space-y-4">
-      <h2 className="text-xl font-semibold text-stone-900">Historique du prix</h2>
+      <h2 className="text-xl font-semibold text-stone-900">{t('priceHistory')}</h2>
       <ol className="relative border-l border-stone-200 ml-2 space-y-4 pl-6">
         {history.map((item) => {
           const diff = item.new_price - item.old_price;

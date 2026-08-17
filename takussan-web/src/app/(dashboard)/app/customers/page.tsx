@@ -16,6 +16,7 @@ import { assertCanReachAgentArea } from '@/lib/auth/guards';
 import { CustomerList } from '@/components/customer-dashboard/CustomerList';
 import { CustomerListFilters } from '@/components/customer-dashboard/CustomerListFilters';
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
+import { getTranslations } from 'next-intl/server';
 
 /**
  * TCK-042 — dashboard agent CRM, liste des clients.
@@ -36,6 +37,7 @@ export default async function Page({
 }: {
   searchParams: SearchParams;
 }) {
+  const t = await getTranslations('dashboard.pages.customers');
   const user = await getMeAction();
   assertCanReachAgentArea(user.roles);
 
@@ -60,18 +62,15 @@ export default async function Page({
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">Clients (CRM)</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Suivez vos contacts, leurs étapes de pipeline et les interactions
-            associées.
-          </p>
+          <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
         </div>
         <Link
           href="/app/customers/new"
           className={buttonVariants({ size: 'lg' })}
         >
           <UserPlus className="size-4" aria-hidden="true" />
-          Ajouter un client
+          {t('add')}
         </Link>
       </header>
 

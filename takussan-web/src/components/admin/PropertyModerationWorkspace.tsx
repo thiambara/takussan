@@ -15,6 +15,7 @@ import { PropertyModerationDetail } from './PropertyModerationDetail';
 import { ApiError } from '@/lib/api';
 
 export function PropertyModerationWorkspace() {
+  const t = useTranslations('admin.propertyModeration');
   const { token } = useAuth();
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -45,12 +46,12 @@ export function PropertyModerationWorkspace() {
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Rechercher un bien…"
+          placeholder={t('searchPlaceholder')}
           className="h-9 w-64 rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         />
         {data?.meta ? (
           <p className="ml-auto text-xs text-app-ink-muted">
-            {data.meta.pending_count} bien(s) en attente
+            {t('pendingCount', { count: data.meta.pending_count })}
           </p>
         ) : null}
       </div>
@@ -58,11 +59,11 @@ export function PropertyModerationWorkspace() {
       {isLoading ? (
         <div className="flex items-center justify-center gap-2 rounded-xl bg-app-surface-1 p-12 text-sm text-app-ink-muted">
           <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-          Chargement de la file de modération…
+          {t('loading')}
         </div>
       ) : isError ? (
         <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-8 text-sm text-destructive">
-          {error instanceof ApiError ? error.displayMessage : 'Impossible de charger la file.'}
+          {error instanceof ApiError ? error.displayMessage : t('loadError')}
         </div>
       ) : properties.length === 0 ? (
         <PropertyModerationEmpty />

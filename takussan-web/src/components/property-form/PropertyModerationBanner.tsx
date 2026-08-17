@@ -7,12 +7,14 @@ import { useAuth } from '@/context/AuthContext';
 import { resubmitProperty } from '@/lib/queries/property-moderation';
 import { Button } from '@/components/ui/button';
 import type { PropertyDetail } from '@/types/property';
+import { useTranslations } from 'next-intl';
 
 interface PropertyModerationBannerProps {
   readonly property: PropertyDetail;
 }
 
 export function PropertyModerationBanner({ property }: PropertyModerationBannerProps) {
+  const t = useTranslations('property.moderation');
   const { token } = useAuth();
   const queryClient = useQueryClient();
 
@@ -31,11 +33,8 @@ export function PropertyModerationBanner({ property }: PropertyModerationBannerP
       <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
         <Clock className="mt-0.5 size-5 shrink-0 text-amber-600" aria-hidden="true" />
         <div>
-          <p className="text-sm font-semibold text-amber-800">En attente de validation</p>
-          <p className="mt-0.5 text-xs text-amber-700">
-            Votre bien est en cours d&apos;examen par l&apos;administrateur de votre agence.
-            Il sera publié dès qu&apos;il sera approuvé.
-          </p>
+          <p className="text-sm font-semibold text-amber-800">{t('pendingTitle')}</p>
+          <p className="mt-0.5 text-xs text-amber-700">{t('pendingBody')}</p>
         </div>
       </div>
     );
@@ -47,7 +46,7 @@ export function PropertyModerationBanner({ property }: PropertyModerationBannerP
         <div className="flex items-start gap-3">
           <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden="true" />
           <div className="flex-1">
-            <p className="text-sm font-semibold text-destructive">Publication refusée</p>
+            <p className="text-sm font-semibold text-destructive">{t('rejectedTitle')}</p>
             {property.rejection_reason ? (
               <p className="mt-1 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
                 {property.rejection_reason}
@@ -67,12 +66,10 @@ export function PropertyModerationBanner({ property }: PropertyModerationBannerP
           ) : (
             <RefreshCw className="mr-1.5 size-3.5" />
           )}
-          Corriger et resoumettre
+          {t('resubmit')}
         </Button>
         {resubmitMutation.isError ? (
-          <p className="text-xs text-destructive">
-            Erreur lors de la resoumission. Veuillez réessayer.
-          </p>
+          <p className="text-xs text-destructive">{t('resubmitError')}</p>
         ) : null}
       </div>
     );
@@ -83,13 +80,14 @@ export function PropertyModerationBanner({ property }: PropertyModerationBannerP
       <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
         <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden="true" />
         <div>
-          <p className="text-sm font-semibold text-emerald-800">Bien approuvé et publié</p>
+          <p className="text-sm font-semibold text-emerald-800">{t('approvedTitle')}</p>
           <p className="mt-0.5 text-xs text-emerald-700">
-            Approuvé le{' '}
-            {new Date(property.approved_at).toLocaleDateString('fr-FR', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
+            {t('approvedOn', {
+              date: new Date(property.approved_at).toLocaleDateString('fr-FR', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              }),
             })}
           </p>
         </div>

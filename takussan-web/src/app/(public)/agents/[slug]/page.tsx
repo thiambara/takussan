@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Building2 } from 'lucide-react';
@@ -62,7 +63,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const agent = await loadAgent(slug);
   if (!agent) {
-    return { title: 'Agent introuvable' };
+    const t = await getTranslations('agents.publicPage');
+    return { title: t('notFound') };
   }
   const summary = `${agent.portfolio_count} bien${agent.portfolio_count > 1 ? 's' : ''}${agent.city ? ` à ${agent.city}` : ''}`;
   return {
@@ -86,6 +88,7 @@ function getInitials(name: string): string {
 }
 
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+  const t = await getTranslations('agents.publicPage');
   const { slug } = await params;
   const agent = await loadAgent(slug);
   if (!agent) notFound();
@@ -148,7 +151,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                   <p className="mt-3 inline-flex items-center gap-2 text-sm text-muted-foreground">
                     <Building2 className="size-4" aria-hidden />
                     <span>
-                      Agent chez{' '}
+                      {t('agentAt')}{' '}
                       <Link
                         href={`/agencies/${agent.agency.slug}`}
                         className="font-medium text-foreground underline-offset-4 hover:underline"
@@ -160,17 +163,12 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                 )}
                 {stats && agent.portfolio_total > 0 && (
                   <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                    <span>
-                      <strong className="font-medium text-foreground tabular-nums">
-                        {agent.portfolio_total}
-                      </strong>{' '}
-                      bien{agent.portfolio_total > 1 ? 's' : ''}
-                    </span>
+                    <span>{t('propertiesCount', { count: agent.portfolio_total })}</span>
                     {stats.rent_count > 0 && (
                       <>
                         <span aria-hidden>·</span>
                         <span>
-                          <span className="tabular-nums">{stats.rent_count}</span> à louer
+                          <span className="tabular-nums">{stats.rent_count}</span> {t('forRent')}
                         </span>
                       </>
                     )}
@@ -178,17 +176,14 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                       <>
                         <span aria-hidden>·</span>
                         <span>
-                          <span className="tabular-nums">{stats.sale_count}</span> à vendre
+                          <span className="tabular-nums">{stats.sale_count}</span> {t('forSale')}
                         </span>
                       </>
                     )}
                     {stats.cities > 0 && (
                       <>
                         <span aria-hidden>·</span>
-                        <span>
-                          <span className="tabular-nums">{stats.cities}</span> ville
-                          {stats.cities > 1 ? 's' : ''}
-                        </span>
+                        <span>{t('citiesCount', { count: stats.cities })}</span>
                       </>
                     )}
                   </p>
@@ -215,24 +210,20 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
         {/* Portefeuille avec onglets */}
         <section aria-labelledby="portfolio-heading">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Portefeuille
+            {t('portfolioEyebrow')}
           </p>
           <h2
             id="portfolio-heading"
             className="mt-2 mb-6 font-display text-2xl md:text-3xl font-semibold text-foreground"
           >
-            Biens à l&apos;affiche
+            {t('portfolioHeading')}
           </h2>
 
           {agent.portfolio.length === 0 ? (
             <div className="rounded-2xl border border-border bg-card p-10 text-center">
               <Building2 className="mx-auto size-6 text-muted-foreground" aria-hidden />
-              <p className="mt-3 font-display text-xl text-foreground">
-                Pas encore de bien à présenter
-              </p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Cet agent prépare ses prochaines annonces — reviens bientôt.
-              </p>
+              <p className="mt-3 font-display text-xl text-foreground">{t('emptyTitle')}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{t('emptyBody')}</p>
             </div>
           ) : (
             <PortfolioTabs

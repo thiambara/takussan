@@ -7,6 +7,7 @@ import { COMPARE_MAX_IDS } from '@/lib/compare';
 import { useCompare } from '@/context/CompareContext';
 import { useToast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 /**
  * TCK-082 — "Compare" toggle rendered on every `PropertyCard`.
@@ -42,6 +43,7 @@ export function CompareToggleButton({
   className,
   size = 'md',
 }: CompareToggleButtonProps) {
+  const t = useTranslations('compare.button');
   const { has, toggle, ids } = useCompare();
   const toast = useToast();
 
@@ -56,8 +58,8 @@ export function CompareToggleButton({
 
       if (result.status === 'rejected') {
         toast.add({
-          title: `Maximum ${COMPARE_MAX_IDS} biens`,
-          description: 'Retirez un bien pour en ajouter un autre.',
+          title: t('maxTitle', { max: COMPARE_MAX_IDS }),
+          description: t('full'),
           type: 'warning',
         });
         return;
@@ -65,13 +67,13 @@ export function CompareToggleButton({
 
       if (result.status === 'added') {
         toast.add({
-          title: 'Ajouté au comparateur',
-          description: `${ids.length + 1} / ${COMPARE_MAX_IDS} biens sélectionnés.`,
+          title: t('added'),
+          description: t('addedBody', { count: ids.length + 1, max: COMPARE_MAX_IDS }),
           type: 'info',
         });
       }
     },
-    [toggle, propertyId, toast, ids.length],
+    [toggle, propertyId, toast, ids.length, t],
   );
 
   return (
@@ -79,7 +81,7 @@ export function CompareToggleButton({
       type="button"
       onClick={handleClick}
       aria-pressed={isSelected}
-      aria-label={isSelected ? 'Retirer du comparateur' : 'Ajouter au comparateur'}
+      aria-label={t(isSelected ? 'remove' : 'add')}
       data-compare={isSelected ? 'true' : 'false'}
       className={cn(
         SIZE_CLASSES[size],

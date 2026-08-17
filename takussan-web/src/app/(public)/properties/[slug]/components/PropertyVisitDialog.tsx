@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/context/AuthContext';
 import { useVisitRequest } from '@/hooks/useVisitRequest';
 import type { VisitType } from '@/types/visit';
@@ -32,11 +33,11 @@ interface PropertyVisitDialogProps {
   onSuccess?: () => void;
 }
 
-const VISIT_TYPES: Array<{ value: VisitType; label: string; description: string; Icon: typeof MapPinIcon }> = [
-  { value: 'in_person', label: 'En personne', description: 'Visite accompagnée du propriétaire ou de l\u2019agent.', Icon: MapPinIcon },
-  { value: 'virtual', label: 'Virtuelle', description: 'Visioconférence depuis chez vous.', Icon: VideoIcon },
-  { value: 'self_guided', label: 'Autonome', description: 'Vous récupérez les clés sur place.', Icon: KeyIcon },
-  { value: 'hybrid', label: 'Hybride', description: 'Première visio puis visite physique.', Icon: SparklesIcon },
+const VISIT_TYPES: Array<{ value: VisitType; Icon: typeof MapPinIcon }> = [
+  { value: 'in_person', Icon: MapPinIcon },
+  { value: 'virtual', Icon: VideoIcon },
+  { value: 'self_guided', Icon: KeyIcon },
+  { value: 'hybrid', Icon: SparklesIcon },
 ];
 
 const TIME_SLOTS: string[] = (() => {
@@ -53,8 +54,8 @@ const TIME_SLOTS: string[] = (() => {
 /** Minimum lead-time before a slot is offered (avoids "now-ish" requests). */
 const MIN_LEAD_MINUTES = 30;
 
-function formatDateLabel(date: Date | undefined): string {
-  if (!date) return 'Choisir une date';
+function formatDateLabel(date: Date | undefined, repli: string): string {
+  if (!date) return repli;
   return new Intl.DateTimeFormat('fr-FR', {
     weekday: 'long',
     day: 'numeric',
@@ -89,6 +90,7 @@ function availableSlotsForDate(date: Date | undefined): string[] {
 }
 
 export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: PropertyVisitDialogProps) {
+  const t = useTranslations('property.visitDialog');
   const { user } = useAuth();
   const { submit, submitting, error } = useVisitRequest(slug);
   const [date, setDate] = useState<Date | undefined>(undefined);
@@ -157,20 +159,18 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Connectez-vous pour visiter</DialogTitle>
-            <DialogDescription>
-              Vous devez être connecté pour demander une visite.
-            </DialogDescription>
+            <DialogTitle>{t('loginTitle')}</DialogTitle>
+            <DialogDescription>{t('loginBody')}</DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Annuler
+              {t('cancel')}
             </Button>
             <Link
               href={`/auth/login?redirect=/properties/${slug}`}
               className="inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground px-3 h-8 text-sm font-medium hover:bg-primary/80 transition-colors"
             >
-              Se connecter
+              {t('signIn')}
             </Link>
           </div>
         </DialogContent>
@@ -184,16 +184,14 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Demander une visite</DialogTitle>
-          <DialogDescription>
-            Choisissez une date et un créneau — le propriétaire confirmera rapidement.
-          </DialogDescription>
+          <DialogTitle>{t('title')}</DialogTitle>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
             <div className="space-y-1.5">
               <label htmlFor="visit-date" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Date
+                {t('dateLabel')}
               </label>
               <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                 <PopoverTrigger
@@ -210,7 +208,7 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
                   }
                 >
                   <CalendarIcon className="size-4 text-muted-foreground" />
-                  <span className="capitalize">{formatDateLabel(date)}</span>
+                  <span className="capitalize">{formatDateLabel(date, t('pickDate'))}</span>
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-auto p-0">
                   <Calendar
@@ -227,7 +225,7 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
 
             <div className="space-y-1.5">
               <label htmlFor="visit-time" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Heure
+                {t('timeLabel')}
               </label>
               <Select
                 value={effectiveTime}
@@ -254,17 +252,15 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
           </div>
 
           {todayHasNoSlots && (
-            <p className="-mt-2 text-xs text-muted-foreground">
-              Plus de créneau disponible aujourd&apos;hui — choisissez une autre date.
-            </p>
+            <p className="-mt-2 text-xs text-muted-foreground">{t('noSlotsToday')}</p>
           )}
 
           <fieldset className="space-y-2">
             <legend className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Type de visite
+              {t('typeLegend')}
             </legend>
             <div className="grid grid-cols-2 gap-2">
-              {VISIT_TYPES.map(({ value, label, description, Icon }) => {
+              {VISIT_TYPES.map(({ value, Icon }) => {
                 const selected = value === type;
                 return (
                   <button
@@ -292,28 +288,33 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
                     </span>
                     <span className="flex flex-col gap-0.5">
                       <span className={cn('font-medium leading-tight', selected ? 'text-foreground' : 'text-foreground')}>
-                        {label}
+                        {t(`types.${value}.label`)}
                       </span>
                       <span className="text-xs leading-snug text-muted-foreground">
-                        {description}
+                        {t(`types.${value}.description`)}
                       </span>
                     </span>
                   </button>
                 );
               })}
             </div>
-            <p className="sr-only" aria-live="polite">{activeType.label} sélectionné</p>
+            <p className="sr-only" aria-live="polite">
+              {t('typeSelected', { label: t(`types.${activeType.value}.label`) })}
+            </p>
           </fieldset>
 
           <div className="space-y-1.5">
             <label htmlFor="visit-notes" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Message <span className="font-normal normal-case text-muted-foreground/70">(optionnel)</span>
+              {t('notesLabel')}{' '}
+              <span className="font-normal normal-case text-muted-foreground/70">
+                {t('notesOptional')}
+              </span>
             </label>
             <Textarea
               id="visit-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Précisions pour le propriétaire…"
+              placeholder={t('notesPlaceholder')}
               rows={3}
               maxLength={1000}
             />
@@ -330,10 +331,10 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
 
           <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Annuler
+              {t('cancel')}
             </Button>
             <Button type="submit" disabled={submitting || !date || !effectiveTime}>
-              {submitting ? 'Envoi…' : 'Demander la visite'}
+              {submitting ? t('sending') : t('submit')}
             </Button>
           </div>
         </form>

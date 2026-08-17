@@ -49,6 +49,7 @@ const STATUS_VARIANT: Record<
 };
 
 export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props) {
+  const tErr = useTranslations('errors');
   const t = useTranslations('serviceProviders');
   const tInvite = useTranslations('serviceProviders.invite');
   const tList = useTranslations('serviceProviders.list');
@@ -60,7 +61,7 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
   const providersQuery = useQuery({
     queryKey: ['service-providers', agencyId],
     queryFn: () => {
-      if (!token) throw new ApiError(401, { message: 'no token' });
+      if (!token) throw new ApiError(401, { message: tErr('missingToken') });
       return fetchServiceProviders(token, { agencyId });
     },
     initialData,
@@ -71,9 +72,9 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
 
   const resendMutation = useMutation<unknown, ApiError, ServiceProviderProfileSummary>({
     mutationFn: async (sp) => {
-      if (!token) throw new ApiError(401, { message: 'no token' });
+      if (!token) throw new ApiError(401, { message: tErr('missingToken') });
       const id = await resolveInvitationId(token, sp, agencyId);
-      if (id === null) throw new ApiError(404, { message: 'no pending invitation' });
+      if (id === null) throw new ApiError(404, { message: tErr('noPendingInvitation') });
       return resendInvitation(token, id);
     },
     onSuccess: () => {
@@ -90,9 +91,9 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
 
   const revokeMutation = useMutation<unknown, ApiError, ServiceProviderProfileSummary>({
     mutationFn: async (sp) => {
-      if (!token) throw new ApiError(401, { message: 'no token' });
+      if (!token) throw new ApiError(401, { message: tErr('missingToken') });
       const id = await resolveInvitationId(token, sp, agencyId);
-      if (id === null) throw new ApiError(404, { message: 'no pending invitation' });
+      if (id === null) throw new ApiError(404, { message: tErr('noPendingInvitation') });
       return revokeInvitation(token, id);
     },
     onSuccess: async () => {

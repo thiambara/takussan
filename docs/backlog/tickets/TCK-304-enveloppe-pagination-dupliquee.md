@@ -1,7 +1,7 @@
 ---
 id: TCK-304
 title: "Enveloppe de pagination dupliquée à la main sur 58 fichiers, avec des clés incohérentes"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: L

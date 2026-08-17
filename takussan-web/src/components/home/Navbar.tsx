@@ -48,8 +48,9 @@ export function Navbar({ className }: NavbarProps) {
   const searchParams = useSearchParams();
   const { user, isLoading, setUser } = useAuth();
   const t = useTranslations('nav');
-  const tCategories = useTranslations('nav.categories');
+  const tCategories = useTranslations('property.types');
   const tLinks = useTranslations('nav.links');
+  const tCommon = useTranslations('common');
   const TRANSACTION_OPTIONS = [
     { value: 'Acheter', label: t('buy') },
     { value: 'Louer', label: t('rent') },
@@ -172,7 +173,7 @@ export function Navbar({ className }: NavbarProps) {
       <div className="flex items-start gap-4 px-6 py-3 max-w-[1440px] mx-auto">
         {/* Logo */}
         <Link href="/" className="text-xl font-bold tracking-tighter text-primary shrink-0 mt-2.5 hover:opacity-80 transition-opacity">
-          Takussan
+          {tCommon('appName')}
         </Link>
 
         {/* Center column: Search bar + Categories stacked, left-aligned — desktop */}

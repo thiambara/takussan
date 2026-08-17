@@ -3,6 +3,7 @@
 import { Building2, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ModerationProperty } from '@/lib/queries/property-moderation';
+import { useTranslations } from 'next-intl';
 
 interface PropertyModerationQueueListProps {
   readonly properties: ModerationProperty[];
@@ -15,6 +16,7 @@ export function PropertyModerationQueueList({
   selectedId,
   onSelect,
 }: PropertyModerationQueueListProps) {
+  const t = useTranslations('admin.moderation');
   return (
     <ul className="max-h-[70vh] overflow-y-auto rounded-xl bg-app-surface-1">
       {properties.map((property) => {
@@ -53,13 +55,13 @@ export function PropertyModerationQueueList({
                   </p>
                 </div>
                 <span className="flex-shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                  En attente
+                  {t('status.pending')}
                 </span>
               </div>
               <div className="flex items-center gap-3 text-xs text-app-ink-muted">
                 <span className="flex items-center gap-1">
                   <Building2 className="size-3" />
-                  {property.owner?.name ?? 'Agent inconnu'}
+                  {property.owner?.name ?? t('unknownAgent')}
                 </span>
                 {property.submitted_at ? (
                   <span className="ml-auto flex items-center gap-1">

@@ -462,19 +462,21 @@
       "studio": "Studio",
       "room": "Room",
       "office": "Office",
-      "shop": "Shop",
+      "shop": "Retail",
       "warehouse": "Warehouse",
       "factory": "Factory",
       "farm": "Farm",
       "hotel": "Hotel",
-      "resort": "Resort",
+      "resort": "Complex",
       "garage": "Garage",
       "parking": "Parking",
       "other": "Other"
     },
     "contractTypes": {
       "sale": "Sale",
-      "rent": "Rent"
+      "rent": "Rent",
+      "saleLong": "For sale",
+      "rentLong": "For rent"
     },
     "portfolio": {
       "empty_title": "No property in your portfolio",
@@ -483,6 +485,403 @@
       "filtered_empty_title": "No property matches your filters",
       "filtered_empty_description": "Adjust or remove some filters to widen your search.",
       "filtered_empty_cta": "Reset filters"
+    },
+    "cards": {
+      "bedroomsShort": "{count} bd",
+      "bedroomsAbbrev": "{count} bd",
+      "bathroomsShort": "{count} ba"
+    },
+    "row": {
+      "viewAll": "See all",
+      "previous": "Previous",
+      "next": "Next",
+      "empty": "No properties in this selection yet."
+    },
+    "discovery": {
+      "viewSwitchAria": "Results view",
+      "viewList": "List",
+      "viewMap": "Map"
+    },
+    "rentPeriodsShort": {
+      "daily": "day",
+      "weekly": "wk",
+      "monthly": "month",
+      "yearly": "year"
+    },
+    "rentPeriods": {
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "yearly": "Yearly"
+    },
+    "detail": {
+      "reviewsCount": "({count} reviews)",
+      "viewsCount": "{count} views",
+      "reference": "Ref. {value}",
+      "featured": "Featured",
+      "shareAria": "Share this property",
+      "share": "Share",
+      "removeFavorite": "Remove from favourites",
+      "addFavorite": "Add to favourites",
+      "characteristics": "Characteristics",
+      "rows": {
+        "type": "Type",
+        "contract": "Contract",
+        "period": "Period",
+        "status": "Status",
+        "floor": "Floor",
+        "yearBuilt": "Year built",
+        "parking": "Parking spaces",
+        "furnished": "Furnished",
+        "titleDeed": "Title deed",
+        "yes": "Yes"
+      },
+      "specs": {
+        "bedrooms": "Bedrooms",
+        "bathrooms": "Baths",
+        "area": "Area",
+        "floors": "Floors",
+        "year": "Year",
+        "parking": "Parking"
+      },
+      "description": "Description",
+      "collapse": "Show less",
+      "readMore": "Read more",
+      "amenities": "Amenities",
+      "breadcrumbAria": "Breadcrumb",
+      "priceHistory": "Price history",
+      "documents": "Documents",
+      "download": "Download",
+      "downloadAria": "Download {name}",
+      "requestVisit": "Request a visit",
+      "sendMessage": "Send a message",
+      "noChargeNotice": "You will not be charged before confirmation.",
+      "agent": {
+        "phoneUnavailable": "Phone number unavailable for this property.",
+        "phoneError": "Could not retrieve the number. Please try again.",
+        "verifiedAria": "Verified agency",
+        "independent": "Independent agent",
+        "private": "Private owner",
+        "message": "Message",
+        "callAria": "Call"
+      },
+      "breadcrumb": {
+        "home": "Home",
+        "rent": "Rent",
+        "buy": "Buy"
+      },
+      "location": "Location",
+      "addressHidden": "Address not disclosed.",
+      "viewOnOsm": "View on OpenStreetMap",
+      "shareDialog": {
+        "title": "Share this listing",
+        "description": "Send the link to your contacts.",
+        "linkAria": "Link to share",
+        "copied": "Copied",
+        "copy": "Copy"
+      },
+      "similar": "Similar properties",
+      "previous": "Previous",
+      "next": "Next",
+      "gallery": {
+        "close": "Close",
+        "previousPhoto": "Previous photo",
+        "nextPhoto": "Next photo",
+        "noPhoto": "No photo",
+        "noPhotoAvailable": "No photo available",
+        "viewAll": "View all photos ({count})"
+      },
+      "bottomBar": {
+        "visit": "Visit",
+        "offer": "Offer",
+        "reserve": "Book",
+        "apply": "Apply"
+      }
+    },
+    "reviews": {
+      "title": "Reviews",
+      "countSuffix": "{count} reviews",
+      "loading": "Loading reviews…",
+      "empty": "No reviews yet.",
+      "notEligible": "You will be able to leave a review after a completed visit or a signed lease on this property.",
+      "alreadyReviewed": "Thank you, you have already reviewed this property.",
+      "agentReply": "Agent reply",
+      "edit": "Edit",
+      "reply": "Reply",
+      "form": {
+        "ratingRequired": "Please choose a rating.",
+        "sendError": "Sending failed.",
+        "aria": "Leave a review",
+        "title": "Leave a review",
+        "ratingAria": "Rating out of 5",
+        "titlePlaceholder": "Title (optional)",
+        "thanks": "Thank you for your feedback.",
+        "contentTooShort": "Your comment must be at least {min} characters.",
+        "contentPlaceholder": "Your review (min. {min} characters)",
+        "charsLeft": "{count, plural, =1 {# more character needed.} other {# more characters needed.}}"
+      },
+      "replyForm": {
+        "editTitle": "Edit my reply",
+        "newTitle": "Reply to this review",
+        "editSubmit": "Update my reply",
+        "newSubmit": "Reply publicly",
+        "placeholder": "Reply clearly and professionally…",
+        "contentAria": "Reply content",
+        "cancel": "Cancel",
+        "publish": "Publish reply",
+        "sending": "Sending…",
+        "save": "Save"
+      }
+    },
+    "report": {
+      "reasons": {
+        "misleading": "Misleading listing",
+        "inappropriate": "Inappropriate content",
+        "spam": "Spam",
+        "fraud": "Scam / fraud",
+        "other": "Other"
+      },
+      "trigger": "Report this listing",
+      "loginTitle": "Sign-in required",
+      "loginBody": "Sign in to report this listing.",
+      "cancel": "Cancel",
+      "signIn": "Sign in",
+      "dialogTitle": "Report this listing",
+      "dialogBody": "Help us keep the platform's quality up.",
+      "sent": "Report sent. Thank you!",
+      "reasonLabel": "Reason",
+      "detailsLabel": "Details (optional)",
+      "detailsPlaceholder": "Specify what is problematic…",
+      "dialogBodyFull": "Help us keep the platform's quality up. Our team will review your report.",
+      "sending": "Sending…",
+      "submit": "Report"
+    },
+    "visitDialog": {
+      "types": {
+        "in_person": {
+          "label": "In person",
+          "description": "Guided visit with the owner or the agent."
+        },
+        "virtual": {
+          "label": "Virtual",
+          "description": "Video call from home."
+        },
+        "self_guided": {
+          "label": "Self-guided",
+          "description": "You pick up the keys on site."
+        },
+        "hybrid": {
+          "label": "Hybrid",
+          "description": "First a video call, then an on-site visit."
+        }
+      },
+      "pickDate": "Pick a date",
+      "loginTitle": "Sign in to visit",
+      "loginBody": "You must be signed in to request a visit.",
+      "cancel": "Cancel",
+      "signIn": "Sign in",
+      "title": "Request a visit",
+      "description": "Pick a date and a slot — the owner will confirm shortly.",
+      "dateLabel": "Date",
+      "timeLabel": "Time",
+      "noSlotsToday": "No slot left today — pick another date.",
+      "typeLegend": "Visit type",
+      "typeSelected": "{label} selected",
+      "notesLabel": "Message",
+      "notesOptional": "(optional)",
+      "notesPlaceholder": "Details for the owner…",
+      "sending": "Sending…",
+      "submit": "Request the visit"
+    },
+    "reservation": {
+      "offer": {
+        "dialogTitle": "Make an offer",
+        "loginTitle": "Sign in to make an offer",
+        "loginBody": "You must be signed in to submit an offer.",
+        "submit": "Send the offer"
+      },
+      "reserve": {
+        "dialogTitle": "Book this property",
+        "loginTitle": "Sign in to book",
+        "loginBody": "You must be signed in to request a booking.",
+        "submit": "Send the request"
+      },
+      "apply": {
+        "dialogTitle": "Apply for this property",
+        "loginTitle": "Sign in to apply",
+        "loginBody": "You must be signed in to submit your rental application.",
+        "submit": "Send my application"
+      },
+      "cancel": "Cancel",
+      "signIn": "Sign in",
+      "sending": "Sending…",
+      "booking": {
+        "description": "Give your dates and the number of guests. The owner will confirm your request.",
+        "checkIn": "Check-in",
+        "checkInPlaceholder": "Check-in date",
+        "checkOut": "Check-out",
+        "checkOutPlaceholder": "Check-out date",
+        "guests": "Guests",
+        "message": "Message (optional)",
+        "messagePlaceholder": "Introduce yourself, explain your plans…",
+        "nightsLine": "{price} × {count, plural, =1 {# night} other {# nights}}",
+        "estimatedTotal": "Estimated total"
+      },
+      "offerForm": {
+        "invalidAmount": "Invalid amount.",
+        "description": "Listed price: {price}. The owner will review your offer before it expires.",
+        "amount": "Offer amount ({currency})",
+        "validity": "Offer validity",
+        "expiryPlaceholder": "Expiry date",
+        "message": "Message (optional)",
+        "messagePlaceholder": "Specify the terms or context of your offer…",
+        "termsBefore": "I have read and accept the",
+        "termsLink": "terms and conditions",
+        "termsAfter": "of use for submitting a purchase offer."
+      }
+    },
+    "moderation": {
+      "pendingTitle": "Awaiting approval",
+      "pendingBody": "Your property is being reviewed by your agency's administrator. It will go live as soon as it is approved.",
+      "rejectedTitle": "Publication rejected",
+      "resubmit": "Fix and resubmit",
+      "resubmitError": "Resubmission failed. Please try again.",
+      "approvedTitle": "Property approved and published",
+      "approvedOn": "Approved on {date}"
+    },
+    "form": {
+      "missingIdError": "The property was created, but the server identifier is missing.",
+      "created": "Property created. Opening the record…",
+      "updated": "Changes saved.",
+      "close": "Close",
+      "general": {
+        "title": "General information",
+        "hint": "Title, type and contract define the property's public record."
+      },
+      "fields": {
+        "title": "Title",
+        "titlePlaceholder": "Villa with pool in Almadies",
+        "type": "Property type",
+        "contract": "Contract type",
+        "price": "Price",
+        "currency": "Currency",
+        "period": "Frequency",
+        "periodPlaceholder": "Monthly",
+        "city": "City",
+        "cityPlaceholder": "Dakar",
+        "quarter": "Neighbourhood",
+        "quarterPlaceholder": "Almadies",
+        "region": "Region",
+        "regionPlaceholder": "Dakar",
+        "street": "Street / address",
+        "streetPlaceholder": "12 Jacaranda Street",
+        "postalCode": "Postal code",
+        "country": "Country (ISO code)",
+        "countryPlaceholder": "SN",
+        "area": "Area (m²)",
+        "bedrooms": "Bedrooms",
+        "bathrooms": "Bathrooms",
+        "yearBuilt": "Year built",
+        "parking": "Parking spaces",
+        "furnished": "Furnished",
+        "description": "Description",
+        "descriptionPlaceholder": "Describe the property, its surroundings, its strengths."
+      },
+      "price": {
+        "title": "Price",
+        "hintRent": "Recurring rent. Also state the frequency.",
+        "hintSale": "Total sale price."
+      },
+      "location": {
+        "title": "Location",
+        "hint": "The city is required. Click the map to place the property.",
+        "gps": "GPS coordinates",
+        "mapHint": "Click the map or drag the marker to adjust the position.",
+        "hintFull": "The city is required. Click the map to place the GPS marker."
+      },
+      "features": {
+        "title": "Characteristics",
+        "hint": "Optional. Filling in what you know helps your listing stand out.",
+        "hintFull": "Optional. Fill in what tenants and buyers can see."
+      },
+      "description": {
+        "title": "Description",
+        "hint": "Be specific: condition, amenities, neighbourhood.",
+        "counter": "{count} / 10,000 characters"
+      },
+      "amenities": {
+        "title": "Amenities",
+        "hint": "Select the available amenities and facilities."
+      },
+      "photos": {
+        "title": "Photos",
+        "hint": "Drag and drop or select the photos (max {max}).",
+        "counter": "{count} / {max} {count, plural, =1 {photo} other {photos}}"
+      },
+      "footer": {
+        "dirty": "{count, plural, =1 {# field changed · unsaved} other {# fields changed · unsaved}}",
+        "noChanges": "No changes.",
+        "requiredHint": "All required fields are marked with a *.",
+        "cancel": "Cancel",
+        "saveDraft": "Save as draft",
+        "saving": "Saving…",
+        "submit": "Submit for publication",
+        "saveChanges": "Save changes"
+      }
+    },
+    "dashboard": {
+      "overview": {
+        "checklist": {
+          "description": "Write a description (≥ 80 characters)",
+          "gps": "Place the GPS marker",
+          "cover": "Add at least one photo (cover)",
+          "titleType": "Set the title deed type"
+        },
+        "views": "Views",
+        "viewsHint": "On the public record",
+        "favorites": "Favourites",
+        "favoritesHint": "Users who pinned it",
+        "rating": "Average rating",
+        "ratingHint": "{count} reviews",
+        "address": "Address",
+        "addressHint": "Location visible on the public record.",
+        "edit": "Edit",
+        "addressMissing": "Address to complete",
+        "gpsMissing": "GPS coordinates not set",
+        "todo": "To fix",
+        "allDone": "Everything is in order.",
+        "remaining": "{count, plural, =1 {# item to complete.} other {# items to complete.}}",
+        "complete": "Complete",
+        "priceHistory": "Price history",
+        "priceHistoryHint": "Last 5 recorded changes.",
+        "seeAll": "See all",
+        "noPriceHistory": "No price change recorded yet.",
+        "unknownDate": "Unknown date"
+      },
+      "tabs": {
+        "overview": "Overview",
+        "edit": "Edit",
+        "media": "Media ({count})",
+        "history": "History ({count})",
+        "fullPriceHistory": "Full price history",
+        "fullPriceHistoryHint": "All changes recorded for this property.",
+        "noPriceHistory": "No price change recorded for this property.",
+        "unknownDate": "Unknown date"
+      },
+      "pagination": {
+        "aria": "Pagination",
+        "pageOf": "Page {current} of {total}",
+        "results": "{count, plural, =1 {# result} other {# results}}",
+        "perPagePlaceholder": "20 / page",
+        "previous": "Previous",
+        "next": "Next"
+      },
+      "media": {
+        "photos": "Photos",
+        "loading": "Loading…",
+        "title": "Property photos",
+        "hint": "Drag to reorder — the first photo becomes the cover."
+      }
     }
   },
   "dashboard": {
@@ -490,7 +889,354 @@
     "overview": "Overview",
     "myProperties": "My properties",
     "myBookings": "My bookings",
-    "myLeases": "My leases"
+    "myLeases": "My leases",
+    "paymentStatus": {
+      "pending": "Upcoming",
+      "paid": "Paid",
+      "partially_paid": "Partially paid",
+      "late": "Late",
+      "refunded": "Refunded",
+      "cancelled": "Cancelled"
+    },
+    "tenant": {
+      "title": "My situation",
+      "loadError": "The data could not be loaded.",
+      "noProfile": "No tenant profile is linked to your account. Contact your agency to activate your file.",
+      "subtitle": "Upcoming instalments, documents and open requests.",
+      "activeLeases": "Active leases",
+      "nextRent": "Next rent",
+      "overdue": "Overdue",
+      "pendingBookings": "Pending bookings",
+      "upcoming30d": "Instalments in the next 30 days",
+      "noUpcoming": "No instalment scheduled.",
+      "recentDocs": "Recent documents",
+      "noDocs": "No document."
+    },
+    "agency": {
+      "title": "Agency overview",
+      "loadError": "The data could not be loaded.",
+      "period": "Key indicators for the period — {start} to {end}",
+      "activeProperties": "Active properties",
+      "publishedHint": "{count} published",
+      "activeLeases": "Active leases",
+      "rentedHint": "{count} properties rented",
+      "revenueMonth": "Revenue this month",
+      "commissionHint": "Commissions: {amount}",
+      "overdue": "Overdue",
+      "overdueHint": "{amount} · {rate}%",
+      "customers": "Customers",
+      "team": "Team",
+      "pendingRequests": "Pending requests",
+      "bookingsHint": "Bookings",
+      "openMaintenance": "Open maintenance",
+      "chartTitle": "Revenue and occupancy over 12 months",
+      "chartRevenue": "Revenue",
+      "chartOccupancy": "Occupancy rate (%)"
+    },
+    "pipelineStages": {
+      "lead": "Leads",
+      "prospect": "Prospects",
+      "qualified": "Qualified",
+      "negotiating": "Negotiating",
+      "converted": "Converted",
+      "lost": "Lost"
+    },
+    "taskPriority": {
+      "low": "Low",
+      "normal": "Normal",
+      "medium": "Normal",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "agent": {
+      "metaTitle": "Statistics",
+      "title": "Agent overview",
+      "loadError": "The data could not be loaded.",
+      "subtitle": "CRM pipeline and activity — {start} to {end}",
+      "managed": "Managed properties",
+      "commissionsMonth": "Commissions this month",
+      "openTasks": "Open tasks",
+      "overdueHint": "{count} overdue",
+      "visits7d": "Visits (7d)",
+      "pipelinePriorities": "Pipeline priorities",
+      "pendingRequests": "Pending requests",
+      "leasesToSign": "Leases to sign",
+      "tasksToday": "Today's tasks",
+      "commissions": "Commissions",
+      "thisMonth": "This month",
+      "yearToDate": "Year to date:",
+      "todayVisits": "Today's visits",
+      "noVisitsToday": "No visit scheduled today.",
+      "propertyFallback": "Property",
+      "requesterUnknown": "Requester to be confirmed",
+      "assignedTasks": "Assigned tasks",
+      "noTasks": "No open task assigned.",
+      "dueAt": "Due {date}",
+      "noDueDate": "No due date",
+      "open": "Open",
+      "recentActivity": "Recent activity",
+      "noActivity": "No recent activity on your files.",
+      "pipelineChart": "CRM pipeline",
+      "pipelineSeries": "Customers",
+      "chartTitle": "Commissions and signed leases over 12 months",
+      "chartCommissions": "Commissions",
+      "chartSignedLeases": "Signed leases",
+      "timeUnknown": "Time to be confirmed",
+      "dateUnknown": "Date to be confirmed"
+    },
+    "owner": {
+      "title": "Landlord overview",
+      "loadError": "The data could not be loaded.",
+      "subtitle": "My portfolio — {start} to {end}",
+      "emptyTitle": "No property in your portfolio",
+      "emptyBody": "Add your first property to enable bookings and financial tracking.",
+      "emptyCta": "Add a property",
+      "properties": "Properties",
+      "activeLeases": "Active leases",
+      "cashflowMonth": "Cash flow this month",
+      "overdue": "Overdue",
+      "occupancy": "Occupancy rate",
+      "pendingBookings": "Pending bookings",
+      "portfolio": "Portfolio",
+      "available": "Available",
+      "rented": "Rented",
+      "otherStatuses": "Other statuses",
+      "pendingRequests": "Pending requests",
+      "bookingsToHandle": "Bookings to handle",
+      "maintenanceQuotes": "Maintenance and quotes",
+      "nextPayouts": "Upcoming payouts",
+      "noPayouts": "No upcoming payout returned by the API.",
+      "chartTitle": "Cash flow and occupancy over 12 months",
+      "emptyBodyFull": "Add your first property to enable bookings, leases, documents and maintenance requests.",
+      "propertiesHint": "{rented} rented · {available} available",
+      "expectedHint": "Expected: {amount}",
+      "seeModule": "Open the module",
+      "payoutFallback": "Payout #{id}",
+      "payoutScheduled": " · scheduled for {date}",
+      "chartCashflow": "Cash flow",
+      "chartOccupancy": "Occupancy (%)"
+    },
+    "alerts": {
+      "invalidThreshold": "Invalid threshold.",
+      "createError": "Creation failed.",
+      "addTitle": "Add an alert",
+      "metric": "Metric",
+      "operator": "Operator",
+      "threshold": "Threshold",
+      "severity": "Severity",
+      "cooldown": "Cooldown (h)",
+      "create": "Create the alert",
+      "activeTitle": "Active alerts",
+      "empty": "No alert configured.",
+      "delete": "Delete"
+    },
+    "kpis": {
+      "validation": "Choose a metric and a label.",
+      "createError": "Creation failed.",
+      "addTitle": "Add a KPI",
+      "metric": "Metric",
+      "label": "Label",
+      "labelPlaceholder": "Unpaid rate",
+      "format": "Format",
+      "add": "Add",
+      "configured": "Configured KPIs",
+      "empty": "No KPI configured.",
+      "delete": "Delete"
+    },
+    "exports": {
+      "dataType": "Data type",
+      "format": "Format",
+      "from": "From",
+      "to": "To",
+      "downloading": "Downloading…",
+      "download": "Download",
+      "scopeNotice": "Exports respect your role (agency, landlord or agent).",
+      "scopeNoticeFull": "Exports respect your role (agency, landlord, tenant) — no data outside your scope is included."
+    },
+    "properties": {
+      "metaTitle": "My properties",
+      "title": "My properties",
+      "subtitle": "Manage your property portfolio: publication, status, visibility.",
+      "publish": "Publish a property",
+      "published": "Published",
+      "soldRented": "Sold / Rented",
+      "archived": "Archived"
+    },
+    "profile": {
+      "metaTitle": "My profile",
+      "notifications": "Notifications",
+      "notificationsBody": "Choose the channels used for each type of event.",
+      "managePrefs": "Manage preferences",
+      "reviews": "Reviews",
+      "reviewsBody": "Stays and leases you can publicly review.",
+      "seeReviews": "View my reviews"
+    },
+    "notificationPrefs": {
+      "metaTitle": "Notification preferences",
+      "breadcrumbProfile": "Profile",
+      "breadcrumbCurrent": "Notifications",
+      "title": "Notification preferences",
+      "subtitle": "Choose which events you receive on each channel."
+    },
+    "inventoryDetail": {
+      "metaTitle": "Inventory",
+      "notFound": "Inventory not found",
+      "invalidId": "The identifier provided is not valid.",
+      "backToList": "Back to the list",
+      "title": "Inventory #{id}",
+      "subtitle": "Inventory detail",
+      "back": "Back"
+    },
+    "maintenanceDetail": {
+      "notFound": "Request not found",
+      "invalidId": "The identifier provided is not valid.",
+      "backToList": "Back to the list",
+      "title": "Request #{id}",
+      "subtitle": "Intervention tracking",
+      "back": "Back"
+    },
+    "onboardingPending": {
+      "metaTitle": "Pending onboardings",
+      "title": "Pending onboardings",
+      "subtitle": "Tenants whose onboarding checklist has been open for more than 7 days."
+    },
+    "pages": {
+      "bookings": {
+        "metaTitle": "Bookings",
+        "title": "Bookings",
+        "subtitle": "Manage your booking requests"
+      },
+      "leases": {
+        "metaTitle": "Leases",
+        "title": "Leases",
+        "subtitle": "View and manage your contracts",
+        "newLease": "New lease"
+      },
+      "visits": {
+        "metaTitle": "My visits",
+        "title": "Visits",
+        "subtitle": "Plan and track your visits."
+      },
+      "favorites": {
+        "metaTitle": "My favourites",
+        "title": "My favourites",
+        "subtitle": "The properties you saved are gathered here."
+      },
+      "inventories": {
+        "metaTitle": "Inventories",
+        "title": "Inventories",
+        "subtitle": "Move-in and move-out inventories per lease"
+      },
+      "documents": {
+        "metaTitle": "Documents",
+        "title": "Documents",
+        "subtitle": "Centralise the contracts, IDs, receipts and supporting documents of your properties, leases and customers."
+      },
+      "maintenance": {
+        "metaTitle": "Maintenance",
+        "title": "Maintenance",
+        "subtitle": "Requests and intervention tracking"
+      },
+      "payments": {
+        "title": "Payments",
+        "subtitle": "History, invoices and landlord payouts — one unified view."
+      },
+      "calendar": {
+        "metaTitle": "Calendar",
+        "title": "Calendar",
+        "subtitle": "Your bookings and scheduled visits in one unified view."
+      },
+      "messages": {
+        "metaTitle": "Messages",
+        "title": "Messages",
+        "subtitle": "Your conversations"
+      },
+      "savedSearches": {
+        "metaTitle": "My saved searches",
+        "title": "My saved searches",
+        "subtitle": "Re-run the filters you use most in one click."
+      },
+      "owners": {
+        "metaTitle": "Landlords"
+      },
+      "customers": {
+        "title": "Customers (CRM)",
+        "subtitle": "Track your contacts, their pipeline stages and their documents.",
+        "add": "Add a customer"
+      },
+      "customerNew": {
+        "metaTitle": "Add a customer",
+        "title": "Add a customer",
+        "subtitle": "Give at least a first and last name. A contact can exist without a user account."
+      },
+      "leaseNew": {
+        "metaTitle": "New lease",
+        "title": "New lease",
+        "subtitle": "Fill in the parties, the term and the financial terms."
+      },
+      "maintenanceNew": {
+        "metaTitle": "New maintenance request",
+        "title": "New request",
+        "subtitle": "Describe the problem and attach photos if needed."
+      },
+      "propertyNew": {
+        "metaTitle": "Publish a property",
+        "title": "Publish a property",
+        "subtitle": "Fill in the essentials. You can enrich the record after publishing."
+      },
+      "privacy": {
+        "metaTitle": "Privacy",
+        "title": "Privacy",
+        "subtitle": "Portability requests and tracking of available archives."
+      },
+      "customerDetail": {
+        "metaTitle": "Customer record",
+        "eyebrow": "Customer · #{id}"
+      },
+      "profileReviews": {
+        "breadcrumbProfile": "Profile",
+        "breadcrumbCurrent": "Reviews",
+        "title": "Your reviews",
+        "subtitle": "Find the reviews you published, their statuses, and the stays or leases still eligible for a public review."
+      },
+      "bookingDetail": {
+        "metaTitle": "Booking",
+        "notFound": "Booking not found."
+      },
+      "alerts": {
+        "title": "Threshold alerts",
+        "subtitle": "Configure the alerts triggered when indicators cross a threshold.",
+        "subtitleFull": "Configure the alerts triggered when KPIs cross a threshold. Evaluated hourly."
+      },
+      "exports": {
+        "metaTitle": "Exports",
+        "title": "Exports",
+        "subtitle": "Download your data as CSV, Excel or PDF."
+      },
+      "kpis": {
+        "title": "Custom KPIs",
+        "subtitle": "Choose the indicators to highlight on your dashboard.",
+        "subtitleFull": "Choose the indicators to highlight on your agency's dashboard."
+      },
+      "home": {
+        "noAgency": "Dashboard",
+        "greeting": "Hello {name}",
+        "subtitle": "An overview of your activity"
+      },
+      "propertyDetail": {
+        "metaTitle": "Property record",
+        "eyebrow": "Property · {reference}"
+      },
+      "leaseDetail": {
+        "metaTitleFallback": "Lease not found"
+      },
+      "providers": {
+        "metaTitle": "Provider directory"
+      },
+      "upgrade": {
+        "metaTitle": "Upgrade to Pro"
+      }
+    }
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -526,7 +1272,9 @@
     },
     "stub": {
       "title": "Under development"
-    }
+    },
+    "missingToken": "Your session has expired. Please sign in again.",
+    "noPendingInvitation": "No pending invitation for this contact."
   },
   "agency": {
     "currency": {
@@ -666,6 +1414,20 @@
       "no_agency_title": "No agency linked",
       "no_agency_description": "Ask a super-admin to link you to an agency before configuring its settings.",
       "not_found": "Agency not found. Check your account link, then try again."
+    },
+    "publicPage": {
+      "notFound": "Agency not found",
+      "statsRent": "Properties to rent",
+      "statsSale": "Properties for sale",
+      "statsCities": "Cities",
+      "statsAgents": "Agents",
+      "license": "Licence no. {number}",
+      "teamEyebrow": "The team",
+      "teamHeading": "{count, plural, =1 {# agent to guide you} other {# agents to guide you}}",
+      "portfolioEyebrow": "Portfolio",
+      "portfolioHeading": "Featured properties",
+      "emptyTitle": "No property to show yet",
+      "emptyBody": "This agency is preparing its next listings — come back soon."
     }
   },
   "compare": {
@@ -719,6 +1481,14 @@
       "cta": "Compare ({count})",
       "removeAria": "Remove property #{id} from the comparator",
       "clearAria": "Clear comparator"
+    },
+    "button": {
+      "full": "Remove a property to add another one.",
+      "added": "Added to the comparison",
+      "remove": "Remove from the comparison",
+      "add": "Add to the comparison",
+      "maxTitle": "Maximum {max} properties",
+      "addedBody": "{count} / {max} properties selected."
     }
   },
   "crm": {
@@ -1129,7 +1899,9 @@
   },
   "favorites": {
     "button": {
-      "aria": "My favorites"
+      "aria": "My favorites",
+      "remove": "Remove from favourites",
+      "add": "Add to favourites"
     },
     "popover": {
       "title": "My favorites",
@@ -1169,12 +1941,107 @@
       "empty_title": "No saved search",
       "empty_description": "From the results page, click “Save this search” to find it back here.",
       "empty_cta": "Start a search",
-      "error": "Could not load your searches. Check your connection, then try again."
+      "error": "Could not load your searches. Check your connection, then try again.",
+      "noCriteria": "No criteria",
+      "relaunch": "Run again"
     },
     "results": {
       "empty_title": "No property found",
       "empty_description": "Widen your criteria or remove a few filters — there is surely a home for you.",
-      "empty_cta": "Clear all filters"
+      "empty_cta": "Clear all filters",
+      "error": "Something went wrong. Please try again."
+    },
+    "filters": {
+      "title": "Filters",
+      "clearAll": "Clear all",
+      "close": "Close filters",
+      "showResults": "Show results",
+      "sections": {
+        "contractType": "Transaction type",
+        "propertyType": "Property type",
+        "rentPeriod": "Rent frequency",
+        "location": "Location",
+        "budget": "Budget (FCFA)",
+        "bedrooms": "Bedrooms",
+        "bathrooms": "Bathrooms",
+        "area": "Area (m²)",
+        "condition": "Property condition",
+        "floor": "Floor",
+        "availability": "Availability",
+        "amenities": "Amenities",
+        "advanced": "Advanced search"
+      },
+      "cityPlaceholder": "City (e.g. Dakar, Mbour…)",
+      "quarterPlaceholder": "Neighbourhood (e.g. Plateau, Almadies…)",
+      "min": "Min",
+      "max": "Max",
+      "minArea": "Min m²",
+      "maxArea": "Max m²",
+      "furnishedOnly": "Furnished only",
+      "featuredOnly": "Featured properties",
+      "availableFrom": "Available from…",
+      "amenitiesPlaceholder": "pool, parking, terrace…",
+      "amenitiesHint": "Separate with commas",
+      "advancedPlaceholder": "Keyword, reference, description…",
+      "floors": {
+        "ground": "Ground",
+        "first": "1st",
+        "second": "2nd",
+        "third": "3rd",
+        "fourthPlus": "4th+"
+      }
+    },
+    "toolbar": {
+      "loading": "Loading…",
+      "resultCount": "{count, plural, =1 {# property found} other {# properties found}}",
+      "perPageAria": "Results per page",
+      "perPageOption": "{count} / page",
+      "filters": "Filters"
+    },
+    "sort": {
+      "relevance": "Relevance",
+      "price_asc": "Price: low to high",
+      "price_desc": "Price: high to low",
+      "created_desc": "Most recent"
+    },
+    "tags": {
+      "furnished": "Furnished",
+      "notFurnished": "Unfurnished",
+      "featured": "★ Featured",
+      "groundFloor": "Ground floor",
+      "floor": "Floor {n}",
+      "availableFrom": "Available from {date}",
+      "quarter": "Neighbourhood: {value}",
+      "tags": "Tags: {value}",
+      "priceMin": "≥ {value} FCFA",
+      "priceMax": "≤ {value} FCFA",
+      "bedrooms": "{n} bd",
+      "bathrooms": "{n} ba",
+      "areaMin": "≥ {value} m²",
+      "areaMax": "≤ {value} m²"
+    },
+    "pagination": {
+      "aria": "Pagination",
+      "previous": "Previous page",
+      "next": "Next page"
+    },
+    "saveSearch": {
+      "defaultName": "My search",
+      "invalidName": "Invalid name.",
+      "error": "The search could not be saved.",
+      "trigger": "Save the search",
+      "dialogTitle": "Save this search",
+      "dialogBody": "Find these filters again in your personal space.",
+      "saved": "Search saved. Find it in your space.",
+      "viewMine": "View my searches",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. Apartment in Plateau to rent",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "dialogBodyFull": "Find these filters in your personal space to run them again in one click.",
+      "savedFull": "Search saved. Find it in your saved searches.",
+      "save": "Save",
+      "bedroomsShort": "{count} bd"
     }
   },
   "wizardDrafts": {
@@ -1597,6 +2464,18 @@
         "title": "Welcome!",
         "body": "Your agent profile is active."
       }
+    },
+    "publicPage": {
+      "notFound": "Agent not found",
+      "agentAt": "Agent at",
+      "propertiesCount": "{count, plural, =1 {# property} other {# properties}}",
+      "forRent": "to rent",
+      "forSale": "for sale",
+      "citiesCount": "{count, plural, =1 {# city} other {# cities}}",
+      "portfolioEyebrow": "Portfolio",
+      "portfolioHeading": "Featured properties",
+      "emptyTitle": "No property to show yet",
+      "emptyBody": "This agent is preparing their next listings — come back soon."
     }
   },
   "agentWelcome": {
@@ -2081,7 +2960,11 @@
     "new": {
       "no_lease_title": "No lease selected",
       "no_lease_description": "The lease determines the property and the tenant. Start an inventory report from a lease page.",
-      "no_lease_cta": "Pick a lease"
+      "no_lease_cta": "Pick a lease",
+      "pickLeaseTitle": "New inventory",
+      "pickLeaseSubtitle": "Select a lease to start an inventory.",
+      "formTitle": "New inventory",
+      "formSubtitle": "Room by room, condition and items, photos."
     },
     "detail": {
       "empty_rooms_title": "No room recorded",
@@ -2101,13 +2984,39 @@
       "properties": {
         "empty_title": "No property to review",
         "empty_description": "No property is awaiting validation right now. Check back later."
-      }
+      },
+      "status": {
+        "pending": "Pending",
+        "reported": "Reported",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "emptyReview": "Review with no content",
+      "unknownAgent": "Unknown agent"
     },
     "finances": {
       "overdue": {
         "empty_title": "No outstanding payment",
         "empty_description": "Good news: every instalment has been settled.",
         "count": "{count, plural, =1 {# outstanding payment} other {# outstanding payments}}"
+      },
+      "denied": {
+        "title": "Finance access not allowed",
+        "body": "Your role does not hold the finance permissions ({capabilities}). Ask an administrator of your agency to adjust your role."
+      },
+      "tabs": {
+        "payments": "Collections",
+        "invoices": "Invoices",
+        "payouts": "Payouts",
+        "overdue": "Overdue",
+        "newInvoice": "Generate an invoice",
+        "newPayout": "Create a payout"
+      },
+      "kpis": {
+        "collections30d": "Collections (30 d)",
+        "overdue": "Outstanding overdue",
+        "pendingPayouts": "Pending payouts",
+        "invoicesToIssue": "Invoices to issue"
       }
     },
     "audit": {
@@ -2292,6 +3201,81 @@
           "delete_custom": "Delete a custom role"
         }
       }
+    },
+    "pages": {
+      "home": {
+        "noAgency": "Agency dashboard",
+        "title": "Agency dashboard",
+        "subtitle": "Agency overview"
+      },
+      "team": {
+        "shortTitle": "Team",
+        "shortSubtitle": "Manage the agency's members",
+        "title": "Team",
+        "subtitle": "Manage all your agency's members: agents, administrators, landlords. Invite, assign roles, suspend or revoke access."
+      },
+      "audit": {
+        "title": "Audit log",
+        "subtitle": "Traceability of every sensitive action on the agency."
+      },
+      "moderation": {
+        "title": "Moderation",
+        "subtitle": "Queue of pending reviews and reports to handle."
+      },
+      "propertyModeration": {
+        "title": "Property moderation",
+        "subtitle": "Queue of properties submitted by your agency's agents."
+      },
+      "finances": {
+        "noAgency": "Finances",
+        "title": "Finances",
+        "subtitle": "Collections, invoices and payouts — the agency's commercial view."
+      },
+      "agencyConfig": {
+        "title": "Agency configuration",
+        "noAgency": "No agency is linked to your account.",
+        "loadError": "The agency information could not be loaded.",
+        "subtitle": "Identity, contact, logo and business settings."
+      },
+      "kyc": {
+        "title": "KYC file",
+        "noAgency": "No agency is linked to your account.",
+        "contactAdmin": "Contact a super-administrator to be linked to an agency.",
+        "subtitle": "Administrative documents and verification status."
+      },
+      "billing": {
+        "title": "Subscription",
+        "subtitle": "Current plan, platform commission and operational limits.",
+        "payoutsTitle": "Platform payouts",
+        "payoutsBody": "Tracking of transfers issued by the platform after collection.",
+        "payoutsBodyFull": "Tracking of transfers issued by the platform after the commission is withheld."
+      },
+      "settings": {
+        "title": "Settings",
+        "subtitle": "Global key/value settings, feature flags and integrations.",
+        "navAria": "Settings sections",
+        "tabGeneral": "General",
+        "tabIntegrations": "Integrations",
+        "loadError": "The settings could not be loaded: {message}"
+      },
+      "integrations": {
+        "title": "Integrations",
+        "subtitle": "External providers (payment, SMS, email) and their webhooks.",
+        "loadError": "The integrations could not be loaded: {message}"
+      }
+    },
+    "team": {
+      "removeDialog": {
+        "title": "Remove this member?",
+        "cancel": "Cancel",
+        "confirm": "Remove"
+      }
+    },
+    "propertyModeration": {
+      "searchPlaceholder": "Search a property…",
+      "pendingCount": "{count, plural, =1 {# property pending} other {# properties pending}}",
+      "loading": "Loading the moderation queue…",
+      "loadError": "The queue could not be loaded."
     }
   },
   "documents": {
@@ -2329,7 +3313,11 @@
       "no_property_description": "Start by picking a property to book from the catalogue.",
       "not_found_title": "Property not found",
       "not_found_description": "The requested property no longer exists or is no longer available.",
-      "browse_cta": "Browse properties"
+      "browse_cta": "Browse properties",
+      "metaTitle": "Book a property — Takussan",
+      "metaDescription": "Takussan's secure booking flow.",
+      "title": "Book this property",
+      "subtitle": "A few quick steps to send your request."
     }
   },
   "visits": {
@@ -2434,6 +3422,27 @@
       "empty_title": "No review for these criteria",
       "empty_description": "Newly approved reviews will show up here.",
       "error": "The received reviews could not be loaded."
+    }
+  },
+  "contact": {
+    "whatsapp": {
+      "error": "Could not retrieve the contact details. Please try again.",
+      "cta": "Contact on WhatsApp",
+      "aria": "Contact the owner of {title} on WhatsApp",
+      "connecting": "Connecting…"
+    }
+  },
+  "share": {
+    "linkCopied": "Link copied",
+    "share": "Share"
+  },
+  "reviews": {
+    "cta": {
+      "aria": "Leave a review",
+      "title": "Share your experience",
+      "body": "Your feedback helps the next tenants choose with confidence.",
+      "forProperty": "Review for",
+      "action": "Leave a review"
     }
   }
 }

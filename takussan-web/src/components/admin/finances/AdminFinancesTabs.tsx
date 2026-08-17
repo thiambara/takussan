@@ -16,6 +16,7 @@ import { PayoutDetailDialog } from '@/components/payments/PayoutDetailDialog';
 import { PayoutsTable } from '@/components/payments/PayoutsTable';
 
 import { OverduePaymentsTable } from './OverduePaymentsTable';
+import { useTranslations } from 'next-intl';
 
 const TAB_VALUES = ['encaissements', 'factures', 'reversements', 'impayes'] as const;
 type TabValue = (typeof TAB_VALUES)[number];
@@ -46,6 +47,7 @@ interface AdminFinancesTabsProps {
  * page is reload-safe.
  */
 export function AdminFinancesTabs({ defaultCommissionRate, canEmit }: AdminFinancesTabsProps) {
+  const t = useTranslations('admin.finances');
   const router = useRouter();
   const searchParams = useSearchParams();
   const tab: TabValue = isTabValue(searchParams.get('tab'))
@@ -77,20 +79,20 @@ export function AdminFinancesTabs({ defaultCommissionRate, canEmit }: AdminFinan
       <Tabs value={tab} onValueChange={setTab}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <TabsList>
-            <TabsTrigger value="encaissements">Encaissements</TabsTrigger>
-            <TabsTrigger value="factures">Factures</TabsTrigger>
-            <TabsTrigger value="reversements">Reversements</TabsTrigger>
-            <TabsTrigger value="impayes">Impayés</TabsTrigger>
+            <TabsTrigger value="encaissements">{t('tabs.payments')}</TabsTrigger>
+            <TabsTrigger value="factures">{t('tabs.invoices')}</TabsTrigger>
+            <TabsTrigger value="reversements">{t('tabs.payouts')}</TabsTrigger>
+            <TabsTrigger value="impayes">{t('tabs.overdue')}</TabsTrigger>
           </TabsList>
           {canEmit ? (
             <div className="flex gap-2">
               <Button type="button" variant="outline" size="sm" onClick={() => setInvoiceOpen(true)}>
                 <FileText className="mr-1 size-4" aria-hidden="true" />
-                Générer une facture
+                {t('tabs.newInvoice')}
               </Button>
               <Button type="button" size="sm" onClick={() => setPayoutOpen(true)}>
                 <Send className="mr-1 size-4" aria-hidden="true" />
-                Créer un reversement
+                {t('tabs.newPayout')}
               </Button>
             </div>
           ) : null}

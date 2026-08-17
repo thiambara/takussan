@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import { SlidersHorizontal, X } from 'lucide-react';
 import {
   Select,
@@ -11,40 +12,50 @@ import {
 } from '@/components/ui/select';
 import type { SearchFilters } from '@/types/search';
 
-const SORT_OPTIONS = [
-  { value: 'relevance',    label: 'Pertinence' },
-  { value: 'price_asc',   label: 'Prix croissant' },
-  { value: 'price_desc',  label: 'Prix décroissant' },
-  { value: 'created_desc', label: 'Plus récent' },
-] as const;
+const SORT_VALUES = ['relevance', 'price_asc', 'price_desc', 'created_desc'] as const;
 
-const PER_PAGE_OPTIONS = [30, 40, 60, 70].map(n => ({ value: String(n), label: `${n} / page` }));
+type Traducteur = (cle: string, valeurs?: Record<string, string | number>) => string;
 
-const FILTER_LABELS: Partial<Record<keyof SearchFilters, (v: unknown) => string>> = {
-  contract_type: (v) => v === 'sale' ? 'Vente' : 'Location',
-  type: (v) => ({
-    apartment: 'Appartement', house: 'Maison', villa: 'Villa',
-    land: 'Terrain', studio: 'Studio', room: 'Chambre',
-    office: 'Bureau', shop: 'Commerce', warehouse: 'Entrepôt',
-    hotel: 'Hôtel', resort: 'Complexe', garage: 'Garage',
-    parking: 'Parking', farm: 'Ferme', factory: 'Usine', other: 'Autre',
-  }[v as string] ?? String(v)),
-  rent_period: (v) => ({ daily: 'Journalier', weekly: 'Hebdo', monthly: 'Mensuel', yearly: 'Annuel' }[v as string] ?? String(v)),
-  price_min: (v) => `≥ ${Number(v).toLocaleString('fr-SN')} FCFA`,
-  price_max: (v) => `≤ ${Number(v).toLocaleString('fr-SN')} FCFA`,
-  bedrooms:  (v) => `${v} ch.`,
-  bathrooms: (v) => `${v} sdb`,
-  area_min:  (v) => `≥ ${v} m²`,
-  area_max:  (v) => `≤ ${v} m²`,
-  furnished:      (v) => v ? 'Meublé' : 'Non meublé',
-  featured:       ()  => '★ En vedette',
-  floor_number:   (v) => Number(v) === 0 ? 'Rez-de-chaussée' : `Étage ${v}`,
-  available_from: (v) => `Dispo dès ${new Date(String(v)).toLocaleDateString('fr-SN', { day: '2-digit', month: 'short', year: 'numeric' })}`,
-  city:      (v) => String(v),
-  location:  (v) => `Quartier: ${v}`,
-  q:         (v) => `"${v}"`,
-  tags:      (v) => `Tags: ${v}`,
-};
+/**
+ * Fabrique les étiquettes de filtre actif.
+ *
+ * C'était une table de module, donc un endroit où `useTranslations` n'est pas appelable — le
+ * patron du dépôt (TCK-286) veut que la donnée porte une CLÉ et que le rendu la résolve. Ici la
+ * « donnée » est une fonction par filtre : la fabrique reçoit donc les traducteurs et rend la
+ * même table, construite dans le composant.
+ */
+function fabriqueEtiquettes(
+  t: Traducteur,
+  tTypes: Traducteur,
+  tContract: Traducteur,
+  tPeriods: Traducteur,
+): Partial<Record<keyof SearchFilters, (v: unknown) => string>> {
+  return {
+    contract_type: (v) => tContract(v === 'sale' ? 'sale' : 'rent'),
+    type: (v) => tTypes(String(v)),
+    rent_period: (v) => tPeriods(String(v)),
+    price_min: (v) => t('tags.priceMin', { value: Number(v).toLocaleString('fr-SN') }),
+    price_max: (v) => t('tags.priceMax', { value: Number(v).toLocaleString('fr-SN') }),
+    bedrooms: (v) => t('tags.bedrooms', { n: String(v) }),
+    bathrooms: (v) => t('tags.bathrooms', { n: String(v) }),
+    area_min: (v) => t('tags.areaMin', { value: String(v) }),
+    area_max: (v) => t('tags.areaMax', { value: String(v) }),
+    furnished: (v) => t(v ? 'tags.furnished' : 'tags.notFurnished'),
+    featured: () => t('tags.featured'),
+    floor_number: (v) =>
+      Number(v) === 0 ? t('tags.groundFloor') : t('tags.floor', { n: String(v) }),
+    available_from: (v) =>
+      t('tags.availableFrom', {
+        date: new Date(String(v)).toLocaleDateString('fr-SN', {
+          day: '2-digit', month: 'short', year: 'numeric',
+        }),
+      }),
+    city: (v) => String(v),
+    location: (v) => t('tags.quarter', { value: String(v) }),
+    q: (v) => `"${v}"`,
+    tags: (v) => t('tags.tags', { value: String(v) }),
+  };
+}
 
 const HIDDEN_FROM_TAGS: (keyof SearchFilters)[] = ['sort', 'page', 'per_page'];
 
@@ -69,6 +80,20 @@ export function SearchToolbar({
   onPerPageChange,
   onOpenSidebar,
 }: SearchToolbarProps) {
+  const t = useTranslations('search.toolbar');
+  const tTags = useTranslations('search');
+  const tTypes = useTranslations('property.types');
+  const tContract = useTranslations('property.contractTypes');
+  const tPeriods = useTranslations('property.rentPeriods');
+  const tSort = useTranslations('search.sort');
+
+  const FILTER_LABELS = fabriqueEtiquettes(tTags, tTypes, tContract, tPeriods);
+  const perPageOptions = [30, 40, 60, 70].map((n) => ({
+    value: String(n),
+    label: t('perPageOption', { count: n }),
+  }));
+  const sortOptions = SORT_VALUES.map((v) => ({ value: v, label: tSort(v) }));
+
   const activeTags: { key: keyof SearchFilters; subKey?: string; label: string }[] = [];
   (Object.keys(filters) as (keyof SearchFilters)[]).forEach(key => {
     if (HIDDEN_FROM_TAGS.includes(key)) return;
@@ -91,10 +116,10 @@ export function SearchToolbar({
           {loading ? (
             <span className="inline-flex items-center gap-2">
               <span className="w-3 h-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-              Chargement…
+              {t('loading')}
             </span>
           ) : (
-            <>{total.toLocaleString('fr-SN')} bien{total > 1 ? 's' : ''} trouvé{total > 1 ? 's' : ''}</>
+            t('resultCount', { count: total })
           )}
         </p>
 
@@ -103,17 +128,17 @@ export function SearchToolbar({
           <Select
             value={String(filters.per_page ?? 30)}
             onValueChange={(v) => onPerPageChange(Number(v))}
-            items={PER_PAGE_OPTIONS}
+            items={perPageOptions}
           >
             <SelectTrigger
               className="h-auto rounded-full py-1.5 px-3 border-gray-200 bg-white text-gray-700 cursor-pointer"
-              aria-label="Résultats par page"
+              aria-label={t('perPageAria')}
             >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {[30, 40, 60, 70].map(n => (
-                <SelectItem key={n} value={String(n)}>{n} / page</SelectItem>
+              {perPageOptions.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -122,13 +147,13 @@ export function SearchToolbar({
           <Select
             value={filters.sort ?? 'relevance'}
             onValueChange={(v) => onSortChange(v as SearchFilters['sort'])}
-            items={SORT_OPTIONS}
+            items={sortOptions}
           >
             <SelectTrigger className="h-auto rounded-full py-1.5 px-3 border-gray-200 bg-white text-gray-700 cursor-pointer">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {SORT_OPTIONS.map(opt => (
+              {sortOptions.map(opt => (
                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
               ))}
             </SelectContent>
@@ -140,7 +165,7 @@ export function SearchToolbar({
             className="md:hidden relative flex items-center gap-2 text-sm font-semibold border border-gray-300 rounded-full px-4 py-1.5 hover:border-primary hover:text-primary transition-colors"
           >
             <SlidersHorizontal className="w-4 h-4" />
-            Filtres
+            {t('filters')}
             {activeCount > 0 && (
               <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
                 {activeCount}

@@ -1,4 +1,5 @@
 'use client';
+import { useTranslations } from 'next-intl';
 import { KeyRound, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useFloatingDockSlot } from '@/components/floating-dock';
@@ -19,10 +20,11 @@ const MOBILE_BOTTOM_BAR_HEIGHT_PX = 76;
 /** Tailwind `lg` breakpoint (matches the `lg:hidden` wrapper class below). */
 const LG_BREAKPOINT_PX = 1024;
 
-const SHORT_LABEL: Record<'offer' | 'reserve' | 'apply', string> = {
-  offer: 'Offre',
-  reserve: 'Réserver',
-  apply: 'Postuler',
+/** La donnée porte la CLÉ, le rendu la résout (patron TCK-286). */
+const SHORT_LABEL_KEY: Record<'offer' | 'reserve' | 'apply', string> = {
+  offer: 'bottomBar.offer',
+  reserve: 'bottomBar.reserve',
+  apply: 'bottomBar.apply',
 };
 
 interface PropertyMobileBottomBarProps {
@@ -41,6 +43,7 @@ export function PropertyMobileBottomBar({
   onRequestVisit,
   onRequestBooking,
 }: PropertyMobileBottomBarProps) {
+  const t = useTranslations('property.detail');
   const isRent = property.contract_type === 'rent';
   const periodLabel = property.rent_period_label ?? (isRent ? 'mois' : null);
   const primaryCta = getPrimaryCtaForProperty(property);
@@ -78,11 +81,11 @@ export function PropertyMobileBottomBar({
       <div className="ml-auto flex gap-2">
         <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={onRequestVisit}>
           <Calendar className="size-4" aria-hidden />
-          Visiter
+          {t('bottomBar.visit')}
         </Button>
         <Button type="button" size="sm" className="gap-1.5" onClick={onRequestBooking}>
           <KeyRound className="size-4" aria-hidden />
-          {SHORT_LABEL[primaryCta.action]}
+          {t(SHORT_LABEL_KEY[primaryCta.action])}
         </Button>
       </div>
     </div>

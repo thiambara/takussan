@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import { FileText, Download, FileImage, FileSpreadsheet, File as FileIcon } from 'lucide-react';
 import type { PropertyDocument } from '@/types/property';
 
@@ -20,12 +21,14 @@ function formatSize(bytes: number): string {
 }
 
 export function PropertyDocuments({ documents }: PropertyDocumentsProps) {
+  const t = useTranslations('property.detail');
   const publicDocs = documents.filter((d) => d.public);
+
   if (publicDocs.length === 0) return null;
 
   return (
     <section className="space-y-4">
-      <h2 className="text-xl font-semibold text-stone-900">Documents</h2>
+      <h2 className="text-xl font-semibold text-stone-900">{t('documents')}</h2>
       <ul className="space-y-2">
         {publicDocs.map((doc) => {
           const Icon = getIcon(doc.type);
@@ -45,10 +48,10 @@ export function PropertyDocuments({ documents }: PropertyDocumentsProps) {
                 rel="noopener noreferrer"
                 download
                 className="inline-flex items-center gap-1.5 rounded-md border border-stone-300 px-2.5 h-8 text-xs font-medium text-stone-700 hover:bg-stone-50 transition-colors shrink-0"
-                aria-label={`Télécharger ${doc.name}`}
+                aria-label={t('downloadAria', { name: doc.name })}
               >
                 <Download className="size-3.5" aria-hidden />
-                Télécharger
+                {t('download')}
               </a>
             </li>
           );

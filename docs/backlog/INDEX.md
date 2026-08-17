@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**312 tickets** — 19 ouverts, 292 livrés.
+**312 tickets** — 11 ouverts, 300 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 10 |
+| 📋 Todo | 9 |
 | 🚧 Doing | 2 |
-| 👀 Review | 7 |
+| 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 292 |
+| ✅ Done | 300 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -34,7 +34,6 @@
 ## 📋 Todo
 
 - [TCK-288](tickets/TCK-288-chaine-de-deploiement-master-fige.md) — Premiere mise en production — la chaine n'a jamais tourne `M · P0 · technique`
-- [TCK-292](tickets/TCK-292-i18n-reste-du-parc.md) — i18n — le reste du parc : 409 fichiers, 3 542 libellés, en 12 lots `XL · P2 · front`
 - [TCK-293](tickets/TCK-293-webhook-paiement-scope-agence.md) — Webhook de paiement — le secret de n'importe quelle agence valide celui des autres `M · P0 · bug`
 - [TCK-299](tickets/TCK-299-deploiement-frontend-hors-depot.md) — Le déploiement du frontend n'existe dans aucun workflow ni script du dépôt `M · P1 · technique`
 - [TCK-324](tickets/TCK-324-mesurer-parallel-sur-le-runner-ci.md) — Mesurer `--parallel` sur le runner CI, puis trancher — la décision actuelle est un défaut, pas un résultat `S · P2 · technique`
@@ -46,18 +45,12 @@
 
 ## 🚧 Doing
 
-- [TCK-315](tickets/TCK-315-role-agence-du-prestataire.md) — Où vit le rôle d'agence d'un prestataire — le profil n'a pas d'agence, la collaboration si `M · P1 · technique`
+- [TCK-292](tickets/TCK-292-i18n-reste-du-parc.md) — i18n — le reste du parc, en 12 lots `XL · P2 · front`
 - [TCK-322](tickets/TCK-322-paratest-deux-executions-simultanees.md) — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage — une quatrième ressource partagée par machine `S · P2 · technique`
 
 ## 👀 Review
 
-- [TCK-279](tickets/TCK-279-rbac-custom-roles-phase-2.md) — RBAC refondu — phase 2 : rôles personnalisés par agence (AgencyRole + pivot de capacités) `L · P1 · full`
-- [TCK-304](tickets/TCK-304-enveloppe-pagination-dupliquee.md) — Enveloppe de pagination dupliquée à la main sur 58 fichiers, avec des clés incohérentes `L · P2 · technique`
-- [TCK-305](tickets/TCK-305-validation-inline-vers-formrequest.md) — 120 validations inline contre 65 FormRequest — deux conventions sur le même geste `L · P2 · technique`
-- [TCK-306](tickets/TCK-306-autorisation-controleurs-vers-policies.md) — 25 contrôleurs redéfinissent l'autorisation que 16 policies portent déjà `L · P2 · technique`
-- [TCK-307](tickets/TCK-307-supprimer-dsl-scopefilter-mort.md) — Supprimer le DSL `scopeFilter` — mort mais toujours branché sur tous les modèles `S · P2 · technique`
-- [TCK-308](tickets/TCK-308-baseresource-adoptee-par-7-sur-44.md) — `BaseResource` adoptée par 7 ressources sur 44 — 37 refont les conversions à la main `M · P2 · technique`
-- [TCK-309](tickets/TCK-309-conventions-mineures-dedoublees.md) — Trois conventions dédoublées : classes de base de test, préfixes de commandes, namespaces d'auth `M · P3 · technique`
+_(aucun)_
 
 ## ⛔ Blocked
 
@@ -65,7 +58,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 292
+## ✅ Done — 300
 
 <details>
 <summary><strong>Vague 41 — Temps d'exécution de la suite de tests : sélection par impact, puis parallélisation (2026-08-17)</strong> — 3 tickets</summary>
@@ -86,8 +79,14 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Vague 39 — Évacuation dette — convergence des conventions backend (2026-08-16)</strong> — 4 tickets</summary>
+<summary><strong>Vague 39 — Évacuation dette — convergence des conventions backend (2026-08-16)</strong> — 10 tickets</summary>
 
+- [TCK-304](tickets/TCK-304-enveloppe-pagination-dupliquee.md) — Enveloppe de pagination dupliquée à la main sur 58 fichiers, avec des clés incohérentes `L · P2 · technique`
+- [TCK-305](tickets/TCK-305-validation-inline-vers-formrequest.md) — 120 validations inline contre 65 FormRequest — deux conventions sur le même geste `L · P2 · technique`
+- [TCK-306](tickets/TCK-306-autorisation-controleurs-vers-policies.md) — 25 contrôleurs redéfinissent l'autorisation que 16 policies portent déjà `L · P2 · technique`
+- [TCK-307](tickets/TCK-307-supprimer-dsl-scopefilter-mort.md) — Supprimer le DSL `scopeFilter` — mort mais toujours branché sur tous les modèles `S · P2 · technique`
+- [TCK-308](tickets/TCK-308-baseresource-adoptee-par-7-sur-44.md) — `BaseResource` adoptée par 7 ressources sur 44 — 37 refont les conversions à la main `M · P2 · technique`
+- [TCK-309](tickets/TCK-309-conventions-mineures-dedoublees.md) — Trois conventions dédoublées : classes de base de test, préfixes de commandes, namespaces d'auth `M · P3 · technique`
 - [TCK-316](tickets/TCK-316-regles-react-compiler-inertes-sous-eslint-9.md) — Cinq familles de règles React Compiler sont déclarées bloquantes et ne s'exécutent pas — 23 violations que le bump ESLint 10 révèle `M · P2 · front`
 - [TCK-317](tickets/TCK-317-roles-systeme-derivent-par-date-de-creation.md) — Les rôles système dérivent par date de création d'agence — une capacité ajoutée à l'enum n'atteint jamais les agences existantes `M · P2 · back`
 - [TCK-318](tickets/TCK-318-activer-le-react-compiler.md) — Activer le React Compiler — ou décider de ne pas l'activer, mais le décider `M · P3 · front`
@@ -133,9 +132,11 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Vague 34 — Refonte RBAC : profil = rôle (2026-05-17)</strong> — 1 ticket</summary>
+<summary><strong>Vague 34 — Refonte RBAC : profil = rôle (2026-05-17)</strong> — 3 tickets</summary>
 
 - [TCK-278](tickets/TCK-278-rbac-profile-based-phase-1.md) — RBAC refondu — phase 1 : suppression de spatie sur User + PlatformProfile + Capability resolver `XL · P1 · technique`
+- [TCK-279](tickets/TCK-279-rbac-custom-roles-phase-2.md) — RBAC refondu — phase 2 : rôles personnalisés par agence (AgencyRole + pivot de capacités) `L · P1 · full`
+- [TCK-315](tickets/TCK-315-role-agence-du-prestataire.md) — Où vit le rôle d'agence d'un prestataire — le profil n'a pas d'agence, la collaboration si `M · P1 · technique`
 
 </details>
 

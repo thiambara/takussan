@@ -38,7 +38,7 @@ function criteriaToQueryString(criteria: Record<string, unknown>): string {
   return params.toString();
 }
 
-function humaniseCriteria(criteria: Record<string, unknown>): string {
+function humaniseCriteria(criteria: Record<string, unknown>, repliAucunCritere: string): string {
   const parts: string[] = [];
   if (criteria.contract_type === 'sale') parts.push('Vente');
   if (criteria.contract_type === 'rent') parts.push('Location');
@@ -70,7 +70,7 @@ function humaniseCriteria(criteria: Record<string, unknown>): string {
       `surface ${criteria.area_min ?? '…'} – ${criteria.area_max ?? '…'} m²`,
     );
   }
-  return parts.length > 0 ? parts.join(' · ') : 'Aucun critère';
+  return parts.length > 0 ? parts.join(' · ') : repliAucunCritere;
 }
 
 function SavedSearchRow({
@@ -82,6 +82,7 @@ function SavedSearchRow({
   onDelete: (id: number) => void;
   deleting: boolean;
 }) {
+  const t = useTranslations('search.saved');
   const qs = criteriaToQueryString(search.criteria);
   const href = `/properties${qs ? `?${qs}` : ''}`;
   return (
@@ -94,7 +95,7 @@ function SavedSearchRow({
           </h3>
         </div>
         <p className="mt-1 text-sm text-stone-500 truncate">
-          {humaniseCriteria(search.criteria)}
+          {humaniseCriteria(search.criteria, t('noCriteria'))}
         </p>
       </div>
       <div className="flex items-center gap-2">
@@ -103,7 +104,7 @@ function SavedSearchRow({
           className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary/90 transition"
         >
           <SearchIcon className="w-3.5 h-3.5" />
-          Relancer
+          {t('relaunch')}
         </Link>
         <Button
           variant="ghost"
