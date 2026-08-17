@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**304 tickets** — 19 ouverts, 284 livrés.
+**305 tickets** — 20 ouverts, 284 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 16 |
+| 📋 Todo | 17 |
 | 🚧 Doing | 3 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -49,6 +49,7 @@
 - [TCK-318](tickets/TCK-318-activer-le-react-compiler.md) — Activer le React Compiler — ou décider de ne pas l'activer, mais le décider `M · P3 · front`
 - [TCK-319](tickets/TCK-319-porter-watermarkservice-sur-intervention-image-4.md) — Porter `WatermarkService` sur intervention/image 4 — `place()` devient `insert()`, et l'opacité change d'unité `S · P3 · back`
 - [TCK-322](tickets/TCK-322-paratest-deux-executions-simultanees.md) — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage — une quatrième ressource partagée par machine `S · P2 · technique`
+- [TCK-323](tickets/TCK-323-typescript-7-casse-le-cliquet-i18n.md) — TypeScript 7 n'exporte plus l'API compilateur côté Node — le cliquet i18n en dépend, et le bump PR #182 le casse `M · P2 · technique`
 
 ## 🚧 Doing
 
