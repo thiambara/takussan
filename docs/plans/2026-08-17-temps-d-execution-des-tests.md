@@ -173,7 +173,7 @@ Deux choix portent tout le reste :
 | `app/**` présent dans `scanned` mais absent de `files` | **rien** (aucun test ne le couvre) |
 | `app/**` absent de `scanned` | **suite entière** |
 | `routes/**`, `config/**` | classes de contrôleur/service citées dans le diff → leurs tests ; sinon **suite entière** |
-| `database/migrations/**`, `bootstrap/**`, `composer.lock`, `phpunit.xml` | **suite entière** |
+| `database/{migrations,factories,seeders}/**`, `bootstrap/**`, `composer.lock`, `composer.json`, `phpunit.xml`, `tests/bootstrap.php`, `tests/TestCase.php` | **suite entière** |
 | `tests/**` | ces classes-là, telles quelles |
 | `docs/`, `*.md`, `takussan-web/` | rien |
 

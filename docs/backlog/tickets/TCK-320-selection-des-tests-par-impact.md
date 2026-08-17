@@ -88,8 +88,14 @@ le rituel de fin de branche exige déjà la suite entière.
 - **AC2** — Un fichier `app/` **couvert** sélectionne ses classes ; **scanné mais non couvert**
   sélectionne **rien** ; **absent de la carte** impose la **suite entière**. Ces trois cas sont
   distincts et testés.
-- **AC3** — `database/migrations/`, `bootstrap/`, `composer.lock`, `composer.json`, `phpunit.xml`,
-  `tests/bootstrap.php` et `tests/TestCase.php` imposent la suite entière. Un seul suffit.
+- **AC3** — `database/migrations/`, `database/factories/`, `database/seeders/`, `bootstrap/`,
+  `composer.lock`, `composer.json`, `phpunit.xml`, `tests/bootstrap.php` et `tests/TestCase.php`
+  imposent la suite entière. Un seul suffit.
+
+  > `database/factories/` et `database/seeders/` **manquaient à la première rédaction de cet AC**,
+  > et une revue de code l'a trouvé le 2026-08-17 : une factory est consommée par un nombre inconnu
+  > de tests, donc la modifier rendait « rien à lancer » — **un vert sans qu'aucun test n'ait
+  > tourné**. C'est la panne exacte que ce ticket existe pour rendre impossible.
 - **AC4** — Les classes de test ajoutées ou modifiées **depuis le commit de la carte** sont ajoutées
   d'office. Si ce commit est introuvable (clone superficiel), la commande **escalade** au lieu de
   présumer la réparation faite.
