@@ -10,9 +10,9 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 18 |
+| 📋 Todo | 17 |
 | 🚧 Doing | 1 |
-| 👀 Review | 0 |
+| 👀 Review | 1 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 287 |
 | 🗑️ Obsolete | 1 |
@@ -34,7 +34,6 @@
 ## 📋 Todo
 
 - [TCK-288](tickets/TCK-288-chaine-de-deploiement-master-fige.md) — Premiere mise en production — la chaine n'a jamais tourne `M · P0 · technique`
-- [TCK-291](tickets/TCK-291-etats-vides-erreurs-reste-du-parc.md) — États vides / erreurs — le reste du parc (super-admin, admin, tables) `M · P2 · front`
 - [TCK-292](tickets/TCK-292-i18n-reste-du-parc.md) — i18n — le reste du parc : 409 fichiers, 3 542 libellés, en 12 lots `XL · P2 · front`
 - [TCK-293](tickets/TCK-293-webhook-paiement-scope-agence.md) — Webhook de paiement — le secret de n'importe quelle agence valide celui des autres `M · P0 · bug`
 - [TCK-299](tickets/TCK-299-deploiement-frontend-hors-depot.md) — Le déploiement du frontend n'existe dans aucun workflow ni script du dépôt `M · P1 · technique`
@@ -58,7 +57,7 @@
 
 ## 👀 Review
 
-_(aucun)_
+- [TCK-291](tickets/TCK-291-etats-vides-erreurs-reste-du-parc.md) — États vides / erreurs — le reste du parc (super-admin, admin, tables) `M · P2 · front`
 
 ## ⛔ Blocked
 
