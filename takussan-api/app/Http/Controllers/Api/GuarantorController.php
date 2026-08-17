@@ -45,14 +45,14 @@ class GuarantorController extends Controller
 
     public function show(Request $request, Guarantor $guarantor): JsonResponse
     {
-        $this->authorizeAccess($request, $guarantor);
+        $this->authorize('view', $guarantor);
 
         return $this->json(['data' => $this->format($guarantor)]);
     }
 
     public function update(UpdateGuarantorRequest $request, Guarantor $guarantor): JsonResponse
     {
-        $this->authorizeAccess($request, $guarantor);
+        $this->authorize('view', $guarantor);
 
         $data = $request->validated();
 
@@ -63,20 +63,10 @@ class GuarantorController extends Controller
 
     public function destroy(Request $request, Guarantor $guarantor): JsonResponse
     {
-        $this->authorizeAccess($request, $guarantor);
+        $this->authorize('view', $guarantor);
         $guarantor->delete();
 
         return $this->json(null, 204);
-    }
-
-    protected function authorizeAccess(Request $request, Guarantor $guarantor): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $guarantor->added_by_id === $user->id
-            || ($user->agency_id && $guarantor->addedBy?->agency_id === $user->agency_id);
-
-        abort_unless($ok, 403);
     }
 
     private function format(Guarantor $g): array

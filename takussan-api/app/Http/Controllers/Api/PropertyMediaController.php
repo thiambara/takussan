@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\ReorderPropertyMediaRequest;
 use App\Http\Requests\Api\StorePropertyMediaRequest;
-use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,7 +15,7 @@ class PropertyMediaController extends Controller
 {
     public function index(Request $request, Property $property): JsonResponse
     {
-        $this->authorizeView($request, $property);
+        $this->authorize('viewMedia', $property);
 
         $media = $property->getMedia('photos')->map(fn (Media $m) => [
             'id' => $m->id,
@@ -31,7 +30,7 @@ class PropertyMediaController extends Controller
 
     public function store(StorePropertyMediaRequest $request, Property $property): JsonResponse
     {
-        $this->authorizeManage($request, $property);
+        $this->authorize('update', $property);
 
         $added = [];
         foreach ($request->file('photos', []) as $photo) {
@@ -59,7 +58,7 @@ class PropertyMediaController extends Controller
 
     public function destroy(Request $request, Property $property, int $mediaId): JsonResponse
     {
-        $this->authorizeManage($request, $property);
+        $this->authorize('update', $property);
         $property->getMedia('photos')->firstWhere('id', $mediaId)?->delete();
 
         return $this->json(['message' => 'deleted'], 204);
@@ -67,7 +66,7 @@ class PropertyMediaController extends Controller
 
     public function reorder(ReorderPropertyMediaRequest $request, Property $property): JsonResponse
     {
-        $this->authorizeManage($request, $property);
+        $this->authorize('update', $property);
 
         $data = $request->validated();
 
@@ -77,23 +76,5 @@ class PropertyMediaController extends Controller
         }
 
         return $this->json(['message' => 'reordered']);
-    }
-
-    protected function authorizeManage(Request $request, Property $property): void
-    {
-        $user = $request->user();
-        $ok = $user->id === $property->user_id
-            || ($user->agency_id && $user->agency_id === $property->agency_id)
-            || $user->isSuperAdmin();
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizeView(Request $request, Property $property): void
-    {
-        if ($property->visibility === PropertyVisibility::Public
-            && $property->published_at !== null) {
-            return;
-        }
-        $this->authorizeManage($request, $property);
     }
 }

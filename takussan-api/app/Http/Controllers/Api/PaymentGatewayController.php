@@ -27,7 +27,10 @@ class PaymentGatewayController extends Controller
     public function initiate(InitiatePaymentRequest $request, string $paymentType, int $paymentId): JsonResponse
     {
         $payment = $this->resolvePayment($paymentType, $paymentId);
-        $this->authorizeManage($request, $payment);
+        // TCK-306 — le `instanceof` sur trois types est devenu trois policies ;
+        // Laravel choisit celle qui s'applique sur la classe reelle du paiement.
+        abort_if($request->user() === null, 401);
+        $this->authorize('update', $payment);
 
         $provider = PaymentProvider::from($request->validated()['provider']);
 
@@ -48,7 +51,8 @@ class PaymentGatewayController extends Controller
     public function verify(Request $request, string $paymentType, int $paymentId): JsonResponse
     {
         $payment = $this->resolvePayment($paymentType, $paymentId);
-        $this->authorizeManage($request, $payment);
+        abort_if($request->user() === null, 401);
+        $this->authorize('update', $payment);
 
         $status = $this->gateway->verify($payment);
 
@@ -71,40 +75,5 @@ class PaymentGatewayController extends Controller
         };
 
         return $model;
-    }
-
-    protected function authorizeManage(Request $request, Model $payment): void
-    {
-        $user = $request->user();
-        if ($user === null) {
-            abort(401);
-        }
-        if ($user->isSuperAdmin()) {
-            return;
-        }
-
-        $ok = false;
-        if ($payment instanceof BookingPayment) {
-            /** @var Booking|null $booking */
-            $booking = $payment->booking;
-            $ok = $booking
-                ? ($user->agency_id && $user->agency_id === $booking->agency_id)
-                    || ($booking->property?->user_id === $user->id)
-                    || ($booking->customer?->user_id === $user->id)
-                : false;
-        } elseif ($payment instanceof LeasePayment) {
-            /** @var Lease|null $lease */
-            $lease = $payment->lease;
-            $ok = $lease
-                ? ($user->agency_id && $user->agency_id === $lease->agency_id)
-                    || $lease->landlord_id === $user->id
-                    || ($lease->tenant?->user_id === $user->id)
-                : false;
-        } elseif ($payment instanceof Invoice) {
-            $ok = ($user->agency_id && $user->agency_id === $payment->agency_id)
-                || $payment->issued_by_id === $user->id;
-        }
-
-        abort_unless($ok, 403);
     }
 }

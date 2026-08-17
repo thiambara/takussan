@@ -296,6 +296,28 @@ jobs:
         # rien la satisfait — cliquet contre la ré-divergence, pas mesure de couverture (D-23).
         run: node scripts/check-inline-validation.mjs --report
 
+      - name: Aucun contrôleur ne définit sa propre règle d'autorisation
+        # Mesuré le 2026-08-17 : **25 contrôleurs** définissaient chacun leur `authorizeAccess()` /
+        # `authorizeManage()` — **88 appels** — avec la même logique copiée-collée. La règle
+        # « propriétaire, périmètre d'agence, ou super-admin » était recopiée DIX fois pour le seul
+        # modèle `Property`, sous trois formes syntaxiques différentes.
+        #
+        # C'est le lot où une divergence ne rougit pas : elle ouvre une porte. Deux exemples
+        # mesurés, invisibles tous les deux : `DocumentController::authorizeManage()` autorisait le
+        # seul téléverseur quand `DocumentVersionController::authorizeManage()`, sur le MÊME modèle,
+        # autorisait aussi l'agence ; et un commentaire annonçait « Mirrors
+        # DocumentController::authorizeUpload() » sur sept branches recopiées — un commentaire qui
+        # annonce une duplication ne la corrige pas, il vieillit avec elle.
+        #
+        # La garde cherche une FORME, pas deux noms — et c'est ainsi qu'elle a trouvé 19 helpers de
+        # plus, sous 19 noms différents, que l'inventaire du ticket (« authorizeAccess ou
+        # authorizeManage ») ne pouvait pas voir. Ils sont hors périmètre de TCK-306 et inscrits
+        # dans EXEMPTIONS_JUSTIFIEES : la dette devient comptable au lieu d'être invisible.
+        #
+        # ⚠ La garde écrit sa portée dans sa sortie : elle interdit de DÉFINIR une règle dans un
+        # contrôleur, elle ne vérifie pas qu'un endpoint autorise quoi que ce soit (dette D-23).
+        run: node scripts/check-controller-authorization.mjs --report
+
       - name: Aucun document normatif ne cite un chemin markdown mort
         # `models-spec.md` a cité `docs/claude-code-prompt-notifications.md` — JAMAIS ÉCRIT — assez
         # longtemps pour qu'on finisse par annoter la citation « *(jamais écrit — pointeur mort)* »

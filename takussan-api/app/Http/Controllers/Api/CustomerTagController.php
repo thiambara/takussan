@@ -15,7 +15,7 @@ class CustomerTagController extends Controller
 {
     public function store(AttachCustomerTagsRequest $request, Customer $customer): JsonResponse
     {
-        $this->authorizeAccess($request, $customer);
+        $this->authorize('view', $customer);
 
         $names = $request->normalizedNames();
 
@@ -63,7 +63,7 @@ class CustomerTagController extends Controller
 
     public function destroy(Request $request, Customer $customer, Tag $tag): JsonResponse
     {
-        $this->authorizeAccess($request, $customer);
+        $this->authorize('view', $customer);
 
         $customer->tags()->detach($tag->id);
 
@@ -84,15 +84,5 @@ class CustomerTagController extends Controller
             'slug' => $t->slug,
             'color' => $t->color,
         ])->values()->all();
-    }
-
-    private function authorizeAccess(Request $request, Customer $customer): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $customer->added_by_id === $user->id
-            || ($user->agency_id && $user->agency_id === $customer->agency_id);
-
-        abort_unless($ok, 403);
     }
 }

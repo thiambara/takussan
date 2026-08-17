@@ -16,7 +16,7 @@ class PropertyCollaboratorController extends Controller
 {
     public function index(Request $request, Property $property): JsonResponse
     {
-        $this->authorizeAccess($request, $property);
+        $this->authorize('view', $property);
 
         $collaborators = $property->collaborators()->with('user')->get();
 
@@ -25,7 +25,7 @@ class PropertyCollaboratorController extends Controller
 
     public function store(StorePropertyCollaboratorRequest $request, Property $property): JsonResponse
     {
-        $this->authorizeManage($request, $property);
+        $this->authorize('update', $property);
 
         $data = $request->validated();
 
@@ -48,7 +48,7 @@ class PropertyCollaboratorController extends Controller
 
     public function update(UpdatePropertyCollaboratorRequest $request, Property $property, PropertyCollaborator $collaborator): JsonResponse
     {
-        $this->authorizeManage($request, $property);
+        $this->authorize('update', $property);
         abort_if($collaborator->property_id !== $property->id, 404);
 
         $data = $request->validated();
@@ -70,27 +70,12 @@ class PropertyCollaboratorController extends Controller
 
     public function destroy(Request $request, Property $property, PropertyCollaborator $collaborator): JsonResponse
     {
-        $this->authorizeManage($request, $property);
+        $this->authorize('update', $property);
         abort_if($collaborator->property_id !== $property->id, 404);
 
         $collaborator->delete();
 
         return $this->json(null, 204);
-    }
-
-    protected function authorizeAccess(Request $request, Property $property): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $property->user_id === $user->id
-            || ($user->agency_id && $user->agency_id === $property->agency_id);
-
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizeManage(Request $request, Property $property): void
-    {
-        $this->authorizeAccess($request, $property);
     }
 
     /**

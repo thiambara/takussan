@@ -58,7 +58,7 @@ class MaintenanceRequestController extends Controller
 
     public function indexForProperty(Request $request, Property $property): JsonResponse
     {
-        $this->authorizeAccessProperty($request, $property);
+        $this->authorize('view', $property);
 
         $base = MaintenanceRequest::query()->where('property_id', $property->id);
 
@@ -129,7 +129,7 @@ class MaintenanceRequestController extends Controller
 
     public function show(Request $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
-        $this->authorizeAccess($request, $maintenanceRequest);
+        $this->authorize('view', $maintenanceRequest);
 
         $includes = collect(explode(',', (string) $request->query('include')))
             ->map(fn (string $include) => trim($include))
@@ -154,7 +154,7 @@ class MaintenanceRequestController extends Controller
 
     public function update(UpdateMaintenanceRequestRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
-        $this->authorizeManage($request, $maintenanceRequest);
+        $this->authorize('update', $maintenanceRequest);
 
         $data = $request->validated();
 
@@ -167,7 +167,7 @@ class MaintenanceRequestController extends Controller
 
     public function updateStatus(UpdateStatusMaintenanceRequestRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
-        $this->authorizeManage($request, $maintenanceRequest);
+        $this->authorize('update', $maintenanceRequest);
 
         $data = $request->validated();
 
@@ -181,7 +181,7 @@ class MaintenanceRequestController extends Controller
 
     public function complete(CompleteMaintenanceRequestRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
-        $this->authorizeManage($request, $maintenanceRequest);
+        $this->authorize('update', $maintenanceRequest);
 
         $data = $request->validated();
 
@@ -201,7 +201,7 @@ class MaintenanceRequestController extends Controller
 
     public function uploadPhotos(UploadPhotosMaintenanceRequestRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
-        $this->authorizeAccess($request, $maintenanceRequest);
+        $this->authorize('view', $maintenanceRequest);
 
         // Block uploads on terminal states — a closed or cancelled request
         // should not accept new photos (prevents abuse and keeps the audit
@@ -216,46 +216,11 @@ class MaintenanceRequestController extends Controller
 
         // Only managers can attach completion_photos.
         if ($collection === 'completion_photos') {
-            $this->authorizeManage($request, $maintenanceRequest);
+            $this->authorize('update', $maintenanceRequest);
         }
 
         $added = $this->service->addPhotos($maintenanceRequest, $request->file('photos', []), $collection);
 
         return $this->json(['data' => $added], 201);
-    }
-
-    protected function authorizeAccess(Request $request, MaintenanceRequest $mr): void
-    {
-        $user = $request->user();
-        $property = $mr->property;
-        $ok = $user->isSuperAdmin()
-            || $mr->requester_id === $user->id
-            || $mr->assigned_to === $user->id
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
-
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizeManage(Request $request, MaintenanceRequest $mr): void
-    {
-        $user = $request->user();
-        $property = $mr->property;
-        $ok = $user->isSuperAdmin()
-            || $mr->assigned_to === $user->id
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
-
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizeAccessProperty(Request $request, Property $property): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $property->user_id === $user->id
-            || ($user->agency_id && $property->agency_id === $user->agency_id);
-
-        abort_unless($ok, 403);
     }
 }

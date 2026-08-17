@@ -128,10 +128,36 @@ encore. La Gate dérive l'agence dans l'ordre : 2ᵉ argument de `can()` → `re
 > Le tokenizer n'est pas un raffinement : un `grep` sur la même recherche rend trois faux positifs
 > (un docblock, un commentaire de test, un nom de route Laravel).
 
-> ⚠️ **Deux conventions d'autorisation concurrentes, sans arbitrage** : 16 policies pour 72 modèles,
-> mais **38 contrôleurs redéfinissent chacun leurs `authorizeAccess()`/`authorizeManage()`** (124
-> appels) avec la même logique copiée-collée. Pour du code neuf : **policy**, et l'inscrire dans
-> `AppServiceProvider` si elle échappe à l'auto-discovery (11 liaisons explicites y sont nécessaires).
+> ✅ **UNE convention d'autorisation, et une garde qui la tient** (TCK-306). Une règle
+> d'autorisation vit dans une policy sous `app/Policies/` ; le contrôleur l'invoque par
+> `$this->authorize('view', $model)` — `Base\Controller` porte `AuthorizesRequests` depuis TCK-306.
+> `scripts/check-controller-authorization.mjs` (Repo CI) casse si un contrôleur redéfinit une règle,
+> **sous n'importe quel nom** : elle cherche une forme (`function authorize*`, `ensureCan*`,
+> `check*Access*`), pas deux noms.
+>
+> *Pourquoi la garde cherche une forme.* Cette section annonçait « 38 contrôleurs, 124 appels »
+> (au 2026-08-12) ; la re-mesure du 2026-08-17 en a trouvé **25 et 88** — surestimé d'un tiers. Mais
+> le grep qui les comptait cherchait `authorizeAccess`/`authorizeManage`, et la garde a trouvé
+> **19 helpers de plus, sous 19 noms différents** (`authorizeAdmin`, `authorizeLeaseManage`,
+> `authorizeAttach`…) dans 15 autres contrôleurs. *Un inventaire qui cherche des noms mesure les
+> noms qu'il connaît.* Ces 19-là sont hors périmètre de TCK-306 et inscrits dans les exemptions
+> justifiées de la garde : la dette est comptable, elle n'est plus invisible.
+>
+> ⚠️ **Deux pièges payés pendant la migration, à connaître avant d'en déplacer une de plus :**
+>
+> 1. **Vérifie sur quelle règle chaque appel tombait vraiment.** `DocumentController` et
+>    `DocumentVersionController` définissaient tous deux un `authorizeManage()`, sur le **même
+>    modèle**, avec des règles **différentes** — l'un le téléverseur seul, l'autre déléguant à la
+>    règle de lecture. Les mapper tous les deux sur `update` aurait rendu 403 là où l'endpoint
+>    répondait 200.
+> 2. **Une policy jamais liée est ignorée, pas bruyante.** L'ability retombe sur le défaut de la
+>    Gate et refuse tout le monde sauf le super-admin, sans trace. Inscris-la dans
+>    `AppServiceProvider::bootGatesAndPolicies()` — la garde le vérifie.
+>
+> ⚠️ `BasePolicy::view()`/`update()` sans capacité déclarée **refusent** (cf. TCK-297) : une policy
+> qui doit ouvrir la lecture au propriétaire et à l'agence écrit sa règle explicitement. C'était le
+> cas de `PropertyPolicy::view()` et de `LeasePolicy::view()/update()`, muettes tant que la règle
+> vivait dans les contrôleurs.
 
 ## Profil actif — `ResolveActiveProfile`
 

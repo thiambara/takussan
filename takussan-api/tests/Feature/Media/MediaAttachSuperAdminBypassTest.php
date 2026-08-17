@@ -2,7 +2,8 @@
 
 namespace Tests\Feature\Media;
 
-use App\Models\Inventory;
+use App\Models\KycDossier;
+use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -38,22 +39,30 @@ use Tests\ApiTestCase;
  * agence », ce test-ci pinne « le bypass super-admin couvre les cibles SANS
  * policy ». Les deux régresseraient séparément.
  *
- * ## Pourquoi `Inventory`
+ * ## Pourquoi `KycDossier` — et pourquoi ce n'est plus `Inventory`
  *
- * La cible doit réunir les trois conditions du trou, et `Inventory` est le cas
- * le plus pur du dépôt : elle implémente `HasMedia` (collection `photos`), elle
- * n'a **pas** de policy, et sa table n'a **pas** de colonne `user_id` — elle
- * porte `conducted_by` et `tenant_id`. Ce choix est dérivé, pas décoré :
+ * La cible doit réunir les trois conditions du trou : implémenter `HasMedia`,
+ * n'avoir **aucune** policy, et n'avoir **pas** de colonne `user_id`.
+ *
+ * ⚠ **TCK-306 a fait exactement ce que l'avertissement ci-dessous annonçait.**
+ * La cible était `Inventory` ; le ticket a écrit une `InventoryPolicy` (avec une
+ * méthode `update`), donc `MediaController::authorizeAttach` a cessé de retomber
+ * sur sa branche sans Gate pour ce modèle. Les deux tests d'ablation seraient
+ * restés **verts sans rien prouver** — et c'est
+ * {@see test_the_fallback_branch_is_the_one_under_test} qui l'a dit, en rouge, en
+ * nommant le modèle et la commande pour lui trouver un remplaçant. *Une sonde de
+ * pertinence n'est pas une politesse : c'est la seule chose qui distingue un test
+ * qui garde d'un test qui occupe la case « couvert ».*
+ *
+ * La liste se dérive, elle ne se recopie pas :
  *
  *     comm -23 <(grep -rl 'implements HasMedia' app/Models | …) <(ls app/Policies | …)
- *     → Document · Inventory · KycDossier · MaintenanceRequest · Message
+ *     → KycDossier · Message      (au 2026-08-17, après TCK-306)
  *
- * ⚠ Le jour où quelqu'un écrit une `InventoryPolicy`, ce test cesse d'exercer la
- * branche de repli — il passerait par la Gate et resterait vert **sans rien
- * prouver**. {@see test_the_fallback_branch_is_the_one_under_test} le constate à
- * l'exécution et échoue avec le nom du modèle à remplacer, plutôt que de laisser
- * la garde se vider en silence. *Un test qui cesse de tester ce qu'il dit tester
- * est plus dangereux qu'un test absent : il occupe la case « couvert ».*
+ * `KycDossier` est le cas le plus pur des deux : sa table porte `subject_type` /
+ * `subject_id` et `reviewed_by`, jamais `user_id`, et sa collection média est
+ * `documents`. `Message` dépend d'une conversation, donc d'un contexte que ce
+ * test n'a pas besoin de monter.
  */
 class MediaAttachSuperAdminBypassTest extends ApiTestCase
 {
@@ -73,12 +82,12 @@ class MediaAttachSuperAdminBypassTest extends ApiTestCase
     public function test_super_admin_can_attach_media_to_a_target_without_policy(): void
     {
         $this->apiActingAsRole('super_admin');
-        $inventaire = Inventory::factory()->create();
+        $dossier = $this->dossierSansPolicy();
 
-        $this->postPhoto($inventaire)
+        $this->postDocument($dossier)
             ->assertCreated()
-            ->assertJsonPath('data.model_type', Inventory::class)
-            ->assertJsonPath('data.model_id', $inventaire->id);
+            ->assertJsonPath('data.model_type', KycDossier::class)
+            ->assertJsonPath('data.model_id', $dossier->id);
 
         $this->assertDatabaseCount('media', 1);
     }
@@ -91,9 +100,9 @@ class MediaAttachSuperAdminBypassTest extends ApiTestCase
     public function test_an_unrelated_user_is_still_forbidden(): void
     {
         Sanctum::actingAs(User::factory()->create());
-        $inventaire = Inventory::factory()->create();
+        $dossier = $this->dossierSansPolicy();
 
-        $this->postPhoto($inventaire)->assertForbidden();
+        $this->postDocument($dossier)->assertForbidden();
 
         $this->assertDatabaseCount('media', 0);
     }
@@ -106,13 +115,13 @@ class MediaAttachSuperAdminBypassTest extends ApiTestCase
      */
     public function test_the_fallback_branch_is_the_one_under_test(): void
     {
-        $inventaire = Inventory::factory()->create();
+        $dossier = $this->dossierSansPolicy();
 
-        $policy = Gate::getPolicyFor($inventaire);
+        $policy = Gate::getPolicyFor($dossier);
 
         $this->assertTrue(
             $policy === null || ! method_exists($policy, 'update'),
-            'Inventory a désormais une policy avec une méthode `update` : '
+            'KycDossier a désormais une policy avec une méthode `update` : '
             .'`MediaController::authorizeAttach` passe donc par la Gate pour elle, et ce fichier '
             ."n'exerce plus la branche de repli qu'il existe pour garder. Choisir une autre cible "
             .'`HasMedia` sans policy et sans colonne `user_id` — la liste se dérive avec '
@@ -120,19 +129,31 @@ class MediaAttachSuperAdminBypassTest extends ApiTestCase
         );
 
         $this->assertFalse(
-            Schema::hasColumn($inventaire->getTable(), 'user_id'),
-            '`inventories` porte désormais une colonne `user_id` : la branche de repli '
+            Schema::hasColumn($dossier->getTable(), 'user_id'),
+            '`kyc_dossiers` porte désormais une colonne `user_id` : la branche de repli '
             .'autoriserait par propriété et ce test ne prouverait plus rien du bypass super-admin.'
         );
     }
 
-    private function postPhoto(Inventory $inventaire): TestResponse
+    /** `KycDossier` n'a pas de factory : le sujet polymorphe suffit à le créer. */
+    private function dossierSansPolicy(): KycDossier
+    {
+        $property = Property::factory()->create();
+
+        return KycDossier::create([
+            'subject_type' => Property::class,
+            'subject_id' => $property->id,
+        ]);
+    }
+
+    private function postDocument(KycDossier $dossier): TestResponse
     {
         return $this->postJson('/api/media', [
-            'file' => UploadedFile::fake()->image('etat-des-lieux.png', 400, 400),
-            'collection' => 'photos',
-            'model_type' => Inventory::class,
-            'model_id' => $inventaire->id,
+            // La collection `documents` exige un PDF/DOCX, pas une image (MediaUploadRequest).
+            'file' => UploadedFile::fake()->create('piece-identite.pdf', 120, 'application/pdf'),
+            'collection' => 'documents',
+            'model_type' => KycDossier::class,
+            'model_id' => $dossier->id,
         ]);
     }
 }

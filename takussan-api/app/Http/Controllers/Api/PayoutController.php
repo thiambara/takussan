@@ -54,7 +54,7 @@ class PayoutController extends Controller
 
     public function show(Request $request, Payout $payout): JsonResponse
     {
-        $this->authorizeAccess($request, $payout);
+        $this->authorize('view', $payout);
 
         return $this->json([
             'data' => PayoutResource::make($payout->load('landlord'))->toArray($request),
@@ -63,7 +63,7 @@ class PayoutController extends Controller
 
     public function markProcessed(MarkProcessedPayoutRequest $request, Payout $payout): JsonResponse
     {
-        $this->authorizeManage($request, $payout);
+        $this->authorize('update', $payout);
 
         $data = $request->validated();
 
@@ -76,7 +76,7 @@ class PayoutController extends Controller
 
     public function markFailed(MarkFailedPayoutRequest $request, Payout $payout): JsonResponse
     {
-        $this->authorizeManage($request, $payout);
+        $this->authorize('update', $payout);
 
         $data = $request->validated();
 
@@ -89,32 +89,11 @@ class PayoutController extends Controller
 
     public function cancel(Request $request, Payout $payout): JsonResponse
     {
-        $this->authorizeManage($request, $payout);
+        $this->authorize('update', $payout);
         $payout = $this->payouts->cancel($payout);
 
         return $this->json([
             'data' => PayoutResource::make($payout)->toArray($request),
         ]);
-    }
-
-    protected function authorizeAccess(Request $request, Payout $payout): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $payout->landlord_id === $user->id
-            || $payout->issued_by_id === $user->id
-            || ($user->agency_id && $user->agency_id === $payout->agency_id);
-
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizeManage(Request $request, Payout $payout): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $payout->issued_by_id === $user->id
-            || ($user->agency_id && $user->agency_id === $payout->agency_id);
-
-        abort_unless($ok, 403);
     }
 }

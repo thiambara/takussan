@@ -36,15 +36,22 @@ use App\Listeners\Permissions\NotifyDelegationRevoked;
 use App\Models\Agency;
 use App\Models\AgencyRole;
 use App\Models\AgencyUpgradeRequest;
+use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Conversation;
+use App\Models\Customer;
+use App\Models\Document;
 use App\Models\Enums\Capability;
 use App\Models\Favorite;
+use App\Models\Guarantor;
 use App\Models\Inventory;
 use App\Models\Invitation;
+use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\MaintenanceRequest;
 use App\Models\Message;
+use App\Models\Payout;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
@@ -53,6 +60,7 @@ use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\Review;
 use App\Models\RoleDelegation;
+use App\Models\Task;
 use App\Models\User;
 use App\Notifications\Channels\SmsChannel;
 use App\Notifications\Channels\WhatsappChannel;
@@ -74,15 +82,27 @@ use App\Policies\AgencyPolicy;
 use App\Policies\AgencyRolePolicy;
 use App\Policies\AgencyUpgradeRequestPolicy;
 use App\Policies\AgentProfilePolicy;
+use App\Policies\BookingPaymentPolicy;
+use App\Policies\BookingPolicy;
 use App\Policies\ConversationPolicy;
+use App\Policies\CustomerPolicy;
+use App\Policies\DocumentPolicy;
+use App\Policies\GuarantorPolicy;
+use App\Policies\InventoryPolicy;
 use App\Policies\InvitationPolicy;
+use App\Policies\InvoicePolicy;
+use App\Policies\LeasePaymentPolicy;
 use App\Policies\LeasePolicy;
+use App\Policies\MaintenanceRequestPolicy;
 use App\Policies\MediaPolicy;
 use App\Policies\OwnerProfilePolicy;
+use App\Policies\PayoutPolicy;
 use App\Policies\Profiles\ServiceProviderProfilePolicy;
 use App\Policies\PropertyModerationPolicy;
 use App\Policies\PropertyPolicy;
+use App\Policies\PropertyVisitPolicy;
 use App\Policies\RoleDelegationPolicy;
+use App\Policies\TaskPolicy;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Media\Cdn\BunnyCdnDriver;
 use App\Services\Media\Cdn\CdnHealthGuard;
@@ -457,6 +477,26 @@ class AppServiceProvider extends ServiceProvider
         // l'Agency en second argument (comme AgentProfilePolicy@invite), ce
         // que l'auto-discovery ne devine pas : on lie explicitement.
         Gate::policy(AgencyRole::class, AgencyRolePolicy::class);
+
+        // TCK-306 — les dix policies qui reprennent les `authorizeAccess()` /
+        // `authorizeManage()` que 25 contrôleurs redéfinissaient chacun de leur côté
+        // (88 appels, la même logique copiée-collée). Elles sont liées ICI plutôt que
+        // laissées à l'auto-discovery pour la raison écrite plus haut à propos
+        // d'AgencyPolicy : ce fichier est l'endroit où les policies se lisent d'un
+        // coup d'œil. `scripts/check-controller-authorization.mjs` vérifie d'ailleurs
+        // que chacune y figure — une policy écrite mais jamais liée est un refus muet.
+        Gate::policy(Booking::class, BookingPolicy::class);
+        Gate::policy(BookingPayment::class, BookingPaymentPolicy::class);
+        Gate::policy(Customer::class, CustomerPolicy::class);
+        Gate::policy(Document::class, DocumentPolicy::class);
+        Gate::policy(Guarantor::class, GuarantorPolicy::class);
+        Gate::policy(Inventory::class, InventoryPolicy::class);
+        Gate::policy(Invoice::class, InvoicePolicy::class);
+        Gate::policy(LeasePayment::class, LeasePaymentPolicy::class);
+        Gate::policy(MaintenanceRequest::class, MaintenanceRequestPolicy::class);
+        Gate::policy(Payout::class, PayoutPolicy::class);
+        Gate::policy(PropertyVisit::class, PropertyVisitPolicy::class);
+        Gate::policy(Task::class, TaskPolicy::class);
 
         // TCK-098 — property moderation gates (approve, reject, resubmit).
         // Named gates avoid collision with the existing PropertyPolicy.

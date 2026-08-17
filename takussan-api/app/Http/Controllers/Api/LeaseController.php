@@ -58,7 +58,7 @@ class LeaseController extends Controller
 
     public function show(Request $request, Lease $lease): JsonResponse
     {
-        $this->authorizeAccess($request, $lease);
+        $this->authorize('view', $lease);
 
         return $this->json([
             'data' => LeaseResource::make($lease->load(['property.address', 'tenant', 'payments']))->toArray($request),
@@ -72,7 +72,7 @@ class LeaseController extends Controller
      */
     public function update(UpdateLeaseRequest $request, Lease $lease): JsonResponse
     {
-        $this->authorizeManage($request, $lease);
+        $this->authorize('update', $lease);
 
         $data = $request->validated();
         if ($data !== []) {
@@ -86,7 +86,7 @@ class LeaseController extends Controller
 
     public function activate(Request $request, Lease $lease): JsonResponse
     {
-        $this->authorizeManage($request, $lease);
+        $this->authorize('update', $lease);
         $lease = $this->leases->activate($lease);
 
         return $this->json([
@@ -96,7 +96,7 @@ class LeaseController extends Controller
 
     public function terminate(TerminateLeaseRequest $request, Lease $lease): JsonResponse
     {
-        $this->authorizeManage($request, $lease);
+        $this->authorize('update', $lease);
 
         $data = $request->validated();
 
@@ -109,7 +109,7 @@ class LeaseController extends Controller
 
     public function generateSchedule(Request $request, Lease $lease): JsonResponse
     {
-        $this->authorizeManage($request, $lease);
+        $this->authorize('update', $lease);
         $count = $this->leases->generateSchedule($lease);
 
         return $this->json(['data' => ['payments_created' => $count]]);
@@ -121,7 +121,7 @@ class LeaseController extends Controller
      */
     public function attachGuarantor(AttachGuarantorLeaseRequest $request, Lease $lease): JsonResponse
     {
-        $this->authorizeManage($request, $lease);
+        $this->authorize('update', $lease);
 
         $data = $request->validated();
 
@@ -180,7 +180,7 @@ class LeaseController extends Controller
 
     public function detachGuarantor(Request $request, Lease $lease, Guarantor $guarantor): JsonResponse
     {
-        $this->authorizeManage($request, $lease);
+        $this->authorize('update', $lease);
 
         $lease->guarantors()->detach($guarantor->id);
 
@@ -195,7 +195,7 @@ class LeaseController extends Controller
 
     public function listGuarantors(Request $request, Lease $lease): JsonResponse
     {
-        $this->authorizeAccess($request, $lease);
+        $this->authorize('view', $lease);
 
         $guarantors = $lease->guarantors()->get()->map(fn (Guarantor $g) => [
             'id' => $g->id,
@@ -207,26 +207,5 @@ class LeaseController extends Controller
         ])->values();
 
         return $this->json(['data' => $guarantors]);
-    }
-
-    protected function authorizeAccess(Request $request, Lease $lease): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $lease->landlord_id === $user->id
-            || ($user->agency_id && $user->agency_id === $lease->agency_id)
-            || ($lease->tenant && $lease->tenant->user_id === $user->id);
-
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizeManage(Request $request, Lease $lease): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $lease->landlord_id === $user->id
-            || ($user->agency_id && $user->agency_id === $lease->agency_id);
-
-        abort_unless($ok, 403);
     }
 }

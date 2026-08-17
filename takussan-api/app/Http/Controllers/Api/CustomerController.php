@@ -67,7 +67,7 @@ class CustomerController extends Controller
 
     public function show(Request $request, Customer $customer): JsonResponse
     {
-        $this->authorizeAccess($request, $customer);
+        $this->authorize('view', $customer);
 
         // Re-fetch through the query builder so ?include= params (e.g. tags) are honoured.
         $customer = Customer::buildQuery(Customer::where('id', $customer->id), $request)->firstOrFail();
@@ -79,7 +79,7 @@ class CustomerController extends Controller
 
     public function update(UpdateCustomerRequest $request, Customer $customer): JsonResponse
     {
-        $this->authorizeAccess($request, $customer);
+        $this->authorize('view', $customer);
 
         $data = $request->validated();
 
@@ -112,7 +112,7 @@ class CustomerController extends Controller
 
     public function destroy(Request $request, Customer $customer): JsonResponse
     {
-        $this->authorizeAccess($request, $customer);
+        $this->authorize('view', $customer);
 
         $customer->delete();
 
@@ -121,7 +121,7 @@ class CustomerController extends Controller
 
     public function setPrimaryContact(SetPrimaryContactCustomerRequest $request, Customer $customer): JsonResponse
     {
-        $this->authorizeAccess($request, $customer);
+        $this->authorize('view', $customer);
 
         $data = $request->validated();
 
@@ -145,7 +145,7 @@ class CustomerController extends Controller
 
     public function relationships(Request $request, Customer $customer): JsonResponse
     {
-        $this->authorizeAccess($request, $customer);
+        $this->authorize('view', $customer);
 
         $relationships = $customer->relationships()
             ->with('user:id,first_name,last_name,email')
@@ -176,7 +176,7 @@ class CustomerController extends Controller
 
     public function updatePipelineStage(UpdatePipelineStageCustomerRequest $request, Customer $customer): JsonResponse
     {
-        $this->authorizeAccess($request, $customer);
+        $this->authorize('view', $customer);
 
         $data = $request->validated();
 
@@ -212,15 +212,5 @@ class CustomerController extends Controller
         return $this->json([
             'data' => $service->compute($request->user()),
         ]);
-    }
-
-    protected function authorizeAccess(Request $request, Customer $customer): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $customer->added_by_id === $user->id
-            || ($user->agency_id && $user->agency_id === $customer->agency_id);
-
-        abort_unless($ok, 403);
     }
 }

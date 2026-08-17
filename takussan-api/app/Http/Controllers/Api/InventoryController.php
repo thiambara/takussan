@@ -61,7 +61,7 @@ class InventoryController extends Controller
 
     public function indexForProperty(Request $request, Property $property): JsonResponse
     {
-        $this->authorizePropertyAccess($request, $property);
+        $this->authorize('view', $property);
 
         $base = Inventory::query()->where('property_id', $property->id);
 
@@ -79,7 +79,7 @@ class InventoryController extends Controller
         $lease = Lease::findOrFail($data['lease_id']);
         $user = $request->user();
 
-        $this->authorizeManageLease($user, $lease);
+        $this->authorize('update', $lease);
 
         $inventory = $this->inventories->create($lease, $user, $data);
 
@@ -90,7 +90,7 @@ class InventoryController extends Controller
 
     public function show(Request $request, Inventory $inventory): JsonResponse
     {
-        $this->authorizeAccess($request, $inventory);
+        $this->authorize('view', $inventory);
 
         return $this->json([
             'data' => InventoryResource::make($inventory->load(['lease', 'property']))->toArray($request),
@@ -99,7 +99,7 @@ class InventoryController extends Controller
 
     public function update(InventoryUpdateRequest $request, Inventory $inventory): JsonResponse
     {
-        $this->authorizeManage($request, $inventory);
+        $this->authorize('update', $inventory);
 
         // TCK-076 AC5 — once signed, an inventory is immutable: PATCH returns
         // 409 with a clear message. Other non-draft states (pending_signature,
@@ -137,7 +137,7 @@ class InventoryController extends Controller
 
     public function submit(Request $request, Inventory $inventory): JsonResponse
     {
-        $this->authorizeManage($request, $inventory);
+        $this->authorize('update', $inventory);
         $inventory = $this->inventories->submit($inventory);
 
         return $this->json([
@@ -175,7 +175,7 @@ class InventoryController extends Controller
 
     public function downloadPdf(Request $request, Inventory $inventory): SymfonyResponse
     {
-        $this->authorizeAccess($request, $inventory);
+        $this->authorize('view', $inventory);
 
         abort_unless(
             $inventory->signed_at !== null
@@ -232,7 +232,7 @@ class InventoryController extends Controller
 
     public function dispute(DisputeInventoryRequest $request, Inventory $inventory): JsonResponse
     {
-        $this->authorizeAccess($request, $inventory);
+        $this->authorize('view', $inventory);
 
         $data = $request->validated();
 
@@ -245,7 +245,7 @@ class InventoryController extends Controller
 
     public function uploadRoomPhotos(UploadRoomPhotosInventoryRequest $request, Inventory $inventory): JsonResponse
     {
-        $this->authorizeManage($request, $inventory);
+        $this->authorize('update', $inventory);
 
         foreach ($request->file('photos') as $photo) {
             $inventory->addMedia($photo)
@@ -260,53 +260,5 @@ class InventoryController extends Controller
                 'room_name' => $m->getCustomProperty('room_name'),
             ]),
         ]);
-    }
-
-    protected function authorizeManageLease($user, Lease $lease): void
-    {
-        $ok = $user->isSuperAdmin()
-            || $lease->landlord_id === $user->id
-            || ($user->agency_id && $lease->agency_id === $user->agency_id);
-
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizeAccess(Request $request, Inventory $inventory): void
-    {
-        $user = $request->user();
-        $property = $inventory->property;
-        $tenant = $inventory->tenant;
-
-        $ok = $user->isSuperAdmin()
-            || $inventory->conducted_by === $user->id
-            || ($property && $property->user_id === $user->id)
-            || ($tenant && $tenant->user_id === $user->id)
-            || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
-
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizeManage(Request $request, Inventory $inventory): void
-    {
-        $user = $request->user();
-        $property = $inventory->property;
-
-        $ok = $user->isSuperAdmin()
-            || $inventory->conducted_by === $user->id
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
-
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizePropertyAccess(Request $request, Property $property): void
-    {
-        $user = $request->user();
-
-        $ok = $user->isSuperAdmin()
-            || $property->user_id === $user->id
-            || ($user->agency_id && $property->agency_id === $user->agency_id);
-
-        abort_unless($ok, 403);
     }
 }

@@ -18,7 +18,7 @@ class PropertyChildrenController extends Controller
 {
     public function index(Request $request, Property $property): JsonResponse
     {
-        $this->authorizeAccess($request, $property);
+        $this->authorize('view', $property);
 
         $base = Property::query()->where('parent_id', $property->id);
 
@@ -27,20 +27,5 @@ class PropertyChildrenController extends Controller
             ->paginate();
 
         return $this->paginated($paginator, PropertyResource::collection($paginator)->toArray($request));
-    }
-
-    protected function authorizeAccess(Request $request, Property $property): void
-    {
-        $user = $request->user();
-        if ($user->id === $property->user_id) {
-            return;
-        }
-        if ($user->agency_id && $user->agency_id === $property->agency_id) {
-            return;
-        }
-        if ($user->isSuperAdmin()) {
-            return;
-        }
-        abort(403);
     }
 }

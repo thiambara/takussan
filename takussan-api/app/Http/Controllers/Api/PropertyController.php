@@ -103,7 +103,7 @@ class PropertyController extends Controller
 
     public function show(Request $request, Property $property): JsonResponse
     {
-        $this->authorizeAccess($request, $property);
+        $this->authorize('view', $property);
 
         if ($request->boolean('raw')) {
             $firstMedia = $property->getFirstMedia('photos');
@@ -119,7 +119,7 @@ class PropertyController extends Controller
 
     public function update(UpdatePropertyRequest $request, Property $property): JsonResponse
     {
-        $this->authorizeManage($request, $property);
+        $this->authorize('update', $property);
 
         $data = $request->validated();
 
@@ -152,7 +152,7 @@ class PropertyController extends Controller
 
     public function destroy(Request $request, Property $property): JsonResponse
     {
-        $this->authorizeManage($request, $property);
+        $this->authorize('update', $property);
         $property->delete();
 
         return $this->json(['message' => 'deleted'], 204);
@@ -160,7 +160,7 @@ class PropertyController extends Controller
 
     public function publish(Request $request, Property $property): JsonResponse
     {
-        $this->authorizeManage($request, $property);
+        $this->authorize('update', $property);
         abort_if(
             in_array($property->status, [PropertyStatus::Sold, PropertyStatus::Rented], true),
             422,
@@ -179,7 +179,7 @@ class PropertyController extends Controller
 
     public function unpublish(Request $request, Property $property): JsonResponse
     {
-        $this->authorizeManage($request, $property);
+        $this->authorize('update', $property);
         abort_unless(
             in_array($property->status, [PropertyStatus::Available, PropertyStatus::Published], true),
             422,
@@ -198,7 +198,7 @@ class PropertyController extends Controller
 
     public function updateStatus(UpdateStatusPropertyRequest $request, Property $property): JsonResponse
     {
-        $this->authorizeManage($request, $property);
+        $this->authorize('update', $property);
 
         $data = $request->validated();
 
@@ -224,7 +224,7 @@ class PropertyController extends Controller
 
     public function updateVisibility(UpdateVisibilityPropertyRequest $request, Property $property): JsonResponse
     {
-        $this->authorizeManage($request, $property);
+        $this->authorize('update', $property);
 
         $data = $request->validated();
 
@@ -238,7 +238,7 @@ class PropertyController extends Controller
 
     public function assignAgent(AssignAgentPropertyRequest $request, Property $property): JsonResponse
     {
-        $this->authorizeManage($request, $property);
+        $this->authorize('update', $property);
 
         $data = $request->validated();
 
@@ -313,25 +313,5 @@ class PropertyController extends Controller
             'failed' => $result['failed'],
             'archived_ids' => $result['archived_ids'],
         ]);
-    }
-
-    protected function authorizeAccess(Request $request, Property $property): void
-    {
-        $user = $request->user();
-        if ($user->id === $property->user_id) {
-            return;
-        }
-        if ($user->agency_id && $user->agency_id === $property->agency_id) {
-            return;
-        }
-        if ($user->isSuperAdmin()) {
-            return;
-        }
-        abort(403);
-    }
-
-    protected function authorizeManage(Request $request, Property $property): void
-    {
-        $this->authorizeAccess($request, $property);
     }
 }

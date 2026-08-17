@@ -50,7 +50,7 @@ class PropertyVisitController extends Controller
 
     public function show(Request $request, PropertyVisit $visit): JsonResponse
     {
-        $this->authorizeAccess($request, $visit);
+        $this->authorize('view', $visit);
 
         return $this->json([
             'data' => PropertyVisitResource::make($visit->load(['property', 'agent', 'visitor', 'customer']))->toArray($request),
@@ -94,7 +94,7 @@ class PropertyVisitController extends Controller
 
     public function update(UpdatePropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
-        $this->authorizeManage($request, $visit);
+        $this->authorize('update', $visit);
         abort_if(
             in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true),
             422,
@@ -131,7 +131,7 @@ class PropertyVisitController extends Controller
 
     public function confirm(Request $request, PropertyVisit $visit): JsonResponse
     {
-        $this->authorizeManage($request, $visit);
+        $this->authorize('update', $visit);
 
         // TCK-075 AC2 — source-state check, overlap guard and status
         // flip happen inside a single DB transaction with row-level
@@ -147,7 +147,7 @@ class PropertyVisitController extends Controller
 
     public function complete(CompletePropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
-        $this->authorizeManage($request, $visit);
+        $this->authorize('update', $visit);
         abort_unless(
             in_array($visit->status, [VisitStatus::Scheduled, VisitStatus::Confirmed], true),
             422,
@@ -166,7 +166,7 @@ class PropertyVisitController extends Controller
 
     public function cancel(CancelPropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
-        $this->authorizeAccess($request, $visit);
+        $this->authorize('view', $visit);
         abort_if(
             in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true),
             422,
@@ -208,7 +208,7 @@ class PropertyVisitController extends Controller
      */
     public function feedback(FeedbackPropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
-        $this->authorizeAccess($request, $visit);
+        $this->authorize('view', $visit);
 
         abort_unless(
             $visit->status === VisitStatus::Completed,
@@ -321,31 +321,5 @@ class PropertyVisitController extends Controller
         }
 
         return $recipients;
-    }
-
-    protected function authorizeAccess(Request $request, PropertyVisit $visit): void
-    {
-        $user = $request->user();
-        $property = $visit->property;
-        $ok = $user->isSuperAdmin()
-            || $visit->visitor_id === $user->id
-            || $visit->agent_id === $user->id
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $property && $property->agency_id === $user->agency_id)
-            || ($visit->customer && $visit->customer->user_id === $user->id);
-
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizeManage(Request $request, PropertyVisit $visit): void
-    {
-        $user = $request->user();
-        $property = $visit->property;
-        $ok = $user->isSuperAdmin()
-            || $visit->agent_id === $user->id
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
-
-        abort_unless($ok, 403);
     }
 }

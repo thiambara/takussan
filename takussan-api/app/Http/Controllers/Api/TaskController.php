@@ -5,16 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreTaskRequest;
 use App\Http\Requests\Api\UpdateTaskRequest;
-use App\Models\Customer;
 use App\Models\Enums\TaskPriority;
 use App\Models\Enums\TaskStatus;
-use App\Models\Property;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class TaskController extends Controller
 {
@@ -54,7 +51,7 @@ class TaskController extends Controller
         // task to a record their agency owns / they created (superadmin bypass).
         // Previously the parent was persisted unchecked — a cross-tenant IDOR.
         $parent = $data['taskable_type']::query()->findOrFail($data['taskable_id']);
-        $this->authorizeTaskable($user, $parent);
+        $this->authorize('attachTo', [Task::class, $parent]);
 
         // The assignee must belong to the caller's agency (or be the caller),
         // so a task can't be pushed into another tenant's task list.
@@ -69,28 +66,6 @@ class TaskController extends Controller
         ]));
 
         return $this->json(['data' => $this->format($task->load(['assignee', 'creator']))], 201);
-    }
-
-    /**
-     * Mirror the per-resource access rule (agency match / ownership / superadmin)
-     * for the record a task is being attached to.
-     */
-    protected function authorizeTaskable(User $user, Model $parent): void
-    {
-        if ($user->isSuperAdmin()) {
-            return;
-        }
-
-        // Ownership columns differ by model: Property owns via `user_id`,
-        // Customer via `added_by_id`. We check both (a missing column resolves to
-        // null and is simply skipped) plus the agency match, mirroring the
-        // per-resource access rules in Property/CustomerController.
-        $agencyId = $user->agency_id;
-        $ok = ($agencyId && (int) ($parent->getAttribute('agency_id') ?? 0) === (int) $agencyId)
-            || $parent->getAttribute('added_by_id') === $user->id
-            || $parent->getAttribute('user_id') === $user->id;
-
-        abort_unless($ok, 403);
     }
 
     /**
@@ -116,14 +91,14 @@ class TaskController extends Controller
 
     public function show(Request $request, Task $task): JsonResponse
     {
-        $this->authorizeAccess($request, $task);
+        $this->authorize('view', $task);
 
         return $this->json(['data' => $this->format($task->load(['assignee', 'creator']))]);
     }
 
     public function update(UpdateTaskRequest $request, Task $task): JsonResponse
     {
-        $this->authorizeAccess($request, $task);
+        $this->authorize('view', $task);
 
         $data = $request->validated();
 
@@ -138,20 +113,10 @@ class TaskController extends Controller
 
     public function destroy(Request $request, Task $task): JsonResponse
     {
-        $this->authorizeAccess($request, $task);
+        $this->authorize('view', $task);
         $task->delete();
 
         return $this->json(null, 204);
-    }
-
-    protected function authorizeAccess(Request $request, Task $task): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $task->created_by_id === $user->id
-            || $task->assigned_to_id === $user->id;
-
-        abort_unless($ok, 403);
     }
 
     private function format(Task $task): array

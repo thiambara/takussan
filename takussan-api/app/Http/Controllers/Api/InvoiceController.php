@@ -52,7 +52,7 @@ class InvoiceController extends Controller
 
     public function show(Request $request, Invoice $invoice): JsonResponse
     {
-        $this->authorizeAccess($request, $invoice);
+        $this->authorize('view', $invoice);
 
         return $this->json([
             'data' => InvoiceResource::make($invoice->load('customer'))->toArray($request),
@@ -61,7 +61,7 @@ class InvoiceController extends Controller
 
     public function send(Request $request, Invoice $invoice): JsonResponse
     {
-        $this->authorizeManage($request, $invoice);
+        $this->authorize('update', $invoice);
         $invoice = $this->invoices->send($invoice);
 
         return $this->json([
@@ -71,7 +71,7 @@ class InvoiceController extends Controller
 
     public function markPaid(Request $request, Invoice $invoice): JsonResponse
     {
-        $this->authorizeManage($request, $invoice);
+        $this->authorize('update', $invoice);
         $invoice = $this->invoices->markPaid($invoice);
 
         return $this->json([
@@ -81,32 +81,11 @@ class InvoiceController extends Controller
 
     public function cancel(Request $request, Invoice $invoice): JsonResponse
     {
-        $this->authorizeManage($request, $invoice);
+        $this->authorize('update', $invoice);
         $invoice = $this->invoices->cancel($invoice);
 
         return $this->json([
             'data' => InvoiceResource::make($invoice)->toArray($request),
         ]);
-    }
-
-    protected function authorizeAccess(Request $request, Invoice $invoice): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $invoice->issued_by_id === $user->id
-            || ($user->agency_id && $user->agency_id === $invoice->agency_id)
-            || ($invoice->customer && $invoice->customer->user_id === $user->id);
-
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizeManage(Request $request, Invoice $invoice): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $invoice->issued_by_id === $user->id
-            || ($user->agency_id && $user->agency_id === $invoice->agency_id);
-
-        abort_unless($ok, 403);
     }
 }

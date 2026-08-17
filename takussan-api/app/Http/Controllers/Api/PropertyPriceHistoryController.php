@@ -12,7 +12,7 @@ class PropertyPriceHistoryController extends Controller
 {
     public function index(Request $request, Property $property): JsonResponse
     {
-        $this->authorizeAccess($request, $property);
+        $this->authorize('view', $property);
 
         $paginator = $property->priceHistory()
             ->paginate((int) $request->input('per_page', 20));
@@ -30,15 +30,5 @@ class PropertyPriceHistoryController extends Controller
             ])->values(),
             'meta' => $this->paginationMeta($paginator),
         ]);
-    }
-
-    protected function authorizeAccess(Request $request, Property $property): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $property->user_id === $user->id
-            || ($user->agency_id && $property->agency_id === $user->agency_id);
-
-        abort_unless($ok, 403);
     }
 }
