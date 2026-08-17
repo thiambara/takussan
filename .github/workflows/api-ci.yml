@@ -72,7 +72,51 @@ jobs:
             ${{ runner.os }}-composer-
 
       - name: Install composer dependencies
-        run: composer install --no-interaction --no-progress --prefer-dist
+        # ─── POURQUOI `--prefer-dist` A DISPARU D'ICI ────────────────────────────────────────
+        #
+        # Mesuré le 2026-08-17 : API CI est tombée TROIS fois de suite sur `4bd5aa71`, jamais
+        # sur une ligne du dépôt. `codeload.github.com` rendait **429** sur des dizaines de
+        # paquets — `intervention/image`, `symfony/polyfill-mbstring`, `psr/container`,
+        # `sebastian/exporter`, `phpunit/php-invoker`, `theseer/tokenizer`… La première fois,
+        # le job est mort en **26 secondes**, avant le premier test, sur un `composer.lock`
+        # parfaitement valide.
+        #
+        # Composer nommait lui-même la sortie, et on ne l'écoutait pas :
+        #
+        #     Failed to download intervention/image from dist: … (HTTP/2 429 )
+        #     Source fallback is disabled. Not trying alternative sources.
+        #
+        # `--prefer-dist` est ce qui désactive ce repli. Sans lui, Composer prend toujours
+        # l'archive en premier — c'est son défaut pour une version stable — mais un échec de
+        # téléchargement retombe sur `git clone` au lieu d'abandonner le job. Vérifié que le
+        # repli est viable depuis un poste : `git ls-remote https://github.com/symfony/polyfill-mbstring.git`
+        # rend `d3d318ba…`, la référence exacte que `codeload` refusait au même instant.
+        # Le protocole git n'est pas soumis à la même limite que l'hôte d'archives.
+        #
+        # Ce que la relance ne pouvait pas régler, et c'est mesuré : `actions/cache` ne stocke
+        # son cache que si le job RÉUSSIT (`post-if: success()`). Un job tombé à l'installation
+        # repart à froid à chaque tentative. Trois tentatives, trois fois le même mur.
+        #
+        # ─── ET POURQUOI `COMPOSER_AUTH` NE SUFFIT PAS, CONTRAIREMENT À CE QU'ON CROIT ───────
+        #
+        # Le jeton est utile — il authentifie les appels de MÉTADONNÉES à `api.github.com`, qui
+        # ont leur propre limite — mais il ne touche PAS le chemin qui échoue ici, et il ne
+        # faut pas le croire tel. Lu dans `AuthHelper::addAuthenticationHeader` du phar
+        # installé (Composer 2.8) plutôt que supposé :
+        #
+        #     } elseif ('github.com' === $origin && 'x-oauth-basic' === $auth['password']) {
+        #         if (Preg::isMatch('{^https?://api\.github\.com/}', $url)) {
+        #             $headers[] = 'Authorization: token '.$auth['username'];
+        #
+        # L'en-tête n'est ajouté QUE pour les URL `api.github.com`. Un téléchargement
+        # `codeload.github.com` part donc anonyme, jeton ou pas.
+        #
+        # Accessoirement, `codeload` est difficile sur le schéma : mesuré deux fois de suite,
+        # `Authorization: token <tok>` rend 200, tandis que `Bearer` et l'auth basic rendent
+        # **429**. Une « amélioration » qui passerait le jeton en Bearer aggraverait la panne.
+        env:
+          COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+        run: composer install --no-interaction --no-progress
 
       - name: Prepare environment
         run: |
@@ -386,8 +430,27 @@ jobs:
           coverage: none
           tools: composer:v2
 
+      # Ce job n'avait AUCUN cache, quand l'autre en a un depuis toujours. Ce n'était pas un
+      # choix : il retéléchargeait l'intégralité des dépendances à chaque exécution, et c'est
+      # ce qui l'a fait tomber le 2026-08-17 en même temps que son voisin (429 sur `codeload`,
+      # cf. le commentaire du step d'installation de `lint-and-test`).
+      - name: Cache composer dependencies
+        uses: actions/cache@v6
+        with:
+          path: takussan-api/vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('takussan-api/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
       - name: Install composer dependencies
-        run: composer install --no-interaction --no-progress --prefer-dist
+        # Mêmes deux raisons que dans `lint-and-test`, où elles sont détaillées : `--prefer-dist`
+        # retiré pour rendre le repli `git clone` possible sur un 429 de `codeload`, et
+        # `COMPOSER_AUTH` posé pour les métadonnées `api.github.com` — en sachant qu'il ne
+        # couvre PAS les téléchargements d'archives. Ce job n'exécute aucun test, mais il
+        # installe les mêmes ~100 paquets, et il est tombé au même endroit le 2026-08-17.
+        env:
+          COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+        run: composer install --no-interaction --no-progress
 
       - name: Prepare environment
         run: |
