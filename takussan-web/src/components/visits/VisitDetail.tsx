@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   useCancelVisit,
   useCompleteVisit,
@@ -13,6 +13,7 @@ import {
 } from '@/lib/queries/visits';
 import { useAuth } from '@/context/AuthContext';
 import { formatDateTime } from '@/lib/format';
+import { ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
@@ -39,8 +40,11 @@ const TYPE_LABEL: Record<VisitType, string> = {
 const FEEDBACK_WINDOW_HOURS = 24;
 
 export function VisitDetail({ id }: { id: number }) {
-  const { data, isLoading, isError } = useVisit(id);
+  const visitQuery = useVisit(id);
+  const { data, isLoading, isError } = visitQuery;
   const locale = useLocale() as Locale;
+  const t = useTranslations('visits.detail');
+  const tCommon = useTranslations('common');
   const { user } = useAuth();
   const router = useRouter();
   const [renderedAt] = useState(() => Date.now());
@@ -57,9 +61,11 @@ export function VisitDetail({ id }: { id: number }) {
 
   if (isError || !data) {
     return (
-      <div className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
-        Impossible de charger cette visite.
-      </div>
+      <ErrorState
+        message={t('error')}
+        onRetry={() => void visitQuery.refetch()}
+        retryLabel={tCommon('actions.retry')}
+      />
     );
   }
 

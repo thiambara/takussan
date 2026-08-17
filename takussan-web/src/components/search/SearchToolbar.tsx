@@ -157,7 +157,7 @@ export function SearchToolbar({
             <button
               key={subKey ? `${key}-${subKey}` : key}
               onClick={() => onRemoveFilter(key, subKey)}
-              className="flex items-center gap-1.5 text-xs font-semibold bg-primary/8 text-primary border border-primary/20 rounded-full px-3 py-1 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors group"
+              className="flex items-center gap-1.5 text-xs font-semibold bg-primary/8 text-primary border border-primary/20 rounded-full px-3 py-1 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors group"
             >
               {label}
               <X className="w-3 h-3 opacity-60 group-hover:opacity-100" />

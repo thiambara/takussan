@@ -3,7 +3,11 @@
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 
+import { ClipboardCheck } from 'lucide-react';
+
 import { useAgencyOnboardingPending } from '@/lib/queries/tenant-onboarding';
+import { EmptyState } from '@/components/feedback';
+import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
@@ -53,74 +57,68 @@ function missingItems(row: Row): string[] {
 export function TenantOnboardingPendingList({ agencyId }: Props) {
   const t = useTranslations('agency.tenantOnboardingPending');
   const locale = useLocale() as Locale;
-  const { data, isLoading, isError } = useAgencyOnboardingPending({ agencyId, per_page: 30 });
-
-  if (isLoading) {
-    return (
-      <div className="space-y-3">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="h-20 animate-pulse rounded-xl bg-app-surface-1" />
-        ))}
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <p className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
-        {t('error')}
-      </p>
-    );
-  }
-
-  const rows = (data?.data ?? []) as Row[];
-
-  if (rows.length === 0) {
-    return (
-      <div className="rounded-xl border border-app-border bg-app-surface-1 p-8 text-center">
-        <p className="font-medium">{t('emptyTitle')}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{t('emptyDescription')}</p>
-      </div>
-    );
-  }
+  const query = useAgencyOnboardingPending({ agencyId, per_page: 30 });
 
   return (
-    <ul className="space-y-3">
-      {rows.map((row) => {
-        const days = daysSince(row.created_at);
-        const missing = missingItems(row);
-        const reference = row.lease?.reference_number ?? `#${row.lease_id}`;
-        const signedAt = row.lease?.signed_at ?? row.created_at;
+    <QueryBoundary
+      query={query}
+      loadingFallback={[0, 1, 2].map((i) => (
+        <div key={i} className="h-20 animate-pulse rounded-xl bg-app-surface-1" />
+      ))}
+    >
+      {(data) => {
+        const rows = (data.data ?? []) as Row[];
+
+        if (rows.length === 0) {
+          return (
+            <EmptyState
+              icon={<ClipboardCheck className="size-8" aria-hidden="true" />}
+              title={t('emptyTitle')}
+              description={t('emptyDescription')}
+            />
+          );
+        }
 
         return (
-          <li
-            key={row.id}
-            className="rounded-xl border border-app-border bg-app-surface-1 p-4"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="min-w-0">
-                <Link
-                  href={`/app/leases/${row.lease_id}`}
-                  className="text-sm font-semibold text-foreground hover:underline"
+          <ul className="space-y-3">
+            {rows.map((row) => {
+              const days = daysSince(row.created_at);
+              const missing = missingItems(row);
+              const reference = row.lease?.reference_number ?? `#${row.lease_id}`;
+              const signedAt = row.lease?.signed_at ?? row.created_at;
+
+              return (
+                <li
+                  key={row.id}
+                  className="rounded-xl border border-app-border bg-app-surface-1 p-4"
                 >
-                  {t('leaseReference', { reference })}
-                </Link>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {t('signedAt', { date: formatDate(signedAt ?? '', locale) })}
-                </p>
-                {missing.length > 0 ? (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {t('missing', { items: missing.join(' · ') })}
-                  </p>
-                ) : null}
-              </div>
-              <Badge variant={days > 14 ? 'destructive' : 'outline'}>
-                {t('daysOpen', { count: days })}
-              </Badge>
-            </div>
-          </li>
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <Link
+                        href={`/app/leases/${row.lease_id}`}
+                        className="text-sm font-semibold text-foreground hover:underline"
+                      >
+                        {t('leaseReference', { reference })}
+                      </Link>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {t('signedAt', { date: formatDate(signedAt ?? '', locale) })}
+                      </p>
+                      {missing.length > 0 ? (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {t('missing', { items: missing.join(' · ') })}
+                        </p>
+                      ) : null}
+                    </div>
+                    <Badge variant={days > 14 ? 'destructive' : 'outline'}>
+                      {t('daysOpen', { count: days })}
+                    </Badge>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         );
-      })}
-    </ul>
+      }}
+    </QueryBoundary>
   );
 }

@@ -1,7 +1,9 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Activity, Database, HardDrive, Mail, Play, RotateCcw, Trash2, Wifi } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { Activity, CircleCheckBig, Database, HardDrive, Mail, Play, RotateCcw, Trash2, Wifi } from 'lucide-react';
+import { EmptyState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -77,6 +79,7 @@ function QueueMetric({ label, value, tone = 'default' }: { label: string; value:
 }
 
 function FailedJobsTable({ jobs }: { jobs: FailedJob[] }) {
+  const t = useTranslations('superAdmin.systemHealth.failedJobs');
   const queryClient = useQueryClient();
   const retry = useMutation({
     mutationFn: retryFailedJob,
@@ -135,7 +138,14 @@ function FailedJobsTable({ jobs }: { jobs: FailedJob[] }) {
             ))}
             {jobs.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-3 py-8 text-center text-sm text-stone-500">Aucun job échoué.</td>
+                <td colSpan={4} className="p-0">
+                  <EmptyState
+                    className="border-0"
+                    icon={<CircleCheckBig className="size-8" aria-hidden="true" />}
+                    title={t('empty_title')}
+                    description={t('empty_description')}
+                  />
+                </td>
               </tr>
             ) : null}
           </tbody>
