@@ -138,6 +138,15 @@ php artisan test                    # ~2300 tests, 204-235 s MACHINE AU REPOS (2
                                     #   (cf. D-44) — mais depuis le correctif, la suite entière rend
                                     #   0 échec même sous cette charge.
 php artisan test --filter=Foo
+php bin/impacted-tests.php --run     # ← LA commande du quotidien : ne lance que les tests que
+                                    #   le diff touche, via tests/impact-map.json (carte dérivée
+                                    #   d'un rapport de couverture, jamais éditée à la main).
+                                    #   Mesuré le 2026-08-17 par ablation : 4 classes, 16,7 s à
+                                    #   load 5,2-5,8/8 cœurs, contre 204-235 s pour la suite
+                                    #   entière au repos.
+                                    #   ⚠ Un vert ici NE DIT RIEN de la suite : c'est une boucle
+                                    #   de retour, pas une garde. La CI et le rituel de fin de
+                                    #   branche jouent la suite entière, toujours.
 XDEBUG_MODE=coverage php artisan test --coverage --min=86
                                     # couverture de lignes de app/ — le CLIQUET de la CI (TCK-302).
                                     #   Exige un pilote de couverture : PCOV en CI, Xdebug en local.

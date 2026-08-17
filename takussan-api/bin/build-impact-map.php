@@ -1,6 +1,9 @@
 #!/usr/bin/env php
 <?php
 
+use SebastianBergmann\CodeCoverage\CodeCoverage;
+use Tests\Support\ImpactMap;
+
 /**
  * Réduit un rapport `--coverage-php` de PHPUnit en carte d'impact.
  *
@@ -19,7 +22,7 @@
 
 require __DIR__.'/../vendor/autoload.php';
 
-if (! class_exists(Tests\Support\ImpactMap::class)) {
+if (! class_exists(ImpactMap::class)) {
     fwrite(STDERR, "✗ Tests\\Support\\ImpactMap est introuvable.\n".
         "  L'espace de noms `Tests\\` vit dans `autoload-dev` : ce script ne fonctionne pas\n".
         "  après un `composer install --no-dev`.\n");
@@ -37,7 +40,7 @@ if ($coveragePath === null || ! is_file($coveragePath)) {
 $root = realpath(__DIR__.'/..');
 $coverage = include $coveragePath;
 
-if (! $coverage instanceof SebastianBergmann\CodeCoverage\CodeCoverage) {
+if (! $coverage instanceof CodeCoverage) {
     fwrite(STDERR, "✗ $coveragePath n'est pas un rapport `--coverage-php` de PHPUnit.\n");
     exit(1);
 }
@@ -63,7 +66,7 @@ if ($commit === '') {
     exit(1);
 }
 
-$map = Tests\Support\ImpactMap::fromCoverage(
+$map = ImpactMap::fromCoverage(
     $coverage->getData()->lineCoverage(),
     $root,
     $scanned,

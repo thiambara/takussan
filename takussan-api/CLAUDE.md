@@ -326,6 +326,39 @@ rouvre la panne, et elle ne se voit qu'au hasard du tempo** :
    l'extinction du processus. `SCOUT_PREFIX` n'est **plus** déclaré dans `phpunit.xml` ni dans
    `api-ci.yml` : le réintroduire re-figerait le préfixe et re-casserait l'isolation.
 
+## Ne lancer que les tests que le diff touche
+
+```bash
+php bin/impacted-tests.php            # affiche la sélection et la commande
+php bin/impacted-tests.php --run      # l'exécute
+php bin/impacted-tests.php --base=dev # + tout ce qui sépare HEAD de dev
+```
+
+**Pourquoi.** La suite ne contient aucun point chaud à optimiser ligne à ligne : il n'y a qu'à en
+lancer moins pour la majorité des diffs. `tests/impact-map.json` associe à chaque fichier de `app/`
+les classes de test qui l'ont réellement couvert, mesuré depuis un rapport de couverture Xdebug sur
+la suite entière (le 2026-08-17 : **346 classes de test, 667 fichiers de `app/` couverts sur 796
+scannés**, carte de 0,12 Mo). `ImpactSelector` la lit avec un diff (`git diff --name-only`) et
+répond soit une liste de classes, soit `SUITE ENTIÈRE` avec son motif quand le fichier touché est
+hors de portée de la carte — une migration, une factory, un seeder, `bootstrap/`, `composer.lock`
+ou un fichier de harnais (`phpunit.xml`, `tests/bootstrap.php`, `tests/TestCase.php`) modifient ce
+que **tous** les tests voient, pas seulement ceux qui les référencent explicitement.
+
+Mesuré par ablation le 2026-08-17 (un ajout de ligne vide dans
+`app/Services/Search/PropertySearchService.php`, machine à `load average` 5,2-5,8 sur 8 cœurs) :
+**4 classes sélectionnées, 26 tests, 16,7 s d'horloge** — contre 204-235 s pour la suite entière au
+repos. Le gain vient de l'évitement, pas d'une suite plus rapide : la carte ne modifie aucun test.
+
+⚠ **Un vert de cette commande ne dit RIEN de la suite.** C'est une boucle de retour rapide, pas une
+garde. La CI et le rituel de fin de branche continuent de jouer la suite entière. Quand la commande
+répond `SUITE ENTIÈRE`, elle a raison — c'est le comportement voulu, pas un repli par prudence.
+
+La carte (`tests/impact-map.json`) est **dérivée, jamais éditée à la main** — même règle que
+`docs/backlog/INDEX.md`. `scripts/check-impact-map.mjs` garde sa cohérence structurelle (Repo CI) ;
+elle se régénère avec `php bin/build-impact-map.php <rapport-de-couverture> tests/impact-map.json`
+à partir d'un rapport `--coverage-php` produit par `php artisan test`.
+Détail : [`docs/plans/2026-08-17-temps-d-execution-des-tests.md`](../docs/plans/2026-08-17-temps-d-execution-des-tests.md).
+
 ## Style
 
 `./vendor/bin/pint` avant **chaque** commit. Il n'y a **pas** de `pint.json` : preset Laravel par
