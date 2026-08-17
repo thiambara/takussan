@@ -87,6 +87,16 @@ on:
       # sur `dev` et sortirait sur la PR de quelqu'un d'autre — la règle posée en haut
       # de ce bloc.
       - 'takussan-api/tests/impact-map.json'
+      # `check-test-base-classes` (TCK-309) lit TOUT `takussan-api/tests/`, et rien ci-dessus ne
+      # l'y déclenche : la ligne juste au-dessus vise UN fichier, les autres visent `app/`,
+      # `routes/` et `database/`. Une PR qui n'ajouterait qu'une quatrième classe de base de test
+      # ne déclencherait donc aucune ligne, et la garde resterait muette sur le seul défaut
+      # qu'elle existe pour voir — la règle posée en haut de ce bloc, à la lettre.
+      #
+      # Le préfixe rend la ligne `impact-map.json` redondante. Elle reste, et c'est voulu : même
+      # raison que pour `.github/workflows/**` plus haut — un préfixe couvre le fichier qu'on
+      # ajoutera, une énumération se re-vérifie à chaque ajout.
+      - 'takussan-api/tests/**'
   push:
     branches: [dev, master]
     paths:
@@ -131,6 +141,16 @@ on:
       # sur `dev` et sortirait sur la PR de quelqu'un d'autre — la règle posée en haut
       # de ce bloc.
       - 'takussan-api/tests/impact-map.json'
+      # `check-test-base-classes` (TCK-309) lit TOUT `takussan-api/tests/`, et rien ci-dessus ne
+      # l'y déclenche : la ligne juste au-dessus vise UN fichier, les autres visent `app/`,
+      # `routes/` et `database/`. Une PR qui n'ajouterait qu'une quatrième classe de base de test
+      # ne déclencherait donc aucune ligne, et la garde resterait muette sur le seul défaut
+      # qu'elle existe pour voir — la règle posée en haut de ce bloc, à la lettre.
+      #
+      # Le préfixe rend la ligne `impact-map.json` redondante. Elle reste, et c'est voulu : même
+      # raison que pour `.github/workflows/**` plus haut — un préfixe couvre le fichier qu'on
+      # ajoutera, une énumération se re-vérifie à chaque ajout.
+      - 'takussan-api/tests/**'
 
 jobs:
   guards:
@@ -326,3 +346,49 @@ jobs:
 
       - name: Carte d'impact — structure et fraîcheur
         run: node scripts/check-impact-map.mjs --report
+
+      # ── TCK-309 — trois conventions qui avaient chacune DEUX emplacements également
+      # plausibles. Elles sont regroupées ici parce qu'elles sont de même nature, et pas
+      # parce qu'elles se touchent : quand deux endroits sont aussi défendables l'un que
+      # l'autre, le désordre ne stagne pas, il se REPRODUIT — le suivant lit le partage
+      # comme un précédent, et il n'existe aucun signal pour l'en dissuader.
+
+      - name: Il n'y a qu'une classe de base de test par usage
+        # Trois classes coexistaient EN CHAÎNE — `Tests\TestCase` → `Tests\BaseTestCase` →
+        # `Tests\ApiTestCase` — sans qu'aucun document ne dise laquelle étendre (D-37). Le
+        # maillon du milieu n'avait pas d'usage propre : ses helpers ne servaient rien de
+        # particulier aux tests non-API. Le partage qui en résultait ne suivait donc AUCUNE
+        # règle, seulement l'ordre d'écriture — 49 classes d'un côté, 38 de l'autre.
+        #
+        # La garde refuse une quatrième base, et refuse `Illuminate\Foundation\Testing\TestCase`
+        # en direct : celui-là contourne la coupure de synchronisation Scout de
+        # `Tests\TestCase::setUp()`, et le contournement est MUET — le test passe, et c'est la
+        # suite entière qui bascule au hasard plus tard (D-44).
+        run: node scripts/check-test-base-classes.mjs --report
+
+      - name: Aucune commande ne porte le nom du produit en préfixe
+        # `takussan:create-super-admin` était le SEUL `takussan:` sur 16 commandes ; les 15
+        # autres portent un préfixe de DOMAINE (D-38). `takussan:` n'en est pas un — c'est le
+        # nom du dépôt, et tout ce qui est ici lui appartient : le préfixe ne partitionne rien.
+        #
+        # La garde tolère UN alias déprécié, nommément, parce que `docs/features.md` §2.1
+        # prescrit encore l'ancien nom à l'installation d'un environnement. Elle rougit dans
+        # les DEUX sens : si le préfixe revient en `$signature`, et si l'alias déclaré
+        # disparaît du code — sans quoi le retirer par mégarde casserait un appelant hors du
+        # code, un jour de déploiement, en silence.
+        run: node scripts/check-command-prefixes.mjs --report
+
+      - name: L'authentification vit dans un seul namespace
+        # `Controllers\Auth\` (8 fichiers) et `Controllers\Api\Auth\` (5) servaient la même
+        # surface `api/auth/*`, câblée depuis le même unique `routes/api/auth.php`, sans
+        # qu'aucune règle n'ait jamais été écrite (D-40).
+        #
+        # La garde contrôle les DEUX bouts : aucun namespace `…\Auth` ailleurs, ET tout
+        # contrôleur câblé par `routes/api/auth.php` sous le namespace retenu. Le second
+        # attrape ce que le premier ne peut pas voir — un contrôleur d'auth posé à la racine,
+        # sans le mot `Auth` dans son namespace.
+        #
+        # ⚠ Elle ne prouve PAS que les URLs n'ont pas bougé, et elle l'écrit dans sa sortie :
+        # cela demande de démarrer l'application. C'est `php artisan route:list` avant/après
+        # qui l'a prouvé au déplacement — 516 routes, diff vide.
+        run: node scripts/check-auth-controller-namespace.mjs --report

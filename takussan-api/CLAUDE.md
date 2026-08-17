@@ -200,6 +200,20 @@ Conventions : groupe `Route::middleware('auth:sanctum')` (38 occurrences), nomma
 `->name('domaine.action')`, et **les routes littérales se déclarent avant les paramétrées** (des
 commentaires `TCK-NNN` marquent les cas où l'ordre importe).
 
+**L'authentification vit sous un seul namespace : `App\Http\Controllers\Api\Auth\`** (TCK-309,
+ex-dette D-40). Elle était partagée entre `Controllers\Auth\` (8 fichiers) et
+`Controllers\Api\Auth\` (5) **sans qu'aucune règle n'ait jamais été écrite** — alors que les treize
+servent la même surface `api/auth/*`, câblée depuis le même et unique `routes/api/auth.php`. Le
+reste du dépôt avait déjà tranché (139 contrôleurs sous `Api/`, 26 hors).
+`scripts/check-auth-controller-namespace.mjs` (Repo CI) le garde, des deux côtés : aucun namespace
+`…\Auth` ailleurs, **et** tout contrôleur câblé par `routes/api/auth.php` sous ce namespace-là.
+
+> ⚠️ **Un namespace qui bouge et une route qui bouge se ressemblent dans un diff, et seule la
+> seconde casse les clients.** Le déplacement a donc été prouvé par comparaison de
+> `php artisan route:list` avant/après : **516 routes, diff vide** sur la méthode, l'URI, le nom et
+> les middlewares ; 24 actions réécrites, toutes du seul préfixe de namespace. *Un déplacement de
+> code qui ne se compare pas se relit — et une relecture ne prouve rien sur 516 lignes.*
+
 Le namespace `/api/admin/*` est gardé par le middleware alias `super-admin`
 (`app/Http/Middleware/EnsureSuperAdmin.php`) : 401 si non authentifié, 403 si non super-admin.
 
