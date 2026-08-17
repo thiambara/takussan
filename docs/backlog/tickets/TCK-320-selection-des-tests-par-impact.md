@@ -121,3 +121,15 @@ le rituel de fin de branche exige déjà la suite entière.
 
 [`docs/plans/2026-08-17-selection-par-impact-phase-1.md`](../../plans/2026-08-17-selection-par-impact-phase-1.md)
 — sept tâches, TDD, code complet.
+
+## Suites — trouvé à l'exécution, non fait ici
+
+**La liste des déclencheurs durs est recopiée à la main dans `takussan-api/CLAUDE.md`, et rien ne
+la garde.** Elle avait déjà dérivé du code **le jour où elle a été écrite** — `composer.json` y
+manquait — et c'est une revue qui l'a vu, pas une garde. C'est exactement la famille de défaut que
+les douze `scripts/check-*.mjs` de ce dépôt existent pour attraper : *un document dérivé qui cesse
+de suivre sa source.*
+
+Une garde qui compare `ImpactSelector::HARD_PREFIXES` / `::HARD_FILES` à ce que la documentation
+énumère reste à écrire. Elle n'est pas dans le périmètre de ce ticket, et le laisser non dit
+reviendrait à reproduire, un étage plus bas, le défaut que ce ticket corrige.

@@ -340,9 +340,16 @@ les classes de test qui l'ont réellement couvert, mesuré depuis un rapport de 
 la suite entière (le 2026-08-17 : **346 classes de test, 667 fichiers de `app/` couverts sur 796
 scannés**, carte de 0,12 Mo). `ImpactSelector` la lit avec un diff (`git diff --name-only`) et
 répond soit une liste de classes, soit `SUITE ENTIÈRE` avec son motif quand le fichier touché est
-hors de portée de la carte — une migration, une factory, un seeder, `bootstrap/`, `composer.lock`
-ou un fichier de harnais (`phpunit.xml`, `tests/bootstrap.php`, `tests/TestCase.php`) modifient ce
-que **tous** les tests voient, pas seulement ceux qui les référencent explicitement.
+hors de portée de la carte — une migration, une factory, un seeder, `bootstrap/`, `composer.json`,
+`composer.lock` ou un fichier de harnais (`phpunit.xml`, `tests/bootstrap.php`,
+`tests/TestCase.php`) modifient ce que **tous** les tests voient, pas seulement ceux qui les
+référencent explicitement.
+
+> ⚠️ **Cette liste est recopiée à la main depuis `ImpactSelector::HARD_PREFIXES` et
+> `::HARD_FILES`, et rien ne la garde.** Elle avait déjà dérivé le jour où elle a été écrite —
+> `composer.json` y manquait, et c'est une revue qui l'a vu. **La source de vérité est le code** ;
+> si les deux divergent, croire le code. Une garde de plus dans `scripts/check-*.mjs` reste à
+> écrire (cf. TCK-320, « Suites »).
 
 Mesuré par ablation le 2026-08-17 (un ajout de ligne vide dans
 `app/Services/Search/PropertySearchService.php`, machine à `load average` 5,2-5,8 sur 8 cœurs) :
