@@ -89,15 +89,7 @@ class UserDetailController extends Controller
         ]);
         $this->attachRoleRows($users);
 
-        return $this->json([
-            'data' => UserListResource::collection($users)->resolve($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, UserListResource::collection($users)->resolve($request));
     }
 
     public function show(Request $request, User $user): JsonResponse
@@ -135,12 +127,7 @@ class UserDetailController extends Controller
                 'created_at' => $token->created_at?->toIso8601String(),
                 'expires_at' => $token->expires_at?->toIso8601String(),
             ])->values()->all(),
-            'meta' => [
-                'total' => $tokens->total(),
-                'current_page' => $tokens->currentPage(),
-                'last_page' => $tokens->lastPage(),
-                'per_page' => $tokens->perPage(),
-            ],
+            'meta' => $this->paginationMeta($tokens),
         ]);
     }
 
@@ -178,12 +165,7 @@ class UserDetailController extends Controller
                 'properties' => $log->properties?->toArray(),
                 'created_at' => $log->created_at?->toIso8601String(),
             ])->values()->all(),
-            'meta' => [
-                'total' => $activity->total(),
-                'current_page' => $activity->currentPage(),
-                'last_page' => $activity->lastPage(),
-                'per_page' => $activity->perPage(),
-            ],
+            'meta' => $this->paginationMeta($activity),
         ]);
     }
 

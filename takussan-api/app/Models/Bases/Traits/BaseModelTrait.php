@@ -6,39 +6,24 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Laravel\Scout\Searchable;
 
+/**
+ * TCK-307 — `scopeFilter()` a été supprimé d'ici.
+ *
+ * C'était un DSL de filtrage maison (`->filter(['col' => …, 'col@like' => …])`) monté sur les
+ * 68 modèles qui étendent `AbstractModel`. Mesuré le 2026-08-17 : **zéro appelant** dans tout le
+ * dépôt — `app/`, `routes/`, `database/`, `bin/`, `config/` — contre 46 `buildQuery()` dans les
+ * seuls contrôleurs. Son unique usage était le test qui le testait.
+ *
+ * Le filtrage d'API passe par `HasQueryBuilder::buildQuery()` et
+ * `spatie/laravel-query-builder` — voir `docs/spatie-query-builder.md`. Le motif de la
+ * suppression n'est pas la duplication mais l'AMBIGUÏTÉ : deux mécanismes également disponibles
+ * sur le même modèle, dont un mort, se lisent comme deux conventions au choix.
+ *
+ * `scripts/check-filtering-single-mechanism.mjs` garde cette suppression contre un retour, y
+ * compris sous un autre nom.
+ */
 trait BaseModelTrait
 {
-    /**
-     * Simple filter scope for direct use without request context.
-     *
-     * @param  array<string,mixed>  $filters
-     */
-    public function scopeFilter(Builder $query, array $filters): Builder
-    {
-        foreach ($filters as $field => $value) {
-            if ($value === null || $value === '') {
-                continue;
-            }
-
-            if (is_string($field) && str_ends_with($field, '@like')) {
-                $column = substr($field, 0, -5);
-                $query->where($column, 'like', '%'.$value.'%');
-
-                continue;
-            }
-
-            if (is_array($value)) {
-                $query->whereIn($field, $value);
-
-                continue;
-            }
-
-            $query->where($field, $value);
-        }
-
-        return $query;
-    }
-
     /**
      * Restrict an Eloquent query to ids produced by a Scout full-text search.
      *

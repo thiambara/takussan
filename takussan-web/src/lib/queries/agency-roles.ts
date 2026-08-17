@@ -15,6 +15,7 @@ import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import type { ApiResponse, PaginatedResponse } from '@/types/api';
 import type {
   AgencyRole,
+  AgencyRoleAssignment,
   AssignAgencyRoleInput,
   CapabilityValue,
   CreateAgencyRoleInput,
@@ -26,7 +27,22 @@ export const agencyRoleKeys = {
   list: (agencyId: number) => ['agency-roles', 'list', agencyId] as const,
   detail: (agencyId: number, roleId: number) =>
     ['agency-roles', 'detail', agencyId, roleId] as const,
+  assignments: (agencyId: number, userIds: readonly number[]) =>
+    ['agency-roles', 'assignments', agencyId, [...userIds].sort((a, b) => a - b)] as const,
 };
+
+/**
+ * Les capacités de l'utilisateur COURANT changent quand un rôle change ou
+ * qu'un profil est réaffecté — celui qui édite peut être celui qui perd un
+ * bouton. `useCan` lit `['me','capabilities']` ; sans cette clé dans les
+ * invalidations, l'interface resterait sur son ancien verdict jusqu'au
+ * prochain `staleTime` de 5 minutes.
+ *
+ * Écrit ici en littéral plutôt qu'importé de `@/hooks/useCan` : ce module
+ * n'a aucune autre raison de dépendre d'un hook, et l'inverse créerait un
+ * cycle avec les invalidations que `useCan` documente.
+ */
+const ME_CAPABILITY_KEY = ['me', 'capabilities'] as const;
 
 /**
  * Sparse fieldset de la liste — obligatoire (principe non négociable côté
@@ -65,6 +81,33 @@ export function useAgencyRole(agencyId: number, roleId: number, enabled = true) 
     agencyRoleKeys.detail(agencyId, roleId),
     `/api/agencies/${agencyId}/roles/${roleId}`,
     { enabled: enabled && roleId > 0, params: { include: ['capabilities'] } },
+  );
+}
+
+/**
+ * `GET /api/agencies/{agency}/role-assignments` — quel rôle porte le profil
+ * de chacun des utilisateurs listés, DANS cette agence.
+ *
+ * `user_ids` est obligatoire côté serveur : la question « quels sont tous les
+ * profils de l'agence » n'a pas de réponse bornée, et une troncature
+ * silencieuse afficherait « — » à des membres qui ont bien un rôle.
+ * L'appelant demande donc exactement les lignes qu'il affiche.
+ *
+ * ⚠️ La liste voyage via `extra`, donc SÉRIALISÉE EN VIRGULES
+ * (`?user_ids=3,7`) — `buildQueryString` applique `String(value)` sur chaque
+ * valeur d'`extra`, il ne sait pas produire de `user_ids[]=`. Le contrôleur
+ * découpe. Passer par un `filter[…]` aurait été un abus : ce n'est pas un
+ * filtre spatie sur un modèle listé, c'est l'argument de la question.
+ */
+export function useAgencyRoleAssignments(agencyId: number, userIds: readonly number[]) {
+  return useApiQuery<ApiResponse<AgencyRoleAssignment[]>>(
+    agencyRoleKeys.assignments(agencyId, userIds),
+    `/api/agencies/${agencyId}/role-assignments`,
+    {
+      enabled: Number.isFinite(agencyId) && agencyId > 0 && userIds.length > 0,
+      params: { extra: { user_ids: userIds.join(',') } },
+      staleTime: 15_000,
+    },
   );
 }
 
@@ -119,7 +162,13 @@ export function useSyncRoleCapabilities(agencyId: number, roleId: number) {
       path: `/api/agencies/${agencyId}/roles/${roleId}/capabilities`,
       method: 'PUT',
     },
-    { invalidate: [agencyRoleKeys.all, agencyRoleKeys.detail(agencyId, roleId)] },
+    {
+      invalidate: [
+        agencyRoleKeys.all,
+        agencyRoleKeys.detail(agencyId, roleId),
+        ME_CAPABILITY_KEY,
+      ],
+    },
   );
 }
 
@@ -134,6 +183,6 @@ export function useSyncRoleCapabilities(agencyId: number, roleId: number) {
 export function useAssignAgencyRole(profileId: number) {
   return useApiMutation<ApiResponse<unknown>, AssignAgencyRoleInput>(
     { path: `/api/profiles/${profileId}/agency-role`, method: 'PATCH' },
-    { invalidate: [agencyRoleKeys.all, ['team']] },
+    { invalidate: [agencyRoleKeys.all, ['admin-users'], ME_CAPABILITY_KEY] },
   );
 }

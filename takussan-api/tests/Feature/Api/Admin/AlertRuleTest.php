@@ -7,9 +7,9 @@ use App\Models\AlertRule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class AlertRuleTest extends BaseTestCase
+class AlertRuleTest extends TestCase
 {
     use RefreshDatabase;
 

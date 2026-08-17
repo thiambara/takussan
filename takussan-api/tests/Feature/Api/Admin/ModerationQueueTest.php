@@ -12,9 +12,9 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class ModerationQueueTest extends BaseTestCase
+class ModerationQueueTest extends TestCase
 {
     use RefreshDatabase;
 

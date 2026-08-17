@@ -11,13 +11,17 @@ use App\Models\Profiles\OwnerProfile;
  *
  * Cf. models-spec.md §52 (`AgencyRole.base_profile_type`).
  *
- * ⚠️ `ServiceProvider` est présent parce que la spec seede un rôle système
- * par type dans chaque agence (AC1), **mais `service_provider_profiles` ne
- * porte pas de `agency_role_id`** : ce profil est user-scopé (`user_id`
- * UNIQUE, aucune colonne `agency_id`) et collabore avec N agences via
- * `service_provider_agency_collaborations`. Y planter un pointeur vers un
- * rôle d'UNE agence contredirait « l'agence est la frontière d'isolation ».
- * Voir les notes d'implémentation de TCK-279.
+ * ⚠️ `service_provider_profiles` ne porte **pas** de `agency_role_id`, et
+ * n'en portera pas : ce profil est user-scopé (`user_id` UNIQUE, aucune
+ * colonne `agency_id`) et collabore avec N agences. Y planter un pointeur
+ * vers le rôle d'UNE agence contredirait « l'agence est la frontière
+ * d'isolation ».
+ *
+ * TCK-315 (ADR-0016) a tranché : **le rôle d'un prestataire vit sur
+ * `service_provider_agency_collaborations.agency_role_id`** — une ligne par
+ * agence, donc un rôle par agence. C'est pourquoi `profileClass()` et
+ * `profileTable()` rendent `null` pour ce cas : son porteur existe, il n'est
+ * simplement pas un profil.
  */
 enum AgencyRoleBaseType: string
 {
@@ -71,7 +75,13 @@ enum AgencyRoleBaseType: string
     }
 
     /**
-     * Les types qui portent effectivement un `agency_role_id` NOT NULL.
+     * Les types dont le porteur du `agency_role_id` est une **table de
+     * PROFIL** — c'est-à-dire ceux que `profileClass()` sait résoudre.
+     *
+     * ⚠️ Ce n'est plus « les types qui portent un `agency_role_id` » : depuis
+     * TCK-315, `service_provider` en porte un aussi, sur sa table de
+     * COLLABORATION. Le résolveur le traite par une branche distincte, parce
+     * que la requête n'est pas la même — pas parce qu'il n'aurait pas de rôle.
      *
      * @return array<int,self>
      */

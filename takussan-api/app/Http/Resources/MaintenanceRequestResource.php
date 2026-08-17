@@ -2,11 +2,11 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class MaintenanceRequestResource extends JsonResource
+class MaintenanceRequestResource extends BaseResource
 {
     public function toArray(Request $request): array
     {

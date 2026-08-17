@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\IndexAuditLogRequest;
 use App\Models\User;
 use App\Support\AgencyKindGuard;
 use Carbon\Carbon;
@@ -52,23 +53,17 @@ class AuditLogController extends Controller
                 'properties' => $log->properties,
                 'created_at' => $log->created_at,
             ])->all(),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-            ],
+            'meta' => $this->paginationMeta($paginator),
         ]);
     }
 
-    public function index(Request $request): JsonResponse
+    public function index(IndexAuditLogRequest $request): JsonResponse
     {
+        // TCK-305 — l'autorisation court dans IndexAuditLogRequest::authorize(), donc AVANT la
+        // validation : un appel non autorisé ET mal formé doit rendre 403, pas 422.
         $authedUser = $request->user();
         // TCK-104 — `agency_admin` can browse the audit dashboard scoped
         // to their own agency. `admin` is preserved for legacy clients.
-        abort_unless(
-            $authedUser->isSuperAdmin() || ($authedUser->agency_id !== null && $authedUser->isAgencyAdminAt((int) $authedUser->agency_id)),
-            403
-        );
         AgencyKindGuard::ensureStandardForNonGlobal(
             $authedUser,
             $request->activeProfile()?->agency_id ?? $authedUser->agency_id,
@@ -77,18 +72,7 @@ class AuditLogController extends Controller
         // Accept legacy flat params (?log_name=, ?event=, ?from=, ?to=, ?causer_id=…)
         // AND spatie-style nested filters (?filter[log_name]=, ?filter[date_from]=…).
         // Validation covers only the flat params; spatie handles its own parsing.
-        $filters = $request->validate([
-            'log_name' => ['nullable', 'string'],
-            'event' => ['nullable', 'string'],
-            'causer_id' => ['nullable'],
-            'causer_type' => ['nullable', 'string'],
-            'subject_id' => ['nullable'],
-            'subject_type' => ['nullable', 'string'],
-            'from' => ['nullable', 'date'],
-            'to' => ['nullable', 'date', 'after_or_equal:from'],
-            'order' => ['nullable', 'in:asc,desc'],
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:200'],
-        ]);
+        $filters = $request->validated();
 
         // Only eager-load causer (the only relation exposed in the response).
         // `subject` is intentionally not loaded to avoid N+1 on heterogeneous morphs.
@@ -191,15 +175,7 @@ class AuditLogController extends Controller
             ];
         })->all();
 
-        return $this->json([
-            'data' => $data,
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, $data);
     }
 
     /**

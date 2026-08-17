@@ -3,19 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\StoreDocumentRequest;
 use App\Http\Resources\DocumentResource;
 use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Document;
-use App\Models\Enums\DocumentType;
 use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class DocumentController extends Controller
 {
@@ -47,27 +46,12 @@ class DocumentController extends Controller
             ->defaultSort('-created_at')
             ->paginate();
 
-        return $this->json([
-            'data' => DocumentResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, DocumentResource::collection($paginator)->toArray($request));
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreDocumentRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'documentable_type' => ['required', 'string'],
-            'documentable_id' => ['required', 'integer'],
-            'name' => ['required', 'string', 'max:255'],
-            'type' => ['required', Rule::enum(DocumentType::class)],
-            'description' => ['nullable', 'string'],
-            'expiry_date' => ['nullable', 'date'],
-            'file' => ['required', 'file', 'max:10240'],
-        ]);
+        $data = $request->validated();
 
         $fqcn = $this->resolveDocumentableType($data['documentable_type']);
         abort_if($fqcn === null, 422, 'Unsupported documentable_type.');
@@ -76,7 +60,7 @@ class DocumentController extends Controller
         abort_if($model === null, 404, 'Documentable resource not found.');
 
         $user = $request->user();
-        $this->authorizeUpload($user, $model);
+        $this->authorize('attachTo', [Document::class, $model]);
 
         $document = Document::create([
             'documentable_id' => $model->getKey(),
@@ -98,7 +82,7 @@ class DocumentController extends Controller
 
     public function show(Request $request, Document $document): JsonResponse
     {
-        $this->authorizeAccess($request, $document);
+        $this->authorize('view', $document);
 
         return $this->json([
             'data' => DocumentResource::make($document)->toArray($request),
@@ -126,7 +110,7 @@ class DocumentController extends Controller
 
     public function destroy(Request $request, Document $document): JsonResponse
     {
-        $this->authorizeManage($request, $document);
+        $this->authorize('update', $document);
         $document->delete();
 
         return $this->json([], 204);
@@ -147,67 +131,5 @@ class DocumentController extends Controller
         }
 
         return null;
-    }
-
-    protected function authorizeUpload($user, $documentable): void
-    {
-        if ($user->isSuperAdmin()) {
-            return;
-        }
-
-        $ok = false;
-
-        if ($documentable instanceof Property) {
-            $ok = $documentable->user_id === $user->id
-                || ($user->agency_id && $documentable->agency_id === $user->agency_id);
-        } elseif ($documentable instanceof Lease) {
-            $ok = $documentable->landlord_id === $user->id
-                || ($user->agency_id && $documentable->agency_id === $user->agency_id)
-                || ($documentable->tenant && $documentable->tenant->user_id === $user->id);
-        } elseif ($documentable instanceof Booking) {
-            $property = $documentable->property;
-            $ok = $documentable->created_by_id === $user->id
-                || ($property && $property->user_id === $user->id)
-                || ($user->agency_id && $documentable->agency_id === $user->agency_id);
-        } elseif ($documentable instanceof Customer) {
-            $ok = $documentable->added_by_id === $user->id
-                || $documentable->user_id === $user->id
-                || ($user->agency_id && $documentable->agency_id === $user->agency_id);
-        } elseif ($documentable instanceof User) {
-            $ok = $documentable->id === $user->id;
-        } elseif ($documentable instanceof Agency) {
-            $ok = $user->agency_id === $documentable->id;
-        } elseif ($documentable instanceof Inventory) {
-            $ok = $documentable->conducted_by === $user->id
-                || ($documentable->property && $documentable->property->user_id === $user->id)
-                || ($user->agency_id && $documentable->property && $documentable->property->agency_id === $user->agency_id);
-        }
-
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizeAccess(Request $request, Document $document): void
-    {
-        $user = $request->user();
-        if ($user->isSuperAdmin()) {
-            return;
-        }
-
-        if ($document->uploaded_by === $user->id) {
-            return;
-        }
-
-        $documentable = $document->documentable;
-        abort_if($documentable === null, 403);
-        $this->authorizeUpload($user, $documentable);
-    }
-
-    protected function authorizeManage(Request $request, Document $document): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $document->uploaded_by === $user->id;
-
-        abort_unless($ok, 403);
     }
 }

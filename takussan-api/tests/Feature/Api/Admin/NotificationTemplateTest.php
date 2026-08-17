@@ -8,9 +8,9 @@ use App\Models\User;
 use App\Notifications\NewBookingNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class NotificationTemplateTest extends BaseTestCase
+class NotificationTemplateTest extends TestCase
 {
     use RefreshDatabase;
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\StoreDocumentShareLinkRequest;
 use App\Models\Document;
 use App\Models\DocumentShareLink;
 use App\Services\Model\DocumentShareLinkService;
@@ -46,15 +47,10 @@ class DocumentShareLinkController extends Controller
         ]);
     }
 
-    public function store(Request $request, Document $document): JsonResponse
+    public function store(StoreDocumentShareLinkRequest $request, Document $document): JsonResponse
     {
-        $this->authorizeDocument($request, $document);
 
-        $data = $request->validate([
-            'expires_at' => ['nullable', 'date', 'after:now'],
-            'max_downloads' => ['nullable', 'integer', 'min:1'],
-            'password' => ['nullable', 'string', 'min:4'],
-        ]);
+        $data = $request->validated();
 
         $link = $this->shareLinks->create($document, $request->user(), $data);
 

@@ -2,8 +2,8 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * TCK-267 — JSON envelope for `AgencyUpgradeRequest`.
@@ -13,7 +13,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * the super-admin review surface (TCK-268) will fetch them via the
  * media endpoints with a stricter policy.
  */
-class AgencyUpgradeRequestResource extends JsonResource
+class AgencyUpgradeRequestResource extends BaseResource
 {
     public function toArray(Request $request): array
     {

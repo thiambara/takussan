@@ -17,7 +17,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-257 — covers the post-acceptance Owner wizard:
@@ -30,7 +30,7 @@ use Tests\BaseTestCase;
  *     owner_onboarding_completed).
  *  7. Authorization (401 unauth, 403 wrong owner).
  */
-class OwnerOnboardingTest extends BaseTestCase
+class OwnerOnboardingTest extends TestCase
 {
     use RefreshDatabase;
 

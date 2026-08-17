@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\StoreIntegrationRequest;
+use App\Http\Requests\Api\UpdateIntegrationRequest;
 use App\Http\Resources\IntegrationResource;
 use App\Models\Integration;
 use Illuminate\Http\JsonResponse;
@@ -25,26 +27,14 @@ class IntegrationController extends Controller
             ->defaultSort('-created_at')
             ->paginate();
 
-        return $this->json([
-            'data' => IntegrationResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, IntegrationResource::collection($paginator)->toArray($request));
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreIntegrationRequest $request): JsonResponse
     {
         $user = $request->user();
 
-        $data = $request->validate([
-            'provider' => ['required', 'string', 'max:255'],
-            'agency_id' => ['nullable', 'exists:agencies,id'],
-            'credentials' => ['required', 'array'],
-            'is_active' => ['nullable', 'boolean'],
-            'metadata' => ['nullable', 'array'],
-        ]);
+        $data = $request->validated();
 
         $agencyId = $data['agency_id'] ?? $user->agency_id;
 
@@ -67,20 +57,13 @@ class IntegrationController extends Controller
         return $this->json(['data' => IntegrationResource::make($integration)->toArray($request)], 201);
     }
 
-    public function update(Request $request, Integration $integration): JsonResponse
+    public function update(UpdateIntegrationRequest $request, Integration $integration): JsonResponse
     {
+        // TCK-305 — l'autorisation court dans UpdateIntegrationRequest::authorize(), donc AVANT la
+        // validation : un appel non autorisé ET mal formé doit rendre 403, pas 422.
         $user = $request->user();
 
-        abort_unless(
-            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $integration->agency_id && $user->isAgencyAdminAt((int) $integration->agency_id)),
-            403
-        );
-
-        $data = $request->validate([
-            'credentials' => ['sometimes', 'required', 'array'],
-            'is_active' => ['sometimes', 'boolean'],
-            'metadata' => ['sometimes', 'nullable', 'array'],
-        ]);
+        $data = $request->validated();
 
         // TCK-078: see store() — the model cast handles JSON + encryption,
         // writing the raw array keeps round-trips lossless.

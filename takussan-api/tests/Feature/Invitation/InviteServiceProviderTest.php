@@ -17,7 +17,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-260 — service provider invitation from the agency-side carnet
@@ -32,7 +32,7 @@ use Tests\BaseTestCase;
  *  - 403 si pas la permission, resend/revoke via routes génériques,
  *    activity log `service_provider_invited`.
  */
-class InviteServiceProviderTest extends BaseTestCase
+class InviteServiceProviderTest extends TestCase
 {
     use RefreshDatabase;
 

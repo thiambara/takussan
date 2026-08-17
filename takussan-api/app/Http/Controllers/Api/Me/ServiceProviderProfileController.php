@@ -3,13 +3,12 @@
 namespace App\Http\Controllers\Api\Me;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Me\UpdateAvailabilityServiceProviderProfileRequest;
+use App\Http\Requests\Api\Me\UpdateTradesServiceProviderProfileRequest;
+use App\Http\Requests\Api\Me\UploadKycServiceProviderProfileRequest;
 use App\Models\Document;
-use App\Models\Enums\DocumentType;
 use App\Models\Profiles\ServiceProviderProfile;
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 /**
@@ -38,32 +37,20 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 class ServiceProviderProfileController extends Controller
 {
     /** Map upload `kind` to `App\Models\Enums\DocumentType`. */
-    private const KYC_KIND_TO_TYPE = [
-        'cni' => DocumentType::IdCard,
-        'insurance' => DocumentType::Insurance,
-    ];
-
     /**
      * POST /api/me/profiles/{sp_profile}/kyc/upload
      *
      * Multipart : `file` + `kind=cni|insurance`.
      */
-    public function uploadKyc(Request $request, ServiceProviderProfile $sp_profile): JsonResponse
+    public function uploadKyc(UploadKycServiceProviderProfileRequest $request, ServiceProviderProfile $sp_profile): JsonResponse
     {
-        $this->assertOwner($request, $sp_profile);
 
-        $validated = $request->validate([
-            // 8 MB max, common KYC formats. medialibrary handles MIME by the
-            // file extension — we keep the rules permissive to support phone
-            // captures (heic, webp).
-            'file' => ['required', 'file', 'max:8192'],
-            'kind' => ['required', 'string', Rule::in(array_keys(self::KYC_KIND_TO_TYPE))],
-        ]);
+        $validated = $request->validated();
 
         /** @var UploadedFile $file */
         $file = $validated['file'];
         $kind = (string) $validated['kind'];
-        $type = self::KYC_KIND_TO_TYPE[$kind];
+        $type = UploadKycServiceProviderProfileRequest::KYC_KIND_TO_TYPE[$kind];
 
         // One Document row per (profile, kind) — replace previous version
         // by hand to keep `Document::activeVersion()` semantics intact and
@@ -127,18 +114,10 @@ class ServiceProviderProfileController extends Controller
      *
      * Body : `{trades: string[], intervention_zones: string[], hourly_rate, visit_fee}`.
      */
-    public function updateTrades(Request $request, ServiceProviderProfile $sp_profile): JsonResponse
+    public function updateTrades(UpdateTradesServiceProviderProfileRequest $request, ServiceProviderProfile $sp_profile): JsonResponse
     {
-        $this->assertOwner($request, $sp_profile);
 
-        $validated = $request->validate([
-            'trades' => ['nullable', 'array'],
-            'trades.*' => ['string', 'max:60'],
-            'intervention_zones' => ['nullable', 'array'],
-            'intervention_zones.*' => ['string', 'max:120'],
-            'hourly_rate' => ['nullable', 'numeric', 'min:0'],
-            'visit_fee' => ['nullable', 'numeric', 'min:0'],
-        ]);
+        $validated = $request->validated();
 
         $trades = $this->normaliseStringList($validated['trades'] ?? []);
         $zones = $this->normaliseStringList($validated['intervention_zones'] ?? []);
@@ -180,20 +159,10 @@ class ServiceProviderProfileController extends Controller
      * Stored in `metadata.availability` to keep the schema migration-free
      * (TCK-261 hors-périmètre du booking range query).
      */
-    public function updateAvailability(Request $request, ServiceProviderProfile $sp_profile): JsonResponse
+    public function updateAvailability(UpdateAvailabilityServiceProviderProfileRequest $request, ServiceProviderProfile $sp_profile): JsonResponse
     {
-        $this->assertOwner($request, $sp_profile);
 
-        $validated = $request->validate([
-            'available_slots' => ['required', 'array'],
-            'available_slots.*.day' => [
-                'required',
-                'string',
-                Rule::in(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']),
-            ],
-            'available_slots.*.from' => ['required', 'string', 'regex:/^\d{2}:\d{2}$/'],
-            'available_slots.*.to' => ['required', 'string', 'regex:/^\d{2}:\d{2}$/'],
-        ]);
+        $validated = $request->validated();
 
         $slots = array_map(static fn (array $slot): array => [
             'day' => (string) $slot['day'],
@@ -211,25 +180,6 @@ class ServiceProviderProfileController extends Controller
                 'available_slots' => $slots,
             ],
         ]);
-    }
-
-    /**
-     * Authorize : only the SP profile owner (or super_admin) may write.
-     */
-    protected function assertOwner(Request $request, ServiceProviderProfile $sp_profile): void
-    {
-        $user = $request->user();
-        if ($user === null) {
-            abort(401);
-        }
-
-        if (method_exists($user, 'isSuperAdmin') && $user->isSuperAdmin()) {
-            return;
-        }
-
-        if ((int) $sp_profile->user_id !== (int) $user->id) {
-            throw new AuthorizationException(__('service_providers.onboarding.errors.not_owner'));
-        }
     }
 
     /**

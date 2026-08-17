@@ -12,9 +12,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Source of truth consumed by {@see PreferenceResolver}.
  *
  * Étendait `Model` directement, seul écart non justifié sur 70 modèles — il perdait
- * donc `scopeFilter()`, `scopeWithSearch()` et tout le pipeline `buildQuery()` que
- * `AbstractModel` apporte. Un écart sans raison écrite finit par se lire comme un
- * précédent : celui-ci est refermé.
+ * donc `scopeWithSearch()` et tout le pipeline `buildQuery()` que `AbstractModel`
+ * apporte. Un écart sans raison écrite finit par se lire comme un précédent : celui-ci
+ * est refermé. (`scopeFilter()` figurait aussi dans cette liste — supprimé par TCK-307,
+ * il ne se perd plus.)
  */
 class NotificationPreference extends AbstractModel
 {

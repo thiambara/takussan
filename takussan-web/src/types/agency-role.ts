@@ -79,6 +79,22 @@ export interface AssignAgencyRoleInput {
   readonly agency_role_id: number;
 }
 
+/**
+ * `GET /api/agencies/{agency}/role-assignments` — ce que porte chaque profil
+ * agence-scopé des utilisateurs demandés.
+ *
+ * Un utilisateur peut apparaître PLUSIEURS fois : rien n'interdit d'être à la
+ * fois agent et propriétaire dans la même agence, et ces deux profils portent
+ * chacun leur rôle. La console Équipe affiche donc une liste, pas une valeur.
+ */
+export interface AgencyRoleAssignment {
+  readonly profile_id: number;
+  readonly profile_type: AssignableBaseType;
+  readonly user_id: number;
+  readonly agency_role_id: number;
+  readonly agency_role_name: string | null;
+}
+
 /** Profil bloquant la suppression d'un rôle — corps du 409. */
 export interface BlockingProfile {
   readonly id: number;

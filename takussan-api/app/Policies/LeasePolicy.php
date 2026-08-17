@@ -5,12 +5,15 @@ namespace App\Policies;
 use App\Models\Enums\Capability;
 use App\Models\Lease;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 
 /**
- * TCK-088 — Authorization for custom lease actions. Standard CRUD remains
- * handled inline in `LeaseController` via `authorizeAccess`/`authorizeManage`;
- * this policy is only consulted for actions that need an explicit capability
- * gate (refund_deposit, …).
+ * TCK-088 — Authorization for custom lease actions.
+ *
+ * ⚠ **TCK-306 — le CRUD standard n'est plus « handled inline ».** Ce docblock disait « Standard
+ * CRUD remains handled inline in `LeaseController` », et c'était vrai de **quatre** contrôleurs :
+ * `LeaseController`, `LeaseChainController`, `LeaseDepositRefundController`, plus
+ * `InventoryController::authorizeManageLease()`. `view()` et `update()` ci-dessous les reprennent.
  *
  * « Spatie » a été retiré de cette phrase, pas du sens : la porte existe
  * toujours, mais elle passe par l'enum `Capability` et les Gates dérivées
@@ -34,6 +37,64 @@ class LeasePolicy extends BasePolicy
     protected function createCapability(): ?Capability
     {
         return Capability::LeasesCreate;
+    }
+
+    /**
+     * TCK-306 — lire un bail : bailleur, périmètre d'agence, **locataire**, ou super-admin.
+     *
+     * Reprise EXACTE des trois `authorizeAccess()` qui portaient cette règle —
+     * `LeaseController`, `LeaseChainController`, `LeaseDepositRefundController`. Les trois étaient
+     * identiques au `?->` près : `LeaseChainController` seul se protégeait d'un `$user` nul. La
+     * différence est sans effet ici, la route exige `auth:sanctum`.
+     *
+     * ⚠ **La quatrième clause est celle qui compte** : le LOCATAIRE lit son bail. C'est la seule
+     * chose qui sépare `view` de `update` ci-dessous, et l'inverser ouvrirait au locataire le droit
+     * de modifier son propre bail.
+     */
+    public function view(User $user, Model $model): bool
+    {
+        if (! $model instanceof Lease) {
+            return false;
+        }
+
+        if ($user->id === $model->landlord_id) {
+            return true;
+        }
+
+        if ($user->agency_id !== null && $user->agency_id === $model->agency_id) {
+            return true;
+        }
+
+        if ($model->tenant && $model->tenant->user_id === $user->id) {
+            return true;
+        }
+
+        return $user->isSuperAdmin();
+    }
+
+    /**
+     * TCK-306 — écrire sur un bail : bailleur, périmètre d'agence, ou super-admin.
+     *
+     * Reprise EXACTE de `LeaseController::authorizeManage()` et de
+     * `InventoryController::authorizeManageLease()` — deux copies de la même règle, dans deux
+     * contrôleurs, écrites à trois mois d'intervalle. **Pas de clause locataire** : c'est
+     * précisément ce qui la distingue de `view()`.
+     */
+    public function update(User $user, Model $model): bool
+    {
+        if (! $model instanceof Lease) {
+            return false;
+        }
+
+        if ($user->id === $model->landlord_id) {
+            return true;
+        }
+
+        if ($user->agency_id !== null && $user->agency_id === $model->agency_id) {
+            return true;
+        }
+
+        return $user->isSuperAdmin();
     }
 
     /**

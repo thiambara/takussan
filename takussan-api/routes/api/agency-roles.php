@@ -17,6 +17,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // toute route paramétrée du même préfixe (convention du dépôt).
     Route::get('capabilities', [CapabilityController::class, 'index'])->name('capabilities.index');
 
+    // Littérale, et distincte de `roles/{role}` : déclarée avant, par la
+    // convention du dépôt. TCK-279 (AC11) — ce que porte chaque profil de
+    // l'agence, pour la colonne « Rôle » de la console Équipe.
+    Route::get('agencies/{agency}/role-assignments', [RoleController::class, 'assignments'])
+        ->name('agencies.roles.assignments');
+
     Route::get('agencies/{agency}/roles', [RoleController::class, 'index'])->name('agencies.roles.index');
     Route::post('agencies/{agency}/roles', [RoleController::class, 'store'])->name('agencies.roles.store');
     Route::get('agencies/{agency}/roles/{role}', [RoleController::class, 'show'])->name('agencies.roles.show');

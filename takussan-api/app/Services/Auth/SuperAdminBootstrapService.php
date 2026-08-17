@@ -15,7 +15,7 @@ use RuntimeException;
  * new environment (or, later, via the cooptation flow — TCK-264).
  *
  * The service is deliberately decoupled from any HTTP/console concern
- * so it can be reused both by the artisan `takussan:create-super-admin`
+ * so it can be reused both by the artisan `platform:create-super-admin`
  * command and by the peer-to-peer cooptation endpoint that TCK-264 will
  * introduce. Returned recovery codes are passed back to the caller in
  * **plain text** — they are never persisted in clear and the caller is

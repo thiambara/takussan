@@ -14,9 +14,9 @@ use App\Models\Property;
 use App\Models\PropertyReport;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class AgencyDetailTest extends BaseTestCase
+class AgencyDetailTest extends TestCase
 {
     use RefreshDatabase;
 

@@ -7,13 +7,13 @@ use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-144 — KPIs payload shape. The numbers themselves are validated by
  * the per-resource tests; here we assert the contract is honored.
  */
-class SystemMetricsTest extends BaseTestCase
+class SystemMetricsTest extends TestCase
 {
     use RefreshDatabase;
 

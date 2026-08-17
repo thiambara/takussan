@@ -11,13 +11,13 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-144 — Agency moderation lifecycle (verify / suspend / unverify) and
  * activity-log emission.
  */
-class AgencyModerationTest extends BaseTestCase
+class AgencyModerationTest extends TestCase
 {
     use RefreshDatabase;
 

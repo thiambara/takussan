@@ -2,10 +2,10 @@
 
 namespace App\Http\Resources\Api\Admin;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class AgencyProvisioningResource extends JsonResource
+class AgencyProvisioningResource extends BaseResource
 {
     public function toArray(Request $request): array
     {

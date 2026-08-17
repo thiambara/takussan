@@ -3,10 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\StoreKpiConfigRequest;
+use App\Http\Requests\Api\UpdateKpiConfigRequest;
 use App\Models\KpiConfig;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 /**
  * TCK-032 P3 — CRUD for per-agency KPI customisation.
@@ -31,31 +32,14 @@ class KpiConfigController extends Controller
             ->defaultSort('sort_order')
             ->paginate();
 
-        return $this->json([
-            'data' => $paginator->items(),
-            'meta' => [
-                'total' => $paginator->total(),
-                'per_page' => $paginator->perPage(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, $paginator->items());
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreKpiConfigRequest $request): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user->isSuperAdmin() || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)), 403);
 
-        $validated = $request->validate([
-            'agency_id' => ['sometimes', 'integer', 'exists:agencies,id'],
-            'metric' => ['required', Rule::in(KpiConfig::allowedMetrics())],
-            'label' => ['required', 'string', 'max:120'],
-            'format' => ['sometimes', Rule::in(['number', 'percent', 'currency'])],
-            'sort_order' => ['sometimes', 'integer', 'min:0', 'max:999'],
-            'is_enabled' => ['sometimes', 'boolean'],
-            'settings' => ['sometimes', 'array'],
-        ]);
+        $validated = $request->validated();
 
         $agencyId = $validated['agency_id'] ?? $user->agency_id;
         abort_unless($agencyId, 422, 'agency_id is required.');
@@ -71,19 +55,11 @@ class KpiConfigController extends Controller
         return $this->json(['data' => $kpi], 201);
     }
 
-    public function update(Request $request, KpiConfig $kpiConfig): JsonResponse
+    public function update(UpdateKpiConfigRequest $request, KpiConfig $kpiConfig): JsonResponse
     {
         $user = $request->user();
-        $this->authorizeAgency($user, $kpiConfig);
 
-        $validated = $request->validate([
-            'metric' => ['sometimes', Rule::in(KpiConfig::allowedMetrics())],
-            'label' => ['sometimes', 'string', 'max:120'],
-            'format' => ['sometimes', Rule::in(['number', 'percent', 'currency'])],
-            'sort_order' => ['sometimes', 'integer', 'min:0', 'max:999'],
-            'is_enabled' => ['sometimes', 'boolean'],
-            'settings' => ['sometimes', 'array'],
-        ]);
+        $validated = $request->validated();
 
         $kpiConfig->update($validated);
 

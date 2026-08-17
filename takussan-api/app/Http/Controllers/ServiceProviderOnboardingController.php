@@ -3,11 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\CompleteServiceProviderOnboardingRequest;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Services\Onboarding\ServiceProviderOnboardingService;
 use App\Services\Profiles\ActiveProfileResolver;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Cookie;
 
 /**
@@ -29,16 +29,12 @@ class ServiceProviderOnboardingController extends Controller
         private readonly ActiveProfileResolver $resolver,
     ) {}
 
-    public function complete(Request $request): JsonResponse
+    public function complete(CompleteServiceProviderOnboardingRequest $request): JsonResponse
     {
         $user = $request->user();
         abort_if($user === null, 401);
 
-        $validated = $request->validate([
-            'sp_profile_id' => ['required', 'integer'],
-            'phone_otp' => ['nullable', 'array'],
-            'phone_otp.code' => ['nullable', 'string', 'size:6'],
-        ]);
+        $validated = $request->validated();
 
         $sp = ServiceProviderProfile::query()
             ->whereKey((int) $validated['sp_profile_id'])

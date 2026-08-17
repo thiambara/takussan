@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
 use App\Models\Document;
 use App\Models\Profiles\BrokerProfile;
@@ -10,12 +11,11 @@ use App\Models\Review;
 use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Lang;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-class PropertyResource extends JsonResource
+class PropertyResource extends BaseResource
 {
     public function toArray(Request $request): array
     {

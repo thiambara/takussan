@@ -21,15 +21,7 @@ class DataExportController extends Controller
             ->latest('requested_at')
             ->paginate((int) $request->input('per_page', 20));
 
-        return $this->json([
-            'data' => DataExportResource::collection($exports->items())->resolve(),
-            'meta' => [
-                'total' => $exports->total(),
-                'current_page' => $exports->currentPage(),
-                'last_page' => $exports->lastPage(),
-                'per_page' => $exports->perPage(),
-            ],
-        ]);
+        return $this->paginated($exports, DataExportResource::collection($exports->items())->resolve());
     }
 
     public function store(Request $request): JsonResponse

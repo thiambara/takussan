@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Auth\ConfirmSuperAdminTwoFactorRequest;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Profiles\PlatformProfile;
 use App\Notifications\SuperAdminAcceptedBroadcast;
@@ -90,20 +91,17 @@ class SuperAdminTwoFactorController extends Controller
      * flow doesn't reach here (the assert above bounces them with 422),
      * so confirm() is by construction a single-shot transition.
      */
-    public function confirm(Request $request): JsonResponse
+    public function confirm(ConfirmSuperAdminTwoFactorRequest $request): JsonResponse
     {
+        // TCK-305 — l'autorisation court dans ConfirmSuperAdminTwoFactorRequest::authorize(), donc AVANT la
+        // validation : un appel non autorisé ET mal formé doit rendre 403, pas 422.
         $user = $request->user();
-        $this->assertCooptedSuperAdmin($user);
 
         abort_unless(
             $user->two_factor_secret !== null,
             422,
             __('super_admins.cooptation.errors.enroll_first'),
         );
-
-        $request->validate([
-            'code' => ['required', 'string', 'size:6'],
-        ]);
 
         abort_unless(
             $this->twoFactor->verifyCodeForUser($user, $user->two_factor_secret, $request->input('code')),

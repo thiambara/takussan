@@ -2,8 +2,6 @@
 
 namespace Tests\Support;
 
-use Throwable;
-
 /**
  * Isolation des disques `Storage::fake()`, UN JEU PAR PROCESSUS DE TEST.
  *
@@ -81,19 +79,10 @@ final class TestFilesystemIsolation
 
     private static function remove(string $path): void
     {
-        try {
-            $items = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS),
-                \RecursiveIteratorIterator::CHILD_FIRST,
-            );
-
-            foreach ($items as $item) {
-                $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
-            }
-
-            @rmdir($path);
-        } catch (Throwable) {
-            // Le nettoyage ne doit jamais faire échouer une exécution.
-        }
+        // Le corps de cette méthode vit dans {@see TestDirectory} depuis TCK-322 :
+        // trois mécanismes d'isolation le refaisaient, et la règle qui compte — un
+        // nettoyage ne doit JAMAIS faire échouer une exécution — n'a de valeur
+        // qu'écrite une seule fois.
+        TestDirectory::removeRecursively($path);
     }
 }

@@ -3,6 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\MessagesConversationRequest;
+use App\Http\Requests\Api\SendMessageConversationRequest;
+use App\Http\Requests\Api\StoreConversationRequest;
+use App\Http\Requests\Api\ToggleMuteConversationRequest;
+use App\Http\Requests\Api\UpdateConversationRequest;
 use App\Http\Requests\Conversation\CreateGroupConversationRequest;
 use App\Http\Resources\ConversationResource;
 use App\Http\Resources\MessageResource;
@@ -15,7 +20,6 @@ use App\Services\Messaging\GroupConversationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 
 class ConversationController extends Controller
 {
@@ -38,13 +42,10 @@ class ConversationController extends Controller
             ->orderByDesc('last_message_at')
             ->paginate((int) $request->input('per_page', 20));
 
-        return $this->json([
-            'data' => ConversationResource::collection($paginator)->toArray($request),
-            'meta' => ['total' => $paginator->total(), 'current_page' => $paginator->currentPage()],
-        ]);
+        return $this->paginated($paginator, ConversationResource::collection($paginator)->toArray($request));
     }
 
-    public function store(Request $request, GroupConversationService $groups): JsonResponse
+    public function store(StoreConversationRequest $request, GroupConversationService $groups): JsonResponse
     {
         // TCK-085 — group requests get the dedicated FormRequest
         // (subject required, 3..20 total participants).
@@ -53,15 +54,7 @@ class ConversationController extends Controller
             return $this->storeGroup($request, $groups);
         }
 
-        $data = $request->validate([
-            'subject' => ['nullable', 'string'],
-            'type' => ['nullable', Rule::enum(ConversationType::class)],
-            'participants' => ['required', 'array', 'min:1'],
-            'participants.*' => ['exists:users,id'],
-            'property_id' => ['nullable', 'exists:properties,id'],
-            'lease_id' => ['nullable', 'exists:leases,id'],
-            'initial_message' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $user = $request->user();
 
@@ -159,16 +152,12 @@ class ConversationController extends Controller
      * rename. Body: `{ subject }`. Per-participant mute is handled by
      * the dedicated `toggleMute` route.
      */
-    public function update(Request $request, Conversation $conversation, GroupConversationService $groups): JsonResponse
+    public function update(UpdateConversationRequest $request, Conversation $conversation, GroupConversationService $groups): JsonResponse
     {
-        $this->ensureParticipant($request, $conversation);
 
         $user = $request->user();
-        abort_unless($user->can('rename', $conversation), 403, __('messaging.errors.admin_only'));
 
-        $data = $request->validate([
-            'subject' => ['required', 'string', 'max:255'],
-        ]);
+        $data = $request->validated();
 
         $groups->rename($conversation, $user, $data['subject']);
 
@@ -185,13 +174,10 @@ class ConversationController extends Controller
      * `ConversationParticipant.is_muted`. Notifications honour this
      * flag at fan-out time (see {@see NotifyNewMessageJob}).
      */
-    public function toggleMute(Request $request, Conversation $conversation, GroupConversationService $groups): JsonResponse
+    public function toggleMute(ToggleMuteConversationRequest $request, Conversation $conversation, GroupConversationService $groups): JsonResponse
     {
-        $this->ensureParticipant($request, $conversation);
 
-        $data = $request->validate([
-            'is_muted' => ['required', 'boolean'],
-        ]);
+        $data = $request->validated();
 
         $user = $request->user();
         $groups->setMute($conversation, $user, (bool) $data['is_muted']);
@@ -215,19 +201,14 @@ class ConversationController extends Controller
         ]);
     }
 
-    public function messages(Request $request, Conversation $conversation): JsonResponse
+    public function messages(MessagesConversationRequest $request, Conversation $conversation): JsonResponse
     {
-        $this->ensureParticipant($request, $conversation);
 
         // TCK — cursor pagination. The history is paged via `before_id` (load
         // older messages on scroll-up); `after_id` is used by the live-polling
         // query to fetch only messages newer than the latest one already in
         // the client cache, so polling never re-downloads loaded history.
-        $data = $request->validate([
-            'before_id' => ['nullable', 'integer', 'min:1', 'prohibits:after_id'],
-            'after_id' => ['nullable', 'integer', 'min:1', 'prohibits:before_id'],
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
-        ]);
+        $data = $request->validated();
 
         $perPage = (int) ($data['per_page'] ?? 30);
 
@@ -260,14 +241,10 @@ class ConversationController extends Controller
         ]);
     }
 
-    public function sendMessage(Request $request, Conversation $conversation): JsonResponse
+    public function sendMessage(SendMessageConversationRequest $request, Conversation $conversation): JsonResponse
     {
-        $this->ensureParticipant($request, $conversation);
 
-        $data = $request->validate([
-            'content' => ['required', 'string'],
-            'type' => ['nullable', Rule::enum(MessageType::class)],
-        ]);
+        $data = $request->validated();
 
         $sender = $request->user();
 

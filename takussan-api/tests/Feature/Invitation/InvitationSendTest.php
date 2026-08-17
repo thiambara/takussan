@@ -11,12 +11,12 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-249 — AC1, AC4, AC7 (send/dedup/activity log).
  */
-class InvitationSendTest extends BaseTestCase
+class InvitationSendTest extends TestCase
 {
     use RefreshDatabase;
 

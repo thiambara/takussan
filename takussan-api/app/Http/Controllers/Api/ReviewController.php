@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\ModerateReviewRequest;
+use App\Http\Requests\Api\ReplyReviewRequest;
+use App\Http\Requests\Api\ReportReviewRequest;
+use App\Http\Requests\Api\StoreForAgencyReviewRequest;
+use App\Http\Requests\Api\StoreForPropertyReviewRequest;
 use App\Http\Resources\ReviewResource;
 use App\Models\Agency;
-use App\Models\Enums\BookingStatus;
-use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\ReviewStatus;
 use App\Models\Property;
 use App\Models\Review;
@@ -14,7 +17,6 @@ use App\Models\User;
 use App\Services\Review\ReviewModerationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class ReviewController extends Controller
 {
@@ -104,13 +106,7 @@ class ReviewController extends Controller
 
         return $this->json([
             'data' => ReviewResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-                'pending_count' => $pendingCount,
-            ],
+            'meta' => $this->paginationMeta($paginator, ['pending_count' => $pendingCount]),
         ]);
     }
 
@@ -118,14 +114,10 @@ class ReviewController extends Controller
      * Unified moderation endpoint — admin queue uses this rather than the
      * split approve/reject/hide legacy routes. Body: `{ decision, reason? }`.
      */
-    public function moderate(Request $request, Review $review): JsonResponse
+    public function moderate(ModerateReviewRequest $request, Review $review): JsonResponse
     {
-        abort_unless($request->user()->isSuperAdmin() || ($request->user()->agency_id !== null && $request->user()->isAgencyAdminAt((int) $request->user()->agency_id)), 403);
 
-        $data = $request->validate([
-            'decision' => ['required', Rule::in(['approve', 'hide', 'delete', 'ignore'])],
-            'reason' => ['nullable', 'string', 'max:1000'],
-        ]);
+        $data = $request->validated();
 
         $decision = $data['decision'];
         $reason = $data['reason'] ?? null;
@@ -190,36 +182,22 @@ class ReviewController extends Controller
 
         return $this->json([
             'data' => ReviewResource::collection($reviews)->toArray($request),
-            'meta' => ['total' => $reviews->total(), 'current_page' => $reviews->currentPage()],
+            'meta' => $this->paginationMeta($reviews),
         ]);
     }
 
-    public function storeForProperty(Request $request, Property $property): JsonResponse
+    public function storeForProperty(StoreForPropertyReviewRequest $request, Property $property): JsonResponse
     {
         $user = $request->user();
 
-        $hasCompletedBooking = $property->bookings()
-            ->whereIn('status', [BookingStatus::Completed, BookingStatus::Confirmed])
-            ->whereHas('customer', fn ($q) => $q->where('user_id', $user->id))
-            ->exists();
-        $hasLease = $property->leases()
-            ->whereIn('status', [LeaseStatus::Active, LeaseStatus::Terminated, LeaseStatus::Expired])
-            ->whereHas('tenant', fn ($q) => $q->where('user_id', $user->id))
-            ->exists();
-        abort_unless(
-            $hasCompletedBooking || $hasLease || $user->isSuperAdmin(),
-            403,
-            'Only customers with a completed booking or lease can review this property.'
-        );
-
+        // TCK-305 — l'éligibilité (réservation honorée ou bail) court dans
+        // StoreForPropertyReviewRequest::authorize(), donc AVANT la validation : un appel non
+        // éligible ET mal formé doit rendre 403, pas 422. Le 422 ci-dessous reste ici — « déjà
+        // noté » n'est pas un refus d'accès mais un état métier.
         $alreadyReviewed = $property->reviews()->where('author_id', $user->id)->exists();
         abort_if($alreadyReviewed, 422, 'You have already reviewed this property.');
 
-        $data = $request->validate([
-            'rating' => ['required', 'integer', 'min:1', 'max:5'],
-            'title' => ['nullable', 'string'],
-            'content' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $review = $property->reviews()->create(array_merge($data, [
             'author_id' => $user->id,
@@ -258,14 +236,13 @@ class ReviewController extends Controller
         return $this->json(['data' => ReviewResource::make($review->refresh())->toArray($request)]);
     }
 
-    public function reply(Request $request, Review $review): JsonResponse
+    public function reply(ReplyReviewRequest $request, Review $review): JsonResponse
     {
         $user = $request->user();
         $reviewable = $review->reviewable;
         $ok = $user->isSuperAdmin()
             || ($reviewable && isset($reviewable->user_id) && $reviewable->user_id === $user->id)
             || ($user->agency_id && isset($reviewable->agency_id) && $reviewable->agency_id === $user->agency_id);
-        abort_unless($ok, 403);
 
         // Rejected is a terminal state: no public-facing view, no reply.
         // Reply is not a ReviewStatus transition so assertTransition() does
@@ -276,9 +253,7 @@ class ReviewController extends Controller
             'Cannot reply to a rejected review.'
         );
 
-        $data = $request->validate([
-            'reply_content' => ['required', 'string'],
-        ]);
+        $data = $request->validated();
 
         $review->update([
             'reply_content' => $data['reply_content'],
@@ -316,31 +291,19 @@ class ReviewController extends Controller
 
         return $this->json([
             'data' => ReviewResource::collection($reviews)->toArray($request),
-            'meta' => ['total' => $reviews->total(), 'current_page' => $reviews->currentPage()],
+            'meta' => $this->paginationMeta($reviews),
         ]);
     }
 
-    public function storeForAgency(Request $request, Agency $agency): JsonResponse
+    public function storeForAgency(StoreForAgencyReviewRequest $request, Agency $agency): JsonResponse
     {
         $user = $request->user();
 
-        $hasInteraction = $agency->leases()
-            ->whereHas('tenant', fn ($q) => $q->where('user_id', $user->id))
-            ->exists();
-        abort_unless(
-            $hasInteraction || $user->isSuperAdmin(),
-            403,
-            'Only customers with a completed transaction can review this agency.'
-        );
-
+        // TCK-305 — même raison que dans storeForProperty() ci-dessus.
         $alreadyReviewed = $agency->reviews()->where('author_id', $user->id)->exists();
         abort_if($alreadyReviewed, 422, 'You have already reviewed this agency.');
 
-        $data = $request->validate([
-            'rating' => ['required', 'integer', 'min:1', 'max:5'],
-            'title' => ['nullable', 'string'],
-            'content' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $review = $agency->reviews()->create(array_merge($data, [
             'author_id' => $user->id,
@@ -351,11 +314,9 @@ class ReviewController extends Controller
         return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
     }
 
-    public function report(Request $request, Review $review): JsonResponse
+    public function report(ReportReviewRequest $request, Review $review): JsonResponse
     {
-        $data = $request->validate([
-            'reason' => ['required', 'string', 'max:500'],
-        ]);
+        $data = $request->validated();
 
         $userId = (int) $request->user()->id;
 

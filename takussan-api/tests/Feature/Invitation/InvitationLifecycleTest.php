@@ -11,12 +11,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-249 — AC5 (expire cron), AC6 (remind cron), revoke + resend.
  */
-class InvitationLifecycleTest extends BaseTestCase
+class InvitationLifecycleTest extends TestCase
 {
     use RefreshDatabase;
 

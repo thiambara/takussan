@@ -15,16 +15,26 @@ class ProfileSchemaTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * TCK-279 — `agency_role_id` est NOT NULL sur les profils agence-scopés
-     * (Règle 6). Ces tests insèrent en SQL brut, donc hors du hook Eloquent
-     * qui pose le rôle système par défaut : ils doivent le nommer eux-mêmes.
-     * C'est exactement ce que la contrainte est censée forcer.
+     * TCK-279 — `agency_role_id` est NOT NULL sur les profils agence-scopés (Règle 6).
+     * TCK-315 — et désormais aussi sur `service_provider_agency_collaborations`, d'où le
+     * paramètre de type.
+     *
+     * Ces tests insèrent en SQL BRUT, délibérément : ils éprouvent les contraintes du SCHÉMA
+     * (FK, unicité, NOT NULL), pas le comportement des modèles. Ils contournent donc le hook
+     * `creating` de `HasAgencyRole` qui pose le rôle système ailleurs — et c'est à eux de
+     * fournir toutes les colonnes NOT NULL, comme n'importe quel écrivain brut. C'est
+     * exactement ce que la contrainte est censée forcer.
+     *
+     * ⚠ Sans filtre de type, ce helper rend le PREMIER rôle système de l'agence, quel qu'il
+     * soit — la contrainte est satisfaite et le test vert avec un rôle `owner` posé sur une
+     * collaboration de prestataire. Vert par accident. Nommer le type quand il compte.
      */
-    private function systemRoleId(int $agencyId): ?int
+    private function systemRoleId(int $agencyId, ?string $baseProfileType = null): ?int
     {
         $id = DB::table('agency_roles')
             ->where('agency_id', $agencyId)
             ->where('is_system', true)
+            ->when($baseProfileType !== null, fn ($q) => $q->where('base_profile_type', $baseProfileType))
             ->value('id');
 
         return $id === null ? null : (int) $id;
@@ -254,6 +264,7 @@ class ProfileSchemaTest extends TestCase
         DB::table('service_provider_agency_collaborations')->insert([
             'service_provider_profile_id' => $spId,
             'agency_id' => $agency->id,
+            'agency_role_id' => $this->systemRoleId($agency->id, 'service_provider'),
             'status' => 'active',
             'started_at' => now()->toDateString(),
             'created_at' => now(),
@@ -265,6 +276,7 @@ class ProfileSchemaTest extends TestCase
         DB::table('service_provider_agency_collaborations')->insert([
             'service_provider_profile_id' => $spId,
             'agency_id' => $agency->id,
+            'agency_role_id' => $this->systemRoleId($agency->id, 'service_provider'),
             'status' => 'active',
             'started_at' => now()->toDateString(),
             'created_at' => now(),

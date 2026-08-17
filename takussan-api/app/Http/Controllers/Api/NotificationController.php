@@ -17,13 +17,11 @@ class NotificationController extends Controller
 
         return $this->json([
             'data' => $paginator->items(),
-            'meta' => [
-                'total' => $paginator->total(),
+            'meta' => $this->paginationMeta($paginator, [
                 'unread' => AppNotification::where('user_id', $request->user()->id)
                     ->whereNull('read_at')
                     ->count(),
-                'current_page' => $paginator->currentPage(),
-            ],
+            ]),
         ]);
     }
 

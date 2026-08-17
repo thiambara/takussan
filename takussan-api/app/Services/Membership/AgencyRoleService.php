@@ -8,6 +8,7 @@ use App\Models\AgencyRoleCapability;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\Capability;
 use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -130,20 +131,27 @@ class AgencyRoleService
 
     /**
      * AC5 — suppression refusée si le rôle est encore porté. Retourne la
-     * liste des profils en cause pour que l'appelant compose son 409.
+     * liste des porteurs en cause pour que l'appelant compose son 409.
+     *
+     * TCK-315 (ADR-0016) : pour un rôle `service_provider`, le porteur est
+     * une COLLABORATION, qui n'a pas de `user_id` — on le prend sur son
+     * profil. Sans cela le 409 nommerait des porteurs sans utilisateur, et
+     * l'UI ne saurait pas qui détacher.
      *
      * @return array<int,array<string,mixed>>
      */
     public function blockingProfiles(AgencyRole $role): array
     {
         return $role->attachedProfiles()
-            ->map(static fn (Model $profile): array => [
-                'id' => $profile->getKey(),
+            ->map(static fn (Model $holder): array => [
+                'id' => $holder->getKey(),
                 'type' => $role->base_profile_type instanceof AgencyRoleBaseType
                     ? $role->base_profile_type->value
                     : (string) $role->base_profile_type,
-                'user_id' => $profile->user_id,
-                'display_name' => $profile->display_name ?? null,
+                'user_id' => $holder instanceof ServiceProviderAgencyCollaboration
+                    ? $holder->serviceProviderProfile?->user_id
+                    : $holder->user_id,
+                'display_name' => $holder->display_name ?? null,
             ])
             ->all();
     }

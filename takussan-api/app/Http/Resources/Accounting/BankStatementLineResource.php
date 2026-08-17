@@ -2,13 +2,13 @@
 
 namespace App\Http\Resources\Accounting;
 
+use App\Http\Resources\Bases\BaseResource;
 use App\Models\BookingPayment;
 use App\Models\Invoice;
 use App\Models\LeasePayment;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class BankStatementLineResource extends JsonResource
+class BankStatementLineResource extends BaseResource
 {
     private const PAYMENT_TYPE_MAP = [
         BookingPayment::class => 'booking_payment',

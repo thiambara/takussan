@@ -17,7 +17,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-259 — covers the post-acceptance Agent wizard:
@@ -32,7 +32,7 @@ use Tests\BaseTestCase;
  *     agent_onboarding_completed).
  *  8. Authorization (401 unauth, 403 wrong owner).
  */
-class AgentOnboardingTest extends BaseTestCase
+class AgentOnboardingTest extends TestCase
 {
     use RefreshDatabase;
 
