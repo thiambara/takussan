@@ -132,6 +132,25 @@ Aucune modification de `tests/Support/` n'était exécutable ici. Remplacé par 
 les binaires (`vendor/phpunit/phpunit/phpunit`) chargent l'autoload de leur propre `__DIR__` résolu,
 et deux autoloaders se percutent sur `Cannot redeclare ComposerAutoloaderInit…`.
 
+## Reste sur dev
+
+**Une seule chose, et elle ne peut pas être faite par un agent délégué : jouer la paire de
+`php artisan test --parallel` simultanés sur la suite ENTIÈRE, et vérifier 0 échec des deux côtés.**
+
+- **AC1, AC4, AC5** — verts. Le répertoire est nommé avec sa ligne de code, quatre gardes tiennent
+  la propriété et la chaîne qui la porte, la documentation est à jour.
+- **AC2, AC3** — verts **sur des sous-ensembles** : cinq paires simultanées à 0 échec des deux
+  côtés, plus une paire compilant réellement du Blade, `uptime` et `sysctl -n hw.ncpu` relevés à
+  chaque fois (cf. Notes d'implémentation), et l'ablation du correctif fait remourir l'une des deux.
+  Ce que la panne exige est couvert — elle survient **avant le premier test**, donc elle ne dépend
+  pas des tests choisis — mais l'AC2 écrit « 0 échec des deux côtés », et cela ne s'établit que sur
+  la suite entière.
+
+Tant que cette paire n'est pas jouée, la restriction « un seul agent à la fois » **reste écrite**
+dans `CLAUDE.md` (racine et `takussan-api/`) et dans l'ardoise D-49 — c'est l'AC5 pris à la lettre :
+elle ne disparaît pas avant d'avoir cessé d'être vraie. Une ligne à changer dans chacun des trois le
+jour où la mesure sera prise.
+
 ## Ce que ce ticket ne fait pas
 
 - Il ne remet pas en cause `--parallel` pour un agent seul : les cinq exécutions d'épreuve de
