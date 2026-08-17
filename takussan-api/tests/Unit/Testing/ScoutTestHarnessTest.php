@@ -5,6 +5,7 @@ namespace Tests\Unit\Testing;
 use App\Models\Property;
 use Laravel\Scout\ModelObserver;
 use Tests\Support\SearchableModels;
+use Tests\Support\TestProcessToken;
 use Tests\TestCase;
 
 /**
@@ -40,7 +41,21 @@ class ScoutTestHarnessTest extends TestCase
         // Le littéral statique `testing_` laissait deux suites simultanées
         // écrire dans les mêmes index et se détruire mutuellement.
         $this->assertNotSame('testing_', $prefix);
-        $this->assertMatchesRegularExpression('/^testing_[0-9a-z]+_$/', $prefix);
+
+        // ⚠ JETON À DEUX ÉTAGES DEPUIS TCK-321 (phase 2) : `<pid+aléa>` seul hors
+        // `--parallel`, `<pid+aléa>_<index worker>` en mode parallèle. Le second
+        // étage compose le discriminant PAR EXÉCUTION (`TestProcessToken`, qui isole
+        // deux agents lancés en même temps) avec l'index de WORKER que ParaTest pose
+        // (qui isole les workers d'UNE MÊME exécution entre eux) — sans lui, deux
+        // agents en `--parallel` obtiendraient tous deux `testing_1_`, exactement la
+        // panne que D-44 avait soldée. Un ancien motif figé sur un seul bloc
+        // alphanumérique (`/^testing_[0-9a-z]+_$/`) rougissait dès qu'un agent
+        // lançait la suite en parallèle — invisible en séquentiel, puisque hors
+        // `--parallel` le jeton n'a pas de second étage. On affirme donc l'égalité
+        // avec le jeton composé lui-même plutôt qu'un motif qu'il faudrait faire
+        // évoluer à la main à chaque nouvel étage.
+        $this->assertSame('testing_'.TestProcessToken::value().'_', $prefix);
+
         $this->assertStringStartsWith($prefix, Property::make()->searchableAs());
     }
 }
