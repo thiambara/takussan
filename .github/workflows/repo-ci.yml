@@ -8,8 +8,13 @@
 #   · `.env.example` et `.env.docker` qui divergent d'une clé → une intégration qui lit `null` ;
 #   · un `spec_refs` qui pointe un fichier disparu → dix minutes perdues par lecteur, à vie.
 #
-# Aucune de ces gardes ne compile ni ne teste quoi que ce soit. Elles tiennent la documentation au
-# même niveau d'exigence que le code, et c'est tout leur objet.
+# Aucune de ces gardes ne compile. Elles tiennent la documentation au même niveau d'exigence que
+# le code, et c'est tout leur objet.
+#
+# UNE exception, et elle est assumée : `test-deploy-search-reindex.sh` est un vrai test. Il vit
+# ici parce que son sujet — la décision de réindexation de `deploy.sh` — n'a pas d'autre maison :
+# ni PHPUnit ni vitest ne lisent du bash. Cette phrase disait « ni ne teste quoi que ce soit »
+# avant que le test n'existe ; la corriger était moins cher que de laisser l'en-tête mentir.
 name: Repo CI
 
 on:
@@ -168,6 +173,17 @@ jobs:
         # Un commentaire écrivant `setup_queue_service` a réellement invoqué la fonction, EN
         # ROOT, et supprimé le mot du fichier écrit. Reproduit avant correction.
         run: node scripts/check-heredocs.mjs --report
+
+      - name: La décision de réindexation de `deploy.sh` fait ce qu'elle annonce
+        # Le seul VRAI test de ce workflow, et il est ici parce que son sujet n'est couvert
+        # nulle part ailleurs : ni PHPUnit ni vitest ne lisent du bash, et `deploy.sh` n'a
+        # jamais été exécuté une seule fois (D-04, TCK-288). Il décide pourtant, à chaque
+        # déploiement, quels modèles réindexer — et se tromper est muet des deux côtés :
+        # trop réindexer noie la file de jobs (3308 tâches mesurées pour une exécution, D-44),
+        # trop peu laisse la recherche répondre faux sur un index périmé, application en
+        # parfaite santé. Le harnais extrait le bloc du fichier réel, talonne `php`, et joue
+        # huit scénarios plus une ablation qui échoue exprès.
+        run: ./scripts/test-deploy-search-reindex.sh
 
       - name: Le banc d'essai tourne sur le moteur de base de la production
         # `docker-compose.yml` et le job `migrations-mysql` tournaient sur `mariadb:11.4`, sur la

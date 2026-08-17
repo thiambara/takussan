@@ -225,19 +225,77 @@ log "Reconciling agency system roles with the capability catalogue..."
 php artisan membership:reconcile-system-roles \
     || log "WARNING: membership:reconcile-system-roles failed — system roles may lag the catalogue until the next deploy."
 
-# ─── Step 6b: Sync Meilisearch index settings ────────────────────────────────
-# Pushes searchable/filterable/sortable attributes + ranking rules from
-# config/scout.php to Meilisearch. Idempotent — safe to run on every deploy
-# (Laravel docs recommend making this part of the deploy process).
-# Auto-skipped when the environment is not on the meilisearch driver (e.g.
-# preview on the collection driver). Non-fatal: a transient Meilisearch issue
-# must not roll back an otherwise healthy code deploy.
+# ─── Step 6b: Meilisearch — sync index settings + conditional reindex ─────────
+# scout:sync-index-settings pushes searchable/filterable/sortable attributes +
+# ranking rules from config/scout.php to Meilisearch — idempotent, run every
+# deploy (Laravel docs recommend making this part of the deploy process).
+#
+# scout:import re-indexes whole tables, and that is expensive: the suite measured
+# a 3308-task indexing backlog from a single run (cf. D-44). It is only needed
+# when the index *shape* changed, so we diff the files that define that shape
+# against the LIVE release and import nothing on a routine deploy.
+#
+# Granularity is per model, and deliberately so: config/scout.php governs every
+# index, so a change there re-imports all of them, but a change to one model's
+# toSearchableArray() re-imports that model ALONE. Re-importing Property (~450
+# rows and the heaviest payload) because Customer's shape moved is exactly the
+# waste this block exists to avoid. On the first deploy (PREVIOUS_RELEASE empty)
+# everything is imported.
+#
+# The whole block is auto-skipped when the environment is not on the meilisearch
+# driver (e.g. preview on the collection driver). Non-fatal: a transient
+# Meilisearch issue must not roll back an otherwise healthy code deploy.
 if grep -qE '^SCOUT_DRIVER=meilisearch[[:space:]]*$' "${SHARED_DIR}/.env"; then
     log "Syncing Meilisearch index settings..."
     php artisan scout:sync-index-settings \
         || log "WARNING: scout:sync-index-settings failed — search filters/sort may be stale until the next deploy."
+
+    # Searchable models = every app/Models/*.php file defining toSearchableArray().
+    # Assumes models live FLAT in the App\Models namespace — true today (7 models),
+    # and the `-eq 0` branch below is what tells us the day it stops being true,
+    # instead of importing nothing in silence.
+    SEARCHABLE_FILES=()
+    while IFS= read -r f; do
+        if [ -n "${f}" ]; then SEARCHABLE_FILES+=("${f}"); fi
+    done < <(grep -rl 'toSearchableArray' app/Models 2>/dev/null || true)
+
+    if [ ${#SEARCHABLE_FILES[@]} -eq 0 ]; then
+        log "WARNING: no Searchable model found under app/Models — nothing to import."
+        log "         Either Scout was dropped, or the models left app/Models and this"
+        log "         detection needs updating. Indexes will go stale unnoticed otherwise."
+    else
+        # Which models must be re-imported? Empty list = nothing to do.
+        REINDEX_FILES=()
+        if [ -z "${PREVIOUS_RELEASE}" ] || [ ! -d "${PREVIOUS_RELEASE}/takussan-api" ]; then
+            log "Search: first deploy — importing every Searchable model."
+            REINDEX_FILES=("${SEARCHABLE_FILES[@]}")
+        elif ! diff -q config/scout.php "${PREVIOUS_RELEASE}/takussan-api/config/scout.php" >/dev/null 2>&1; then
+            log "Search: config/scout.php changed since the live release — importing every model."
+            REINDEX_FILES=("${SEARCHABLE_FILES[@]}")
+        else
+            for f in "${SEARCHABLE_FILES[@]}"; do
+                # diff -q exits non-zero when the file differs OR is absent from the
+                # previous release (a brand-new Searchable model) — both mean reindex.
+                if ! diff -q "${f}" "${PREVIOUS_RELEASE}/takussan-api/${f}" >/dev/null 2>&1; then
+                    REINDEX_FILES+=("${f}")
+                    log "Search: ${f} changed since the live release — import scheduled."
+                fi
+            done
+        fi
+
+        if [ ${#REINDEX_FILES[@]} -eq 0 ]; then
+            log "Search: index shape unchanged — skipping Meilisearch import."
+        else
+            for f in "${REINDEX_FILES[@]}"; do
+                model="App\\Models\\$(basename "${f}" .php)"
+                log "Importing ${model} into Meilisearch..."
+                php artisan scout:import "${model}" \
+                    || log "WARNING: scout:import ${model} failed — index may be stale until the next reindex."
+            done
+        fi
+    fi
 else
-    log "Search: SCOUT_DRIVER is not meilisearch — skipping index settings sync."
+    log "Search: SCOUT_DRIVER is not meilisearch — skipping Meilisearch sync."
 fi
 
 # ─── Step 7: Cache config, routes, views ─────────────────────────────────────
