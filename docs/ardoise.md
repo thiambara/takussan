@@ -1697,7 +1697,7 @@ charge, intersection non vide mais ensembles distincts) · `tests/Concerns/Inter
 > pour ce qui est mergé sur `dev` » est juste ; elle n'a de valeur que si l'on va **regarder** ce
 > qui est mergé sur `dev`.
 
-### D-30 — Aucune mesure de couverture, aucune parallélisation 🟡 *couverture SOLDÉE le 2026-08-16 ; parallélisation mesurée puis REFUSÉE, sur un défaut qu'elle a révélé* → [TCK-302](backlog/tickets/TCK-302-couverture-non-mesuree-suite-non-parallelisee.md)
+### D-30 — Aucune mesure de couverture, aucune parallélisation 🟡 *couverture SOLDÉE le 2026-08-16 ; parallélisation validée en local le 2026-08-17 (critère rempli, troisième défaut révélé) — activation en CI NON tranchée, mesure runner requise* → [TCK-302](backlog/tickets/TCK-302-couverture-non-mesuree-suite-non-parallelisee.md)
 
 > **Confirmé le 2026-08-16** : `coverage: none` apparaît **deux fois** dans `api-ci.yml` (lignes 42
 > et 192), et `--parallel` n'est configuré nulle part. Le temps de référence à retenir est
@@ -1805,13 +1805,18 @@ deux familles qui n'appellent pas le même travail.
 > deux agents en `--parallel` obtiennent tous deux `public_test_1`. Il faut les **composer**,
 > pas en élire un.
 
-**Décision : `--parallel` n'est PAS activé**, et `brianium/paratest` n'est **pas** ajouté à
-`composer.json` — une dépendance installée pour une option non retenue est une décision prise en
-silence. Condition de réouverture : ~~TCK-314 soldé~~ — **fait le 2026-08-16** (PR #192,
-`4929df7f`) — puis la question des deux gardes de
-`FakeDiskIsolationTest` tranchée. Le gain de 2,6× justifie largement d'y revenir.
+**Décision du 2026-08-16 : `--parallel` n'est PAS activé**, et ~~`brianium/paratest` n'est **pas**
+ajouté à `composer.json`~~ — **installé le 2026-08-17** (`^7.20`, TCK-321) une fois les deux
+conditions de réouverture remplies (détail dans la mise à jour ci-dessous) : une dépendance
+installée pour une option non retenue aurait été une décision prise en silence, ce n'est plus le
+cas une fois l'option rouverte. Condition de réouverture : ~~TCK-314 soldé~~ — **fait le
+2026-08-16** (PR #192, `4929df7f`) — puis ~~la question des deux gardes de `FakeDiskIsolationTest`
+tranchée~~ — **faite le 2026-08-17** (les deux jetons composés au lieu qu'un des deux élise l'autre,
+`dd311877`). Le gain de 2,6× justifiait largement d'y revenir ; l'épreuve rejouée ci-dessous le
+confirme, à ×3,2 sur sa meilleure mesure.
 
-Rejeu, une fois ces deux points traités :
+Rejeu, une fois ces deux points traités — **exécuté le 2026-08-17**, résultat détaillé dans la mise
+à jour ci-dessous :
 
 ```bash
 composer require --dev brianium/paratest
@@ -1829,6 +1834,69 @@ d'une exécution à l'autre. Un rouge Meilisearch se relance **seul** avant d'ê
 > portant `InteractsWithMeilisearch`, jouées sur **4 processus, 5 fois de suite** : **106 tests,
 > 319 assertions, 0 échec à chaque fois** (28-36 s par exécution). La barrière tient. Le blocage est
 > ailleurs, et c'est utile de savoir où il n'est pas.
+
+**Mise à jour du 2026-08-17 — les deux conditions de réouverture sont remplies, le critère D-30 est
+atteint en local, l'activation en CI reste une question à part.**
+
+Les deux points laissés ouverts par le rejeu ci-dessus ont été traités dans la branche
+`perf/tck-320-321-temps-des-tests` : `Tests\Support\TestProcessToken` compose désormais le jeton de
+Laravel (`ParallelTesting::token()`, qui isole les workers entre eux) et celui du dépôt (pid + aléa,
+qui isole les exécutions simultanées entre elles) au lieu qu'un élise l'autre (`dd311877`), et les
+deux gardes de `FakeDiskIsolationTest` affirment le jeton composé plutôt que l'ancien jeton seul.
+L'épreuve a été rejouée le 2026-08-17, sur la même machine, **8 cœurs** (`sysctl -n hw.ncpu`),
+`load average` relevé au début de chaque run :
+
+| Exécution | `load average` au départ | Durée | Résultat |
+|---|---|---|---|
+| séquentielle (référence du jour) | 3,74 → 4,61 | **208,80 s** | 2430 passés + 2 ignorés, **0 échec** |
+| `--parallel` n°1 | 6,11 | **64,90 s** | 2433 tests, 7523 assertions, 2 ignorés, **0 échec** |
+| `--parallel` n°2 | 12,64 | 113,86 s | **0 échec** |
+| `--parallel` n°3 | 33,59 | 102,94 s | **0 échec** |
+| `--parallel` n°4 | 30,41 | 108,76 s | **0 échec** |
+| `--parallel` n°5 | 43,26 | 116,18 s | **0 échec** |
+
+**Le critère posé ci-dessus — les deux conditions ensemble, gain net et cinq exécutions à 0 échec —
+est rempli : cinq sur cinq.**
+
+**La comparaison honnête est le run 1 contre la séquentielle : 64,90 s à load 6,11 contre 208,80 s à
+load 3,74, soit ×3,2** — pas le rapport à un run 4 ou 5 pris isolément. Les runs 2 à 5 se sont
+enchaînés sous la charge que les runs précédents infligeaient eux-mêmes à la machine (`load` monté à
+43,26 au run 5, sur 8 cœurs) : leurs durées mesurent la machine, pas le dépôt. C'est très exactement
+l'erreur que ce document ouvre en la nommant — un temps de suite rapporté sans son `load average` —
+et ce même paragraphe D-30 la commettait déjà à moitié le 2026-08-16 en additionnant des exécutions
+enchaînées sans le dire aussi explicitement. Le facteur ×11 mesuré ailleurs dans ce document (idle →
+saturé, D-44) rend deux runs `--parallel` consécutifs incomparables entre eux tant que le premier
+n'a pas fini de relâcher ses cœurs.
+
+**L'épreuve a de nouveau payé son rouge : elle a trouvé un troisième défaut.**
+`ScoutTestHarnessTest::test_the_index_prefix_is_unique_per_test_process` figeait la forme de
+l'ancien jeton dans une regex (`/^testing_[0-9a-z]+_$/`) — vraie hors `--parallel`, fausse dès que le
+jeton porte son second étage (`<pid+aléa>_<worker>`). Invisible en séquentiel, puisque hors
+`--parallel` le jeton n'a qu'un seul étage. Corrigé dans `a7ee728d` : le test affirme désormais
+l'égalité avec `TestProcessToken::value()` lui-même plutôt qu'une forme figée, ce qui tient dans les
+deux modes par construction et suit tout étage futur sans qu'il faille retoucher le test. C'est la
+**troisième** fois dans ce dépôt que la course révèle un défaut que le déterminisme masquait, après
+D-44 et TCK-314.
+
+**Décision du 2026-08-17 : `--parallel` reste NON activé en CI — mais pour une raison différente de
+celle du 2026-08-16.** Le critère de fond (gain net, cinq exécutions à 0 échec) est désormais rempli
+**en local**. Ce qui manque n'est plus un défaut à corriger : c'est une **mesure sur le runner**, qui
+n'a pas été prise. Le gain de ×3,2 (comme le ×2,6 du 2026-08-16) a été mesuré sur une machine à
+8 cœurs au repos ; un runner GitHub Actions standard en a 2 à 4, et rien ne garantit que ce gain s'y
+transporte — le brief de TCK-321 le disait déjà avant l'épreuve. La prendre suppose d'ouvrir une PR
+ajoutant un step temporaire au workflow (`nproc` + un run chronométré, comparé au step de couverture
+existant), ce que cette tâche n'a **pas** été autorisée à faire : `.github/workflows/api-ci.yml`
+**n'est pas modifié** par ce commit. Le cliquet de couverture `--min=86` n'est pas touché non plus,
+et pour une raison qui ne dépend pas de la mesure runner : PCOV agrège mal entre processus, et
+casser une garde existante (la couverture) pour en gagner une autre (la vitesse) n'est pas un gain.
+
+`--parallel` est donc documenté dans `CLAUDE.md` comme la commande du **rituel de fin de branche**,
+en local, machine au repos — pas comme une commande du quotidien, que `php bin/impacted-tests.php
+--run` couvre mieux (4 classes, 16,7 s). Ce qui réglerait la question de la CI : ouvrir la PR de
+mesure décrite ci-dessus, relever `nproc` et la durée du step, la comparer au step de couverture, et
+choisir entre les deux issues déjà prévues au plan de TCK-321 — un job `tests-paralleles` distinct si
+le gain net survit au runner, ou l'absence d'activation documentée si non. Tant que cette mesure
+n'est pas prise, l'activation en CI reste une option ouverte, pas une décision prise.
 
 ---
 

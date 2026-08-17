@@ -138,6 +138,17 @@ php artisan test                    # ~2300 tests, 204-235 s MACHINE AU REPOS (2
                                     #   (cf. D-44) — mais depuis le correctif, la suite entière rend
                                     #   0 échec même sous cette charge.
 php artisan test --filter=Foo
+php artisan test --parallel          # ×3,2 sur la meilleure mesure (208,80 s séquentiel, load 3,74
+                                    #   → 64,90 s en parallèle, load 6,11 au départ ; 8 cœurs,
+                                    #   mesuré le 2026-08-17, cf. D-30). ⚠ POUR LE RITUEL DE FIN DE
+                                    #   BRANCHE, machine au repos — PAS pour la boucle quotidienne :
+                                    #   la suite séquentielle n'occupe que 0,73 cœur sur 8 (mesuré
+                                    #   le 2026-08-17 : user 417,40 s + sys 29,42 s pour 611,4 s), et
+                                    #   deux agents qui parallélisent en même temps demandent 16
+                                    #   cœurs à une machine qui en a 8. NON activé en CI : la
+                                    #   décision exige une mesure sur le runner (2 à 4 cœurs), qui
+                                    #   n'a pas été prise (cf. D-30). Pour le quotidien :
+                                    #   php bin/impacted-tests.php --run
 php bin/impacted-tests.php --run     # ← LA commande du quotidien : ne lance que les tests que
                                     #   le diff touche, via tests/impact-map.json (carte dérivée
                                     #   d'un rapport de couverture, jamais éditée à la main).
