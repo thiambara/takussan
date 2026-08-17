@@ -9,7 +9,7 @@ wave: 39
 created: 2026-08-16
 updated: 2026-08-17
 depends_on: [TCK-279]
-blocks: []
+blocks: [TCK-327]
 spec_refs:
   features:
     - docs/features.md#29-administration--configuration
