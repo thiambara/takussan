@@ -7,9 +7,9 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class UserDetailTest extends BaseTestCase
+class UserDetailTest extends TestCase
 {
     use RefreshDatabase;
 

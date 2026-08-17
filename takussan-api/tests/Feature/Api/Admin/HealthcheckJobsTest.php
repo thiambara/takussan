@@ -7,9 +7,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class HealthcheckJobsTest extends BaseTestCase
+class HealthcheckJobsTest extends TestCase
 {
     use RefreshDatabase;
 

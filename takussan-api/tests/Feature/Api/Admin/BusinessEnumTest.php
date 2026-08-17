@@ -7,9 +7,9 @@ use App\Models\Property;
 use App\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class BusinessEnumTest extends BaseTestCase
+class BusinessEnumTest extends TestCase
 {
     use RefreshDatabase;
 

@@ -8,7 +8,7 @@ use App\Models\Enums\AgencyUpgradeRequestStatus;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-252 — AgencyUpgradeRequest model + relations.
@@ -21,7 +21,7 @@ use Tests\BaseTestCase;
  *    SQLite check applicatif)
  *  - sérialisation JSON de l'enum status (AC4)
  */
-class AgencyUpgradeRequestTest extends BaseTestCase
+class AgencyUpgradeRequestTest extends TestCase
 {
     use RefreshDatabase;
 

@@ -7,9 +7,9 @@ use App\Models\User;
 use App\Services\Features\FeatureFlagEvaluator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class FeatureFlagTest extends BaseTestCase
+class FeatureFlagTest extends TestCase
 {
     use RefreshDatabase;
 

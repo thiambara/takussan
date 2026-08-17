@@ -292,9 +292,33 @@ un incident qui n'arrive qu'en production.
 **La suite exige une instance Meilisearch** : `SCOUT_DRIVER=meilisearch` est forcé sans repli.
 `./dev.sh services` la fournit.
 
-> ⚠️ **Trois classes de base coexistent** — `tests/TestCase.php`, `tests/BaseTestCase.php`,
-> `tests/ApiTestCase.php` — sans qu'aucun document ne dise laquelle choisir. Pour un test d'API,
-> `ApiTestCase`.
+### Quelle classe de base étendre — la règle, et elle est gardée (TCK-309)
+
+**Trois bases, une par usage. Le choix se lit, il ne se devine plus.**
+
+| Étendre | Quand | Ce que ça apporte |
+|---|---|---|
+| `PHPUnit\Framework\TestCase` | test **unitaire pur** : ni base, ni conteneur, ni HTTP | rien — et c'est le but : l'application ne démarre pas (10 classes) |
+| `Tests\TestCase` | tout ce qui a besoin de **l'application** : modèles, services, commandes, jobs, policies | coupure Scout, `actingAsRole()`, `materializeRoleProfile()`, `assertJsonError()`, `assertJsonStructurePaginated()` (304 classes) |
+| `Tests\ApiTestCase` | tout ce qui frappe une route **`/api/*`** | + `apiActingAsRole()` et les verbes `apiGet/apiPost/…`, qui authentifient par le garde **`sanctum`** (38 classes) |
+
+⚠️ **Ne jamais étendre `Illuminate\Foundation\Testing\TestCase` en direct.** C'est
+`Tests\TestCase::setUp()` qui coupe la synchronisation Scout ; l'éviter rallume l'indexation
+synchrone pour ce test-là, **sans qu'il rougisse lui-même** — c'est la suite entière qui bascule,
+plus tard, ailleurs (D-44). `scripts/check-test-base-classes.mjs` (Repo CI) refuse les deux fautes :
+une base hors des trois, et **une quatrième classe de base**.
+
+> **Il y en avait TROIS, mais pas celles-ci** : `TestCase` → `BaseTestCase` → `ApiTestCase`, en
+> chaîne, sans qu'aucun document ne dise laquelle étendre. `BaseTestCase` n'avait **pas d'usage
+> propre** — elle portait `actingAsRole()` et deux assertions JSON que rien ne réservait aux tests
+> non-API. Le partage qui en résultait ne suivait donc aucune règle, seulement l'ordre d'écriture :
+> 49 classes d'un côté, 38 de l'autre, la même chose des deux. Elle a été **fondue dans
+> `Tests\TestCase` et supprimée**.
+>
+> *Deux emplacements également plausibles ne restent pas deux : le suivant lit le désordre comme un
+> précédent, et la quatrième base arrive sans que personne n'ait rien décidé.* Une quatrième se
+> justifie par un quatrième **usage** — et elle se déclare alors dans `BASES_CANONIQUES`, sinon la
+> CI casse.
 
 > ⚠️ Les tests visent l'instance Meilisearch **réelle** du développeur : `phpunit.xml` ne définit
 > pas `MEILISEARCH_HOST`, donc c'est celui du `.env` qui sert.

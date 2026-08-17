@@ -9,10 +9,38 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\User;
-use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Foundation\Testing\TestCase as LaravelTestCase;
+use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Assert;
 use Tests\Support\SearchableModels;
 
-abstract class TestCase extends BaseTestCase
+/**
+ * LA classe de base des tests qui ont besoin de l'application Laravel.
+ *
+ * TCK-309 — il y en avait TROIS, en chaîne linéaire : `TestCase` →
+ * `BaseTestCase` → `ApiTestCase`, sans qu'aucun document ne dise laquelle
+ * étendre. Le maillon du milieu n'avait pas d'usage propre : il portait des
+ * helpers (`actingAsRole`, assertions JSON) que rien ne réservait aux tests
+ * non-API, et 49 classes l'étendaient contre 38 pour `ApiTestCase` — un
+ * partage qui ne suivait aucune règle, seulement l'ordre d'écriture. Il a été
+ * fondu ici et supprimé.
+ *
+ * ⚠ La règle qui remplace le choix — elle est écrite dans
+ * `takussan-api/CLAUDE.md` § Tests, et gardée par
+ * `scripts/check-test-base-classes.mjs` :
+ *
+ *   1. `PHPUnit\Framework\TestCase` — test unitaire PUR, qui ne touche ni
+ *      base, ni conteneur, ni HTTP. Il ne démarre pas l'application, et c'est
+ *      tout son intérêt.
+ *   2. `Tests\TestCase` (cette classe) — tout ce qui a besoin de
+ *      l'application : modèles, services, commandes, jobs, policies.
+ *   3. `Tests\ApiTestCase` — tout ce qui frappe une route `/api/*`, parce
+ *      qu'elle seule authentifie via le garde `sanctum`.
+ *
+ * Une quatrième classe de base ne s'ajoute pas : elle se justifie par un
+ * QUATRIÈME usage, et la garde exige alors qu'on l'y déclare.
+ */
+abstract class TestCase extends LaravelTestCase
 {
     /**
      * La synchronisation Scout est COUPÉE PAR DÉFAUT pour toute la suite.
@@ -81,5 +109,70 @@ abstract class TestCase extends BaseTestCase
             ),
             default => null,
         };
+    }
+
+    /**
+     * TCK-278 — Crée un user dans une agence et matérialise le profil
+     * polymorphe correspondant au rôle (`super_admin` → PlatformProfile ;
+     * `agency_admin`/`agent`/`owner` → profil agence-scopé). Pour les rôles
+     * dérivés (`customer`, `tenant`) il n'y a pas de profil polymorphe en
+     * phase 1 (cf. Règle 5), donc pas d'agence implicite.
+     *
+     * Agency resolution (first match wins) :
+     *   1. `agency`    — Agency model passé dans $attributes
+     *   2. `agency_id` — raw id passé dans $attributes
+     *   3. fresh Agency via factory (sauf rôles dérivés)
+     *
+     * @param  array<string,mixed>  $attributes  User attrs ; pass `agency` ou `agency_id` to reuse one.
+     */
+    protected function actingAsRole(string $role, array $attributes = [], ?string $guard = null): User
+    {
+        $agency = $attributes['agency'] ?? null;
+        unset($attributes['agency']);
+
+        $derivedRoles = ['customer', 'tenant'];
+
+        if ($agency !== null) {
+            $attributes['agency_id'] = $agency->id;
+        } elseif (! isset($attributes['agency_id']) && ! in_array($role, $derivedRoles, true)) {
+            $attributes['agency_id'] = Agency::factory()->create()->id;
+        }
+
+        $user = User::factory()->create($attributes);
+
+        $this->materializeRoleProfile($user, $role);
+
+        $this->actingAs($user, $guard);
+
+        return $user;
+    }
+
+    protected function assertJsonStructurePaginated(TestResponse $response): void
+    {
+        $response->assertJsonStructure([
+            'data',
+            'meta' => ['current_page', 'last_page', 'per_page', 'total'],
+            'links' => ['first', 'last', 'prev', 'next'],
+        ]);
+    }
+
+    protected function assertJsonError(TestResponse $response, int $status, ?string $message = null): void
+    {
+        $response->assertStatus($status);
+        $response->assertJsonStructure(['message']);
+
+        if ($message !== null) {
+            Assert::assertSame($message, $response->json('message'));
+        }
+    }
+
+    /**
+     * @deprecated TCK-278 — Le seeder spatie a été supprimé. Conservé en
+     *   no-op pour compatibilité descendante avec les tests qui appellent
+     *   `$this->ensureRolesSeeded()` explicitement.
+     */
+    protected function ensureRolesSeeded(): void
+    {
+        // no-op
     }
 }

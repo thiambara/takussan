@@ -8,13 +8,13 @@ use App\Models\KycDossier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-144 — Cross-tenant audit visibility for super-admin. The
  * agency_admin-scoped path is covered by AuditLogControllerTest.
  */
-class CrossTenantAuditTest extends BaseTestCase
+class CrossTenantAuditTest extends TestCase
 {
     use RefreshDatabase;
 
