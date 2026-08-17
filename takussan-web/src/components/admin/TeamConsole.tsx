@@ -16,8 +16,11 @@ import { InviteMemberDialog } from '@/components/admin/InviteMemberDialog';
 import { ConfirmRemoveDialog } from '@/components/admin/ConfirmRemoveDialog';
 import { fetchAdminUsers, postUserAction } from '@/lib/queries/admin-users';
 import { removeAgencyMember } from '@/lib/queries/agency-members';
+import { useAgencyRoleAssignments } from '@/lib/queries/agency-roles';
+import { useCan } from '@/hooks/useCan';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
+import type { AgencyRoleAssignment } from '@/types/agency-role';
 import type {
   AdminAgencyUserRow,
   AdminAgencyUsersResponse,
@@ -98,6 +101,35 @@ export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
     queryFn: () => fetchAdminUsers(params),
     staleTime: 15_000,
   });
+
+  // TCK-279 (AC11) — le rôle d'agence de chaque ligne affichée.
+  //
+  // Une requête SÉPARÉE, et bornée aux ids de la page : `UserResource`
+  // n'expose ni l'id du profil ni son rôle, et ne peut pas le faire sans
+  // choisir pour tout le produit lequel des N profils d'un utilisateur est
+  // « le » profil. La question n'a de réponse que rapportée à une agence.
+  const visibleUserIds = useMemo(
+    () => (usersQuery.data?.data ?? []).map((u) => u.id),
+    [usersQuery.data],
+  );
+  const assignmentsQuery = useAgencyRoleAssignments(agencyId, visibleUserIds);
+
+  const assignmentsByUser = useMemo(() => {
+    const map = new Map<number, AgencyRoleAssignment[]>();
+    for (const row of assignmentsQuery.data?.data ?? []) {
+      const list = map.get(row.user_id);
+      if (list) list.push(row);
+      else map.set(row.user_id, [row]);
+    }
+    return map;
+  }, [assignmentsQuery.data]);
+
+  // AC12 — le sélecteur de rôle est gardé par la CAPACITÉ, pas par le type
+  // de profil : deux `agency_admin` de la même agence peuvent porter des
+  // rôles différents depuis TCK-279, donc « être admin » ne dit plus qu'on
+  // peut attribuer un rôle. ⚠️ Cacher le contrôle n'autorise rien : c'est
+  // `AgencyRolePolicy::assign` qui décide.
+  const { can: canAssignRole } = useCan('team.assign_role', agencyId);
 
   const invalidateList = useCallback(
     () => queryClient.invalidateQueries({ queryKey: ['admin-users', 'list'] }),
@@ -206,6 +238,7 @@ export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
             rows={usersQuery.data.data}
             total={usersQuery.data.meta.total}
             currentUserId={currentUserId}
+            assignmentsByUser={assignmentsByUser}
             onSelect={(u) => setDrawerUser(u)}
             onQuickAction={(u, action) => quickActionMutation.mutate({ id: u.id, action })}
             onRemove={(u) => setRemoving(u)}
@@ -220,6 +253,9 @@ export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
       <UserDetailDrawer
         user={drawerUser}
         currentUserId={currentUserId}
+        agencyId={agencyId}
+        assignments={drawerUser ? (assignmentsByUser.get(drawerUser.id) ?? []) : []}
+        canAssignRole={canAssignRole}
         onOpenChange={(open) => !open && setDrawerUser(null)}
         onRemove={(u) => setRemoving(u)}
         isRemoving={removeMutation.isPending}

@@ -1,13 +1,13 @@
 ---
 id: TCK-279
 title: "RBAC refondu — phase 2 : rôles personnalisés par agence (AgencyRole + pivot de capacités)"
-status: doing
+status: review
 phase: P1
 family: full
 estimate: L
 wave: 34
 created: 2026-05-17
-updated: 2026-08-16
+updated: 2026-08-17
 depends_on: [TCK-278]
 blocks: [TCK-304, TCK-305, TCK-306, TCK-307, TCK-308, TCK-309]
 spec_refs:
@@ -110,13 +110,13 @@ aucun trait tiers n'est nécessaire.** Le trait maison à écrire s'appelle `Has
 
 ### Frontend
 
-- [ ] Page `/admin/roles` (refacto / reprise propre de la page TCK-135) : liste + éditeur.
-- [ ] Composants : `AgencyRolesList`, `AgencyRoleEditor`, `CapabilityMatrix` (sections collapsibles par domaine).
-- [ ] Queries : `src/lib/queries/agency-roles.ts` (fetch list / create / update / delete / syncCapabilities).
-- [ ] Queries : `src/lib/queries/capabilities.ts` (fetch catalogue, mémoïsé via tanstack-query staleTime infini).
-- [ ] TeamConsole (TCK-277) enrichie : colonne « Rôle » affiche `agency_role.name` (au lieu du base type), modal de profil expose un `Select` `AgencyRole` filtré par `base_profile_type`.
-- [ ] Hook `useCan(Capability)` : consomme les capabilities du profil actif (servies via `/api/me` ou `/api/me/capabilities`) et expose `(can: boolean, isLoading: boolean)`.
-- [ ] Gates UI : remplacer les `isAgencyAdmin(user.roles)` qui contrôlent une feature granulaire par `useCan(Capability::xxx)`.
+- [x] Page `/admin/roles` (refacto / reprise propre de la page TCK-135) : liste + éditeur.
+- [x] Composants : `AgencyRolesList`, `AgencyRoleEditor`, `CapabilityMatrix` (sections collapsibles par domaine).
+- [x] Queries : `src/lib/queries/agency-roles.ts` (fetch list / create / update / delete / syncCapabilities).
+- [x] Queries : `src/lib/queries/capabilities.ts` (fetch catalogue, mémoïsé via tanstack-query staleTime infini).
+- [x] TeamConsole (TCK-277) enrichie : colonne « Rôle » affiche `agency_role.name` (au lieu du base type), modal de profil expose un `Select` `AgencyRole` filtré par `base_profile_type`.
+- [x] Hook `useCan(Capability)` : consomme les capabilities du profil actif (servies via `/api/me/capabilities`) et expose `(can: boolean, isLoading: boolean)`.
+- [x] Gates UI : remplacer les gates de TYPE qui contrôlent une feature granulaire par `useCan(Capability::xxx)` — cf. notes ⑻.
 
 ## Critères d'acceptation
 
@@ -130,16 +130,29 @@ aucun trait tiers n'est nécessaire.** Le trait maison à écrire s'appelle `Has
 - [x] AC8 — Un user dont l'`AgencyRole` n'a pas la capacité `Capability::PropertiesPublish` voit son action « publier » refusée (403) ; un user dont le rôle l'a peut publier.
 - [x] AC9 — `MembershipCapabilityResolver` met bien en cache et invalide à : édition de rôle, sync capabilities, réaffectation de profil.
 - [x] AC10 — Le dernier `agency_admin` ne peut pas être réaffecté à un rôle sans `team.assign_role` (422 + message dédié).
-- [ ] AC11 — UI `/admin/roles` : un agency_admin peut créer un rôle « Agent senior » avec une matrice de capacités, et l'assigner à un membre depuis la console Équipe.
-- [ ] AC12 — Tous les checks UI granulaires (boutons, sections) passent par `useCan(Capability)` plutôt que `isAgencyAdmin`.
+- [x] AC11 — UI `/admin/roles` : un agency_admin peut créer un rôle « Agent senior » avec une matrice de capacités, et l'assigner à un membre depuis la console Équipe. **Vérifié en navigateur**, pas seulement par tests — cf. notes ⑽.
+- [x] AC12 — Tous les checks UI granulaires (boutons, sections) passent par `useCan(Capability)` plutôt qu'un test de type de profil. ⚠ La portée réelle n'est pas celle que l'énoncé laisse croire : cf. notes ⑻.
 - [x] AC13 — TCK-135 marqué `obsolete` dans l'INDEX avec lien vers TCK-279.
 
 ## Reste sur dev
 
-**Le backend est mergé sur `dev` (PR #176) ; le frontend ne l'est pas.** Le ticket
-reste `doing` pour cette raison, et non par oubli de le clore : le basculer `done`
-laisserait croire qu'`/admin/roles` existe, alors que la surface d'API est
-consommable et l'UI absente.
+**Livré en deux passes.** Backend d'abord (AC1–AC10, AC13, PR #176), couche de
+données du front ensuite (PR #195), puis l'UI (AC11–AC12, branche
+`wave1/rbac-ui`). Le ticket est resté `doing` entre les deux premières : le
+basculer `done` aurait laissé croire qu'`/admin/roles` existait, alors que seule
+la surface d'API était consommable.
+
+⚠️ **Ce qui reste, une fois cette dernière passe mergée — aucun AC** :
+
+- la décision `service_provider` (note ⑵) — **TCK-315**, ADR requis avant code ;
+- la suppression de l'enum `UserRole` (note ⑶) — pas un nettoyage, une
+  conception : cf. « Reste à faire côté backend » en bas de fiche ;
+- `VisitDetail.tsx` reste sur un test de TYPE faute de domaine `visits.*` au
+  catalogue (note ⑻).
+
+*Le titre de cette section est conservé tel quel : `check-backlog.mjs` s'en sert
+comme ancre pour toute fiche `doing`/`review` dont du code est déjà sur `dev`. La
+renommer casserait la garde le jour où ce statut redevient `doing`.*
 
 Fait et mergé — AC1 à AC10 et AC13, adossés à 138 tests verts (`AgencyRoleControllerTest`,
 `AgencyRoleCapabilitiesTest`, `AgencyRoleAssignmentTest`, `LastAdminGuardTest`,
@@ -151,28 +164,22 @@ Fait et mergé — AC1 à AC10 et AC13, adossés à 138 tests verts (`AgencyRole
 - `AgencyRolePolicy`, les 4 FormRequests, `AgencyRoleResource` ;
 - le seed des rôles système par `AgencyObserver::created` et par la migration de backfill.
 
-Reste à produire — **AC11 et AC12, entièrement frontend** :
+Fait dans la passe frontend — AC11 et AC12 :
 
-- page `/admin/roles` (liste + éditeur) et les composants `AgencyRolesList`,
-  `AgencyRoleEditor`, `CapabilityMatrix` ;
-- `src/lib/queries/agency-roles.ts` et `src/lib/queries/capabilities.ts` ;
-- la colonne « Rôle » de la TeamConsole (TCK-277) et son `Select` filtré par
-  `base_profile_type` ;
-- le hook `useCan(Capability)` et le remplacement des gates `isAgencyAdmin(user.roles)`
-  qui contrôlent une feature granulaire.
+- page `/admin/roles` (`(dashboard)/admin/roles/page.tsx`) et les composants
+  `AgencyRolesConsole`, `AgencyRolesList`, `AgencyRoleEditor`, `CapabilityMatrix`,
+  `CreateRoleDialog`, `DeleteRoleDialog`, `MemberAgencyRoleSelect` ;
+- la colonne « Rôle » de la TeamConsole et son sélecteur filtré par
+  `base_profile_type`, adossés au nouvel endpoint `GET
+  /api/agencies/{agency}/role-assignments` (cf. notes ⑼) ;
+- entrée de barre latérale `/admin/roles` + `PRO_ROUTES` (gate typologie
+  `standard`, gardée en SSR par `ensureStandardAgencyOrRedirect`) ;
+- 176 clés i18n dans les **trois** locales (`admin.roles.*`, `nav.admin.roles`).
 
-⚠️ Deux points que le frontend doit reprendre du backend, et non redécouvrir :
-
-1. `GET /api/capabilities` publie désormais `data.platform_reserved` à côté de
-   `data.domains`. La matrice doit **griser** ces capacités : l'API les refuse en 422,
-   et une case cochable qui rend 422 est un défaut d'UI. Cf. le correctif d'escalade
-   de privilège (`Capability::platformReserved()`).
-2. `PATCH /profiles/{p}/agency-role` exige `profile_type` dans le CORPS — un id nu ne
-   désigne pas un profil polymorphe.
-
-Une décision reste ouverte et ne bloque pas le frontend : où vit le rôle d'agence d'un
+Une décision reste ouverte et n'a pas bloqué le frontend : où vit le rôle d'agence d'un
 prestataire (`service_provider_profiles` n'a pas de `agency_role_id`). Elle est
-ticketée à part — **TCK-315**.
+ticketée à part — **TCK-315**. L'UI ne propose donc pas `service_provider` à la
+création (`ASSIGNABLE_BASE_TYPES`), mais **affiche** son rôle système dans la liste.
 
 ## Hors périmètre
 
@@ -280,7 +287,93 @@ exactement la raison métier de consulter la liste des rôles. Ajouter un 45ᵉ 
 - Garde CI `Spatie\Permission\` : **elle a rougi sur mon propre docblock**, qui citait le namespace
   en prose. Reformulé. `./vendor/bin/pint` passe.
 
+### ⑻ AC12 : sa portée réelle est PLUS ÉTROITE que son énoncé, et c'est mesuré
+
+L'AC dit « remplacer les `isAgencyAdmin(user.roles)` qui contrôlent une feature
+granulaire ». **Il n'y en avait aucun.** Les cinq appels d'`isAgencyAdmin` du dépôt,
+relevés par `grep`, sont tous des gardes de NAVIGATION ou d'APPARTENANCE :
+`app/page.tsx` et `onboarding/agency-admin/page.tsx` (redirections, dans des
+composants SERVEUR où aucun hook ne peut vivre), `AppShell.tsx` et
+`useAgencyStandardWelcomeOnce.ts` (éligibilité de l'assistant de bienvenue), plus le
+docblock d'`useCan`. Le docblock d'`useCan` prescrit lui-même de les laisser :
+« les gardes de NAVIGATION gardent `isAdmin` : elles portent sur l'appartenance, pas
+sur un verbe ».
+
+Les gates réellement granulaires étaient ailleurs, sous `isAdmin` : `BookingDetail`
+(`isDashboardAgent` → Accepter / Refuser / Annuler / Enregistrer un paiement). Ce sont
+celles-là qui passent aux capacités (`bookings.validate`, `bookings.cancel`,
+`payments.record`), plus les gestes neufs de `/admin/roles` (`roles.create_custom`,
+`roles.edit_custom`, `roles.delete_custom`) et le sélecteur de la console Équipe
+(`team.assign_role`).
+
+**Un cas granulaire reste NON converti, et délibérément** : `VisitDetail.tsx`
+(`isManager` → confirmer / annuler / terminer / replanifier une visite). Le catalogue
+`Capability` n'a **aucun domaine `visits.*`** — il n'existe pas de capacité à
+interroger. Le convertir demanderait d'élargir l'enum, ce que la note ⑺ refuse pour ce
+ticket. À ticketer si le besoin se confirme.
+
+*L'énoncé d'un AC décrit une intention ; le `grep` décrit le dépôt. Quand les deux
+divergent, écrire la divergence vaut mieux que de cocher la case.*
+
+### ⑼ Une pièce backend manquait encore : `GET /api/agencies/{agency}/role-assignments`
+
+La colonne « Rôle » de la console Équipe et son sélecteur ont besoin du couple
+`(profile_id, profile_type)` et du nom du rôle. **Rien ne les exposait** :
+`AgencyController::listMembers` liste des `User`, et — mesuré sur l'API en marche, pas
+déduit — `/api/users` rend les attributs Eloquent BRUTS, sans même la clé `roles` de
+`UserResource`. La colonne « Rôle » de cet écran affichait donc « — » pour tout le
+monde **avant** ce ticket ; ce n'est pas une régression introduite ici, c'est un vide
+que le nouvel endpoint comble.
+
+`UserResource` ne pouvait pas porter l'information : il faudrait choisir, pour tout le
+produit, lequel des N profils d'un utilisateur est « le » profil. Rapportée à une
+agence, la question a une réponse — d'où un endpoint distinct, scopé, avec
+`user_ids` **requis** (borné par construction : pas de troncature silencieuse qui
+afficherait « — » à des membres qui ont bien un rôle).
+
+⚠️ `user_ids` se lit en **liste à virgules** (`?user_ids=3,7`), pas en `user_ids[]=`.
+C'est la seule forme que produit `buildQueryString` (échappatoire `extra`,
+`String(value)`). Sans le découpage côté contrôleur, la règle `array` refuserait en 422
+**tous** les appels du front — vérifié par ablation : le test en `user_ids[]` reste
+vert, seul `test_it_accepts_the_comma_separated_form_the_frontend_sends` rougit.
+
+### ⑽ Vérification en navigateur (2026-08-17)
+
+Les AC d'UI ne se prouvent pas au typage. Pile isolée montée pour l'occasion — SQLite
+dédié, API sur 8012, front sur 3010 — pour ne pas toucher aux données de
+développement partagées. Parcours joué de bout en bout :
+
+1. `/admin/roles` : les 4 rôles système groupés par type, badge « Système », **pas de
+   bouton Supprimer** sur eux, matrice en lecture seule ;
+2. « **42 sur 42** capacités accordées » sur l'administrateur — le dénominateur exclut
+   bien les 2 réservées plateforme sur 44 ; `properties.moderate` et
+   `reports.view_global` sont grisées, décochées, badgées ;
+3. clone d'`Agent` → « Agent senior » (18/42 hérités), ajout de
+   `properties.update_any`, « Enregistrer » → « Modifications enregistrées », 19/42 ;
+4. console Équipe : la colonne « Rôle » affiche « Administrateur » et « Agent » (elle
+   affichait « — » avant, cf. ⑼) ; sélecteur du profil d'Awa Diop → « Agent senior » →
+   « Attribuer ». **Vérifié en base** : `agent_profiles.agency_role_id` pointe sur
+   « Agent senior », 19 capacités ;
+5. suppression d'« Agent senior » → **409** : le dialogue devient « Ce rôle est encore
+   attribué », nomme « Awa Diop », et le bouton Supprimer disparaît.
+
+Deux constats de cette session, **hors périmètre de ce ticket** :
+
+- `next dev` **bloque les ressources de développement cross-origin depuis
+  `127.0.0.1`** (`allowedDevOrigins`). Or `takussan-web/.env.local` pointe le front sur
+  `127.0.0.1`. Servi sur cet hôte, l'application **ne s'hydrate pas** : les formulaires
+  se soumettent en GET natif. C'est probablement la vraie cause de l'incohérence d'hôte
+  déjà signalée dans `takussan-web/CLAUDE.md` (« du point de vue des cookies,
+  `localhost` et `127.0.0.1` sont deux origines distinctes »).
+- La barre supérieure affiche « **undefined · Agence Teranga** ». Antérieur à ce
+  ticket, aucun rapport avec les rôles.
+
 ### Reste à faire côté backend
 
 - La décision `service_provider` (⑵) — ADR requis avant code.
-- La suppression de `UserRole` (⑶) — couplée au frontend.
+- La suppression de `UserRole` (⑶). **Toujours pas faite, et toujours pour la même
+  raison** : `UserRolesEditor` (`PUT /api/users/{user}/role`) est un mécanisme
+  DISTINCT de `PATCH /profiles/{p}/agency-role` — le premier crée ou archive un
+  profil, le second réaffecte un rôle. Les deux coexistent désormais dans le tiroir de
+  membre, l'un sous « Rôle », l'autre sous « Rôle dans cette agence ». Les fusionner
+  est un travail de conception, pas de nettoyage : ticket dédié.

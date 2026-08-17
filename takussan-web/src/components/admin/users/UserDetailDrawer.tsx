@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 import {
   Sheet,
@@ -14,8 +15,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { UserRolesEditor } from './UserRolesEditor';
+import { MemberAgencyRoleSelect } from '@/components/admin/roles/MemberAgencyRoleSelect';
 import { postUserAction } from '@/lib/queries/admin-users';
 import type { AdminAgencyUserRow } from '@/types/admin-users';
+import type { AgencyRoleAssignment } from '@/types/agency-role';
 import { ApiError } from '@/lib/api';
 
 interface UserDetailDrawerProps {
@@ -24,6 +27,21 @@ interface UserDetailDrawerProps {
   onOpenChange: (open: boolean) => void;
   onRemove?: (user: AdminAgencyUserRow) => void;
   isRemoving?: boolean;
+  /** TCK-279 — l'agence dont on administre l'équipe. */
+  agencyId?: number;
+  /**
+   * TCK-279 (AC11) — les profils de ce membre DANS cette agence, avec le
+   * rôle que chacun porte. Une LISTE : rien n'interdit d'être agent et
+   * propriétaire dans la même agence, et ces deux profils ont chacun leur
+   * rôle. Un sélecteur par profil, donc.
+   */
+  assignments?: readonly AgencyRoleAssignment[];
+  /**
+   * AC12 — `team.assign_role`, résolu par capacité et non par type de
+   * profil. ⚠️ Masquer le sélecteur n'autorise rien : `AgencyRolePolicy`
+   * décide, ceci évite seulement d'offrir un geste qui rendra 403.
+   */
+  canAssignRole?: boolean;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -54,8 +72,12 @@ export function UserDetailDrawer({
   onOpenChange,
   onRemove,
   isRemoving = false,
+  agencyId,
+  assignments = [],
+  canAssignRole = false,
 }: UserDetailDrawerProps) {
   const queryClient = useQueryClient();
+  const agencyRoleHeading = useTranslations('admin.roles')('assign.heading');
 
   const blockMutation = useMutation({
     mutationFn: () => postUserAction(user!.id, 'block'),
@@ -125,6 +147,24 @@ export function UserDetailDrawer({
               <Separator className="my-5" />
 
               <UserRolesEditor user={user} />
+
+              {canAssignRole && typeof agencyId === 'number' && assignments.length > 0 ? (
+                <>
+                  <Separator className="my-5" />
+                  <div className="space-y-4" data-testid="member-agency-roles">
+                    <p className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">
+                      {agencyRoleHeading}
+                    </p>
+                    {assignments.map((assignment) => (
+                      <MemberAgencyRoleSelect
+                        key={`${assignment.profile_type}-${assignment.profile_id}`}
+                        agencyId={agencyId}
+                        assignment={assignment}
+                      />
+                    ))}
+                  </div>
+                </>
+              ) : null}
             </div>
 
             <div className="border-t border-app-surface-2 p-6">

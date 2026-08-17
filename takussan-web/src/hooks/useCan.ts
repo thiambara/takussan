@@ -51,11 +51,16 @@ export const meCapabilityKeys = {
  * de rôle ou à une édition de rôle, et les mutations correspondantes
  * invalident `['me','capabilities']` (cf. `agency-roles.ts`).
  */
-export function useMyCapabilities(agencyId?: number) {
+export function useMyCapabilities(agencyId?: number, enabled = true) {
   return useApiQuery<ApiResponse<MeCapabilities>>(
     meCapabilityKeys.forAgency(agencyId),
     '/api/me/capabilities',
     {
+      // `enabled: false` n'est pas une optimisation de confort : sur un écran
+      // partagé entre un client et le personnel de l'agence, le client n'a
+      // aucune capacité à consulter, et le hook s'appelant inconditionnellement
+      // (règle des hooks) tirerait une requête par page pour une réponse vide.
+      enabled,
       // `agency_id` n'est pas un paramètre spatie : il passe par `extra`,
       // l'échappatoire prévue par `buildQueryString`. Le poser à la racine de
       // `params` serait silencieusement ignoré par le sérialiseur.
@@ -77,8 +82,12 @@ export interface UseCanResult {
  * if (isLoading) return <ButtonSkeleton />;
  * return can ? <PublishButton /> : null;
  */
-export function useCan(capability: CapabilityValue, agencyId?: number): UseCanResult {
-  const { data, isLoading } = useMyCapabilities(agencyId);
+export function useCan(
+  capability: CapabilityValue,
+  agencyId?: number,
+  enabled = true,
+): UseCanResult {
+  const { data, isLoading } = useMyCapabilities(agencyId, enabled);
 
   const can = useMemo(
     () => data?.data.capabilities.includes(capability) ?? false,
@@ -94,10 +103,18 @@ export function useCan(capability: CapabilityValue, agencyId?: number): UseCanRe
  */
 export function useCanAll(
   capabilities: readonly CapabilityValue[],
-  options: { readonly mode?: 'all' | 'any'; readonly agencyId?: number } = {},
+  options: {
+    readonly mode?: 'all' | 'any';
+    readonly agencyId?: number;
+    /**
+     * `false` coupe la requête. `can` vaut alors `false` et `isLoading`
+     * aussi : l'appelant a déjà décidé que la question ne se pose pas.
+     */
+    readonly enabled?: boolean;
+  } = {},
 ): UseCanResult {
-  const { mode = 'all', agencyId } = options;
-  const { data, isLoading } = useMyCapabilities(agencyId);
+  const { mode = 'all', agencyId, enabled = true } = options;
+  const { data, isLoading } = useMyCapabilities(agencyId, enabled);
 
   const can = useMemo(() => {
     const granted = data?.data.capabilities;
