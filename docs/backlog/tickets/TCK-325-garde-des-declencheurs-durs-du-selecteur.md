@@ -1,7 +1,7 @@
 ---
 id: TCK-325
 title: "Garder la liste des déclencheurs durs du sélecteur d'impact — elle est recopiée à la main et avait dérivé le jour de son écriture"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -65,23 +65,23 @@ déposer celui-ci aurait effacé la suite avec le ticket.
 
 ## Delta à produire
 
-- [ ] `scripts/check-impact-triggers.mjs` — compare les trois constantes d'`ImpactSelector` à ce que
+- [x] `scripts/check-impact-triggers.mjs` — compare les trois constantes d'`ImpactSelector` à ce que
       `takussan-api/CLAUDE.md` énumère, dans les deux sens.
-- [ ] Échec explicite si une constante est introuvable dans le source (le cas « la garde ne garde
+- [x] Échec explicite si une constante est introuvable dans le source (le cas « la garde ne garde
       plus rien » doit être rouge, pas vert).
-- [ ] Step dans `.github/workflows/repo-ci.yml`, avec le motif en commentaire comme ses voisines.
-- [ ] Retirer de `takussan-api/CLAUDE.md` l'avertissement « rien ne la garde » — devenu faux.
+- [x] Step dans `.github/workflows/repo-ci.yml`, avec le motif en commentaire comme ses voisines.
+- [x] Retirer de `takussan-api/CLAUDE.md` l'avertissement « rien ne la garde » — devenu faux.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — La garde passe sur l'état courant du dépôt.
-- [ ] AC2 — Ablation : ajouter une entrée à `HARD_FILES` sans toucher la doc → rouge, avec le nom de
+- [x] AC1 — La garde passe sur l'état courant du dépôt.
+- [x] AC2 — Ablation : ajouter une entrée à `HARD_FILES` sans toucher la doc → rouge, avec le nom de
       l'entrée manquante.
-- [ ] AC3 — Ablation inverse : citer dans la doc un chemin absent du code → rouge.
-- [ ] AC4 — Ablation de la garde elle-même : renommer `HARD_PREFIXES` dans le source → rouge
+- [x] AC3 — Ablation inverse : citer dans la doc un chemin absent du code → rouge.
+- [x] AC4 — Ablation de la garde elle-même : renommer `HARD_PREFIXES` dans le source → rouge
       (« constante introuvable »), et non vert par tableau vide.
-- [ ] AC5 — `INERT_PREFIXES` est couverte au même titre que les deux autres.
-- [ ] AC6 — Repo CI rejoue la garde, et l'énumération des déclencheurs de son bloc `paths` couvre
+- [x] AC5 — `INERT_PREFIXES` est couverte au même titre que les deux autres.
+- [x] AC6 — Repo CI rejoue la garde, et l'énumération des déclencheurs de son bloc `paths` couvre
       **les deux** fichiers comparés.
 
 ## Hors périmètre
@@ -92,4 +92,23 @@ déposer celui-ci aurait effacé la suite avec le ticket.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Les zones comparées sont DÉLIMITÉES dans la doc par des marqueurs HTML**
+(`<!-- garde:déclencheurs-durs -->`, `<!-- garde:chemins-inertes -->`), et ce n'est pas un détail de
+mise en œuvre : sans eux, le sens « doc → code » n'était pas implémentable sans heuristique. La
+section cite des dizaines d'autres empans de code — `app/`, `tests/BaseTestCase.php`,
+`.env.example`, `git diff --name-only` — dont aucun n'est un déclencheur. Une garde qui les aurait
+pris pour tels aurait rougi sur du texte juste, et on l'aurait désarmée au troisième faux positif.
+Les marqueurs sont **inline**, pas sur leur propre ligne : une ligne qui commence par `<!--`
+interrompt le paragraphe en CommonMark, et la prose se serait affichée en trois blocs dont un
+commençant par « : une migration change le schéma ».
+
+**`*.md` a été SORTI de la liste inerte en prose.** Le code ne le porte pas dans `INERT_PREFIXES` —
+il l'exclut séparément par `str_ends_with($relative, '.md')`, ce que le docblock de la classe disait
+déjà. La doc l'énumérait avec les cinq préfixes ; le garder dans la zone aurait exigé une exception
+codée en dur dans la garde, c'est-à-dire une seconde liste à la main pour garder la première. La
+prose dit désormais ce que le code fait.
+
+**Cinq ablations, toutes rouges, source et doc restaurées après chacune** : entrée ajoutée à
+`HARD_FILES` seule (AC2), chemin ajouté à la doc seule (AC3), `HARD_PREFIXES` renommée dans le
+source → « constante INTROUVABLE » et non un vert par tableau vide (AC4), entrée retirée
+d'`INERT_PREFIXES` (AC5), marqueurs de zone effacés de la doc → « zone INTROUVABLE ».

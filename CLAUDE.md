@@ -115,10 +115,21 @@ séquentiel à load 3,74 → **64,90 s** à load 6,11, 8 cœurs).
 
 ⚠️ **Deux limites, mesurées, et elles gouvernent l'usage :**
 
-1. **UN SEUL AGENT À LA FOIS.** Deux `--parallel` simultanés : l'un passe, **l'autre meurt au
-   démarrage** sur `mkdir(): File exists` — une **quatrième** ressource partagée par machine, dans
-   ParaTest lui-même, que D-44 ne pouvait pas connaître. `--tmp-dir` ne la corrige pas. Isolé dans
-   **TCK-322**. Le mode séquentiel et `bin/impacted-tests.php`, eux, supportent la simultanéité.
+1. **La collision de démarrage est TROUVÉE ET CORRIGÉE (TCK-322), la preuve sur la suite entière
+   reste à faire.** Deux `--parallel` simultanés : l'un passait, **l'autre mourait au démarrage** sur
+   `mkdir(): File exists` — une **quatrième** ressource partagée par machine, que D-44 ne pouvait pas
+   connaître parce que ParaTest n'était pas installé. Ce n'était pas ParaTest : c'est le rappel
+   `setUpProcess` de Laravel qui crée `storage/framework/views/test_<index worker>` dans le processus
+   **parent**, là où le jeton composé de TCK-321 — posé dans `tests/bootstrap.php` — n'atteint
+   jamais. Les vues compilées sont désormais enracinées par exécution
+   (`Tests\Support\TestCompiledViews`). `--tmp-dir` ne corrigeait rien : ce répertoire n'est pas
+   celui de ParaTest.
+
+   **Mesuré le 2026-08-17, 8 cœurs : cinq paires simultanées à 0 échec des deux côtés** (`load`
+   21-94), une paire compilant du Blade verte à `load` 215, et l'ablation du correctif fait
+   remourir l'une des deux. **Toutes sur des sous-ensembles** — la paire sur la suite ENTIÈRE reste
+   à jouer. Jusque-là : un seul agent à la fois sur `--parallel` en suite entière. Le mode
+   séquentiel et `bin/impacted-tests.php` supportent la simultanéité depuis D-44.
 2. **Pas activé en CI**, et c'est une décision, pas un oubli : elle exige une mesure sur le runner
    (2 à 4 cœurs, contre les 8 d'ici) qui n'a pas été prise. Le cliquet `--min=86` n'est pas touché —
    PCOV agrège mal entre processus.
@@ -160,11 +171,14 @@ php artisan test --parallel          # ×3,2 sur la meilleure mesure (208,80 s s
                                     #   cœurs à une machine qui en a 8. NON activé en CI : la
                                     #   décision exige une mesure sur le runner (2 à 4 cœurs), qui
                                     #   n'a pas été prise (cf. D-30).
-                                    #   ⚠⚠ UN SEUL AGENT À LA FOIS : deux --parallel simultanés,
-                                    #   l'un passe et l'AUTRE MEURT AU DÉMARRAGE sur
-                                    #   « mkdir(): File exists » (mesuré, TCK-322). Le séquentiel
-                                    #   et impacted-tests.php supportent la simultanéité, pas
-                                    #   celui-ci. Pour le quotidien :
+                                    #   ⚠⚠ La mort au démarrage de deux --parallel simultanés
+                                    #   (« mkdir(): File exists ») est CORRIGÉE par TCK-322 :
+                                    #   les vues compilées sont enracinées par exécution. Cinq
+                                    #   paires simultanées à 0 échec, mais sur des SOUS-ENSEMBLES
+                                    #   — la paire sur la suite entière reste à jouer, donc on
+                                    #   garde « un seul agent à la fois » pour celle-ci. Le
+                                    #   séquentiel et impacted-tests.php supportent la
+                                    #   simultanéité. Pour le quotidien :
                                     #   php bin/impacted-tests.php --run
 php bin/impacted-tests.php --run     # ← LA commande du quotidien : ne lance que les tests que
                                     #   le diff touche, via tests/impact-map.json (carte dérivée
