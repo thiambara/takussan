@@ -26,18 +26,7 @@ class PlatformPayoutController extends Controller
 
         return $this->json([
             'data' => PlatformPayoutResource::collection($payouts->items())->resolve($request),
-            'meta' => [
-                'current_page' => $payouts->currentPage(),
-                'last_page' => $payouts->lastPage(),
-                'per_page' => $payouts->perPage(),
-                'total' => $payouts->total(),
-            ],
-            'links' => [
-                'first' => $payouts->url(1),
-                'last' => $payouts->url($payouts->lastPage()),
-                'prev' => $payouts->previousPageUrl(),
-                'next' => $payouts->nextPageUrl(),
-            ],
+            'meta' => $this->paginationMeta($payouts),
         ]);
     }
 

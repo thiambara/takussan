@@ -18,15 +18,7 @@ class AnnouncementController extends Controller
             ->defaultSort('-starts_at')
             ->paginate((int) $request->input('per_page', 20));
 
-        return $this->json([
-            'data' => AnnouncementResource::collection($paginator->items())->resolve(),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, AnnouncementResource::collection($paginator->items())->resolve());
     }
 
     public function store(StoreAnnouncementRequest $request): JsonResponse

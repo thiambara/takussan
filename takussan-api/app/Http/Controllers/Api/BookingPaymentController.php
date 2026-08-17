@@ -28,14 +28,7 @@ class BookingPaymentController extends Controller
             ->latest()
             ->paginate((int) $request->input('per_page', 20));
 
-        return $this->json([
-            'data' => BookingPaymentResource::collection($payments)->toArray($request),
-            'meta' => [
-                'total' => $payments->total(),
-                'current_page' => $payments->currentPage(),
-                'last_page' => $payments->lastPage(),
-            ],
-        ]);
+        return $this->paginated($payments, BookingPaymentResource::collection($payments)->toArray($request));
     }
 
     public function store(Request $request, Booking $booking): JsonResponse

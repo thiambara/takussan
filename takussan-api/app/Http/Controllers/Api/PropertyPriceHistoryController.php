@@ -28,7 +28,7 @@ class PropertyPriceHistoryController extends Controller
                 'changed_at' => $h->changed_at?->toISOString(),
                 'changed_by_id' => $h->changed_by_id,
             ])->values(),
-            'meta' => ['total' => $paginator->total(), 'current_page' => $paginator->currentPage()],
+            'meta' => $this->paginationMeta($paginator),
         ]);
     }
 

@@ -38,15 +38,7 @@ class RoleController extends Controller
             ->defaultSort('name')
             ->paginate((int) $request->input('per_page', 50));
 
-        return $this->json([
-            'data' => AgencyRoleResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'per_page' => $paginator->perPage(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, AgencyRoleResource::collection($paginator)->toArray($request));
     }
 
     public function show(Agency $agency, AgencyRole $role, Request $request): JsonResponse

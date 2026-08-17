@@ -45,13 +45,33 @@ abstract class BaseTestCase extends TestCase
         return $user;
     }
 
+    /**
+     * L'enveloppe de pagination canonique (TCK-304) : `data` + les quatre clés de `meta`.
+     *
+     * ⚠ Cet helper exigeait aussi une racine `links` — mesuré le 2026-08-17 : **51 des 57**
+     * endpoints paginés ne l'émettaient pas, et **aucun test ne l'appelait**. Il aurait donc
+     * rougi sur presque toute l'API si on s'en était servi, ce qui est précisément la raison pour
+     * laquelle personne ne s'en servait. `links` a été retiré des 5 endpoints qui l'émettaient
+     * (aucun lecteur, ni côté front ni côté tests), et de cette assertion.
+     *
+     * Il est plus STRICT qu'avant sur ce qui reste : les quatre valeurs sont vérifiées entières,
+     * pas seulement présentes. Une clé présente valant `null` satisfaisait l'ancienne version.
+     * Des clés de méta supplémentaires (`pending_count`, `unread`, `totals`…) restent permises :
+     * elles sont propres à l'endpoint et ne font pas partie du contrat de pagination.
+     */
     protected function assertJsonStructurePaginated(TestResponse $response): void
     {
         $response->assertJsonStructure([
             'data',
-            'meta' => ['current_page', 'last_page', 'per_page', 'total'],
-            'links' => ['first', 'last', 'prev', 'next'],
+            'meta' => ['total', 'per_page', 'current_page', 'last_page'],
         ]);
+
+        foreach (['total', 'per_page', 'current_page', 'last_page'] as $cle) {
+            Assert::assertIsInt(
+                $response->json("meta.$cle"),
+                "meta.$cle doit être un entier — l'enveloppe de pagination canonique (TCK-304)."
+            );
+        }
     }
 
     protected function assertJsonError(TestResponse $response, int $status, ?string $message = null): void

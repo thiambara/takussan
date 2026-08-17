@@ -31,13 +31,7 @@ class SettingController extends Controller
             ->defaultSort('-created_at')
             ->paginate();
 
-        return $this->json([
-            'data' => SettingResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, SettingResource::collection($paginator)->toArray($request));
     }
 
     public function store(Request $request): JsonResponse

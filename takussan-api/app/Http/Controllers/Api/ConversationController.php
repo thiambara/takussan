@@ -38,10 +38,7 @@ class ConversationController extends Controller
             ->orderByDesc('last_message_at')
             ->paginate((int) $request->input('per_page', 20));
 
-        return $this->json([
-            'data' => ConversationResource::collection($paginator)->toArray($request),
-            'meta' => ['total' => $paginator->total(), 'current_page' => $paginator->currentPage()],
-        ]);
+        return $this->paginated($paginator, ConversationResource::collection($paginator)->toArray($request));
     }
 
     public function store(Request $request, GroupConversationService $groups): JsonResponse

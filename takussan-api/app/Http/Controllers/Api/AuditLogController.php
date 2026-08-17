@@ -52,11 +52,7 @@ class AuditLogController extends Controller
                 'properties' => $log->properties,
                 'created_at' => $log->created_at,
             ])->all(),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-            ],
+            'meta' => $this->paginationMeta($paginator),
         ]);
     }
 
@@ -191,15 +187,7 @@ class AuditLogController extends Controller
             ];
         })->all();
 
-        return $this->json([
-            'data' => $data,
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, $data);
     }
 
     /**

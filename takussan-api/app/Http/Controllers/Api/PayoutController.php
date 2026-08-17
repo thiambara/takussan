@@ -37,14 +37,7 @@ class PayoutController extends Controller
             ->defaultSort('-created_at')
             ->paginate();
 
-        return $this->json([
-            'data' => PayoutResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, PayoutResource::collection($paginator)->toArray($request));
     }
 
     public function store(Request $request): JsonResponse

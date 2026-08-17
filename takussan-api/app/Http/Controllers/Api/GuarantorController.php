@@ -29,10 +29,7 @@ class GuarantorController extends Controller
             ->defaultSort('-created_at')
             ->paginate();
 
-        return $this->json([
-            'data' => $paginator->getCollection()->map(fn (Guarantor $g) => $this->format($g))->values(),
-            'meta' => ['total' => $paginator->total(), 'current_page' => $paginator->currentPage()],
-        ]);
+        return $this->paginated($paginator, $paginator->getCollection()->map(fn (Guarantor $g) => $this->format($g))->values());
     }
 
     public function store(Request $request): JsonResponse

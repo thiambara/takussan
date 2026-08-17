@@ -6,6 +6,7 @@ use App\Models\Agency;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\ExpectationFailedException;
 use Tests\BaseTestCase;
 
 class BaseTestCaseTest extends BaseTestCase
@@ -74,11 +75,44 @@ class BaseTestCaseTest extends BaseTestCase
     {
         Route::get('/_tests/paginated', fn () => [
             'data' => [['id' => 1], ['id' => 2]],
-            'meta' => ['current_page' => 1, 'last_page' => 1, 'per_page' => 15, 'total' => 2],
-            'links' => ['first' => null, 'last' => null, 'prev' => null, 'next' => null],
+            'meta' => ['total' => 2, 'per_page' => 15, 'current_page' => 1, 'last_page' => 1],
         ]);
 
         $response = $this->getJson('/_tests/paginated');
+        $this->assertJsonStructurePaginated($response);
+    }
+
+    /**
+     * TCK-304 — l'helper doit ROUGIR sur une enveloppe amputée. Sans ce test, sa version
+     * précédente (qui exigeait `links`, absent de 51 endpoints sur 57) restait verte parce
+     * qu'aucun test ne l'appelait : une assertion que personne n'appelle n'assère rien.
+     */
+    public function test_assert_json_structure_paginated_rejects_a_truncated_envelope(): void
+    {
+        Route::get('/_tests/paginated-truncated', fn () => [
+            'data' => [['id' => 1]],
+            'meta' => ['total' => 1, 'current_page' => 1],   // ni per_page ni last_page
+        ]);
+
+        $response = $this->getJson('/_tests/paginated-truncated');
+
+        $this->expectException(ExpectationFailedException::class);
+        $this->assertJsonStructurePaginated($response);
+    }
+
+    /**
+     * TCK-304 — et sur une clé présente mais nulle, que l'ancienne version acceptait.
+     */
+    public function test_assert_json_structure_paginated_rejects_a_null_pagination_value(): void
+    {
+        Route::get('/_tests/paginated-null', fn () => [
+            'data' => [],
+            'meta' => ['total' => 0, 'per_page' => 15, 'current_page' => 1, 'last_page' => null],
+        ]);
+
+        $response = $this->getJson('/_tests/paginated-null');
+
+        $this->expectException(ExpectationFailedException::class);
         $this->assertJsonStructurePaginated($response);
     }
 

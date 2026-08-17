@@ -57,12 +57,7 @@ class IntegrationController extends Controller
                 'processed_at' => $log->processed_at?->toISOString(),
                 'created_at' => $log->created_at?->toISOString(),
             ])->all(),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-            ],
+            'meta' => $this->paginationMeta($paginator),
         ]);
     }
 }

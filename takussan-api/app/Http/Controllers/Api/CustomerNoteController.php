@@ -20,10 +20,7 @@ class CustomerNoteController extends Controller
             ->latest()
             ->paginate((int) $request->input('per_page', 20));
 
-        return $this->json([
-            'data' => $notes->getCollection()->map(fn (CustomerNote $n) => $this->format($n))->values(),
-            'meta' => ['total' => $notes->total(), 'current_page' => $notes->currentPage()],
-        ]);
+        return $this->paginated($notes, $notes->getCollection()->map(fn (CustomerNote $n) => $this->format($n))->values());
     }
 
     public function store(Request $request, Customer $customer): JsonResponse

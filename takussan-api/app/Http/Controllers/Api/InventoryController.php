@@ -54,14 +54,7 @@ class InventoryController extends Controller
             ->defaultSort('-created_at')
             ->paginate();
 
-        return $this->json([
-            'data' => InventoryResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, InventoryResource::collection($paginator)->toArray($request));
     }
 
     public function indexForProperty(Request $request, Property $property): JsonResponse
@@ -74,14 +67,7 @@ class InventoryController extends Controller
             ->defaultSort('-conducted_at')
             ->paginate();
 
-        return $this->json([
-            'data' => InventoryResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, InventoryResource::collection($paginator)->toArray($request));
     }
 
     public function store(InventoryStoreRequest $request): JsonResponse

@@ -50,15 +50,7 @@ class AgencyUpgradeRequestController extends Controller
             ->defaultSort('-submitted_at')
             ->paginate((int) $request->input('per_page', 20));
 
-        return $this->json([
-            'data' => AgencyUpgradeRequestResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, AgencyUpgradeRequestResource::collection($paginator)->toArray($request));
     }
 
     /**

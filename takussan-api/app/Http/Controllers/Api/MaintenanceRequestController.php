@@ -50,13 +50,7 @@ class MaintenanceRequestController extends Controller
             ->defaultSorts(...MaintenanceRequest::defaultSortsWithRelevance('-priority', '-created_at'))
             ->paginate();
 
-        return $this->json([
-            'data' => MaintenanceRequestResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, MaintenanceRequestResource::collection($paginator)->toArray($request));
     }
 
     public function indexForProperty(Request $request, Property $property): JsonResponse
@@ -71,14 +65,7 @@ class MaintenanceRequestController extends Controller
             ->defaultSorts(...MaintenanceRequest::defaultSortsWithRelevance('-priority', '-created_at'))
             ->paginate();
 
-        return $this->json([
-            'data' => MaintenanceRequestResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, MaintenanceRequestResource::collection($paginator)->toArray($request));
     }
 
     public function store(Request $request): JsonResponse

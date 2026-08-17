@@ -104,13 +104,7 @@ class ReviewController extends Controller
 
         return $this->json([
             'data' => ReviewResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-                'pending_count' => $pendingCount,
-            ],
+            'meta' => $this->paginationMeta($paginator, ['pending_count' => $pendingCount]),
         ]);
     }
 
@@ -190,7 +184,7 @@ class ReviewController extends Controller
 
         return $this->json([
             'data' => ReviewResource::collection($reviews)->toArray($request),
-            'meta' => ['total' => $reviews->total(), 'current_page' => $reviews->currentPage()],
+            'meta' => $this->paginationMeta($reviews),
         ]);
     }
 
@@ -316,7 +310,7 @@ class ReviewController extends Controller
 
         return $this->json([
             'data' => ReviewResource::collection($reviews)->toArray($request),
-            'meta' => ['total' => $reviews->total(), 'current_page' => $reviews->currentPage()],
+            'meta' => $this->paginationMeta($reviews),
         ]);
     }
 

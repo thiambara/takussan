@@ -21,14 +21,6 @@ class SearchMessageController extends Controller
             $request->validated(),
         );
 
-        return $this->json([
-            'data' => MessageResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, MessageResource::collection($paginator)->toArray($request));
     }
 }

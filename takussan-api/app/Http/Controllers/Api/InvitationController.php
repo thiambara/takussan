@@ -43,15 +43,7 @@ class InvitationController extends Controller
             ->defaultSort('-created_at')
             ->paginate((int) $request->input('per_page', 20));
 
-        return $this->json([
-            'data' => InvitationResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, InvitationResource::collection($paginator)->toArray($request));
     }
 
     /**

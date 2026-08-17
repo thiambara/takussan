@@ -41,10 +41,7 @@ class PropertyVisitController extends Controller
             ->defaultSort('-scheduled_at')
             ->paginate();
 
-        return $this->json([
-            'data' => PropertyVisitResource::collection($paginator)->toArray($request),
-            'meta' => ['total' => $paginator->total(), 'current_page' => $paginator->currentPage()],
-        ]);
+        return $this->paginated($paginator, PropertyVisitResource::collection($paginator)->toArray($request));
     }
 
     public function show(Request $request, PropertyVisit $visit): JsonResponse

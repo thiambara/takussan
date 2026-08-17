@@ -32,10 +32,7 @@ class TagController extends Controller
         $user = $request->user();
         $agencyId = $user?->agency_id;
 
-        return $this->json([
-            'data' => $paginator->getCollection()->map(fn (Tag $t) => $this->format($t, $agencyId))->values(),
-            'meta' => ['total' => $paginator->total(), 'current_page' => $paginator->currentPage()],
-        ]);
+        return $this->paginated($paginator, $paginator->getCollection()->map(fn (Tag $t) => $this->format($t, $agencyId))->values());
     }
 
     public function store(Request $request): JsonResponse

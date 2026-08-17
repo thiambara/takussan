@@ -59,13 +59,7 @@ class PropertyModerationController extends Controller
 
         return $this->json([
             'data' => PropertyResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'per_page' => $paginator->perPage(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'pending_count' => $paginator->total(),
-            ],
+            'meta' => $this->paginationMeta($paginator, ['pending_count' => $paginator->total()]),
         ]);
     }
 

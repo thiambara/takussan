@@ -43,15 +43,7 @@ class CustomerController extends Controller
             ->defaultSorts(...Customer::defaultSortsWithRelevance('-created_at'))
             ->paginate();
 
-        return $this->json([
-            'data' => CustomerResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, CustomerResource::collection($paginator)->toArray($request));
     }
 
     public function store(Request $request): JsonResponse

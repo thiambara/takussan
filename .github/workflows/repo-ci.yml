@@ -252,6 +252,30 @@ jobs:
         # qu'il est bien décrit. C'est un cliquet contre la régression franche, pas une mesure de
         # qualité (dette D-23 : chercher un jeton ne mesure pas une propriété).
         run: node scripts/check-models-spec.mjs --report
+      - name: L'enveloppe de pagination se construit en un seul endroit
+        # Mesuré le 2026-08-17, avant convergence : **57 contrôleurs et 1 service** recopiaient la
+        # forme à la main, et les jeux de clés divergeaient — `total` 88 occurrences,
+        # `current_page` 67, `last_page` 51, `->perPage()` 40. Un tiers des endpoints émettait
+        # `total` sans `per_page`. Un client de l'API ne pouvait donc pas lire la pagination de la
+        # même façon d'un endpoint à l'autre : il devait la DÉCOUVRIR endpoint par endpoint.
+        # `takussan-web/src/types/api.ts` déclarait d'ailleurs `links` OBLIGATOIRE quand 52 des 57
+        # ne l'émettaient pas — et l'helper de test `assertJsonStructurePaginated` l'exigeait
+        # aussi, ce qui explique qu'aucun test ne l'appelait : il aurait rougi partout.
+        #
+        # La dette grossissait à la vitesse à laquelle on écrit des contrôleurs — 44 fichiers au
+        # 2026-08-12 (ardoise D-31), 58 quatre jours plus tard. `takussan-api/CLAUDE.md` tranchait
+        # déjà pour le code neuf, et n'a rien freiné : une convention qui n'existe que dans un
+        # document est lue une fois, par ceux qui la respectaient déjà (TCK-304).
+        #
+        # ⚠ La garde écrit sa portée dans sa sortie : elle interdit de RECONSTRUIRE l'enveloppe,
+        # elle ne vérifie pas que chaque liste l'émet. Un endpoint qui ne pagine pas du tout la
+        # satisfait — c'est un cliquet contre la ré-divergence, pas une preuve de couverture.
+        #
+        # Déclencheurs : `takussan-api/app/**` (ce qu'elle balaye) et `scripts/**` (elle-même)
+        # sont déjà dans les deux blocs `paths` ci-dessus. Rien à ajouter, et c'est vérifié —
+        # une garde déclenchée d'un seul côté ne voit qu'une moitié de l'écart qu'elle cherche.
+        run: node scripts/check-pagination-envelope.mjs --report
+
       - name: Aucun document normatif ne cite un chemin markdown mort
         # `models-spec.md` a cité `docs/claude-code-prompt-notifications.md` — JAMAIS ÉCRIT — assez
         # longtemps pour qu'on finisse par annoter la citation « *(jamais écrit — pointeur mort)* »

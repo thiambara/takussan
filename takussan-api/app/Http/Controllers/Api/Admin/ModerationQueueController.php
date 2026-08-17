@@ -33,15 +33,7 @@ class ModerationQueueController extends Controller
             (int) ($data['per_page'] ?? 20),
         );
 
-        return $this->json([
-            'data' => ModerationItemResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, ModerationItemResource::collection($paginator)->toArray($request));
     }
 
     public function decide(Request $request, string $id): JsonResponse

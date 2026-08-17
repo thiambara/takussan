@@ -165,24 +165,39 @@ mais elles existent : ne pas en réécrire une cinquième variante inline.
 
 ## Pagination — la forme canonique
 
-Construite à la main, **pas** via `ResourceCollection`. **Fichier exemplaire :
-`app/Http/Controllers/Api/PropertyController.php:56-68`.**
+**Elle se construit en UN seul endroit : `app/Http/Responses/PaginationMeta.php`** (TCK-304). Ne
+jamais la recopier — `scripts/check-pagination-envelope.mjs` (Repo CI) casse le build si on le fait.
 
 ```php
-return $this->json([
-    'data' => XResource::collection($paginator)->toArray($request),
-    'meta' => [
-        'total'        => $paginator->total(),
-        'per_page'     => $paginator->perPage(),
-        'current_page' => $paginator->currentPage(),
-        'last_page'    => $paginator->lastPage(),
-    ],
-]);
+// dans un contrôleur (il étend Base\Controller)
+return $this->paginated($paginator, XResource::collection($paginator)->toArray($request));
+
+// avec un compteur métier propre à l'endpoint, ou d'autres racines que `data`
+return $this->paginated($paginator, $data, ['pending_count' => $paginator->total()]);
+'meta' => $this->paginationMeta($paginator, ['unread' => $n]),
+
+// hors contrôleur, ou sans paginateur Eloquent (résultat Meilisearch)
+'meta' => PaginationMeta::of(total: $n, perPage: $perPage, currentPage: $page),
 ```
 
-Ces **quatre clés, et elles seules**. La forme est aujourd'hui dupliquée dans 44 fichiers avec des
-jeux incohérents (`total` 72 fois, `current_page` 65, `last_page` 49, `per_page` 43, plus des
-`links`/`from`/`to` sporadiques) — le front ne peut pas s'appuyer sur ce qui n'est pas systématique.
+Rend **ces quatre clés, et elles seules** — `total`, `per_page`, `current_page`, `last_page` —
+suivies des compteurs métier passés en `extra`. Une clé canonique passée en `extra` est ignorée :
+le paginateur fait foi.
+
+> **Ce que la convergence a coûté, et pourquoi la garde existe.** Cette section disait déjà « ces
+> quatre clés, et elles seules » — et n'a rien freiné. Mesuré le 2026-08-17 : **57 contrôleurs et
+> 1 service** recopiaient la forme, avec `total` 88 fois, `current_page` 67, `last_page` 51,
+> `->perPage()` 40. Un tiers des endpoints émettait `total` sans `per_page`. La dette grossissait à
+> la vitesse à laquelle on écrit des contrôleurs : 44 fichiers au 2026-08-12, 58 quatre jours plus
+> tard. *Une convention qui n'existe que dans un document est lue une fois, par ceux qui la
+> respectaient déjà.*
+>
+> Deux symptômes valent d'être retenus, parce qu'ils sont muets tous les deux :
+> `takussan-web/src/types/api.ts` déclarait `links` **obligatoire** quand 52 endpoints sur 57 ne
+> l'émettaient pas — un type de réponse n'est vérifié par rien ; et
+> `BaseTestCase::assertJsonStructurePaginated()` l'exigeait aussi, ce qui explique qu'**aucun test
+> ne l'appelait** : il aurait rougi sur presque toute l'API. `links` a été retiré des 5 endpoints
+> qui l'émettaient, après vérification qu'aucun code du front ne le lit.
 
 ## Ressources — `BaseResource`
 

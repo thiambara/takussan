@@ -36,14 +36,7 @@ class InvoiceController extends Controller
             ->defaultSort('-created_at')
             ->paginate();
 
-        return $this->json([
-            'data' => InvoiceResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, InvoiceResource::collection($paginator)->toArray($request));
     }
 
     public function store(Request $request): JsonResponse

@@ -73,15 +73,7 @@ class AgencyModerationController extends Controller
         $perPage = (int) ($request->query('per_page') ?? 15);
         $agencies = $query->paginate($perPage > 0 ? min($perPage, 100) : 15);
 
-        return $this->json([
-            'data' => AgencyResource::collection($agencies)->resolve($request),
-            'meta' => [
-                'total' => $agencies->total(),
-                'current_page' => $agencies->currentPage(),
-                'last_page' => $agencies->lastPage(),
-                'per_page' => $agencies->perPage(),
-            ],
-        ]);
+        return $this->paginated($agencies, AgencyResource::collection($agencies)->resolve($request));
     }
 
     private function memberCountSubquery(): string

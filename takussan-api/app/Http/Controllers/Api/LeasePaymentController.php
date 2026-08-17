@@ -25,13 +25,7 @@ class LeasePaymentController extends Controller
             ->orderBy('period_start', 'desc')
             ->paginate((int) $request->input('per_page', 20));
 
-        return $this->json([
-            'data' => LeasePaymentResource::collection($payments)->toArray($request),
-            'meta' => [
-                'total' => $payments->total(),
-                'current_page' => $payments->currentPage(),
-            ],
-        ]);
+        return $this->paginated($payments, LeasePaymentResource::collection($payments)->toArray($request));
     }
 
     public function store(Request $request, Lease $lease): JsonResponse

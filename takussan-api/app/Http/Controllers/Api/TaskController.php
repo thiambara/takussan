@@ -44,10 +44,7 @@ class TaskController extends Controller
             ->defaultSort('-due_at')
             ->paginate();
 
-        return $this->json([
-            'data' => $paginator->getCollection()->map(fn (Task $t) => $this->format($t))->values(),
-            'meta' => ['total' => $paginator->total(), 'current_page' => $paginator->currentPage()],
-        ]);
+        return $this->paginated($paginator, $paginator->getCollection()->map(fn (Task $t) => $this->format($t))->values());
     }
 
     public function store(Request $request): JsonResponse

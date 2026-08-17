@@ -145,12 +145,7 @@ class AgencyDetailController extends Controller
                 'roles' => $user->profileTypes()->all(),
                 'last_login_at' => $user->last_login_at?->toIso8601String(),
             ])->values()->all(),
-            'meta' => [
-                'total' => $users->total(),
-                'current_page' => $users->currentPage(),
-                'last_page' => $users->lastPage(),
-                'per_page' => $users->perPage(),
-            ],
+            'meta' => $this->paginationMeta($users),
         ]);
     }
 
@@ -163,14 +158,6 @@ class AgencyDetailController extends Controller
 
         $properties = $query->paginate(min(max((int) $request->query('per_page', 15), 1), 100));
 
-        return $this->json([
-            'data' => PropertyResource::collection($properties)->resolve($request),
-            'meta' => [
-                'total' => $properties->total(),
-                'current_page' => $properties->currentPage(),
-                'last_page' => $properties->lastPage(),
-                'per_page' => $properties->perPage(),
-            ],
-        ]);
+        return $this->paginated($properties, PropertyResource::collection($properties)->resolve($request));
     }
 }

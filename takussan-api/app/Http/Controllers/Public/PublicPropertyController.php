@@ -114,6 +114,8 @@ class PublicPropertyController extends Controller
                 'featured' => ['items' => $items($rows['featured']['items'])],
                 'latest' => ['items' => $items($rows['latest']['items'])],
             ],
+            // `discovery` ne pagine pas : quatre rangées bornées, pas une liste. Elle n'a donc
+            // aucune enveloppe de pagination à émettre (TCK-304).
             'meta' => ['per_row' => $request->perRow()],
         ], 200, [
             // Safe to share: the list shape of PropertyResource pins its labels
@@ -411,14 +413,10 @@ class PublicPropertyController extends Controller
 
         return $this->json([
             'data' => ReviewResource::collection($paginated)->toArray($request),
-            'meta' => [
-                'total' => $paginated->total(),
-                'current_page' => $paginated->currentPage(),
-                'per_page' => $paginated->perPage(),
-                'last_page' => $paginated->lastPage(),
+            'meta' => $this->paginationMeta($paginated, [
                 'average' => $avg,
                 'distribution' => $distribution,
-            ],
+            ]),
         ]);
     }
 

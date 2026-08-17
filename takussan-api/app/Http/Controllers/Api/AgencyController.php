@@ -33,10 +33,7 @@ class AgencyController extends Controller
             ->defaultSorts(...Agency::defaultSortsWithRelevance('-created_at'))
             ->paginate();
 
-        return $this->json([
-            'data' => AgencyResource::collection($paginator)->toArray($request),
-            'meta' => ['total' => $paginator->total(), 'current_page' => $paginator->currentPage()],
-        ]);
+        return $this->paginated($paginator, AgencyResource::collection($paginator)->toArray($request));
     }
 
     public function store(Request $request): JsonResponse
@@ -156,12 +153,7 @@ class AgencyController extends Controller
 
         return $this->json([
             'data' => UserResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-            ],
+            'meta' => $this->paginationMeta($paginator),
         ]);
     }
 
