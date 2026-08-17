@@ -1,5 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
+import { Compass, SearchX } from 'lucide-react';
+
+import { EmptyState } from '@/components/feedback';
+import { buttonVariants } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import type { PropertyDetail } from '@/types/property';
 import { BookingTunnel } from '@/components/bookings/BookingTunnel';
@@ -24,20 +29,21 @@ export default async function BookingPage({
 }) {
   const params = await searchParams;
   const slug = params.property;
+  const t = await getTranslations('bookings.public');
 
   if (!slug) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-12 text-center">
-        <h1 className="text-2xl font-bold text-stone-900">Aucun bien sélectionné</h1>
-        <p className="mt-2 text-sm text-stone-600">
-          Commencez par choisir un bien à réserver depuis le catalogue.
-        </p>
-        <Link
-          href="/properties"
-          className="mt-6 inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/80"
-        >
-          Parcourir les biens
-        </Link>
+      <div className="mx-auto max-w-2xl px-4 py-12">
+        <EmptyState
+          icon={<Compass className="size-8" aria-hidden="true" />}
+          title={t('no_property_title')}
+          description={t('no_property_description')}
+          action={
+            <Link href="/properties" className={buttonVariants()}>
+              {t('browse_cta')}
+            </Link>
+          }
+        />
       </div>
     );
   }
@@ -52,17 +58,17 @@ export default async function BookingPage({
 
   if (!property) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-12 text-center">
-        <h1 className="text-2xl font-bold text-stone-900">Bien introuvable</h1>
-        <p className="mt-2 text-sm text-stone-600">
-          Le bien demandé n&apos;existe plus ou n&apos;est plus disponible.
-        </p>
-        <Link
-          href="/properties"
-          className="mt-6 inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/80"
-        >
-          Parcourir les biens
-        </Link>
+      <div className="mx-auto max-w-2xl px-4 py-12">
+        <EmptyState
+          icon={<SearchX className="size-8" aria-hidden="true" />}
+          title={t('not_found_title')}
+          description={t('not_found_description')}
+          action={
+            <Link href="/properties" className={buttonVariants()}>
+              {t('browse_cta')}
+            </Link>
+          }
+        />
       </div>
     );
   }

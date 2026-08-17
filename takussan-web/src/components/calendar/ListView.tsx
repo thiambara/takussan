@@ -1,5 +1,9 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+import { CalendarRange } from 'lucide-react';
+
+import { EmptyState } from '@/components/feedback';
 import { cn } from '@/lib/utils';
 import { parseServerDate, startOfDay } from '@/lib/calendar-date';
 import { paletteFor, typeLabel } from './event-colors';
@@ -13,6 +17,7 @@ export interface ListViewProps {
 type Group = { key: string; label: string; items: { event: CalendarEvent; start: Date }[] };
 
 export function ListView({ events, onSelect }: ListViewProps) {
+  const t = useTranslations('calendar.list');
   const groups: Group[] = (() => {
     const byDay = new Map<string, Group>();
     for (const e of events) {
@@ -37,9 +42,11 @@ export function ListView({ events, onSelect }: ListViewProps) {
 
   if (groups.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-stone-200 bg-white p-8 text-center text-sm text-stone-500">
-        Aucun événement dans la période affichée.
-      </div>
+      <EmptyState
+        icon={<CalendarRange className="size-8" aria-hidden="true" />}
+        title={t('empty_title')}
+        description={t('empty_description')}
+      />
     );
   }
 

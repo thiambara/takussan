@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { Wrench } from 'lucide-react';
 
+import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { formatDate } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
@@ -25,6 +27,7 @@ export function MaintenanceHistoryByProperty({
   readonly propertyId: number;
 }) {
   const locale = useLocale() as Locale;
+  const t = useTranslations('maintenance.history');
   const query = useMaintenanceHistoryForProperty(propertyId);
 
   return (
@@ -32,9 +35,11 @@ export function MaintenanceHistoryByProperty({
       {(data) => {
         if (data.data.length === 0) {
           return (
-            <p className="rounded-xl bg-app-surface-1 p-6 text-center text-sm text-app-ink-muted">
-              Aucune intervention enregistrée sur ce bien.
-            </p>
+            <EmptyState
+              icon={<Wrench className="size-8" aria-hidden="true" />}
+              title={t('empty_title')}
+              description={t('empty_description')}
+            />
           );
         }
         return (

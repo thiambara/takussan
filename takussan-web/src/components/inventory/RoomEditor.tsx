@@ -1,6 +1,10 @@
 'use client';
 
 import { useFieldArray, type Control, type UseFormRegister } from 'react-hook-form';
+import { useTranslations } from 'next-intl';
+import { DoorOpen } from 'lucide-react';
+
+import { EmptyState } from '@/components/feedback';
 
 import {
   FormInput,
@@ -44,6 +48,7 @@ export function RoomEditor({
   readonly control: Control<InventoryCreateInput>;
   readonly register: UseFormRegister<InventoryCreateInput>;
 }) {
+  const t = useTranslations('inventory.roomEditor');
   const rooms = useFieldArray({ control, name: 'rooms' });
 
   return (
@@ -63,9 +68,11 @@ export function RoomEditor({
       </div>
 
       {rooms.fields.length === 0 ? (
-        <p className="rounded-lg bg-app-surface-2 p-4 text-center text-sm text-app-ink-muted">
-          Aucune pièce — cliquez sur « Ajouter une pièce » pour commencer.
-        </p>
+        <EmptyState
+          icon={<DoorOpen className="size-8" aria-hidden="true" />}
+          title={t('empty_title')}
+          description={t('empty_description')}
+        />
       ) : null}
 
       {rooms.fields.map((room, roomIndex) => (

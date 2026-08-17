@@ -1,8 +1,10 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { CalendarClock } from 'lucide-react';
 import { useLeasePayments } from '@/lib/queries/leases';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import type { Locale } from '@/i18n/config';
@@ -41,7 +43,10 @@ const STATUS_LABEL: Record<ReturnType<typeof displayStatus>, string> = {
 
 export function LeaseSchedule({ leaseId, agencyId }: LeaseScheduleProps) {
   const locale = useLocale() as Locale;
-  const { data, isLoading, isError } = useLeasePayments(leaseId);
+  const t = useTranslations('lease.schedule');
+  const tCommon = useTranslations('common');
+  const paymentsQuery = useLeasePayments(leaseId);
+  const { data, isLoading, isError } = paymentsQuery;
   const { providers } = usePaymentProviders(agencyId ?? null);
 
   const payments = useMemo(() => data?.data ?? [], [data]);
@@ -51,17 +56,20 @@ export function LeaseSchedule({ leaseId, agencyId }: LeaseScheduleProps) {
   }
   if (isError) {
     return (
-      <p className="rounded-xl bg-app-surface-1 p-4 text-sm text-red-600">
-        Impossible de charger l&apos;échéancier.
-      </p>
+      <ErrorState
+        message={t('error')}
+        onRetry={() => void paymentsQuery.refetch()}
+        retryLabel={tCommon('actions.retry')}
+      />
     );
   }
   if (payments.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-stone-200 bg-white p-6 text-center text-sm text-stone-500">
-        Aucun paiement pour l&apos;instant. Générez l&apos;échéancier pour le créer
-        automatiquement.
-      </div>
+      <EmptyState
+        icon={<CalendarClock className="size-8" aria-hidden="true" />}
+        title={t('empty_title')}
+        description={t('empty_description')}
+      />
     );
   }
 

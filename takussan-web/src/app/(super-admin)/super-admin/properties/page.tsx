@@ -1,13 +1,15 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
+import { Home } from 'lucide-react';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { fetchAdminAgencies, fetchAdminProperties } from '@/lib/queries/super-admin';
 import { SuperAdminPropertiesFilters } from '@/components/admin/super/SuperAdminPropertiesFilters';
 import { SuperAdminPropertiesTable } from '@/components/admin/super/SuperAdminPropertiesTable';
 import { Pagination } from '@/components/super-admin/Pagination';
-import { Card, CardContent } from '@/components/ui/card';
 import type { AdminPropertiesResponse, AdminAgenciesResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 
@@ -18,6 +20,7 @@ import type { ApiError } from '@/lib/api';
  * filtered views are shareable; React Query manages the request lifecycle.
  */
 export default function SuperAdminPropertiesPage() {
+  const t = useTranslations('superAdmin.properties');
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -82,18 +85,14 @@ export default function SuperAdminPropertiesPage() {
           ))}
         </div>
       ) : propertiesQuery.isError ? (
-        <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive" role="alert">
-          Erreur de chargement. {propertiesQuery.error?.displayMessage}
-        </div>
+        <ErrorState message={propertiesQuery.error?.displayMessage ?? t('error')} />
       ) : !propertiesQuery.data || propertiesQuery.data.data.length === 0 ? (
-        <Card>
-          <CardContent
-            className="p-6 text-center text-sm text-muted-foreground"
-            data-testid="properties-empty"
-          >
-            Aucun bien ne correspond aux filtres courants.
-          </CardContent>
-        </Card>
+        <EmptyState
+          data-testid="properties-empty"
+          icon={<Home className="size-8" aria-hidden="true" />}
+          title={t('empty_title')}
+          description={t('empty_description')}
+        />
       ) : (
         <>
           <SuperAdminPropertiesTable

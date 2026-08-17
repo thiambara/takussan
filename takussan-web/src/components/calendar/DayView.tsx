@@ -1,5 +1,9 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+import { CalendarDays } from 'lucide-react';
+
+import { EmptyState } from '@/components/feedback';
 import { cn } from '@/lib/utils';
 import { eventTouchesDay, parseServerDate } from '@/lib/calendar-date';
 import { paletteFor, typeLabel } from './event-colors';
@@ -12,6 +16,7 @@ export interface DayViewProps {
 }
 
 export function DayView({ focus, events, onSelect }: DayViewProps) {
+  const t = useTranslations('calendar.day');
   const parsed = events
     .map((e) => ({
       event: e,
@@ -34,9 +39,12 @@ export function DayView({ focus, events, onSelect }: DayViewProps) {
         {dayLabel}
       </div>
       {parsed.length === 0 ? (
-        <p className="p-8 text-center text-sm text-stone-500">
-          Aucun événement sur cette journée.
-        </p>
+        <EmptyState
+          className="border-0"
+          icon={<CalendarDays className="size-8" aria-hidden="true" />}
+          title={t('empty_title')}
+          description={t('empty_description')}
+        />
       ) : (
         <ul className="divide-y divide-stone-100">
           {parsed.map(({ event, start }) => {
