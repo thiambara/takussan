@@ -98,7 +98,6 @@
       "dashboard": "Taablo",
       "properties": "Kër yi",
       "team": "Ekib",
-      "roles": "Wàll yi",
       "agency": "Ajaas",
       "kyc": "KYC ajaas",
       "billing": "Abonemaa",
@@ -110,7 +109,8 @@
       "sectionLabel": "Yoonu njiit",
       "backToPersonal": "Dellu ci sama bérébu bopp",
       "proLocked": "Kont pro rekk",
-      "pendingBadge": "{count} ñu séq"
+      "pendingBadge": "{count} ñu séq",
+      "roles": "Wàll yi"
     },
     "superAdmin": {
       "eyebrow": "Konsol Takussan",
@@ -658,6 +658,26 @@
       "empty_title": "Sa CRM amul dara",
       "empty_description": "Yokkal say kontak yu njëkk ngir toppatoo seen jokkoo te xam lu leen soxal.",
       "empty_cta": "Yokk benn kiliyaan"
+    },
+    "customerDetail": {
+      "relationships": {
+        "empty_title": "Amul jokkoo bu ñu bind",
+        "empty_description": "Boolel ki ak jabar, gàrant walla kompaañi ngir gis ñi ko wër."
+      },
+      "documents": {
+        "empty_title": "Amul dokimaa bu ñu boole",
+        "empty_description": "Yebbil kayitu kollëre walla firndeel ngir mottali dosye bi."
+      },
+      "notes": {
+        "empty_title": "Amul benn not ci ki",
+        "empty_description": "Tàmbalil taariix bi ci yokk benn not ci kaw."
+      },
+      "not_found_title": "Gisuñu fiisu kiliyaan bi",
+      "not_found_message": "Kiliyaan bii amatul walla nekkul ci sa wàllu CRM.",
+      "invalid_id_message": "Nomboro bi nga ñaan ànduwul ak benn kiliyaan bu baax.",
+      "forbidden_title": "Bañ nañu la ci kiliyaan bi",
+      "forbidden_message": "Sa profil buy dox mënul ubbi fiisu kiliyaan bii.",
+      "back_cta": "Dellu ci CRM bi"
     }
   },
   "account": {
@@ -834,6 +854,18 @@
       "error": {
         "generic": "Lu ñu xamul am na, jeemal ndax."
       }
+    },
+    "invoices": {
+      "empty_title": "Amul benn fakteer ba tey",
+      "empty_description": "Fakteer yi ñu génne dinañu feeñ fii bu njëkk bes bi jot."
+    },
+    "payouts": {
+      "empty_title": "Amul benn peymaan ba tey",
+      "empty_description": "Peymaan yi ñuy jox boroom kër yi dinañu feeñ fii ginnaaw njëkk pey bi."
+    },
+    "history": {
+      "empty_title": "Amul benn pey bu ànd ak tànneef yii",
+      "empty_description": "Yaatal jamono ji walla dindi benn tànneef ngir gis rëdd yu gën a bare."
     }
   },
   "lease": {
@@ -930,6 +962,14 @@
       "empty_filtered_title": "Amul luwé bu ànd ak filtre yii",
       "empty_filtered_description": "Yaatal tann bi ci statut walla kër gi ngir gis say luwé.",
       "error": "Mënunu yebal luwé yi. Xoolal sa konexion, ba noppi jéemaat."
+    },
+    "detail": {
+      "error": "Gisuñu kontaraa bi."
+    },
+    "schedule": {
+      "error": "Mënuñu yeb tëralinu pey bi.",
+      "empty_title": "Amul pey ba tey",
+      "empty_description": "Génnel tëralin bi ngir sos ci boppam bes yu kontaraa bi."
     }
   },
   "maintenance": {
@@ -943,6 +983,15 @@
       "empty_title": "Amul benn demande defar",
       "empty_description": "Amul demande bu ànd ak filtre yii. Sosal benn ngir yëgle jafe-jafe ci benn kër.",
       "empty_cta": "Demande bu bees"
+    },
+    "launcher": {
+      "error": "Mënuñu yeb say kontaraa. Jéemaatal walla jokkoo ak ndimbal si.",
+      "empty_title": "Amuloo benn kontaraa buy dox",
+      "empty_description": "Ngir xamle benn jafe-jafe, jokkoo ak sa ajaas."
+    },
+    "history": {
+      "empty_title": "Amul liggéey bu ñu bind",
+      "empty_description": "Ñaan yu wattu ci kër gii dinañu feeñ fii."
     }
   },
   "recentlyViewed": {
@@ -1909,6 +1958,14 @@
       "no_lease_title": "Tannuñu benn luwé",
       "no_lease_description": "Luwé bi mooy joxe kër gi ak luwékat bi. Tàmbalil état des lieux bi ci xëtu benn luwé.",
       "no_lease_cta": "Tannal benn luwé"
+    },
+    "detail": {
+      "empty_rooms_title": "Amul néeg bu ñu bind",
+      "empty_rooms_description": "Buruyoŋ bii wonewul benn néeg — mottalil ko laata nga koy yónnee."
+    },
+    "roomEditor": {
+      "empty_title": "Amul néeg",
+      "empty_description": "Bësal ci « Yokk néeg » ngir tàmbali limu kër gi."
     }
   },
   "admin": {
@@ -1921,6 +1978,18 @@
         "empty_title": "Amul kër bu ñu war a dëggal",
         "empty_description": "Amul kër bu xaar dëggal leegi. Ñëwaat ci kanam."
       }
+    },
+    "finances": {
+      "overdue": {
+        "empty_title": "Amul benn pey bu ñu feyul",
+        "empty_description": "Xibaar bu baax : bes yépp feyees nañu.",
+        "count": "{count, plural, =1 {# pey bu ñu feyul} other {# pey yu ñu feyul}}"
+      }
+    },
+    "audit": {
+      "empty_title": "Amul benn mbind ci tànneef yii",
+      "empty_description": "Yaatalal jamono ji walla dindi benn tànneef ngir gis jëf yu gën a bare.",
+      "error": "Mënuñu yeb téereb teraanga bi."
     },
     "roles": {
       "page": {
@@ -2117,7 +2186,140 @@
       "empty_description": "Géeral benn fiise walla jëfandikool bouton bi ci suuf ngir yeb sa kayit bu njëkk.",
       "drop_title": "Tëddal sa fiise",
       "drop_description": "Bàyyil ngir yeb fiise bi.",
-      "upload_cta": "Yeb benn kayit"
+      "upload_cta": "Yeb benn kayit",
+      "error": "Mënuñu yeb dokimaa yi."
+    },
+    "versions": {
+      "error": "Mënuñu yeb wersioŋ yi.",
+      "empty_title": "Amul wersioŋ bu ñu yeb",
+      "empty_description": "Bépp yeb dafay sos wersioŋ : taariix bi man nañu koo xool te delloo ko.",
+      "empty_cta": "Yokk njëkk wersioŋ bi"
+    }
+  },
+  "bookings": {
+    "list": {
+      "empty": {
+        "pending": "Amul benn réservasioŋ buy xaar",
+        "confirmed": "Amul benn réservasioŋ bu ñu dëggal",
+        "rejected": "Amul benn réservasioŋ bu ñu bañ",
+        "cancelled": "Amul benn réservasioŋ bu ñu neenal",
+        "expired": "Amul benn réservasioŋ bu jeex"
+      },
+      "empty_description": "Xoolal katalog bi ngir yónnee benn ñaan réservasioŋ."
+    },
+    "detail": {
+      "error": "Gisuñu réservasioŋ bi."
+    },
+    "public": {
+      "no_property_title": "Tànnuloo benn kër",
+      "no_property_description": "Tàmbalil ci tànn kër boo bëgg a réserwe ci katalog bi.",
+      "not_found_title": "Gisuñu kër gi",
+      "not_found_description": "Kër gi nga ñaan amatul walla jotatul.",
+      "browse_cta": "Xool kër yi"
+    }
+  },
+  "visits": {
+    "list": {
+      "empty": {
+        "requested": "Amul benn seetlu bu ñu ñaan",
+        "confirmed": "Amul benn seetlu bu ñu dëggal",
+        "past": "Amul benn seetlu bu weesu",
+        "cancelled": "Amul benn seetlu bu ñu neenal"
+      },
+      "empty_description": "Ñaanal benn seetlu ci xët bu kër ngir gis ko fii."
+    },
+    "detail": {
+      "error": "Mënuñu yeb seetlu bi."
+    }
+  },
+  "superAdmin": {
+    "agencies": {
+      "empty_title": "Amul ajaas bu ñu wara wone",
+      "empty_description": "Amul ajaas bu ànd ak tànneef yi. Yaatalal seet gi.",
+      "error": "Njuumte ci yeb ajaas yi."
+    },
+    "enums": {
+      "empty_title": "Amul benn enum liggéey bu ñu man a soppi",
+      "empty_description": "Limu njëg yi ci liggéey bi dinañu feeñ fii bu ñu ko yeglee."
+    },
+    "moderation": {
+      "empty_title": "Amul benn liggéey moderasioŋ",
+      "empty_description": "Dara ànduñu ak tànneef yi — liiñ bi set na.",
+      "error": "Njuumte ci yeb liiñu moderasioŋ bi."
+    },
+    "properties": {
+      "empty_title": "Amul kër bu ñu wara wone",
+      "empty_description": "Amul kër bu ànd ak tànneef yi. Yaatalal seet gi.",
+      "error": "Njuumte ci yeb kër yi."
+    },
+    "templates": {
+      "empty_title": "Amul benn tampalet bu ñu man a soppi",
+      "empty_description": "Tampalet yu yégle yi dinañu feeñ fii bu ñu yeglee benn xew-xew."
+    },
+    "users": {
+      "empty_title": "Gisuñu benn jëfandikukat",
+      "empty_description": "Soppil seet gi walla tànneefu wàll bi ngir yaatal limu bi.",
+      "error": "Njuumte ci yeb jëfandikukat yi."
+    },
+    "audit": {
+      "empty_title": "Amul benn mbind ci teraanga bi",
+      "empty_description": "Amul jëf bu ànd ak tànneef yii. Yaatalal jamono ji.",
+      "error": "Njuumte ci yeb téereb teraanga bi."
+    },
+    "announcements": {
+      "empty_title": "Amul benn yégle ba tey",
+      "empty_description": "Génnel benn yégle ngir xamal jëfandikukat yi."
+    },
+    "scheduler": {
+      "empty_title": "Amul benn dox bu ñu jàpp",
+      "empty_description": "Liggéey yu ñu tëral dinañu feeñ fii ginnaaw seen njëkk dox."
+    },
+    "systemHealth": {
+      "failedJobs": {
+        "empty_title": "Amul benn liggéey bu antuwul",
+        "empty_description": "Liiñu liggéey bi dafay dox te njuumte amul."
+      }
+    },
+    "integrations": {
+      "webhooks": {
+        "empty_title": "Amul webhook bu yees",
+        "empty_description": "Woote yi ñu jot ci jottalikat bi dinañu feeñ fii."
+      }
+    },
+    "metrics": {
+      "error": "Mënuñu yeb KPI yu platform bi."
+    }
+  },
+  "adminSettings": {
+    "integrations": {
+      "empty_title": "Amul benn jokkale bu ñu tëral",
+      "empty_description": "Yokkal benn ngir ubbi pey yu Wave, Orange Money walla Stripe."
+    },
+    "settings": {
+      "empty_title": "Amul benn tëral ci tànneef bii",
+      "empty_description": "Soppil wàll bi walla far seet gi ngir gis yeneen caabi yi."
+    }
+  },
+  "adminTags": {
+    "empty_title": "Amul benn tag ci seet gii",
+    "empty_description": "Faral seet gi walla sos benn tag ngir tàmbali toftal."
+  },
+  "calendar": {
+    "day": {
+      "empty_title": "Amul xew-xew ci bés bii",
+      "empty_description": "Seetlu ak liggéey yu ñu tëral dinañu feeñ fii."
+    },
+    "list": {
+      "empty_title": "Amul xew-xew ci jamono ji ñu wone",
+      "empty_description": "Soppil jamono ji walla tànneef bi ngir gis yeneen xew-xew."
+    },
+    "error": "Mënuñu yeb arminaat bi."
+  },
+  "profile": {
+    "reviews": {
+      "empty_title": "Amul xalaat ci tànneef yii",
+      "empty_description": "Xalaat yu bees yu ñu nangu dinañu feeñ fii.",
+      "error": "Mënuñu yeb xalaat yi ñu jot."
     }
   }
 }

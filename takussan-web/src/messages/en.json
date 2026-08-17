@@ -115,7 +115,6 @@
       "dashboard": "Dashboard",
       "properties": "Properties",
       "team": "Team",
-      "roles": "Roles",
       "agency": "Agency",
       "kyc": "Agency KYC",
       "billing": "Subscription",
@@ -127,7 +126,8 @@
       "sectionLabel": "Administration",
       "backToPersonal": "Back to my workspace",
       "proLocked": "Pro accounts only",
-      "pendingBadge": "{count} pending"
+      "pendingBadge": "{count} pending",
+      "roles": "Roles"
     },
     "superAdmin": {
       "eyebrow": "Takussan console",
@@ -782,6 +782,26 @@
       "empty_title": "Your CRM is empty",
       "empty_description": "Add your first contacts to track their interactions and qualify their interest.",
       "empty_cta": "Add a customer"
+    },
+    "customerDetail": {
+      "relationships": {
+        "empty_title": "No relationship recorded",
+        "empty_description": "Link this contact to a spouse, a guarantor or a company to keep their circle at hand."
+      },
+      "documents": {
+        "empty_title": "No document attached",
+        "empty_description": "Upload an ID or a proof document to complete the file."
+      },
+      "notes": {
+        "empty_title": "No note for this contact",
+        "empty_description": "Start the history by adding a first note above."
+      },
+      "not_found_title": "Customer file not found",
+      "not_found_message": "This customer no longer exists or is outside your CRM scope.",
+      "invalid_id_message": "The requested identifier matches no usable customer.",
+      "forbidden_title": "Customer access denied",
+      "forbidden_message": "Your active profile cannot open this customer file.",
+      "back_cta": "Back to the CRM"
     }
   },
   "account": {
@@ -958,6 +978,18 @@
       "error": {
         "generic": "Something went wrong, please try again."
       }
+    },
+    "invoices": {
+      "empty_title": "No invoices yet",
+      "empty_description": "Issued invoices will show up here from the first due date."
+    },
+    "payouts": {
+      "empty_title": "No payouts yet",
+      "empty_description": "Payouts to landlords will show up here after the first collection."
+    },
+    "history": {
+      "empty_title": "No payment matches these filters",
+      "empty_description": "Widen the period or drop a filter to see more rows."
     }
   },
   "lease": {
@@ -1054,6 +1086,14 @@
       "empty_filtered_title": "No lease matches these filters",
       "empty_filtered_description": "Widen the status or property selection to find your leases.",
       "error": "Could not load the leases. Check your connection, then try again."
+    },
+    "detail": {
+      "error": "Lease not found."
+    },
+    "schedule": {
+      "error": "The payment schedule could not be loaded.",
+      "empty_title": "No payment yet",
+      "empty_description": "Generate the schedule to create the lease instalments automatically."
     }
   },
   "maintenance": {
@@ -1067,6 +1107,15 @@
       "empty_title": "No maintenance request",
       "empty_description": "No request matches these filters. Create one to report an issue on a property.",
       "empty_cta": "New request"
+    },
+    "launcher": {
+      "error": "Your leases could not be loaded. Try again or contact support.",
+      "empty_title": "You have no active lease",
+      "empty_description": "To report an issue, contact your agency."
+    },
+    "history": {
+      "empty_title": "No intervention recorded",
+      "empty_description": "Maintenance requests on this property will show up here."
     }
   },
   "recentlyViewed": {
@@ -2033,6 +2082,14 @@
       "no_lease_title": "No lease selected",
       "no_lease_description": "The lease determines the property and the tenant. Start an inventory report from a lease page.",
       "no_lease_cta": "Pick a lease"
+    },
+    "detail": {
+      "empty_rooms_title": "No room recorded",
+      "empty_rooms_description": "This draft describes no room yet — complete it before submitting."
+    },
+    "roomEditor": {
+      "empty_title": "No room",
+      "empty_description": "Click “Add a room” to start the inventory."
     }
   },
   "admin": {
@@ -2045,6 +2102,18 @@
         "empty_title": "No property to review",
         "empty_description": "No property is awaiting validation right now. Check back later."
       }
+    },
+    "finances": {
+      "overdue": {
+        "empty_title": "No outstanding payment",
+        "empty_description": "Good news: every instalment has been settled.",
+        "count": "{count, plural, =1 {# outstanding payment} other {# outstanding payments}}"
+      }
+    },
+    "audit": {
+      "empty_title": "No entry for these filters",
+      "empty_description": "Widen the period or drop a filter to see more actions.",
+      "error": "The audit log could not be loaded."
     },
     "roles": {
       "page": {
@@ -2231,7 +2300,140 @@
       "empty_description": "Drag and drop a file, or use the button below to upload your first document.",
       "drop_title": "Drop your file",
       "drop_description": "Release to upload this file.",
-      "upload_cta": "Upload a document"
+      "upload_cta": "Upload a document",
+      "error": "The documents could not be loaded."
+    },
+    "versions": {
+      "error": "Versions could not be loaded.",
+      "empty_title": "No version uploaded",
+      "empty_description": "Every upload creates a version: the history stays browsable and restorable.",
+      "empty_cta": "Add the first version"
+    }
+  },
+  "bookings": {
+    "list": {
+      "empty": {
+        "pending": "No pending bookings",
+        "confirmed": "No confirmed bookings",
+        "rejected": "No rejected bookings",
+        "cancelled": "No cancelled bookings",
+        "expired": "No expired bookings"
+      },
+      "empty_description": "Browse the catalogue to send a booking request."
+    },
+    "detail": {
+      "error": "Booking not found."
+    },
+    "public": {
+      "no_property_title": "No property selected",
+      "no_property_description": "Start by picking a property to book from the catalogue.",
+      "not_found_title": "Property not found",
+      "not_found_description": "The requested property no longer exists or is no longer available.",
+      "browse_cta": "Browse properties"
+    }
+  },
+  "visits": {
+    "list": {
+      "empty": {
+        "requested": "No requested visits",
+        "confirmed": "No confirmed visits",
+        "past": "No past visits",
+        "cancelled": "No cancelled visits"
+      },
+      "empty_description": "Request a visit from a property page to find it here."
+    },
+    "detail": {
+      "error": "This visit could not be loaded."
+    }
+  },
+  "superAdmin": {
+    "agencies": {
+      "empty_title": "No agency to show",
+      "empty_description": "No agency matches the current filters. Widen the search.",
+      "error": "The agencies could not be loaded."
+    },
+    "enums": {
+      "empty_title": "No editable business enum",
+      "empty_description": "Business value lists will show up here as soon as one is declared."
+    },
+    "moderation": {
+      "empty_title": "No moderation item",
+      "empty_description": "Nothing matches the current filters — the queue is clear.",
+      "error": "The moderation queue could not be loaded."
+    },
+    "properties": {
+      "empty_title": "No property to show",
+      "empty_description": "No property matches the current filters. Widen the search.",
+      "error": "The properties could not be loaded."
+    },
+    "templates": {
+      "empty_title": "No editable template",
+      "empty_description": "Notification templates will show up here as soon as an event is declared."
+    },
+    "users": {
+      "empty_title": "No user found",
+      "empty_description": "Change the search or the role filter to widen the list.",
+      "error": "The users could not be loaded."
+    },
+    "audit": {
+      "empty_title": "No audit entry",
+      "empty_description": "No action matches these filters. Widen the period.",
+      "error": "The audit log could not be loaded."
+    },
+    "announcements": {
+      "empty_title": "No announcement yet",
+      "empty_description": "Publish an announcement to inform the platform's users."
+    },
+    "scheduler": {
+      "empty_title": "No run captured",
+      "empty_description": "Scheduled tasks will show up here after their first run."
+    },
+    "systemHealth": {
+      "failedJobs": {
+        "empty_title": "No failed job",
+        "empty_description": "The job queue is running without errors."
+      }
+    },
+    "integrations": {
+      "webhooks": {
+        "empty_title": "No recent webhook",
+        "empty_description": "Calls received from this provider will show up here."
+      }
+    },
+    "metrics": {
+      "error": "The platform KPIs could not be loaded."
+    }
+  },
+  "adminSettings": {
+    "integrations": {
+      "empty_title": "No integration configured",
+      "empty_description": "Add one to enable Wave, Orange Money or Stripe payments."
+    },
+    "settings": {
+      "empty_title": "No setting for this filter",
+      "empty_description": "Change the scope or clear the search to see the other keys."
+    }
+  },
+  "adminTags": {
+    "empty_title": "No tag for this search",
+    "empty_description": "Clear the search or create a tag to start classifying."
+  },
+  "calendar": {
+    "day": {
+      "empty_title": "No event on this day",
+      "empty_description": "Scheduled visits and interventions will show up here."
+    },
+    "list": {
+      "empty_title": "No event in the displayed period",
+      "empty_description": "Change the period or the filter to see other events."
+    },
+    "error": "The calendar could not be loaded."
+  },
+  "profile": {
+    "reviews": {
+      "empty_title": "No review for these criteria",
+      "empty_description": "Newly approved reviews will show up here.",
+      "error": "The received reviews could not be loaded."
     }
   }
 }

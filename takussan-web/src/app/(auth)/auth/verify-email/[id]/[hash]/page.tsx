@@ -50,7 +50,7 @@ export default async function VerifyEmailHashPage({ params, searchParams }: Prop
 
   return (
     <div>
-      <div className="flex items-center justify-center size-14 rounded-full bg-red-50 text-red-600 mb-6">
+      <div className="flex items-center justify-center size-14 rounded-full bg-destructive/10 text-destructive mb-6">
         <AlertTriangle className="size-7" />
       </div>
       <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-2">

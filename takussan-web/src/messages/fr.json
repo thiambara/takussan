@@ -115,7 +115,6 @@
       "dashboard": "Tableau de bord",
       "properties": "Biens",
       "team": "Équipe",
-      "roles": "Rôles",
       "agency": "Agence",
       "kyc": "KYC agence",
       "billing": "Abonnement",
@@ -127,7 +126,8 @@
       "sectionLabel": "Administration",
       "backToPersonal": "Retour à l'espace perso",
       "proLocked": "Réservé aux comptes pro",
-      "pendingBadge": "{count} en attente"
+      "pendingBadge": "{count} en attente",
+      "roles": "Rôles"
     },
     "superAdmin": {
       "eyebrow": "Console Takussan",
@@ -758,6 +758,26 @@
       "empty_title": "Votre CRM est vide",
       "empty_description": "Ajoutez vos premiers contacts pour suivre leurs interactions et qualifier leurs intérêts.",
       "empty_cta": "Ajouter un client"
+    },
+    "customerDetail": {
+      "relationships": {
+        "empty_title": "Aucune relation enregistrée",
+        "empty_description": "Reliez ce contact à un conjoint, un garant ou une société pour retrouver son entourage."
+      },
+      "documents": {
+        "empty_title": "Aucun document associé",
+        "empty_description": "Déposez une pièce d'identité ou un justificatif pour compléter le dossier."
+      },
+      "notes": {
+        "empty_title": "Aucune note pour ce contact",
+        "empty_description": "Démarrez l'historique en ajoutant une première note ci-dessus."
+      },
+      "not_found_title": "Fiche client introuvable",
+      "not_found_message": "Ce client n'existe plus ou n'appartient pas à votre périmètre CRM.",
+      "invalid_id_message": "L'identifiant demandé ne correspond à aucun client exploitable.",
+      "forbidden_title": "Accès client refusé",
+      "forbidden_message": "Votre profil actif ne permet pas d'ouvrir cette fiche client.",
+      "back_cta": "Revenir au CRM"
     }
   },
   "account": {
@@ -934,6 +954,18 @@
       "error": {
         "generic": "Une erreur est survenue, réessayez."
       }
+    },
+    "invoices": {
+      "empty_title": "Aucune facture pour le moment",
+      "empty_description": "Les factures émises apparaîtront ici dès la première échéance."
+    },
+    "payouts": {
+      "empty_title": "Aucun reversement pour le moment",
+      "empty_description": "Les reversements aux bailleurs apparaîtront ici après le premier encaissement."
+    },
+    "history": {
+      "empty_title": "Aucun paiement ne correspond à ces filtres",
+      "empty_description": "Élargissez la période ou retirez un filtre pour voir plus de lignes."
     }
   },
   "lease": {
@@ -1030,6 +1062,14 @@
       "empty_filtered_title": "Aucun bail ne correspond à ces filtres",
       "empty_filtered_description": "Élargissez la sélection de statut ou de bien pour retrouver vos baux.",
       "error": "Impossible de charger les baux. Vérifiez votre connexion, puis réessayez."
+    },
+    "detail": {
+      "error": "Bail introuvable."
+    },
+    "schedule": {
+      "error": "Impossible de charger l'échéancier.",
+      "empty_title": "Aucun paiement pour l'instant",
+      "empty_description": "Générez l'échéancier pour créer automatiquement les échéances du bail."
     }
   },
   "maintenance": {
@@ -1043,6 +1083,15 @@
       "empty_title": "Aucune demande de maintenance",
       "empty_description": "Aucune demande ne correspond à ces filtres. Créez-en une pour signaler un problème sur un bien.",
       "empty_cta": "Nouvelle demande"
+    },
+    "launcher": {
+      "error": "Impossible de charger vos baux. Réessayez ou contactez le support.",
+      "empty_title": "Vous n'avez aucun bail actif",
+      "empty_description": "Pour signaler un problème, contactez votre agence."
+    },
+    "history": {
+      "empty_title": "Aucune intervention enregistrée",
+      "empty_description": "Les demandes de maintenance sur ce bien apparaîtront ici."
     }
   },
   "homepage": {
@@ -2033,6 +2082,14 @@
       "no_lease_title": "Aucun bail sélectionné",
       "no_lease_description": "Le bail détermine le bien et le locataire. Ouvrez un état des lieux depuis la page d'un bail pour démarrer.",
       "no_lease_cta": "Choisir un bail"
+    },
+    "detail": {
+      "empty_rooms_title": "Aucune pièce enregistrée",
+      "empty_rooms_description": "Ce brouillon ne décrit encore aucune pièce — complétez-le avant de le soumettre."
+    },
+    "roomEditor": {
+      "empty_title": "Aucune pièce",
+      "empty_description": "Cliquez sur « Ajouter une pièce » pour commencer l'état des lieux."
     }
   },
   "admin": {
@@ -2045,6 +2102,18 @@
         "empty_title": "Aucun bien à valider",
         "empty_description": "Aucun bien n'est en attente de validation pour le moment. Revenez plus tard."
       }
+    },
+    "finances": {
+      "overdue": {
+        "empty_title": "Aucun impayé en cours",
+        "empty_description": "Bonne nouvelle : toutes les échéances sont réglées.",
+        "count": "{count, plural, =1 {# impayé} other {# impayés}}"
+      }
+    },
+    "audit": {
+      "empty_title": "Aucune entrée pour ces filtres",
+      "empty_description": "Élargissez la période ou retirez un filtre pour voir plus d'actions.",
+      "error": "Impossible de charger le journal d'audit."
     },
     "roles": {
       "page": {
@@ -2231,7 +2300,140 @@
       "empty_description": "Glissez-déposez un fichier ou utilisez le bouton ci-dessous pour téléverser votre premier document.",
       "drop_title": "Déposez votre fichier",
       "drop_description": "Relâchez pour téléverser ce fichier.",
-      "upload_cta": "Téléverser un document"
+      "upload_cta": "Téléverser un document",
+      "error": "Impossible de charger les documents."
+    },
+    "versions": {
+      "error": "Impossible de charger les versions.",
+      "empty_title": "Aucune version uploadée",
+      "empty_description": "Chaque dépôt crée une version : l'historique reste consultable et restaurable.",
+      "empty_cta": "Ajouter la première version"
+    }
+  },
+  "bookings": {
+    "list": {
+      "empty": {
+        "pending": "Aucune réservation en attente",
+        "confirmed": "Aucune réservation confirmée",
+        "rejected": "Aucune réservation refusée",
+        "cancelled": "Aucune réservation annulée",
+        "expired": "Aucune réservation expirée"
+      },
+      "empty_description": "Parcourez le catalogue pour envoyer une demande de réservation."
+    },
+    "detail": {
+      "error": "Réservation introuvable."
+    },
+    "public": {
+      "no_property_title": "Aucun bien sélectionné",
+      "no_property_description": "Commencez par choisir un bien à réserver depuis le catalogue.",
+      "not_found_title": "Bien introuvable",
+      "not_found_description": "Le bien demandé n'existe plus ou n'est plus disponible.",
+      "browse_cta": "Parcourir les biens"
+    }
+  },
+  "visits": {
+    "list": {
+      "empty": {
+        "requested": "Aucune visite demandée",
+        "confirmed": "Aucune visite confirmée",
+        "past": "Aucune visite passée",
+        "cancelled": "Aucune visite annulée"
+      },
+      "empty_description": "Demandez une visite depuis la fiche d'un bien pour la retrouver ici."
+    },
+    "detail": {
+      "error": "Impossible de charger cette visite."
+    }
+  },
+  "superAdmin": {
+    "agencies": {
+      "empty_title": "Aucune agence à afficher",
+      "empty_description": "Aucune agence ne correspond aux filtres courants. Élargissez la recherche.",
+      "error": "Erreur de chargement des agences."
+    },
+    "enums": {
+      "empty_title": "Aucun enum métier éditable",
+      "empty_description": "Les listes de valeurs métier apparaîtront ici dès qu'une sera déclarée."
+    },
+    "moderation": {
+      "empty_title": "Aucun item de modération",
+      "empty_description": "Rien ne correspond aux filtres courants — la file est à jour.",
+      "error": "Erreur de chargement de la file de modération."
+    },
+    "properties": {
+      "empty_title": "Aucun bien à afficher",
+      "empty_description": "Aucun bien ne correspond aux filtres courants. Élargissez la recherche.",
+      "error": "Erreur de chargement des biens."
+    },
+    "templates": {
+      "empty_title": "Aucun template éditable",
+      "empty_description": "Les gabarits de notification apparaîtront ici dès qu'un événement sera déclaré."
+    },
+    "users": {
+      "empty_title": "Aucun utilisateur trouvé",
+      "empty_description": "Modifiez la recherche ou le filtre de rôle pour élargir la liste.",
+      "error": "Erreur de chargement des utilisateurs."
+    },
+    "audit": {
+      "empty_title": "Aucune entrée d'audit",
+      "empty_description": "Aucune action ne correspond à ces filtres. Élargissez la période.",
+      "error": "Erreur de chargement du journal d'audit."
+    },
+    "announcements": {
+      "empty_title": "Aucune annonce pour le moment",
+      "empty_description": "Publiez une annonce pour informer les utilisateurs de la plateforme."
+    },
+    "scheduler": {
+      "empty_title": "Aucun run capturé",
+      "empty_description": "Les tâches planifiées apparaîtront ici après leur première exécution."
+    },
+    "systemHealth": {
+      "failedJobs": {
+        "empty_title": "Aucun job échoué",
+        "empty_description": "La file de jobs tourne sans erreur."
+      }
+    },
+    "integrations": {
+      "webhooks": {
+        "empty_title": "Aucun webhook récent",
+        "empty_description": "Les appels reçus de ce provider apparaîtront ici."
+      }
+    },
+    "metrics": {
+      "error": "Impossible de charger les KPIs plateforme."
+    }
+  },
+  "adminSettings": {
+    "integrations": {
+      "empty_title": "Aucune intégration configurée",
+      "empty_description": "Ajoutez-en une pour activer les paiements Wave, Orange Money, Stripe, etc."
+    },
+    "settings": {
+      "empty_title": "Aucun paramètre pour ce filtre",
+      "empty_description": "Changez de portée ou effacez la recherche pour voir les autres clés."
+    }
+  },
+  "adminTags": {
+    "empty_title": "Aucun tag pour cette recherche",
+    "empty_description": "Effacez la recherche ou créez un tag pour commencer à classer."
+  },
+  "calendar": {
+    "day": {
+      "empty_title": "Aucun événement sur cette journée",
+      "empty_description": "Les visites et interventions planifiées apparaîtront ici."
+    },
+    "list": {
+      "empty_title": "Aucun événement dans la période affichée",
+      "empty_description": "Changez de période ou de filtre pour voir d'autres événements."
+    },
+    "error": "Impossible de charger le calendrier."
+  },
+  "profile": {
+    "reviews": {
+      "empty_title": "Aucun avis reçu pour ces critères",
+      "empty_description": "Les nouveaux avis approuvés apparaîtront ici.",
+      "error": "Impossible de charger les avis reçus."
     }
   }
 }

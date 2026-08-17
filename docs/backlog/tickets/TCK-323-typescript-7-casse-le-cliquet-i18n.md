@@ -1,7 +1,7 @@
 ---
 id: TCK-323
 title: "TypeScript 7 n'exporte plus l'API compilateur côté Node — le cliquet i18n en dépend, et le bump PR #182 le casse"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: M
@@ -99,23 +99,23 @@ amont.
 
 ## Delta à produire
 
-- [ ] Découpler `takussan-web/scripts/i18n-scan.mjs` de l'API compilateur de TypeScript — les
+- [x] Découpler `takussan-web/scripts/i18n-scan.mjs` de l'API compilateur de TypeScript — les
       25 points d'entrée `ts.*` employés sont à couvrir, pas seulement `createSourceFile`.
-- [ ] Tests : `src/i18n/__tests__/i18n-scan.test.ts` passe sous TypeScript 5 **et** 7 sans que
+- [x] Tests : `src/i18n/__tests__/i18n-scan.test.ts` passe sous TypeScript 5 **et** 7 sans que
       ses attentes changent (c'est le critère qui prouve l'équivalence du tokeniseur).
-- [ ] Vérifier `npm run check:i18n` contre la baseline en place : aucun déplacement de compte.
-- [ ] Consigner à l'ardoise que le bump TS 7 reste bloqué en amont par `typescript-eslint`
+- [x] Vérifier `npm run check:i18n` contre la baseline en place : aucun déplacement de compte.
+- [x] Consigner à l'ardoise que le bump TS 7 reste bloqué en amont par `typescript-eslint`
       (point 5), avec le lien de suivi.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `node -e "import('./scripts/i18n-scan.mjs')"` ne touche plus `typescript` :
+- [x] AC1 — `node -e "import('./scripts/i18n-scan.mjs')"` ne touche plus `typescript` :
       `grep -rn "from 'typescript'" takussan-web/scripts takussan-web/src` ne rend rien.
-- [ ] AC2 — sous TypeScript 5 (état courant de `dev`), `npm run test` et `npm run check:i18n`
+- [x] AC2 — sous TypeScript 5 (état courant de `dev`), `npm run test` et `npm run check:i18n`
       restent verts, et la baseline i18n est **inchangée fichier par fichier**.
-- [ ] AC3 — sous TypeScript 7.0.2 (branche `wip/pr182-typescript-7`), `npm run test` et
+- [x] AC3 — sous TypeScript 7.0.2 (branche `wip/pr182-typescript-7`), `npm run test` et
       `npm run check:i18n` sont verts eux aussi. Mesuré, pas déduit.
-- [ ] AC4 — l'ablation est faite : le nouveau tokeniseur, lancé sur un fichier portant un texte
+- [x] AC4 — l'ablation est faite : le nouveau tokeniseur, lancé sur un fichier portant un texte
       en dur ajouté exprès, **rougit**. Une garde qui passe partout ne garde rien.
 
 ## Hors périmètre
@@ -129,4 +129,45 @@ amont.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Le remplaçant est un lexeur écrit dans le dépôt, PAS un autre analyseur tiers.** `@babel/parser`
+(déjà présent transitivement) ou `oxc-parser` auraient donné un vrai AST pour bien moins d'effort —
+et auraient reproduit **exactement l'exposition que ce ticket existe pour fermer**, un nom de paquet
+plus loin. Le scanner ne construit donc aucun arbre : il parcourt les caractères en tenant une pile
+de contextes (bloc, littéral d'objet, corps de type, appel, balise JSX, enfants JSX, gabarit) et
+décide **localement** de chaque littéral. Chaque branche de `litteralEstIgnore()` porte en commentaire
+la forme d'AST qu'elle remplace, pour qu'on puisse la relire contre l'ancienne version.
+
+**Ce qui tient lieu de preuve d'équivalence** — et ce n'est pas la lecture du code. Les deux
+scanners ont été passés sur les 870 fichiers de `src/` et leurs sorties comparées **occurrence par
+occurrence** (fichier, ligne, catégorie, extrait) : `409 fichiers, 3 542 occurrences, 0 manque,
+0 surplus`. Cette comparaison a trouvé **quatre défauts** que les 21 tests de fixtures ne voyaient
+pas, et c'est la mesure du prix d'un lexeur écrit à la main :
+
+1. `<FormInput<LoginFormValues> …>` — arguments de type sur une balise JSX. Le `<` était pris pour
+   un attribut et **toute la fin de la balise basculait en texte JSX** (+327 fausses occurrences).
+2. `z.infer<typeof schema>` — `infer` attend une expression, donc `<` ouvrait du JSX… sauf qu'après
+   un `.` un identifiant est un NOM DE PROPRIÉTÉ, jamais un mot-clé.
+3. Un gabarit interpolé en valeur d'attribut (`aria-label={\`${c ? 'Réservation' : 'Visite'}\`}`)
+   était compté **deux fois** : le coup d'œil qui cherche « le conteneur ne porte-t-il QUE un
+   littéral ? » émettait, puis on rembobinait pour parcourir pour de bon. D'où le compteur `silence`.
+4. `getStart()` d'un `JsxText` **saute les blancs de tête** (`skipTrivia` avec `stopAtComments`) : la
+   ligne rapportée est celle du premier caractère non blanc, pas celle du `>` qui précède.
+
+**Deux détails de l'ancienne version reproduits volontairement, parce qu'ils sont observables :**
+
+- `estArgumentTechnique` prend le **dernier** segment de l'appelé (`ts.isPropertyAccessExpression`
+  → `expr.name`). Donc `t.rich('x')` n'est **pas** technique — le nom vérifié est `rich`, absent de
+  `APPELS_TECHNIQUES` — alors que le commentaire d'origine laisse croire l'inverse. Le comportement,
+  pas le commentaire, fait la baseline.
+- `extrait` est tronqué à 60 caractères **avant** `trim()`, sur le texte brut : pour un `JsxText`,
+  les blancs de tête consomment donc des caractères de l'extrait.
+
+**Ablation faite dans les deux sens** (AC4 et la reproduction du ticket) :
+`MonthView.tsx` avec un `title="Voir la réservation"` et un texte JSX ajoutés exprès → la garde
+rougit (`3 → 5`, plafond dépassé) ; l'**ancien** scanner remis en place sous TS 7.0.2 → les
+**18 rouges** exacts du ticket, `TypeError: Cannot read properties of undefined (reading 'Latest')`.
+
+**Effet de bord mesuré** : le scan est ~1,8× plus rapide (729 ms → 397 ms sur `src/` entier), la
+suite n'ayant plus à charger et à instancier le compilateur.
+
+**Le bump PR #182 n'est pas débloqué**, et ne pouvait pas l'être ici : cf. ardoise **D-55**.

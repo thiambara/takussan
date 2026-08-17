@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   useBooking,
   useCancelBooking,
@@ -11,6 +11,7 @@ import {
   useRejectBooking,
 } from '@/lib/queries/bookings';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format';
+import { ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -89,9 +90,12 @@ interface BookingDetailProps {
 
 export function BookingDetail({ bookingId }: BookingDetailProps) {
   const locale = useLocale() as Locale;
+  const t = useTranslations('bookings.detail');
+  const tCommon = useTranslations('common');
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [action, setAction] = useState<'confirm' | 'reject' | 'cancel' | null>(null);
-  const { data, isLoading, isError } = useBooking(bookingId);
+  const bookingQuery = useBooking(bookingId);
+  const { data, isLoading, isError } = bookingQuery;
   const { user } = useAuth();
   const agencyId = data?.data?.agency_id ?? null;
   const { providers } = usePaymentProviders(agencyId);
@@ -144,9 +148,11 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
 
   if (isError || !data) {
     return (
-      <p className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
-        Réservation introuvable.
-      </p>
+      <ErrorState
+        message={t('error')}
+        onRetry={() => void bookingQuery.refetch()}
+        retryLabel={tCommon('actions.retry')}
+      />
     );
   }
 

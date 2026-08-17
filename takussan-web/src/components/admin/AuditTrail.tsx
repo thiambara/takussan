@@ -2,7 +2,9 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Download, FileSpreadsheet, FileText, Loader2, Search, ShieldAlert } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { Download, FileSpreadsheet, FileText, Loader2, ScrollText, Search, ShieldAlert } from 'lucide-react';
+import { EmptyState, ErrorState } from '@/components/feedback';
 
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/toast';
@@ -84,6 +86,7 @@ function formatDate(iso: string): string {
 }
 
 export function AuditTrail() {
+  const t = useTranslations('admin.audit');
   const { token } = useAuth();
   const toast = useToast();
 
@@ -291,14 +294,16 @@ export function AuditTrail() {
           <Loader2 className="h-6 w-6 animate-spin text-app-ink-muted" />
         </div>
       ) : isError ? (
-        <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-          <ShieldAlert className="h-5 w-5 shrink-0" />
-          Impossible de charger le journal d&apos;audit.
-        </div>
+        <ErrorState
+          icon={<ShieldAlert className="size-5" aria-hidden="true" />}
+          message={t('error')}
+        />
       ) : logs.length === 0 ? (
-        <div className="rounded-xl border border-border bg-stone-50 p-12 text-center text-sm text-app-ink-muted">
-          Aucune entrée pour les filtres sélectionnés.
-        </div>
+        <EmptyState
+          icon={<ScrollText className="size-8" aria-hidden="true" />}
+          title={t('empty_title')}
+          description={t('empty_description')}
+        />
       ) : (
         <div className="overflow-x-auto rounded-xl border border-border bg-background shadow-sm">
           <table className="w-full text-sm">

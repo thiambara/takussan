@@ -2,9 +2,12 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { CalendarCheck } from 'lucide-react';
 import { useBookings } from '@/lib/queries/bookings';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { EmptyState } from '@/components/feedback';
+import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Booking, BookingStatus } from '@/types/booking';
@@ -30,12 +33,12 @@ const STATUS_VARIANT: Record<BookingStatus, 'default' | 'secondary' | 'outline' 
 
 type TabKey = 'pending' | 'confirmed' | 'rejected' | 'cancelled' | 'expired';
 
-const TABS: ReadonlyArray<{ value: TabKey; label: string; emptyLabel: string }> = [
-  { value: 'pending', label: 'En attente', emptyLabel: 'Aucune réservation en attente.' },
-  { value: 'confirmed', label: 'Confirmées', emptyLabel: 'Aucune réservation confirmée.' },
-  { value: 'rejected', label: 'Refusées', emptyLabel: 'Aucune réservation refusée.' },
-  { value: 'cancelled', label: 'Annulées', emptyLabel: 'Aucune réservation annulée.' },
-  { value: 'expired', label: 'Expirées', emptyLabel: 'Aucune réservation expirée.' },
+const TABS: ReadonlyArray<{ value: TabKey; label: string }> = [
+  { value: 'pending', label: 'En attente' },
+  { value: 'confirmed', label: 'Confirmées' },
+  { value: 'rejected', label: 'Refusées' },
+  { value: 'cancelled', label: 'Annulées' },
+  { value: 'expired', label: 'Expirées' },
 ];
 
 /**
@@ -58,7 +61,7 @@ export function BookingsList() {
 
       {TABS.map((t) => (
         <TabsContent key={t.value} value={t.value} className="mt-4">
-          <BookingsListBody status={t.value} locale={locale} emptyLabel={t.emptyLabel} />
+          <BookingsListBody status={t.value} locale={locale} />
         </TabsContent>
       ))}
     </Tabs>
@@ -68,47 +71,43 @@ export function BookingsList() {
 function BookingsListBody({
   status,
   locale,
-  emptyLabel,
 }: {
-  status: BookingStatus;
+  // `TabKey` et non `BookingStatus` : le libellé d'état vide est indexé par onglet
+  // (`empty.<TabKey>`), et `completed` n'a pas d'onglet.
+  status: TabKey;
   locale: Locale;
-  emptyLabel: string;
 }) {
-  const { data, isLoading, isError } = useBookings({ status, per_page: 30 });
-
-  if (isLoading) {
-    return (
-      <div className="space-y-3">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="h-24 animate-pulse rounded-xl bg-app-surface-1" />
-        ))}
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <p className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
-        Impossible de charger vos réservations.
-      </p>
-    );
-  }
-
-  const bookings = data?.data ?? [];
-  if (bookings.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-stone-200 bg-white p-8 text-center text-sm text-stone-500">
-        {emptyLabel}
-      </div>
-    );
-  }
+  const t = useTranslations('bookings.list');
+  const query = useBookings({ status, per_page: 30 });
 
   return (
-    <ul className="space-y-3">
-      {bookings.map((b) => (
-        <BookingRow key={b.id} booking={b} locale={locale} />
+    <QueryBoundary
+      query={query}
+      loadingFallback={[0, 1, 2].map((i) => (
+        <div key={i} className="h-24 animate-pulse rounded-xl bg-app-surface-1" />
       ))}
-    </ul>
+    >
+      {(data) => {
+        const bookings = data.data ?? [];
+        if (bookings.length === 0) {
+          return (
+            <EmptyState
+              icon={<CalendarCheck className="size-8" aria-hidden="true" />}
+              title={t(`empty.${status}`)}
+              description={t('empty_description')}
+            />
+          );
+        }
+
+        return (
+          <ul className="space-y-3">
+            {bookings.map((b) => (
+              <BookingRow key={b.id} booking={b} locale={locale} />
+            ))}
+          </ul>
+        );
+      }}
+    </QueryBoundary>
   );
 }
 
