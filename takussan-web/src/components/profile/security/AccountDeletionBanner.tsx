@@ -40,7 +40,7 @@ export function AccountDeletionBanner({ daysRemaining, onCancelled }: Props) {
   return (
     <div
       role="alert"
-      className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 border-b border-red-200 bg-red-50 px-4 py-3 text-red-800"
+      className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 border-b border-destructive/30 bg-destructive/10 px-4 py-3 text-destructive"
     >
       <div className="flex flex-col">
         <span className="font-semibold">{t('title')}</span>
@@ -52,7 +52,7 @@ export function AccountDeletionBanner({ daysRemaining, onCancelled }: Props) {
         size="sm"
         onClick={handleCancel}
         disabled={pending}
-        className="border-red-300 text-red-800 hover:bg-red-100"
+        className="border-destructive/40 text-destructive hover:bg-destructive/15"
       >
         {t('cancel')}
       </Button>

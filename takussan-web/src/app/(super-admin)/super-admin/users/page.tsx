@@ -3,7 +3,9 @@
 import { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { Search } from 'lucide-react';
+import { Search, Users } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -126,6 +128,7 @@ function getInitials(name: string): string {
 }
 
 export default function SuperAdminUsersPage() {
+  const t = useTranslations('superAdmin.users');
   const router = useRouter();
   const searchParams = useSearchParams();
   const [search, setSearch] = useState('');
@@ -295,15 +298,13 @@ export default function SuperAdminUsersPage() {
           ))}
         </div>
       ) : isError ? (
-        <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive" role="alert">
-          Erreur de chargement. {error?.displayMessage}
-        </div>
+        <ErrorState message={error?.displayMessage ?? t('error')} />
       ) : !data || data.data.length === 0 ? (
-        <Card>
-          <CardContent className="p-6 text-center text-sm text-muted-foreground">
-            Aucun utilisateur trouvé.
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={<Users className="size-8" aria-hidden="true" />}
+          title={t('empty_title')}
+          description={t('empty_description')}
+        />
       ) : (
         <div className="grid gap-3">
           {data.data.map((u) => {

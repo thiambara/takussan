@@ -78,8 +78,23 @@ const PLAFONDS = {
   // en rougissant quand le compte descend. À noter pour le prochain qui resserre : une baisse ici
   // ne prouve pas qu'un état vide a disparu, seulement que l'heuristique ne le voit plus. C'est
   // pourquoi ce compte est un plancher, jamais un inventaire.
-  etatsVides: 32,
-  erreursPaletteBrute: 22,
+  //
+  // 32 → 0 le 2026-08-17 (TCK-291), et **les deux moitiés de cette baisse comptent différemment** :
+  //   · les ~24 écrans migrés vers `<EmptyState>` ont vraiment perdu leur état vide fait maison ;
+  //   · mais leurs libellés sont en même temps passés derrière `t()`, et l'heuristique B ne voit
+  //     PAS un état vide libellé par une clé i18n. Une partie de la baisse est donc de l'aveuglement
+  //     de la mesure, pas de la migration.
+  // **0 ne veut donc PAS dire « il n'en reste aucun ».** Ce que 0 tient, et c'est tout ce qu'un
+  // cliquet doit tenir : plus aucun état vide ad-hoc VISIBLE PAR CETTE HEURISTIQUE ne peut
+  // réapparaître sans faire rougir la CI. La propriété réelle, elle, est gardée par le contrôle A.
+  etatsVides: 0,
+  // 22 → 0 le 2026-08-17 (TCK-291). Ici la baisse est entière et vérifiable : 13 blocs d'erreur
+  // sont passés par `<ErrorState>` / `<DestructiveBanner>`, et les 9 occurrences restantes
+  // n'étaient pas des blocs d'erreur du tout — deux pastilles d'icône d'authentification, un CTA
+  // de résiliation, une bannière de suppression de compte, un encart « zone de danger » et un
+  // survol de puce de filtre. Elles violaient bien le DS (`--destructive`, cf.
+  // `docs/design-guidelines.md`) et ont reçu les jetons ; aucune n'a été exemptée.
+  erreursPaletteBrute: 0,
 };
 
 /**
@@ -91,11 +106,11 @@ const PLAFONDS = {
  * sans quoi la liste devient un cimetière et plus personne ne sait ce qu'elle couvre encore.
  */
 const ECARTS_ASSUMES = new Map([
-  // `OwnerEmptyState` branche sur le rôle et rend une grille d'exemples de documents ET une liste
-  // de cibles de rattachement (bien / bail / profil). Le forcer dans `{icon, title, description,
-  // action}` détruirait de la fonctionnalité — ce n'est pas un état vide, c'est un mode d'emploi
-  // qui s'affiche quand c'est vide. Il est nommé comme l'un, il fait l'autre.
-  ['takussan-web/src/components/documents/DocumentsLibrary.tsx::OwnerEmptyState', 'TCK-291'],
+  // VIDE depuis TCK-291, et le geste qui l'a vidée est le bon : `OwnerEmptyState` n'a pas été
+  // exempté ni découpé, il a été RENOMMÉ `OwnerDocumentsPrimer`. Il rendait une grille d'exemples
+  // et une liste de cibles de rattachement — un mode d'emploi qui s'affiche quand c'est vide, pas
+  // un état vide. Il était nommé comme l'un et faisait l'autre ; c'est le nom qui était faux, pas
+  // la garde. Une entrée ici doit rester l'exception datée, jamais le réflexe.
 ]);
 
 /** Retire commentaires de bloc et de ligne — une garde qui lit la prose atteste de la prose. */

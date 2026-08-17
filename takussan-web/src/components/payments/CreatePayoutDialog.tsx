@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useLocale } from 'next-intl';
 
 import {
@@ -125,23 +125,19 @@ export function CreatePayoutDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gross, rate]);
 
-  const net = useMemo(
-    () =>
-      computePayoutNet({
-        gross: gross,
-        commission: manualCommission ?? 0,
-        fees,
-      }),
-    [gross, manualCommission, fees],
-  );
-
-  const handleReset = useCallback(() => {
-    form.reset(defaultValues);
-  }, [form, defaultValues]);
+  // Pas de `useMemo` ici, et pas d'oubli : le React Compiler mémoïse ce calcul (ADR-0033).
+  // Le `useMemo` qui s'y trouvait faisait ABANDONNER la compilation de tout ce composant —
+  // `react-hooks/preserve-manual-memoization` le signalait, et son correctif est de retirer la
+  // mémoïsation manuelle, pas de l'ajuster.
+  const net = computePayoutNet({
+    gross: gross,
+    commission: manualCommission ?? 0,
+    fees,
+  });
 
   useEffect(() => {
-    if (!open) handleReset();
-  }, [open, handleReset]);
+    if (!open) form.reset(defaultValues);
+  }, [open, form, defaultValues]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
