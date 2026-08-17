@@ -89,8 +89,9 @@ eux, la bonne réponse est « rien à lancer », pas « lance tout ».
 > ~120×. Détail et raisonnement :
 > [`docs/plans/2026-08-17-temps-d-execution-des-tests.md`](../../plans/2026-08-17-temps-d-execution-des-tests.md).
 
-**Par commit mergé** — fin de ticket, sur 172 commits touchant `takussan-api/` : **97 / 172 (56 %)
-retombent sur la suite entière**. C'est correct, et c'est bien placé : le repli tombe au moment où
+**Par commit mergé** — fin de ticket, sur 172 commits touchant `takussan-api/` : **102 / 172 (59 %)
+retombent sur la suite entière** (97/172 avant le durcissement du sélecteur imposé par la revue
+finale — cinq commits de plus pour fermer un quatrième chemin de faux vert). C'est correct, et c'est bien placé : le repli tombe au moment où
 le rituel de fin de branche exige déjà la suite entière.
 
 ## Critères d'acceptation
@@ -101,8 +102,12 @@ le rituel de fin de branche exige déjà la suite entière.
   sélectionne **rien** ; **absent de la carte** impose la **suite entière**. Ces trois cas sont
   distincts et testés.
 - **AC3** — `database/migrations/`, `database/factories/`, `database/seeders/`, `bootstrap/`,
-  `composer.lock`, `composer.json`, `phpunit.xml`, `tests/bootstrap.php` et `tests/TestCase.php`
-  imposent la suite entière. Un seul suffit.
+  `config/`, `composer.lock`, `composer.json`, `phpunit.xml`, `tests/bootstrap.php` et
+  `tests/TestCase.php` imposent la suite entière. Un seul suffit.
+- **AC3bis** — **Le défaut de la boucle est d'ESCALADER, pas d'ignorer.** Tout chemin sous
+  `takussan-api/` qui n'entre dans aucune règle impose la suite entière, sauf s'il figure dans une
+  liste explicite de chemins inertes. Un fichier de `tests/` qui n'est pas une classe de test
+  (`BaseTestCase`, `ApiTestCase`, les concerns, `tests/Support/`) escalade.
 
   > `database/factories/` et `database/seeders/` **manquaient à la première rédaction de cet AC**,
   > et une revue de code l'a trouvé le 2026-08-17 : une factory est consommée par un nombre inconnu

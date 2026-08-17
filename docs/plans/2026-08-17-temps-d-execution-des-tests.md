@@ -100,9 +100,26 @@ parmi les 400 derniers :
 
 | | |
 |---|---|
-| Suite entière | **97 / 172 (56 %)** — 54 « dur » (migrations, `composer.lock`, `bootstrap/`, `phpunit.xml`), 36 `routes/` non résolus, 7 fichier inconnu |
+| Suite entière | **102 / 172 (59 %)** — re-mesuré le 2026-08-17 après le durcissement du sélecteur (cf. encadré ci-dessous). Le chiffre initial était 97/172 |
 | Sélection partielle | 75 — médiane **5 classes**, p75 18, **p90 264** |
 | Gain franc (≤ 10 classes) | **49 / 172, soit 28 %** |
+
+> ⚠️ **Re-mesuré après la revue finale : 102/172, et non 97/172.** La revue a trouvé que le
+> sélecteur **ignorait en silence** tout chemin sous `takussan-api/` qu'il ne reconnaissait pas —
+> `tests/BaseTestCase.php` (dont **89** classes héritent), `tests/ApiTestCase.php` (38),
+> `tests/Concerns/InteractsWithMeilisearch.php` (21), les trois fichiers de `tests/Support/` qui
+> portent les mécanismes de D-44, `.env.example` (qui **est** l'environnement de test de la CI),
+> `lang/`, `resources/views/`. Tous rendaient « rien à lancer » et sortie 0 : le **quatrième**
+> chemin de faux vert de ce chantier.
+>
+> Le défaut par défaut de la boucle était « ignorer » ; il est désormais « escalader », avec une
+> liste explicite de chemins inertes (`docs/`, `storage/`, `vendor/`, `node_modules/`,
+> `public/build/`, `*.md`). `config/` a de plus été déplacé de la règle de `routes/` vers les
+> déclencheurs durs : l'arête route → contrôleur borne réellement l'impact, une valeur de
+> configuration se lit globalement.
+>
+> **Le prix de ces deux corrections est de cinq commits sur 172.** Une escalade de plus coûte des
+> secondes ; une sous-sélection produit un vert qui ne prouve rien.
 
 **Borne basse (réaliste) — par fichier**, sur les 482 fichiers `app/` réellement modifiés en
 400 commits :

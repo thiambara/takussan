@@ -356,10 +356,18 @@ les classes de test qui l'ont réellement couvert, mesuré depuis un rapport de 
 la suite entière (le 2026-08-17 : **346 classes de test, 667 fichiers de `app/` couverts sur 796
 scannés**, carte de 0,12 Mo). `ImpactSelector` la lit avec un diff (`git diff --name-only`) et
 répond soit une liste de classes, soit `SUITE ENTIÈRE` avec son motif quand le fichier touché est
-hors de portée de la carte — une migration, une factory, un seeder, `bootstrap/`, `composer.json`,
-`composer.lock` ou un fichier de harnais (`phpunit.xml`, `tests/bootstrap.php`,
+hors de portée de la carte — une migration, une factory, un seeder, `bootstrap/`, `config/`,
+`composer.json`, `composer.lock` ou un fichier de harnais (`phpunit.xml`, `tests/bootstrap.php`,
 `tests/TestCase.php`) modifient ce que **tous** les tests voient, pas seulement ceux qui les
 référencent explicitement.
+
+**Le défaut de la règle est d'ESCALADER, pas d'ignorer.** Tout chemin sous `takussan-api/` qui
+n'entre dans aucune règle impose la suite entière, sauf s'il figure dans la liste explicite de
+chemins inertes (`docs/`, `storage/`, `vendor/`, `node_modules/`, `public/build/`, `*.md`). C'est une
+correction de la revue finale : le défaut était « ignorer », et modifier `tests/BaseTestCase.php` —
+dont **89** classes héritent — ou `.env.example` — qui **est** l'environnement de test de la CI —
+rendait « rien à lancer » et sortie 0. *Une sélection trop large coûte des secondes ; une sélection
+trop étroite produit un vert qui ne prouve rien.*
 
 > ⚠️ **Cette liste est recopiée à la main depuis `ImpactSelector::HARD_PREFIXES` et
 > `::HARD_FILES`, et rien ne la garde.** Elle avait déjà dérivé le jour où elle a été écrite —
