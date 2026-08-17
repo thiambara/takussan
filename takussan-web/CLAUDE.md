@@ -156,6 +156,27 @@ Règles complètes : `docs/design-guidelines.md`.
 > « zéro valeur hex arbitraire » compte 27 hex à 6 chiffres dans 8 `.tsx` plus 27 classes `blue-*`
 > alors que le bleu a été retiré du DS (TCK-129).
 
+## Mémoïsation — le React Compiler est ACTIVÉ
+
+`next.config.ts` déclare `reactCompiler: true` (**[ADR-0015](../docs/adr/0015-react-compiler-active.md)**,
+TCK-318). `babel-plugin-react-compiler` est une `devDependency` et `next build` échoue sans lui.
+
+**Conséquence sur le code neuf : `useMemo` et `useCallback` ne sont plus le réflexe par défaut.**
+Le compilateur mémoïse — et une mémoïsation manuelle qu'il ne peut pas préserver le fait
+**abandonner la compilation du composant entier** (`react-hooks/preserve-manual-memoization`, de
+nouveau bloquante). On paie alors le pire des deux mondes. Ils restent légitimes là où la
+mémoïsation porte une **sémantique** et non une optimisation.
+
+Mesuré sur ce dépôt le 2026-08-17 : 870/870 composants compilés sans abandon · **+3,6 à +6,1 % de
+JS gzippé par page** (et non +27 % — sommer tous les chunks compte le code de toutes les routes,
+pas ce qu'un visiteur télécharge) · re-rendu d'une grille de 200 cartes **≈ 25× plus rapide** ·
+`next build` ×2.
+
+> ⚠️ **La suite de tests n'exerce PAS le code compilé.** `vitest` transforme via
+> `@vitejs/plugin-react@6`, qui utilise **oxc** et n'a **plus** de point d'entrée Babel — le
+> compilateur n'est appliqué que par `next build`. Un vert de `npm run test` ne valide donc pas le
+> build ; c'est `npm run lint` + `npm run build` en CI qui gardent ce flanc.
+
 ## État
 
 **TanStack Query v5 est le store serveur unique.** `createQueryClient()` (`src/lib/query-client.ts:15-32`)
