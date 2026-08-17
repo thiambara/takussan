@@ -12,13 +12,13 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-249 — AC2 (new user accept), AC3 (existing user requires login),
  * AC7 (activity log).
  */
-class InvitationAcceptTest extends BaseTestCase
+class InvitationAcceptTest extends TestCase
 {
     use RefreshDatabase;
 

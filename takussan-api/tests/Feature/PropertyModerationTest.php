@@ -12,7 +12,7 @@ use App\Notifications\PropertyApprovedNotification;
 use App\Notifications\PropertyRejectedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-098 — Property moderation workflow.
@@ -24,7 +24,7 @@ use Tests\BaseTestCase;
  *  4. resubmit: agent resubmits rejected property → back to pending_review
  *  5. flag-off bypass: agency with moderation_required=false → property stays available
  */
-class PropertyModerationTest extends BaseTestCase
+class PropertyModerationTest extends TestCase
 {
     use RefreshDatabase;
 

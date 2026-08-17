@@ -14,9 +14,9 @@ use App\Services\Billing\AgencySubscriptionService;
 use App\Services\Billing\QuotaResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class BillingPlansTest extends BaseTestCase
+class BillingPlansTest extends TestCase
 {
     use RefreshDatabase;
 

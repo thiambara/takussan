@@ -87,7 +87,11 @@ class ImpactSelectorTest extends TestCase
             ['takussan-api/database/seeders/UserSeeder.php'],
             // C-1 : les fichiers de harnais que la version précédente ignorait EN
             // SILENCE (whitelist à défaut « ignorer », cf. le docblock de la classe).
-            ['takussan-api/tests/BaseTestCase.php'],
+            // TCK-309 — `tests/BaseTestCase.php` tenait ce rôle jusqu'à sa fusion
+            // dans `tests/TestCase.php` ; `MeilisearchBarrier` est le même cas de
+            // figure et existe, lui : un fichier de `tests/` qui n'est pas une
+            // classe de test et n'est dans aucune liste dure.
+            ['takussan-api/tests/Support/MeilisearchBarrier.php'],
             ['takussan-api/tests/ApiTestCase.php'],
             ['takussan-api/tests/Concerns/InteractsWithMeilisearch.php'],
             ['takussan-api/tests/Support/TestProcessToken.php'],

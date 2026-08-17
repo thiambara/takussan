@@ -33,7 +33,7 @@ use App\Policies\PropertyPolicy;
 use App\Policies\PropertyVisitPolicy;
 use App\Policies\TaskPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-306 — les règles d'autorisation que 25 contrôleurs redéfinissaient chacun de leur côté.
@@ -53,7 +53,7 @@ use Tests\BaseTestCase;
  * remplacer 88 `$this->authorizeAccess(...)` par `$this->authorize(...)`. Leur non-vacuité est
  * prouvée par ablation, clause par clause, et la sortie de ces ablations est dans le rapport.
  */
-class MigratedAuthorizationRulesTest extends BaseTestCase
+class MigratedAuthorizationRulesTest extends TestCase
 {
     use RefreshDatabase;
 

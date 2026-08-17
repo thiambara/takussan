@@ -7,12 +7,12 @@ use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-248 — Agency.kind (standard | individual).
  */
-class AgencyKindTest extends BaseTestCase
+class AgencyKindTest extends TestCase
 {
     use RefreshDatabase;
 

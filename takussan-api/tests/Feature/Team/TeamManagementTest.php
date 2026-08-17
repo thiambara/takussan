@@ -9,13 +9,13 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-258 — covers GET /team listing + suspend/reactivate/remove
  * lifecycle for an existing agent profile.
  */
-class TeamManagementTest extends BaseTestCase
+class TeamManagementTest extends TestCase
 {
     use RefreshDatabase;
 

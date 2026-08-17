@@ -10,9 +10,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Activitylog\Models\Activity;
 use Symfony\Component\HttpKernel\Exception\HttpException;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class AgencyOnboardingTest extends BaseTestCase
+class AgencyOnboardingTest extends TestCase
 {
     use RefreshDatabase;
 

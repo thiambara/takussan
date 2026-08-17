@@ -15,7 +15,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-256 — owner invitation from the agency-side surface.
@@ -28,7 +28,7 @@ use Tests\BaseTestCase;
  *  - resend / revoke proxied via the generic invitation endpoints
  *  - activity log row `owner_invited`
  */
-class InviteOwnerTest extends BaseTestCase
+class InviteOwnerTest extends TestCase
 {
     use RefreshDatabase;
 

@@ -7,9 +7,9 @@ use App\Notifications\ResetPasswordNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class UserSupportTest extends BaseTestCase
+class UserSupportTest extends TestCase
 {
     use RefreshDatabase;
 

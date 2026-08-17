@@ -2,17 +2,17 @@
 
 use App\Http\Controllers\Api\Auth\AccountDeletionController;
 use App\Http\Controllers\Api\Auth\AppleOAuthController;
+use App\Http\Controllers\Api\Auth\AuthController;
+use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\Auth\FacebookOAuthController;
+use App\Http\Controllers\Api\Auth\OAuthController;
+use App\Http\Controllers\Api\Auth\OAuthProviderController;
+use App\Http\Controllers\Api\Auth\PasswordResetController;
+use App\Http\Controllers\Api\Auth\PhoneVerificationController;
+use App\Http\Controllers\Api\Auth\SessionController;
 use App\Http\Controllers\Api\Auth\SuperAdminTwoFactorController;
+use App\Http\Controllers\Api\Auth\TwoFactorController;
 use App\Http\Controllers\Api\UserAdminController;
-use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\Auth\EmailVerificationController;
-use App\Http\Controllers\Auth\OAuthController;
-use App\Http\Controllers\Auth\OAuthProviderController;
-use App\Http\Controllers\Auth\PasswordResetController;
-use App\Http\Controllers\Auth\PhoneVerificationController;
-use App\Http\Controllers\Auth\SessionController;
-use App\Http\Controllers\Auth\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
 /*

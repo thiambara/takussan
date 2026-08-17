@@ -17,9 +17,9 @@ use App\Models\Property;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class PlatformPayoutTest extends BaseTestCase
+class PlatformPayoutTest extends TestCase
 {
     use RefreshDatabase;
 

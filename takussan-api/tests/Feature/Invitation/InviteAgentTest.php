@@ -15,7 +15,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-258 — agent invitation from the agency-side "Équipe" surface.
@@ -29,7 +29,7 @@ use Tests\BaseTestCase;
  *  - resend / revoke proxied via the generic invitation endpoints
  *  - activity log row `agent_invited`
  */
-class InviteAgentTest extends BaseTestCase
+class InviteAgentTest extends TestCase
 {
     use RefreshDatabase;
 

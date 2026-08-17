@@ -3,14 +3,14 @@
 namespace Tests\Feature\Middleware;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-144 — `super-admin` middleware unit. Probes the gate with each of the
  * three states (anonymous / agency_admin / super_admin) and asserts the
  * status codes documented in the contract.
  */
-class EnsureSuperAdminTest extends BaseTestCase
+class EnsureSuperAdminTest extends TestCase
 {
     use RefreshDatabase;
 

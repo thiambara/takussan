@@ -343,6 +343,20 @@ Conventions : groupe `Route::middleware('auth:sanctum')` (38 occurrences), nomma
 `->name('domaine.action')`, et **les routes littérales se déclarent avant les paramétrées** (des
 commentaires `TCK-NNN` marquent les cas où l'ordre importe).
 
+**L'authentification vit sous un seul namespace : `App\Http\Controllers\Api\Auth\`** (TCK-309,
+ex-dette D-40). Elle était partagée entre `Controllers\Auth\` (8 fichiers) et
+`Controllers\Api\Auth\` (5) **sans qu'aucune règle n'ait jamais été écrite** — alors que les treize
+servent la même surface `api/auth/*`, câblée depuis le même et unique `routes/api/auth.php`. Le
+reste du dépôt avait déjà tranché (139 contrôleurs sous `Api/`, 26 hors).
+`scripts/check-auth-controller-namespace.mjs` (Repo CI) le garde, des deux côtés : aucun namespace
+`…\Auth` ailleurs, **et** tout contrôleur câblé par `routes/api/auth.php` sous ce namespace-là.
+
+> ⚠️ **Un namespace qui bouge et une route qui bouge se ressemblent dans un diff, et seule la
+> seconde casse les clients.** Le déplacement a donc été prouvé par comparaison de
+> `php artisan route:list` avant/après : **516 routes, diff vide** sur la méthode, l'URI, le nom et
+> les middlewares ; 24 actions réécrites, toutes du seul préfixe de namespace. *Un déplacement de
+> code qui ne se compare pas se relit — et une relecture ne prouve rien sur 516 lignes.*
+
 Le namespace `/api/admin/*` est gardé par le middleware alias `super-admin`
 (`app/Http/Middleware/EnsureSuperAdmin.php`) : 401 si non authentifié, 403 si non super-admin.
 
@@ -421,11 +435,24 @@ Le scheduler est **entièrement** dans `routes/console.php` (77 lignes) : 13 `Sc
 `TCK-NNN` qui explique son idempotence**. Tenir cette convention : un job planifié non idempotent est
 un incident qui n'arrive qu'en production.
 
-14 commandes maison, signature `{domaine}:{verbe-kebab}`. **Fichier exemplaire :
+16 commandes maison, signature `{domaine}:{verbe-kebab}` — **le préfixe est un DOMAINE, jamais le
+nom du produit**. `scripts/check-command-prefixes.mjs` (Repo CI) le garde. **Fichier exemplaire :
 `app/Console/Commands/MediaCleanup.php`.**
 
-> ⚠️ Deux préfixes plateforme concurrents coexistent : `platform:grant-super-admin` et
-> `takussan:create-super-admin` font conceptuellement le même travail. Utiliser `platform:`.
+> ✅ **Les deux préfixes plateforme concurrents sont soldés (TCK-309, ex-dette D-38).**
+> `takussan:create-super-admin` était le seul `takussan:` sur 16 commandes — un nom de dépôt, qui ne
+> partitionne rien puisque tout ce qui est ici lui appartient. Elle s'appelle désormais
+> **`platform:create-super-admin`**, sous le même domaine que sa jumelle
+> `platform:grant-super-admin`. Les deux ne font d'ailleurs pas le même travail : la première
+> **crée** l'opérateur (user + 2FA + codes de secours), la seconde **promeut** un user existant.
+>
+> ⚠️ **L'ancien nom reste un alias déprécié**, et ce n'est pas de la prudence : `docs/features.md`
+> §2.1 le prescrit encore à l'installation d'un environnement, et ce document ne se modifie pas
+> depuis un ticket d'implémentation. *Renommer une commande qu'un document de référence prescrit,
+> c'est fabriquer une panne pour le jour de l'installation — et ce jour-là, personne ne pensera à
+> `git log`.* L'alias avertit à chaque invocation. Il se retire dans cet ordre : mettre
+> `docs/features.md` à jour, retirer `$aliases`, puis vider `ALIAS_DEPRECIES_TOLERES` dans la garde
+> — qui **rougit si l'alias disparaît sans qu'on l'y ait déclaré**.
 
 ## Tests
 
@@ -435,9 +462,33 @@ un incident qui n'arrive qu'en production.
 **La suite exige une instance Meilisearch** : `SCOUT_DRIVER=meilisearch` est forcé sans repli.
 `./dev.sh services` la fournit.
 
-> ⚠️ **Trois classes de base coexistent** — `tests/TestCase.php`, `tests/BaseTestCase.php`,
-> `tests/ApiTestCase.php` — sans qu'aucun document ne dise laquelle choisir. Pour un test d'API,
-> `ApiTestCase`.
+### Quelle classe de base étendre — la règle, et elle est gardée (TCK-309)
+
+**Trois bases, une par usage. Le choix se lit, il ne se devine plus.**
+
+| Étendre | Quand | Ce que ça apporte |
+|---|---|---|
+| `PHPUnit\Framework\TestCase` | test **unitaire pur** : ni base, ni conteneur, ni HTTP | rien — et c'est le but : l'application ne démarre pas (10 classes) |
+| `Tests\TestCase` | tout ce qui a besoin de **l'application** : modèles, services, commandes, jobs, policies | coupure Scout, `actingAsRole()`, `materializeRoleProfile()`, `assertJsonError()`, `assertJsonStructurePaginated()` (304 classes) |
+| `Tests\ApiTestCase` | tout ce qui frappe une route **`/api/*`** | + `apiActingAsRole()` et les verbes `apiGet/apiPost/…`, qui authentifient par le garde **`sanctum`** (38 classes) |
+
+⚠️ **Ne jamais étendre `Illuminate\Foundation\Testing\TestCase` en direct.** C'est
+`Tests\TestCase::setUp()` qui coupe la synchronisation Scout ; l'éviter rallume l'indexation
+synchrone pour ce test-là, **sans qu'il rougisse lui-même** — c'est la suite entière qui bascule,
+plus tard, ailleurs (D-44). `scripts/check-test-base-classes.mjs` (Repo CI) refuse les deux fautes :
+une base hors des trois, et **une quatrième classe de base**.
+
+> **Il y en avait TROIS, mais pas celles-ci** : `TestCase` → `BaseTestCase` → `ApiTestCase`, en
+> chaîne, sans qu'aucun document ne dise laquelle étendre. `BaseTestCase` n'avait **pas d'usage
+> propre** — elle portait `actingAsRole()` et deux assertions JSON que rien ne réservait aux tests
+> non-API. Le partage qui en résultait ne suivait donc aucune règle, seulement l'ordre d'écriture :
+> 49 classes d'un côté, 38 de l'autre, la même chose des deux. Elle a été **fondue dans
+> `Tests\TestCase` et supprimée**.
+>
+> *Deux emplacements également plausibles ne restent pas deux : le suivant lit le désordre comme un
+> précédent, et la quatrième base arrive sans que personne n'ait rien décidé.* Une quatrième se
+> justifie par un quatrième **usage** — et elle se déclare alors dans `BASES_CANONIQUES`, sinon la
+> CI casse.
 
 > ⚠️ Les tests visent l'instance Meilisearch **réelle** du développeur : `phpunit.xml` ne définit
 > pas `MEILISEARCH_HOST`, donc c'est celui du `.env` qui sert.

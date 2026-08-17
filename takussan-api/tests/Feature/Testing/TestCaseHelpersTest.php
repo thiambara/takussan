@@ -7,9 +7,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\ExpectationFailedException;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class BaseTestCaseTest extends BaseTestCase
+class TestCaseHelpersTest extends TestCase
 {
     use RefreshDatabase;
 

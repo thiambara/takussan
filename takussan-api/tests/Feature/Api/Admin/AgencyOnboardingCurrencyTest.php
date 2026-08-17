@@ -6,7 +6,7 @@ use App\Models\Agency;
 use App\Models\Enums\Currency;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-270 — Currency picker added to the super-admin agency onboarding wizard.
@@ -15,7 +15,7 @@ use Tests\BaseTestCase;
  * omitted, and reject unknown ISO codes with HTTP 422 (Spatie's `Rule::in`
  * over Currency::cases()).
  */
-class AgencyOnboardingCurrencyTest extends BaseTestCase
+class AgencyOnboardingCurrencyTest extends TestCase
 {
     use RefreshDatabase;
 
