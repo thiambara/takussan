@@ -3,7 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
-use App\Models\Enums\PropertyVisibility;
+use App\Http\Requests\Api\ReorderPropertyMediaRequest;
+use App\Http\Requests\Api\StorePropertyMediaRequest;
 use App\Models\Property;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +15,7 @@ class PropertyMediaController extends Controller
 {
     public function index(Request $request, Property $property): JsonResponse
     {
-        $this->authorizeView($request, $property);
+        $this->authorize('viewMedia', $property);
 
         $media = $property->getMedia('photos')->map(fn (Media $m) => [
             'id' => $m->id,
@@ -27,19 +28,8 @@ class PropertyMediaController extends Controller
         return $this->json(['data' => $media->values()]);
     }
 
-    public function store(Request $request, Property $property): JsonResponse
+    public function store(StorePropertyMediaRequest $request, Property $property): JsonResponse
     {
-        $this->authorizeManage($request, $property);
-
-        $request->validate([
-            'photos' => ['required', 'array'],
-            'photos.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
-        ], [
-            'photos.required' => 'Sélectionnez au moins une photo.',
-            'photos.*.image' => 'Le fichier doit être une image lisible.',
-            'photos.*.mimes' => 'Formats acceptés : JPG, PNG ou WebP.',
-            'photos.*.max' => 'Chaque photo doit peser 10 Mo maximum.',
-        ]);
 
         $added = [];
         foreach ($request->file('photos', []) as $photo) {
@@ -67,20 +57,16 @@ class PropertyMediaController extends Controller
 
     public function destroy(Request $request, Property $property, int $mediaId): JsonResponse
     {
-        $this->authorizeManage($request, $property);
+        $this->authorize('update', $property);
         $property->getMedia('photos')->firstWhere('id', $mediaId)?->delete();
 
         return $this->json(['message' => 'deleted'], 204);
     }
 
-    public function reorder(Request $request, Property $property): JsonResponse
+    public function reorder(ReorderPropertyMediaRequest $request, Property $property): JsonResponse
     {
-        $this->authorizeManage($request, $property);
 
-        $data = $request->validate([
-            'order' => ['required', 'array'],
-            'order.*' => ['integer'],
-        ]);
+        $data = $request->validated();
 
         $mediaCollection = $property->getMedia('photos');
         foreach ($data['order'] as $position => $mediaId) {
@@ -88,23 +74,5 @@ class PropertyMediaController extends Controller
         }
 
         return $this->json(['message' => 'reordered']);
-    }
-
-    protected function authorizeManage(Request $request, Property $property): void
-    {
-        $user = $request->user();
-        $ok = $user->id === $property->user_id
-            || ($user->agency_id && $user->agency_id === $property->agency_id)
-            || $user->isSuperAdmin();
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizeView(Request $request, Property $property): void
-    {
-        if ($property->visibility === PropertyVisibility::Public
-            && $property->published_at !== null) {
-            return;
-        }
-        $this->authorizeManage($request, $property);
     }
 }

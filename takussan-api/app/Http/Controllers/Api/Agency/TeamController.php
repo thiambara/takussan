@@ -46,20 +46,6 @@ class TeamController extends Controller
             ->defaultSort('-created_at')
             ->paginate((int) $request->input('per_page', 20));
 
-        return $this->json([
-            'data' => $paginator->items(),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-            ],
-            'links' => [
-                'first' => $paginator->url(1),
-                'last' => $paginator->url($paginator->lastPage()),
-                'prev' => $paginator->previousPageUrl(),
-                'next' => $paginator->nextPageUrl(),
-            ],
-        ]);
+        return $this->paginated($paginator, $paginator->items());
     }
 }

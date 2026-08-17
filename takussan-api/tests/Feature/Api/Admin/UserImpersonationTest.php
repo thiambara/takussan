@@ -6,13 +6,13 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\PersonalAccessToken;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-144 — Impersonation start/stop. Verifies the token is short-lived,
  * named correctly, and that activity log entries link actor + target.
  */
-class UserImpersonationTest extends BaseTestCase
+class UserImpersonationTest extends TestCase
 {
     use RefreshDatabase;
 

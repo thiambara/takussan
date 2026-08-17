@@ -126,7 +126,8 @@
       "sectionLabel": "Administration",
       "backToPersonal": "Retour à l'espace perso",
       "proLocked": "Réservé aux comptes pro",
-      "pendingBadge": "{count} en attente"
+      "pendingBadge": "{count} en attente",
+      "roles": "Rôles"
     },
     "superAdmin": {
       "eyebrow": "Console Takussan",
@@ -2113,6 +2114,184 @@
       "empty_title": "Aucune entrée pour ces filtres",
       "empty_description": "Élargissez la période ou retirez un filtre pour voir plus d'actions.",
       "error": "Impossible de charger le journal d'audit."
+    },
+    "roles": {
+      "page": {
+        "title": "Rôles et permissions",
+        "subtitle": "Définissez ce que chaque rôle de votre agence a le droit de faire, puis attribuez-le aux membres depuis la console Équipe.",
+        "no_agency_title": "Aucune agence rattachée",
+        "no_agency_description": "Rattachez votre compte à une agence depuis la configuration pour gérer ses rôles.",
+        "no_agency_cta": "Configuration de l'agence"
+      },
+      "list": {
+        "heading": "Rôles de l’agence",
+        "empty": "Aucun rôle pour ce type de profil.",
+        "loading": "Chargement des rôles…",
+        "system_badge": "Système",
+        "system_hint": "Un rôle système ne se modifie pas. Clonez-le pour partir de ses capacités.",
+        "capability_count": "{count, plural, =0 {aucune capacité} one {# capacité} other {# capacités}}",
+        "profiles_count": "{count, plural, =0 {aucun membre} one {# membre} other {# membres}}",
+        "groups": {
+          "agent": "Agents",
+          "agency_admin": "Administrateurs",
+          "owner": "Propriétaires",
+          "service_provider": "Prestataires"
+        }
+      },
+      "actions": {
+        "create": "Créer un rôle",
+        "clone": "Cloner",
+        "delete": "Supprimer",
+        "select_role": "Sélectionner le rôle {name}"
+      },
+      "editor": {
+        "empty_title": "Aucun rôle sélectionné",
+        "empty_description": "Choisissez un rôle à gauche pour voir ses capacités, ou créez-en un nouveau.",
+        "name_label": "Nom du rôle",
+        "name_placeholder": "Agent senior",
+        "description_label": "Description",
+        "description_placeholder": "À quoi sert ce rôle dans votre agence ?",
+        "details_heading": "Identité",
+        "capabilities_heading": "Capacités accordées",
+        "capabilities_hint": "Le modèle est additif : une capacité est accordée ou absente, jamais retirée par un autre rôle.",
+        "save": "Enregistrer",
+        "saving": "Enregistrement…",
+        "saved": "Modifications enregistrées.",
+        "reset": "Annuler les modifications",
+        "system_notice": "Ce rôle est fourni par la plateforme. Ses capacités sont affichées en lecture seule — clonez-le pour créer une variante modifiable."
+      },
+      "matrix": {
+        "selected": "{count} sur {total} capacités accordées",
+        "select_all": "Tout cocher",
+        "clear": "Tout décocher",
+        "platform_reserved": "Réservé à la plateforme",
+        "platform_reserved_hint": "Cette capacité appartient à l'équipe Takussan et ne peut pas être accordée à un rôle d'agence.",
+        "toggle_domain": "Afficher ou masquer le domaine {domain}",
+        "domain_selected": "{count}/{total}"
+      },
+      "create": {
+        "title": "Créer un rôle",
+        "description": "Un rôle cible un type de profil. Vous pourrez ensuite cocher ses capacités.",
+        "base_type_label": "Type de profil ciblé",
+        "clone_from_label": "Partir des capacités de",
+        "clone_from_none": "Aucune capacité (partir de zéro)",
+        "submit": "Créer",
+        "submitting": "Création…",
+        "clone_name": "{name} (copie)"
+      },
+      "remove": {
+        "title": "Supprimer ce rôle ?",
+        "description": "Le rôle « {name} » sera supprimé. Cette action est définitive.",
+        "submit": "Supprimer",
+        "submitting": "Suppression…",
+        "conflict_title": "Ce rôle est encore attribué",
+        "conflict_description": "Réaffectez ces membres à un autre rôle depuis la console Équipe avant de supprimer celui-ci.",
+        "conflict_unnamed": "Profil #{id}"
+      },
+      "assign": {
+        "heading": "Rôle dans cette agence",
+        "label": "Rôle du profil {type}",
+        "submit": "Attribuer",
+        "submitting": "Attribution…",
+        "unavailable": "Aucun profil d'agence pour ce membre.",
+        "loading": "Chargement des rôles…",
+        "profile_types": {
+          "agent": "agent",
+          "agency_admin": "administrateur",
+          "owner": "propriétaire"
+        }
+      },
+      "errors": {
+        "load": "Impossible de charger les rôles. Vérifiez votre connexion, puis réessayez.",
+        "generic": "Une erreur est survenue."
+      },
+      "domains": {
+        "agency": "Agence",
+        "team": "Équipe",
+        "properties": "Biens",
+        "bookings": "Réservations",
+        "leases": "Baux",
+        "payments": "Paiements",
+        "invoices": "Factures",
+        "payouts": "Reversements",
+        "crm": "CRM",
+        "maintenance": "Maintenance",
+        "messaging": "Messagerie",
+        "reports": "Rapports",
+        "roles": "Rôles"
+      },
+      "capabilities": {
+        "agency": {
+          "update": "Modifier la fiche de l'agence",
+          "update_kyc": "Gérer le dossier KYC",
+          "update_billing": "Gérer l'abonnement et la facturation",
+          "upgrade_request": "Demander une montée en gamme"
+        },
+        "team": {
+          "invite": "Inviter un membre",
+          "assign_role": "Attribuer un rôle",
+          "remove": "Retirer un membre de l'agence",
+          "suspend": "Suspendre un membre"
+        },
+        "properties": {
+          "create": "Créer un bien",
+          "update_any": "Modifier n'importe quel bien",
+          "update_own": "Modifier ses propres biens",
+          "delete": "Supprimer un bien",
+          "publish": "Publier un bien",
+          "moderate": "Modérer les biens"
+        },
+        "bookings": {
+          "validate": "Valider une réservation",
+          "cancel": "Annuler une réservation",
+          "refund": "Rembourser une réservation"
+        },
+        "leases": {
+          "create": "Créer un bail",
+          "sign": "Signer un bail",
+          "terminate": "Résilier un bail",
+          "renew": "Renouveler un bail",
+          "refund_deposit": "Restituer un dépôt de garantie",
+          "rent_review": "Réviser un loyer",
+          "rent_review_force": "Forcer une révision de loyer"
+        },
+        "payments": {
+          "record": "Enregistrer un paiement",
+          "refund": "Rembourser un paiement",
+          "export": "Exporter les paiements"
+        },
+        "invoices": {
+          "create": "Créer une facture",
+          "write_off": "Passer une facture en perte",
+          "send": "Envoyer une facture"
+        },
+        "payouts": {
+          "create": "Créer un reversement",
+          "approve": "Approuver un reversement"
+        },
+        "crm": {
+          "view_all": "Voir tous les contacts de l'agence",
+          "export": "Exporter les contacts",
+          "assign": "Attribuer un contact"
+        },
+        "maintenance": {
+          "assign": "Affecter une intervention",
+          "close": "Clôturer une intervention"
+        },
+        "messaging": {
+          "broadcast": "Envoyer une diffusion",
+          "archive": "Archiver une conversation"
+        },
+        "reports": {
+          "view_global": "Consulter les rapports plateforme",
+          "export": "Exporter les rapports"
+        },
+        "roles": {
+          "create_custom": "Créer un rôle personnalisé",
+          "edit_custom": "Modifier un rôle personnalisé",
+          "delete_custom": "Supprimer un rôle personnalisé"
+        }
+      }
     }
   },
   "documents": {

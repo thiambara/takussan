@@ -109,7 +109,8 @@
       "sectionLabel": "Yoonu njiit",
       "backToPersonal": "Dellu ci sama bérébu bopp",
       "proLocked": "Kont pro rekk",
-      "pendingBadge": "{count} ñu séq"
+      "pendingBadge": "{count} ñu séq",
+      "roles": "Wàll yi"
     },
     "superAdmin": {
       "eyebrow": "Konsol Takussan",
@@ -1989,6 +1990,184 @@
       "empty_title": "Amul benn mbind ci tànneef yii",
       "empty_description": "Yaatalal jamono ji walla dindi benn tànneef ngir gis jëf yu gën a bare.",
       "error": "Mënuñu yeb téereb teraanga bi."
+    },
+    "roles": {
+      "page": {
+        "title": "Wàll yi ak sañ-sañ yi",
+        "subtitle": "Wàññi lu ku nekk ci wàll bu sa ajaans mën a def, ba noppi jox ko sa way-liggéey yi ci konsol Ekib bi.",
+        "no_agency_title": "Amul ajaans bu boole",
+        "no_agency_description": "Boole sa kont ak ajaans ci komfigirasoŋ bi ngir mën a topptoo wàll yi.",
+        "no_agency_cta": "Komfigirasoŋu ajaans bi"
+      },
+      "list": {
+        "heading": "Wàllu ajaans bi",
+        "empty": "Amul wàll ci xeetu profil bii.",
+        "loading": "Wàll yi ñu ngi leen di yeb…",
+        "system_badge": "Sistem",
+        "system_hint": "Wàllu sistem duñu ko soppi. Duppil ko ngir tàmbali ak sañ-sañ yi mu am.",
+        "capability_count": "{count, plural, =0 {amul sañ-sañ} one {# sañ-sañ} other {# sañ-sañ}}",
+        "profiles_count": "{count, plural, =0 {amul way-bokk} one {# way-bokk} other {# way-bokk}}",
+        "groups": {
+          "agent": "Ajaŋ yi",
+          "agency_admin": "Njiit yi",
+          "owner": "Boroom kër yi",
+          "service_provider": "Jaaykat yi"
+        }
+      },
+      "actions": {
+        "create": "Sos wàll",
+        "clone": "Duppi",
+        "delete": "Far",
+        "select_role": "Tànn wàll {name}"
+      },
+      "editor": {
+        "empty_title": "Tànnuñu benn wàll",
+        "empty_description": "Tànnal wàll ci càmmoñ ngir gis sañ-sañ yi mu am, walla sosal bu bees.",
+        "name_label": "Turu wàll bi",
+        "name_placeholder": "Ajaŋ bu mag",
+        "description_label": "Leeral",
+        "description_placeholder": "Lan la wàll bii di jariñ ci sa ajaans ?",
+        "details_heading": "Aji-am",
+        "capabilities_heading": "Sañ-sañ yi ñu jox",
+        "capabilities_hint": "Sistem bi day yokk rekk : sañ-sañ dañu koy jox walla mu ne fi mu ne, benn wàll du ko nangu.",
+        "save": "Denc",
+        "saving": "Ñu ngi denc…",
+        "saved": "Coppite yi ñu leen denc.",
+        "reset": "Neenal coppite yi",
+        "system_notice": "Wàll bii plaatfoom bi moo ko indi. Sañ-sañ yi ci biir dañuy jàng rekk — duppil ko ngir am bu ñu mën a soppi."
+      },
+      "matrix": {
+        "selected": "{count} ci {total} sañ-sañ lañu jox",
+        "select_all": "Tànn lépp",
+        "clear": "Neenal lépp",
+        "platform_reserved": "Plaatfoom bi rekk",
+        "platform_reserved_hint": "Sañ-sañ bii ekibu Takussan moo ko moom, mënuñu koo jox wàllu ajaans.",
+        "toggle_domain": "Wone walla nëbb wàllu {domain}",
+        "domain_selected": "{count}/{total}"
+      },
+      "create": {
+        "title": "Sos wàll",
+        "description": "Wàll dafay jëm ci benn xeetu profil. Ci ginnaaw ngay tànn sañ-sañ yi.",
+        "base_type_label": "Xeetu profil bi mu jëm",
+        "clone_from_label": "Tàmbali ak sañ-sañu",
+        "clone_from_none": "Amul sañ-sañ (tàmbali ci tus)",
+        "submit": "Sos",
+        "submitting": "Ñu ngi sos…",
+        "clone_name": "{name} (kopi)"
+      },
+      "remove": {
+        "title": "Ndax dañuy far wàll bii ?",
+        "description": "Wàll « {name} » dañu koy far. Loolu du dellu ginnaaw.",
+        "submit": "Far",
+        "submitting": "Ñu ngi far…",
+        "conflict_title": "Wàll bii ñu ngi ko def ba tey",
+        "conflict_description": "Soppil wàllu way-bokk yii ci konsol Ekib bi laata ngay far wàll bii.",
+        "conflict_unnamed": "Profil #{id}"
+      },
+      "assign": {
+        "heading": "Wàll ci ajaans bii",
+        "label": "Wàllu profil {type}",
+        "submit": "Jox",
+        "submitting": "Ñu ngi jox…",
+        "unavailable": "Way-bokk bii amul profilu ajaans.",
+        "loading": "Wàll yi ñu ngi leen di yeb…",
+        "profile_types": {
+          "agent": "ajaŋ",
+          "agency_admin": "njiit",
+          "owner": "boroom kër"
+        }
+      },
+      "errors": {
+        "load": "Mënunu yeb wàll yi. Seetal sa koneksioŋ, ba noppi jéemaat.",
+        "generic": "Am na njumte."
+      },
+      "domains": {
+        "agency": "Ajaans",
+        "team": "Ekib",
+        "properties": "Kër yi",
+        "bookings": "Reserwaasioŋ yi",
+        "leases": "Bay yi",
+        "payments": "Peymaan yi",
+        "invoices": "Faktiir yi",
+        "payouts": "Delloo xaalis",
+        "crm": "CRM",
+        "maintenance": "Defaraat",
+        "messaging": "Mesaas",
+        "reports": "Rapoor yi",
+        "roles": "Wàll yi"
+      },
+      "capabilities": {
+        "agency": {
+          "update": "Soppi fiisu ajaans bi",
+          "update_kyc": "Topptoo doseeru KYC bi",
+          "update_billing": "Topptoo abonemaa ak faktiir yi",
+          "upgrade_request": "Ñaan yokkute plaan"
+        },
+        "team": {
+          "invite": "Woo way-bokk",
+          "assign_role": "Jox wàll",
+          "remove": "Génne way-bokk ci ajaans bi",
+          "suspend": "Taxaw way-bokk"
+        },
+        "properties": {
+          "create": "Sos kër",
+          "update_any": "Soppi kër gu mu mën a doon",
+          "update_own": "Soppi ay këram",
+          "delete": "Far kër",
+          "publish": "Génne kër",
+          "moderate": "Moderee kër yi"
+        },
+        "bookings": {
+          "validate": "Nangu reserwaasioŋ",
+          "cancel": "Neenal reserwaasioŋ",
+          "refund": "Delloo xaalisu reserwaasioŋ"
+        },
+        "leases": {
+          "create": "Sos bay",
+          "sign": "Xaatim bay",
+          "terminate": "Tàggat bay",
+          "renew": "Yeesalaat bay",
+          "refund_deposit": "Delloo kosion bi",
+          "rent_review": "Seetaat loyeer bi",
+          "rent_review_force": "Sàkk seetaatu loyeer"
+        },
+        "payments": {
+          "record": "Bind peymaan",
+          "refund": "Delloo peymaan",
+          "export": "Génne peymaan yi"
+        },
+        "invoices": {
+          "create": "Sos faktiir",
+          "write_off": "Wàcce faktiir ci ñàkk",
+          "send": "Yónnee faktiir"
+        },
+        "payouts": {
+          "create": "Sos delloo xaalis",
+          "approve": "Nangu delloo xaalis"
+        },
+        "crm": {
+          "view_all": "Gis kontak yépp yu ajaans bi",
+          "export": "Génne kontak yi",
+          "assign": "Jox kontak"
+        },
+        "maintenance": {
+          "assign": "Jox liggéeyu defaraat",
+          "close": "Tëj liggéeyu defaraat"
+        },
+        "messaging": {
+          "broadcast": "Yónnee mesaas ci ñépp",
+          "archive": "Arsiwee waxtaan"
+        },
+        "reports": {
+          "view_global": "Gis rapooru plaatfoom bi",
+          "export": "Génne rapoor yi"
+        },
+        "roles": {
+          "create_custom": "Sos wàll bu ñu jagleel",
+          "edit_custom": "Soppi wàll bu ñu jagleel",
+          "delete_custom": "Far wàll bu ñu jagleel"
+        }
+      }
     }
   },
   "property": {

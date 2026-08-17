@@ -14,7 +14,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-267 — agency-side `individual → standard` upgrade flow.
@@ -30,7 +30,7 @@ use Tests\BaseTestCase;
  *  - listing scoped per agency (no cross-tenant leak)
  *  - upload validation: missing file, oversize, wrong MIME
  */
-class AgencyUpgradeRequestSubmissionTest extends BaseTestCase
+class AgencyUpgradeRequestSubmissionTest extends TestCase
 {
     use RefreshDatabase;
 

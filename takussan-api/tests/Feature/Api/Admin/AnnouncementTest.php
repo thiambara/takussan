@@ -10,9 +10,9 @@ use App\Models\User;
 use App\Services\Announcements\AnnouncementResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class AnnouncementTest extends BaseTestCase
+class AnnouncementTest extends TestCase
 {
     use RefreshDatabase;
 

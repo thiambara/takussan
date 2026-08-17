@@ -15,7 +15,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-262 — Multi-rattachement Service Provider à plusieurs agences.
@@ -31,7 +31,7 @@ use Tests\BaseTestCase;
  *          inchangé (création profile + collab paused).
  *  - L'invitation est `accepted` après l'opération.
  */
-class ServiceProviderMultiAgencyTest extends BaseTestCase
+class ServiceProviderMultiAgencyTest extends TestCase
 {
     use RefreshDatabase;
 

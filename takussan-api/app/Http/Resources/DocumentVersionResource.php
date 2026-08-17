@@ -2,8 +2,8 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
@@ -16,7 +16,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  *   is_active, version_number,
  *   url (temporary signed URL via getTemporaryUrl or getFullUrl as fallback)
  */
-class DocumentVersionResource extends JsonResource
+class DocumentVersionResource extends BaseResource
 {
     public function toArray(Request $request): array
     {

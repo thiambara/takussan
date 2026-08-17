@@ -10,6 +10,7 @@ import {
   CreditCard,
   ShieldCheck,
   FileText,
+  KeyRound,
   Settings,
   ArrowLeft,
   Shield,
@@ -56,6 +57,9 @@ function buildAdminItems(
     items.push({ href: '/admin/properties', labelKey: 'properties', icon: Building2 });
   }
   items.push({ href: '/admin/team', labelKey: 'team', icon: Users });
+  // TCK-279 — juste sous « Équipe » : c'est depuis la console Équipe qu'on
+  // attribue un rôle, et depuis celle-ci qu'on le définit.
+  items.push({ href: '/admin/roles', labelKey: 'roles', icon: KeyRound });
   items.push({ href: '/admin/agency', labelKey: 'agency', icon: Briefcase });
   items.push({ href: '/admin/agency/kyc', labelKey: 'kyc', icon: ShieldCheck });
   items.push({ href: '/admin/agency/billing', labelKey: 'billing', icon: CreditCard });

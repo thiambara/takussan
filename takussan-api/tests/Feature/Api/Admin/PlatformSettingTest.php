@@ -7,9 +7,9 @@ use App\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class PlatformSettingTest extends BaseTestCase
+class PlatformSettingTest extends TestCase
 {
     use RefreshDatabase;
 

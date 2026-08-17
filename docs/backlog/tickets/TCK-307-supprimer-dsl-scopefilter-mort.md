@@ -1,15 +1,15 @@
 ---
 id: TCK-307
 title: "Supprimer le DSL `scopeFilter` — mort mais toujours branché sur tous les modèles"
-status: todo
+status: review
 phase: P2
 family: technique
 estimate: S
 wave: 39
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-17
 depends_on: [TCK-279]
-blocks: []
+blocks: [TCK-326]
 spec_refs:
   features:
     - docs/features.md#24-recherche--filtres
@@ -64,26 +64,30 @@ L'inventaire s'impose ici aussi.
 
 ## Delta à produire
 
-- [ ] Inventorier tous les usages possibles de `scopeFilter`, y compris les invocations dynamiques,
+- [x] Inventorier tous les usages possibles de `scopeFilter`, y compris les invocations dynamiques,
       sur l'ensemble du dépôt — pas seulement `app/`
-- [ ] Si des appelants subsistent : les migrer vers `buildQuery()` d'abord
-- [ ] Supprimer `scopeFilter` de `BaseModelTrait`
-- [ ] Même inventaire pour `PropertyService` — y compris résolution par conteneur, injection par
+- [x] Si des appelants subsistent : les migrer vers `buildQuery()` d'abord
+- [x] Supprimer `scopeFilter` de `BaseModelTrait`
+- [x] Même inventaire pour `PropertyService` — y compris résolution par conteneur, injection par
       type et références en chaîne de caractères — puis suppression
-- [ ] Même inventaire pour `WizardDraftPolicy` — y compris `Gate::allows()`/`Gate::authorize()` qui
+- [x] Même inventaire pour `WizardDraftPolicy` — y compris `Gate::allows()`/`Gate::authorize()` qui
       l'atteindraient sans la nommer — puis suppression, ou câblage si la règle doit vivre
-- [ ] Supprimer les tests qui ne testaient que le DSL supprimé, et **seulement** ceux-là
-- [ ] Garde CI : la réintroduction d'un mécanisme de filtrage hors `HasQueryBuilder` fait échouer
+- [x] Supprimer les tests qui ne testaient que le DSL supprimé, et **seulement** ceux-là
+- [x] Garde CI : la réintroduction d'un mécanisme de filtrage hors `HasQueryBuilder` fait échouer
       le build
-- [ ] Prouver la garde **par mutation**
+- [x] Prouver la garde **par mutation**
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `scopeFilter` et `PropertyService` n'existent plus dans le dépôt
-- [ ] AC2 — l'inventaire des usages est consigné, et couvre les invocations dynamiques
-- [ ] AC3 — la suite backend reste verte, et le nombre de tests n'a baissé que du compte des tests
-      qui portaient sur le DSL supprimé — compte donné explicitement
-- [ ] AC4 — `docs/spatie-query-builder.md` reste la seule référence de filtrage, et rien ne
+- [x] AC1 — `scopeFilter` et `PropertyService` n'existent plus dans le dépôt
+- [x] AC2 — l'inventaire des usages est consigné, et couvre les invocations dynamiques
+- [x] AC3 — **−1 test**, et un seul : `Tests\Unit\BaseModelTraitTest::test_scope_filter`, unique
+      méthode de son fichier, dont la classe d'appui `DummyModel` n'était utilisée nulle part
+      ailleurs. Le fichier entier est supprimé. Aucun autre test retiré ni assoupli.
+      *(La suite ENTIÈRE est jouée par la session déléguante, pas ici — cf. CLAUDE.md § « Qui
+      lance quoi ». Vérifié ici : 1055 tests sur la sélection `impacted-tests --base=dev`,
+      0 échec, plus 83 sur ressources/policies/wizard-drafts.)*
+- [x] AC4 — `docs/spatie-query-builder.md` reste la seule référence de filtrage, et rien ne
       contredit plus ce statut
 
 ## Hors périmètre
@@ -94,4 +98,55 @@ L'inventaire s'impose ici aussi.
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**L'inventaire a confirmé le ticket, et a trouvé un quatrième cas qu'il ne nommait pas.**
+Balayage du dépôt entier — `app/`, `routes/`, `database/`, `bin/`, `config/`, `bootstrap/`,
+`tests/`, et hors PHP — plus les invocations dynamiques (`$m->{$x}()`, `call_user_func`,
+`method_exists`, chaînes `'filter'`, résolution par conteneur, `Gate::` non nommant) :
+
+| Cible | Appelants trouvés |
+|---|---|
+| `scopeFilter` | **1**, `tests/Unit/BaseModelTraitTest.php` — le test qui le testait |
+| `PropertyService` | **0** — la classe n'est nommée nulle part sauf dans sa propre déclaration |
+| `WizardDraftPolicy` | **0**, y compris zéro `Gate::allows()`/`authorize()`/`can()` sur `WizardDraft` |
+| `scopeWithSearch` *(hors périmètre)* | **5**, tous dans `tests/Feature/Search/ScoutSearchTest.php` |
+
+Les 44 occurrences de `->filter(` dans `app/` sont toutes `Collection::filter`, pas le scope. Un
+second chemin confirme les deux zéros : ni `PropertyService` ni `WizardDraftPolicy` n'apparaissent
+dans `tests/impact-map.json`, donc **aucun test ne les a jamais traversées**.
+
+**`WizardDraftPolicy` — supprimée, et le choix n'est pas « c'était redondant ».** Câbler la policy
+aurait **affaibli** la règle : `Gate::before(… isSuperAdmin() ? true : null)` est un bypass global,
+donc un super-admin aurait franchi la policy et lu le brouillon d'un autre utilisateur, là où la
+clause `where('user_id', …)` du contrôleur ne le laisse pas passer. Une « mise en conformité »
+aurait été un changement de comportement. S'ajoute un obstacle mécanique : les routes lient un
+`{key}` (chaîne), pas un modèle — il n'y a aucun brouillon d'autrui à passer à `authorize()`. Le
+raisonnement est écrit dans le docblock de `WizardDraftController`, là où le prochain lecteur
+cherchera la policy absente.
+
+**`scopeWithSearch` n'a PAS été supprimé** — le *Delta à produire* ne nomme que `scopeFilter`, et
+le retirer aurait fait baisser le compte de tests au-delà de ce qu'AC3 autorise. Il est pourtant du
+même bois, et un cran pire : son docblock avertit que la pertinence Scout est **perdue** sur ce
+chemin, alors que `HasQueryBuilder` la restitue depuis TCK-281 — ce n'est donc pas un doublon
+inerte, c'est un doublon **inférieur**. Consigné en **ardoise D-34bis**, à ticketer.
+
+**La garde ne cherche pas qu'un nom.** `scripts/check-filtering-single-mechanism.mjs` a trois
+contrôles : la non-vacuité (elle rougit si elle ne trouve plus sa cible — le mode de défaillance
+qui rend une garde muette), le NOM (un cliquet, dette D-23), et la **FORME** — un scope à paramètre
+`array` qui déroule des `where()` en boucle, qui survit à un renommage. Elle ne couvre pas le
+filtrage ad hoc en contrôleur : il y en a par choix assumé (TCK-281, « Hors périmètre »), et une
+garde qu'on ne peut pas rendre verte n'est pas une garde.
+
+## Reste sur dev
+
+Le code est sur la branche `wave2/back-conventions-a`, **non mergée** : le statut reste `review`
+tant qu'elle ne l'est pas (règle 4 du `CLAUDE.md` racine).
+
+Ce qui n'est **pas** couvert par ce ticket et n'attend rien de lui :
+
+- **`scopeWithSearch`** — même famille, laissé en place parce que le *Delta à produire* ne le nomme
+  pas. Consigné en **ardoise D-34bis** avec sa mesure ; à ticketer.
+- **`tests/impact-map.json`** — la carte cite encore `Tests\Unit\BaseModelTraitTest`, supprimé
+  ici. Elle est **dérivée, jamais éditée à la main** : elle se régénère depuis un rapport de
+  couverture, ce qui dépasse le budget d'un agent délégué (~890 s). `check-impact-map.mjs` traite la
+  péremption en **avertissement**, pas en échec, et reste verte — c'est le comportement voulu.
+- **La suite backend entière** — jouée une fois par la session déléguante, avant le merge.

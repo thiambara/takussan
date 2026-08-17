@@ -53,13 +53,7 @@ class UserAdminController extends Controller
             ->defaultSorts(...User::defaultSortsWithRelevance('-created_at'))
             ->paginate();
 
-        return $this->json([
-            'data' => $paginator->items(),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, $paginator->items());
     }
 
     public function block(Request $request, User $user): JsonResponse

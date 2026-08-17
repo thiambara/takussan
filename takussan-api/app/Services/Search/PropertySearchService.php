@@ -3,6 +3,7 @@
 namespace App\Services\Search;
 
 use App\Http\Resources\PropertyResource;
+use App\Http\Responses\PaginationMeta;
 use App\Models\Property;
 use Illuminate\Support\Carbon;
 
@@ -50,12 +51,14 @@ class PropertySearchService
         return [
             'data' => $this->hydrate($result['hits'] ?? []),
             'facets' => $this->mapFacets($result['facetDistribution'] ?? []),
-            'meta' => [
-                'current_page' => $page,
-                'last_page' => max(1, (int) ($result['totalPages'] ?? 1)),
-                'per_page' => $perPage,
-                'total' => (int) ($result['totalHits'] ?? 0),
-            ],
+            // Meilisearch ne rend pas un paginateur Eloquent : c'est le seul appelant de
+            // `PaginationMeta::of()`, l'entrée par compteurs bruts du point canonique (TCK-304).
+            'meta' => PaginationMeta::of(
+                total: (int) ($result['totalHits'] ?? 0),
+                perPage: $perPage,
+                currentPage: $page,
+                lastPage: max(1, (int) ($result['totalPages'] ?? 1)),
+            ),
         ];
     }
 

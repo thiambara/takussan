@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
-use App\Models\Enums\IdType;
+use App\Http\Requests\Api\StoreGuarantorRequest;
+use App\Http\Requests\Api\UpdateGuarantorRequest;
 use App\Models\Guarantor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class GuarantorController extends Controller
 {
@@ -29,28 +29,12 @@ class GuarantorController extends Controller
             ->defaultSort('-created_at')
             ->paginate();
 
-        return $this->json([
-            'data' => $paginator->getCollection()->map(fn (Guarantor $g) => $this->format($g))->values(),
-            'meta' => ['total' => $paginator->total(), 'current_page' => $paginator->currentPage()],
-        ]);
+        return $this->paginated($paginator, $paginator->getCollection()->map(fn (Guarantor $g) => $this->format($g))->values());
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreGuarantorRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'first_name' => ['required', 'string'],
-            'last_name' => ['required', 'string'],
-            'phone' => ['nullable', 'string'],
-            'email' => ['nullable', 'email'],
-            'id_type' => ['nullable', Rule::enum(IdType::class)],
-            'id_number' => ['nullable', 'string'],
-            'occupation' => ['nullable', 'string'],
-            'employer' => ['nullable', 'string'],
-            'monthly_income' => ['nullable', 'numeric', 'min:0'],
-            'relationship_to_tenant' => ['nullable', 'string'],
-            'notes' => ['nullable', 'string'],
-            'metadata' => ['nullable', 'array'],
-        ]);
+        $data = $request->validated();
 
         $guarantor = Guarantor::create(array_merge($data, [
             'added_by_id' => $request->user()->id,
@@ -61,28 +45,15 @@ class GuarantorController extends Controller
 
     public function show(Request $request, Guarantor $guarantor): JsonResponse
     {
-        $this->authorizeAccess($request, $guarantor);
+        $this->authorize('view', $guarantor);
 
         return $this->json(['data' => $this->format($guarantor)]);
     }
 
-    public function update(Request $request, Guarantor $guarantor): JsonResponse
+    public function update(UpdateGuarantorRequest $request, Guarantor $guarantor): JsonResponse
     {
-        $this->authorizeAccess($request, $guarantor);
 
-        $data = $request->validate([
-            'first_name' => ['sometimes', 'string'],
-            'last_name' => ['sometimes', 'string'],
-            'phone' => ['sometimes', 'nullable', 'string'],
-            'email' => ['sometimes', 'nullable', 'email'],
-            'id_type' => ['sometimes', 'nullable', Rule::enum(IdType::class)],
-            'id_number' => ['sometimes', 'nullable', 'string'],
-            'occupation' => ['sometimes', 'nullable', 'string'],
-            'employer' => ['sometimes', 'nullable', 'string'],
-            'monthly_income' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            'relationship_to_tenant' => ['sometimes', 'nullable', 'string'],
-            'notes' => ['sometimes', 'nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $guarantor->fill($data)->save();
 
@@ -91,20 +62,10 @@ class GuarantorController extends Controller
 
     public function destroy(Request $request, Guarantor $guarantor): JsonResponse
     {
-        $this->authorizeAccess($request, $guarantor);
+        $this->authorize('view', $guarantor);
         $guarantor->delete();
 
         return $this->json(null, 204);
-    }
-
-    protected function authorizeAccess(Request $request, Guarantor $guarantor): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $guarantor->added_by_id === $user->id
-            || ($user->agency_id && $guarantor->addedBy?->agency_id === $user->agency_id);
-
-        abort_unless($ok, 403);
     }
 
     private function format(Guarantor $g): array

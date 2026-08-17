@@ -42,8 +42,8 @@ namespace Tests\Support;
  * whitelist à défaut « ignorer » — la contradiction directe du principe énoncé
  * dix lignes plus haut : *« en cas de doute, escalader »*. Et c'était la MÊME
  * famille de défaut que celui trouvé sur `database/factories/` plus tôt sur
- * cette branche : une modification de `tests/BaseTestCase.php` (dont héritent
- * 89 classes de test), de `tests/ApiTestCase.php` (38), de
+ * cette branche : une modification de `tests/ApiTestCase.php` (dont héritent
+ * 38 classes de test), de
  * `tests/Concerns/InteractsWithMeilisearch.php` (21 fichiers), de
  * `.env.example` (l'environnement de test DE LA CI elle-même), ou d'un template
  * Blade, ne sélectionnait ZÉRO classe et rendait « rien à lancer », sortie 0.

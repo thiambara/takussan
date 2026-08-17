@@ -76,12 +76,7 @@ class CrossTenantAuditController extends Controller
                 'properties' => $this->redactProperties($log->properties),
                 'created_at' => $log->created_at?->toIso8601String(),
             ])->all(),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-            ],
+            'meta' => $this->paginationMeta($paginator),
         ]);
     }
 

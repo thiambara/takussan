@@ -3,12 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\StoreSettingRequest;
+use App\Http\Requests\Api\UpdateSettingRequest;
 use App\Http\Resources\SettingResource;
 use App\Models\Enums\SettingScope;
 use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class SettingController extends Controller
 {
@@ -31,23 +32,12 @@ class SettingController extends Controller
             ->defaultSort('-created_at')
             ->paginate();
 
-        return $this->json([
-            'data' => SettingResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, SettingResource::collection($paginator)->toArray($request));
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreSettingRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'key' => ['required', 'string', 'max:255'],
-            'value' => ['required', 'array'],
-            'scope' => ['required', Rule::enum(SettingScope::class)],
-            'scope_id' => ['nullable', 'integer'],
-        ]);
+        $data = $request->validated();
 
         $user = $request->user();
 
@@ -78,22 +68,12 @@ class SettingController extends Controller
         return $this->json(['data' => SettingResource::make($setting)->toArray($request)], $setting->wasRecentlyCreated ? 201 : 200);
     }
 
-    public function update(Request $request, Setting $setting): JsonResponse
+    public function update(UpdateSettingRequest $request, Setting $setting): JsonResponse
     {
+        // TCK-305 — les deux branches d'autorisation (portée globale vs portée agence) courent
+        // dans UpdateSettingRequest::authorize(), donc AVANT la validation.
         $user = $request->user();
-
-        if ($setting->scope === SettingScope::Global) {
-            abort_unless($user->isSuperAdmin(), 403);
-        } else {
-            abort_unless(
-                $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $setting->scope_id && $user->isAgencyAdminAt((int) $setting->scope_id)),
-                403
-            );
-        }
-
-        $data = $request->validate([
-            'value' => ['required', 'array'],
-        ]);
+        $data = $request->validated();
 
         $setting->update([
             'value' => $data['value'],

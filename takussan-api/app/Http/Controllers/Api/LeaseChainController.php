@@ -20,27 +20,12 @@ class LeaseChainController extends Controller
 
     public function index(Request $request, Lease $lease): JsonResponse
     {
-        $this->authorizeAccess($request, $lease);
+        $this->authorize('view', $lease);
 
         $chain = $this->renewals->chain($lease);
 
         return $this->json([
             'data' => LeaseResource::collection($chain)->toArray($request),
         ]);
-    }
-
-    /**
-     * Same scope check as `LeaseController` — landlord, agency member,
-     * tenant via linked user, or admin.
-     */
-    protected function authorizeAccess(Request $request, Lease $lease): void
-    {
-        $user = $request->user();
-        $ok = $user?->isSuperAdmin()
-            || $lease->landlord_id === $user?->id
-            || ($user?->agency_id && $user->agency_id === $lease->agency_id)
-            || ($lease->tenant && $lease->tenant->user_id === $user?->id);
-
-        abort_unless($ok, 403);
     }
 }

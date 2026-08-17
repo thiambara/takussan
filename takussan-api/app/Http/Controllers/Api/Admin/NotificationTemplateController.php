@@ -3,9 +3,10 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Admin\PreviewNotificationTemplateRequest;
+use App\Http\Requests\Api\Admin\UpdateNotificationTemplateRequest;
 use App\Services\Admin\NotificationTemplateService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class NotificationTemplateController extends Controller
 {
@@ -21,22 +22,16 @@ class NotificationTemplateController extends Controller
         return $this->json(['data' => $this->service->get($event, $channel)]);
     }
 
-    public function update(Request $request, string $event, string $channel): JsonResponse
+    public function update(UpdateNotificationTemplateRequest $request, string $event, string $channel): JsonResponse
     {
-        $data = $request->validate([
-            'templates' => ['required', 'array'],
-            'is_active' => ['sometimes', 'boolean'],
-        ]);
+        $data = $request->validated();
 
         return $this->json(['data' => $this->service->update($event, $channel, $data, $request->user())]);
     }
 
-    public function preview(Request $request, string $event, string $channel): JsonResponse
+    public function preview(PreviewNotificationTemplateRequest $request, string $event, string $channel): JsonResponse
     {
-        $data = $request->validate([
-            'locale' => ['required', 'string', 'in:fr,en,wo'],
-            'sample_data' => ['sometimes', 'array'],
-        ]);
+        $data = $request->validated();
 
         return $this->json(['data' => $this->service->preview($event, $channel, $data['locale'], $data['sample_data'] ?? [])]);
     }

@@ -7,7 +7,7 @@ use App\Models\Lease;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-088 — Smoke tests preserved from TCK-027 but ported to the new
@@ -15,7 +15,7 @@ use Tests\BaseTestCase;
  * invoice, idempotency, …) live in `LeaseDepositRefundEndpointTest` and
  * `Tests\Unit\Lease\DepositRefundServiceTest`.
  */
-class LeaseRefundTest extends BaseTestCase
+class LeaseRefundTest extends TestCase
 {
     use RefreshDatabase;
 

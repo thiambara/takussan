@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Auth\OAuthCallbackRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\Auth\OAuthProviderConfiguration;
@@ -77,14 +78,9 @@ abstract class AbstractOAuthController extends Controller
         return $this->json(['data' => ['redirect_url' => $url]]);
     }
 
-    public function callback(Request $request): JsonResponse
+    public function callback(OAuthCallbackRequest $request): JsonResponse
     {
         abort_unless($this->configuration->isConfigured($this->provider()), 422, 'OAuth provider is not configured.');
-
-        $request->validate([
-            'code' => ['required', 'string'],
-            'state' => ['required', 'string'],
-        ]);
 
         $cached = Cache::pull('oauth_state:'.$request->input('state'));
         abort_unless(

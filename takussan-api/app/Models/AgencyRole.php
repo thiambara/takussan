@@ -8,6 +8,7 @@ use App\Models\Enums\Capability;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Services\Membership\AgencyRoleCapabilityCache;
 use Database\Factories\AgencyRoleFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -113,6 +114,15 @@ class AgencyRole extends AbstractModel
         return $this->hasMany(OwnerProfile::class);
     }
 
+    /**
+     * TCK-315 (ADR-0016) — le pendant des trois relations ci-dessus pour
+     * les prestataires : le porteur est la COLLABORATION, pas le profil.
+     */
+    public function serviceProviderCollaborations(): HasMany
+    {
+        return $this->hasMany(ServiceProviderAgencyCollaboration::class);
+    }
+
     public function scopeSystem(Builder $query): Builder
     {
         return $query->where('is_system', true);
@@ -159,32 +169,54 @@ class AgencyRole extends AbstractModel
     }
 
     /**
-     * Profils rattachés à ce rôle, tous types confondus. Sert au 409 de
-     * `DELETE` (spec : « liste des profils en cause »).
+     * Porteurs de ce rôle. Sert au 409 de `DELETE` (spec : « liste des
+     * profils en cause »).
+     *
+     * **Pas toujours un profil, depuis TCK-315 (ADR-0016)** : pour
+     * `base_profile_type = service_provider`, le porteur est une ligne de
+     * `service_provider_agency_collaborations`. Sans cette branche, un rôle
+     * prestataire encore porté serait déclaré libre par l'API, puis
+     * refusé par la FK `restrictOnDelete` — un 500 au lieu d'un 409.
      *
      * @return EloquentCollection<int,Model>
      */
     public function attachedProfiles(): EloquentCollection
     {
-        $type = $this->base_profile_type;
-        $class = $type instanceof AgencyRoleBaseType ? $type->profileClass() : null;
+        $query = $this->holderQuery();
 
-        if ($class === null) {
-            return new EloquentCollection;
-        }
-
-        return $class::query()->where('agency_role_id', $this->id)->get();
+        return $query === null ? new EloquentCollection : $query->get();
     }
 
     public function attachedProfilesCount(): int
     {
-        $type = $this->base_profile_type;
-        $class = $type instanceof AgencyRoleBaseType ? $type->profileClass() : null;
+        $query = $this->holderQuery();
 
-        if ($class === null) {
-            return 0;
+        return $query === null ? 0 : $query->count();
+    }
+
+    /**
+     * Requête sur la table qui porte `agency_role_id` pour ce type de rôle,
+     * ou `null` si aucune ne le porte (`platform`, ou une valeur inconnue).
+     *
+     * ⚠️ Ne compte pas les lignes soft-deletées, alors que la FK
+     * `restrictOnDelete`, elle, les voit. La limite préexiste à TCK-315 sur
+     * les trois profils ; on la reproduit ici plutôt que de la corriger
+     * pour un seul type — un comptage qui diffère d'une branche à l'autre
+     * serait plus coûteux à lire que la limite elle-même.
+     */
+    private function holderQuery(): ?Builder
+    {
+        $type = $this->base_profile_type;
+        if (! $type instanceof AgencyRoleBaseType) {
+            return null;
         }
 
-        return $class::query()->where('agency_role_id', $this->id)->count();
+        if ($type === AgencyRoleBaseType::ServiceProvider) {
+            return ServiceProviderAgencyCollaboration::query()->where('agency_role_id', $this->id);
+        }
+
+        $class = $type->profileClass();
+
+        return $class === null ? null : $class::query()->where('agency_role_id', $this->id);
     }
 }

@@ -87,6 +87,27 @@ on:
       # sur `dev` et sortirait sur la PR de quelqu'un d'autre — la règle posée en haut
       # de ce bloc.
       - 'takussan-api/tests/impact-map.json'
+      # `check-test-base-classes` (TCK-309) lit TOUT `takussan-api/tests/`, et rien ci-dessus ne
+      # l'y déclenche : la ligne juste au-dessus vise UN fichier, les autres visent `app/`,
+      # `routes/` et `database/`. Une PR qui n'ajouterait qu'une quatrième classe de base de test
+      # ne déclencherait donc aucune ligne, et la garde resterait muette sur le seul défaut
+      # qu'elle existe pour voir — la règle posée en haut de ce bloc, à la lettre.
+      #
+      # Le préfixe rend la ligne `impact-map.json` redondante. Elle reste, et c'est voulu : même
+      # raison que pour `.github/workflows/**` plus haut — un préfixe couvre le fichier qu'on
+      # ajoutera, une énumération se re-vérifie à chaque ajout.
+      - 'takussan-api/tests/**'
+
+      # `check-impact-triggers` compare les trois constantes d'`ImpactSelector` à l'énumération
+      # de `takussan-api/CLAUDE.md`. Le second côté est déjà couvert plus haut ; le premier ne
+      # l'est par AUCUNE entrée — les déclencheurs visent `app/`, `routes/`, `database/` et le
+      # seul fichier `tests/impact-map.json`. Sans cette ligne, un déclencheur ajouté au code
+      # sans être documenté passerait sans que la garde ne s'exécute : la règle posée en haut de
+      # ce bloc, *les DEUX côtés qu'une garde compare doivent la déclencher*.
+      #
+      # Le préfixe plutôt que le nom du fichier : `tests/Support/` porte aussi `ImpactMap`,
+      # `SearchableModels` et `TestProcessToken`, et la prochaine garde de ce genre y vivra.
+      - 'takussan-api/tests/Support/**'
   push:
     branches: [dev, master]
     paths:
@@ -131,6 +152,27 @@ on:
       # sur `dev` et sortirait sur la PR de quelqu'un d'autre — la règle posée en haut
       # de ce bloc.
       - 'takussan-api/tests/impact-map.json'
+      # `check-test-base-classes` (TCK-309) lit TOUT `takussan-api/tests/`, et rien ci-dessus ne
+      # l'y déclenche : la ligne juste au-dessus vise UN fichier, les autres visent `app/`,
+      # `routes/` et `database/`. Une PR qui n'ajouterait qu'une quatrième classe de base de test
+      # ne déclencherait donc aucune ligne, et la garde resterait muette sur le seul défaut
+      # qu'elle existe pour voir — la règle posée en haut de ce bloc, à la lettre.
+      #
+      # Le préfixe rend la ligne `impact-map.json` redondante. Elle reste, et c'est voulu : même
+      # raison que pour `.github/workflows/**` plus haut — un préfixe couvre le fichier qu'on
+      # ajoutera, une énumération se re-vérifie à chaque ajout.
+      - 'takussan-api/tests/**'
+
+      # `check-impact-triggers` compare les trois constantes d'`ImpactSelector` à l'énumération
+      # de `takussan-api/CLAUDE.md`. Le second côté est déjà couvert plus haut ; le premier ne
+      # l'est par AUCUNE entrée — les déclencheurs visent `app/`, `routes/`, `database/` et le
+      # seul fichier `tests/impact-map.json`. Sans cette ligne, un déclencheur ajouté au code
+      # sans être documenté passerait sans que la garde ne s'exécute : la règle posée en haut de
+      # ce bloc, *les DEUX côtés qu'une garde compare doivent la déclencher*.
+      #
+      # Le préfixe plutôt que le nom du fichier : `tests/Support/` porte aussi `ImpactMap`,
+      # `SearchableModels` et `TestProcessToken`, et la prochaine garde de ce genre y vivra.
+      - 'takussan-api/tests/Support/**'
 
 jobs:
   guards:
@@ -252,6 +294,112 @@ jobs:
         # qu'il est bien décrit. C'est un cliquet contre la régression franche, pas une mesure de
         # qualité (dette D-23 : chercher un jeton ne mesure pas une propriété).
         run: node scripts/check-models-spec.mjs --report
+      - name: L'enveloppe de pagination se construit en un seul endroit
+        # Mesuré le 2026-08-17, avant convergence : **57 contrôleurs et 1 service** recopiaient la
+        # forme à la main, et les jeux de clés divergeaient — `total` 88 occurrences,
+        # `current_page` 67, `last_page` 51, `->perPage()` 40. Un tiers des endpoints émettait
+        # `total` sans `per_page`. Un client de l'API ne pouvait donc pas lire la pagination de la
+        # même façon d'un endpoint à l'autre : il devait la DÉCOUVRIR endpoint par endpoint.
+        # `takussan-web/src/types/api.ts` déclarait d'ailleurs `links` OBLIGATOIRE quand 52 des 57
+        # ne l'émettaient pas — et l'helper de test `assertJsonStructurePaginated` l'exigeait
+        # aussi, ce qui explique qu'aucun test ne l'appelait : il aurait rougi partout.
+        #
+        # La dette grossissait à la vitesse à laquelle on écrit des contrôleurs — 44 fichiers au
+        # 2026-08-12 (ardoise D-31), 58 quatre jours plus tard. `takussan-api/CLAUDE.md` tranchait
+        # déjà pour le code neuf, et n'a rien freiné : une convention qui n'existe que dans un
+        # document est lue une fois, par ceux qui la respectaient déjà (TCK-304).
+        #
+        # ⚠ La garde écrit sa portée dans sa sortie : elle interdit de RECONSTRUIRE l'enveloppe,
+        # elle ne vérifie pas que chaque liste l'émet. Un endpoint qui ne pagine pas du tout la
+        # satisfait — c'est un cliquet contre la ré-divergence, pas une preuve de couverture.
+        #
+        # Déclencheurs : `takussan-api/app/**` (ce qu'elle balaye) et `scripts/**` (elle-même)
+        # sont déjà dans les deux blocs `paths` ci-dessus. Rien à ajouter, et c'est vérifié —
+        # une garde déclenchée d'un seul côté ne voit qu'une moitié de l'écart qu'elle cherche.
+        run: node scripts/check-pagination-envelope.mjs --report
+
+      - name: Aucun contrôleur ne valide en ligne
+        # Mesuré le 2026-08-17 avant convergence : **120 `$request->validate()` inline** dans
+        # 58 contrôleurs, **511 champs de règles**, face à 74 classes FormRequest. Deux conventions
+        # pour le même geste, et rien qui arbitre : une contrainte métier ne pouvait pas être revue
+        # sans d'abord chercher laquelle des deux l'endpoint avait retenue.
+        #
+        # `takussan-api/CLAUDE.md` tranchait DÉJÀ pour le code neuf, et le compte a continué de
+        # monter — comme pour l'enveloppe de pagination, deux gardes plus haut. *Une convention qui
+        # n'existe que dans un document est lue une fois, par ceux qui la respectaient déjà.*
+        #
+        # La garde interdit QUATRE orthographes, pas une. La convergence a trouvé une troisième
+        # forme que le compte de 120 ne voyait pas — `validator([...], [...])->validate()` sur un
+        # tableau reconstruit à la main — et c'était exactement l'échappatoire par laquelle on
+        # aurait pu la contourner sans jamais mentir (TCK-305).
+        #
+        # ⚠ La garde écrit sa portée dans sa sortie : elle interdit de valider DANS un contrôleur,
+        # elle ne vérifie pas qu'un endpoint valide quoi que ce soit. Un contrôleur qui ne valide
+        # rien la satisfait — cliquet contre la ré-divergence, pas mesure de couverture (D-23).
+        run: node scripts/check-inline-validation.mjs --report
+
+      - name: Aucun contrôleur ne définit sa propre règle d'autorisation
+        # Mesuré le 2026-08-17 : **25 contrôleurs** définissaient chacun leur `authorizeAccess()` /
+        # `authorizeManage()` — **88 appels** — avec la même logique copiée-collée. La règle
+        # « propriétaire, périmètre d'agence, ou super-admin » était recopiée DIX fois pour le seul
+        # modèle `Property`, sous trois formes syntaxiques différentes.
+        #
+        # C'est le lot où une divergence ne rougit pas : elle ouvre une porte. Deux exemples
+        # mesurés, invisibles tous les deux : `DocumentController::authorizeManage()` autorisait le
+        # seul téléverseur quand `DocumentVersionController::authorizeManage()`, sur le MÊME modèle,
+        # autorisait aussi l'agence ; et un commentaire annonçait « Mirrors
+        # DocumentController::authorizeUpload() » sur sept branches recopiées — un commentaire qui
+        # annonce une duplication ne la corrige pas, il vieillit avec elle.
+        #
+        # La garde cherche une FORME, pas deux noms — et c'est ainsi qu'elle a trouvé 19 helpers de
+        # plus, sous 19 noms différents, que l'inventaire du ticket (« authorizeAccess ou
+        # authorizeManage ») ne pouvait pas voir. Ils sont hors périmètre de TCK-306 et inscrits
+        # dans EXEMPTIONS_JUSTIFIEES : la dette devient comptable au lieu d'être invisible.
+        #
+        # ⚠ La garde écrit sa portée dans sa sortie : elle interdit de DÉFINIR une règle dans un
+        # contrôleur, elle ne vérifie pas qu'un endpoint autorise quoi que ce soit (dette D-23).
+        run: node scripts/check-controller-authorization.mjs --report
+
+      - name: Le filtrage passe par un seul mécanisme
+        # `BaseModelTrait::scopeFilter(Builder, array)` coexistait avec spatie/laravel-query-builder
+        # sur les MÊMES modèles — `AbstractModel` compose les deux traits, donc les 68 modèles qui
+        # en héritent portaient les deux. Mesuré le 2026-08-17 : ZÉRO appelant dans tout le dépôt,
+        # contre 46 `buildQuery()` dans les seuls contrôleurs. Son unique usage était le test qui
+        # le testait (TCK-307).
+        #
+        # Le coût n'était pas les dix-neuf lignes, c'était l'AMBIGUÏTÉ : deux mécanismes également
+        # disponibles sur le même modèle ne se lisent pas « un vivant et un mort », ils se lisent
+        # « deux conventions, choisis ». Qui prenait le mauvais écrivait du code qui MARCHAIT et
+        # qui sortait du contrat de lecture — pas de sparse fieldsets, pas d'`include=`, pas de
+        # routage Scout, pas de tri déclaré.
+        #
+        # La garde a trois contrôles et le dit dans sa sortie : la non-vacuité (elle rougit si elle
+        # ne trouve plus sa cible — c'est le mode de défaillance qui rend une garde muette), le NOM
+        # (un cliquet, dette D-23), et la FORME — un scope à paramètre `array` qui déroule des
+        # `where()` en boucle, qui survit à un renommage. Elle ne couvre PAS le filtrage ad hoc en
+        # contrôleur : il y en a par choix assumé (TCK-281, « Hors périmètre »), et une garde qu'on
+        # ne peut pas rendre verte n'est pas une garde.
+        run: node scripts/check-filtering-single-mechanism.mjs --report
+      - name: Toute ressource API étend BaseResource
+        # `BaseResource` existe depuis TCK-048 et `takussan-api/CLAUDE.md` tranche pour le code neuf
+        # depuis. Mesuré le 12/08, le 16/08 puis le 17/08 : 7, 7 puis 8 ressources sur 44
+        # l'étendaient. Une dette qui ne bouge pas d'un pouce en quatre jours n'est pas violée par
+        # malveillance — elle est INVISIBLE au moment d'écrire le fichier suivant, parce que
+        # `extends JsonResource` est ce que rendent l'IDE, `artisan make:resource` et les 36 fichiers
+        # voisins. Une convention sans garde ne converge pas, elle stagne (D-36, TCK-308).
+        #
+        # La migration des 36 a été un ÉCHANGE DE PARENT et rien d'autre — 72 insertions, 72
+        # suppressions, deux lignes par fichier, aucun corps de `toArray()` touché. C'est ce qui la
+        # rend sûre sur le point le plus cher du dépôt : `BaseResource` n'offre AUCUN helper de
+        # montant, il ne peut donc pas en changer la représentation (principe n°3 — XOF n'a pas de
+        # sous-unité). `tests/Unit/Http/Resources/AmountRepresentationTest.php` fige ce point pour
+        # l'avenir, et il a été vérifié par ablation.
+        #
+        # ⚠ La garde couvre l'HÉRITAGE, pas l'EMPLOI, et l'écrit dans sa sortie : les dates restent
+        # émises sous trois formats incompatibles dans ces mêmes fichiers (55 `toISOString`, 37
+        # `toIso8601String`, 18 `toDateString`). Les unifier changerait la forme sur le fil, donc le
+        # contrat du front : c'est une décision de produit, pas un nettoyage.
+        run: node scripts/check-resources-extend-base.mjs --report
       - name: Aucun document normatif ne cite un chemin markdown mort
         # `models-spec.md` a cité `docs/claude-code-prompt-notifications.md` — JAMAIS ÉCRIT — assez
         # longtemps pour qu'on finisse par annoter la citation « *(jamais écrit — pointeur mort)* »
@@ -326,3 +474,67 @@ jobs:
 
       - name: Carte d'impact — structure et fraîcheur
         run: node scripts/check-impact-map.mjs --report
+
+      # ── TCK-309 — trois conventions qui avaient chacune DEUX emplacements également
+      # plausibles. Elles sont regroupées ici parce qu'elles sont de même nature, et pas
+      # parce qu'elles se touchent : quand deux endroits sont aussi défendables l'un que
+      # l'autre, le désordre ne stagne pas, il se REPRODUIT — le suivant lit le partage
+      # comme un précédent, et il n'existe aucun signal pour l'en dissuader.
+
+      - name: Il n'y a qu'une classe de base de test par usage
+        # Trois classes coexistaient EN CHAÎNE — `Tests\TestCase` → `Tests\BaseTestCase` →
+        # `Tests\ApiTestCase` — sans qu'aucun document ne dise laquelle étendre (D-37). Le
+        # maillon du milieu n'avait pas d'usage propre : ses helpers ne servaient rien de
+        # particulier aux tests non-API. Le partage qui en résultait ne suivait donc AUCUNE
+        # règle, seulement l'ordre d'écriture — 49 classes d'un côté, 38 de l'autre.
+        #
+        # La garde refuse une quatrième base, et refuse `Illuminate\Foundation\Testing\TestCase`
+        # en direct : celui-là contourne la coupure de synchronisation Scout de
+        # `Tests\TestCase::setUp()`, et le contournement est MUET — le test passe, et c'est la
+        # suite entière qui bascule au hasard plus tard (D-44).
+        run: node scripts/check-test-base-classes.mjs --report
+
+      - name: Aucune commande ne porte le nom du produit en préfixe
+        # `takussan:create-super-admin` était le SEUL `takussan:` sur 16 commandes ; les 15
+        # autres portent un préfixe de DOMAINE (D-38). `takussan:` n'en est pas un — c'est le
+        # nom du dépôt, et tout ce qui est ici lui appartient : le préfixe ne partitionne rien.
+        #
+        # La garde tolère UN alias déprécié, nommément, parce que `docs/features.md` §2.1
+        # prescrit encore l'ancien nom à l'installation d'un environnement. Elle rougit dans
+        # les DEUX sens : si le préfixe revient en `$signature`, et si l'alias déclaré
+        # disparaît du code — sans quoi le retirer par mégarde casserait un appelant hors du
+        # code, un jour de déploiement, en silence.
+        run: node scripts/check-command-prefixes.mjs --report
+
+      - name: L'authentification vit dans un seul namespace
+        # `Controllers\Auth\` (8 fichiers) et `Controllers\Api\Auth\` (5) servaient la même
+        # surface `api/auth/*`, câblée depuis le même unique `routes/api/auth.php`, sans
+        # qu'aucune règle n'ait jamais été écrite (D-40).
+        #
+        # La garde contrôle les DEUX bouts : aucun namespace `…\Auth` ailleurs, ET tout
+        # contrôleur câblé par `routes/api/auth.php` sous le namespace retenu. Le second
+        # attrape ce que le premier ne peut pas voir — un contrôleur d'auth posé à la racine,
+        # sans le mot `Auth` dans son namespace.
+        #
+        # ⚠ Elle ne prouve PAS que les URLs n'ont pas bougé, et elle l'écrit dans sa sortie :
+        # cela demande de démarrer l'application. C'est `php artisan route:list` avant/après
+        # qui l'a prouvé au déplacement — 516 routes, diff vide.
+        run: node scripts/check-auth-controller-namespace.mjs --report
+
+      - name: Les déclencheurs durs du sélecteur d'impact sont documentés tels qu'ils sont codés
+        # La liste des chemins qui imposent la SUITE ENTIÈRE est définie dans trois constantes
+        # d'`ImpactSelector` et recopiée à la main dans `takussan-api/CLAUDE.md`. Elle avait déjà
+        # dérivé le JOUR OÙ ELLE A ÉTÉ ÉCRITE — `composer.json` manquait à la copie — et c'est une
+        # revue de code qui l'a vu. Le fichier a ensuite porté l'aveu « rien ne la garde » : honnête,
+        # et sans effet sur le déclencheur suivant.
+        #
+        # Les deux sens ne coûtent pas pareil, d'où l'égalité stricte : un déclencheur absent de la
+        # doc fait perdre du temps ; un chemin documenté que le code ne déclenche PAS fait croire à
+        # une escalade qui n'a pas lieu — `impacted-tests.php` rend alors un vert qui ne prouve
+        # rien, la panne exacte que TCK-320 existe pour rendre impossible. `INERT_PREFIXES` est
+        # couverte au même titre : c'est la seule dont un ajout non documenté fabrique ce faux vert.
+        #
+        # ⚠ La garde compare des ENSEMBLES de chemins, jamais la prose qui les entoure, et elle
+        # échoue DUR si une constante devient introuvable — une garde qui passe parce qu'elle ne
+        # trouve plus sa cible est pire qu'aucune garde (TCK-325).
+        run: node scripts/check-impact-triggers.mjs --report

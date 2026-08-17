@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Admin\UpdateIntegrationRequest;
 use App\Models\Integration;
 use App\Services\Admin\IntegrationService;
 use Illuminate\Http\JsonResponse;
@@ -27,13 +28,9 @@ class IntegrationController extends Controller
         return $this->json(['data' => $this->integrations->schema($integration)]);
     }
 
-    public function update(Request $request, Integration $integration): JsonResponse
+    public function update(UpdateIntegrationRequest $request, Integration $integration): JsonResponse
     {
-        $data = $request->validate([
-            'credentials' => ['sometimes', 'array'],
-            'is_active' => ['sometimes', 'boolean'],
-            'metadata' => ['sometimes', 'nullable', 'array'],
-        ]);
+        $data = $request->validated();
 
         return $this->json(['data' => $this->integrations->update($integration, $data, $request->user())]);
     }
@@ -57,12 +54,7 @@ class IntegrationController extends Controller
                 'processed_at' => $log->processed_at?->toISOString(),
                 'created_at' => $log->created_at?->toISOString(),
             ])->all(),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-            ],
+            'meta' => $this->paginationMeta($paginator),
         ]);
     }
 }

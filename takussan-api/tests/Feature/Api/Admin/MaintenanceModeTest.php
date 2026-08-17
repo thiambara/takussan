@@ -6,9 +6,9 @@ use App\Models\MaintenanceWindow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class MaintenanceModeTest extends BaseTestCase
+class MaintenanceModeTest extends TestCase
 {
     use RefreshDatabase;
 

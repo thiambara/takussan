@@ -23,15 +23,7 @@ class KycController extends Controller
             ->defaultSort('submitted_at')
             ->paginate($perPage);
 
-        return $this->json([
-            'data' => KycDossierResource::collection($dossiers)->resolve($request),
-            'meta' => [
-                'total' => $dossiers->total(),
-                'current_page' => $dossiers->currentPage(),
-                'last_page' => $dossiers->lastPage(),
-                'per_page' => $dossiers->perPage(),
-            ],
-        ]);
+        return $this->paginated($dossiers, KycDossierResource::collection($dossiers)->resolve($request));
     }
 
     public function agency(Request $request, Agency $agency): JsonResponse

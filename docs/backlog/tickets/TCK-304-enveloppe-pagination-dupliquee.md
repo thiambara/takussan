@@ -1,13 +1,13 @@
 ---
 id: TCK-304
 title: "Enveloppe de pagination dupliquée à la main sur 58 fichiers, avec des clés incohérentes"
-status: todo
+status: review
 phase: P2
 family: technique
 estimate: L
 wave: 39
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-17
 depends_on: [TCK-279]
 blocks: []
 spec_refs:
@@ -85,4 +85,46 @@ converger. `BaseResource` et l'infrastructure de réponse existent depuis TCK-04
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Point canonique** : `takussan-api/app/Http/Responses/PaginationMeta.php` — une classe, pas une
+méthode de `Base\Controller`, parce que le 58ᵉ site est un **service** :
+`App\Services\Search\PropertySearchService` pagine un résultat Meilisearch et n'a aucun
+paginateur Eloquent à donner. D'où deux entrées : `::from(LengthAwarePaginator)` pour le cas
+courant, `::of(total:, perPage:, currentPage:, lastPage:)` pour les compteurs bruts. Sans la
+seconde, ce service serait resté la dernière copie manuelle — et la garde l'aurait poussé à se
+cacher plutôt qu'à converger. `Base\Controller::paginated()` / `::paginationMeta()` ne font que
+déléguer, pour que le point exempté par la garde reste **un seul fichier**.
+
+**Inventaire réel, mesuré le 2026-08-17** (le ticket annonçait 58 fichiers d'après une mesure du
+2026-08-16) : **57 contrôleurs + 1 service**. Occurrences : `total` 88, `current_page` 67,
+`last_page` 51, `->perPage()` 40. 62 blocs `meta` distincts.
+
+**Deux choses que la convergence a mises au jour, et qui étaient muettes :**
+
+1. `takussan-web/src/types/api.ts` et `types/common.ts` déclaraient `links` **obligatoire** quand
+   **52 endpoints sur 57** ne l'émettaient pas. Un type de réponse n'est vérifié par rien : il
+   n'est vrai que tant que quelqu'un le tient à jour. `links` a été retiré des 5 endpoints qui
+   l'émettaient — vérifié par grep sur `takussan-web/src/` qu'**aucun code ne le lit** à
+   l'exécution (seules des fixtures de test le posent) — et rendu optionnel dans les deux types.
+2. `BaseTestCase::assertJsonStructurePaginated()` exigeait la même racine `links`. Il aurait donc
+   rougi sur presque toute l'API, ce qui explique qu'**aucun test ne l'appelait**. Il a été rendu
+   *plus* strict sur ce qui reste (les quatre valeurs vérifiées entières, pas seulement présentes)
+   et couvert par deux tests d'ablation qui le font échouer sur une enveloppe amputée et sur une
+   valeur nulle — une assertion que personne n'appelle n'assère rien.
+
+**Le seul faux positif du passage mécanique** a été rattrapé par le typage :
+`PublicPropertyController::discovery()` émet `'meta' => ['per_row' => $request->perRow()]` — même
+*forme* syntaxique, mais l'endpoint ne pagine pas et la variable est la requête. Le
+`LengthAwarePaginator` en signature a produit un `TypeError` immédiat sur 14 tests. Un helper à
+signature `mixed` aurait laissé passer.
+
+**Portée de la garde** (`scripts/check-pagination-envelope.mjs`), écrite dans sa propre sortie :
+elle interdit de RECONSTRUIRE l'enveloppe, elle ne vérifie pas que chaque liste l'émet.
+`'total' =>` et `'per_page' =>` restent libres — `total` porte des agrégats métier légitimes,
+`per_page` est aussi un nom de paramètre validé ; les bannir aurait produit une quinzaine de faux
+positifs le jour de l'écriture, c'est-à-dire une garde qu'on désactive.
+
+**Épreuve par mutation — la 4ᵉ a trouvé un vrai défaut dans la garde.** Retirer
+`app/Http/Controllers/` en entier (165 fichiers, là où vivent toutes les enveloppes) laissait
+632 fichiers, au-dessus du plancher global de 300 : la garde rendait « ✓ 0 reconstruction »,
+sortie 0. Un plancher global ne voit pas disparaître un sous-arbre — il voit un total qui baisse.
+Les planchers sont désormais **par sous-arbre**, et la mutation sort en 1.

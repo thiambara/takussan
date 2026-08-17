@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Me;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Responses\PaginationMeta;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\Profiles\ServiceProviderProfile;
@@ -36,13 +37,20 @@ class ServiceProviderAgenciesController extends Controller
             ->where('user_id', $user->id)
             ->first();
 
+        $perPage = (int) $request->input('per_page', 20);
+
         if ($sp === null) {
+            // La liste vide reste une LISTE : elle porte les quatre clés canoniques comme les
+            // autres. Elle n'émettait que `total` — un client qui lit `last_page` obtenait
+            // `undefined` sur ce seul chemin, et sur aucun autre (TCK-304).
             return $this->json([
                 'data' => [],
-                'meta' => [
-                    'total' => 0,
-                    'service_provider_profile_id' => null,
-                ],
+                'meta' => PaginationMeta::of(
+                    total: 0,
+                    perPage: $perPage,
+                    currentPage: 1,
+                    extra: ['service_provider_profile_id' => null],
+                ),
             ]);
         }
 
@@ -50,27 +58,14 @@ class ServiceProviderAgenciesController extends Controller
 
         $paginator = ServiceProviderAgencyCollaboration::buildQuery($base, $request)
             ->defaultSort('-created_at')
-            ->paginate((int) $request->input('per_page', 20));
+            ->paginate($perPage);
 
-        return $this->json([
-            'data' => $paginator->items(),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-                'service_provider_profile_id' => $sp->id,
-                'active_count' => ServiceProviderAgencyCollaboration::query()
-                    ->where('service_provider_profile_id', $sp->id)
-                    ->where('status', CollaborationStatus::Active->value)
-                    ->count(),
-            ],
-            'links' => [
-                'first' => $paginator->url(1),
-                'last' => $paginator->url($paginator->lastPage()),
-                'prev' => $paginator->previousPageUrl(),
-                'next' => $paginator->nextPageUrl(),
-            ],
+        return $this->paginated($paginator, $paginator->items(), [
+            'service_provider_profile_id' => $sp->id,
+            'active_count' => ServiceProviderAgencyCollaboration::query()
+                ->where('service_provider_profile_id', $sp->id)
+                ->where('status', CollaborationStatus::Active->value)
+                ->count(),
         ]);
     }
 

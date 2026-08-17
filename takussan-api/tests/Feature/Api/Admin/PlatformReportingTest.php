@@ -11,9 +11,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class PlatformReportingTest extends BaseTestCase
+class PlatformReportingTest extends TestCase
 {
     use RefreshDatabase;
 

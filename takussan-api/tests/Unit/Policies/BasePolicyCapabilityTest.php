@@ -134,7 +134,23 @@ class BasePolicyCapabilityTest extends TestCase
      * Une ability sans capacité déclarée REFUSE. C'est exactement ce que le
      * code faisait déjà — par accident, via une Gate jamais définie. Ce test
      * fige le comportement pour que la correction soit prouvée sans effet de
-     * bord : ce ticket rend l'intention lisible, il ne rouvre aucun accès.
+     * bord : TCK-297 rend l'intention lisible, il ne rouvre aucun accès.
+     *
+     * ⚠ **TCK-306 — le sujet de ce test a changé, et c'est le fond de l'affaire.**
+     * Il portait sur `LeasePolicy`, qui ne surchargeait alors NI `view` NI
+     * `update` : ces deux abilities retombaient donc sur le défaut de
+     * `BasePolicy` et refusaient tout le monde sauf le super-admin — pendant
+     * que quatre contrôleurs laissaient passer bailleur, agence et locataire
+     * par leurs propres `authorizeAccess()`. Le test ne mesurait pas une
+     * décision, il mesurait un TROU : la policy était muette parce que la
+     * règle vivait ailleurs.
+     *
+     * TCK-306 remplit ce trou, donc `LeasePolicy::view()` autorise désormais.
+     * L'invariant, lui, n'a pas bougé — il se teste sur une sous-classe qui
+     * ne déclare RIEN, c'est-à-dire sur le générateur plutôt que sur un de
+     * ses clients. Les deux abilities de `LeasePolicy` qui restent sans règle
+     * explicite (`viewAny`, `delete`) sont conservées ici : elles prouvent que
+     * le défaut vaut toujours pour une policy réelle.
      */
     public function test_an_ability_without_capability_denies_a_non_super_admin(): void
     {
@@ -144,12 +160,41 @@ class BasePolicyCapabilityTest extends TestCase
 
         $lease = Lease::factory()->create(['agency_id' => $agency->id]);
 
+        // Le générateur lui-même : aucune capacité, aucune surcharge d'ability.
+        $nue = new class extends BasePolicy {};
+
+        $this->assertFalse($nue->viewAny($user));
+        $this->assertFalse($nue->view($user, $lease));
+        $this->assertFalse($nue->update($user, $lease));
+        $this->assertFalse($nue->delete($user, $lease));
+
+        // Et sur une policy réelle, pour les abilities qu'elle laisse au défaut.
         $policy = new LeasePolicy;
 
         $this->assertFalse($policy->viewAny($user), 'leases n’a pas de capacité de lecture');
-        $this->assertFalse($policy->view($user, $lease));
-        $this->assertFalse($policy->update($user, $lease));
         $this->assertFalse($policy->delete($user, $lease));
+    }
+
+    /**
+     * TCK-306 — le pendant du test ci-dessus : là où une règle EXPLICITE a été
+     * écrite, elle doit l'emporter sur le défaut refusant de `BasePolicy`.
+     *
+     * Sans cette assertion, remplacer `LeasePolicy::view()` par un `return
+     * false` rendrait le test précédent vert et le trou se rouvrirait en
+     * silence — le mode de défaillance exact que TCK-297 documente.
+     */
+    public function test_an_ability_with_an_explicit_rule_overrides_the_denying_default(): void
+    {
+        $agency = Agency::factory()->create();
+        $user = User::factory()->create(['agency_id' => $agency->id]);
+        $this->materializeRoleProfile($user, 'agency_admin', $agency);
+
+        $lease = Lease::factory()->create(['agency_id' => $agency->id]);
+
+        $policy = new LeasePolicy;
+
+        $this->assertTrue($policy->view($user, $lease), "l'agence du bail le lit (TCK-306)");
+        $this->assertTrue($policy->update($user, $lease), "l'agence du bail l'administre (TCK-306)");
     }
 
     /**

@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { AdminAgencyUserRow } from '@/types/admin-users';
+import type { AgencyRoleAssignment } from '@/types/agency-role';
 
 type SortableKey = 'created_at' | 'last_login_at' | 'first_name';
 
@@ -49,6 +50,16 @@ interface AdminUsersTableProps {
   rows: AdminAgencyUserRow[];
   total: number;
   currentUserId: number;
+  /**
+   * TCK-279 (AC11) — le ou les `AgencyRole` que porte chaque utilisateur
+   * DANS cette agence, indexés par `user_id`.
+   *
+   * Optionnel, et le repli est le TYPE de profil (`row.roles`) : la carte
+   * arrive par une seconde requête, et afficher « — » pendant qu'elle
+   * voyage remplacerait une donnée juste par un vide qui se lit comme une
+   * absence de rôle. La colonne se précise quand la réponse arrive.
+   */
+  assignmentsByUser?: ReadonlyMap<number, readonly AgencyRoleAssignment[]>;
   onSelect: (user: AdminAgencyUserRow) => void;
   onQuickAction: (user: AdminAgencyUserRow, action: 'block' | 'activate') => void;
   onRemove?: (user: AdminAgencyUserRow) => void;
@@ -58,6 +69,7 @@ export function AdminUsersTable({
   rows,
   total,
   currentUserId,
+  assignmentsByUser,
   onSelect,
   onQuickAction,
   onRemove,
@@ -141,6 +153,28 @@ export function AdminUsersTable({
                 </td>
                 <td className="px-4 py-3">
                   {(() => {
+                    // TCK-279 (AC11) — le nom de l'`AgencyRole` prime sur le
+                    // TYPE de profil : deux agents de la même agence peuvent
+                    // porter « Agent » et « Agent senior », et c'est
+                    // exactement la distinction que cette colonne existe
+                    // pour montrer depuis ce ticket.
+                    const assignments = assignmentsByUser?.get(row.id) ?? [];
+                    if (assignments.length > 0) {
+                      return (
+                        <span className="flex flex-wrap gap-1">
+                          {assignments.map((a) => (
+                            <Badge
+                              key={`${a.profile_type}-${a.profile_id}`}
+                              variant="outline"
+                              className="border-primary/30 bg-primary/5 text-primary"
+                            >
+                              {a.agency_role_name ?? ROLE_LABEL[a.profile_type] ?? a.profile_type}
+                            </Badge>
+                          ))}
+                        </span>
+                      );
+                    }
+
                     // TCK-278 — `row.roles` peut être `string[]`
                     // (UserResource standard) ou `Array<{name}>` (vue admin
                     // détaillée). Normalise pour récupérer un label.

@@ -23,14 +23,6 @@ class PlatformPayoutController extends Controller
             ->defaultSort('-period_end')
             ->paginate($request->integer('per_page', 20));
 
-        return $this->json([
-            'data' => PlatformPayoutResource::collection($payouts->items())->resolve($request),
-            'meta' => [
-                'current_page' => $payouts->currentPage(),
-                'last_page' => $payouts->lastPage(),
-                'per_page' => $payouts->perPage(),
-                'total' => $payouts->total(),
-            ],
-        ]);
+        return $this->paginated($payouts, PlatformPayoutResource::collection($payouts->items())->resolve($request));
     }
 }

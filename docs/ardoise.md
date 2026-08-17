@@ -1515,9 +1515,13 @@ inégale, et les trous sont concentrés là où ça compte.
 >
 > **Et il ne l'a pas été.** Re-vérifié le 2026-08-16 : `app/Services/Model/PropertyService.php`
 > existe toujours, toujours sans appelant. Le constat était juste, la conclusion aussi, et rien ne
-> s'est produit — *une dette nommée dans un document n'est pas une dette prise en charge.* Rattrapé
-> par [TCK-307](backlog/tickets/TCK-307-supprimer-dsl-scopefilter-mort.md), qui supprime le code
-> mort de cette famille.
+> s'est produit — *une dette nommée dans un document n'est pas une dette prise en charge.*
+>
+> ✅ **Supprimé le 2026-08-17** par [TCK-307](backlog/tickets/TCK-307-supprimer-dsl-scopefilter-mort.md).
+> L'inventaire a couvert le dépôt entier — pas seulement `app/` — et les résolutions par conteneur,
+> injections par type et références en chaîne : **la classe n'était nommée nulle part sauf dans sa
+> propre déclaration.** Elle n'apparaît même pas dans `tests/impact-map.json`, ce qui confirme le
+> « 0/19 lignes » par un second chemin : aucun test ne l'a jamais traversée.
 >
 > **Ce qui était réellement muet, et que TCK-285 a livré** : le pipeline de rapprochement bancaire
 > (`ParseBankStatementJob::handle` 0/52, `MatchBankStatementJob::handle` 0/18,
@@ -1536,6 +1540,16 @@ le cœur métier : `BookingService`, `PropertyService`, `LeasePaymentService`, `
 > parce que `WizardDraftController` ne l'appelle **jamais** (il filtre par
 > `where('user_id', …)`). C'est une policy morte enregistrée par auto-discovery, pas une policy non
 > testée : lui écrire un test serait écrire un test qui ne garde rien.
+>
+> ✅ **Supprimée le 2026-08-17** par [TCK-307](backlog/tickets/TCK-307-supprimer-dsl-scopefilter-mort.md).
+> L'inventaire a cherché les `Gate::allows()`/`Gate::authorize()`/`can()` qui l'auraient atteinte
+> **sans la nommer** — l'auto-discovery rend ce cas possible : zéro. Le choix « supprimer ou
+> câbler » a été tranché en faveur de la suppression, et le motif décisif n'est pas la redondance
+> mais le sens : `Gate::before(… isSuperAdmin())` est un bypass global, donc **câbler la policy
+> aurait ouvert au super-admin la lecture du brouillon d'un autre utilisateur**, que la clause
+> `where('user_id', …)` refuse aujourd'hui. Une « mise en conformité » aurait été un changement de
+> comportement. Le raisonnement est écrit dans le docblock de `WizardDraftController`, là où le
+> prochain lecteur cherchera la policy absente.
 >
 > **Ce qui manquait vraiment, ce sont les CHEMINS DE REFUS**, et ils sont invisibles à un grep de
 > nom : une douzaine de méthodes — `InvitationPolicy::viewAny`/`::view`,
@@ -1938,7 +1952,60 @@ n'est pas prise, l'activation en CI reste une option ouverte, pas une décision 
 
 ---
 
-### D-49 — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage 🟡 *mesuré le 2026-08-17* → [TCK-322](backlog/tickets/TCK-322-paratest-deux-executions-simultanees.md)
+### D-56 — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage 🟢 *cause nommée et corrigée le 2026-08-17 ; épreuve sur la suite ENTIÈRE encore à jouer* → [TCK-322](backlog/tickets/TCK-322-paratest-deux-executions-simultanees.md)
+
+> **Mise à jour du 2026-08-17 — le répertoire fautif est nommé, et ce n'était pas ParaTest.**
+>
+> ```
+> TestViews.php:24-28    File::ensureDirectoryExists($this->parallelSafeCompiledViewPath())
+> TestViews.php:47-58    <view.compiled>/test_<ParallelTesting::token()>
+> Filesystem.php:643     ensureDirectoryExists() — is_dir() PUIS makeDirectory()
+> Filesystem.php:662     return mkdir($path, $mode, $recursive);   ← sans @, sans force
+> ```
+>
+> Concrètement : **`storage/framework/views/test_1` … `test_8`** — le seul index du worker.
+> `Illuminate\Testing\Concerns\TestViews::bootTestViews()` enregistre ce rappel `setUpProcess`, et
+> `RunsInParallel::forEachProcess()` l'exécute dans le processus **PARENT** de ParaTest en posant
+> lui-même le jeton `1, 2… N` (`ParallelTesting::resolveTokenUsing()`). Deux exécutions demandent
+> donc exactement les mêmes huit chemins, et `ensureDirectoryExists()` est un `is_dir()` **suivi**
+> d'un `mkdir()` : non atomique, et sans `force`, donc il LÈVE au lieu de rendre `false`.
+>
+> **C'est pourquoi le jeton composé de TCK-321 n'y pouvait rien** : il est posé dans
+> `tests/bootstrap.php`, le bootstrap PHPUnit — que le processus parent n'exécute jamais. Et c'est
+> pourquoi `--tmp-dir` ne corrigeait rien : le répertoire fautif est celui de l'application, pas
+> celui de ParaTest. *La règle de TCK-314 — nommer avant de corriger — a payé une deuxième fois : on
+> aurait déplacé la collision.*
+>
+> Le même chemin portait un **second danger, silencieux** : le rappel `tearDownProcess` fait
+> `File::deleteDirectory($path)`. L'exécution qui finissait la première effaçait les vues compilées
+> de l'autre, en pleine course — un rouge qui n'aurait ressemblé à rien de connu.
+>
+> **Correctif** : les vues compilées sont enracinées dans `<views>/run_<discriminant d'exécution>`
+> (`Tests\Support\TestCompiledViews`), posé dans le parent via `Tests\CreatesApplication` — un trait
+> que **rien dans ce dépôt n'importe**, et que `RunsInParallel::createApplication()` trouve par
+> `trait_exists()`. Le supprimer ne casserait aucun `use` et rouvrirait la panne en silence, d'où
+> `tests/Unit/Testing/CompiledViewIsolationTest.php`, qui garde les trois maillons — le trait, son
+> appel, et **le fait que le framework le consulte encore**.
+>
+> **Mesuré, 8 cœurs, le 2026-08-17** : cinq paires d'exécutions `--parallel` simultanées, **0 échec
+> des deux côtés à chaque fois** (`load average` relevé au départ : 21,96 · 23,18 · 22,77 · 21,26 ·
+> 93,80), plus une paire sur des tests qui compilent réellement du Blade, verte à `load average`
+> 215,72. **Ablation** : le correctif retiré, l'une des deux remeurt aussitôt sur `mkdir(): File
+> exists`, sortie 1, sans résumé.
+>
+> ⚠ **Ce que ces chiffres ne disent pas.** Toutes ces paires portent sur des SOUS-ENSEMBLES. La
+> panne étant un démarrage impossible — elle survient avant le premier test, quels que soient les
+> tests — le correctif est éprouvé là où elle vit ; mais l'AC2 du ticket demande « 0 échec des deux
+> côtés » sur la suite **entière**, et cette paire-là n'a pas été jouée : elle dépasse ce qu'un agent
+> délégué peut lancer. Tant qu'elle ne l'est pas, `CLAUDE.md` garde « un seul agent à la fois » pour
+> la suite entière en `--parallel`.
+>
+> **Le sous-texte de D-49 reste vrai et vaut plus que sa correction** : *chaque outil ajouté au
+> harnais ajoute la question de ce qu'il partage par machine* — et cette quatrième ressource-là ne
+> vivait même pas dans l'outil qu'on soupçonnait.
+
+<details>
+<summary>Le constat d'origine, tel qu'il a été écrit le 2026-08-17</summary>
 
 Trouvé **en éprouvant l'AC5 de TCK-321**, et laissé hors de son périmètre à dessein.
 
@@ -1976,6 +2043,8 @@ TCK-314).
 séquentiel supporte la simultanéité depuis D-44, et `bin/impacted-tests.php` (TCK-320) aussi — la
 boucle quotidienne n'est donc pas bloquée, c'est le rituel de fin de branche qui doit rester sériel.
 
+</details>
+
 ---
 
 ## 🟡 Dette de code — conventions concurrentes
@@ -1992,16 +2061,18 @@ pour le code neuf** ; l'existant reste à converger.
 
 | # | Dette | Mesure — **2026-08-16** | Tranché pour le neuf | Ticket |
 |---|---|---|---|---|
-| **D-31** | Enveloppe de pagination dupliquée à la main | **58 fichiers** *(44 le 12/08 — +14 en quatre jours)*, clés incohérentes : `total` 78×, `current_page` 66×, `last_page` 50×, `per_page` 45×, `links`/`from`/`to` sporadiques | les 4 clés canoniques | [TCK-304](backlog/tickets/TCK-304-enveloppe-pagination-dupliquee.md) |
-| **D-32** | Validation inline vs FormRequest | 120 `$request->validate()` vs **65** FormRequest *(69 le 12/08 — méthode de comptage différente)* | `BaseFormRequest` | [TCK-305](backlog/tickets/TCK-305-validation-inline-vers-formrequest.md) |
-| **D-33** | Policy vs helpers de contrôleur | 16 policies, mais **25 contrôleurs** *(38 le 12/08 — **surestimé d'un tiers**)* redéfinissent `authorizeAccess()`/`authorizeManage()`, **88 appels** *(124 le 12/08)* | policy | [TCK-306](backlog/tickets/TCK-306-autorisation-controleurs-vers-policies.md) |
-| **D-34** | ~~Deux mécanismes de filtrage concurrents~~ → **code mort toujours branché** | `scopeFilter` vit dans `BaseModelTrait`, monté sur tous les modèles via `AbstractModel` — mais **0 appelant** contre **46 `buildQuery()`**. Le choix est fait ; reste à supprimer le perdant | `buildQuery()` pour toute API | [TCK-307](backlog/tickets/TCK-307-supprimer-dsl-scopefilter-mort.md) |
+| **D-31** | Enveloppe de pagination dupliquée à la main | ✅ **soldé le 2026-08-17** (TCK-304) — **57 contrôleurs + 1 service** convergés vers le point canonique unique ; gardé par `scripts/check-pagination-envelope.mjs`, **4 mutations rouges**. `takussan-web/src/types/api.ts` corrigé (`links` rendu optionnel) : suite front 888 tests, 0 échec. | les 4 clés canoniques | [TCK-304](backlog/tickets/TCK-304-enveloppe-pagination-dupliquee.md) |
+| **D-32** | Validation inline vs FormRequest | ✅ **soldé le 2026-08-17** (TCK-305) — **121 sites** convergés vers `BaseFormRequest` ; gardé par `scripts/check-inline-validation.mjs` (165 contrôleurs balayés, **0 validation en ligne**, 199 FormRequest), **5 mutations rouges**. ⚠ La convergence inversait **403 → 422 sur 67 instructions / 65 méthodes** — corrigé en portant l'autorisation dans `authorize()`, et **épinglé par 18 tests** dont l'ablation rend bien 422. | `BaseFormRequest` | [TCK-305](backlog/tickets/TCK-305-validation-inline-vers-formrequest.md) |
+| **D-33** | Policy vs helpers de contrôleur | ✅ **soldé le 2026-08-17** (TCK-306) — **25 contrôleurs / 88 appels** rattachés à leurs policies ; gardé par `scripts/check-controller-authorization.mjs`, **6 mutations rouges**. ⚠ **19 helpers restent hors périmètre**, comptés et bloqués contre toute addition — ticket de suite. | policy | [TCK-306](backlog/tickets/TCK-306-autorisation-controleurs-vers-policies.md) |
+| **D-34** | ~~Deux mécanismes de filtrage concurrents~~ → **code mort toujours branché** | ✅ **soldé le 2026-08-17** — `scopeFilter` supprimé de `BaseModelTrait`, avec `PropertyService` et `WizardDraftPolicy` (même famille). L'inventaire a couvert le dépôt entier et les invocations dynamiques : **0 appelant** hors du test qui le testait. `scripts/check-filtering-single-mechanism.mjs` (Repo CI) garde la suppression **y compris sous un autre nom**. ⚠ `scopeWithSearch()` subsiste — même motif, hors périmètre du ticket, cf. D-34bis | `buildQuery()` pour toute API | [TCK-307](backlog/tickets/TCK-307-supprimer-dsl-scopefilter-mort.md) |
+| **D-34bis** | `scopeWithSearch()` — le jumeau non traité de D-34 | **Trouvé le 2026-08-17 en soldant TCK-307**, et pas mesuré avant : le second scope du DSL maison (`BaseModelTrait::scopeWithSearch`) n'a **aucun appelant hors de `tests/Feature/Search/ScoutSearchTest.php`**, c'est-à-dire hors du test qui le teste — exactement le motif de D-34. Il était HORS PÉRIMÈTRE de TCK-307, dont le *Delta à produire* ne nomme que `scopeFilter`, et il n'a donc pas été supprimé : **le retirer changerait le compte de tests d'une suite que le ticket exigeait de ne réduire que du DSL nommé.** Un cran plus subtil que D-34 pourtant : son docblock avertit que la pertinence Scout est **perdue** sur ce chemin, alors que `HasQueryBuilder` la restitue depuis TCK-281 — donc ce n'est pas un doublon inerte, c'est un doublon **inférieur**. La garde `check-filtering-single-mechanism.mjs` ne le voit pas : il ne prend pas de tableau et ne boucle pas de `where()`. **À trancher : supprimer, ou écrire pourquoi il vit.** | `filter[search]` via `buildQuery()` | [TCK-326](backlog/tickets/TCK-326-supprimer-scopewithsearch-doublon-inferieur.md) |
 | **D-35** | ~~`BasePolicy` morte par construction~~ → **piège latent, et le mélange est pire** | `properties.create`/`.delete` **existent**, `.view` non ; `leases.view`/`.update`/`.delete` non ; `media.` n'est pas même un préfixe de `Capability`. Les 15 sites d'appel ont été inventoriés : **aucun n'atteint une ability cassée aujourd'hui** — mais le premier `authorize('view', $lease)` refusera tout le monde sauf super-admin, en silence | — *(à corriger + garde)* | [TCK-297](backlog/tickets/TCK-297-basepolicy-capacites-inexistantes.md) |
-| **D-36** | `BaseResource` peu adoptée | **7 ressources sur 44** l'étendent — inchangé depuis le 12/08 | `BaseResource` | [TCK-308](backlog/tickets/TCK-308-baseresource-adoptee-par-7-sur-44.md) |
-| **D-37** | Trois classes de base de test | `TestCase`, `BaseTestCase`, `ApiTestCase`, sans règle écrite — confirmé | `ApiTestCase` pour l'API | [TCK-309](backlog/tickets/TCK-309-conventions-mineures-dedoublees.md) |
-| **D-38** | Deux préfixes de commandes plateforme | `platform:grant-super-admin` et `takussan:create-super-admin` (posée par TCK-263) font le même travail — confirmé | `platform:` | [TCK-309](backlog/tickets/TCK-309-conventions-mineures-dedoublees.md) |
+| **D-36** | `BaseResource` peu adoptée | ✅ **soldé le 2026-08-17** — les **44 ressources** l'étendent, gardé par `scripts/check-resources-extend-base.mjs` (Repo CI). Elles étaient 7, 7 puis **8** aux mesures des 12, 16 et 17/08 : le ticket annonçait « 7 sur 44 », il y en avait 8 — `AgencyRoleResource` est née entre-temps, et c'est exactement le profil d'une convention que rien ne mesure. Migration = **échange de parent, rien d'autre** (72 insertions / 72 suppressions, deux lignes par fichier), donc **aucun montant n'a changé de représentation, par construction** : `BaseResource` n'offre aucun helper de montant. ⚠ Reste ouvert : les dates sortent sous **trois** formats incompatibles dans ces mêmes fichiers (55 `toISOString`, 37 `toIso8601String`, 18 `toDateString`) — les unifier changerait le contrat du front, cf. D-36bis | `BaseResource` | [TCK-308](backlog/tickets/TCK-308-baseresource-adoptee-par-7-sur-44.md) |
+| **D-36bis** | Trois formats de date sur la même API | **Mesuré le 2026-08-17 en soldant TCK-308**, et jamais avant : `app/Http/Resources/` émet des dates sous **55** `toISOString()` (`2026-08-17T12:34:56.000000Z`), **37** `toIso8601String()` (`2026-08-17T12:34:56+00:00`) et **18** `toDateString()` (`2026-08-17`). Les trois cohabitent parfois dans le MÊME fichier. C'est précisément ce que l'*Objectif utilisateur* de TCK-308 visait — « qu'une date se sérialise de la même façon sur toute l'API » — et ce que ce ticket **n'a pas livré**, à raison : `BaseResource::iso()` rend la deuxième forme, donc unifier reviendrait à changer la valeur émise sur le fil pour 73 champs, sans qu'aucun test ni typage du front ne le signale. **Une rupture de contrat ne se fait pas en passant.** À trancher : quel format gagne, et qui balaie le front — le ticket exige un ADR AVANT toute conversion. | *(ADR à écrire)* | [TCK-327](backlog/tickets/TCK-327-trois-formats-de-date-sur-la-meme-api.md) |
+| **D-37** | Trois classes de base de test | ✅ **soldé le 2026-08-17** (TCK-309) — `BaseTestCase` **fondue dans `Tests\TestCase`** et supprimée, 49 classes migrées. **Trois** bases demeurent, et c'est délibéré : `PHPUnit\Framework\TestCase` (10 tests unitaires purs qui ne démarrent pas l'application), `Tests\TestCase` (304), `Tests\ApiTestCase` (38) — trois USAGES distincts. Règle écrite dans `takussan-api/CLAUDE.md`, gardée par `scripts/check-test-base-classes.mjs`. | `ApiTestCase` pour l'API | [TCK-309](backlog/tickets/TCK-309-conventions-mineures-dedoublees.md) |
+| **D-38** | Deux préfixes de commandes plateforme | ✅ **soldé le 2026-08-17** (TCK-309) — `platform:create-super-admin`, avec **alias déprécié conservé** parce que `docs/features.md` §2.1 prescrit encore l'ancien nom : le renommer sec aurait laissé la spec pointer une commande inexistante, le jour de l'installation d'un environnement. ⚠ **Correction du diagnostic** : les deux commandes ne font PAS le même travail — `create` provisionne l'opérateur (user + 2FA + 8 codes de secours), `grant` promeut un compte existant. Seul le **préfixe** était dédoublé. | `platform:` | [TCK-309](backlog/tickets/TCK-309-conventions-mineures-dedoublees.md) |
 | **D-39** | ~~`NotificationPreference` n'étend pas `AbstractModel`~~ | ✅ **soldé le 2026-08-12** — il l'étend désormais ; 106 tests notifications verts | ✅ | — |
-| **D-40** | Namespaces de contrôleurs dédoublés | `Controllers/Auth/` (**8**) et `Controllers/Api/Auth/` (**5**) — confirmé | — | [TCK-309](backlog/tickets/TCK-309-conventions-mineures-dedoublees.md) |
+| **D-40** | Namespaces de contrôleurs dédoublés | ✅ **soldé le 2026-08-17** (TCK-309) — les 8 contrôleurs de `Controllers/Auth/` déplacés sous `Controllers/Api/Auth/` par `git mv`. **`diff route:list` VIDE** : 516 routes avant, 516 après, sur (méthode, URI, nom, middlewares) — re-comparé après les mutations de garde. Seules les 24 lignes d'*action* ont bougé. | — | [TCK-309](backlog/tickets/TCK-309-conventions-mineures-dedoublees.md) |
 
 ### D-41 — Filament v4 : scaffold oublié ou décision non assumée ✅ *soldé le 2026-08-15 — supprimé* → [TCK-287](backlog/tickets/TCK-287-filament-supprimer-ou-securiser.md)
 

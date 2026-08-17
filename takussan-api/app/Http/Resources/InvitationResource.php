@@ -2,8 +2,8 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * TCK-249 — invitation envelope.
@@ -13,7 +13,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * Resend regenerates the token, so callers that legitimately need to
  * forward an invitation use the resend endpoint instead.
  */
-class InvitationResource extends JsonResource
+class InvitationResource extends BaseResource
 {
     public function toArray(Request $request): array
     {

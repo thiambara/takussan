@@ -6,11 +6,14 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Agency\StoreAgencyRoleRequest;
 use App\Http\Requests\Agency\SyncCapabilitiesRequest;
 use App\Http\Requests\Agency\UpdateAgencyRoleRequest;
+use App\Http\Requests\Api\ListAgencyRoleAssignmentsRequest;
 use App\Http\Resources\Agency\AgencyRoleResource;
 use App\Models\Agency;
 use App\Models\AgencyRole;
+use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\Capability;
 use App\Services\Membership\AgencyRoleService;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -38,15 +41,72 @@ class RoleController extends Controller
             ->defaultSort('name')
             ->paginate((int) $request->input('per_page', 50));
 
-        return $this->json([
-            'data' => AgencyRoleResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'per_page' => $paginator->perPage(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, AgencyRoleResource::collection($paginator)->toArray($request));
+    }
+
+    /**
+     * `GET /api/agencies/{agency}/role-assignments?user_ids[]=…`
+     *
+     * Quel rôle porte chaque profil agence-scopé des utilisateurs demandés.
+     *
+     * ── Pourquoi cet endpoint existe ────────────────────────────────────
+     * La console Équipe (TCK-277) doit afficher `agency_role.name` dans sa
+     * colonne « Rôle » et proposer une réaffectation. Elle liste des
+     * UTILISATEURS (`GET /api/users`, `UserResource`), qui n'exposent ni
+     * l'id du profil ni son rôle — et ne peuvent pas l'exposer sans
+     * choisir pour tout le produit lequel des N profils d'un utilisateur
+     * est « le » profil. Ici, la question est posée pour une agence donnée,
+     * donc elle a une réponse : la liste, par utilisateur, de ses profils
+     * DANS cette agence.
+     *
+     * `PATCH /profiles/{p}/agency-role` a besoin du couple
+     * `(profile_id, profile_type)` — un id nu ne désigne pas un profil
+     * polymorphe. C'est exactement ce que cette réponse porte.
+     *
+     * ── `user_ids` est REQUIS, et c'est un choix ────────────────────────
+     * Sans lui, la réponse serait la liste non bornée des profils d'une
+     * agence, qu'il aurait fallu paginer ou tronquer. Une troncature
+     * silencieuse afficherait « — » dans la colonne Rôle de membres qui en
+     * ont un — un vide qui se lit comme une donnée. Borner l'entrée rend
+     * le cas inexprimable : l'appelant demande les 20 lignes qu'il affiche.
+     *
+     * Il se lit en LISTE SÉPARÉE PAR DES VIRGULES (`?user_ids=3,7,12`), et
+     * non en `user_ids[]=`. C'est la seule forme que produit le sérialiseur
+     * canonique du front (`buildQueryString`, échappatoire `extra`) : lui en
+     * demander une autre obligerait un appelant à construire sa query string
+     * à la main, ce que la convention des sparse fieldsets existe pour
+     * éviter. La forme tableau reste acceptée.
+     */
+    public function assignments(Agency $agency, ListAgencyRoleAssignmentsRequest $request): JsonResponse
+    {
+        $userIds = $request->userIds();
+
+        $rows = [];
+        foreach (AgencyRoleBaseType::assignableTypes() as $type) {
+            /** @var class-string<Model>|null $class */
+            $class = $type->profileClass();
+            if ($class === null) {
+                continue;
+            }
+
+            foreach (
+                $class::query()
+                    ->where('agency_id', $agency->id)
+                    ->whereIn('user_id', $userIds)
+                    ->with('agencyRole')
+                    ->get() as $profile
+            ) {
+                $rows[] = [
+                    'profile_id' => (int) $profile->getKey(),
+                    'profile_type' => $type->value,
+                    'user_id' => (int) $profile->user_id,
+                    'agency_role_id' => (int) $profile->agency_role_id,
+                    'agency_role_name' => $profile->agencyRole?->name,
+                ];
+            }
+        }
+
+        return $this->json(['data' => $rows]);
     }
 
     public function show(Agency $agency, AgencyRole $role, Request $request): JsonResponse

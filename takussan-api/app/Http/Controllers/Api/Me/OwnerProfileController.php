@@ -3,15 +3,14 @@
 namespace App\Http\Controllers\Api\Me;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Me\UploadKycOwnerProfileRequest;
 use App\Models\Document;
-use App\Models\Enums\DocumentType;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 /**
@@ -39,31 +38,20 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 class OwnerProfileController extends Controller
 {
     /** Map upload `kind` to `App\Models\Enums\DocumentType`. */
-    private const KYC_KIND_TO_TYPE = [
-        'cni' => DocumentType::IdCard,
-        'rib' => DocumentType::Rib,
-        'ninea' => DocumentType::Ninea,
-    ];
-
     /**
      * POST /api/me/profiles/{owner_profile}/kyc/upload
      *
      * Multipart : `file` + `kind=cni|rib|ninea`. Idempotent per (profile, kind).
      */
-    public function uploadKyc(Request $request, OwnerProfile $owner_profile): JsonResponse
+    public function uploadKyc(UploadKycOwnerProfileRequest $request, OwnerProfile $owner_profile): JsonResponse
     {
-        $this->assertOwner($request, $owner_profile);
 
-        $validated = $request->validate([
-            // 8 MB max — phone captures (heic, webp), scans, PDFs.
-            'file' => ['required', 'file', 'max:8192'],
-            'kind' => ['required', 'string', Rule::in(array_keys(self::KYC_KIND_TO_TYPE))],
-        ]);
+        $validated = $request->validated();
 
         /** @var UploadedFile $file */
         $file = $validated['file'];
         $kind = (string) $validated['kind'];
-        $type = self::KYC_KIND_TO_TYPE[$kind];
+        $type = UploadKycOwnerProfileRequest::KYC_KIND_TO_TYPE[$kind];
 
         // One Document per (profile, kind). Re-uploads replace the media
         // file in-place to keep `Document::activeVersion()` semantics
@@ -192,18 +180,7 @@ class OwnerProfileController extends Controller
 
         return $this->json([
             'data' => $paginator->items(),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-            ],
-            'links' => [
-                'first' => $paginator->url(1),
-                'last' => $paginator->url($paginator->lastPage()),
-                'prev' => $paginator->previousPageUrl(),
-                'next' => $paginator->nextPageUrl(),
-            ],
+            'meta' => $this->paginationMeta($paginator),
         ]);
     }
 

@@ -6,7 +6,8 @@ export type Paginated<T> = {
     per_page: number;
     total: number;
   };
-  links: {
+  /** TCK-304 — plus émis par l'API. Optionnel, pas supprimé : cf. l'en-tête de `types/api.ts`. */
+  links?: {
     first: string | null;
     last: string | null;
     prev: string | null;

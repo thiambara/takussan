@@ -14,7 +14,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-268 — super-admin upgrade-review console.
@@ -24,7 +24,7 @@ use Tests\BaseTestCase;
  * comment, AgencyUpgradeApproved event dispatch, submitter notifications,
  * and activity log entries.
  */
-class AgencyUpgradeRequestReviewTest extends BaseTestCase
+class AgencyUpgradeRequestReviewTest extends TestCase
 {
     use RefreshDatabase;
 

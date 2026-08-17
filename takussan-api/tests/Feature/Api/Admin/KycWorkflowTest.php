@@ -10,9 +10,9 @@ use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class KycWorkflowTest extends BaseTestCase
+class KycWorkflowTest extends TestCase
 {
     use RefreshDatabase;
 

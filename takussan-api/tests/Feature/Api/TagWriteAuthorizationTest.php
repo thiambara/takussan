@@ -7,9 +7,9 @@ use App\Models\Property;
 use App\Models\Tag;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class TagWriteAuthorizationTest extends BaseTestCase
+class TagWriteAuthorizationTest extends TestCase
 {
     use RefreshDatabase;
 
