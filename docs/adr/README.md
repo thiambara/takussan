@@ -40,6 +40,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0012](0012-index-du-backlog-genere.md) | L'index du backlog est généré, jamais maintenu à la main | Accepté |
 | [0013](0013-un-seul-back-office-en-nextjs.md) | Il n'y a qu'un back-office, et il est en Next.js — Filament supprimé | Accepté |
 | [0014](0014-catalogue-code-defini-materialise-et-reconcilie.md) | Un catalogue défini en code et matérialisé en base se réconcilie ; il ne se lit pas à deux endroits | Accepté |
+| [0015](0015-role-agence-du-prestataire-porte-par-la-collaboration.md) | Le rôle d'agence d'un prestataire est porté par la collaboration, pas par le profil | Accepté |
 
 ## Décisions recensées, pas encore rédigées
 
