@@ -278,11 +278,24 @@ Le scheduler est **entièrement** dans `routes/console.php` (77 lignes) : 13 `Sc
 `TCK-NNN` qui explique son idempotence**. Tenir cette convention : un job planifié non idempotent est
 un incident qui n'arrive qu'en production.
 
-14 commandes maison, signature `{domaine}:{verbe-kebab}`. **Fichier exemplaire :
+16 commandes maison, signature `{domaine}:{verbe-kebab}` — **le préfixe est un DOMAINE, jamais le
+nom du produit**. `scripts/check-command-prefixes.mjs` (Repo CI) le garde. **Fichier exemplaire :
 `app/Console/Commands/MediaCleanup.php`.**
 
-> ⚠️ Deux préfixes plateforme concurrents coexistent : `platform:grant-super-admin` et
-> `takussan:create-super-admin` font conceptuellement le même travail. Utiliser `platform:`.
+> ✅ **Les deux préfixes plateforme concurrents sont soldés (TCK-309, ex-dette D-38).**
+> `takussan:create-super-admin` était le seul `takussan:` sur 16 commandes — un nom de dépôt, qui ne
+> partitionne rien puisque tout ce qui est ici lui appartient. Elle s'appelle désormais
+> **`platform:create-super-admin`**, sous le même domaine que sa jumelle
+> `platform:grant-super-admin`. Les deux ne font d'ailleurs pas le même travail : la première
+> **crée** l'opérateur (user + 2FA + codes de secours), la seconde **promeut** un user existant.
+>
+> ⚠️ **L'ancien nom reste un alias déprécié**, et ce n'est pas de la prudence : `docs/features.md`
+> §2.1 le prescrit encore à l'installation d'un environnement, et ce document ne se modifie pas
+> depuis un ticket d'implémentation. *Renommer une commande qu'un document de référence prescrit,
+> c'est fabriquer une panne pour le jour de l'installation — et ce jour-là, personne ne pensera à
+> `git log`.* L'alias avertit à chaque invocation. Il se retire dans cet ordre : mettre
+> `docs/features.md` à jour, retirer `$aliases`, puis vider `ALIAS_DEPRECIES_TOLERES` dans la garde
+> — qui **rougit si l'alias disparaît sans qu'on l'y ait déclaré**.
 
 ## Tests
 
