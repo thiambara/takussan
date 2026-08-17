@@ -1,6 +1,6 @@
 ---
 id: TCK-292
-title: "i18n — le reste du parc : 409 fichiers, 3 542 libellés, en 12 lots"
+title: "i18n — le reste du parc, en 12 lots"
 status: doing
 phase: P2
 family: front
@@ -29,29 +29,48 @@ Aucun endpoint neuf. Le travail consiste à déplacer du texte du code vers
 `src/messages/{fr,en,wo}.json` et à le résoudre par `useTranslations` (client) ou
 `getTranslations` (serveur).
 
-**Le périmètre est mesuré, pas estimé.** `takussan-web/scripts/i18n-baseline.json` porte le compte
-**par fichier**, produit par AST (`node scripts/check-i18n.mjs --report`). Au 2026-08-15, après le
-lot 1 de TCK-286 : **409 fichiers, 3 542 occurrences**, réparties ainsi :
+**Le périmètre est mesuré, pas estimé — et il se re-mesure à chaque reprise.**
+`takussan-web/scripts/i18n-baseline.json` porte le compte **par fichier**.
 
-| Lot | Surface | Fichiers | Occurrences |
-|---|---|---:|---:|
-| A | Console super-admin (`components/admin/super`, `components/super-admin`, `app/(super-admin)`) | 52 | 610 |
-| B | Surface publique (`app/(public)`, `components/{property,property-form,search,compare,favorites,map,home,agents,agency,contact,share,reviews}`) | 60 | 407 |
-| C | Tableau de bord + portefeuille (`app/(dashboard)/app`, `components/property-dashboard`) | 53 | 392 |
-| D | Admin agence (`app/(dashboard)/admin`, `components/admin*`, `owners`, `service-providers`) | 37 | 354 |
-| E | CRM & profil (`components/{customer*,pipeline,profile}`) | 27 | 308 |
-| F | Réservations · visites · calendrier | 16 | 244 |
-| G | Locatif : baux, états des lieux | 15 | 220 |
-| H | Finances : paiements, facturation | 19 | 247 |
-| I | Documents, médias, maintenance | 20 | 233 |
-| J | Schémas zod (`lib/schemas`) | 15 | 183 |
-| K | Server actions (`app/actions`) | 19 | 86 |
-| L | Résidu : reporting, onboarding, messagerie, hooks, `ui/`, route handlers, playground | 76 | 258 |
+⚠️ **Les chiffres d'origine de ce ticket (409 fichiers / 3 542 occurrences, mesurés le
+2026-08-15) ne sont plus vrais, et ils ne l'étaient déjà plus quand le travail a commencé.**
+TCK-291 en avait résorbé une partie avant même que TCK-292 démarre, et chaque lot livré les fait
+dériver davantage. Un compte recopié d'un ticket est faux dès le lot suivant.
 
-Les douze lots sont disjoints et couvrent exactement les 409 fichiers / 3 542 occurrences.
+**La règle pour qui reprend : re-mesurer AVANT de commencer un lot**, jamais reprendre le tableau
+ci-dessous de confiance. La commande :
 
-Les chiffres se reprennent à la source, jamais à la main :
-`cd takussan-web && node scripts/check-i18n.mjs --report`.
+```bash
+cd takussan-web && node scripts/check-i18n.mjs --report
+```
+
+### État mesuré le 2026-08-17, après les lots B, C et D
+
+**Total restant : 291 fichiers, 2 761 occurrences** (contre 3 467 à l'ouverture de la branche
+`wave3/i18n`, et 3 542 à la rédaction du ticket).
+
+| Lot | Surface | Fichiers restants | Occ. restantes | État |
+|---|---|---:|---:|---|
+| A | Console super-admin (`components/admin/super`, `components/super-admin`, `app/(super-admin)`) | 52 | 593 | intact |
+| B | Surface publique (`app/(public)`, `components/{property,property-form,search,compare,favorites,map,home,agents,agency,contact,share,reviews}`) | 6 | 23 | **quasi fini** |
+| C | Tableau de bord + portefeuille (`app/(dashboard)/app`, `components/property-dashboard`) | 6 | 116 | **bloqué** |
+| D | Admin agence (`app/(dashboard)/admin`, `components/admin*`, `owners`, `service-providers`) | 16 | 261 | **en cours** |
+| E | CRM & profil (`components/{customer*,pipeline,profile}`) | 27 | 303 | intact |
+| F | Réservations · visites · calendrier | 16 | 228 | intact |
+| G | Locatif : baux, états des lieux | 15 | 215 | intact |
+| H | Finances : paiements, facturation | 11 | 148 | intact |
+| I | Documents, médias, maintenance | 19 | 226 | intact |
+| J | Schémas zod (`lib/schemas`) | 15 | 183 | intact |
+| K | Server actions (`app/actions`) | 19 | 86 | intact |
+| L | Résidu : reporting, onboarding, messagerie, hooks, `ui/`, route handlers, playground | 89 | 379 | intact |
+
+> Les lots « intacts » ont malgré tout bougé de quelques occurrences : traduire une surface fait
+> parfois disparaître du texte d'une autre (une table de libellés partagée, un composant réutilisé).
+> C'est une raison de plus de re-mesurer plutôt que de soustraire.
+
+⚠️ **Les douze lots sont disjoints par FICHIER, mais leurs définitions se chevauchent sur un cas** :
+`app/(public)/playground/` tombe sous le motif du lot B alors que le Delta le range en lot L. Le
+tableau ci-dessus l'attribue à B (10 des 23 occurrences), le travail l'a laissé à L.
 
 ## Direction UX / Artistique
 
@@ -124,6 +143,28 @@ conversion. 7 fichiers de test mockent `next-intl` en entier et devront exposer 
       assertait un texte français continue de passer **sans modification de son assertion**.
 - [ ] AC4 — `npx tsc --noEmit`, `npm run lint`, `npm run test` et `npm run build` verts.
 
+> **Aucune case n'est cochée, et c'est exact — mais elles ne sont pas toutes au même stade.**
+> État mesuré au 2026-08-17, sur les lots B, C et D :
+>
+> - **AC1** — non atteint, et il ne peut pas l'être tel qu'il est écrit. Aucun lot n'est à zéro
+>   *sur tous ses fichiers* : le lot B garde 5 occurrences qui **ne doivent pas être traduites**
+>   (balisage SVG, appât de honeypot, noms de quartiers) et 8 bloquées par un module partagé.
+>   *Le critère suppose qu'un lot peut atteindre zéro ; ce ticket a établi que non.* À reformuler
+>   quand le sort des faux positifs sera tranché.
+> - **AC2** — **tenu**. `en` est resté à 0 clé manquante à chaque commit, et
+>   `PLAFONDS_PARITE.wo` est passé de 88 à 70. ⚠️ La baisse ne vient d'aucune traduction wolof
+>   écrite pour elle : elle vient de la fusion de `property.types` avec `nav.categories`, qui a
+>   résolu 18 clés d'un coup. Toute clé ajoutée par ce ticket part avec ses trois langues — le
+>   script qui écrit le dictionnaire **refuse** une clé sans ses trois traductions.
+> - **AC3** — **tenu**, dans sa forme vérifiable. Aucune assertion de test n'a été modifiée sur
+>   les ~90 tests des surfaces touchées. Six fichiers de test ont dû être **branchés** sur
+>   `withIntl` (ils montaient `messages={{}}` ou aucun provider, ce qui rend la CLÉ), et un mock
+>   partiel de `next-intl` a été **supprimé** — mais les assertions françaises, elles, sont
+>   intactes.
+> - **AC4** — **partiel**. `tsc --noEmit` et `npm run lint` sont verts à chaque commit (35
+>   warnings, la baseline `dev` exacte). `npm run test` **en entier** et `npm run build` n'ont
+>   **pas** été lancés : la règle du dépôt réserve la suite complète à la session déléguante.
+
 ## Hors périmètre
 
 - **Le texte produit par l'API.** Le principe n°5 du `CLAUDE.md` racine dit que « l'API émet des
@@ -139,129 +180,137 @@ conversion. 7 fichiers de test mockent `next-intl` en entier et devront exposer 
 
 ## Reste sur dev
 
-**Rien de ce ticket n'est sur `dev` à l'heure où cette section est écrite** — le travail vit sur
-`wave3/i18n`. Le statut est `doing` parce que le lot B lui-même est **partiel**, pas seulement
-parce que la branche n'est pas mergée.
+**Rien de ce ticket n'est sur `dev`** — le travail vit sur la branche `wave3/i18n` (7 commits,
+non poussée). Le statut est `doing` pour une raison plus forte que la non-fusion : **le ticket est
+un XL et il n'est pas fini**. 3 lots sur 12 sont entamés, 2 le sont substantiellement.
 
-### Lot B — surface publique : 350 / 363 occurrences
+*Un `done` ici mentirait sur 2 761 occurrences restantes.*
 
-Le ticket annonçait 60 fichiers / 407 occurrences pour ce lot ; l'inventaire repris à la source à
-l'ouverture de la branche en donne **54 / 363** (TCK-291 en avait résorbé une partie, et
-`app/(public)/playground/` relève du lot L).
+### Le compte, d'un coup d'œil
 
-**Fait — 49 fichiers à zéro.** Toute la surface publique : `app/(public)/` en entier
-(y compris les deux pages profil `agencies/[slug]` et `agents/[slug]`), `components/property/`,
-`components/search/`, `components/property-form/` sauf `options.ts`, et le petit parc
-(`favorites`, `compare`, `map`, `share`, `contact`, `reviews`, `home`, `agents`).
+| | Occurrences | Fichiers |
+|---|---:|---:|
+| À l'ouverture de `wave3/i18n` | 3 467 | 408 |
+| Aujourd'hui | **2 761** | **291** |
+| Traité | **706 (−20 %)** | 117 |
 
-**Reste — 5 fichiers, 13 occurrences, et AUCUNE n'est du travail de traduction ordinaire :**
+Parité wolof : **88 → 70** clés manquantes, plafond `PLAFONDS_PARITE.wo` resserré d'autant.
+
+### Lot par lot
+
+| Lot | Fait | Reste | État |
+|---|---|---|---|
+| **B** — surface publique | 350 / 373 | 6 fichiers, 23 occ. | **terminé en pratique** — cf. ci-dessous |
+| **C** — tableau de bord | 271 / 387 | 6 fichiers, 116 occ. | **bloqué** sur `options.ts` |
+| **D** — admin agence | 98 / 359 | 16 fichiers, 261 occ. | **en cours** |
+| **A, E → L** | 0 | 285 fichiers, 2 361 occ. | **non commencés** |
+
+#### Lot B — terminé en pratique, et le reste est qualifié
+
+`app/(public)/` est **intégralement à zéro**, ainsi que `components/{property,search,property-form
+(sauf options.ts),favorites,compare,map,share,contact,reviews,home,agents}`.
+
+Les 23 occurrences restantes se décomposent ainsi, et **aucune n'est du travail de traduction
+ordinaire** :
 
 | Fichier | Occ. | Nature |
 |---|---:|---|
-| `components/property-form/options.ts` | 8 | **bloqué par le découpage en lots** (cf. ci-dessous) |
-| `components/agents/ZoneMultiSelect.tsx` | 2 | faux positif — « Sicap Liberté », « Thiès » sont des quartiers |
-| `…/PropertyLocationMapInner.tsx`, `map/LocationPickerMap.tsx` | 1 + 1 | faux positifs — SVG inline en data-URI |
-| `…/PropertyContactMessageDialog.tsx` | 1 | faux positif — `<label>` d'un honeypot `aria-hidden` |
+| `app/(public)/playground/page.tsx` | 10 | relève du **lot L** (page de démonstration) |
+| `components/property-form/options.ts` | 8 | **module partagé** — cf. le blocage ci-dessous |
+| `components/agents/ZoneMultiSelect.tsx` | 2 | **faux positif** — « Sicap Liberté », « Thiès » sont des quartiers de Dakar |
+| `…/PropertyLocationMapInner.tsx`, `map/LocationPickerMap.tsx` | 1 + 1 | **faux positifs** — SVG inline en data-URI (marqueur Leaflet) |
+| `…/PropertyContactMessageDialog.tsx` | 1 | **faux positif** — `<label>` d'un honeypot `aria-hidden` ; le traduire changerait l'appât |
 
-**Le lot B ne peut donc pas atteindre 0 sur ses fichiers**, et pas par dette restante : 5 de ses
-occurrences ne doivent pas être traduites, et la sixième est un module partagé entre trois lots.
+#### Lot C — bloqué à 115 occurrences sur 116
 
-#### `property-form/options.ts` est bloqué par le découpage, pas par sa difficulté
+`app/(dashboard)/app/**` est **intégralement à zéro** (30 pages + 4 vues d'ensemble + 3 panneaux),
+et 5 des 10 fichiers de `components/property-dashboard/`.
 
-Ce module vit dans le lot B, mais ses six tables de libellés sont importées par **une dizaine de
-fichiers des lots C et D** — `property-dashboard/` (4 fichiers), `admin/super/`, `profile/`,
-`customer-form/`. Le convertir au patron « la donnée porte la clé » oblige à toucher tous ses
-consommateurs dans le même commit, donc à mélanger trois lots.
+Les 5 fichiers restants **importent tous `property-form/options.ts`** : `PropertyListFilters` (46),
+`PropertyHeaderActions` (22), `PropertyRowActions` (22), `PropertyList` (21),
+`PropertyStatusBadge` (4). Le sixième, `PropertyVisibilityBadge`, ne pèse qu'une occurrence.
 
-**C'est une limite du découpage, pas un imprévu de ce fichier** : *les douze lots sont disjoints
-par fichier, mais le code ne l'est pas par dépendance.* Le cas se reproduira — `customer-form/
-options.ts`, `components/*/labels.ts`, `documents/constants.ts` ont la même forme. Deux issues
-possibles, à trancher : un lot « vocabulaire partagé » traité en premier et hors découpage, ou
-l'acceptation que certains commits croisent les lots quand un module partagé l'impose.
+#### Lot D — en cours
 
-#### Le scanner a un plancher — et aussi un plafond
+`app/(dashboard)/admin/**` est **intégralement à zéro** (14 fichiers), ainsi que `owners/`,
+`service-providers/`, `admin/finances/` et quatre composants de modération.
 
-La garde documente que son total est un **plancher** (elle rate les gabarits interpolés). Ce lot a
-montré l'inverse, qui n'était écrit nulle part : **elle compte aussi des chaînes qu'il ne faut
-surtout pas traduire** — balisage SVG, appât de honeypot, noms propres. Trois familles, toutes
-rencontrées ici.
-
-`scripts/i18n-scan.mjs` n'a pas été touché : il vient d'être réécrit et validé occurrence par
-occurrence (TCK-323), et l'étendre est une décision, pas un geste de passage. Les règles possibles
-sont listées dans le rapport de branche.
-
-### Lot C — tableau de bord + portefeuille : 271 / 387 occurrences
-
-Inventaire re-mesuré à la source : **53 fichiers / 387 occurrences** (le ticket annonçait 53 / 392).
-
-**Fait — 47 fichiers à zéro.** `app/(dashboard)/app/**` est **intégralement à zéro** (les quatre
-vues d'ensemble, les trois panneaux de configuration, et les 30 pages de la surface). Côté
-`components/property-dashboard/`, 5 fichiers sur 10 sont à zéro.
-
-**Reste — 6 fichiers, 116 occurrences, et 115 sont BLOQUÉES par le même module partagé** :
-
-| Fichier | Occ. | Importe `options.ts` ? |
-|---|---:|---|
-| `PropertyListFilters.tsx` | 46 | oui |
-| `PropertyHeaderActions.tsx` | 22 | oui |
-| `PropertyRowActions.tsx` | 22 | oui |
-| `PropertyList.tsx` | 21 | oui |
-| `PropertyStatusBadge.tsx` | 4 | oui |
-| `PropertyVisibilityBadge.tsx` | 1 | non |
-
-Traduire ces écrans en laissant `property-form/options.ts` en français ne serait pas une
-demi-mesure mais une **régression lisible** : l'écran rendrait des en-têtes anglais et des valeurs
-d'enum françaises côte à côte. Ils attendent donc ensemble que la question du module partagé soit
-tranchée — la même qu'au lot B, mais qui porte ici sur **115 occurrences au lieu de 8**.
-
-### Lot D — admin agence : 98 / 346 occurrences
-
-Inventaire re-mesuré : **37 fichiers / 346 occurrences** (le ticket annonçait 37 / 354), et
-**aucun n'importe `property-form/options.ts`** — le lot est entièrement débloqué, contrairement
-au reste du lot C.
-
-**Fait — 24 fichiers à zéro** : `app/(dashboard)/admin/**` en entier (14 fichiers), plus
-`owners/`, `service-providers/`, `admin/finances/`, `admin/ConfirmRemoveDialog`,
-`admin/ModerationQueueList`, `admin/PropertyModerationQueueList`,
-`admin/PropertyModerationWorkspace`.
-
-**Reste — 13 fichiers, 248 occurrences** : `admin-settings/IntegrationsManager` (45),
+Restent les quatre gros formulaires — `admin-settings/IntegrationsManager` (45),
 `admin-agency/AgencyConfigForm` (33), `admin-tags/TagsManager` (28),
-`admin-settings/SettingsManager` (19), et 8 fichiers de `components/admin/**` hors `super/`
-(`AuditTrail` 29, `ModerationDetail` 19, `users/AdminUsersTable` 15,
-`PropertyModerationDetail` 13, `ModerationWorkspace` 12, `TeamConsole` 11,
-`InviteMemberDialog` 8, `users/UserDetailDrawer` 8, `users/AdminUsersFilters` 7,
-`users/UserRolesEditor` 5).
+`admin-settings/SettingsManager` (19) — et 8 fichiers de `components/admin/**` hors `super/`.
 
-⚠️ **`TeamConsole` et les fichiers `admin/roles/` restent hors de portée** tant que TCK-279 n'est
-pas mergé — c'était la frontière posée au moment de TCK-291, et je ne l'ai pas franchie.
+⚠️ **`TeamConsole` et `admin/roles/` sont hors de portée** tant que TCK-279 n'est pas mergé : c'est
+la frontière posée au moment de TCK-291, et elle n'a pas été franchie.
 
-### Lots E à L
+### Le blocage à trancher avant de reprendre
 
-**Non commencés.** L'ordre du Delta (B → C → D → E → F → G → H → I → J → K → A → L) est inchangé.
+**`property-form/options.ts` retient 123 occurrences** (8 au lot B, 115 au lot C), et le même
+schéma se reproduira au lot E avec `customer-form/options.ts`.
 
-### Deux résidus qui ne sont PAS de la dette de traduction
+Ses six tables de libellés sont importées par une dizaine de fichiers répartis sur **trois lots
+différents** (C, D, E). Les convertir au patron « la donnée porte la clé » oblige à toucher tous
+les consommateurs dans le même commit — donc à mélanger trois lots.
 
-Ils resteront comptés par la garde tant qu'on n'aura pas tranché — ce sont des **faux positifs**
-du scanner, pas du texte à traduire :
+*Les douze lots sont disjoints par **fichier**, mais le code ne l'est pas par **dépendance**.*
+C'est une limite du découpage, pas une difficulté de ces fichiers-là. Le cas se reproduira sur
+`components/*/labels.ts` et `documents/constants.ts`, qui ont la même forme.
 
-- `…/PropertyLocationMapInner.tsx:11` — un SVG inline (`<?xml …><svg …>`) encodé en data-URI pour
-  le marqueur Leaflet. C'est du balisage, pas de la prose.
-- `…/PropertyContactMessageDialog.tsx:198` — le `<label>` d'un champ **honeypot** anti-spam,
-  `aria-hidden` et positionné hors écran. Il n'est montré à personne, et le **traduire changerait
-  l'appât** : c'est du texte qui doit rester tel quel par conception.
+**Deux issues, à trancher avant de reprendre :**
 
-Le Delta prévoit « étendre la garde si le besoin s'en fait sentir ». Le besoin s'en fait sentir
-ici, mais `scripts/i18n-scan.mjs` vient d'être réécrit et validé occurrence par occurrence
-(TCK-323) : y toucher se décide, ça ne s'improvise pas au fil d'un lot.
+1. un lot **« vocabulaire partagé »** traité en premier, hors du découpage en douze ;
+2. ou l'acceptation qu'un commit croise les lots quand un module partagé l'impose.
+
+### Le scanner a un plancher — et aussi un plafond
+
+`scripts/i18n-scan.mjs` documente franchement que son total est un **plancher** : il rate les
+gabarits interpolés, donc le vrai reste est supérieur à 2 761.
+
+Ce qui n'était écrit nulle part, et que ces trois lots ont établi : **il compte aussi des chaînes
+qu'il ne faut surtout pas traduire.** Trois familles, toutes rencontrées :
+
+- **balisage** — SVG inline en data-URI (2 occurrences) ;
+- **appât de honeypot** — `aria-hidden`, hors écran ; le traduire casserait l'anti-spam ;
+- **noms propres** — quartiers et villes du Sénégal.
+
+⚠️ **Une quatrième famille a bien failli être classée là par erreur, et n'en était pas une.**
+`owners/` et `service-providers/` portaient onze `new ApiError(401, { message: 'no token' })` : des
+sentinelles anglaises qui *ressemblaient* à du technique. Vérification faite,
+`ApiError.displayMessage` (`src/lib/api.ts:67-73`) rend `data.message` tel quel et `QueryBoundary`
+l'affiche : **l'utilisateur lisait littéralement « no token »**. C'était un bug que la garde i18n
+a trouvé sans le savoir. *« Ça ressemble à du technique donc ça ne s'affiche pas » est une
+hypothèse à vérifier, pas un classement.*
+
+`i18n-scan.mjs` **n'a pas été touché** : il vient d'être réécrit et validé occurrence par
+occurrence (TCK-323), et l'étendre est une décision. Trois règles possibles, par difficulté
+croissante :
+
+1. « un littéral commençant par `<?xml` ou `<svg` est du balisage » — étroite, testable, sûre ;
+2. « les enfants d'un élément `aria-hidden="true"` ne sont pas du texte affiché » — juste, mais
+   **structurelle** : ce lexeur ne construit pas d'arbre, c'est un vrai chantier ;
+3. les noms propres : aucune règle mécanique possible. Allowlist par fichier, ou on assume.
 
 ### Décisions du Delta encore ouvertes
 
-- Sort de `src/components/playground/` (7 fichiers) et des route handlers `src/app/api/**`
-  (15 fichiers) — le ticket penche pour les requalifier hors périmètre.
-- Suppression de `src/components/layout/{Footer,Header,Navigation,Sidebar}.tsx` : **vérifiée
-  bonne** (0 référence pour chacun des quatre), mais gardée pour le lot L afin de ne pas mélanger
-  les lots.
+- **Sort de `src/components/playground/` et des route handlers `src/app/api/**`** — le ticket
+  penche pour les requalifier hors périmètre. Non tranché.
+- **Suppression de `layout/{Footer,Header,Navigation,Sidebar}.tsx`** : le bullet du Delta a été
+  **vérifié bon** (0 référence pour chacun des quatre). Gardée pour le lot L.
+- **Les 88 clés wolof → 70.** ⚠️ **13 des 70 restantes sont un raccourci gratuit** :
+  `property.fields` (7), `property.status` (4) et `property.list` (2) sont la même famille que
+  `property.types` — des sous-arbres créés par TCK-286 en prévision, **sans aucun consommateur**
+  (vérifié : aucun `useTranslations` sur ces trois) **et sans wolof**. Ou bien leurs consommateurs
+  arrivent dans un lot ultérieur et il faudra les traduire, ou bien c'est du poids mort à
+  supprimer — auquel cas `PLAFONDS_PARITE.wo` tombe à **57 sans écrire une ligne de wolof**.
+
+### Ce qui est vrai à chaque commit de la branche
+
+`npx tsc --noEmit` 0 erreur · `npm run lint` 0 erreur et **35 warnings — la baseline `dev`
+exacte** · les tests des surfaces touchées verts, **sans qu'une seule assertion soit modifiée**
+(c'est la forme vérifiable d'AC3) · `check-i18n` vert, `en` à 0/0 · les 13 gardes de la racine
+vertes.
+
+`docs/backlog/INDEX.md` n'est **jamais** touché : il est dérivé, et plusieurs worktrees qui le
+régénèrent produisent des conflits sur un fichier généré.
 
 ## Notes d'implémentation
 
