@@ -2,13 +2,13 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class ReviewResource extends JsonResource
+class ReviewResource extends BaseResource
 {
     public function toArray(Request $request): array
     {

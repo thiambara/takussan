@@ -2,12 +2,12 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use App\Models\Document;
 use App\Services\Document\DocumentVersionService;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class DocumentResource extends JsonResource
+class DocumentResource extends BaseResource
 {
     public function toArray(Request $request): array
     {

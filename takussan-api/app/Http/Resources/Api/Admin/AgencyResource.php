@@ -2,8 +2,8 @@
 
 namespace App\Http\Resources\Api\Admin;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
 
 /**
@@ -12,7 +12,7 @@ use Illuminate\Support\Carbon;
  * (verification timestamps, primary admin id, audit counts) can be exposed
  * without bleeding into agency-side responses.
  */
-class AgencyResource extends JsonResource
+class AgencyResource extends BaseResource
 {
     public function toArray(Request $request): array
     {

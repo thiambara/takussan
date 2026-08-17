@@ -203,8 +203,31 @@ jeux incohérents (`total` 72 fois, `current_page` 65, `last_page` 49, `per_page
 
 `app/Http/Resources/Bases/BaseResource.php` fournit `iso(?DateTimeInterface)`,
 `enumValue(?BackedEnum)`, `enumLabel(?BackedEnum, $group, $locale)` et `mediaUrl($collection,
-?$conversion)`. **Seules 7 ressources sur 44 l'étendent** ; les 36 autres étendent `JsonResource`
-directement et refont ces conversions à la main. Pour du code neuf : `BaseResource`.
+?$conversion)`.
+
+**Les 44 ressources l'étendent** (TCK-308), et `scripts/check-resources-extend-base.mjs` (Repo CI)
+casse sur la première qui ne le ferait plus. Elles n'étaient que **7, puis 7, puis 8** aux mesures
+des 12, 16 et 17 août — le profil d'une convention écrite que rien ne mesure : elle n'était pas
+violée par malveillance, elle était **invisible** au moment d'écrire le fichier suivant, parce que
+`extends JsonResource` est ce que rendent l'IDE, `artisan make:resource` et les 36 fichiers voisins.
+*Une convention sans garde ne converge pas, elle stagne.*
+
+> ⚠️ **La garde couvre l'HÉRITAGE, pas l'EMPLOI — et l'écart est réel, pas théorique.** Étendre
+> `BaseResource` ne veut pas dire employer ses quatre helpers, et la migration a été un **échange de
+> parent, rien d'autre** : 72 insertions, 72 suppressions, deux lignes par fichier, aucun corps de
+> `toArray()` touché. C'est délibéré, et c'est ce qui rend l'opération sûre sur le point le plus
+> cher du dépôt — `BaseResource` n'offre **aucun helper de montant**, il ne peut donc pas en changer
+> la représentation (principe non négociable n°3 : XOF n'a pas de sous-unité).
+> `tests/Unit/Http/Resources/AmountRepresentationTest.php` fige ce point pour l'avenir, et il a été
+> vérifié par ablation (un `× 100` glissé dans une ressource le fait rougir).
+>
+> **Ce qui reste ouvert** : mesuré le 2026-08-17, les dates sortent de ces mêmes fichiers sous
+> **trois formats incompatibles** — 55 `toISOString()` (`…T12:34:56.000000Z`), 37
+> `toIso8601String()` (`…T12:34:56+00:00`, ce que rend `iso()`) et 18 `toDateString()`. Les unifier
+> **changerait la forme sur le fil**, donc le contrat du front : c'est une décision de produit, pas
+> un nettoyage, et elle n'appartient ni à ce ticket ni à cette garde.
+
+Pour du code neuf : `BaseResource`, et employer ses helpers plutôt que refaire la conversion.
 
 ## Routes
 

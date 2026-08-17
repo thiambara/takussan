@@ -2,10 +2,10 @@
 
 namespace App\Http\Resources\Accounting;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class BankStatementResource extends JsonResource
+class BankStatementResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
