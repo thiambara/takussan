@@ -58,6 +58,9 @@ export const PRO_ROUTES: ReadonlySet<string> = new Set([
   '/admin/agency/billing',
   '/admin/moderation/properties',
   '/admin/audit',
+  // TCK-279 — la console des rôles. Gardée en SSR par
+  // `ensureStandardAgencyOrRedirect` dans `admin/roles/page.tsx`.
+  '/admin/roles',
 ]);
 
 /**

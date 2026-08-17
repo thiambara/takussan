@@ -24,6 +24,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
+import { useCanAll } from '@/hooks/useCan';
 import { isAgent, isAdmin, isOwner } from '@/lib/roles';
 import type { Locale } from '@/i18n/config';
 import type { Booking, BookingStatus } from '@/types/booking';
@@ -33,6 +34,15 @@ import { usePaymentProviders } from '@/hooks/usePaymentProviders';
 import { LeaveReviewCta } from '@/components/reviews/LeaveReviewCta';
 import { canBookingLeaveReview } from '@/components/reviews/reviewEligibility';
 import type { GatewayProvider } from '@/hooks/useInitiatePayment';
+
+/**
+ * Listes figées hors composant : `useCanAll` mémoïse sur la RÉFÉRENCE du
+ * tableau. Un littéral inline en recréerait une à chaque rendu et
+ * recalculerait le verdict à chaque fois.
+ */
+const CAPABILITY_VALIDATE = ['bookings.validate'] as const;
+const CAPABILITY_CANCEL = ['bookings.cancel'] as const;
+const CAPABILITY_RECORD_PAYMENT = ['payments.record'] as const;
 
 const STATUS_LABEL: Record<BookingStatus, string> = {
   pending: 'En attente',
@@ -88,7 +98,44 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const cancelBooking = useCancelBooking(bookingId);
   const confirmBooking = useConfirmBooking(bookingId);
   const rejectBooking = useRejectBooking(bookingId);
+  /**
+   * TCK-279 (AC12) — « suis-je du côté tableau de bord ? » reste un test
+   * d'APPARTENANCE : il pilote l'affichage (colonne agent contre colonne
+   * client, invitation à laisser un avis), pas un verbe. Il garde donc
+   * `isAgent`/`isAdmin`/`isOwner`, comme le prescrit le docblock de
+   * `useCan`.
+   */
   const isDashboardAgent = user ? isAgent(user.roles) || isAdmin(user.roles) || isOwner(user.roles) : false;
+  /**
+   * Les trois GESTES, eux, sont gardés par capacité. Un `agency_admin` dont
+   * l'`AgencyRole` n'a pas `bookings.validate` voyait « Accepter » et
+   * récoltait un 403 : depuis TCK-279, deux administrateurs de la même
+   * agence peuvent porter des rôles différents, et le type de profil ne dit
+   * plus ce qu'on a le droit de faire.
+   *
+   * ⚠️ Ceci n'autorise rien — `BookingPolicy` décide. Un bouton caché n'est
+   * pas une sécurité, c'est une politesse.
+   *
+   * Trois appels de hook, UNE requête réseau : les trois partagent la clé
+   * `['me','capabilities','active']`, donc TanStack Query n'en émet qu'une.
+   * Trois verdicts nommés séparément valent mieux qu'un seul agrégé — le
+   * nommage dit quelle capacité garde quel bouton.
+   *
+   * `enabled: isDashboardAgent` — cet écran sert aussi les CLIENTS, qui
+   * n'ont aucune de ces capacités et pour qui la question ne se pose pas.
+   * Sans cela, chaque consultation de réservation par un client tirerait une
+   * requête pour une réponse vide.
+   */
+  const { can: canValidateBookings, isLoading: capabilitiesLoading } = useCanAll(
+    CAPABILITY_VALIDATE,
+    { enabled: isDashboardAgent },
+  );
+  const { can: canCancelBookings } = useCanAll(CAPABILITY_CANCEL, {
+    enabled: isDashboardAgent,
+  });
+  const { can: canRecordPayments } = useCanAll(CAPABILITY_RECORD_PAYMENT, {
+    enabled: isDashboardAgent,
+  });
   const toast = useToast();
 
   if (isLoading) {
@@ -106,12 +153,20 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const booking = data.data;
   const isCustomer =
     !!user?.id && !!booking.customer && user.id === booking.customer.user_id;
+  // Tant que les capacités n'ont pas répondu, `can` vaut `false` : rendre le
+  // bouton sur cette seule base le ferait DISPARAÎTRE puis réapparaître. On
+  // laisse donc l'ancien verdict d'appartenance tenir pendant le chargement,
+  // puis la capacité prend la main. Le serveur reste seul juge dans les deux
+  // cas.
+  const staffMay = (granted: boolean) =>
+    isDashboardAgent && (capabilitiesLoading ? true : granted);
+
   const canCancel =
-    (isCustomer || isDashboardAgent) &&
+    (isCustomer || staffMay(canCancelBookings)) &&
     (booking.status === 'pending' || booking.status === 'confirmed');
-  const canConfirm = isDashboardAgent && booking.status === 'pending';
-  const canReject = isDashboardAgent && booking.status === 'pending';
-  const canRegisterPayment = isDashboardAgent;
+  const canConfirm = staffMay(canValidateBookings) && booking.status === 'pending';
+  const canReject = staffMay(canValidateBookings) && booking.status === 'pending';
+  const canRegisterPayment = staffMay(canRecordPayments);
 
   return (
     <div className="space-y-6">

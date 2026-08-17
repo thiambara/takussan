@@ -115,6 +115,7 @@
       "dashboard": "Dashboard",
       "properties": "Properties",
       "team": "Team",
+      "roles": "Roles",
       "agency": "Agency",
       "kyc": "Agency KYC",
       "billing": "Subscription",
@@ -2043,6 +2044,184 @@
       "properties": {
         "empty_title": "No property to review",
         "empty_description": "No property is awaiting validation right now. Check back later."
+      }
+    },
+    "roles": {
+      "page": {
+        "title": "Roles and permissions",
+        "subtitle": "Define what each role in your agency is allowed to do, then assign it to members from the Team console.",
+        "no_agency_title": "No agency linked",
+        "no_agency_description": "Link your account to an agency from the settings to manage its roles.",
+        "no_agency_cta": "Agency settings"
+      },
+      "list": {
+        "heading": "Agency roles",
+        "empty": "No role for this profile type.",
+        "loading": "Loading roles…",
+        "system_badge": "System",
+        "system_hint": "A system role cannot be edited. Clone it to start from its capabilities.",
+        "capability_count": "{count, plural, =0 {no capability} one {# capability} other {# capabilities}}",
+        "profiles_count": "{count, plural, =0 {no member} one {# member} other {# members}}",
+        "groups": {
+          "agent": "Agents",
+          "agency_admin": "Administrators",
+          "owner": "Landlords",
+          "service_provider": "Service providers"
+        }
+      },
+      "actions": {
+        "create": "Create a role",
+        "clone": "Clone",
+        "delete": "Delete",
+        "select_role": "Select role {name}"
+      },
+      "editor": {
+        "empty_title": "No role selected",
+        "empty_description": "Pick a role on the left to see its capabilities, or create a new one.",
+        "name_label": "Role name",
+        "name_placeholder": "Senior agent",
+        "description_label": "Description",
+        "description_placeholder": "What is this role for in your agency?",
+        "details_heading": "Identity",
+        "capabilities_heading": "Granted capabilities",
+        "capabilities_hint": "The model is additive: a capability is either granted or absent, never revoked by another role.",
+        "save": "Save",
+        "saving": "Saving…",
+        "saved": "Changes saved.",
+        "reset": "Discard changes",
+        "system_notice": "This role ships with the platform. Its capabilities are read-only — clone it to create an editable variant."
+      },
+      "matrix": {
+        "selected": "{count} of {total} capabilities granted",
+        "select_all": "Check all",
+        "clear": "Uncheck all",
+        "platform_reserved": "Platform-reserved",
+        "platform_reserved_hint": "This capability belongs to the Takussan team and cannot be granted to an agency role.",
+        "toggle_domain": "Show or hide the {domain} domain",
+        "domain_selected": "{count}/{total}"
+      },
+      "create": {
+        "title": "Create a role",
+        "description": "A role targets one profile type. You can then check its capabilities.",
+        "base_type_label": "Target profile type",
+        "clone_from_label": "Start from the capabilities of",
+        "clone_from_none": "No capability (start from scratch)",
+        "submit": "Create",
+        "submitting": "Creating…",
+        "clone_name": "{name} (copy)"
+      },
+      "remove": {
+        "title": "Delete this role?",
+        "description": "The role “{name}” will be deleted. This action is permanent.",
+        "submit": "Delete",
+        "submitting": "Deleting…",
+        "conflict_title": "This role is still assigned",
+        "conflict_description": "Reassign these members to another role from the Team console before deleting this one.",
+        "conflict_unnamed": "Profile #{id}"
+      },
+      "assign": {
+        "heading": "Role in this agency",
+        "label": "{type} profile role",
+        "submit": "Assign",
+        "submitting": "Assigning…",
+        "unavailable": "No agency profile for this member.",
+        "loading": "Loading roles…",
+        "profile_types": {
+          "agent": "Agent",
+          "agency_admin": "Administrator",
+          "owner": "Landlord"
+        }
+      },
+      "errors": {
+        "load": "Could not load the roles. Check your connection, then try again.",
+        "generic": "Something went wrong."
+      },
+      "domains": {
+        "agency": "Agency",
+        "team": "Team",
+        "properties": "Properties",
+        "bookings": "Bookings",
+        "leases": "Leases",
+        "payments": "Payments",
+        "invoices": "Invoices",
+        "payouts": "Payouts",
+        "crm": "CRM",
+        "maintenance": "Maintenance",
+        "messaging": "Messaging",
+        "reports": "Reports",
+        "roles": "Roles"
+      },
+      "capabilities": {
+        "agency": {
+          "update": "Edit the agency profile",
+          "update_kyc": "Manage the KYC file",
+          "update_billing": "Manage subscription and billing",
+          "upgrade_request": "Request a plan upgrade"
+        },
+        "team": {
+          "invite": "Invite a member",
+          "assign_role": "Assign a role",
+          "remove": "Remove a member from the agency",
+          "suspend": "Suspend a member"
+        },
+        "properties": {
+          "create": "Create a property",
+          "update_any": "Edit any property",
+          "update_own": "Edit own properties",
+          "delete": "Delete a property",
+          "publish": "Publish a property",
+          "moderate": "Moderate properties"
+        },
+        "bookings": {
+          "validate": "Approve a booking",
+          "cancel": "Cancel a booking",
+          "refund": "Refund a booking"
+        },
+        "leases": {
+          "create": "Create a lease",
+          "sign": "Sign a lease",
+          "terminate": "Terminate a lease",
+          "renew": "Renew a lease",
+          "refund_deposit": "Return a security deposit",
+          "rent_review": "Review a rent",
+          "rent_review_force": "Force a rent review"
+        },
+        "payments": {
+          "record": "Record a payment",
+          "refund": "Refund a payment",
+          "export": "Export payments"
+        },
+        "invoices": {
+          "create": "Create an invoice",
+          "write_off": "Write off an invoice",
+          "send": "Send an invoice"
+        },
+        "payouts": {
+          "create": "Create a payout",
+          "approve": "Approve a payout"
+        },
+        "crm": {
+          "view_all": "View every agency contact",
+          "export": "Export contacts",
+          "assign": "Assign a contact"
+        },
+        "maintenance": {
+          "assign": "Assign a work order",
+          "close": "Close a work order"
+        },
+        "messaging": {
+          "broadcast": "Send a broadcast",
+          "archive": "Archive a conversation"
+        },
+        "reports": {
+          "view_global": "View platform reports",
+          "export": "Export reports"
+        },
+        "roles": {
+          "create_custom": "Create a custom role",
+          "edit_custom": "Edit a custom role",
+          "delete_custom": "Delete a custom role"
+        }
       }
     }
   },
