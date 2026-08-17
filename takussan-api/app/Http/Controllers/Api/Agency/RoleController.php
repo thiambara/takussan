@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Agency\StoreAgencyRoleRequest;
 use App\Http\Requests\Agency\SyncCapabilitiesRequest;
 use App\Http\Requests\Agency\UpdateAgencyRoleRequest;
+use App\Http\Requests\Api\ListAgencyRoleAssignmentsRequest;
 use App\Http\Resources\Agency\AgencyRoleResource;
 use App\Models\Agency;
 use App\Models\AgencyRole;
@@ -76,22 +77,9 @@ class RoleController extends Controller
      * à la main, ce que la convention des sparse fieldsets existe pour
      * éviter. La forme tableau reste acceptée.
      */
-    public function assignments(Agency $agency, Request $request): JsonResponse
+    public function assignments(Agency $agency, ListAgencyRoleAssignmentsRequest $request): JsonResponse
     {
-        Gate::authorize('viewAny', [AgencyRole::class, $agency]);
-
-        $raw = $request->query('user_ids');
-        $request->merge([
-            'user_ids' => is_string($raw)
-                ? array_values(array_filter(explode(',', $raw), static fn (string $v): bool => $v !== ''))
-                : $raw,
-        ]);
-
-        $validated = $request->validate([
-            'user_ids' => ['required', 'array', 'min:1', 'max:200'],
-            'user_ids.*' => ['integer'],
-        ]);
-        $userIds = array_map('intval', $validated['user_ids']);
+        $userIds = $request->userIds();
 
         $rows = [];
         foreach (AgencyRoleBaseType::assignableTypes() as $type) {
