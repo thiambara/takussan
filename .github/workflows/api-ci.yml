@@ -217,6 +217,33 @@ jobs:
           # Sous la limite de 50 % que TCK-302 s'était fixée (AC4). Le chrono reste affiché :
           # une mesure prise une fois est une mesure qui vieillit, et c'est l'historique du job
           # qui dira si ce +36 % dérive.
+          # ─── `--coverage-php` N'EST PRODUIT QUE LÀ OÙ IL EST CONSOMMÉ ───────────────────
+          #
+          # Il a exactement UN consommateur dans tout le dépôt — `bin/build-impact-map.php`,
+          # au step « Régénérer la carte d'impact » — et ce step est conditionné à
+          # `push` + `refs/heads/dev`. Sur une pull request, ce fichier d'environ 95 Mo était
+          # donc écrit pour personne, à chaque exécution.
+          #
+          # ⚠ C'est aussi une DICHOTOMIE, et il faut le savoir en lisant l'historique du job.
+          # Le 2026-08-17 (run 32056442777, PR #199), ce step est sorti en **1** alors que
+          # la suite était verte — 2441 passés, 2 ignorés, 7540 assertions — et que la
+          # couverture ne PEUT PAS être en cause : le clover de cette exécution, mesuré,
+          # rend **86,33 %**, au-dessus du cliquet. Signature exacte : rien n'est imprimé
+          # après `Duration:`, pas de table par fichier, pas de ligne `Total:` — alors que
+          # le dernier run vert (32014693898) les imprimait — puis 3,66 s de silence, puis
+          # sortie 1. Le clover est écrit (2,0 Mo, il parse) et le rapport HTML est COMPLET
+          # (1107 fichiers, `index.html` et le dernier répertoire alphabétique inclus).
+          # Ce qui meurt est donc APRÈS ces deux écrivains.
+          #
+          # Si les exécutions de PR redeviennent vertes ici, le coupable est ce
+          # `--coverage-php` ; si elles rougissent encore, il est dans le rendu de la table
+          # ou l'évaluation de `--min`, et il faudra le chercher là. Une seule variable
+          # change à la fois, exprès : `memory_limit` n'est PAS touché dans le même geste.
+          COVERAGE_PHP=""
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/dev" ]; then
+            COVERAGE_PHP="--coverage-php=storage/coverage/cov.php"
+          fi
+
           debut=$(date +%s)
           # `set +e` : le shell par défaut d'un step est `bash -e`, qui interromprait le step
           # à l'échec de la commande — donc AVANT que la durée ne soit affichée. Or c'est
@@ -227,7 +254,7 @@ jobs:
             --min=86 \
             --coverage-clover=storage/coverage/clover.xml \
             --coverage-html=storage/coverage/html \
-            --coverage-php=storage/coverage/cov.php
+            ${COVERAGE_PHP}
           code=$?
           set -e
           echo "Durée de la suite AVEC couverture : $(( $(date +%s) - debut )) s"
